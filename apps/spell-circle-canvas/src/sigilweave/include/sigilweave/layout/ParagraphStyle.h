@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "sigilweave/layout/Breaking.h"
+#include "sigilweave/layout/Frame.h"
 #include "sigilweave/layout/InitialLetter.h"
 #include "sigilweave/layout/Justification.h"
 #include "sigilweave/layout/Overflow.h"
@@ -161,62 +162,5 @@ struct ParagraphStyle {
   bool operator==(const ParagraphStyle&) const = default;
 };
 
-/**
- * Paragraph styles under names — the registry a document resolves
- * "heading" and "body" through.
- *
- * It answers every name: one it does not carry resolves to the base entry,
- * so a misspelling shows as a block set in the document's default rather
- * than as a block that did not lay out. `find` is the form that admits
- * absence. Order of registration is kept and compared, which is what lets
- * a sheet sit inside a larger comparable value and be diffed with it.
- * Lookup is a linear scan: a document names a handful of styles, and a
- * scan of a handful beats a hash of one.
- *
- * A block's setting is WHOLE rather than partial: the four optionals on
- * ParagraphStyle already say "the layout's own answer stands", so an
- * entry that states nothing else is already the document's default.
- */
-class ParagraphStyleSheet {
- public:
-  ParagraphStyleSheet() = default;
-  /** Starts a sheet whose unregistered names resolve to `base`. */
-  explicit ParagraphStyleSheet(ParagraphStyle base) : m_base(std::move(base)) {}
-
-  /** Registers or replaces `name`. */
-  ParagraphStyleSheet& set(std::string name, ParagraphStyle style) {
-    for (std::pair<std::string, ParagraphStyle>& entry : m_entries)
-      if (entry.first == name) {
-        entry.second = std::move(style);
-        return *this;
-      }
-    m_entries.emplace_back(std::move(name), std::move(style));
-    return *this;
-  }
-  /** The style registered under `name`, or the base entry. */
-  [[nodiscard]] const ParagraphStyle& operator[](std::string_view name) const {
-    const ParagraphStyle* found = find(name);
-    return found ? *found : m_base;
-  }
-  /** The style registered under `name`, or null. */
-  [[nodiscard]] const ParagraphStyle* find(std::string_view name) const {
-    for (const std::pair<std::string, ParagraphStyle>& entry : m_entries)
-      if (entry.first == name) return &entry.second;
-    return nullptr;
-  }
-  /** The entries, in registration order. */
-  [[nodiscard]] std::span<const std::pair<std::string, ParagraphStyle>>
-  entries() const {
-    return m_entries;
-  }
-  /** The style every unregistered name resolves to. */
-  [[nodiscard]] const ParagraphStyle& base() const { return m_base; }
-
-  bool operator==(const ParagraphStyleSheet&) const = default;
-
- private:
-  ParagraphStyle m_base;
-  std::vector<std::pair<std::string, ParagraphStyle>> m_entries;
-};
 
 }  // namespace sigil::weave

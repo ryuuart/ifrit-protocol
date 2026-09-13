@@ -254,13 +254,10 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
       inst.contentRev++;
       // No layout yet at describe time, so a weave::selectors::line restyle
       // resolves against nothing here; layoutText() re-materializes against the
-      // fresh line geometry when one is asked for. An inheriting leaf is not
-      // shaped here at all: the font it is set in is the cascade pass's to
-      // resolve, so the pass shapes it once, in that font, before layout.
-      if (text.inherits)
-        inst.textDirty = true;
-      else
-        materializeText(inst);
+      // fresh line geometry when one is asked for. Nothing is shaped here at
+      // all: the font and the block a leaf is set in are the cascade pass's
+      // to resolve, so the pass shapes it once, in both, before layout.
+      inst.textDirty = true;
       if (inst.yoga) {
         YGNodeSetMeasureFunc(inst.yoga, measureTextNode);
         YGNodeSetBaselineFunc(inst.yoga, baselineOfTextNode);

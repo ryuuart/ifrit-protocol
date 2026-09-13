@@ -928,11 +928,16 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           // `distribute` spends is known.
           const bool distributesRoom =
               node.textData && node.textData->distributesRoom();
+          // The alignment the leaf lays out under is the block in force —
+          // its own `textAlign()` is that lane's spelling at the leaf —
+          // over whatever the full-control overload's options carry.
+          const bool aligned =
+              node.textData && inst.block.alignment.value_or(
+                                   node.textData->layoutOptions.alignment) !=
+                                   sigil::weave::TextAlignment::kStart;
           if (inst.measuredRev != inst.contentRev ||
               (!onPathRun && node.textData &&
-               (verticalRun || distributesRoom ||
-                node.textData->alignment() !=
-                    sigil::weave::TextAlignment::kStart) &&
+               (verticalRun || distributesRoom || aligned) &&
                (inst.measuredForWidth != bounds.width() ||
                 ((verticalRun || distributesRoom) &&
                  inst.measuredForHeight != bounds.height()))))
@@ -995,7 +1000,8 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
         if (imageAssetOf(node) && !imageAssetOf(node)->frames().empty()) {
           const auto& frame = imageAssetOf(node)->frameAt(elapsed() * 1000.0);
           if (frame.image) {
-            const SkSamplingOptions sampling = node.imageData->sampling;
+            const SkSamplingOptions sampling = inst.sampling.value_or(
+                SkSamplingOptions{SkFilterMode::kLinear});
             if (node.imageData->region)
               canvas.drawImageRect(frame.image, *node.imageData->region, bounds,
                                    sampling, nullptr,

@@ -1,15 +1,17 @@
 /** @file
- * The text leaf's own verbs — the glyph stroke, the layout options that
- * override a paragraph's field by field, the frame chain and the
- * exclusion — with the options' fold onto SigilWeave's layout options and
- * the UTF-16 boundary the leaf speaks to it across — and the leaf as it
- * stands at rest, which is a copy of its description. The verbs that
- * dress type are declared beside these and defined by the typography
- * tier.
+ * The text verbs — the ones that name a block property and are the
+ * block lane's spellings, one field each, inherited by every leaf under
+ * the node; and the leaf's own: the glyph stroke, the overflow, the
+ * frame, the frame chain and the exclusion — with the leaf's options'
+ * fold onto SigilWeave's layout options and the UTF-16 boundary the leaf
+ * speaks to it across — and the leaf as it stands at rest, which is a
+ * copy of its description. The verbs that dress type are declared beside
+ * these and defined by the typography tier.
  */
 
 #include <include/core/SkTypes.h>  // SkDebugf — the rest-of-non-text diagnostic
 #include <sigilcore/reconcile/Environment.h>
+#include <sigilweave/layout/ParagraphStyleSheet.h>
 #include <sigilweave/unicode/Unicode.h>
 
 #include "ComposeInternal.h"
@@ -67,31 +69,19 @@ Element& Element::textStroke(float width, Fill fill) {
 }
 
 Element& Element::textAlign(sigil::weave::TextAlignment a) {
-  detail::TextOptions& options = m_node->textData.ensure().options;
-  options.alignment = a;
-  options.set |= detail::TextOptions::kAlignment;
-  return *this;
+  return block({.alignment = a});
 }
 
 Element& Element::writingMode(sigil::weave::WritingMode mode) {
-  detail::TextOptions& options = m_node->textData.ensure().options;
-  options.writingMode = mode;
-  options.set |= detail::TextOptions::kWritingMode;
-  return *this;
+  return block({.writingMode = mode});
 }
 
 Element& Element::lineBreak(sigil::weave::LineBreakStrategy strategy) {
-  detail::TextOptions& options = m_node->textData.ensure().options;
-  options.lineBreak = strategy;
-  options.set |= detail::TextOptions::kLineBreak;
-  return *this;
+  return block({.lineBreak = strategy});
 }
 
 Element& Element::hyphenation(sigil::weave::HyphenationOptions spec) {
-  detail::TextOptions& options = m_node->textData.ensure().options;
-  options.hyphenation = spec;
-  options.set |= detail::TextOptions::kHyphenation;
-  return *this;
+  return block({.hyphenation = spec});
 }
 
 Element& Element::ellipsis(std::u8string_view marker) {
@@ -105,6 +95,9 @@ Element& Element::paragraphs(std::vector<sigil::weave::ParagraphStyle> blocks) {
   detail::TextOptions& options = m_node->textData.ensure().options;
   options.blocks = std::move(blocks);
   options.set |= detail::TextOptions::kBlocks;
+  // The two spellings are alternatives, and the last one written stands.
+  options.blockClasses.clear();
+  options.set &= ~(uint32_t)detail::TextOptions::kBlockClasses;
   return *this;
 }
 
@@ -114,19 +107,23 @@ Element& Element::paragraphs(std::span<const std::string_view> names) {
   // real styles and depends on no scope that has since ended.
   const sigil::weave::ParagraphStyleSheet* set =
       core::environment::inherited<sigil::weave::ParagraphStyleSheet>();
-  std::vector<sigil::weave::ParagraphStyle> resolved;
+  std::vector<sigil::weave::Block> resolved;
   resolved.reserve(names.size());
   for (const std::string_view name : names) {
-    const sigil::weave::ParagraphStyle* found = set ? set->find(name) : nullptr;
-    // A name nobody registered would otherwise resolve to the set's base
-    // and set the block in a default the author never asked for, which
-    // looks exactly like a style that did not take.
+    const sigil::weave::Block* found = set ? set->find(name) : nullptr;
+    // A name nobody registered changes nothing about its block, which
+    // looks exactly like a style that did not take — so it is said.
     if (!found) detail::warnNoSuchParagraphStyle(name, set != nullptr);
-    resolved.push_back(found ? *found
-                       : set ? set->base()
-                             : sigil::weave::ParagraphStyle{});
+    resolved.push_back(found ? *found : sigil::weave::Block{});
   }
-  return paragraphs(std::move(resolved));
+  // The partials are laid over the block in force when the leaf lays out,
+  // which is where that block is known; here they are only kept.
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.blockClasses = std::move(resolved);
+  options.set |= detail::TextOptions::kBlockClasses;
+  options.blocks.clear();
+  options.set &= ~(uint32_t)detail::TextOptions::kBlocks;
+  return *this;
 }
 
 Element& Element::paragraph(sigil::weave::ParagraphStyle style) {
@@ -136,12 +133,12 @@ Element& Element::paragraph(sigil::weave::ParagraphStyle style) {
 
 Element& Element::initialLetter(sigil::weave::InitialLetter initial) {
   detail::TextOptions& options = m_node->textData.ensure().options;
-  // The initial belongs to the passage's first block, so it lands on the
-  // first entry of whatever block styling this leaf already carries rather
-  // than replacing it.
-  if (options.blocks.empty()) options.blocks.emplace_back();
-  options.blocks.front().initial = std::move(initial);
-  options.set |= detail::TextOptions::kBlocks;
+  // The initial belongs to the passage's first block, whichever way that
+  // block is styled — a whole style, a name, or the block in force — so
+  // it is kept apart and applied to the first block when the leaf lays
+  // out.
+  options.initial = std::move(initial);
+  options.set |= detail::TextOptions::kInitialLetter;
   return *this;
 }
 
@@ -164,17 +161,11 @@ Element& Element::distribute(sigil::weave::FrameOptions::Distribute rule,
 }
 
 Element& Element::justification(sigil::weave::JustificationOptions spec) {
-  detail::TextOptions& options = m_node->textData.ensure().options;
-  options.justification = std::move(spec);
-  options.set |= detail::TextOptions::kJustification;
-  return *this;
+  return block({.justification = std::move(spec)});
 }
 
 Element& Element::tabStops(sigil::weave::TabStopOptions stops) {
-  detail::TextOptions& options = m_node->textData.ensure().options;
-  options.tabStops = std::move(stops);
-  options.set |= detail::TextOptions::kTabStops;
-  return *this;
+  return block({.tabStops = std::move(stops)});
 }
 
 Element& Element::live(bool on, float budgetMicroseconds) {
@@ -186,25 +177,15 @@ Element& Element::live(bool on, float budgetMicroseconds) {
 }
 
 Element& Element::kinsoku(sigil::weave::KinsokuTable table) {
-  detail::TextOptions& options = m_node->textData.ensure().options;
-  options.kinsoku = std::move(table);
-  options.set |= detail::TextOptions::kLineTables;
-  return *this;
+  return block({.kinsoku = std::move(table)});
 }
 
 Element& Element::hanging(sigil::weave::HangingTable table) {
-  detail::TextOptions& options = m_node->textData.ensure().options;
-  options.hanging = std::move(table);
-  options.set |= detail::TextOptions::kLineTables;
-  return *this;
+  return block({.hanging = std::move(table)});
 }
 
 Element& Element::mojikumi(sigil::weave::MojikumiTable table, float tsume) {
-  detail::TextOptions& options = m_node->textData.ensure().options;
-  options.mojikumi = std::move(table);
-  options.tsume = tsume;
-  options.set |= detail::TextOptions::kLineTables;
-  return *this;
+  return block({.mojikumi = std::move(table), .tsume = tsume});
 }
 
 Element& Element::balanceChain(uint32_t throughLine) {
@@ -222,10 +203,7 @@ Element& Element::reserve(sigil::weave::ReservedBand band) {
 }
 
 Element& Element::lineBreakLocale(std::string_view locale) {
-  detail::TextOptions& options = m_node->textData.ensure().options;
-  options.lineBreakLocale = std::string(locale);
-  options.set |= detail::TextOptions::kLineBreakLocale;
-  return *this;
+  return block({.lineBreakLocale = std::string(locale)});
 }
 
 Element& Element::thread(std::string_view key) {
@@ -252,11 +230,7 @@ Element& Element::maxLines(int lines) {
 
 Element& Element::lastLine(sigil::weave::TextAlignment alignment,
                            bool justify) {
-  detail::TextOptions& options = m_node->textData.ensure().options;
-  options.lastLineAlignment = alignment;
-  options.justifyLastLine = justify;
-  options.set |= detail::TextOptions::kLastLine;
-  return *this;
+  return block({.lastLineAlignment = alignment, .justifyLastLine = justify});
 }
 
 Element& Element::flowAround(std::string_view key, float margin) {
@@ -271,28 +245,13 @@ Element& Element::flowAround(std::string_view key, float margin) {
 
 void detail::TextOptions::applyTo(
     sigil::weave::ParagraphLayoutOptions& options) const {
-  if (set & kAlignment) options.alignment = alignment;
-  if (set & kLineBreak) options.lineBreakStrategy = lineBreak;
-  if (set & kHyphenation) options.hyphenation = hyphenation;
   if (set & kEllipsis) options.overflow.ellipsis = ellipsis;
   if (set & kMaxLines) options.overflow.maxLines = maxLines;
-  if (set & kJustification) options.justification = justification;
-  if (set & kLastLine) {
-    options.justification.lastLineAlignment = lastLineAlignment;
-    options.justification.justifyLastLine = justifyLastLine;
-  }
-  if (set & kTabStops) options.tabStops = tabStops;
   if (set & kBlocks) options.blocks = blocks;
   if (set & kFrame) options.frame = frame;
   if (set & kLive) {
     options.live = live;
     options.knuthPlass.budgetMicroseconds = budgetMicroseconds;
-  }
-  if (set & kLineTables) {
-    options.kinsoku = kinsoku;
-    options.hanging = hanging;
-    options.mojikumi = mojikumi;
-    options.tsume = tsume;
   }
   if (set & kReserved) options.reserved = reserved;
 }

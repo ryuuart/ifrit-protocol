@@ -111,8 +111,12 @@ struct ParagraphLayoutOptions {
 
   /// One entry per BLOCK — the text between two mandatory breaks — in
   /// block order. A block past the end of this list, and every block when
-  /// it is empty, is set by the fields above alone.
+  /// it is empty, is set in `blockDefault`.
   std::vector<ParagraphStyle> blocks;
+  /// What a block the list does not reach is set in: the fields above
+  /// alone by default, or whatever the passage inherits when a host has
+  /// resolved that for it.
+  ParagraphStyle blockDefault;
 
   bool operator==(const ParagraphLayoutOptions&) const = default;
 };

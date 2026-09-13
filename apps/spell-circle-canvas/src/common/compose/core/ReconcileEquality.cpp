@@ -67,7 +67,7 @@ bool textPathEqual(const TextPath& a, const TextPath& b) {
          a.orient == b.orient && a.exactTangent == b.exactTangent;
 }
 
-static_assert(kFieldCount<TextData> == 20 && kFieldCount<TextOptions> == 21 &&
+static_assert(kFieldCount<TextData> == 20 && kFieldCount<TextOptions> == 10 &&
                   kFieldCount<SpanRestyle> == 4,
               "TextData gained or lost a field — rule on it in textEqual() "
               "below, then bump this count. (`layoutOptions` is the one "
@@ -414,7 +414,7 @@ namespace detail {
  * and `children` are reconciled by key rather than compared — a node that
  *  prunes still walks them. */
 static_assert(kFieldCount<ElementNode> == 27 && kFieldCount<PaintProps> == 15 &&
-                  kFieldCount<ImageData> == 3 && kFieldCount<CustomData> == 2 &&
+                  kFieldCount<ImageData> == 2 && kFieldCount<CustomData> == 2 &&
                   kFieldCount<MotionPath> == 3 && kFieldCount<Fill> == 5,
               "A struct propertiesEqual() compares BY HAND gained or lost a "
               "field. Rule on it below — participate, or a stated reason "
@@ -530,8 +530,7 @@ bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
   if (!textEqual(a, b)) return false;
   if ((bool)a.imageData != (bool)b.imageData) return false;
   if (a.imageData && (a.imageData->asset != b.imageData->asset ||
-                      a.imageData->region != b.imageData->region ||
-                      a.imageData->sampling != b.imageData->sampling))
+                      a.imageData->region != b.imageData->region))
     return false;
   return true;
 }

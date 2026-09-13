@@ -211,6 +211,10 @@ struct Bousen final : sketch::Sketch {
                     weave::selectors::text(u8"列は右から左へ"),
                     box()
                         .key("callout")
+                        // A mark is a child of the column and inherits
+                        // its writing mode; the note is Latin and reads
+                        // across, so the callout says so.
+                        .writingMode(sigil::weave::WritingMode::kHorizontal)
                         .left(Dimension(-168.0f))
                         .top(pct(0))
                         .width(Dimension(168.0f))

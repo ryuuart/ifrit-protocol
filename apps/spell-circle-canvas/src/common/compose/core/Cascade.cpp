@@ -98,11 +98,14 @@ void detail::warnNoSuchClass(std::string_view name, bool anySheetInScope) {
   static thread_local boost::unordered_flat_set<std::string> warned;
   if (!warned.insert(std::string(name)).second) return;
   SkDebugf(
-      "[compose] styleClass(\"%.*s\") names a class no weave::StyleSheet in "
-      "scope carries%s — nothing was set, and the text under it is set in "
+      "[compose] styleClass(\"%.*s\") names a class neither the "
+      "weave::StyleSheet nor the weave::ParagraphStyleSheet in scope "
+      "carries%s — nothing was set, and the text under it is set in "
       "whatever it inherits. Bind a sheet with "
-      "environment::Provide<weave::StyleSheet> around the code that builds "
-      "the element, and register the name on it. (warned once)\n",
+      "environment::Provide<weave::StyleSheet> (the text half) or "
+      "environment::Provide<weave::ParagraphStyleSheet> (the block half) "
+      "around the code that builds the element, and register the name on "
+      "it. (warned once)\n",
       (int)name.size(), name.data(),
       anySheetInScope ? "" : " (no sheet is bound at all)");
 }
@@ -183,7 +186,8 @@ void Composer::Impl::runCascade() {
   if (!root) return;
   inkAnimating = false;
   if (rootLineHeight <= 0.0f) rootLineHeight = lineHeightAt(rootFont);
-  resolveCascade(*root, rootFont, rootLineHeight, nullptr);
+  resolveCascade(*root, rootFont, rootLineHeight, nullptr, rootBlock,
+                 rootSampling);
   // A running ink transition moves the colour every frame, so the next
   // frame resolves again; otherwise the answers stand until a reconcile
   // says otherwise.
@@ -192,12 +196,18 @@ void Composer::Impl::runCascade() {
 
 void Composer::Impl::resolveCascade(
     Instance& inst, const sigil::weave::Type& parentFont,
-    float parentLineHeight, const std::shared_ptr<const VarTable>& parentVars) {
+    float parentLineHeight, const std::shared_ptr<const VarTable>& parentVars,
+    const sigil::weave::Block& parentBlock,
+    const std::optional<SkSamplingOptions>& parentSampling) {
   const ElementNode& node = *inst.description;
   sigil::weave::Type font = parentFont;
   std::shared_ptr<const VarTable> vars = parentVars;
+  sigil::weave::Block block = parentBlock;
+  std::optional<SkSamplingOptions> sampling = parentSampling;
   if (node.cascadeData) {
     const CascadeData& cascade = *node.cascadeData;
+    if (cascade.block) sigil::weave::merge(block, *cascade.block);
+    if (cascade.sampling) sampling = cascade.sampling;
     if (!cascade.vars.empty()) {
       auto own =
           std::make_shared<VarTable>(parentVars ? *parentVars : VarTable{});
@@ -233,28 +243,44 @@ void Composer::Impl::resolveCascade(
   const bool shapeChanged = first || !sameFontButColour(font, inst.font);
   const bool inkChanged = first || !(font.color == inst.font.color);
   const bool varsChanged = first || !sameVars(vars, inst.vars);
+  const bool samplingChanged = first || !(sampling == inst.sampling);
   inst.font = font;
   inst.vars = vars;
+  inst.block = block;
+  inst.sampling = sampling;
   inst.cascadeResolved = true;
   if (shapeChanged) inst.lineHeight = lineHeightAt(font);
 
-  // An inheriting text leaf: text reconcile left owed is shaped here, once,
-  // in the font it lands in; a change of face, size or any other shaping
-  // field is a new paragraph and a new layout; a change of colour alone
-  // is set on the paragraph it already has.
-  if (node.kind == Kind::Text && node.textData && node.textData->inherits) {
+  // A text leaf: text reconcile left owed is shaped here, once, in the
+  // font and the block it lands in. After that, a change of face, size or
+  // any other shaping field of an inheriting leaf, or of the writing mode
+  // or locale in force, is a new paragraph and a new layout; a change of
+  // any other block field is the same paragraph laid out again; a change
+  // of colour alone is set on the paragraph it already has.
+  if (node.kind == Kind::Text && node.textData) {
+    const bool inherits = node.textData->inherits;
+    const bool reshapes = inherits && !sameFontButColour(font, inst.textFont);
+    const bool remakes = block.writingMode != inst.textBlock.writingMode ||
+                         block.lineBreakLocale != inst.textBlock.lineBreakLocale;
     if (inst.textDirty || !inst.paragraph) {
       inst.textDirty = false;
       materializeText(inst);
       if (inst.yoga) YGNodeMarkDirty(inst.yoga);
       needsLayout = true;
-    } else if (!sameFontButColour(font, inst.textFont)) {
+    } else if (reshapes || remakes) {
       inst.contentRev++;
       materializeText(inst);
       if (inst.yoga) YGNodeMarkDirty(inst.yoga);
       needsLayout = true;
-    } else if (!(font.color == inst.textFont.color)) {
-      refreshInheritedInk(inst);
+    } else {
+      if (!(block == inst.textBlock)) {
+        inst.textBlock = block;
+        inst.contentRev++;
+        if (inst.yoga) YGNodeMarkDirty(inst.yoga);
+        needsLayout = true;
+      }
+      if (inherits && !(font.color == inst.textFont.color))
+        refreshInheritedInk(inst);
     }
   }
   // A length measured in the font, or read from a property, is rewritten
@@ -263,14 +289,15 @@ void Composer::Impl::resolveCascade(
     applyLayoutProps(inst);
     needsLayout = true;
   }
-  // Whatever reads the ink or a property at paint — a stroke in the ink, a
-  // fill on a property — baked the old value into its recording.
-  if (!first && (inkChanged || varsChanged)) {
+  // Whatever reads the ink, a property or the sampling at paint — a stroke
+  // in the ink, a fill on a property, an image through its filter — baked
+  // the old value into its recording.
+  if (!first && (inkChanged || varsChanged || samplingChanged)) {
     inst.markPaintDirtyUp();
     contentDirty = true;
   }
   for (auto& child : inst.children)
-    resolveCascade(*child, font, inst.lineHeight, vars);
+    resolveCascade(*child, font, inst.lineHeight, vars, block, sampling);
 }
 
 void Composer::Impl::refreshInheritedInk(Instance& inst) {

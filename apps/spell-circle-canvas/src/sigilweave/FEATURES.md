@@ -156,6 +156,18 @@ text (its own section below).
   relative units spelled either as `em`, `rem`, `lh` or as the `_em`,
   `_rem`, `_lh` suffixes beside them. Pixels are implicit, so a plain
   number already is a length and no pixel suffix is declared here.
+- **`layout/Block.h`** — `Block`, the PARTIAL a call site names a block's
+  setting in, every field optional: what a block inherits — leading, half
+  leading, alignment, justification, hyphenation, tab stops, first- and
+  last-line indents, widows and orphans, balanced ragging, the breaking
+  strategy, writing mode, line-break locale, the last line under
+  justification and the CJK line tables. `merge` folds two partials into
+  one, `overlay` resolves one onto a whole `ParagraphStyle`,
+  `toParagraphStyle` is what a partial names alone, and `apply` sets the
+  layout-wide fields a partial states on a layout's options.
+  **`layout/ParagraphStyleSheet.h`** — `ParagraphStyleSheet`, those
+  partials under names: what `"heading"` and `"body"` resolve to, and the
+  block half of a class.
 - **`style/Type.h`** — `Type`, the PARTIAL a call site names a style in:
   a designated-init aggregate whose every field is OPTIONAL, so a style
   can state the two things it changes and inherit the rest. It carries

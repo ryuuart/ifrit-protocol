@@ -89,17 +89,16 @@ void Composer::Impl::materializeText(
   } else {
     inst.paragraph->appendText(text.utf8, text.style);
   }
-  // The writing mode is the Paragraph's, not the layout options', so the
-  // field-masked override lands here: a mode nobody set leaves a passed-in
-  // paragraph's own mode standing. A path run has no columns to advance —
-  // its baseline IS the geometry — so the path wins and says so.
-  if (text.options.set & TextOptions::kWritingMode)
-    inst.paragraph->setWritingMode(text.options.writingMode);
-  // The line-break tailoring is the Paragraph's too, and lands under the
-  // same mask rule: a locale nobody named leaves a passed-in paragraph's
-  // own standing.
-  if (text.options.set & TextOptions::kLineBreakLocale)
-    inst.paragraph->setLineBreakLocale(text.options.lineBreakLocale);
+  // The writing mode and the line-break locale belong to the Paragraph,
+  // not to the layout options, so the block in force lands them here. A
+  // field the block leaves unset leaves a passed-in paragraph's own
+  // standing. A path run has no columns to advance — its baseline IS the
+  // geometry — so the path wins and says so.
+  if (inst.block.writingMode)
+    inst.paragraph->setWritingMode(*inst.block.writingMode);
+  if (inst.block.lineBreakLocale)
+    inst.paragraph->setLineBreakLocale(*inst.block.lineBreakLocale);
+  inst.textBlock = inst.block;
   if (text.onPath &&
       inst.paragraph->writingMode() != sigil::weave::WritingMode::kHorizontal) {
     warnWritingModeOnPath();
@@ -257,6 +256,28 @@ sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(
   // full-control caller keeps every field no setter named.
   options = text.layoutOptions;
   text.options.applyTo(options);
+  // The layout-wide fields the block in force states — alignment, the
+  // breaking strategy, hyphenation, justification, tab stops, the line
+  // tables — over what the leaf's own options and a passed-in layout hold.
+  sigil::weave::apply(options, inst.block);
+  // THE BLOCK IN FORCE: what every block the leaf's own list does not
+  // reach is set in, and what a named block's partial is laid over. A
+  // whole style the leaf wrote inherits nothing, as a whole text style
+  // does. The initial letter lands on the first block whichever way that
+  // block was styled.
+  const sigil::weave::ParagraphStyle lane =
+      sigil::weave::toParagraphStyle(inst.block);
+  options.blockDefault = lane;
+  if (text.options.set & TextOptions::kBlockClasses) {
+    options.blocks.clear();
+    for (const sigil::weave::Block& partial : text.options.blockClasses)
+      options.blocks.push_back(sigil::weave::overlay(lane, partial));
+  }
+  if ((text.options.set & TextOptions::kInitialLetter) &&
+      text.options.initial) {
+    if (options.blocks.empty()) options.blocks.push_back(lane);
+    options.blocks.front().initial = *text.options.initial;
+  }
   // OVERFLOW IS THE NORMAL CASE ON EVERY FRAME BUT THE LAST. A frame that
   // threads into another has a remainder by design, and a marker there
   // would say the text was cut when it was only continued; the last frame

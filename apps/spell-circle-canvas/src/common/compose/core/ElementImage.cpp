@@ -8,7 +8,7 @@
 namespace sigil::compose {
 
 Element& Element::sampling(SkSamplingOptions options) {
-  m_node->imageData.ensure().sampling = options;
+  m_node->cascadeData.ensure().sampling = options;
   return *this;
 }
 

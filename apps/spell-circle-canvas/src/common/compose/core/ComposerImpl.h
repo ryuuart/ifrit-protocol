@@ -102,6 +102,10 @@ struct Composer::Impl {
   // computed when it is first needed.
   sigil::weave::Type rootFont = sigil::weave::initialType();
   float rootLineHeight = 0.0f;
+  // What the root inherits as its block: nothing stated, so every block
+  // under nothing is set in the layout's own answer.
+  sigil::weave::Block rootBlock;
+  std::optional<SkSamplingOptions> rootSampling;
   // Whether the resolved fonts, inks and properties on the instances may
   // be stale: set by every reconcile that changed anything and by
   // setInherited, and left set by a pass that found an ink transition
@@ -418,7 +422,9 @@ struct Composer::Impl {
   void resolveCascade(detail::Instance& inst,
                       const sigil::weave::Type& parentFont,
                       float parentLineHeight,
-                      const std::shared_ptr<const VarTable>& parentVars);
+                      const std::shared_ptr<const VarTable>& parentVars,
+                      const sigil::weave::Block& parentBlock,
+                      const std::optional<SkSamplingOptions>& parentSampling);
   /** An inheriting text leaf whose ink alone changed: the new colour set
    *  on its inherited ranges in place, the restyles replayed over them,
    *  and nothing re-shaped or re-broken. */

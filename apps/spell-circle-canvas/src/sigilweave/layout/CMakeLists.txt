@@ -16,13 +16,13 @@ find_package(boost_unordered CONFIG REQUIRED)
 find_package(boost_container_hash CONFIG REQUIRED)
 find_package(harfbuzz CONFIG REQUIRED COMPONENTS icu)
 sigil_library(SigilWeaveLayout
-  SOURCES BandScan.cpp BandScan.h Beside.cpp Blobs.cpp Blobs.h Blocks.cpp
+  SOURCES BandScan.cpp BandScan.h Beside.cpp Blobs.cpp Blobs.h Block.cpp Blocks.cpp
           Ellipsis.cpp Flow.cpp Greedy.cpp InitialLetter.cpp KnuthPlass.cpp
           LayoutMetrics.cpp LineBreak.cpp Placement.cpp Silhouette.cpp TextContext.cpp
           KnuthPlassPrefix.h ParagraphLayoutInternal.h
-  HEADERS Beside.h Breaking.h Flow.h Frame.h InitialLetter.h Justification.h
+  HEADERS Beside.h Block.h Breaking.h Flow.h Frame.h InitialLetter.h Justification.h
           LayoutOptions.h Mojikumi.h Overflow.h ParagraphLayout.h
-          ParagraphStyle.h PositionedRun.h Story.h TabStops.h TextContext.h
+          ParagraphStyle.h ParagraphStyleSheet.h PositionedRun.h Story.h TabStops.h TextContext.h
   PUBLIC SigilWeaveParagraph SigilGeometryPath
   PRIVATE SigilWeaveUnicode SigilImageField SigilCoreCompute
           harfbuzz::harfbuzz ICU::uc Boost::unordered Boost::container_hash)
@@ -39,7 +39,7 @@ sigil_library(SigilWeaveLayout
 # because no instrument carries a script's worth of them: those alone
 # carry the label.
 sigil_test(weave_test
-  SOURCES test/LayoutTest.cpp test/KnuthPlassTest.cpp
+  SOURCES test/BlockTest.cpp test/LayoutTest.cpp test/KnuthPlassTest.cpp
           test/LiveComposerTest.cpp test/OverflowTest.cpp
           test/VerticalTest.cpp test/FlowTest.cpp test/SilhouetteTest.cpp test/PathTextTest.cpp
           test/PlaceholderTest.cpp test/IncrementalTest.cpp

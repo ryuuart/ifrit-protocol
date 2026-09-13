@@ -14,6 +14,7 @@
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animated.h>
+#include <sigilweave/layout/Block.h>
 #include <sigilweave/layout/Story.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/paragraph/RichText.h>
@@ -166,87 +167,47 @@ struct MarkAnchor {
  *  the caller passed alone, and there is no way to tell "never asked for"
  *  from "asked for the default value" without it. */
 struct TextOptions {
-  enum Field : uint16_t {
-    kAlignment = 1u << 0u,
-    kLineBreak = 1u << 1u,
-    kHyphenation = 1u << 2u,
+  enum Field : uint32_t {
     kEllipsis = 1u << 3u,
     kMaxLines = 1u << 4u,
-    kLastLine = 1u << 5u,
-    kWritingMode = 1u << 6u,
     kBlocks = 1u << 7u,
     kFrame = 1u << 8u,
-    kJustification = 1u << 9u,
-    kTabStops = 1u << 10u,
     kLive = 1u << 11u,
-    kLineTables = 1u << 12u,
     kReserved = 1u << 13u,
-    kLineBreakLocale = 1u << 14u,
+    kBlockClasses = 1u << 15u,
+    kInitialLetter = 1u << 16u,
   };
-  uint16_t set = 0;  ///< which fields below were written
+  uint32_t set = 0;  ///< which fields below were written
 
-  sigil::weave::TextAlignment alignment = sigil::weave::TextAlignment::kStart;
-  /// Not a ParagraphLayoutOptions field — the writing mode belongs to the
-  /// Paragraph, so applyTo() cannot carry it and materializeText writes it
-  /// on the materialized paragraph instead. The mask rule is the same: an
-  /// unset mode leaves a passed-in paragraph's own mode alone.
-  sigil::weave::WritingMode writingMode =
-      sigil::weave::WritingMode::kHorizontal;
-  sigil::weave::LineBreakStrategy lineBreak =
-      sigil::weave::LineBreakStrategy::kGreedy;
-  sigil::weave::HyphenationOptions hyphenation;
   std::u16string ellipsis;
   int maxLines = 0;
-  sigil::weave::TextAlignment lastLineAlignment =
-      sigil::weave::TextAlignment::kStart;
-  bool justifyLastLine = false;
   /// paragraphs(): one entry per BLOCK — the text between two hard breaks
   /// — in block order. A block past the end of the list is set by the
   /// layout-wide fields alone, so one style here sets the first block and
   /// leaves the rest plain, which is what a heading over a body wants.
   std::vector<sigil::weave::ParagraphStyle> blocks;
+  /// paragraphs(names): one partial per block, resolved from the block
+  /// sheet where the leaf was written and laid over the block in force
+  /// when the leaf lays out — so a named block keeps the leading it
+  /// inherits and changes only what its name says.
+  std::vector<sigil::weave::Block> blockClasses;
+  /// initialLetter(): the passage's opening set large, applied to the
+  /// first block at layout whichever way the blocks were styled.
+  std::optional<sigil::weave::InitialLetter> initial;
   sigil::weave::FrameOptions frame;
-  sigil::weave::JustificationOptions justification;
-  sigil::weave::TabStopOptions tabStops;
   /// live(): this layout is one of a run of them. The budget rides with it
   /// because they are one statement — a text that says it is moving is the
   /// only one for which running out of time is a normal event.
   bool live = false;
   float budgetMicroseconds = 0;
-  /// The three tables a house's own setting is stated in, and the fraction
-  /// beside the third. One mask bit for all four: they are the same
-  /// declaration made in four places, and a caller who sets one and expects
-  /// a full-control overload's others to survive has no way to say so.
-  sigil::weave::KinsokuTable kinsoku;
-  sigil::weave::HangingTable hanging;
-  sigil::weave::MojikumiTable mojikumi;
-  float tsume = 0;
   /// reserve(): room beside every line of this passage, on top of whatever
   /// an annotation reserves.
   sigil::weave::ReservedBand reserved;
-  /// Not a ParagraphLayoutOptions field either — the line-break tailoring
-  /// belongs to the Paragraph, for the same reason the writing mode does,
-  /// and materializeText writes it there under the same mask rule.
-  std::string lineBreakLocale;
 
   /** Writes every SET field over @p options, leaving the rest alone. */
   void applyTo(sigil::weave::ParagraphLayoutOptions& options) const;
 
-  bool operator==(const TextOptions& other) const {
-    return set == other.set && alignment == other.alignment &&
-           writingMode == other.writingMode && lineBreak == other.lineBreak &&
-           hyphenation == other.hyphenation && ellipsis == other.ellipsis &&
-           maxLines == other.maxLines &&
-           lastLineAlignment == other.lastLineAlignment &&
-           justifyLastLine == other.justifyLastLine && blocks == other.blocks &&
-           frame == other.frame && justification == other.justification &&
-           tabStops == other.tabStops && live == other.live &&
-           budgetMicroseconds == other.budgetMicroseconds &&
-           kinsoku == other.kinsoku && hanging == other.hanging &&
-           mojikumi == other.mojikumi && tsume == other.tsume &&
-           reserved == other.reserved &&
-           lineBreakLocale == other.lineBreakLocale;
-  }
+  bool operator==(const TextOptions&) const = default;
 };
 
 struct TextData {
@@ -313,14 +274,6 @@ struct TextData {
   // the comparator skips it.
   TextPainter painter;
 
-  /** The alignment this leaf actually lays out under: `textAlign()`'s value
-   *  where it was written, otherwise whatever the full-control overload's
-   *  options carry. */
-  sigil::weave::TextAlignment alignment() const {
-    return (options.set & TextOptions::kAlignment) ? options.alignment
-                                                   : layoutOptions.alignment;
-  }
-
   /** WHETHER THIS LEAF SPENDS THE ROOM LEFT OVER DOWN ITS BOX — the rule
    *  `distribute()` wrote, otherwise whatever the full-control overload's
    *  options carry.
@@ -341,10 +294,6 @@ struct TextData {
 struct ImageData {
   std::shared_ptr<const sigil::image::ImageAsset> asset;
   std::optional<SkRect> region;  // atlas sub-rect, source px
-  // Element::sampling(). Linear by default; the reason this is settable per
-  // node is that pixel art, tilemaps and simulation buffers need nearest,
-  // and drawing them through a linear filter blurs them with no diagnostic.
-  SkSamplingOptions sampling{SkFilterMode::kLinear};
 };
 
 struct CustomData {
@@ -545,6 +494,12 @@ struct DepthData {
  *  pass from the parent's resolved values and this block. */
 struct CascadeData {
   std::optional<sigil::weave::Type> font;
+  /** The block partial this node declares for everything under it:
+   *  Element::block, and the block half of a class. */
+  std::optional<sigil::weave::Block> block;
+  /** How image leaves under this node sample their source
+   *  (Element::sampling), inherited as CSS's image-rendering is. */
+  std::optional<SkSamplingOptions> sampling;
   /** ink(var(...)): the property the ink reads. Exclusive with a colour in
    *  `font->color` — whichever was written last stands. */
   std::optional<VarRef> inkVar;

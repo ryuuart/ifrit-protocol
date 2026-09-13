@@ -25,6 +25,8 @@
 #include <sigilmotion/Animation.h>
 #include <sigilmotion/schedule/Schedule.h>
 #include <sigilmotion/values/Animated.h>
+#include <sigilweave/layout/Block.h>
+#include <sigilweave/layout/ParagraphStyleSheet.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/style/Style.h>
 
@@ -329,6 +331,22 @@ class Element {
    *  class written between. A relative size resolves against the PARENT's
    *  font: `font({.size = 1.5_em})` is half again the size inherited. */
   Element& font(sigil::weave::Type partial);
+  /** THE BLOCK everything under this node is set in, as a PARTIAL: the
+   *  fields it names — leading, alignment, justification, hyphenation,
+   *  tab stops, the first- and last-line indents, widows and orphans,
+   *  balanced ragging, the breaking strategy, the last line, the writing
+   *  mode, the line-break locale, the line tables — override the block
+   *  inherited and the rest inherit, exactly as `font` does for the type.
+   *  A text leaf's every block is set in the block in force where the
+   *  leaf lands, unless the leaf wrote a whole `weave::ParagraphStyle`
+   *  for it, which inherits nothing; a block named through
+   *  `paragraphs(names)` is that name's partial laid over it. The verbs
+   *  that name one field — `textAlign`, `lineBreak`, `hyphenation`,
+   *  `justification`, `tabStops`, `lastLine`, `writingMode`,
+   *  `lineBreakLocale`, `kinsoku`, `hanging`, `mojikumi` — are this
+   *  partial's spellings for that field and cascade the same way from
+   *  wherever they are written. */
+  Element& block(sigil::weave::Block partial);
   /** THE INK: the colour text under this node is set in and every mark
    *  that names no colour is painted in — CSS's `color`, which is the
    *  font's own colour spelled alone. `Fill::currentInk()` reads it back
@@ -405,14 +423,15 @@ class Element {
   Element& fill(SkColor4f color) {
     return fill(motion::Animatable<Fill>{Fill::color(color)});
   }
-  /** How an image() leaf samples its source. Defaults to linear, which is
-   *  right for photographs and wrong for every pixel grid: art, tilemaps,
-   *  fonts baked as sprites, simulation buffers.
+  /** How image leaves sample their source. Linear when nothing states
+   *  it, which is right for photographs and wrong for every pixel grid:
+   *  art, tilemaps, fonts baked as sprites, simulation buffers.
    *
    *      image(tileset).sampling(SkSamplingOptions(SkFilterMode::kNearest))
    *
-   *  `Material::image()` takes the same options for a sprite fill. No
-   *  effect on non-image leaves, silently. */
+   *  Set on any node and inherited by every image leaf under it, as CSS
+   *  inherits `image-rendering`: a panel of pixel art states nearest once.
+   *  `Material::image()` takes the same options for a sprite fill. */
   Element& sampling(SkSamplingOptions options);
   // ---- decoration layers ----
   // Backgrounds paint below content/children (in declaration order),
@@ -891,10 +910,12 @@ class Element {
    *  read `beatsOf` to ride it. */
   Element& mark(sigil::weave::Selector where, Element what);
 
-  /** Text leaves only: how lines sit inside the node's width (SigilWeave
+  /** How lines sit inside the width they are set in (SigilWeave
    *  TextAlignment — kStart/kCenter/kEnd/kJustify). Meaningful when the
-   *  node is WIDER than its text (explicit width, grow, stack stretch);
-   *  intrinsic-width text has nothing to align within. */
+   *  leaf is WIDER than its text (explicit width, grow, stack stretch);
+   *  intrinsic-width text has nothing to align within. One field of the
+   *  block `block()` states whole: set on any node and inherited by every
+   *  text leaf under it, as CSS inherits `text-align`. */
   Element& textAlign(sigil::weave::TextAlignment a);
 
   /** Text leaves only: THE FRAME THIS ONE FILLS INTO — the next link of a
@@ -1025,14 +1046,16 @@ class Element {
    *  nothing to spend. */
   Element& distribute(sigil::weave::FrameOptions::Distribute rule,
                       float maximumInterlineSpacing = 0);
-  /** Text leaves only: how a justified line spends what it has — the word
-   *  spacing it aims at and its elasticity, then letter spacing, then a
-   *  horizontal scale on the glyphs, each bounded by its own two limits.
-   *  Inert unless the passage justifies. */
+  /** How a justified line spends what it has — the word spacing it aims
+   *  at and its elasticity, then letter spacing, then a horizontal scale
+   *  on the glyphs, each bounded by its own two limits. Inert unless the
+   *  passage justifies. One field of the block, inherited by every text
+   *  leaf under the node. */
   Element& justification(sigil::weave::JustificationOptions spec);
-  /** Text leaves only: where a tab takes the pen, what the stop pins there
-   *  — the start of its cell, its end, its centre, or a named character —
-   *  and the leader set across the gap it opened. */
+  /** Where a tab takes the pen, what the stop pins there — the start of
+   *  its cell, its end, its centre, or a named character — and the leader
+   *  set across the gap it opened. One field of the block, inherited by
+   *  every text leaf under the node. */
   Element& tabStops(sigil::weave::TabStopOptions stops);
 
   /** Text leaves only: AN INPUT OF THIS PASSAGE IS MOVING — a measure that
@@ -1063,27 +1086,30 @@ class Element {
    *  says so. */
   Element& live(bool on = true, float budgetMicroseconds = 0);
 
-  /** Text leaves only: WHICH CHARACTERS MAY NOT STAND AT A LINE'S EDGE —
-   *  kinsoku shori, as a house's own table over whatever the line-break
-   *  locale already prohibits. The prohibition is settled during
-   *  segmentation, so both breakers obey it and neither learns a rule.
+  /** WHICH CHARACTERS MAY NOT STAND AT A LINE'S EDGE — kinsoku shori, as
+   *  a house's own table over whatever the line-break locale already
+   *  prohibits. The prohibition is settled during segmentation, so both
+   *  breakers obey it and neither learns a rule.
    *  `sigil::weave::kit::kinsoku()` is the stock table and a caller's own
-   *  is its peer. */
+   *  is its peer. One field of the block, inherited by every text leaf
+   *  under the node. */
   Element& kinsoku(sigil::weave::KinsokuTable table);
-  /** Text leaves only: HOW FAR A CHARACTER MAY STAND OUTSIDE THE MEASURE,
-   *  as a fraction of its own advance — optical margin alignment along a
-   *  line, burasagari down a column. It is the LINE EDGE and has nothing
-   *  to do with the hanging indent, which is a negative
-   *  `ParagraphStyle::indent.firstLine`. `sigil::weave::kit::hanging()` is
-   *  the stock table. */
+  /** HOW FAR A CHARACTER MAY STAND OUTSIDE THE MEASURE, as a fraction of
+   *  its own advance — optical margin alignment along a line, burasagari
+   *  down a column. It is the LINE EDGE and has nothing to do with the
+   *  hanging indent, which is a negative `ParagraphStyle::indent.firstLine`.
+   *  `sigil::weave::kit::hanging()` is the stock table. One field of the
+   *  block, inherited by every text leaf under the node. */
   Element& hanging(sigil::weave::HangingTable table);
-  /** Text leaves only: HOW MUCH ROOM STANDS BETWEEN TWO ADJACENT
-   *  FULL-WIDTH CHARACTERS, by the class of each, as a fraction of the em
-   *  — negative closes the gap up, which is what nearly every entry of a
-   *  real table does. `tsume` closes the gap after every full-width
-   *  character the table gives no class of its own, on top of that. Both
-   *  apply where two characters meet across a break opportunity; two
-   *  characters shaped inside one word are the face's and the shaper's. */
+  /** HOW MUCH ROOM STANDS BETWEEN TWO ADJACENT FULL-WIDTH CHARACTERS, by
+   *  the class of each, as a fraction of the em — negative closes the gap
+   *  up, which is what nearly every entry of a real table does. `tsume`
+   *  closes the gap after every full-width character the table gives no
+   *  class of its own, on top of that. Both apply where two characters
+   *  meet across a break opportunity; two characters shaped inside one
+   *  word are the face's and the shaper's. The table and the tsume are
+   *  two fields of the block, inherited by every text leaf under the
+   *  node. */
   Element& mojikumi(sigil::weave::MojikumiTable table, float tsume = 0);
   /** Text leaves only: ROOM BESIDE EVERY LINE of this passage, over and
    *  above the leading — `before` above a line and right of a column,
@@ -1092,16 +1118,16 @@ class Element {
    *  top of this, so a passage that only carries readings needs none of
    *  this. */
   Element& reserve(sigil::weave::ReservedBand band);
-  /** Text leaves only: THE TAILORING THE LINE-BREAK ANALYSIS RUNS UNDER —
-   *  `"ja@lb=strict"` is the strict Japanese rule set a printed page is
-   *  set under, `"zh@lb=loose"` the loose Chinese one. A tailored
-   *  prohibition is a boundary that never opens, so nothing downstream
-   *  learns a rule. It belongs to the Paragraph rather than to the layout
-   *  options, so it is a field-masked override like `writingMode`: a
+  /** THE TAILORING THE LINE-BREAK ANALYSIS RUNS UNDER — `"ja@lb=strict"`
+   *  is the strict Japanese rule set a printed page is set under,
+   *  `"zh@lb=loose"` the loose Chinese one. A tailored prohibition is a
+   *  boundary that never opens, so nothing downstream learns a rule. One
+   *  field of the block, inherited by every text leaf under the node; it
+   *  belongs to the Paragraph rather than to the layout options, and a
    *  locale nobody names leaves a passed-in paragraph's own standing. */
   Element& lineBreakLocale(std::string_view locale);
 
-  /** Text leaves only: lay this passage out in VERTICAL-RL CJK columns
+  /** Lay the text out in VERTICAL-RL CJK columns
    *  (`sigil::weave::WritingMode::kVerticalRL`) instead of horizontal
    *  lines. Characters run top to bottom, columns advance RIGHT TO LEFT
    *  from the node's right edge, and the node's width is the measure the
@@ -1120,7 +1146,13 @@ class Element {
    *  character up with a horizontal neighbour's first line.
    *
    *  `onPath` IGNORES IT: a path run's baseline is its own geometry and has
-   *  no columns to advance. Setting both warns once and the path wins. */
+   *  no columns to advance. Setting both warns once and the path wins.
+   *
+   *  One field of the block, inherited by every text leaf under the node,
+   *  as CSS inherits `writing-mode`: a row of vertical panels states it
+   *  once. It belongs to the Paragraph rather than to the layout options,
+   *  and a mode nobody names leaves a passed-in paragraph's own
+   *  standing. */
   Element& writingMode(sigil::weave::WritingMode mode);
 
   // ---- span restyling: the type treatment, addressed by selector -------
@@ -1218,11 +1250,12 @@ class Element {
   // for everything a setter did not name. Setting none of them leaves the
   // passed options untouched.
 
-  /** Text leaves only: greedy (the fast default) or Knuth-Plass optimal
-   *  line breaking. */
+  /** Greedy (the fast default) or Knuth-Plass optimal line breaking. One
+   *  field of the block, inherited by every text leaf under the node. */
   Element& lineBreak(sigil::weave::LineBreakStrategy strategy);
-  /** Text leaves only: whether soft-hyphen break opportunities are taken,
-   *  and what Knuth-Plass charges for taking them. */
+  /** Whether soft-hyphen break opportunities are taken, and what
+   *  Knuth-Plass charges for taking them. One field of the block,
+   *  inherited by every text leaf under the node. */
   Element& hyphenation(sigil::weave::HyphenationOptions options);
   /** Text leaves only: the marker appended to the last line when the text
    *  overflows its geometry. Empty disables it. */
@@ -1231,10 +1264,11 @@ class Element {
    *  rest reports as overflow and `ellipsis()`, when set, lands on the
    *  clamped line. 0 is unclamped. */
   Element& maxLines(int lines);
-  /** Text leaves only: how a paragraph-final or hard-break-final line sits
-   *  under `TextAlignment::kJustify` — its own alignment, or `justify` to
-   *  stretch it to the full measure like every other line. Inert under the
-   *  other alignments, which have no special last line. */
+  /** How a paragraph-final or hard-break-final line sits under
+   *  `TextAlignment::kJustify` — its own alignment, or `justify` to
+   *  stretch it to the full measure like every other line. Inert under
+   *  the other alignments, which have no special last line. Two fields of
+   *  the block, inherited by every text leaf under the node. */
   Element& lastLine(sigil::weave::TextAlignment alignment,
                     bool justify = false);
 

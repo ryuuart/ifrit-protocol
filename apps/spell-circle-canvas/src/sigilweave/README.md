@@ -353,6 +353,22 @@ roles a table's columns take. An entry states what it CHANGES, so one
 sheet serves a document whose base size was decided elsewhere, and lookup
 always answers — a name nobody registered resolves to the base alone.
 
+A block has the same two forms. `ParagraphStyle` is total: the pitch, the
+air around the block, its indents, keeps, initial letter and the four
+settings it may override. **`Block`** is the partial: what a block
+INHERITS from the passage it stands in — leading and where its room goes,
+alignment, justification and its last line, hyphenation, tab stops, the
+first- and last-line indents, widows and orphans, balanced ragging, the
+breaking strategy, the writing mode, the line-break locale and the line
+tables CJK text is set by — every field optional, `weave::merge` folding
+two partials into one, `weave::overlay` resolving one onto a whole style,
+and `weave::apply` setting the layout-wide fields a partial states on a
+layout's options. What a block keeps to itself — its air, and its keeps
+with the next block — stays on the whole style, as a margin is a box's
+own. A **`ParagraphStyleSheet`** holds those partials under names, the
+block half of a class: what a document resolves `"heading"` and `"body"`
+through, each name the fields that block changes over what it inherits.
+
 ## Targets and dependencies
 
 | Target | Contents | Beyond Skia |

@@ -447,9 +447,10 @@ CSS's model over it.
 
 ## The cascade
 
-Three things flow down the TREE, from a node to everything under it,
+Four things flow down the TREE, from a node to everything under it,
 wherever the code that built a child ran: the font a passage is set in,
-its colour, which is the ink, and the custom properties. Everything else
+its colour, which is the ink, the block its paragraphs are set in, and
+the custom properties. Everything else
 a node says about itself — its fill, its stroke, its padding, its
 transform — stays on that node. It is CSS's own split between the
 properties that inherit and the ones that do not, and the rule of thumb
@@ -500,6 +501,31 @@ keeps the prune exact. A bake is a root: `snapshot`, an atlas cell, a
 pattern tile and `compose::texture` resolve against the initial values,
 as an image placed on a page inherits nothing from it.
 
+**A block is the same kind of partial.** `Element::block` takes a
+`weave::Block`, every field optional — leading and where its room goes,
+alignment and the last line, justification, hyphenation, tab stops, the
+first- and last-line indents, widows and orphans, balanced ragging, the
+breaking strategy, the writing mode, the line-break locale and the line
+tables CJK text is set by, CSS's inherited block properties — and every
+text leaf under it sets its paragraphs in the block in force, a partial
+on the leaf itself included. A whole `weave::ParagraphStyle` the leaf
+wrote through `paragraph` or `paragraphs` inherits nothing, as a whole
+text style does, and a block named through `paragraphs(names)` is that
+name's partial laid over the block in force when the leaf lays out. The
+verbs that name one of these properties — `textAlign`, `hyphenation`,
+`justification`, `tabStops`, `lineBreak`, `lineBreakLocale`,
+`writingMode`, `lastLine`, `kinsoku`, `hanging`, `mojikumi` — are the
+lane's spellings for one field each: set on any node, inherited by every
+text leaf under it, exactly as `block()` is, so there is one property
+under each name and it inherits. What a node keeps to itself is what CSS
+keeps there: its ellipsis and line count, its frame's first baseline and
+distribution, its reservation, its threading, its exclusions, its initial
+letter, and a whole style — and, on a whole style, the block's air before
+and after, its keeps with the next block and its every-line insets, as a
+margin is a box's own. Image sampling inherits the same way, as CSS's
+`image-rendering` does: `Element::sampling` on any node reaches every
+image leaf under it.
+
 **A range and a reading take the same partial.** `Element::spanStyle`
 with a `weave::Type` lays the fields it names over the style the range is
 set in — the inherited font for an inheriting leaf, the leaf's own style
@@ -512,12 +538,18 @@ initial letter's and a caption's or a sheet's lines (`kit::Caption`,
 `intrinsicSize`, `kit::coverage` — runs the cascade over its own tree,
 so a partial inside it resolves against the bake's root.
 
-**A class is a named partial.** `Element::styleClass` folds in the
-`weave::Type` a `weave::StyleSheet` in scope registers under the name,
-read where the element is WRITTEN — a class is lexical, exactly as a CSS
-class is defined in a sheet and applied by name — and the fields it sets
-then inherit down the tree like any `font()`. A name no sheet in scope
-carries warns once and sets nothing. `weave::rich()` started with no base
+**A class is a named partial, in two halves.** `Element::styleClass`
+folds in the `weave::Type` a `weave::StyleSheet` in scope registers
+under the name and the `weave::Block` a `weave::ParagraphStyleSheet` in
+scope registers under it, whichever of the two carries the name and both
+when both do — read where the element is WRITTEN, a class being lexical
+exactly as a CSS class is defined in a sheet and applied by name — and
+the fields either sets then inherit down the tree like any `font()` or
+`block()`. A name neither sheet in scope carries warns once and sets
+nothing. The two sheets are one class because the include graph keeps
+them apart: the text sheet is the style vocabulary's, which the rich-text
+feature reads, and a block's fields are the layout's, which sits above
+it. `weave::rich()` started with no base
 is an inheriting passage: a run added with a partial keeps the inherited
 face and size in every field it does not name, and only a run added with
 a whole style keeps the style it was written with. Blocks have the same

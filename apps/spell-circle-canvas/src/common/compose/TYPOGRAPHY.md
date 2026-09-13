@@ -890,14 +890,17 @@ text(weave::rich(body).add(u8"A heading\nand its body, which runs on\nand on"))
 after, the four indents, the keeps and whichever of the leaf's own
 alignment, justification, hyphenation and tab stops the block overrides;
 SigilWeave's README is the canon for what each one means. A block past the
-end of the list is set by the leaf's own settings alone, so ONE entry
-styles the first block and leaves the rest plain. `Element::paragraph`
-sets every block alike, and `Element::paragraphs` also takes NAMES,
-resolved through the `sigil::weave::ParagraphStyleSheet` the environment
-offers — the same discipline `weave::rich().add(text, name)` follows for
-character styles. A name no set in scope carries WARNS ONCE and the block
-is set in the set's base entry, because a block quietly set in a default
-nobody asked for looks exactly like a style that did not take.
+end of the list is set in THE BLOCK IN FORCE where the leaf stands — the
+`weave::Block` partials its ancestors declared through `Element::block`,
+folded down the tree — so ONE entry styles the first block and leaves the
+rest to the passage. `Element::paragraph` sets every block alike and
+inherits nothing, and `Element::paragraphs` also takes NAMES, resolved
+through the `sigil::weave::ParagraphStyleSheet` the environment offers
+into partials that are laid over the block in force when the leaf lays
+out — the same discipline `weave::rich().add(text, name)` follows for
+character styles. A name no sheet in scope carries WARNS ONCE and changes
+nothing about its block, because a block quietly set in a default nobody
+asked for looks exactly like a style that did not take.
 
 `Element::firstBaseline` and `Element::distribute` are the two decisions a
 FRAME makes that no line makes for itself: where baseline 0 sits below the
@@ -1106,9 +1109,10 @@ delimiter leaves it covering nothing rather than covering the paragraph.
 `Element::writingMode` sets the passage running down the page.
 `sigil::weave::WritingMode::kVerticalRL` is the CJK book layout: characters
 top to bottom, columns advancing RIGHT TO LEFT from the node's right edge.
-It is a field-masked override like every other layout setter, so it works on
-plain text, on `weave::rich()` spans, and on the paragraph overload — where
-a mode nobody names leaves the paragraph's own mode standing.
+It is one field of the block lane, set on the passage or on any node above
+it and inherited by every text leaf under that — plain text, `weave::rich()`
+spans, and the paragraph overload alike, where a mode nobody names leaves
+the paragraph's own mode standing.
 
 ```cpp
 text(weave::rich(mincho)

@@ -7,6 +7,7 @@
  * float a slot transitions through.
  */
 
+#include <include/core/SkSamplingOptions.h>
 #include <sigilcore/cache/Settle.h>
 #include <sigilcore/reconcile/Node.h>
 #include <sigilmotion/values/Lanes.h>
@@ -181,6 +182,14 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // IS the ink. Written by the cascade pass before layout; read by text
   // materialisation, by the relative lengths and by the paint context.
   sigil::weave::Type font;
+  // THE BLOCK IN FORCE at this node: the parent's, with what this node's
+  // description declares folded over. A partial, since an unset field is
+  // the layout's own answer and nothing engages it. Written by the pass
+  // before layout; read when a text leaf's layout options are built.
+  sigil::weave::Block block;
+  // THE IMAGE SAMPLING IN FORCE at this node, or none stated, which an
+  // image leaf reads as linear.
+  std::optional<SkSamplingOptions> sampling;
   // The face's own line height at `font`, px — what an `lh` length under
   // this node resolves against.
   float lineHeight = 0.0f;
@@ -199,7 +208,11 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // materialised in, compared against `font` to tell a change that
   // re-shapes (any field but the colour) from one that repaints alone.
   sigil::weave::Type textFont;
-  // On a text leaf that inherits: its text changed at reconcile and the
+  // On a text leaf: the block the paragraph was last built under,
+  // compared against `block` to tell a change that re-materialises (the
+  // writing mode, the locale) from one that lays out again.
+  sigil::weave::Block textBlock;
+  // On a text leaf: its text changed at reconcile and the
   // paragraph is owed. The pass materialises it once, in the font it lands
   // in; reconcile shaping it against the root first would be a second
   // paragraph every frame the text changes.

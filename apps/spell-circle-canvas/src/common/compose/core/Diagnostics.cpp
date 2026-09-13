@@ -97,11 +97,11 @@ void warnNoSuchParagraphStyle(std::string_view name, bool anySetInScope) {
   static thread_local boost::unordered_flat_set<std::string> seen;
   if (!seen.insert(std::string(name)).second) return;
   SkDebugf(
-      "compose: paragraphs(\"%.*s\") — %s, so this block is set in a plain "
-      "default. Register it with ParagraphStyleSheet::set() and provide the "
-      "set above this element "
-      "(environment::Provide<weave::ParagraphStyleSheet>), or "
-      "pass the style itself.\n",
+      "compose: paragraphs(\"%.*s\") — %s, so this block is set in what it "
+      "inherits and nothing more. Register it with "
+      "ParagraphStyleSheet::set() and provide the sheet above this element "
+      "(environment::Provide<weave::ParagraphStyleSheet>), or pass the "
+      "style itself.\n",
       (int)name.size(), name.data(),
       anySetInScope ? "the paragraph style set in scope carries no such name"
                     : "no paragraph style set is in scope");

@@ -92,7 +92,7 @@ std::vector<detail::Block> resolveBlocks(
     blocks.push_back(detail::Block{static_cast<int>(blocks.size()), first,
                                    static_cast<uint32_t>(words.size())});
 
-  const ParagraphStyle unstyled;
+  const ParagraphStyle& unstyled = options.blockDefault;
   // The style the setting at the back of `settings` was resolved from, so a
   // run of blocks set the same way shares one setting.
   const ParagraphStyle* resolvedFrom = nullptr;
