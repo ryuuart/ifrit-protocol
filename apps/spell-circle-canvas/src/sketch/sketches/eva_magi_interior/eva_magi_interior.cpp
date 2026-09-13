@@ -107,10 +107,8 @@ struct EvaMagiInterior : sketch::Sketch {
     }
     sketch::kit::Provide bound(look);
     return box()
-        .left(0)
-        .top(360)
-        .width(magi::kW)
-        .height(140.0f + 25.0f * (float)rows.size())
+        .rect(SkRect::MakeXYWH(0, 360, magi::kW,
+                               140.0f + 25.0f * (float)rows.size()))
         .fill(Fill::color({1, 0, 1, 0.94f}))
         .column()
         .padding(30)
@@ -196,10 +194,7 @@ struct EvaMagiInterior : sketch::Sketch {
    *  is rotated: the rectification says every baseline is horizontal to within
    *  1.3 deg, and the "varying roll" was the projection. */
   Element inked(Utf8 s, const weave::Type& st, SkPoint ink, float slack) {
-    return box()
-        .left(ink.fX)
-        .top(ink.fY - slack)
-        .children({text(s).font(st)});
+    return box().at({ink.fX, ink.fY - slack}).children({text(s).font(st)});
   }
 
   // ==========================================================================
@@ -231,10 +226,7 @@ struct EvaMagiInterior : sketch::Sketch {
 
     Element node =
         box()
-            .left(p.box.left())
-            .top(p.box.top())
-            .width(sz.width())
-            .height(sz.height())
+            .rect(p.box)
             .rotate(p.rotation)
             .transformOrigin(0.5f, 0.5f)
             .key(p.key)
@@ -266,26 +258,26 @@ struct EvaMagiInterior : sketch::Sketch {
                                                .fill = Fill::currentInk(),
                                                .cap = SkPaint::kSquare_Cap,
                                                .join = SkPaint::kMiter_Join}},
-                                    .offsetStep = 6.0f})});
-      node.children({box()
-                         .inset(0)
-                         .fill(Fill::none())
-                         .shape(heldPath(pads))
-                         .stroke(PathFormat{.width = 2.0f,
-                                            .strokeFill = Fill::currentInk(),
-                                            .join = SkPaint::kMiter_Join})});
+                                    .offsetStep = 6.0f}),
+           box()
+               .inset(0)
+               .fill(Fill::none())
+               .shape(heldPath(pads))
+               .stroke(PathFormat{.width = 2.0f,
+                                  .strokeFill = Fill::currentInk(),
+                                  .join = SkPaint::kMiter_Join})});
     }
     if (!red && seeded[(size_t)i])
-      node.children({box().inset(0).fill(infection)});
-    node.children({text(p.number)
-                       .font(fitCap(evangelion::voteNumeral(number), 86.0f))
-                       .centerAt({sz.width() * 0.5f,
-                                  sz.height() * layout.numberSlotY(number)})});
-    node.children({text(p.label)
-                       .font(fitWithin(evangelion::moduleLabel(), p.label,
-                                       31.0f, sz.width() - 44.0f))
-                       .centerAt({sz.width() * 0.5f,
-                                  sz.height() * layout.nameSlotY(number)})});
+      node.children({box().inset(0).fill(infection),
+                     text(p.number)
+                         .font(fitCap(evangelion::voteNumeral(number), 86.0f))
+                         .centerAt({sz.width() * 0.5f,
+                                    sz.height() * layout.numberSlotY(number)}),
+                     text(p.label)
+                         .font(fitWithin(evangelion::moduleLabel(), p.label,
+                                         31.0f, sz.width() - 44.0f))
+                         .centerAt({sz.width() * 0.5f,
+                                    sz.height() * layout.nameSlotY(number)})});
     return node;
   }
 
@@ -293,13 +285,11 @@ struct EvaMagiInterior : sketch::Sketch {
   Element greenBand(float x0, float x1, float y) {
     Element band = box().inset(0);
     for (int i = -1; i <= 1; ++i)
-      band.children({box()
-                         .left(x0)
-                         .top(y + (float)i * 7.0f)
-                         .width(x1 - x0)
-                         .height(2.5f)
-                         .fill(mskia::Paint::solid(i == 0 ? magi::kGreenHi
-                                                          : magi::kGreen))});
+      band.children(
+          {box()
+               .rect(SkRect::MakeXYWH(x0, y + (float)i * 7.0f, x1 - x0, 2.5f))
+               .fill(mskia::Paint::solid(i == 0 ? magi::kGreenHi
+                                                : magi::kGreen))});
     return band;
   }
 
@@ -307,23 +297,19 @@ struct EvaMagiInterior : sketch::Sketch {
     Element g = box().inset(0);
     const evangelion::MagiVoteLayout layout;
     const SkRect frame = layout.frame();
-    g.children({box()
-                    .left(frame.left())
-                    .top(frame.top())
-                    .width(frame.width())
-                    .height(frame.height())
-                    .fill(Fill::none())
-                    .foreground(decorations::border(
-                        7.0f, Fill::color(magi::kOrange)))});
-    g.children({kit::disc(layout.busCentre, layout.busRadius)
-                    .shape(shapes::circle())
-                    .fill(Fill::none())
-                    .foreground(decorations::border(
-                        5.0f, Fill::color(magi::kOrangeDim), 0.0f))});
-    g.children({greenBand(145.0f, 520.0f, 116.0f)});
-    g.children({greenBand(145.0f, 520.0f, 251.0f)});
-    g.children({greenBand(920.0f, 1295.0f, 116.0f)});
-    g.children({greenBand(920.0f, 1295.0f, 251.0f)});
+    g.children(
+        {box()
+             .rect(frame)
+             .fill(Fill::none())
+             .foreground(decorations::border(7.0f, Fill::color(magi::kOrange))),
+         kit::disc(layout.busCentre, layout.busRadius)
+             .shape(shapes::circle())
+             .fill(Fill::none())
+             .foreground(decorations::border(
+                 5.0f, Fill::color(magi::kOrangeDim), 0.0f)),
+         greenBand(145.0f, 520.0f, 116.0f), greenBand(145.0f, 520.0f, 251.0f),
+         greenBand(920.0f, 1295.0f, 116.0f),
+         greenBand(920.0f, 1295.0f, 251.0f)});
     return g;
   }
 
@@ -346,13 +332,12 @@ struct EvaMagiInterior : sketch::Sketch {
 
     const auto k1 = fitEmSpan(u8"提訴", 300.0f, magi::kKanji);
     const auto k1h = fitEmSpan(u8"提訴", 300.0f, magi::kKanjiHot);
-    g.children({text(u8"提訴", k1).centerAt({332.5f, 184.0f})});
-    g.children({box().inset(0).opacity(&kanjiHot).children(
-        {text(u8"提訴", k1h).centerAt({332.5f, 184.0f})})});
+    g.children({text(u8"提訴", k1).centerAt({332.5f, 184.0f}),
+                box().inset(0).opacity(&kanjiHot).children(
+                    {text(u8"提訴", k1h).centerAt({332.5f, 184.0f})})});
     const auto k2 = fitEmSpan(u8"決議", 300.0f, magi::kKanji);
-    g.children({text(u8"決議", k2).centerAt({1107.5f, 184.0f})});
-
-    g.children({text(u8"MAGI")
+    g.children({text(u8"決議", k2).centerAt({1107.5f, 184.0f}),
+                text(u8"MAGI")
                     .font(fitCap(evangelion::magiWordmark(), 54.0f))
                     .centerAt({720.0f, 535.0f})});
     return g;
@@ -364,10 +349,7 @@ struct EvaMagiInterior : sketch::Sketch {
   Element verdictBox() {
     const auto st = fitEmSpan(u8"審議中", 188.0f, magi::kGoldPeak);
     return box()
-        .left(995)
-        .top(295)
-        .width(275)
-        .height(130)
+        .rect(SkRect::MakeXYWH(995, 295, 275, 130))
         .opacity(&goldOn)
         .fill(mskia::Paint::solid(hexColor(0x140A02)))
         .style(decorations::doubleBorder(
@@ -388,10 +370,7 @@ struct EvaMagiInterior : sketch::Sketch {
     const auto st = fitEmSpan(carried ? u8"可決" : u8"否決", 150.0f, ink);
     Element card =
         box()
-            .left(995)
-            .top(295)
-            .width(275)
-            .height(130)
+            .rect(SkRect::MakeXYWH(995, 295, 275, 130))
             .shape(shapes::chamfered(22.0f, shapes::Corner::Diagonal))
             .fill(mskia::Paint::solid(hexColor(0x0A0102)))
             .ink(ink)
@@ -399,8 +378,9 @@ struct EvaMagiInterior : sketch::Sketch {
             .children({text(carried ? u8"可決" : u8"否決", st)
                            .centerAt({137.5f, 65.0f})});
     if (verdictStep == 5)
-      card.children({box().left(24).top(62).width(227).height(7).fill(
-          mskia::Paint::solid(magi::kOrange))});
+      card.children({box()
+                         .rect(SkRect::MakeXYWH(24, 62, 227, 7))
+                         .fill(mskia::Paint::solid(magi::kOrange))});
     return card;
   }
 
@@ -410,11 +390,12 @@ struct EvaMagiInterior : sketch::Sketch {
   Element countdownNumeral() {
     if (countdown < 0) return box().absolute().width(0).height(0);
     const std::string buf = kit::formatted("%d", countdown);
-    return box().left(1096).top(96).children(
-        {text(buf).font({.face = magi::latin(),
-                         .size = 260.0f,
-                         .color = magi::kRedHot,
-                         .condense = 1.2f})});
+    return box()
+        .at({1096, 96})
+        .children({text(buf).font({.face = magi::latin(),
+                                   .size = 260.0f,
+                                   .color = magi::kRedHot,
+                                   .condense = 1.2f})});
   }
 
   /** The HUD slot: everything that changes on a CLOCK rather than on the
@@ -432,29 +413,27 @@ struct EvaMagiInterior : sketch::Sketch {
     // The bus is drawn first. The square modules are masks over it, and their
     // labels live inside their rotated local coordinate systems.
     picture.children({plateFurniture().cache(Cache::Texture).key("furniture")});
-    for (int i = 0; i < 3; ++i) picture.children({panelNode(i)});
-    // Headings and state cards occupy the frontmost UI layer.
-    picture.children({plateType().cache(Cache::Texture).key("ptype")});
-    picture.children({verdictBox()});
-    picture.children({slot("hud")});
+    for (int i = 0; i < 3; ++i)
+      picture.children(
+          {panelNode(i),
+           // Headings and state cards occupy the frontmost UI layer.
+           plateType().cache(Cache::Texture).key("ptype"), verdictBox(),
+           slot("hud")});
     root.children(
-        {std::move(picture).effect(evangelion::phosphor()).key("phosphor")});
-
-    // --- the tube ----------------------------------------------------------
-    root.children({box()
-                       .left(0)
-                       .top(-8)
-                       .width(magi::kW)
-                       .height(magi::kH + 16)
-                       .fill(mskia::Paint::recipe(evangelion::tube()))
-                       .translateY(&creep)
-                       .cache(Cache::Texture)
-                       .key("crt")});
-    root.children({box()
-                       .inset(0)
-                       .fill(Fill::color({0, 0, 0, 1}))
-                       .opacity(&flicker)
-                       .key("flicker")});
+        {std::move(picture).effect(evangelion::phosphor()).key("phosphor"),
+         // --- the tube
+         // ----------------------------------------------------------
+         box()
+             .rect(SkRect::MakeXYWH(0, -8, magi::kW, magi::kH + 16))
+             .fill(mskia::Paint::recipe(evangelion::tube()))
+             .translateY(&creep)
+             .cache(Cache::Texture)
+             .key("crt"),
+         box()
+             .inset(0)
+             .fill(Fill::color({0, 0, 0, 1}))
+             .opacity(&flicker)
+             .key("flicker")});
 
     if (verdict.failures() > 0) root.children({failureCard()});
     return root;
