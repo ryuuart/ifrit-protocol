@@ -71,10 +71,6 @@ constexpr SkColor4f kAsh{0.60f, 0.64f, 0.73f, 1};
 constexpr SkColor4f kRule{0.22f, 0.23f, 0.30f, 1};
 constexpr SkColor4f kQuest{0.169f, 0.110f, 0.043f, 1};
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
 /** THIS SHEET'S LOOK, and its one voice: the call over the panel, what
  *  it did under it. The page's ground is a shade off the canvas's, which
  *  is black, so the margin around the sheet reads as a border. */
@@ -108,7 +104,7 @@ Element panel(Slice frame, std::u8string caption, SkColor4f ink) {
       .padding(24)
       .alignItems(Align::Center)
       .justify(Justify::Center)
-      .child(text(std::move(caption), label(17, ink)));
+      .child(text(std::move(caption)).font({.size = 17, .track = 0}).ink(ink));
 }
 
 /** THE DIRECT DOOR, in a leaf of its own: `skia::draw::drawLattice`
@@ -138,7 +134,7 @@ Element directLattice(std::shared_ptr<sigil::image::ImageAsset> asset) {
                     })
                  .absolute()
                  .inset(0))
-      .child(text(u8"DIRECT", label(17, kQuest)));
+      .child(text(u8"DIRECT").font({.size = 17, .track = 0}).ink(kQuest));
 }
 
 struct NineSlice final : sketch::Sketch {
