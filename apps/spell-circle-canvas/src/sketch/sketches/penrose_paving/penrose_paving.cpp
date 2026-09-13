@@ -317,8 +317,7 @@ struct PenrosePaving : sketch::Sketch {
                        PathFormat::Align::Inner))
         .background(styles::dropShadow(hexColor(0x000000, 0.55f), {0, 6}, 22))
         .child(text("DEFLATION · FAT → 2 FAT + 1 THIN, "
-                    "×"
-                    "1/φ")
+                    "×1/φ")
                    .left(14)
                    .top(12))
         .child(box().left(10).top(34).width(kDiagW).height(kDiagH).child(

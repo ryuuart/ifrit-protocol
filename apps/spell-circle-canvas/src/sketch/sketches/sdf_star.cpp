@@ -130,8 +130,7 @@ struct SdfStar final : sketch::Sketch {
                                        "never edited into another kind",
                                        sdf::star(kPoints, 3.4f), plain()),
                                   cell("sdf::star(6, 5)",
-                                       "…"
-                                       "and deeper again, "
+                                       "…and deeper again, "
                                        "toward the point count the clamp "
                                        "stops at",
                                        sdf::star(kPoints, 5), plain()),
@@ -144,8 +143,7 @@ struct SdfStar final : sketch::Sketch {
                        {.cells = {cell(
                                       "…"
                                       ".glowRadius = 14",
-                                      kit::formatted("exp(−"
-                                                     "d / radius), "
+                                      kit::formatted("exp(−d / radius), "
                                                      "not a blurred copy "
                                                      "· pad "
                                                      "%.0f px",

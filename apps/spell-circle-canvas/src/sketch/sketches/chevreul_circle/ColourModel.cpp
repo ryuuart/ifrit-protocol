@@ -337,13 +337,9 @@ auto ChevreulCircle::verify(sketch::SketchContext& ctx) -> void {
 auto ChevreulCircle::buildVerifyTable() -> void {
   verdict = {};
   verdict.add(measure::check("CIRCLE CLOSES     12 named × 6", 72, v.closes1))
-      .add(measure::check("                  3 + 3×"
-                          "23",
-                          72, v.closes2))
-      .add(measure::check("SYSTEM TOTAL      72×"
-                          "20×"
-                          "10 + 20 grey",
-                          14420L, v.total))
+      .add(measure::check("                  3 + 3×23", 72, v.closes2))
+      .add(measure::check("SYSTEM TOTAL      72×20×10 + 20 grey", 14420L,
+                          v.total))
       .add(measure::check("PLATE DIAMETER    ROUGE→VERT, deg", 180.0,
                           (double)v.plateDelta, 0.005))
       .add(
@@ -363,17 +359,15 @@ auto ChevreulCircle::buildVerifyTable() -> void {
       .add(measure::reading("DIAMETERS         miss: origin / centroid",
                             kit::formatted("%.2f / %.2f", (double)v.missOrigin,
                                            (double)v.missCentroid)))
-      // \xc2\xa7" "6's four complementary statements against \xc2\xa7" "161's
+      // §6's four complementary statements against §161's
       // own construction. Three land on the nose; greenish-yellow/violet
       // does not, and that is Chevreul's, not the reconstruction's.
-      .add(measure::finding(measure::check("COMPLEMENTARIES   §"
-                                           "6 pairs exact, of 4",
-                                           4, v.compExact)))
-      // \xc2\xa7" "160: yellow lighter and blue darker than red, measured
+      .add(measure::finding(measure::check(
+          "COMPLEMENTARIES   §6 pairs exact, of 4", 4, v.compExact)))
+      // §160: yellow lighter and blue darker than red, measured
       // off the plate's own medians.
-      .add(measure::finding(measure::check("LUMINOSITY §"
-                                           "160  jaune is the lightest",
-                                           v.jauneHighest)))
+      .add(measure::finding(measure::check(
+          "LUMINOSITY §160  jaune is the lightest", v.jauneHighest)))
       .add(measure::finding(measure::check(
           "                  bleu darker than rouge", v.bleuDarker)))
       .add(measure::check("STAIRCASE         hexes exact, of 20", v.bands,

@@ -142,41 +142,40 @@ auto TwoAdvancedV4::masthead() -> Element {
                           {420ms, &ch::easeOutQuint, 1850ms}))
       .opacity(animate(motion::from(0.0f).to(1.0f),
                        {300ms, &ch::easeOutQuad, 1850ms}))
-      .child(box()
-                 .grow(1)
-                 .row()
-                 .alignItems(Align::Center)
-                 .padding(26, 0, 8, 0)
-                 .gap(18)
-                 .child(emblem)
-                 .child(box()
-                            .column()
-                            .gap(6)
-                            .child(t("2ADVANCED STUDIOS",
-                                     sigil::weave::kit::tracked(
-                                         blackFace(), 25, kCyan, 80, 0.90f))
-                                       .effect(styles::textGlow(
-                                           mskia::withAlpha(kGlow, 0.55f), 6)))
-                            .child(t("PROGRESSIVE DESIGN TECHNOLOGY",
-                                     micro(12, kDust, 240)))
-                            .child(box()
-                                       .row()
-                                       .gap(6)
-                                       .alignItems(Align::Center)
-                                       .child(box().width(30).height(1).fill(
-                                           mskia::withAlpha(kCyan, 0.5f)))
-                                       .child(t("EST. 1999 · IRVINE CA",
-                                                micro(10, kDustDim, 200)))))
-                 .child(box().grow(1))
-                 .child(box()
-                            .column()
-                            .alignItems(Align::End)
-                            .gap(4)
-                            .child(t("BUILD 4.0.7", micro(10, kDustDim, 200)))
-                            .child(t("FLASH 6 REQ.", micro(10, kDustDim, 200)))
-                            .child(t("1024×"
-                                     "768 MIN",
-                                     micro(10, kDustDim, 200)))))
+      .child(
+          box()
+              .grow(1)
+              .row()
+              .alignItems(Align::Center)
+              .padding(26, 0, 8, 0)
+              .gap(18)
+              .child(emblem)
+              .child(box()
+                         .column()
+                         .gap(6)
+                         .child(t("2ADVANCED STUDIOS",
+                                  sigil::weave::kit::tracked(blackFace(), 25,
+                                                             kCyan, 80, 0.90f))
+                                    .effect(styles::textGlow(
+                                        mskia::withAlpha(kGlow, 0.55f), 6)))
+                         .child(t("PROGRESSIVE DESIGN TECHNOLOGY",
+                                  micro(12, kDust, 240)))
+                         .child(box()
+                                    .row()
+                                    .gap(6)
+                                    .alignItems(Align::Center)
+                                    .child(box().width(30).height(1).fill(
+                                        mskia::withAlpha(kCyan, 0.5f)))
+                                    .child(t("EST. 1999 · IRVINE CA",
+                                             micro(10, kDustDim, 200)))))
+              .child(box().grow(1))
+              .child(box()
+                         .column()
+                         .alignItems(Align::End)
+                         .gap(4)
+                         .child(t("BUILD 4.0.7", micro(10, kDustDim, 200)))
+                         .child(t("FLASH 6 REQ.", micro(10, kDustDim, 200)))
+                         .child(t("1024×768 MIN", micro(10, kDustDim, 200)))))
       // the glowing 2px cyan divider under the whole masthead panel
       .child(box().height(2).fill(kCyan).background(
           styles::OuterGlow{mskia::withAlpha(kGlow, 0.55f), 10, 1}));
@@ -376,25 +375,24 @@ auto TwoAdvancedV4::footerDock() -> Element {
   strip.child(window("DISPATCH", "QUEUE  00114", "LAST  04.05.06", 280));
 
   // the instanced chevron array — one atlas cell, one stamp
-  strip.child(box()
-                  .width(260)
-                  .height(150)
-                  .shape(shapes::chamfered(7, shapes::Corner::AntiDiagonal))
-                  .fill(hexColor(0x110303))
-                  .foreground(styles::BevelPair{kD5, {0, 0, 0, 0.6f}, 1, 1})
-                  .child(box()
-                             .left(Dimension(12))
-                             .top(Dimension(12))
-                             .width(236)
-                             .height(96)
-                             .child(instancing::instances(
-                                 dockAtlas, dockPool, instancing::Mode::Data)))
-                  .child(box()
-                             .left(Dimension(12))
-                             .top(Dimension(122))
-                             .child(t("ARRAY 6×"
-                                      "14 · IDLE",
-                                      micro(10, kD6, 220)))));
+  strip.child(
+      box()
+          .width(260)
+          .height(150)
+          .shape(shapes::chamfered(7, shapes::Corner::AntiDiagonal))
+          .fill(hexColor(0x110303))
+          .foreground(styles::BevelPair{kD5, {0, 0, 0, 0.6f}, 1, 1})
+          .child(box()
+                     .left(Dimension(12))
+                     .top(Dimension(12))
+                     .width(236)
+                     .height(96)
+                     .child(instancing::instances(dockAtlas, dockPool,
+                                                  instancing::Mode::Data)))
+          .child(box()
+                     .left(Dimension(12))
+                     .top(Dimension(122))
+                     .child(t("ARRAY 6×14 · IDLE", micro(10, kD6, 220)))));
 
   strip.child(
       box()
@@ -557,8 +555,7 @@ auto TwoAdvancedV4::bootOverlay() -> Element {
                          spans::upTo(animate(motion::from(0.0f).to(1.0f),
                                              {800ms, &ch::easeNone, 550ms})),
                          stroke(2, Fill::color(kCyan)))))
-          .child(t("LOADING PROPHECY INTERFACE · 970×"
-                   "655",
+          .child(t("LOADING PROPHECY INTERFACE · 970×655",
                    micro(11, mskia::withAlpha(kCyan, 0.6f), 240))));
   // 4. the boot-complete flash
   o.child(box()

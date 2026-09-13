@@ -582,9 +582,7 @@ auto TwoAdvancedV4::subSystem() -> Element {
                  .column()
                  .gap(3)
                  .child(t("RESOLUTION", micro(10, kDustDim, 240)))
-                 .child(t("▸ 1024×"
-                          "768 · 32-BIT",
-                          label(13, kNear, 90))))
+                 .child(t("▸ 1024×768 · 32-BIT", label(13, kNear, 90))))
       .child(box().grow(1))
       .child(box()
                  .column()

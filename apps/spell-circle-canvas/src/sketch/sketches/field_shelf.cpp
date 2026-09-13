@@ -208,8 +208,7 @@ struct FieldShelf final : sketch::Sketch {
                                                   "is "
                                                   "sharper "
                                                   "and veiny",
-                                                  field::noise(
-                                                      kNoiseHz, 4, kSeed, true)),
+                                                  field::noise(kNoiseHz, 4, kSeed, true)),
                                             plain("grain(0.02, 4, 4, 1.6, 7)",
                                                   "stretch divides the x "
                                                   "frequency "
@@ -221,8 +220,7 @@ struct FieldShelf final : sketch::Sketch {
                                                   field::grain(0.02f,
                                                                4, kSeed, 1.6f, 7)),
                                             plain("ripple(9, 70, vertical)",
-                                                  "…"
-                                                  "and with the flag, x "
+                                                  "…and with the flag, x "
                                                   "shifted by a sine of y · "
                                                   "the "
                                                   "same field turned a quarter",
@@ -237,8 +235,9 @@ struct FieldShelf final : sketch::Sketch {
                                                  "the "
                                                  "way "
                                                  "in",
-                                                 field::crtOverlay(8,
-                                                                   0.16f, 1.1f, 1.9f, 0.7f))},
+                                                 field::
+                                                     crtOverlay(8,
+                                                                0.16f, 1.1f, 1.9f, 0.7f))},
                                   .gap = 12})},
              .column = true,
              .gap = 16})));

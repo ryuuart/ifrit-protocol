@@ -125,44 +125,38 @@ struct CurveShelf final : sketch::Sketch {
                                            "amplitudes DECAY, so a real "
                                            "pendulum "
                                            "figure spirals in",
-                                           shapes::harmonograph(3,
-                                                                2, 0, 0.06f, 5, 9)),
+                                           shapes::harmonograph(
+                                               3, 2, 0, 0.06f, 5, 9)),
                                       cell("rose(5)",
                                            "r = cos(k·θ) · "
                                            "odd k gives k petals",
                                            shapes::rose(5))},
                             .gap = 12}),
-                       kit::cells({.cells = {cell("rose(4)",
-                                                  "…"
-                                                  "and EVEN k gives 2k, "
-                                                  "which is the rule about "
-                                                  "this family",
-                                                  shapes::rose(4)),
-                                             cell("spiral(4)",
-                                                  "Archimedean — even "
-                                                  "spacing: a clock spring",
-                                                  shapes::spiral(4)),
-                                             cell("spiral(4, true, 0.34)",
-                                                  "logarithmic — a constant "
-                                                  "angle: a nautilus",
-                                                  shapes::spiral(4,
-                                                                 true, 0.34f)),
-                                             cell(
-                                                 "trochoid(5, 3, 5, false, 3)",
-                                                 "an EPItrochoid: the rolling "
-                                                 "circle "
-                                                 "runs outside the fixed one",
-                                                 shapes::trochoid(5,
-                                                                  3, 5, false, 3)),
-                                             cell(
-                                                 "trochoid(5, 3, 5, true, 3)",
-                                                 "…"
-                                                 "and the same three "
-                                                 "numbers with it running "
-                                                 "inside",
-                                                 shapes::trochoid(5,
-                                                                  3, 5, true, 3))},
-                                   .gap = 12})},
+                       kit::cells(
+                           {.cells = {cell("rose(4)",
+                                           "…and EVEN k gives 2k, "
+                                           "which is the rule about "
+                                           "this family",
+                                           shapes::rose(4)),
+                                      cell("spiral(4)",
+                                           "Archimedean — even "
+                                           "spacing: a clock spring",
+                                           shapes::spiral(4)),
+                                      cell("spiral(4, true, 0.34)",
+                                           "logarithmic — a constant "
+                                           "angle: a nautilus",
+                                           shapes::spiral(4, true, 0.34f)),
+                                      cell("trochoid(5, 3, 5, false, 3)",
+                                           "an EPItrochoid: the rolling "
+                                           "circle "
+                                           "runs outside the fixed one",
+                                           shapes::trochoid(5, 3, 5, false, 3)),
+                                      cell("trochoid(5, 3, 5, true, 3)",
+                                           "…and the same three "
+                                           "numbers with it running "
+                                           "inside",
+                                           shapes::trochoid(5, 3, 5, true, 3))},
+                            .gap = 12})},
              .column = true,
              .gap = 16})));
   }

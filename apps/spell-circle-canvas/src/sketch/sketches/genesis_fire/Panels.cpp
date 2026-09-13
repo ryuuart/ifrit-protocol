@@ -11,11 +11,8 @@ Element GenesisFire::generationPanel() {
                  "(f − f₀)"))
       .child(eqn("InitialSpeed = MeanSpeed + Rand() × VarSpeed"))
       .child(box().grow(1))
-      .child(text("Rand() → UNIFORM [−"
-                  "1.0, +1.0] "
-                  "— REEVES 1983 §"
-                  "2.1–"
-                  "2.2")
+      .child(text("Rand() → UNIFORM [−1.0, +1.0] "
+                  "— REEVES 1983 §2.1–2.2")
                  .font({.size = 7.5f, .track = 0.4f})
                  .ink(kSteelDim)
                  .shrink(0));
@@ -80,8 +77,7 @@ Element GenesisFire::liveRow() {
 Element GenesisFire::censusPanel() {
   return panel(kPanelH[1], 2)
       .gap(4)
-      .child(panelHead("PARTICLE CENSUS — REEVES 1983 §"
-                       "3"))
+      .child(panelHead("PARTICLE CENSUS — REEVES 1983 §3"))
       .child(box()
                  .row()
                  .height(11)
@@ -101,9 +97,8 @@ Element GenesisFire::censusPanel() {
               .child(censusRow("4", "~21", "25,000", "1,190*", 0.273f, false))
               .child(censusRow("5", "~200", "75,000", "375", 0.491f, false))
               .child(censusRow("6", "~200", "85,000", "425", 0.514f, false))
-              .child(censusRow("7–"
-                               "8",
-                               "~400", ">750,000", ">1,875", 0.945f, false))
+              .child(
+                  censusRow("7–8", "~400", ">750,000", ">1,875", 0.945f, false))
               .child(liveRow()))
       .child(box().grow(1))
       .child(text("* FIG. 4 IS \"ONE VERY LARGE PARTICLE SYSTEM AND "
@@ -156,8 +151,7 @@ Element GenesisFire::rampPanel() {
           std::move(swatches)))
       .child(box().row().gap(2).shrink(0).children(std::move(labels)))
       .child(box().grow(1))
-      .child(text("LIGHT ADDS AND CLAMPS (§"
-                  "2.5) — RED "
+      .child(text("LIGHT ADDS AND CLAMPS (§2.5) — RED "
                   "SATURATES AT n=5, GREEN AT n=20, BLUE AT n=111. "
                   "e₀ = (0.220, 0.050, 0.009) IS THE ONE "
                   "RECONSTRUCTED SEED.")

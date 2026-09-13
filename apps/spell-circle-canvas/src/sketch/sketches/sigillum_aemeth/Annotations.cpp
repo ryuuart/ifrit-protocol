@@ -194,9 +194,8 @@ auto SigillumAemeth::margin() -> Element {
                 .opacity(animate(from(0.0f).to(1.0f),
                                  ramp(tDark * 1000 + 200, 500))));
     g.child(
-        text("↳ the same rule reads them as YMON 22·"
-             "7\xc2\xb7\x31\x33\xc2\xb7\x33\x31 and BORAOTH "
-             "26\xc2\xb7\x33\x36\xc2\xb7\x31\x39\xc2\xb7\xe2\x80\xa6")
+        text("↳ the same rule reads them as YMON 22·7·13·31 and BORAOTH "
+             "26·36·19·…")
             .font({.face = faceItalic, .size = 14, .color = hexColor(0x6f5f45)})
             .at({0, 536})
             .opacity(

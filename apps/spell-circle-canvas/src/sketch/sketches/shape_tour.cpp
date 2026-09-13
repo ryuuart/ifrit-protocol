@@ -208,9 +208,7 @@ struct ShapeShelf final : sketch::Sketch {
                         "outside another",
                         false),
                    cell(shapes::trochoid(5, 3, 5, true),
-                        "trochoid(5, 3, 5, inside)",
-                        "…"
-                        "and rolling inside it",
+                        "trochoid(5, 3, 5, inside)", "…and rolling inside it",
                         false),
                    cell(shapes::rounded(shapes::star(5, 0.42f), 8),
                         "rounded(star(5, 0.42), 8)",

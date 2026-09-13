@@ -77,9 +77,8 @@ auto ChaucerAstrolabe::verify() -> void {
   }
   B.add(measure::heading("THE AZIMVTH FAMILY, CHECKED THE HARD WAY"))
       .add(measure::reading("each A projected (A,h)→(δ,H)→plate", 12))
-      .add(measure::check("A′ = 90°−"
-                          "A, from the PRIME VERTICAL",
-                          0.0, resPrime, 1e-12))
+      .add(measure::check("A′ = 90°−A, from the PRIME VERTICAL", 0.0, resPrime,
+                          1e-12))
       // A FINDING, not a claim about this code: the published
       // parameterisation is measured from north, and drawn that way the
       // family misses by more than the plate's own radius. Its failing is
@@ -178,7 +177,7 @@ auto ChaucerAstrolabe::verify() -> void {
     // The reference region is built from the SAME polyline vertices as the
     // cells, so "uncovered minus outside-the-ring" is exactly zero rather
     // than a few dozen samples of chord error against a true circle. If it
-    // is not zero, the \xce\xbb \xe2\x86\x92 ring-angle map is wrong,
+    // is not zero, the λ → ring-angle map is wrong,
     // which is precisely the failure coverage() exists to catch.
     SkPathBuilder rb;
     rb.setFillType(SkPathFillType::kEvenOdd);

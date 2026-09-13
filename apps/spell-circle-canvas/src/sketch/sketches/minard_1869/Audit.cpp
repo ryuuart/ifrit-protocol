@@ -252,15 +252,11 @@ auto Minard1869::runAudits(const sketch::SketchContext& ctx) -> void {
       "  °C = °R × 5/4   °F = °R × 9/4 + "
       "32   (exact, no offset)",
       "dim");
-  row(colD, measure::check("  −"
-                           "30 °"
-                           "R in °"
-                           "C",
+  row(colD, measure::check("  −30 °"
+                           "R in °C",
                            -37.5, -30.0 * 5.0 / 4.0, 1e-9));
-  row(colD, measure::check("  −"
-                           "30 °"
-                           "R in °"
-                           "F",
+  row(colD, measure::check("  −30 °"
+                           "R in °F",
                            -35.5, -30.0 * 9.0 / 4.0 + 32.0, 1e-9));
   row(colD, measure::reading("  readings converted", 9));
   say(colD,

@@ -258,7 +258,7 @@ struct LaneRetarget final : sketch::Sketch {
 };
 
 SIGIL_SKETCH(LaneRetarget, "Kit · API",
-             "one flight interrupted at the same moment three ways \xe2\x80"
-             "\x94 a fixed row bent onto a new endpoint, a positional family "
+             "one flight interrupted at the same moment three ways — a fixed "
+             "row bent onto a new endpoint, a positional family "
              "of equal shape, and one whose shape changed and dropped its "
              "motions")

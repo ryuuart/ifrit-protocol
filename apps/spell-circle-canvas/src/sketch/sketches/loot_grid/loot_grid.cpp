@@ -379,16 +379,14 @@ struct LootGrid final : sketch::Sketch {
                        .child(statRow("VITALITY", "206",
                                       lt::rarityColor(lt::Rarity::Magic)))
                        .child(statRow("ENERGY", "68", lt::kParch)))
-            .child(box()
-                       .column()
-                       .gap(4)
-                       .child(statRow("DEFENCE", "1,884", lt::kParch))
-                       .child(statRow("FIRE RES", "+65%", hexColor(0xE07A3C)))
-                       .child(statRow("COLD RES", "+41%", hexColor(0x5AA6E0)))
-                       .child(statRow("LIGHT RES",
-                                      "−"
-                                      "35%",
-                                      hexColor(0xD04040)))));
+            .child(
+                box()
+                    .column()
+                    .gap(4)
+                    .child(statRow("DEFENCE", "1,884", lt::kParch))
+                    .child(statRow("FIRE RES", "+65%", hexColor(0xE07A3C)))
+                    .child(statRow("COLD RES", "+41%", hexColor(0x5AA6E0)))
+                    .child(statRow("LIGHT RES", "−35%", hexColor(0xD04040)))));
 
     return stack()
         .width(Dimension(pw))

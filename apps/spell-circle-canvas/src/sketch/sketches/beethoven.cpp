@@ -183,9 +183,7 @@ struct Beethoven final : sketch::Sketch {
         {"leitung", {"carl schuricht"}},
         {"solist", {"wolfgang schneiderhan"}},
         {"beethoven",
-         {"ouverture zu «"
-          "coriolan», op. 62",
-          "violinkonzert in d-dur, op. 61",
+         {"ouverture zu «coriolan», op. 62", "violinkonzert in d-dur, op. 61",
           "siebente sinfonie in a-dur, op. 92"}},
         {"vorverkauf",
          {"tonhalle-kasse, hug, jecklin,", "kuoni",

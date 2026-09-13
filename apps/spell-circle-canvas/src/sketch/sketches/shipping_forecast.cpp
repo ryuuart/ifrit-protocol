@@ -875,12 +875,8 @@ struct ShippingForecast : sketch::Sketch {
   [[nodiscard]] Element header() {
     static constexpr const char* kSlug[] = {
         "ISSUED 0015 UTC · VALID TO 0600 UTC TOMORROW",
-        // The literals break after an en dash on purpose: \x93 followed by
-        // a digit would be read as one out-of-range hex escape.
-        "IMMINENT: WITHIN 6 H · SOON: 6–"
-        "12 H · LATER: BEYOND 12 H",
-        "GOOD > 5 NM · MODERATE 2–"
-        "5 NM · POOR 1000 M – 2 NM",
+        "IMMINENT: WITHIN 6 H · SOON: 6–12 H · LATER: BEYOND 12 H",
+        "GOOD > 5 NM · MODERATE 2–5 NM · POOR 1000 M – 2 NM",
     };
     std::vector<sketch::kit::Line> slugs;
     for (int i = 0; i < 3; ++i)

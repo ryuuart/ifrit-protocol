@@ -146,9 +146,7 @@ struct Mawarikomi final : sketch::Sketch {
                    .inset(64, 84, 0, 0)
                    .column()
                    .gap(10)
-                   .child(text("\xe5\x9b\x9e\xe3\x82\x8a\xe8\xbe\xbc\xe3\x81"
-                               "\xbf")
-                              .font(mw::bodyType(42)))
+                   .child(text("回り込み").font(mw::bodyType(42)))
                    .child(box()
                               .width(Dimension(120.0f))
                               .height(Dimension(1.0f))

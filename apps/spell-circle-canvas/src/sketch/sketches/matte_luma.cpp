@@ -228,15 +228,11 @@ struct MatteLuma final : sketch::Sketch {
                        cell(kPanel, kPanel, box().inset(0).fill(coverage))),
                    captioned("by::alpha(coverage)", "keeps what it COVERS",
                              gated(by::alpha(coverage))),
-                   captioned("by::alphaOut(coverage)",
-                             "…"
-                             "and the complement",
+                   captioned("by::alphaOut(coverage)", "…and the complement",
                              gated(by::alphaOut(coverage))),
                    captioned("by::luma(coverage)", "keeps what is BRIGHT",
                              gated(by::luma(coverage))),
-                   captioned("by::lumaOut(coverage)",
-                             "…"
-                             "and the complement",
+                   captioned("by::lumaOut(coverage)", "…and the complement",
                              gated(by::lumaOut(coverage)))},
          .gap = 12});
 

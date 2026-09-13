@@ -201,8 +201,7 @@ struct FormationBands final : sketch::Sketch {
                   kit::cells({.cells =
                                   {cell("bandRegion(spine, wave, "
                                         "Formation::Centered)",
-                                        "both rails at ±"
-                                        "across, closed "
+                                        "both rails at ±across, closed "
                                         "per contour · a law that "
                                         "crosses zero pinches the band shut "
                                         "wherever it does",

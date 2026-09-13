@@ -299,9 +299,7 @@ struct MaterialChild final : sketch::Sketch {
                    panel(tables, "child(\"uPalette\", fire)",
                          "the SAME index texture, another table",
                          tables.fireTable, 0.0f, "fire"),
-                   panel(tables, "child(\"uPalette\", ice)",
-                         "…"
-                         "and another",
+                   panel(tables, "child(\"uPalette\", ice)", "…and another",
                          tables.iceTable, 0.0f, "ice"),
                    panel(tables, "uniform(\"uShade\", 6)",
                          "min(i + 6, 15): the top cells flatten onto the "

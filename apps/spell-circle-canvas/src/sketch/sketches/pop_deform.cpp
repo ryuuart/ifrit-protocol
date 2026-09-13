@@ -230,8 +230,7 @@ struct PopDeform final : sketch::Sketch {
                   .width(Dimension(kLead))
                   .column()
                   .gap(6)
-                  .child(text("…"
-                              "and the same four, "
+                  .child(text("…and the same four, "
                               ".masked(\"band\")")
                              .font({.size = 13, .color = kInk, .track = 0.6f}))
                   .child(text("a mask is one more lane on the "

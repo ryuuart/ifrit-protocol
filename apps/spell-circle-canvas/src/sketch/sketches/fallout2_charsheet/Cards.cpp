@@ -187,8 +187,7 @@ auto Fallout2CharSheet::captionBand() -> Element {
     return text(s).left(Dimension(30)).top(Dimension(y));
   };
   band.child(t("FALLOUT 2 · CHARACTER SCREEN · BLACK ISLE "
-               "STUDIOS, 1998 · 640×"
-               "480 8-BIT INDEXED, REBUILT AT 2×",
+               "STUDIOS, 1998 · 640×480 8-BIT INDEXED, REBUILT AT 2×",
                fo::sheetType(bodyBold(), 17.0f, kGold, 1.8f))
                  .left(Dimension(30))
                  .top(Dimension(14)));
@@ -204,8 +203,7 @@ auto Fallout2CharSheet::captionBand() -> Element {
                   "id 177). The sheet is RE-SET in real faces.",
                   84)
                  .ink(hexColor(0x6A6A5A)));
-  band.child(line("The screen above is exactly 1280×"
-                  "960 — "
+  band.child(line("The screen above is exactly 1280×960 — "
                   "halve it and it overlays the 1998 capture. This band is "
                   "not part of the artefact.",
                   104)

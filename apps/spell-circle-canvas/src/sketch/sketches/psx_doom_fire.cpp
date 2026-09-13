@@ -422,8 +422,7 @@ struct PsxDoomFire final : sketch::Sketch {
 
     // the panel's own placard line, and the live step counter beside it
     chip(pen,
-         "BUFFER 320 × 168 CELLS  ·  BLIT ×"
-         "3 NEAREST  ·  PANEL 960 × 504 PX",
+         "BUFFER 320 × 168 CELLS  ·  BLIT ×3 NEAREST  ·  PANEL 960 × 504 PX",
          x + 22, y + 24, 10, kSteel, 1.0f, 0.0f, cue(ms, 820, 300));
 
     const std::string step =

@@ -323,9 +323,7 @@ struct BoundLane : sketch::Sketch {
                     stage("lane.wrap",
                           bind(&phase).scale(3.0f).wrap(1.0f).value(), -0.15f,
                           1.15f)),
-              panel(190, 128, "wiggle · 3 octaves",
-                    "rails are ±"
-                    "amount",
+              panel(190, 128, "wiggle · 3 octaves", "rails are ±amount",
                     wiggleStage("lane.wiggle",
                                 wiggle(&seconds, kAmount, kFrequency, kSeedX,
                                        kOctaves, kFalloff)

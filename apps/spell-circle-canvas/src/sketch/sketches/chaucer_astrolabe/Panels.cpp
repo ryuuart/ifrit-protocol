@@ -401,10 +401,8 @@ auto ChaucerAstrolabe::specCard() -> Element {
               .width(pw - 36));
   g.child(text("his ε is an inherited PTOLEMAIC value, 1200 years "
                "old — the equator comes out 0.586% small "
-               "(−"
-               "0.229 mm), Cancer 1.175% "
-               "(−"
-               "0.299 mm)")
+               "(−0.229 mm), Cancer 1.175% "
+               "(−0.299 mm)")
               .font({.face = faceItalic, .size = 12.5f})
               .left(px + 18)
               .top(y + 52)

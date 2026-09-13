@@ -255,6 +255,5 @@ auto DunhuangStarChart::update(double, sketch::SketchContext& ctx) -> void {
 }
 
 SIGIL_SKETCH(DunhuangStarChart, "Study · Esoteric",
-             "The Dunhuang star chart (c. 649–"
-             "684) reprojected from "
+             "The Dunhuang star chart (c. 649–684) reprojected from "
              "1,460 real stars — and it refuses to answer")

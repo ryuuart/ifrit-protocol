@@ -205,8 +205,7 @@ void GenesisFire::stageCaption(Pen& pen) {
   pen.text(buf, right, kCaptionY);
   penMono(pen, 8.5f, fadeTo(kSteel, a), 0.5f);
   pen.text(
-      "888×"
-      "666 = 4:3 — THE 500-LINE VIDEO RASTER THE DEMO WAS "
+      "888×666 = 4:3 — THE 500-LINE VIDEO RASTER THE DEMO WAS "
       "COMPUTED FOR",
       right, kCaptionY + 12);
   penMono(pen, 8.5f, fadeTo(hexColor(0xFF8A3A, 0.75f), a), 0.5f);

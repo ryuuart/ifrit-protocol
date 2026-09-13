@@ -234,8 +234,7 @@ struct MeshNormalBridge final : sketch::Sketch {
                            "recipe and the same sky",
                            kStations[2]))
             .child(text("both encode device-space normals as "
-                        "rgb = n·"
-                        "0.5 + 0.5, and a recipe cannot "
+                        "rgb = n·0.5 + 0.5, and a recipe cannot "
                         "tell which one it was handed")
                        .font({.size = 11})
                        .ink(kDim)

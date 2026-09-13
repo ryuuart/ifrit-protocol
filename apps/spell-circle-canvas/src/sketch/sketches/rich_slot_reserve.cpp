@@ -130,10 +130,8 @@ struct RichSlotReserve final : sketch::Sketch {
     ctx.composer.render(sketch::kit::page(
         {.title = "SLOTS AND RESERVED ROOM · "
                   "weave::RichText::slot, Element::reserve",
-         .subtitle = "dials · the slot's size (34×"
-                     "16, "
-                     "then 40×"
-                     "26) · its baseline drop "
+         .subtitle = "dials · the slot's size (34×16, "
+                     "then 40×26) · its baseline drop "
                      "(0, then 4) · the band reserved beside "
                      "every line (14 px)",
          .footer = "a text slot is not a mount slot: these names "

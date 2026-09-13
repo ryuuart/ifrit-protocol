@@ -226,9 +226,7 @@ const std::array<GodName, 7> kGodNames = {{
     {{"D", "E", "I", "M", "O", "30", "A"}, "DEIMOLA", "Hic est"},
     {{"I", "M", "E", "G", "C", "B", "E"}, "IMEGCBE", "Lux in æternum"},
     {{"I", "L", "A", "O", "*", "V", "N"}, "ILAOIVN", "Finis est"},
-    {{"I", "H", "R", "L", "A", "A", "*"},
-     "IHRLAAL",
-     "Vera est h\xc3\xa6\x63 tabula"},
+    {{"I", "H", "R", "L", "A", "A", "*"}, "IHRLAAL", "Vera est hæc tabula"},
 }};
 // the small numerals Dee writes over four of those letters
 const int kGodNumRow[7] = {0, 1, 0, 3, 4, 5, 6};

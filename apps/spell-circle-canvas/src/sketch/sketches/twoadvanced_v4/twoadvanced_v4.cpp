@@ -285,5 +285,5 @@ auto TwoAdvancedV4::update(double elapsed, sketch::SketchContext& ctx) -> void {
 }
 
 SIGIL_SKETCH(TwoAdvancedV4, "Study · Screens",
-             "2Advanced Studios v4 \"Prophecy\" (2003–"
-             "06) — chamfered Flash chrome, four deep")
+             "2Advanced Studios v4 \"Prophecy\" (2003–06) — chamfered Flash "
+             "chrome, four deep")

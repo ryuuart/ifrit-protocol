@@ -302,12 +302,9 @@ struct KumikoAsanoha : sketch::Sketch {
                 .left(760)
                 .top(56)
                 .width(520));
-    g.child(text("incircle r = s(2−√"
-                 "2)/2 = "
+    g.child(text("incircle r = s(2−√2)/2 = "
                  "0.29289 s  ·  arm off a 45° corner = "
-                 "atan(√"
-                 "2−"
-                 "1) = "
+                 "atan(√2−1) = "
                  "22.5°")
                 .left(760)
                 .top(126)
@@ -363,8 +360,7 @@ struct KumikoAsanoha : sketch::Sketch {
         .child(beam(0, 122, true))
         .child(beam(kRoom - 122, 122, false))
         .child(text("ASANOHA KUMIKO · SQUARE JIGUMI · "
-                    "HINOKI ON KEYAKI · 900×"
-                    "400mm TYPE")
+                    "HINOKI ON KEYAKI · 900×400mm TYPE")
                    .font({.size = 12, .color = kCaption, .track = 1.1f})
                    .left(950)
                    .top(916)

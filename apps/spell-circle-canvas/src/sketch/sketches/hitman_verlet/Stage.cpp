@@ -212,22 +212,19 @@ auto HitmanVerlet::stageLabels(Pen& pen) -> void {
   pen.text("(1000, 1000)", kStage - 62, 5);
   penUi(pen, 7.5f, kBone, 0.5f);
   pen.text(
-      "§"
-      "9 · THE CORPSE · 16 PARTICLES, 24 STICKS, "
+      "§9 · THE CORPSE · 16 PARTICLES, 24 STICKS, "
       "4 ITERATIONS · EVERY STICK COLOURED BY ITS LIVE "
       "CONSTRAINT ERROR",
       16, 548, 214, 60);
   penUi(pen, 7.0f, kTick, 0.5f);
   pen.textAlign(draw::RIGHT, draw::TOP);
   pen.text(
-      "§"
-      "4 · TRIANGULAR MESH · ONE PARTICLE PINNED "
+      "§4 · TRIANGULAR MESH · ONE PARTICLE PINNED "
       "· ONE ITERATION · THE SAG IS THE ITERATION "
       "COUNT",
       452, 412, 268, 40);
   pen.text(
-      "§"
-      "4 · PLANTS = CLOTH + SUPPORT STICKS · ONE "
+      "§4 · PLANTS = CLOTH + SUPPORT STICKS · ONE "
       "ITERATION · BASE ROW PINNED",
       452, 596, 268, 40);
   pen.textAlign(draw::LEFT, draw::TOP);
@@ -241,9 +238,7 @@ auto HitmanVerlet::stageLabels(Pen& pen) -> void {
       240, 40, 262, 24);
   penUi(pen, 7.0f, hexColor(0xC8402F, 0.8f), 0.4f);
   pen.text(
-      "§"
-      "7 BOMB ⊕ · |Δx| = K / |x−"
-      "c|² · EVERY PARTICLE, ONCE · THE "
+      "§7 BOMB ⊕ · |Δx| = K / |x−c|² · EVERY PARTICLE, ONCE · THE "
       "INTEGRATOR MAKES IT VELOCITY",
       240, 68, 262, 24);
 
@@ -261,10 +256,7 @@ auto HitmanVerlet::figPenetration(Pen& pen, float x0, float y0, float a)
     -> void {
   inset(pen, x0, y0, 208, 148, a);
   penUi(pen, 7.5f, fadeTo(kSteel, a), 1.2f);
-  pen.text(
-      "FIG. 4b/5b · §"
-      "5 PENETRATION",
-      x0 + 8, y0 + 8);
+  pen.text("FIG. 4b/5b · §5 PENETRATION", x0 + 8, y0 + 8);
   pen.push();
   pen.translate(x0 + 8, y0 + 21);
   // the obstacle
@@ -315,10 +307,7 @@ auto HitmanVerlet::figPenetration(Pen& pen, float x0, float y0, float a)
 auto HitmanVerlet::figFriction(Pen& pen, float x0, float y0, float a) -> void {
   inset(pen, x0, y0, 208, 148, a);
   penUi(pen, 7.5f, fadeTo(kSteel, a), 1.2f);
-  pen.text(
-      "FIG. 10 · §"
-      "7 FRICTION",
-      x0 + 8, y0 + 8);
+  pen.text("FIG. 10 · §7 FRICTION", x0 + 8, y0 + 8);
   pen.push();
   pen.translate(x0 + 8, y0 + 21);
   pen.noStroke();
@@ -350,10 +339,7 @@ auto HitmanVerlet::figFriction(Pen& pen, float x0, float y0, float a) -> void {
   penMono(pen, 7.0f, fadeTo(kBlue, a), 0.1f);
   pen.text("d_p MEASURED BEFORE THE PROJECTION,", x0 + 8, y);
   y += 11;
-  pen.text(
-      "v_t REDUCED BY k·"
-      "d_p BY MOVING x*.",
-      x0 + 8, y);
+  pen.text("v_t REDUCED BY k·d_p BY MOVING x*.", x0 + 8, y);
   y += 11;
   pen.text("NEVER LET v_t REVERSE — CLAMP TO ZERO.", x0 + 8, y);
   y += 12;

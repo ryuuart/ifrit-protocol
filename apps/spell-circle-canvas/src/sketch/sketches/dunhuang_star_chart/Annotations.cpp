@@ -362,12 +362,9 @@ auto DunhuangStarChart::projectionPanel() -> Element {
     const char* cap;
   };
   const Plot plots[2] = {{0, -27, 43, true,
-                          "map 5 DEC −"
-                          "27°…"
+                          "map 5 DEC −27°…"
                           "+43°"},
-                         {366, 0, 38, false,
-                          "map 13 polar distance 0°…"
-                          "38°"}};
+                         {366, 0, 38, false, "map 13 polar distance 0°…38°"}};
   for (const auto& pl : plots) {
     auto p =
         box().left(pl.x).top(30).width(Dimension(pw)).height(Dimension(ph));
@@ -499,8 +496,7 @@ auto DunhuangStarChart::auditPanel() -> Element {
   g.child(text("month 4 · xiu Zui, Shen, Jing · listed "
                "N→"
                "S, "
-               "W→"
-               "E, i.e. by increasing RA · R=Shi shi  B=Gan shi  "
+               "W→E, i.e. by increasing RA · R=Shi shi  B=Gan shi  "
                "W=Wu Xian shi")
               .font({.size = 8.6f, .color = hexColor(0x9a8a68)})
               .left(0)
@@ -757,8 +753,7 @@ auto DunhuangStarChart::headings() -> Element {
               .top(16)
               .width(Dimension(1200)));
   g.child(text("British Library Or.8210/S.3326 · Mogao Cave 17, "
-               "Dunhuang · +649–"
-               "684 · 3,940 × 244 mm, "
+               "Dunhuang · +649–684 · 3,940 × 244 mm, "
                "pure mulberry fibre 0.04 mm · 1,339 dots in 257 "
                "asterisms")
               .font({.size = 10.2f, .color = hexColor(0x9a8a68)})
@@ -810,8 +805,7 @@ auto DunhuangStarChart::headings() -> Element {
               .width(Dimension(420)));
   g.child(text("data: Stellarium chinese_chenzhuo (GPL) · "
                "astronexus/HYG v4.1 · arXiv:0906.3034 Tables "
-               "3–"
-               "5 "
+               "3–5 "
                "· IDP 7861395E5F814419BA05483EAB254832")
               .font({.size = 8.6f, .color = hexColor(0x6d6249)})
               .left(1660)

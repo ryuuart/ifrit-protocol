@@ -203,8 +203,7 @@ struct Zellige final : sketch::Sketch {
                               .child(text("ZELLIJE").font(
                                   {.size = 34, .track = 3}))
                               .child(text("Hankin PIC · 4.8.8 · "
-                                          "θ swept 30–"
-                                          "60°")
+                                          "θ swept 30–60°")
                                          .font({.size = 14,
                                                 .color = zw::kSub,
                                                 .track = 1})))

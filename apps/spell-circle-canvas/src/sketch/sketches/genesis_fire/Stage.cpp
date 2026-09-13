@@ -326,10 +326,7 @@ void GenesisFire::blurCallout(Pen& pen, float x0, float y0, float w, float h,
   pen.textFont(weave::Type{.face = uiFace(), .size = 8.5f, .track = 1.7f});
   pen.fill(hexColor(0x4FB8D8, a));
   pen.textAlign(sigil::draw::LEFT, sigil::draw::TOP);
-  pen.text(
-      "MOTION BLUR — REEVES 1983 §"
-      "3",
-      x0 + 11, cy);
+  pen.text("MOTION BLUR — REEVES 1983 §3", x0 + 11, cy);
   cy += 14;
 
   // the streak itself: a 3x-magnified quad, one shape, colour ramped

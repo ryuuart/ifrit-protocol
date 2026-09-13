@@ -54,8 +54,7 @@ auto ThunderFulu::chantPanel() -> Element {
                 .opacity(bind(&scribe).window(t, t + 0.4f).target(0.22f, 1.0f))
                 .key(kit::formatted("chant%d", i)));
   }
-  g.child(text("\xe2\x80\x9c\xe6\x80\xa5\xe6\x80\xa5\xe5\xa6\x82\xe5\xbe"
-               "\x8b\xe4\xbb\xa4\xe2\x80\x9d is the Han imperial-document "
+  g.child(text("“急急如律令” is the Han imperial-document "
                "closing formula, borrowed whole. It ends")
               .styleClass("gloss")
               .left(0)

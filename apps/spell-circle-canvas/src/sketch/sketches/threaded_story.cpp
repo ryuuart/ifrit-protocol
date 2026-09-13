@@ -231,8 +231,8 @@ struct ThreadedStory final : sketch::Sketch {
                 .child(text("ONE STORY, THREE FRAMES, TWICE")
                            .font({.size = 11, .color = s::kInk, .track = 3.4f}))
                 .child(text("the cut is a word index — the "
-                            "remainder the frame before reported \xe2"
-                            "\x80\x94 so a narrower first frame moves "
+                            "remainder the frame before reported — so a "
+                            "narrower first frame moves "
                             "it, and the columns begin elsewhere")
                            .font({.track = 0.3f})
                            .width(Dimension(700.0f))))

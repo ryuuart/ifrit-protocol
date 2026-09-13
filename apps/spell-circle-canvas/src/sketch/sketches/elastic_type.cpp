@@ -220,11 +220,7 @@ Ticks scaleTicks() {
 }
 
 Ticks shearTicks() {
-  return {{12.5f, "+12.5°"},
-          {0.0f, "0°"},
-          {-12.5f,
-           "−"
-           "12.5°"}};
+  return {{12.5f, "+12.5°"}, {0.0f, "0°"}, {-12.5f, "−12.5°"}};
 }
 
 /** One lane of one effect, over local time, with a dot at every published
@@ -371,8 +367,7 @@ struct ElasticType : sketch::Sketch {
                                 kY, kScaleLo, kScaleHi, 1.0f, scaleTicks()),
                             kScaleLo, kScaleHi, scaleTicks()))
                 .child(plot(
-                    "jello — skewX = skewY ±"
-                    "12.5°, HALVING",
+                    "jello — skewX = skewY ±12.5°, HALVING",
                     graph(
                         "g-j", fx::keys(jelloTable(), &cssEase), jelloTable(),
                         [](const GlyphModifier& m) { return m.skewXDeg; }, kX,

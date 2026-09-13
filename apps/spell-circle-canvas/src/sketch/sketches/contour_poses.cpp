@@ -208,8 +208,7 @@ struct ContourPoses final : sketch::Sketch {
                             cell("Wrap::Clamp vs Wrap::Around",
                                  kit::formatted(
                                      "the same 12 distances from "
-                                     "−"
-                                     "0.2 to 1.2 of "
+                                     "−0.2 to 1.2 of "
                                      "totalLength, joined in order "
                                      "· the outer chain parks "
                                      "at the ends, the inner one comes "

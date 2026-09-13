@@ -114,8 +114,8 @@ struct OpticalKerning final : sketch::Sketch {
                      "pair is the reference",
          .footer = "the face's table is switched OFF while this is "
                    "on, because the two are answers to the same "
-                   "question and a page takes one of them \xe2\x80"
-                   "\x94 and the reference is the face's own even "
+                   "question and a page takes one of them — and the reference "
+                   "is the face's own even "
                    "pair, so a loose face stays loose"},
         kit::cells(
             {.cells = {plain(), optical(), both(), table()}, .gap = 14})));

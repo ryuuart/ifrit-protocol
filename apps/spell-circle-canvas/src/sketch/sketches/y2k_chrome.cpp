@@ -309,8 +309,8 @@ struct Y2kChrome final : sketch::Sketch {
     namespace yc = y2k_chrome;
     const char* unit =
         "· WELCOME TO SIGILNET 2000 · "
-        "Y2K COMPLIANT · BEST VIEWED AT 800×"
-        "600 · SIGN THE GUESTBOOK · NO FRAMES ";
+        "Y2K COMPLIANT · BEST VIEWED AT 800×600 · SIGN THE GUESTBOOK · NO "
+        "FRAMES ";
     Element content =
         box()
             .row()
@@ -617,8 +617,7 @@ struct Y2kChrome final : sketch::Sketch {
                                                         0.6f, 600)))
                                            .child(text("© 2000 sigilnet "
                                                        "industries — "
-                                                       "best viewed at 800×"
-                                                       "600")
+                                                       "best viewed at 800×600")
                                                       .styleClass("note")))
                                 .child(box().grow(1))
                                 .child(box()

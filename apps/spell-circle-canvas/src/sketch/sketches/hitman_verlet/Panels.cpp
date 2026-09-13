@@ -43,12 +43,9 @@ auto HitmanVerlet::panelA2() -> Element {
       .child(codeLine("x2 += delta*0.5*diff;", kRed, true))
       .child(box().height(Dimension(2)).shrink(0))
       .child(t("r = 100, |x2−x1| = 120 → diff = 1/6, "
-               "delta·"
-               "0.5·"
-               "diff = (10, 0)",
+               "delta·0.5·diff = (10, 0)",
                mono(7.5f, kSteel, 0.1f)))
-      .child(t("AS PRINTED : x1 = (−"
-               "10,0)  x2 = (130,0)  "
+      .child(t("AS PRINTED : x1 = (−10,0)  x2 = (130,0)  "
                "→ d = 140  DIVERGES",
                mono(8.0f, kRed, 0.1f)))
       .child(t("CORRECTED  : x1 = ( 10,0)  x2 = (110,0)  "
@@ -150,8 +147,7 @@ auto HitmanVerlet::panelA3() -> Element {
                mono(7.5f, kSteel, 0.1f)))
       .child(t("AGREES IN VALUE AND SLOPE AT u = 1. DENOMINATOR "
                "d²+r² ≥ r² > 0, SO IT "
-               "CANNOT DIVIDE BY ZERO: §"
-               "7's SINGULARITY NOTE "
+               "CANNOT DIVIDE BY ZERO: §7's SINGULARITY NOTE "
                "APPLIES ONLY TO THE EXACT FORM.",
                ui(7.0f, kTick, 0.4f)))
       .child(box()
@@ -165,8 +161,7 @@ auto HitmanVerlet::panelA3() -> Element {
                  .child(bar(2, "90", 18))
                  .child(bar(3, "95", 19))
                  .child(bar(4, "97.5", 19.5f)))
-      .child(t("§"
-               "7 SOFT CONSTRAINTS: HALF THE DEVIATION PER FRAME.",
+      .child(t("§7 SOFT CONSTRAINTS: HALF THE DEVIATION PER FRAME.",
                ui(7.0f, kTick, 0.4f)));
 }
 
@@ -175,22 +170,16 @@ auto HitmanVerlet::panelB1() -> Element {
       .gap(4)
       .child(box().height(Dimension(118)).shrink(0))
       .child(t("16 PARTICLES · 24 STICKS · 1 INEQUALITY "
-               "(KNEES, §"
-               "6)",
+               "(KNEES, §6)",
                monoB(8.5f, kBone, 0.1f)))
-      .child(t("16×"
-               "2 − 24 = 8 PLANAR DOF   "
-               "(16×"
-               "3 − 24 = 24 IN THE PAPER'S 3D)",
+      .child(t("16×2 − 24 = 8 PLANAR DOF   "
+               "(16×3 − 24 = 24 IN THE PAPER'S 3D)",
                mono(8.0f, kSteel, 0.1f)))
-      .child(t("COMPARE §"
-               "5's TETRAHEDRON: 4×"
-               "3 − 6 = 6",
-               mono(8.0f, kSteel, 0.1f)))
+      .child(
+          t("COMPARE §5's TETRAHEDRON: 4×3 − 6 = 6", mono(8.0f, kSteel, 0.1f)))
       .child(t("RE-COUNTED AT 600 dpi: THRESHOLD, ERODE BY A DISC r = 8 px "
                "— EVERY STICK AND EVERY BODY-TEXT STEM DIES AND "
-               "EXACTLY 16 COMPONENTS OF 620–"
-               "657 px SURVIVE. "
+               "EXACTLY 16 COMPONENTS OF 620–657 px SURVIVE. "
                "THE PAPER PUBLISHES NO COUNT.",
                ui(7.0f, kTick, 0.4f)));
 }
@@ -241,8 +230,7 @@ auto HitmanVerlet::panelB2() -> Element {
       .child(box().height(Dimension(156)).shrink(0))
       .child(box().height(Dimension(34)).shrink(0))
       .child(t("\"ITERATIONS USED IN HITMAN VARY BETWEEN 1 AND 10 WITH THE "
-               "KIND OF OBJECT SIMULATED.\" — §"
-               "7. "
+               "KIND OF OBJECT SIMULATED.\" — §7. "
                "ORDER MATTERS AS MUCH AS COUNT: LISTED FROM THE PIN A CHAIN "
                "CONVERGES IN ONE SWEEP AND ALL THREE ARE IDENTICAL. THESE "
                "ARE LISTED FROM THE FREE END.",

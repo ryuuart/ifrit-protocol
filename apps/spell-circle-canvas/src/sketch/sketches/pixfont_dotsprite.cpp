@@ -152,7 +152,7 @@ struct PixFontDotSprite final : sketch::Sketch {
                 std::move(column));
   }
 
-  /** Trap 4: an integer scale with nearest sampling, beside the 1\xc3\x97
+  /** Trap 4: an integer scale with nearest sampling, beside the 1×
    *  bake it came from. */
   Element presented() {
     return cell(

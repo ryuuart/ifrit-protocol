@@ -123,8 +123,7 @@ struct GridLayouts final : sketch::Sketch {
          .subtitle = "dials · the module (3 columns "
                      "× 4 rows, 10 px gutter) · the "
                      "baseline rhythm (32 px) · the shear "
-                     "(−"
-                     "12°) · the same "
+                     "(−12°) · the same "
                      "twelve cards in all three",
          .footer = "a scheme is arithmetic over LayoutInput, so "
                    "each of these caches like any other static "
