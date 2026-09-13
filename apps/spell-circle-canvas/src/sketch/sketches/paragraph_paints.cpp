@@ -80,19 +80,6 @@ const sigil::weave::kit::PatternHyphenator& hyphenator() {
   return table;
 }
 
-/** The passage's own face: a text face with real serifs, because what a
- *  fill does to a thin stroke is half of what the sheet is about. */
-weave::TextStyle body() {
-  const sk_sp<SkTypeface> face = weave::ports::face(
-      {"Iowan Old Style", "Palatino", "Georgia", "Times New Roman"});
-  weave::TextStyle style =
-      weave::textStyle({.face = face,
-                        .size = kBodySize,
-                        .color = sketch::kit::theme().palette.ink});
-  style.shaping.languageTag = "en-US";
-  return style;
-}
-
 /// The block: a book setting — first-line indents, no air between blocks,
 /// so the column is one unbroken field of grey.
 weave::ParagraphStyle block() {
@@ -109,9 +96,16 @@ SkRect run() { return SkRect::MakeWH(1, 1); }
 
 /** THE COLUMN: the whole passage, set once, painted with @p fill. Every
  *  setting here is the same in all eight panels — the ink is the only
- *  thing the sheet varies. */
+ *  thing the sheet varies. The face is a text face with real serifs,
+ *  because what a fill does to a thin stroke is half of what the sheet
+ *  is about; the colour is the page's own ink. */
 Element column(const std::u8string& prose, paint::Paint fill) {
-  return text(prose, body())
+  return text(prose)
+      .font({.face = weave::ports::face(
+                 {"Iowan Old Style", "Palatino", "Georgia", "Times New Roman"}),
+             .size = kBodySize,
+             .track = 0,
+             .language = "en-US"})
       .width(Dimension(kPanel - kInset * 2))
       .paragraph(block())
       .textAlign(weave::TextAlignment::kJustify)
