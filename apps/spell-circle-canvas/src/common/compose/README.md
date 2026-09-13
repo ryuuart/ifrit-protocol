@@ -258,7 +258,8 @@ in.
 
 `text(utf8)`, set in the font in force where it lands, `text(utf8, style)`,
 set in one whole style, and `text(weave::rich(base).add(…))` are the three
-content forms, and everything a passage can be told past that — the per-glyph fx
+content forms — the text a `std::u8string` or a plain string holding UTF-8,
+a literal either way — and everything a passage can be told past that — the per-glyph fx
 tracks and their selectors, a run riding a path, span restyling, the
 paragraph controls, threaded frames over a `weave::Story`, readings set beside
 the type, a passage whose measure moves, and vertical CJK columns — is in
@@ -545,11 +546,17 @@ scope registers under it, whichever of the two carries the name and both
 when both do — read where the element is WRITTEN, a class being lexical
 exactly as a CSS class is defined in a sheet and applied by name — and
 the fields either sets then inherit down the tree like any `font()` or
-`block()`. A name neither sheet in scope carries warns once and sets
-nothing. The two sheets are one class because the include graph keeps
-them apart: the text sheet is the style vocabulary's, which the rich-text
-feature reads, and a block's fields are the layout's, which sits above
-it. `weave::rich()` started with no base
+`block()`. Several names go in one call, separated by spaces as CSS's
+class attribute lists them, folded left to right, and a partial after the
+names is laid over them all: `styleClass("cell", {.color = c})` is the
+cell class in this cell's colour, one verb. A name neither sheet in scope
+carries warns once and sets nothing. A sheet is spelled as a literal, an
+entry per class — `weave::StyleSheet{{"ts", {.size = 11}}, {"dim",
+{.color = grey}}}` — and bound around the code that builds the elements.
+The two sheets are one class because the include graph keeps them apart:
+the text sheet is the style vocabulary's, which the rich-text feature
+reads, and a block's fields are the layout's, which sits above it.
+`weave::rich()` started with no base
 is an inheriting passage: a run added with a partial keeps the inherited
 face and size in every field it does not name, and only a run added with
 a whole style keeps the style it was written with. Blocks have the same

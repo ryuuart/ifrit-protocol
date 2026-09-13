@@ -10,6 +10,8 @@
 #include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
+#include <algorithm>
+
 #include "ComposeInternal.h"
 
 namespace sigil::compose {
@@ -48,25 +50,40 @@ Element& Element::ink(VarRef reference) {
   return *this;
 }
 
-Element& Element::styleClass(std::string_view name) {
-  // The sheet is read HERE, in the scope the element is written in: a
+Element& Element::styleClass(std::string_view names) {
+  // The sheets are read HERE, in the scope the element is written in: a
   // class is lexical, and the description holds the fields it set rather
   // than the name, so it depends on no scope that has since ended.
   // One name, two halves: the text sheet's partial and the block sheet's,
-  // whichever of the two carries the name, both when both do.
+  // whichever of the two carries the name, both when both do; several
+  // names fold in the order they are written, the later over the earlier.
   const sigil::weave::StyleSheet* sheet =
       core::environment::inherited<sigil::weave::StyleSheet>();
-  const sigil::weave::Type* cls = sheet ? sheet->find(name) : nullptr;
   const sigil::weave::ParagraphStyleSheet* blocks =
       core::environment::inherited<sigil::weave::ParagraphStyleSheet>();
-  const sigil::weave::Block* blk = blocks ? blocks->find(name) : nullptr;
-  if (!cls && !blk) {
-    detail::warnNoSuchClass(name, sheet != nullptr || blocks != nullptr);
-    return *this;
+  for (size_t at = 0; at < names.size();) {
+    const size_t end = std::min(names.find(' ', at), names.size());
+    const std::string_view name = names.substr(at, end - at);
+    at = end + 1;
+    if (name.empty()) continue;
+    const sigil::weave::Type* cls = sheet ? sheet->find(name) : nullptr;
+    const sigil::weave::Block* blk = blocks ? blocks->find(name) : nullptr;
+    if (!cls && !blk) {
+      detail::warnNoSuchClass(name, sheet != nullptr || blocks != nullptr);
+      continue;
+    }
+    if (cls) font(*cls);
+    if (blk) block(*blk);
   }
-  if (cls) font(*cls);
-  if (blk) block(*blk);
   return *this;
+}
+
+Element& Element::styleClass(std::string_view names, sigil::weave::Type over) {
+  return styleClass(names).font(std::move(over));
+}
+
+Element& Element::styleClass(std::string_view names, sigil::weave::Block over) {
+  return styleClass(names).block(std::move(over));
 }
 
 Element& Element::var(std::string_view name, SkColor4f colour) {

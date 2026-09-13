@@ -353,6 +353,43 @@ TEST(ComposeCascade,
   EXPECT_TRUE(anyWhiteIn(with, SkIRect::MakeXYWH(10, 10, 180, 80)));
 }
 
+TEST(ComposeCascade, SeveralClassesFoldInOrderAndAPartialLaysOverThem) {
+  // "dim big" is both partials with big last, so the size is big's; "big
+  // dim" ends dim; and a partial after the names is laid over them all.
+  const sigil::weave::StyleSheet sheet{{"big", {.size = 40}},
+                                       {"dim", {.size = 14}}};
+  Element dimBig, bigDim, over;
+  {
+    const core::environment::Provide<sigil::weave::StyleSheet> scope(sheet);
+    dimBig = text("AAAA").styleClass("dim big");
+    bigDim = text("AAAA").styleClass("big dim");
+    over = text("AAAA").styleClass("big", {.size = 14});
+  }
+  Host a, b, c;
+  a.composer.render(pageWith(std::move(dimBig), 10));
+  b.composer.render(pageWith(std::move(bigDim), 10));
+  c.composer.render(pageWith(std::move(over), 10));
+  a.frame();
+  b.frame();
+  c.frame();
+  EXPECT_GT(widthOf(a, "t"), widthOf(b, "t") * 2.5f);
+  EXPECT_FLOAT_EQ(widthOf(c, "t"), widthOf(b, "t"));
+}
+
+TEST(ComposeCascade, ATextLeafFromAPlainStringIsTheSameLeaf) {
+  // UTF-8 held as char and as char8_t describe one leaf, alone and as a
+  // rich run.
+  Host plain, typed, rich;
+  plain.composer.render(pageWith(text("AAAA"), 14));
+  typed.composer.render(pageWith(text(u8"AAAA"), 14));
+  rich.composer.render(pageWith(text(sigil::weave::rich().add("AAAA")), 14));
+  plain.frame();
+  typed.frame();
+  rich.frame();
+  EXPECT_FLOAT_EQ(widthOf(plain, "t"), widthOf(typed, "t"));
+  EXPECT_FLOAT_EQ(widthOf(rich, "t"), widthOf(typed, "t"));
+}
+
 TEST(ComposeCascade, AClassNoSheetCarriesSetsNothing) {
   Host with, without;
   with.composer.render(pageWith(text(u8"AAAA").styleClass("nope"), 14));

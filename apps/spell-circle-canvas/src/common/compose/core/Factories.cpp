@@ -46,6 +46,12 @@ Element text(std::u8string utf8) {
   return e;
 }
 
+Element text(std::string_view utf8) { return text(toUtf8(utf8)); }
+
+Element text(std::string_view utf8, sigil::weave::TextStyle style) {
+  return text(toUtf8(utf8), std::move(style));
+}
+
 Element text(std::u8string utf8, sigil::weave::TextStyle style) {
   Element e;
   e.node()->kind = Kind::Text;

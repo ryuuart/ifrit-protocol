@@ -105,6 +105,16 @@ TEST(StyleSheet, AClassResolvesThroughTheSheetAndAnAbsentNameAnswersTheBase) {
   EXPECT_TRUE(StyleSheet{}["anything"] == TextStyle{});
 }
 
+TEST(StyleSheet, ALiteralSpellsTheEntriesInOrderAndALaterNameReplaces) {
+  const sigil::weave::StyleSheet sheet{
+      {"a", {.size = 1}}, {"b", {.size = 2}}, {"a", {.size = 3}}};
+  ASSERT_EQ(sheet.size(), 2u);
+  EXPECT_EQ(sheet.entries()[0].first, "a");
+  EXPECT_EQ(sheet.entries()[1].first, "b");
+  EXPECT_EQ(*sheet.find("a")->size, 3);
+  EXPECT_EQ(*sheet.find("b")->size, 2);
+}
+
 TEST(StyleSheet, SetReplacesInPlaceAndEqualityIsExactAndOrdered) {
   const Type small{.size = 9.0f};
   const Type large{.size = 24.0f};

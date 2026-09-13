@@ -72,6 +72,14 @@ TEST(Block, ApplySetsTheLayoutWideFieldsAPartialStates) {
   EXPECT_FALSE(block.empty());
 }
 
+TEST(ParagraphStyleSheet, ALiteralSpellsTheEntries) {
+  const sigil::weave::ParagraphStyleSheet sheet{{"body", {.widowLines = 2}},
+                                                {"lead", {.widowLines = 3}}};
+  ASSERT_EQ(sheet.size(), 2u);
+  EXPECT_EQ(*sheet.find("lead")->widowLines, 3);
+  EXPECT_EQ(sheet.find("nope"), nullptr);
+}
+
 TEST(ParagraphStyleSheet, NamesResolveToPartialsAndAnAbsentNameIsAbsent) {
   ParagraphStyleSheet sheet;
   Block heading;

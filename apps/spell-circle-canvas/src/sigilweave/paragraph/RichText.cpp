@@ -59,6 +59,26 @@ RichText& RichText::add(std::u8string_view utf8, std::string_view styleName) {
   return *this;
 }
 
+namespace {
+std::u8string_view asUtf8(std::string_view utf8) {
+  return {reinterpret_cast<const char8_t*>(utf8.data()), utf8.size()};
+}
+}  // namespace
+
+RichText& RichText::add(std::string_view utf8) { return add(asUtf8(utf8)); }
+
+RichText& RichText::add(std::string_view utf8, TextStyle style) {
+  return add(asUtf8(utf8), std::move(style));
+}
+
+RichText& RichText::add(std::string_view utf8, Type partial) {
+  return add(asUtf8(utf8), std::move(partial));
+}
+
+RichText& RichText::add(std::string_view utf8, std::string_view styleName) {
+  return add(asUtf8(utf8), styleName);
+}
+
 RichText& RichText::slot(std::string name, SkSize size, float baselineDrop) {
   Run run;
   // U+FFFC OBJECT REPLACEMENT CHARACTER. The slot is CONTENT: it occupies

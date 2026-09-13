@@ -7,6 +7,7 @@
  * resolves "heading" and "body" through, and the block half of a class.
  */
 
+#include <initializer_list>
 #include <span>
 #include <string>
 #include <string_view>
@@ -35,6 +36,11 @@ class ParagraphStyleSheet {
   using Entry = std::pair<std::string, Block>;
 
   ParagraphStyleSheet() = default;
+  /** A sheet spelled as a literal, an entry per class:
+   *  `ParagraphStyleSheet{{"body", {.leading = Leading::multiple(1.4f)}}}`. */
+  ParagraphStyleSheet(std::initializer_list<Entry> entries) {
+    for (const Entry& entry : entries) set(entry.first, entry.second);
+  }
 
   /** Registers or replaces `name`. */
   ParagraphStyleSheet& set(std::string name, Block partial) {

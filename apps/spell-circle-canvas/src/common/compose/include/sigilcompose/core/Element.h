@@ -357,13 +357,20 @@ class Element {
    *  `ink(var("accent"))`. A property nobody set, or one holding a length,
    *  leaves the inherited ink standing and says so once. */
   Element& ink(VarRef reference);
-  /** A CLASS: the named partial the `weave::StyleSheet` in scope registers
-   *  under @p name, folded into this node's font where the element is
-   *  WRITTEN. A class is lexical — it is looked up in the sheet bound
-   *  around the code that builds the element — and the fields it sets then
-   *  inherit down the tree like any `font()`. A name no sheet in scope
+  /** CLASSES: the partials the `weave::StyleSheet` and the
+   *  `weave::ParagraphStyleSheet` in scope register under each name in
+   *  @p names — several, separated by spaces, as CSS's class attribute
+   *  lists them, folded in left to right where the element is WRITTEN. A
+   *  class is lexical — it is looked up in the sheets bound around the
+   *  code that builds the element — and the fields it sets then inherit
+   *  down the tree like any `font()` or `block()`. A name neither sheet
    *  carries warns once and sets nothing. */
-  Element& styleClass(std::string_view name);
+  Element& styleClass(std::string_view names);
+  /** The classes, then @p over laid over them: `styleClass("cell",
+   *  {.color = c})` is the cell class with this one's colour, in one
+   *  verb — what a row of cells that differ in colour alone says. */
+  Element& styleClass(std::string_view names, sigil::weave::Type over);
+  Element& styleClass(std::string_view names, sigil::weave::Block over);
   /** A CUSTOM PROPERTY set on this node and inherited by everything under
    *  it, read back through `var(name)` written as a length, `Fill::var`
    *  written as a fill, or `ink(var(name))`. The nearest ancestor that set

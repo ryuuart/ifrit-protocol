@@ -124,6 +124,11 @@ class RichText {
   RichText& add(std::u8string_view utf8, Type partial);
   /** Appends a run in the class registered under @p styleName. */
   RichText& add(std::u8string_view utf8, std::string_view styleName);
+  /** The same four, from UTF-8 held as `char`. */
+  RichText& add(std::string_view utf8);
+  RichText& add(std::string_view utf8, TextStyle style);
+  RichText& add(std::string_view utf8, Type partial);
+  RichText& add(std::string_view utf8, std::string_view styleName);
 
   /** Reserves an INLINE SLOT: `size` px of blank space woven into the flow,
    *  and the name whatever is placed in that space answers to.

@@ -8,6 +8,7 @@
  */
 
 #include <cstddef>
+#include <initializer_list>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -55,6 +56,16 @@ class StyleSheet {
 
   StyleSheet() = default;
   explicit StyleSheet(TextStyle baseStyle) : m_base(std::move(baseStyle)) {}
+  /** A sheet spelled as a literal, an entry per class:
+   *  `StyleSheet{{"ts", {.size = 11}}, {"dim", {.color = grey}}}`. A name
+   *  spelled twice keeps the later entry, in the earlier one's place. */
+  StyleSheet(std::initializer_list<Entry> entries) {
+    for (const Entry& entry : entries) set(entry.first, entry.second);
+  }
+  StyleSheet(TextStyle baseStyle, std::initializer_list<Entry> entries)
+      : m_base(std::move(baseStyle)) {
+    for (const Entry& entry : entries) set(entry.first, entry.second);
+  }
 
   /** The style every class is resolved against, and every unregistered name
    *  resolves to by itself. */
