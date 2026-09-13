@@ -32,6 +32,15 @@ if(APPLE)
   add_link_options("LINKER:-no_warn_duplicate_libraries")
 endif()
 
+# A plate is a function of the sources alone. A compiler may fuse a
+# multiply and an add within a statement or not, and which statements it
+# fuses follows what it inlined, which shifts with unrelated code in the
+# same translation unit — so a numerically heavy scene rendered one way
+# after one build and another way after the next. Contraction pinned off
+# for every target of this tree keeps the bits the same across builds;
+# the dependencies are imported already built and are not affected.
+add_compile_options(-ffp-contract=off)
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 include(Sigil) # the calls every library under src/ is built from
 
