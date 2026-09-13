@@ -8,6 +8,7 @@ struct StrokeAtlasSketch : sketch::Sketch {
   choreograph::Output<float> march{0};
 
   Element describe(sketch::SketchContext& ctx) {
+    const sigil::core::environment::Provide<weave::StyleSheet> look(voices());
     Element plate = stack().fill(mskia::Paint::solid(kPaper));
 
     // ---- masthead --------------------------------------------------------

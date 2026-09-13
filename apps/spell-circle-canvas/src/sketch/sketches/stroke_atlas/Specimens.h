@@ -13,6 +13,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
@@ -25,6 +26,7 @@
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -77,27 +79,36 @@ sk_sp<SkTypeface> romanBoldFace() {
   return weave::ports::face({"Palatino", "Georgia"}, SkFontStyle::kBold_Weight);
 }
 
+/** THE PLATE'S THREE VOICES, as classes: the call is the terminal face,
+ *  tracked a tenth; the roman and its bold are the book face. A leaf
+ *  states its size and colour over the class; the sheet is bound around
+ *  the description, since a class is read where the leaf is written. */
+weave::StyleSheet voices() {
+  weave::StyleSheet classes;
+  classes.set("call", {.face = monoFace(), .track = 0.1f})
+      .set("roman", {.face = romanFace()})
+      .set("romanBold", {.face = romanBoldFace()});
+  return classes;
+}
+
 /** The caption IS the call: monospaced, small, and set in the same ink as
  *  the body unless a caller asks for a lighter one. */
 Element call(const char* words, float size = 9.5f, SkColor4f c = kInk) {
-  return text(
-      toUtf8(words),
-      weave::textStyle(
-          {.face = monoFace(), .size = size, .color = c, .track = 0.1f}));
+  return text(toUtf8(words))
+      .styleClass("call")
+      .font({.size = size, .color = c});
 }
 Element roman(const char* words, float size, SkColor4f c = kInk,
               float tracking = 0) {
-  return text(
-      toUtf8(words),
-      weave::textStyle(
-          {.face = romanFace(), .size = size, .color = c, .track = tracking}));
+  return text(toUtf8(words))
+      .styleClass("roman")
+      .font({.size = size, .color = c, .track = tracking});
 }
 Element romanBold(const char* words, float size, SkColor4f c = kInk,
                   float tracking = 0) {
-  return text(toUtf8(words), weave::textStyle({.face = romanBoldFace(),
-                                               .size = size,
-                                               .color = c,
-                                               .track = tracking}));
+  return text(toUtf8(words))
+      .styleClass("romanBold")
+      .font({.size = size, .color = c, .track = tracking});
 }
 
 // ---------------------------------------------------------------------------
