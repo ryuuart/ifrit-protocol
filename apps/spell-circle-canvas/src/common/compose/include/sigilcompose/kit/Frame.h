@@ -1,19 +1,22 @@
 #pragma once
 
 /** @file
- * SigilCompose KIT — a node placed by the numbers a plate was measured in.
+ * SigilCompose KIT — a node placed by the numbers a plate was measured
+ * in, and the one line every plate draws.
  *
  * The coordinate systems themselves are SigilGeometry's
  * (`geometry::path::Frame`, the polar one; `geometry::path::Grid`, the
- * unit map). What is here is the three ways a NODE is placed by them: a
+ * unit map). What is here is the three ways a NODE is placed by them — a
  * disc about a centre, a pinned box at absolute coordinates, and the disc
- * a frame's own radius names.
+ * a frame's own radius names — and the line: a separator, a tick, a
+ * caret, a whisker, which are one component at four thicknesses.
  */
 
 #include <include/core/SkPoint.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Layout.h>
+#include <sigilcompose/core/Paint.h>
 #include <sigilgeometry/path/Frame.h>
 
 #include <concepts>
@@ -92,6 +95,56 @@ template <class FrameLike>
   requires std::same_as<std::remove_cvref_t<FrameLike>, geometry::path::Frame>
 inline Element disc(const FrameLike& frame, float rNorm = 1.0f) {
   return disc(frame.centre, rNorm * frame.radius);
+}
+
+// ---------------------------------------------------------------------------
+// The one line
+
+/** ONE LINE: a mark of `thickness` running `length`, in the ink in force
+ *  unless a fill is stated.
+ *
+ *      kit::line({.fill = Fill::color(kRule)})       // a hairline across
+ *      kit::line({.length = Dimension(13), .thickness = 3, .column = true})
+ *
+ *  A HAIRLINE IS ITS DEFAULT THICKNESS and a tick is the same call at
+ *  another one, which is why there is one name here and not two: a
+ *  separator, a rule under a head, a tick on a scale, a caret and a
+ *  whisker are all a box of one small dimension in the ink. */
+struct Line {
+  /** Along the line. Auto (default) stretches it across the flow it
+   *  stands in, which is what a separator between stacked things wants; a
+   *  line that must fill the flow's OWN axis — the rule that fills what a
+   *  name and a note leave between them — says `Element::grow` on what
+   *  comes back. */
+  Dimension length;
+  /** Across the line, px. */
+  float thickness = 1.0f;
+  /** false (default) runs the line ACROSS; true runs it DOWN. */
+  bool column = false;
+  /** Fill::none() (default) is `Fill::currentInk()`, so a line under a
+   *  recoloured ancestor is recoloured with it. */
+  Fill fill;
+  /** Held off at BOTH ends, px — the separator that stops short of the
+   *  edges it runs between. */
+  float inset = 0.0f;
+};
+
+[[nodiscard]] inline Element line(const Line& mark) {
+  Element rule = box();
+  const bool open = mark.length.unit == Dimension::Unit::Auto;
+  if (mark.column) {
+    rule.width(Dimension(mark.thickness));
+    if (!open) rule.height(mark.length);
+    if (mark.inset != 0.0f) rule.margin(Dimension(0), Dimension(mark.inset));
+  } else {
+    rule.height(Dimension(mark.thickness));
+    if (!open) rule.width(mark.length);
+    if (mark.inset != 0.0f) rule.margin(Dimension(mark.inset), Dimension(0));
+  }
+  if (open) rule.alignSelf(Align::Stretch);
+  rule.fill(mark.fill.kind == Fill::Kind::None ? Fill::currentInk()
+                                               : mark.fill);
+  return rule;
 }
 
 }  // namespace sigil::compose::kit

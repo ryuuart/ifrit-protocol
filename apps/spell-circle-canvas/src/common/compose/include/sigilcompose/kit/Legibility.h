@@ -218,8 +218,8 @@ inline void drawHaloed(SkCanvas& canvas, std::string_view s, SkPoint at,
   drawHaloed(canvas, s, at, font, p, halo);
 }
 
-/** One line of a haloed block. */
-struct Line {
+/** One line of a haloed block: the words, and the baseline they sit on. */
+struct HaloedLine {
   std::string_view text;
   /** SkFont baseline origin. */
   SkPoint at{0, 0};
@@ -233,7 +233,8 @@ struct Line {
  *  than the leading minus the descent has this, which for a tightly-led
  *  note is most of them, and the damage looks like a font bug rather than
  *  an ordering one. */
-inline void drawHaloed(SkCanvas& canvas, std::initializer_list<Line> lines,
+inline void drawHaloed(SkCanvas& canvas,
+                       std::initializer_list<HaloedLine> lines,
                        const SkFont& font, const SkPaint& ink,
                        const Halo& halo = {}) {
   SkPaint h;
@@ -242,10 +243,10 @@ inline void drawHaloed(SkCanvas& canvas, std::initializer_list<Line> lines,
   h.setStyle(SkPaint::kStroke_Style);
   h.setStrokeWidth(halo.width);
   h.setStrokeJoin(halo.join);
-  for (const Line& l : lines)
+  for (const HaloedLine& l : lines)
     canvas.drawSimpleText(l.text.data(), l.text.size(), SkTextEncoding::kUTF8,
                           l.at.fX, l.at.fY, font, h);
-  for (const Line& l : lines)
+  for (const HaloedLine& l : lines)
     canvas.drawSimpleText(l.text.data(), l.text.size(), SkTextEncoding::kUTF8,
                           l.at.fX, l.at.fY, font, ink);
 }

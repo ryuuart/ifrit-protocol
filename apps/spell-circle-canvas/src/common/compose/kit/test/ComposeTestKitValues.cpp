@@ -1089,3 +1089,63 @@ TEST(KitPanel, StandsBareWhereNoBodyIsStated) {
   EXPECT_NEAR(require(host.composer.bounds("content")).top(),
               lineHeight(9) + 12, 1.5f);
 }
+
+// ---------------------------------------------------------------------------
+// kit/Frame.h — the one line
+
+TEST(KitLine, StretchesAcrossItsFlowAndIsDrawnInTheInkInForce) {
+  Host host(160, 120);
+  host.composer.render(
+      box()
+          .width(160)
+          .height(120)
+          .column()
+          .padding(Dimension(20))
+          .ink({1, 0, 0, 1})
+          .children({kit::line({}).key("rule"),
+                     kit::line({.thickness = 3, .inset = 10}).key("tick")}));
+  host.frame();
+  // A hairline is the default thickness, and it stretches across the flow
+  // it stands in — the padded width, here.
+  const SkRect rule = require(host.composer.bounds("rule"));
+  EXPECT_EQ(rule, SkRect::MakeXYWH(20, 20, 120, 1));
+  EXPECT_EQ(host.pixel(80, 20), SK_ColorRED);
+  // A 3 px tick is the same call at another thickness, held off at both
+  // ends by its inset.
+  const SkRect tick = require(host.composer.bounds("tick"));
+  EXPECT_FLOAT_EQ(tick.height(), 3);
+  EXPECT_FLOAT_EQ(tick.left(), 30);
+  EXPECT_FLOAT_EQ(tick.right(), 130);
+}
+
+TEST(KitLine, RunsDownWhereItIsAskedToAndTakesTheLengthItIsGiven) {
+  Host host(160, 120);
+  host.composer.render(box().width(160).height(120).row().children(
+      {kit::line({.column = true}).key("down"),
+       kit::line({.length = Dimension(40), .thickness = 2}).key("across"),
+       kit::line({.length = Dimension(30), .column = true}).key("short")}));
+  host.frame();
+  const SkRect down = require(host.composer.bounds("down"));
+  EXPECT_FLOAT_EQ(down.width(), 1);
+  EXPECT_FLOAT_EQ(down.height(), 120);
+  const SkRect across = require(host.composer.bounds("across"));
+  EXPECT_FLOAT_EQ(across.width(), 40);
+  EXPECT_FLOAT_EQ(across.height(), 2);
+  const SkRect shortRun = require(host.composer.bounds("short"));
+  EXPECT_FLOAT_EQ(shortRun.width(), 1);
+  EXPECT_FLOAT_EQ(shortRun.height(), 30);
+}
+
+TEST(KitLine, TakesAStatedFillOverTheInk) {
+  Host host(60, 40);
+  host.composer.render(
+      box()
+          .width(60)
+          .height(40)
+          .column()
+          .ink({1, 0, 0, 1})
+          .children(
+              {kit::line({.thickness = 4, .fill = green()}).key("rule")}));
+  host.frame();
+  EXPECT_EQ(host.pixel(30, 1), SK_ColorGREEN);
+}

@@ -1270,8 +1270,14 @@ at a `geometry::path::Frame`'s — a braced pair is the centre, and a
 frame is spelled as one) and `kit::at` (a box pinned at absolute
 coordinates, for the plate that has no layout at all), `kit::dotSprite`
 (the round stamp a point sink draws each point with),
-`kit::PixFont` (aliased bitmap-font bakes, in `kit/PixelType.h`) and
-`kit/Frame.h`'s nine-slice frame,
+`kit::PixFont` (aliased bitmap-font bakes, in `kit/PixelType.h`),
+`kit::line` (`kit/Frame.h`: a mark of `Line::thickness` running
+`Line::length` in the ink in force unless a fill is stated, across or —
+`Line::column` — down, held off at both ends by `Line::inset`, and
+stretched across the flow it stands in where no length is given; a
+hairline is its default thickness and a tick is the same call at another,
+which is why a separator, a rule, a tick, a caret and a whisker are one
+name) and `kit/Frame.h`'s nine-slice frame,
 the pixel art in `kit/Sprites.h` — `kit::PixelInk`, a canvas and a cell
 size with the three verbs a pixel artist has, and `kit::Sprite`, the same
 verbs recorded as `kit::SpriteRun` marks over a palette, so WHAT is
