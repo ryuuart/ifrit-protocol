@@ -31,8 +31,18 @@ Element mapping(const Mapping& properties) {
       properties.scale.transform == data::Transform::Band ||
       properties.scale.transform == data::Transform::Point;
   const SkRect area = SkRect::MakeLTRB(24, 16, kWidth - 24, kHeight - 28);
-  auto body = box().width(kWidth).height(kHeight).fill(
-      Fill::color({0.07f, 0.09f, 0.12f, 1}));
+  auto body = box()
+                  .width(kWidth)
+                  .height(kHeight)
+                  .fill(Fill::color({0.07f, 0.09f, 0.12f, 1}))
+                  // THE TICK VOICE the labels under the plot inherit, over
+                  // the page's running register: a tick is a figure rather
+                  // than a remark, so it is untracked and set in the font
+                  // context's own family.
+                  .font({.face = sigil::weave::defaultFace(),
+                         .size = 11,
+                         .color = SkColor4f{0.64f, 0.70f, 0.76f, 1},
+                         .track = 0});
   std::vector<kit::Trace> traces;
   if (!categories)
     traces.push_back({[scale = properties.scale](float unit) {
@@ -71,8 +81,6 @@ Element mapping(const Mapping& properties) {
                       })
                    .inset(0));
 
-  const auto label = sigil::weave::textStyle(
-      {.size = 11, .color = SkColor4f{0.64f, 0.70f, 0.76f, 1}});
   data::Scale axis = properties.scale;
   if (!categories && axis.transform != data::Transform::Time)
     axis.transform = data::Transform::Linear;
@@ -83,7 +91,7 @@ Element mapping(const Mapping& properties) {
                         : area.left() + (float)((tick - axis.domain.low) /
                                                 axis.domain.extent()) *
                                             area.width();
-    body.child(text(toUtf8(kit::formatted("%.3g", tick)), label)
+    body.child(text(toUtf8(kit::formatted("%.3g", tick)))
                    .left(x - 20)
                    .top(kHeight - 20)
                    .width(40)
