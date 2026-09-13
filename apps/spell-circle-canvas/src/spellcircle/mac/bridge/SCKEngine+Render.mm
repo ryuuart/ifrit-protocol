@@ -93,11 +93,16 @@ SkColor toSkColor(NSColor *color) {
   id<MTLTexture> sceneTexture = _sceneTexture;
   id<MTLCommandBuffer> commandBuffer =
       sceneTexture && _syphon && _syphon.hasClients ? [_queue commandBuffer] : nil;
+  // NOT FLIPPED: the flag says whether the texture's rows are upside down
+  // for the graphics API it came from, and Skia drew this one the way Metal
+  // reads it — first row at the top, which is also how the blit places it in
+  // the window. Saying otherwise turns every frame over on the way across
+  // and costs a redraw where an unturned frame is a straight copy.
   if (commandBuffer) {
     [_syphon publishFrameTexture:sceneTexture
                  onCommandBuffer:commandBuffer
                      imageRegion:NSMakeRect(0, 0, _canvasWidth, _canvasHeight)
-                         flipped:YES];
+                         flipped:NO];
     [commandBuffer commit];
   }
 

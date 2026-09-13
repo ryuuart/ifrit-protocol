@@ -45,10 +45,16 @@ void SyphonBridge::publishFrame(QRhiTexture *texture, QRhiCommandBuffer *command
 
   // Syphon appends a blit to the still-open command buffer. Qt commits it
   // after render() returns.
+  //
+  // NOT FLIPPED: the flag says whether the texture's rows are upside down
+  // for the graphics API it came from, and Skia drew this canvas the way
+  // Metal reads it — first row at the top, which is also the way the item
+  // puts it on screen. Saying otherwise turns every frame over on the way
+  // across and costs a redraw where an unturned frame is a straight copy.
   [m_private->server publishFrameTexture:metalTexture
                          onCommandBuffer:metalCommandBuffer
                              imageRegion:NSMakeRect(0, 0, width, height)
-                                 flipped:YES];
+                                 flipped:NO];
 }
 
 void SyphonBridge::stop() {
