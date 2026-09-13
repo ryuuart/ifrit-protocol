@@ -51,6 +51,7 @@
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/field/Field.h>
@@ -68,6 +69,7 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
+#include <ranges>
 #include <string_view>
 #include <vector>
 
@@ -384,13 +386,13 @@ struct PersonaMenu final : sketch::Sketch {
                  .fill(Paint::linear(
                      {0, 0}, {0, nn::kH},
                      {{0.0f, nn::kGroundDark}, {1.0f, nn::kGround}}))
-                 .children({box().inset(0).fill(bands).opacity(0.97f)})
-                 .children({box()
+                 .children({box().inset(0).fill(bands).opacity(0.97f),
+                            box()
                                 .inset(0)
                                 .fill(Paint::recipe(field::noise(0.006f, 4)))
                                 .opacity(0.20f)
-                                .blend(SkBlendMode::kSoftLight)})
-                 .children({box().inset(0).fill(Paint::solid(nn::kTintVeil))})})
+                                .blend(SkBlendMode::kSoftLight),
+                            box().inset(0).fill(Paint::solid(nn::kTintVeil))})})
         // The sea: one dual-layer 6Hz shader, its own texture plane --
         // baked at HALF raster scale and linear-upscaled at the blit.
         // The bands are watercolor-soft already, so the reduced bake
@@ -402,23 +404,23 @@ struct PersonaMenu final : sketch::Sketch {
                        .bakeScale(0.5f)
                        .fill(dualCaustic())})
         // static over-plane: the framing gradients, one blit
-        .children(
-            {box()
-                 .inset(0)
-                 .cache(Cache::Texture)
-                 .children({box().inset(0).fill(Paint::linear(
-                     {0, nn::kH * 0.60f}, {0, nn::kH},
-                     {{0.0f,
-                       {nn::kBotDark.fR, nn::kBotDark.fG, nn::kBotDark.fB, 0}},
-                      {1.0f,
-                       {nn::kBotDark.fR, nn::kBotDark.fG, nn::kBotDark.fB,
-                        0.88f}}}))})
-                 .children({box().inset(0).fill(
-                     Paint::linear({0, 0}, {0, nn::kH * 0.42f},
-                                   {{0.0f, nn::kTopCyan},
-                                    {1.0f,
-                                     {nn::kTopCyan.fR, nn::kTopCyan.fG,
-                                      nn::kTopCyan.fB, 0}}}))})});
+        .children({box()
+                       .inset(0)
+                       .cache(Cache::Texture)
+                       .children({box().inset(0).fill(Paint::linear(
+                                      {0, nn::kH * 0.60f}, {0, nn::kH},
+                                      {{0.0f,
+                                        {nn::kBotDark.fR, nn::kBotDark.fG,
+                                         nn::kBotDark.fB, 0}},
+                                       {1.0f,
+                                        {nn::kBotDark.fR, nn::kBotDark.fG,
+                                         nn::kBotDark.fB, 0.88f}}})),
+                                  box().inset(0).fill(Paint::linear(
+                                      {0, 0}, {0, nn::kH * 0.42f},
+                                      {{0.0f, nn::kTopCyan},
+                                       {1.0f,
+                                        {nn::kTopCyan.fR, nn::kTopCyan.fG,
+                                         nn::kTopCyan.fB, 0}}}))})});
   }
 
   /** Unselected sticker: one of the three cyans, soft black under-glow +
@@ -480,37 +482,29 @@ struct PersonaMenu final : sketch::Sketch {
                       .opacity(animate(motion::from(0.0f).to(1.0f),
                                        {400ms, &ch::easeOutQuad}));
     // pink back-wedge, misregistered under the white one
-    row.children({box()
-                      .left(10)
-                      .top(3)
-                      .width(wW)
-                      .height(wH)
-                      .shape(nn::sliverWedge())
-                      .rotate(8)
-                      .fill(Paint::solid(nn::kPink))});
-    // white wedge -- clips the red echo; idle heartbeat on scale.
-    // The echo's top carries an extra +5px. The wedge rotates +8 deg about
-    // its OWN centre, which walks the echo up by about that much, so the
-    // offset has to be pre-compensated for the misprint to land at its
-    // intended (3,-6).
-    row.children({box()
-                      .left(0)
-                      .top(-6)
-                      .width(wW)
-                      .height(wH)
-                      .shape(nn::sliverWedge())
-                      .rotate(8)
-                      .clip(true)
-                      .fill(Paint::solid(nn::kPaper))
-                      .scale(&wedgePulse)
-                      .children({text(r.label)
-                                     .font(nn::menuType(50, nn::kRedC, 0))
-                                     .left(lx + 3)
-                                     .top(3)
-                                     .rotate(-8)})});
-    // the black label (1.5x the unselected size), no glow -- ink on paper
     row.children(
-        {text(r.label).font(nn::menuType(50, nn::kInk, 0)).left(lx).top(ly)});
+        {kit::at(10, 3, wW, wH)
+             .shape(nn::sliverWedge())
+             .rotate(8)
+             .fill(Paint::solid(nn::kPink)),
+         // white wedge -- clips the red echo; idle heartbeat on scale.
+         // The echo's top carries an extra +5px. The wedge rotates +8 deg about
+         // its OWN centre, which walks the echo up by about that much, so the
+         // offset has to be pre-compensated for the misprint to land at its
+         // intended (3,-6).
+         kit::at(0, -6, wW, wH)
+             .shape(nn::sliverWedge())
+             .rotate(8)
+             .clip(true)
+             .fill(Paint::solid(nn::kPaper))
+             .scale(&wedgePulse)
+             .children({text(r.label)
+                            .font(nn::menuType(50, nn::kRedC, 0))
+                            .left(lx + 3)
+                            .top(3)
+                            .rotate(-8)}),
+         // the black label (1.5x the unselected size), no glow -- ink on paper
+         text(r.label).font(nn::menuType(50, nn::kInk, 0)).left(lx).top(ly)});
     return row;
   }
 
@@ -590,13 +584,13 @@ struct PersonaMenu final : sketch::Sketch {
                  .alignItems(Align::End)
                  .children({text("07/22")
                                 .font(nn::menuType(38, nn::kPaper, 2.0f))
-                                .effect(styles::textGlow({0, 0, 0, 0.45f}, 3))})
-                 .children({box()
+                                .effect(styles::textGlow({0, 0, 0, 0.45f}, 3)),
+                            box()
                                 .column()
                                 .margin(11, 0, 0, 5)
-                                .children({text("SUNDAY").font(
-                                    nn::smallType(11, nn::kCyanC, 2.6f))})
-                                .children({text("EVENING")
+                                .children({text("SUNDAY").font(nn::smallType(
+                                               11, nn::kCyanC, 2.6f)),
+                                           text("EVENING")
                                                .font(nn::smallType(
                                                    11, nn::kCyanB, 2.6f))
                                                .margin(0, 3, 0, 0)})}),
@@ -654,11 +648,7 @@ struct PersonaMenu final : sketch::Sketch {
                    .height(6)
                    .grow(0)
                    .fill(Paint::solid({0, 0.05f, 0.18f, 0.55f}))
-                   .children({box()
-                                  .left(0)
-                                  .top(0)
-                                  .width(84 * frac)
-                                  .height(6.0f)
+                   .children({kit::at(0, 0, 84 * frac, 6.0f)
                                   .fill(Paint::linear(
                                       {0, 0}, {0, 6},
                                       {{0.0f,
@@ -677,36 +667,33 @@ struct PersonaMenu final : sketch::Sketch {
                        .gap(7)
                        .zIndex(8)
                        .staggerChildren(60ms);
-    for (const Member& m : kParty) {
-      const std::string level = kit::formatted("LV %d", m.level);
-      rail.children(
-          {box()
-               .width(246)
-               .height(52)
-               .rotate(-4)
-               .translateX(animate(motion::from(46.0f).to(0.0f),
-                                   {440ms, &ch::easeOutQuint}))
-               .opacity(animate(motion::from(0.0f).to(1.0f), {360ms}))
-               .shape(shapes::parallelogram(9))
-               .fill(Paint::linear({0, 0}, {246, 0},
-                                   {{0.0f, {0.02f, 0.16f, 0.42f, 0.78f}},
-                                    {1.0f, {0.02f, 0.30f, 0.62f, 0.55f}}}))
-               .stroke(stroke(1.4f, Fill::color({1, 1, 1, 0.55f})))
-               .column()
-               .padding(17, 7)
-               .gap(2)
-               .children(
-                   {box()
-                        .row()
-                        .alignItems(Align::End)
-                        .children({text(m.name)
-                                       .font(nn::menuType(17, nn::kPaper, 1.0f))
-                                       .grow(1)})
-                        .children({text(level).font(
-                            nn::smallType(10, nn::kCyanB, 1.6f))})})
-               .children({bar("HP", m.hp, m.hpMax, kHp)})
-               .children({bar("SP", m.sp, m.spMax, kSp)})});
-    }
+    rail.children({each(kParty, [&](const Member& m) {
+      return box()
+          .width(246)
+          .height(52)
+          .rotate(-4)
+          .translateX(
+              animate(motion::from(46.0f).to(0.0f), {440ms, &ch::easeOutQuint}))
+          .opacity(animate(motion::from(0.0f).to(1.0f), {360ms}))
+          .shape(shapes::parallelogram(9))
+          .fill(Paint::linear({0, 0}, {246, 0},
+                              {{0.0f, {0.02f, 0.16f, 0.42f, 0.78f}},
+                               {1.0f, {0.02f, 0.30f, 0.62f, 0.55f}}}))
+          .stroke(stroke(1.4f, Fill::color({1, 1, 1, 0.55f})))
+          .column()
+          .padding(17, 7)
+          .gap(2)
+          .children(
+              {box()
+                   .row()
+                   .alignItems(Align::End)
+                   .children({text(m.name)
+                                  .font(nn::menuType(17, nn::kPaper, 1.0f))
+                                  .grow(1),
+                              text(kit::formatted("LV %d", m.level))
+                                  .font(nn::smallType(10, nn::kCyanB, 1.6f))}),
+               bar("HP", m.hp, m.hpMax, kHp), bar("SP", m.sp, m.spMax, kSp)});
+    })});
     return rail;
   }
 
@@ -755,16 +742,15 @@ struct PersonaMenu final : sketch::Sketch {
                  // way the game does, and this file needs no
                  // `Spread::From::End` to reverse the cascade against a
                  // paint order it does not have.
-                 .children({plainRow(8)})    // SYSTEM (bottom -- enters first)
-                 .children({plainRow(7)})    // CALENDAR
-                 .children({plainRow(6)})    // SOCIAL LINK
-                 .children({plainRow(5)})    // QUEST
-                 .children({plainRow(4)})    // STATS
-                 .children({selectedRow()})  // PERSONA
-                 .children({plainRow(2)})    // EQUIP
-                 .children({plainRow(1)})    // ITEM
-                 .children({plainRow(0)})})  // SKILL
-        .children({cursor(), dateBlock(), partyPanel()})
+                 // The bottom row enters first, and the selected one falls
+                 // out of the ladder rather than being placed by hand.
+                 .children({each(std::views::iota(0, nn::kRowCount),
+                                 [this](int n) {
+                                   const int i = nn::kRowCount - 1 - n;
+                                   return i == nn::kSelected ? selectedRow()
+                                                             : plainRow(i);
+                                 })}),
+             cursor(), dateBlock(), partyPanel()})
         // ---- right-anchored tooltip title over the COMMAND rule ----
         .children(
             {box()
@@ -783,14 +769,14 @@ struct PersonaMenu final : sketch::Sketch {
                  .opacity(animate(motion::from(0.0f).to(1.0f), {300ms}))
                  .children({text("PERSONA")
                                 .font(nn::menuType(30, nn::kPaper, 2))
-                                .effect(styles::textGlow({0, 0, 0, 0.5f}, 3))})
-                 .children({box()
+                                .effect(styles::textGlow({0, 0, 0, 0.5f}, 3)),
+                            box()
                                 .row()
                                 .alignItems(Align::Center)
                                 .margin(0, 6, 0, 0)
-                                .children({text("COMMAND").font(
-                                    nn::smallType(12, nn::kCyanB, 2))})
-                                .children({box()
+                                .children({text("COMMAND").font(nn::smallType(
+                                               12, nn::kCyanB, 2)),
+                                           box()
                                                .width(120)
                                                .height(2)
                                                .fill(SkColor4f{1, 1, 1, 0.8f})
@@ -805,12 +791,12 @@ struct PersonaMenu final : sketch::Sketch {
                        .zIndex(8)
                        .opacity(animate(motion::from(0.0f).to(1.0f),
                                         {400ms, &ch::easeOutQuad, 250ms}))
-                       .children({promptCircle("O")})
-                       .children({text("CONFIRM")
+                       .children({promptCircle("O"),
+                                  text("CONFIRM")
                                       .font(nn::smallType(11, nn::kCyanB, 1.5f))
-                                      .margin(8, 0, 22, 0)})
-                       .children({promptCircle("X")})
-                       .children({text("BACK")
+                                      .margin(8, 0, 22, 0),
+                                  promptCircle("X"),
+                                  text("BACK")
                                       .font(nn::smallType(11, nn::kCyanB, 1.5f))
                                       .margin(8, 0, 0, 0)})});
   }
