@@ -213,32 +213,31 @@ struct EmberDecode : sketch::Sketch {
   float wordsTotalMs = 1;
 
   Element describe(sketch::SketchContext& ctx) {
-    const sigil::weave::TextStyle label =
-        weave::textStyle({.size = 11.5f, .color = kLabel, .track = 1.6f});
-    const sigil::weave::TextStyle faint =
-        weave::textStyle({.size = 10.5f, .color = kFaint, .track = 0.8f});
     const sk_sp<SkTypeface> face =
         weave::ports::face({"Helvetica Neue", "Arial", "Inter"}, 700);
     // The letters are set WHITE: the pass reads the layer's coverage and
     // supplies every colour itself, so the type's own colour never lands.
-    const sigil::weave::TextStyle big =
-        weave::textStyle({.face = face,
-                          .size = 78,
-                          .color = SkColor4f{1, 1, 1, 1},
-                          .track = 5.0f});
-    const sigil::weave::TextStyle small =
-        weave::textStyle({.face = face,
-                          .size = 27,
-                          .color = SkColor4f{1, 1, 1, 1},
-                          .track = 3.0f});
+    const auto burnt = [&](float size, float track) {
+      return weave::Type{.face = face,
+                         .size = size,
+                         .color = SkColor4f{1, 1, 1, 1},
+                         .track = track};
+    };
 
     const mskia::Paint burn = burnMaterial(recipe);
-    Element root =
-        box().column().padding(44).gap(20).fill(mskia::Paint::solid(kPlate));
+    Element root = box()
+                       .column()
+                       .padding(44)
+                       .gap(20)
+                       .fill(mskia::Paint::solid(kPlate))
+                       // The faint remark is the sheet's own voice: every
+                       // line is set in it unless it says otherwise.
+                       .font({.size = 10.5f, .color = kFaint, .track = 0.8f});
     root.child(text(toUtf8("TEXT AS A SAMPLER \xc2\xb7 ONE SkSL PASS OVER ONE "
-                           "RENDERED LINE"),
-                    label));
-    root.child(text(u8"EMBER DECODE", big)
+                           "RENDERED LINE"))
+                   .font({.size = 11.5f, .color = kLabel, .track = 1.6f}));
+    root.child(text(u8"EMBER DECODE")
+                   .font(burnt(78, 5.0f))
                    .key("burn-display")
                    .fx({.effect = fx::pass(burn),
                         .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
@@ -247,25 +246,25 @@ struct EmberDecode : sketch::Sketch {
     root.child(
         text(toUtf8("uUnitRect[N] \xc2\xb7 uUnitPhase[N] \xe2\x80\x94 a LETTER "
                     "is a unit; the bar under each one is the progress that "
-                    "unit's uniform carries, read back from beatsOf"),
-             faint));
+                    "unit's uniform carries, read back from beatsOf")));
     root.child(box().height(6));
-    root.child(text(u8"ONE PASS PER WORD PHASE", small)
+    root.child(text(u8"ONE PASS PER WORD PHASE")
+                   .font(burnt(27, 3.0f))
                    .key("burn-words")
                    .fx({.effect = fx::pass(burn),
                         .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
                         .unit = weave::Unit::Word,
                         .progress = &words}));
-    root.child(text(toUtf8("the same pass, the same source at another count "
-                           "\xe2\x80\x94 a WORD is a unit here, and the "
-                           "runtime compiled and cached one variant per "
-                           "count"),
-                    faint));
+    root.child(
+        text(toUtf8("the same pass, the same source at another count "
+                    "\xe2\x80\x94 a WORD is a unit here, and the "
+                    "runtime compiled and cached one variant per "
+                    "count")));
     root.child(box().grow(1));
-    root.child(text(toUtf8("one draw and one pass over each line's own box, "
-                           "whatever N is \xc2\xb7 per-unit progress is "
-                           "uniform DATA, not scene structure"),
-                    faint));
+    root.child(
+        text(toUtf8("one draw and one pass over each line's own box, "
+                    "whatever N is \xc2\xb7 per-unit progress is "
+                    "uniform DATA, not scene structure")));
 
     // THE SCHEDULE, DRAWN, from the same query the pass agrees with: one
     // bar per beat of the display track, at that beat's laid-out rect,
