@@ -79,10 +79,11 @@ struct Mawarikomi final : sketch::Sketch {
   /** One clamped column, captioned: the same clamp in two scripts, so the
    *  two forms the marker takes stand next to each other. */
   Element specimen(const char* caption, const char8_t* text8,
-                   const sigil::weave::TextStyle& style) {
+                   const sigil::weave::Type& style) {
     namespace mw = mawari;
     return mw::specimen(caption, mw::labelType(10, mw::kAi, 1.4f),
-                        text(text8, style)
+                        text(text8)
+                            .font(style)
                             .width(Dimension(46.0f))
                             .height(Dimension(216.0f))
                             .writingMode(sigil::weave::WritingMode::kVerticalRL)
@@ -97,8 +98,11 @@ struct Mawarikomi final : sketch::Sketch {
     Fill ground =
         linearGradient({0, 0}, {0, mw::kH}, {mw::kKinariLift, mw::kKinari});
 
+    // The plate is printed as ink on unbleached paper: every run that names
+    // no colour is set in the sumi.
     return box()
         .fill(std::move(ground))
+        .ink(mw::kSumi)
         // THE TWO OBSTACLES. Each declares a silhouette, so what the
         // columns subtract is the shape itself and not the box around it:
         // the type reaches into the disc's corners and into the seal's
@@ -127,8 +131,8 @@ struct Mawarikomi final : sketch::Sketch {
                     u8"箱ではなく形そのものだから、丸の四隅にも星の切れ込みに"
                     u8"も字は入り込む。列は右から左へ進み、上と下に分かれたま"
                     u8"ま、次の列へと組み上がってゆく。行に対して働くものは、"
-                    u8"四分の一だけ回した列に対しても同じように働く。",
-                    mw::body(21, mw::kSumi))
+                    u8"四分の一だけ回した列に対しても同じように働く。")
+                   .font(mw::bodyType(21))
                    .absolute()
                    .inset(mw::kBlockLeft, mw::kBlockTop, 0, 0)
                    .width(Dimension(mw::kBlockW))
@@ -146,19 +150,19 @@ struct Mawarikomi final : sketch::Sketch {
                 .gap(10)
                 .child(
                     text(toUtf8("\xe5\x9b\x9e\xe3\x82\x8a\xe8\xbe\xbc\xe3\x81"
-                                "\xbf"),
-                         mw::body(42, mw::kSumi)))
+                                "\xbf"))
+                        .font(mw::bodyType(42)))
                 .child(box()
                            .width(Dimension(120.0f))
                            .height(Dimension(1.0f))
                            .fill(Fill::color(mw::kAka)))
-                .child(text(toUtf8("THE COLUMN PARTS, AND THE COLUMN STOPS"),
-                            mw::label(12, mw::kAi, 2.6f))
+                .child(text(toUtf8("THE COLUMN PARTS, AND THE COLUMN STOPS"))
+                           .font(mw::labelType(12, mw::kAi, 2.6f))
                            .width(Dimension(268.0f)))
                 .child(text(toUtf8("an exclusion cuts a column exactly as it\n"
                                    "cuts a line \xc2\xb7 a clamped column ends "
-                                   "in\na marker at its foot"),
-                            mw::label(13, mw::kSumi, 0.4f))
+                                   "in\na marker at its foot"))
+                           .font(mw::labelType(13, 0.4f))
                            .width(Dimension(268.0f))))
         // The pair: one clamp in each script, so the marker's two forms
         // are side by side. Both columns hold far more than one column of
@@ -170,24 +174,24 @@ struct Mawarikomi final : sketch::Sketch {
                    .gap(28)
                    .child(specimen("UPRIGHT \xc2\xb7 THE FACE'S VERT FORM",
                                    u8"一行に収まらぬときは末に印を置く",
-                                   mw::body(20, mw::kSumi)))
+                                   mw::bodyType(20)))
                    .child(specimen("ROTATED \xc2\xb7 TURNED WITH THE COLUMN",
                                    u8"a Latin column turns a quarter turn and "
                                    u8"so does the marker that cuts it",
-                                   mw::label(17, mw::kSumi, 0.2f))))
+                                   mw::labelType(17, 0.2f))))
         .child(
             text(toUtf8("both columns are clamped to ONE column and both "
                         "overflow;\nthe cut moved up the column to make room "
-                        "for the marker"),
-                 mw::label(11, mw::kUsu))
+                        "for the marker"))
+                .font(mw::labelType(11, mw::kUsu))
                 .absolute()
                 .inset(64, 520, 0, 0)
                 .width(Dimension(300.0f)))
         .child(text(toUtf8("silhouette \xe2\x86\x92 subtracted as itself  "
                            "\xc2\xb7  a crossed column splits into head and "
                            "foot  \xc2\xb7  the marker takes the form of the "
-                           "text it cut"),
-                    mw::label(12, mw::kUsu))
+                           "text it cut"))
+                   .font(mw::labelType(12, mw::kUsu))
                    .absolute()
                    .inset(64, mw::kH - 44, 0, 0));
   }
