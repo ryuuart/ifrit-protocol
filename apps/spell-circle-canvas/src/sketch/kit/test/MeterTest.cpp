@@ -50,8 +50,8 @@ TEST(SketchKitMeter, ABoundLevelFillsTheRailAsAFractionDoes) {
 TEST(SketchKitMeter, TheBarIsTheFractionOfTheTrack) {
   const kit::Theme& house = kit::houseTheme();
   Element byHand = compose::box()
-                       .width(compose::Dimension(220))
-                       .height(compose::Dimension(house.spacing.barHeight))
+                       .width(220)
+                       .height(house.spacing.barHeight)
                        .fill(Fill::color(house.palette.cellGround))
                        .clip()
                        .children({compose::box()

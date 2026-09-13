@@ -51,9 +51,8 @@ TEST(SketchKitLegend, AnEntryIsASwatchAndItsWords) {
                    .gap(house.spacing.captionNoteGap)
                    .children(
                        {compose::box()
-                            .width(compose::Dimension(house.spacing.swatchSide))
-                            .height(
-                                compose::Dimension(house.spacing.swatchSide))
+                            .width(house.spacing.swatchSide)
+                            .height(house.spacing.swatchSide)
                             .fill(warm)
                             .shrink(0)})
                    .children({compose::text(u8"lit",
@@ -84,8 +83,8 @@ TEST(SketchKitLegend, AnEntryCanCarryItsOwnEdgeAndItsOwnInk) {
                    .alignItems(compose::Align::Center)
                    .gap(6)
                    .children({compose::box()
-                                  .width(compose::Dimension(9))
-                                  .height(compose::Dimension(9))
+                                  .width(9)
+                                  .height(9)
                                   .fill(body)
                                   .shrink(0)
                                   .corners(compose::Corners{1.5f})
@@ -122,8 +121,8 @@ TEST(SketchKitLegend, AnEntryWithoutThemDrawsWhatItAlwaysDid) {
 TEST(SketchKitLegend, AnEntrysMarkIsWhateverTheCallerDrew) {
   const kit::Theme& house = kit::houseTheme();
   Element sample = compose::box()
-                       .width(compose::Dimension(20))
-                       .height(compose::Dimension(13))
+                       .width(20)
+                       .height(13)
                        .fill(Fill::color({0.45f, 0.29f, 0.29f, 1}))
                        .foreground(compose::stroke(
                            1.0f, Fill::color({0.87f, 0.84f, 0.77f, 0.55f})));

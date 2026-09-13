@@ -148,10 +148,10 @@ TEST(SketchKitHeading, ARegisterNamesItsOwnFace) {
 TEST(SketchKitHeading, TheSectionRuleFillsWhatTheTwoLinesLeave) {
   EXPECT_FALSE(sameDrawing(
       kit::sectionHeader({.label = u8"DYNAMICS", .note = u8"6 presets"})
-          .width(compose::Dimension(360)),
+          .width(360),
       kit::sectionHeader(
           {.label = u8"DYNAMICS", .note = u8"6 presets", .ruled = false})
-          .width(compose::Dimension(360))));
+          .width(360)));
 }
 
 }  // namespace

@@ -34,8 +34,8 @@ TEST(SketchKitPanel, AKeylineOfNoneDrawsNoKeyline) {
   const Fill screen = Fill::color({0.86f, 0.84f, 0.78f, 1});
   EXPECT_TRUE(sameDrawing(
       compose::box()
-          .width(compose::Dimension(220))
-          .height(compose::Dimension(180))
+          .width(220)
+          .height(180)
           .padding(20)
           .fill(shell)
           .children({compose::box().column().grow(1).fill(screen).clip()}),
@@ -151,8 +151,8 @@ TEST(SketchKitPanel, TheScreenIsInsetByTheBezel) {
       compose::box()
           .column()
           .padding(8)
-          .width(compose::Dimension(200))
-          .height(compose::Dimension(120))
+          .width(200)
+          .height(120)
           .fill(Fill::color(house.palette.cellGround))
           .corners(compose::Corners{6})
           .children(
@@ -187,8 +187,8 @@ TEST(SketchKitPanel, AFrameShellAndScreenTakeAMaterial) {
       compose::box()
           .column()
           .padding(8)
-          .width(compose::Dimension(200))
-          .height(compose::Dimension(120))
+          .width(200)
+          .height(120)
           .fill(sigil::material::skia::Paint::recipe(purbeck))
           .corners(compose::Corners{6})
           .children(

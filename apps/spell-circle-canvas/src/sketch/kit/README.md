@@ -176,7 +176,7 @@ painting an Element directly.
 | `caption(measure, label, note, body)` | one captioned specimen in the theme's voice — the label set in the class `captionLabel`, the note in `captionNote`; `measure` is the cell's own width, the one distance a caption cannot inherit |
 | `cells(Run)` | a run of cells along one axis at the theme's gutter, each at its own width |
 | `panelGrid(PanelGrid)` | equal shares of the width, one per cell — what `cells` cannot do, because a fixed width does not know how wide the page is — on one row where `columns` is 0, wrapped every N above that, with a short last row keeping its share |
-| `passage(ctx, name)` | the prose at `res://passages/<name>`, minus the newlines a file ends with — the prose a sheet about setting a page is SET IN, kept beside the sketch rather than typed into it |
+| `passage(ctx, name)` | the prose in the sketch's own files, `ctx.local(name)` (`"data/manuscript_1.txt"`), minus the newlines a file ends with — the prose a sheet about setting a page is SET IN, kept beside the sketch rather than typed into it |
 
 ```cpp
 sketch::kit::page({.title = "THE STROKE ATLAS"},

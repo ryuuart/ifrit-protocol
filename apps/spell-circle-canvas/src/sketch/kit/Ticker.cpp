@@ -37,7 +37,7 @@ compose::Element timeline(const Timeline& scale) {
 
   // The rail carries the marks, so a mark's position is a percentage of
   // the rail's own resolved width and the scale needs no measurement.
-  Element rail = box().height(Dimension(thickness));
+  Element rail = box().height(thickness);
   railPaint.apply(rail);
   if (scale.width.unit != Dimension::Unit::Auto) rail.width(scale.width);
   for (const Timeline::Mark& mark : scale.marks) {
@@ -46,13 +46,13 @@ compose::Element timeline(const Timeline& scale) {
         box()
             .absolute()
             .left(compose::pct(std::clamp(mark.at, 0.0f, 1.0f) * 100))
-            .width(Dimension(1))
-            .height(Dimension(reach))
+            .width(1)
+            .height(reach)
             .fill(inkFill);
     if (scale.below)
-      tick.top(Dimension(thickness));
+      tick.top(thickness);
     else
-      tick.top(Dimension(-reach));
+      tick.top(-reach);
     rail.children({std::move(tick)});
   }
   Element column = box().column();
@@ -62,7 +62,7 @@ compose::Element timeline(const Timeline& scale) {
   // inside it, so it overhangs equally on both sides whatever it says —
   // which needs no measurement, and is what puts a word at 0 half outside
   // the rail, as a scale's end labels are.
-  Element words = box().height(Dimension(look.type.eyebrow.size * 1.6f));
+  Element words = box().height(look.type.eyebrow.size * 1.6f);
   const weave::TextStyle sharedInk = look.style(look.type.eyebrow, inkFill);
   bool any = false;
   for (const Timeline::Mark& mark : scale.marks) {
@@ -72,7 +72,7 @@ compose::Element timeline(const Timeline& scale) {
         {box()
              .absolute()
              .left(compose::pct(std::clamp(mark.at, 0.0f, 1.0f) * 100))
-             .width(Dimension(0))
+             .width(0)
              .row()
              .justify(compose::Justify::Center)
              .children({text(mark.label.bytes(),

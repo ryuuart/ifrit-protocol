@@ -65,8 +65,8 @@ TEST(KitColumns, ASpannerBreaksTheChainAndTheRunAboveItIsBalanced) {
                        .spanners = {{sigil::weave::selectors::line(11),
                                      box()
                                          .key("plate")
-                                         .width(Dimension(360))
-                                         .height(Dimension(24))
+                                         .width(360)
+                                         .height(24)
                                          .fill(red())}},
                        .composer = &host.composer})}));
     host.frame();
@@ -101,7 +101,7 @@ TEST(KitColumns, TheRunBelowTheSpannerResumesWhereTheOneAboveRanOut) {
          .height = 300,
          .spanners =
              {{sigil::weave::selectors::line(11),
-               box().key("plate").width(Dimension(360)).height(Dimension(24))}},
+               box().key("plate").width(360).height(24)}},
          .composer = &host.composer})}));
     host.frame();
   };
@@ -136,9 +136,9 @@ TEST(KitColumns, ARunWhoseFramesStateNoDepthInPixelsIsLeftAlone) {
            .children({frame(article())
                           .key("a")
                           .thread("b")
-                          .width(Dimension(170.0f))
+                          .width(170.0f)
                           .balanceChain()})
-           .children({frame(article()).key("b").width(Dimension(170.0f))})}));
+           .children({frame(article()).key("b").width(170.0f)})}));
   host.frame();
   EXPECT_GT(require(host.composer.bounds("a")).height(), 0);
 }

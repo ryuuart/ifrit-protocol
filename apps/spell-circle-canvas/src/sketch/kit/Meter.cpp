@@ -88,7 +88,7 @@ compose::Element gauge(const Gauge& dial) {
     return band;
   };
 
-  Element face = box().width(Dimension(diameter)).height(Dimension(diameter));
+  Element face = box().width(diameter).height(diameter);
   face.children({ring(dial.sweepDeg, dial.track.value_or(Fill::color(
                                          look.palette.cellGround)))});
   if (swept > 0)

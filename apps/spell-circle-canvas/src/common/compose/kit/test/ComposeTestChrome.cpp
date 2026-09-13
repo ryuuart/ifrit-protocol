@@ -30,8 +30,8 @@ constexpr int kX = 20, kY = 20, kW = 100, kH = 60;
  *  wants. */
 Element panel(const kit::Bevel& b) {
   return box().padding(kX).children({box()
-                                         .width(Dimension(kW))
-                                         .height(Dimension(kH))
+                                         .width(kW)
+                                         .height(kH)
                                          .fill(kFace)
                                          .overlay(b)});
 }
@@ -178,7 +178,7 @@ TEST(KitChrome, DressingAPanelPutsTheInnerRingOverItsContent) {
   b.inner = kit::BevelInner{6, {1, 1, 1, 1}, {0, 0, 0, 1}, 1, 1, false};
   const auto panelWith = [&](bool dressed) {
     Element face =
-        box().width(Dimension(kW)).height(Dimension(kH)).fill(kFace).padding(6);
+        box().width(kW).height(kH).fill(kFace).padding(6);
     if (dressed)
       kit::bevelled(face, b);
     else
@@ -305,8 +305,8 @@ TEST(KitChrome, AStippleTakesEveryOtherCellAndLeavesTheRest) {
   Host host(140, 100);
   host.composer.render(box().padding(kX).children(
       {box()
-           .width(Dimension(kW))
-           .height(Dimension(kH))
+           .width(kW)
+           .height(kH)
            .fill(kFace)
            .overlay(styles::stipple({1, 0, 0, 1}))}));
   host.frame();
@@ -336,8 +336,8 @@ TEST(KitChrome, ThePixelLatticeStippleDrawsInsideTheOutline) {
   Host host(140, 100);
   host.composer.render(box().padding(kX).children(
       {box()
-           .width(Dimension(kW))
-           .height(Dimension(kH))
+           .width(kW)
+           .height(kH)
            .fill(kFace)
            .overlay(styles::stipple({1, 0, 0, 1}))}));
   host.frame();
@@ -426,8 +426,8 @@ TEST(KitChrome, TheThemeCarriesTheEraToEveryPanelUnderIt) {
   const auto describe = [](kit::Bevel era) {
     const sigil::core::environment::Provide<kit::Bevel> bound(era);
     return box().padding(kX).children({box()
-                                           .width(Dimension(kW))
-                                           .height(Dimension(kH))
+                                           .width(kW)
+                                           .height(kH)
                                            .fill(kFace)
                                            .overlay(kit::ambientBevel())});
   };
@@ -456,8 +456,8 @@ TEST(KitChrome, ABevelUnderASpanGateKeepsItsRingInsideTheShape) {
   // Its implicit closure is a straight line enclosing nothing at all.
   auto face = [](float reveal) {
     Element panel = box()
-                        .width(Dimension(kW))
-                        .height(Dimension(kH))
+                        .width(kW)
+                        .height(kH)
                         .fill(kFace)
                         .overlay(plain());
     panel.mask(by::spans(spans::upTo(reveal)));

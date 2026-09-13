@@ -28,8 +28,8 @@ using sigil::sketch::test::fonts;
  *  which is all a stepper ever is. */
 Element stepper() {
   return compose::box()
-      .width(compose::Dimension(16))
-      .height(compose::Dimension(16))
+      .width(16)
+      .height(16)
       .shrink(0)
       .fill(Fill::color({0.4f, 0.4f, 0.5f, 1}));
 }
@@ -40,18 +40,18 @@ Element barByHand(float top, float length) {
   const kit::Theme& house = kit::houseTheme();
   return compose::box()
       .column()
-      .width(compose::Dimension(16))
-      .height(compose::Dimension(232))
+      .width(16)
+      .height(232)
       .children({stepper(),
                  compose::box()
                      .grow(1)
                      .fill(Fill::color(house.palette.cellGround))
                      .children({compose::box()
                                     .absolute()
-                                    .left(compose::Dimension(0))
-                                    .right(compose::Dimension(0))
-                                    .top(compose::Dimension(top))
-                                    .height(compose::Dimension(length))
+                                    .left(0)
+                                    .right(0)
+                                    .top(top)
+                                    .height(length)
                                     .fill(Fill::color(house.palette.figure))}),
                  stepper()});
 }
@@ -62,8 +62,8 @@ Element bar(float at) {
               .trailing = stepper(),
               .scrolled = {.view = 100, .content = 400, .track = 200},
               .at = at})
-      .width(compose::Dimension(16))
-      .height(compose::Dimension(232));
+      .width(16)
+      .height(232);
 }
 
 TEST(SketchKitScrollbar, TheBarIsTheHandSpelledStack) {
@@ -112,8 +112,8 @@ TEST(SketchKitScrollbar, AStatedLengthReplacesTheShare) {
       barByHand(0, 90), kit::scrollbar({.leading = stepper(),
                                         .trailing = stepper(),
                                         .thumbLength = compose::Dimension(90)})
-                            .width(compose::Dimension(16))
-                            .height(compose::Dimension(232))));
+                            .width(16)
+                            .height(232)));
 }
 
 }  // namespace

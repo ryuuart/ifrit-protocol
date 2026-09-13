@@ -360,10 +360,10 @@ TEST(ComposePlacement, RectIsTheLonghandAndPrunesIdentically) {
     return box().children({box()
                                .key("plate")
                                .absolute()
-                               .left(Dimension(40))
-                               .top(Dimension(60))
-                               .width(Dimension(50))
-                               .height(Dimension(30))
+                               .left(40)
+                               .top(60)
+                               .width(50)
+                               .height(30)
                                .fill(red())});
   };
   auto terse = [&] {
@@ -414,8 +414,8 @@ TEST(ComposePlacement, AtPinsTheCornerAndLeavesTheNodeToSizeItself) {
     return box().children({text(u8"Wm", styleAt(20))
                                .key("cap")
                                .absolute()
-                               .left(Dimension(30))
-                               .top(Dimension(40))});
+                               .left(30)
+                               .top(40)});
   };
   auto terse = [] {
     return box().children({text(u8"Wm", styleAt(20)).key("cap").at({30, 40})});
@@ -456,8 +456,8 @@ TEST(ComposeLayout, AnEdgeSetterMakesANodeAbsoluteAndAloneAbsoluteStillDoes) {
     return box().children({box()
                                .key("p")
                                .absolute()
-                               .left(Dimension(30))
-                               .top(Dimension(30))
+                               .left(30)
+                               .top(30)
                                .width(20)
                                .height(20)
                                .fill(red())});
@@ -465,8 +465,8 @@ TEST(ComposeLayout, AnEdgeSetterMakesANodeAbsoluteAndAloneAbsoluteStillDoes) {
   auto without = [] {
     return box().children({box()
                                .key("p")
-                               .left(Dimension(30))
-                               .top(Dimension(30))
+                               .left(30)
+                               .top(30)
                                .width(20)
                                .height(20)
                                .fill(red())});

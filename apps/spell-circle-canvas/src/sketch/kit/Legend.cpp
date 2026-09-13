@@ -40,7 +40,7 @@ void enter(Element& line, const LegendEntry& entry) {
 /** The patch a key's mark is where the entry drew none of its own: the
  *  entry's colour at the key's own side, dressed as the key says. */
 Element swatchOf(const Legend& key, const LegendEntry& entry, float side) {
-  Element mark = box().width(Dimension(side)).height(Dimension(side)).shrink(0);
+  Element mark = box().width(side).height(side).shrink(0);
   if (key.strokeWidth > 0) {
     compose::PathFormat outline =
         compose::stroke(key.strokeWidth, entry.swatch);

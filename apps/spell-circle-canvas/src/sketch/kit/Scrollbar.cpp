@@ -49,11 +49,11 @@ compose::Element scrollbar(Scrollbar bar) {
     const Dimension offset =
         Dimension(reading.travel * std::clamp(bar.at, 0.0f, 1.0f));
     if (down) {
-      slider.left(Dimension(bar.thumbInset)).right(Dimension(bar.thumbInset));
+      slider.left(bar.thumbInset).right(bar.thumbInset);
       slider.top(offset).height(length);
       if (bar.position) slider.translateY(*bar.position);
     } else {
-      slider.top(Dimension(bar.thumbInset)).bottom(Dimension(bar.thumbInset));
+      slider.top(bar.thumbInset).bottom(bar.thumbInset);
       slider.left(offset).width(length);
       if (bar.position) slider.translateX(*bar.position);
     }

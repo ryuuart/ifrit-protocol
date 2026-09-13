@@ -34,7 +34,7 @@ TEST(SketchKitTicker, TheCrawlIsTheHandSpelledMarquee) {
       compose::kit::marquee(
           strip,
           {.phase = 0.0f, .gap = house.spacing.labelGap, .contentWidth = 60.0f})
-          .width(compose::Dimension(200)),
+          .width(200),
       kit::ticker({.content = strip,
                    .contentWidth = 60,
                    .phase = 0.0f,

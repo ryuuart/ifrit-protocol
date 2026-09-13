@@ -82,8 +82,8 @@ TEST(SketchKitCells, APlateIsAGroundedWellWithCornersAndOneKeyline) {
   const Fill edge = Fill::color({0.42f, 0.38f, 0.22f, 1});
   EXPECT_TRUE(
       sameDrawing(compose::box()
-                      .width(compose::Dimension(163))
-                      .height(compose::Dimension(176))
+                      .width(163)
+                      .height(176)
                       .corners(compose::Corners{8})
                       .padding(16)
                       .clip()
@@ -109,8 +109,8 @@ TEST(SketchKitCells, ARecessIsAShadowInsideTheEdgeAndASunkenLip) {
       .lipDark = SkColor4f{0, 0, 0, 0.55f}};
   EXPECT_TRUE(sameDrawing(
       compose::box()
-          .width(compose::Dimension(140))
-          .height(compose::Dimension(90))
+          .width(140)
+          .height(90)
           .clip()
           .fill(ground)
           .foreground(compose::styles::InnerShadow{hole.shade.colorValue,
@@ -136,8 +136,8 @@ TEST(SketchKitCells, ARecessIsAShadowInsideTheEdgeAndASunkenLip) {
 TEST(SketchKitCells, APaddingDownOfItsOwn) {
   const Fill ground = Fill::color({0.10f, 0.11f, 0.14f, 1});
   EXPECT_TRUE(sameDrawing(compose::box()
-                              .width(compose::Dimension(163))
-                              .height(compose::Dimension(176))
+                              .width(163)
+                              .height(176)
                               .padding(13, 10)
                               .clip()
                               .fill(ground)
@@ -160,8 +160,8 @@ TEST(SketchKitCells, AWellGroundedInAMaterialIsTheHandSpelledFill) {
       {.hi = {0.47f, 0.29f, 0.29f, 1}, .lo = {0.30f, 0.19f, 0.19f, 1}});
   EXPECT_TRUE(
       sameDrawing(compose::box()
-                      .width(compose::Dimension(163))
-                      .height(compose::Dimension(176))
+                      .width(163)
+                      .height(176)
                       .clip()
                       .fill(sigil::material::skia::Paint::recipe(quarry))
                       .children({subject()}),
@@ -210,12 +210,12 @@ TEST(SketchKitCells, ARunIsTheHandSpelledRunAtTheThemesGutter) {
  *  do because it does not know how wide the page is. */
 TEST(SketchKitCells, ColumnsTakeEqualShares) {
   Element wide = compose::box()
-                     .width(compose::Dimension(300))
-                     .height(compose::Dimension(20))
+                     .width(300)
+                     .height(20)
                      .fill(Fill::color({0.9f, 0.3f, 0.4f, 1}));
   Element narrow = compose::box()
-                       .width(compose::Dimension(10))
-                       .height(compose::Dimension(20))
+                       .width(10)
+                       .height(20)
                        .fill(Fill::color({0.9f, 0.3f, 0.4f, 1}));
   SkBitmap shared =
       Drawn(kit::panelGrid({.cells = {wide, narrow}, .columns = 0})).pixels();
