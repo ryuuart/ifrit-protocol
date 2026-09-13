@@ -715,10 +715,9 @@ struct DaemonConsole final : sketch::Sketch {
                      .gap(8)
                      .alignItems(Align::Center)
                      .children(
-                         {text("latency").font(chrome(10, dc::kChrome, 0.8f))})
-                     .children({box().grow(1)})
-                     .children(
-                         {text(std::format(
+                         {text("latency").font(chrome(10, dc::kChrome, 0.8f)),
+                          box().grow(1),
+                          text(std::format(
                                    "{:2.0f} mS",
                                    11.0 + 3.0 * std::sin(clockNow * 0.7)))
                               .font(chrome(11, dc::kBone, 0, true, true))})})
@@ -736,8 +735,8 @@ struct DaemonConsole final : sketch::Sketch {
                               .font(chrome(
                                   24,
                                   integrity() >= 96.0 ? dc::kBone : dc::kWarn,
-                                  0, true, true))})
-                     .children({text("%").font(chrome(12, dc::kChrome))}),
+                                  0, true, true)),
+                          text("%").font(chrome(12, dc::kChrome))}),
                  text(std::format("{} breach{} this session", gen.breaches,
                                   gen.breaches == 1 ? "" : "es"))
                      .styleClass("fine")});
@@ -780,29 +779,23 @@ struct DaemonConsole final : sketch::Sketch {
         .styleSheet(classes())
         .fill(Paint::linear({0, 0}, {0, dc::kH},
                             {{0.0f, dc::kGroundTop}, {1.0f, dc::kVoid}}))
-        .children({box()
-                       .column()
-                       .inset(26, 22, 26, 22)
-                       .fill(panel)
-                       .clip()
-                       .padding(padX, padY)
-                       // The enclosure's face, inherited by every chrome line;
-                       // the well and the prompt root their own monospaced
-                       // voice under it.
-                       .font({.face = faceChrome})
-                       .children({header})
-                       .children({rule(9, 8)})
-                       .children({box()
-                                      .row()
-                                      .grow(1)
-                                      .gap(16)
-                                      .clip()
-                                      .children({std::move(well)})
-                                      .children({box().width(1).fill(
-                                          Fill::color(dc::kRule))})
-                                      .children({std::move(rail)})})
-                       .children({rule(8, 7)})
-                       .children({promptLine})})
+        .children(
+            {box()
+                 .column()
+                 .inset(26, 22, 26, 22)
+                 .fill(panel)
+                 .clip()
+                 .padding(padX, padY)
+                 // The enclosure's face, inherited by every chrome line;
+                 // the well and the prompt root their own monospaced
+                 // voice under it.
+                 .font({.face = faceChrome})
+                 .children({header, rule(9, 8),
+                            box().row().grow(1).gap(16).clip().children(
+                                {std::move(well),
+                                 box().width(1).fill(Fill::color(dc::kRule)),
+                                 std::move(rail)}),
+                            rule(8, 7), promptLine})})
         // the living surface: the scanline tile, crept by its bound pan
         .children({box()
                        .inset(0)
@@ -816,10 +809,8 @@ struct DaemonConsole final : sketch::Sketch {
         // rest position puts the tent's centre 90 px above the top edge,
         // so the sweep enters from above and leaves below the foot.
         .children({box()
-                       .left(0)
-                       .top(-90.0f - dc::kRefreshH * 0.5f)
-                       .width(dc::kW)
-                       .height(dc::kRefreshH)
+                       .rect(SkRect::MakeXYWH(0, -90.0f - dc::kRefreshH * 0.5f,
+                                              dc::kW, dc::kRefreshH))
                        .zIndex(4)
                        .hitTestable(false)
                        .fill(dc::refreshBand())
