@@ -207,8 +207,7 @@ struct EvaMagiDefense : sketch::Sketch {
       node.fill(Fill::color(kCell));
       node.foreground(rimStroke(L.alarm ? 4.5f : 3.0f, ink));
     }
-    const weave::TextStyle whole = weave::textStyle(style);  // the probes'
-    const TextMetrics cap = metrics(whole, *fonts);
+    const TextMetrics cap = metrics(weave::textStyle(style), *fonts);
     const float inkShift =
         cap.lineHeight * 0.5f - cap.capSlack() - cap.capHeight * 0.5f;
     const int count = L.lines[1] ? (L.lines[2] ? 3 : 2) : 1;
@@ -219,7 +218,8 @@ struct EvaMagiDefense : sketch::Sketch {
               .font(style)
               .centerAt(
                   {L.role == LabelRole::Country
-                       ? intrinsicSize(text(toUtf8(L.lines[i]), whole), *fonts)
+                       ? intrinsicSize(text(toUtf8(L.lines[i])).font(style),
+                                       *fonts)
                                  .width() *
                              0.5f
                        : L.w * 0.5f,

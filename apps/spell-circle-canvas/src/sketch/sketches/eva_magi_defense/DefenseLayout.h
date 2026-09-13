@@ -140,7 +140,9 @@ constexpr int kRampN = (int)(sizeof(kRamp) / sizeof(kRamp[0]));
 // ---------------------------------------------------------------------------
 // TYPE. A bold grotesque, with cap height selected by semantic role. A run is
 // a PARTIAL — face, size, condensation — set in the ink in force where it
-// lands; a probe measured outside the tree is the partial made whole.
+// lands, or over the initial values when a probe lays it out alone; the
+// metrics probe takes it whole, since metrics() reads a style rather than a
+// tree.
 
 inline sk_sp<SkTypeface> boldFace() { return evangelion::groteskBold(); }
 
