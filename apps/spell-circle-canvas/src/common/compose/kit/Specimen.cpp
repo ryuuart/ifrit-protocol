@@ -1,3 +1,4 @@
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Grid.h>
 #include <sigilcompose/kit/Specimen.h>
 
@@ -6,6 +7,30 @@
 #include <vector>
 
 namespace sigil::compose::kit {
+
+// ---------------------------------------------------------------------------
+// The specimen well
+
+Element well(const Well& spec, Element surface) {
+  if (spec.width.unit != Dimension::Unit::Auto) surface.width(spec.width);
+  if (spec.height.unit != Dimension::Unit::Auto) surface.height(spec.height);
+  if (!spec.ground.none()) surface.fill(spec.ground);
+  if (spec.paddingY)
+    surface.padding(Dimension(spec.padding), Dimension(*spec.paddingY));
+  else if (spec.padding != 0.0f)
+    surface.padding(Dimension(spec.padding));
+  if (spec.clip) surface.clip();
+  if (spec.corners > 0.0f) surface.corners(Corners{spec.corners});
+  // Inside its own box: a keyline centred on the boundary would put half
+  // its width outside, and a plate that is not the width it was given is
+  // the one thing a fixed surface may not be.
+  if (spec.keyline)
+    surface.stroke(compose::stroke(spec.keylineWidth, *spec.keyline,
+                                   PathFormat::Align::Inner));
+  return surface;
+}
+
+Element well(const Well& spec) { return well(spec, box()); }
 
 namespace {
 

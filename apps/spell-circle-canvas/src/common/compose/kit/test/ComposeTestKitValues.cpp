@@ -617,6 +617,121 @@ TEST(KitSpecimen, AWellClipsByDefaultAndCanBeOpened) {
   EXPECT_EQ(host.pixel(105, 25), SK_ColorGREEN);
 }
 
+TEST(KitSpecimen, AWellRoundsItsCornersAndRulesInsideItsOwnBox) {
+  // A keyline centred on the boundary would put half its width outside,
+  // and a plate that is not the width it was given is the one thing a
+  // fixed surface may not be — so the rule is drawn inside the well.
+  Host host(160, 120);
+  host.composer.render(box().width(160).height(120).children({kit::well(
+      {.width = 100,
+       .height = 80,
+       .ground = red(),
+       .padding = 10,
+       .paddingY = 4,
+       .corners = 0,
+       .keyline = Fill::color({0, 1, 0, 1}),
+       .keylineWidth = 4},
+      box().key("well").children({box().key("body").width(20).height(15)}))}));
+  host.frame();
+  EXPECT_EQ(require(host.composer.bounds("well")), SkRect::MakeWH(100, 80));
+  // A plate is often set tighter down than across, which one distance
+  // cannot say.
+  const SkRect body = require(host.composer.bounds("body"));
+  EXPECT_FLOAT_EQ(body.left(), 10);
+  EXPECT_FLOAT_EQ(body.top(), 4);
+  EXPECT_EQ(host.pixel(50, 1), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(50, 6), SK_ColorRED);
+  EXPECT_EQ(host.pixel(101, 40), SK_ColorBLACK);
+}
+
+TEST(KitSpecimen, ACellStatesItsBodysOwnWell) {
+  // A cell that states its body's cell is one call rather than two, and
+  // `justify` ranges what the body holds inside that cell.
+  const auto placed = [](Align justify) {
+    kit::Caption voice = specimenVoice(kit::Caption::Where::Split);
+    voice.body = kit::Well{.width = 100, .height = 80, .ground = red()};
+    voice.justify = justify;
+    Host host(200, 200);
+    host.composer.render(
+        box()
+            .width(200)
+            .height(200)
+            .styleSheet(captionClasses())
+            .children(
+                {kit::cell(voice, "", "",
+                           box().key("body").children(
+                               {box().key("inner").width(20).height(16).fill(
+                                   green())}))}));
+    host.frame();
+    return std::pair{require(host.composer.bounds("body")),
+                     require(host.composer.bounds("inner"))};
+  };
+  const auto [asBuilt, lying] = placed(Align::Auto);
+  EXPECT_EQ(asBuilt, SkRect::MakeWH(100, 80));
+  EXPECT_FLOAT_EQ(lying.left(), 0);
+  EXPECT_FLOAT_EQ(lying.top(), 0);
+  const auto [centred, middle] = placed(Align::Center);
+  EXPECT_EQ(centred, SkRect::MakeWH(100, 80));
+  EXPECT_FLOAT_EQ(middle.left(), 40);
+  EXPECT_FLOAT_EQ(middle.top(), 32);
+}
+
+TEST(KitSpecimen, AReadingStandsOverTheBodyOnAScrimOfItsGround) {
+  kit::Caption voice = specimenVoice(kit::Caption::Where::Split);
+  voice.gap = 8;
+  voice.body = kit::Well{.width = 100, .height = 80, .ground = green()};
+  voice.reading = u8"12";
+  voice.readingLine = [](const sigil::compose::Utf8& t) {
+    return text(t.bytes()).key("figure").font({.size = 10});
+  };
+  Host host(200, 200);
+  host.composer.render(
+      box()
+          .width(200)
+          .height(200)
+          .styleSheet(captionClasses())
+          .children({kit::cell(voice, "", "",
+                               box().absolute().inset(0).fill(red()))}));
+  host.frame();
+  // The line stands inside the scrim's own air, one gap in from the
+  // body's corner.
+  const SkRect figure = require(host.composer.bounds("figure"));
+  EXPECT_FLOAT_EQ(figure.left(), 16);
+  EXPECT_FLOAT_EQ(figure.top(), 12);
+  // The body fills the whole well, and the reading stands off it on a
+  // scrim of the well's own ground.
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);
+  EXPECT_EQ(host.pixel(9, 9), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel((int)figure.right() + 4, (int)figure.bottom() + 2),
+            SK_ColorGREEN);
+}
+
+TEST(KitSpecimen, ASheetsLinesArePartsOfTheirOwnText) {
+  kit::Sheet page{.title = "TITLE",
+                  .footer = "the footer",
+                  .marginX = 30,
+                  .marginTop = 16,
+                  .marginBottom = 14,
+                  .key = "page"};
+  page.titleLine = [](const sigil::compose::Utf8& t) {
+    return text(t.bytes()).font({.size = 20});
+  };
+  Host host(400, 300);
+  host.composer.render(
+      kit::sheet(page, box().key("body"))
+          .styleSheet(weave::StyleSheet{{"title", {.size = 15}},
+                                        {"footer", {.size = 11}}})
+          .width(400)
+          .height(300));
+  host.frame();
+  // The one line the sheet was handed stands where the register's would,
+  // and the footer keeps its register, because no sheet moved.
+  EXPECT_NEAR(require(host.composer.bounds("page-title")).height(),
+              lineHeight(20), 1.5f);
+  EXPECT_NEAR(require(host.composer.bounds("page-footer")).height(),
+              lineHeight(11), 1.0f);
+}
+
 TEST(KitSpecimen, FormatReturnsTheWholeReading) {
   EXPECT_EQ(kit::formatted("plain"), "plain");
   EXPECT_EQ(kit::formatted("%s %d %.2f", "row", 17, 0.25), "row 17 0.25");

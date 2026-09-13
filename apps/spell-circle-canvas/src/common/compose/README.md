@@ -1317,14 +1317,25 @@ that default to `captionLabel` and `captionNote`, leaves in the
 register's class; `Caption::Where` puts the note under
 the body, or both lines above it, or both below, and `labelMeasure` and
 `noteMeasure` wrap either line at a stated width so a long one does not
-widen the cell it captions), `kit::well`, the fixed, clipped surface a
-specimen is drawn into with every size, fill and padding supplied by the
-caller, `kit::formatted`, the dynamically sized printf-style reading those
+widen the cell it captions; `Caption::body` states the body's own well, so
+a cell and its well are one call, `Caption::justify` ranges what the body
+holds inside it, and `Caption::reading` writes a figure over the body's
+corner on a scrim of that well's ground, in the class `readout`, through
+the part `readingLine`), `kit::well`, the fixed, clipped surface a
+specimen is drawn into with every size, fill, padding, corner radius and
+keyline supplied by the caller — `Well::paddingY` where a plate is set
+tighter down than across, and `Well::keyline` drawn INSIDE the well's own
+box, because a plate that is not the width it was given is the one thing a
+fixed surface may not be — `kit::formatted`, the dynamically sized
+printf-style reading those
 captions use, `kit::panelGrid`, equal-width panels that wrap at the stated
 column count and keep a short last row aligned, and `kit::cells`, a run of
 them along one axis with a hairline between neighbours, and
 `kit::sheet`, the titled and footed page that rules its header and
-footer off from the content between them; the props are the CONTENT and
+footer off from the content between them, its three lines the parts
+`Sheet::titleLine`, `Sheet::subtitleLine` and `Sheet::footerLine` over
+the leaves `kit::sheetTitle`, `kit::sheetSubtitle` and `kit::sheetFooter`;
+the props are the CONTENT and
 the arrangement, and every face, size and colour is the cascade's — a
 cell's label is set in the class `captionLabel` of the sheet in force
 and its note in `captionNote`, a page's three lines in `title`,

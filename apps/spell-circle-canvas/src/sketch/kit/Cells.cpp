@@ -13,26 +13,22 @@ namespace sigil::sketch::kit {
 
 compose::Element well(const Well& specification, compose::Element surface) {
   const Theme& look = theme();
-  const float padX = specification.padding.value_or(look.spacing.wellPadding);
-  const float padY = specification.paddingY.value_or(padX);
-  // The padding is chained here rather than handed down, because the
-  // primitive takes one distance and a plate may be set tighter down than
-  // across. Everything else is the primitive's.
+  // The theme supplies the ground and the padding; the plate, its corners
+  // and its keyline are the primitive's, and the two looks below are this
+  // library's own.
   const compose::SurfacePaint bed = specification.ground.value_or(
       compose::Fill::color(look.palette.cellGround));
-  compose::Element plate = compose::kit::well({.width = specification.width,
-                                               .height = specification.height,
-                                               .ground = bed,
-                                               .padding = 0,
-                                               .clip = specification.clip},
-                                              std::move(surface));
-  if (padX != 0 || padY != 0) plate.padding(padX, padY);
-  if (specification.corners > 0)
-    plate.corners(compose::Corners{specification.corners});
-  if (specification.keyline)
-    plate.stroke(compose::stroke(specification.keylineWidth,
-                                 *specification.keyline,
-                                 compose::PathFormat::Align::Inner));
+  compose::Element plate = compose::kit::well(
+      {.width = specification.width,
+       .height = specification.height,
+       .ground = bed,
+       .padding = specification.padding.value_or(look.spacing.wellPadding),
+       .paddingY = specification.paddingY,
+       .clip = specification.clip,
+       .corners = specification.corners,
+       .keyline = specification.keyline,
+       .keylineWidth = specification.keylineWidth},
+      std::move(surface));
   if (specification.relief) {
     const Well::Relief& lift = *specification.relief;
     plate.foreground(compose::styles::BevelEmboss{

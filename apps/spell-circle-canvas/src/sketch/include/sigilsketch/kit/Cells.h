@@ -40,12 +40,7 @@ struct Well {
   /** ONE HAIRLINE ROUND THE WELL, over its ground — what turns a patch of
    *  ground into a PLATE. Unset draws none; unset is not the theme's rule,
    *  because a specimen well is grounded and unruled and that is the
-   *  common case.
-   *
-   *  IT IS DRAWN INSIDE THE WELL'S OWN BOX. A rule centred on the
-   *  boundary would put half its width outside, so a plate and the plate
-   *  beside it would no longer be the width they were given — which is
-   *  the one thing a fixed surface may not do. */
+   *  common case. */
   std::optional<compose::Fill> keyline;
   float keylineWidth = 1;
   /** THE RECESS: what makes a well read as a HOLE PUNCHED in what holds

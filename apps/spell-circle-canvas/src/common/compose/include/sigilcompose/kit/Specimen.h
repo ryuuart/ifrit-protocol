@@ -50,6 +50,55 @@ namespace sigil::compose::kit {
 [[nodiscard]] inline Element captionNote(const Utf8& text) {
   return compose::text(text.bytes()).styleClass("captionNote");
 }
+/** The leaf a caption's reading defaults to: @p text in the class
+ *  `readout`, the class a measured figure is set in. */
+[[nodiscard]] inline Element captionReading(const Utf8& text) {
+  return compose::text(text.bytes()).styleClass("readout");
+}
+
+/** THE FIXED SURFACE A SPECIMEN IS SHOWN IN. Its size, ground, padding,
+ *  corners and keyline are caller decisions; the kit only applies them
+ *  together and clips the result, which is the frame every specimen cell
+ *  otherwise restates.
+ *
+ *      kit::well({.width = 240, .height = 160,
+ *                 .ground = Fill::color(kGround), .padding = 12},
+ *                box().children({subject()}))
+ *
+ *  The second argument is the surface itself, not a child wrapped in a new
+ *  box. Hand it `custom(key, draw)` when the drawing should receive the
+ *  well's resolved size directly; hand it `box().children({body})` when the
+ *  well contains a laid-out body. An open width or height leaves that
+ *  dimension to the surface alone. */
+struct Well {
+  Dimension width;
+  Dimension height;
+  SurfacePaint ground;
+  /** Across, px. */
+  float padding = 0.0f;
+  /** Down, where a plate is set tighter or looser than it is wide; unset
+   *  is whatever `padding` is. */
+  std::optional<float> paddingY;
+  bool clip = true;
+  /** Rounds the well. 0 is the square corner a specimen sheet uses. */
+  float corners = 0.0f;
+  /** ONE HAIRLINE ROUND THE WELL, over its ground — what turns a patch of
+   *  ground into a PLATE. Unset draws none.
+   *
+   *  IT IS DRAWN INSIDE THE WELL'S OWN BOX. A rule centred on the
+   *  boundary would put half its width outside, so a plate and the plate
+   *  beside it would no longer be the width they were given — which is
+   *  the one thing a fixed surface may not do. */
+  std::optional<Fill> keyline;
+  float keylineWidth = 1.0f;
+};
+
+/** @p surface, sized, grounded, padded, rounded and ruled as @p spec
+ *  says. */
+[[nodiscard]] Element well(const Well& spec, Element surface);
+
+/** An empty specimen well, ready for children to be added fluently. */
+[[nodiscard]] Element well(const Well& spec);
 
 /** HOW A CELL IS CAPTIONED: where its two lines stand, the air between
  *  them and the body, and the width either wraps at. One value per sheet,
@@ -93,10 +142,27 @@ struct Caption {
    *  ranges everything left, `Center` stands a caption over the middle of
    *  its body. */
   Align align = Align::Start;
-  /** THE TWO LINES, as functions of their text and then of this caption;
-   *  a part takes the parameters it names. Empty means the default. */
+  /** How the body's own content ranges INSIDE its cell. `Auto` (default)
+   *  says nothing, and the body lies as the caller built it; `Center`
+   *  centres it in the cell both ways, which is what a word or a figure
+   *  standing in the middle of its well asks for. */
+  Align justify = Align::Auto;
+  /** THE BODY'S OWN CELL — the well the specimen is shown in. Unset
+   *  leaves the body exactly as it arrives, for a caller that built its
+   *  own surface; stated, the body IS that surface, so a cell and its
+   *  well are one call. */
+  std::optional<Well> body;
+  /** A FIGURE READ OFF THE BODY, pinned over the body's top-left corner
+   *  on a scrim of the cell's own ground — the count, the cost or the
+   *  moment a picture that fills its whole well would otherwise have
+   *  nowhere to put. Empty writes none. */
+  Utf8 reading;
+  /** THE THREE LINES, as functions of their text and then of this
+   *  caption; a part takes the parameters it names. Empty means the
+   *  default. */
   Part<Utf8, Caption> label = captionLabel;
   Part<Utf8, Caption> note = captionNote;
+  Part<Utf8, Caption> readingLine = captionReading;
 };
 
 /** ONE CAPTIONED CELL: @p body with @p label and @p note set beside it as
@@ -113,9 +179,40 @@ struct Caption {
  *  An empty label or an empty note is simply absent — the cell has fewer
  *  children and spends no gap on the missing line. The result is an
  *  ordinary column: size it, key it, or key the body where a query needs
- *  the body rather than the cell. */
+ *  the body rather than the cell.
+ *
+ *  A CELL STATES ITS BODY'S CELL: with `Caption::body` the specimen is
+ *  shown in that well, so the cell and the well are one call, and
+ *  `Caption::reading` writes a figure over the body's corner on a scrim
+ *  of the well's own ground, in the class `readout`. */
 [[nodiscard]] inline Element cell(const Caption& caption, Utf8 label, Utf8 note,
                                   Element body) {
+  if (!caption.reading.empty()) {
+    // The scrim is a box around the line rather than padding on the line
+    // itself, and the reading is pinned in a box the body shares, because
+    // a body that is one custom leaf has nowhere to pin it to.
+    Element scrim =
+        box()
+            .absolute()
+            .left(Dimension(caption.gap))
+            .top(Dimension(caption.gap))
+            .padding(Dimension(caption.gap), Dimension(caption.gap * 0.5f))
+            .children({caption.readingLine
+                           ? caption.readingLine(caption.reading, caption)
+                           : captionReading(caption.reading)});
+    // The scrim is the cell's own ground, so the reading stands off
+    // whatever the body draws under it.
+    if (caption.body && !caption.body->ground.none())
+      scrim.fill(caption.body->ground);
+    body = box().children({std::move(body), std::move(scrim)});
+  }
+  if (caption.body) body = well(*caption.body, std::move(body));
+  if (caption.justify != Align::Auto) {
+    body.alignItems(caption.justify);
+    body.justify(caption.justify == Align::Center ? Justify::Center
+                 : caption.justify == Align::End  ? Justify::End
+                                                  : Justify::Start);
+  }
   Element column = box().column().alignItems(caption.align);
   // The space above each part is that part's own margin rather than the
   // column's gap, because a caption's two distances differ and a line that
@@ -162,42 +259,7 @@ struct Caption {
 }
 
 // ---------------------------------------------------------------------------
-// The specimen well
-
-/** THE FIXED SURFACE A SPECIMEN IS SHOWN IN. Its size, ground and padding
- *  are caller decisions; the kit only applies them together and clips the
- *  result, which is the frame every specimen cell otherwise restates.
- *
- *      kit::well({.width = 240, .height = 160,
- *                 .ground = Fill::color(kGround), .padding = 12},
- *                box().children({subject()}))
- *
- *  The second argument is the surface itself, not a child wrapped in a new
- *  box. Hand it `custom(key, draw)` when the drawing should receive the
- *  well's resolved size directly; hand it `box().children({body})` when the
- * well contains a laid-out body. An open width or height leaves that dimension
- *  already carried by the surface alone. */
-struct Well {
-  Dimension width;
-  Dimension height;
-  SurfacePaint ground;
-  float padding = 0.0f;
-  bool clip = true;
-};
-
-[[nodiscard]] inline Element well(const Well& spec, Element surface) {
-  if (spec.width.unit != Dimension::Unit::Auto) surface.width(spec.width);
-  if (spec.height.unit != Dimension::Unit::Auto) surface.height(spec.height);
-  if (!spec.ground.none()) surface.fill(spec.ground);
-  if (spec.padding != 0.0f) surface.padding(spec.padding);
-  if (spec.clip) surface.clip();
-  return surface;
-}
-
-/** An empty specimen well, ready for children to be added fluently. */
-[[nodiscard]] inline Element well(const Well& spec) {
-  return well(spec, box());
-}
+// The specimen reading
 
 /** A SPECIMEN READING, filled in and sized to its result rather than to a
  *  guessed stack buffer. printf's grammar, because the readings it
@@ -292,6 +354,22 @@ struct PanelGrid {
 // ---------------------------------------------------------------------------
 // The sheet
 
+/** The leaf a sheet's title defaults to: @p text in the class `title`,
+ *  so the sheet in force sets it. */
+[[nodiscard]] inline Element sheetTitle(const Utf8& text) {
+  return compose::text(text.bytes()).styleClass("title");
+}
+/** The leaf a sheet's subtitle defaults to: @p text in the class
+ *  `subtitle`. */
+[[nodiscard]] inline Element sheetSubtitle(const Utf8& text) {
+  return compose::text(text.bytes()).styleClass("subtitle");
+}
+/** The leaf a sheet's footer defaults to: @p text in the class
+ *  `footer`. */
+[[nodiscard]] inline Element sheetFooter(const Utf8& text) {
+  return compose::text(text.bytes()).styleClass("footer");
+}
+
 /** THE SHEET: a page with a titled header, a footer line, and the content
  *  between them ruled off from both where the page rules at all.
  *
@@ -306,7 +384,10 @@ struct PanelGrid {
  *
  *  ITS THREE LINES ARE SET IN THE CLASSES `title`, `subtitle` and
  *  `footer`, of the `weave::StyleSheet` in scope here, and nothing else is
- *  said about their type.
+ *  said about their type. Each is a PART — `titleLine`, `subtitleLine`,
+ *  `footerLine` — so a page whose title must stand otherwise hands in its
+ *  own leaf and everything under the page keeps its registers, because no
+ *  sheet moved.
  *
  *  **It does not size itself.** The page is a padded column: the caller
  *  gives it the canvas (`absolute().inset(0)`) or a rect, and the content
@@ -340,6 +421,12 @@ struct Sheet {
   float ruleWidth = 1.0f;
   /** The prefix the parts are keyed under; empty keys nothing. */
   std::string key;
+  /** THE THREE LINES, as functions of their text and then of this sheet;
+   *  a part takes the parameters it names. Empty means the default. The
+   *  plain names are the words themselves, so each part carries `Line`. */
+  Part<Utf8, Sheet> titleLine = sheetTitle;
+  Part<Utf8, Sheet> subtitleLine = sheetSubtitle;
+  Part<Utf8, Sheet> footerLine = sheetFooter;
 };
 
 [[nodiscard]] inline Element sheet(const Sheet& page, Element content) {
@@ -370,11 +457,14 @@ struct Sheet {
   if (hasTitle || hasSubtitle) {
     Element header = named(box().column(), "header");
     if (hasTitle)
-      header.children(
-          {named(text(page.title.bytes()).styleClass("title"), "title")});
+      header.children({named(page.titleLine ? page.titleLine(page.title, page)
+                                            : sheetTitle(page.title),
+                             "title")});
     if (hasSubtitle) {
       Element subtitle =
-          named(text(page.subtitle.bytes()).styleClass("subtitle"), "subtitle");
+          named(page.subtitleLine ? page.subtitleLine(page.subtitle, page)
+                                  : sheetSubtitle(page.subtitle),
+                "subtitle");
       if (hasTitle) subtitle.margin(0, page.subtitleGap, 0, 0);
       header.children({std::move(subtitle)});
     }
@@ -389,8 +479,9 @@ struct Sheet {
   root.children({named(std::move(content), "content")});
 
   if (!page.footer.empty()) {
-    Element footer =
-        named(text(page.footer.bytes()).styleClass("footer"), "footer");
+    Element footer = named(page.footerLine ? page.footerLine(page.footer, page)
+                                           : sheetFooter(page.footer),
+                           "footer");
     if (ruled)
       root.children({rule("foot-rule")});
     else

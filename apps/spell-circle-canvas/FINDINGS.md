@@ -48,3 +48,21 @@ does not wait for. A test should render the scene under load — the other
 scenes of the sweep running beside it — and require the digest a solo
 render gives; the fix is in the sketch or the settled-page door it
 should be using, so the capture waits for the frame it describes.
+
+## A text leaf's own padding grows its box and does not move its glyphs
+
+`text(u8"12").font({.size = 10}).padding(8, 4)` lays out as a node 16 px
+wider and 8 px taller than the line, and the glyphs are drawn at the
+node's outer corner rather than inside that padding, so a fill on the
+leaf — the scrim a reading stands on — hangs to the right of and below
+the words instead of surrounding them. It is the same on a leaf in the
+flow and on an absolutely placed one, so it is not the placement. What
+the padding evidently intends is what it means on every other node and
+in CSS: the content box inset by it, with the paragraph laid out and
+drawn there. A test should place one text leaf with padding inside a
+known box and require the first ink to stand one padding in from the
+node's corner on both axes; the fix is in the kernel's text placement,
+which positions the paragraph at the node's box rather than at its
+content box. Until it lands, a component that wants air around a
+reading puts the padding on a box AROUND the line — which is what
+`compose::kit::cell` does for `Caption::reading`.
