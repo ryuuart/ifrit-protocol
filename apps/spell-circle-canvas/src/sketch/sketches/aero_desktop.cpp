@@ -550,21 +550,21 @@ struct AeroDesktop final : sketch::Sketch {
                  // rim strokes
                  .stroke(stroke(1.2f, Fill::color({0.55f, 0.78f, 1.0f, 0.55f})))
                  // the four-pane flag, gently rotated
-                 .children({box()
-                                .inset(d / 2 - 8, d / 2 - 7, 0, 0)
-                                .width(16)
-                                .height(14)
-                                .rotate(-8.0f)
-                                .children(each(kFlag,
-                                               [](const Pane& q) {
-                                                 return box()
-                                                     .inset(q.l, q.t, q.r, q.b)
-                                                     .corners({1.5f})
-                                                     .fill(Fill::color(q.ink));
-                                               }))})
-                 // top lens
                  .children(
                      {box()
+                          .inset(d / 2 - 8, d / 2 - 7, 0, 0)
+                          .width(16)
+                          .height(14)
+                          .rotate(-8.0f)
+                          .children(each(kFlag,
+                                         [](const Pane& q) {
+                                           return box()
+                                               .inset(q.l, q.t, q.r, q.b)
+                                               .corners({1.5f})
+                                               .fill(Fill::color(q.ink));
+                                         })),
+                      // top lens
+                      box()
                           .inset(4, 1.5f, 4, d * 0.52f)
                           .corners({d * 0.36f, d * 0.36f, d * 0.20f, d * 0.20f})
                           .fill(Paint::linear({0, 0}, {0, d * 0.46f},
