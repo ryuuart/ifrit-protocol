@@ -401,16 +401,6 @@ struct Xorshift {
   float range(float a, float b) { return a + (b - a) * next(); }
 };
 
-// A positional shorthand over the library's designated-init `type()`: the
-// plate has one type signature and names its own four parameters over it.
-sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size,
-                             SkColor4f color, float tracking = 0) {
-  return weave::textStyle({.face = std::move(face),
-                           .size = size,
-                           .color = color,
-                           .track = tracking});
-}
-
 // --- the reading order, in seconds -----------------------------------------
 constexpr float tFrame = 0.15f;
 constexpr float tTitle = 0.70f;
@@ -645,7 +635,7 @@ struct ChladniTab1 : sketch::Sketch {
                        .stroke(spans::upTo(bind(&settle[fi])
                                                .source(0.55f, 0.98f)
                                                .clamp(0.0f, 1.0f)),
-                               stroke(2.6f, Fill::color(kInk)))
+                               stroke(2.6f))
                        .opacity(inkIn()));
     }
 
@@ -667,8 +657,8 @@ struct ChladniTab1 : sketch::Sketch {
     // ---- the numeral, upper left of its circle (measured at
     // -0.80R, -1.04R from the centre, baseline-left) ----
     root.child(
-        text(toUtf8(std::to_string(f.num) + "."),
-             type(faceNumeral, 37, kInk, 0.5f))
+        text(toUtf8(std::to_string(f.num) + "."))
+            .font({.face = faceNumeral, .size = 37, .track = 0.5f})
             .key(tag + "num")
             .centerAt({c.fX - 0.82f * kR, c.fY - 1.15f * kR})
             .opacity(animate(from(0.0f).to(1.0f),
@@ -679,7 +669,8 @@ struct ChladniTab1 : sketch::Sketch {
     for (size_t li = 0; li < labels.size(); ++li) {
       const Label& l = labels[li];
       root.child(
-          text(toUtf8(l.glyph), type(faceLabel, 33, kInk))
+          text(toUtf8(l.glyph))
+              .font({.face = faceLabel, .size = 33})
               .key(tag + "lab" + std::to_string(li))
               .centerAt(polar(c, kR * l.radius, l.bearing))
               .opacity(bind(&settle[fi]).source(0.84f, 0.99f).clamp(0.0f, 1.0f))
@@ -694,7 +685,10 @@ struct ChladniTab1 : sketch::Sketch {
 
   // ------------------------------------------------------------------
   Element describe(sketch::SketchContext& ctx) {
-    auto root = stack().fill(Fill::color(kPaper));
+    // The plate is inked once: every line of type and the linie strokes
+    // are in kInk unless they say otherwise, and each line names its own
+    // hand — numeral, reference letter or chancery — and its size.
+    auto root = stack().fill(Fill::color(kPaper)).ink(kInk);
 
     // ---- paper: fractal tone, foxing (biased lower-left, as the scan
     // is), a vignette that lands on the sampled scan colour ----
@@ -759,7 +753,8 @@ struct ChladniTab1 : sketch::Sketch {
               .stagger = {.eachMs = 0, .amountMs = 520, .durationMs = 60},
               .progress = animate(from(0.0f).to(1.0f),
                                   ramp(tTitle * 1000, 620, ch::easeNone))};
-    root.child(text(toUtf8("Tab. I."), type(faceSwash, 62, kInk, 1.0f))
+    root.child(text(toUtf8("Tab. I."))
+                   .font({.face = faceSwash, .size = 62, .track = 1.0f})
                    .key("title")
                    .fx(std::move(pen))
                    .centerAt({1436 * kScale, 106 * kScale}));
@@ -773,8 +768,9 @@ struct ChladniTab1 : sketch::Sketch {
 
     // ---- the engraver's signature, inside the frame at the foot ----
     root.child(
-        text(toUtf8("Capieux. sculps. 1786."),
-             type(faceSwash, 27, kInkSoft, 0.3f))
+        text(toUtf8("Capieux. sculps. 1786."))
+            .font({.face = faceSwash, .size = 27, .track = 0.3f})
+            .ink(kInkSoft)
             .key("credit")
             .centerAt({1402 * kScale, 1917 * kScale})
             .opacity(animate(from(0.0f).to(1.0f), ramp(tCredit * 1000, 700))));
