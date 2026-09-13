@@ -69,6 +69,7 @@
 #include <cmath>
 #include <cstdio>
 #include <string_view>
+#include <vector>
 
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
@@ -198,34 +199,32 @@ inline sk_sp<SkTypeface> menuFace(bool italic = true) {
 
 /** Menu voice: heavy condensed italic, negative tracking, with an optional
  *  2px #5D6A88 ring underlay — the outline ring the original's text
- *  shadows produce. */
-inline sigil::weave::TextStyle menuType(float size, SkColor4f fill, float ringW,
-                                        bool italic = true) {
-  sigil::weave::TextStyle s;
-  s.shaping.typeface = menuFace(italic);
-  s.shaping.fontSize = size;
-  // The original tracks around -0.14em on Rodin; Avenir Condensed is
-  // already tighter, so it needs less taken out.
-  s.shaping.letterSpacing = -0.08f * size;
-  // Condense the last of the way to Rodin's proportion (0.82 against its
-  // regular width); Avenir Condensed already carries most of that.
-  s.shaping.scaleX = 0.94f;
-  s.paint.foreground.setColor(fill.toSkColor());
-  s.paint.foreground.setAntiAlias(true);
+ *  shadows produce. A partial: the colour is the reference's own ARGB
+ *  word, so it takes the 8-bit ladder. */
+inline sigil::weave::Type menuType(float size, SkColor4f fill, float ringW,
+                                   bool italic = true) {
+  sigil::weave::Type t{.face = menuFace(italic),
+                       .size = size,
+                       .color = fill,
+                       // The original tracks around -0.14em on Rodin; Avenir
+                       // Condensed is already tighter, so it needs less
+                       // taken out.
+                       .track = sigil::weave::em(-0.08f),
+                       // Condense the last of the way to Rodin's proportion
+                       // (0.82 against its regular width); Avenir Condensed
+                       // already carries most of that.
+                       .condense = 0.94f,
+                       .color8 = true};
   if (ringW > 0)
-    s.paint.addUnderlay(sigil::weave::kit::outline(kRing.toSkColor(), ringW,
-                                                   SkPaint::kRound_Join));
-  return s;
+    t.underlays =
+        std::vector<sigil::weave::PaintLayer>{sigil::weave::kit::outline(
+            kRing.toSkColor(), ringW, SkPaint::kRound_Join)};
+  return t;
 }
 
-inline sigil::weave::TextStyle smallType(float size, SkColor4f c,
-                                         float track = 1) {
-  sigil::weave::TextStyle s;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = track;
-  s.paint.foreground.setColor(c.toSkColor());
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+/** The small caps-and-figures voice, in the default family. */
+inline sigil::weave::Type smallType(float size, SkColor4f c, float track = 1) {
+  return {.size = size, .color = c, .track = track, .color8 = true};
 }
 
 }  // namespace persona_menu
@@ -449,7 +448,8 @@ struct PersonaMenu final : sketch::Sketch {
         .opacity(
             animate(motion::from(0.0f).to(1.0f), {400ms, &ch::easeOutQuad}))
         .cache(Cache::Texture)
-        .child(text(toUtf8(r.label), nn::menuType(41, r.color, 1.8f))
+        .child(text(toUtf8(r.label))
+                   .font(nn::menuType(41, r.color, 1.8f))
                    .effect(styles::textGlow({0, 0, 0, 0.5f}, 3.5f)));
   }
 
@@ -504,13 +504,16 @@ struct PersonaMenu final : sketch::Sketch {
                   .clip(true)
                   .fill(Paint::solid(nn::kPaper))
                   .scale(&wedgePulse)
-                  .child(text(toUtf8(r.label), nn::menuType(50, nn::kRedC, 0))
+                  .child(text(toUtf8(r.label))
+                             .font(nn::menuType(50, nn::kRedC, 0))
                              .left(lx + 3)
                              .top(3)
                              .rotate(-8)));
     // the black label (1.5x the unselected size), no glow -- ink on paper
-    row.child(
-        text(toUtf8(r.label), nn::menuType(50, nn::kInk, 0)).left(lx).top(ly));
+    row.child(text(toUtf8(r.label))
+                  .font(nn::menuType(50, nn::kInk, 0))
+                  .left(lx)
+                  .top(ly));
     return row;
   }
 
@@ -588,16 +591,18 @@ struct PersonaMenu final : sketch::Sketch {
             box()
                 .row()
                 .alignItems(Align::End)
-                .child(text(toUtf8("07/22"), nn::menuType(38, nn::kPaper, 2.0f))
+                .child(text(toUtf8("07/22"))
+                           .font(nn::menuType(38, nn::kPaper, 2.0f))
                            .effect(styles::textGlow({0, 0, 0, 0.45f}, 3)))
-                .child(box()
-                           .column()
-                           .margin(11, 0, 0, 5)
-                           .child(text(toUtf8("SUNDAY"),
-                                       nn::smallType(11, nn::kCyanC, 2.6f)))
-                           .child(text(toUtf8("EVENING"),
-                                       nn::smallType(11, nn::kCyanB, 2.6f))
-                                      .margin(0, 3, 0, 0))))
+                .child(
+                    box()
+                        .column()
+                        .margin(11, 0, 0, 5)
+                        .child(text(toUtf8("SUNDAY"))
+                                   .font(nn::smallType(11, nn::kCyanC, 2.6f)))
+                        .child(text(toUtf8("EVENING"))
+                                   .font(nn::smallType(11, nn::kCyanB, 2.6f))
+                                   .margin(0, 3, 0, 0))))
         .child(box()
                    .width(168)
                    .height(2)
@@ -605,8 +610,8 @@ struct PersonaMenu final : sketch::Sketch {
                    .fill(Paint::linear(
                        {0, 0}, {168, 0},
                        {{0.0f, {1, 1, 1, 0.85f}}, {1.0f, {1, 1, 1, 0.0f}}})))
-        .child(
-            text(toUtf8("IWATODAI DORM"), nn::smallType(11, nn::kPaper, 2.2f)));
+        .child(text(toUtf8("IWATODAI DORM"))
+                   .font(nn::smallType(11, nn::kPaper, 2.2f)));
   }
 
   /** The party rail: four slanted cards with HP and SP. P3R skews every
@@ -664,7 +669,8 @@ struct PersonaMenu final : sketch::Sketch {
                                        std::min(1.0f, color.fG * 1.4f),
                                        std::min(1.0f, color.fB * 1.4f), 1}},
                                      {1.0f, color}}))))
-          .child(text(toUtf8(numbers), nn::smallType(9, nn::kPaper, 0.6f)));
+          .child(
+              text(toUtf8(numbers)).font(nn::smallType(9, nn::kPaper, 0.6f)));
     };
 
     Element rail = box()
@@ -696,11 +702,11 @@ struct PersonaMenu final : sketch::Sketch {
               .child(box()
                          .row()
                          .alignItems(Align::End)
-                         .child(text(toUtf8(m.name),
-                                     nn::menuType(17, nn::kPaper, 1.0f))
+                         .child(text(toUtf8(m.name))
+                                    .font(nn::menuType(17, nn::kPaper, 1.0f))
                                     .grow(1))
-                         .child(text(toUtf8(level),
-                                     nn::smallType(10, nn::kCyanB, 1.6f))))
+                         .child(text(toUtf8(level))
+                                    .font(nn::smallType(10, nn::kCyanB, 1.6f))))
               .child(bar("HP", m.hp, m.hpMax, kHp))
               .child(bar("SP", m.sp, m.spMax, kSp)));
     }
@@ -716,17 +722,17 @@ struct PersonaMenu final : sketch::Sketch {
         .fill(nn::kGroundDark)
         .child(backdrop())
         // ---- giant rotated index numeral, behind the menu ----
-        .child(text(toUtf8("04"),
-                    [] {
-                      auto s = nn::menuType(220, nn::kNumeral, 0, false);
-                      // The original tracks this at -0.2em on FOT-Rodin.
-                      // Avenir's digit shapes merge sooner than Rodin's, so
-                      // 0.88 condensation with -0.05em is the deepest overlap
-                      // that still reads as two digits.
-                      s.shaping.scaleX = 0.88f;
-                      s.shaping.letterSpacing = -0.05f * 220;
-                      return s;
-                    }())
+        .child(text(toUtf8("04"))
+                   .font([] {
+                     auto s = nn::menuType(220, nn::kNumeral, 0, false);
+                     // The original tracks this at -0.2em on FOT-Rodin.
+                     // Avenir's digit shapes merge sooner than Rodin's, so
+                     // 0.88 condensation with -0.05em is the deepest overlap
+                     // that still reads as two digits.
+                     s.condense = 0.88f;
+                     s.track = sigil::weave::em(-0.05f);
+                     return s;
+                   }())
                    .centerAt({450, 306})
                    .rotate(90)
                    .zIndex(1)
@@ -779,37 +785,38 @@ struct PersonaMenu final : sketch::Sketch {
                 .translateX(animate(motion::from(36.0f).to(0.0f),
                                     {400ms, &ch::easeOutQuint}))
                 .opacity(animate(motion::from(0.0f).to(1.0f), {300ms}))
-                .child(text(toUtf8("PERSONA"), nn::menuType(30, nn::kPaper, 2))
+                .child(text(toUtf8("PERSONA"))
+                           .font(nn::menuType(30, nn::kPaper, 2))
                            .effect(styles::textGlow({0, 0, 0, 0.5f}, 3)))
                 .child(box()
                            .row()
                            .alignItems(Align::Center)
                            .margin(0, 6, 0, 0)
-                           .child(text(toUtf8("COMMAND"),
-                                       nn::smallType(12, nn::kCyanB, 2)))
+                           .child(text(toUtf8("COMMAND"))
+                                      .font(nn::smallType(12, nn::kCyanB, 2)))
                            .child(box()
                                       .width(120)
                                       .height(2)
                                       .fill(SkColor4f{1, 1, 1, 0.8f})
                                       .margin(8, 0, 0, 0))))
         // ---- button prompts, bottom-right ----
-        .child(
-            box()
-                .key("prompts")
-                .right(41)
-                .bottom(28)
-                .row()
-                .alignItems(Align::Center)
-                .zIndex(8)
-                .opacity(animate(motion::from(0.0f).to(1.0f),
-                                 {400ms, &ch::easeOutQuad, 250ms}))
-                .child(promptCircle("O"))
-                .child(
-                    text(toUtf8("CONFIRM"), nn::smallType(11, nn::kCyanB, 1.5f))
-                        .margin(8, 0, 22, 0))
-                .child(promptCircle("X"))
-                .child(text(toUtf8("BACK"), nn::smallType(11, nn::kCyanB, 1.5f))
-                           .margin(8, 0, 0, 0)));
+        .child(box()
+                   .key("prompts")
+                   .right(41)
+                   .bottom(28)
+                   .row()
+                   .alignItems(Align::Center)
+                   .zIndex(8)
+                   .opacity(animate(motion::from(0.0f).to(1.0f),
+                                    {400ms, &ch::easeOutQuad, 250ms}))
+                   .child(promptCircle("O"))
+                   .child(text(toUtf8("CONFIRM"))
+                              .font(nn::smallType(11, nn::kCyanB, 1.5f))
+                              .margin(8, 0, 22, 0))
+                   .child(promptCircle("X"))
+                   .child(text(toUtf8("BACK"))
+                              .font(nn::smallType(11, nn::kCyanB, 1.5f))
+                              .margin(8, 0, 0, 0)));
   }
 };
 
