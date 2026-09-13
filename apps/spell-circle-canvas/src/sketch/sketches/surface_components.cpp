@@ -35,14 +35,9 @@ struct Card {
   SurfacePaint ground;
 };
 
-weave::TextStyle label(float size = 16) {
-  return weave::textStyle(
-      {.size = size, .color = SkColor4f{0.94f, 0.95f, 0.98f, 1}});
-}
-/** The same register as a partial, for the sheet's own lines. */
-weave::Type labelType(float size) {
-  return {.size = size, .color = SkColor4f{0.94f, 0.95f, 0.98f, 1}};
-}
+/** The one ink every line on the sheet is set in; the sheet's own lines
+ *  differ from a card's in size alone. */
+constexpr SkColor4f kInk{0.94f, 0.95f, 0.98f, 1};
 
 Element card(const Card& properties, Element content) {
   return kit::well({.height = 204, .ground = properties.ground},
@@ -51,7 +46,7 @@ Element card(const Card& properties, Element content) {
                        .padding(18)
                        .gap(12)
                        .corners({12})
-                       .child(text(properties.title, label()))
+                       .child(text(properties.title))
                        .child(std::move(content).grow(1)));
 }
 
@@ -78,28 +73,30 @@ struct SurfaceComponents : sketch::Sketch {
         {0, 0}, {1, 1},
         {{0, {0.28f, 0.10f, 0.38f, 1}}, {1, {0.07f, 0.28f, 0.35f, 1}}});
     return kit::sheet(
-        {.title = u8"Components for VFX",
-         .subtitle = u8"Props + children",
-         .footer =
-             u8"One card · three paints · responsive styles · a shared grid",
-         .titleStyle = labelType(30),
-         .subtitleStyle = labelType(17),
-         .footerStyle = labelType(14),
-         .marginX = 28,
-         .marginTop = 24,
-         .ground = Fill::color({0.035f, 0.045f, 0.07f, 1})},
-        kit::panelGrid(
-            {.cells = {card({u8"Solid", slate},
-                            text(u8"A plain surface prop.", label())),
-                       card({u8"Material", ramp},
-                            text(u8"The same prop accepts a recipe.", label())),
-                       card({u8"Live fill", &ink},
-                            text(u8"The binding updates in place.", label())),
-                       card({u8"Gel · fixed size", slate}, gel(36)),
-                       card({u8"Gel · resizing", slate}, gel(height))},
-             .columns = 3,
-             .gap = 18,
-             .rowGap = 18}));
+               {.title = u8"Components for VFX",
+                .subtitle = u8"Props + children",
+                .footer = u8"One card · three paints · responsive styles · "
+                          u8"a shared grid",
+                .titleStyle = {.size = 30},
+                .subtitleStyle = {.size = 17},
+                .footerStyle = {.size = 14},
+                .marginX = 28,
+                .marginTop = 24,
+                .ground = Fill::color({0.035f, 0.045f, 0.07f, 1})},
+               kit::panelGrid(
+                   {.cells = {card({u8"Solid", slate},
+                                   text(u8"A plain surface prop.")),
+                              card({u8"Material", ramp},
+                                   text(u8"The same prop accepts a recipe.")),
+                              card({u8"Live fill", &ink},
+                                   text(u8"The binding updates in place.")),
+                              card({u8"Gel · fixed size", slate}, gel(36)),
+                              card({u8"Gel · resizing", slate}, gel(height))},
+                    .columns = 3,
+                    .gap = 18,
+                    .rowGap = 18}))
+        .font({.size = 16})
+        .ink(kInk);
   }
 
   void setup(sketch::SketchContext& ctx) override {
