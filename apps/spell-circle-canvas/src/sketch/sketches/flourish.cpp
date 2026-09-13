@@ -27,10 +27,12 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/brush/Adaptors.h>
+#include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Flourish.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Ornament.h>
 #include <sigilcompose/kit/Routers.h>
+#include <sigildraw/Draw.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilmaterial/skia/Effect.h>
@@ -50,6 +52,8 @@ namespace path = sigil::geometry::path;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
+using sigil::draw::Pen;
+using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 using namespace sigil::compose::kit::ornament;
 using namespace sigil::compose::kit::flourish;
@@ -374,8 +378,8 @@ struct Flourish final : sketch::Sketch {
                                     st.parchment.fG * 1.05f,
                                     st.parchment.fB * 1.02f, 1}))
                  .foreground(sigil::compose::stroke(1.3f, Fill::color(st.gold)))
-                 .children({titleLayer(st.goldBright, true)})
-                 .children({titleLayer({0.34f, 0.20f, 0.09f, 1}, false)}),
+                 .children({titleLayer(st.goldBright, true),
+                            titleLayer({0.34f, 0.20f, 0.09f, 1}, false)}),
              box()
                  .key("seal")
                  .width(42)
@@ -410,21 +414,23 @@ struct Flourish final : sketch::Sketch {
 
   Element scrollworkCorner(int q) const {
     // KEYLESS: the sweep reads the reveal live, at Cache::None.
-    return custom([this, q](SkCanvas& c, const PaintContext& ctx) {
+    return sigil::compose::pen([this, q](Pen& p) {
              const float rev = reveal.value();
              const float local =
                  std::clamp((rev - (float)q * 0.16f) / 0.55f, 0.0f, 1.0f);
-             const float w = ctx.size.width(), h = ctx.size.height();
              const bool right = (q == 1 || q == 2);
              const bool bottom = (q >= 2);
-             c.save();
+             // THE FOUR CORNERS ARE ONE DRAWING, MIRRORED: the sweep is
+             // written once for the top left and the other three are it
+             // turned over on one axis or both.
+             p.push();
              if (right) {
-               c.translate(w, 0);
-               c.scale(-1, 1);
+               p.translate(p.width, 0);
+               p.scale(-1, 1);
              }
              if (bottom) {
-               c.translate(0, h);
-               c.scale(1, -1);
+               p.translate(0, p.height);
+               p.scale(1, -1);
              }
 
              const float armLen = 195.0f;
@@ -442,10 +448,9 @@ struct Flourish final : sketch::Sketch {
                else
                  m.setIdentity();
                for (auto& p : pts) p = m.mapPoint(p);
-               SkPaint gp;
-               gp.setAntiAlias(true);
-               gp.setColor4f(st.gold, nullptr);
-               c.drawPath(taperedStroke(revealed(pts, local), 5.0f), gp);
+               p.noStroke();
+               p.fill(st.gold);
+               p.shape(taperedStroke(revealed(pts, local), 5.0f));
                std::vector<SkPoint> under;
                appendCubic(under, {x0 + 4, y0 + 20},
                            {x0 + armLen * 0.16f, y0 + 30},
@@ -454,19 +459,18 @@ struct Flourish final : sketch::Sketch {
                appendSpiral(under, {x0 + armLen * 0.47f, y0 + 18}, 8.0f, 1.0f,
                             2.4f, 2.4f - 6.6f, 28);
                for (auto& p : under) p = m.mapPoint(p);
-               c.drawPath(taperedStroke(revealed(under, local), 2.6f), gp);
+               p.shape(taperedStroke(revealed(under, local), 2.6f));
                if (local > 0.85f) {
                  const SkPoint e = m.mapPoint(eye);
-                 SkPaint bp;
-                 bp.setAntiAlias(true);
-                 bp.setColor4f(st.goldBright, nullptr);
-                 c.drawCircle(e.x(), e.y(), 2.6f, bp);
+                 p.fill(st.goldBright);
+                 p.circle(e.x(), e.y(), 5.2f);
                }
              };
              sweep(false);
              sweep(true);
-             if (local > 0.98f) drawDiamond(c, {x0, y0}, 4.5f, st.goldBright);
-             c.restore();
+             if (local > 0.98f)
+               drawDiamond(*p.canvas(), {x0, y0}, 4.5f, st.goldBright);
+             p.pop();
            })
         .inset(0)
         .zIndex(4)
@@ -489,22 +493,20 @@ struct Flourish final : sketch::Sketch {
     const SkColor4f g = st.goldBright;
     // KEYLESS: every mote's place and alpha is a function of the paint's own
     // clock, which no key can name.
-    return custom([g](SkCanvas& c, const PaintContext& ctx) {
-             SkPaint p;
-             p.setAntiAlias(true);
-             const double t = ctx.elapsedSeconds;
+    return sigil::compose::pen([g](Pen& p) {
+             const float t = (float)p.millis() * 0.001f;
+             p.noStroke();
              for (int i = 0; i < kMotes; ++i) {
                const float fx = (float)i * 137.5f;
-               const float x = std::fmod(
-                   fx + (float)t * (7.0f + (float)(i % 5)), ctx.size.width());
-               const float y =
-                   std::fmod(fx * 0.618f + 40.0f, ctx.size.height());
-               const float a =
-                   0.05f + 0.15f * (0.5f + 0.5f * std::sin((float)t * 1.6f +
-                                                           (float)i * 2.1f));
-               p.setColor4f({g.fR, g.fG, g.fB, a}, nullptr);
-               c.drawCircle(x, y + 10.0f * std::sin((float)t * 0.7f + (float)i),
-                            1.1f + (float)(i % 3) * 0.5f, p);
+               const float x =
+                   std::fmod(fx + t * (7.0f + (float)(i % 5)), p.width);
+               const float y = std::fmod(fx * 0.618f + 40.0f, p.height);
+               p.fill(
+                   {g.fR, g.fG, g.fB,
+                    0.05f + 0.15f * (0.5f + 0.5f * std::sin(t * 1.6f +
+                                                            (float)i * 2.1f))});
+               p.circle(x, y + 10.0f * std::sin(t * 0.7f + (float)i),
+                        2.2f + (float)(i % 3));
              }
            })
         .inset(0)
@@ -516,19 +518,19 @@ struct Flourish final : sketch::Sketch {
   Element shimmer() const {
     const SkColor4f g = st.goldBright;
     // KEYLESS: the sweep's position is the paint's own clock.
-    return custom([g](SkCanvas& c, const PaintContext& ctx) {
-             const float w = ctx.size.width(), h = ctx.size.height();
-             const float t = (float)ctx.elapsedSeconds;
+    return sigil::compose::pen([g](Pen& p) {
+             const float w = p.width, h = p.height;
+             const float t = (float)p.millis() * 0.001f;
              const float sweep = std::fmod(t * 180.0f, w + h + 300.0f) - 150.0f;
-             SkPoint pts[2] = {{sweep, 0}, {sweep + 130, h}};
-             const SkColor4f cols[3] = {
-                 {1, 1, 1, 0}, {g.fR, g.fG, g.fB, 0.22f}, {1, 1, 1, 0}};
-             const float stops[3] = {0.0f, 0.5f, 1.0f};
-             SkPaint p;
-             p.setShader(SkShaders::LinearGradient(
-                 pts,
-                 SkGradient({{cols, 3}, {stops, 3}, SkTileMode::kClamp}, {})));
-             c.drawRect(SkRect::MakeWH(w, h), p);
+             // A BAND OF LIGHT CROSSING THE PLATE: a gradient the pen
+             // takes as its fill, in the pen's own space, so the sweep is
+             // one rect and no shader is spelled by hand.
+             p.noStroke();
+             p.fill(Paint::linear({sweep, 0}, {sweep + 130, h},
+                                  {{0.0f, {1, 1, 1, 0}},
+                                   {0.5f, {g.fR, g.fG, g.fB, 0.22f}},
+                                   {1.0f, {1, 1, 1, 0}}}));
+             p.rect(0, 0, w, h);
            })
         .inset(kFrameInset)
         .zIndex(5)
