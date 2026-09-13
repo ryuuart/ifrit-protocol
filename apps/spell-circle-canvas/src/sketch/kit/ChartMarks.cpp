@@ -118,26 +118,26 @@ struct Spanned {
   }
 };
 
-/** The container's own name: the plot's key, the class it dresses, and
- *  where in the run the layer stood. */
-std::string named(std::string_view key, std::string_view styleClass,
+/** The container's own name: the plot's key, the word for the part it
+ *  is, and where in the run the layer stood. */
+std::string named(std::string_view key, std::string_view word,
                   std::size_t index) {
-  return std::string(key) + "-" + std::string(styleClass) +
-         std::to_string(index);
+  return std::string(key) + "-" + std::string(word) + std::to_string(index);
 }
 
 }  // namespace
 
 Layer anchored(std::vector<Datum> data, std::vector<Element> children,
-               const Anchor& anchor, std::string_view styleClass) {
+               const Anchor& anchor, std::string_view word,
+               std::string_view styleClass) {
   return [data = std::move(data), children = std::move(children), anchor,
-          cls = std::string(styleClass)](
+          word = std::string(word), cls = std::string(styleClass)](
              const Plot& frame, std::string_view key, std::size_t index) {
     Element field = compose::layout(Anchored{frame, data, anchor})
                         .styleClass(cls)
                         .absolute()
                         .inset(0);
-    if (!key.empty()) field.key(named(key, cls, index));
+    if (!key.empty()) field.key(named(key, word, index));
     if (!children.empty()) field.children({children});
     return field;
   };
@@ -145,11 +145,11 @@ Layer anchored(std::vector<Datum> data, std::vector<Element> children,
 
 Layer banded(std::vector<Datum> data, double base, float corners,
              compose::kit::Part<std::size_t, double> part,
-             std::string_view styleClass) {
-  return [data = std::move(data), base, corners, part,
+             std::string_view word, std::string_view styleClass) {
+  return [data = std::move(data), base, corners, part, word = std::string(word),
           cls = std::string(styleClass)](
              const Plot& frame, std::string_view key, std::size_t index) {
-    const std::string stem = named(key, cls, index);
+    const std::string stem = named(key, word, index);
     // A polar band's own shape needs no box: its two angles come from the
     // angle scale, whose range is the stated sweep, and its two radii are
     // fractions of whatever the outer radius turns out to be.
@@ -191,7 +191,7 @@ Layer label(compose::Utf8 words, double x, double y, const Label& how) {
              const Plot& frame, std::string_view key, std::size_t index) {
     const Layer one =
         detail::anchored({Datum{x, y}}, {compose::text(words)}, how.anchor,
-                         detail::classOf(how.styleClass, "label"));
+                         "label", detail::classOf(how.styleClass, "plotLabel"));
     return one(frame, key, index);
   };
 }

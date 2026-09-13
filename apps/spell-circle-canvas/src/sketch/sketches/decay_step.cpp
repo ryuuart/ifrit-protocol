@@ -78,8 +78,8 @@ constexpr SkColor4f kThird{0.86f, 0.46f, 0.36f, 1};
  *  multi-curve cell puts beside the first. */
 weave::StyleSheet plotSheet(const sketch::kit::Theme& look) {
   weave::StyleSheet dressed = look.styleSheet();
-  dressed.set("axis", {.color = look.palette.rule});
-  dressed.set("rule", {.color = kGrid});
+  dressed.set("plotAxis", {.color = look.palette.rule});
+  dressed.set("plotRule", {.color = kGrid});
   dressed.set("ramp", {.color = look.palette.ash});
   dressed.set("second", {.color = kSecond});
   dressed.set("third", {.color = kThird});

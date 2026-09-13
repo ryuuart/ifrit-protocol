@@ -49,15 +49,15 @@ weave::StyleSheet Theme::styleSheet() const {
   // curve dimmed so the curve still reads over it. Only `tick` and `label`
   // carry type, because only they set words; the rest name a colour alone
   // and a recording paints in it as the ink in force.
-  classes.set("axis", weave::Type{.color = palette.ash});
-  classes.set("tick", font(type.captionLabel, palette.ash));
-  classes.set("rule", weave::Type{.color = palette.rule});
-  classes.set("trace", weave::Type{.color = palette.figure});
-  classes.set("area", weave::Type{.color = material::skia::withAlpha(
-                                      palette.figure, 0.25f)});
-  classes.set("mark", weave::Type{.color = palette.figure});
-  classes.set("bar", weave::Type{.color = palette.figure});
-  classes.set("label", font(type.captionLabel, palette.ink));
+  classes.set("plotAxis", weave::Type{.color = palette.ash});
+  classes.set("plotTick", font(type.captionLabel, palette.ash));
+  classes.set("plotRule", weave::Type{.color = palette.rule});
+  classes.set("plotTrace", weave::Type{.color = palette.figure});
+  classes.set("plotArea", weave::Type{.color = material::skia::withAlpha(
+                                          palette.figure, 0.25f)});
+  classes.set("plotMark", weave::Type{.color = palette.figure});
+  classes.set("plotBar", weave::Type{.color = palette.figure});
+  classes.set("plotLabel", font(type.captionLabel, palette.ink));
   return classes;
 }
 

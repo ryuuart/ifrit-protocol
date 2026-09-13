@@ -449,19 +449,19 @@ never a prop, because a colour is not content.
 
 | | | |
 | --- | --- | --- |
-| `axis` | an axis line | `Palette::ash` |
-| `tick` | a tick mark, and the number under it — one mark, one colour | `TypeScale::captionLabel` in `Palette::ash` |
-| `rule` | a hairline across the field | `Palette::rule` |
-| `trace` | a curve | `Palette::figure` |
-| `area` | the band under a curve | `Palette::figure`, dimmed |
-| `mark` | a datum's own element | `Palette::figure` |
-| `bar` | the band a datum is drawn as | `Palette::figure` |
-| `label` | a word placed in the field | `TypeScale::captionLabel` in `Palette::ink` |
+| `plotAxis` | an axis line | `Palette::ash` |
+| `plotTick` | a tick mark, and the number under it — one mark, one colour | `TypeScale::captionLabel` in `Palette::ash` |
+| `plotRule` | a hairline across the field | `Palette::rule` |
+| `plotTrace` | a curve | `Palette::figure` |
+| `plotArea` | the band under a curve | `Palette::figure`, dimmed |
+| `plotMark` | a datum's own element | `Palette::figure` |
+| `plotBar` | the band a datum is drawn as | `Palette::figure` |
+| `plotLabel` | a word placed in the field | `TypeScale::captionLabel` in `Palette::ink` |
 
 A RECORDING READS ITS COLOUR THROUGH THE INK IN FORCE, which is what the
 class resolves to, exactly as text's colour is — `Fill::currentInk()` is the
 spelling where a fill is demanded — so the six classes that dress a drawing
-name a colour and nothing else, and only `tick` and `label` carry type,
+name a colour and nothing else, and only `plotTick` and `plotLabel` carry type,
 because only they set words. What stays a prop is a stroke width, a radius,
 a sampling count and a distance: geometry, never look.
 
@@ -484,7 +484,7 @@ sketch::kit::plot("decay", frame,
 
 **A TICK'S NUMBER IS A `Part`.** `Ruler::tickLine` is a function of the
 VALUE, because how a number reads is the data's business and not the kit's;
-empty is the value to three significant figures in the class `tick`, which
+empty is the value to three significant figures in the class `plotTick`, which
 `tickLabel` is the leaf of. The band layer's own `part` is the same door for
 the element a datum is drawn as, and `marks`'s mark is the caller's
 outright — a bar that must be a gradient, a sprite or a stack of two is that

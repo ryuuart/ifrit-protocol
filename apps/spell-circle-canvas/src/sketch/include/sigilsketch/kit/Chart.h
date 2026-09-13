@@ -191,11 +191,11 @@ using Layer = sigil::core::Callable<compose::Element(
 // ---------------------------------------------------------------------------
 // The layers that draw a path: keyed recordings, mapped at paint
 
-/** The leaf a tick's number defaults to: @p words in the class `tick`, so
+/** The leaf a tick's number defaults to: @p words in the class `plotTick`, so
  *  the sheet in force sets it — and so a tick and the number under it are
  *  one mark taking one colour. */
 [[nodiscard]] inline compose::Element tickLabel(const compose::Utf8& words) {
-  return compose::text(words).styleClass("tick");
+  return compose::text(words).styleClass("plotTick");
 }
 
 /** HOW AN AXIS IS DRAWN: which of the frame's two scales it measures,
@@ -231,12 +231,12 @@ struct Ruler {
   /** THE NUMBER AT ONE TICK, as a function of the VALUE — because how a
    *  number reads is the data's business and not the kit's — and then of
    *  this ruler; a part takes the parameters it names. Empty is the value
-   *  to three significant figures in the class `tick`. */
+   *  to three significant figures in the class `plotTick`. */
   compose::kit::Part<double, Ruler> tickLine;
 };
 
-/** THE AXIS — its line in the class `axis`, its ticks and their numbers in
- *  the class `tick`. */
+/** THE AXIS — its line in the class `plotAxis`, its ticks and their numbers in
+ *  the class `plotTick`. */
 [[nodiscard]] Layer axis(const Ruler& how);
 
 /** HAIRLINES ACROSS THE FIELD at the domain values they name: the values
@@ -255,7 +255,7 @@ struct Rules {
   std::string styleClass;
 };
 
-/** THE RULES, in the class `rule`. */
+/** THE RULES, in the class `plotRule`. */
 [[nodiscard]] Layer rules(const Rules& how);
 
 /** A FUNCTION OF ONE VARIABLE, over the x domain.
@@ -278,7 +278,7 @@ struct Trace {
   std::string styleClass;
 };
 
-/** THE CURVE, in the class `trace`: @p f walked across the x domain and
+/** THE CURVE, in the class `plotTrace`: @p f walked across the x domain and
  *  stroked, with a dot at every marked sample.
  *
  *  It is ONE recording rather than a node per sample, and it prunes on the
@@ -296,7 +296,7 @@ struct Area {
   std::string styleClass;
 };
 
-/** THE AREA, filled in the class `area`. */
+/** THE AREA, filled in the class `plotArea`. */
 [[nodiscard]] Layer area(sigil::core::Callable<double(double)> f,
                          const Area& how = {});
 
@@ -338,7 +338,7 @@ struct Marks {
 /** THE MARKS — one child per row of @p rows, @p mark built from the row
  *  and its index, each placed where the frame maps that row's datum.
  *
- *  The container is in the class `mark`, and the ink inherits, so a child
+ *  The container is in the class `plotMark`, and the ink inherits, so a child
  *  written as `box().fill(Fill::currentInk())` or `stroke(1.0f)` is
  *  painted in the class's colour without naming one.
  *
@@ -374,7 +374,7 @@ struct Bands {
   std::string styleClass;
 };
 
-/** THE BANDS — one child per row, in the class `bar`.
+/** THE BANDS — one child per row, in the class `plotBar`.
  *
  *      kit::bands(months, {.y = &Month::disease})
  */
@@ -390,7 +390,7 @@ struct Label {
   std::string styleClass;
 };
 
-/** A WORD AT A POINT OF THE FIELD, in the class `label` — what names a
+/** A WORD AT A POINT OF THE FIELD, in the class `plotLabel` — what names a
  *  curve, a region or one reading, placed through the same mapping the
  *  drawing is, so it lands ON the thing it names.
  *
@@ -406,20 +406,23 @@ struct Label {
 namespace detail {
 
 /** The layer that places @p children, one per datum of @p data, each
- *  anchored on the point the frame maps that datum to. */
+ *  anchored on the point the frame maps that datum to; @p word names the
+ *  part in the container's key, @p styleClass dresses it. */
 [[nodiscard]] Layer anchored(std::vector<Datum> data,
                              std::vector<compose::Element> children,
-                             const Anchor& anchor, std::string_view styleClass);
+                             const Anchor& anchor, std::string_view word,
+                             std::string_view styleClass);
 /** @p stated, or @p own where a layer named no class of its own. */
 [[nodiscard]] inline std::string_view classOf(const std::string& stated,
                                               std::string_view own) {
   return stated.empty() ? own : std::string_view(stated);
 }
 
-/** The layer that draws @p data's bands out from @p base. */
+/** The layer that draws @p data's bands out from @p base; @p word names
+ *  the part in each band's key, @p styleClass dresses it. */
 [[nodiscard]] Layer banded(std::vector<Datum> data, double base, float corners,
                            compose::kit::Part<std::size_t, double> part,
-                           std::string_view styleClass);
+                           std::string_view word, std::string_view styleClass);
 
 /** @p read of @p row, or @p index where no reader was named. */
 template <class Row>
@@ -444,7 +447,7 @@ Layer marks(R&& rows,
     ++index;
   }
   return detail::anchored(std::move(data), std::move(children), how.anchor,
-                          detail::classOf(how.styleClass, "mark"));
+                          "mark", detail::classOf(how.styleClass, "plotMark"));
 }
 
 template <std::ranges::input_range R, class Row>
@@ -456,8 +459,8 @@ Layer bands(R&& rows, const std::type_identity_t<Bands<Row>>& how) {
         {detail::number(how.x, row, index), detail::number(how.y, row, index)});
     ++index;
   }
-  return detail::banded(std::move(data), how.base, how.corners, how.part,
-                        detail::classOf(how.styleClass, "bar"));
+  return detail::banded(std::move(data), how.base, how.corners, how.part, "bar",
+                        detail::classOf(how.styleClass, "plotBar"));
 }
 
 }  // namespace sigil::sketch::kit

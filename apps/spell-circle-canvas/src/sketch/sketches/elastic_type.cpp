@@ -208,7 +208,7 @@ using Ticks = std::vector<Tick>;
  *  against, the rest pose, and one per lane. */
 weave::StyleSheet graphSheet() {
   weave::StyleSheet dressed;
-  dressed.set("rule", {.color = kFaint});
+  dressed.set("plotRule", {.color = kFaint});
   dressed.set("rest", {.color = kRest});
   dressed.set("x", {.color = kX});
   dressed.set("y", {.color = kY});

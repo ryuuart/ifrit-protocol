@@ -171,7 +171,7 @@ Layer axis(const Ruler& how) {
 
     if (how.line)
       parts.push_back(recorded(
-          named(key, "axis", index), "axis",
+          named(key, "axis", index), "plotAxis",
           [how, frame, other, polar](SkCanvas& canvas, const PaintContext& pc) {
             SkPaint pen = strokePen(pc, how.width);
             if (polar && how.of == Axis::X) {
@@ -215,7 +215,7 @@ Layer axis(const Ruler& how) {
 
     if (reach > 0 && !ticks.empty())
       parts.push_back(recorded(
-          named(key, "tick", index), "tick",
+          named(key, "tick", index), "plotTick",
           [how, frame, other, ticks, reach, polar](SkCanvas& canvas,
                                                    const PaintContext& pc) {
             SkPaint pen = strokePen(pc, how.width);
@@ -286,8 +286,8 @@ Layer axis(const Ruler& how) {
       } else {
         anchor = {compose::Align::Start, compose::Align::Center, {how.gap, 0}};
       }
-      const Layer numbers =
-          detail::anchored(std::move(data), std::move(words), anchor, "tick");
+      const Layer numbers = detail::anchored(std::move(data), std::move(words),
+                                             anchor, "tick", "plotTick");
       parts.push_back(numbers(frame, named(key, "number", index), 0));
     }
 
@@ -303,7 +303,7 @@ Layer axis(const Ruler& how) {
 Layer rules(const Rules& how) {
   return [how](const Plot& frame, std::string_view key, std::size_t index) {
     return recorded(
-        named(key, "rule", index), detail::classOf(how.styleClass, "rule"),
+        named(key, "rule", index), detail::classOf(how.styleClass, "plotRule"),
         [how, frame](SkCanvas& canvas, const PaintContext& pc) {
           SkPaint pen = strokePen(pc, how.width);
           if (frame.polar) {
@@ -368,18 +368,19 @@ SkPathBuilder walked(const Plot& frame,
 Layer trace(sigil::core::Callable<double(double)> f, const Trace& how) {
   return [f = std::move(f), how](const Plot& frame, std::string_view key,
                                  std::size_t index) {
-    return recorded(
-        named(key, "trace", index), detail::classOf(how.styleClass, "trace"),
-        [f, how, frame](SkCanvas& canvas, const PaintContext& pc) {
-          if (!f) return;
-          SkPaint pen = strokePen(pc, how.width);
-          canvas.drawPath(walked(frame, f, how.samples, pc.size).detach(), pen);
-          if (!(how.markRadius > 0)) return;
-          pen.setStyle(SkPaint::kFill_Style);
-          for (double value : how.marks)
-            canvas.drawCircle(frame.at(value, f(value), pc.size),
-                              how.markRadius, pen);
-        });
+    return recorded(named(key, "trace", index),
+                    detail::classOf(how.styleClass, "plotTrace"),
+                    [f, how, frame](SkCanvas& canvas, const PaintContext& pc) {
+                      if (!f) return;
+                      SkPaint pen = strokePen(pc, how.width);
+                      canvas.drawPath(
+                          walked(frame, f, how.samples, pc.size).detach(), pen);
+                      if (!(how.markRadius > 0)) return;
+                      pen.setStyle(SkPaint::kFill_Style);
+                      for (double value : how.marks)
+                        canvas.drawCircle(frame.at(value, f(value), pc.size),
+                                          how.markRadius, pen);
+                    });
   };
 }
 
@@ -387,7 +388,7 @@ Layer area(sigil::core::Callable<double(double)> f, const Area& how) {
   return [f = std::move(f), how](const Plot& frame, std::string_view key,
                                  std::size_t index) {
     return recorded(
-        named(key, "area", index), detail::classOf(how.styleClass, "area"),
+        named(key, "area", index), detail::classOf(how.styleClass, "plotArea"),
         [f, how, frame](SkCanvas& canvas, const PaintContext& pc) {
           if (!f) return;
           SkPaint pen;

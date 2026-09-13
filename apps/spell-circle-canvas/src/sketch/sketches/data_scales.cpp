@@ -33,14 +33,14 @@ struct Mapping {
  *  is drawn as a curve, as a band or as a point. */
 sigil::weave::StyleSheet scaleSheet() {
   sigil::weave::StyleSheet dressed = sketch::kit::houseTheme().styleSheet();
-  dressed.set("rule", {.color = SkColor4f{0.20f, 0.25f, 0.29f, 1}});
-  dressed.set("tick", {.face = sigil::weave::defaultFace(),
-                       .size = 11,
-                       .color = SkColor4f{0.64f, 0.70f, 0.76f, 1},
-                       .track = 0});
-  dressed.set("trace", {.color = kInk});
-  dressed.set("bar", {.color = kInk});
-  dressed.set("mark", {.color = kInk});
+  dressed.set("plotRule", {.color = SkColor4f{0.20f, 0.25f, 0.29f, 1}});
+  dressed.set("plotTick", {.face = sigil::weave::defaultFace(),
+                           .size = 11,
+                           .color = SkColor4f{0.64f, 0.70f, 0.76f, 1},
+                           .track = 0});
+  dressed.set("plotTrace", {.color = kInk});
+  dressed.set("plotBar", {.color = kInk});
+  dressed.set("plotMark", {.color = kInk});
   return dressed;
 }
 

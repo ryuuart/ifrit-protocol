@@ -192,7 +192,7 @@ TEST(SketchKitChart, ATracePrunesOnItsKey) {
 
 TEST(SketchKitChart, ARecordingIsPaintedInTheInkItsClassResolvesTo) {
   weave::StyleSheet dressed = kit::houseTheme().styleSheet();
-  dressed.set("rule", weave::Type{.color = SkColor4f{0, 1, 0, 1}});
+  dressed.set("plotRule", weave::Type{.color = SkColor4f{0, 1, 0, 1}});
   Drawn drawn(compose::box().styleSheet(dressed).children(
       {kit::plot("r", plane(), {kit::rules({.y = {50}, .width = 3})})
            .width(kField)
@@ -259,8 +259,9 @@ std::vector<std::string> documentedClasses() {
 TEST(SketchKitChart, TheDocumentedClassTableIsTheThemeSheet) {
   std::vector<std::string> documented = documentedClasses();
   std::sort(documented.begin(), documented.end());
-  const std::vector<std::string> drawn{"area", "axis", "bar",  "label",
-                                       "mark", "rule", "tick", "trace"};
+  const std::vector<std::string> drawn{"plotArea",  "plotAxis", "plotBar",
+                                       "plotLabel", "plotMark", "plotRule",
+                                       "plotTick",  "plotTrace"};
   EXPECT_EQ(documented, drawn);
   const weave::StyleSheet dressed = kit::houseTheme().styleSheet();
   for (const std::string& name : documented)
@@ -271,13 +272,13 @@ TEST(SketchKitChart, EveryChartClassCarriesAColour) {
   const kit::Theme& look = kit::houseTheme();
   const weave::StyleSheet dressed = look.styleSheet();
   for (const weave::Rule& rule : dressed.rules())
-    if (rule.name() == "trace" || rule.name() == "mark" ||
-        rule.name() == "bar") {
+    if (rule.name() == "plotTrace" || rule.name() == "plotMark" ||
+        rule.name() == "plotBar") {
       ASSERT_TRUE(rule.type().color.has_value()) << rule.name();
       EXPECT_EQ(*rule.type().color, look.palette.figure) << rule.name();
     }
   for (const weave::Rule& rule : dressed.rules())
-    if (rule.name() == "rule") {
+    if (rule.name() == "plotRule") {
       ASSERT_TRUE(rule.type().color.has_value());
       EXPECT_EQ(*rule.type().color, look.palette.rule);
     }
