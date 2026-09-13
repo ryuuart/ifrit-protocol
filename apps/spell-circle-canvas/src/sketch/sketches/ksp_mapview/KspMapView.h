@@ -19,6 +19,15 @@ struct KspMapView : sketch::Sketch {
   Out planetSpin{0};
   Out dvSweep{0};
 
+  /** THE CARD'S REGISTERS: a row's name, the figure that answers it and a
+   *  strip's head, registered once in setup and in force for everything
+   *  under the card. */
+  weave::StyleSheet cardLook;
+  /** THE VESSEL CARD'S WORDS — every name, figure and head stands in
+   *  `data/content.json` beside this sketch, read in setup, so the card is
+   *  the template and an edit to the words needs no rebuild. */
+  std::shared_ptr<const data::Json> doc;
+
   std::shared_ptr<instancing::Atlas> starAtlas;
   std::shared_ptr<instancing::Pool> starPool;
   int burnTick = 0;
@@ -71,8 +80,7 @@ struct KspMapView : sketch::Sketch {
   // -------------------------------------------------------------------
   // Vessel info card — flat square corners everywhere, values in ORANGE.
 
-  Element infoRow(const char* label, const char* value);
-  Element infoHead(const char* label);
+  Element infoHead(const Utf8& label);
 
   Element infoCard();
 

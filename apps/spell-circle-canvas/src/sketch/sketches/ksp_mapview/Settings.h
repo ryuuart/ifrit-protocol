@@ -14,9 +14,11 @@
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Rows.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigildata/decode/Json.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Conic.h>
@@ -37,11 +39,13 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <tuple>
 #include <vector>
 
+namespace data = sigil::data;
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace field = sigil::material::field;
@@ -166,6 +170,27 @@ inline Element t(const char* s, weave::Type partial) {
   return text(s).font(std::move(partial));
 }
 
+/** THE RECORD AT @p key of @p doc — `data/content.json`, whose keys are
+ *  `info` (the vessel card's own words), `toolbar`, `clock` and
+ *  `altimeter`. A missing file or key reads as a null value, so a reader
+ *  falls back to no words at all. */
+inline const data::Json& record(const std::shared_ptr<const data::Json>& doc,
+                                const char* key) {
+  static const data::Json none;
+  return doc ? (*doc)[key] : none;
+}
+
+/** @p node's words — empty where the document does not carry them. */
+inline Utf8 words(const data::Json& node) { return Utf8(node.text()); }
+
+/** The readings @p node's list holds, each `{name, value}`. */
+inline std::vector<kit::Reading> readings(const data::Json& node) {
+  std::vector<kit::Reading> out;
+  for (const data::Json& row : node.items())
+    out.push_back({.name = words(row["name"]), .value = words(row["value"])});
+  return out;
+}
+
 /** A node centred on a canvas point — the marker/gizmo idiom. */
 inline Element at(Element e, SkPoint c, float w, float h) {
   e.width(w).height(h).centerAt(c);
@@ -188,9 +213,8 @@ using path::ConicSpan;
  *  the few numbers it stands on, so those numbers are the key and a node
  *  wearing one settles instead of re-recording on every describe. */
 inline Shape trajectory(const Conic& conic, ConicSpan span) {
-  return keyedShape(std::pair(conic, span), [conic, span] {
-    return path::conicPath(conic, span);
-  });
+  return keyedShape(std::pair(conic, span),
+                    [conic, span] { return path::conicPath(conic, span); });
 }
 
 /** The gizmo hangs off the conic's own directions, and both are wanted as

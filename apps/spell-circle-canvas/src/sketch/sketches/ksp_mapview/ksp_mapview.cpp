@@ -48,6 +48,18 @@ auto KspMapView::setup(sketch::SketchContext& ctx) -> void {
   sketch::kit::stage(
       ctx, {.size = {1200, 800}, .captureAt = 6.0, .background = kSpace});
 
+  // THE VESSEL CARD'S WORDS, and the three registers they are set in: a
+  // row's name, the figure that answers it, and a strip's head. The card
+  // states this sheet and every line under it is dressed by name.
+  doc = ctx.assets.json(ctx.local("data/content.json"));
+  cardLook = weave::StyleSheet{
+      {"captionNote",
+       weave::Type{.face = sans(), .size = 11, .color = kCardInk}},
+      {"readout", weave::Type{.face = sansB(), .size = 11, .color = kOrange}},
+      {"section",
+       weave::Type{
+           .face = sansB(), .size = 11, .color = kOrange, .track = 0.2f}}};
+
   // Starfield: one soft-dot cell, 360 hashed instances.
   starAtlas = std::make_shared<instancing::Atlas>(2.0f);
   const int dot = starAtlas->cell(
