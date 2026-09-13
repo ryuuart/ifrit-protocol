@@ -23,6 +23,7 @@
 #include <cmath>
 #include <cstdio>
 #include <memory>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -375,8 +376,7 @@ inline Element rivets(float w, float h, float inset = 11) {
         .width(6.0f)
         .height(6.0f)
         .corners({3})
-        .left(x - 3)
-        .top(y - 3)
+        .at({x - 3, y - 3})
         .fill(Paint::radial(
             {3, 3}, 3.4f,
             {{0.0f, kBronzeLit}, {0.7f, kBronze}, {1.0f, kBronzeDim}}));

@@ -118,11 +118,8 @@ struct LootGrid final : sketch::Sketch {
    *  lower half of the one tall panel. */
   Element gridPanel() {
     namespace lt = loot;
-    Element grid = stack()
-                       .width(lt::kGridW)
-                       .height(lt::kGridH)
-                       .left(16.0f)
-                       .top(516.0f);
+    Element grid =
+        stack().width(lt::kGridW).height(lt::kGridH).at({16.0f, 516.0f});
 
     // the empty wells — forty cells, one stamp
     grid.children({instances(cellAtlas, cellPool)});
@@ -138,8 +135,7 @@ struct LootGrid final : sketch::Sketch {
               .width(w)
               .height(h)
               .corners({2})
-              .left(lt::cellX(item.col))
-              .top(lt::cellY(item.row))
+              .at({lt::cellX(item.col), lt::cellY(item.row)})
               // THE CELL STAYS NEUTRAL. Diablo II reads an item's quality
               // off the NAME in its tooltip and off the glow a set or
               // unique throws; the cell behind it is the same dark well
@@ -168,8 +164,7 @@ struct LootGrid final : sketch::Sketch {
             {box()
                  .width(w * 0.30f)
                  .height(h * 1.8f)
-                 .left(-w * 0.4f)
-                 .top(-h * 0.4f)
+                 .at({-w * 0.4f, -h * 0.4f})
                  .translateX(motion::bind(&shimmer).target(-70, 170))
                  .rotate(18.0f)
                  .fill(Paint::linear({0, 0}, {w * 0.35f, 0},
@@ -184,39 +179,34 @@ struct LootGrid final : sketch::Sketch {
     const float dw = lt::spanW(kDragW), dh = lt::spanW(kDragH);
     // FarrokhGames' two cell sprites, cross-faded: green while the
     // footprint is free, red the moment it overlaps something.
-    grid.children(
-        {box()
-             .width(dw)
-             .height(dh)
-             .corners({2})
-             .left(0)
-             .top(0)
-             .translateX(&dragX)
-             .translateY(&dragY)
-             .fill(Paint::solid({0.16f, 0.80f, 0.24f, 0.26f}))
-             .foreground(stroke(1.4f, Fill::color({0.35f, 1.0f, 0.45f, 0.75f})))
-             .opacity(&fitsMix)
-             .zIndex(5)});
-    grid.children(
-        {box()
-             .width(dw)
-             .height(dh)
-             .corners({2})
-             .left(0)
-             .top(0)
-             .translateX(&dragX)
-             .translateY(&dragY)
-             .fill(Paint::solid({0.90f, 0.16f, 0.14f, 0.30f}))
-             .foreground(stroke(1.4f, Fill::color({1.0f, 0.35f, 0.30f, 0.8f})))
-             .opacity(&blockedMix)
-             .zIndex(6)});
     // and the item riding it
     grid.children(
         {box()
              .width(dw)
              .height(dh)
-             .left(0)
-             .top(0)
+             .corners({2})
+             .at({0, 0})
+             .translateX(&dragX)
+             .translateY(&dragY)
+             .fill(Paint::solid({0.16f, 0.80f, 0.24f, 0.26f}))
+             .foreground(stroke(1.4f, Fill::color({0.35f, 1.0f, 0.45f, 0.75f})))
+             .opacity(&fitsMix)
+             .zIndex(5),
+         box()
+             .width(dw)
+             .height(dh)
+             .corners({2})
+             .at({0, 0})
+             .translateX(&dragX)
+             .translateY(&dragY)
+             .fill(Paint::solid({0.90f, 0.16f, 0.14f, 0.30f}))
+             .foreground(stroke(1.4f, Fill::color({1.0f, 0.35f, 0.30f, 0.8f})))
+             .opacity(&blockedMix)
+             .zIndex(6),
+         box()
+             .width(dw)
+             .height(dh)
+             .at({0, 0})
              .translateX(&dragX)
              .translateY(&dragY)
              .row()
@@ -229,14 +219,12 @@ struct LootGrid final : sketch::Sketch {
     return stack()
         .width(430.0f)
         .height(690.0f)
-        .left(30.0f)
-        .top(96.0f)
-        .children({text("HOARD").styleClass("heading").left(16.0f).top(492.0f),
+        .at({30.0f, 96.0f})
+        .children({text("HOARD").styleClass("heading").at({16.0f, 492.0f}),
                    text("10 ×"
                         " 4")
                        .font({.size = 11, .track = 2.0f})
-                       .left(398.0f)
-                       .top(493.0f),
+                       .at({398.0f, 493.0f}),
                    std::move(grid)});
   }
 
@@ -288,19 +276,16 @@ struct LootGrid final : sketch::Sketch {
     };
 
     Element body = stack().inset(0);
-    for (int i = 0; i < (int)(sizeof(kSlots) / sizeof(kSlots[0])); ++i) {
-      const Slot& s = kSlots[i];
+    body.children({each(kSlots, [&](const Slot& s, size_t i) -> Element {
       const float w = lt::spanW(s.w), h = lt::spanW(s.h);
       const Worn* equipped = nullptr;
       for (const Worn& candidate : kWorn)
-        if (candidate.slot == i) equipped = &candidate;
+        if (candidate.slot == (int)i) equipped = &candidate;
 
-      Element socket = stack()
-                           .width(w)
-                           .height(h)
-                           .left(pad + 17 + s.x)
-                           .top(pad + 22 + s.y)
-                           .children({lt::well(w, h).inset(0)});
+      Element socket =
+          stack()
+              .rect(SkRect::MakeXYWH(pad + 17 + s.x, pad + 22 + s.y, w, h))
+              .children({lt::well(w, h).inset(0)});
       if (equipped) {
         const SkColor4f rc = lt::rarityColor(equipped->rarity);
         socket.children(
@@ -313,43 +298,42 @@ struct LootGrid final : sketch::Sketch {
                                      {{0.0f, {0.10f, 0.095f, 0.082f, 0.95f}},
                                       {1.0f, {0.05f, 0.048f, 0.042f, 0.95f}}}))
                  .foreground(
-                     stroke(1.0f, Fill::color({rc.fR, rc.fG, rc.fB, 0.5f})))});
-        socket.children(
-            {box()
+                     stroke(1.0f, Fill::color({rc.fR, rc.fG, rc.fB, 0.5f}))),
+             box()
                  .inset(0)
                  .row()
                  .justify(Justify::Center)
                  .alignItems(Align::Center)
                  .children({lt::artwork(s.ghost, w * 0.72f, h * 0.76f,
                                         equipped->tint)})});
-      } else {
-        // empty sockets hint at what belongs in them
-        socket.children({box()
-                             .inset(0)
-                             .row()
-                             .justify(Justify::Center)
-                             .alignItems(Align::Center)
-                             .opacity(0.13f)
-                             .children({lt::artwork(s.ghost, w * 0.64f,
-                                                    h * 0.68f, lt::kParch)})});
-        // The label rides INSIDE the well, so the widest word has to clear
-        // the narrowest socket: AMULET on a single cell is 38 px of room.
-        // A one-cell socket therefore drops the tracking and condenses,
-        // which narrows the run without cutting the cap height the label
-        // is read by.
-        const bool narrow = s.w < 2;
-        socket.children(
-            {text(s.label)
-                 .font({.size = 7.0f,
-                        .track = narrow ? 0.4f : 1.3f,
-                        .condense = narrow ? 0.86f : 1.0f})
-                 .left(0)
-                 .right(0)
-                 .bottom(3)
-                 .block({.alignment = sigil::weave::TextAlignment::kCenter})});
+        return socket;
       }
-      body.children({std::move(socket)});
-    }
+      // An empty socket hints at what belongs in it, and names it. The
+      // label rides INSIDE the well, so the widest word has to clear the
+      // narrowest socket: AMULET on a single cell is 38 px of room. A
+      // one-cell socket therefore drops the tracking and condenses, which
+      // narrows the run without cutting the cap height the label is read
+      // by.
+      const bool narrow = s.w < 2;
+      socket.children(
+          {box()
+               .inset(0)
+               .row()
+               .justify(Justify::Center)
+               .alignItems(Align::Center)
+               .opacity(0.13f)
+               .children(
+                   {lt::artwork(s.ghost, w * 0.64f, h * 0.68f, lt::kParch)}),
+           text(s.label)
+               .font({.size = 7.0f,
+                      .track = narrow ? 0.4f : 1.3f,
+                      .condense = narrow ? 0.86f : 1.0f})
+               .left(0)
+               .right(0)
+               .bottom(3)
+               .block({.alignment = sigil::weave::TextAlignment::kCenter})});
+      return socket;
+    })});
 
     // the stat block D2 puts under the paperdoll: two columns of
     // label-dots-value rows, laid out rather than absolutely stacked
@@ -367,40 +351,46 @@ struct LootGrid final : sketch::Sketch {
                          .fill(Paint::solid({0.42f, 0.38f, 0.31f, 0.28f})),
                      text(value).styleClass("value").ink(valueColor)});
     };
+    // The two columns D2 puts under the paperdoll. A reading here is not
+    // the kit's: its name and its figure are held apart by a dotted
+    // leader, and each figure carries the ink of what it SAYS — a
+    // resistance in its own element's colour, a capped stat in the magic
+    // blue — which a readout ranges to one register.
+    struct Reading {
+      const char* name;
+      const char* figure;
+      SkColor4f ink;
+    };
+    static const std::array<std::array<Reading, 4>, 2> kColumns{
+        {{{{"STRENGTH", "142", lt::kParch},
+           {"DEXTERITY", "97", lt::kParch},
+           {"VITALITY", "206", lt::rarityColor(lt::Rarity::Magic)},
+           {"ENERGY", "68", lt::kParch}}},
+         {{{"DEFENCE", "1,884", lt::kParch},
+           {"FIRE RES", "+65%", hexColor(0xE07A3C)},
+           {"COLD RES", "+41%", hexColor(0x5AA6E0)},
+           {"LIGHT RES",
+            "\u2212"
+            "35%",
+            hexColor(0xD04040)}}}}};
     body.children(
         {box()
              .row()
              .gap(20)
-             .left(pad + 27)
-             .top(pad + 376)
+             .at({pad + 27, pad + 376})
              .children(
-                 {box()
-                      .column()
-                      .gap(4)
-                      .children({statRow("STRENGTH", "142", lt::kParch)})
-                      .children({statRow("DEXTERITY", "97", lt::kParch)})
-                      .children({statRow("VITALITY", "206",
-                                         lt::rarityColor(lt::Rarity::Magic))})
-                      .children({statRow("ENERGY", "68", lt::kParch)})})
-             .children({box()
-                            .column()
-                            .gap(4)
-                            .children({statRow("DEFENCE", "1,884", lt::kParch)})
-                            .children({statRow("FIRE RES", "+65%",
-                                               hexColor(0xE07A3C))})
-                            .children({statRow("COLD RES", "+41%",
-                                               hexColor(0x5AA6E0))})
-                            .children({statRow("LIGHT RES", "−35%",
-                                               hexColor(0xD04040))})})});
+                 {each(kColumns,
+                       [&](const std::array<Reading, 4>& column) -> Element {
+                         return box().column().gap(4).children(
+                             {each(column, [&](const Reading& r) -> Element {
+                               return statRow(r.name, r.figure, r.ink);
+                             })});
+                       })})});
 
-    return stack()
-        .width(pw)
-        .height(ph)
-        .left(30)
-        .top(96)
-        .children({loot::panel(pw, ph).inset(0), loot::rivets(pw, ph),
-                   text("EQUIPPED").styleClass("heading").left(pad).top(pad),
-                   std::move(body)});
+    return stack().width(pw).height(ph).at({30, 96}).children(
+        {loot::panel(pw, ph).inset(0), loot::rivets(pw, ph),
+         text("EQUIPPED").styleClass("heading").at({pad, pad}),
+         std::move(body)});
   }
 
   /** The hover tooltip, D2's stack: name in the rarity colour, base type,
@@ -411,8 +401,7 @@ struct LootGrid final : sketch::Sketch {
     const SkColor4f rc = lt::rarityColor(lt::Rarity::Unique);
     return box()
         .width(300.0f)
-        .left(500)
-        .top(300)
+        .at({500, 300})
         .column()
         .alignItems(Align::Center)
         .padding(14, 11)
@@ -466,30 +455,34 @@ struct LootGrid final : sketch::Sketch {
    *  well and the same footprint rules. */
   Element beltRack() {
     namespace lt = loot;
-    Element rack = box().row().gap(lt::kGap).key("belt");
-    static const char* kKeys[4] = {"1", "2", "3", "4"};
-    static const lt::Art kHeld[4] = {lt::Art::Potion, lt::Art::Potion,
-                                     lt::Art::Potion, lt::Art::Ring};
-    for (int i = 0; i < 4; ++i) {
-      Element slot = stack()
-                         .width(lt::kCell)
-                         .height(lt::kCell)
-                         .children({lt::well(lt::kCell, lt::kCell).inset(0)});
-      slot.children({box()
-                         .inset(0)
-                         .row()
-                         .justify(Justify::Center)
-                         .alignItems(Align::Center)
-                         .children({lt::artwork(
-                             kHeld[i], lt::kCell * 0.6f, lt::kCell * 0.7f,
-                             i == 3 ? hexColor(0xB9A06A) : hexColor(0xC24040),
-                             i != 3)})});
-      slot.children(
-          {text(kKeys[i]).font({.size = 8, .track = 0.4f}).left(3).top(2)});
-      rack.children({std::move(slot)});
-    }
-    return box().column().gap(7).left(500).top(150).children(
-        {text("BELT").styleClass("heading"), std::move(rack)});
+    // Three potions and a ring, on the keys they are drunk with.
+    static const std::array<lt::Art, 4> kHeld{lt::Art::Potion, lt::Art::Potion,
+                                              lt::Art::Potion, lt::Art::Ring};
+    return box()
+        .column()
+        .gap(7)
+        .at({500, 150})
+        .children(
+            {text("BELT").styleClass("heading"),
+             box().row().gap(lt::kGap).key("belt").children(
+                 {each(kHeld, [](lt::Art held, size_t i) -> Element {
+                   const bool potion = held == lt::Art::Potion;
+                   return stack().width(lt::kCell).height(lt::kCell).children(
+                       {lt::well(lt::kCell, lt::kCell).inset(0),
+                        box()
+                            .inset(0)
+                            .row()
+                            .justify(Justify::Center)
+                            .alignItems(Align::Center)
+                            .children({lt::artwork(held, lt::kCell * 0.6f,
+                                                   lt::kCell * 0.7f,
+                                                   potion ? hexColor(0xC24040)
+                                                          : hexColor(0xB9A06A),
+                                                   potion)}),
+                        text(std::to_string(i + 1))
+                            .font({.size = 8, .track = 0.4f})
+                            .at({3, 2})});
+                 })})});
   }
 
   /** THE CUBE: three by four, the transmutation grid. The same well, the
@@ -498,31 +491,35 @@ struct LootGrid final : sketch::Sketch {
    *  widget. */
   Element cubePanel() {
     namespace lt = loot;
-    Element grid = stack()
-                       .width(3 * lt::kCell + 2 * lt::kGap)
-                       .height(4 * lt::kCell + 3 * lt::kGap);
-    for (int r = 0; r < 4; ++r)
-      for (int c = 0; c < 3; ++c)
-        grid.children({lt::well(lt::kCell, lt::kCell)
-                           .key("cube" + std::to_string(r * 3 + c))
-                           .left(lt::cellX(c))
-                           .top(lt::cellY(r))});
-    grid.children(
-        {box()
-             .left(lt::cellX(1))
-             .top(lt::cellY(1))
-             .width(lt::kCell)
-             .height(lt::kCell)
-             .row()
-             .justify(Justify::Center)
-             .alignItems(Align::Center)
-             .children({lt::artwork(lt::Art::Ring, lt::kCell * 0.6f,
-                                    lt::kCell * 0.6f, hexColor(0xB9A06A))})});
-    return box().column().gap(7).left(500).top(560).children(
-        {text("HORADRIC CUBE · 3 ×"
-              " 4")
-             .styleClass("heading"),
-         std::move(grid)});
+    // Twelve wells on the hoard's own cell, and the one ring standing in
+    // the middle of them.
+    return box()
+        .column()
+        .gap(7)
+        .at({500, 560})
+        .children(
+            {text("HORADRIC CUBE · 3 ×"
+                  " 4")
+                 .styleClass("heading"),
+             stack()
+                 .width(3 * lt::kCell + 2 * lt::kGap)
+                 .height(4 * lt::kCell + 3 * lt::kGap)
+                 .children(
+                     {each(std::views::iota(0, 12),
+                           [](int i) -> Element {
+                             return lt::well(lt::kCell, lt::kCell)
+                                 .key("cube" + std::to_string(i))
+                                 .at({lt::cellX(i % 3), lt::cellY(i / 3)});
+                           }),
+                      box()
+                          .rect(SkRect::MakeXYWH(lt::cellX(1), lt::cellY(1),
+                                                 lt::kCell, lt::kCell))
+                          .row()
+                          .justify(Justify::Center)
+                          .alignItems(Align::Center)
+                          .children({lt::artwork(
+                              lt::Art::Ring, lt::kCell * 0.6f, lt::kCell * 0.6f,
+                              hexColor(0xB9A06A))})})});
   }
 
   /** THE SHEET'S OWN VOICE. The kit's components read a theme, and the
@@ -582,6 +579,7 @@ struct LootGrid final : sketch::Sketch {
     // expensive frame in the piece, so it is taken at a third of the canvas and
     // scaled up — a hide's grain and a blind rule have nothing in them
     // that a coarse raster loses, and the bake costs a ninth.
+    // gold, on its own little plaque
     root.children(
         {box()
              .key("ground")
@@ -604,31 +602,21 @@ struct LootGrid final : sketch::Sketch {
                                         96.0f, 1.0f, {0.0f, 0.0f, 0.0f, 0.22f}))
                                 .material())
                       .translateX(1.0f)
-                      .translateY(1.0f)})});
-
-    root.children({box()
-                       .column()
-                       .left(30)
-                       .top(34)
-                       .children({text("HOARD OF THE HORADRIM")
-                                      .font({.size = 23,
-                                             .color = lt::kParch,
-                                             .track = 3.4f,
-                                             .weight = 640})})
-                       .children({text("grid inventory — generated "
-                                       "materials, no sprites")
-                                      .font({.size = 12, .track = 1.0f})
-                                      .margin(0, 5, 0, 0)})});
-
-    root.children({paperdoll()});
-    root.children({gridPanel()});
-    root.children({tooltip()});
-    root.children({beltRack()});
-    root.children({cubePanel()});
-
-    // gold, on its own little plaque
-    root.children(
-        {box()
+                      .translateY(1.0f)}),
+         box()
+             .column()
+             .at({30, 34})
+             .children({text("HOARD OF THE HORADRIM")
+                            .font({.size = 23,
+                                   .color = lt::kParch,
+                                   .track = 3.4f,
+                                   .weight = 640})})
+             .children({text("grid inventory — generated "
+                             "materials, no sprites")
+                            .font({.size = 12, .track = 1.0f})
+                            .margin(0, 5, 0, 0)}),
+         paperdoll(), gridPanel(), tooltip(), beltRack(), cubePanel(),
+         box()
              .row()
              .alignItems(Align::Center)
              .gap(9)
@@ -639,14 +627,11 @@ struct LootGrid final : sketch::Sketch {
              .fill(Paint::linear({0, 0}, {0, 32},
                                  {{0.0f, lt::kStoneHi}, {1.0f, lt::kStoneLo}}))
              .foreground(stroke(1.0f, Fill::color(lt::kBronzeDim)))
-             .children({box()
-                            .width(13.0f)
-                            .height(13.0f)
-                            .corners({6.5f})
-                            .fill(Paint::radial({5, 4}, 9,
-                                                {{0.0f, hexColor(0xFFE9A8)},
-                                                 {0.6f, hexColor(0xD8A93C)},
-                                                 {1.0f, hexColor(0x7A5C15)}}))})
+             .children({box().width(13.0f).height(13.0f).corners({6.5f}).fill(
+                 Paint::radial({5, 4}, 9,
+                               {{0.0f, hexColor(0xFFE9A8)},
+                                {0.6f, hexColor(0xD8A93C)},
+                                {1.0f, hexColor(0x7A5C15)}}))})
              .children({text(goldText).font({.size = 17,
                                              .color = hexColor(0xD8B95C),
                                              .track = 1.6f,
@@ -666,6 +651,9 @@ struct LootGrid final : sketch::Sketch {
           Fill::color(c),
           Fill::color(c)};
     };
+    // The occupancy key. Its two entries stand further apart than the
+    // ladder's, because they name two answers to one question rather
+    // than five steps of one scale.
     root.children(
         {sketch::kit::legend({.entries = {tier(lt::Rarity::Normal, "normal"),
                                           tier(lt::Rarity::Magic, "magic"),
@@ -678,29 +666,25 @@ struct LootGrid final : sketch::Sketch {
                               .corners = 1.5f,
                               .labelGap = 6.0f})
              .right(30)
+             .bottom(26),
+         sketch::kit::legend(
+             {.entries = {{Fill::color({0.16f, 0.80f, 0.24f, 0.30f}),
+                           "fits",
+                           {},
+                           Fill::color({0.35f, 1.0f, 0.45f, 0.8f}),
+                           Fill::color(lt::kAsh)},
+                          {Fill::color({0.90f, 0.16f, 0.14f, 0.34f}),
+                           "blocked",
+                           {},
+                           Fill::color({1.0f, 0.35f, 0.30f, 0.8f}),
+                           Fill::color(lt::kAsh)}},
+              .column = false,
+              .swatchSide = 11.0f,
+              .gap = 18.0f,
+              .corners = 2.0f,
+              .labelGap = 8.0f})
+             .left(30)
              .bottom(26)});
-
-    // The occupancy key. Its two entries stand further apart than the
-    // ladder's, because they name two answers to one question rather
-    // than five steps of one scale.
-    root.children({sketch::kit::legend(
-                       {.entries = {{Fill::color({0.16f, 0.80f, 0.24f, 0.30f}),
-                                     "fits",
-                                     {},
-                                     Fill::color({0.35f, 1.0f, 0.45f, 0.8f}),
-                                     Fill::color(lt::kAsh)},
-                                    {Fill::color({0.90f, 0.16f, 0.14f, 0.34f}),
-                                     "blocked",
-                                     {},
-                                     Fill::color({1.0f, 0.35f, 0.30f, 0.8f}),
-                                     Fill::color(lt::kAsh)}},
-                        .column = false,
-                        .swatchSide = 11.0f,
-                        .gap = 18.0f,
-                        .corners = 2.0f,
-                        .labelGap = 8.0f})
-                       .left(30)
-                       .bottom(26)});
     return root;
   }
 };
