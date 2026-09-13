@@ -33,6 +33,7 @@
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Chrome.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Gel.h>
 #include <sigilcompose/kit/Gloss.h>
 #include <sigilcompose/kit/Kinetic.h>
@@ -207,16 +208,16 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
                          {0, h * 0.45f - 4}, {0, 0},
                          {{0.0f, {t.glow.fR, t.glow.fG, t.glow.fB, 0.85f}},
                           {1.0f, {t.glow.fR, t.glow.fG, t.glow.fB, 0.0f}}}))
-                     .blend(SkBlendMode::kScreen)})
-      // the LENS: x in [5%,95%] y in [4%,52%], white .72->0
-      .children({box()
+                     .blend(SkBlendMode::kScreen),
+                 // the LENS: x in [5%,95%] y in [4%,52%], white .72->0
+                 box()
                      .inset(w * 0.05f, h * 0.04f, w * 0.05f, h * 0.48f)
                      .corners({h * 0.24f})
                      .fill(Paint::linear(
                          {0, 0}, {0, h * 0.48f},
-                         {{0.0f, {1, 1, 1, 0.72f}}, {1.0f, {1, 1, 1, 0.0f}}}))})
-      // label, centered, riding above the lens
-      .children({box()
+                         {{0.0f, {1, 1, 1, 0.72f}}, {1.0f, {1, 1, 1, 0.0f}}})),
+                 // label, centered, riding above the lens
+                 box()
                      .inset(0)
                      .row()
                      .justify(Justify::Center)
@@ -407,12 +408,13 @@ struct Y2kChrome final : sketch::Sketch {
             .translateY(animate(motion::from(14.0f).to(0.0f),
                                 {550ms, &ch::easeOutQuint}))
             .opacity(animate(motion::from(0.0f).to(1.0f), {400ms}))
-            .children({plate})
-            // The preset's specular sliver rides the plate BEHIND the type.
-            // Do not add a second sliver over the type: two bright lines at
-            // the same height read as a strikethrough.
-            // Starburst glints riding the horizon, plus one on a cap top.
-            .children({box()
+            .children({plate,
+                       // The preset's specular sliver rides the plate BEHIND
+                       // the type. Do not add a second sliver over the type:
+                       // two bright lines at the same height read as a
+                       // strikethrough. Starburst glints riding the horizon,
+                       // plus one on a cap top.
+                       box()
                            .inset(22, horizonY - 12, 0, 0)
                            .children({yc::glint(24, 0)}),
                        box()
@@ -463,6 +465,16 @@ struct Y2kChrome final : sketch::Sketch {
                        yc::gelPill("GUESTBOOK", hexColor(0x2AA84F))});
 
     // ---- the A/B card: hand-built recipe vs the preset --------------------
+    // ONE SPECIMEN OF THE A/B: a pill over the caption that says how it
+    // was made. The two halves differ in the pill alone, which is the
+    // whole point of standing them side by side.
+    const auto specimen = [](Element pill, const Utf8& how) {
+      return box()
+          .column()
+          .alignItems(Align::Center)
+          .gap(6)
+          .children({std::move(pill), text(how).styleClass("caption")});
+    };
     Element abCard =
         box()
             .row()
@@ -477,23 +489,12 @@ struct Y2kChrome final : sketch::Sketch {
                      .corners({8})
                      .fill(Fill::color({1, 1, 1, 0.13f}))
                      .stroke(stroke(1, Fill::color(hexColor(0x9AA1A9, 0.6f))))
-                     .children({box()
-                                    .column()
-                                    .alignItems(Align::Center)
-                                    .gap(6)
-                                    .children({yc::aquaPill("AQUA  2000",
-                                                            yc::kBluePill)})
-                                    .children({text("HAND-BUILT · FIVE "
-                                                    "STOPS BY HAND")
-                                                   .styleClass("caption")})})
-                     .children({box()
-                                    .column()
-                                    .alignItems(Align::Center)
-                                    .gap(6)
-                                    .children({yc::gelPill("AQUA  2000",
-                                                           hexColor(0x1E8FFF))})
-                                    .children({text("PRESET · kit::aquaGel()")
-                                                   .styleClass("caption")})})});
+                     .children(
+                         {specimen(yc::aquaPill("AQUA  2000", yc::kBluePill),
+                                   "HAND-BUILT · FIVE STOPS BY HAND"),
+                          specimen(
+                              yc::gelPill("AQUA  2000", hexColor(0x1E8FFF)),
+                              "PRESET · kit::aquaGel()")})});
 
     // ---- status bar: marquee, ticker-driven phase -------------------
     // The crawl, named: a strip run past a window twice so the loop has no
@@ -515,8 +516,9 @@ struct Y2kChrome final : sketch::Sketch {
             .gap(8)
             .children(
                 {strip,
-                 box().width(1).height(11).fill(
-                     Fill::color(hexColor(0xA6ADB4))),
+                 kit::line({.length = Dimension(11),
+                            .column = true,
+                            .fill = Fill::color(hexColor(0xA6ADB4))}),
                  text("56K", yc::type(10, hexColor(0x6A737D), 1.0f, 700))});
 
     // The window's large blurred shadow is static and the marquee inside it
@@ -566,80 +568,70 @@ struct Y2kChrome final : sketch::Sketch {
         .fill(Paint::linear(
             {0, 0}, {0, yc::kH},
             {{0.0f, hexColor(0xB9BFC7)}, {1.0f, hexColor(0xA2A8B1)}}))
-        .children({box().inset(0).fill(check), windowBackplate})
-        // the window
         .children(
-            {box()
+            {box().inset(0).fill(check), windowBackplate,
+             // the window
+             box()
                  .inset(yc::kWindowX, yc::kWindowY, yc::kWindowX, yc::kWindowY)
                  .column()
                  .corners({6})
                  .clip()
                  .stroke(stroke(1, Fill::color(hexColor(0x70777E))))
-                 .children({titleBar})
                  .children(
-                     {box()
-                          .column()
-                          .grow(1)
-                          .padding(28, 12)
-                          .children({box().grow(0.55f)})
-                          .children({box()
-                                         .row()
-                                         .justify(Justify::Center)
-                                         .children({wordmark})})
-                          .children({tagline})
-                          .children({pills})
-                          .children({abCard})
-                          .children({box().grow(1)})
-                          // 3D groove rule - the <hr> of the period
-                          .children(
-                              {box()
-                                   .height(2)
-                                   .margin(4, 0, 4, 10)
-                                   .opacity(animate(motion::from(0.0f).to(1.0f),
-                                                    {500ms}))
-                                   .fill(Paint::linear(
-                                       {0, 0}, {0, 2},
-                                       {{0.0f, hexColor(0x8F969D)},
-                                        {0.5f, hexColor(0x8F969D)},
-                                        {0.501f, hexColor(0xFFFFFF)},
-                                        {1.0f, hexColor(0xFFFFFF)}}))})
-                          // footer: preset orb, caption, 1998 plastic button
-                          .children(
-                              {box()
-                                   .row()
-                                   .alignItems(Align::End)
-                                   .key("footer")
-                                   .opacity(animate(motion::from(0.0f).to(1.0f),
-                                                    {500ms}))
-                                   .children({yc::gelOrb()})
-                                   .children(
-                                       {box()
-                                            .column()
-                                            .margin(14, 0, 0, 4)
-                                            .gap(3)
-                                            .children({text(
-                                                "now streaming @ 56k",
-                                                yc::type(12, hexColor(0xC8D6EE),
-                                                         0.6f, 600))})
-                                            .children(
-                                                {text("© 2000 sigilnet "
-                                                      "industries — "
-                                                      "best viewed at 800×600")
-                                                     .styleClass("note")})})
-                                   .children({box().grow(1)})
-                                   .children(
-                                       {box()
-                                            .column()
-                                            .alignItems(Align::End)
-                                            .gap(5)
-                                            .margin(0, 0, 0, 2)
-                                            .children({yc::plasticButton(
-                                                "ENTER SITE >>")})
-                                            .children(
-                                                {text("[ no frames · "
-                                                      "spacer.gif free ]")
-                                                     .styleClass("note")})})})})
-                 .children({statusBar})});
+                     {titleBar,
+                      box().column().grow(1).padding(28, 12).children(
+                          {box().grow(0.55f),
+                           box()
+                               .row()
+                               .justify(Justify::Center)
+                               .children({wordmark}),
+                           tagline, pills, abCard, box().grow(1),
+                           // 3D groove rule - the <hr> of the period
+                           box()
+                               .height(2)
+                               .margin(4, 0, 4, 10)
+                               .opacity(animate(motion::from(0.0f).to(1.0f),
+                                                {500ms}))
+                               .fill(
+                                   Paint::linear({0, 0}, {0, 2},
+                                                 {{0.0f, hexColor(0x8F969D)},
+                                                  {0.5f, hexColor(0x8F969D)},
+                                                  {0.501f, hexColor(0xFFFFFF)},
+                                                  {1.0f, hexColor(0xFFFFFF)}})),
+                           // footer: preset orb, caption, 1998 plastic button
+                           box()
+                               .row()
+                               .alignItems(Align::End)
+                               .key("footer")
+                               .opacity(animate(motion::from(0.0f).to(1.0f),
+                                                {500ms}))
+                               .children(
+                                   {yc::gelOrb(),
+                                    box()
+                                        .column()
+                                        .margin(14, 0, 0, 4)
+                                        .gap(3)
+                                        .children(
+                                            {text("now streaming @ 56k",
+                                                  yc::type(12,
+                                                           hexColor(0xC8D6EE),
+                                                           0.6f, 600)),
+                                             text("© 2000 sigilnet "
+                                                  "industries — "
+                                                  "best viewed at 800×600")
+                                                 .styleClass("note")}),
+                                    box().grow(1),
+                                    box()
+                                        .column()
+                                        .alignItems(Align::End)
+                                        .gap(5)
+                                        .margin(0, 0, 0, 2)
+                                        .children(
+                                            {yc::plasticButton("ENTER SITE >>"),
+                                             text("[ no frames · "
+                                                  "spacer.gif free ]")
+                                                 .styleClass("note")})})}),
+                      statusBar})});
   }
 };
 
