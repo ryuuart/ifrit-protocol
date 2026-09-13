@@ -19,6 +19,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigildata/table/Table.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
@@ -35,6 +36,7 @@
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -370,12 +372,6 @@ inline int astUnique(const Catalogue& cat, const AstRec& A) {
     if (!dup) seen[n++] = v;
   }
   return n;
-}
-
-inline weave::TextStyle type(sk_sp<SkTypeface> face, float size, SkColor4f c,
-                             float tracking = 0) {
-  return weave::textStyle(
-      {.face = std::move(face), .size = size, .color = c, .track = tracking});
 }
 
 inline SkColor4f schoolInk(char c) {

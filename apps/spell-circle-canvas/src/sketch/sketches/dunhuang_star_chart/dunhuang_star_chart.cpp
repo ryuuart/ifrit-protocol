@@ -5,7 +5,14 @@
 #include "DunhuangStarChart.h"
 
 auto DunhuangStarChart::describe(sketch::SketchContext&) -> Element {
-  auto root = box().left(0).top(0).width(Dimension(kW)).height(Dimension(kH));
+  const sigil::core::environment::Provide<weave::StyleSheet> look(voices());
+  // the plate's type is the terminal face wherever a leaf names none
+  auto root = box()
+                  .left(0)
+                  .top(0)
+                  .width(Dimension(kW))
+                  .height(Dimension(kH))
+                  .font({.face = faceMono});
   root.child(ground());
   root.child(locator());
 

@@ -5,6 +5,18 @@
 struct DunhuangStarChart : sketch::Sketch {
   sk_sp<SkTypeface> faceSerif, faceItalic, faceMono, faceDisplay, faceHan;
 
+  /** THE ONE NAMED VOICE: a panel's heading, the display face in the
+   *  chart's gold, tracked; a heading states its own size over it. Bound
+   *  around the description and again around the audit panel, which is
+   *  described into its slot from the clock. */
+  [[nodiscard]] weave::StyleSheet voices() const {
+    weave::StyleSheet classes;
+    classes.set(
+        "heading",
+        {.face = faceDisplay, .color = hexColor(0xc9a35c), .track = 1.0f});
+    return classes;
+  }
+
   // ONE Output writes the plate: the score position in seconds.
   ch::Output<float> scribe{0.0f};
   double clockT = 0;
