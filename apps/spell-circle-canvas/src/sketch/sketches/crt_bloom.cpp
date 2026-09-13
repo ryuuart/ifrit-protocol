@@ -96,12 +96,16 @@ sketch::kit::Theme sheetTheme() {
   return look;
 }
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
+/** THE WORD, identical either side of the seam: one size, one tracking,
+ *  and the colour the construction paints it in. The face is STATED as the
+ *  font context's own family, because the word is not set in the sheet's
+ *  text face. */
 Element headline(SkColor4f color) {
-  return text(u8"PHOSPHOR", label(62, color, 1.5f));
+  return text(u8"PHOSPHOR")
+      .font({.face = weave::defaultFace(),
+             .size = 62,
+             .color = color,
+             .track = 1.5f});
 }
 
 /** THE TUBE, over whatever the panel drew: the library's own scanline
@@ -131,7 +135,10 @@ Element seam() {
       .column()
       .alignItems(Align::Center)
       .gap(6)
-      .child(text(u8"SEAM", label(10, kSeam, 2.0f)))
+      .child(text(u8"SEAM").font({.face = weave::defaultFace(),
+                                  .size = 10,
+                                  .color = kSeam,
+                                  .track = 2.0f}))
       .child(box().width(2).height(kPanelH).fill(
           Fill::color({kSeam.fR, kSeam.fG, kSeam.fB, 0.55f})));
 }
