@@ -97,16 +97,6 @@ constexpr SkColor4f kAmber{0.98f, 0.76f, 0.24f, 1};
 constexpr SkColor4f kRose{0.95f, 0.45f, 0.62f, 1};
 constexpr SkColor4f kAsphalt{0.23f, 0.25f, 0.32f, 1};
 
-/** This study's type colour reaches the paint as 8-bit sRGB, so a tint
- *  computed per frame lands on the same 256-step ladder as a quoted one.
- *  `compose::type` carries the float through instead, and the device
- *  raster resolves the two differently. */
-inline sigil::weave::TextStyle type(float size, SkColor4f color,
-                                    float tracking = 0) {
-  return sigil::weave::textStyle(
-      {.size = size, .color = color, .track = tracking, .color8 = true});
-}
-
 /** Invisible keyed waypoint -- rivers and roads route through pins. */
 inline Element pin(const char* key, float x, float y) {
   return box().key(key).width(2).height(2).centerAt({x, y});
@@ -128,9 +118,13 @@ inline Element station(const char* key, float x, float y, float size = 16) {
       .zIndex(6);
 }
 
-inline Element label(const char* s, float x, float y, SkColor4f c = kAsh,
-                     float size = 13, float track = 1.5f) {
-  return text(toUtf8(s), type(size, c, track)).inset(x, y, 0, 0).zIndex(8);
+/** A place name, in the ink in force: the root's ash unless the caller
+ *  names another. */
+inline Element label(const char* s, float x, float y) {
+  return text(toUtf8(s))
+      .font({.size = 13, .track = 1.5f})
+      .inset(x, y, 0, 0)
+      .zIndex(8);
 }
 
 /** The ARTLINE art cell: a stem with alternating leaf lenses — reads as a
@@ -159,15 +153,17 @@ inline Element vineArt() {
       .child(leaf(31, 0, -24, kMoss));
 }
 
-/** Legend row: coloured line name + ash construction note. */
+/** Legend row: the line's name in its own colour, the construction note
+ *  in the root's ash, both one size. */
 inline Element legendRow(const char* name, const char* what, SkColor4f c,
                          float y) {
   return box()
       .row()
       .inset(30, y, 0, 0)
       .zIndex(8)
-      .child(text(toUtf8(name), type(12.5f, c, 1.4f)))
-      .child(text(toUtf8(what), type(12.5f, kAsh, 0.4f)).margin(10, 0, 0, 0));
+      .font({.size = 12.5f})
+      .child(text(toUtf8(name)).font({.track = 1.4f}).ink(c))
+      .child(text(toUtf8(what)).font({.track = 0.4f}).margin(10, 0, 0, 0));
 }
 
 }  // namespace night_network
@@ -347,7 +343,14 @@ struct NightNetwork final : sketch::Sketch {
                       .uniform("uGlowR", &hubGlow))
             .zIndex(7);
 
+    // The type is stated once, here: every line inherits the ash and the
+    // 8-bit colour ladder and says only what differs. The colour reaches
+    // the paint as 8-bit sRGB so a tint computed per frame lands on the
+    // same 256-step ladder as a quoted one; a float carried through
+    // resolves differently on the device raster.
     return stack()
+        .font({.color8 = true})
+        .ink(nn::kAsh)
         .fill(Paint::linear(
             {0, 0}, {0, nn::kH},
             {{0.0f, nn::kInkHigh}, {0.5f, nn::kInk}, {1.0f, nn::kInk}}))
@@ -501,21 +504,23 @@ struct NightNetwork final : sketch::Sketch {
         .child(nn::station("cy_e", 773, 500))
         .child(hub)
         // ---- names ----
-        .child(nn::label("EMBER GATE", 461, 298, nn::kBone))
+        .child(nn::label("EMBER GATE", 461, 298).ink(nn::kBone))
         .child(nn::label("wharf lane", 82, 466))
         .child(nn::label("north quay", 524, 98))
         .child(nn::label("saltmarsh", 693, 477))
-        .child(nn::label("the smokewater", 668, 206, {0.45f, 0.62f, 0.78f, 1}))
+        .child(nn::label("the smokewater", 668, 206)
+                   .ink(SkColor4f{0.45f, 0.62f, 0.78f, 1}))
         // ---- title + legend ----
         .child(box()
                    .column()
                    .inset(28, 27, 0, 0)
                    .zIndex(8)
-                   .child(text(toUtf8("NIGHT NETWORK"),
-                               nn::type(30, nn::kBone, 2)))
+                   .child(text(toUtf8("NIGHT NETWORK"))
+                              .font({.size = 30, .track = 2})
+                              .ink(nn::kBone))
                    .child(text(toUtf8("the brush engine \xe2\x80\x94 twelve"
-                                      " constructions"),
-                               nn::type(14, nn::kAsh, 1))
+                                      " constructions"))
+                              .font({.size = 14, .track = 1})
                               .margin(0, 6, 0, 0)))
         // Ten rows reach into the map now — a feathered ink backing keeps
         // the routes from striking through the legend type.
