@@ -123,22 +123,32 @@ struct SlitScan2001 : sketch::Sketch {
   Element filmFrame();
 
   // ------------------------------------------------------------- the rig
-  void drawRig(SkCanvas& c, const PaintContext& ctx);
-  void drawArtworkPanel(SkCanvas& c, const PaintContext& ctx);
-  void drawMeasuredPoints(SkCanvas& c, const PaintContext& ctx);
+  /** THE RIG, DRAWN WITH THE PEN: the bench, the track, the plate, the
+   *  carriage and every dimension over them. The two decorations it wears
+   *  — the bench's hatch and the haloed erratum — reach the pen's own
+   *  canvas, which is the door this library keeps open. */
+  void drawRig(Pen& pen);
+  void drawArtworkPanel(Pen& pen);
+  void drawMeasuredPoints(Pen& pen);
 
   Element rigStrip();
 
   // ------------------------------------------------------------- sidebar
-  /** Every text child inside a panel is shrink(0): a flex column will
-   *  otherwise squash a text leaf below its measured height and the run
-   *  silently overlaps its neighbour. This is the height-axis form of the
-   *  same rule that lets a fixed width() flex child still shrink. */
-  Element pl(const std::string& str, weave::Type partial) {
-    return slit::t(str, std::move(partial)).shrink(0);
-  }
+  /** THE DOCUMENT the four sidebar panels are set from, or a null value
+   *  where the file did not load: every line of their prose, the size it
+   *  is set at and the class it takes its colour and its face from stands
+   *  in `data/content.json`. */
+  std::shared_ptr<const data::Json> words;
+  const data::Json& doc() const;
 
-  Element panelShell(const char* heading, int order);
+  Element panelShell(const data::Json& said, int order);
+
+  /** THE LINES OF ONE PANEL. Every text child inside a panel is
+   *  shrink(0): a flex column will otherwise squash a text leaf below its
+   *  measured height and the run silently overlaps its neighbour. This is
+   *  the height-axis form of the same rule that lets a fixed width() flex
+   *  child still shrink. */
+  std::vector<Element> prose(const data::Json& said);
 
   Element s1Quote();
 

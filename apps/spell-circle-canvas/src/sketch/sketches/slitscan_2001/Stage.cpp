@@ -63,10 +63,7 @@ auto SlitScan2001::filmFrame() -> Element {
   // no core.
   Element vanishing =
       box()
-          .left(-150.0f)
-          .top(-150.0f)
-          .width(300.0f)
-          .height(300.0f)
+          .rect(SkRect::MakeXYWH(-150.0f, -150.0f, 300.0f, 300.0f))
           .translateX(&coreX)
           .translateY(&coreY)
           // The core's own picture never changes — only where it is —
@@ -124,10 +121,7 @@ auto SlitScan2001::filmFrame() -> Element {
       // addFixed's interpolant, and the caption says why.
       .children(
           {box()
-               .left(0)
-               .top(0)
-               .width(kFilmW)
-               .height(2)
+               .rect(SkRect::MakeXYWH(0, 0, kFilmW, 2))
                .fill(al(kCold, 0.4f))
                .mask(by::edge(0.0f, bind(&frameAlpha))),
            hud(s.name, 10, 10, -1, -1, al(kCold, 0.75f)),
@@ -181,31 +175,18 @@ auto SlitScan2001::rigStrip() -> Element {
       // carriage's live position and the artwork's live offset as they
       // paint, at Cache::None, so their picture is different every
       // frame; a key would name one drawing and replay it.
-      .children(
-          {custom([this](SkCanvas& c, const PaintContext& p) { drawRig(c, p); })
-               .left(0)
-               .top(0)
-               .width(kElevW)
-               .height(kRigH)
-               .clip()
-               .cache(Cache::None),
-           custom([this](SkCanvas& c, const PaintContext& p) {
-             drawArtworkPanel(c, p);
-           })
-               .left(kRigW - kPanelStripW)
-               .top(0)
-               .width(kPanelStripW)
-               .height(kRigH)
-               .cache(Cache::None)})
+      .children({pen([this](Pen& p) { drawRig(p); })
+                     .rect(SkRect::MakeXYWH(0, 0, kElevW, kRigH))
+                     .clip(),
+                 pen([this](Pen& p) { drawArtworkPanel(p); })
+                     .rect(SkRect::MakeXYWH(kRigW - kPanelStripW, 0,
+                                            kPanelStripW, kRigH))})
       // The "THIS EXPOSURE" monitor, in the elevation's upper-left where
       // there is nothing but sky. The only place you see a frame BEING
       // MADE rather than made, so it gets the good corner.
       .children(
           {box()
-               .left(18)
-               .top(10)
-               .width(264)
-               .height(116)
+               .rect(SkRect::MakeXYWH(18, 10, 264, 116))
                .corners({4})
                .fill(al(kPanelBg, 0.92f))
                .stroke(stroke(1.0f, Fill::color(kRule)))
@@ -222,14 +203,12 @@ auto SlitScan2001::rigStrip() -> Element {
                .children(
                    {t("THIS EXPOSURE",
                       {.size = 8, .color = al(kCold, 0.85f), .track = 1.4f})
-                        .left(8)
-                        .top(5)})
-               .children(
-                   {slot("expo").left(8).bottom(19)})
+                        .at({8, 5})})
+               .children({slot("expo").left(8).bottom(19)})
                .children({t("ONE SWEEP / 3.0 s. THE MACHINE TOOK 45–60 s "
                             "[C85]. ×18.",
                             {.size = 7, .color = al(kTick, 0.95f)})
                               .left(8)
                               .bottom(6)}),
-           slot("readout").left(20).top(130)});
+           slot("readout").at({20, 130})});
 }

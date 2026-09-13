@@ -1,8 +1,24 @@
 #include "SlitScan2001.h"
 
-auto SlitScan2001::panelShell(const char* heading, int order) -> Element {
+auto SlitScan2001::panelShell(const data::Json& said, int order) -> Element {
   using namespace slit;
+  // THE SHEET A PANEL IS SET ON: a class per ink it prints in, so a line
+  // of prose names a colour by what it MEANS — a reading, a claim the
+  // study disputes, a quotation, a reference — and never spells one. It
+  // is stated on the PANEL rather than on the sheet's root because a
+  // panel is also measured on its own, by the layout self-check.
+  weave::StyleSheet classes;
+  classes.set("type", {.color = kType})
+      .set("cold", {.color = al(kCold, 0.95f)})
+      .set("coldQuiet", {.color = al(kCold, 0.8f)})
+      .set("amber", {.color = kAmber})
+      .set("red", {.color = kRed})
+      .set("tick", {.color = kTick})
+      .set("quote", quo(9.1f, kType))
+      .set("quoteQuiet", quo(8.4f, al(kType, 0.82f)))
+      .set("headline", {.face = uiBoldFace(), .color = kType, .track = 0.2f});
   return box()
+      .styleSheet(std::move(classes))
       .column()
       .width(kSideW)
       .shrink(0)
@@ -12,7 +28,7 @@ auto SlitScan2001::panelShell(const char* heading, int order) -> Element {
       .fill(kPanelBg)
       // Every line in a panel is set in the mono face and the type-2 ink
       // unless it says otherwise; a line names its size and, where it
-      // differs, its colour or its face.
+      // differs, the CLASS its colour and its face come from.
       .font({.face = monoFace()})
       .ink(kType2)
       .stroke(stroke(1.0f, Fill::color(kRule)))
@@ -20,85 +36,59 @@ auto SlitScan2001::panelShell(const char* heading, int order) -> Element {
       .key(kit::formatted("panel%d", order))
       .opacity(animate(from(0.0f).to(1.0f), {300ms, ch::easeOutQuad}))
       .translateX(animate(from(14.0f).to(0.0f), {300ms, ch::easeOutQuad}))
-      .children({pl(heading, {.face = uiFace(), .size = 9.5f, .track = 2.2f}),
+      .children({t(std::string(said["heading"].text()),
+                   {.face = uiFace(), .size = 9.5f, .track = 2.2f}),
                  rule(390, kRule)});
 }
 
-auto SlitScan2001::s1Quote() -> Element {
+auto SlitScan2001::prose(const data::Json& said) -> std::vector<Element> {
   using namespace slit;
-  Element p = panelShell("THE MACHINE, IN ITS OWN WORDS", 0);
-  p.children(
-      {pl("“… this device could produce two seemingly infinite planes "
-          "of exposure while holding depth-of-field from a distance of "
-          "fifteen feet to one and one-half inches from the lens at an "
-          "aperture of F/1.8 with exposures of approximately one minute "
-          "per frame using a standard 65mm Mitchell camera.”",
-          quo(9.1f, kType))});
-  p.children(
-      {box()
-           .row()
-           .gap(5)
-           .shrink(0)
-           .children(
-               {pl("▸", {.face = uiFace(), .size = 9, .color = kRed}).width(7)})
-           .children({pl("“holding depth-of-field” IS THE PHRASE THAT "
-                         "CANNOT BE TRUE — SEE BELOW",
-                         {.size = 7.1f, .color = kRed})
-                          .grow(1)})});
-  p.children(
-      {pl("“… we moved the camera along fourteen feet of track toward "
-          "the slit — a full fourteen feet for each exposure. It took "
-          "about forty-five seconds to a minute per exposure, and each "
-          "frame was made up of two exposures.” [C85]",
-          quo(8.4f, al(kType, 0.82f)))});
-  p.children({rule(390, kRule)});
-  p.children(
-      {pl("[T68] Am. Cinematographer 49(6):416–420, 451–453, Jun 1968 · "
-          "[C85] Cinefex 85, Apr 2001, at one remove through two "
-          "agreeing carriers · [FS] The Film Stage · [NO] Oseman · "
-          "[MB] MagicBeans · [GE] Ercolano · [AP] Age of Plastic · "
-          "[WP] Wikipedia.",
-          {.size = 6.5f, .color = kTick})});
+  // ONE LINE OF A PANEL, as the document writes it: the words, the size
+  // they are set at, and the class its colour and its face come from. A
+  // record with no words is the furniture between them — a rule, or the
+  // slot a live reading is rendered into. A MARKED line carries a red
+  // pointer in the margin, which is how this sheet says "read this one".
+  return each(said.items(), [](const data::Json& n) -> Element {
+    if (n["rule"].boolean()) return rule(390, kRule);
+    if (!n["slot"].text().empty())
+      return slot(std::string(n["slot"].text()))
+          .height((float)n["height"].number(19.0))
+          .shrink(0);
+    Element line = text(std::string(n["words"].text()))
+                       .font({.size = (float)n["size"].number(6.5)})
+                       .styleClass(std::string(n["style"].text()))
+                       .shrink(0);
+    if (!n["marked"].boolean()) return line;
+    return box().row().gap(5).shrink(0).children(
+        {text("▸")
+             .font({.face = uiFace(), .size = 9})
+             .styleClass("red")
+             .width(7),
+         line.grow(1)});
+  });
+}
+
+auto SlitScan2001::s1Quote() -> Element {
+  const data::Json& said = doc()["panels"][0];
+  Element p = panelShell(said, 0);
+  p.children({prose(said["lines"])});
   return p;
 }
 
 auto SlitScan2001::s2Lens() -> Element {
-  using namespace slit;
-  Element p = panelShell("120 : 1, AND A LENS", 1);
-  p.children({pl("z0 = 15 ft = 180.0 in   z1 = 1.5 in   z0/z1 = 120.0 : 1",
-                 {.size = 7.9f, .color = al(kCold, 0.95f)})});
-  p.children(
-      {pl("DOF @ 1.5 in, f/1.8, 28.64 mm, c 0.05 = 0.0791 mm   ⇒   "
-          "CLAIMED BRACKET 4533.9 mm / ACTUAL DOF = 5.7 × 10⁴",
-          {.size = 7.1f, .color = kRed})});
-  p.children(
-      {pl("READ THE 15 ft AS A HYPERFOCAL NEAR LIMIT, f²/(Nc)+f = 2×4572:",
-          {.size = 6.9f})});
-  p.children({pl("c .025→20.26   .050→28.64   .075→35.07   .100→40.48 mm",
-                 {.size = 7.8f, .color = kAmber})});
-  p.children(
-      {pl("28 mm T2.8 IS ON PANAVISION’S SUPER PANAVISION 70 LIST AND IN "
-          "2001’S OWN CONTINUITY REPORTS [AP] — THE LENS EXISTS. (f/1.8 "
-          "IS FASTER THAN ANY OF THEM; 1.5 in NEEDS 87 mm OF BELLOWS.)",
-          {.size = 6.5f, .color = al(kCold, 0.78f)})});
-  p.children(
-      {pl("[C85]’S 14 ft TRACK ⇒ NEAR END 12 in, NOT 1½ in — THE TWO "
-          "PUBLISHED FIGURES DISAGREE BY 10.5 in, 6.2500% OF THE TRACK.",
-          {.size = 6.5f})});
-  p.children({pl(
-      "THE NUMBER IN THE SENTENCE IS NOT A DEPTH OF FIELD. "
-      "IT IS A LENS.",
-      {.face = uiBoldFace(), .size = 10.5f, .color = kType, .track = 0.2f})});
-  p.children(
-      {pl("AND [T68]’S OWN CAPTION SAYS SO: “SELSYN-DRIVEN FOLLOW-FOCUS "
-          "MECHANISM”. WHAT IT HELD WAS FOCUS, SERVOED TO THE TRACK.",
-          {.size = 6.5f, .color = kAmber})});
+  const data::Json& said = doc()["panels"][1];
+  Element p = panelShell(said, 1);
+  p.children({prose(said["lines"])});
   return p;
 }
 
 auto SlitScan2001::s3Law() -> Element {
   using namespace slit;
-  Element p = panelShell("THE 1/ρ LAW — MEASURED, NOT ASSUMED", 2);
+  const data::Json& said = doc()["panels"][2];
+  Element p = panelShell(said, 2);
+  // THE MEASURED PROFILE against the analytic C/u, on log-log axes: the
+  // frame is normalised so an exact 1/u law is the box diagonal, which
+  // makes any departure from p = 1 a visible bow rather than a number.
   p.children(
       {box()
            .width(386)
@@ -110,95 +100,56 @@ auto SlitScan2001::s3Law() -> Element {
                {box()
                     .inset(4)
                     .shape(shapes::parametric(
-                        [](float s) {
-                          // log-log axes: exact C/u is a straight
-                          // line of slope -1 in this frame.
-                          return SkPoint{s, s};
-                        },
-                        0.0f, 1.0f, 240, false))
+                        [](float s) { return SkPoint{s, s}; }, 0.0f, 1.0f, 240,
+                        false))
                     .stroke(spans::upTo(animate(
                                 to(1.0f), {520ms, ch::easeOutCubic, 1500ms})),
-                            stroke(1.6f, Fill::color(kAmber)))})
-           .children({custom([this](SkCanvas& c, const PaintContext& p2) {
-                        drawMeasuredPoints(c, p2);
-                      })
-                          .inset(4)
-                          .cache(Cache::None)})});
-  p.children({slot("fit").height(21).shrink(0)});
-  p.children(
-      {pl("DWELL AT FILM RADIUS u IS f·w/(V·u), AND IRRADIANCE FROM AN "
-          "EXTENDED SOURCE IS DISTANCE-INVARIANT AT FIXED APERTURE — SO "
-          "EXPOSURE ∝ 1/u. NOTHING PAINTS IT; IT IS THE SUM OF 1624 "
-          "STAMPS PER WALL WEIGHTED BY THE CAMERA TRAVEL EACH STANDS "
-          "FOR, MEASURED BACK OUT OF AN F16 RASTER OF THE ACCUMULATION "
-          "SUBTREE ALONE. Debug.h IS ENTIRELY PATH-LEVEL.",
-          {.size = 6.5f})});
-  p.children(
-      {pl("WHAT THE FILM SHOWS IS DENSITY. WHAT THE MACHINE MADE IS "
-          "EXPOSURE. THE 1/ρ LAW IS IN THE SECOND; THE CURVE BETWEEN "
-          "THEM IS RECONSTRUCTED.",
-          {.size = 6.5f, .color = kAmber})});
+                            stroke(1.6f, Fill::color(kAmber))),
+                pen([this](Pen& p2) { drawMeasuredPoints(p2); }).inset(4)}),
+       slot("fit").height(21).shrink(0)});
+  p.children({prose(said["lines"])});
   return p;
 }
 
 auto SlitScan2001::s4Sampling() -> Element {
   using namespace slit;
-  Element p = panelShell("SAMPLING: 406 IS NOT ARBITRARY", 3);
-  const char* rowName[2] = {"uniform in  z", "uniform in ln z"};
-  for (int r = 0; r < 2; ++r) {
-    Element row = box().row().gap(5).alignItems(Align::Center);
-    row.children({pl(rowName[r], {.size = 7.0f}).width(80)});
-    for (int k = 0; k < 3; ++k) {
-      const int idx = r * 3 + k;
-      row.children(
-          {box()
-               .width(98)
-               .height(18)
-               .shrink(0)
-               .fill(kBlack)
-               .clip()
-               .key(kit::formatted("s4_%d", idx))
-               .scaleX(animate(from(0.0f).to(1.0f), {220ms, ease::outBack()}))
-               .transformOrigin(0.0f, 0.5f)
-               .children({instancing::instances(flatAtlas, s4[(size_t)idx],
-                                                instancing::Mode::Data,
-                                                SkBlendMode::kPlus)})});
-    }
-    p.children({row.shrink(0)});
-  }
-  p.children(
-      {box()
-           .row()
-           .gap(5)
-           .shrink(0)
-           .children({box().width(80).shrink(0)})
-           .children({pl("K = 12", {.size = 6.6f, .color = kTick}).width(98)})
-           .children({pl("K = 48", {.size = 6.6f, .color = kTick}).width(98)})
-           .children(
-               {pl("K = 406", {.size = 6.6f, .color = kTick}).width(98)})});
-  p.children(
-      {pl("EACH STRIP IS ONE REAL WALL, STAMPED BY THE SAME CODE AS "
-          "THE FRAME: FILM RADIUS 0 → 600 px, LEFT TO RIGHT, LINEAR.",
-          {.size = 6.5f, .color = kTick})});
-  p.children({rule(390, kRule)});
-  p.children(
-      {pl("Δ(ln u) ≤ ln(1 + w/X0)   K_min = 1 + ln 120 / ln(1+1/84) = "
-          "405.6 → 406",
-          {.size = 7.1f, .color = al(kCold, 0.9f)})});
-  p.children(
-      {pl("LINEARISING THE LOGARITHM (4.7875 × 84) GIVES 402; AT K = 400 "
-          "THE STAMPS NO LONGER QUITE TOUCH.",
-          {.size = 6.5f, .color = kAmber})});
-  p.children({slot("ripple").height(19).shrink(0)});
-  p.children(
-      {pl("X0/w IS THE ONLY NUMBER THAT SETS THIS, AND X0 = 49.2 in PUTS "
-          "THE SLIT 4 ft OFF AXIS — OUTSIDE A 6 ft PLATE. THE WEAKEST "
-          "JOINT IN THIS RECONSTRUCTION, PRINTED RATHER THAN HIDDEN.",
-          {.size = 6.5f})});
-  p.children(
-      {pl("EQUAL-WEIGHT LOG STAMPS ARE BAND-FREE AND FLAT — WHICH IS "
-          "WRONG. THE WEIGHT MUST BE THE CAMERA TRAVEL: ω ∝ z.",
-          {.size = 6.5f, .color = kRed})});
+  const data::Json& said = doc()["panels"][3];
+  Element p = panelShell(said, 3);
+  // SIX REAL WALLS, RENDERED SMALL: two spacing rules against three K,
+  // each an instances() leaf over its own pool, so the argument is drawn
+  // by the same code that draws the picture.
+  p.children({each(
+      wordsOf(said["rows"]), [this](const Utf8& name, size_t r) -> Element {
+        return box()
+            .row()
+            .gap(5)
+            .shrink(0)
+            .alignItems(Align::Center)
+            .children(
+                {text(name).font({.size = 7.0f}).width(80),
+                 each(std::array<int, 3>{0, 1, 2}, [this, r](int k) -> Element {
+                   const size_t idx = r * 3 + (size_t)k;
+                   return box()
+                       .width(98)
+                       .height(18)
+                       .shrink(0)
+                       .fill(kBlack)
+                       .clip()
+                       .key(kit::formatted("s4_%d", (int)idx))
+                       .scaleX(animate(from(0.0f).to(1.0f),
+                                       {220ms, ease::outBack()}))
+                       .transformOrigin(0.0f, 0.5f)
+                       .children({instancing::instances(flatAtlas, s4[idx],
+                                                        instancing::Mode::Data,
+                                                        SkBlendMode::kPlus)});
+                 })});
+      })});
+  p.children({box().row().gap(5).shrink(0).children(
+      {box().width(80).shrink(0),
+       each(wordsOf(said["keys"]), [](const Utf8& key) -> Element {
+         return text(key).font({.size = 6.6f}).styleClass("tick").width(98);
+       })})});
+  p.children({prose(said["lines"])});
   return p;
 }
 
@@ -220,32 +171,26 @@ auto SlitScan2001::readoutEl() -> Element {
   const int stampIdx = (int)(tau * (double)(kKDisplay - 1));
   const float u = kUFar * std::pow(kR, (float)tau);
   const float omega = kUFar / std::max(u, 1e-3f);
-  return box()
-      .column()
-      .gap(2)
-      .width(262)
-      .children(
-          {box()
-               .row()
-               .gap(12)
-               .children(
-                   {t(kit::formatted("z = %06.2f in", z),
-                      {.face = monoBoldFace(), .size = 9, .color = kAmber})})
-               .children(
-                   {t(kit::formatted("m = ×%0.3f", kZ0In / std::max(z, 1e-3f)),
-                      {.size = 9, .color = kType2})}),
-           box()
-               .row()
-               .gap(12)
-               .children(
-                   {t(kit::formatted("stamp %04d / %d", stampIdx, kKDisplay),
-                      {.size = 9, .color = kType2})})
-               .children({t(kit::formatted("ω = %0.4f", omega),
-                            {.size = 9, .color = al(kCold, 0.9f)})}),
-           t(kit::formatted("ONE ATLAS · %d×%d SHEET · ONE BAKE %.0f ms · "
-                            "texWindows()",
-                            sheetW, sheetH, bakeMs),
-             {.size = 6.8f, .color = kTick})});
+  return box().column().gap(2).width(262).children(
+      {box()
+           .row()
+           .gap(12)
+           .children({t(kit::formatted("z = %06.2f in", z),
+                        {.face = monoBoldFace(), .size = 9, .color = kAmber})})
+           .children(
+               {t(kit::formatted("m = ×%0.3f", kZ0In / std::max(z, 1e-3f)),
+                  {.size = 9, .color = kType2})}),
+       box()
+           .row()
+           .gap(12)
+           .children({t(kit::formatted("stamp %04d / %d", stampIdx, kKDisplay),
+                        {.size = 9, .color = kType2})})
+           .children({t(kit::formatted("ω = %0.4f", omega),
+                        {.size = 9, .color = al(kCold, 0.9f)})}),
+       t(kit::formatted("ONE ATLAS · %d×%d SHEET · ONE BAKE %.0f ms · "
+                        "texWindows()",
+                        sheetW, sheetH, bakeMs),
+         {.size = 6.8f, .color = kTick})});
 }
 
 auto SlitScan2001::expoEl() -> Element {

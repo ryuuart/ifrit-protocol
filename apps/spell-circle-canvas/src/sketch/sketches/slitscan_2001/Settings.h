@@ -23,11 +23,14 @@
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Legibility.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigildata/decode/Json.h>
+#include <sigildraw/Draw.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/pattern/Patterns.h>
@@ -49,6 +52,7 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -61,7 +65,9 @@ namespace arrange = sigil::geometry::arrange;
 namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
 
+namespace data = sigil::data;
 using namespace sigil::compose;
+using sigil::draw::Pen;
 using namespace sigil::motion;
 using namespace std::chrono_literals;
 using sigil::material::skia::Effect;
@@ -198,6 +204,14 @@ inline weave::Type quo(float s, SkColor4f c) {
 
 inline Element rule(float w, SkColor4f c, float h = 1.0f) {
   return box().width(w).height(h).shrink(0).fill(c);
+}
+
+/** THE WORDS OF A LIST, one per entry. */
+inline std::vector<Utf8> wordsOf(const data::Json& node) {
+  std::vector<Utf8> out;
+  for (const data::Json& n : node.items())
+    out.emplace_back(std::string(n.text()));
+  return out;
 }
 
 // ---------------------------------------------------------------------------

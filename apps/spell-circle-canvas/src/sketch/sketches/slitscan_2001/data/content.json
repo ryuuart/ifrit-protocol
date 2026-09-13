@@ -1,0 +1,48 @@
+{
+  "panels": [
+    {
+      "heading": "THE MACHINE, IN ITS OWN WORDS",
+      "lines": [
+        {"words": "“… this device could produce two seemingly infinite planes of exposure while holding depth-of-field from a distance of fifteen feet to one and one-half inches from the lens at an aperture of F/1.8 with exposures of approximately one minute per frame using a standard 65mm Mitchell camera.”", "size": 9.1, "style": "quote"},
+        {"words": "“holding depth-of-field” IS THE PHRASE THAT CANNOT BE TRUE — SEE BELOW", "size": 7.1, "style": "red", "marked": true},
+        {"words": "“… we moved the camera along fourteen feet of track toward the slit — a full fourteen feet for each exposure. It took about forty-five seconds to a minute per exposure, and each frame was made up of two exposures.” [C85]", "size": 8.4, "style": "quoteQuiet"},
+        {"rule": true},
+        {"words": "[T68] Am. Cinematographer 49(6):416–420, 451–453, Jun 1968 · [C85] Cinefex 85, Apr 2001, at one remove through two agreeing carriers · [FS] The Film Stage · [NO] Oseman · [MB] MagicBeans · [GE] Ercolano · [AP] Age of Plastic · [WP] Wikipedia.", "size": 6.5, "style": "tick"}
+      ]
+    },
+    {
+      "heading": "120 : 1, AND A LENS",
+      "lines": [
+        {"words": "z0 = 15 ft = 180.0 in   z1 = 1.5 in   z0/z1 = 120.0 : 1", "size": 7.9, "style": "cold"},
+        {"words": "DOF @ 1.5 in, f/1.8, 28.64 mm, c 0.05 = 0.0791 mm   ⇒   CLAIMED BRACKET 4533.9 mm / ACTUAL DOF = 5.7 × 10⁴", "size": 7.1, "style": "red"},
+        {"words": "READ THE 15 ft AS A HYPERFOCAL NEAR LIMIT, f²/(Nc)+f = 2×4572:", "size": 6.9},
+        {"words": "c .025→20.26   .050→28.64   .075→35.07   .100→40.48 mm", "size": 7.8, "style": "amber"},
+        {"words": "28 mm T2.8 IS ON PANAVISION’S SUPER PANAVISION 70 LIST AND IN 2001’S OWN CONTINUITY REPORTS [AP] — THE LENS EXISTS. (f/1.8 IS FASTER THAN ANY OF THEM; 1.5 in NEEDS 87 mm OF BELLOWS.)", "size": 6.5, "style": "coldQuiet"},
+        {"words": "[C85]’S 14 ft TRACK ⇒ NEAR END 12 in, NOT 1½ in — THE TWO PUBLISHED FIGURES DISAGREE BY 10.5 in, 6.2500% OF THE TRACK.", "size": 6.5},
+        {"words": "THE NUMBER IN THE SENTENCE IS NOT A DEPTH OF FIELD. IT IS A LENS.", "size": 10.5, "style": "headline"},
+        {"words": "AND [T68]’S OWN CAPTION SAYS SO: “SELSYN-DRIVEN FOLLOW-FOCUS MECHANISM”. WHAT IT HELD WAS FOCUS, SERVOED TO THE TRACK.", "size": 6.5, "style": "amber"}
+      ]
+    },
+    {
+      "heading": "THE 1/ρ LAW — MEASURED, NOT ASSUMED",
+      "lines": [
+        {"words": "DWELL AT FILM RADIUS u IS f·w/(V·u), AND IRRADIANCE FROM AN EXTENDED SOURCE IS DISTANCE-INVARIANT AT FIXED APERTURE — SO EXPOSURE ∝ 1/u. NOTHING PAINTS IT; IT IS THE SUM OF 1624 STAMPS PER WALL WEIGHTED BY THE CAMERA TRAVEL EACH STANDS FOR, MEASURED BACK OUT OF AN F16 RASTER OF THE ACCUMULATION SUBTREE ALONE. Debug.h IS ENTIRELY PATH-LEVEL.", "size": 6.5},
+        {"words": "WHAT THE FILM SHOWS IS DENSITY. WHAT THE MACHINE MADE IS EXPOSURE. THE 1/ρ LAW IS IN THE SECOND; THE CURVE BETWEEN THEM IS RECONSTRUCTED.", "size": 6.5, "style": "amber"}
+      ]
+    },
+    {
+      "heading": "SAMPLING: 406 IS NOT ARBITRARY",
+      "rows": ["uniform in  z", "uniform in ln z"],
+      "keys": ["K = 12", "K = 48", "K = 406"],
+      "lines": [
+        {"words": "EACH STRIP IS ONE REAL WALL, STAMPED BY THE SAME CODE AS THE FRAME: FILM RADIUS 0 → 600 px, LEFT TO RIGHT, LINEAR.", "size": 6.5, "style": "tick"},
+        {"rule": true},
+        {"words": "Δ(ln u) ≤ ln(1 + w/X0)   K_min = 1 + ln 120 / ln(1+1/84) = 405.6 → 406", "size": 7.1, "style": "coldQuiet"},
+        {"words": "LINEARISING THE LOGARITHM (4.7875 × 84) GIVES 402; AT K = 400 THE STAMPS NO LONGER QUITE TOUCH.", "size": 6.5, "style": "amber"},
+        {"slot": "ripple", "height": 19},
+        {"words": "X0/w IS THE ONLY NUMBER THAT SETS THIS, AND X0 = 49.2 in PUTS THE SLIT 4 ft OFF AXIS — OUTSIDE A 6 ft PLATE. THE WEAKEST JOINT IN THIS RECONSTRUCTION, PRINTED RATHER THAN HIDDEN.", "size": 6.5},
+        {"words": "EQUAL-WEIGHT LOG STAMPS ARE BAND-FREE AND FLAT — WHICH IS WRONG. THE WEIGHT MUST BE THE CAMERA TRAVEL: ω ∝ z.", "size": 6.5, "style": "red"}
+      ]
+    }
+  ]
+}
