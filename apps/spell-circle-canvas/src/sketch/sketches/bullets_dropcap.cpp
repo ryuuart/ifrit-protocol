@@ -78,15 +78,10 @@ const char* kPassage =
     "characters somebody counted once. That is the whole difference "
     "between a nested style and a restyle by hand.";
 
-weave::TextStyle serif(float size, SkColor4f color, float track = 0) {
-  const sk_sp<SkTypeface> face = weave::ports::face(
-      {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
-  return weave::textStyle(
-      {.face = face, .size = size, .color = color, .track = track});
-}
-
-/** The same register as a partial: what an initial, a nested run and a
- *  list's items are set in over the text they belong to. */
+/** THE SERIF REGISTER, a partial: what the passage is set in over the
+ *  page, and what an initial, a nested run and a list's items are set in
+ *  over the text they belong to. It states its tracking because the
+ *  page's running register is tracked and this face is not. */
 weave::Type serifType(float size, SkColor4f color, float track = 0) {
   const sk_sp<SkTypeface> face = weave::ports::face(
       {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
@@ -105,7 +100,8 @@ Element cell(const char* call, const char* note, Element body) {
  *  one text leaf: the initial is not a second element. */
 Element dropped(const char* key, std::optional<kit::NestedStyle> nested) {
   Element block =
-      text(toUtf8(kPassage), serif(11.5f, kBody))
+      text(toUtf8(kPassage))
+          .font(serifType(11.5f, kBody))
           .key(key)
           .width(Dimension(kCell - 28))
           .initialLetter(
@@ -125,12 +121,14 @@ Element illuminated(const char* key, std::optional<kit::NestedStyle> nested) {
                          .height(64)
                          .shape(sigil::geometry::shapes::star(8, 0.48f, 0.12f))
                          .fill(Fill::color(look.palette.figure))
-                         .child(text(u8"W", serif(27, look.palette.ground))
+                         .child(text(u8"W")
+                                    .font(serifType(27, look.palette.ground))
                                     .absolute()
                                     .left(15)
                                     .top(14));
   ornament.key(key).absolute().left(Dimension(0.0f)).top(Dimension(0.0f));
-  Element body = text(toUtf8(kPassage).substr(1), serif(11.5f, kBody))
+  Element body = text(toUtf8(kPassage).substr(1))
+                     .font(serifType(11.5f, kBody))
                      .width(Dimension(kCell - 28))
                      .flowAround(key, kMargin);
   if (nested) body.spanStyle(kit::nestedRun(*nested), nested->style);
