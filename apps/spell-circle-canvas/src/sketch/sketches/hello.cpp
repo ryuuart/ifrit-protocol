@@ -18,7 +18,6 @@
 #include <cmath>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;
@@ -48,12 +47,13 @@ struct HelloSketch : sketch::Sketch {
           .background(shadow({0, 0, 0, 0.4f}, {3, 4}, 10))
           .alignItems(Align::Center)
           .justify(Justify::Center)
-          .child(text(
-              std::move(label),
-              weave::textStyle({.size = 20, .color = hexColor(0xffffff)})));
+          .child(text(std::move(label)).font({.size = 20}));
     };
 
+    // The type is white unless a line says otherwise: the ink and the
+    // font flow down the tree, and a leaf names only what differs.
     return stack()
+        .ink(hexColor(0xffffff))
         .fill(linearGradient(
             {0, 0}, {0, ctx.size.height()},
             {{0.08f, 0.06f, 0.18f, 1}, {0.03f, 0.10f, 0.16f, 1}}))
@@ -100,12 +100,14 @@ struct HelloSketch : sketch::Sketch {
                    .cache(Cache::None))
         // Re-rendered by update() whenever the score changes —
         // the keyed text keeps its identity across renders.
-        .child(text(toUtf8("score " + std::to_string(score)),
-                    weave::textStyle({.size = 24, .color = hexColor(0xffd9a0)}))
+        .child(text(toUtf8("score " + std::to_string(score)))
+                   .font({.size = 24})
+                   .ink(hexColor(0xffd9a0))
                    .key("score")
                    .inset(650, 120, 90, 480))
-        .child(text(u8"Sketchbook — edit hello.cpp and save",
-                    weave::textStyle({.size = 17, .color = hexColor(0x9aa4bb)}))
+        .child(text(u8"Sketchbook — edit hello.cpp and save")
+                   .font({.size = 17})
+                   .ink(hexColor(0x9aa4bb))
                    .inset(90, 560, 90, 40));
   }
 
