@@ -148,19 +148,19 @@ auto SlitScan2001::filmFrame() -> Element {
                             {t(kit::formatted("MACHINE TIME %lld h %02lld m  @ "
                                               "2880 : 1%s",
                                               mh, mm, everClamped ? "  *" : ""),
-                               {.color = al(kTick, 0.95f)})})
-                        .children({t("2.20 : 1 · 65 mm 5-PERF · f/1.8",
-                                     {.color = al(kTick, 0.95f)})})})
-               .children({t("THE FRAME IS HELD, NOT TWEENED. addFixed’s "
-                            "INTERPOLANT DRIVES THE SHUTTER BAR AND NOTHING "
-                            "IN THE PICTURE.",
-                            {.color = al(kTick, 0.8f)})})
-               .children({t("THE SWEEP BEGINS 5 px FROM THE VANISHING POINT = "
-                            "15 FEET FROM THE LENS, AND ENDS AT 600 px = 1½ "
-                            "INCHES · THE FRAME IS THE SCAN, 120 : 1, DRAWN "
-                            "TO ITS OWN SCALE — THE 5 px HOLE AT THE APEX IS "
-                            "THAT FAR LIMIT, VISIBLE",
-                            {.color = al(kType2, 0.95f)})})});
+                               {.color = al(kTick, 0.95f)}),
+                             t("2.20 : 1 · 65 mm 5-PERF · f/1.8",
+                               {.color = al(kTick, 0.95f)})}),
+                    t("THE FRAME IS HELD, NOT TWEENED. addFixed’s "
+                      "INTERPOLANT DRIVES THE SHUTTER BAR AND NOTHING "
+                      "IN THE PICTURE.",
+                      {.color = al(kTick, 0.8f)}),
+                    t("THE SWEEP BEGINS 5 px FROM THE VANISHING POINT = "
+                      "15 FEET FROM THE LENS, AND ENDS AT 600 px = 1½ "
+                      "INCHES · THE FRAME IS THE SCAN, 120 : 1, DRAWN "
+                      "TO ITS OWN SCALE — THE 5 px HOLE AT THE APEX IS "
+                      "THAT FAR LIMIT, VISIBLE",
+                      {.color = al(kType2, 0.95f)})})});
 }
 
 auto SlitScan2001::rigStrip() -> Element {
@@ -191,24 +191,24 @@ auto SlitScan2001::rigStrip() -> Element {
                .fill(al(kPanelBg, 0.92f))
                .stroke(stroke(1.0f, Fill::color(kRule)))
                .clip()
-               .children({box()
-                              .inset(0)
-                              .children({instancing::instances(
-                                  atlas, monA, instancing::Mode::Live,
-                                  SkBlendMode::kPlus)})
-                              .children({instancing::instances(
-                                  atlas, monB, instancing::Mode::Live,
-                                  SkBlendMode::kPlus)})
-                              .effect(Effect::shader(transfer, {{"k", 2.4f}}))})
                .children(
-                   {t("THIS EXPOSURE",
+                   {box()
+                        .inset(0)
+                        .children({instancing::instances(atlas, monA,
+                                                         instancing::Mode::Live,
+                                                         SkBlendMode::kPlus),
+                                   instancing::instances(atlas, monB,
+                                                         instancing::Mode::Live,
+                                                         SkBlendMode::kPlus)})
+                        .effect(Effect::shader(transfer, {{"k", 2.4f}})),
+                    t("THIS EXPOSURE",
                       {.size = 8, .color = al(kCold, 0.85f), .track = 1.4f})
-                        .at({8, 5})})
-               .children({slot("expo").left(8).bottom(19)})
-               .children({t("ONE SWEEP / 3.0 s. THE MACHINE TOOK 45–60 s "
-                            "[C85]. ×18.",
-                            {.size = 7, .color = al(kTick, 0.95f)})
-                              .left(8)
-                              .bottom(6)}),
+                        .at({8, 5}),
+                    slot("expo").left(8).bottom(19),
+                    t("ONE SWEEP / 3.0 s. THE MACHINE TOOK 45–60 s "
+                      "[C85]. ×18.",
+                      {.size = 7, .color = al(kTick, 0.95f)})
+                        .left(8)
+                        .bottom(6)}),
            slot("readout").at({20, 130})});
 }

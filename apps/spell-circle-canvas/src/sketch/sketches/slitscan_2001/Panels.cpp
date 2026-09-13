@@ -172,21 +172,16 @@ auto SlitScan2001::readoutEl() -> Element {
   const float u = kUFar * std::pow(kR, (float)tau);
   const float omega = kUFar / std::max(u, 1e-3f);
   return box().column().gap(2).width(262).children(
-      {box()
-           .row()
-           .gap(12)
-           .children({t(kit::formatted("z = %06.2f in", z),
-                        {.face = monoBoldFace(), .size = 9, .color = kAmber})})
-           .children(
-               {t(kit::formatted("m = ×%0.3f", kZ0In / std::max(z, 1e-3f)),
-                  {.size = 9, .color = kType2})}),
-       box()
-           .row()
-           .gap(12)
-           .children({t(kit::formatted("stamp %04d / %d", stampIdx, kKDisplay),
-                        {.size = 9, .color = kType2})})
-           .children({t(kit::formatted("ω = %0.4f", omega),
-                        {.size = 9, .color = al(kCold, 0.9f)})}),
+      {box().row().gap(12).children(
+           {t(kit::formatted("z = %06.2f in", z),
+              {.face = monoBoldFace(), .size = 9, .color = kAmber}),
+            t(kit::formatted("m = ×%0.3f", kZ0In / std::max(z, 1e-3f)),
+              {.size = 9, .color = kType2})}),
+       box().row().gap(12).children(
+           {t(kit::formatted("stamp %04d / %d", stampIdx, kKDisplay),
+              {.size = 9, .color = kType2}),
+            t(kit::formatted("ω = %0.4f", omega),
+              {.size = 9, .color = al(kCold, 0.9f)})}),
        t(kit::formatted("ONE ATLAS · %d×%d SHEET · ONE BAKE %.0f ms · "
                         "texWindows()",
                         sheetW, sheetH, bakeMs),

@@ -452,8 +452,8 @@ struct Ds2Bench : sketch::Sketch {
              .alignItems(Align::Center)
              .justify(Justify::SpaceBetween)
              .zIndex(8)
-             .children({text(c.caption).styleClass("circuit")})
-             .children({text(slots).styleClass("slots")}),
+             .children({text(c.caption).styleClass("circuit"),
+                        text(slots).styleClass("slots")}),
          box()
              .rect(SkRect::MakeXYWH(c.x0 - 34, c.y0 - 32, kRuleW, 1.0f))
              .shape(hline())
@@ -517,19 +517,13 @@ struct Ds2Bench : sketch::Sketch {
             .staggerChildren(70ms, Spread::From::Start);
 
     // the column heads: one register on the row, three bare runs under it
-    card.children(
+    card.children({box().row().height(14.0f).styleClass("head").children(
         {box()
-             .row()
-             .height(14.0f)
-             .styleClass("head")
-             .children({box()
-                            .width(160.0f)
-                            .alignItems(Align::End)
-                            .children({text("SPECIFICATION")})})
-             .children({box().width(35.0f)})
-             .children({text("NANOCIRCUIT LOAD")})
-             .children({box().grow(1)})
-             .children({box().width(84.0f).children({text("VALUE")})})});
+             .width(160.0f)
+             .alignItems(Align::End)
+             .children({text("SPECIFICATION")}),
+         box().width(35.0f), text("NANOCIRCUIT LOAD"), box().grow(1),
+         box().width(84.0f).children({text("VALUE")})})});
     for (int r = 0; r < kStatCount; ++r) card.children({statRow(r)});
     root.children(
         {std::move(card),
@@ -594,9 +588,8 @@ struct Ds2Bench : sketch::Sketch {
                                .fill(Paint::linear({0, 0}, {0, 28},
                                                    {{0.0f, kBrassLo},
                                                     {0.45f, hexColor(0x7E6318)},
-                                                    {1.0f, kBrassDk}}))})
-                      .children(
-                          {box()
+                                                    {1.0f, kBrassDk}})),
+                           box()
                                .rect(SkRect::MakeXYWH(2.0f, 2.0f, 62.0f, 27.0f))
                                .shape(shapes::squircle(2.0f))
                                .fill(
@@ -605,18 +598,17 @@ struct Ds2Bench : sketch::Sketch {
                                                   {0.4f, hexColor(0xD3AA33)},
                                                   {1.0f, hexColor(0x8E6F1E)}}))
                                .stroke(stroke(1.0f, Fill::color(hexColor(
-                                                        0xF3DC94, 0.75f))))})
-                      .children(
-                          {box()
+                                                        0xF3DC94, 0.75f)))),
+                           box()
                                .rect(
                                    SkRect::MakeXYWH(22.0f, 8.0f, 24.0f, 13.0f))
                                .shape(shapes::squircle(2.0f))
                                .stroke(stroke(1.3f, Fill::color(hexColor(
-                                                        0x74590F, 0.9f))))})})
-             .children({text("2")
-                            .styleClass("count")
-                            .key("nodecount")
-                            .transition({.duration = 200ms})}),
+                                                        0x74590F, 0.9f))))}),
+                  text("2")
+                      .styleClass("count")
+                      .key("nodecount")
+                      .transition({.duration = 200ms})}),
          box()
              .rect(SkRect::MakeXYWH(kCntX - 8, kBandY - 8, kCntW + 16,
                                     kBandH + 16))
@@ -677,10 +669,9 @@ struct Ds2Bench : sketch::Sketch {
                              q.circle(r, r, r * 0.8f);
                            })
                                .width(15.0f)
-                               .height(15.0f)})
-                      .children({text("Navigate")})})
-             .children({text("[Enter] Select")})
-             .children({text("[Esc] Exit")})});
+                               .height(15.0f),
+                           text("Navigate")}),
+                  text("[Enter] Select"), text("[Esc] Exit")})});
 
     // the empty hardware sockets the bezel carries at its bottom corners
     for (float x : {kPX + 34, kPR - 46}) {

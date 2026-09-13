@@ -491,17 +491,17 @@ auto Minard1869::advanceZones() -> Element {
 
 auto Minard1869::napoleonPanel() -> Element {
   auto g = box().inset(0);
-  g.children({lettering(doc()["napoleon"]["titles"], kDivHN, tLegend)});
-
   // the legend as a PARAGRAPH, which is what it is — not a key.
-  g.children({each(plate.legend, [this](const std::string& line, size_t i) {
-    const float t0 = tLegend + 0.25f + 0.16f * (float)i;
-    return text(line)
-        .font({.size = 9.8f, .track = 0.02f})
-        .at({i == 3 ? 148.0f : 128.0f, kDivHN + 58 + 14.6f * (float)i})
-        .key("nleg" + std::to_string(i))
-        .mask(by::edge(0.0f, beat(t0, t0 + 0.3f)));
-  })});
+  g.children(
+      {lettering(doc()["napoleon"]["titles"], kDivHN, tLegend),
+       each(plate.legend, [this](const std::string& line, size_t i) {
+         const float t0 = tLegend + 0.25f + 0.16f * (float)i;
+         return text(line)
+             .font({.size = 9.8f, .track = 0.02f})
+             .at({i == 3 ? 148.0f : 128.0f, kDivHN + 58 + 14.6f * (float)i})
+             .key("nleg" + std::to_string(i))
+             .mask(by::edge(0.0f, beat(t0, t0 + 0.3f)));
+       })});
 
   // the rivers of the Russian panel, each with its name in the sloped hand
   struct Water {
@@ -543,20 +543,6 @@ auto Minard1869::napoleonPanel() -> Element {
                                       {mapX(36.35f), mapY(55.95f)},
                                       "rMoskowa",
                                       -0.05f}}};
-  g.children({each(rivers, [this](const Water& w) {
-    const float t0 = tAdv + w.t0;
-    return box().inset(0).children(
-        {river(w.pts, 0.7f, hexColor(0x4e4436, 0.85f), w.key, t0),
-         text(w.label)
-             .font({.face = faceItalic,
-                    .size = 8,
-                    .color = hexColor(0x4e4436),
-                    .track = 0.6f})
-             .at(w.at)
-             .key(std::string(w.key) + "L")
-             .opacity(beat(t0 + 0.2f, t0 + 0.5f))});
-  })});
-
   // --- THE ADVANCE ------------------------------------------------------
   // The red-brown is a SEPARATE STONE from the black, so it is very
   // slightly out of register. One translate, and it is the single most
@@ -567,14 +553,29 @@ auto Minard1869::napoleonPanel() -> Element {
   // it moves. The stone also took unevenly: a very low-amplitude speckle
   // in the zone colour, NOT a gradient (the Commons p10/p90 are two units
   // apart).
-  g.children({box().inset(0).translateX(0.4f).translateY(-0.3f).children(
-      {advanceZones(), box()
-                           .inset(0)
-                           .fill(tintSpeckle.material())
-                           .blend(SkBlendMode::kMultiply)
-                           .opacity(0.06f)
-                           .cache(Cache::Texture)
-                           .key("tintwander")})});
+  g.children(
+      {each(rivers,
+            [this](const Water& w) {
+              const float t0 = tAdv + w.t0;
+              return box().inset(0).children(
+                  {river(w.pts, 0.7f, hexColor(0x4e4436, 0.85f), w.key, t0),
+                   text(w.label)
+                       .font({.face = faceItalic,
+                              .size = 8,
+                              .color = hexColor(0x4e4436),
+                              .track = 0.6f})
+                       .at(w.at)
+                       .key(std::string(w.key) + "L")
+                       .opacity(beat(t0 + 0.2f, t0 + 0.5f))});
+            }),
+       box().inset(0).translateX(0.4f).translateY(-0.3f).children(
+           {advanceZones(), box()
+                                .inset(0)
+                                .fill(tintSpeckle.material())
+                                .blend(SkBlendMode::kMultiply)
+                                .opacity(0.06f)
+                                .cache(Cache::Texture)
+                                .key("tintwander")})});
 
   // --- THE RETREAT ------------------------------------------------------
   struct Leg {
@@ -635,25 +636,25 @@ auto Minard1869::napoleonPanel() -> Element {
   numbersFor(plate.retWest, "nE", tRet + 0.9f, 0.06f);
   numbersFor(plate.retPolotzk, "nF", tRet + 0.8f, 0.05f);
   // what recrossed the Niemen
-  g.children({bandNumber({mapX(23.95f), mapY(54.4f)}, {1, 0}, 10000, kNumSize,
-                         "nG", tRet + 1.7f)});
-
   // --- the place names --------------------------------------------------
   // MOSCOU alone is set in spaced roman capitals, and it is the only word
   // on the map that is.
-  g.children({each(plate.cities, [this](const City& c, size_t i) {
-    const bool moscou = c.plate == "Moscou";
-    Element e = moscou
-                    ? text("MOSCOU")
+  g.children(
+      {bandNumber({mapX(23.95f), mapY(54.4f)}, {1, 0}, 10000, kNumSize, "nG",
+                  tRet + 1.7f),
+       each(plate.cities, [this](const City& c, size_t i) {
+         const bool moscou = c.plate == "Moscou";
+         Element e =
+             moscou ? text("MOSCOU")
                           .font({.face = faceRoman, .size = 13, .track = 2.2f})
                           .textStroke(0.5f, Fill::currentInk())
                     : text(c.plate).font(
                           {.face = faceItalic, .size = 9.6f, .track = 0.2f});
-    return e.at({mapX(c.lon) + c.dx, mapY(c.lat) + c.dy})
-        .key("city" + std::to_string(i))
-        .opacity(beat(tAdv + 0.1f + 0.03f * (float)i,
-                      tAdv + 0.4f + 0.03f * (float)i));
-  })});
+         return e.at({mapX(c.lon) + c.dx, mapY(c.lat) + c.dy})
+             .key("city" + std::to_string(i))
+             .opacity(beat(tAdv + 0.1f + 0.03f * (float)i,
+                           tAdv + 0.4f + 0.03f * (float)i));
+       })});
 
   // THE FLOOR, drawn on the plate itself: the blue outline is the width
   // Minard's crayon actually laid at the last treads (5.4 px on the
@@ -677,17 +678,16 @@ auto Minard1869::napoleonPanel() -> Element {
   }
 
   // THE CALIPER LIES. Minard's own bar, read against Minard's own map.
+  // the lieue bar, and its ticks
   g.children(
       {box()
            .inset(0)
            .styleSheet(weave::StyleSheet{
                {"amberInk", weave::Type{.color = kAmber}},
                {"amberQuiet", weave::Type{.color = hexColor(0xb5761e, 0.9f)}}})
-           .children({lettering(napoleon["bar.remarks"], 0.0f, tBar)})});
-
-  // the lieue bar, and its ticks
-  g.children({scaleBar(mapX(33.4f), 930.0f, 4.985f * 0.6549f, 50, 5,
-                       word("napoleon", "bar"), "nbar", tAdv + 1.7f)});
+           .children({lettering(napoleon["bar.remarks"], 0.0f, tBar)}),
+       scaleBar(mapX(33.4f), 930.0f, 4.985f * 0.6549f, 50, 5,
+                word("napoleon", "bar"), "nbar", tAdv + 1.7f)});
   return g;
 }
 
@@ -766,12 +766,20 @@ auto Minard1869::temperaturePanel() -> Element {
   for (size_t i = 0; i < curve.size(); ++i)
     i == 0 ? cb.moveTo(curve[i]) : cb.lineTo(curve[i]);
   const SkPath curvePath = cb.detach();
+  // the hatched underside: short ticks hanging off the curve
+  // THE DROPLINES. Nine of them, from the retreat band down through the
+  // divider into the graph. They are the joint between the two panels
+  // and they are the whole design. Nothing declares that the two panels
+  // share an abscissa: the lock is that both call the same mapX(lon).
+  //
+  // The annotation beside each is as engraved. 8bre / 9bre / Xbre are
+  // October / November / December — the old Roman-calendar notation, and
+  // a caption that "corrects" Xbre to 10bre is wrong twice over.
   g.children({inked(curvePath, stroke(1.2f, Fill::color(kInk)))
                   // right to left, the way the retreat runs
                   .mask(by::edge(180.0f, beat(tTemp + 0.4f, tTemp + 1.1f)))
-                  .key("tcurve")});
-  // the hatched underside: short ticks hanging off the curve
-  g.children({pen("thatch",
+                  .key("tcurve"),
+              pen("thatch",
                   [curvePath](Pen& p) {
                     p.noFill();
                     p.stroke(hexColor(0x38301f, 0.9f));
@@ -793,39 +801,30 @@ auto Minard1869::temperaturePanel() -> Element {
                   .inset(0)
                   .cache(Cache::Texture)
                   .key("thatch")
-                  .opacity(beat(tTemp + 0.6f, tTemp + 1.2f))});
-
-  // THE DROPLINES. Nine of them, from the retreat band down through the
-  // divider into the graph. They are the joint between the two panels
-  // and they are the whole design. Nothing declares that the two panels
-  // share an abscissa: the lock is that both call the same mapX(lon).
-  //
-  // The annotation beside each is as engraved. 8bre / 9bre / Xbre are
-  // October / November / December — the old Roman-calendar notation, and
-  // a caption that "corrects" Xbre to 10bre is wrong twice over.
-  g.children({each(plate.temps, [this](const Temp& t, size_t i) {
-    const float x = mapX(t.lon);
-    SkPathBuilder d;
-    d.moveTo(x, mapY(54.3f));
-    d.lineTo(x, tempY(t.reaumur));
-    // the rule fades as it crosses the panel divider
-    PathFormat f{
-        .width = 0.7f,
-        .strokeFill = Paint::linearUnit({0, 0}, {0, 1},
-                                        {{0.0f, hexColor(0x4e4436, 0.80f)},
-                                         {0.66f, hexColor(0x4e4436, 0.22f)},
-                                         {1.0f, hexColor(0x4e4436, 0.75f)}})};
-    return box().inset(0).children(
-        {inked(d.detach(), f, tTemp + 0.25f + 0.05f * (float)i,
-               tTemp + 0.55f + 0.05f * (float)i)
-             .key("drop" + std::to_string(i)),
-         text(t.label)
-             .font({.face = faceNum, .size = 7.4f, .track = 0.1f})
-             .at({x - 26, tempY(t.reaumur) + 5})
-             .key("tann" + std::to_string(i))
-             .opacity(beat(tTemp + 0.5f + 0.06f * (float)i,
-                           tTemp + 0.8f + 0.06f * (float)i))});
-  })});
+                  .opacity(beat(tTemp + 0.6f, tTemp + 1.2f)),
+              each(plate.temps, [this](const Temp& t, size_t i) {
+                const float x = mapX(t.lon);
+                SkPathBuilder d;
+                d.moveTo(x, mapY(54.3f));
+                d.lineTo(x, tempY(t.reaumur));
+                // the rule fades as it crosses the panel divider
+                PathFormat f{.width = 0.7f,
+                             .strokeFill = Paint::linearUnit(
+                                 {0, 0}, {0, 1},
+                                 {{0.0f, hexColor(0x4e4436, 0.80f)},
+                                  {0.66f, hexColor(0x4e4436, 0.22f)},
+                                  {1.0f, hexColor(0x4e4436, 0.75f)}})};
+                return box().inset(0).children(
+                    {inked(d.detach(), f, tTemp + 0.25f + 0.05f * (float)i,
+                           tTemp + 0.55f + 0.05f * (float)i)
+                         .key("drop" + std::to_string(i)),
+                     text(t.label)
+                         .font({.face = faceNum, .size = 7.4f, .track = 0.1f})
+                         .at({x - 26, tempY(t.reaumur) + 5})
+                         .key("tann" + std::to_string(i))
+                         .opacity(beat(tTemp + 0.5f + 0.06f * (float)i,
+                                       tTemp + 0.8f + 0.06f * (float)i))});
+              })});
 
   // the undated −11°, and its two independent recoveries
   const data::Json& temperature = doc()["temperature"];
@@ -841,9 +840,8 @@ auto Minard1869::temperaturePanel() -> Element {
                              const float t0 = tTemp + 1.35f + 0.15f * (float)i;
                              return text(std::string(n.text()))
                                  .opacity(beat(t0, t0 + 0.25f));
-                           })})});
-
-  g.children({lettering(temperature["notes"], 0.0f, tTemp)});
+                           })}),
+       lettering(temperature["notes"], 0.0f, tTemp)});
   return g;
 }
 

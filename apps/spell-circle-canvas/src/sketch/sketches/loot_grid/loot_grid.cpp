@@ -586,35 +586,33 @@ struct LootGrid final : sketch::Sketch {
              .inset(0)
              .cache(Cache::Texture)
              .bakeScale(0.34f)
-             .children({box()
-                            .inset(0)
-                            .fill(Paint::recipe(field::noise(0.9f, 4, 3.0f)))
-                            .opacity(0.34f)
-                            .blend(SkBlendMode::kOverlay)})
-             .children({box().inset(0).fill(
-                 Pattern(mpattern::gridLines(96.0f, 1.0f,
-                                             {0.62f, 0.50f, 0.26f, 0.10f}))
-                     .material())})
              .children(
                  {box()
+                      .inset(0)
+                      .fill(Paint::recipe(field::noise(0.9f, 4, 3.0f)))
+                      .opacity(0.34f)
+                      .blend(SkBlendMode::kOverlay),
+                  box().inset(0).fill(
+                      Pattern(mpattern::gridLines(96.0f, 1.0f,
+                                                  {0.62f, 0.50f, 0.26f, 0.10f}))
+                          .material()),
+                  box()
                       .inset(0)
                       .fill(Pattern(mpattern::gridLines(
                                         96.0f, 1.0f, {0.0f, 0.0f, 0.0f, 0.22f}))
                                 .material())
                       .translateX(1.0f)
                       .translateY(1.0f)}),
-         box()
-             .column()
-             .at({30, 34})
-             .children({text("HOARD OF THE HORADRIM")
-                            .font({.size = 23,
-                                   .color = lt::kParch,
-                                   .track = 3.4f,
-                                   .weight = 640})})
-             .children({text("grid inventory — generated "
-                             "materials, no sprites")
-                            .font({.size = 12, .track = 1.0f})
-                            .margin(0, 5, 0, 0)}),
+         box().column().at({30, 34}).children(
+             {text("HOARD OF THE HORADRIM")
+                  .font({.size = 23,
+                         .color = lt::kParch,
+                         .track = 3.4f,
+                         .weight = 640}),
+              text("grid inventory — generated "
+                   "materials, no sprites")
+                  .font({.size = 12, .track = 1.0f})
+                  .margin(0, 5, 0, 0)}),
          paperdoll(), gridPanel(), tooltip(), beltRack(), cubePanel(),
          box()
              .row()
@@ -628,15 +626,15 @@ struct LootGrid final : sketch::Sketch {
                                  {{0.0f, lt::kStoneHi}, {1.0f, lt::kStoneLo}}))
              .foreground(stroke(1.0f, Fill::color(lt::kBronzeDim)))
              .children({box().width(13.0f).height(13.0f).corners({6.5f}).fill(
-                 Paint::radial({5, 4}, 9,
-                               {{0.0f, hexColor(0xFFE9A8)},
-                                {0.6f, hexColor(0xD8A93C)},
-                                {1.0f, hexColor(0x7A5C15)}}))})
-             .children({text(goldText).font({.size = 17,
+                            Paint::radial({5, 4}, 9,
+                                          {{0.0f, hexColor(0xFFE9A8)},
+                                           {0.6f, hexColor(0xD8A93C)},
+                                           {1.0f, hexColor(0x7A5C15)}})),
+                        text(goldText).font({.size = 17,
                                              .color = hexColor(0xD8B95C),
                                              .track = 1.6f,
-                                             .weight = 620})})
-             .children({text("GOLD").font({.size = 10, .track = 2.2f})})});
+                                             .weight = 620}),
+                        text("GOLD").font({.size = 10, .track = 2.2f})})});
 
     // The two keys, bottom left and bottom right. Both are
     // `sketch::kit::legend` under the sheet's own theme: a dim body
