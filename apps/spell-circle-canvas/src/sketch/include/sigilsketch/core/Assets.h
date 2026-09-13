@@ -20,7 +20,8 @@
 
 namespace sigil::data {
 class Table;
-}
+class Database;
+}  // namespace sigil::data
 
 namespace sigil::sketch {
 
@@ -34,7 +35,15 @@ namespace sigil::sketch {
  *  the filesystem. */
 class Assets {
  public:
-  explicit Assets(std::filesystem::path root);
+  /** @p root mounts at `res://`; @p sketches, the directory the sketch
+   *  sources stand in, mounts at `sketch://`, under which a sketch's own
+   *  files are `sketch://<key>/name`. */
+  explicit Assets(std::filesystem::path root,
+                  std::filesystem::path sketches = {});
+  /** Mounts @p directory as the files of the sketch keyed @p key — what a
+   *  workspace sketch opened by path needs, since its files stand beside
+   *  that path and not under the sketches the build compiled. */
+  void mountSketch(std::string_view key, std::filesystem::path directory);
 
   /** The image at "res://<name>", cached by the hub. Never null: a
    *  missing or undecodable file yields the placeholder until it
@@ -57,6 +66,10 @@ class Assets {
    *  the host's. Asked through this one function, a sketch reads its
    *  data whether it was compiled in or swapped in while running. */
   std::shared_ptr<const sigil::data::Table> table(std::string_view name);
+  /** A SQL store — a `.sqlite`, `.sqlite3`, `.db` or `.duckdb` file —
+   *  opened in place, cached and reopened when the file changes. Null
+   *  until it loads or when it is not one. */
+  std::shared_ptr<const sigil::data::Database> database(std::string_view name);
 
   /** The full resource hub (text/blob/probe/EXR layers…) with the
    *  sketch's assets directory mounted at "res://". */
@@ -76,6 +89,7 @@ class Assets {
   };
 
   std::filesystem::path m_root;
+  std::filesystem::path m_sketches;
   sigil::io::Hub m_hub;
   boost::container::flat_map<std::string, bool, std::less<>>
       m_placeholders;  // name → waiting

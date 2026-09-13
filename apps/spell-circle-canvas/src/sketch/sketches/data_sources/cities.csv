@@ -1,0 +1,13 @@
+city,country,population,coastal,founded
+Antwerp,Belgium,530000,true,1200-01-01
+Ghent,Belgium,265000,false,0650-01-01
+Bruges,Belgium,118000,true,0840-01-01
+Rotterdam,Netherlands,655000,true,1270-01-01
+Utrecht,Netherlands,360000,false,0047-01-01
+Groningen,Netherlands,235000,false,1040-01-01
+Hamburg,Germany,1850000,true,0808-01-01
+Bremen,Germany,570000,true,0787-01-01
+Leipzig,Germany,600000,false,1015-01-01
+Aarhus,Denmark,285000,true,0770-01-01
+Odense,Denmark,180000,false,0988-01-01
+Bergen,Norway,285000,true,1070-01-01

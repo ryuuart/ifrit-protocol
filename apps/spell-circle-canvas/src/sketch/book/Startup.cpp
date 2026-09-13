@@ -74,7 +74,8 @@ sigil::weave::FontContext& fonts() {
 }
 
 sketch::Assets& assets() {
-  static auto* store = new sketch::Assets(SIGIL_SKETCH_ASSET_DIR);
+  static auto* store =
+      new sketch::Assets(SIGIL_SKETCH_ASSET_DIR, SIGIL_SKETCH_DIR);
   return *store;
 }
 

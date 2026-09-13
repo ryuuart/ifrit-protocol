@@ -4,6 +4,7 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>
 #include <sigildata/decode/Decoders.h>
+#include <sigildata/query/Database.h>
 #include <sigilio/hub/Network.h>
 
 namespace sigil::sketch {
@@ -29,19 +30,40 @@ std::shared_ptr<const sigil::image::ImageAsset> makePlaceholder() {
       sigil::image::ImageAsset::wrap(surface->makeImageSnapshot()));
 }
 
+/** A name is a resource under `res://`; a URI written whole — one the
+ *  context's `local()` spelled, or any other mount — is itself. */
 std::string uriFor(std::string_view name) {
+  if (name.find("://") != std::string_view::npos) return std::string(name);
   return "res://" + std::string(name);
 }
 
 }  // namespace
 
-Assets::Assets(std::filesystem::path root) : m_root(std::move(root)) {
+Assets::Assets(std::filesystem::path root, std::filesystem::path sketches)
+    : m_root(std::move(root)), m_sketches(std::move(sketches)) {
   m_hub.mount("res://", m_root);
+  // A sketch's own files stand beside it: `sketch://<key>/name` is the
+  // file `name` in the directory the sketch's entry stands in, which for
+  // a directory sketch is its own and for a bare file is the folder the
+  // sketches share. A sketch that carries data of its own is a directory.
+  if (!m_sketches.empty()) m_hub.mount("sketch://", m_sketches);
   // A data file is a resource like an image is: with the decoders on,
   // hub().load<Table>("res://data/x.csv") answers, cached and reloaded
-  // by the same machinery, and a sketch carries no literal table.
+  // by the same machinery, and a sketch carries no literal table. A
+  // database file answers the same way, opened in place.
   sigil::data::registerDecoders(m_hub);
+  m_hub.registerDecoder<sigil::data::Database>(sigil::data::DatabaseDecoder{});
   m_placeholder = makePlaceholder();
+}
+
+void Assets::mountSketch(std::string_view key,
+                         std::filesystem::path directory) {
+  m_hub.mount("sketch://" + std::string(key) + "/", std::move(directory));
+}
+
+std::shared_ptr<const sigil::data::Database> Assets::database(
+    std::string_view name) {
+  return m_hub.load<sigil::data::Database>(uriFor(name));
 }
 
 std::shared_ptr<const sigil::image::ImageAsset> Assets::image(

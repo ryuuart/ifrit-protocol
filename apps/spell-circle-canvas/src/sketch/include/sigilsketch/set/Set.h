@@ -144,8 +144,8 @@ class SetKind final : public KindOperations {
    *  is nothing a set could have measured about its own execution and
    *  the determinism answer has nothing to pin. */
   [[nodiscard]] std::unique_ptr<Session> open(
-      weave::FontContext& fonts, Assets& assets,
-      bool deterministic) const override;
+      weave::FontContext& fonts, Assets& assets, bool deterministic,
+      std::string_view key) const override;
 
  private:
   Factory m_factory;

@@ -12,6 +12,7 @@
     "boost-unordered",
     "cdt",
     "cgltf",
+    "duckdb",
     "choreograph",
     "concurrentqueue",
     "curl",
@@ -76,6 +77,7 @@
     },
     "simdjson",
     "spdlog",
+    "sqlite3",
     "stb",
     {
       "name": "syphon",

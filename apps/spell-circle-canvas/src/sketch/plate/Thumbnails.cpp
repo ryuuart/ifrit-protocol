@@ -189,7 +189,7 @@ ThumbnailOutcome renderThumbnail(const Entry& entry, weave::FontContext& fonts,
   // Deterministic, so a sketch that measured something about its own
   // execution pins it — a thumbnail is a picture that will be looked at
   // beside a plate, and the two must agree.
-  std::unique_ptr<Session> session = kind->open(fonts, assets, true);
+  std::unique_ptr<Session> session = kind->open(fonts, assets, true, entry.key);
   if (!session) return ThumbnailOutcome::Failed;
   // The plate tier renders with cost-based promotion held off; a
   // thumbnail must be that same picture.

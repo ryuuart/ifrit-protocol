@@ -53,6 +53,15 @@ struct SketchContext {
   /** Host-owned: the texture scenes `textureScene()` handed out, kept
    *  for the session's life. */
   std::vector<std::shared_ptr<compose::TextureScene>>* scenes = nullptr;
+  /** The sketch's registry key, and the files beside it: `local("x.csv")`
+   *  is the URI of the file `x.csv` in the directory the sketch's entry
+   *  stands in, which `assets.table()`, `assets.image()`,
+   *  `assets.database()` and the hub take as they take any URI. Empty
+   *  when the session was opened without a key. */
+  std::string_view key;
+  [[nodiscard]] std::string local(std::string_view name) const {
+    return "sketch://" + std::string(key) + "/" + std::string(name);
+  }
 
   SketchContext(
       compose::Composer& composerIn, sigil::motion::Ticker& tickerIn,
@@ -60,7 +69,8 @@ struct SketchContext {
       CanvasSpecification* specificationIn = nullptr,
       sigil::weave::FontContext* fontsIn = nullptr,
       bool deterministicIn = false,
-      std::vector<std::shared_ptr<compose::TextureScene>>* scenesIn = nullptr)
+      std::vector<std::shared_ptr<compose::TextureScene>>* scenesIn = nullptr,
+      std::string_view keyIn = {})
       : composer(composerIn),
         ticker(tickerIn),
         assets(assetsIn),
@@ -68,6 +78,7 @@ struct SketchContext {
         specification(specificationIn),
         fonts(fontsIn),
         scenes(scenesIn),
+        key(keyIn),
         deterministic(deterministicIn) {}
   SketchContext(const SketchContext&) = delete;
   SketchContext& operator=(const SketchContext&) = delete;
@@ -313,8 +324,8 @@ class CanvasKind final : public KindOperations {
   [[nodiscard]] std::string_view runtime() const override { return "canvas"; }
 
   [[nodiscard]] std::unique_ptr<Session> open(
-      weave::FontContext& fonts, Assets& assets,
-      bool deterministic) const override;
+      weave::FontContext& fonts, Assets& assets, bool deterministic,
+      std::string_view key) const override;
 
  private:
   Factory m_factory;

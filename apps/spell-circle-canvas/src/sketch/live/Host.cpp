@@ -176,7 +176,16 @@ void Host::openSession(const Kind& kind) {
   if (!kind) return;
   {
     PhaseMark mark(Phase::Setup);
-    m_session = kind->open(m_fonts, m_assets, m_options.deterministic);
+    // A compiled-in sketch is keyed by its entry; a workspace sketch by
+    // its file's stem, with the files beside that file mounted as its own.
+    std::string key;
+    if (m_options.compiledIn) {
+      key = m_options.compiledIn->key;
+    } else if (!m_options.sketchPath.empty()) {
+      key = m_options.sketchPath.stem().string();
+      m_assets.mountSketch(key, m_options.sketchPath.parent_path());
+    }
+    m_session = kind->open(m_fonts, m_assets, m_options.deterministic, key);
   }
   m_workMs.clear();  // fresh sketch, fresh numbers
   m_drawMs.clear();

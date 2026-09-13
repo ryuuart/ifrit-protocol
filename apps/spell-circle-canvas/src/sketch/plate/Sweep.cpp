@@ -219,7 +219,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     std::unique_ptr<Session> session;
     {
       PhaseMark mark(Phase::Setup);
-      session = kind->open(fonts, assets, true);
+      session = kind->open(fonts, assets, true, entry.key);
     }
     if (options.noPromotion) session->setAutoPromotion(Session::Promotion::Off);
     if (options.promotion) session->setAutoPromotion(Session::Promotion::Eager);
@@ -372,7 +372,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     // frame the benchmarked sweep captures.
     if (options.ledger && declared <= 0) declared = kCaptureFrame / kRate;
     if (declared > 0) {
-      session = kind->open(fonts, assets, true);
+      session = kind->open(fonts, assets, true, entry.key);
       if (options.noPromotion)
         session->setAutoPromotion(Session::Promotion::Off);
       if (options.promotion)

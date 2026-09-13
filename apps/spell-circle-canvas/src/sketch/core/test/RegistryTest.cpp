@@ -20,7 +20,8 @@ using namespace sigil::sketch;
 struct StillKind final : KindOperations {
   [[nodiscard]] std::string_view runtime() const override { return "still"; }
   [[nodiscard]] std::unique_ptr<Session> open(sigil::weave::FontContext&,
-                                              Assets&, bool) const override {
+                                              Assets&, bool,
+                                              std::string_view) const override {
     return nullptr;
   }
   bool operator==(const StillKind&) const { return true; }

@@ -5,5 +5,6 @@
 #include "sigildata/decode/Csv.h"
 #include "sigildata/decode/Decoders.h"
 #include "sigildata/decode/Json.h"
+#include "sigildata/query/Database.h"
 #include "sigildata/scale/Scale.h"
 #include "sigildata/table/Table.h"

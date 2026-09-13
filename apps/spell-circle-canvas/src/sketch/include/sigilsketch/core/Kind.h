@@ -40,9 +40,11 @@ struct KindOperations {
   /** What this kind draws through, named — how a host selects part of a
    *  registry it does not otherwise interpret. */
   [[nodiscard]] virtual std::string_view runtime() const = 0;
+  /** @p key is the sketch's registry key, which the session hands its
+   *  context so `local()` can name the sketch's own files. */
   [[nodiscard]] virtual std::unique_ptr<Session> open(
-      weave::FontContext& fonts, Assets& assets,
-      bool deterministic = false) const = 0;
+      weave::FontContext& fonts, Assets& assets, bool deterministic = false,
+      std::string_view key = {}) const = 0;
 
   /** WHETHER A SESSION OF THIS KIND DRAWS THROUGH A DEVICE, so a host
    *  brings one up for a selection that holds one and not otherwise —

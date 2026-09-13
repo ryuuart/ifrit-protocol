@@ -6,7 +6,10 @@ contiguous spans a drawing walks straight down, and reshapes by
 selecting, filtering, sorting and grouping into new tables. It arrives
 by URI: registering this library's decoders on a resource hub makes a
 `.csv`, `.tsv` or `.json` file `hub.load<Table>(uri)`, cached and
-reloaded like anything else. A `Scale`
+reloaded like anything else, and a `.sqlite` or `.duckdb` file
+`hub.load<Database>(uri)`: a SQL store whose every query answers a
+`Table`, so data shaped in SQL and data shaped with `Table::filter` draw
+from one value. A `Scale`
 carries a domain, a range and the transform between them and answers
 where a value lands, which value a position came from, and which values
 deserve a label. Everything that would otherwise be a family of
@@ -25,6 +28,7 @@ what a consumer uses; every public header lives under
 | `SigilDataScale` | `scale/Scale.h` | `Interval`, `Transform`, `Overflow` and `Scale` — the mapping, its inverse, its tick ladder and `nice()` |
 | `SigilDataTable` | `table/Table.h` | `Instant`, `Flag`, `Value`, `ColumnType`, `Order`, `Column` and `Table` — named typed columns, the cells as spans, and the reshapings |
 | `SigilDataDecode` | `decode/Csv.h`, `decode/Json.h`, `decode/Decoders.h` | `CsvOptions`, `decodeCsv()`, `decodeInstant()`; `Json`, `decodeJson()`, `tableFromJson()`; and `TableDecoder`, `JsonDecoder` and `registerDecoders(hub)` — the two decoders and the one call that puts them on a hub |
+| `SigilDataQuery` | `query/Database.h` | `Engine`, `Database` and `DatabaseDecoder`, with `engineOf()` — a SQL store behind one seam, SQLite or DuckDB, whose `query()` answers a `Table`, whose `insert()` writes one in, and whose decoder puts a `.sqlite` or `.duckdb` file on a hub |
 
 `SigilData` is the umbrella target over them, and `<sigildata/Data.h>`
 the umbrella header.
@@ -46,6 +50,21 @@ const std::shared_ptr<const Table> deaths =
     hub.load<Table>("res://data/nightingale.csv");
 const std::shared_ptr<const Json> tree =
     hub.load<Json>("res://data/passives.json");
+
+// A SQL store beside the data: a file by its extension, or an empty one in
+// memory, and a query that answers the same Table a CSV decodes to. A
+// Table already decoded is written in, so a CSV can be joined and
+// aggregated in SQL; DuckDB reads a CSV straight from a query as well.
+std::optional<Database> store = Database::open(hub.path("res://data/cities.sqlite"));
+const std::optional<Table> coastal =
+    store->query("SELECT city, population FROM cities WHERE coastal ORDER BY population DESC");
+std::optional<Database> scratch = Database::memory(Engine::Duck);
+scratch->insert("deaths", *deaths);
+const std::optional<Table> byMonth =
+    scratch->query("SELECT month, SUM(count) AS count FROM deaths GROUP BY month ORDER BY month");
+// Through the hub, cached and reloaded like anything else — a file on
+// disk is opened in place, so both engines answer.
+const std::shared_ptr<const Database> cities = hub.load<Database>("res://data/cities.sqlite");
 
 // A linear axis, and the two questions a drawing asks of it.
 const Scale x{.domain = {0, 1000}, .range = {40, 760}};

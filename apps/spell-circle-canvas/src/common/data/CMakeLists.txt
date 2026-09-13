@@ -17,10 +17,11 @@ sigil_library_root(SigilData
 add_subdirectory(scale)
 add_subdirectory(table)
 add_subdirectory(decode)
+add_subdirectory(query)
 
 sigil_library(SigilData
   HEADERS Data.h
-  INTERFACE SigilDataScale SigilDataTable SigilDataDecode)
+  INTERFACE SigilDataScale SigilDataTable SigilDataDecode SigilDataQuery)
 
 # Every API name the prose spells, compiled against the headers that own
 # it.

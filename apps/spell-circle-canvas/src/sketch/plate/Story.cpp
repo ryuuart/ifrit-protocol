@@ -164,7 +164,8 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
         ++skipped;
         continue;
       }
-      std::unique_ptr<Session> session = kind->open(fonts, assets, true);
+      std::unique_ptr<Session> session =
+          kind->open(fonts, assets, true, entry.key);
       if (!session) {
         std::printf("story %-24s [skipped: did not open]\n", entry.name);
         ++skipped;

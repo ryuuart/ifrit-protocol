@@ -1250,7 +1250,19 @@ The directory form and relative local includes work the same way wherever
 the entry stands. Framework headers come from the flags this checkout builds.
 
 `assets/` beside the sketch is the default root, and `--assets <dir>`
-names another. Saving `palette.h` rebuilds the sketch that includes it.
+names another. A sketch's OWN files stand beside it: `ctx.local("x.csv")`
+is the URI of `x.csv` in the directory the sketch's entry stands in —
+`sketch://<key>/x.csv`, the sketches folder mounted at `sketch://` —
+which `ctx.assets.table()`, `ctx.assets.image()`,
+`ctx.assets.database()` and the hub take as they take any URI. For a
+directory sketch that directory is its own, for a bare file it is the
+folder the sketches share, so a sketch that carries data of its own is
+written as a directory, and a workspace sketch opened by path has the
+files beside that path. A `.sqlite` or `.duckdb` file is a data source
+like a CSV is: `ctx.assets.database(ctx.local("cities.sqlite"))` opens
+it in place, cached and reopened when it changes, and its `query()`
+answers the same `Table` the CSV decodes to. Saving `palette.h` rebuilds
+the sketch that includes it.
 Compiling is what makes a workspace file visible, so the flags the build
 captured have to be there: the workspace and the `Sketchbook` it opens
 in are the same machine and the same checkout, and after rebuilding the

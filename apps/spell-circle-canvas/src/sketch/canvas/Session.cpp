@@ -71,11 +71,13 @@ class CanvasSession final : public Session {
  public:
   CanvasSession(Sketch* sketch, weave::FontContext& fonts, Assets& assets,
                 bool deterministic,
-                const geometry::mesh::render::Runtime& painter)
+                const geometry::mesh::render::Runtime& painter,
+                std::string_view key = {})
       : m_fonts(fonts),
         m_assets(assets),
         m_sketch(sketch),
         m_painter(painter ? painter : geometry::mesh::render::Runtime::cpu()),
+        m_key(key),
         m_deterministic(deterministic) {
     // Setup declares too, so the painter is the session's from the first
     // line of the body onward.
@@ -318,11 +320,12 @@ class CanvasSession final : public Session {
     // the only way it travels.
     return SketchContext{*m_composer,          m_ticker,         m_assets,
                          m_specification.size, &m_specification, &m_fonts,
-                         m_deterministic,      &m_scenes};
+                         m_deterministic,      &m_scenes,        m_key};
   }
 
   weave::FontContext& m_fonts;
   Assets& m_assets;
+  std::string m_key;  // the sketch's registry key, for the context's local()
   motion::FrameClock m_clock;
   motion::Ticker m_ticker;
   CanvasSpecification m_specification;
@@ -349,11 +352,11 @@ class CanvasSession final : public Session {
 }  // namespace
 
 std::unique_ptr<Session> CanvasKind::open(weave::FontContext& fonts,
-                                          Assets& assets,
-                                          bool deterministic) const {
+                                          Assets& assets, bool deterministic,
+                                          std::string_view key) const {
   return std::make_unique<CanvasSession>(
       m_factory(), fonts, assets, deterministic,
-      m_painter ? *m_painter : painterRuntime());
+      m_painter ? *m_painter : painterRuntime(), key);
 }
 
 Kind onPainterRuntime(const Kind& kind,
