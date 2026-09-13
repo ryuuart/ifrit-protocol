@@ -507,15 +507,10 @@ inline SkPath rectPath(float l, float t, float r, float bm) {
   return p.detach();
 }
 
-inline weave::TextStyle type(sk_sp<SkTypeface> face, float size,
-                             SkColor4f color, float tracking = 0) {
-  return weave::textStyle({.face = std::move(face),
-                           .size = size,
-                           .color = color,
-                           .track = tracking});
-}
-/** The same four as a PARTIAL, for a line set over what its card
- *  inherits — a card's title. */
+/** A positional shorthand over the library's designated-init `weave::Type`
+ *  for the line a card is headed with: a PARTIAL over what the card
+ *  inherits. Every other line writes its partial in place and names only
+ *  what differs from the sheet or the card it stands in. */
 inline weave::Type partial(sk_sp<SkTypeface> face, float size, SkColor4f color,
                            float tracking = 0) {
   return {
