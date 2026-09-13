@@ -96,6 +96,21 @@ TEST(SketchKitTheme, ARegisterAsAFontIsItsFaceSizeAndTrackAndNoColour) {
   EXPECT_EQ(house.font(house.type.footer).face, house.type.sans);
 }
 
+TEST(SketchKitTheme, ARegisterInTheHouseSansStatesTheDefaultFamily) {
+  // The house theme leaves its sans as the font context's default family,
+  // and a register set in it SAYS so: under an ancestor that named a face,
+  // a caption is still set in the register's own family.
+  const kit::Theme& house = kit::houseTheme();
+  const sigil::weave::Type note = house.font(house.type.captionNote);
+  ASSERT_TRUE(note.face.has_value());
+  EXPECT_EQ(*note.face, nullptr);
+  sigil::weave::Type serif = sigil::weave::initialType();
+  serif.face = SkTypeface::MakeEmpty();
+  const sigil::weave::Type under = sigil::weave::overlay(serif, note);
+  ASSERT_TRUE(under.face.has_value());
+  EXPECT_EQ(*under.face, nullptr) << "not the serif above it";
+}
+
 TEST(SketchKitTheme, TheRegistersAreClassesUnderABoundTheme) {
   namespace environment = sigil::core::environment;
   EXPECT_EQ(environment::inherited<sigil::weave::StyleSheet>(), nullptr);

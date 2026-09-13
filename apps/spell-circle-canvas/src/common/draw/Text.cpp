@@ -65,7 +65,9 @@ std::vector<std::string_view> linesOf(std::string_view text) {
 }  // namespace
 
 sk_sp<SkTypeface> Pen::face() {
-  if (m_style.type.face) return m_style.type.face;
+  // A face the pen was told wins; the default family stated, or none
+  // stated, falls through to the pen's own family matching.
+  if (m_style.type.face && *m_style.type.face) return *m_style.type.face;
   if (m_style.matched) return m_style.matched;
   if (!m_fonts) return nullptr;
   const sk_sp<SkTypeface>& base = m_fonts->defaultTypeface();
@@ -101,7 +103,7 @@ void Pen::textSize(float size) {
 
 void Pen::textFont(std::string_view family) {
   m_style.family.assign(family);
-  m_style.type.face = nullptr;
+  m_style.type.face.reset();
   m_style.matched = nullptr;
   m_style.typeSet = true;
 }

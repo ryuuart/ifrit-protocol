@@ -62,9 +62,13 @@ namespace sigil::weave {
  *  Those are added to the RETURNED style at the call site, and a leaf that
  *  carries them is set in a whole `TextStyle`. */
 struct Type {
-  /** null → unset: the face inherited, or the FontContext's default family
-   *  (plus its fallback chain) when nothing above names one. */
-  sk_sp<SkTypeface> face;
+  /** Unset → the face inherited, or the FontContext's default family
+   *  (plus its fallback chain) when nothing above names one. A STATED
+   *  NULL — `.face = nullptr`, or `defaultFace()` — is the default family
+   *  outright, whatever an ancestor named: the one way a passage under a
+   *  faced ancestor returns to the context's own family, as CSS's
+   *  `font-family: initial` is. */
+  std::optional<sk_sp<SkTypeface>> face;
   /** The type size. Pixels are implicit, so `.size = 13` is thirteen of
    *  them; a relative length is resolved against what it is overlaid on. */
   std::optional<Length> size;
@@ -102,7 +106,13 @@ struct Type {
    *  float by multiplying by 1/255 where `hexColor()` divides by 255, which
    *  lands one ulp apart on 126 of the 256 byte values. A palette taken
    *  from a reference's own ARGB words wants this ladder; a colour
-   *  computed in float does not. */
+   *  computed in float does not.
+   *
+   *  A run or a span restyle written as a partial takes the ladder from
+   *  the partial itself: one that names a colour under a `color8` base
+   *  restates the flag to keep the byte ladder, since the base's colour is
+   *  already a number in its paint and only the colour named here is
+   *  sent through the byte. */
   std::optional<bool> color8;
   /** Anything else in design space — appended after weight/slant, so the
    *  order is stable and two styles built the same way share one
@@ -148,11 +158,11 @@ struct Type {
   /** Whether it states NOTHING — the partial that changes no field, which
    *  overlays onto anything as itself. */
   [[nodiscard]] bool empty() const {
-    return face == nullptr && !size && !color && !track && !condense &&
-           !weight && !slant && !aliased && !antiAlias && !color8 &&
-           variations.empty() && !language && !features && !opticalKerning &&
-           !wordSpacing && !textTransform && !verticalForm && !decorations &&
-           !underlays && !overlays;
+    return !face && !size && !color && !track && !condense && !weight &&
+           !slant && !aliased && !antiAlias && !color8 && variations.empty() &&
+           !language && !features && !opticalKerning && !wordSpacing &&
+           !textTransform && !verticalForm && !decorations && !underlays &&
+           !overlays;
   }
 };
 
@@ -163,6 +173,10 @@ struct Type {
  *  decorations and passes change. A consumer that can repaint a range
  *  without re-shaping it asks this first. */
 [[nodiscard]] bool reshapes(const Type& partial);
+
+/** THE FACE STATED AS THE FONT CONTEXT'S DEFAULT FAMILY: what a `Type`
+ *  says with `.face = defaultFace()`, and what `initialType()` carries. */
+[[nodiscard]] inline sk_sp<SkTypeface> defaultFace() { return nullptr; }
 
 /** EVERY FIELD ENGAGED, WITH THE VALUE AN UNSET ONE MEANS when nothing is
  *  left above it to inherit from: a null face (the font context's default

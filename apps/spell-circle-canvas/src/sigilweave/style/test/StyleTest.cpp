@@ -413,6 +413,29 @@ TEST(Type, ARelativeWordSpacingResolvesAgainstTheSizeTheTypeComesTo) {
   EXPECT_FLOAT_EQ(overlay(built, quarter).shaping.wordSpacing, 7.5f);
 }
 
+TEST(Type, AStatedNullFaceIsTheDefaultFamilyAndAnUnsetOneInherits) {
+  // Under a face, a partial that says nothing about the face keeps it; one
+  // that states the default family returns to the context's own.
+  Type base = initialType();
+  base.face = SkTypeface::MakeEmpty();
+  ASSERT_TRUE(base.face && *base.face);
+  Type silent;
+  silent.size = 12.0f;
+  EXPECT_EQ(*overlay(base, silent).face, *base.face) << "unset: inherited";
+  Type reset;
+  reset.face = defaultFace();
+  const Type total = overlay(base, reset);
+  ASSERT_TRUE(total.face.has_value());
+  EXPECT_EQ(*total.face, nullptr) << "stated: the default family";
+  EXPECT_EQ(toTextStyle(total).shaping.typeface, nullptr);
+  TextStyle built = textStyle(base);
+  EXPECT_EQ(overlay(built, reset).shaping.typeface, nullptr);
+  EXPECT_EQ(overlay(built, silent).shaping.typeface, *base.face);
+  EXPECT_TRUE(reshapes(reset)) << "a face stated, even the default, reshapes";
+  EXPECT_TRUE(Type{}.empty());
+  EXPECT_FALSE(reset.empty());
+}
+
 TEST(Type, OnlyAFieldThatChangesTheShapeReshapes) {
   EXPECT_FALSE(reshapes({}));
   EXPECT_FALSE(reshapes({.color = SkColor4f{1, 0, 0, 1}}));

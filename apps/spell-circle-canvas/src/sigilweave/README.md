@@ -317,6 +317,11 @@ written about one passage into one partial, without resolving anything.
 engaged with the value an unset one means — so `weave::textStyle(t)` is a
 partial over those, and `weave::toTextStyle` the style a total comes to.
 
+A face left unset inherits; a face STATED as null, `weave::defaultFace()`,
+is the font context's default family outright, whatever an ancestor
+named — CSS's `font-family: initial`, and the one way back to the
+context's own family under a faced ancestor.
+
 A partial carries everything a passage inherits, not the numbers alone:
 the shaping controls — features, language, optical kerning, word spacing,
 case, vertical form — and the paint around the colour — the line

@@ -175,7 +175,10 @@ nothing and is set exactly as it was written, so a sheet drawn before this
 paragraph existed draws the same. The sheet's own title, subtitle and
 footer and the caption voice are the exception: they are partials,
 `Theme::font(register, colour)`, set over what the page inherits — the
-same picture, stated in the cascade's terms.
+same picture, stated in the cascade's terms. A register always states its
+face: one set in the theme's sans, which the house theme leaves as the
+font context's default family, says so, and a caption under an ancestor
+that named a face is still set in the register's own.
 
 **A PLATE IS A WELL WITH TWO MORE FIELDS.** A grounded panel with rounded
 corners and one hairline round it is what a page puts a heading, a rack of

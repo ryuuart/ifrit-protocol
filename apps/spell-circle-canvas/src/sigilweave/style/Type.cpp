@@ -67,6 +67,7 @@ float sizeAgainst(const Type& base) {
 
 Type initialType() {
   Type initial;
+  initial.face = defaultFace();
   initial.size = Length(kInitialSizePx);
   initial.color = SkColor4f{0, 0, 0, 1};
   initial.track = Length(0.0f);
@@ -134,7 +135,7 @@ Type overlay(const Type& base, const Type& over, float rootSizePx,
 
 TextStyle toTextStyle(const Type& total) {
   TextStyle style;
-  style.shaping.typeface = total.face;
+  style.shaping.typeface = total.face.value_or(nullptr);
   style.shaping.fontSize =
       total.size ? resolvePx(*total.size, kInitialSizePx, kInitialSizePx, 0.0f)
                  : kInitialSizePx;
@@ -171,7 +172,7 @@ TextStyle toTextStyle(const Type& total) {
 }
 
 TextStyle overlay(TextStyle base, const Type& over) {
-  if (over.face) base.shaping.typeface = over.face;
+  if (over.face) base.shaping.typeface = *over.face;
   if (over.size) {
     const float against =
         base.shaping.fontSize > 0 ? base.shaping.fontSize : kInitialSizePx;
@@ -209,7 +210,7 @@ TextStyle overlay(TextStyle base, const Type& over) {
 }
 
 bool reshapes(const Type& partial) {
-  return partial.face != nullptr || partial.size || partial.track ||
+  return partial.face.has_value() || partial.size || partial.track ||
          partial.condense || partial.weight || partial.slant ||
          partial.aliased || !partial.variations.empty() || partial.language ||
          partial.features || partial.opticalKerning || partial.wordSpacing ||

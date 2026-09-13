@@ -5,6 +5,10 @@
 namespace sigil::sketch::kit {
 
 weave::Type Theme::font(const Register& line) const {
+  // The face is always STATED: a register set in the theme's sans, which
+  // the house theme leaves as the font context's default family, says so,
+  // so a caption under an ancestor that named a face is still set in the
+  // register's own.
   return {.face = line.face ? line.face : (line.mono ? type.mono : type.sans),
           .size = line.size,
           .track = line.track};
