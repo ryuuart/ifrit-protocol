@@ -534,17 +534,11 @@ inline std::vector<Piece> retePieces(const Rete& r) {
 // ---------------------------------------------------------------------------
 // paint helpers
 
-// A positional shorthand over the library's designated-init `textStyle()`:
-// this plate has ONE type signature and ~140 call sites, and the library
-// spells it as a designated-init aggregate precisely so a file like this can
-// name its own four parameters over it.
-inline weave::TextStyle type(sk_sp<SkTypeface> face, float size, SkColor4f c,
-                             float tracking = 0) {
-  return weave::textStyle(
-      {.face = std::move(face), .size = size, .color = c, .track = tracking});
-}
-/** The same four as a PARTIAL, for a line set over what its sheet
- *  inherits — a panel's title. */
+/** A positional shorthand over the library's designated-init `weave::Type`
+ *  for the two lines a panel's sheet is headed with: a PARTIAL over what
+ *  the panel inherits. Every other line on the plate writes its partial in
+ *  place and names only what differs from the panel it stands in — the
+ *  panel's ink, and a face and size where a panel is set in one. */
 inline weave::Type partial(sk_sp<SkTypeface> face, float size, SkColor4f c,
                            float tracking = 0) {
   return {.face = std::move(face), .size = size, .color = c, .track = tracking};

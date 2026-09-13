@@ -404,8 +404,11 @@ auto ChaucerAstrolabe::limb() -> Element {
     const float f = kPlateAngles.fraction(psi);
     const float rr = 1.104f * kR;
     g.child(
-        text(toUtf8(std::to_string(deg == 0 ? 360 : deg)),
-             type(faceLimb, 0.026f * kR, hexColor(0x33240c, 0.92f), 0.6f))
+        text(toUtf8(std::to_string(deg == 0 ? 360 : deg)))
+            .font({.face = faceLimb,
+                   .size = 0.026f * kR,
+                   .color = hexColor(0x33240c, 0.92f),
+                   .track = 0.6f})
             .width(Dimension(2 * rr))
             .height(Dimension(2 * rr))
             .centerAt({kCx, kCy})
@@ -429,10 +432,11 @@ auto ChaucerAstrolabe::limb() -> Element {
     const float f = kPlateAngles.fraction(psi);
     const float rr = 1.044f * kR;
     const bool isX = (n == 21);
-    g.child(text(toUtf8(kLetters[n - 1]), type(faceLimb, 0.040f * kR,
-                                               isX ? hexColor(0x33240c, 1.0f)
-                                                   : hexColor(0x33240c, 0.88f),
-                                               0))
+    g.child(text(toUtf8(kLetters[n - 1]))
+                .font({.face = faceLimb,
+                       .size = 0.040f * kR,
+                       .color = isX ? hexColor(0x33240c, 1.0f)
+                                    : hexColor(0x33240c, 0.88f)})
                 .width(Dimension(2 * rr))
                 .height(Dimension(2 * rr))
                 .centerAt({kCx, kCy})
