@@ -99,6 +99,10 @@ constexpr SkColor4f kAmber = hexColor(0xFFB000);
 
 // Geometry. The buffer dimensions are the source's; everything else is
 // this study's layout, sized so the blit stays an integer scale.
+/** The LUT's own length: the one number the palette, the seed heat and
+ *  the swatch strip all are. */
+constexpr int kPaletteSize = (int)(sizeof(kPalette) / sizeof(kPalette[0]));
+
 constexpr int kFireW = 320;  // FIRE_WIDTH
 constexpr int kFireH = 168;  // FIRE_HEIGHT
 constexpr int kBlit = 3;     // exact integer nearest-neighbour scale
@@ -460,7 +464,7 @@ struct PsxDoomFire final : sketch::Sketch {
   void paletteStrip(Pen& pen, double ms) {
     const float master = std::clamp((float)ms / kSwatchSpanMs, 0.0f, 1.0f);
     pen.noStroke();
-    for (int i = 0; i < 37; ++i) {
+    for (int i = 0; i < kPaletteSize; ++i) {
       const float u = swatchCascade.localTime(master, (uint32_t)i, 0);
       const float s = ch::easeOutBack(u);
       const float x = kPadX + (float)i * (float)(kSwatch + 2);
@@ -469,7 +473,8 @@ struct PsxDoomFire final : sketch::Sketch {
       pen.translate(x + kSwatch * 0.5f, bottom);  // origin (0.5, 1)
       pen.scale(s);
       pen.fill(hexColor(kPalette[i]));
-      if (i == 36) pen.fill(hexColor(kPalette[36], strobe()));
+      if (i == kPaletteSize - 1)
+        pen.fill(hexColor(kPalette[kPaletteSize - 1], strobe()));
       pen.rect(-kSwatch * 0.5f, -34, kSwatch, 34);
       if (i == 0) {  // the transparent one — show the key, not the colour
         pen.noFill();
@@ -496,18 +501,21 @@ struct PsxDoomFire final : sketch::Sketch {
   /** The boot console: nine lines of the algorithm, landing 110 ms apart,
    *  with a square-wave caret after them. */
   void bootFeed(Pen& pen, double seconds, float x, float y) {
-    static const char* kBoot[] = {
-        "> FIRE_WIDTH   = 320",
-        "> FIRE_HEIGHT  = 168",
-        "> TICK         = 27 Hz (fixed)",
-        "> PALETTE      = 37 entries",
+    // THE LISTING READS THE CONSTANTS IT LISTS: the four parameters are
+    // the ones the automaton is actually running, so a console line and the
+    // simulation behind it cannot disagree.
+    const std::string boot[] = {
+        compose::kit::formatted("> FIRE_WIDTH   = %d", kFireW),
+        compose::kit::formatted("> FIRE_HEIGHT  = %d", kFireH),
+        compose::kit::formatted("> TICK         = %.0f Hz (fixed)", kSimHz),
+        compose::kit::formatted("> PALETTE      = %d entries", kPaletteSize),
         "> spreadFire(src):",
         ">   r = round(rand()*3)  // 0..3",
         ">   dst = src - r + 1",
         ">   heat[dst-W] = heat[src] - (r&1)",
-        "> seed: row H-1 = 36, once",
+        compose::kit::formatted("> seed: row H-1 = %d, once", kPaletteSize - 1),
     };
-    constexpr int kCount = (int)(sizeof(kBoot) / sizeof(kBoot[0]));
+    const int kCount = (int)(sizeof(boot) / sizeof(boot[0]));
     constexpr double kFirst = 0.20, kEach = 0.11;
     const int shown =
         std::clamp((int)std::floor((seconds - kFirst) / kEach) + 1, 0, kCount);
@@ -516,9 +524,9 @@ struct PsxDoomFire final : sketch::Sketch {
     for (int i = 0; i < shown; ++i) {
       // A continuation line is dimmer: the level is read off the line, as
       // it was when the console was a feed of styled records.
-      const bool dim = kBoot[i][2] == ' ';
+      const bool dim = boot[(size_t)i][2] == ' ';
       mono(pen, 11.5f, dim ? hexColor(0x8A6A22) : kAmber);
-      pen.text(kBoot[i], x, cursor);
+      pen.text(boot[(size_t)i].c_str(), x, cursor);
       cursor += 11.5f + 4.0f;
     }
     const double done = kFirst + kEach * (kCount - 1);
@@ -722,7 +730,7 @@ struct PsxDoomFire final : sketch::Sketch {
 
     // The LUT, built once: premultiplied RGBA8888 words. Entry 0 is fully
     // transparent — the alpha key the PSX code used to show the logo.
-    for (int i = 0; i < 37; ++i) {
+    for (int i = 0; i < kPaletteSize; ++i) {
       const uint32_t rgb = kPalette[i];
       const uint32_t r = (rgb >> 16u) & 0xFFu, g = (rgb >> 8u) & 0xFFu,
                      b = rgb & 0xFFu;
