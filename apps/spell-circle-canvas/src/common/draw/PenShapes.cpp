@@ -310,8 +310,8 @@ void Pen::endContour() {
   m_newContour = true;
 }
 
-void Pen::paintVertices(const std::vector<SkPoint>& positions,
-                        const std::vector<SkColor>& colors) {
+void Pen::paintVertices(std::span<const SkPoint> positions,
+                        std::span<const SkColor> colors) {
   if (!m_canvas || positions.empty()) return;
   const sk_sp<SkVertices> mesh =
       SkVertices::MakeCopy(SkVertices::kTriangles_VertexMode,
@@ -327,7 +327,7 @@ void Pen::paintVertices(const std::vector<SkPoint>& positions,
   m_canvas->drawVertices(mesh, SkBlendMode::kDst, paint);
 }
 
-void Pen::emitKind(const std::vector<SkPoint>& v) {
+void Pen::emitKind(std::span<const SkPoint> v) {
   const size_t n = v.size();
   SkPathBuilder path;
   // A MESH ONLY WHERE THE CORNERS DISAGREE. One fill across the shape is

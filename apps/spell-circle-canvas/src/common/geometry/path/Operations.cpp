@@ -142,7 +142,7 @@ SkPath exclude(const SkPath& a, const SkPath& b) {
   return binary(a, b, kXOR_SkPathOp);
 }
 
-SkPath unite(const std::vector<SkPath>& paths) {
+SkPath unite(std::span<const SkPath> paths) {
   SkOpBuilder builder;
   for (const SkPath& p : paths) builder.add(p, kUnion_SkPathOp);
   SkPath out;

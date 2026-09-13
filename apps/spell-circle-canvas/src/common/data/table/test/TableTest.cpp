@@ -4,7 +4,9 @@
 #include <gtest/gtest.h>
 #include <sigildata/table/Table.h>
 
+#include <array>
 #include <cmath>
+#include <ranges>
 #include <string>
 #include <vector>
 
@@ -18,6 +20,25 @@ Table months() {
   table.add("deaths", std::vector<double>{2761, 2120, 1205, 477});
   table.add("winter", std::vector<Flag>{true, true, false, false});
   return table;
+}
+
+TEST(DataTable, CellsArriveFromAnyRangeAndTheCellTypeIsTheRangeS) {
+  // A column takes the cells themselves, from whatever holds them: a vector
+  // is moved in, and a C array, a std::array or a view that computes the
+  // cells as it is walked are read into one. Nothing at the call site names
+  // the cell type twice.
+  const double raw[3] = {1.0, 2.0, 3.0};
+  const std::array<double, 3> held{4.0, 5.0, 6.0};
+  Table table;
+  table.add("raw", raw);
+  table.add("held", held);
+  table.add("doubled",
+            held | std::views::transform([](double v) { return v * 2.0; }));
+  ASSERT_EQ(3u, table.size());
+  EXPECT_EQ(ColumnType::Number, table.column("raw")->type());
+  EXPECT_EQ(raw[2], table.column<double>("raw")[2]);
+  EXPECT_EQ(held[0], table.column<double>("held")[0]);
+  EXPECT_EQ(12.0, table.column<double>("doubled")[2]);
 }
 
 TEST(DataTable, AColumnKnowsItsNameItsTypeAndItsLength) {

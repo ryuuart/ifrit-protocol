@@ -25,6 +25,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <initializer_list>
 #include <span>
 #include <utility>
 #include <vector>
@@ -277,7 +278,12 @@ inline CrossingRule alternateAlong() {
  *  involved). Only PROPER crossings count: coincident strands and
  *  endpoint touches, such as a shared polygon vertex, are meetings rather
  *  than crossings, and reporting them would put a knot at every corner. */
-std::vector<Crossing> discoverCrossings(const std::vector<SkPath>& strands);
+std::vector<Crossing> discoverCrossings(std::span<const SkPath> strands);
+inline std::vector<Crossing> discoverCrossings(
+    std::initializer_list<SkPath> strands) {
+  return discoverCrossings(
+      std::span<const SkPath>(strands.begin(), strands.size()));
+}
 
 /** The region where two strands' MARKS actually overlap at one crossing:
  *  the intersection of the two paths stroked to their own reach, reduced to

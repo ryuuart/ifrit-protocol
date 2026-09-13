@@ -39,6 +39,7 @@
 #include <cmath>
 #include <cstdio>
 #include <memory>
+#include <ranges>
 #include <string>
 #include <vector>
 
@@ -540,11 +541,10 @@ inline SkPath expand(const SkPath& line, float halfWidth) {
 inline Glow bakeGlow(const std::vector<SkPath>& lines, float coreHalf) {
   namespace operations = sigil::geometry::path::operations;
   auto at = [&](float k) {
-    std::vector<SkPath> regions;
-    regions.reserve(lines.size());
-    for (const SkPath& line : lines)
-      regions.push_back(expand(line, coreHalf * k));
-    const SkPath united = operations::unite(regions);
+    const SkPath united = operations::unite(
+        lines | std::views::transform([&](const SkPath& line) {
+          return expand(line, coreHalf * k);
+        }));
     const SkRect box = united.getBounds();
     return Grade{
         united.makeTransform(SkMatrix::Translate(-box.left(), -box.top())),

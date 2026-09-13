@@ -597,12 +597,12 @@ class Pen {
   void paintFilled(const SkPath& path);
   /** The mesh a shape whose corners carry different fills is drawn as:
    *  triangles in threes, each corner its own colour. */
-  void paintVertices(const std::vector<SkPoint>& positions,
-                     const std::vector<SkColor>& colors);
+  void paintVertices(std::span<const SkPoint> positions,
+                     std::span<const SkColor> colors);
   void paintOval(const SkRect& oval);
   void paintRect(const SkRect& rect);
   void flushCurve();
-  void emitKind(const std::vector<SkPoint>& v);
+  void emitKind(std::span<const SkPoint> v);
   [[nodiscard]] sk_sp<SkTypeface> face();
   [[nodiscard]] weave::TextStyle textStyleNow();
   void textLine(std::string_view line, float x, float baseline);

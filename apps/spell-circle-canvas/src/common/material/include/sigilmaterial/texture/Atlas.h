@@ -14,6 +14,7 @@
 #include <sigilmaterial/texture/Texture.h>
 
 #include <boost/container/map.hpp>
+#include <initializer_list>
 #include <optional>
 #include <span>
 #include <string>
@@ -63,8 +64,15 @@ class Atlas {
    *  the sheet a power of two no larger than @p maxSide on a side. An
    *  image that does not fit is left out of the regions. */
   static Atlas pack(
-      const std::vector<std::pair<std::string, sk_sp<SkImage>>>& images,
+      std::span<const std::pair<std::string, sk_sp<SkImage>>> images,
       int padding = 1, int maxSide = 4096);
+  static Atlas pack(
+      std::initializer_list<std::pair<std::string, sk_sp<SkImage>>> images,
+      int padding = 1, int maxSide = 4096) {
+    return pack(std::span<const std::pair<std::string, sk_sp<SkImage>>>(
+                    images.begin(), images.size()),
+                padding, maxSide);
+  }
 
   const Texture& sheet() const { return m_sheet; }
   std::span<const AtlasRegion> regions() const { return m_regions; }

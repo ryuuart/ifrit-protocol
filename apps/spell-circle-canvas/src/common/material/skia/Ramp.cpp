@@ -21,7 +21,7 @@
 namespace sigil::material::skia {
 
 sk_sp<SkShader> verticalRamp(float y0, float y1,
-                             const std::vector<RampStop>& ramp) {
+                             std::span<const RampStop> ramp) {
   std::vector<SkColor4f> colors;
   std::vector<float> stops;
   colors.reserve(ramp.size());
@@ -38,7 +38,7 @@ sk_sp<SkShader> verticalRamp(float y0, float y1,
                                               {}));
 }
 
-Paint unitRamp(const std::vector<RampStop>& ramp) {
+Paint unitRamp(std::span<const RampStop> ramp) {
   std::vector<Stop> stops;
   stops.reserve(ramp.size());
   for (const RampStop& stop : ramp)

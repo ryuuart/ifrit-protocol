@@ -34,7 +34,7 @@ One header per utility under `include/sigilweave/kit/`, and
 | Header | Utility | The trap it prevents |
 | --- | --- | --- |
 | `LayoutGuard.h` | `LayoutGuard<Keys...>` | Re-laying text out every frame — or forgetting `revision()`/`needsShaping()` in a hand-rolled guard and freezing edits. Both are baked in; you declare only the inputs the library can't see. |
-| `GlyphBuckets.h` | `GlyphBuckets<Key, Placement>` | Per-glyph choreography turning into per-glyph draw calls; generalizes `sigil::weave::GlyphRSXformBatches` to arbitrary bucket keys and draw passes. |
+| `GlyphBuckets.h` | `GlyphBuckets<Key, Placement>` | Per-glyph choreography turning into per-glyph draw calls; generalizes `sigil::weave::GlyphRSXformBatches` to arbitrary bucket keys and draw passes. `drawPositionedGlyphs` takes the glyphs and their positions as spans, which is what a bucket already holds. |
 | `Labels.h` | `makeStyle()` / `tracked()` / `drawLabel()` | Ten-line single-span style and caption rituals, reinvented per tool, and tracking quoted in 1/1000 em carried across to a size it was never measured at. |
 | `Features.h` | `features::tabularNumbers`, `smallCaps`, `stylisticSet(n)`, the vertical set a column asks for, … | Hand-spelled four-cc tag lists, mistyped once per call site — including the vertical features a column needs a style to name because shaping does not take them by itself. |
 | `PaintLayers.h` | `dropShadow()` / `glow()` / `outline()` | Assembling the same three arrangements of `PaintLayer` by hand, each time re-picking the blur, spread and offset constants a shadow and a glow are usually asked for. |

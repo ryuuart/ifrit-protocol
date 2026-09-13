@@ -19,6 +19,7 @@
 #include <compare>
 #include <concepts>
 #include <cstddef>
+#include <ranges>
 #include <span>
 #include <string>
 #include <string_view>
@@ -190,9 +191,23 @@ class Table {
    *  so the column order a file arrived in survives a rewrite. */
   void add(Column column);
 
+  /** The same, from the cells themselves: a vector is MOVED in, and any
+   *  other input range of cells — an array, a span, a view that computes
+   *  them as it is walked — is walked into one. The cell type is the
+   *  range's, so nothing at the call site names it twice. */
   template <Cell T>
   void add(std::string name, std::vector<T> cells) {
     add(Column(std::move(name), std::move(cells)));
+  }
+  template <std::ranges::input_range R>
+    requires Cell<std::remove_cvref_t<std::ranges::range_value_t<R>>>
+  void add(std::string name, R&& cells) {
+    using T = std::remove_cvref_t<std::ranges::range_value_t<R>>;
+    std::vector<T> held;
+    if constexpr (std::ranges::sized_range<R>)
+      held.reserve(std::ranges::size(cells));
+    for (auto&& value : cells) held.push_back(value);
+    add(Column(std::move(name), std::move(held)));
   }
 
   /** Drops the column called @p name; true when there was one. */

@@ -16,6 +16,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/Ramp.h>
 
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <vector>
@@ -74,6 +75,27 @@ TEST(SkiaRamp, TheVerticalRampRunsBetweenTheTwoRowsItIsGiven) {
   EXPECT_EQ(bm.getColor(50, 2), bm.getColor(50, 19));
   EXPECT_GT(SkColorGetR(bm.getColor(50, 2)), 200u);
   EXPECT_GT(SkColorGetB(bm.getColor(50, 98)), 200u);
+}
+
+TEST(SkiaRamp, TheStopsComeFromAnyContiguousHolderOrABraceList) {
+  // The stops are a span: the vector a palette helper returns, a
+  // std::array, a C array, and a brace list written where it is used all
+  // reach the same gradient, so nothing builds a vector to cross the call.
+  const std::vector<RampStop> held = threeStops();
+  const std::array<RampStop, 3> fixed{held[0], held[1], held[2]};
+  const RampStop raw[3] = {held[0], held[1], held[2]};
+  const SkBitmap wanted = render(
+      skia::unitRamp(held).shaderFor(skia::PaintFrame{.size = {8, 64}}), 8, 64);
+  for (const skia::Paint& other :
+       {skia::unitRamp(fixed), skia::unitRamp(raw),
+        skia::unitRamp({held[0], held[1], held[2]})}) {
+    const SkBitmap got =
+        render(other.shaderFor(skia::PaintFrame{.size = {8, 64}}), 8, 64);
+    EXPECT_EQ(wanted.getColor(4, 8), got.getColor(4, 8));
+    EXPECT_EQ(wanted.getColor(4, 56), got.getColor(4, 56));
+  }
+  EXPECT_TRUE(skia::verticalRamp(0, 64, fixed) != nullptr);
+  EXPECT_TRUE(skia::verticalRamp(0, 64, {held[0], held[2]}) != nullptr);
 }
 
 TEST(SkiaRamp, APaletteCrossesToAShaderAsATableSampledNearest) {

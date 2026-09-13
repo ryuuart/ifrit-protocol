@@ -31,9 +31,12 @@
 #include <include/core/SkPath.h>
 #include <sigilcore/compute/Chance.h>
 
+#include <concepts>
 #include <cstdint>
 #include <functional>
 #include <glm/vec2.hpp>
+#include <initializer_list>
+#include <ranges>
 #include <span>
 #include <vector>
 
@@ -47,8 +50,23 @@ SkPath subtract(const SkPath& a, const SkPath& b);
 SkPath intersect(const SkPath& a, const SkPath& b);
 /** What one shape covers and the other does not. */
 SkPath exclude(const SkPath& a, const SkPath& b);
-/** N-ary union — merge a whole stack at once. */
-SkPath unite(const std::vector<SkPath>& paths);
+/** N-ary union — merge a whole stack at once, over any range of paths: a
+ *  vector or a span as it stands, a brace list, or a view that builds them
+ *  as it is walked (`lines | std::views::transform(expand)`). */
+SkPath unite(std::span<const SkPath> paths);
+inline SkPath unite(std::initializer_list<SkPath> paths) {
+  return unite(std::span<const SkPath>(paths.begin(), paths.size()));
+}
+template <std::ranges::input_range R>
+  requires(!std::convertible_to<R &&, std::span<const SkPath>> &&
+           std::convertible_to<std::ranges::range_reference_t<R>, SkPath>)
+SkPath unite(R&& paths) {
+  // A range that is not already contiguous is walked into one, because the
+  // union builder wants every path before it resolves any of them.
+  std::vector<SkPath> held;
+  for (auto&& path : paths) held.push_back(path);
+  return unite(std::span<const SkPath>(held));
+}
 
 /** Resolve self-intersections and redundant winding into a clean
  *  even-odd-equivalent outline (Pathfinder's Merge, roughly). */

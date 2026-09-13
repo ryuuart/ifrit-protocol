@@ -97,6 +97,8 @@ for (double at : axis.ticks(5)) label(axis(at), at);
 Table sheet;
 sheet.add("month", std::vector<std::string>{"Jan", "Feb"});
 sheet.add("deaths", std::vector<double>{2761, 2120});
+sheet.add("open", std::array{true, false});  // any range of cells, moved
+                                             // where it is a vector
 sheet.derive("root", [&](size_t row) {
   return std::sqrt(sheet.column<double>("deaths")[row]);
 });

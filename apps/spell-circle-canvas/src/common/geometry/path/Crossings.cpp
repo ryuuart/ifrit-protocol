@@ -166,7 +166,7 @@ bool crossesTransversally(const Flat& fa, float sA, const Flat& fb, float sB,
 
 }  // namespace
 
-std::vector<Crossing> discoverCrossings(const std::vector<SkPath>& strands) {
+std::vector<Crossing> discoverCrossings(std::span<const SkPath> strands) {
   std::vector<Crossing> found;
   if (strands.size() < 2) return found;
   std::vector<Flat> flats;

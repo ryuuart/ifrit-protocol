@@ -236,7 +236,7 @@ std::optional<Atlas> Atlas::fromAseprite(Texture sheet, std::string_view json) {
 // Packing
 
 Atlas Atlas::pack(
-    const std::vector<std::pair<std::string, sk_sp<SkImage>>>& images,
+    std::span<const std::pair<std::string, sk_sp<SkImage>>> images,
     int padding, int maxSide) {
   padding = std::max(padding, 0);
   std::vector<stbrp_rect> rects;

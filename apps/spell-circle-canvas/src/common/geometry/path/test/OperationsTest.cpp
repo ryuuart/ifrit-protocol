@@ -19,6 +19,8 @@
 #include <cmath>
 #include <functional>
 #include <glm/geometric.hpp>
+#include <ranges>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -140,6 +142,27 @@ TEST(PathOps, UnitingAListOfOutlinesReachesEveryOneOfThem) {
   const SkPath b = rect(50, 0, 100, 100);
   EXPECT_TRUE(
       operations::unite({a, b, rect(140, 0, 100, 100)}).contains(200, 50));
+}
+
+TEST(PathOps, TheOutlinesUnitedComeFromAnyRange) {
+  // The stack is a range: a brace list, a C array, a vector or a span as it
+  // stands, and a view that builds the outlines as it is walked. All four
+  // answer the same union, so nothing builds a vector to cross the call.
+  const SkPath boxes[3] = {rect(0, 0, 100, 100), rect(50, 0, 100, 100),
+                           rect(140, 0, 100, 100)};
+  const std::vector<SkPath> held(std::begin(boxes), std::end(boxes));
+  const SkRect wanted =
+      operations::unite({boxes[0], boxes[1], boxes[2]}).getBounds();
+  EXPECT_EQ(operations::unite(boxes).getBounds(), wanted);
+  EXPECT_EQ(operations::unite(held).getBounds(), wanted);
+  EXPECT_EQ(operations::unite(std::span<const SkPath>(held)).getBounds(),
+            wanted);
+  const std::vector<float> shifts{0.0f, 50.0f, 140.0f};
+  EXPECT_EQ(operations::unite(shifts | std::views::transform([](float x) {
+                                return rect(x, 0, 100, 100);
+                              }))
+                .getBounds(),
+            wanted);
 }
 
 // Offset distance is a radius, not a diameter: a positive amount grows the

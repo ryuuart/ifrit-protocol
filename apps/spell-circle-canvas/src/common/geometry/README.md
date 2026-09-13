@@ -672,7 +672,9 @@ in no header.
   a needle-sharp corner's mitre is capped at a stated number of
   distances, blunting the corner rather than dropping the vertex.
 - **`path/Operations.h`** — path operators. Booleans over Skia's pathops
-  (`unite` over a pair or over a whole stack, `subtract`, `intersect`,
+  (`unite` over a pair or over a whole stack — any range of paths: a
+  vector, an array, a brace list, or a view that builds them as it is
+  walked — `subtract`, `intersect`,
   `exclude`, `simplify`), the OFFSET and the CORNER ROUNDING — one
   operator each, since every side, every join and every selection either
   answers is a dial rather than a name of its own — and four distortions
@@ -838,9 +840,10 @@ in no header.
   the caller's — the astronomy of a precession, and a measured artefact's
   own departures from its law, belong beside the artefact.
 - **`path/Crossings.h`** — where a set of paths cross each other and who
-  is on top there. `discoverCrossings()` finds every PROPER crossing —
-  coincident paths and endpoint touches are meetings, not crossings —
-  and numbers them along the boundary. `CrossingRule` is the comparable
+  is on top there. `discoverCrossings()` takes the strands as a span (or a
+  brace list) and finds every PROPER crossing — coincident paths and
+  endpoint touches are meetings, not crossings — and numbers them along the
+  boundary. `CrossingRule` is the comparable
   answer: list order by default, `crossing::alternate()`,
   `crossing::alternateAlong()`, `crossing::sequence()`,
   `crossing::pairs()` for dominance (cycles

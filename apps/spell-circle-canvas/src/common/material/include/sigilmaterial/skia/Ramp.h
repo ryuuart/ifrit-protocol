@@ -21,16 +21,28 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 
+#include <initializer_list>
+#include <span>
 #include <vector>
 
 namespace sigil::material::skia {
 
-/** @p ramp as a gradient running down from @p y0 to @p y1. */
+/** @p ramp as a gradient running down from @p y0 to @p y1. The stops are a
+ *  span, so a vector or an array passes as it stands and a brace list is
+ *  written where it is used. */
 sk_sp<SkShader> verticalRamp(float y0, float y1,
-                             const std::vector<RampStop>& ramp);
+                             std::span<const RampStop> ramp);
+inline sk_sp<SkShader> verticalRamp(float y0, float y1,
+                                    std::initializer_list<RampStop> ramp) {
+  return verticalRamp(y0, y1,
+                      std::span<const RampStop>(ramp.begin(), ramp.size()));
+}
 
 /** The same stops over the unit square, top to bottom. */
-Paint unitRamp(const std::vector<RampStop>& ramp);
+Paint unitRamp(std::span<const RampStop> ramp);
+inline Paint unitRamp(std::initializer_list<RampStop> ramp) {
+  return unitRamp(std::span<const RampStop>(ramp.begin(), ramp.size()));
+}
 
 /** @p palette as an N x 1 image, one texel per entry, straight (not
  *  premultiplied) so an entry's own alpha survives the crossing.

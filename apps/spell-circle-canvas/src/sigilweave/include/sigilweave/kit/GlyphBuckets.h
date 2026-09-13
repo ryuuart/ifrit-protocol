@@ -22,6 +22,7 @@
 #include <include/core/SkPoint.h>
 #include <sigilweave/fonts/Shaper.h>
 
+#include <span>
 #include <vector>
 
 namespace sigil::weave::kit {
@@ -94,8 +95,8 @@ struct GlyphBuckets {
  *  the standard flush for a `GlyphBuckets<Key, SkPoint>` pass. */
 inline void drawPositionedGlyphs(SkCanvas* canvas,
                                  const sigil::weave::ShapedWord& font,
-                                 const std::vector<SkGlyphID>& glyphs,
-                                 const std::vector<SkPoint>& positions,
+                                 std::span<const SkGlyphID> glyphs,
+                                 std::span<const SkPoint> positions,
                                  SkPoint origin, const SkPaint& paint) {
   canvas->drawGlyphs(
       SkSpan<const SkGlyphID>(glyphs.data(), glyphs.size()),
