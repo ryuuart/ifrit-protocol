@@ -315,9 +315,8 @@ struct AeroDesktop final : sketch::Sketch {
     // whole window texture plane volatile, and the overlay is one node
     // outside it.
     // faint inner top light
-    b.children(
-        {box().inset(1, 1, 1, h - 2).fill(Fill::color({1, 1, 1, 0.22f}))});
-    b.children({std::move(glyph)});
+    b.children({box().inset(1, 1, 1, h - 2).fill(Fill::color({1, 1, 1, 0.22f})),
+                std::move(glyph)});
     return b;
   }
 
@@ -356,16 +355,35 @@ struct AeroDesktop final : sketch::Sketch {
   Element clientArea() {
     namespace ad = aero_desktop;
     // every label in the pane is 12 px; each names its own grey
-    auto gray = [](float g) { return SkColor4f{g, g, g, 1}; };
+    const auto gray = [](float g) { return SkColor4f{g, g, g, 1}; };
     const float clientH = ad::kWH - ad::kCT - ad::kCB;
+    // THE NAVIGATION TREE AND THE FILE LIST ARE TWO TABLES: a heading is set
+    // at the left margin in the darker grey and an item is indented under it,
+    // which is the whole of Explorer's left pane and the whole of its list.
+    struct Entry {
+      const char* words;
+      float x, y, grey;
+    };
+    const Entry kNav[] = {
+        {"★ Favorites", 12, 48, 0.25f}, {"Desktop", 30, 70, 0.42f},
+        {"Downloads", 30, 90, 0.42f},   {"▣ Libraries", 12, 118, 0.25f},
+        {"Documents", 30, 140, 0.42f},  {"Pictures", 30, 160, 0.42f}};
+    const Entry kFiles[] = {
+        {"aurora_over_tromso.jpg", 172, 54, 0.15f},
+        {"colorization_formula.txt", 172, 82, 0.35f},
+        {"blurdeviation_30.reg", 172, 106, 0.35f},
+        {"sky_74B8FC_balances_8_43_49.theme", 172, 130, 0.35f}};
+    const auto entry = [gray](const Entry& e) {
+      return text(e.words).ink(gray(e.grey)).inset(e.x, e.y, 0, 0);
+    };
     return box()
         .inset(ad::kCL, ad::kCT, ad::kCR, ad::kCB)
         .fill(Fill::color({1, 1, 1, 1}))
         .clip()
         .font({.size = 12})
-        // toolbar strip
         .children(
-            {box()
+            {// toolbar strip
+             box()
                  .inset(0, 0, 0, clientH - 34)
                  .fill(Paint::linear({0, 0}, {0, 34},
                                      {{0.0f, {0.937f, 0.957f, 0.980f, 1}},
@@ -376,25 +394,19 @@ struct AeroDesktop final : sketch::Sketch {
              text("Organize ▾      "
                   "Share with ▾      Burn")
                  .ink(gray(0.28f))
-                 .inset(14, 9, 0, 0)})
-        // left navigation pane
-        .children({box()
-                       .inset(0, 35, 0, 0)
-                       .width(150)
-                       .fill(Fill::color({0.965f, 0.973f, 0.984f, 1})),
-                   box()
-                       .inset(150, 35, 0, 0)
-                       .width(1)
-                       .fill(Fill::color({0.88f, 0.90f, 0.93f, 1})),
-                   text("★ Favorites").ink(gray(0.25f)).inset(12, 48, 0, 0),
-                   text("Desktop").ink(gray(0.42f)).inset(30, 70, 0, 0),
-                   text("Downloads").ink(gray(0.42f)).inset(30, 90, 0, 0),
-                   text("▣ Libraries").ink(gray(0.25f)).inset(12, 118, 0, 0),
-                   text("Documents").ink(gray(0.42f)).inset(30, 140, 0, 0),
-                   text("Pictures").ink(gray(0.42f)).inset(30, 160, 0, 0)})
-        // main pane: a selected row + file rows
-        .children(
-            {box()
+                 .inset(14, 9, 0, 0),
+             // left navigation pane, and the hairline that ends it
+             box()
+                 .inset(0, 35, 0, 0)
+                 .width(150)
+                 .fill(Fill::color({0.965f, 0.973f, 0.984f, 1})),
+             box()
+                 .inset(150, 35, 0, 0)
+                 .width(1)
+                 .fill(Fill::color({0.88f, 0.90f, 0.93f, 1})),
+             each(kNav, entry),
+             // main pane: a selected row over the file rows
+             box()
                  .inset(162, 50, 12, 0)
                  .height(22)
                  .corners({2})
@@ -402,18 +414,7 @@ struct AeroDesktop final : sketch::Sketch {
                                      {{0.0f, {0.86f, 0.92f, 0.98f, 1}},
                                       {1.0f, {0.74f, 0.85f, 0.96f, 1}}}))
                  .stroke(stroke(1, Fill::color({0.52f, 0.70f, 0.88f, 1}))),
-             text("aurora_over_tromso.jpg")
-                 .ink(gray(0.15f))
-                 .inset(172, 54, 0, 0),
-             text("colorization_formula.txt")
-                 .ink(gray(0.35f))
-                 .inset(172, 82, 0, 0),
-             text("blurdeviation_30.reg")
-                 .ink(gray(0.35f))
-                 .inset(172, 106, 0, 0),
-             text("sky_74B8FC_balances_8_43_49.theme")
-                 .ink(gray(0.35f))
-                 .inset(172, 130, 0, 0)});
+             each(kFiles, entry)});
   }
 
   // ---- the window ------------------------------------------------------
@@ -450,30 +451,28 @@ struct AeroDesktop final : sketch::Sketch {
                               .inset(0)
                               .fill(Paint::sksl(aurora).uniform("uTime", 0.75f))
                               .effect(sigil::material::skia::Effect::filter(
-                                  SkImageFilters::Blur(3, 3, nullptr)))})})
-            // ...then the colorization tint stack over it
-            .children({box().inset(0).fill(ad::glassTint(ad::kWW, ad::kWH))})
-            // top-corner radial glows
-            .children({box()
-                           .inset(0, 0, ad::kWW - 70, ad::kWH - 46)
-                           .fill(ad::cornerGlow({0, 0})),
-                       box()
-                           .inset(ad::kWW - 70, 0, 0, ad::kWH - 46)
-                           .fill(ad::cornerGlow({70, 0}))})
-            // client hole rings on ONE box: 1px black a.35 outside its
-            // outline, 1px white a.45 inside it (stroke align does the
-            // -2/-1 inset bookkeeping)
-            .children(
-                {box()
+                                  SkImageFilters::Blur(3, 3, nullptr)))}),
+                 // ...then the colorization tint stack over it
+                 box().inset(0).fill(ad::glassTint(ad::kWW, ad::kWH)),
+                 // top-corner radial glows
+                 box()
+                     .inset(0, 0, ad::kWW - 70, ad::kWH - 46)
+                     .fill(ad::cornerGlow({0, 0})),
+                 box()
+                     .inset(ad::kWW - 70, 0, 0, ad::kWH - 46)
+                     .fill(ad::cornerGlow({70, 0})),
+                 // client hole rings on ONE box: 1px black a.35 outside its
+                 // outline, 1px white a.45 inside it (stroke align does the
+                 // -2/-1 inset bookkeeping)
+                 box()
                      .inset(ad::kCL - 1, ad::kCT - 1, ad::kCR - 1, ad::kCB - 1)
                      .stroke(stroke(1, Fill::color({0, 0, 0, 0.35f}),
                                     PathFormat::Align::Outer))
                      .stroke(stroke(1, Fill::color({1, 1, 1, 0.45f}),
                                     PathFormat::Align::Inner)),
-                 clientArea()})
-            // window icon
-            .children(
-                {box()
+                 clientArea(),
+                 // window icon
+                 box()
                      .inset(14, 8, ad::kWW - 30, ad::kWH - 24)
                      .corners({3})
                      .fill(Paint::linear({0, 0}, {0, 16},
@@ -520,6 +519,15 @@ struct AeroDesktop final : sketch::Sketch {
   Element startOrb() {
     // 34px sphere, window-local to the taskbar strip.
     const float d = 34;
+    // the four-pane flag: one quarter each of a 16x14 box
+    struct Pane {
+      float l, t, r, b;
+      SkColor4f ink;
+    };
+    const Pane kFlag[4] = {{0, 0, 8.5f, 7.5f, {0.91f, 0.31f, 0.22f, 1}},
+                           {8.5f, 0, 0, 7.5f, {0.50f, 0.76f, 0.24f, 1}},
+                           {0, 7.5f, 8.5f, 0, {0.22f, 0.63f, 0.87f, 1}},
+                           {8.5f, 7.5f, 0, 0, {0.98f, 0.74f, 0.10f, 1}}};
     // The breathing aqua glow behind the orb is NOT built here; it is
     // orbHalo(), placed by describe() outside the taskbar plane. Its opacity
     // is bound to &orbGlow, and a binding anywhere in this subtree would mark
@@ -542,32 +550,18 @@ struct AeroDesktop final : sketch::Sketch {
                  // rim strokes
                  .stroke(stroke(1.2f, Fill::color({0.55f, 0.78f, 1.0f, 0.55f})))
                  // the four-pane flag, gently rotated
-                 .children(
-                     {box()
-                          .inset(d / 2 - 8, d / 2 - 7, 0, 0)
-                          .width(16)
-                          .height(14)
-                          .rotate(-8.0f)
-                          .children({box()
-                                         .inset(0, 0, 8.5f, 7.5f)
-                                         .corners({1.5f})
-                                         .fill(Fill::color(
-                                             {0.91f, 0.31f, 0.22f, 1}))})
-                          .children({box()
-                                         .inset(8.5f, 0, 0, 7.5f)
-                                         .corners({1.5f})
-                                         .fill(Fill::color(
-                                             {0.50f, 0.76f, 0.24f, 1}))})
-                          .children({box()
-                                         .inset(0, 7.5f, 8.5f, 0)
-                                         .corners({1.5f})
-                                         .fill(Fill::color(
-                                             {0.22f, 0.63f, 0.87f, 1}))})
-                          .children({box()
-                                         .inset(8.5f, 7.5f, 0, 0)
-                                         .corners({1.5f})
-                                         .fill(Fill::color(
-                                             {0.98f, 0.74f, 0.10f, 1}))})})
+                 .children({box()
+                                .inset(d / 2 - 8, d / 2 - 7, 0, 0)
+                                .width(16)
+                                .height(14)
+                                .rotate(-8.0f)
+                                .children(each(kFlag,
+                                               [](const Pane& q) {
+                                                 return box()
+                                                     .inset(q.l, q.t, q.r, q.b)
+                                                     .corners({1.5f})
+                                                     .fill(Fill::color(q.ink));
+                                               }))})
                  // top lens
                  .children(
                      {box()
@@ -650,14 +644,12 @@ struct AeroDesktop final : sketch::Sketch {
                                  {0.55f, {1, 1, 1, 0.00f}},
                                  {1.00f, {0, 0, 0, 0.18f}}}),
                   SkBlendMode::kSrcOver},
-             }))})
-        // 1px light top edge over a dark seam
-        .children(
-            {box().inset(0, 0, 0, th - 1).fill(Fill::color({1, 1, 1, 0.30f})),
-             startOrb()})
-        // one running-app glass button
-        .children(
-            {box()
+             })),
+             // 1px light top edge over a dark seam
+             box().inset(0, 0, 0, th - 1).fill(Fill::color({1, 1, 1, 0.30f})),
+             startOrb(),
+             // one running-app glass button
+             box()
                  .inset(62, 4, 0, 4)
                  .width(54)
                  .corners({3})
@@ -677,16 +669,16 @@ struct AeroDesktop final : sketch::Sketch {
                                             {{0.0f, {1.0f, 0.87f, 0.55f, 1}},
                                              {1.0f, {0.90f, 0.67f, 0.25f, 1}}}))
                           .stroke(stroke(
-                              1, Fill::color({0.55f, 0.40f, 0.10f, 0.8f})))})})
-        // tray clock, pinned to the right edge (right-aligned for free)
-        .children({text("4:20 PM")
-                       .font({.size = 12, .color = SkColor4f{1, 1, 1, 0.92f}})
-                       .top(13)
-                       .right(10),
-                   text("11/8/2006")
-                       .font({.size = 10, .color = SkColor4f{1, 1, 1, 0.65f}})
-                       .top(27)
-                       .right(10)});
+                              1, Fill::color({0.55f, 0.40f, 0.10f, 0.8f})))}),
+             // tray clock, pinned to the right edge (right-aligned for free)
+             text("4:20 PM")
+                 .font({.size = 12, .color = SkColor4f{1, 1, 1, 0.92f}})
+                 .top(13)
+                 .right(10),
+             text("11/8/2006")
+                 .font({.size = 10, .color = SkColor4f{1, 1, 1, 0.65f}})
+                 .top(27)
+                 .right(10)});
   }
 
   // Desktop icons: white label over a soft dark shadow (the Win7 look).
@@ -768,16 +760,16 @@ struct AeroDesktop final : sketch::Sketch {
                  // motion and four is six tenths of the bakes.
                  .fill(Paint::sksl(aurora).quantizeTime(4.0f)),
              desktopIcon(24, 22, binGlyph(), "Recycle Bin"),
-             desktopIcon(24, 116, folderGlyph(), "Nightscapes")})
-        // Each chrome region is its own texture PLANE: the backdrop blur
-        // and glass stacks execute at BAKE time (over the static baked
-        // wallpaper that's exactly correct) and steady-state frames blit.
-        // Rebakes happen when their content actually changes (hover
-        // states, the 8 Hz orb step, the clock minute).
-        .children({box().inset(0).cache(Cache::Texture).children({window()}),
-                   box().inset(0).cache(Cache::Texture).children({taskbar()})})
-        // live overlays: the only animated nodes in the settled scene
-        .children({closeBloomOverlay(), orbHalo()});
+             desktopIcon(24, 116, folderGlyph(), "Nightscapes"),
+             // Each chrome region is its own texture PLANE: the backdrop blur
+             // and glass stacks execute at BAKE time (over the static baked
+             // wallpaper that's exactly correct) and steady-state frames blit.
+             // Rebakes happen when their content actually changes (hover
+             // states, the 8 Hz orb step, the clock minute).
+             box().inset(0).cache(Cache::Texture).children({window()}),
+             box().inset(0).cache(Cache::Texture).children({taskbar()}),
+             // live overlays: the only animated nodes in the settled scene
+             closeBloomOverlay(), orbHalo()});
   }
 };
 
