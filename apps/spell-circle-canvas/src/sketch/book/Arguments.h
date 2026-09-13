@@ -21,7 +21,8 @@
 /** WHAT THIS RUN WAS ASKED FOR. One flag names the lane — a comparison,
  *  a listing, the browser's rows, a sweep, a montage, the warm command,
  *  a still, a measurement — and the rest narrow it: which sketches, on
- *  which tier, where the pictures land. */
+ *  which tier, where the pictures land, and whether the window offers
+ *  what it draws to other applications. */
 struct Arguments {
   std::filesystem::path sketchFile;
   std::filesystem::path assetsOverride;
@@ -34,6 +35,10 @@ struct Arguments {
   bool headless = false, list = false, catalog = false, gpu = false;
   bool noGpu = false;
   bool warmThumbnails = false;
+  /** Whether the window offers its frames to other applications, and
+   *  the name they are offered under — empty for the sketch's stem. */
+  bool publish = false;
+  std::string publishName;
   bool thumbnailHeavy = false;
   std::chrono::milliseconds thumbnailBudget = sigil::sketch::kThumbnailBudget;
   std::string thumbnailDirectory;

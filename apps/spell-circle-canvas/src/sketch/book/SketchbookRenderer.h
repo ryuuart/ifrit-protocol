@@ -22,7 +22,8 @@ class SketchbookView;
 
 namespace sigil::sketch {
 class Host;
-}
+class Publisher;
+}  // namespace sigil::sketch
 
 namespace sigil::skia {
 class GraphiteContext;
@@ -49,6 +50,15 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
    *  ~Host waits on the build it may be in the middle of. */
   [[nodiscard]] std::unique_ptr<sigil::sketch::Host> openSketch(int index);
   void publishMetrics();  // hostMutex must be held
+  /** Stands the publisher up, or says why this window has nothing to
+   *  offer and leaves publishing off. */
+  void startPublishing();
+  void stopPublishing();
+  /** Hands the frame just drawn to whoever is subscribed, on the
+   *  command buffer Qt commits after `render()` returns. Nothing at all
+   *  while this window is not publishing. */
+  void publishFrame(QRhiTexture* texture, QRhiCommandBuffer* commandBuffer,
+                    QSize pixelSize);
   /** Routes a session's captures through this renderer's own context.
    *  Once live frames render on the device, the runtime's caches hold
    *  device-backed images that cannot replay onto a raster canvas, so
@@ -62,6 +72,12 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
    *  device is described through. */
   std::unique_ptr<sigil::skia::PaintOrderCanvas> m_captureCanvas;
 #endif
+  /** WHAT THIS WINDOW IS OFFERING ITS FRAMES THROUGH, and whether it is
+   *  offering them. The flag is the view's, read on every synchronize;
+   *  the publisher stands only while it is true, because a publication
+   *  that exists is one other applications can already see. */
+  std::unique_ptr<sigil::sketch::Publisher> m_publisher;
+  bool m_publishing = false;
   SketchbookView* m_view = nullptr;
   QRhi* m_rhi = nullptr;
   bool m_initialized = false;

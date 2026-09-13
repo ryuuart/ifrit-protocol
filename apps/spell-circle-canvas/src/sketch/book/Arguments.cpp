@@ -74,6 +74,17 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
       args.shotPath = argv[++i];
     } else if (arg == "--assets" && i + 1 < argc) {
       args.assetsOverride = argv[++i];
+    } else if (arg == "--publish") {
+      args.publish = true;
+      // The name is optional, and the one positional argument this
+      // parser takes is a sketch file: a following token that is
+      // another flag, or the file itself, is not the name.
+      if (i + 1 < argc) {
+        const std::string next = argv[i + 1];
+        if (!next.empty() && next[0] != '-' &&
+            !(next.size() > 4 && next.compare(next.size() - 4, 4, ".cpp") == 0))
+          args.publishName = argv[++i];
+      }
     } else if (arg == "--thumbnails") {
       args.warmThumbnails = true;
     } else if (arg == "--thumbnails-dir" && i + 1 < argc) {

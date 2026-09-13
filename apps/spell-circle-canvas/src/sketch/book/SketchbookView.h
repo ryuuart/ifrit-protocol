@@ -14,6 +14,7 @@
 #include <QtCore/QVariantMap>
 #include <QtQuick/QQuickRhiItem>
 #include <filesystem>
+#include <string>
 #include <vector>
 
 namespace sigil::sketch {
@@ -38,6 +39,11 @@ class SketchbookView : public QQuickRhiItem {
   Q_PROPERTY(int sketchIndex READ sketchIndex WRITE setSketchIndex NOTIFY
                  sketchIndexChanged)
   Q_PROPERTY(bool paused READ paused WRITE setPaused NOTIFY pausedChanged)
+  /** WHETHER THIS CANVAS IS OFFERING ITS FRAMES to other applications.
+   *  A run that asked for it on the command line comes up with it on;
+   *  the window turns it on and off from here. */
+  Q_PROPERTY(bool publishing READ publishing WRITE setPublishing NOTIFY
+                 publishingChanged)
   Q_PROPERTY(double timeScale READ timeScale WRITE setTimeScale NOTIFY
                  timeScaleChanged)
   // Structured, not preformatted: the panel is narrow and its width is
@@ -66,6 +72,12 @@ class SketchbookView : public QQuickRhiItem {
    *  saved path (or an empty string on failure) arrives via
    *  captureReady(). Writes beside the sketch, under captures/. */
   Q_INVOKABLE void capture();
+  /** Offers every frame drawn from here on to other applications, or
+   *  stops offering them. Render-thread work, so it travels the way a
+   *  capture request does: the renderer reads it on the next
+   *  synchronize. A window that cannot publish what it draws turns this
+   *  back off and says why, rather than publishing something else. */
+  Q_INVOKABLE void setPublishing(bool publishing);
   /** Moves the viewpoint of a sketch that has one. */
   Q_INVOKABLE void orbit(float yawDeg, float pitchDeg, float distance);
   /** WHERE THE POINTER STANDS over this item, in its own coordinates,
@@ -86,6 +98,7 @@ class SketchbookView : public QQuickRhiItem {
   void setSketchIndex(int index);
   [[nodiscard]] bool paused() const { return m_paused; }
   void setPaused(bool paused);
+  [[nodiscard]] bool publishing() const { return m_publishing; }
   [[nodiscard]] double timeScale() const { return m_timeScale; }
   void setTimeScale(double scale);
   [[nodiscard]] QVariantMap metrics() const { return m_metrics; }
@@ -105,6 +118,13 @@ class SketchbookView : public QQuickRhiItem {
    *  directory of sketches outside this repository a place to work. */
   static std::filesystem::path assetsDirectory;
   static std::filesystem::path flagsFile;
+  /** WHAT THIS WINDOW'S FRAMES ARE OFFERED UNDER, and whether they are
+   *  offered from the moment it opens — the command line's answer,
+   *  written before anything is created. A subscriber binds to the
+   *  name, so it is the run's and does not follow the sketch on screen.
+   *  Empty publishes nothing. */
+  static std::string publishName;
+  static bool publishAtStart;
   /** WHAT EVERY SESSION THIS WINDOW OPENS SHAPES TEXT WITH — the
    *  process's one font context, handed over by main() before QML loads.
    *  One owner: a context of this window's own would pay for the shaping
@@ -134,6 +154,7 @@ class SketchbookView : public QQuickRhiItem {
  signals:
   void sketchIndexChanged();
   void pausedChanged();
+  void publishingChanged();
   void timeScaleChanged();
   void metricsChanged();
   void orbitChanged();
@@ -185,6 +206,8 @@ class SketchbookView : public QQuickRhiItem {
    *  reader is still reading rows. */
   int m_sketchIndex = -1;
   bool m_paused = false;
+  /** Written here, read by the renderer on the next synchronize. */
+  bool m_publishing = false;
   bool m_orbitable = false;
   double m_timeScale = 1.0;
   float m_yawDeg = 0.0f;

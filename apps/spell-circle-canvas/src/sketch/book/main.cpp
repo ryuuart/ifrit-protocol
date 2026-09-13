@@ -26,6 +26,8 @@
  *   Sketchbook --thumbnails [--sketch <name>] [--kind canvas|set]
  *              [--thumbnail-budget <sec>] [--thumbnail-heavy]
  *                                              render missing/stale stills
+ *   Sketchbook --publish [<name>] …             the window's frames, offered
+ *                                              to other applications
  *   … [--assets <dir>]                         where res:// mounts
  *   … [--thumbnails-dir <dir>]                 the app's own thumbnail store
  *
@@ -45,6 +47,12 @@
  * `counts_<sketch>.png`, whose grey level is how many cached rasters
  * were blitted over that pixel — the number a per-composite rounding
  * bound has to be multiplied by before it bounds a picture.
+ *
+ * `--publish` OFFERS THE LIVE WINDOW'S FRAMES to other applications on
+ * this machine, under a name they subscribe to — the one given, or the
+ * stem of the sketch the run opens on. The window turns it on and off
+ * while it runs; every other lane here renders without a window and
+ * refuses the flag rather than accepting one that would do nothing.
  *
  * A `.cpp` PATH IS TAKEN WHEREVER IT STANDS. The file joins the app's
  * list under its own stem and opens there, and it is compiled and
@@ -112,6 +120,21 @@ int main(int argc, char* argv[]) {
   std::optional<Arguments> parsed = parseArguments(argc, argv);
   if (!parsed) return 2;
   Arguments& args = *parsed;
+
+  // PUBLISHING IS THE LIVE WINDOW'S. What travels is the texture a
+  // frame was drawn into, and every lane below that answers before the
+  // window opens draws somewhere else or does not draw at all — so the
+  // flag is refused where it could only be ignored.
+  if (args.publish &&
+      (args.headless || args.list || args.catalog || args.warmThumbnails ||
+       !args.compareOptions.first.empty() ||
+       !args.storyOptions.outputPath.empty() ||
+       !args.capture.outputPath.empty() || args.capture.bench)) {
+    std::fprintf(stderr,
+                 "--publish: what is offered is a live window's frames, "
+                 "and this run opens no window\n");
+    return 2;
+  }
 
   // NOTHING IS OPENED FOR A COMPARISON: it reads two directories of
   // finished plates, so it wants no fonts, no assets, no device and no
@@ -320,6 +343,18 @@ int main(int argc, char* argv[]) {
   SketchbookView::fonts = &fonts();
   SketchbookView::assetsDirectory = options.assetsDirectory;
   SketchbookView::flagsFile = options.flagsFile;
+  // WHAT A SUBSCRIBER BINDS TO is the run's name and not the sketch on
+  // screen: a name that followed the selection would drop every client
+  // the moment something else was looked at. Without one, the sketch
+  // this run opens on names it, and a run that opens on the browser
+  // publishes under the application's own name.
+  if (args.publish) {
+    SketchbookView::publishAtStart = true;
+    SketchbookView::publishName = !args.publishName.empty() ? args.publishName
+                                  : !args.sketchFile.empty()
+                                      ? args.sketchFile.stem().string()
+                                      : "Sketchbook";
+  }
   // A FILE ON THE COMMAND LINE OPENS THE WINDOW ON THAT FILE. The
   // registry is the compiled-in table and settles the first time it is
   // read, so the file joins a session-local list the app's own listing

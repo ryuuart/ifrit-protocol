@@ -555,6 +555,9 @@ Sketchbook --compare <dir-a> <dir-b>        # two sweeps' plates, differenced
 Sketchbook --window-bench [<sec>] [--window-size <WxH>] [--window-scale <n>]
 Sketchbook --thumbnails [--sketch <name>] [--kind canvas|set]
            [--thumbnail-budget <sec>] [--thumbnail-heavy]
+Sketchbook --publish [<name>] [--sketch <name>]
+                                            # the window's frames, live, to
+                                            # other applications
 … [--assets <dir>]                          # what mounts at res://
 … [--thumbnails-dir <dir>]                  # the app's own thumbnail store
 ```
@@ -563,6 +566,22 @@ Sketchbook --thumbnails [--sketch <name>] [--kind canvas|set]
 filed name or its file stem, which is the loop for visual iteration.
 `--shot <png>` captures the app window rather than a sketch, which is
 the only way to look at the browser and the inspector.
+
+**`--publish` offers the live window's frames to other applications.**
+A program on this machine subscribes to a name and receives every frame
+this canvas draws, composited live in its own scene — a VJ program, a
+projection mapper, a recorder. The name is the one given, or the stem of
+the sketch the run opens on; a subscriber binds to it, so it is the
+run's and does not follow the sketch on screen. Ctrl-P turns it on and
+off while the window runs, and the status line says what is leaving and
+under what name.
+
+What travels is the texture the frame was drawn into, so publishing
+wants the window on Graphite. On the CPU raster fallback there is no
+texture of this window's to offer, and the flag is REFUSED rather than
+answered with something else: the console says so and publishing stays
+off. Every lane that renders without a window — a sweep, a still, a
+montage, a measurement, the warm command — refuses the flag outright.
 
 `--catalog` prints the browser's rows without opening a window, one JSON
 object per line — the registry first, and a file this run was pointed at
@@ -1310,6 +1329,7 @@ src/sketch/
   live/       the reload engine, the resident set and the sweep's cadence
   scry/       the opt-in shared Ultralight engine a web sketch borrows
   plate/      the headless sweep, the montage, the plate comparison, the thumbnail store
+  publish/    the door a drawn frame leaves by, to other applications
   book/       Sketchbook: the app, and the headless entry point, with the browser's rows
   cmake/      SketchLinkSurface.cmake, the link surface a reloaded sketch is read against
   test/       support/, the fixtures every feature's cases share
@@ -1318,12 +1338,13 @@ src/sketch/
 
 Directories and headers are the same outline — a feature at `canvas/`
 keeps its headers under `include/sigilsketch/canvas/` and its own
-`test/` and `bench/` — and the targets are four:
+`test/` and `bench/` — and the targets are five:
 
 | Target | Kind | What it is |
 |---|---|---|
 | `SigilSketch` | static archive | `core/`, `canvas/`, `set/`, `live/`, `plate/`, and `scry/` where the SDK is installed: the registry, the two runtimes, the reload engine and the headless renderer. Links no device backend and no Qt. |
 | `SigilSketchKit` | static archive | the sheet a sketch stands on, over the canvas runtime alone |
+| `SigilSketchPublish` | static archive | `publish/`: the door a drawn frame leaves by. Knows no window, no toolkit and no drawing; `publish/README.md` is its canon |
 | `SigilSketches` | object library | every sketch, and the one place the sketch API surface is stated |
 | `Sketchbook` | application bundle | the host: the window, the browser's rows, and every headless entry |
 

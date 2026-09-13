@@ -30,6 +30,10 @@ Rectangle {
     property var metrics: ({})
     /** What the last capture wrote, shown for a moment and then gone. */
     property string capture: ""
+    /** THE NAME THE FRAMES ARE LEAVING UNDER, while they are: what
+     *  another application subscribes to. Empty while nothing is being
+     *  published, which is what makes the line's absence the answer. */
+    property string publication: ""
 
     signal pauseToggled
     signal captureRequested
@@ -107,6 +111,13 @@ Rectangle {
             font.family: Theme.mono
             font.pixelSize: 10
             visible: text.length > 0
+        }
+        Label {
+            text: "◉ publishing · " + strip.publication
+            color: Theme.good
+            font.family: Theme.mono
+            font.pixelSize: 10
+            visible: strip.publication.length > 0
         }
         // The keys, beside what they act on rather than after the
         // controls: this is the line a reader is already looking at

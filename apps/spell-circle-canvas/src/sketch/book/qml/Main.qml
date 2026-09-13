@@ -147,6 +147,13 @@ ApplicationWindow {
         onActivated: view.capture()
     }
     Shortcut {
+        // Offer what the canvas is drawing to other applications on this
+        // machine, or stop offering it. A window that cannot publish
+        // what it draws turns this back off and says why on the console.
+        sequence: "Ctrl+P"
+        onActivated: view.publishing = !view.publishing
+    }
+    Shortcut {
         sequence: "/"
         onActivated: topBar.focusFilter()
     }
@@ -510,6 +517,7 @@ ApplicationWindow {
             timeScale: view.timeScale
             metrics: view.metrics
             capture: window.captureLine
+            publication: view.publishing ? (view.metrics.publish ?? "") : ""
             onPauseToggled: view.paused = !view.paused
             onCaptureRequested: view.capture()
             onTimeScaleRequested: scale => view.timeScale = scale

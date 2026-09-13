@@ -21,12 +21,14 @@
 #include <include/core/SkPixmap.h>
 #include <include/core/SkSurface.h>
 #include <rhi/qrhi.h>
+#include <rhi/qrhi_platform.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilsketch/core/Fit.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Sources.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/plate/Thumbnails.h>
+#include <sigilsketch/publish/Publisher.h>
 #include <sigilweave/fonts/FontContext.h>
 
 #include <QtCore/QByteArray>
@@ -59,6 +61,44 @@ namespace {
  *  thread, read on the GUI thread's poll. */
 std::atomic<int> g_backend{0};  // 0 unknown, 1 Graphite GPU, 2 CPU raster
 
+// THE GRAPHICS API'S OWN OBJECTS, behind the handles Qt hands out. Qt
+// declares the Metal handle structs only in a build that has Metal, so
+// the unwrapping stands here, guarded once, and everything below reads
+// three plain functions. A backend that is not Metal answers nothing,
+// and the publisher's factory refuses a device that is not there — which
+// is the same refusal as a build with no publication protocol at all.
+#if defined(Q_OS_MACOS)
+
+void* metalDevice(QRhi* rhi) {
+  if (!rhi || rhi->backend() != QRhi::Metal) return nullptr;
+  const auto* handles =
+      static_cast<const QRhiMetalNativeHandles*>(rhi->nativeHandles());
+  return handles ? handles->dev : nullptr;
+}
+
+void* metalTexture(QRhiTexture* texture) {
+  if (!texture) return nullptr;
+  // Qt packs the id<MTLTexture> pointer into a quint64 on Metal, and it
+  // is only ever handed on as an opaque pointer.
+  // NOLINTNEXTLINE(performance-no-int-to-ptr)
+  return reinterpret_cast<void*>(texture->nativeTexture().object);
+}
+
+void* metalCommandBuffer(QRhiCommandBuffer* commandBuffer) {
+  if (!commandBuffer) return nullptr;
+  const auto* handles = static_cast<const QRhiMetalCommandBufferNativeHandles*>(
+      commandBuffer->nativeHandles());
+  return handles ? handles->commandBuffer : nullptr;
+}
+
+#else
+
+void* metalDevice(QRhi*) { return nullptr; }
+void* metalTexture(QRhiTexture*) { return nullptr; }
+void* metalCommandBuffer(QRhiCommandBuffer*) { return nullptr; }
+
+#endif
+
 /** ONE INDEX OVER TWO LISTS: the registry first, the files this session
  *  was pointed at after it. An index below the registry's size selects a
  *  compiled-in sketch, one above it a file opened by path. */
@@ -78,7 +118,8 @@ std::string nameOf(int index) {
 
 }  // namespace
 
-SketchbookRenderer::SketchbookRenderer() = default;
+SketchbookRenderer::SketchbookRenderer()
+    : m_publishing(SketchbookView::publishAtStart) {}
 SketchbookRenderer::~SketchbookRenderer() = default;
 
 void SketchbookRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
@@ -112,6 +153,12 @@ void SketchbookRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
   m_submitMsAverage = 0.0;
   std::fprintf(stderr, "[sketchbook] renderer: %s\n",
                g_backend.load() == 1 ? "Graphite GPU" : "CPU raster fallback");
+  // A REPLACEMENT QRhi IS A REPLACEMENT DEVICE: the server stands on the
+  // device its textures come from, so the old one goes with the context
+  // above and a new one is stood up here for the run that asked to
+  // publish.
+  m_publisher.reset();
+  if (m_publishing) startPublishing();
 }
 
 void SketchbookRenderer::synchronize(QQuickRhiItem* item) {
@@ -125,6 +172,10 @@ void SketchbookRenderer::synchronize(QQuickRhiItem* item) {
   m_requestedIndex = view->m_sketchIndex;
   m_pendingCaptures += view->m_captureRequests;
   view->m_captureRequests = 0;
+  if (m_publishing != view->m_publishing) {
+    m_publishing = view->m_publishing;
+    m_metricsDirty = true;
+  }
   m_logicalSize = QSizeF(view->width(), view->height());
   m_deviceRatio = view->window()
                       ? (float)view->window()->effectiveDevicePixelRatio()
@@ -266,6 +317,14 @@ void SketchbookRenderer::publishMetrics() {
   metrics.insert(QStringLiteral("p99Ms"), SketchbookView::host->workMsP99());
   metrics.insert(QStringLiteral("headroomFps"), work > 0 ? 1000.0 / work : 0.0);
   metrics.insert(QStringLiteral("submitMs"), m_submitMsAverage);
+  // WHAT THE FRAME IS LEAVING UNDER, while it is leaving: the name a
+  // subscriber binds to, read off the publisher rather than remembered.
+  if (m_publisher) {
+    const std::string_view published = m_publisher->name();
+    metrics.insert(
+        QStringLiteral("publish"),
+        QString::fromUtf8(published.data(), (qsizetype)published.size()));
+  }
   metrics.insert(QStringLiteral("counters"),
                  QString::fromStdString(session->counters()));
   QVariantList lanes;
@@ -484,6 +543,57 @@ bool SketchbookRenderer::readbackGraphite(SkSurface& surface,
 }
 #endif
 
+void SketchbookRenderer::startPublishing() {
+  if (m_publisher) return;
+  m_metricsDirty = true;
+  m_publisher =
+      sketch::createPublisher(SketchbookView::publishName, metalDevice(m_rhi));
+  if (m_publisher) {
+    std::fprintf(stderr, "[sketchbook] publishing as \"%s\"\n",
+                 SketchbookView::publishName.c_str());
+    return;
+  }
+  // REFUSED, NOT DEGRADED. What travels is the texture the frame was
+  // drawn into, and the raster fallback draws into memory of its own and
+  // uploads it — there is no texture of this window's to hand over.
+  //
+  // THE WINDOW HOLDS THE ANSWER, so the refusal waits until there is a
+  // window to give it to: the first attempt happens as the context comes
+  // up, before this renderer has been handed its item, and the flag it
+  // was asked through is the item's. Left standing, it is tried once
+  // more on the first frame — which is where it is refused out loud and
+  // put back down, so the window says publishing is off rather than
+  // showing it on over a canvas nobody can subscribe to.
+  SketchbookView* view = m_view;
+  if (!view) return;
+  m_publishing = false;
+  std::fprintf(stderr,
+               "[sketchbook] publish: what is offered is the texture a "
+               "frame was drawn into, and this window has none to offer "
+               "\u2014 it is on the CPU raster fallback\n");
+  QMetaObject::invokeMethod(
+      view, [view] { view->setPublishing(false); }, Qt::QueuedConnection);
+}
+
+void SketchbookRenderer::stopPublishing() {
+  if (!m_publisher) return;
+  std::fprintf(stderr, "[sketchbook] publishing stopped\n");
+  m_publisher.reset();
+  m_metricsDirty = true;
+}
+
+void SketchbookRenderer::publishFrame(QRhiTexture* texture,
+                                      QRhiCommandBuffer* commandBuffer,
+                                      QSize pixelSize) {
+  if (!m_publisher) return;
+  // The drawing has already been submitted on this device's queue and
+  // the buffer below is the one Qt commits after render() returns, so
+  // the copy is ordered behind the frame it is copying.
+  m_publisher->publishFrame(metalTexture(texture),
+                            metalCommandBuffer(commandBuffer),
+                            pixelSize.width(), pixelSize.height());
+}
+
 void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
   QRhiTexture* texture = colorTexture();
   if (!texture || !(m_logicalSize.width() > 0) ||
@@ -496,6 +606,8 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
     update();
     return;
   }
+  if (m_publishing && !m_publisher) startPublishing();
+  if (!m_publishing && m_publisher) stopPublishing();
 
   // ONE SESSION AT A TIME: the outgoing one goes BEFORE the next opens,
   // so that letting it go is not work inside the frames of the sketch
@@ -547,6 +659,10 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
     }
     evicted.reset();
     if (rendered) {
+      // THE TEXTURE IS WRAPPED AFRESH EVERY FRAME above, so what is
+      // offered here is whatever this frame was actually drawn into —
+      // a resize that reallocated it leaves nothing to keep in step.
+      publishFrame(texture, commandBuffer, pixelSize);
       update();
       return;
     }

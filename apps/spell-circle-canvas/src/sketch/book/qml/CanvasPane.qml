@@ -12,6 +12,7 @@ ColumnLayout {
 
     property alias sketchIndex: view.sketchIndex
     property alias paused: view.paused
+    property alias publishing: view.publishing
     property alias timeScale: view.timeScale
     readonly property var metrics: view.metrics
     readonly property string hostState: view.state

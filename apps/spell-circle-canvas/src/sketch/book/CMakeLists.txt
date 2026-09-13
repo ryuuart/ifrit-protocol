@@ -113,6 +113,12 @@ target_link_libraries(Sketchbook PRIVATE SigilWorldDiligent
 target_link_libraries(Sketchbook PRIVATE SigilSkiaQt)
 target_compile_definitions(Sketchbook PRIVATE SIGILSKETCH_BOOK_GPU)
 
+# THE DOOR A DRAWN FRAME LEAVES BY: `--publish` offers the texture this
+# window drew into to other applications on the machine. The seam knows
+# no Qt, and the one host that publishes is the one that links it — no
+# consumer of the library gets a publication protocol it never asked for.
+target_link_libraries(Sketchbook PRIVATE SigilSketchPublish)
+
 # THE HOT-RELOAD LINK SURFACE. A sketch dylib links with `-undefined
 # dynamic_lookup` and resolves the framework's symbols out of this
 # executable, so the host exports them and force-loads every archive of

@@ -22,6 +22,8 @@ namespace sketch = sigil::sketch;
 
 std::filesystem::path SketchbookView::assetsDirectory;
 std::filesystem::path SketchbookView::flagsFile;
+std::string SketchbookView::publishName;
+bool SketchbookView::publishAtStart = false;
 sketch::Host* SketchbookView::host = nullptr;
 sigil::weave::FontContext* SketchbookView::fonts = nullptr;
 sketch::Residency SketchbookView::sessions;
@@ -40,7 +42,8 @@ constexpr int kResizeSettleMs = 180;
 
 }  // namespace
 
-SketchbookView::SketchbookView(QQuickItem* parent) : QQuickRhiItem(parent) {
+SketchbookView::SketchbookView(QQuickItem* parent)
+    : QQuickRhiItem(parent), m_publishing(publishAtStart) {
   // We draw into colorTexture() directly; no QRhi render target or depth
   // buffer is needed for this item.
   setAutoRenderTarget(false);
@@ -151,6 +154,13 @@ void SketchbookView::setTimeScale(double scale) {
 void SketchbookView::capture() {
   ++m_captureRequests;
   update();
+}
+
+void SketchbookView::setPublishing(bool publishing) {
+  if (publishing == m_publishing) return;
+  m_publishing = publishing;
+  emit publishingChanged();
+  update();  // the renderer reads it on the synchronize this asks for
 }
 
 void SketchbookView::orbit(float yawDeg, float pitchDeg, float distance) {

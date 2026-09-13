@@ -116,6 +116,13 @@ endif()
 # a seam and the house one is a stock value over it.
 add_subdirectory(kit)
 
+# The door a drawn frame leaves by: one abstract publisher over the
+# graphics API's own handles, and the macOS server behind it. A seam of
+# its own rather than part of the archive above, because it draws
+# nothing and nothing that draws needs it: the one host that publishes
+# links it, and every other consumer of this library never sees Syphon.
+add_subdirectory(publish)
+
 # The sketches themselves, compiled into whichever host links them.
 add_subdirectory(sketches)
 
@@ -167,6 +174,7 @@ endif()
 sigil_doc_probes(sketch
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/kit/README.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/publish/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/sketches/README.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../common/core/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/motion/include
@@ -192,4 +200,4 @@ sigil_doc_probes(sketch
            "<sigilweave/ports/SystemFontManager.h>"
   ALIASES scry=::sigil::scry
   FLOORS 50,10,10,0,0
-  LIBRARIES SigilSketch)
+  LIBRARIES SigilSketch SigilSketchPublish)
