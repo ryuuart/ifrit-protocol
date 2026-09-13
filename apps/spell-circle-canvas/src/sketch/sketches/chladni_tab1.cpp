@@ -625,17 +625,19 @@ struct ChladniTab1 : sketch::Sketch {
                          .shape(shapes::star((int)f.points, f.inner))
                          .fill(Fill::color(kPaper))});
     } else {
-      const std::vector<Linie>& lines = linienOf(f.num);
-      for (size_t li = 0; li < lines.size(); ++li)
-        root.children({kit::disc(c, kR)
-                           .key(tag + "l" + std::to_string(li))
-                           .shape(linieOutline(lines[li]))
-                           .fill(Fill::none())
-                           .stroke(spans::upTo(bind(&settle[fi])
-                                                   .source(0.55f, 0.98f)
-                                                   .clamp(0.0f, 1.0f)),
-                                   stroke(2.6f))
-                           .opacity(inkIn())});
+      // ONE NODAL LINE PER LINIE THE PLATE DRAWS, each drawing itself on
+      // as the figure settles.
+      root.children({each(linienOf(f.num), [&](const Linie& linie, size_t li) {
+        return kit::disc(c, kR)
+            .key(tag + "l" + std::to_string(li))
+            .shape(linieOutline(linie))
+            .fill(Fill::none())
+            .stroke(
+                spans::upTo(
+                    bind(&settle[fi]).source(0.55f, 0.98f).clamp(0.0f, 1.0f)),
+                stroke(2.6f))
+            .opacity(inkIn());
+      })});
     }
 
     // ---- the bow's contact arc: a travelling window on the rim, as a
@@ -651,11 +653,10 @@ struct ChladniTab1 : sketch::Sketch {
                        .fill(Fill::none())
                        .stroke(bow)
                        .opacity(&bowAlpha[fi])
-                       .cache(Cache::None)});
-
-    // ---- the numeral, upper left of its circle (measured at
-    // -0.80R, -1.04R from the centre, baseline-left) ----
-    root.children({text(std::to_string(f.num) + ".")
+                       .cache(Cache::None),
+                   // ---- the numeral, upper left of its circle (measured at
+                   // -0.80R, -1.04R from the centre, baseline-left) ----
+                   text(std::to_string(f.num) + ".")
                        .font({.face = faceNumeral, .size = 37, .track = 0.5f})
                        .key(tag + "num")
                        .centerAt({c.fX - 0.82f * kR, c.fY - 1.15f * kR})
@@ -664,23 +665,21 @@ struct ChladniTab1 : sketch::Sketch {
                            ramp(tNumeral * 1000 + (float)fi * 22.0f, 360)))});
 
     // ---- reference letters: upright, never rotated ----
-    const std::vector<Label>& labels = labelsOf(f.num);
-    for (size_t li = 0; li < labels.size(); ++li) {
-      const Label& l = labels[li];
-      root.children(
-          {text(l.glyph)
-               .font({.face = faceLabel, .size = 33})
-               .key(tag + "lab" + std::to_string(li))
-               .centerAt(polar(c, kR * l.radius, l.bearing))
-               .opacity(
-                   bind(&settle[fi]).source(0.84f, 0.99f).clamp(0.0f, 1.0f))
-               .translateY(bind(&settle[fi])
-                               .source(0.84f, 0.99f)
-                               .map(ch::easeOutQuad)
-                               .invert()
-                               .target(0.0f, 7.0f)
-                               .clamp(0.0f, 7.0f))});
-    }
+    // ONE REFERENCE LETTER PER LABEL, upright wherever on the rim it
+    // stands, each rising into place as the figure settles.
+    root.children({each(labelsOf(f.num), [&](const Label& l, size_t li) {
+      return text(l.glyph)
+          .font({.face = faceLabel, .size = 33})
+          .key(tag + "lab" + std::to_string(li))
+          .centerAt(polar(c, kR * l.radius, l.bearing))
+          .opacity(bind(&settle[fi]).source(0.84f, 0.99f).clamp(0.0f, 1.0f))
+          .translateY(bind(&settle[fi])
+                          .source(0.84f, 0.99f)
+                          .map(ch::easeOutQuad)
+                          .invert()
+                          .target(0.0f, 7.0f)
+                          .clamp(0.0f, 7.0f));
+    })});
   }
 
   // ------------------------------------------------------------------
@@ -716,37 +715,31 @@ struct ChladniTab1 : sketch::Sketch {
              .inset(0)
              .fill(Fill::color(kPaper))
              .children({box().inset(0).fill(paperMat).opacity(0.16f).blend(
-                 SkBlendMode::kSoftLight)})
-             .children({box().inset(0).fill(foxing.material())})
-             .children({box()
-                            .left(0)
-                            .top(kH * 0.50f)
-                            .width(kW * 0.52f)
-                            .height(kH * 0.50f)
-                            .fill(foxingLL.material())})
-             .children({box().inset(0).fill(radialGradient(
-                 {kW * 0.48f, kH * 0.44f}, kW * 0.94f,
-                 {hexColor(0x000000, 0.0f), hexColor(0x000000, 0.0f),
-                  SkColor4f{kPaperEdge.fR, kPaperEdge.fG, kPaperEdge.fB,
-                            0.26f}},
-                 {0.0f, 0.62f, 1.0f}))})
+                            SkBlendMode::kSoftLight),
+                        box().inset(0).fill(foxing.material()),
+                        kit::at(box().fill(foxingLL.material()), 0, kH * 0.50f,
+                                kW * 0.52f, kH * 0.50f),
+                        box().inset(0).fill(radialGradient(
+                            {kW * 0.48f, kH * 0.44f}, kW * 0.94f,
+                            {hexColor(0x000000, 0.0f), hexColor(0x000000, 0.0f),
+                             SkColor4f{kPaperEdge.fR, kPaperEdge.fG,
+                                       kPaperEdge.fB, 0.26f}},
+                            {0.0f, 0.62f, 1.0f}))})
              .cache(Cache::Texture)});
 
     // ---- the frame's double hairline ----
     for (int i = 0; i < 2; ++i) {
       const float g = (float)i * kRuleGap;
-      root.children(
-          {box()
-               .left(kFrameL + g)
-               .top(kFrameT + g)
-               .width(kFrameR - kFrameL - 2 * g)
-               .height(kFrameB - kFrameT - 2 * g)
-               .key("frame" + std::to_string(i))
-               .fill(Fill::none())
-               .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
-                                           ramp(tFrame * 1000 + (float)i * 90,
-                                                880, ch::easeOutQuint))),
-                       stroke(i == 0 ? 2.0f : 1.3f, Fill::color(kInkLine)))});
+      root.children({kit::at(
+          box()
+              .key("frame" + std::to_string(i))
+              .fill(Fill::none())
+              .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
+                                          ramp(tFrame * 1000 + (float)i * 90,
+                                               880, ch::easeOutQuint))),
+                      stroke(i == 0 ? 2.0f : 1.3f, Fill::color(kInkLine))),
+          kFrameL + g, kFrameT + g, kFrameR - kFrameL - 2 * g,
+          kFrameB - kFrameT - 2 * g)});
     }
 
     // ---- "Tab. I.", swash italic, above the frame at the right ----
@@ -764,17 +757,17 @@ struct ChladniTab1 : sketch::Sketch {
     for (size_t i = 0; i < kFigures.size(); ++i) figure(root, i, ctx);
 
     // ---- the sand: every grain in one pool, one atlas stamp ----
-    root.children({box().inset(0).children(
-        {instancing::instances(atlas, pool, instancing::Mode::Live)})});
-
-    // ---- the engraver's signature, inside the frame at the foot ----
-    root.children({text("Capieux. sculps. 1786.")
-                       .font({.face = faceSwash, .size = 27, .track = 0.3f})
-                       .ink(kInkSoft)
-                       .key("credit")
-                       .centerAt({1402 * kScale, 1917 * kScale})
-                       .opacity(animate(from(0.0f).to(1.0f),
-                                        ramp(tCredit * 1000, 700)))});
+    root.children(
+        {box().inset(0).children(
+             {instancing::instances(atlas, pool, instancing::Mode::Live)}),
+         // ---- the engraver's signature, inside the frame at the foot ----
+         text("Capieux. sculps. 1786.")
+             .font({.face = faceSwash, .size = 27, .track = 0.3f})
+             .ink(kInkSoft)
+             .key("credit")
+             .centerAt({1402 * kScale, 1917 * kScale})
+             .opacity(
+                 animate(from(0.0f).to(1.0f), ramp(tCredit * 1000, 700)))});
 
     return root;
   }
