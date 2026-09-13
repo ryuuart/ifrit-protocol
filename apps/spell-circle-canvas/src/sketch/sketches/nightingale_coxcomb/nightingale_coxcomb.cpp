@@ -557,43 +557,41 @@ struct NightingaleCoxcomb : sketch::Sketch {
                  {hexColor(0x000000, 0.0f), hexColor(0x000000, 0.0f),
                   hexColor(0x6b4a33, 0.085f)},
                  {0.0f, 0.70f, 1.0f}))})
-             .cache(Cache::Texture)});
-
-    // ---- the reverse page showing through (custom leaf, raw Skia) ----
-    // The verso title never changes and the face is resolved before the
-    // tree is described, so the program is named and the node settles.
-    root.children(
-        {custom(std::string_view("verso-title"), [this](SkCanvas& canvas) {
-           if (!faceDisplay) return;
-           SkFont f(faceDisplay, 46);
-           SkPaint p;
-           p.setAntiAlias(true);
-           p.setColor4f(hexColor(0x241c15, 0.055f), nullptr);
-           canvas.save();
-           canvas.translate(760, 118);  // mirrored: the verso title
-           canvas.scale(-1, 1);
-           canvas.drawString("ENGLAND", 0, 0, f, p);
-           canvas.restore();
-         }).inset(0)});
-
-    // ---- the plate mark: the physical impression of the copper ------
-    root.children(
-        {box()
+             .cache(Cache::Texture),
+         // ---- the reverse page showing through (custom leaf, raw Skia) ----
+         // The verso title never changes and the face is resolved before the
+         // tree is described, so the program is named and the node settles.
+         custom(std::string_view("verso-title"),
+                [this](SkCanvas& canvas) {
+                  if (!faceDisplay) return;
+                  SkFont f(faceDisplay, 46);
+                  SkPaint p;
+                  p.setAntiAlias(true);
+                  p.setColor4f(hexColor(0x241c15, 0.055f), nullptr);
+                  canvas.save();
+                  canvas.translate(760, 118);  // mirrored: the verso title
+                  canvas.scale(-1, 1);
+                  canvas.drawString("ENGLAND", 0, 0, f, p);
+                  canvas.restore();
+                })
+             .inset(0),
+         // ---- the plate mark: the physical impression of the copper ------
+         box()
              .inset(26)
              .fill(Fill::none())
-             .stroke(stroke(1.0f, Fill::color(hexColor(0x8a7060, 0.20f))))});
-    root.children(
-        {box()
+             .stroke(stroke(1.0f, Fill::color(hexColor(0x8a7060, 0.20f)))),
+         box()
              .inset(28)
              .fill(Fill::none())
-             .stroke(stroke(1.0f, Fill::color(hexColor(0xffffff, 0.35f))))});
-
-    // ---- the spine fold at the sheet's centre -----------------------
-    root.children({box().left(938).top(0).width(24).height(kH).fill(
-        linearGradient({0, 0}, {24, 0},
-                       {hexColor(0x3a2a20, 0.0f), hexColor(0x3a2a20, 0.06f),
-                        hexColor(0xffffff, 0.09f), hexColor(0x3a2a20, 0.0f)},
-                       {0.0f, 0.42f, 0.60f, 1.0f}))});
+             .stroke(stroke(1.0f, Fill::color(hexColor(0xffffff, 0.35f)))),
+         // ---- the spine fold at the sheet's centre -----------------------
+         box()
+             .rect(SkRect::MakeXYWH(938, 0, 24, kH))
+             .fill(linearGradient(
+                 {0, 0}, {24, 0},
+                 {hexColor(0x3a2a20, 0.0f), hexColor(0x3a2a20, 0.06f),
+                  hexColor(0xffffff, 0.09f), hexColor(0x3a2a20, 0.0f)},
+                 {0.0f, 0.42f, 0.60f, 1.0f}))});
 
     // ---- title block -------------------------------------------------
     // An emboldening underlay lives on a whole style, so the two titles
@@ -631,10 +629,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
     for (int i = 0; i < 2; ++i)
       root.children(
           {box()
-               .left(775)
-               .top(108.0f + (float)i * 4.0f)
-               .width(368)
-               .height(1)
+               .rect(SkRect::MakeXYWH(775, 108.0f + (float)i * 4.0f, 368, 1))
                .fill(Fill::currentInk())
                .transformOrigin(0.0f, 0.5f)
                .scale(animate(from(0.0f).to(1.0f),
@@ -644,37 +639,34 @@ struct NightingaleCoxcomb : sketch::Sketch {
     // ---- the two diagram captions -----------------------------------
     auto caption = [&](const char* num, const char* label, float cx, float numX,
                        float startSec, const char* key) {
-      root.children({text(num)
-                         .font({.face = faceGrotesque, .size = 24})
-                         .key(std::string(key) + "n")
-                         .centerAt({numX, 40})
-                         .opacity(animate(from(0.0f).to(1.0f),
-                                          ramp(startSec * 1000, 320)))});
       root.children(
-          {text(label)
+          {text(num)
+               .font({.face = faceGrotesque, .size = 24})
+               .key(std::string(key) + "n")
+               .centerAt({numX, 40})
+               .opacity(
+                   animate(from(0.0f).to(1.0f), ramp(startSec * 1000, 320))),
+           text(label)
                .font({.face = faceGrotesque, .size = 21, .track = 0.4f})
                .key(std::string(key) + "t")
                .centerAt({cx, 78})
                .opacity(animate(from(0.0f).to(1.0f),
-                                ramp(startSec * 1000 + 90, 320)))});
-      root.children({box()
-                         .left(cx - 140)
-                         .top(94)
-                         .width(280)
-                         .height(1)
-                         .fill(Fill::color(kInkSoft))
-                         .transformOrigin(0.0f, 0.5f)
-                         .scale(animate(from(0.0f).to(1.0f),
-                                        ramp(startSec * 1000 + 180, 380,
-                                             ch::easeOutQuint)))});
+                                ramp(startSec * 1000 + 90, 320))),
+           box()
+               .rect(SkRect::MakeXYWH(cx - 140, 94, 280, 1))
+               .fill(Fill::color(kInkSoft))
+               .transformOrigin(0.0f, 0.5f)
+               .scale(animate(
+                   from(0.0f).to(1.0f),
+                   ramp(startSec * 1000 + 180, 380, ch::easeOutQuint)))});
     };
     caption("1.", "APRIL 1854 to MARCH 1855.", 1320, 1489, tCap1, "cap1");
     caption("2.", "APRIL 1855 to MARCH 1856.", 413, 394, tCap2, "cap2");
 
     // ---- the wheels --------------------------------------------------
-    root.children({wheel(ctx, d1, kC1, kR1, tWedge1, 0.115f, tSpoke1, 0, "a")});
     root.children(
-        {wheel(ctx, d2, kC2, kR2, tWedge2, 0.100f, tSpoke2, 12, "b")});
+        {wheel(ctx, d1, kC1, kR1, tWedge1, 0.115f, tSpoke1, 0, "a"),
+         wheel(ctx, d2, kC2, kR2, tWedge2, 0.100f, tSpoke2, 12, "b")});
 
     // ---- the ring labels: each hugging its own wedge's rim ----------
     const auto labelStyle = kit::emboldened(
@@ -770,23 +762,22 @@ struct NightingaleCoxcomb : sketch::Sketch {
       legend.children({text(legendText[i].text)
                            .key("leg" + std::to_string(i))
                            .fx(std::move(pen))
-                           .left(171.0f + (float)legendText[i].indent * 22.0f)
-                           .top(628.0f + (float)i * 30.7f)});
+                           .at({171.0f + (float)legendText[i].indent * 22.0f,
+                                628.0f + (float)i * 30.7f})});
     }
-    root.children({std::move(legend)});
-
-    // ---- printer's imprint ------------------------------------------
-    root.children({text("Harrison & Sons, St. Martin's Lane.")
-                       .font({.face = faceScript, .size = 20})
-                       .ink(kInkSoft)
-                       .key("imprint")
-                       .centerAt({1712, 1004})
-                       .opacity(animate(from(0.0f).to(1.0f),
-                                        ramp(tLegend * 1000 + 2500, 600)))});
-
-    // ---- the index needles ------------------------------------------
-    root.children({needle(kC1, kR1, &needle1Deg, &needle1A, "needle1")});
-    root.children({needle(kC2, kR2, &needle2Deg, &needle2A, "needle2")});
+    root.children(
+        {std::move(legend),
+         // ---- printer's imprint ------------------------------------------
+         text("Harrison & Sons, St. Martin's Lane.")
+             .font({.face = faceScript, .size = 20})
+             .ink(kInkSoft)
+             .key("imprint")
+             .centerAt({1712, 1004})
+             .opacity(animate(from(0.0f).to(1.0f),
+                              ramp(tLegend * 1000 + 2500, 600))),
+         // ---- the index needles ------------------------------------------
+         needle(kC1, kR1, &needle1Deg, &needle1A, "needle1"),
+         needle(kC2, kR2, &needle2Deg, &needle2A, "needle2")});
 
     return root;
   }
