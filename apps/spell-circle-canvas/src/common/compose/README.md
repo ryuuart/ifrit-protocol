@@ -467,7 +467,9 @@ it lands.** `text(utf8)` is that leaf. `Element::font` on any node is a
 PARTIAL, a `weave::Type` whose every field is optional: the fields it
 names override the inherited font and the rest inherit, so
 `font({.size = 22})` is the inherited face and colour at another size,
-and `font({.size = 1.5_em})` is half again the size inherited. The font
+and `font({.size = 1.5_em})` is half again the size inherited; a face
+stated as `weave::defaultFace()` is the font context's default family
+outright, the way back under an ancestor that named one. The font
 is everything a passage inherits: the face, size, tracking, condensation
 and axes; the features, language, optical kerning, word spacing, case and
 vertical form a run is shaped with; and the paint around the colour — the

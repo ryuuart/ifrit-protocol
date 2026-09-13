@@ -60,6 +60,10 @@ bool Composer::Impl::phaseSyncRects() {
 }
 
 void Composer::Impl::ensureLayout() {
+  // The cascade before layout, wherever layout is asked for — a frame, a
+  // bake, an intrinsic size: an inheriting leaf must be set in its font
+  // before it is measured, and a length in ems before Yoga reads it.
+  if (cascadeDirty) runCascade();
   if (!root || (!needsLayout && !YGNodeIsDirty(root->yoga))) return;
   // The root fills the viewport (the CSS-root rule) — except under an empty
   // setSize(), which means "intrinsic": the root sizes to its content (the

@@ -224,6 +224,33 @@ TEST(ComposeCascade, ABakeIsARoot) {
   EXPECT_EQ(bm.getColor(0, 0), SK_ColorBLACK);
 }
 
+TEST(ComposeCascade,
+     AFaceStatedAsTheDefaultFamilyReturnsToItUnderAFacedAncestor) {
+  // The instrument sans sets wider than the context's default family at
+  // one size; a leaf that states the default family under it is set as a
+  // leaf under no face is, and a leaf that says nothing keeps the sans.
+  Host faced, reset, bare;
+  faced.composer.render(
+      box()
+          .padding(10)
+          .font({.face = sigil::test::instrument::sans(), .size = 24})
+          .child(text(u8"AAAA").key("t")));
+  reset.composer.render(
+      box()
+          .padding(10)
+          .font({.face = sigil::test::instrument::sans(), .size = 24})
+          .child(text(u8"AAAA")
+                     .font({.face = sigil::weave::defaultFace()})
+                     .key("t")));
+  bare.composer.render(
+      box().padding(10).font({.size = 24}).child(text(u8"AAAA").key("t")));
+  faced.frame();
+  reset.frame();
+  bare.frame();
+  EXPECT_FLOAT_EQ(widthOf(reset, "t"), widthOf(bare, "t"));
+  EXPECT_NE(widthOf(faced, "t"), widthOf(bare, "t"));
+}
+
 TEST(ComposeCascade, ABakeSetsAnInheritingLeafInTheFontOfItsRoot) {
   // The cascade runs inside a bake as it does in a frame: a leaf that
   // names no style is measured and drawn in the font its ancestors WITHIN

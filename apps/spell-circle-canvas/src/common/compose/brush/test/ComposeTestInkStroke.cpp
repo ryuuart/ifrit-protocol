@@ -55,7 +55,7 @@ TEST(ComposeInkStroke, ABorderWrittenAsTheInkOrAPropertyTakesIt) {
                             .padding(20)
                             .ink({0, 0, 1, 1})
                             .child(box().width(100).height(100).stroke(
-                                border(10, Fill::currentInk()))));
+                                decorations::border(10, Fill::currentInk()))));
   inked.frame();
   EXPECT_EQ(inked.pixel(22, 70), SkColorSetARGB(255, 0, 0, 255));
   Host named;
@@ -63,7 +63,7 @@ TEST(ComposeInkStroke, ABorderWrittenAsTheInkOrAPropertyTakesIt) {
                             .padding(20)
                             .var("rule", SkColor4f{0, 1, 0, 1})
                             .child(box().width(100).height(100).stroke(
-                                border(10, Fill::var("rule")))));
+                                decorations::border(10, Fill::var("rule")))));
   named.frame();
   EXPECT_EQ(named.pixel(22, 70), SkColorSetARGB(255, 0, 255, 0));
 }

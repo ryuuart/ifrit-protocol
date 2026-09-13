@@ -717,6 +717,43 @@ TEST(ComposeLiveText, ASettledTextDecidesItsBreaksOnceAndThenComposesNothing) {
   EXPECT_EQ(host.composer.settling("t").degraded, 0);
 }
 
+TEST(ComposeLiveText, AnInheritingPassageSettlesExactlyAsATotalOneDoes) {
+  // The settling report — and the break store behind it — must not depend
+  // on whether the passage's style was inherited or written whole: an
+  // inheriting leaf is shaped once, in the font it lands in, never first
+  // against the root and again after the cascade.
+  const auto sweep = [](bool inherits) {
+    Host host(600, 500);
+    std::vector<TextSettling> answers;
+    for (const float measure : {320.0f, 340.0f, 360.0f, 340.0f, 320.0f}) {
+      Element leaf =
+          inherits ? text(longPassage())
+                         .font({.size = 13, .color = SkColor4f{1, 1, 1, 1}})
+                   : text(longPassage(),
+                          sigil::weave::textStyle(
+                              {.size = 13, .color = SkColor4f{1, 1, 1, 1}}));
+      host.composer.render(box().child(
+          std::move(leaf)
+              .key("t")
+              .width(Dimension(measure))
+              .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
+              .live(true, 1.0f)));
+      host.frame();
+      answers.push_back(host.composer.settling("t"));
+    }
+    return answers;
+  };
+  const std::vector<TextSettling> total = sweep(false);
+  const std::vector<TextSettling> inheriting = sweep(true);
+  ASSERT_EQ(total.size(), inheriting.size());
+  for (size_t i = 0; i < total.size(); ++i) {
+    EXPECT_TRUE(total[i] == inheriting[i]) << "frame " << i;
+    EXPECT_TRUE(total[i].live);
+    EXPECT_EQ(total[i].reused, 0) << "a degraded frame stores nothing";
+    EXPECT_EQ(total[i].degraded, 1) << "one block, over a 1 us budget";
+  }
+}
+
 TEST(ComposeLiveText, ADegradedFrameIsProvisionalAndTheSettingComesBack) {
   Host host(600, 500);
   // A budget no composer can meet: the block is filled greedily for that

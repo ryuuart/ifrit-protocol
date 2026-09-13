@@ -238,12 +238,17 @@ void Composer::Impl::resolveCascade(
   inst.cascadeResolved = true;
   if (shapeChanged) inst.lineHeight = lineHeightAt(font);
 
-  // An inheriting text leaf: a change of face, size or any other shaping
+  // An inheriting text leaf: text reconcile left owed is shaped here, once,
+  // in the font it lands in; a change of face, size or any other shaping
   // field is a new paragraph and a new layout; a change of colour alone
   // is set on the paragraph it already has.
-  if (node.kind == Kind::Text && node.textData && node.textData->inherits &&
-      inst.paragraph) {
-    if (!sameFontButColour(font, inst.textFont)) {
+  if (node.kind == Kind::Text && node.textData && node.textData->inherits) {
+    if (inst.textDirty || !inst.paragraph) {
+      inst.textDirty = false;
+      materializeText(inst);
+      if (inst.yoga) YGNodeMarkDirty(inst.yoga);
+      needsLayout = true;
+    } else if (!sameFontButColour(font, inst.textFont)) {
       inst.contentRev++;
       materializeText(inst);
       if (inst.yoga) YGNodeMarkDirty(inst.yoga);

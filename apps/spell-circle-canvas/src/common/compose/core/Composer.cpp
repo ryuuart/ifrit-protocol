@@ -281,9 +281,6 @@ void Composer::draw(SkCanvas& canvas) {
 
   sigil::measure::Laps laps;
 
-  // The cascade before layout: an inheriting leaf must be set in its font
-  // before it is measured, and a length in ems before Yoga reads it.
-  if (impl.cascadeDirty) impl.runCascade();
   impl.ensureLayout();
   impl.stats.layoutMs = laps.mark("layout");
 

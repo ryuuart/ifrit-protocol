@@ -199,6 +199,11 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // materialised in, compared against `font` to tell a change that
   // re-shapes (any field but the colour) from one that repaints alone.
   sigil::weave::Type textFont;
+  // On a text leaf that inherits: its text changed at reconcile and the
+  // paragraph is owed. The pass materialises it once, in the font it lands
+  // in; reconcile shaping it against the root first would be a second
+  // paragraph every frame the text changes.
+  bool textDirty = false;
   // …and the UTF-16 ranges whose colour is the ink in force, each with
   // the partial the run was written with, so an ink-only change sets the
   // paint on the paragraph in place and no line is broken again.
