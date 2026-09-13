@@ -48,13 +48,13 @@ std::string slangSurface(Reflection reflection) {
 Recipe define(std::string name, std::string_view bodyFile,
               const std::string& slangBody) {
   return Recipe::of<SurfaceParameters>(std::move(name))
-      .child(std::string(kBaseColorSlot))
-      .child(std::string(kNormalSlot))
-      .child(std::string(kRoughnessSlot))
-      .child(std::string(kMetallicSlot))
-      .child(std::string(kOcclusionSlot))
-      .child(std::string(kEmissiveSlot))
-      .child(std::string(kOpacitySlot))
+      .slot(std::string(kBaseColorSlot))
+      .slot(std::string(kNormalSlot))
+      .slot(std::string(kRoughnessSlot))
+      .slot(std::string(kMetallicSlot))
+      .slot(std::string(kOcclusionSlot))
+      .slot(std::string(kEmissiveSlot))
+      .slot(std::string(kOpacitySlot))
       .body(Target::SkSL, std::string(shaderSource("SurfacePrelude.sksl"))
                               .append(shaderSource(bodyFile)))
       // THE TERMS ARE NOT PREPENDED HERE. A Slang renderer loads them
@@ -89,13 +89,13 @@ Texture flat(const char* key, SkColor4f color) {
  *  normal for the normal map. */
 Material dress(Material m) {
   const Texture white = flat("white", SkColors::kWhite);
-  m.child(kBaseColorSlot, white);
-  m.child(kNormalSlot, flat("normal", SkColor4f{0.5f, 0.5f, 1.0f, 1.0f}));
-  m.child(kRoughnessSlot, white);
-  m.child(kMetallicSlot, white);
-  m.child(kOcclusionSlot, white);
-  m.child(kEmissiveSlot, white);
-  m.child(kOpacitySlot, white);
+  m.slot(kBaseColorSlot, white);
+  m.slot(kNormalSlot, flat("normal", SkColor4f{0.5f, 0.5f, 1.0f, 1.0f}));
+  m.slot(kRoughnessSlot, white);
+  m.slot(kMetallicSlot, white);
+  m.slot(kOcclusionSlot, white);
+  m.slot(kEmissiveSlot, white);
+  m.slot(kOpacitySlot, white);
   return m;
 }
 
@@ -228,7 +228,7 @@ Material surface(const texture::TextureMaps& maps, SurfaceParameters base) {
 
   Material m = surface(base);
   const auto place = [&](std::string_view slot, const Texture* t) {
-    if (t) m.child(slot, *t);
+    if (t) m.slot(slot, *t);
   };
   place(kBaseColorSlot, maps.map(Role::BaseColor));
   place(kNormalSlot, maps.map(Role::Normal));

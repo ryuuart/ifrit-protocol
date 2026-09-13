@@ -108,7 +108,7 @@ struct NoParameters {
 const std::shared_ptr<const Recipe>& passThroughRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<NoParameters>("field.noise")
-          .child("uSource")
+          .slot("uSource")
           .body(Target::SkSL, std::string(shaderSource("Noise.sksl"))));
   return recipe;
 }
@@ -117,8 +117,8 @@ const std::shared_ptr<const Recipe>& passThroughRecipe() {
 
 Material noise(float frequency, int octaves, float seed, bool turbulence) {
   Material m(passThroughRecipe(), NoParameters{0});
-  m.child("uSource", std::shared_ptr<const Leaf>(std::make_shared<PerlinLeaf>(
-                         frequency, octaves, seed, turbulence)));
+  m.slot("uSource", std::shared_ptr<const Leaf>(std::make_shared<PerlinLeaf>(
+                        frequency, octaves, seed, turbulence)));
   return m;
 }
 
@@ -151,7 +151,7 @@ Material grain(float frequency, int octaves, float seed, float contrast,
 const std::shared_ptr<const Recipe>& rippleRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<RippleParameters>("field.ripple")
-          .child("content")
+          .slot("content")
           .body(Target::SkSL, std::string(shaderSource("Ripple.sksl"))));
   return recipe;
 }
@@ -176,7 +176,7 @@ std::vector<Material> everyRecipe() {
   Material warp = ripple(4, 32);
   if (content) {
     content->getCanvas()->clear(SK_ColorMAGENTA);
-    warp.child("content", Texture::of(content->makeImageSnapshot()));
+    warp.slot("content", Texture::of(content->makeImageSnapshot()));
   }
   all.push_back(std::move(warp));
   return all;

@@ -6,7 +6,7 @@
  *
  * A `Paint` shades a shape; an `Effect` takes the layer a consumer has
  * already rendered and runs a filter over it — a blur, a displacement, a
- * lighting pass, an SkSL program whose `content` child IS that layer.
+ * lighting pass, an SkSL program whose `content` slot IS that layer.
  * Chained with `then()`, and comparable, so a consumer that caches a
  * filtered layer proves two frames asked for the same one.
  */
@@ -36,7 +36,7 @@ namespace sigil::material::skia {
 /**
  * Post-processing at stacking-context boundaries. `filter` wraps any
  * SkImageFilter (blur, displacement, lighting, compose chains);
- * `shader` wraps an SkSL runtime effect whose child shader is the
+ * `shader` wraps an SkSL runtime effect whose `content` slot is the
  * rendered layer. A consumer attaches one to the layer a node paints, or
  * to what is already painted beneath it; where the consumer caches that
  * layer, an expensive filter over static content is paid once.
@@ -59,7 +59,7 @@ class Effect {
    *  way. */
   static Effect filter(sk_sp<SkColorFilter> f);
   /** A SigilMaterial recipe as the effect: its program runs over the
-   *  layer, which arrives in the child slot named `content`; every other
+   *  layer, which arrives in the slot named `content`; every other
    *  slot and every uniform is bound from the material as it stands now.
    *  Built once: the material's bindings are read at construction, so
    *  animate by re-describing. A static material compares by its value
@@ -150,7 +150,7 @@ class Effect {
                               float intensity = 0.46f, float chroma = 0.80f,
                               float hueDrift = 0.0f, float tail = 0.0f);
   /** @p uniforms are float uniforms set by name on the SkSL effect;
-   *  the layer arrives as the child shader named "content".
+   *  the layer arrives as the slot named "content".
    *
    *  A name the effect does not declare as a float uniform — a typo, or a
    *  float2/float4/array, none of which this door can fill — is warned
@@ -201,7 +201,7 @@ class Effect {
    *  accepts uniform(name, &output), and a LIVE sigma map (a bound
    *  uniform, uTime) makes the whole effect isAnimated() by tier
    *  inheritance — so a bake can never sample the map once and freeze it.
-   *  `child("sigma", otherMap)` re-aims the map on an existing blur.
+   *  `slot("sigma", otherMap)` re-aims the map on an existing blur.
    *
    *  THE DECLARED VALUE IS THE RANGE A BOUND SIGMA RIDES INSIDE. The
    *  passes are built once from @p maxSigma and held; a bound "maxSigma"
@@ -214,29 +214,29 @@ class Effect {
    *  bound value then rebuilds every pass at every paint, which is the
    *  full cost the range exists to avoid. */
   static Effect blur(Paint sigmaMap, float maxSigma);
-  /** THE CHILD SLOT — `Material::child` on the effect seam: same name,
+  /** THE SLOT — `Material::slot` on the effect seam: same name,
    *  same shape, same semantics. The effect declares `uniform shader
    *  NAME;` and this fills it with a Material, so the SkSL can read a
    *  source the node has NOT painted: a parameter field, a mask channel, a
-   *  gradient, a second texture. `Effect::shader` fills exactly one child
+   *  gradient, a second texture. `Effect::shader` fills exactly one slot
    *  itself — `content`, the node's own rendered layer — and this is how
    *  any further declared `uniform shader` gets a source. The Material
    *  resolves against THIS NODE's box, so unit-space authoring
    *  (linearUnit / glowUnit) works here as it does on a fill.
    *
    *  TIER INHERITANCE is the load-bearing half, and it calls Material's
-   *  own recursion rather than repeating its rule: a live child makes the
+   *  own recursion rather than repeating its rule: a live source makes the
    *  effect isAnimated(), so the node is declared volatile and no cache
-   *  can freeze the parameter; the children also ride the prune signature,
-   *  so two effects with different children never compare equal.
+   *  can freeze the parameter; the slots also ride the prune signature,
+   *  so two effects with different sources never compare equal.
    *
-   *  SILENT-ISH GUARDRAILS, matching Material::child. A name the effect
+   *  SILENT-ISH GUARDRAILS, matching Material::slot. A name the effect
    *  does not declare as `uniform shader` warns and is IGNORED. On an
-   *  effect kind with no child to fill — `filter()`, which wraps an
+   *  effect kind with no slot to fill — `filter()`, which wraps an
    *  already-built SkImageFilter, or a bare `directionalBlur()` — the call
    *  is a no-op with a warning, exactly as uniform() is there. On a
    *  blur() the one fillable name is "sigma", its sigma map. */
-  Effect& child(std::string name, Paint source);
+  Effect& slot(std::string name, Paint source);
   /** A LIVE float uniform — Material's contract, on the effect seam. The
    *  value is read from the Output at every paint, and the node repaints
    *  every frame while the effect is attached: a bound uniform declares
@@ -296,9 +296,9 @@ class Effect {
   const sk_sp<SkColorFilter>& colorFilter() const { return m_colorFilter; }
   /** The filter with any bound uniforms resolved NOW — what the paint
    *  phase applies. Identical to imageFilter() for a static effect.
-   *  @p paintFrame is the painting node's PaintFrame, which child() materials
-   *  resolve against (its box, its clock) — exactly the context
-   *  Material::child hands its children. Null is the context-free form:
+   *  @p paintFrame is the painting node's PaintFrame, which the slots'
+   * materials resolve against (its box, its clock) — exactly the context
+   *  Material::slot hands its sources. Null is the context-free form:
    *  static children keep their snapshot, and it is what a caller holding
    *  an Effect outside a paint can ask for. */
   sk_sp<SkImageFilter> resolvedImageFilter(
@@ -332,9 +332,9 @@ class Effect {
     bool operator==(const DirectionalBlur&) const = default;
   };
   /** blur()'s comparable recipe — the parameter's RANGE only. The sigma
-   *  MAP itself lives in m_children under "sigma", so one child vector
+   *  MAP itself lives in m_slots under "sigma", so one slot vector
    *  carries every Material an effect samples: one equality, one tier
-   *  walk, one resolve loop, and `child("sigma", …)` re-aims the map for
+   *  walk, one resolve loop, and `slot("sigma", …)` re-aims the map for
    *  free. */
   struct ParametricBlur {
     float maxSigma = 0;
@@ -379,12 +379,12 @@ class Effect {
   // Derived from nothing else, so it takes part in equality: two effects
   // over the same program and uniforms paint differently by it.
   bool m_gatheredHalo = false;
-  // The child slots: `uniform shader NAME` → Paint. Held by shared_ptr
-  // so a copied Effect shares its children rather than deep-copying a
-  // whole paint tree per copy; the surface is still child(name, Paint) by
+  // The slots: `uniform shader NAME` → Paint. Held by shared_ptr
+  // so a copied Effect shares its slots rather than deep-copying a
+  // whole paint tree per copy; the surface is still slot(name, Paint) by
   // value, and filling a slot replaces the pointer rather than mutating
   // what another copy is holding.
-  std::vector<std::pair<std::string, std::shared_ptr<const Paint>>> m_children;
+  std::vector<std::pair<std::string, std::shared_ptr<const Paint>>> m_slots;
   // then()-chain retained only when a side is live (static chains
   // precompose into m_filter and carry no nodes).
   std::shared_ptr<const Effect> m_chainA, m_chainB;
@@ -394,7 +394,7 @@ class Effect {
    *  for the same reason: a static child's snapshot is already correct,
    *  and a context-needing one must be rebuilt per paint or it freezes. */
   bool anyChildNeedsContext() const;
-  /** The child slot @p name as a shader, resolved against @p paintFrame. */
+  /** The slot @p name as a shader, resolved against @p paintFrame. */
   sk_sp<SkShader> childShaderFor(std::string_view name,
                                  const PaintFrame* paintFrame) const;
   /** The recipe's filter, built unconditionally — the store-time snapshot
@@ -432,7 +432,7 @@ class Effect {
         "or m_filter identity when its source has live inputs; "
         "m_filter is EXCLUDED on the shader, directionalBlur and "
         "blur paths because it is derived from m_effect + the "
-        "constant lanes / m_directionalBlur / m_parametricBlur + m_children, "
+        "constant lanes / m_directionalBlur / m_parametricBlur + m_slots, "
         "and m_blurLevels is derived from m_parametricBlur alone, "
         "while m_gatheredHalo is derived from nothing and is "
         "compared beside the shader recipe; "

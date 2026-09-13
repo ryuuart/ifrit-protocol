@@ -82,7 +82,7 @@ TEST(Field, RippleDisplacesTheContent) {
   content.erase(SK_ColorRED, SkIRect::MakeXYWH(0, 8, 32, 8));
   content.setImmutable();
   Material r = field::ripple(3, 16);
-  r.child("content", Texture::of(content.asImage()));
+  r.slot("content", Texture::of(content.asImage()));
   const SkBitmap bm = render(r, 32, 16);
   int firstRow[2] = {16, 16};
   for (int k = 0; k < 2; ++k) {

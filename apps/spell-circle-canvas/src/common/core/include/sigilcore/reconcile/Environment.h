@@ -25,14 +25,15 @@ namespace sigil::core {
 // environment — an INHERITED VALUE, read where a component is described
 //
 // A describe phase is an ordinary C++ call tree, evaluated eagerly and
-// bottom-up: `box().child(panel())` calls `panel()` before the box exists,
+// bottom-up: `box().children({panel()})` calls `panel()` before the box
+// exists,
 // and every component is a plain function whose arguments are evaluated
 // inside the enclosing scope. So the describe-time call stack IS the
 // description tree, and the C++ answer to "inherit down a call stack" is
 // dynamic scope:
 //
 //     environment::Provide<Palette> theme(dark);      // binds for this scope
-//     return box().child(panel());            // panel() reads it
+//     return box().children({panel()});      // panel() reads it
 //
 //     // …four levels down, in a component that was never handed it:
 //     const Palette *p = environment::inherited<Palette>();

@@ -69,7 +69,7 @@ bool firstUse(Entry entry) {
     case Entry::Effect: {
       const Material effect(std::make_shared<const Recipe>(
           Recipe::of<EmptyParameters>("first-effect")
-              .child("content")
+              .slot("content")
               .body(Target::SkSL,
                     "half4 main(float2 p) { return content.eval(p); }")));
       return skia::Effect::recipe(effect).resolvedImageFilter(nullptr) !=
@@ -151,7 +151,7 @@ INSTANTIATE_TEST_SUITE_P(RegistrationOrder, SkiaCustomCompiler, testing::Bool(),
 bool recipeSnapshotsDistinguishCompilers() {
   const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<EmptyParameters>("effect.compiler-snapshot")
-          .child("content")
+          .slot("content")
           .body(Target::SkSL,
                 "half4 main(float2 p) { return content.eval(p); }"));
   const skia::Effect builtin = skia::Effect::recipe(Material(recipe));

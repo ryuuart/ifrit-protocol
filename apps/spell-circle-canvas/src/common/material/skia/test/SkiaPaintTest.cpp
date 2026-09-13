@@ -151,7 +151,7 @@ TEST(SkiaPaint, ChildAndBlendInheritTheirLayersTier) {
       effectFor("uniform shader uSrc;\n"
                 "half4 main(float2 p) { return uSrc.eval(p); }"));
   EXPECT_FALSE(parent.isAnimated());
-  parent.child("uSrc", skia::Paint::sksl(timeEffect()));
+  parent.slot("uSrc", skia::Paint::sksl(timeEffect()));
   EXPECT_TRUE(parent.isAnimated());
 
   const skia::Paint stack = skia::Paint::blend(
@@ -336,8 +336,8 @@ TEST(SkiaPaint, EqualityIsTheRecipeSoARebuiltPaintPrunes) {
       effectFor("uniform shader uSrc;\n"
                 "half4 main(float2 p) { return uSrc.eval(p); }"));
   skia::Paint b = a;
-  a.child("uSrc", skia::Paint::solid({1, 0, 0, 1}));
-  b.child("uSrc", skia::Paint::solid({0, 1, 0, 1}));
+  a.slot("uSrc", skia::Paint::solid({1, 0, 0, 1}));
+  b.slot("uSrc", skia::Paint::solid({0, 1, 0, 1}));
   EXPECT_FALSE(a == b);
 }
 
@@ -381,7 +381,7 @@ std::vector<SkColor4f> paletteTable() {
   return pal;
 }
 
-/** The same table as the 256 x 1 unpremultiplied image a child slot takes. */
+/** The same table as the 256 x 1 unpremultiplied image a slot takes. */
 sk_sp<SkImage> paletteImage(const std::vector<SkColor4f>& pal) {
   SkBitmap bm;
   bm.allocPixels(
@@ -413,10 +413,10 @@ TEST(SkiaPaint, APaletteReachesAnEffectAsOneChildImage) {
                 "  return uPalette.eval(float2(uIndex + 0.5, 0.5));\n"
                 "}"));
   lut.uniform("uIndex", 200.0f);
-  lut.child("uPalette",
-            skia::Paint::image(paletteImage(pal), SkTileMode::kClamp,
-                               SkTileMode::kClamp, SkMatrix::I(),
-                               SkSamplingOptions(SkFilterMode::kNearest)));
+  lut.slot("uPalette",
+           skia::Paint::image(paletteImage(pal), SkTileMode::kClamp,
+                              SkTileMode::kClamp, SkMatrix::I(),
+                              SkSamplingOptions(SkFilterMode::kNearest)));
   // One child, one uniform: the whole table is in the shader and nothing
   // was baked per entry.
   sk_sp<SkShader> shader = lut.staticShader();

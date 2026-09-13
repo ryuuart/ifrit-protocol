@@ -105,7 +105,7 @@ material::Texture wedge() {
 material::Material through(material::Material transform) {
   material::Texture map = wedge();
   map.uv(SkMatrix::Scale(kCell / 320.0f, kPicture / 180.0f));
-  transform.child("content", std::move(map));
+  transform.slot("content", std::move(map));
   return transform;
 }
 

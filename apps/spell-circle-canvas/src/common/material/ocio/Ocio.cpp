@@ -149,14 +149,14 @@ std::optional<std::vector<float>> bakeResponse(
 Material lutMaterial(sk_sp<SkImage> lutImage, int n) {
   if (!lutImage) return Material(lutRecipe());
   Material m(lutRecipe(), LutParameters{(float)n});
-  m.child("lut", Texture::of(std::move(lutImage)));
+  m.slot("lut", Texture::of(std::move(lutImage)));
   return m;
 }
 
 Material responseMaterial(sk_sp<SkImage> rowImage) {
   if (!rowImage) return Material(lutRecipe());
   Material m(responseRecipe(), LutParameters{(float)kResponseSize});
-  m.child("lut", Texture::of(std::move(rowImage)));
+  m.slot("lut", Texture::of(std::move(rowImage)));
   return m;
 }
 

@@ -312,8 +312,8 @@ TEST(ComposeMaterial, AChildSlotSamplesAnIndexTextureThroughAPalette) {
   Host host(80, 20);
   host.composer.render(stack().children({box().absolute().inset(0).fill(
       material::skia::Paint::sksl(paletteEffect(), {{"uShade", 0.0f}})
-          .child("uIndex", indexSource())
-          .child("uPalette", paletteSource(rampPalette())))}));
+          .slot("uIndex", indexSource())
+          .slot("uPalette", paletteSource(rampPalette())))}));
   host.frame();
   EXPECT_EQ(host.pixel(10, 10), SK_ColorRED) << "index 0";
   EXPECT_EQ(host.pixel(30, 10), SK_ColorGREEN) << "index 1";
@@ -325,8 +325,8 @@ TEST(ComposeMaterial, AChildSlotSamplesAnIndexTextureThroughAPalette) {
   Host swapped(80, 20);
   swapped.composer.render(stack().children({box().absolute().inset(0).fill(
       material::skia::Paint::sksl(paletteEffect(), {{"uShade", 0.0f}})
-          .child("uIndex", indexSource())
-          .child("uPalette", paletteSource(reversedPalette())))}));
+          .slot("uIndex", indexSource())
+          .slot("uPalette", paletteSource(reversedPalette())))}));
   swapped.frame();
   EXPECT_EQ(swapped.pixel(10, 10), SK_ColorWHITE) << "same indices, new LUT";
   EXPECT_EQ(swapped.pixel(70, 10), SK_ColorRED);
@@ -336,8 +336,8 @@ TEST(ComposeMaterial, AChildSlotSamplesAnIndexTextureThroughAPalette) {
   Host shaded(80, 20);
   shaded.composer.render(stack().children({box().absolute().inset(0).fill(
       material::skia::Paint::sksl(paletteEffect(), {{"uShade", 1.0f}})
-          .child("uIndex", indexSource())
-          .child("uPalette", paletteSource(rampPalette())))}));
+          .slot("uIndex", indexSource())
+          .slot("uPalette", paletteSource(rampPalette())))}));
   shaded.frame();
   EXPECT_EQ(shaded.pixel(10, 10), SK_ColorGREEN) << "0 + 1";
   EXPECT_EQ(shaded.pixel(50, 10), SK_ColorWHITE) << "2 + 1";
@@ -351,13 +351,13 @@ TEST(ComposeMaterial, TheChildRidesThePruneSignature) {
   // deliberate.
   const material::skia::Paint a =
       material::skia::Paint::sksl(paletteEffect())
-          .child("uPalette", paletteSource(rampPalette()));
+          .slot("uPalette", paletteSource(rampPalette()));
   const material::skia::Paint b =
       material::skia::Paint::sksl(paletteEffect())
-          .child("uPalette", paletteSource(rampPalette()));
+          .slot("uPalette", paletteSource(rampPalette()));
   const material::skia::Paint c =
       material::skia::Paint::sksl(paletteEffect())
-          .child("uPalette", paletteSource(flatWhitePalette()));
+          .slot("uPalette", paletteSource(flatWhitePalette()));
   const material::skia::Paint bare =
       material::skia::Paint::sksl(paletteEffect());
   EXPECT_TRUE(a == b) << "same effect, same child recipe → prunes";
@@ -370,8 +370,8 @@ TEST(ComposeMaterial, TheChildRidesThePruneSignature) {
   auto tree = [](const sk_sp<SkImage>& lut) {
     return stack().children({box().key("lut").absolute().inset(0).fill(
         material::skia::Paint::sksl(paletteEffect(), {{"uShade", 0.0f}})
-            .child("uIndex", indexSource())
-            .child("uPalette", paletteSource(lut)))});
+            .slot("uIndex", indexSource())
+            .slot("uPalette", paletteSource(lut)))});
   };
   host.composer.render(tree(rampPalette()));
   host.frame();
@@ -403,11 +403,11 @@ TEST(ComposeMaterial, ALiveChildMakesTheParentLive) {
   choreograph::Output<float> k{0.0f};
   const material::skia::Paint live =
       material::skia::Paint::sksl(passthrough)
-          .child("uSrc",
-                 material::skia::Paint::sksl(ukEffect()).uniform("uK", &k));
+          .slot("uSrc",
+                material::skia::Paint::sksl(ukEffect()).uniform("uK", &k));
   EXPECT_TRUE(live.isAnimated()) << "the child's volatility is the parent's";
   EXPECT_FALSE(material::skia::Paint::sksl(passthrough)
-                   .child("uSrc", material::skia::Paint::solid({0, 1, 0, 1}))
+                   .slot("uSrc", material::skia::Paint::solid({0, 1, 0, 1}))
                    .isAnimated())
       << "…and a static child leaves the parent static";
 
@@ -442,7 +442,7 @@ TEST(ComposeMaterial, AGeometryChildPropagatesTheGeometryTier) {
   ASSERT_TRUE(passthrough && unitRamp);
   const material::skia::Paint m =
       material::skia::Paint::sksl(passthrough)
-          .child("uSrc", material::skia::Paint::sksl(unitRamp));
+          .slot("uSrc", material::skia::Paint::sksl(unitRamp));
   EXPECT_TRUE(m.geometryDependent()) << "the child's tier is the parent's";
   EXPECT_FALSE(m.isAnimated()) << "geometry is not live";
 
@@ -463,9 +463,9 @@ TEST(ComposeMaterial, AnUndeclaredChildNameIsIgnored) {
   Host host(80, 20);
   material::skia::Paint m =
       material::skia::Paint::sksl(paletteEffect(), {{"uShade", 0.0f}})
-          .child("uIndex", indexSource())
-          .child("uPalette", paletteSource(rampPalette()))
-          .child("uNoSuchSlot", material::skia::Paint::solid({1, 1, 1, 1}));
+          .slot("uIndex", indexSource())
+          .slot("uPalette", paletteSource(rampPalette()))
+          .slot("uNoSuchSlot", material::skia::Paint::solid({1, 1, 1, 1}));
   EXPECT_FALSE(m.isAnimated());
   host.composer.render(stack().children({box().absolute().inset(0).fill(m)}));
   host.frame();
@@ -473,7 +473,7 @@ TEST(ComposeMaterial, AnUndeclaredChildNameIsIgnored) {
 
   // And on a material with no slots at all it is a no-op, like uniform().
   material::skia::Paint solid =
-      material::skia::Paint::solid({0, 1, 0, 1}).child("uSrc", indexSource());
+      material::skia::Paint::solid({0, 1, 0, 1}).slot("uSrc", indexSource());
   EXPECT_TRUE(solid.isSolid());
   EXPECT_FALSE(solid.isAnimated());
 }

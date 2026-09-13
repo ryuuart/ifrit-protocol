@@ -4,7 +4,7 @@
  * bevelNormals(): a normal map derived from an outline's coverage, so a
  * flat shape shades as though it had a rounded shoulder. It encodes
  * device-space normals (+y down, +z toward the viewer) and produces a
- * Texture a recipe's child slot takes — the other half of what a
+ * Texture a recipe's slot takes — the other half of what a
  * reflective 2D surface is shaded from, beside an EnvironmentMap.
  */
 

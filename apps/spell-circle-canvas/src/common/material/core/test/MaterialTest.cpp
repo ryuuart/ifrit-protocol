@@ -155,26 +155,26 @@ TEST(Material, EqualityIsByValueWithBindingsByIdentity) {
 }
 
 TEST(Material, AnEmptyLeafSlotComparesAgainstAFilledOneWithoutReadingIt) {
-  // child(name, shared_ptr<const Leaf>{}) is a public door — a slot
+  // slot(name, shared_ptr<const Leaf>{}) is a public door — a slot
   // declared and deliberately left empty — so the two sides of a
   // comparison can disagree about whether a slot holds a leaf at all.
   // Whichever side is empty, the answer is "not equal", read from the
   // pointers rather than from what they point at.
   auto r = std::make_shared<const Recipe>(
       Recipe::of<TwoParameters>("leafslot")
-          .child("uSrc")
+          .slot("uSrc")
           .body(
               Target::SkSL,
               "half4 main(float2 p) { return uSrc.eval(p) * half4(uColor); }"));
   const TwoParameters p{1.0f, {1, 1, 1, 1}};
   Material empty(r, p);
-  empty.child("uSrc", std::shared_ptr<const Leaf>{});
+  empty.slot("uSrc", std::shared_ptr<const Leaf>{});
   Material alsoEmpty(r, p);
-  alsoEmpty.child("uSrc", std::shared_ptr<const Leaf>{});
+  alsoEmpty.slot("uSrc", std::shared_ptr<const Leaf>{});
   EXPECT_TRUE(empty == alsoEmpty);
 
   Material filled(r, p);
-  filled.child("uSrc", std::make_shared<const NumberLeaf>(1.0f));
+  filled.slot("uSrc", std::make_shared<const NumberLeaf>(1.0f));
   EXPECT_FALSE(empty == filled);
   EXPECT_FALSE(filled == empty);
 }
@@ -200,26 +200,26 @@ TEST(Material, TiersFollowBindingsFrameInputsAndChildren) {
   EXPECT_TRUE(Material(sized).geometryDependent());
 
   auto parentRecipe = std::make_shared<const Recipe>(
-      Recipe::of<TwoParameters>("parent").child("uA").child("uB"));
+      Recipe::of<TwoParameters>("parent").slot("uA").slot("uB"));
   Material parent(parentRecipe);
   EXPECT_FALSE(parent.isAnimated());
-  parent.child("uB", Material(sized));
+  parent.slot("uB", Material(sized));
   EXPECT_TRUE(parent.geometryDependent());
   EXPECT_FALSE(parent.isAnimated());
-  parent.child("uA", bound);
+  parent.slot("uA", bound);
   EXPECT_TRUE(parent.isAnimated());
-  ASSERT_EQ(parent.children().size(), 2u);
+  ASSERT_EQ(parent.slots().size(), 2u);
   // Slots sit in recipe order however they were filled.
-  EXPECT_EQ(parent.children()[0].first, "uA");
-  EXPECT_NE(parent.child("uA"), nullptr);
-  EXPECT_EQ(parent.child("uZ"), nullptr);
-  parent.child("uZ", still);  // undeclared: ignored
-  EXPECT_EQ(parent.children().size(), 2u);
+  EXPECT_EQ(parent.slots()[0].first, "uA");
+  EXPECT_NE(parent.slot("uA"), nullptr);
+  EXPECT_EQ(parent.slot("uZ"), nullptr);
+  parent.slot("uZ", still);  // undeclared: ignored
+  EXPECT_EQ(parent.slots().size(), 2u);
 
   Material same(parentRecipe);
-  same.child("uA", bound).child("uB", Material(sized));
+  same.slot("uA", bound).slot("uB", Material(sized));
   EXPECT_TRUE(parent == same);
-  same.child("uB", Material(sized).amount(0.2f));
+  same.slot("uB", Material(sized).amount(0.2f));
   EXPECT_FALSE(parent == same);
 }
 

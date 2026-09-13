@@ -33,10 +33,7 @@ Element& Element::key(std::string_view k) {
   return *this;
 }
 
-Element& Element::child(Element e) {
-  m_node->children.push_back(std::move(e));
-  return *this;
-}
+void Element::append(Element e) { m_node->children.push_back(std::move(e)); }
 
 // ---- placement -------------------------------------------------------------
 

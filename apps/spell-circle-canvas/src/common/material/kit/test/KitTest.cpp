@@ -211,7 +211,7 @@ TEST(Surface, BothRecipesCompileAndShade) {
     EXPECT_TRUE(skia::shader(m, {}));
     // Every declared slot is dressed, so no body evaluates an unbound
     // child.
-    EXPECT_EQ(m.children().size(), m.recipe().children().size());
+    EXPECT_EQ(m.slots().size(), m.recipe().slots().size());
   }
   EXPECT_TRUE(kit::isSurface(kit::surface(parameters)));
   EXPECT_FALSE(kit::isUnlit(kit::surface(parameters)));
@@ -291,7 +291,7 @@ std::shared_ptr<Program> slangStandIn(std::shared_ptr<const Recipe> recipe,
   return std::make_shared<Program>(std::move(recipe), Target::Slang, variant);
 }
 
-/** The child slots the compiled SkSL program declares, which is one
+/** The slots the compiled SkSL program declares, which is one
  *  image sampler each once a GPU backend has inlined it. */
 size_t declaredSlots(const Material& m) {
   const auto built = skia::builder(m, {});
@@ -318,7 +318,7 @@ TEST(Over, AStackAsksForItsOperandsSamplersAndNoMore) {
   // The five it never reads are not declared to that program and so cost
   // it no sampler.
   const Material unlit = kit::unlit();
-  EXPECT_EQ(unlit.children().size(), 7u);
+  EXPECT_EQ(unlit.slots().size(), 7u);
   EXPECT_EQ(declaredSlots(unlit), 2u);
   EXPECT_EQ(skia::samplerCount(unlit), 2);
 
@@ -326,7 +326,7 @@ TEST(Over, AStackAsksForItsOperandsSamplersAndNoMore) {
       over(kit::unlit(), kit::unlit(), maskConstant(0.5f), Blend::Mix);
   // The composed recipe declares a slot per operand's own slot, because
   // the language it was composed for reaches no child material.
-  EXPECT_GT(stack.recipe().children().size(), 3u);
+  EXPECT_GT(stack.recipe().slots().size(), 3u);
   // SkSL samples the operands themselves, so its program declares those
   // three slots and none of the composed ones.
   EXPECT_EQ(declaredSlots(stack), 3u);
@@ -354,14 +354,14 @@ TEST(Over, ATreeOverTheSamplerBudgetIsRefusedRatherThanDrawn) {
   std::string body = "half4 main(float2 p) { return ";
   for (int i = 0; i < tooMany; ++i) {
     const std::string slot = "uMap" + std::to_string(i);
-    recipe.child(slot);
+    recipe.slot(slot);
     body += (i ? " + " : "");
     body += slot + ".eval(p)";
   }
   recipe.body(Target::SkSL, body + "; }");
   Material m(std::make_shared<const Recipe>(std::move(recipe)), NoParameters{});
   for (int i = 0; i < tooMany; ++i)
-    m.child("uMap" + std::to_string(i), texel(i));
+    m.slot("uMap" + std::to_string(i), texel(i));
   EXPECT_EQ(skia::samplerCount(m), tooMany);
   EXPECT_FALSE(skia::shader(m, {}));
 }

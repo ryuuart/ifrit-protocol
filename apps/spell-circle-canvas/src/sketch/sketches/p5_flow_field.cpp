@@ -62,7 +62,7 @@ sk_sp<SkRuntimeEffect> flowEffect() {
 
 mskia::Paint currentInk() {
   return mskia::Paint::sksl(flowEffect())
-      .child("uField", mskia::Paint::recipe(field::noise(0.025f, 4, 23.0f)))
+      .slot("uField", mskia::Paint::recipe(field::noise(0.025f, 4, 23.0f)))
       .quantizeTime(30.0f);
 }
 

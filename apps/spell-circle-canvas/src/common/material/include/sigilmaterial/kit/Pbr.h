@@ -6,7 +6,7 @@
  * set are written against. One parameter struct is its ABI: base colour,
  * metallic, roughness, emission, the normal convention, the channel each
  * packed map is read from, the cutout threshold and the glass terms. One
- * child slot per map, named for the role it fills, so a discovered
+ * slot per map, named for the role it fills, so a discovered
  * texture set drops straight in.
  *
  * Two recipes over that ABI, and the choice between them is what a
@@ -50,7 +50,7 @@
 
 namespace sigil::material::kit {
 
-/** The child slots the surface recipes declare, one per map a texture
+/** The slots the surface recipes declare, one per map a texture
  *  set carries. Each takes a `Texture` (or any leaf a renderer binds);
  *  an empty slot reads as the neutral value for that role. */
 inline constexpr std::string_view kBaseColorSlot = "baseColorMap";

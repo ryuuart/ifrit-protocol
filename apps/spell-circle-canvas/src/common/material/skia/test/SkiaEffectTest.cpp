@@ -45,13 +45,13 @@ TEST(SkiaEffect, RecipeSnapshotsCompareTheirValuesAndOperands) {
           .body(Target::SkSL, "half4 main(float2 p) { return half4(gain); }"));
   const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<Parameters>("effect.snapshot")
-          .child("content")
-          .child("tint")
+          .slot("content")
+          .slot("tint")
           .body(Target::SkSL,
                 "half4 main(float2 p) { return content.eval(p) * "
                 "tint.eval(p) * half(gain); }"));
   Material material(recipe, Parameters{});
-  material.child("tint", Material(tint, Parameters{}));
+  material.slot("tint", Material(tint, Parameters{}));
   const skia::Effect captured = skia::Effect::recipe(material);
   ASSERT_NE(captured.imageFilter(), nullptr);
   EXPECT_TRUE(captured == skia::Effect::recipe(material));
@@ -62,7 +62,7 @@ TEST(SkiaEffect, RecipeSnapshotsCompareTheirValuesAndOperands) {
   changed.set("gain", 0.5f);
   EXPECT_FALSE(captured == skia::Effect::recipe(changed));
   changed = material;
-  changed.child("tint", Material(tint, Parameters{0.5f}));
+  changed.slot("tint", Material(tint, Parameters{0.5f}));
   EXPECT_FALSE(captured == skia::Effect::recipe(changed));
   EXPECT_TRUE(captured == skia::Effect::recipe(material));
 }
@@ -73,7 +73,7 @@ TEST(SkiaEffect, RecipeSnapshotsKeepCapturedLiveValuesApart) {
   };
   const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<Parameters>("effect.snapshot.live")
-          .child("content")
+          .slot("content")
           .body(
               Target::SkSL,
               "half4 main(float2 p) { return content.eval(p) * half(gain); }"));
@@ -104,8 +104,8 @@ TEST(SkiaEffect, RecipeSnapshotsDistinguishSurfaceLowering) {
   struct Parameters {};
   const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<Parameters>("effect.snapshot.surface")
-          .child("content")
-          .child("response")
+          .slot("content")
+          .slot("response")
           .channelwise("response")
           .body(Target::SkSL,
                 "half4 main(float2 p) { half4 c = content.eval(p); "
@@ -116,7 +116,7 @@ TEST(SkiaEffect, RecipeSnapshotsDistinguishSurfaceLowering) {
   ASSERT_NE(surface, nullptr);
   surface->getCanvas()->clear(SK_ColorWHITE);
   Material material(recipe);
-  material.child("response", Texture::of(surface->makeImageSnapshot()));
+  material.slot("response", Texture::of(surface->makeImageSnapshot()));
   const skia::Effect table =
       skia::Effect::recipe(material, kRGBA_8888_SkColorType);
   const skia::Effect shader =
@@ -169,7 +169,7 @@ TEST(SkiaEffect, ChainingKeepsTheNodesAContextNeedingChildLivesIn) {
   EXPECT_TRUE(anchored.geometryDependent());
 
   skia::Effect shaded = skia::Effect::shader(effect);
-  shaded.child("tint", anchored);
+  shaded.slot("tint", anchored);
   EXPECT_FALSE(shaded.isAnimated());
   EXPECT_TRUE(shaded.usesWorldSpace());
 
@@ -190,7 +190,7 @@ TEST(SkiaEffect, SettingOneUniformTwiceReplacesItRatherThanStacking) {
   skia::Effect twice = skia::Effect::shader(effect);
   twice.uniform("uK", 0.25f);
   twice.uniform("uK", 0.75f);
-  // Last write wins, as child() does: the same effect described once at
+  // Last write wins, as slot() does: the same effect described once at
   // the final value is the same recipe, so a re-described node prunes.
   skia::Effect once = skia::Effect::shader(effect);
   once.uniform("uK", 0.75f);

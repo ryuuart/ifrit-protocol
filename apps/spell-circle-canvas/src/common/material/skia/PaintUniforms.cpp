@@ -1,5 +1,5 @@
 /** @file
- * THE DOORS THAT TAKE A NAME: every uniform() overload and child(), for
+ * THE DOORS THAT TAKE A NAME: every uniform() overload and slot(), for
  * both the sksl recipe and the material instance. Each validates the name
  * against what the effect declares, copies the recipe on write because a
  * paint is a value, and refreshes the static snapshot a constant changed.
@@ -76,26 +76,26 @@ Paint& Paint::uniform(std::string name, float value) {
   return *this;
 }
 
-Paint& Paint::child(std::string name, Paint source) {
+Paint& Paint::slot(std::string name, Paint source) {
   if (m_backed) {
     detachBacked();
     if (source.m_backed)
-      m_backed->material.child(name, source.m_backed->material);
+      m_backed->material.slot(name, source.m_backed->material);
     else
-      m_backed->material.child(name, MaterialLeaf(std::move(source)));
+      m_backed->material.slot(name, MaterialLeaf(std::move(source)));
     m_shader = buildBacked(nullptr);
     return *this;
   }
   if (!m_live) {
     SkDebugf(
-        "skia::Paint::child(\"%s\"): ignored — this material has no shader "
-        "children (only sksl() does)\n",
+        "skia::Paint::slot(\"%s\"): ignored — this material declares no "
+        "slots (only sksl() does)\n",
         name.c_str());
     return *this;
   }
   if (!detail::declaresShaderChild(m_live->effect, name)) {
     SkDebugf(
-        "skia::Paint::child: \"%s\" is not declared by the effect as "
+        "skia::Paint::slot: \"%s\" is not declared by the effect as "
         "`uniform shader` — ignored\n",
         name.c_str());
     return *this;
@@ -104,13 +104,13 @@ Paint& Paint::child(std::string name, Paint source) {
   // Last write wins on a name, so re-filling a slot replaces rather than
   // stacking (two entries would both be assigned and the second silently
   // shadow the first in the builder).
-  for (auto& slot : m_live->children)
+  for (auto& slot : m_live->slots)
     if (slot.first == name) {
       slot.second = std::move(source);
       m_shader = build(*m_live, nullptr);
       return *this;
     }
-  m_live->children.emplace_back(std::move(name), std::move(source));
+  m_live->slots.emplace_back(std::move(name), std::move(source));
   m_shader = build(*m_live, nullptr);  // refresh the static snapshot
   return *this;
 }

@@ -75,10 +75,10 @@ Recipe& Recipe::body(Target target, std::string source) {
   return *this;
 }
 
-Recipe& Recipe::child(std::string slot) {
-  for (const std::string& s : m_children)
+Recipe& Recipe::slot(std::string slot) {
+  for (const std::string& s : m_slots)
     if (s == slot) return *this;
-  m_children.push_back(std::move(slot));
+  m_slots.push_back(std::move(slot));
   return *this;
 }
 
@@ -154,7 +154,7 @@ std::vector<Target> Recipe::targets() const {
 
 std::string Recipe::declarations(Target target) const {
   std::string out = declare(m_layout, target);
-  for (const std::string& slot : m_children) {
+  for (const std::string& slot : m_slots) {
     // A SLOT THIS TARGET'S BODY NEVER SAMPLES IS NOT DECLARED TO IT. A
     // declared slot is an image sampler in the compiled program whether
     // or not anything reads it, and a device has few — Metal binds

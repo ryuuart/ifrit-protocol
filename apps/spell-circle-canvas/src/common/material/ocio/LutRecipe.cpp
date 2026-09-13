@@ -14,8 +14,8 @@ namespace sigil::material::ocio {
 const std::shared_ptr<const Recipe>& lutRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<LutParameters>("color.lut3d")
-          .child("content")
-          .child("lut")
+          .slot("content")
+          .slot("lut")
           .body(Target::SkSL, std::string(shaderSource("Lut3d.sksl"))));
   return recipe;
 }
@@ -23,8 +23,8 @@ const std::shared_ptr<const Recipe>& lutRecipe() {
 const std::shared_ptr<const Recipe>& responseRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<LutParameters>("color.response1d")
-          .child("content")
-          .child("lut")
+          .slot("content")
+          .slot("lut")
           .channelwise("lut")
           .body(Target::SkSL, std::string(shaderSource("Response1d.sksl"))));
   return recipe;

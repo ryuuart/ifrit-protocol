@@ -196,8 +196,8 @@ struct ExrChannels final : sketch::Sketch {
     if (g < 0) return nullptr;
     material::Material stone = material::kit::surface(
         {.baseColor = {0.62f, 0.60f, 0.56f, 1}, .roughness = 1.0f});
-    stone.child(material::kit::kRoughnessSlot,
-                material::Texture::of(planes.makeImage(g, g, g, -1)));
+    stone.slot(material::kit::kRoughnessSlot,
+               material::Texture::of(planes.makeImage(g, g, g, -1)));
     const material::Texture* placed =
         material::kit::map(stone, material::kit::kRoughnessSlot);
     return placed ? placed->image() : nullptr;

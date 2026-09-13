@@ -221,7 +221,7 @@ struct EvaMagiInterior : sketch::Sketch {
 
     mskia::Paint infection =
         mskia::Paint::sksl(infectionFx)
-            .child("uArrival", mskia::Paint::shader(arrivals[(size_t)i].field))
+            .slot("uArrival", mskia::Paint::shader(arrivals[(size_t)i].field))
             .uniform("uCells",
                      std::array<float, 2>{std::ceil(sz.width() / magi::kCell),
                                           std::ceil(sz.height() / magi::kCell)})

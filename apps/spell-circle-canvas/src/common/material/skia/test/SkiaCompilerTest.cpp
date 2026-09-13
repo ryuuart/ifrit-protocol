@@ -1,7 +1,7 @@
 /** @file
  * The SkSL backend's compile: a two-uniform recipe compiles through the
  * cache, resolves, and shades a raster byte-identically to the same SkSL
- * compiled and filled by hand; a child slot samples another material; a
+ * compiled and filled by hand; a slot samples another material; a
  * body that redeclares a name a device backend owns is refused here,
  * where the refusal costs nothing.
  */
@@ -75,12 +75,12 @@ TEST(SkiaCompiler, ChildSlotSamplesAnotherMaterial) {
   auto inner = std::make_shared<const Recipe>(
       Recipe::of<TwoParameters>("inner").body(Target::SkSL, kBody));
   auto outer = std::make_shared<const Recipe>(
-      Recipe::of<TwoParameters>("outer").child("uSrc").body(
+      Recipe::of<TwoParameters>("outer").slot("uSrc").body(
           Target::SkSL,
           "half4 main(float2 p) { return uSrc.eval(p) * half4(uScale); }"));
   Material m(outer, TwoParameters{1.0f, {0, 0, 0, 1}});
-  m.child("uSrc",
-          Material(inner, TwoParameters{1.0f, {0.0f, 1.0f, 0.0f, 1.0f}}));
+  m.slot("uSrc",
+         Material(inner, TwoParameters{1.0f, {0.0f, 1.0f, 0.0f, 1.0f}}));
   sk_sp<SkShader> shader = skia::shader(m, FrameData{});
   ASSERT_NE(shader, nullptr);
   const SkBitmap bm = render(shader);

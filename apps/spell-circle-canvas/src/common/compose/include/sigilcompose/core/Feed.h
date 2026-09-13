@@ -135,7 +135,7 @@ struct Options {
  *
  *  The returned column is an ordinary Element: give it a size, a fill, a
  *  `grow(1)`, or append something after the rows (a caret, a "…more"
- *  affordance) with `.child()`. */
+ *  affordance) with `.children({…})`. */
 template <class T, class RowFunction>
   requires std::invocable<RowFunction, const T&>
 [[nodiscard]] Element feed(const Ring<T>& ring, const Options& options,

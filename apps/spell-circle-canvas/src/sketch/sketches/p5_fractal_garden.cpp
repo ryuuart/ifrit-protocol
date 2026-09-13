@@ -59,7 +59,7 @@ sk_sp<SkRuntimeEffect> branchEffect() {
 
 mskia::Paint branchInk() {
   return mskia::Paint::sksl(branchEffect())
-      .child("uGrain", mskia::Paint::recipe(field::grain(0.08f, 3, 17.0f)))
+      .slot("uGrain", mskia::Paint::recipe(field::grain(0.08f, 3, 17.0f)))
       .quantizeTime(30.0f);
 }
 

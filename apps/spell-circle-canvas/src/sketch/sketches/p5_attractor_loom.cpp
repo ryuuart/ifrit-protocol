@@ -59,7 +59,7 @@ sk_sp<SkRuntimeEffect> threadEffect() {
 
 mskia::Paint threadInk() {
   return mskia::Paint::sksl(threadEffect())
-      .child("uGrain", mskia::Paint::recipe(field::grain(0.07f, 3, 41.0f)))
+      .slot("uGrain", mskia::Paint::recipe(field::grain(0.07f, 3, 41.0f)))
       .quantizeTime(30.0f);
 }
 

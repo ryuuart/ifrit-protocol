@@ -104,7 +104,7 @@ class SetSession final : public Session {
       // the first camera in tree order is the one a frame is seen from,
       // so the described tree is hung under one node carrying the host's
       // camera — which stands before whatever the set declared.
-      frame.scene(world::Element().camera(m_orbit).child(frame.scene()));
+      frame.scene(world::Element().camera(m_orbit).children({frame.scene()}));
     }
     if (m_runtime) {
       frame.runtime(m_runtime);

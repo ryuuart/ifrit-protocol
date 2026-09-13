@@ -2,7 +2,7 @@
 
 /** @file
  * Texture — an image and how it is sampled, as a comparable value a
- * material tree can hold in a child slot. The image comes from a
+ * material tree can hold in a slot. The image comes from a
  * TextureSource: a decoded still, a frame of an image asset, or a named
  * producer that bakes on first use. Sampling is the tiling per axis, a
  * uv matrix placing texture space in the sampled space, a region of the
@@ -182,7 +182,7 @@ class ProducerSource {
 };
 
 /** An image and its sampling. A value: copy it, change a dial on the
- *  copy, keep both. As a Leaf it fills a material's child slot, and the
+ *  copy, keep both. As a Leaf it fills a material's slot, and the
  *  Skia backend binds it as the image shader `shader()` builds. */
 class Texture : public ShaderLeaf {
  public:

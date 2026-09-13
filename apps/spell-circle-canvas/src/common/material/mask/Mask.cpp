@@ -23,7 +23,7 @@ namespace {
 
 Material sampled(Texture source, MaskParameters parameters) {
   Material m(sampledMaskRecipe(), parameters);
-  m.child(kMaskSourceSlot, std::move(source));
+  m.slot(kMaskSourceSlot, std::move(source));
   return m;
 }
 
@@ -46,7 +46,7 @@ const std::shared_ptr<const Recipe>& sampledMaskRecipe() {
   static const std::shared_ptr<const Recipe> recipe =
       std::make_shared<const Recipe>(
           Recipe::of<MaskParameters>("mask.sampled")
-              .child(std::string(kMaskSourceSlot))
+              .slot(std::string(kMaskSourceSlot))
               .body(Target::SkSL,
                     std::string(mask::shaderSource("MaskFit.sksl"))
                         .append(mask::shaderSource("MaskSampled.sksl")))

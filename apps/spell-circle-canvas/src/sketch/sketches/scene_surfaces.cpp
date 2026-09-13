@@ -290,7 +290,7 @@ struct Screen {
 material::Material screenOf(material::Texture texture) {
   material::Material surface =
       material::kit::unlit({.baseColor = {1, 1, 1, 1}});
-  surface.child(material::kit::kBaseColorSlot, std::move(texture));
+  surface.slot(material::kit::kBaseColorSlot, std::move(texture));
   return surface;
 }
 
@@ -384,7 +384,7 @@ struct SceneSurfaces final : sketch::Set {
         .uv(alongTheBand({kTapeWidth, kTapeHeight}, kRepeats));
     material::Material printedTape =
         material::kit::surface({.baseColor = {1, 1, 1, 1}, .roughness = 0.4f});
-    printedTape.child(material::kit::kBaseColorSlot, std::move(printed));
+    printedTape.slot(material::kit::kBaseColorSlot, std::move(printed));
 
     world::Element room = world::Element().key("room");
     room.children({std::move(console)});

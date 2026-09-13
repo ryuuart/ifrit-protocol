@@ -85,7 +85,7 @@ TEST_F(WorldScene, AKeyedReorderKeepsEveryNodesHandle) {
     Element root;
     root.key("root");
     for (const std::string& key : order)
-      root.child(Element().key(key).mesh(card(10)));
+      root.children({Element().key(key).mesh(card(10))});
     return root;
   };
 
@@ -109,12 +109,12 @@ TEST_F(WorldScene, AVisibleBackfaceKeepsAPlaneUnderAnOrbit) {
   geometry::mesh::camera::Camera behind = frontCamera(320.0f);
   behind.eye.z = -320;
 
-  scene.render(Element().key("root").child(
-      Element().key("card").mesh(card(24)).backface(Backface::Hidden)));
+  scene.render(Element().key("root").children(
+      {Element().key("card").mesh(card(24)).backface(Backface::Hidden)}));
   EXPECT_FALSE(hasInk(plate(scene, behind)));
 
-  scene.render(Element().key("root").child(
-      Element().key("card").mesh(card(24)).backface(Backface::Visible)));
+  scene.render(Element().key("root").children(
+      {Element().key("card").mesh(card(24)).backface(Backface::Visible)}));
   EXPECT_TRUE(hasInk(plate(scene, behind)));
 }
 
@@ -130,7 +130,7 @@ TEST_F(WorldScene, AGeometrySlotChangeKeepsTheNodeAndItsLanes) {
     } else {
       body.mesh(card(20));
     }
-    return Element().key("root").child(std::move(body));
+    return Element().key("root").children({std::move(body)});
   };
 
   scene.render(describe(false));
@@ -156,9 +156,9 @@ TEST_F(WorldScene, AGeometrySlotChangeKeepsTheNodeAndItsLanes) {
 TEST_F(WorldScene, TwoNodesDescribingOneChainShareOneCook) {
   const geometry::mesh::pop::Chain chain = cometChain();
   Element root;
-  root.key("root")
-      .child(Element().key("left").chain(chain).stamp(card(3)).at({-40, 0, 0}))
-      .child(Element().key("right").chain(chain).stamp(card(3)).at({40, 0, 0}));
+  root.key("root").children(
+      {Element().key("left").chain(chain).stamp(card(3)).at({-40, 0, 0}),
+       Element().key("right").chain(chain).stamp(card(3)).at({40, 0, 0})});
 
   scene.render(root);
   EXPECT_EQ(scene.stats().cooked, 1);
@@ -169,9 +169,9 @@ TEST_F(WorldScene, TwoNodesDescribingOneChainShareOneCook) {
   // One of them describes a different body: the shared entry stays, and
   // the other node keeps drawing from it.
   Element split;
-  split.key("root")
-      .child(Element().key("left").chain(chain).stamp(card(3)).at({-40, 0, 0}))
-      .child(Element().key("right").mesh(card(9)).at({40, 0, 0}));
+  split.key("root").children(
+      {Element().key("left").chain(chain).stamp(card(3)).at({-40, 0, 0}),
+       Element().key("right").mesh(card(9)).at({40, 0, 0})});
   scene.render(split);
   EXPECT_EQ(scene.stats().resources, 2);
   EXPECT_EQ(scene.referencesOf("left"), 1);
@@ -180,9 +180,9 @@ TEST_F(WorldScene, TwoNodesDescribingOneChainShareOneCook) {
 
 TEST_F(WorldScene, ALaneRampsAPlacement) {
   const auto describe = [](float target) {
-    return Element().key("root").child(
-        Element().key("body").mesh(card(10)).translateX(
-            motion::animate(motion::to(target), motion::Transition{200ms})));
+    return Element().key("root").children(
+        {Element().key("body").mesh(card(10)).translateX(
+            motion::animate(motion::to(target), motion::Transition{200ms}))});
   };
 
   const auto reach = [this] {
@@ -208,8 +208,8 @@ TEST_F(WorldScene, ALaneRampsAPlacement) {
 TEST_F(WorldScene, ASettledSubtreeBakesOnceAndADrivenLaneBelowUnsettlesIt) {
   choreograph::Output<float> spin = 0.0f;
   const auto describe = [&spin] {
-    return Element().key("root").child(Element().key("rig").child(
-        Element().key("body").mesh(card(10)).rotateY(&spin)));
+    return Element().key("root").children({Element().key("rig").children(
+        {Element().key("body").mesh(card(10)).rotateY(&spin)})});
   };
 
   // Still frames: the placement resolves identically, the settle
@@ -237,9 +237,9 @@ TEST_F(WorldScene, ASettledSubtreeBakesOnceAndADrivenLaneBelowUnsettlesIt) {
 TEST_F(WorldScene, AStillChildInsideAMovingRigIsDrawnWhereItNowStands) {
   choreograph::Output<float> pan = 0.0f;
   const auto describe = [](choreograph::Output<float>* lane) {
-    return Element().key("root").child(
-        Element().key("rig").translateX(lane).child(
-            Element().key("body").mesh(card(20))));
+    return Element().key("root").children(
+        {Element().key("rig").translateX(lane).children(
+            {Element().key("body").mesh(card(20))})});
   };
 
   // `body` declares no motion of its own, so its draw order is recorded on
@@ -265,10 +265,9 @@ TEST_F(WorldScene, AStillChildInsideAMovingRigIsDrawnWhereItNowStands) {
 TEST_F(WorldScene, ADrawIsAFunctionOfTheDescriptionAlone) {
   Scene second(ticker);
   const auto describe = [] {
-    return Element()
-        .key("root")
-        .child(Element().key("sun").light(light::sun({-0.4f, -0.7f, -0.6f})))
-        .child(Element().key("body").mesh(card(60)).rotateY(20.0f));
+    return Element().key("root").children(
+        {Element().key("sun").light(light::sun({-0.4f, -0.7f, -0.6f})),
+         Element().key("body").mesh(card(60)).rotateY(20.0f)});
   };
   scene.render(describe());
   second.render(describe());
@@ -283,12 +282,13 @@ TEST_F(WorldScene, ADrawIsAFunctionOfTheDescriptionAlone) {
 TEST_F(WorldScene, EmittersAndViewpointsRideTheirNodesPlacement) {
   geometry::mesh::camera::Camera declared;
   declared.eye = {0, 0, 100};
-  scene.render(Element().key("root").child(
-      Element()
-          .key("rig")
-          .at({50, 0, 0})
-          .child(Element().key("eye").camera(declared))
-          .child(Element().key("lamp").light(light::point({0, 20, 0})))));
+  scene.render(Element().key("root").children(
+      {Element()
+           .key("rig")
+           .at({50, 0, 0})
+           .children({Element().key("eye").camera(declared)})
+           .children(
+               {Element().key("lamp").light(light::point({0, 20, 0}))})}));
 
   const std::optional<geometry::mesh::camera::Camera> camera = scene.camera();
   ASSERT_TRUE(camera.has_value());
@@ -306,12 +306,12 @@ TEST_F(WorldScene, AnEmitterDialReachesTheLightItScales) {
   choreograph::Output<float> red = 1.0f;
 
   const auto describe = [&] {
-    return Element().key("root").child(
-        Element()
-            .key("lamp")
-            .light(light::point({0, 0, 0}, {0.1f, 0.2f, 0.3f, 1.0f}, 0.6f))
-            .intensity(&strength)
-            .emission(&red, 0.5f, 0.5f));
+    return Element().key("root").children(
+        {Element()
+             .key("lamp")
+             .light(light::point({0, 0, 0}, {0.1f, 0.2f, 0.3f, 1.0f}, 0.6f))
+             .intensity(&strength)
+             .emission(&red, 0.5f, 0.5f)});
   };
 
   scene.render(describe());
@@ -332,8 +332,8 @@ TEST_F(WorldScene, AnEmitterDialReachesTheLightItScales) {
 }
 
 TEST_F(WorldScene, AnEmitterWithNoDialsShinesAsItWasDeclared) {
-  scene.render(Element().key("root").child(Element().key("lamp").light(
-      light::point({0, 0, 0}, {0.3f, 0.6f, 0.9f, 1.0f}, 0.4f))));
+  scene.render(Element().key("root").children({Element().key("lamp").light(
+      light::point({0, 0, 0}, {0.3f, 0.6f, 0.9f, 1.0f}, 0.4f))}));
   const std::vector<light::Light> lights = scene.lights();
   ASSERT_EQ(lights.size(), 1u);
   EXPECT_FLOAT_EQ(lights.front().intensity, 0.4f);
@@ -342,7 +342,7 @@ TEST_F(WorldScene, AnEmitterWithNoDialsShinesAsItWasDeclared) {
 
 TEST_F(WorldScene, RetiringANodeHandsBackItsEntityAndItsArtefact) {
   scene.render(
-      Element().key("root").child(Element().key("body").mesh(card(10))));
+      Element().key("root").children({Element().key("body").mesh(card(10))}));
   EXPECT_EQ(scene.stats().resources, 1);
   EXPECT_NE(scene.handleOf("body"), 0u);
 
@@ -361,10 +361,9 @@ constexpr SkISize kFrameExtent{96, 96};
 /** A set with one plain body on the left and one tagged "glow" on the
  *  right, so a selection is visible as which half is painted. */
 Element pair() {
-  return Element()
-      .key("root")
-      .child(Element().key("left").at({-46, 0, 0}).mesh(card(34)).tag("plain"))
-      .child(Element().key("right").at({46, 0, 0}).mesh(card(34)).tag("glow"));
+  return Element().key("root").children(
+      {Element().key("left").at({-46, 0, 0}).mesh(card(34)).tag("plain"),
+       Element().key("right").at({46, 0, 0}).mesh(card(34)).tag("glow")});
 }
 
 Frame framed(Element scene) {

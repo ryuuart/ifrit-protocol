@@ -61,7 +61,7 @@ struct ResolveMemo {
 /** ONE ENTRY PER NAME, in every uniform lane: setting a uniform twice
  *  replaces the first value rather than stacking two the builder would
  *  both assign, which grew the lane without bound and made a paint set
- *  twice compare unequal to the same paint set once. `child()` follows
+ *  twice compare unequal to the same paint set once. `slot()` follows
  *  the same rule for the same reason. */
 template <class Value>
 void putByName(std::vector<std::pair<std::string, Value>>& lane,
@@ -88,11 +88,11 @@ struct Paint::Live {
   std::vector<
       std::pair<std::string, std::shared_ptr<const material::UniformBlock>>>
       blocks;
-  // child(): `uniform shader NAME` slots, filled with whole Materials.
+  // slot(): `uniform shader NAME` slots, filled with whole Materials.
   // They are recipe (they participate in equality) AND volatility: the
   // parent inherits each child's tier, and resolves every child with the
   // same PaintFrame it got itself.
-  std::vector<std::pair<std::string, Paint>> children;
+  std::vector<std::pair<std::string, Paint>> slots;
   // Which context inputs this effect declares, and therefore which tier the
   // material sits in:
   //  - usesTime / usesScale: uTime changes every frame and uContentScale

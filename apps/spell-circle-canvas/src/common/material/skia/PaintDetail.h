@@ -2,7 +2,7 @@
 
 /** @file
  * WHAT A PAINT'S OWN PARTS AGREE ON: the unit-square ramp its factories
- * compile to, the one Paint→SkShader conversion every child slot
+ * compile to, the one Paint→SkShader conversion every slot
  * performs, the two questions asked of a runtime effect before a name is
  * stored against it, and the pass specialization the text runtime draws a
  * `fx::pass` track through.
@@ -47,8 +47,8 @@ Paint unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops, bool radial);
  *  collapses to a colour shader either way. */
 sk_sp<SkShader> childShader(const Paint& source, const PaintFrame* frame);
 
-/** Does @p effect declare @p name as a `uniform shader`? Assigning a child
- *  an effect does not declare aborts in a debug build, so both child()
+/** Does @p effect declare @p name as a `uniform shader`? Assigning a slot
+ *  an effect does not declare aborts in a debug build, so both slot()
  *  doors — Paint's and Effect's — validate at STORE time and then warn
  *  and ignore: one typo in a live-reloaded sketch must not take the host
  *  process down. */

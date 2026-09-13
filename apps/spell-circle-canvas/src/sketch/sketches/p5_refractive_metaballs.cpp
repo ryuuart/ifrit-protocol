@@ -173,7 +173,7 @@ mskia::Paint glass(const sk_sp<SkRuntimeEffect>& effect,
                    const std::array<Lobe, kLobeCount>& lobes) {
   mskia::Paint paint = mskia::Paint::sksl(effect, {{"uThreshold", kThreshold},
                                                    {"uStrength", 42.0f}})
-                           .child("uSource", source)
+                           .slot("uSource", source)
                            .quantizeTime(30.0f);
   for (int index = 0; index < kLobeCount; ++index)
     paint =

@@ -1,7 +1,7 @@
 /** @file
  * THE MECHANISMS A PAINT'S PARTS AGREE ON: the two questions asked of a
  * runtime effect before a name is stored against it, the Paint→SkShader
- * conversion every child slot performs, and the pass specialization a
+ * conversion every slot performs, and the pass specialization a
  * text runtime draws a track through — one definition per unit count,
  * held for the process.
  */
@@ -26,7 +26,7 @@ namespace detail {
 // A named child is usable iff the effect declares it as a SHADER child —
 // assigning a missing child SkDEBUGFAILs exactly like a missing uniform.
 // Shared with Effect::child: one validation behind both ways of filling a
-// child slot, so the two cannot disagree about what is legal.
+// slot, so the two cannot disagree about what is legal.
 bool declaresShaderChild(const sk_sp<SkRuntimeEffect>& effect,
                          std::string_view name) {
   if (!effect) return false;
@@ -87,7 +87,7 @@ std::shared_ptr<const sigil::material::Recipe> passRecipeFor(
   // through the instance, and the count is a compile-time constant no
   // upload could carry.
   sigil::material::Recipe spec = *authored;
-  spec.child("uContent");
+  spec.slot("uContent");
   spec.body(sigil::material::Target::SkSL,
             "uniform float4 uUnitRect[" + count +
                 "];\n"
@@ -101,7 +101,7 @@ std::shared_ptr<const sigil::material::Recipe> passRecipeFor(
   return held;
 }
 
-// The Paint→SkShader conversion every child slot performs: the
+// The Paint→SkShader conversion every slot performs: the
 // per-draw resolve when there is a frame, the
 // frameless snapshot when there is not, a solid as a colour shader.
 sk_sp<SkShader> childShader(const Paint& source, const PaintFrame* paintFrame) {

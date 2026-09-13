@@ -154,12 +154,12 @@ Effect Effect::then(const Effect& next) const {
   Effect e;
   const sk_sp<SkImageFilter> mine = liftedFilter();
   const sk_sp<SkImageFilter> theirs = next.liftedFilter();
-  // A GEOMETRY-dependent child counts as content exactly as a live one
+  // A GEOMETRY-dependent slot counts as content exactly as a live one
   // does. Precomposing freezes the whole chain at the null-context
   // snapshot, so a sigma map that reads uResolution, or a blur whose crop
   // is the box, would paint the box it was first described in for ever —
   // and the composed effect would answer usesWorldSpace() with false
-  // because the children it was built from are gone.
+  // because the sources it was built from are gone.
   const bool mineNeedsCtx = isAnimated() || anyChildNeedsContext();
   const bool nextNeedsCtx = next.isAnimated() || next.anyChildNeedsContext();
   const bool thisReal = mine || mineNeedsCtx;
@@ -181,9 +181,9 @@ sk_sp<SkImageFilter> Effect::resolvedImageFilter(
   if (m_chainA)
     return SkImageFilters::Compose(m_chainB->resolvedImageFilter(paintFrame),
                                    m_chainA->resolvedImageFilter(paintFrame));
-  // A context-needing child (live or geometry tier) has to be re-resolved
+  // A context-needing source (live or geometry tier) has to be re-resolved
   // per paint; a static one is already in the snapshot. Same question
-  // Material::build's memo asks of its children, same answer.
+  // Material::build's memo asks of its slots, same answer.
   if (m_bound.empty() && m_blocks.empty() &&
       !(paintFrame && anyChildNeedsContext()))
     return liftedFilter();
@@ -232,11 +232,11 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintFrame* paintFrame) const {
     builder.uniform(name) = motion::resolveFloatAt(nullptr, out);
   for (const auto& [name, block] : m_blocks)
     builder.uniform(name).set(block->values().data(), (int)block->size());
-  // The child slots, against the painting node's box (Paint::child's
-  // contract: a child sees the SAME frame, because there is one node).
+  // The slots, against the painting node's box (Paint::slot's
+  // contract: a source sees the SAME frame, because there is one node).
   // "content" is the library's and is filled by the factory below.
-  for (const auto& [name, child] : m_children)
-    if (child) builder.child(name) = detail::childShader(*child, paintFrame);
+  for (const auto& [name, source] : m_slots)
+    if (source) builder.child(name) = detail::childShader(*source, paintFrame);
   if (m_gatheredHalo) {
     static const sk_sp<SkRuntimeEffect> composite =
         bloomProgram("phosphorBloom", "PhosphorComposite.sksl");
@@ -262,28 +262,28 @@ bool Effect::isAnimated() const {
   // constant.
   for (const auto& [name, out] : m_bound)
     if (motion::isLive(nullptr, out)) return true;
-  // Tier inheritance: a live child makes the whole effect live, so the node
+  // Tier inheritance: a live slot makes the whole effect live, so the node
   // is declared volatile and no cache can sample the parameter once and
   // freeze it. Material answers this question for its own subtree, so the
-  // recursion stops at the child.
-  for (const auto& [name, child] : m_children)
-    if (child && child->isAnimated()) return true;
+  // recursion stops at the slot.
+  for (const auto& [name, source] : m_slots)
+    if (source && source->isAnimated()) return true;
   return m_chainA && (m_chainA->isAnimated() || m_chainB->isAnimated());
 }
 
 bool Effect::usesWorldSpace() const {
   // Same tier-inheritance shape as isAnimated(): Material's own recursion
-  // answers for blend layers and nested children.
-  for (const auto& [name, child] : m_children)
-    if (child && child->usesWorldSpace()) return true;
+  // answers for blend layers and nested slots.
+  for (const auto& [name, source] : m_slots)
+    if (source && source->usesWorldSpace()) return true;
   return m_chainA && (m_chainA->usesWorldSpace() || m_chainB->usesWorldSpace());
 }
 
 /** Children compare by VALUE (Material::operator==, recursive), by the same
- *  rule material children follow: anything read live that did not
+ *  rule material slots follow: anything read live that did not
  *  participate in reconciler equality would leave a pruned node sampling
  *  the parameter its recording was made with. */
-static bool childrenEqual(
+static bool slotsEqual(
     const std::vector<std::pair<std::string, std::shared_ptr<const Paint>>>& a,
     const std::vector<std::pair<std::string, std::shared_ptr<const Paint>>>&
         b) {
@@ -312,7 +312,7 @@ bool Effect::operator==(const Effect& o) const {
   if (m_parametricBlur ||
       o.m_parametricBlur)  // blur(): by RECIPE + the sigma MAP
     return m_parametricBlur == o.m_parametricBlur &&
-           childrenEqual(m_children, o.m_children);
+           slotsEqual(m_slots, o.m_slots);
   if (m_directionalBlur ||
       o.m_directionalBlur)  // directionalBlur(): by RECIPE, so a
     return m_directionalBlur ==
@@ -322,7 +322,7 @@ bool Effect::operator==(const Effect& o) const {
            m_uniforms == o.m_uniforms && m_uniforms2 == o.m_uniforms2 &&
            m_uniforms4 == o.m_uniforms4 &&
            m_uniformArrays == o.m_uniformArrays &&
-           childrenEqual(m_children, o.m_children);
+           slotsEqual(m_slots, o.m_slots);
   // filter(): pointer identity, as ever, on both lanes — an already-built
   // filter of either kind carries no recipe to compare.
   return m_filter == o.m_filter && m_colorFilter == o.m_colorFilter;

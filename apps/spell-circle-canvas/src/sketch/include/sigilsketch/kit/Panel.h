@@ -49,9 +49,9 @@ struct Backdrop {
 
 /** THE DRESSED GROUND, over the whole surface.
  *
- *      ctx.composer.render(box().absolute().inset(0)
- *          .child(sketch::kit::backdrop({.over = ctx.size, .vignette = 0.45f}))
- *          .child(subject()));
+ *      ctx.composer.render(box().absolute().inset(0).children(
+ *          {sketch::kit::backdrop({.over = ctx.size, .vignette = 0.45f}),
+ *           subject()}));
  *
  *  It places itself over the canvas and paints nothing else, so it is the
  *  first child of whatever a sketch renders. */

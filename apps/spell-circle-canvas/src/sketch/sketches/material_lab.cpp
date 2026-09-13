@@ -229,9 +229,9 @@ material::Material stacked() {
       {.baseColor = {0.13f, 0.20f, 0.17f, 1.0f}, .roughness = 0.8f});
   material::Material crust = material::kit::surface(
       {.baseColor = {0.80f, 0.72f, 0.56f, 1.0f}, .roughness = 0.35f});
-  crust.child(material::kit::kNormalSlot,
-              material::Texture::produce("material_lab.crust.normal",
-                                         [] { return domes(6, 0.9f); }));
+  crust.slot(material::kit::kNormalSlot,
+             material::Texture::produce("material_lab.crust.normal",
+                                        [] { return domes(6, 0.9f); }));
   const material::Material mask = material::maskMap(material::Texture::produce(
       "material_lab.patches", [] { return patches(); }));
   return material::over(base, std::move(crust), mask);
@@ -243,9 +243,9 @@ material::Material stacked() {
 material::Material bumped() {
   material::Material m = material::kit::surface(
       {.baseColor = {0.42f, 0.47f, 0.58f, 1.0f}, .roughness = 0.35f});
-  m.child(material::kit::kNormalSlot,
-          material::Texture::produce("material_lab.bumps",
-                                     [] { return domes(5, 1.0f); }));
+  m.slot(material::kit::kNormalSlot,
+         material::Texture::produce("material_lab.bumps",
+                                    [] { return domes(5, 1.0f); }));
   return m;
 }
 
@@ -263,8 +263,8 @@ material::Material sweep() {
   });
   const material::Texture packed = material::Texture::produce(
       "material_lab.orm", [] { return occlusionRoughnessMetallic(); });
-  m.child(material::kit::kRoughnessSlot, packed);
-  m.child(material::kit::kMetallicSlot, packed);
+  m.slot(material::kit::kRoughnessSlot, packed);
+  m.slot(material::kit::kMetallicSlot, packed);
   return m;
 }
 
@@ -278,9 +278,9 @@ material::Material emitting() {
       .emissive = {1.0f, 0.62f, 0.24f, 1.0f},
       .emissiveStrength = 2.4f,
   });
-  m.child(material::kit::kEmissiveSlot,
-          material::Texture::produce("material_lab.filaments",
-                                     [] { return filaments(22); }));
+  m.slot(material::kit::kEmissiveSlot,
+         material::Texture::produce("material_lab.filaments",
+                                    [] { return filaments(22); }));
   return m;
 }
 
@@ -331,7 +331,7 @@ struct MaterialLab final : sketch::Set {
           // against ITS size rather than against a map's: this many
           // tiles cover the floor.
           .uv(SkMatrix::Scale(1.0f / 20.0f, 1.0f / 20.0f));
-      floor.child(material::kit::kBaseColorSlot, std::move(tiled));
+      floor.slot(material::kit::kBaseColorSlot, std::move(tiled));
     }
     floorSurface = std::move(floor);
   }

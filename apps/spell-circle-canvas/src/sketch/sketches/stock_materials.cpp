@@ -147,7 +147,7 @@ struct StockMaterialsSheet final : sketch::Sketch {
          swatch(field::rippleRecipe()->name(),
                 "field::ripple(7 px, 46 px) over a checker child",
                 mskia::Paint::recipe(field::ripple(7.0f, 46.0f, 0.6f))
-                    .child("content", under)),
+                    .slot("content", under)),
          swatch(field::crtOverlayRecipe()->name(),
                 "field::crtOverlay(4 px) laid over the same checker",
                 mskia::Paint::blend({{under, SkBlendMode::kSrc},

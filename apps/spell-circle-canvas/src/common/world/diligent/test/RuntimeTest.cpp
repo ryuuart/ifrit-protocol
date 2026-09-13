@@ -57,21 +57,20 @@ constexpr SkISize kExtent{160, 120};
  *  lit surface to have something to say. */
 Element set() {
   namespace gm = ::sigil::geometry::mesh;
-  return Element()
-      .key("set")
-      .child(Element().key("sun").light(light::sun({-0.4f, -0.8f, -0.4f})))
-      .child(Element()
-                 .key("plate")
-                 .at({0, -40, 0})
-                 .rotateX(-90.0f)
-                 .mesh(gm::quad(300, 300))
-                 .fill(slangPaint({0.15f, 0.16f, 0.2f, 1.0f}))
-                 .tag("ground"))
-      .child(Element()
-                 .key("body")
-                 .mesh(gm::superellipsoid({40, 40, 40}, 2.0f, 24, 16))
-                 .fill(slangPaint({0.8f, 0.6f, 0.3f, 1.0f}))
-                 .tag("glow"));
+  return Element().key("set").children(
+      {Element().key("sun").light(light::sun({-0.4f, -0.8f, -0.4f})),
+       Element()
+           .key("plate")
+           .at({0, -40, 0})
+           .rotateX(-90.0f)
+           .mesh(gm::quad(300, 300))
+           .fill(slangPaint({0.15f, 0.16f, 0.2f, 1.0f}))
+           .tag("ground"),
+       Element()
+           .key("body")
+           .mesh(gm::superellipsoid({40, 40, 40}, 2.0f, 24, 16))
+           .fill(slangPaint({0.8f, 0.6f, 0.3f, 1.0f}))
+           .tag("glow")});
 }
 
 /** One frame, rendered on @p runtime and photographed from above and in
@@ -247,21 +246,20 @@ material::Texture flatMap(SkColor4f colour, int side = 8) {
 material::Material dressed(material::Texture map) {
   material::Material surface =
       material::kit::surface({.baseColor = {1, 1, 1, 1}});
-  surface.child(material::kit::kBaseColorSlot, std::move(map));
+  surface.slot(material::kit::kBaseColorSlot, std::move(map));
   return surface;
 }
 
 /** One quad facing the camera, filling most of the frame. */
 Frame dressedQuad(material::Material surface) {
   namespace gm = ::sigil::geometry::mesh;
-  Frame frame(Element()
-                  .key("set")
-                  .child(Element().key("sun").light(
-                      light::sun({0.0f, 0.0f, -1.0f}, {1, 1, 1, 1}, 1.0f)))
-                  .child(Element()
-                             .key("card")
-                             .mesh(gm::quad(200, 150))
-                             .fill(std::move(surface))));
+  Frame frame(Element().key("set").children(
+      {Element().key("sun").light(
+           light::sun({0.0f, 0.0f, -1.0f}, {1, 1, 1, 1}, 1.0f)),
+       Element()
+           .key("card")
+           .mesh(gm::quad(200, 150))
+           .fill(std::move(surface))}));
   frame.extent(kExtent)
       .camera(diligent::raisedEye())
       .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
@@ -373,9 +371,12 @@ Frame mappedCard(material::Texture map) {
   namespace gm = ::sigil::geometry::mesh;
   material::Material surface =
       material::kit::unlit({.baseColor = {1, 1, 1, 1}});
-  surface.child(material::kit::kBaseColorSlot, std::move(map));
-  return squareFrame(Element().key("set").child(
-      Element().key("card").mesh(gm::quad(200, 140)).fill(std::move(surface))));
+  surface.slot(material::kit::kBaseColorSlot, std::move(map));
+  return squareFrame(
+      Element().key("set").children({Element()
+                                         .key("card")
+                                         .mesh(gm::quad(200, 140))
+                                         .fill(std::move(surface))}));
 }
 
 /** The red channel across the card, at the fractions of its width
@@ -464,22 +465,23 @@ Frame litAndUnlitCards() {
   namespace gm = ::sigil::geometry::mesh;
   const material::kit::SurfaceParameters parameters{
       .baseColor = {kBodyColour.r, kBodyColour.g, kBodyColour.b, 1.0f}};
-  return squareFrame(Element()
-                         .key("set")
-                         // Travelling away from the camera, so it lands on the
-                         // far side of both cards and neither is diffusely lit.
-                         .child(Element().key("sun").light(light::sun(
-                             {0.0f, 0.0f, 1.0f}, {1, 1, 1, 1}, 1.0f)))
-                         .child(Element()
-                                    .key("lit")
-                                    .at({-70, 0, 0})
-                                    .mesh(gm::quad(110, 110))
-                                    .fill(material::kit::surface(parameters)))
-                         .child(Element()
-                                    .key("unlit")
-                                    .at({70, 0, 0})
-                                    .mesh(gm::quad(110, 110))
-                                    .fill(material::kit::unlit(parameters))));
+  return squareFrame(
+      Element()
+          .key("set")
+          // Travelling away from the camera, so it lands on the
+          // far side of both cards and neither is diffusely lit.
+          .children({Element().key("sun").light(
+                         light::sun({0.0f, 0.0f, 1.0f}, {1, 1, 1, 1}, 1.0f)),
+                     Element()
+                         .key("lit")
+                         .at({-70, 0, 0})
+                         .mesh(gm::quad(110, 110))
+                         .fill(material::kit::surface(parameters)),
+                     Element()
+                         .key("unlit")
+                         .at({70, 0, 0})
+                         .mesh(gm::quad(110, 110))
+                         .fill(material::kit::unlit(parameters))}));
 }
 
 /** The two cards' middles: the left run is the lit one and the right is

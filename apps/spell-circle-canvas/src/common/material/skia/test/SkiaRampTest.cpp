@@ -93,7 +93,7 @@ TEST(SkiaRamp, APaletteCrossesToAShaderAsATableSampledNearest) {
                 "half4 main(float2 p) {\n"
                 "  return uPalette.eval(float2(uIndex + 0.5, 0.5));\n"
                 "}"));
-  lut.child("uPalette", skia::paletteLookup(pal));
+  lut.slot("uPalette", skia::paletteLookup(pal));
   for (int i : {0, 1, 2, 9}) {
     lut.uniform("uIndex", (float)i);
     const SkColor got = render(lut.staticShader()).getColor(1, 1);

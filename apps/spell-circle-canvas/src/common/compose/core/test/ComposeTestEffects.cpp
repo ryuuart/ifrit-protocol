@@ -557,7 +557,7 @@ TEST(ComposeEffects, AnEffectChildFillsASecondDeclaredShaderSlot) {
                           .inset(40, 40, 40, 40)
                           .absolute()
                           .fill(green())
-                          .effect(material::skia::Effect::shader(fx).child(
+                          .effect(material::skia::Effect::shader(fx).slot(
                               "param", focalRamp()))}));
   host.frame();
   // The ramp modulates the green layer left (0) to right (1) — and the
@@ -579,7 +579,7 @@ TEST(ComposeEffects, AnEffectChildFillsASecondDeclaredShaderSlot) {
            .inset(40, 40, 40, 40)
            .absolute()
            .fill(green())
-           .effect(material::skia::Effect::shader(fx).child(
+           .effect(material::skia::Effect::shader(fx).slot(
                "param",
                material::skia::Paint::solid({0.5f, 0.5f, 0.5f, 1})))}));
   flat.frame();
@@ -603,7 +603,7 @@ TEST(ComposeEffects, AnUndeclaredEffectChildIsIgnoredNotBound) {
   // (a) filter() has no child to fill, exactly as it has no uniform.
   const sk_sp<SkImageFilter> raw = SkImageFilters::Blur(4, 4, nullptr);
   material::skia::Effect plain = material::skia::Effect::filter(raw);
-  plain.child("param", liveMap);
+  plain.slot("param", liveMap);
   EXPECT_EQ(plain.imageFilter(), raw) << "filter()'s filter was replaced";
   EXPECT_FALSE(plain.isAnimated());
 
@@ -613,16 +613,16 @@ TEST(ComposeEffects, AnUndeclaredEffectChildIsIgnoredNotBound) {
                "half4 main(float2 p) { return content.eval(p); }"));
   ASSERT_TRUE(oneChild) << err2.c_str();
   material::skia::Effect narrow = material::skia::Effect::shader(oneChild);
-  narrow.child("param", liveMap);
+  narrow.slot("param", liveMap);
   EXPECT_FALSE(narrow.isAnimated());
   // …and "content" is the library's, never the author's to overwrite.
   material::skia::Effect content = material::skia::Effect::shader(oneChild);
-  content.child("content", liveMap);
+  content.slot("content", liveMap);
   EXPECT_FALSE(content.isAnimated());
 
   // (c) a blur()'s one child is "sigma"; a typo must not bind.
   material::skia::Effect typo = material::skia::Effect::blur(focalRamp(), 8);
-  typo.child("sgima", liveMap);
+  typo.slot("sgima", liveMap);
   EXPECT_FALSE(typo.isAnimated());
   // THE CONTROL: the declared name does bind, and does go live.
   auto [twoChild, err3] = SkRuntimeEffect::MakeForShader(
@@ -632,12 +632,12 @@ TEST(ComposeEffects, AnUndeclaredEffectChildIsIgnoredNotBound) {
                "param.eval(p).r; }"));
   ASSERT_TRUE(twoChild) << err3.c_str();
   material::skia::Effect bound = material::skia::Effect::shader(twoChild);
-  bound.child("param", liveMap);
+  bound.slot("param", liveMap);
   EXPECT_TRUE(bound.isAnimated());
   // …and blur()'s real name re-aims the map, which is what makes the
   // child vector one mechanism rather than two.
   material::skia::Effect reaimed = material::skia::Effect::blur(focalRamp(), 8);
-  reaimed.child("sigma", liveMap);
+  reaimed.slot("sigma", liveMap);
   EXPECT_TRUE(reaimed.isAnimated());
 }
 

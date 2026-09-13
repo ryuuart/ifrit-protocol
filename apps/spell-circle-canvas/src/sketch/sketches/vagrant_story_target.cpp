@@ -653,7 +653,7 @@ struct VagrantStoryTarget final : sketch::Set {
     const glm::vec3 at = lens.eye + forward * kAt;
     material::Material surface =
         material::kit::unlit({.baseColor = {1, 1, 1, 1}});
-    surface.child(material::kit::kBaseColorSlot, std::move(texture));
+    surface.slot(material::kit::kBaseColorSlot, std::move(texture));
     return Element()
         .key("overlay")
         .transform(

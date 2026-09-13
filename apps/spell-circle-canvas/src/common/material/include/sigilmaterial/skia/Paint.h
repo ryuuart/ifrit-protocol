@@ -28,10 +28,10 @@
  * here is SkSL and SkShader and nothing else.
  *
  * A RECIPE-BACKED paint (`recipe()`) is one over a `Material` instance:
- * the recipe's parameters are its uniforms, its bindings and child slots are
+ * the recipe's parameters are its uniforms, its bindings and slots are
  * the instance's, and it resolves through the core's program cache with
  * the frame the caller supplies. It sits in the same three tiers by the
- * same rules, and uniform()/child() on it are the core's doors spelled in
+ * same rules, and uniform()/slot() on it are the core's doors spelled in
  * this class's words.
  *
  * Colour management is not part of a paint. A view transform belongs to
@@ -172,7 +172,7 @@ class Paint {
                       SkSamplingOptions sampling = {});
   /** An SkSL runtime effect as a shader. `constants` set named float uniforms
    *  once; bind live uniforms with uniform(name, &output) below, and fill
-   *  declared `uniform shader` slots with child(name, material) — a second
+   *  declared `uniform shader` slots with slot(name, material) — a second
    *  source (an index texture read through a palette, a mask, a noise field).
    *  Declaring
    *  `uTime` or `uContentScale` takes the LIVE path (re-resolved each frame:
@@ -187,7 +187,7 @@ class Paint {
   /** A `Material` instance as the paint. The recipe's declared frame
    *  inputs set the tier exactly as an sksl() effect's uniforms do —
    *  time or content scale is LIVE, the resolution is GEOMETRY — and its
-   *  bindings make it live. uniform() and child() below reach the
+   *  bindings make it live. uniform() and slot() below reach the
    *  instance's fields and slots; equality is the instance's, so two
    *  paints built from equal instances prune.
    *
@@ -321,39 +321,41 @@ class Paint {
    *  to run it and reads as its target. */
   Paint& uniform(std::string name, motion::Animatable<float> output);
 
-  /** THE CHILD SLOT — a SECOND SOURCE for an sksl() material. The effect
+  /** THE SLOT — a SECOND SOURCE for an sksl() material. The effect
    *  declares `uniform shader NAME;` and this fills it with another
    *  Paint, so one shader can read two sources and combine them by a
    *  rule only SkSL can state: an index texture sampled through a palette
    *  lookup (index arithmetic on the sampled value, which no blend mode can
    *  express), a mask channel, a noise field, a second gradient.
-   *  `Effect::filter` has exactly one child, `content`, which is the
+   *  `Effect::filter` has exactly one slot, `content`, which is the
    *  already-painted layer; this is the door for sources the node has NOT
    *  painted.
    *
-   *  Any Paint is a legal child, including another sksl() one — children
+   *  Any Paint can fill a slot, including another sksl() one — slots
    *  nest, and the whole tree still compiles to ONE shader (no saveLayer).
-   *  For an image child, wrap it: `child("uIndex", Paint::image(img, ...))`
+   *  For an image, wrap it: `slot("uIndex", Paint::image(img, ...))`
    *  — and pass `SkSamplingOptions(SkFilterMode::kNearest)` for anything
    *  whose pixel VALUES are data (an index texture read at kLinear samples
    *  a blend of two unrelated palette entries).
    *
-   *  TIER INHERITANCE, the load-bearing half: the parent inherits its
-   *  children's volatility. A live child (bound Output, uTime) makes the
-   *  parent live; a geometry-dependent child (uResolution) propagates the
-   *  geometry tier. The children also ride the prune signature, so two
-   *  materials with DIFFERENT children never compare equal and two with
-   *  identical ones prune. That is required, not incidental: a child left
+   *  TIER INHERITANCE, the load-bearing half: the parent inherits the
+   *  volatility of what fills its slots. A live source (bound Output,
+   *  uTime) makes the parent live; a geometry-dependent source
+   *  (uResolution) propagates the geometry tier. The slots also ride the
+   *  prune signature, so two materials with DIFFERENT sources never
+   *  compare equal and two with identical ones prune. That is required,
+   *  not incidental: a slot left
    *  out of equality would let a node prune while its second source had
    *  changed, and it would sample the old texture indefinitely.
    *
    *  Guardrails match uniform()'s: a name the effect does not declare as a
-   *  shader child is warned and IGNORED — assigning a missing child aborts
+   *  `uniform shader` is warned and IGNORED — assigning a slot the effect
+   *  lacks aborts
    *  in a debug build, which would take a live-reload host down over one
    *  typo — and
    *  on a non-sksl() material there is nothing to fill — no-op with a
    *  warning. Copy-on-write like every other recipe mutation. */
-  Paint& child(std::string name, Paint source);
+  Paint& slot(std::string name, Paint source);
 
   /** LAYER STRENGTH inside a blend() — "soft-light this noise at 30%".
    *
@@ -399,8 +401,8 @@ class Paint {
    *
    *  Per-material-LAYER, deliberately not inherited: flagging a blend()
    *  does not flag its layers, flagging an sksl() parent does not flag its
-   *  child() materials — each Paint anchors (or not) for itself. (A
-   *  flagged sksl() parent's children still SEE root coordinates, because
+   *  slots — each Paint anchors (or not) for itself. (A flagged sksl()
+   *  parent's slots still SEE root coordinates, because
    *  the wrap re-maps the coordinates the parent's SkSL evaluates them at
    *  — that is Skia's local-matrix composition, not flag inheritance.)
    *
@@ -409,7 +411,7 @@ class Paint {
    *  walk accumulated (`PaintFrame::toRoot`) — the same matrix the hit
    *  test inverts, so a node draws its field exactly where it can be hit.
    *  There is one such seam, inside resolve()/build(), so every consumer
-   *  inherits it: fill(), coverage gates, Effect::child() materials and
+   *  inherits it: fill(), coverage gates, Effect::slot() materials and
    *  blend() layers.
    *
    *  Rides the GEOMETRY tier, like uResolution: W is layout-derived, so the
@@ -447,7 +449,7 @@ class Paint {
   Paint& fit(Fit how);
   /** Is THIS material flagged world-space (the layer-local flag)? */
   bool worldSpace() const { return m_worldSpace; }
-  /** Does this material — or any blend() layer or child() below it —
+  /** Does this material — or any blend() layer or slot below it —
    *  anchor to the root? The reconcile walk asks this to flag the
    *  instance for W-invalidation; authors want worldSpace() above. */
   bool usesWorldSpace() const;
@@ -490,7 +492,7 @@ class Paint {
    *  Yes covers the constant pan as well as the moving one — a placed tile
    *  is a pan whose value happens not to change — because the consumer
    *  reads the same two floats either way. What it excludes is a live
-   *  uniform, uTime, uContentScale and any animated `child()` or `blend()`
+   *  uniform, uTime, uContentScale and any animated slot or `blend()`
    *  layer, including a NESTED pan, which the layer-local channel cannot
    *  reach. */
   bool boundOffsetOnly() const {
@@ -552,7 +554,7 @@ class Paint {
   /** THE PASS RESOLVE — what the fx() runtime calls for a `fx::pass`
    *  track's material, once per draw: the recipe specialized to
    *  `in.units` (one definition per count, compiled once), the instance's
-   *  values, bindings and children resolved exactly as resolve() resolves
+   *  values, bindings and slots resolved exactly as resolve() resolves
    *  them, and the runtime's own slots — uContent, uUnitRect, uUnitPhase —
    *  filled from @p in. Null when the material is not recipe-backed or its
    *  specialization does not compile; the caller draws the units plainly
@@ -596,7 +598,7 @@ class Paint {
   }
   /** Everything isAnimated() reports EXCEPT this material's own bound
    *  offset: live uniform bindings, uTime/uContentScale, and any animated
-   *  child() or blend() layer — including a NESTED bound offset, which the
+   *  slot or blend() layer — including a NESTED bound offset, which the
    *  node-level scalar lane cannot reach and must therefore treat as
    *  opaque. Subtracting this from isAnimated() is what boundOffsetOnly()
    *  is; these three are the halves of that one question and no consumer

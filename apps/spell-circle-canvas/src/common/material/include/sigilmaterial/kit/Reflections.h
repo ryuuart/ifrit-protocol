@@ -74,7 +74,7 @@ struct GlassParameters {
   glm::vec2 envSize = {1, 1};
 };
 
-/** The recipes, defined once. Each declares the child slots `normals`
+/** The recipes, defined once. Each declares the slots `normals`
  *  and `env`; glass also `backdrop`. */
 const std::shared_ptr<const Recipe>& goldRecipe();
 /** Chrome's, declaring `normals` and `env`. */

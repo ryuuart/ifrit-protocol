@@ -19,12 +19,12 @@ Element describeTree(int nodes) {
   Element root;
   root.key("root");
   for (int i = 0; i < nodes; ++i)
-    root.child(Element()
-                   .key("n" + std::to_string(i))
-                   .at({(float)i, 0.0f, 0.0f})
-                   .rotateY((float)i)
-                   .scale(1.0f + (float)i * 0.01f)
-                   .tag("lit"));
+    root.children({Element()
+                       .key("n" + std::to_string(i))
+                       .at({(float)i, 0.0f, 0.0f})
+                       .rotateY((float)i)
+                       .scale(1.0f + (float)i * 0.01f)
+                       .tag("lit")});
   return root;
 }
 

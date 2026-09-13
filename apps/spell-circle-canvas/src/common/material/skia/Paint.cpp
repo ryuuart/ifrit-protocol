@@ -41,7 +41,7 @@ bool Paint::operator==(const Paint& o) const {
   if (m_isSolid != o.m_isSolid) return false;
   if (m_isSolid) return m_solid == o.m_solid;
   // Recipe-backed: SigilMaterial's own equality — recipe identity, bytes,
-  // bindings by identity, children by value.
+  // bindings by identity, slots by value.
   if ((m_backed != nullptr) != (o.m_backed != nullptr)) return false;
   if (m_backed) return m_backed->material == o.m_backed->material;
   // sksl-backed: static recipes compare structurally (effect pointer +
@@ -57,14 +57,14 @@ bool Paint::operator==(const Paint& o) const {
            m_live->constants2 == o.m_live->constants2 &&
            m_live->constants4 == o.m_live->constants4 &&
            m_live->constantArrays == o.m_live->constantArrays &&
-           m_live->children == o.m_live->children;
+           m_live->slots == o.m_live->slots;
   }
   if ((m_recipe != nullptr) != (o.m_recipe != nullptr)) return false;
   if (m_recipe) return *m_recipe == *o.m_recipe;
   return m_shader == o.m_shader;  // raw shader wrap / none
 }
 
-// uniform() and child() mutations copy-on-write the recipe, because Paint
+// uniform() and slot() mutations copy-on-write the recipe, because Paint
 // is a VALUE: copies of one base material must never alias each other's
 // uniforms. Two elements built from a shared sksl base and then bound to
 // different Outputs are the ordinary case, and without this the second bind
@@ -135,7 +135,7 @@ bool Paint::usesWorldSpace() const {
   // needs to see a flagged layer anywhere below: a blend whose second
   // layer anchors still needs its node W-invalidated.
   if (m_live)
-    for (const auto& [name, child] : m_live->children)
+    for (const auto& [name, child] : m_live->slots)
       if (child.usesWorldSpace()) return true;
   if (m_recipe && m_recipe->kind == Recipe::Kind::Blend)
     for (const auto& layer : m_recipe->layers)
@@ -198,14 +198,14 @@ bool Paint::animatedBeyondBoundOffset() const {
   if (m_live)
     for (const auto& [name, out] : m_live->binds)
       if (motion::isLive(nullptr, out)) return true;
-  // A child slot's volatility is the parent's: the parent samples it, so a
+  // A slot's volatility is the parent's: the parent samples it, so a
   // live child that did not lift the parent to the live path would be
   // resolved once and frozen into the parent's cache. A NESTED bound
   // offset deliberately counts here (child.isAnimated(), not the
   // subtraction): the node-level scalar lane resolves only the TOP
   // material's own pan, so anything deeper stays conservatively opaque.
   if (m_live)
-    for (const auto& [name, child] : m_live->children)
+    for (const auto& [name, child] : m_live->slots)
       if (child.isAnimated()) return true;
   // A blend inherits liveness from its layers (deferred fold in resolve()).
   if (m_recipe && m_recipe->kind == Recipe::Kind::Blend)
@@ -229,7 +229,7 @@ bool Paint::geometryDependent() const {
   if (m_backed && m_backed->material.geometryDependent()) return true;
   if (m_live && m_live->usesGeometry) return true;
   if (m_live)
-    for (const auto& [name, child] : m_live->children)
+    for (const auto& [name, child] : m_live->slots)
       if (child.geometryDependent()) return true;
   if (m_recipe && m_recipe->kind == Recipe::Kind::Blend)
     for (const auto& layer : m_recipe->layers)

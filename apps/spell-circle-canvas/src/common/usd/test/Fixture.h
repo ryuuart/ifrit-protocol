@@ -73,7 +73,7 @@ inline Torus twoSlotTorus() {
   redParameters.metallic = 0.75f;
 
   material::Material textured = material::kit::surface();
-  textured.child(
+  textured.slot(
       material::kit::kBaseColorSlot,
       material::Texture::of(solid(SK_ColorBLUE)).tile(SkTileMode::kRepeat));
 

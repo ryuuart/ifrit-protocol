@@ -1,5 +1,5 @@
 /** @file
- * THE DOORS THAT TAKE A NAME: child(), every uniform() overload, and the
+ * THE DOORS THAT TAKE A NAME: slot(), every uniform() overload, and the
  * questions asked of the slots they fill. Each validates the name against
  * what the effect kind can receive, warns and ignores what it cannot, and
  * refreshes the snapshot a constant changed.
@@ -21,7 +21,7 @@ namespace sigil::material::skia {
 
 namespace {
 
-/** ONE ENTRY PER NAME, in every uniform lane, as `child()` does for its
+/** ONE ENTRY PER NAME, in every uniform lane, as `slot()` does for its
  *  slots: setting a uniform twice replaces the first value rather than
  *  stacking two the builder would both assign — an unbounded lane, and a
  *  recipe that compares unequal to the same effect described once. */
@@ -38,13 +38,13 @@ void putByName(std::vector<std::pair<std::string, Value>>& lane,
 
 }  // namespace
 
-Effect& Effect::child(std::string name, Paint source) {
-  // Which names this effect kind can fill — Material::child's structure,
+Effect& Effect::slot(std::string name, Paint source) {
+  // Which names this effect kind can fill — Material::slot's structure,
   // one branch per kind, warn-and-ignore everywhere else.
   if (m_parametricBlur) {
     if (name != "sigma") {
       SkDebugf(
-          "[material] skia::Effect::child(\"%s\") on a blur() — its one child "
+          "[material] skia::Effect::slot(\"%s\") on a blur() — its one slot "
           "is \"sigma\", the map; ignored\n",
           name.c_str());
       return *this;
@@ -52,13 +52,13 @@ Effect& Effect::child(std::string name, Paint source) {
   } else if (m_effect) {
     if (name == "content") {
       SkDebugf(
-          "[material] skia::Effect::child(\"content\"): ignored — \"content\" "
+          "[material] skia::Effect::slot(\"content\"): ignored — \"content\" "
           "is the node's own rendered layer, filled by the library\n");
       return *this;
     }
     if (!detail::declaresShaderChild(m_effect, name)) {
       SkDebugf(
-          "[material] skia::Effect::child: \"%s\" is not declared by the "
+          "[material] skia::Effect::slot: \"%s\" is not declared by the "
           "effect "
           "as `uniform shader` — ignored\n",
           name.c_str());
@@ -66,23 +66,23 @@ Effect& Effect::child(std::string name, Paint source) {
     }
   } else {
     SkDebugf(
-        "[material] skia::Effect::child(\"%s\"): ignored — this effect has no "
-        "shader children to fill (only shader() and blur() do)\n",
+        "[material] skia::Effect::slot(\"%s\"): ignored — this effect has no "
+        "slots to fill (only shader() and blur() do)\n",
         name.c_str());
     return *this;
   }
   auto held = std::make_shared<const Paint>(std::move(source));
-  // Last write wins on a name, like Material::child: re-filling a slot
+  // Last write wins on a name, like Material::slot: re-filling a slot
   // replaces rather than stacking two entries the builder would both
   // assign.
   bool replaced = false;
-  for (auto& slot : m_children)
+  for (auto& slot : m_slots)
     if (slot.first == name) {
       slot.second = std::move(held);
       replaced = true;
       break;
     }
-  if (!replaced) m_children.emplace_back(std::move(name), std::move(held));
+  if (!replaced) m_slots.emplace_back(std::move(name), std::move(held));
   // Refresh the static snapshot (Material::child does the same). Note this
   // must be an UNCONDITIONAL rebuild: resolvedImageFilter(nullptr) would
   // hand back the snapshot it is meant to replace, and a STATIC child on a
@@ -93,7 +93,7 @@ Effect& Effect::child(std::string name, Paint source) {
 }
 
 bool Effect::anyChildNeedsContext() const {
-  for (const auto& [name, child] : m_children)
+  for (const auto& [name, child] : m_slots)
     if (child && (child->isAnimated() || child->geometryDependent()))
       return true;
   return false;
@@ -101,7 +101,7 @@ bool Effect::anyChildNeedsContext() const {
 
 sk_sp<SkShader> Effect::childShaderFor(std::string_view name,
                                        const PaintFrame* frame) const {
-  for (const auto& [slot, child] : m_children)
+  for (const auto& [slot, child] : m_slots)
     if (slot == name)
       return child ? detail::childShader(*child, frame) : nullptr;
   return nullptr;
@@ -127,7 +127,7 @@ Effect& Effect::uniform(std::string name, motion::Animatable<float> value) {
     if (name != "maxSigma") {
       SkDebugf(
           "[material] skia::Effect::uniform(\"%s\") on a blur() — its one "
-          "parameter is \"maxSigma\" (the MAP is child(\"sigma\", "
+          "parameter is \"maxSigma\" (the MAP is slot(\"sigma\", "
           "Paint)); ignored\n",
           name.c_str());
       return *this;
@@ -185,7 +185,7 @@ Effect& Effect::uniform(std::string name, float value) {
                            m_directionalBlur || m_parametricBlur))
     return *this;
   putByName(m_uniforms, std::move(name), value);
-  m_filter = buildFilter(nullptr);  // refresh the snapshot, as child() does
+  m_filter = buildFilter(nullptr);  // refresh the snapshot, as slot() does
   return *this;
 }
 

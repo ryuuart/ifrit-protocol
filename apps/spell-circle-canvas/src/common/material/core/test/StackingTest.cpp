@@ -69,11 +69,11 @@ TEST(Stacking, TheOperandsAreTheStacksChildren) {
   const Material stack = over(o.base, o.top, o.mask);
   // The operands are the result's children, so every query answers over
   // the whole stack.
-  EXPECT_EQ(stack.children().size(), 3u);
-  ASSERT_NE(stack.child("base"), nullptr);
-  EXPECT_EQ(*stack.child("base"), o.base);
-  EXPECT_EQ(*stack.child("top"), o.top);
-  EXPECT_EQ(*stack.child("mask"), o.mask);
+  EXPECT_EQ(stack.slots().size(), 3u);
+  ASSERT_NE(stack.slot("base"), nullptr);
+  EXPECT_EQ(*stack.slot("base"), o.base);
+  EXPECT_EQ(*stack.slot("top"), o.top);
+  EXPECT_EQ(*stack.slot("mask"), o.mask);
   EXPECT_EQ(stack, over(o.base, o.top, o.mask));
 }
 

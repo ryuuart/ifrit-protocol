@@ -1,7 +1,7 @@
 /** @file
  * THE SHADER A PAINT BUILDS: the sksl recipe assembled into a runtime
  * shader (constants, bound outputs, the auto-injected frame inputs and
- * the child slots), the material instance resolved through the core's
+ * the slots), the material instance resolved through the core's
  * program cache, the pass specialization the text runtime fills, and the
  * two image constructions a pan and a fit ask for. Each memoises on the
  * bytes it was built from, so a settled paint hands back one shader.
@@ -37,7 +37,7 @@ void digest(const sigil::material::Material& m,
   const sigil::material::Material::Resolved r =
       m.resolve(sigil::material::Target::SkSL, frame);
   key.insert(key.end(), r.bytes.begin(), r.bytes.end());
-  for (const auto& [slot, child] : m.children())
+  for (const auto& [slot, child] : m.slots())
     if (child.material) digest(*child.material, frame, key);
 }
 
@@ -131,10 +131,10 @@ sk_sp<SkShader> Paint::build(const Live& live, const PaintFrame* paintFrame,
     // its own uResolution) and this digest cannot see them, so a material
     // with a context-needing child skips the memo entirely and rebuilds.
     // Returning the memoised shader there would freeze the child at the
-    // frame it was first resolved. Static children (an image, a ramp) are
+    // frame it was first resolved. Static slots (an image, a ramp) are
     // recipe and never vary, so they leave the memo intact.
     bool childNeedsCtx = false;
-    for (const auto& [name, child] : live.children)
+    for (const auto& [name, child] : live.slots)
       childNeedsCtx |= child.isAnimated() || child.geometryDependent();
     if (!childNeedsCtx)
       if (sk_sp<SkShader> memoised = live.memo.hit(inputs)) return memoised;
@@ -186,7 +186,7 @@ sk_sp<SkShader> Paint::build(const Live& live, const PaintFrame* paintFrame,
   // Children resolve with the SAME PaintFrame the parent got (so a live
   // child ticks and a geometry child reads the parent node's box), and with
   // the null context on the static snapshot path.
-  for (const auto& [name, child] : live.children)
+  for (const auto& [name, child] : live.slots)
     b.child(name) =
         detail::childShader(child, paintFrame);  // pre-validated at store
   if (paintFrame) {

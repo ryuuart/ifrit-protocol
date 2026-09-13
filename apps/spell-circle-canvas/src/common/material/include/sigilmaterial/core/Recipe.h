@@ -2,7 +2,7 @@
 
 /** @file
  * Recipe — a material's definition: the parameter struct that is its ABI,
- * one body per shading language, the child slots it samples and the
+ * one body per shading language, the slots it samples and the
  * frame values it reads. A recipe is defined once and shared; every
  * Material is an instance of one.
  */
@@ -56,13 +56,13 @@ class Recipe {
    *  declarations, so for SkSL the `half4 main(float2 p) { ... }` and its
    *  helpers. Replaces an earlier body for the same target. */
   Recipe& body(Target target, std::string source);
-  /** Declares a child slot: a second material sampled by name, which the
+  /** Declares a slot: a second material sampled by name, which the
    *  generated declarations expose as `uniform shader NAME` in SkSL. */
-  Recipe& child(std::string slot);
+  Recipe& slot(std::string slot);
   /** Declares that the body reads @p input; its uniform is generated and
    *  its value uploaded each resolve. */
   Recipe& frame(FrameInput input);
-  /** DECLARES THE BODY CHANNELWISE over the child slot @p slot: each
+  /** DECLARES THE BODY CHANNELWISE over the slot @p slot: each
    *  output channel depends on the same input channel of the sampled
    *  content and on nothing else, and @p slot holds ONE ROW of samples
    *  that is the response of red, green and blue in the row's own
@@ -106,7 +106,7 @@ class Recipe {
    *  name it, and the two need not agree. A stack composed for a
    *  language that is handed one body per material declares a slot per
    *  operand's own slot, because that language cannot reach a child
-   *  material at all; a language whose child slot is a shader samples
+   *  material at all; a language whose slot is a shader samples
    *  the operands themselves and names none of those. A slot generated
    *  into a program that never reads it still costs that program an
    *  image sampler, and a device has few — Metal binds fragment
@@ -119,8 +119,8 @@ class Recipe {
   bool has(Target target) const { return body(target) != nullptr; }
   /** The targets that have a body, in Target order. */
   std::vector<Target> targets() const;
-  std::span<const std::string> children() const { return m_children; }
-  /** The child slot holding the per-channel response, or EMPTY when the
+  std::span<const std::string> slots() const { return m_slots; }
+  /** The slot holding the per-channel response, or EMPTY when the
    *  recipe made no channelwise claim. */
   const std::string& channelwiseSlot() const { return m_channelwise; }
   bool reads(FrameInput input) const { return (m_frame & (uint8_t)input) != 0; }
@@ -128,7 +128,7 @@ class Recipe {
   uint8_t frameInputs() const { return m_frame; }
 
   /** The generated head of the program: the parameters' uniforms, the frame
-   *  uniforms, then the child slots this target's body samples, in
+   *  uniforms, then the slots this target's body samples, in
    *  @p target's syntax. */
   std::string declarations(Target target) const;
   /** declarations() followed by the body — the complete text a compiler
@@ -157,7 +157,7 @@ class Recipe {
   Schema m_parameters;
   Schema m_layout;
   boost::container::map<Target, std::string> m_bodies;
-  std::vector<std::string> m_children;
+  std::vector<std::string> m_slots;
   /** channelwise()'s slot; empty means the body is not channelwise. */
   std::string m_channelwise;
   /** Per parameter field, whether a body spells it — settled once when a

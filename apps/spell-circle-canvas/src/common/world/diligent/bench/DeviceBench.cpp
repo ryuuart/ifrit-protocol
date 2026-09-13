@@ -113,21 +113,21 @@ void BM_FrameOnDevice(benchmark::State& state) {
 
   const std::shared_ptr<const material::Recipe> recipe = freshRecipe();
   Element set;
-  set.key("set").child(
-      Element().key("sun").light(light::sun({-0.4f, -0.8f, -0.4f})));
+  set.key("set").children(
+      {Element().key("sun").light(light::sun({-0.4f, -0.8f, -0.4f}))});
   // A four-by-four grid, so the row and the column are counted rather
   // than divided out inside a float expression.
   for (int i = 0; i < 16; ++i) {
     const int column = i % 4;
     const int row = i / 4;
-    set.child(
-        Element()
-            .key("body" + std::to_string(i))
-            .at({(float)column * 60.0f - 90.0f, 0.0f,
-                 (float)row * 60.0f - 90.0f})
-            .mesh(gm::superellipsoid({20, 20, 20}, 2.0f, 16, 12))
-            .fill(material::Material(recipe, Paint{{0.7f, 0.6f, 0.4f, 1}}))
-            .tag("lit"));
+    set.children(
+        {Element()
+             .key("body" + std::to_string(i))
+             .at({(float)column * 60.0f - 90.0f, 0.0f,
+                  (float)row * 60.0f - 90.0f})
+             .mesh(gm::superellipsoid({20, 20, 20}, 2.0f, 16, 12))
+             .fill(material::Material(recipe, Paint{{0.7f, 0.6f, 0.4f, 1}}))
+             .tag("lit")});
   }
 
   geometry::mesh::camera::Camera camera;

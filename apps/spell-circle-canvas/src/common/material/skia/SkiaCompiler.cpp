@@ -184,7 +184,7 @@ WarmupResult warmup(std::span<const Material> materials, Variant variant) {
 
 int samplerCount(const Material& material) {
   int count = 0;
-  for (const auto& [slot, child] : material.children()) {
+  for (const auto& [slot, child] : material.slots()) {
     if (!material.recipe().samples(Target::SkSL, slot)) continue;
     if (child.material) {
       count += samplerCount(*child.material);
@@ -219,7 +219,7 @@ std::unique_ptr<SkRuntimeShaderBuilder> builder(
   if (!program) return nullptr;
   auto b = std::make_unique<SkRuntimeShaderBuilder>(program->effect());
   program->upload(*b, resolved.bytes);
-  for (const auto& [slot, child] : material.children()) {
+  for (const auto& [slot, child] : material.slots()) {
     bool skip = false;
     for (std::string_view name : leave) skip |= name == slot;
     if (skip) continue;

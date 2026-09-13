@@ -43,7 +43,7 @@ TEST(Recipe, IdentityIsTheObjectAndEqualityIsTheDefinition) {
 
 TEST(Recipe, LayoutAppendsFrameInputsAndDeclarationsListChildren) {
   Recipe r = Recipe::of<TwoParameters>("r");
-  r.frame(FrameInput::Resolution).frame(FrameInput::Time).child("uTex");
+  r.frame(FrameInput::Resolution).frame(FrameInput::Time).slot("uTex");
   EXPECT_TRUE(r.reads(FrameInput::Time));
   EXPECT_FALSE(r.reads(FrameInput::WorldTransform));
   ASSERT_EQ(r.layout().fields.size(), 4u);
@@ -69,7 +69,7 @@ TEST(Recipe, LayoutAppendsFrameInputsAndDeclarationsListChildren) {
 
 TEST(Recipe, ASlotOneTargetsBodyNeverSamplesIsNotDeclaredToIt) {
   Recipe r = Recipe::of<TwoParameters>("split");
-  r.child("uRead").child("uUnread");
+  r.slot("uRead").slot("uUnread");
   // With no body there is nothing to say, so both slots are declared.
   EXPECT_TRUE(r.samples(Target::SkSL, "uUnread"));
   r.body(Target::SkSL, "half4 main(float2 p) { return uRead.eval(p); }");
@@ -91,7 +91,7 @@ TEST(Recipe, ASlotOneTargetsBodyNeverSamplesIsNotDeclaredToIt) {
   EXPECT_EQ(r.declarations(Target::Slang).find("uRead"), std::string::npos);
   // The slot is still the recipe's — what changed is what each program
   // is told about, not what a material may fill.
-  EXPECT_EQ(r.children().size(), 2u);
+  EXPECT_EQ(r.slots().size(), 2u);
 }
 
 TEST(Recipe, NoParametersIsARecipeOverSlotsAndFrameInputsAlone) {
@@ -99,7 +99,7 @@ TEST(Recipe, NoParametersIsARecipeOverSlotsAndFrameInputsAlone) {
   auto r = std::make_shared<const Recipe>(
       Recipe::of<NoParameters>("bare")
           .frame(FrameInput::Time)
-          .child("uSrc")
+          .slot("uSrc")
           .body(Target::SkSL, "half4 main(float2 p) { return uSrc.eval(p); }"));
   EXPECT_TRUE(r->parameters().fields.empty());
   EXPECT_EQ(r->parameters().byteSize, 0u);

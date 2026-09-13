@@ -85,7 +85,7 @@ struct Screened : Set {
                    seconds);
     sigil::material::Material surface =
         sigil::material::kit::unlit({.baseColor = {1, 1, 1, 1}});
-    surface.child(sigil::material::kit::kBaseColorSlot, screen->texture());
+    surface.slot(sigil::material::kit::kBaseColorSlot, screen->texture());
     return world::Element().key("set").children(
         {world::Element().key("card").mesh(gm::quad(120, 90)).fill(surface)});
   }

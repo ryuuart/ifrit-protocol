@@ -61,20 +61,17 @@ class Element {
   /** The author-owned identity: what the reconciler matches a child by
    *  across describes, and what a scene addresses the node by. */
   Element& key(std::string_view k);
-  /** Appends @p e under this node. Children keep the order they were
-   *  added in. */
-  Element& child(Element e);
   /** Appends every element of @p range, in the range's order. */
   template <std::ranges::input_range R>
     requires std::convertible_to<std::ranges::range_value_t<R>, Element>
   Element& children(R&& range) {
-    for (auto&& e : range) child(std::move(e));
+    for (auto&& e : range) append(std::move(e));
     return *this;
   }
   /** THE CHILDREN, AS ONE BLOCK — what is in the element, in order —
    *  the spelling a compose tree uses too. */
   Element& children(std::initializer_list<Element> block) {
-    for (const Element& e : block) child(e);
+    for (const Element& e : block) append(e);
     return *this;
   }
 
@@ -282,6 +279,9 @@ class Element {
   explicit Element(std::shared_ptr<ElementNode> n) : m_node(std::move(n)) {}
 
  private:
+  /** One more child at the end, which both `children()` forms go through. */
+  void append(Element e);
+
   /** Copy-on-write handle: an Element stays a cheap value, and a fluent
    *  mutation can never alter another copy or a description a Scene
    *  retains. */

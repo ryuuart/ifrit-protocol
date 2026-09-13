@@ -99,7 +99,7 @@ material::Material rippled(float amplitude, float wavelength, bool vertical) {
   material::Material warp = field::ripple(amplitude, wavelength, 0, vertical);
   // The grid repeats, so a displacement that reads past the edge finds
   // more grid rather than a smeared last row.
-  warp.child("content", material::Texture(ruled()).tile(SkTileMode::kRepeat));
+  warp.slot("content", material::Texture(ruled()).tile(SkTileMode::kRepeat));
   return warp;
 }
 

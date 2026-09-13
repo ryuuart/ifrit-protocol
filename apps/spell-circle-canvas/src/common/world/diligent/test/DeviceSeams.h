@@ -76,14 +76,12 @@ inline geometry::mesh::camera::Camera levelEye() {
 
 /** A card facing the camera, wearing @p surface, lit by one sun. */
 inline Frame card(const material::Material& surface, SkISize extent) {
-  Element root =
-      Element()
-          .key("set")
-          .child(Element().key("sun").light(light::sun({-0.2f, -0.3f, -1.0f})))
-          .child(Element()
-                     .key("card")
-                     .mesh(::sigil::geometry::mesh::quad(120, 120))
-                     .fill(surface));
+  Element root = Element().key("set").children(
+      {Element().key("sun").light(light::sun({-0.2f, -0.3f, -1.0f})),
+       Element()
+           .key("card")
+           .mesh(::sigil::geometry::mesh::quad(120, 120))
+           .fill(surface)});
   Frame frame(root);
   frame.extent(extent)
       .camera(levelEye())

@@ -41,7 +41,7 @@ Paint unitRamp(const std::vector<RampStop>& ramp);
  *  palette. */
 sk_sp<SkImage> paletteImage(const Palette& palette);
 
-/** The same table as a material a `child()` slot takes, sampled NEAREST
+/** The same table as a material a slot takes, sampled NEAREST
  *  at texel centres, so entry n is entry n and not a blend of two.
  *
  *  The shader coordinate is in TEXELS, so the body reads it as

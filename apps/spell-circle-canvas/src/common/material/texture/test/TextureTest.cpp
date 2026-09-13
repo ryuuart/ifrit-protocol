@@ -115,21 +115,21 @@ TEST(Texture, FillsAMaterialSlotAsALeaf) {
     float uUnused;
   };
   auto recipe = std::make_shared<const Recipe>(
-      Recipe::of<NoParameters>("sampler").child("uImage"));
+      Recipe::of<NoParameters>("sampler").slot("uImage"));
   const sk_sp<SkImage> img = solid(SK_ColorRED, 2, 2);
   Material a(recipe, NoParameters{0});
-  a.child("uImage", Texture::of(img));
+  a.slot("uImage", Texture::of(img));
   Material b(recipe, NoParameters{0});
-  b.child("uImage", Texture::of(img));
+  b.slot("uImage", Texture::of(img));
   EXPECT_EQ(a, b);
   ASSERT_NE(a.leaf("uImage"), nullptr);
-  EXPECT_EQ(a.child("uImage"), nullptr);
+  EXPECT_EQ(a.slot("uImage"), nullptr);
   EXPECT_FALSE(a.isAnimated());
-  b.child("uImage", Texture::of(img).tile(SkTileMode::kRepeat));
+  b.slot("uImage", Texture::of(img).tile(SkTileMode::kRepeat));
   EXPECT_FALSE(a == b);
   // A slot holding a leaf and one holding a material are unequal.
   Material c(recipe, NoParameters{0});
-  c.child("uImage", Material(recipe, NoParameters{0}));
+  c.slot("uImage", Material(recipe, NoParameters{0}));
   EXPECT_FALSE(a == c);
 }
 

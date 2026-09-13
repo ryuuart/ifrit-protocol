@@ -93,11 +93,11 @@ struct Well {
  *  theme say.
  *
  *      sketch::kit::well({.width = kCell, .height = kPicture})
- *          .child(subject())
+ *          .children({subject()})
  *
  *  The second argument is the surface itself rather than a child wrapped
  *  in a new box: hand it `custom(key, draw)` where the drawing wants the
- *  well's resolved size, and `box().child(body)` where the well holds a
+ *  well's resolved size, and `box().children({body})` where the well holds a
  *  laid-out body. Omitted, it is an empty box ready for children. */
 [[nodiscard]] compose::Element well(const Well& specification,
                                     compose::Element surface);
@@ -111,7 +111,7 @@ struct Well {
  *      sketch::kit::caption(
  *          kCell, "Border::Mode::Bracket",
  *          "only within 18 px of each corner",
- *          well({.width = kCell, .height = kPicture}).child(plaque()))
+ *          well({.width = kCell, .height = kPicture}).children({plaque()}))
  *
  *  @p measure is the width the remark wraps at — the cell's own width.
  *  It is the one distance a caption cannot inherit, because it is a fact

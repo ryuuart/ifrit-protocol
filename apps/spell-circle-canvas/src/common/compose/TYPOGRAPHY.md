@@ -915,7 +915,10 @@ its block styles and nothing else — no layout, no cursor, no frame — and
 weave::Story article(weave::rich(body).add(u8"…"));
 article.paragraphs({headingStyle, bodyStyle, bodyStyle});
 
-root.children({frame(article).key("a").thread("b").width(Dimension(300.0f)), frame(article).key("b").width(Dimension(300.0f)).ellipsis(u8"…")});
+root.children({
+    frame(article).key("a").thread("b").width(Dimension(300.0f)),
+    frame(article).key("b").width(Dimension(300.0f)).ellipsis(u8"…"),
+});
 ```
 
 Each frame fills from where the one before it stopped, so the cut moves as

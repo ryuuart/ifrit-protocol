@@ -48,7 +48,7 @@ TEST(Ocio, AnExponentBakesToAResponseRowThatGradesTheContent) {
   content.eraseColor(SkColorSetARGB(255, 128, 128, 128));
   content.erase(SK_ColorWHITE, SkIRect::MakeXYWH(0, 0, 1, 1));
   content.setImmutable();
-  grade.child("content", Texture::of(content.asImage()));
+  grade.slot("content", Texture::of(content.asImage()));
   SkBitmap out;
   out.allocPixels(SkImageInfo::MakeN32Premul(4, 4));
   SkCanvas canvas(out);
@@ -93,7 +93,7 @@ TEST(Ocio, AChannelwiseViewLowersToATableThatPaintsWhatTheProgramPaints) {
 
   // What the program paints: the recipe with the ramp in its content slot.
   Material shaded = grade;
-  shaded.child("content", Texture::of(ramp.asImage()));
+  shaded.slot("content", Texture::of(ramp.asImage()));
   SkBitmap viaProgram;
   viaProgram.allocPixels(info);
   SkCanvas programCanvas(viaProgram);

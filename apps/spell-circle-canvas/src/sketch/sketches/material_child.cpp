@@ -199,8 +199,8 @@ mskia::Paint paletted(const Tables& tables, const sk_sp<SkImage>& table,
                       float shade) {
   return mskia::Paint::sksl(tables.palette)
       .uniform("uShade", shade)
-      .child("uIndex", indexSource(tables))
-      .child("uPalette", lutSource(table));
+      .slot("uIndex", indexSource(tables))
+      .slot("uPalette", lutSource(table));
 }
 
 /** The LUT itself, shown as the 16-swatch strip it is. */
@@ -331,9 +331,9 @@ struct MaterialChild final : sketch::Sketch {
          .gap = 20});
 
     return sketch::kit::page(
-        {.title = "CHILD SLOTS · a material filling "
+        {.title = "SLOTS · a material filling "
                   "another's",
-         .subtitle = "top: Paint::sksl(…).child() "
+         .subtitle = "top: Paint::sksl(…).slot() "
                      "— an index texture read "
                      "through a palette LUT · bottom: "
                      "over(base, top, mask) — the "

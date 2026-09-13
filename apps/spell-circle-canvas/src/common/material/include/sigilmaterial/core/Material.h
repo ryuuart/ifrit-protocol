@@ -3,7 +3,7 @@
 /** @file
  * Material — an instance of a recipe: the recipe, its parameter values
  * mirrored as upload bytes, the live bindings that overwrite fields at
- * resolve, the materials filling its child slots, and the instance-side
+ * resolve, the materials filling its slots, and the instance-side
  * settings a renderer reads. Comparable by value so a scene can prune,
  * and resolvable against a frame into the program plus the bytes to
  * upload, memoised on the last inputs.
@@ -127,22 +127,22 @@ class Material {
    *  clears the binding. */
   Material& bind(std::string_view name,
                  std::shared_ptr<const UniformBlock> block);
-  /** Fills the child slot @p name. A slot the recipe does not declare is
+  /** Fills the slot @p name. A slot the recipe does not declare is
    *  reported once and ignored. */
-  Material& child(std::string_view name, Material material);
-  /** Fills the child slot @p name with a leaf the backend binds directly.
+  Material& slot(std::string_view name, Material material);
+  /** Fills the slot @p name with a leaf the backend binds directly.
    *  A slot the recipe does not declare is reported once and ignored. */
-  Material& child(std::string_view name, std::shared_ptr<const Leaf> leaf);
-  /** `child(name, shared_ptr<const Leaf>)` over a leaf value. */
+  Material& slot(std::string_view name, std::shared_ptr<const Leaf> leaf);
+  /** `slot(name, shared_ptr<const Leaf>)` over a leaf value. */
   template <class L>
     requires std::derived_from<L, Leaf>
-  Material& child(std::string_view name, L leaf) {
-    return child(name, std::shared_ptr<const Leaf>(
-                           std::make_shared<const L>(std::move(leaf))));
+  Material& slot(std::string_view name, L leaf) {
+    return slot(name, std::shared_ptr<const Leaf>(
+                          std::make_shared<const L>(std::move(leaf))));
   }
   /** The material in slot @p name, or null — including when the slot
    *  holds a leaf. */
-  const Material* child(std::string_view name) const;
+  const Material* slot(std::string_view name) const;
   /** The leaf in slot @p name, or null — including when the slot holds a
    *  material. */
   const Leaf* leaf(std::string_view name) const;
@@ -153,8 +153,8 @@ class Material {
     std::shared_ptr<const Leaf> leaf;
   };
   /** The filled slots in recipe order. */
-  std::span<const std::pair<std::string, Slot>> children() const {
-    return m_children;
+  std::span<const std::pair<std::string, Slot>> slots() const {
+    return m_slots;
   }
 
   /** The strength a renderer blends this material in at, in [0, 1]. */
@@ -217,7 +217,7 @@ class Material {
   std::shared_ptr<const Recipe> m_recipe;
   std::vector<std::byte> m_bytes;
   std::vector<Binding> m_bindings;
-  std::vector<std::pair<std::string, Slot>> m_children;
+  std::vector<std::pair<std::string, Slot>> m_slots;
   float m_amount = 1.0f;
   float m_quantizeHz = 0.0f;
   bool m_worldSpace = false;

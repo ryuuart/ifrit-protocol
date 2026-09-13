@@ -2,10 +2,10 @@
 
 Materials as recipe instances. A **recipe** is a material's definition: a
 plain C++ struct of uniform-typed fields that is its ABI, one shader body
-per shading language, the child slots it samples and the per-frame values
+per shading language, the slots it samples and the per-frame values
 it reads. A **material** is one instance of a recipe: the field values,
 mirrored as the bytes the shader will receive; live bindings that overwrite
-fields every frame; other materials filling its child slots; and the
+fields every frame; other materials filling its slots; and the
 settings a renderer reads off the instance. A renderer asks a material to
 **resolve** against a frame and receives the compiled **program** for its
 shading language plus the bytes to upload — the same answer, memoised,
@@ -21,7 +21,7 @@ and frame sequences.
 
 The shading model the authoring tools export for — metallic-roughness,
 with a map per role — is a preset like any other: one parameter struct is
-its ABI, one child slot per map, and the choice between the lit and the
+its ABI, one slot per map, and the choice between the lit and the
 unlit recipe is what the surface IS. Local variation on top of it is not
 a bespoke recipe per pair but a composition: `over(base, top, mask)`
 stacks two materials where a mask says.
@@ -111,18 +111,18 @@ auto glowSource = shaders.text("shader://Glow.sksl");
 if (!glowSource) throw std::runtime_error("Glow.sksl is missing");
 
 // The definition, made once and shared. The loaded body follows the generated
-// declarations — the uniforms above, then uTime, then the child slot.
+// declarations — the uniforms above, then uTime, then the slot.
 auto glow = std::make_shared<const Recipe>(
     Recipe::of<Glow>("glow")
         .frame(FrameInput::Time)
-        .child("uSrc")
+        .slot("uSrc")
         .body(Target::SkSL, std::move(*glowSource)));
 
 // An instance: values now, a bound clock and a live table later.
 Material m(glow, Glow{1.0f, {1, 0.8f, 0.2f, 1}, {}});
 m.bind("uScale", &scaleOutput);        // a choreograph::Output<float>
 m.bind("uBars", spectrumBlock);        // a shared_ptr<UniformBlock>, 8 floats
-m.child("uSrc", Material(gradientRecipe, GradientParameters{...}));
+m.slot("uSrc", Material(gradientRecipe, GradientParameters{...}));
 
 // A renderer, per frame:
 FrameData frame{.seconds = clock.now(), .resolution = {w, h}};
@@ -131,10 +131,10 @@ sk_sp<SkShader> shader = skia::shader(m, frame);
 
 `skia::shader` is the whole Skia path: it resolves the material, builds
 over the program's effect with every uniform set from the resolved bytes,
-binds each child slot — a material child resolved recursively, a texture
+binds each slot — a material resolved recursively, a texture
 leaf as its image shader — and makes the shader. The Skia backend prepares
 its compiler on first use; drawing needs no registration step. A renderer
-that fills some child slots itself uses `skia::builder(m, frame, variant,
+that fills some slots itself uses `skia::builder(m, frame, variant,
 leave)`, which prepares the same program and leaves the named slots for
 the caller. `skia::fill(canvas, path, m)`
 is the one-call draw: clip to the path, paint the shader across it.
@@ -173,7 +173,7 @@ order. `schema<P>()` proves this at compile time and refuses a struct with
 any other field type or with padding. The same walk emits the uniform
 declarations (`declare<P>(target)`), so the names in the shader are the
 names in the struct and cannot drift. A struct with NO fields is legal and
-is a recipe with no ABI of its own — a body over child slots and frame
+is a recipe with no ABI of its own — a body over slots and frame
 inputs alone.
 
 **Writing to a field no body reads is reported at the write.** A dial
@@ -204,7 +204,7 @@ equality use the pointer. Define a recipe once and hold it in a
 A definition a renderer can only finish at draw — a body rewritten around
 an array size or a constant nothing knew earlier — is a SPECIALIZATION:
 `m.withRecipe(r)` is the same instance over a second recipe of the same
-parameters layout, so the values, bindings and children carry over and the two
+parameters layout, so the values, bindings and slots carry over and the two
 definitions compile and cache apart. Hold the specializations, one per
 distinct constant, or the cache fills with a definition per draw.
 
@@ -213,7 +213,7 @@ distinct constant, or the cache fills with a definition per draw.
 `Recipe::source(target)` is the generated declarations followed by it.
 The two targets ask a body for the same thing in their own words:
 
-| target | what a body is | how it reads a child slot |
+| target | what a body is | how it reads a slot |
 |---|---|---|
 | `Target::SkSL` | `half4 main(float2 p)`, returning premultiplied colour | `uniform shader NAME`, evaluated as `NAME.eval(p)` |
 | `Target::Slang` | `float4 surface(float2 uv)`, returning STRAIGHT colour — the renderer that compiles it puts the lighting and the premultiply around it | `uniform Sampler2D NAME`, read as `NAME.Sample(uv)` |
@@ -266,10 +266,10 @@ material `isAnimated()`; resolution and the world transform make it
 to a step, so a material that need not move every frame resolves only
 when the snapped clock advances.
 
-**Children ride everything.** A recipe declares slots (`child("uSrc")`,
+**Slots ride everything.** A recipe declares slots (`slot("uSrc")`,
 exposed to SkSL as `uniform shader uSrc`); a material fills them with other
-materials or with leaves. A live child makes the parent live, a
-geometry-dependent child makes it geometry-dependent, and a different
+materials or with leaves. A live source makes the parent live, a
+geometry-dependent source makes it geometry-dependent, and a different
 child makes it unequal — which is required, not incidental: a child left
 out of equality would let a node prune while its second source had
 changed.
@@ -281,7 +281,7 @@ that reading, the one `readsField` takes of a parameter field, and a target
 with no body answers yes. The two sets differ where one language reaches
 a child material and another cannot: a composed stack declares a slot per
 operand's own slot for the language handed one body per material, and the
-language whose child slot is a shader samples the three operands
+language whose slot is a shader samples the three operands
 themselves and needs none of them. It is not tidiness. A declared slot is
 an IMAGE SAMPLER in the compiled program whether anything reads it or
 not, a GPU backend inlines the whole tree of effects into one fragment
@@ -300,7 +300,7 @@ type's own equality) and says whether it moves between frames.
 `SkShader` to bind — and `Texture` is one such leaf; a renderer's own
 native sources (a gradient it built, a Perlin generator) are others. The
 Skia backend binds any `ShaderLeaf`. A slot holds a material or a leaf,
-never both, and `Material::child(name)` and `Material::leaf(name)` each
+never both, and `Material::slot(name)` and `Material::leaf(name)` each
 answer null for the other kind.
 
 ## Textures
@@ -394,7 +394,7 @@ index)` wraps past the end.
 
 **`over(base, top, mask, blend, amount)` is a material.** The three
 operands
-become its children, so the stack compares, animates and resolves as one
+fill its slots, so the stack compares, animates and resolves as one
 value, and applying `over` again builds a taller one. The MASK is any
 material whose red channel is read as a scalar; `blend` is `Mix`, `Add`
 or `Multiply`, one recipe each so a body carries no branch; `amount` is
@@ -410,7 +410,7 @@ only express one material (`UsdPreviewSurface`, say) writes the bottom
 and records the depth.
 
 **Two kinds of target read a stack, and only one of them can reach the
-operands.** A target whose child slot is a SHADER — SkSL's is — samples
+operands.** A target whose slot is a SHADER — SkSL's is — samples
 each operand's own program, so one body over the three slots `base`,
 `top` and `mask` is the whole story. A target handed exactly ONE body per
 material cannot reach a child material at all; for it a stack is
@@ -427,7 +427,7 @@ thing a composable body may not do is give a local the name of one of its
 own parameters.**
 
 A composed stack is the same material otherwise: the same three operands
-as children, the same walk down, and the same recipe NAME — which is what
+in its slots, the same walk down, and the same recipe NAME — which is what
 says a material is a stack, since a composed one carries a recipe built
 for its own operands rather than the shared one. The operands' values and
 their sampled slots are copied in at the moment of the call, so a later
@@ -622,7 +622,7 @@ under two recipes over the same ABI: `kit::surface()` takes light,
 are the compositions the kit ships. `Reflection` is how the environment
 reaches a lit surface — `SplitSum`, where the surface's own reflectance
 and its Fresnel decide, or `Additive` at `reflectionWeight`, with
-neither — and it is one recipe each, so no body carries a branch. Seven child slots, one per role
+neither — and it is one recipe each, so no body carries a branch. Seven slots, one per role
 (`kBaseColorSlot`, `kNormalSlot`, `kRoughnessSlot`, `kMetallicSlot`,
 `kOcclusionSlot`, `kEmissiveSlot`, `kOpacitySlot`), each dressed with a
 neutral one-pixel fill when it is built so no body ever evaluates an
@@ -957,7 +957,7 @@ including that the schema IS the parameter struct's own layout, read off
 recipe identity against definition equality, the program cache's keys, a
 compile held open until every concurrent request has arrived so the fold
 is asked without a clock, the field it names once when a compiled body
-never reads it, material equality, bindings, children and tiers, which
+never reads it, material equality, bindings, slots and tiers, which
 slots each target's declarations carry, what `over()` stacks, and
 `UniformBlock` revisioning.
 

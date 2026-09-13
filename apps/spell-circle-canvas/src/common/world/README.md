@@ -66,20 +66,22 @@ choreograph::Output<float> spin = 0.0f;   // written by whatever drives it
 scene.render(
     Element()
         .key("set")
-        .child(Element().key("sun").light(light::sun({-0.4f, -0.8f, -0.4f})))
-        .child(Element().key("eye").along(rail, travelled).camera(lens))
-        .child(Element()
-                   .key("tube")
-                   .mesh(geometry::mesh::pop::sweep(loop, profile))
-                   .fill(surface)
-                   .rotateY(bind(&spin))
-                   .tag("lit"))
-        .child(Element()
-                   .key("comet")
-                   .chain(points)
-                   .stamp(bead)
-                   .window(head, 0.28f)
-                   .tag("glow")));
+        .children({
+            Element().key("sun").light(light::sun({-0.4f, -0.8f, -0.4f})),
+            Element().key("eye").along(rail, travelled).camera(lens),
+            Element()
+                .key("tube")
+                .mesh(geometry::mesh::pop::sweep(loop, profile))
+                .fill(surface)
+                .rotateY(bind(&spin))
+                .tag("lit"),
+            Element()
+                .key("comet")
+                .chain(points)
+                .stamp(bead)
+                .window(head, 0.28f)
+                .tag("glow"),
+        }));
 
 scene.draw(canvas);   // from the viewpoint the tree declared
 ```
@@ -152,7 +154,7 @@ returned and rebuilds it with that child replaced, rather than the preset
 growing a hook.
 
 Where a concept exists in two dimensions this spells it the way
-SigilCompose spells it — `key`, `child`, `children`, `memo`, `at`,
+SigilCompose spells it — `key`, `children`, `memo`, `at`,
 `scale`, `transformOrigin`, `fill`, `cache`, `bind`, `animate`, and the
 `Selector` combinators `|`, `&` and `!`. The new spellings are the ones a
 plane does not have: `translateZ`/`rotateX`/`rotateY`/`rotateZ`/`scaleZ`
@@ -504,7 +506,7 @@ one.
 
 **Every OTHER sampled slot the recipe declares is bound too** — normal,
 roughness, metallic, occlusion, emissive, opacity — from the material's
-own child slots, by the NAME the program declared them under. A slot
+own slots, by the NAME the program declared them under. A slot
 whose texture is the neutral dressing a surface is built with is left
 UNBOUND, and an unbound slot reads one white texel: the neutral for every
 map a scalar multiplies, and the one value a tangent-space normal cannot

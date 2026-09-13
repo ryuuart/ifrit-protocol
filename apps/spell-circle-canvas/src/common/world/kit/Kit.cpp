@@ -56,20 +56,21 @@ Element threePoint(const Rig& rig) {
   const float reach = distance * 4.0f;
   return Element()
       .key("rig")
-      .child(lamp("key", station(rig.at, distance, rig.bearing, rig.elevation),
-                  rig.color, rig.intensity, reach))
+      .children(
+          {lamp("key", station(rig.at, distance, rig.bearing, rig.elevation),
+                rig.color, rig.intensity, reach)})
       // A quarter turn the other way and lower: the fill is what keeps
       // the side the key does not reach from being black.
-      .child(lamp(
+      .children({lamp(
           "fill",
           station(rig.at, distance, rig.bearing + 90.0f, rig.elevation * 0.4f),
-          rig.color, rig.intensity * rig.fill, reach))
+          rig.color, rig.intensity * rig.fill, reach)})
       // Opposite and higher: the back light is what separates the
       // subject from what stands behind it.
-      .child(lamp(
+      .children({lamp(
           "back",
           station(rig.at, distance, rig.bearing + 180.0f, rig.elevation * 1.6f),
-          rig.color, rig.intensity * rig.back, reach));
+          rig.color, rig.intensity * rig.back, reach)});
 }
 
 geometry::mesh::curve::Spline3 rail(const Turntable& table) {
@@ -146,19 +147,20 @@ Element litSet(Element subject, const Set& set, float seconds) {
                     : material::kit::surface(
                           {.baseColor = {kNeutralGround.r, kNeutralGround.g,
                                          kNeutralGround.b, kNeutralGround.a}});
-    root.child(Element()
-                   .key("ground")
-                   .at({set.rig.at.x, set.rig.at.y - set.drop * set.rig.extent,
-                        set.rig.at.z})
-                   // A quad stands up; a ground plane is one laid down.
-                   .rotateX(-90.0f)
-                   .mesh(geometry::mesh::quad(side, side))
-                   .fill(std::move(surface))
-                   .tag("ground"));
+    root.children(
+        {Element()
+             .key("ground")
+             .at({set.rig.at.x, set.rig.at.y - set.drop * set.rig.extent,
+                  set.rig.at.z})
+             // A quad stands up; a ground plane is one laid down.
+             .rotateX(-90.0f)
+             .mesh(geometry::mesh::quad(side, side))
+             .fill(std::move(surface))
+             .tag("ground")});
   }
-  root.child(threePoint(set.rig));
-  root.child(turntable(set.table, seconds));
-  root.child(Element().key("subject").child(std::move(subject)));
+  root.children({threePoint(set.rig)});
+  root.children({turntable(set.table, seconds)});
+  root.children({Element().key("subject").children({std::move(subject)})});
   return root;
 }
 

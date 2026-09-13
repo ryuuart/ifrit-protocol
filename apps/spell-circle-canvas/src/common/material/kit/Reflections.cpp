@@ -27,7 +27,7 @@ glm::vec2 sizeOf(const EnvironmentMap& env) {
 
 const std::shared_ptr<const Recipe>& goldRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
-      Recipe::of<GoldParameters>("gold").child("normals").child("env").body(
+      Recipe::of<GoldParameters>("gold").slot("normals").slot("env").body(
           Target::SkSL, std::string(noisePrelude(Target::SkSL))
                             .append(shaderSource("ReflectivePrelude.sksl"))
                             .append(shaderSource("ReflectiveGold.sksl"))));
@@ -36,7 +36,7 @@ const std::shared_ptr<const Recipe>& goldRecipe() {
 
 const std::shared_ptr<const Recipe>& chromeRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
-      Recipe::of<ChromeParameters>("chrome").child("normals").child("env").body(
+      Recipe::of<ChromeParameters>("chrome").slot("normals").slot("env").body(
           Target::SkSL, std::string(noisePrelude(Target::SkSL))
                             .append(shaderSource("ReflectivePrelude.sksl"))
                             .append(shaderSource("ReflectiveChrome.sksl"))));
@@ -46,9 +46,9 @@ const std::shared_ptr<const Recipe>& chromeRecipe() {
 const std::shared_ptr<const Recipe>& glassRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<GlassParameters>("glass")
-          .child("normals")
-          .child("env")
-          .child("backdrop")
+          .slot("normals")
+          .slot("env")
+          .slot("backdrop")
           .body(Target::SkSL,
                 std::string(noisePrelude(Target::SkSL))
                     .append(shaderSource("ReflectivePrelude.sksl"))
@@ -61,8 +61,8 @@ Material gold(Texture normals, const EnvironmentMap& env,
   GoldParameters p = parameters;
   p.envSize = sizeOf(env);
   Material m(goldRecipe(), p);
-  m.child("normals", std::move(normals));
-  m.child("env", env.texture(parameters.roughness));
+  m.slot("normals", std::move(normals));
+  m.slot("env", env.texture(parameters.roughness));
   return m;
 }
 
@@ -71,8 +71,8 @@ Material chrome(Texture normals, const EnvironmentMap& env,
   ChromeParameters p = parameters;
   p.envSize = sizeOf(env);
   Material m(chromeRecipe(), p);
-  m.child("normals", std::move(normals));
-  m.child("env", env.texture(parameters.roughness));
+  m.slot("normals", std::move(normals));
+  m.slot("env", env.texture(parameters.roughness));
   return m;
 }
 
@@ -81,9 +81,9 @@ Material glass(Texture normals, const EnvironmentMap& env, Texture backdrop,
   GlassParameters p = parameters;
   p.envSize = sizeOf(env);
   Material m(glassRecipe(), p);
-  m.child("normals", std::move(normals));
-  m.child("env", env.texture(parameters.roughness));
-  m.child("backdrop", std::move(backdrop));
+  m.slot("normals", std::move(normals));
+  m.slot("env", env.texture(parameters.roughness));
+  m.slot("backdrop", std::move(backdrop));
   return m;
 }
 

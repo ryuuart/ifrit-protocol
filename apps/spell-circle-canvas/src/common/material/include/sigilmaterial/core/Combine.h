@@ -13,7 +13,7 @@
  * the operands are its children.
  *
  * TWO KINDS OF TARGET READ A STACK, and only one of them can reach the
- * operands. A target whose child slot is a SHADER — SkSL's is — samples
+ * operands. A target whose slot is a SHADER — SkSL's is — samples
  * each operand's own program, so one body over three slots is the whole
  * story. A target handed exactly ONE body per material cannot reach a
  * child material at all; for it a stack is COMPOSED: `over()` builds a

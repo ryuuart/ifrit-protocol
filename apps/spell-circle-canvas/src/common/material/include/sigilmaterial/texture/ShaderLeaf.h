@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * ShaderLeaf — a leaf that binds into a child slot as a Skia shader. The
+ * ShaderLeaf — a leaf that binds into a slot as a Skia shader. The
  * seam between the material tree and anything Skia can already shade: an
  * image and its sampling, a gradient a renderer built natively, a
  * procedural shader Skia ships. A subclass yields the shader and compares

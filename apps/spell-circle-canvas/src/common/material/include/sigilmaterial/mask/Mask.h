@@ -30,7 +30,7 @@
 
 namespace sigil::material {
 
-/** The child slot a sampled mask reads. */
+/** The slot a sampled mask reads. */
 inline constexpr std::string_view kMaskSourceSlot = "source";
 
 /** How a sampled mask turns its source into a scalar. */

@@ -229,12 +229,12 @@ struct ImportNative final : sketch::Set {
 
     material::Material fromCompose = screenSurface;
     if (composed)
-      fromCompose.child(material::kit::kBaseColorSlot, composed->texture());
+      fromCompose.slot(material::kit::kBaseColorSlot, composed->texture());
 
     material::Material fromPage = screenSurface;
     if (pageFrame)
-      fromPage.child(material::kit::kBaseColorSlot,
-                     material::Texture::of(pageFrame));
+      fromPage.slot(material::kit::kBaseColorSlot,
+                    material::Texture::of(pageFrame));
 
     world::Element root;
     root.key("set").children(

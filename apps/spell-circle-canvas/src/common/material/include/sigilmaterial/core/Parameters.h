@@ -160,7 +160,7 @@ void forEachField(F&& f) {
  *  uniform type, and one whose size is not the sum of its fields — padding
  *  between fields would put bytes in the upload the shader does not
  *  declare. A struct with NO fields is a recipe with no ABI of its own —
- *  a body that reads only child slots and frame inputs — and lays out to
+ *  a body that reads only slots and frame inputs — and lays out to
  *  nothing; the size rule cannot ask anything of it, because an empty
  *  aggregate occupies a byte the upload never carries. */
 template <class P>

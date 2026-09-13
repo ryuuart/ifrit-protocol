@@ -441,7 +441,7 @@ sigil::material::skia::Effect blurEffect(BlurArm arm, float sigma) {
       const int radius = (int)std::lround(3.0f * sigma);
       return sigil::material::skia::Effect::shader(naiveVaryingBlur(radius),
                                                    {{"uMaxSigma", sigma}})
-          .child("param", sigmaRamp());
+          .slot("param", sigmaRamp());
     }
     case BlurArm::ConstantMax:
       return sigil::material::skia::Effect::filter(

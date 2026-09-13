@@ -235,7 +235,7 @@ struct Ink {
 // ---------------------------------------------------------------------------
 // THE PALETTE, IN THE SHADER. Every atlas cell's art is authored ONCE, in
 // indices, and the 256-entry table reaches SkSL as a 256 x 1 CHILD IMAGE:
-// `Paint::sksl(...).child("uPalette", Paint::image(strip, ...,
+// `Paint::sksl(...).slot("uPalette", Paint::image(strip, ...,
 // kNearest))`. The lookup has to be a child rather than a uniform array
 // because the index is a PIXEL VALUE — SkSL indexes a uniform array only by a
 // constant — and it has to be kNearest because the sampled value is data, not
@@ -306,10 +306,10 @@ inline Paint paletteLut(const sk_sp<SkRuntimeEffect>& effect,
   Paint p = Paint::sksl(effect);
   p.uniform("uShade", (float)shade);
   p.uniform("uBlock1", (float)block1);
-  p.child("uIndex", Paint::image(indices, SkTileMode::kClamp,
-                                 SkTileMode::kClamp, SkMatrix::I(),
-                                 SkSamplingOptions{SkFilterMode::kNearest}));
-  p.child("uPalette", table);
+  p.slot("uIndex", Paint::image(indices, SkTileMode::kClamp, SkTileMode::kClamp,
+                                SkMatrix::I(),
+                                SkSamplingOptions{SkFilterMode::kNearest}));
+  p.slot("uPalette", table);
   return p;
 }
 

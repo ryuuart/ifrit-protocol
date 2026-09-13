@@ -138,9 +138,9 @@ Effect Effect::blur(Paint sigmaMap, float maxSigma) {
   Effect e;
   e.m_parametricBlur = ParametricBlur{maxSigma};
   e.m_blurLevels = makeBlurLevels(maxSigma);
-  e.m_children.emplace_back("sigma",
-                            std::make_shared<const Paint>(std::move(sigmaMap)));
-  // The static snapshot, built context-free exactly as Material::child
+  e.m_slots.emplace_back("sigma",
+                         std::make_shared<const Paint>(std::move(sigmaMap)));
+  // The static snapshot, built context-free exactly as Material::slot
   // refreshes m_shader at store time; a context-needing map rebuilds this
   // per paint in resolvedImageFilter().
   e.m_filter = e.buildFilter(nullptr);

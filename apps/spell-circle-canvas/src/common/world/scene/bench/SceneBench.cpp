@@ -37,12 +37,12 @@ Element describeTree(int nodes, const geometry::mesh::Mesh& body, float phase) {
   for (int i = 0; i < nodes; ++i) {
     const int column = i % 32;
     const int row = i / 32;
-    root.child(Element()
-                   .key("n" + std::to_string(i))
-                   .mesh(body)
-                   .at({(float)column * 12.0f - 180.0f,
-                        (float)row * 12.0f - 90.0f, 0.0f})
-                   .rotateY(phase + (float)i));
+    root.children({Element()
+                       .key("n" + std::to_string(i))
+                       .mesh(body)
+                       .at({(float)column * 12.0f - 180.0f,
+                            (float)row * 12.0f - 90.0f, 0.0f})
+                       .rotateY(phase + (float)i)});
   }
   return root;
 }

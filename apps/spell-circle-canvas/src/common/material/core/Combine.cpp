@@ -62,9 +62,9 @@ std::string_view slangFile(Blend blend) {
 std::shared_ptr<const Recipe> make(Blend blend) {
   return std::make_shared<const Recipe>(
       Recipe::of<OverParameters>(stackName(blend))
-          .child("base")
-          .child("top")
-          .child("mask")
+          .slot("base")
+          .slot("top")
+          .slot("mask")
           .body(Target::SkSL, std::string(shaderSource(skslFile(blend)))));
 }
 
@@ -76,7 +76,7 @@ std::shared_ptr<const Recipe> make(Blend blend) {
 std::vector<std::string> renamed(const Recipe& recipe) {
   std::vector<std::string> names;
   for (const Field& f : recipe.parameters().fields) names.push_back(f.name);
-  for (const std::string& slot : recipe.children()) names.push_back(slot);
+  for (const std::string& slot : recipe.slots()) names.push_back(slot);
   return names;
 }
 
@@ -145,10 +145,10 @@ std::shared_ptr<const Recipe> composeRecipe(Blend blend,
     }
 
   Recipe recipe = Recipe::of(stackName(blend), parameters);
-  recipe.child("base").child("top").child("mask");
+  recipe.slot("base").slot("top").slot("mask");
   for (int i = 0; i < 3; ++i) {
-    for (const std::string& slot : operands[i]->children())
-      recipe.child(std::string(kOperands[i].prefix) + slot);
+    for (const std::string& slot : operands[i]->slots())
+      recipe.slot(std::string(kOperands[i].prefix) + slot);
     for (FrameInput input :
          {FrameInput::Time, FrameInput::Resolution, FrameInput::ContentScale,
           FrameInput::WorldTransform})
@@ -244,8 +244,8 @@ void carry(Material& out, const Material* operands[3]) {
     // recipe declares a sampled slot per slot, and a material in one is
     // a body the composition has already inlined — a stack of stacks
     // reaches here with its operands' slots already flattened.
-    for (const auto& [slot, filled] : operand.children())
-      if (filled.leaf) out.child(prefix + slot, filled.leaf);
+    for (const auto& [slot, filled] : operand.slots())
+      if (filled.leaf) out.slot(prefix + slot, filled.leaf);
   }
 }
 
@@ -287,9 +287,9 @@ Material over(Material base, Material top, Material mask, Blend blend,
   const std::shared_ptr<const Recipe> recipe = composed(
       blend, base.recipePointer(), top.recipePointer(), mask.recipePointer());
   const auto fill = [&](Material out) {
-    out.child("base", std::move(base));
-    out.child("top", std::move(top));
-    out.child("mask", std::move(mask));
+    out.slot("base", std::move(base));
+    out.slot("top", std::move(top));
+    out.slot("mask", std::move(mask));
     return out;
   };
   if (!recipe) return fill(Material(overRecipe(blend), OverParameters{amount}));
@@ -306,7 +306,7 @@ Material over(Material base, Material top, Material mask, Blend blend,
 
 const Material* under(const Material& m) {
   if (!isStack(m.recipe().name())) return &m;
-  if (const Material* base = m.child("base")) return base;
+  if (const Material* base = m.slot("base")) return base;
   return &m;
 }
 

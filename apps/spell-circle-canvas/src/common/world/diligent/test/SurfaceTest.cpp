@@ -79,7 +79,7 @@ TEST(SurfaceSlots, AnOcclusionMapDarkensWhereItIsDark) {
       material::kit::surface({.baseColor = {0.9f, 0.9f, 0.9f, 1.0f}});
   material::Material occluded = plain;
   // Two texels: the left half black, the right half white.
-  occluded.child(
+  occluded.slot(
       material::kit::kOcclusionSlot,
       drawnTexture("world.test.occlusion", 2, 1, [](SkCanvas& canvas) {
         canvas.clear(SK_ColorWHITE);
@@ -113,8 +113,8 @@ TEST(SurfaceSlots, AnEmissiveMapCarriesItsOwnColour) {
   material::Material dark = material::kit::surface(parameters);
   parameters.emissiveStrength = 1;
   material::Material glowing = material::kit::surface(parameters);
-  glowing.child(material::kit::kEmissiveSlot,
-                flat("world.test.emissive", {0.9f, 0.2f, 0.2f, 1.0f}));
+  glowing.slot(material::kit::kEmissiveSlot,
+               flat("world.test.emissive", {0.9f, 0.2f, 0.2f, 1.0f}));
 
   const SkColor4f bare = at(cardOn(dark, on.runtime), 0.5f, 0.5f);
   const SkColor4f lit = at(cardOn(glowing, on.runtime), 0.5f, 0.5f);
@@ -130,13 +130,13 @@ TEST(SurfaceSlots, AnOpacityCutoutDropsTexelsOutright) {
   parameters.baseColor = {0.9f, 0.5f, 0.2f, 1.0f};
   parameters.alphaCutoff = 0.5f;
   material::Material cut = material::kit::surface(parameters);
-  cut.child(material::kit::kOpacitySlot,
-            drawnTexture("world.test.opacity", 2, 1, [](SkCanvas& canvas) {
-              canvas.clear(SK_ColorWHITE);
-              SkPaint paint;
-              paint.setColor(SK_ColorBLACK);
-              canvas.drawRect(SkRect::MakeXYWH(0, 0, 1, 1), paint);
-            }));
+  cut.slot(material::kit::kOpacitySlot,
+           drawnTexture("world.test.opacity", 2, 1, [](SkCanvas& canvas) {
+             canvas.clear(SK_ColorWHITE);
+             SkPaint paint;
+             paint.setColor(SK_ColorBLACK);
+             canvas.drawRect(SkRect::MakeXYWH(0, 0, 1, 1), paint);
+           }));
 
   const SkBitmap plate = cardOn(cut, on.runtime);
   // Below the threshold the surface is ABSENT, so the pass's clear
@@ -155,14 +155,14 @@ TEST(SurfaceSlots, ANormalMapTiltsTheShading) {
   // Two texels, each a tangent normal leaning hard the opposite way, so
   // the two halves of one flat card face two different directions and
   // the sun reaches them differently.
-  bumped.child(material::kit::kNormalSlot,
-               drawnTexture("world.test.normal", 2, 1, [](SkCanvas& canvas) {
-                 SkPaint paint;
-                 paint.setColor(SkColor4f{0.05f, 0.5f, 0.6f, 1}.toSkColor());
-                 canvas.drawRect(SkRect::MakeXYWH(0, 0, 1, 1), paint);
-                 paint.setColor(SkColor4f{0.95f, 0.5f, 0.6f, 1}.toSkColor());
-                 canvas.drawRect(SkRect::MakeXYWH(1, 0, 1, 1), paint);
-               }));
+  bumped.slot(material::kit::kNormalSlot,
+              drawnTexture("world.test.normal", 2, 1, [](SkCanvas& canvas) {
+                SkPaint paint;
+                paint.setColor(SkColor4f{0.05f, 0.5f, 0.6f, 1}.toSkColor());
+                canvas.drawRect(SkRect::MakeXYWH(0, 0, 1, 1), paint);
+                paint.setColor(SkColor4f{0.95f, 0.5f, 0.6f, 1}.toSkColor());
+                canvas.drawRect(SkRect::MakeXYWH(1, 0, 1, 1), paint);
+              }));
 
   const SkBitmap bare = cardOn(plain, on.runtime);
   const SkBitmap tilted = cardOn(bumped, on.runtime);
@@ -192,10 +192,10 @@ TEST(SurfaceSlots, ASlotDressedInWhiteIsTheSamePictureAsOneDressedInNothing) {
   const material::Material plain = material::kit::surface(parameters);
   material::Material white = material::kit::surface(parameters);
   const material::Texture texel = flat("world.test.white", SkColors::kWhite);
-  white.child(material::kit::kRoughnessSlot, texel);
-  white.child(material::kit::kMetallicSlot, texel);
-  white.child(material::kit::kOcclusionSlot, texel);
-  white.child(material::kit::kOpacitySlot, texel);
+  white.slot(material::kit::kRoughnessSlot, texel);
+  white.slot(material::kit::kMetallicSlot, texel);
+  white.slot(material::kit::kOcclusionSlot, texel);
+  white.slot(material::kit::kOpacitySlot, texel);
 
   const SkBitmap bare = cardOn(plain, on.runtime);
   const SkBitmap dressed = cardOn(white, on.runtime);
@@ -221,7 +221,7 @@ constexpr SkColor4f kImportedColour{0.15f, 0.75f, 0.35f, 1.0f};
 material::Material dressedWith(material::Texture map) {
   material::Material surface =
       material::kit::unlit({.baseColor = {1, 1, 1, 1}});
-  surface.child(material::kit::kBaseColorSlot, std::move(map));
+  surface.slot(material::kit::kBaseColorSlot, std::move(map));
   return surface;
 }
 
@@ -321,7 +321,7 @@ material::EnvironmentMap hemispheres(SkColor4f above, SkColor4f below) {
  *  what a plate of it shows is the backdrop alone. */
 Frame skyAlone(const world::Environment& sky) {
   Element root =
-      Element().key("set").child(Element().key("sky").environmentMap(sky));
+      Element().key("set").children({Element().key("sky").environmentMap(sky)});
   Frame frame(root);
   frame.extent(kExtent)
       .camera(diligent::levelEye())
@@ -419,13 +419,12 @@ TEST(Environment, AMirrorWearsTheSkyAndAMatteSurfaceIsLitByIt) {
   sky.map = hemispheres({0.8f, 0.8f, 0.8f, 1}, {0.8f, 0.8f, 0.8f, 1});
 
   const auto photographWith = [&](const material::Material& surface) {
-    Element root = Element()
-                       .key("set")
-                       .child(Element().key("sky").environmentMap(sky))
-                       .child(Element()
-                                  .key("card")
-                                  .mesh(::sigil::geometry::mesh::quad(120, 120))
-                                  .fill(surface));
+    Element root = Element().key("set").children(
+        {Element().key("sky").environmentMap(sky),
+         Element()
+             .key("card")
+             .mesh(::sigil::geometry::mesh::quad(120, 120))
+             .fill(surface)});
     Frame frame(root);
     frame.extent(kExtent)
         .camera(diligent::levelEye())

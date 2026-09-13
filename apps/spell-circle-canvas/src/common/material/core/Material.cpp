@@ -1,6 +1,6 @@
 /** @file
  * Material instances: byte mirroring of the parameter struct, per-field
- * writes and bindings, child slots holding materials or leaves, the tier
+ * writes and bindings, slots holding materials or leaves, the tier
  * queries, value equality and the memoised resolve.
  */
 
@@ -159,48 +159,47 @@ Material& Material::bind(std::string_view name,
 }
 
 void Material::place(std::string_view name, Slot slot) {
-  const auto slots = m_recipe->children();
+  const auto slots = m_recipe->slots();
   if (std::find(slots.begin(), slots.end(), name) == slots.end()) {
     reportOnce("child:" + m_recipe->name() + ":" + std::string(name),
-               "recipe \"" + m_recipe->name() + "\" declares no child slot \"" +
+               "recipe \"" + m_recipe->name() + "\" declares no slot \"" +
                    std::string(name) + "\"; the child is ignored");
     return;
   }
-  for (auto& [existing, s] : m_children) {
+  for (auto& [existing, s] : m_slots) {
     if (existing == name) {
       s = std::move(slot);
       return;
     }
   }
-  m_children.emplace_back(std::string(name), std::move(slot));
+  m_slots.emplace_back(std::string(name), std::move(slot));
   // Recipe order, so two materials filling the same slots in different
   // orders compare equal.
-  std::sort(m_children.begin(), m_children.end(),
-            [&](const auto& a, const auto& b) {
-              return std::find(slots.begin(), slots.end(), a.first) <
-                     std::find(slots.begin(), slots.end(), b.first);
-            });
+  std::sort(m_slots.begin(), m_slots.end(), [&](const auto& a, const auto& b) {
+    return std::find(slots.begin(), slots.end(), a.first) <
+           std::find(slots.begin(), slots.end(), b.first);
+  });
 }
 
-Material& Material::child(std::string_view name, Material material) {
+Material& Material::slot(std::string_view name, Material material) {
   place(name, {std::make_shared<const Material>(std::move(material)), nullptr});
   return *this;
 }
 
-Material& Material::child(std::string_view name,
-                          std::shared_ptr<const Leaf> leaf) {
+Material& Material::slot(std::string_view name,
+                         std::shared_ptr<const Leaf> leaf) {
   place(name, {nullptr, std::move(leaf)});
   return *this;
 }
 
-const Material* Material::child(std::string_view name) const {
-  for (const auto& [slot, s] : m_children)
+const Material* Material::slot(std::string_view name) const {
+  for (const auto& [slot, s] : m_slots)
     if (slot == name) return s.material.get();
   return nullptr;
 }
 
 const Leaf* Material::leaf(std::string_view name) const {
-  for (const auto& [slot, s] : m_children)
+  for (const auto& [slot, s] : m_slots)
     if (slot == name) return s.leaf.get();
   return nullptr;
 }
@@ -229,7 +228,7 @@ bool Material::isAnimated() const {
   if (m_recipe->reads(FrameInput::Time) ||
       m_recipe->reads(FrameInput::ContentScale))
     return true;
-  for (const auto& [slot, s] : m_children) {
+  for (const auto& [slot, s] : m_slots) {
     if (s.material && s.material->isAnimated()) return true;
     if (s.leaf && s.leaf->animated()) return true;
   }
@@ -240,7 +239,7 @@ bool Material::geometryDependent() const {
   if (m_recipe->reads(FrameInput::Resolution) ||
       m_recipe->reads(FrameInput::WorldTransform))
     return true;
-  for (const auto& [slot, s] : m_children)
+  for (const auto& [slot, s] : m_slots)
     if (s.material && s.material->geometryDependent()) return true;
   return false;
 }
@@ -250,7 +249,7 @@ bool Material::operator==(const Material& other) const {
       m_amount != other.m_amount || m_quantizeHz != other.m_quantizeHz ||
       m_worldSpace != other.m_worldSpace ||
       m_bindings.size() != other.m_bindings.size() ||
-      m_children.size() != other.m_children.size())
+      m_slots.size() != other.m_slots.size())
     return false;
   for (const Binding& a : m_bindings) {
     const Binding* b = nullptr;
@@ -259,9 +258,9 @@ bool Material::operator==(const Material& other) const {
     if (!b || !motion::propertyEqual(a.value, b->value) || a.block != b->block)
       return false;
   }
-  for (size_t i = 0; i < m_children.size(); ++i) {
-    const auto& [slot, s] = m_children[i];
-    const auto& [otherSlot, o] = other.m_children[i];
+  for (size_t i = 0; i < m_slots.size(); ++i) {
+    const auto& [slot, s] = m_slots[i];
+    const auto& [otherSlot, o] = other.m_slots[i];
     if (slot != otherSlot) return false;
     if ((s.material != nullptr) != (o.material != nullptr)) return false;
     if (s.material && !(*s.material == *o.material)) return false;

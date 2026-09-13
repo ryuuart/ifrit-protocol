@@ -14,7 +14,7 @@ paint nodes — a solid, an N-stop `linear`/`radial`/`conical`/`sweep`
 ramp, an `image` or a caller-owned `buffer`, a raw `sksl` effect, a
 `blend` stack, or `recipe` over a `Material` instance — that compiles to
 a single shader through nested `SkShaders::Blend`, never a stack of
-saveLayers. Its children nest and still compile to one shader.
+saveLayers. Its slots nest and still compile to one shader.
 
 **A paint declares its own volatility, and the declaration is what it
 READS.** Three tiers, and nothing chooses between them by hand:
@@ -33,7 +33,7 @@ READS.** Three tiers, and nothing chooses between them by hand:
   which is what stops a cache from freezing the parameter.
 
 **A TABLE AND A SECOND SOURCE ARE BOTH DOORS ON `sksl`.**
-`child(name, Paint)` fills a `uniform shader NAME` slot with another whole
+`slot(name, Paint)` fills a `uniform shader NAME` slot with another whole
 paint — an index texture, a mask, a noise field, a second gradient — and
 `uniform(name, std::vector<float>)` fills a declared array, matched
 against its TOTAL float count, so 1024 floats fill `float4 uPal[256]` and
@@ -42,11 +42,11 @@ written partly. `uniform(name, shared_ptr<const UniformBlock>)` is the
 live form of the same array, re-read every paint. Together they are what
 a FIXED PALETTE needs: the picture is one channel of indices and the
 table is one uniform array, or — when the lookup is dynamic, which is the
-usual case, since the index is a pixel value — one 256 x 1 child image
+usual case, since the index is a pixel value — one 256 x 1 image
 sampled nearest at the texel centre. Neither door asks for a variant
-baked per palette. A child rides the volatility tier and the prune
-signature: a live child makes the parent live, and two paints with
-different children never compare equal.
+baked per palette. A slot rides the volatility tier and the prune
+signature: a live source makes the parent live, and two paints with
+different sources never compare equal.
 
 **A PASS body is not a shader of its own.** A material handed to a text
 runtime's pass is written against declarations that runtime prepends once
@@ -73,8 +73,8 @@ box-local rather than answering wrongly.
 
 **Equality is the RECIPE, and it is load-bearing.** Two paints built from
 the same values compare equal though each minted a fresh `SkShader`,
-which is what lets a consumer prune across rebuilds; children and blend
-layers ride the signature, because a child left out of it would let a
+which is what lets a consumer prune across rebuilds; slots and blend
+layers ride the signature, because a slot left out of it would let a
 holder prune while its second source had changed. An `sksl` paint
 compares by EFFECT POINTER, so a helper that compiles a fresh
 `SkRuntimeEffect` per call never compares equal to itself — compile once
@@ -84,7 +84,7 @@ never reaches the value it was copied from.
 **Post-processing is the other half of the same frame.** `skia::Effect`
 takes the layer a consumer has already rendered and runs a filter over
 it: `filter()` wraps any `SkImageFilter`, `shader()` an SkSL program
-whose `content` child IS that layer, `recipe()` a `Material` in the same
+whose `content` slot IS that layer, `recipe()` a `Material` in the same
 position, and `blur()`/`directionalBlur()`/`glow()` are the three named
 spatial ones. `brightPass()` is the layer with everything but its light
 taken out — what is over a threshold, faded in across a knee, carried at
@@ -117,7 +117,7 @@ layer is still worth bounding: put the glow sources on a node of their
 own and let the host bake that node to a texture, and the bloom is baked
 with them once rather than gathered over a whole canvas every frame. `then()` chains effects,
 and the same tier rules hold — a bound
-uniform or a live child makes the effect live, and a static chain
+uniform or a live slot makes the effect live, and a static chain
 precomposes once. It resolves against the same `PaintFrame` a paint
 does, so a consumer builds one frame per draw and hands it to both.
 

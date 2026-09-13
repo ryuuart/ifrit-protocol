@@ -126,7 +126,7 @@ struct BoardParameters {
   float seed = 0.0f;
 };
 
-/** The recipes, defined once. None declares a child slot: every field is
+/** The recipes, defined once. None declares a slot: every field is
  *  computed from the parameters and the seed. */
 const std::shared_ptr<const Recipe>& stoneRecipe();
 const std::shared_ptr<const Recipe>& timberRecipe();
