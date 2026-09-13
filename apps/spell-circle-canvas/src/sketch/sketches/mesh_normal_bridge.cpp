@@ -89,10 +89,6 @@ constexpr float kStations[3] = {-320, 0, 380};
 constexpr SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
 constexpr SkColor4f kDim{0.56f, 0.61f, 0.72f, 1};
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
 /** The third panel's silhouette: a squircle, in CANVAS coordinates,
  *  because `bevelNormals` places its map so a shader's device xy reads
  *  the normal under it. */
@@ -204,11 +200,17 @@ struct MeshNormalBridge final : sketch::Sketch {
           .width(300)
           .absolute()
           .inset(kCanvas.width() * 0.5f + x - 150, kCanvas.height() - 92, 0, 0)
-          .child(text(toUtf8(call), label(12.5f, kInk, 0.4f)))
-          .child(text(toUtf8(note), label(10.5f, kDim)).width(Dimension(300)));
+          .child(text(toUtf8(call)).font({.size = 12.5f, .track = 0.4f}))
+          .child(text(toUtf8(note))
+                     .font({.size = 10.5f})
+                     .ink(kDim)
+                     .width(Dimension(300)));
     };
     ctx.composer.render(
+        // Every line is set in the bright ink unless it says otherwise;
+        // the quiet notes name the dim one.
         stack()
+            .ink(kInk)
             // Keyed on the sink's own name: everything `draw` reads is
             // cooked above, in this setup, and nothing after it moves.
             .child(custom("mesh.normal.bridge",
@@ -216,8 +218,8 @@ struct MeshNormalBridge final : sketch::Sketch {
                             draw(canvas);
                           })
                        .inset(0))
-            .child(text(toUtf8("NORMAL MAPS \xc2\xb7 two sources, one recipe"),
-                        label(15, kInk, 2.0f))
+            .child(text(toUtf8("NORMAL MAPS \xc2\xb7 two sources, one recipe"))
+                       .font({.size = 15, .track = 2.0f})
                        .left(30)
                        .top(20))
             .child(caption("Mode::Normals \xe2\x86\x92 material::kit::chrome",
@@ -237,8 +239,9 @@ struct MeshNormalBridge final : sketch::Sketch {
             .child(text(toUtf8("both encode device-space normals as "
                                "rgb = n\xc2\xb7"
                                "0.5 + 0.5, and a recipe cannot "
-                               "tell which one it was handed"),
-                        label(11, kDim))
+                               "tell which one it was handed"))
+                       .font({.size = 11})
+                       .ink(kDim)
                        .left(30)
                        .bottom(16)));
   }
