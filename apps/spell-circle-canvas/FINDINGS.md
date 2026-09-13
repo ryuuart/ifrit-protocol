@@ -66,3 +66,25 @@ which positions the paragraph at the node's box rather than at its
 content box. Until it lands, a component that wants air around a
 reading puts the padding on a box AROUND the line — which is what
 `compose::kit::cell` does for `Caption::reading`.
+
+## SpellCircle offers its frames upside down to a Metal subscriber
+
+`spellcircle/qt/src/SyphonBridge.mm` and
+`spellcircle/mac/bridge/SCKEngine+Render.mm` both hand their frame over
+with `flipped:YES`. That flag says the texture's rows are upside down for
+the graphics API it came from, and both textures were drawn through
+Skia's Metal backend, whose first row is the top of the picture — so the
+frame is turned over on the way into the surface the two applications
+share, and a subscriber that reads that surface the way Metal reads a
+texture gets the picture inverted. It is the more expensive of the two
+paths as well: a frame that is not turned over is copied by a blit, and
+one that is gets redrawn through a render pass. What both lines evidently
+intend is a subscriber seeing the frame the way up it was drawn, which is
+what `flipped:NO` says and what the sketch's own publisher passes. A test
+should publish a frame whose top row differs from its bottom and require
+a Metal client's own frame image to hold the two rows that way round. The
+fix is the flag in both files — with one thing for the owner to settle
+first: a subscriber built on the older texture convention reads the same
+surface the other way up, which is why the flag exists at all, so whether
+these two applications should agree with the sketch door is a decision
+about which subscribers they are for.

@@ -38,12 +38,17 @@ class SyphonPublisher final : public Publisher {
     id<MTLCommandBuffer> commandBuffer = (__bridge id<MTLCommandBuffer>)nativeCommandBuffer;
 
     // Syphon appends the copy to the buffer the caller is still filling
-    // and the caller commits it; flipped, because a canvas draws from
-    // the top-left corner and a publication is read from the bottom-left.
+    // and the caller commits it.
+    //
+    // NOT FLIPPED: the flag says whether the texture's rows are upside
+    // down for the graphics API it came from, and a canvas drew this one
+    // the way its API reads it — first row at the top. Saying otherwise
+    // turns every frame over on the way across and costs a redraw where
+    // an unturned frame is a straight copy.
     [m_server publishFrameTexture:texture
                   onCommandBuffer:commandBuffer
                       imageRegion:NSMakeRect(0, 0, width, height)
-                          flipped:YES];
+                          flipped:NO];
   }
 
   std::string_view name() const override { return m_name; }

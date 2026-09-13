@@ -12,6 +12,12 @@ buffer cross the seam as opaque pointers, so a host that owns its own
 device reaches the same publisher as one drawing inside a window
 somebody else owns.
 
+**Receiver** stands beside it, in `receiver/`: the subscriber, so what is
+being offered can be looked at and written down without another
+application in the middle. The two ends of one protocol are one subject,
+and a door with nothing on the other side of it is a door nobody has
+opened.
+
 ## The seam
 
 * `<sigilsketch/publish/Publisher.h>` — `Publisher`, `createPublisher`
@@ -58,12 +64,12 @@ and owes nothing for the last. A host that draws into a texture it does
 not own, and is handed a fresh one whenever its size changes, therefore
 has nothing to keep in step.
 
-**What a subscriber receives is the texture as it stands**: its own
-pixel format, and its alpha premultiplied the way the canvas wrote it.
-Nothing here converts. The frame is published flipped, because a canvas
-draws from its top-left corner and a publication is read from its
-bottom-left, so a subscriber composites the frame the way up it was
-drawn.
+**What a subscriber receives is the frame as it was drawn**: its rows in
+the order the texture holds them — the first of them the top of the
+picture — and its alpha premultiplied the way the canvas wrote it.
+Nothing here turns the picture over or divides the alpha out. A
+publication carries a pixel format of its own, so the channels are put in
+that order on the way across; nothing else about a pixel changes.
 
 **The work is appended, not submitted.** The publication rides the
 command buffer the caller is still filling and runs when the caller
@@ -90,6 +96,49 @@ stood up when a host is asked to publish and not before — a publisher
 that exists is a publisher other applications can already see in their
 own menus.
 
+## Receiver — the other side
+
+`Receiver` is a macOS application of its own (AppKit and Metal, no Qt and
+no sketch), built to `build/bin/<config>/Receiver.app`. It takes three
+shapes:
+
+```sh
+Receiver --list                          # every publication, one per line
+Receiver <name> [--app <application>]    # a window on that publication
+Receiver <name> --grab <png> [--frames <n>] [--timeout <seconds>]
+```
+
+`<name>` is what a publication announced itself as, which is the first
+column of the listing; the application drawing it is the second, and
+`--app` picks between two applications publishing one name. A listing
+turns the run loop for long enough to hear everyone answer, since what is
+being offered is something the other processes on this machine have to be
+asked for.
+
+**The window waits for its publication.** A name nothing is publishing
+yet is not an error: the title says it is waiting, and the first frame
+that arrives is shown. The frame is drawn at the size it was published,
+one screen pixel each where the screen has room and fitted to its shape
+where it has not, and the title reads the publication's own frame rate.
+A publisher that goes away is waited for again — which takes noticing
+that it has gone: one that stops properly tells its subscribers, and one
+that was killed tells nobody, so what is watched is also whether the
+publication is still on the directory's list. That list is pruned when
+anything on the machine asks what is publishing, which a publisher coming
+back does for itself.
+
+**A grab is a measurement, so it refuses rather than waits.** It
+subscribes with no window, waits for NEW frames — one, unless told
+otherwise, so what it writes was drawn after it subscribed — reads the
+newest one back to the CPU and writes it as a PNG, rows and channels as
+the texture holds them. It exits 2 when nothing is publishing under that
+name, 3 when the frames did not arrive inside the timeout, and 4 when the
+frame could not be written.
+
+Which makes the door checkable end to end on one machine: publish from
+Sketchbook with `--publish`, grab with `Receiver`, capture the same
+sketch with `--frame`, and compare the two pictures.
+
 ## What is not here
 
 * **No lane, no schedule, no clock.** This feature publishes the frame
@@ -98,6 +147,8 @@ own menus.
 * **No protocol choice for the caller.** The factory is the one place
   that knows what this build can publish over, the way a device's
   bring-up is the one place that knows which graphics API it is on.
-* **No readback and no conversion.** A frame that has to become a file
-  is a capture and a frame that has to become a video is an encode;
-  both are elsewhere, and both leave the GPU. This one never does.
+* **No readback and no conversion in the door itself.** A frame that has
+  to become a file is a capture and a frame that has to become a video is
+  an encode; both are elsewhere, and both leave the GPU. What goes
+  through the door never does — a subscriber that wants a file reads one
+  back on its own side, which is what a grab is.

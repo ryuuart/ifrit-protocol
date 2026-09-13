@@ -576,6 +576,11 @@ run's and does not follow the sketch on screen. Ctrl-P turns it on and
 off while the window runs, and the status line says what is leaving and
 under what name.
 
+`Receiver`, the subscriber in the same feature, is what to check it
+with: `Receiver --list` says what is being offered, `Receiver <name>`
+opens a window on it and `Receiver <name> --grab <png>` writes its newest
+frame to a file.
+
 What travels is the texture the frame was drawn into, so publishing
 wants the window on Graphite. On the CPU raster fallback there is no
 texture of this window's to offer, and the flag is REFUSED rather than
@@ -1342,7 +1347,7 @@ src/sketch/
   live/       the reload engine, the resident set and the sweep's cadence
   scry/       the opt-in shared Ultralight engine a web sketch borrows
   plate/      the headless sweep, the montage, the plate comparison, the thumbnail store
-  publish/    the door a drawn frame leaves by, to other applications
+  publish/    the door a drawn frame leaves by, and Receiver, which subscribes to one
   book/       Sketchbook: the app, and the headless entry point, with the browser's rows
   cmake/      SketchLinkSurface.cmake, the link surface a reloaded sketch is read against
   test/       support/, the fixtures every feature's cases share
@@ -1351,7 +1356,7 @@ src/sketch/
 
 Directories and headers are the same outline — a feature at `canvas/`
 keeps its headers under `include/sigilsketch/canvas/` and its own
-`test/` and `bench/` — and the targets are five:
+`test/` and `bench/` — and the targets are six:
 
 | Target | Kind | What it is |
 |---|---|---|
@@ -1360,6 +1365,7 @@ keeps its headers under `include/sigilsketch/canvas/` and its own
 | `SigilSketchPublish` | static archive | `publish/`: the door a drawn frame leaves by. Knows no window, no toolkit and no drawing; `publish/README.md` is its canon |
 | `SigilSketches` | object library | every sketch, and the one place the sketch API surface is stated |
 | `Sketchbook` | application bundle | the host: the window, the browser's rows, and every headless entry |
+| `Receiver` | application bundle | `publish/receiver/`: the subscriber, so a publication can be watched in a window or grabbed to a PNG — macOS only, and `publish/README.md` is its canon too |
 
 Beside them stand `sketch_test`, `sketch_bench`, and the build step that
 writes the response file a hot-reloaded sketch compiles with.

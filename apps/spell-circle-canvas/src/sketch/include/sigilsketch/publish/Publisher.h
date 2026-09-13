@@ -28,12 +28,12 @@ namespace sigil::sketch {
  * device, by anything — hands the new one over on the next frame and
  * owes nothing to the last.
  *
- * WHAT A SUBSCRIBER RECEIVES is the texture as it stands: its own pixel
- * format, and its alpha premultiplied the way the canvas wrote it.
- * Nothing here converts. The frame is published FLIPPED, because a
- * canvas draws from its top-left corner and a publication is read from
- * its bottom-left, so a subscriber that composites the frame gets it the
- * way up it was drawn.
+ * WHAT A SUBSCRIBER RECEIVES is the frame as it was drawn: its rows in
+ * the order the texture holds them, the first of them the top of the
+ * picture, and its alpha premultiplied the way the canvas wrote it.
+ * Nothing here turns the picture over or divides the alpha out. A
+ * publication carries a pixel format of its own, so the channels are put
+ * in that order on the way across; nothing else about a pixel changes.
  *
  * THE WORK IS APPENDED, NOT SUBMITTED. The publication rides the buffer
  * the caller is still filling and runs when the caller commits it, so

@@ -33,3 +33,59 @@ endif()
 sigil_test(sketch_test
   SOURCES test/PublisherTest.cpp
   LIBRARIES SigilSketchPublish)
+
+# RECEIVER: THE OTHER SIDE OF THE SAME DOOR — the subscriber, so what a
+# publisher offers can be looked at and written down without a third
+# application in the middle. AppKit and Metal, no Qt and no sketch: it
+# knows a name, a window and a file. It is an application rather than part
+# of the archive above because nothing that publishes needs it, and it
+# stands here rather than beside Sketchbook because the two ends of one
+# protocol are one subject.
+if(APPLE)
+  sigil_frameworks(SIGIL_SKETCH_RECEIVER_FRAMEWORKS
+                   Foundation AppKit Metal MetalKit QuartzCore)
+  # Every one of these talks to Objective-C and every one of them is
+  # handed references it owns — a frame image arrives at +1 — so they are
+  # compiled with automatic reference counting. The command line is plain
+  # C++ and is left out of it.
+  set(SIGIL_SKETCH_RECEIVER_ARC_SOURCES
+    receiver/Capture.mm receiver/Feed.mm receiver/Grab.mm receiver/main.mm
+    receiver/Servers.mm receiver/Window.mm)
+  add_executable(Receiver MACOSX_BUNDLE
+    ${SIGIL_SKETCH_RECEIVER_ARC_SOURCES}
+    receiver/Arguments.cpp
+    receiver/Arguments.h receiver/Capture.h receiver/Feed.h receiver/Grab.h
+    receiver/Servers.h receiver/Window.h)
+  set_source_files_properties(${SIGIL_SKETCH_RECEIVER_ARC_SOURCES}
+    TARGET_DIRECTORY Receiver PROPERTIES COMPILE_OPTIONS -fobjc-arc)
+  # A real .app: a bare Mach-O gets no bundle identity, so macOS gives the
+  # window the executable's name and treats activation as a plain process.
+  # Every verb still works through the binary inside it
+  # (bin/<config>/Receiver.app/Contents/MacOS).
+  set_target_properties(Receiver PROPERTIES
+    MACOSX_BUNDLE_GUI_IDENTIFIER "dev.sigil.Receiver"
+    MACOSX_BUNDLE_BUNDLE_NAME "Receiver"
+    MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
+    MACOSX_BUNDLE_SHORT_VERSION_STRING
+      ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
+    MACOSX_BUNDLE TRUE)
+  target_include_directories(Receiver PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+  # The encoder is the only Sigil library it needs: a frame that has to
+  # become a file is pixels in and bytes out, and where the bytes go is
+  # the byte sink's half.
+  target_link_libraries(Receiver PRIVATE
+    SigilImageEncode SigilIOSource unofficial::syphon::syphon
+    ${SIGIL_SKETCH_RECEIVER_FRAMEWORKS})
+
+  # What the receiver can be asked with nothing publishing: the command
+  # line, and the write, over a texture the case draws itself. The write
+  # wants a device, so its suite carries the label a machine without one
+  # leaves out.
+  sigil_test(sketch_test
+    ARC
+    SOURCES test/ReceiverTest.mm receiver/Arguments.cpp receiver/Capture.mm
+    LIBRARIES SigilImageEncode SigilImageDecode SigilIOSource
+              ${SIGIL_SKETCH_RECEIVER_FRAMEWORKS}
+    SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
+    SUITES ReceiverCapture LABELS gpu)
+endif()
