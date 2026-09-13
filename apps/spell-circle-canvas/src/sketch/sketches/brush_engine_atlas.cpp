@@ -48,7 +48,7 @@ struct BrushEngineAtlas final : sketch::Sketch {
     diamond.pressure.curve = [](float t) {
       return 0.28f + std::sin(t * PI) * 0.9f;
     };
-    diamond.customTip = [](Pen& pen, const brush::Dab&) {
+    diamond.customTip = [](Pen& pen) {
       pen.noStroke();
       pen.rectMode(CENTER);
       pen.rotate(QUARTER_PI);

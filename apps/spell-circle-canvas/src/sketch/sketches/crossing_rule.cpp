@@ -152,8 +152,7 @@ Element cell(std::string key, std::vector<SkPath> strands,
   return sketch::kit::caption(
       kCell, call, note,
       custom(std::move(key),
-             [strands = std::move(strands), rule = std::move(rule), pinned](
-                 SkCanvas& canvas, const PaintContext&) {
+             [strands = std::move(strands), rule = std::move(rule), pinned](SkCanvas& canvas) {
                paintWeave(canvas, strands, rule, pinned);
              })
           .width(kCell)

@@ -170,7 +170,7 @@ struct PainterGpu final : sketch::Sketch {
     return sketch::kit::caption(
         kCell.width(), call, std::move(note),
         custom(std::string("cell.") + call,
-               [this, runtime](SkCanvas& canvas, const PaintContext&) {
+               [this, runtime](SkCanvas& canvas) {
                  draw(canvas, runtime);
                })
             .width(kCell.width())

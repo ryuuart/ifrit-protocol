@@ -178,7 +178,7 @@ struct HitSlots final : sketch::Sketch {
     // The probe MOVES, so the point it closes over is folded into the key:
     // a constant one would name two marks in two places.
     return custom(kit::formatted("probe %.2f %.2f", p.x(), p.y()),
-                  [p](SkCanvas& c, const PaintContext&) {
+                  [p](SkCanvas& c) {
                     SkPaint paint;
                     paint.setAntiAlias(true);
                     paint.setColor(0xffffffff);
@@ -203,7 +203,7 @@ struct HitSlots final : sketch::Sketch {
       root.children(
           {custom(kit::formatted("hit %.2f %.2f %.2f %.2f", rect.fLeft,
                                  rect.fTop, rect.fRight, rect.fBottom),
-                  [rect](SkCanvas& canvas, const PaintContext&) {
+                  [rect](SkCanvas& canvas) {
                     SkPaint ring;
                     ring.setAntiAlias(true);
                     ring.setStyle(SkPaint::kStroke_Style);

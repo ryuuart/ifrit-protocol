@@ -320,7 +320,7 @@ struct VolatilityCost final : sketch::Sketch {
     // KEYLESS, and it has to be: the marks ARE the reading, and they change
     // with the tree this measures — a key naming them would spell the
     // picture twice.
-    return custom([marks = marks](SkCanvas& canvas, const PaintContext&) {
+    return custom([marks = marks](SkCanvas& canvas) {
              SkPaint edge;
              edge.setAntiAlias(true);
              edge.setStyle(SkPaint::kStroke_Style);

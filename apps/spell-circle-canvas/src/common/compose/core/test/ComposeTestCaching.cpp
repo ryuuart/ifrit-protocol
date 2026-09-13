@@ -51,7 +51,7 @@ TEST(ComposeCaching, CacheNoneRunsEveryFrame) {
   programRuns = 0;
   Host host;
   host.composer.render(box().children(
-      {custom([](SkCanvas&, const PaintContext&) { ++programRuns; })
+      {custom([] { ++programRuns; })
            .width(10)
            .height(10)
            .cache(Cache::None)}));

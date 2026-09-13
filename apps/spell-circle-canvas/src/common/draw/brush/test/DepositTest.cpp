@@ -81,6 +81,35 @@ TEST(Deposit, CustomTipReceivesEveryResampledDab) {
   EXPECT_NE(paper.pixel(40, 20), SK_ColorWHITE);
 }
 
+TEST(Deposit, ACustomTipNamesOnlyTheParametersItReads) {
+  // The pen and the dab are both offered; a tip that draws the same mark at
+  // every dab reads only the pen, and the pen it is handed is already
+  // translated, rotated and scaled to that dab.
+  Paper paper(80, 40, SK_ColorWHITE);
+  paper.begin();
+  brush::Tool tool = brush::marker(SkColors::kBlack, 8.0f);
+  tool.tip = brush::Tip::Custom;
+  tool.markerTip = false;
+  int marks = 0;
+  tool.customTip = [&marks](Pen& tip) {
+    ++marks;
+    tip.noStroke();
+    tip.rectMode(CENTER);
+    tip.rect(0, 0, 1, 1);
+  };
+  tool.width = 8.0f;
+  tool.opacity = 1.0f;
+  const std::vector<brush::Input> stroke = {
+      {.position = {10, 20}, .seconds = 0.0},
+      {.position = {70, 20}, .seconds = 0.1}};
+  const std::vector<brush::Dab> sampled = brush::dabs(stroke, 10.0f);
+  brush::deposit(paper.pen, tool, sampled);
+  paper.end();
+
+  EXPECT_EQ(marks, (int)sampled.size());
+  EXPECT_NE(paper.pixel(40, 20), SK_ColorWHITE);
+}
+
 TEST(Deposit, ShapeTipUsesDarkArtworkAsTheDefaultMask) {
   SkBitmap mask;
   mask.allocN32Pixels(8, 8, true);

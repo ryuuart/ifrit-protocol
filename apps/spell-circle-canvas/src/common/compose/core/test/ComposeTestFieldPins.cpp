@@ -109,7 +109,7 @@ void perturb(std::optional<sigil::motion::Animatable<Fill>>& v) {
 }
 
 void perturb(std::vector<Decoration>& v) {
-  v.emplace_back(PaintProgram{[](SkCanvas&, const PaintContext&) {}});
+  v.emplace_back(PaintProgram{[] {}});
 }
 
 void perturb(std::vector<Element>& v) { v.push_back(box()); }

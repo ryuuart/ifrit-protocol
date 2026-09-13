@@ -352,7 +352,7 @@ struct XcomBattlescape : sketch::Sketch {
                .key(key)
                .children({custom(kit::formatted("unit s%d %s", sh,
                                                 alien ? "alien" : "soldier"),
-                                 [sh, alien](SkCanvas& c, const PaintContext&) {
+                                 [sh, alien](SkCanvas& c) {
                                    paintUnit(c, sh, alien);
                                  })})});
     }
@@ -366,7 +366,7 @@ struct XcomBattlescape : sketch::Sketch {
                .width(kCellW)
                .height(kCellH)
                .children({custom(kit::formatted("bob arrow f%d", frame),
-                                 [frame](SkCanvas& c, const PaintContext&) {
+                                 [frame](SkCanvas& c) {
                                    paintBobArrow(c, frame);
                                  })})});
     }
@@ -425,12 +425,12 @@ struct XcomBattlescape : sketch::Sketch {
             {at(bx[col], 144 + 16 * row, 32, 16)
                  .key("btn" + std::to_string(id))
                  .children({custom("plate 32x16",
-                                   [](SkCanvas& c, const PaintContext&) {
+                                   [](SkCanvas& c) {
                                      paintPlate(c, 32, 16);
                                    })
                                 .inset(0)})
                  .children({custom(kit::formatted("button glyph %d", id),
-                                   [id](SkCanvas& c, const PaintContext&) {
+                                   [id](SkCanvas& c) {
                                      paintButtonGlyph(c, id);
                                    })
                                 .inset(0)})});
@@ -455,7 +455,7 @@ struct XcomBattlescape : sketch::Sketch {
           std::pair{60.0f, 189.0f}, std::pair{78.0f, 189.0f}})
       p.children({at(x + 3, y + 3, 11, 5)
                       .children({custom("reserve glyph",
-                                        [](SkCanvas& c, const PaintContext&) {
+                                        [](SkCanvas& c) {
                                           const Ink ink{c};
                                           ink.rect(0, 0, 2, 5, blk(0, 15));
                                           ink.rect(2, 2, 5, 1, blk(0, 15));
@@ -467,8 +467,7 @@ struct XcomBattlescape : sketch::Sketch {
     p.children(
         {at(107, 177, 26, 23)
              .key("rank")
-             .children({custom("rank badge", [](SkCanvas& c,
-                                                const PaintContext&) {
+             .children({custom("rank badge", [](SkCanvas& c) {
                const Ink ink{c};
                for (int r = 0; r < 23; ++r)
                  ink.row(0, (float)r, 26, blk(9, 2 + r / 6));
@@ -526,7 +525,7 @@ struct XcomBattlescape : sketch::Sketch {
                       .key(right ? "handR" : "handL")
                       .children({custom(
                           holdsRifle ? "hand well rifle" : "hand well empty",
-                          [holdsRifle](SkCanvas& c, const PaintContext&) {
+                          [holdsRifle](SkCanvas& c) {
                             const Ink ink{c};
                             for (int r = 0; r < 48; ++r)
                               ink.row(0, (float)r, 32, blk(0, 15));

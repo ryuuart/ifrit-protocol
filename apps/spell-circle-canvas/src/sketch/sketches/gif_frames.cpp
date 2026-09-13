@@ -96,7 +96,7 @@ Element cell(std::string key, sk_sp<SkImage> frame, float w, float h,
   return sketch::kit::caption(
       0, call, note,
       custom(std::move(key),
-             [frame, w, h](SkCanvas& canvas, const PaintContext&) {
+             [frame, w, h](SkCanvas& canvas) {
                if (!frame) return;
                SkPaint paint;
                canvas.drawImageRect(frame, SkRect::MakeWH(w, h),

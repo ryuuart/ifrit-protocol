@@ -486,7 +486,7 @@ TEST(ComposeMaskGates, TheGateGeometryIsTrimsGeometry) {
                               .mask(by::spans(spans::range(lo, hi)))}));
     gated.frame();
     truth.composer.render(
-        stack().children({custom([want](SkCanvas& c, const PaintContext&) {
+        stack().children({custom([want](SkCanvas& c) {
                             SkPaint p;
                             p.setAntiAlias(true);
                             p.setStyle(SkPaint::kStroke_Style);

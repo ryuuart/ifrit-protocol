@@ -327,7 +327,7 @@ inline void draw(SkCanvas& canvas, const Mask& m, SkPoint at,
  *  is better as `.cache(Cache::Texture)` on its parent. */
 inline Element masked(const Mask& m, const Present& p = {}) {
   if (!m.image) return box().width(0).height(0);
-  return custom([m, p](SkCanvas& canvas, const PaintContext&) {
+  return custom([m, p](SkCanvas& canvas) {
            draw(canvas, m, {0, 0}, p);
          })
       .width((float)m.w * p.scale)

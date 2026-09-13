@@ -20,7 +20,7 @@ paint caches, running motions — is the host's, reached through named
 operations the host implements on itself. That is the line both kernels
 draw: they own the DECISION, the host owns the THING.
 
-Under the kernels are four leaves, which libraries far from any reconciler
+Under the kernels are five leaves, which libraries far from any reconciler
 link on their own.
 
 **Comparable** — what a value needs before anything can decide it did not
@@ -37,6 +37,15 @@ runs over one axis is put in, and the shaped curve a unit position is
 reshaped by. The standard library is the whole of its dependencies, so a
 shader's CPU twin, a point cook, a text cache and a resource store all
 reach the same bodies.
+
+**Callable** — the one prefix search in the tree: a verb that offers a
+caller more than most callers read takes its callable through here, so that
+`[](SkCanvas& c) {…}`, `[](SkCanvas& c, const PaintContext& ctx) {…}` and
+`[] {…}` are all the same verb's argument and nobody spells a parameter to
+ignore it. The rule — the parameters a callable names are the FIRST of what
+the verb offers, dropped from the end and never from the middle — is stated
+and tested once, and the holder over it erases the call the way a
+`std::function` does.
 
 **Schedule** — where independent work runs. One parallel for over the task
 runtime, taking a count, a grain and a body, so the runtime is named in one
@@ -60,15 +69,17 @@ catalog. One target per directory:
 |--------|-----------|-------|
 | `SigilCoreComparable` | `comparable/` | comparable type erasure, the field pin |
 | `SigilCoreCompute` | `compute/` | the seeded mixers, the stream and its distributions, the noise field, the identifying folds, the interval normal form, the shaped curve |
+| `SigilCoreCallable` | `callable/` | the prefix search, the concept over it, and the type-erased call a verb holds one in |
 | `SigilCoreSchedule` | `schedule/` | the parallel for and its grain, and the fan-out for calls that block |
 | `SigilCoreReconcile` | `reconcile/` | the reconciler, its memo, the inherited-value channel, the phase runner, the order declared reads imply |
 | `SigilCoreCache` | `cache/` | the cache policy, the settled-subtree proof, the stability release, the bake seam, the keyed rebuild guard |
 | `SigilCoreHardware` | `hardware/` | the GPU device and its queue, owned or adopted; textures and fences by generation-checked handle; deferred destruction |
 
-`SigilCoreComparable` and `SigilCoreCompute` are header-only, so they are
-INTERFACE targets and produce no archive; everything else is a static
-library. `SigilCoreComparable` takes the standard library and Boost.PFR,
-`SigilCoreCompute` the standard library alone, `SigilCoreSchedule` oneTBB
+`SigilCoreComparable`, `SigilCoreCompute` and `SigilCoreCallable` are
+header-only, so they are INTERFACE targets and produce no archive;
+everything else is a static library. `SigilCoreComparable` takes the
+standard library and Boost.PFR, `SigilCoreCompute` and `SigilCoreCallable`
+the standard library alone, `SigilCoreSchedule` oneTBB
 privately, and `SigilCoreReconcile` Boost.Unordered with Boost.ContainerHash
 for its keyed indices. `SigilCoreHardware` takes the graphics API and
 nothing else. Consumers still link only the feature they use, without
@@ -76,6 +87,7 @@ pulling in a drawing or layout library.
 
 Every public header lives under `include/sigilcore/<feature>/` and is
 spelled `<sigilcore/comparable/X.h>`, `<sigilcore/compute/X.h>`,
+`<sigilcore/callable/Callable.h>`,
 `<sigilcore/schedule/X.h>`, `<sigilcore/reconcile/X.h>` or
 `<sigilcore/cache/X.h>`; `<sigilcore/comparable/Comparable.h>`,
 `<sigilcore/compute/Compute.h>`, `<sigilcore/schedule/Schedule.h>`,
@@ -96,12 +108,13 @@ everything below is the library as a whole.
 | **[CACHE.md](CACHE.md)** | the caching proof: the policy, the settled-subtree verdict, the stability release, the bake seam and the rebuild guard |
 | **[COMPARABLE.md](COMPARABLE.md)** | `Erased<Ops>` and `kFieldCount<T>`: what a value needs before anything can decide it did not change |
 | **[COMPUTE.md](COMPUTE.md)** | the mixers, the stream and its distributions, the noise field, the identifying folds, the interval normal form and the shaped curve |
+| **[CALLABLE.md](CALLABLE.md)** | `Callable<Signature>`, `callPrefix` and `PrefixCallable`: a callable called with the parameters it named |
 | **[SCHEDULE.md](SCHEDULE.md)** | the parallel for and its grain, and the fan-out a call that blocks runs on instead |
 | **[HARDWARE.md](HARDWARE.md)** | `GpuDevice`: owning or adopting one, handles that go stale, deferred destruction, fences as timelines, and the two backends |
 
 ## What belongs here
 
-A function earns a place in one of the two header-only leaves when three
+A function earns a place in one of the three header-only leaves when three
 things hold:
 
 - **Two libraries need it identically.** Not "could share it" — actually
@@ -128,8 +141,9 @@ library that spells them.
 
 ## Boundary
 
-SigilCoreComparable and SigilCoreCompute link nothing of this project's at
-all — the standard library, and Boost.PFR for the field pin. That is the
+SigilCoreComparable, SigilCoreCompute and SigilCoreCallable link nothing of
+this project's at all — the standard library, and Boost.PFR for the field
+pin. That is the
 whole point of them: a library anywhere in the tree can link one without
 acquiring a kernel, and SigilMotion is one of the libraries that does, for
 the pin its own comparators sit under. SigilCoreReconcile links
@@ -180,6 +194,7 @@ field's:
 
 | directory | suites | what they prove |
 |---|---|---|
+| `callable/test/` | `CoreCallable` | which callables a signature accepts and which it refuses, answered at compile time; that the parameters a callable did not name are still evaluated and dropped; that every accepted spelling of one drawing answers the same; and that an empty holder is false |
 | `comparable/test/` | `Erased`, `Fields` | the erased value — empty, copies of one value, two comparable models compared by type and by value, the escape hatch equal to nothing but its own copies — and the field pin over aggregates of the shapes a comparable value takes |
 | `compute/test/` | `Fnv1a`, `Fnv1aFold`, `Combine`, `Intervals`, `Noise`, `Stream`, `ChanceStream`, `Draws`, `Shapes`, `Sequences`, `Shuffle`, `Reservoir`, `Chance`, `Field`, `NoiseField`, `Curve` | the mixers and folds, pinned to the exact words and floats they produce; the stream, pinned to the mixer it names word for word and to a sequence for a seed, with each distribution's moments held to a tolerance; the field, pinned per kind and against a transcription of the value noise it agrees with, with the claims a pin cannot make — a period that really repeats, a range that octaves do not widen, and near values at near points; the curve, held to what makes it a value — two of the same shape at the same numbers are equal, two shapes at the same numbers are not, and a caller's own body compares by the same rule — and to the character each house shape is chosen for |
 | `schedule/test/` | `ScheduleParallel`, `ScheduleConcurrentIo` | what the work seam promises: chunks disjoint and covering the range exactly once, the grain alone deciding when a range stays on its caller, a body's exception reaching the caller, and the blocking fan-out running every item once and joining every thread even when one item fails |

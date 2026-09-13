@@ -31,7 +31,7 @@ TEST(ComposeDecorations, ContourWalkVisitsSamplesPositioned) {
   visits = 0;
   ContourWalk walk;
   walk.spacing = 25.0f;
-  walk.draw = [](SkCanvas& c, const PathSample& s, const PaintContext&) {
+  walk.draw = [](SkCanvas& c, const PathSample& s) {
     ++visits;
     EXPECT_GE(s.fraction, 0.0f);
     EXPECT_LE(s.fraction, 1.0f);
@@ -59,7 +59,7 @@ TEST(ComposeDecorations, AnimatedWalkDeclaresVolatility) {
   ContourWalk walk;
   walk.spacing = 50.0f;
   walk.animatedWalk = true;
-  walk.draw = [](SkCanvas&, const PathSample&, const PaintContext&) {
+  walk.draw = [] {
     ++visits;
   };
   host.composer.render(

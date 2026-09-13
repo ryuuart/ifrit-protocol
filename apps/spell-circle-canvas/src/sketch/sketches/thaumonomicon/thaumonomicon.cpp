@@ -397,8 +397,7 @@ struct Thaumonomicon : sketch::Sketch {
                          .width(g(16))
                          .height(g(16))
                          .opacity(selected ? 1.0f : 0.8f)
-                         .background(prog([cat, selected](SkCanvas& c,
-                                                          const PaintContext&) {
+                         .background(prog([cat, selected](SkCanvas& c) {
                            const kit::PixelInk k{c, U};
                            const SkColor4f col =
                                hexColor(cat.aspect, selected ? 1.0f : 0.66f);
@@ -452,7 +451,7 @@ struct Thaumonomicon : sketch::Sketch {
                        .width(g(16))
                        .height(g(16))
                        .opacity(0.8f)
-                       .background(prog([](SkCanvas& c, const PaintContext&) {
+                       .background(prog([](SkCanvas& c) {
                          SkPaint p;
                          p.setAntiAlias(true);
                          p.setStyle(SkPaint::kStroke_Style);
@@ -486,7 +485,7 @@ struct Thaumonomicon : sketch::Sketch {
     const float x = (mx + 3 + wd + 4 <= kGuiW) ? mx + 3 : mx - 3 - wd;
     const float y = my - 3;
     return box().inset(0).background(
-        prog([a, b, d, x, y, wd, ht](SkCanvas& c, const PaintContext&) {
+        prog([a, b, d, x, y, wd, ht](SkCanvas& c) {
           SkPaint p;
           p.setAntiAlias(false);
           // Vanilla GuiScreen.drawHoveringText fills k1-3 .. k1+j1+3 under a

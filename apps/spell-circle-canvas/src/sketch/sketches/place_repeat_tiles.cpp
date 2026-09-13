@@ -194,7 +194,7 @@ struct PlaceRepeatTiles final : sketch::Sketch {
                            "· sliceable() first, so each replay "
                            "visits only its own ops",
                 custom(mirrored ? "tiles.mirrored" : "tiles.forward",
-                       [art, facing](SkCanvas& canvas, const PaintContext&) {
+                       [art, facing](SkCanvas& canvas) {
                          constexpr float kAir = 4;
                          const float scale = 0.62f;
                          canvas.save();

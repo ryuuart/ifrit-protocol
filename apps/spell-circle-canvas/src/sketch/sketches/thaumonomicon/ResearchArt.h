@@ -694,7 +694,7 @@ inline kit::Sprite glyphSprite(int glyph) {
  *  wherever it drew, so it has to see the finished drawing. */
 inline Element iconEl(const kit::Sprite& art, float alpha, bool bw) {
   return box().width(g(16)).height(g(16)).background(
-      prog([art, alpha, bw](SkCanvas& c, const PaintContext&) {
+      prog([art, alpha, bw](SkCanvas& c) {
         if (!bw) {
           kit::drawSprite(c, art, {0, 0}, {.cell = U, .alpha = alpha});
           return;

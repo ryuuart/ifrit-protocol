@@ -563,7 +563,7 @@ TEST(ComposeStamps, RecursiveStampWalksItsOwnContour) {
   Host host;
   ContourWalk dots;
   dots.spacing = 6.0f;
-  dots.draw = [](SkCanvas& c, const PathSample&, const PaintContext&) {
+  dots.draw = [](SkCanvas& c) {
     SkPaint p;
     p.setColor(SK_ColorCYAN);
     c.drawRect(SkRect::MakeXYWH(-1, -1, 2, 2), p);
@@ -605,7 +605,7 @@ TEST(ComposeStamps, CustomLeafDrawsNestedComposer) {
       box().padding(10).fill(green()).children({box().grow(1).fill(red())}));
 
   host.composer.render(box().children(
-      {custom([nested, nestedTicker](SkCanvas& c, const PaintContext&) {
+      {custom([nested, nestedTicker](SkCanvas& c) {
          nested->draw(c);
        })
            .width(60)

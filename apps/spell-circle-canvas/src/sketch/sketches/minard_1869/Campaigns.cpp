@@ -35,7 +35,7 @@ auto Minard1869::hannibalSea() -> Element {
   // Keyed: the two cooked paths are the whole of what the program closes
   // over, and both are a function of the coast this file states once.
   g.children({custom("seahatch",
-                     [sea, rings](SkCanvas& c, const PaintContext&) {
+                     [sea, rings](SkCanvas& c) {
                        SkPaint p;
                        p.setAntiAlias(true);
                        p.setStyle(SkPaint::kStroke_Style);
@@ -77,7 +77,7 @@ auto Minard1869::lehmann(const std::vector<std::array<float, 4>>& ridges,
   // Keyed on the caller's own name for the field, which is what names the
   // ridge table and the four bounds the program closes over.
   return custom(key,
-                [ridges, x0, y0, x1, y1](SkCanvas& c, const PaintContext&) {
+                [ridges, x0, y0, x1, y1](SkCanvas& c) {
                   auto height = [&](float x, float y) {
                     float h = 0;
                     for (const auto& r : ridges) {
@@ -640,7 +640,7 @@ auto Minard1869::temperaturePanel() -> Element {
                   .key("tcurve")});
   // the hatched underside: short ticks hanging off the curve
   g.children({custom("thatch",
-                     [curvePath](SkCanvas& c, const PaintContext&) {
+                     [curvePath](SkCanvas& c) {
                        SkPaint p;
                        p.setAntiAlias(true);
                        p.setStyle(SkPaint::kStroke_Style);

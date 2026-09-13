@@ -140,7 +140,7 @@ Element cell(std::string key, sk_sp<SkImage> picture, const char* call,
   return sketch::kit::caption(
       kCell, call, note,
       custom(std::move(key),
-             [picture](SkCanvas& canvas, const PaintContext&) {
+             [picture](SkCanvas& canvas) {
                if (!picture) return;
                SkPaint paint;
                canvas.drawImageRect(picture, SkRect::MakeWH(kCell, kCell),

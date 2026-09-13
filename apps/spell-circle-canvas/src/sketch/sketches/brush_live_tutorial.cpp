@@ -89,7 +89,7 @@ struct BrushLiveTutorial final : sketch::Sketch {
     watercolor.pressure = {0.8f, 1.3f, 0.8f};
     watercolor.rotation = brush::Rotation::Natural;
     watercolor.markerTip = false;
-    watercolor.customTip = [](Pen& pen, const brush::Dab&) {
+    watercolor.customTip = [](Pen& pen) {
       pen.noStroke();
       pen.rectMode(CENTER);
       pen.rect(-0.08f, -0.08f, 0.78f, 0.78f, 0.08f);

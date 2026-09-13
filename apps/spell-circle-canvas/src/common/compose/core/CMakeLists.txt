@@ -10,13 +10,15 @@
 # MaskResolver); their engines are the typography and brush tiers'. The
 # reconciler that drives the retained tree is SigilCoreReconcile's, and the
 # settled-subtree proof its caches turn on is SigilCoreCache's, with this
-# target as the host of both. Links SigilCoreCache, SigilCoreComparable,
-# SigilCoreCompute, SigilCoreReconcile, SigilGeometryPath, SigilImage,
-# SigilMotion, SigilSkiaDraw, SigilWeave and Skia publicly, because those
+# target as the host of both. Links SigilCoreCache, SigilCoreCallable,
+# SigilCoreComparable, SigilCoreCompute, SigilCoreReconcile,
+# SigilGeometryPath, SigilImage, SigilMotion, SigilSkiaDraw, SigilWeave and
+# Skia publicly, because those
 # types appear in its headers — the seam value's erasure, the paint value
-# a fill carries, the glyph mixer and the direct atlas draw the instanced
-# leaf stamps through among them, each named by the header that spells it
-# rather than reached through a neighbour that happens to link it;
+# a fill carries, the prefix call a paint program is taken through, the
+# glyph mixer and the direct atlas draw the instanced leaf stamps through
+# among them, each named by the header that spells it rather than reached
+# through a neighbour that happens to link it;
 # SigilMaterial and SigilMeasure are public for the same reason. Yoga is
 # private, because no header spells it.
 #
@@ -72,7 +74,7 @@ sigil_library(SigilComposeCore
           Paint.h Pattern.h Shape.h Shelf.h Stroke.h SurfacePaint.h Table.h
           TextPainter.h Tiles.h Utf8.h Var.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
-  PUBLIC SigilCoreCache SigilCoreComparable SigilCoreCompute
+  PUBLIC SigilCoreCache SigilCoreCallable SigilCoreComparable SigilCoreCompute
          SigilCoreReconcile SigilGeometryPath SigilImage SigilMaterial
          SigilMeasure SigilMotion SigilSkiaDraw SigilWeave
          unofficial::skia::skia

@@ -53,7 +53,7 @@ brush::Tool placementRecorder(std::shared_ptr<Placements> placed, float width) {
   tool.opacity = 1.0f;
   tool.pressureSize = 0.0f;
   tool.pressureOpacity = 0.0f;
-  tool.customTip = [placed](Pen& pen, const brush::Dab&) {
+  tool.customTip = [placed](Pen& pen) {
     const SkMatrix matrix = pen.canvas()->getLocalToDevice().asM33();
     placed->positions.push_back(
         {matrix.getTranslateX(), matrix.getTranslateY()});

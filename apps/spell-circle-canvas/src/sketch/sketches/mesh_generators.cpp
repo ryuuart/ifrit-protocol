@@ -211,8 +211,7 @@ struct MeshGenerators final : sketch::Sketch {
 
     // Keyed on the sink's own name: everything `draw` reads is cooked
     // above, in this setup, and nothing after it moves.
-    ctx.composer.render(custom("mesh.generators", [this](SkCanvas& canvas,
-                                                         const PaintContext&) {
+    ctx.composer.render(custom("mesh.generators", [this](SkCanvas& canvas) {
                           draw(canvas);
                         }).inset(0));
   }

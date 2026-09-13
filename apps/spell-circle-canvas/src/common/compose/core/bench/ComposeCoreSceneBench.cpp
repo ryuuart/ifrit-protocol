@@ -629,7 +629,7 @@ static void BM_Particles_EnttAtlasLeaf(benchmark::State& state) {
   auto particles = std::make_shared<Particle>(count);
   Host host(800, 800);
   host.composer.render(
-      box().children({custom([particles](SkCanvas& c, const PaintContext&) {
+      box().children({custom([particles](SkCanvas& c) {
                         particles->draw(c);
                       })
                           .inset(0)
@@ -649,7 +649,7 @@ static void BM_Particles_DrawCircleLoop(benchmark::State& state) {
   auto particles = std::make_shared<Particle>(count);
   Host host(800, 800);
   host.composer.render(
-      box().children({custom([particles](SkCanvas& c, const PaintContext&) {
+      box().children({custom([particles](SkCanvas& c) {
                         SkPaint p;
                         p.setAntiAlias(true);
                         p.setColor(0xff7ee8ff);
@@ -995,7 +995,7 @@ static void BM_Particles_EnttAtlasLeaf_Graphite(benchmark::State& state) {
   auto particles = std::make_shared<Particle>(count);
   Host host(800, 800);
   host.composer.render(
-      box().children({custom([particles](SkCanvas& c, const PaintContext&) {
+      box().children({custom([particles](SkCanvas& c) {
                         particles->draw(c);
                       })
                           .inset(0)

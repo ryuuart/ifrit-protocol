@@ -63,8 +63,7 @@ Element mapping(const Mapping& properties) {
   if (categories)
     body.children(
         {custom(std::string(properties.title) + "-marks",
-                [scale = properties.scale, area](SkCanvas& canvas,
-                                                 const PaintContext&) {
+                [scale = properties.scale, area](SkCanvas& canvas) {
                   SkPaint pen;
                   pen.setAntiAlias(true);
                   pen.setColor4f(kInk);

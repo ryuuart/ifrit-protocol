@@ -213,7 +213,7 @@ TEST(ComposeBrushes, AStampBakeSurvivesABrushRebuiltEveryDescribe) {
   bakes = 0;
   const Element art =  // stable: its node pointer is the cache key
       box().width(8).height(8).children(
-          {custom([](SkCanvas& c, const PaintContext&) {
+          {custom([](SkCanvas& c) {
              ++bakes;
              SkPaint p;
              p.setColor(SK_ColorRED);
@@ -267,7 +267,7 @@ TEST(ComposeBrushes, AFreshArtNodePerDescribeRebakesByContract) {
   auto tree = [&](SkColor color) {
     Element art =  // fresh node EVERY call, on purpose — the contract's cost
         box().width(8).height(8).children(
-            {custom([color](SkCanvas& c, const PaintContext&) {
+            {custom([color](SkCanvas& c) {
                ++bakes;
                SkPaint p;
                p.setColor(color);

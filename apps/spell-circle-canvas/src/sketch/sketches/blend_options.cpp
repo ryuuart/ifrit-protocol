@@ -151,7 +151,7 @@ Element band(std::string key, float width, float height, const char* call,
   return sketch::kit::caption(
       width, call, note,
       custom(std::move(key),
-             [paint](SkCanvas& canvas, const PaintContext&) { paint(canvas); })
+             [paint](SkCanvas& canvas) { paint(canvas); })
           .width(width)
           .height(height)
           .fill(Fill::color(kCellGround)));

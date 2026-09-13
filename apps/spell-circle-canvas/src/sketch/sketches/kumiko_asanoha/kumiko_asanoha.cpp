@@ -70,7 +70,7 @@ struct KumikoAsanoha : sketch::Sketch {
     // The panel's seams are settled when the panel is built, so the whole
     // pass is one named drawing rather than a callable nothing can compare.
     auto seams = panel.seams;
-    auto marks = [seams](SkCanvas& c, const PaintContext&) {
+    auto marks = [seams](SkCanvas& c) {
       SkPaint p;
       p.setAntiAlias(true);
       p.setStyle(SkPaint::kStroke_Style);

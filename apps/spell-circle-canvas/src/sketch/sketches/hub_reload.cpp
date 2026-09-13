@@ -247,7 +247,7 @@ struct HubReload final : sketch::Sketch {
     const SkColor4f ash = sketch::kit::theme().palette.ash;
     const SkColor4f figure = sketch::kit::theme().palette.figure;
     return custom("hub.clouds",
-                  [a, b, ash, figure](SkCanvas& canvas, const PaintContext&) {
+                  [a, b, ash, figure](SkCanvas& canvas) {
                     SkPaint paint;
                     paint.setAntiAlias(true);
                     const auto draw = [&](const std::vector<SkPoint>& points,

@@ -21,6 +21,7 @@
 #include <include/core/SkTypes.h>
 #include <include/effects/SkGradient.h>
 #include <sigilcompose/core/Var.h>
+#include <sigilcore/callable/Callable.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -273,7 +274,13 @@ struct PaintContext {
   float bakeDensity = 0.0f;
 };
 
-using PaintProgram = std::function<void(SkCanvas&, const PaintContext&)>;
+/** A PAINT PROGRAM — a drawing on a canvas, in the frame the context
+ *  above describes. Both parameters are offered and a program takes the
+ *  ones it reads: `[](SkCanvas& c) {…}` is a paint program, so is
+ *  `[] {…}`, and so is `[] {…}`.
+ *  Incomparable, like every callable — see `Decoration::operator==` for
+ *  what that costs a node that carries one. */
+using PaintProgram = core::Callable<void(SkCanvas&, const PaintContext&)>;
 
 /** A fill written as a REFERENCE — the ink in force, or a custom property —
  *  resolved against @p ctx into the colour it names; a fill written as a

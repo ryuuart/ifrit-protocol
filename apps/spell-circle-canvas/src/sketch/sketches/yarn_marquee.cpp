@@ -231,7 +231,7 @@ struct YarnMarquee final : sketch::Sketch {
     return sketch::kit::caption(
         kPanel, call, note,
         custom(std::move(key),
-               [this, rail](SkCanvas& canvas, const PaintContext&) {
+               [this, rail](SkCanvas& canvas) {
                  paintRail(canvas, *rail, art);
                })
             .width(kPanel)

@@ -657,6 +657,42 @@ TEST(ComposeContent, ImageRegionDrawsAtlasCell) {
   EXPECT_EQ(host.pixel(60, 25), SK_ColorRED);    // whole atlas: left half
 }
 
+TEST(ComposePaint, APaintProgramNamesOnlyTheParametersItReads) {
+  // The canvas and the context are both offered, and a program takes the
+  // prefix it reads: the canvas alone, both, or neither. All three paint,
+  // so no caller spells a parameter in order to ignore it.
+  Host host;
+  int nullaryRuns = 0;
+  const auto square = [](SkCanvas& canvas, SkColor color) {
+    SkPaint paint;
+    paint.setColor(color);
+    paint.setAntiAlias(false);
+    canvas.drawRect(SkRect::MakeWH(20, 20), paint);
+  };
+  SkSize offered = SkSize::MakeEmpty();
+  host.composer.render(box().row().children(
+      {custom([&](SkCanvas& canvas) { square(canvas, SK_ColorGREEN); })
+           .width(20)
+           .height(20)
+           .cache(Cache::None),
+       custom([&](SkCanvas& canvas, const PaintContext& ctx) {
+         offered = ctx.size;
+         square(canvas, SK_ColorRED);
+       })
+           .width(20)
+           .height(20)
+           .cache(Cache::None),
+       custom([&] { ++nullaryRuns; })
+           .width(20)
+           .height(20)
+           .cache(Cache::None)}));
+  host.frame();
+  EXPECT_EQ(host.pixel(10, 10), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(30, 10), SK_ColorRED);
+  EXPECT_EQ(offered, SkSize::Make(20, 20));
+  EXPECT_EQ(nullaryRuns, 1) << "a program that reads neither still runs";
+}
+
 TEST(ComposePaint, ContentScaleReportsHostScale) {
   Host host;
   float seen = 0.0f;

@@ -12,7 +12,7 @@ struct CaptureViewport final : sigil::sketch::Sketch {
     ctx.canvas(640, 400);
     ctx.composer.render(
         custom("viewport",
-               [](SkCanvas& canvas, const PaintContext&) {
+               [](SkCanvas& canvas) {
                  const SkRect clip = canvas.getLocalClipBounds();
                  if (!clip.contains(SkRect::MakeXYWH(1, 1, 638, 398))) {
                    std::fprintf(

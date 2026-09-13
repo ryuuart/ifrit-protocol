@@ -8,6 +8,8 @@
 # centreline, the even-odd containment tests and the scanline lattice —
 # and to SigilSkia's direct drawing for the sprite batch a round tip goes
 # down as; a caller with its own tools links SigilDraw alone.
+# SigilCoreCallable is the prefix call a custom tip is taken through, so a
+# tip that reads only the pen names only the pen.
 find_package(boost_unordered CONFIG REQUIRED)
 sigil_library(SigilDrawBrush
   SOURCES Catalogue.cpp Choice.cpp Deposit.cpp Dynamics.cpp Engine.cpp
@@ -19,7 +21,7 @@ sigil_library(SigilDrawBrush
   HEADERS Brush.h Catalogue.h Choice.h Dab.h Deposit.h Dynamics.h Engine.h
           Field.h Fields.h Grain.h Hatch.h Mass.h Plot.h Polygon.h
           Position.h Pressure.h Sampler.h Shape.h Stroke.h Tool.h Wash.h
-  PUBLIC SigilDraw SigilGeometryPath Boost::unordered
+  PUBLIC SigilDraw SigilGeometryPath SigilCoreCallable Boost::unordered
   PRIVATE SigilSkiaDraw)
 
 sigil_test(draw_test

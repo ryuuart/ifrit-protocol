@@ -55,7 +55,9 @@ value above one only lets a light pressure keep depositing. A custom tip is call
 translated to the dab, rotated to its angle, scaled to its size and
 aspect, the pigment as fill and stroke, and the default rect and ellipse
 modes; the transform is restored after every dab, and those four style
-words are reset before the next.
+words are reset before the next. The dab is offered beside the pen and a
+tip names only what it reads, so a tip that draws the same mark every time
+takes `[](Pen& pen) {…}`.
 
 ### Dabs and deposition
 

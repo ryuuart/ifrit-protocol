@@ -280,8 +280,7 @@ struct WebScript final : sketch::Sketch {
     return sketch::kit::caption(
         (float)kViewW, call, note,
         custom(std::move(key),
-               [view, still = std::move(still), where](SkCanvas& canvas,
-                                                       const PaintContext&) {
+               [view, still = std::move(still), where](SkCanvas& canvas) {
                  if (still.image)
                    canvas.drawImageRect(
                        still.image, where,

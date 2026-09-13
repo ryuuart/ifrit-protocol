@@ -563,8 +563,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
     // The verso title never changes and the face is resolved before the
     // tree is described, so the program is named and the node settles.
     root.children(
-        {custom(std::string_view("verso-title"), [this](SkCanvas& canvas,
-                                                        const PaintContext&) {
+        {custom(std::string_view("verso-title"), [this](SkCanvas& canvas) {
            if (!faceDisplay) return;
            SkFont f(faceDisplay, 46);
            SkPaint p;

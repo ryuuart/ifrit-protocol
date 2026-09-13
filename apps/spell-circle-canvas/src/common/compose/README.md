@@ -658,7 +658,11 @@ sound model; nothing below them changes kernel semantics.
   wells and sheets accept this same value as their ground.
 - `core/Paint.h` — the paint values: `Fill`, `Corners`, `Backface`,
   `PaintContext`, `KeyState` — the keys a host fed, as a paint program
-  reads them beside `PaintContext::pointer` —
+  reads them beside `PaintContext::pointer` — `PaintProgram`, a drawing on
+  a canvas that NAMES ONLY THE PARAMETERS IT READS: the canvas and the
+  context are both offered, so `[](SkCanvas& c) {…}`,
+  `[](SkCanvas& c, const PaintContext& ctx) {…}` and `[] {…}` are all paint
+  programs and nothing spells a parameter in order to ignore it —
   `StampCache`, and `hexColor`, the one colour spelling here: a source
   palette's hex integer as an `SkColor4f`. A `Fill` may be written as a
   REFERENCE the tree resolves at paint — `Fill::currentInk`, the ink in
@@ -1008,7 +1012,9 @@ shadow; `Slice` (lattice image mapping — its `density` is the source's pixels 
 layout unit in the fixed bands, so a frame generated oversized to stay
 sharp still draws its corners at the width it was designed for);
 `ContourWalk` (walk the outline
-and run a program at each sample); `Wash`; `Border`. `brush/Adaptors.h`
+and run a program at each sample — its `draw` is handed the canvas, the
+sample and the paint context and names only the ones it reads, its
+`stampAt` the sample and the sample's index); `Wash`; `Border`. `brush/Adaptors.h`
 runs any of them on another outline than the node's own: `onEdges`,
 against only the sub-contours facing chosen box edges, and `inset`,
 against a concentric copy of the outline. **A stroke sliced to chosen

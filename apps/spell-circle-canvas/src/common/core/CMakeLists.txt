@@ -9,6 +9,10 @@
 #   SigilCoreCompute     compute/     the arithmetic several libraries
 #                                     agree on to the bit: the seeded
 #                                     mixers and the identifying folds
+#   SigilCoreCallable    callable/    the one prefix search in the tree: a
+#                                     callable called with the parameters it
+#                                     named, and the type-erased call a verb
+#                                     holds one in
 #   SigilCoreSchedule    schedule/    where independent work runs: one
 #                                     parallel for over the task runtime,
 #                                     and a fan-out of its own threads for
@@ -33,16 +37,18 @@
 # threads links, so that a task runtime is named in one file of this
 # repository and no header of it spells one.
 #
-# The two leaves depend on the standard library alone (Boost.PFR aside)
-# and are linked from libraries far outside this one, which is what makes
-# them leaves rather than parts of the kernels above them. The hardware
-# feature is the one exception to std-only: it is the graphics API and
-# nothing else — no Skia, no Diligent, no Qt — so a drawing library stands
-# on the device it hands out rather than owning one, and two of them stand
-# on the same one. Only a consumer that needs a device links it.
+# The three leaves below the kernels depend on the standard library alone
+# (Boost.PFR aside) and are linked from libraries far outside this one,
+# which is what makes them leaves rather than parts of the kernels above
+# them. The hardware feature is the one exception to std-only: it is the
+# graphics API and nothing else — no Skia, no Diligent, no Qt — so a
+# drawing library stands on the device it hands out rather than owning one,
+# and two of them stand on the same one. Only a consumer that needs a
+# device links it.
 sigil_library_root(SigilCore
-  BRIEF "The kernels a retained runtime is built on — the reconciler (keyed matching, memo, the identity prune, inherited values, animation lanes and phases) and the caching proof (policy, settled subtrees, the stability release and the bake seam) — over three leaves: comparable type erasure with the field pin, the mixers and folds several libraries agree on to the bit, and the GPU device with its handles and fences"
+  BRIEF "The kernels a retained runtime is built on — the reconciler (keyed matching, memo, the identity prune, inherited values, animation lanes and phases) and the caching proof (policy, settled subtrees, the stability release and the bake seam) — over four leaves: comparable type erasure with the field pin, the mixers and folds several libraries agree on to the bit, the one prefix search a callable is called with the parameters it named through, and the GPU device with its handles and fences"
   DOCS ${CMAKE_CURRENT_SOURCE_DIR}/CACHE.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/CALLABLE.md
        ${CMAKE_CURRENT_SOURCE_DIR}/COMPARABLE.md
        ${CMAKE_CURRENT_SOURCE_DIR}/COMPUTE.md
        ${CMAKE_CURRENT_SOURCE_DIR}/HARDWARE.md
@@ -51,6 +57,7 @@ sigil_library_root(SigilCore
 
 add_subdirectory(comparable)
 add_subdirectory(compute)
+add_subdirectory(callable)
 add_subdirectory(schedule)
 add_subdirectory(reconcile)
 add_subdirectory(cache)
@@ -71,6 +78,7 @@ add_subdirectory(hardware)
 sigil_doc_probes(core
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/CACHE.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/CALLABLE.md
           ${CMAKE_CURRENT_SOURCE_DIR}/COMPARABLE.md
           ${CMAKE_CURRENT_SOURCE_DIR}/COMPUTE.md
           ${CMAKE_CURRENT_SOURCE_DIR}/HARDWARE.md
@@ -79,5 +87,6 @@ sigil_doc_probes(core
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../measure/include
            ${SIGIL_TEST_SUPPORT_DIR}
   FLOORS 50,3,3,0,0
-  LIBRARIES SigilCoreCache SigilCoreComparable SigilCoreCompute
-            SigilCoreHardware SigilCoreReconcile SigilCoreSchedule)
+  LIBRARIES SigilCoreCache SigilCoreCallable SigilCoreComparable
+            SigilCoreCompute SigilCoreHardware SigilCoreReconcile
+            SigilCoreSchedule)

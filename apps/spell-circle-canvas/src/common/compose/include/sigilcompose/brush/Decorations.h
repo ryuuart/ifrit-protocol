@@ -35,6 +35,7 @@
 #include <include/core/SkPicture.h>
 #include <sigilcompose/brush/Lines.h>  // cornerBrackets, cornerGaps
 #include <sigilimage/asset/ImageAsset.h>
+#include <sigilcore/callable/Callable.h>
 #include <sigilmaterial/skia/Paint.h>  // Wash — the material-valued decoration
 
 #include <algorithm>
@@ -303,7 +304,7 @@ struct PathSample {
  *  element superseding `stamp` at that sample), then `draw` on top. */
 struct ContourWalk {
   float spacing = 16.0f;
-  std::function<void(SkCanvas&, const PathSample&, const PaintContext&)> draw;
+  core::Callable<void(SkCanvas&, const PathSample&, const PaintContext&)> draw;
   bool animatedWalk = false;
 
   std::optional<Element> stamp;
@@ -328,7 +329,7 @@ struct ContourWalk {
    *  slots and evict the node's real brush bakes. A static walk pays the
    *  bakes once per describe; with `animatedWalk` it pays them every
    *  frame, which is the author's call to make. */
-  std::function<std::optional<Element>(const PathSample&, size_t)> stampAt;
+  core::Callable<std::optional<Element>(const PathSample&, size_t)> stampAt;
 
   bool isAnimated() const { return animatedWalk; }
 

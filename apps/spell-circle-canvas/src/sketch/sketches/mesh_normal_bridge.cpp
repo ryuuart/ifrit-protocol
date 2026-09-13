@@ -215,7 +215,7 @@ struct MeshNormalBridge final : sketch::Sketch {
             // cooked above, in this setup, and nothing after it moves.
             .children(
                 {custom("mesh.normal.bridge",
-                        [this](SkCanvas& canvas, const PaintContext&) {
+                        [this](SkCanvas& canvas) {
                           draw(canvas);
                         })
                      .inset(0),

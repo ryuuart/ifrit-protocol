@@ -152,8 +152,7 @@ Element cell(const char* call, const std::string& note,
       kCell, call, note,
       sketch::kit::well(
           {.width = kCell, .height = kPicture},
-          custom(call, [draw = std::move(draw)](SkCanvas& canvas,
-                                                const PaintContext&) {
+          custom(call, [draw = std::move(draw)](SkCanvas& canvas) {
             if (draw) draw(canvas);
           })));
 }

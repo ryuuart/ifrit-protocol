@@ -82,7 +82,7 @@ std::vector<float> stampSizes(Pen& pen, const brush::Tool& source,
                               float pressure) {
   auto sizes = std::make_shared<std::vector<float>>();
   brush::Tool tool = source;
-  tool.customTip = [sizes](Pen& tip, const brush::Dab&) {
+  tool.customTip = [sizes](Pen& tip) {
     sizes->push_back(tip.canvas()->getLocalToDevice().asM33().getScaleX());
   };
   const std::array<brush::Dab, 1> dabs{

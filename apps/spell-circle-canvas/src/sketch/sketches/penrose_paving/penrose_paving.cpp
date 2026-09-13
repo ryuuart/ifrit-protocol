@@ -65,7 +65,7 @@ struct PenrosePaving : sketch::Sketch {
       keyed[(size_t)e] = -(n.x() * kSunTo.x() + n.y() * kSunTo.y());
     }
 
-    auto chamfer = [lo, hi, keyed](SkCanvas& c, const PaintContext&) {
+    auto chamfer = [lo, hi, keyed](SkCanvas& c) {
       SkPaint p;
       p.setAntiAlias(true);
       for (int e = 0; e < 4; ++e) {
@@ -232,7 +232,7 @@ struct PenrosePaving : sketch::Sketch {
     // node can compare rather than a callable that never matches.
     auto edges = tri;
     group.children({custom(kit::formatted("rhomb-edges-%d", gen),
-                           [edges](SkCanvas& c, const PaintContext&) {
+                           [edges](SkCanvas& c) {
                              SkPaint p;
                              p.setAntiAlias(true);
                              p.setStyle(SkPaint::kStroke_Style);

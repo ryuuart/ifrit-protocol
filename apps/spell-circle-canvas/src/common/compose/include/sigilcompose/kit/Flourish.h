@@ -75,7 +75,7 @@ inline Element acanthusLeaf(const FlourishStyle& s, float w = 28.0f,
   ContourWalk veins;  // recursion level 2: the stamp walks its own contour
   veins.spacing = 4.0f;
   const SkColor4f bead = s.goldBright;
-  veins.draw = [bead](SkCanvas& c, const PathSample&, const PaintContext&) {
+  veins.draw = [bead](SkCanvas& c) {
     SkPaint p;
     p.setAntiAlias(true);
     p.setColor4f(bead, nullptr);

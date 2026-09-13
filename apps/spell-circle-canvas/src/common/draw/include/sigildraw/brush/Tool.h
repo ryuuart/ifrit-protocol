@@ -11,6 +11,7 @@
 #include <sigildraw/brush/Grain.h>
 #include <sigildraw/brush/Pressure.h>
 #include <sigildraw/brush/Shape.h>
+#include <sigilcore/callable/Callable.h>
 
 #include <functional>
 #include <optional>
@@ -99,7 +100,7 @@ struct Tool {
    *  stroke and the pen's default rect and ellipse modes. Style the tip
    *  changes holds until the next dab resets those four; the transform is
    *  restored after every dab. */
-  std::function<void(Pen&, const Dab&)> customTip;
+  core::Callable<void(Pen&, const Dab&)> customTip;
 };
 
 /** Stock tools. Every field is public on the returned value, so a sketch
