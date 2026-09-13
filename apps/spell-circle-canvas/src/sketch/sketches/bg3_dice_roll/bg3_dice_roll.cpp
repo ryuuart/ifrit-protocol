@@ -24,13 +24,17 @@ struct Bg3DiceRoll : sketch::Sketch {
   glm::mat3 settle{1.0f};        ///< the attitude the die lands in
 
   // ------------------------------------------------------------------- type
+  /** A line's own fields over the serif the root sets every line in: the
+   *  mono face only where a figure asks for it. */
+  weave::Type line(float size, SkColor4f col, float track, bool useMono) const {
+    weave::Type t{.size = size, .color = col, .track = track};
+    if (useMono) t.face = mono;
+    return t;
+  }
   Element label(const std::string& s, float x, float y, float size,
                 SkColor4f col, float track = 0.0f, bool useMono = false) const {
     return box().left(x).top(y).child(
-        text(bg3::u8(s), weave::textStyle({.face = useMono ? mono : serif,
-                                           .size = size,
-                                           .color = col,
-                                           .track = track})));
+        text(bg3::u8(s)).font(line(size, col, track, useMono)));
   }
   /** Right-aligned, since a numeral column must align on its units digit and
    *  Yoga is not the skeleton here. `right` is in the PARENT's space, so the
@@ -42,10 +46,7 @@ struct Bg3DiceRoll : sketch::Sketch {
     return box()
         .right(parentWidth - right)
         .top(y)
-        .child(text(
-            bg3::u8(s),
-            weave::textStyle(
-                {.face = useMono ? mono : serif, .size = size, .color = col})));
+        .child(text(bg3::u8(s)).font(line(size, col, 0.0f, useMono)));
   }
 
   /** A bare rule as its own tiny node — a stroke wants a box the size of the
@@ -778,6 +779,9 @@ struct Bg3DiceRoll : sketch::Sketch {
       return memo(0, [fn](const int&) { return fn(); });
     };
     return stack()
+        // The serif every line is set in, stated once; a call names the
+        // mono face itself.
+        .font({.face = serif})
         .child(once([this] { return ground(); }))
         .child(once([this] { return outerRing(); }))
         .child(once([this] { return marginalia(); }))
