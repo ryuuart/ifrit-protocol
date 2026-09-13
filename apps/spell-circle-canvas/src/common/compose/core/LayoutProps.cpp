@@ -78,8 +78,14 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
     }
     return *length;
   };
-  // Pixels for everything that is not a percent or auto.
+  // Whether any length below was measured against the CANVAS — the root's
+  // box, which Yoga's percent cannot express, so a canvas that changes size
+  // has to have these styles written again.
+  bool canvas = false;
+  // Pixels for everything that is not a parent-relative percent or auto.
   const auto px = [&](const Dimension& d) {
+    if (d.unit == Dimension::Unit::Pw || d.unit == Dimension::Unit::Ph)
+      canvas = true;
     return resolveLength(inst, d, relative);
   };
   const auto applyDim = [&](const Dimension& raw,
@@ -222,6 +228,8 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
     YGNodeStyleSetPosition(n, YGEdgeBottom, YGUndefined);
   }
   inst.relativeLengths = relative;
+  inst.canvasLengths = canvas;
+  if (canvas) anyCanvasLengths = true;
 }
 
 }  // namespace sigil::compose

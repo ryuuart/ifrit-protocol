@@ -609,7 +609,12 @@ own resolved font size, `1_em` on `weave::Type::size` is the parent's,
 `0.5_lh` is half the node's line height, `1_rem` is the root's size, and
 a length written as `var(name)` is whatever the property holds. The
 padding, the margin and the gap take a `Dimension` now, and a bare number
-is still pixels.
+is still pixels. Beside the font's units are the CANVAS's: `50_pct` is half
+the parent's box, which is Yoga's own percent, while `50_pw` and `50_ph` are
+half the width and half the height of the canvas the composer renders into,
+however many boxes deep the node is written — resolved into pixels in the
+same pass that resolves an em, because a percentage of something that is not
+the containing block is not a thing Yoga can express.
 
 **Motion stays on the node that declares it.** A node whose ink changes
 under `Element::transition` eases it, and everything under it follows —
@@ -696,7 +701,8 @@ sound model; nothing below them changes kernel semantics.
   `Cache`, `LayoutInput` / `LayoutScheme`, `CellSpan`, and the
   `ComponentProperties` / `ComponentFunction` concepts. A `Dimension`
   also takes SigilWeave's `Length` (`em`, `rem`, `lh`) and a `VarRef`, the
-  relative units the cascade resolves.
+  relative units the cascade resolves, with `pw` and `ph` — the canvas's own
+  width and height — resolved in the same pass.
 - `core/Var.h` — `VarRef`, the reference a custom property's name
   interns to, with `var` to make one and `varName` to read it back.
 - `core/Cascade.h` — `VarValue`, what a custom property holds, and

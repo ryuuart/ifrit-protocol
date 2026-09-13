@@ -32,15 +32,24 @@ namespace sigil::compose {
  *  decide. Constructing one from a bare float gives pixels, so the common
  *  case reads as a number.
  *
- *  THE RELATIVE UNITS ARE THE FONT'S. `em` is the node's own resolved font
+ *  THE FONT-RELATIVE UNITS. `em` is the node's own resolved font
  *  size, `rem` the root's, `lh` the node's own line height — SigilWeave's
  *  `Length`, spelled with its `_em`, `_rem` and `_lh` literals, converts
  *  here — so a padding written in ems follows the type it surrounds, and a
  *  change to an ancestor's font relays out everything measured in it. A
  *  `var(...)` reads the length the nearest ancestor set under that name
- *  and resolves it where it is read. */
+ *  and resolves it where it is read.
+ *
+ *  THE CANVAS-RELATIVE UNITS ARE THE ROOT'S BOX, not the parent's: `pw` is
+ *  a percentage of the canvas the composer renders into, `ph` a percentage
+ *  of its height, wherever in the tree the node sits. `pct` is the
+ *  parent's, which is Yoga's own percent; these two are resolved into
+ *  pixels before Yoga sees them, because a percentage of something that is
+ *  not the containing block is a thing Yoga cannot express. A poster whose
+ *  margin is `6_pw` keeps its proportions at every canvas size, however
+ *  many boxes deep it is written. */
 struct Dimension {
-  enum class Unit : uint8_t { Px, Pct, Auto, Em, Rem, Lh, Var };
+  enum class Unit : uint8_t { Px, Pct, Auto, Em, Rem, Lh, Var, Pw, Ph };
   Unit unit = Unit::Auto;
   /** The length, or under `Var` the reference id, bit-cast into the float
    *  and never read as one. */
@@ -58,11 +67,12 @@ struct Dimension {
   constexpr Dimension(VarRef reference)  // NOLINT: implicit
       : unit(Unit::Var), value(std::bit_cast<float>(reference.id)) {}
 
-  /** Whether resolving this length needs the font in force or a custom
-   *  property — everything but a pixel, a percent and auto. */
+  /** Whether resolving this length needs something the number itself does
+   *  not carry — the font in force, a custom property, or the canvas: it is
+   *  everything but a pixel, a parent-relative percent and auto. */
   [[nodiscard]] constexpr bool relative() const {
     return unit == Unit::Em || unit == Unit::Rem || unit == Unit::Lh ||
-           unit == Unit::Var;
+           unit == Unit::Var || unit == Unit::Pw || unit == Unit::Ph;
   }
   /** The custom property a `Var` length reads; meaningless otherwise. */
   [[nodiscard]] constexpr VarRef reference() const {
@@ -76,11 +86,25 @@ constexpr Dimension pct(float v) {
   d.value = v;
   return d;
 }
+/** @p v percent of the CANVAS's width — the root's box, not the parent's. */
+constexpr Dimension pw(float v) {
+  Dimension d;
+  d.unit = Dimension::Unit::Pw;
+  d.value = v;
+  return d;
+}
+/** @p v percent of the CANVAS's height. */
+constexpr Dimension ph(float v) {
+  Dimension d;
+  d.unit = Dimension::Unit::Ph;
+  d.value = v;
+  return d;
+}
 constexpr Dimension autoDimension() { return {}; }
 
-/** `width(50_pct)`, `basis(120_px)` — for the Dimension-valued setters;
- *  exposed by `using namespace sigil::compose` (or `using namespace
- *  sigil::compose::literals`). */
+/** `width(50_pct)`, `width(50_pw)`, `top(10_ph)`, `basis(120_px)` — for the
+ *  Dimension-valued setters; exposed by `using namespace sigil::compose` (or
+ *  `using namespace sigil::compose::literals`). */
 inline namespace literals {
 constexpr Dimension operator""_px(long double v) { return Dimension((float)v); }
 constexpr Dimension operator""_px(unsigned long long v) {
@@ -90,6 +114,10 @@ constexpr Dimension operator""_pct(long double v) { return pct((float)v); }
 constexpr Dimension operator""_pct(unsigned long long v) {
   return pct((float)v);
 }
+constexpr Dimension operator""_pw(long double v) { return pw((float)v); }
+constexpr Dimension operator""_pw(unsigned long long v) { return pw((float)v); }
+constexpr Dimension operator""_ph(long double v) { return ph((float)v); }
+constexpr Dimension operator""_ph(unsigned long long v) { return ph((float)v); }
 }  // namespace literals
 
 enum class Align : uint8_t { Auto, Start, Center, End, Stretch, Baseline };

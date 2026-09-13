@@ -86,6 +86,11 @@ struct Composer::Impl {
   const motion::FrameClock* clock = nullptr;
 
   SkSize size = SkSize::MakeEmpty();
+  /** Whether any node in the tree declares a canvas-relative length, and the
+   *  canvas those lengths were last resolved against. A resize is the only
+   *  thing that moves them, and it moves every one of them at once. */
+  bool anyCanvasLengths = false;
+  SkSize canvasLengthsAt = SkSize::MakeEmpty();
   std::unique_ptr<detail::Instance> root;
   /** The reconciler, with this composer as its host: it owns the shape of
    *  the tree — matching, memo, the identity prune, the counts — and
@@ -413,6 +418,9 @@ struct Composer::Impl {
    *  answer depended on the font or on a property. */
   float resolveLength(const detail::Instance& inst, const Dimension& length,
                       bool& relative) const;
+  /** Writes every canvas-relative length in the subtree into its flex style
+   *  again, for a canvas that has changed size. */
+  void reapplyCanvasLengths(detail::Instance& inst);
 
   // ---- the cascade (Cascade.cpp) ----
   /** Resolves the font, the ink and the custom properties in force at

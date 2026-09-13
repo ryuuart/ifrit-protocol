@@ -110,13 +110,20 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
     parentW = parentRect.width();
     parentH = parentRect.height();
   }
-  auto resolve = [](const Dimension& d,
-                    float parentExtent) -> std::optional<float> {
+  // The canvas a pw or a ph is measured against — the root's box, not this
+  // node's parent, and the root's laid-out extent under an intrinsic root.
+  const SkSize canvas = size.isEmpty() ? rootLayoutSize : size;
+  auto resolve = [&canvas](const Dimension& d,
+                           float parentExtent) -> std::optional<float> {
     switch (d.unit) {
       case Dimension::Unit::Px:
         return d.value;
       case Dimension::Unit::Pct:
         return parentExtent * d.value / 100.0f;
+      case Dimension::Unit::Pw:
+        return canvas.width() * d.value / 100.0f;
+      case Dimension::Unit::Ph:
+        return canvas.height() * d.value / 100.0f;
       case Dimension::Unit::Auto:
       default:
         return std::nullopt;

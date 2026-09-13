@@ -16,6 +16,42 @@ TEST(ComposeLayout, FlexRowPositionsAndFills) {
   EXPECT_EQ(host.pixel(95, 25), SK_ColorGREEN);  // second child at 70..120
 }
 
+TEST(ComposeLayout, ACanvasRelativeLengthIsTheRootsBoxHoweverDeepItIsWritten) {
+  // pw and ph are the CANVAS, where pct is the parent: a half-canvas child
+  // three boxes deep is half the canvas, not half of whatever box it sits
+  // in, and it follows the canvas when the canvas changes size.
+  Host host(400, 200);
+  const auto tree = [] {
+    // shrink(0) on both: what is read back is what each unit RESOLVED to,
+    // not how the flex line fitted it afterwards.
+    return box().padding(50).children({box().width(100).height(100).children(
+        {box().key("canvas").width(50_pw).height(50_ph).shrink(0).fill(red()),
+         box()
+             .key("parent")
+             .width(50_pct)
+             .height(50_pct)
+             .shrink(0)
+             .fill(green())})});
+  };
+  host.composer.render(tree());
+  host.frame();
+  auto canvas = host.composer.bounds("canvas");
+  auto parent = host.composer.bounds("parent");
+  ASSERT_TRUE(canvas.has_value());
+  ASSERT_TRUE(parent.has_value());
+  EXPECT_FLOAT_EQ(canvas->width(), 200.0f) << "half the canvas's 400";
+  EXPECT_FLOAT_EQ(canvas->height(), 100.0f) << "half the canvas's 200";
+  EXPECT_FLOAT_EQ(parent->width(), 50.0f) << "half the parent's 100";
+
+  // A RESIZE moves them, and nothing but the resize had to say so.
+  host.composer.setSize({200, 400});
+  host.frame();
+  canvas = host.composer.bounds("canvas");
+  ASSERT_TRUE(canvas.has_value());
+  EXPECT_FLOAT_EQ(canvas->width(), 100.0f);
+  EXPECT_FLOAT_EQ(canvas->height(), 200.0f);
+}
+
 TEST(ComposeLayout, TextSizesItselfInFlex) {
   Host host(400, 200);
   host.composer.render(

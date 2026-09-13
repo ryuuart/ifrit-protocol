@@ -65,6 +65,14 @@ void Composer::Impl::ensureLayout() {
   // before it is measured, and a length in ems before Yoga reads it.
   if (cascadeDirty) runCascade();
   if (!root || (!needsLayout && !YGNodeIsDirty(root->yoga))) return;
+  // A length measured against the CANVAS is resolved into pixels before
+  // Yoga sees it, so a canvas of a new size means those styles are stale and
+  // nothing else would notice: a percent Yoga owns re-resolves itself, and
+  // one of these does not.
+  if (anyCanvasLengths && canvasLengthsAt != size) {
+    canvasLengthsAt = size;
+    reapplyCanvasLengths(*root);
+  }
   // The root fills the viewport (the CSS-root rule) — except under an empty
   // setSize(), which means "intrinsic": the root sizes to its content (the
   // snapshot()/stamp path).
@@ -93,6 +101,11 @@ void Composer::Impl::ensureLayout() {
                     phaseDerive();
                   });
   needsLayout = false;
+}
+
+void Composer::Impl::reapplyCanvasLengths(Instance& inst) {
+  if (inst.canvasLengths) applyLayoutProps(inst);
+  for (auto& child : inst.children) reapplyCanvasLengths(*child);
 }
 
 void Composer::Impl::syncLayoutRects(Instance& inst, bool movedAbove) {

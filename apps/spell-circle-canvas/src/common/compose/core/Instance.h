@@ -208,6 +208,11 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // rem, an lh or a custom property — so a change in the font in force, or
   // in the properties, rewrites its Yoga style. Written with the style.
   bool relativeLengths = false;
+  // Whether any length this node's layout declares is measured against the
+  // CANVAS — a pw or a ph. Those are resolved into pixels before Yoga sees
+  // them, so a canvas that changes size has to have this style written
+  // again; nothing else notices a resize.
+  bool canvasLengths = false;
   // On a text leaf that inherits: the font the paragraph was last
   // materialised in, compared against `font` to tell a change that
   // re-shapes (any field but the colour) from one that repaints alone.

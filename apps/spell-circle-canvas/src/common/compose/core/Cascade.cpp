@@ -171,6 +171,18 @@ float Composer::Impl::resolveLength(const Instance& inst,
     case Dimension::Unit::Lh:
       relative = true;
       return length.value * inst.lineHeight;
+    case Dimension::Unit::Pw:
+    case Dimension::Unit::Ph: {
+      // THE CANVAS, never the parent: the box the composer renders into,
+      // which is why this is resolved here and not handed to Yoga as a
+      // percent. Under an intrinsic root — a snapshot, which has no
+      // viewport — the root's own laid-out extent is the honest stand-in.
+      relative = true;
+      const SkSize canvas = size.isEmpty() ? rootLayoutSize : size;
+      const float extent =
+          length.unit == Dimension::Unit::Pw ? canvas.width() : canvas.height();
+      return length.value * 0.01f * extent;
+    }
     case Dimension::Unit::Var:
       // Dereferenced by the caller, which decides between a pixel and a
       // percent setter; a reference that reaches here names nothing.
