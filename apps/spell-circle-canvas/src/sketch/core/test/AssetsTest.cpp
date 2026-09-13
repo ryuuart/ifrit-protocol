@@ -6,12 +6,15 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkData.h>
+#include <sigildata/decode/Json.h>
 #include <sigilio/hub/Network.h>
 #include <sigilio/source/Sink.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilvideo/encode/Encode.h>
 
+#include <chrono>
 #include <filesystem>
+#include <fstream>
 #include <span>
 #include <string>
 #include <system_error>
@@ -117,3 +120,33 @@ TEST(Assets, VideoUsesTheClipCacheAndInvalidatesAfterSourceChange) {
 }
 
 }  // namespace
+
+/** A sketch's words in a file beside it: the document is read whole,
+ *  a missing key is a null value rather than a failure, and an edit to
+ *  the file is what poll() reports, so the sketch re-describes from the
+ *  new words without a rebuild. */
+TEST(Assets, ADocumentIsReadWholeAndReloadedWhenItsFileChanges) {
+  sigil::test::ScratchDir dir("sketch_assets_json");
+  std::filesystem::create_directories(dir.path / "data");
+  const auto write = [&](const char* body) {
+    std::ofstream(dir.path / "data" / "content.json", std::ios::binary) << body;
+  };
+  write(R"({"title": "A2", "lines": [{"code": "x1 -= d;", "marked": true}]})");
+  Assets assets("");
+  assets.mountSketch("study", dir.path);
+  const auto document = assets.json("sketch://study/data/content.json");
+  ASSERT_NE(document, nullptr);
+  EXPECT_EQ((*document)["title"].text(), "A2");
+  EXPECT_TRUE((*document)["lines"][0]["marked"].boolean());
+  EXPECT_TRUE((*document)["absent"]["deeper"].null());
+  EXPECT_EQ((*document)["absent"].text("fallback"), "fallback");
+  EXPECT_EQ(assets.json("sketch://study/data/missing.json"), nullptr);
+
+  write(R"({"title": "A3"})");
+  std::filesystem::last_write_time(
+      dir.path / "data" / "content.json",
+      std::filesystem::file_time_type::clock::now() + std::chrono::seconds(2));
+  EXPECT_TRUE(assets.poll());
+  EXPECT_EQ((*assets.json("sketch://study/data/content.json"))["title"].text(),
+            "A3");
+}

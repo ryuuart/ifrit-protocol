@@ -21,6 +21,7 @@
 namespace sigil::data {
 class Table;
 class Database;
+class Json;
 }  // namespace sigil::data
 
 namespace sigil::sketch {
@@ -71,6 +72,13 @@ class Assets {
    *  opened in place, cached and reopened when the file changes. Null
    *  until it loads or when it is not one. */
   std::shared_ptr<const sigil::data::Database> database(std::string_view name);
+  /** THE DOCUMENT AT @p name — a `.json` file read whole as one nested
+   *  value, cached and reloaded by the hub, so a sketch's words and
+   *  settings stand in a file beside it and an edit to that file re-runs
+   *  setup without a rebuild. Null when there is no such file or it is
+   *  not JSON; a key that is not in it reads as a null value, so a sketch
+   *  states the default it wants where it reads. */
+  std::shared_ptr<const sigil::data::Json> json(std::string_view name);
 
   /** The full resource hub (text/blob/probe/EXR layers…) with the
    *  sketch's assets directory mounted at "res://". */

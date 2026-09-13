@@ -1422,6 +1422,12 @@ A sketch reaches for what it did not generate through `ctx.assets`.
 (`build/assets`) in this repository, `assets/` beside a sketch opened by
 path, or the directory `--assets <dir>` names. A sketch's own files stand
 in its directory under `data/` and are named by `ctx.local()`.
+A `.json` file there is a document: `ctx.assets.json(ctx.local("data/content.json"))`
+reads it whole as one nested `data::Json` — a sketch whose words, lists
+and settings stand in such a file reads them in `setup()`, and an edit to
+the file re-runs setup without a rebuild, which is the live-editing door
+for content. A key that is not there reads as a null value, so the sketch
+states its fallback where it reads.
 `image()` keeps the
 forgiving contract a live-edited file wants — a magenta placeholder
 stands in for a missing or undecodable file and heals the moment one
