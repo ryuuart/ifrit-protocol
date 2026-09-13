@@ -16,27 +16,13 @@ struct AstralTome : sketch::Sketch {
   double clock = 0;
 
   // ------------------------------------------------------------------ type
-  Element label(const char* s, float x, float y, float size, SkColor4f col,
-                float track = 0.0f, bool useMono = false) const {
+  /** A constellation's name: the serif at the chart's own size and
+   *  tracking, in the page ink at the page's alpha. */
+  Element name(const char* s, float x, float y) const {
     return box().at({x, y}).child(
-        text(toUtf8(s), weave::textStyle({.face = useMono ? mono : serif,
-                                          .size = size,
-                                          .color = col,
-                                          .track = track,
-                                          .aliased = useMono})));
-  }
-  Element label(const std::string& s, float x, float y, float size,
-                SkColor4f col, float track = 0.0f, bool useMono = false) const {
-    return label(s.c_str(), x, y, size, col, track, useMono);
-  }
-  /** The tome's own tooltip idiom: type that has to sit ON the star field gets
-   *  a dark sill under it (GuiScreen.drawHoveringText fills a plate before it
-   *  prints). Without one, an annotation lands on a link and is gone. */
-  Element scrimLabel(const std::string& s, float x, float y, float size,
-                     SkColor4f col, float track = 0.0f) const {
-    return label(s, x, y, size, col, track, true)
-        .padding(3.0f)
-        .fill(Fill::color({0.02f, 0.02f, 0.035f, 0.74f}));
+        text(toUtf8(s))
+            .font({.face = serif, .size = 19.0f, .track = 2.4f})
+            .ink(mskia::scale(at::kInk, 1.0f, kInkAlphaOf())));
   }
 
   // ------------------------------------------------------------- the plate
@@ -317,23 +303,19 @@ struct AstralTome : sketch::Sketch {
                        .padding(34.0f, 0.0f)
                        .gap(5.0f)
                        .zIndex(20)
-                       .fill(Fill::color({0.031f, 0.027f, 0.023f, 1.0f}));
+                       .fill(Fill::color({0.031f, 0.027f, 0.023f, 1.0f}))
+                       .font({.face = mono});  // both lines are set in it
+    band.child(text(toUtf8("ASTRAL SORCERY \xc2\xb7 "
+                           "GuiJournalConstellationCluster, PAGE 1 OF 4"))
+                   .font({.size = 13.0f, .track = 2.6f})
+                   .ink(SkColor4f{0.72f, 0.66f, 0.50f, 1.0f}));
     band.child(
-        text(toUtf8("ASTRAL SORCERY \xc2\xb7 "
-                    "GuiJournalConstellationCluster, PAGE 1 OF 4"),
-             weave::textStyle({.face = mono,
-                               .size = 13.0f,
-                               .color = SkColor4f{0.72f, 0.66f, 0.50f, 1.0f},
-                               .track = 2.6f})));
-    band.child(text(
-        toUtf8("Four charts on one page at the mod's own numbers: a 95x95 "
-               "SQUARE render box hung on an 80x110 hit cell, the offsetMap's "
-               "zig-zag placing them, and every star's twinkle on its own "
-               "divisor between 12 and 21."),
-        weave::textStyle({.face = mono,
-                          .size = 11.0f,
-                          .color = SkColor4f{0.50f, 0.46f, 0.38f, 1.0f},
-                          .track = 0.4f})));
+        text(toUtf8("Four charts on one page at the mod's own numbers: a "
+                    "95x95 SQUARE render box hung on an 80x110 hit cell, the "
+                    "offsetMap's zig-zag placing them, and every star's "
+                    "twinkle on its own divisor between 12 and 21."))
+            .font({.size = 11.0f, .track = 0.4f})
+            .ink(SkColor4f{0.50f, 0.46f, 0.38f, 1.0f}));
     return band;
   }
 
@@ -482,9 +464,8 @@ struct AstralTome : sketch::Sketch {
       const at::Con& c = at::kPage0[(size_t)ci];
       const SkPoint o = at::kOffsets[(size_t)ci];
       const float w = (float)std::char_traits<char>::length(c.name) * 8.6f;
-      root.child(label(c.name, at::gx(o.fX + at::kCellW * 0.5f) - w * 0.5f,
-                       at::gy(o.fY + 90.0f), 19.0f,
-                       mskia::scale(at::kInk, 1.0f, kInkAlphaOf()), 2.4f)
+      root.child(name(c.name, at::gx(o.fX + at::kCellW * 0.5f) - w * 0.5f,
+                      at::gy(o.fY + 90.0f))
                      .key(std::string("nm") + std::to_string(ci))
                      .zIndex(6));
     }
