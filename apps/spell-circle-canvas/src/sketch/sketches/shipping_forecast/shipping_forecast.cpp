@@ -122,8 +122,10 @@
 //     numerals would replace a moving coordinate with a still one.
 //
 // EDIT THESE FIRST
-//   kAreaRing  — the sixteen sea areas and the compass bearing each is
-//                set at. Move a bearing and the name moves round the ring.
+//   data/content.json — the bulletin: the sixteen sea areas and the compass
+//                bearing each is set at (move a bearing and the name moves
+//                round the ring), the forecast's and the synopsis's runs,
+//                the readouts, the stations and every line of furniture.
 //   kLoop      — one bulletin, in seconds. Everything else is a window,
 //                a swell or an envelope shaped out of it.
 //   kBreathPeriod — the grade swell's period. The declared moment is its
@@ -146,6 +148,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigildata/decode/Json.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -165,7 +168,9 @@
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
+#include <memory>
 #include <ranges>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -177,6 +182,7 @@ using namespace sigil::compose;
 namespace motion = sigil::motion;
 namespace mskia = sigil::material::skia;
 namespace shapes = sigil::geometry::shapes;
+namespace data = sigil::data;
 namespace weave = sigil::weave;
 namespace ch = choreograph;
 
@@ -227,17 +233,55 @@ constexpr float kOutFrom = 12.6f / (float)kLoop, kOutTo = 14.2f / (float)kLoop;
  *  legibility rather than to a chart's precision — two adjacent areas
  *  whose true bearings differ by three degrees would set as one word. */
 struct Area {
-  const char* name;
-  float bearingDeg;
+  std::string name;
+  float bearingDeg = 0;
 };
-constexpr Area kAreaRing[] = {
-    {"VIKING", 14.0f},        {"NORTH UTSIRE", 33.0f}, {"SOUTH UTSIRE", 50.0f},
-    {"FORTIES", 65.0f},       {"CROMARTY", 78.0f},     {"FORTH", 90.0f},
-    {"TYNE", 101.0f},         {"DOGGER", 112.0f},      {"FISHER", 124.0f},
-    {"GERMAN BIGHT", 137.0f}, {"HUMBER", 152.0f},      {"THAMES", 166.0f},
-    {"DOVER", 178.0f},        {"WIGHT", 192.0f},       {"PORTLAND", 206.0f},
-    {"PLYMOUTH", 222.0f}};
-constexpr int kAreaCount = (int)(sizeof(kAreaRing) / sizeof(kAreaRing[0]));
+
+/** THE RECORD AT @p key of @p doc — `data/content.json`, the bulletin
+ *  itself: `areas` (each a name and a bearing), `cardinals`, `ring`,
+ *  `gale`, `forecast` and `synopsis` (each a run list of `{words, style}`),
+ *  `barometer`, `stations`, `beaufort`, `spine`, `header` and `foot`. A
+ *  missing file or key reads as a null value, so a reader falls back to no
+ *  words at all — the sheet performs whatever bulletin the document
+ *  carries, and an edit to it needs no rebuild. */
+inline const data::Json& record(const std::shared_ptr<const data::Json>& doc,
+                                const char* key) {
+  static const data::Json none;
+  return doc ? (*doc)[key] : none;
+}
+
+/** @p node's words — empty where the document does not carry them. */
+inline std::string words(const data::Json& node) {
+  return std::string(node.text());
+}
+
+/** The members of @p node's list, as the run `each()` walks. */
+inline std::span<const data::Json> run(const data::Json& node) {
+  return node.items();
+}
+
+/** The sixteen sea areas, in the bulletin's own reading order. */
+inline std::vector<Area> areaRing(
+    const std::shared_ptr<const data::Json>& doc) {
+  std::vector<Area> out;
+  for (const data::Json& a : run(record(doc, "areas")))
+    out.push_back({words(a["name"]), (float)a["bearing"].number()});
+  return out;
+}
+
+/** A PASSAGE, as the document writes it: unnamed runs set in the voice the
+ *  node carries and each named run changing only what its register says. */
+inline weave::RichText passage(const data::Json& node) {
+  weave::RichText copy = weave::rich();
+  for (const data::Json& r : run(node)) {
+    const std::string style = words(r["style"]);
+    if (style.empty())
+      copy.add(words(r["words"]));
+    else
+      copy.add(words(r["words"]), style);
+  }
+  return copy;
+}
 
 }  // namespace
 
@@ -247,6 +291,12 @@ struct ShippingForecast : sketch::Sketch {
   // The two hand-stepped scalars. Everything else is a SHAPE of one of
   // them — a window, a swell, an envelope — which is why there are two
   // rather than a dozen.
+  /** THE BULLETIN: every word of it stands in `data/content.json` beside
+   *  this sketch and is read in setup, so the sheet is the performance and
+   *  the file is what is being read out. */
+  std::shared_ptr<const data::Json> doc;
+  std::vector<Area> ring;
+
   ch::Output<float> cycle{0};  // 0 → kLoop, wrapping: the bulletin
   ch::Output<float> secs{0};   // monotonic: the ring's marquee
 
@@ -363,7 +413,7 @@ struct ShippingForecast : sketch::Sketch {
    *  lines in step whatever the bulletin is naming. (The nested cascade —
    *  words beating, glyphs beating inside each word's beat — is on the ring,
    *  where there are sixteen words for it to beat over.) */
-  [[nodiscard]] Element heroLine(const char* words, const char* key,
+  [[nodiscard]] Element heroLine(const std::string& line, const char* key,
                                  float delay) {
     Track rise{.effect = fx::rise(kHero * 1.24f),
                .stagger = {.amountMs = 320,
@@ -390,7 +440,7 @@ struct ShippingForecast : sketch::Sketch {
             motion::bind(&secs).source(0.0f, (float)kBreathPeriod).cosine()};
 
     return box().clip().width(pct(100)).children({
-        text(words)
+        text(line)
             .styleClass("hero")
             .key(key)
             .width(pct(100))
@@ -429,7 +479,7 @@ struct ShippingForecast : sketch::Sketch {
     const auto radians = [](const Area& a) {
       return a.bearingDeg * 3.14159265f / 180.0f - 1.5707963f;
     };
-    static constexpr const char* kCardinals[4] = {"N", "E", "S", "W"};
+    const data::Json& page = record(doc, "ring");
 
     return box().width(kRingBox).height(kRingBox).shrink(0).children({
         // The wash under the ring: a soft light filling the square, so the
@@ -443,7 +493,7 @@ struct ShippingForecast : sketch::Sketch {
         // THE COMPASS. A tick at every area's own bearing, and a longer one
         // with a letter at each cardinal point, so the ring can be read as
         // a bearing and not only as a list.
-        each(kAreaRing,
+        each(ring,
              [&](const Area& a, size_t i) {
                return box()
                    .key("tick" + std::to_string(i))
@@ -456,11 +506,11 @@ struct ShippingForecast : sketch::Sketch {
                    .fill(Fill::color(kSlateDim))
                    .opacity(beat(0.10f, 1.20f));
              }),
-        each(kCardinals,
-             [&](const char* letter, size_t q) {
-               return text(letter)
+        each(run(record(doc, "cardinals")),
+             [&](const data::Json& letter, size_t q) {
+               return text(words(letter))
                    .styleClass("cardinal")
-                   .key(std::string("card") + letter)
+                   .key("card" + std::to_string(q))
                    .centerAt(arrange::onRing(q, 4, {kEye.x(), kEye.y()},
                                              {kRingR + 46.0f, kRingR + 46.0f},
                                              -1.5707963f, 6.2831853f,
@@ -487,7 +537,7 @@ struct ShippingForecast : sketch::Sketch {
         // neighbour's ring. The sixteen beat in READ ORDER, not in bearing
         // order — they are the same sweep here, and saying it once in the
         // delay is what makes that visible rather than coincidental.
-        each(kAreaRing,
+        each(ring,
              [&](const Area& a, size_t i) {
                const float frac =
                    std::fmod(a.bearingDeg / 360.0f + 0.75f, 1.0f);
@@ -512,10 +562,9 @@ struct ShippingForecast : sketch::Sketch {
             .width(2.0f * kInnerR - 40.0f)
             .centerAt({kEye.x(), kEye.y() - 6.0f})
             .key("hero")
-            .children({heroLine("GERMAN", "hero-1", 0.0f),
-                       heroLine("BIGHT", "hero-2", 0.22f)}),
-        eyebrow("SEA AREA · READ IN ORDER FROM VIKING", "ring-cap", 2.30f,
-                2.95f)
+            .children({heroLine(words(page["hero"][0]), "hero-1", 0.0f),
+                       heroLine(words(page["hero"][1]), "hero-2", 0.22f)}),
+        eyebrow(words(page["cap"]), "ring-cap", 2.30f, 2.95f)
             .centerAt({kEye.x(), kEye.y() + 118.0f}),
     });
   }
@@ -552,7 +601,7 @@ struct ShippingForecast : sketch::Sketch {
         .children({
             box().width(7).height(7).corners({4}).shrink(0).fill(
                 Fill::currentInk()),
-            text("GALE WARNING · GERMAN BIGHT · IMMINENT")
+            text(words(record(doc, "gale")))
                 .styleClass("warning")
                 .key("gale")
                 .fx({.effect = std::move(arrive),
@@ -588,13 +637,8 @@ struct ShippingForecast : sketch::Sketch {
   [[nodiscard]] Element forecast() {
     // AN INHERITING PASSAGE: the unnamed runs are set in the voice the node
     // carries and each named run changes only what its register states.
-    weave::RichText copy = weave::rich();
-    copy.add("Southwesterly", "dir")
-        .add(" 5 to 7, occasionally gale 8 ")
-        .add("later", "term")
-        .add(". Rain then showers. Moderate or good, occasionally ")
-        .add("poor", "term")
-        .add(".");
+    const data::Json& page = record(doc, "forecast");
+    weave::RichText copy = passage(page["runs"]);
 
     // THREE TRACKS OVER ONE PARAGRAPH, ON ONE CLOCK. `beats::Text` numbers
     // each cascade by the word's place in the PARAGRAPH rather than by its
@@ -641,7 +685,7 @@ struct ShippingForecast : sketch::Sketch {
                  .progress = beat(1.83f, 4.30f)};
 
     return box().column().gap(9).children({
-        eyebrow("AREA FORECAST", "fc-eyebrow", 1.50f, 2.10f),
+        eyebrow(words(page["eyebrow"]), "fc-eyebrow", 1.50f, 2.10f),
         text(copy)
             .font({.size = 19.5f})
             .key("forecast")
@@ -661,9 +705,10 @@ struct ShippingForecast : sketch::Sketch {
    *  why its charset is digits and capitals of one width. On a proportional
    *  face the runtime measures both, refuses, and draws the true letter. */
   [[nodiscard]] Element barometer() {
+    const data::Json& page = record(doc, "barometer");
     return box().column().gap(7).children({
-        eyebrow("PRESSURE · TENDENCY", "baro-eyebrow", 2.10f, 2.65f),
-        text("1003 FALLING SLOWLY")
+        eyebrow(words(page["eyebrow"]), "baro-eyebrow", 2.10f, 2.65f),
+        text(words(page["reading"]))
             .styleClass("readout")
             .key("baro")
             // HELD, because a decode is otherwise churning at local
@@ -715,18 +760,11 @@ struct ShippingForecast : sketch::Sketch {
     // construction.
     sigil::weave::TextStyle graded = registers().base();
     graded.variation("GRAD", 800.0f);
-    weave::RichText copy = weave::rich();
-    copy.add("Low", "dir")
-        .add(", Rockall, ")
-        .add("987")
-        .add(", ")
-        .add("deepening rapidly", "term")
-        .add(", expected Fair Isle ")
-        .add("968")
-        .add(" by 0700 tomorrow. Atlantic high losing its grip.");
+    const data::Json& page = record(doc, "synopsis");
+    weave::RichText copy = passage(page["runs"]);
 
     return box().column().gap(9).children({
-        eyebrow("GENERAL SYNOPSIS · 0100 UTC", "syn-eyebrow", 2.60f, 3.10f),
+        eyebrow(words(page["eyebrow"]), "syn-eyebrow", 2.60f, 3.10f),
         text(copy)
             .font({.size = 19.5f})
             .key("synopsis")
@@ -746,24 +784,15 @@ struct ShippingForecast : sketch::Sketch {
    *  A supporting block that also moved would compete with the area name,
    *  and there is only one thing here the eye is meant to follow. */
   [[nodiscard]] Element stations() {
-    struct Row {
-      const char* place;
-      const char* wind;
-      const char* baro;
-    };
-    static constexpr Row kRows[] = {
-        {"TIREE AUTOMATIC", "SW 6", "1008 / 1.4 FALLING"},
-        {"STORNOWAY", "WSW 5", "1011 / 0.8 FALLING"},
-        {"LERWICK", "S 7", "0999 / 2.9 FALLING"},
-    };
+    const data::Json& page = record(doc, "stations");
     PathFormat rule;
     rule.width = 1.0f;
     rule.strokeFill = Fill::color(kKeyline);
     return box().column().gap(0).children({
-        eyebrow("COASTAL STATIONS · 0100 UTC", "st-eyebrow", 2.66f, 3.16f)
+        eyebrow(words(page["eyebrow"]), "st-eyebrow", 2.66f, 3.16f)
             .margin(0, 0, 0, 8),
-        each(kRows,
-             [&](const Row& r, size_t i) {
+        each(run(page["rows"]),
+             [&](const data::Json& r, size_t i) {
                return box()
                    .row()
                    .height(29)
@@ -773,11 +802,17 @@ struct ShippingForecast : sketch::Sketch {
                    .opacity(
                        beat(2.80f + (float)i * 0.14f, 3.40f + (float)i * 0.14f))
                    .children({
-                       text(r.place).styleClass("place").grow(1),
-                       text(r.wind).styleClass("wind").width(74).block(
-                           {.alignment = sigil::weave::TextAlignment::kEnd}),
-                       text(r.baro).styleClass("station").width(166).block(
-                           {.alignment = sigil::weave::TextAlignment::kEnd}),
+                       text(words(r["place"])).styleClass("place").grow(1),
+                       text(words(r["wind"]))
+                           .styleClass("wind")
+                           .width(74)
+                           .block({.alignment =
+                                       sigil::weave::TextAlignment::kEnd}),
+                       text(words(r["baro"]))
+                           .styleClass("station")
+                           .width(166)
+                           .block({.alignment =
+                                       sigil::weave::TextAlignment::kEnd}),
                    });
              }),
     });
@@ -795,7 +830,7 @@ struct ShippingForecast : sketch::Sketch {
         .gap(9)
         .opacity(beat(3.20f, 3.80f))
         .children({
-            text("BEAUFORT FORCE · 5 TO 7, OCCASIONALLY 8")
+            text(words(record(doc, "beaufort")["eyebrow"]))
                 .styleClass("eyebrow")
                 .key("bf-eyebrow"),
             box()
@@ -828,7 +863,7 @@ struct ShippingForecast : sketch::Sketch {
                               text(std::to_string(f)).styleClass("force"),
                           });
                     })),
-            text("5 FRESH BREEZE · 6 STRONG BREEZE · 7 NEAR GALE · 8 GALE")
+            text(words(record(doc, "beaufort")["names"]))
                 .styleClass("bands")
                 .key("bf-names"),
         });
@@ -846,7 +881,7 @@ struct ShippingForecast : sketch::Sketch {
    *  layout placed the glyph in, and here that frame is turned with the
    *  column, so the lift runs ACROSS the column rather than up the page. */
   [[nodiscard]] Element spine() {
-    return text("BBC RADIO 4 · 198 kHz LONG WAVE · 0048")
+    return text(words(record(doc, "spine")))
         .styleClass("spine")
         .key("spine")
         .left(40)
@@ -880,23 +915,21 @@ struct ShippingForecast : sketch::Sketch {
   }
 
   [[nodiscard]] Element header() {
-    static constexpr const char* kSlug[] = {
-        "ISSUED 0015 UTC · VALID TO 0600 UTC TOMORROW",
-        "IMMINENT: WITHIN 6 H · SOON: 6–12 H · LATER: BEYOND 12 H",
-        "GOOD > 5 NM · MODERATE 2–5 NM · POOR 1000 M – 2 NM",
-    };
+    const data::Json& page = record(doc, "header");
     std::vector<sketch::kit::Line> slugs;
-    for (int i = 0; i < 3; ++i)
-      slugs.push_back({.words = kSlug[i],
+    size_t i = 0;
+    for (const data::Json& slug : run(page["slugs"])) {
+      slugs.push_back({.words = words(slug),
                        .opacity = beat(0.55f + (float)i * 0.16f,
                                        1.15f + (float)i * 0.16f)});
+      ++i;
+    }
 
     const sketch::kit::Provide look(mastheadTheme());
     return sketch::kit::titleCard(
-        {.eyebrow = {.words = "MET OFFICE · FOR THE MARITIME AND "
-                              "COASTGUARD AGENCY",
+        {.eyebrow = {.words = words(page["eyebrow"]),
                      .opacity = beat(0.05f, 0.55f)},
-         .title = {.words = "THE SHIPPING FORECAST",
+         .title = {.words = words(page["title"]),
                    .fx = Track{.effect = fx::rise(16.0f),
                                .stagger = {.eachMs = 0,
                                            .amountMs = 420,
@@ -949,9 +982,7 @@ struct ShippingForecast : sketch::Sketch {
                             .justify(Justify::Center)
                             .children({ringPanel()}),
                     }),
-                    text("EVERY ADJECTIVE IN THE BULLETIN IS A DEFINED "
-                         "QUANTITY · THE ORDER OF THE AREAS IS FIXED AND RUNS "
-                         "CLOCKWISE")
+                    text(words(record(doc, "foot")))
                         .styleClass("foot")
                         .key("foot")
                         .opacity(beat(3.10f, 3.75f)),
@@ -971,6 +1002,11 @@ struct ShippingForecast : sketch::Sketch {
     sketch::kit::stage(
         ctx,
         {.size = SkSize::Make(kW, kH), .captureAt = 10.8, .background = kSea});
+
+    // THE BULLETIN. Read once, so every panel below reads the same one and
+    // an edit to the document re-runs setup without a rebuild.
+    doc = ctx.assets.json(ctx.local("data/content.json"));
+    ring = areaRing(doc);
 
     // The system grotesque is the face that carries GRAD, the
     // advance-invariant weight axis the swell needs. The stand-ins keep the

@@ -1,0 +1,180 @@
+{
+  "areas": [
+    {
+      "name": "VIKING",
+      "bearing": 14
+    },
+    {
+      "name": "NORTH UTSIRE",
+      "bearing": 33
+    },
+    {
+      "name": "SOUTH UTSIRE",
+      "bearing": 50
+    },
+    {
+      "name": "FORTIES",
+      "bearing": 65
+    },
+    {
+      "name": "CROMARTY",
+      "bearing": 78
+    },
+    {
+      "name": "FORTH",
+      "bearing": 90
+    },
+    {
+      "name": "TYNE",
+      "bearing": 101
+    },
+    {
+      "name": "DOGGER",
+      "bearing": 112
+    },
+    {
+      "name": "FISHER",
+      "bearing": 124
+    },
+    {
+      "name": "GERMAN BIGHT",
+      "bearing": 137
+    },
+    {
+      "name": "HUMBER",
+      "bearing": 152
+    },
+    {
+      "name": "THAMES",
+      "bearing": 166
+    },
+    {
+      "name": "DOVER",
+      "bearing": 178
+    },
+    {
+      "name": "WIGHT",
+      "bearing": 192
+    },
+    {
+      "name": "PORTLAND",
+      "bearing": 206
+    },
+    {
+      "name": "PLYMOUTH",
+      "bearing": 222
+    }
+  ],
+  "cardinals": [
+    "N",
+    "E",
+    "S",
+    "W"
+  ],
+  "ring": {
+    "hero": [
+      "GERMAN",
+      "BIGHT"
+    ],
+    "cap": "SEA AREA · READ IN ORDER FROM VIKING"
+  },
+  "gale": "GALE WARNING · GERMAN BIGHT · IMMINENT",
+  "forecast": {
+    "eyebrow": "AREA FORECAST",
+    "runs": [
+      {
+        "words": "Southwesterly",
+        "style": "dir"
+      },
+      {
+        "words": " 5 to 7, occasionally gale 8 "
+      },
+      {
+        "words": "later",
+        "style": "term"
+      },
+      {
+        "words": ". Rain then showers. Moderate or good, occasionally "
+      },
+      {
+        "words": "poor",
+        "style": "term"
+      },
+      {
+        "words": "."
+      }
+    ]
+  },
+  "barometer": {
+    "eyebrow": "PRESSURE · TENDENCY",
+    "reading": "1003 FALLING SLOWLY",
+    "charset": "0123456789ABCDEFGHJKLMNPRSTUVWXYZ",
+    "note": "SLOWLY — 0.1 TO 1.5 MB IN THREE HOURS"
+  },
+  "synopsis": {
+    "eyebrow": "GENERAL SYNOPSIS · 0100 UTC",
+    "runs": [
+      {
+        "words": "Low",
+        "style": "dir"
+      },
+      {
+        "words": ", Rockall, "
+      },
+      {
+        "words": "987"
+      },
+      {
+        "words": ", "
+      },
+      {
+        "words": "deepening rapidly",
+        "style": "term"
+      },
+      {
+        "words": ", expected Fair Isle "
+      },
+      {
+        "words": "968"
+      },
+      {
+        "words": " by 0700 tomorrow. Atlantic high losing its grip."
+      }
+    ]
+  },
+  "stations": {
+    "eyebrow": "COASTAL STATIONS · 0100 UTC",
+    "rows": [
+      {
+        "place": "TIREE AUTOMATIC",
+        "wind": "SW 6",
+        "baro": "1008 / 1.4 FALLING"
+      },
+      {
+        "place": "STORNOWAY",
+        "wind": "WSW 5",
+        "baro": "1011 / 0.8 FALLING"
+      },
+      {
+        "place": "LERWICK",
+        "wind": "S 7",
+        "baro": "0999 / 2.9 FALLING"
+      }
+    ]
+  },
+  "beaufort": {
+    "eyebrow": "BEAUFORT FORCE · 5 TO 7, OCCASIONALLY 8",
+    "names": "5 FRESH BREEZE · 6 STRONG BREEZE · 7 NEAR GALE · 8 GALE"
+  },
+  "spine": "BBC RADIO 4 · 198 kHz LONG WAVE · 0048",
+  "header": {
+    "eyebrow": "MET OFFICE · FOR THE MARITIME AND COASTGUARD AGENCY",
+    "title": "THE SHIPPING FORECAST",
+    "slugs": [
+      "ISSUED 0015 UTC · VALID TO 0600 UTC TOMORROW",
+      "IMMINENT: WITHIN 6 H · SOON: 6–12 H · LATER: BEYOND 12 H",
+      "GOOD > 5 NM · MODERATE 2–5 NM · POOR 1000 M – 2 NM"
+    ]
+  },
+  "foot": "EVERY ADJECTIVE IN THE BULLETIN IS A DEFINED QUANTITY · THE ORDER OF THE AREAS IS FIXED AND RUNS CLOCKWISE"
+}
