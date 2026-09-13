@@ -134,8 +134,8 @@ struct SlitScan2001 : sketch::Sketch {
    *  otherwise squash a text leaf below its measured height and the run
    *  silently overlaps its neighbour. This is the height-axis form of the
    *  same rule that lets a fixed width() flex child still shrink. */
-  Element pl(const std::string& str, weave::TextStyle st) {
-    return slit::t(str, std::move(st)).shrink(0);
+  Element pl(const std::string& str, weave::Type partial) {
+    return slit::t(str, std::move(partial)).shrink(0);
   }
 
   Element panelShell(const char* heading, int order);

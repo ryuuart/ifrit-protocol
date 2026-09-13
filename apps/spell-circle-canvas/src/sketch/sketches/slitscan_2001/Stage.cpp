@@ -5,26 +5,32 @@ auto SlitScan2001::header() -> Element {
   Track rise{.effect = fx::rise(18.0f),
              .stagger = {.eachMs = 22},
              .progress = animate(to(1.0f), {440ms, ch::easeOutExpo, 120ms})};
+  // The masthead is set in the interface face; the title alone takes
+  // the bold cut.
   return box()
       .column()
       .height(Dimension(kHeaderH))
       .gap(4)
+      .font({.face = uiFace()})
       .child(
-          t("TIME AS AN AXIS OF THE IMAGE", ui(10, kType2, 2.6f))
+          t("TIME AS AN AXIS OF THE IMAGE",
+            {.size = 10, .color = kType2, .track = 2.6f})
               .key("eyebrow")
               .opacity(animate(from(0.0f).to(1.0f), {260ms, ch::easeOutQuad}))
               .translateY(
                   animate(from(8.0f).to(0.0f), {260ms, ch::easeOutQuad})))
-      .child(t("THE SLIT-SCAN MACHINE, 1966–68", uiB(40, kType, 0.4f))
-                 .key("title")
-                 .textStroke(0.6f, Fill::color(kInk))
-                 .fx(std::move(rise)))
+      .child(
+          t("THE SLIT-SCAN MACHINE, 1966–68",
+            {.face = uiBoldFace(), .size = 40, .color = kType, .track = 0.4f})
+              .key("title")
+              .textStroke(0.6f, Fill::color(kInk))
+              .fx(std::move(rise)))
       .child(t("Douglas Trumbull — ‘Creating Special Effects for 2001: A "
                "Space Odyssey’, American Cinematographer 49(6):416–420, "
                "451–453, June 1968 (READ DIRECTLY) · Cinefex 85, April "
                "2001 · Super Panavision 70, 65 mm 5-perf spherical, "
                "2.20:1, 24 fps, f/1.8",
-               ui(11, kType2))
+               {.size = 11, .color = kType2})
                  .key("cite")
                  .opacity(animate(from(0.0f).to(1.0f),
                                   {240ms, ch::easeOutQuad, 400ms})));
@@ -89,7 +95,7 @@ auto SlitScan2001::filmFrame() -> Element {
 
   auto hud = [&](const std::string& str, float l, float tp, float r, float b,
                  SkColor4f col) {
-    Element e = t(str, mono(8, col, 0.6f)).absolute();
+    Element e = t(str, {.color = col}).absolute();
     if (l >= 0) e.left(Dimension(l));
     if (r >= 0) e.right(Dimension(r));
     if (tp >= 0) e.top(Dimension(tp));
@@ -101,10 +107,13 @@ auto SlitScan2001::filmFrame() -> Element {
   const long long mh = (long long)(machineSec / 3600.0);
   const long long mm = (long long)std::fmod(machineSec / 60.0, 60.0);
 
+  // Every line on the frame — the HUD and the footer — is the mono face
+  // at 8 px tracked 0.6, so a line names only its colour.
   return box()
       .width(Dimension(kFilmW))
       .height(Dimension(kFilmH))
       .shrink(0)
+      .font({.face = monoFace(), .size = 8, .track = 0.6f})
       .fill(kBlack)
       .clip()
       .stroke(stroke(1.0f, Fill::color(kRule)))
@@ -146,19 +155,19 @@ auto SlitScan2001::filmFrame() -> Element {
                                          "MACHINE TIME %lld h %02lld m  @ "
                                          "2880 : 1%s",
                                          mh, mm, everClamped ? "  *" : ""),
-                                     mono(8, al(kTick, 0.95f), 0.6f)))
+                                     {.color = al(kTick, 0.95f)}))
                             .child(t("2.20 : 1 · 65 mm 5-PERF · f/1.8",
-                                     mono(8, al(kTick, 0.95f), 0.6f))))
+                                     {.color = al(kTick, 0.95f)})))
                  .child(t("THE FRAME IS HELD, NOT TWEENED. addFixed’s "
                           "INTERPOLANT DRIVES THE SHUTTER BAR AND NOTHING "
                           "IN THE PICTURE.",
-                          mono(8, al(kTick, 0.8f), 0.6f)))
+                          {.color = al(kTick, 0.8f)}))
                  .child(t("THE SWEEP BEGINS 5 px FROM THE VANISHING POINT = "
                           "15 FEET FROM THE LENS, AND ENDS AT 600 px = 1½ "
                           "INCHES · THE FRAME IS THE SCAN, 120 : 1, DRAWN "
                           "TO ITS OWN SCALE — THE 5 px HOLE AT THE APEX IS "
                           "THAT FAR LIMIT, VISIBLE",
-                          mono(8, al(kType2, 0.95f), 0.6f))));
+                          {.color = al(kType2, 0.95f)})));
 }
 
 auto SlitScan2001::rigStrip() -> Element {
@@ -167,6 +176,7 @@ auto SlitScan2001::rigStrip() -> Element {
       .width(Dimension(kRigW))
       .height(Dimension(kRigH))
       .shrink(0)
+      .font({.face = monoFace()})  // the monitor's lines and the readouts
       .key("rig")
       // BOTH PROGRAMS BELOW ARE KEYLESS ON PURPOSE. They read the
       // carriage's live position and the artwork's live offset as they
@@ -209,13 +219,14 @@ auto SlitScan2001::rigStrip() -> Element {
                                                          instancing::Mode::Live,
                                                          SkBlendMode::kPlus))
                             .effect(Effect::shader(transfer, {{"k", 2.4f}})))
-                 .child(t("THIS EXPOSURE", mono(8, al(kCold, 0.85f), 1.4f))
+                 .child(t("THIS EXPOSURE",
+                          {.size = 8, .color = al(kCold, 0.85f), .track = 1.4f})
                             .left(Dimension(8))
                             .top(Dimension(5)))
                  .child(slot("expo").left(Dimension(8)).bottom(Dimension(19)))
                  .child(t("ONE SWEEP / 3.0 s. THE MACHINE TOOK 45–60 s "
                           "[C85]. ×18.",
-                          mono(7, al(kTick, 0.95f)))
+                          {.size = 7, .color = al(kTick, 0.95f)})
                             .left(Dimension(8))
                             .bottom(Dimension(6))))
       .child(slot("readout").left(Dimension(20)).top(Dimension(130)));

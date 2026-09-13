@@ -169,7 +169,6 @@ constexpr float kPanelStripW = 432;  // 144 in at 3.0 px/in, exact
 // ---------------------------------------------------------------------------
 // Type
 
-using instrument::faced;
 using instrument::mono;
 using instrument::monoB;
 using instrument::monoBoldFace;
@@ -180,11 +179,21 @@ using instrument::uiB;
 using instrument::uiBoldFace;
 using instrument::uiFace;
 
-/** The quotation register: condensed 0.94 with 0.4 of tracking. */
-inline weave::TextStyle quo(float s, SkColor4f c) {
-  weave::TextStyle st = faced(uiFace(), s, c, 0.4f);
-  st.condense(0.94f);
-  return st;
+/** A line set in a PARTIAL over the font in force where it lands — a
+ *  panel's mono in the type-2 ink, the masthead's interface face, the
+ *  film frame's 8 px tracked 0.6 — naming only what differs. */
+inline Element t(std::string_view line, weave::Type partial) {
+  return text(toUtf8(line)).font(std::move(partial));
+}
+
+/** The quotation register: the interface face, condensed 0.94 with 0.4
+ *  of tracking, over the panel's font. */
+inline weave::Type quo(float s, SkColor4f c) {
+  return {.face = uiFace(),
+          .size = s,
+          .color = c,
+          .track = 0.4f,
+          .condense = 0.94f};
 }
 
 inline Element rule(float w, SkColor4f c, float h = 1.0f) {
