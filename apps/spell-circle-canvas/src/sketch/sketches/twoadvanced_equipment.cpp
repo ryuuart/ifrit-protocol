@@ -224,11 +224,7 @@ struct TwoAdvancedEquipment : sketch::Sketch {
               SkColor4f fallback = teq::kMaroon) {
     auto it = art.find(name);
     if (it == art.end() || !it->second)
-      return box()
-          .width(w)
-          .height(h)
-          .shrink(0)
-          .fill(fallback);
+      return box().width(w).height(h).shrink(0).fill(fallback);
     return image(it->second).width(w).height(h).shrink(0);
   }
 
@@ -237,9 +233,9 @@ struct TwoAdvancedEquipment : sketch::Sketch {
   Element topFrame() {
     using namespace teq;
     Element f = at(box(), 0, 0, kPageW, kTopH).clip();
-    f.children({at(img("ecom-topbar.gif", 790, 19), 0, 0, 790, 19)});
-    f.children({at(img("ecom-logo.gif", 262, 78), 0, 19, 262, 78)});
-    f.children({at(img("ecom-titleheader.gif", 511, 63), 262, 19, 511, 63)});
+    f.children({at(img("ecom-topbar.gif", 790, 19), 0, 0, 790, 19),
+                at(img("ecom-logo.gif", 262, 78), 0, 19, 262, 78),
+                at(img("ecom-titleheader.gif", 511, 63), 262, 19, 511, 63)});
     // The four rollover buttons wrap beneath the title image. The page
     // preloads an -on.gif for each, but the archive never captured
     // those states (they only fetched on hover), so the swap is
@@ -277,51 +273,39 @@ struct TwoAdvancedEquipment : sketch::Sketch {
     using namespace teq;
     Element block = box().column().width(501);
     block.children(
-        {box()
-             .height(15)
-             .row()
-             .children({box().width(13)})
-             .children({box()
-                            .width(16)
-                            .fill(kMaroon)
-                            .justify(Justify::Center)
-                            .alignItems(Align::Center)
-                            .children({img("ecom-arrowbutton.gif", 16, 15)})})
-             .children({box()
-                            .grow(1)
-                            .fill(kMaroon)
-                            .row()
-                            .alignItems(Align::Center)
-                            .padding(4, 0)
-                            .children({t(p.name, {.color = kWhite})})})
-             .children({box()
-                            .width(17)
-                            .fill(kMaroon)
-                            .justify(Justify::Center)
-                            .alignItems(Align::Center)
-                            .children({img("ecom-3dots.gif", 17, 15)})})});
-    block.children({box().height(2)});
-    block.children(
-        {box()
-             .row()
-             .children({box().width(13)})
-             .children({img(p.thumb, 69, 52, hexColor(0xD8D0D0))})
-             .children({box().width(3)})
-             .children(
-                 {box()
-                      .width(416)
-                      .height(52)
-                      .fill(kRose)
-                      .column()
-                      .children({box().padding(7).children(
-                          {t(p.copy, {.color = kMaroon})})})
-                      .children({box().grow(1)})
-                      .children({box()
-                                     .row()
-                                     .justify(Justify::End)
-                                     .children({img("ecom-viewdetails.gif", 84,
-                                                    16)})})})});
-    block.children({box().height(6)});
+        {box().height(15).row().children(
+             {box().width(13),
+              box()
+                  .width(16)
+                  .fill(kMaroon)
+                  .justify(Justify::Center)
+                  .alignItems(Align::Center)
+                  .children({img("ecom-arrowbutton.gif", 16, 15)}),
+              box()
+                  .grow(1)
+                  .fill(kMaroon)
+                  .row()
+                  .alignItems(Align::Center)
+                  .padding(4, 0)
+                  .children({t(p.name, {.color = kWhite})}),
+              box()
+                  .width(17)
+                  .fill(kMaroon)
+                  .justify(Justify::Center)
+                  .alignItems(Align::Center)
+                  .children({img("ecom-3dots.gif", 17, 15)})}),
+         box().height(2),
+         box().row().children(
+             {box().width(13), img(p.thumb, 69, 52, hexColor(0xD8D0D0)),
+              box().width(3),
+              box().width(416).height(52).fill(kRose).column().children(
+                  {box().padding(7).children({t(p.copy, {.color = kMaroon})}),
+                   box().grow(1),
+                   box()
+                       .row()
+                       .justify(Justify::End)
+                       .children({img("ecom-viewdetails.gif", 84, 16)})})}),
+         box().height(6)});
     return block;
   }
 
@@ -335,20 +319,24 @@ struct TwoAdvancedEquipment : sketch::Sketch {
     // flex child left to its defaults would SHRINK to fit instead of
     // scrolling — rows visibly compressing into one another.
     Element list =
-        box().column().width(501).height(kListH).shrink(0);
-    list.children({box().height(1)});
-    list.children({img("ecom-productselection.gif", 501, 16, kMaroon)});
-    list.children({box().height(6)});
-    for (const Product& p : kProducts) list.children({product(p)});
-    list.children({img("ecom-breakerbar.gif", 501, 6, kMaroon)});
-    list.children(
-        {box()
-             .height(11)
-             .row()
-             .alignItems(Align::Center)
-             .children({box().grow(1)})
-             .children({img("ecom-copyright.gif", 165, 11, kWhite)})});
-    list.translateY(scrollEnvelope().target(0.0f, -contentOverflow));
+        box()
+            .column()
+            .width(501)
+            .height(kListH)
+            .shrink(0)
+            .translateY(scrollEnvelope().target(0.0f, -contentOverflow))
+            .children({box().height(1),
+                       img("ecom-productselection.gif", 501, 16, kMaroon),
+                       box().height(6),
+                       each(kProducts,
+                            [this](const Product& p) { return product(p); }),
+                       img("ecom-breakerbar.gif", 501, 6, kMaroon),
+                       box()
+                           .height(11)
+                           .row()
+                           .alignItems(Align::Center)
+                           .children({box().grow(1), img("ecom-copyright.gif",
+                                                         165, 11, kWhite)})});
 
     // The styled IE scrollbar: two arrow buttons and a proportional
     // thumb, in exactly the BODY's SCROLLBAR-* colours.
