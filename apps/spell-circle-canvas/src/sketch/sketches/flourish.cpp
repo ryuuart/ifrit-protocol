@@ -91,11 +91,6 @@ struct Flourish final : sketch::Sketch {
 
   // ---- helpers ------------------------------------------------------------
 
-  static sigil::weave::TextStyle glyphs(float size, SkColor4f color,
-                                        float tracking = 0.0f) {
-    return weave::textStyle({.size = size, .color = color, .track = tracking});
-  }
-
   static sk_sp<SkRuntimeEffect> makeHatch() {
     return SkRuntimeEffect::MakeForShader(SkString(R"(
         half4 main(float2 p) {
@@ -333,7 +328,9 @@ struct Flourish final : sketch::Sketch {
               .height(16));
 
     auto titleLayer = [this](SkColor4f color, bool bloom) {
-      auto t = text(u8"AURELIA", glyphs(34, color, 5.0f))
+      auto t = text(u8"AURELIA")
+                   .font({.size = 34, .track = 5.0f})
+                   .ink(color)
                    .key(bloom ? "titleBloom" : "title")
                    .opacity(&titleFade);
       if (bloom)
@@ -350,8 +347,11 @@ struct Flourish final : sketch::Sketch {
           .child(std::move(t));
     };
 
+    // The cartouche is set in the style's ink; the title and the closing
+    // line name their own colours over it.
     return box()
         .key("cartouche")
+        .ink(st.ink)
         .inset(224, 188, 224, 188)  // ~452×264 centered box
         .corners({16})
         .zIndex(3)
@@ -396,8 +396,8 @@ struct Flourish final : sketch::Sketch {
                     u8"corner, while the medallions turn and the rules hold "
                     u8"their three weights of gold — every ornament a "
                     u8"different corner of the compose surface, woven around "
-                    u8"this seal.",
-                    glyphs(12.5f, st.ink))
+                    u8"this seal.")
+                   .font({.size = 12.5f})
                    .key("motto")
                    .flowAround("seal", 7))
         .child(box()
@@ -405,8 +405,9 @@ struct Flourish final : sketch::Sketch {
                    .gap(2)
                    .justify(Justify::Center)
                    .children(std::move(frieze)))
-        .child(text(u8"— a stress test that chose to be beautiful —",
-                    glyphs(11, st.rubric)));
+        .child(text(u8"— a stress test that chose to be beautiful —")
+                   .font({.size = 11})
+                   .ink(st.rubric));
   }
 
   // ---- draw-on scrollwork sweeps (Cache::None, read reveal live) ----------
