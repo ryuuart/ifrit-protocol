@@ -133,7 +133,7 @@ Element TwoAdvancedV3::wordmark() {
                                 .child(t("2 A D V A N C E D",
                                          sigil::weave::kit::tracked(
                                              grotBold(), 27, kNear, 80, 1.02f)))
-                                .child(t("\xc2\xae", micro(9, kNear, 0))))
+                                .child(t("®", micro(9, kNear, 0))))
                      .child(t("S T U D I O S",
                               sigil::weave::kit::tracked(grotBold(), 12, kNear,
                                                          560, 1.0f))))
@@ -173,7 +173,7 @@ Element TwoAdvancedV3::navBar() {
               onEdges(path::Edge::Right,
                       stroke(1, Fill::color(mskia::withAlpha(kInk, 0.8f)),
                              PathFormat::Align::Inner)))
-          .child(t("\xe2\x86\x92", micro(11, kSteelHi, 0)))
+          .child(t("→", micro(11, kSteelHi, 0)))
           .child(t("2A.V3..2024 // EXPANSIONS", micro(11.5f, kNear, 80))));
   // Right: the six tab slots live in a slot so the active-section
   // indicator can move without re-describing the bar.
@@ -242,7 +242,7 @@ Element TwoAdvancedV3::scrollStrip() {
                     path::Edge::Top,
                     stroke(1, Fill::color(mskia::withAlpha(kSteelHi, 0.55f)),
                            PathFormat::Align::Inner)))
-                .child(t("\xe2\x86\x93", micro(9, kSteelHi, 0)))
+                .child(t("↓", micro(9, kSteelHi, 0)))
                 .child(t("SCROLL.EXTENDED.CONTENT",
                          micro(9, mskia::withAlpha(kSteelHi, 0.85f), 180)))
                 .child(box().grow(1))

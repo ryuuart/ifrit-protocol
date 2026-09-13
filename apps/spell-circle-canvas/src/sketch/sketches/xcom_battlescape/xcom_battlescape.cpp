@@ -575,9 +575,9 @@ struct XcomBattlescape : sketch::Sketch {
     verdict = {};
     verdict.add(measure::heading("THE SHEET"));
     verdict.add(measure::reading(
-        kit::formatted(
-            "atlas cells at %.0f\xc3\x97%.0f, sheet 2048\xc3\x97%.0f", kCellW,
-            kCellH, (double)(std::ceil((float)atlasCells / 16.0f) * kCellH)),
+        kit::formatted("atlas cells at %.0f×%.0f, sheet 2048×%.0f", kCellW,
+                       kCellH,
+                       (double)(std::ceil((float)atlasCells / 16.0f) * kCellH)),
         (long)atlasCells));
     verdict.add(measure::reading(
         kit::formatted("stamps: terrain %d + overlay %zu + glyphs %zu",
@@ -621,8 +621,7 @@ struct XcomBattlescape : sketch::Sketch {
         if (h && *h == k) ++ok;
       }
       verdict.add(measure::check(
-          "#2a panel widgets surviving bounds() \xe2\x86\x92 hitTest()", total,
-          ok));
+          "#2a panel widgets surviving bounds() → hitTest()", total, ok));
     }
     // #2 hitTest against the same inverse.
     int agree = 0, checked = 0;
@@ -663,7 +662,7 @@ struct XcomBattlescape : sketch::Sketch {
         walk += (k ? "," : "") + std::to_string(shade);
       }
       verdict.add(
-          measure::reading("#3  shade walking \xe2\x88\x92x from "
+          measure::reading("#3  shade walking −x from "
                            "the selected soldier",
                            walk));
       verdict.add(
@@ -692,7 +691,7 @@ struct XcomBattlescape : sketch::Sketch {
                            fill ? (double)fill->width() : -1.0, (double)PX),
             wantVal[i], value));
         verdict.add(measure::check(
-            kit::formatted("       outline %.0f px / %.0f \xe2\x88\x92 1",
+            kit::formatted("       outline %.0f px / %.0f − 1",
                            line ? (double)line->width() : -1.0, (double)PX),
             wantMax[i], maxv));
       }
@@ -899,7 +898,6 @@ struct XcomBattlescape : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(
-    XcomBattlescape, "Study \xc2\xb7 Game UI",
-    "X-COM: UFO Defense (1994) at 4\xc3\x97 \xe2\x80\x94 115 colours, all of "
-    "them in the palette")
+SIGIL_SKETCH(XcomBattlescape, "Study · Game UI",
+             "X-COM: UFO Defense (1994) at 4× — 115 colours, all of "
+             "them in the palette")

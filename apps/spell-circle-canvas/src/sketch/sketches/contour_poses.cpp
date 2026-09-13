@@ -140,13 +140,13 @@ struct ContourPoses final : sketch::Sketch {
             : contours.front().corners(kCornerDeg, 6.0f, 2.0f, &sharpest);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "CONTOUR POSES \xc2\xb7 Contour::of + poseAlong + "
+        {.title = "CONTOUR POSES · Contour::of + poseAlong + "
                   "corners + cornerWindows",
-         .subtitle = "dials \xc2\xb7 the station count (24) "
-                     "\xc2\xb7 the corner angle (30\xc2\xb0) "
-                     "\xc2\xb7 the window reach (26 px)",
+         .subtitle = "dials · the station count (24) "
+                     "· the corner angle (30°) "
+                     "· the window reach (26 px)",
          .footer = "one measurement, taken in Contour::of and "
-                   "shared by every copy \xe2\x80\x94 each cell "
+                   "shared by every copy — each cell "
                    "below asks the same run of contours a "
                    "different question about the same distances"},
         kit::cells(
@@ -155,9 +155,9 @@ struct ContourPoses final : sketch::Sketch {
                       {.cells =
                            {cell("Contour::of(path)",
                                  kit::formatted(
-                                     "%zu contour \xc2\xb7 closed %s "
-                                     "\xc2\xb7 totalLength %.1f px "
-                                     "\xc2\xb7 seam ringed",
+                                     "%zu contour · closed %s "
+                                     "· totalLength %.1f px "
+                                     "· seam ringed",
                                      contours
                                          .size(),
                                      path::closedThroughout(run) ? "yes"
@@ -178,12 +178,12 @@ struct ContourPoses final : sketch::Sketch {
                                    canvas.drawLine(sk(head.position), sk(tip),
                                                    strokePaint(kWarm, 1.6f));
                                  }),
-                            cell("poseAlong(contours, d) \xc2\xb7 "
+                            cell("poseAlong(contours, d) · "
                                  "Pose::normal",
                                  kit::formatted(
                                      "%d stations by arrange::along(0, "
                                      "%.0f, i, n, Turn::Closed) "
-                                     "\xc2\xb7 each tick on the pose's "
+                                     "· each tick on the pose's "
                                      "normal",
                                      kStations, (double)total),
                                  [figure, contours, total](SkCanvas& canvas) {
@@ -208,10 +208,10 @@ struct ContourPoses final : sketch::Sketch {
                             cell("Wrap::Clamp vs Wrap::Around",
                                  kit::formatted(
                                      "the same 12 distances from "
-                                     "\xe2\x88\x92"
+                                     "−"
                                      "0.2 to 1.2 of "
                                      "totalLength, joined in order "
-                                     "\xc2\xb7 the outer chain parks "
+                                     "· the outer chain parks "
                                      "at the ends, the inner one comes "
                                      "round the seam"),
                                  [figure, contours, total](SkCanvas& canvas) {
@@ -252,10 +252,10 @@ struct ContourPoses final : sketch::Sketch {
                        .gap = 14}),
                   kit::cells(
                       {.cells =
-                           {cell("Contour::corners(30\xc2\xb0)",
+                           {cell("Contour::corners(30°)",
                                  kit::formatted(
-                                     "%zu corners \xc2\xb7 sharpest turn "
-                                     "%.0f\xc2\xb0 \xc2\xb7 each drawn "
+                                     "%zu corners · sharpest turn "
+                                     "%.0f° · each drawn "
                                      "as its in tangent and its out "
                                      "tangent",
                                      corners.size(), (double)sharpest),
@@ -280,7 +280,7 @@ struct ContourPoses final : sketch::Sketch {
                                          strokePaint(kFigure, 1.4f));
                                    }
                                  }),
-                            cell("cornerWindows(26, true, 30\xc2\xb0)",
+                            cell("cornerWindows(26, true, 30°)",
                                  "the pieces of the outline WITHIN the "
                                  "window of a corner, kept",
                                  [figure](SkCanvas& canvas) {
@@ -290,8 +290,8 @@ struct ContourPoses final : sketch::Sketch {
                                                            true, kCornerDeg),
                                        strokePaint(kWarm, 3.0f));
                                  }),
-                            cell("cornerWindows(26, false, 30\xc2\xb0)",
-                                 "the complement \xe2\x80\x94 everything "
+                            cell("cornerWindows(26, false, 30°)",
+                                 "the complement — everything "
                                  "the windows did not claim, which is "
                                  "the run a straight ornament may take",
                                  [figure](SkCanvas& canvas) {
@@ -307,7 +307,7 @@ struct ContourPoses final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(ContourPoses, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(ContourPoses, "Kit · API",
              "one outline measured once and read as a coordinate: poses at "
              "stations along it, the two wrap policies, its corners and the "
              "windows around them")

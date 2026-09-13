@@ -114,5 +114,5 @@ struct P5MixedForms final : sketch::Sketch {
 
 SIGIL_SKETCH(P5MixedForms, "Draw",
              "a p5 loop with a material fill, type shaped in the font the "
-             "tree set, and a compose card retained inside it \xe2\x80\x94 "
+             "tree set, and a compose card retained inside it — "
              "the cascade crossing the door both ways.")

@@ -212,38 +212,38 @@ auto HitmanVerlet::stageLabels(Pen& pen) -> void {
   pen.text("(1000, 1000)", kStage - 62, 5);
   penUi(pen, 7.5f, kBone, 0.5f);
   pen.text(
-      "\xc2\xa7"
-      "9 \xc2\xb7 THE CORPSE \xc2\xb7 16 PARTICLES, 24 STICKS, "
-      "4 ITERATIONS \xc2\xb7 EVERY STICK COLOURED BY ITS LIVE "
+      "§"
+      "9 · THE CORPSE · 16 PARTICLES, 24 STICKS, "
+      "4 ITERATIONS · EVERY STICK COLOURED BY ITS LIVE "
       "CONSTRAINT ERROR",
       16, 548, 214, 60);
   penUi(pen, 7.0f, kTick, 0.5f);
   pen.textAlign(draw::RIGHT, draw::TOP);
   pen.text(
-      "\xc2\xa7"
-      "4 \xc2\xb7 TRIANGULAR MESH \xc2\xb7 ONE PARTICLE PINNED "
-      "\xc2\xb7 ONE ITERATION \xc2\xb7 THE SAG IS THE ITERATION "
+      "§"
+      "4 · TRIANGULAR MESH · ONE PARTICLE PINNED "
+      "· ONE ITERATION · THE SAG IS THE ITERATION "
       "COUNT",
       452, 412, 268, 40);
   pen.text(
-      "\xc2\xa7"
-      "4 \xc2\xb7 PLANTS = CLOTH + SUPPORT STICKS \xc2\xb7 ONE "
-      "ITERATION \xc2\xb7 BASE ROW PINNED",
+      "§"
+      "4 · PLANTS = CLOTH + SUPPORT STICKS · ONE "
+      "ITERATION · BASE ROW PINNED",
       452, 596, 268, 40);
   pen.textAlign(draw::LEFT, draw::TOP);
   pen.text(
-      "736 \xc3\x97 736 px = THE PAPER'S CUBE "
-      "(0,0,0)\xe2\x80\x93(1000,1000,1000) IN THE PLANE.",
+      "736 × 736 px = THE PAPER'S CUBE "
+      "(0,0,0)–(1000,1000,1000) IN THE PLANE.",
       240, 18, 262, 24);
   pen.text(
-      "1 UNIT = 0.736 px = 3.60 mm \xc2\xb7 THE STAGE IS SQUARE "
+      "1 UNIT = 0.736 px = 3.60 mm · THE STAGE IS SQUARE "
       "BECAUSE THE WORLD IS A CUBE.",
       240, 40, 262, 24);
   penUi(pen, 7.0f, hexColor(0xC8402F, 0.8f), 0.4f);
   pen.text(
-      "\xc2\xa7"
-      "7 BOMB \xe2\x8a\x95 \xc2\xb7 |\xce\x94x| = K / |x\xe2\x88\x92"
-      "c|\xc2\xb2 \xc2\xb7 EVERY PARTICLE, ONCE \xc2\xb7 THE "
+      "§"
+      "7 BOMB ⊕ · |Δx| = K / |x−"
+      "c|² · EVERY PARTICLE, ONCE · THE "
       "INTEGRATOR MAKES IT VELOCITY",
       240, 68, 262, 24);
 
@@ -262,7 +262,7 @@ auto HitmanVerlet::figPenetration(Pen& pen, float x0, float y0, float a)
   inset(pen, x0, y0, 208, 148, a);
   penUi(pen, 7.5f, fadeTo(kSteel, a), 1.2f);
   pen.text(
-      "FIG. 4b/5b \xc2\xb7 \xc2\xa7"
+      "FIG. 4b/5b · §"
       "5 PENETRATION",
       x0 + 8, y0 + 8);
   pen.push();
@@ -299,15 +299,14 @@ auto HitmanVerlet::figPenetration(Pen& pen, float x0, float y0, float a)
   pen.pop();
   float y = y0 + 21 + 64 + 3;
   penMono(pen, 7.0f, fadeTo(kBlue, a), 0.1f);
-  pen.text("p = c1\xc2\xb7x1 + c2\xc2\xb7x2,  c1 = 0.75, c2 = 0.25", x0 + 8, y);
+  pen.text("p = c1·x1 + c2·x2,  c1 = 0.75, c2 = 0.25", x0 + 8, y);
   y += 11;
   pen.text(
-      "\xce\xbb = (q\xe2\x88\x92p)\xc2\xb7\xce\x94 / "
-      "((c1\xc2\xb2+c2\xc2\xb2)\xc2\xb7\xce\x94\xc2\xb2)",
+      "λ = (q−p)·Δ / "
+      "((c1²+c2²)·Δ²)",
       x0 + 8, y);
   y += 11;
-  pen.text("x1' = x1 + c1\xce\xbb\xce\x94    x2' = x2 + c2\xce\xbb\xce\x94",
-           x0 + 8, y);
+  pen.text("x1' = x1 + c1λΔ    x2' = x2 + c2λΔ", x0 + 8, y);
   y += 12;
   penUi(pen, 6.5f, fadeTo(kTick, a), 0.6f);
   pen.text("THE FIX-UP VIOLATES THE STICK. RELAX AGAIN.", x0 + 8, y);
@@ -317,7 +316,7 @@ auto HitmanVerlet::figFriction(Pen& pen, float x0, float y0, float a) -> void {
   inset(pen, x0, y0, 208, 148, a);
   penUi(pen, 7.5f, fadeTo(kSteel, a), 1.2f);
   pen.text(
-      "FIG. 10 \xc2\xb7 \xc2\xa7"
+      "FIG. 10 · §"
       "7 FRICTION",
       x0 + 8, y0 + 8);
   pen.push();
@@ -352,11 +351,11 @@ auto HitmanVerlet::figFriction(Pen& pen, float x0, float y0, float a) -> void {
   pen.text("d_p MEASURED BEFORE THE PROJECTION,", x0 + 8, y);
   y += 11;
   pen.text(
-      "v_t REDUCED BY k\xc2\xb7"
+      "v_t REDUCED BY k·"
       "d_p BY MOVING x*.",
       x0 + 8, y);
   y += 11;
-  pen.text("NEVER LET v_t REVERSE \xe2\x80\x94 CLAMP TO ZERO.", x0 + 8, y);
+  pen.text("NEVER LET v_t REVERSE — CLAMP TO ZERO.", x0 + 8, y);
   y += 12;
   penUi(pen, 6.5f, fadeTo(kTick, a), 0.6f);
   pen.text("RESTITUTION IS ZERO: PARTICLES DO NOT BOUNCE.", x0 + 8, y);
@@ -379,8 +378,7 @@ auto HitmanVerlet::instancingStrip(Pen& pen, float x0, float y0, float a)
   constexpr float w = 330, h = 108;
   inset(pen, x0, y0, w, h, a);
   penUi(pen, 7.5f, fadeTo(kSteel, a), 0.9f);
-  pen.text("SAME 24 STICKS \xc2\xb7 instances()+sizes() vs the pen", x0 + 7,
-           y0 + 7);
+  pen.text("SAME 24 STICKS · instances()+sizes() vs the pen", x0 + 7, y0 + 7);
   pen.element(barsEl, SkRect::MakeXYWH(x0 + 7, y0 + 19, 150, 76));
   {
     float sc = 1;
@@ -393,8 +391,7 @@ auto HitmanVerlet::instancingStrip(Pen& pen, float x0, float y0, float a)
   pen.fill(hexColor(0x191B22, 0.9f * a));
   pen.rect(x0 + 7 + 158, y0 + 19, 1, 76);
   penMono(pen, 7.0f, fadeTo(kTick, a), 0.2f);
-  pen.text("ONE POOL WITH sizes() \xc2\xb7 ONE PEN PROGRAM", x0 + 7,
-           y0 + h - 17);
+  pen.text("ONE POOL WITH sizes() · ONE PEN PROGRAM", x0 + 7, y0 + h - 17);
 }
 
 auto HitmanVerlet::errorLegend(Pen& pen, float x0, float y0, float a) -> void {
@@ -407,8 +404,7 @@ auto HitmanVerlet::errorLegend(Pen& pen, float x0, float y0, float a) -> void {
   pen.strokeWeight(1);
   pen.rect(x0 + 0.5f, y0 + 0.5f, w - 1, h - 1, 4);
   pen.noStroke();
-  const char* labels[5] = {"0.000", "0.004", "0.010", "0.020",
-                           "\xe2\x89\xa5.035"};
+  const char* labels[5] = {"0.000", "0.004", "0.010", "0.020", "≥.035"};
   for (int i = 0; i < 5; ++i) {
     const float x = x0 + 7 + (float)i * 50;
     pen.fill(fadeTo(kRampCol[i], a));
@@ -418,12 +414,12 @@ auto HitmanVerlet::errorLegend(Pen& pen, float x0, float y0, float a) -> void {
   }
   penUi(pen, 7.0f, fadeTo(kSteel, a), 0.3f);
   pen.textAlign(draw::RIGHT, draw::TOP);
-  pen.text("e = ||x2\xe2\x88\x92x1|\xe2\x88\x92r| / r", x0 + w - 7, y0 + 7);
+  pen.text("e = ||x2−x1|−r| / r", x0 + w - 7, y0 + 7);
   pen.textAlign(draw::LEFT, draw::TOP);
   // the live readout: max error, contacts, step and the interpolant
   const std::string buf = kit::formatted(
-      "MAX e %5.2f%%  \xc2\xb7  CONTACTS %2zu  \xc2\xb7  STEP "
-      "%llu  \xc2\xb7  \xce\xb1 %.2f",
+      "MAX e %5.2f%%  ·  CONTACTS %2zu  ·  STEP "
+      "%llu  ·  α %.2f",
       stageMaxErr * 100, contactCount, (unsigned long long)simSteps,
       (double)alpha.value());
   penMonoB(pen, 8.0f, errColor(stageMaxErr, a), 0.1f);

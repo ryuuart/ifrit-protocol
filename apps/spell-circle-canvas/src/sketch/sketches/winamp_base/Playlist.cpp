@@ -138,7 +138,7 @@ auto WinampBase::ellipsized(int idx, const std::string& s,
                             const sigil::weave::TextStyle& st, float w)
     -> Element {
   sigil::weave::ParagraphBuilder b(st);
-  b.addText(toUtf8(s));
+  b.addText(s);
   auto p = std::make_shared<sigil::weave::Paragraph>(b.build());
   if ((int)rowPara.size() <= idx) rowPara.resize((size_t)idx + 1);
   rowPara[(size_t)idx] = p;

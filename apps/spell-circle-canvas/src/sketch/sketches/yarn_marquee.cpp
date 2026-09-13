@@ -267,23 +267,23 @@ struct YarnMarquee final : sketch::Sketch {
     hung = curve::hangFrames(rail, kSections, 1.0f, 1.0f);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE HUNG RAIL \xc2\xb7 curve::hangFrames against "
+        {.title = "THE HUNG RAIL · curve::hangFrames against "
                   "curve::frames",
          .subtitle = "one closed winding, one banner, a two-point "
-                     "line profile \xe2\x80\x94 the ticks are each "
+                     "line profile — the ticks are each "
                      "frame's across-vector at the band's own "
                      "width",
-         .footer = "painter order is the depth test \xc2\xb7 the "
+         .footer = "painter order is the depth test · the "
                    "cull is off, so both faces of a cloth show"},
         kit::cells(
             {.cells = {panel("curve::frames(loop, 220)",
-                             "parallel transport \xe2\x80\x94 the smallest "
+                             "parallel transport — the smallest "
                              "turn from one frame to the next, and no "
                              "relation to the world: the ticks tilt and the "
                              "banner rolls onto its edge",
                              "transported", &transported),
                        panel("curve::hangFrames(loop, 220, head 1, span 1)",
-                             "the hang direction \xe2\x80\x94 straight down, "
+                             "the hang direction — straight down, "
                              "made perpendicular to the tangent: the ticks "
                              "stay level and the banner never turns over",
                              "hung", &hung)},
@@ -291,7 +291,7 @@ struct YarnMarquee final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(YarnMarquee, "Kit \xc2\xb7 API",
-             "the hung rail \xe2\x80\x94 one closed winding swept twice, "
+SIGIL_SKETCH(YarnMarquee, "Kit · API",
+             "the hung rail — one closed winding swept twice, "
              "over parallel-transport frames and over hangFrames, with "
              "each rail's across-vector struck at every station")

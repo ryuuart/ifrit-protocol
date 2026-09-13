@@ -135,7 +135,6 @@ auto KspMapView::update(double elapsed, sketch::SketchContext& ctx) -> void {
   ctx.composer.renderSlot("burn", burnLines());
 }
 
-SIGIL_SKETCH(
-    KspMapView, "Study \xc2\xb7 Game UI",
-    "Kerbal Space Program's map view \xe2\x80\x94 real conics, a navball in "
-    "one SkSL pass")
+SIGIL_SKETCH(KspMapView, "Study · Game UI",
+             "Kerbal Space Program's map view — real conics, a navball in "
+             "one SkSL pass")

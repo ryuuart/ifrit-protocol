@@ -96,11 +96,10 @@ struct DataSources final : sketch::Sketch {
   Element describe() {
     const sketch::kit::Provide look(sketch::kit::theme());
     return sketch::kit::page(
-        {.title = u8"DATA SOURCES \xc2\xb7 one table, three ways",
-         .subtitle =
-             u8"a CSV decoded \xc2\xb7 a SQLite store beside the sketch "
-             u8"\xc2\xb7 DuckDB asked over the CSV \xc2\xb7 every answer "
-             u8"is a Table",
+        {.title = u8"DATA SOURCES · one table, three ways",
+         .subtitle = u8"a CSV decoded · a SQLite store beside the sketch "
+                     u8"· DuckDB asked over the CSV · every answer "
+                     u8"is a Table",
          .footer = u8"the files stand next to the sketch and are named through "
                    u8"ctx.local(); a query shapes the rows where a filter and "
                    u8"a group would, and draws from the same value"},
@@ -114,13 +113,13 @@ struct DataSources final : sketch::Sketch {
                            "the CSV has not loaded")),
                   sketch::kit::caption(
                       kCell, u8"assets.database(local(\"cities.sqlite\"))",
-                      u8"SUM(population) GROUP BY country \xc2\xb7 the store "
+                      u8"SUM(population) GROUP BY country · the store "
                       u8"is opened in place and reopened when it changes",
                       bars(fromSqlite ? &*fromSqlite : nullptr, "country",
                            "population", sqliteNote)),
                   sketch::kit::caption(
                       kCell, u8"Database::memory(Engine::Duck)",
-                      u8"read_csv('cities.csv') WHERE coastal \xc2\xb7 the "
+                      u8"read_csv('cities.csv') WHERE coastal · the "
                       u8"engine reads the file the hub resolved",
                       bars(fromDuck ? &*fromDuck : nullptr, "city",
                            "population", duckNote))},

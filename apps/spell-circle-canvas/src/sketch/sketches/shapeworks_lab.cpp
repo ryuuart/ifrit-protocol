@@ -354,6 +354,6 @@ struct ShapeworksLab : sketch::Sketch {
 
 SIGIL_SKETCH(
     ShapeworksLab, "Start & fixtures",
-    "the seam between three libraries in one custom() leaf \xe2\x80\x94 an "
+    "the seam between three libraries in one custom() leaf — an "
     "operator chain worn as gold, the stock surfaces over bevel maps, and "
     "one curve swept, projected, tiled and scattered")

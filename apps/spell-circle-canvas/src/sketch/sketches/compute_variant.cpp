@@ -216,6 +216,6 @@ struct ComputeVariant final : sketch::Set {
 
 }  // namespace
 
-SIGIL_SKETCH(ComputeVariant, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(ComputeVariant, "Kit · API",
              "computePass cooks the cloud, a variant pass repaints the "
              "tagged row, and a readback counts the points it got back")

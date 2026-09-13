@@ -266,7 +266,7 @@ struct BlendOptions final : sketch::Sketch {
 
     std::vector<Element> bands;
     bands.push_back(band("steps", kBand, kRun, "Options{.steps = 8}",
-                         "a count the author picks \xe2\x80\x94 the arms "
+                         "a count the author picks — the arms "
                          "shorten and the hub swells, because the contours "
                          "are aligned before anything is interpolated",
                          statedCount));
@@ -276,14 +276,14 @@ struct BlendOptions final : sketch::Sketch {
                          "PAIR: the run bends without its spacing changing",
                          waypoint));
     bands.push_back(band("stroke", kBand, kRun,
-                         "Key{.stroke, .strokeWidth} \xc2\xb7 steps = 14",
+                         "Key{.stroke, .strokeWidth} · steps = 14",
                          "a key with no fill carries its stroke WIDTH "
                          "across too, so the run thins from 6 px to 1",
                          strokes));
     bands.push_back(
         band("derived", kBand, kWide,
-             "Spacing::SmoothColor \xc2\xb7 and two OPEN keys at steps = 42",
-             "left: no count is named \xe2\x80\x94 the blend picks one so "
+             "Spacing::SmoothColor · and two OPEN keys at steps = 42",
+             "left: no count is named — the blend picks one so "
              "adjacent steps differ by less than the eye resolves. right: "
              "an open path has no inside, so the count decides between a "
              "ribbon and rails",
@@ -291,31 +291,31 @@ struct BlendOptions final : sketch::Sketch {
 
     Element spineRow = kit::cells(
         {.cells = {band("spine.page", kSpineCell, kSpine,
-                        "Spacing::Distance{30} \xc2\xb7 spine = spiral(2.2) "
-                        "\xc2\xb7 AlignToPage",
+                        "Spacing::Distance{30} · spine = spiral(2.2) "
+                        "· AlignToPage",
                         "the walk is measured in px of SPINE, so the "
                         "density holds where a count would crowd the middle "
                         "and starve the rim; the beads stay upright",
                         spineUpright),
                    band("spine.path", kSpineCell, kSpine,
-                        "the same run \xc2\xb7 AlignToPath",
-                        "each step turns to the tangent \xe2\x80\x94 beads "
+                        "the same run · AlignToPath",
+                        "each step turns to the tangent — beads "
                         "on a wire, against confetti on a line beside it",
                         spineTurned)},
          .gap = 18});
     bands.push_back(std::move(spineRow));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "BLEND OPTIONS \xc2\xb7 how many steps, "
+        {.title = "BLEND OPTIONS · how many steps, "
                   "what rides along, and where they walk",
          .subtitle = "path::blend interpolates OUTLINES: "
                      "every intermediate is a real path",
-         .footer = "Sketchbook \xc2\xb7 blend_options"},
+         .footer = "Sketchbook · blend_options"},
         kit::cells({.cells = std::move(bands), .column = true, .gap = 18})));
   }
 };
 
-SIGIL_SKETCH(BlendOptions, "Kit \xc2\xb7 API",
-             "blend::Options \xe2\x80\x94 a stated step count, a third key, "
+SIGIL_SKETCH(BlendOptions, "Kit · API",
+             "blend::Options — a stated step count, a third key, "
              "the stroke width carried across, SmoothColor picking its own "
              "count, and a spiral spine walked upright and turned")

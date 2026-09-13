@@ -131,15 +131,15 @@ struct PlaceRepeatTiles final : sketch::Sketch {
     strip = tiles::sliceable(snapshot(box().child(std::move(run)), *ctx.fonts));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "REPEAT AND TILE \xc2\xb7 instancing::place::"
+        {.title = "REPEAT AND TILE · instancing::place::"
                   "repeat, tiles::window / tiles::sliceable",
-         .subtitle = "dials \xc2\xb7 the copy count (9) \xc2\xb7 the "
+         .subtitle = "dials · the copy count (9) · the "
                      "per-copy translate (19 px), rotation and scale step "
-                     "\xc2\xb7 the opacity ramp \xc2\xb7 the tile count (4) "
+                     "· the opacity ramp · the tile count (4) "
                      "and its facing",
          .footer = "a chain's scale step is EXPONENTIAL and its "
                    "translate linear, and a tile is a clip and a "
-                   "translate \xe2\x80\x94 there is no windowed "
+                   "translate — there is no windowed "
                    "bake and no need for one, because neighbouring "
                    "tiles share their boundary texels"},
         kit::cells({.cells = {chain(), turned(), ramped(), sliced(false),
@@ -154,26 +154,26 @@ struct PlaceRepeatTiles final : sketch::Sketch {
 
   Element chain() const {
     return cell("place::repeat(pool, 9, start, {19, 0})",
-                "the plainest chain \xc2\xb7 position is start + translate "
-                "\xc3\x97 i, and every other lane is left alone",
+                "the plainest chain · position is start + translate "
+                "× i, and every other lane is left alone",
                 pooled(plain));
   }
 
   Element turned() const {
     return cell(
-        "\xe2\x80\xa6"
+        "…"
         ", rotateStep = 0.18, scaleStep = 0.90",
-        "rotation LINEAR in the index, scale EXPONENTIAL \xc2\xb7 "
+        "rotation LINEAR in the index, scale EXPONENTIAL · "
         "each copy is nine tenths of the one before it",
         pooled(spun));
   }
 
   Element ramped() const {
     return cell(
-        "\xe2\x80\xa6"
+        "…"
         ", opacityFrom = 1, opacityTo = 0.12",
         "the ramp writes the alphas() lane, composing with the "
-        "authored tint \xc2\xb7 written only when the two arguments "
+        "authored tint · written only when the two arguments "
         "say something",
         pooled(faded));
   }
@@ -187,10 +187,10 @@ struct PlaceRepeatTiles final : sketch::Sketch {
     return cell(mirrored ? "tiles::window(tile, k, Down, Mirrored)"
                          : "tiles::window(tile, k, Flow::Down)",
                 mirrored ? "pre-flipped ACROSS the strip for a consumer "
-                           "whose u runs backwards \xc2\xb7 legible in a PNG "
+                           "whose u runs backwards · legible in a PNG "
                            "either way, which is the trap"
                          : "four tiles of one baked picture, drawn apart "
-                           "\xc2\xb7 sliceable() first, so each replay "
+                           "· sliceable() first, so each replay "
                            "visits only its own ops",
                 custom(mirrored ? "tiles.mirrored" : "tiles.forward",
                        [art, facing](SkCanvas& canvas, const PaintContext&) {
@@ -217,7 +217,7 @@ struct PlaceRepeatTiles final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(PlaceRepeatTiles, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(PlaceRepeatTiles, "Kit · API",
              "one motif as a copy chain in an instance pool under three "
              "parameterisations, and one long picture sliced into tiles "
              "forward and mirrored")

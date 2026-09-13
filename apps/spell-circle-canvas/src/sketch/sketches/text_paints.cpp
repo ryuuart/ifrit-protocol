@@ -117,12 +117,12 @@ struct TextPaints final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "TEXT PAINTS \xc2\xb7 Element::textFill over "
+        {.title = "TEXT PAINTS · Element::textFill over "
                   "kit::water, meshGradient, sparkle, starNest, "
                   "clouds, tunnel",
-         .subtitle = "dials \xc2\xb7 the paint \xc2\xb7 the type "
-                     "size (56 px \xe2\x80\x94 change it and the "
-                     "fills do not move) \xc2\xb7 the moment "
+         .subtitle = "dials · the paint · the type "
+                     "size (56 px — change it and the "
+                     "fills do not move) · the moment "
                      "(6.4 s)",
          .footer = "the material's unit square lands with x across "
                    "the widest line and y from cap top to "
@@ -143,13 +143,13 @@ struct TextPaints final : sketch::Sketch {
                             cell("kit::sparkle(bounds, t)",
                                  "a TRANSPARENT field of twinkling "
                                  "points, drawn here over a solid copy "
-                                 "of the word \xc2\xb7 on its own it "
+                                 "of the word · on its own it "
                                  "is an overlay",
                                  paint::Paint::recipe(
                                      material::kit::sparkle(run(), kMoment)),
                                  paint::Paint::solid({0.14f, 0.18f, 0.30f, 1})),
                             field("kit::starNest(bounds, t)",
-                                  "a volumetric raymarch \xc2\xb7 the "
+                                  "a volumetric raymarch · the "
                                   "heaviest of the six, since it is a "
                                   "nested loop",
                                   material::kit::starNest(run(), kMoment))},
@@ -162,17 +162,17 @@ struct TextPaints final : sketch::Sketch {
                                        material::kit::clouds(run(), kMoment)),
                                  field("kit::tunnel(bounds, t)",
                                        "an endless kaleidoscope falling "
-                                       "away \xc2\xb7 the same ABI, a very "
+                                       "away · the same ABI, a very "
                                        "different body",
                                        material::kit::tunnel(run(), kMoment)),
                                  cell("kit::sunsetChromeType()",
-                                      "not a field at all \xc2\xb7 a stop "
+                                      "not a field at all · a stop "
                                       "list in UNIT space, so the hard "
                                       "horizon lands at half cap height",
                                       kit::sunsetChromeType()),
                                  cell("kit::silverChromeType()",
                                       "the same construction, colder "
-                                      "\xc2\xb7 one ramp, and the metrics do "
+                                      "· one ramp, and the metrics do "
                                       "the placing",
                                       kit::silverChromeType())},
                        .gap = 14})},

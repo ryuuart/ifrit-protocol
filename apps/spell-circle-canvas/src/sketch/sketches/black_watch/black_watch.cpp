@@ -243,24 +243,22 @@ struct BlackWatch : sketch::Sketch {
                 v.counts[K], v.counts[B], v.counts[G]),
             v.blueIsThird))
         .add(measure::check(
-            kit::formatted(
-                "COLOUR LAW       n = %d \xe2\x86\x92 n(n+1)/2 perceived",
-                v.solids),
+            kit::formatted("COLOUR LAW       n = %d → n(n+1)/2 perceived",
+                           v.solids),
             v.solids * (v.solids + 1) / 2, v.perceived))
         .add(measure::check("EXACT COVER      uncovered", 0, v.uncovered))
         .add(measure::check("                 doubled", 0, v.doubled))
         .add(measure::reading("                 samples", v.samples))
         .add(measure::check(
-            kit::formatted(
-                "CAMPBELL ARGYLL  n = %d \xe2\x86\x92 %d perceived, ends",
-                v.argyllSolids, v.argyllPerceived),
+            kit::formatted("CAMPBELL ARGYLL  n = %d → %d perceived, ends",
+                           v.argyllSolids, v.argyllPerceived),
             kPublishedArgyll, v.argyllTotal))
         // The two setts are the same design at two scales — a claim about
         // the CLOTH, not about this file, so its verdict is printed and
         // never counted against the run.
-        .add(measure::finding(measure::check(
-            "UNIT DRIFT       max |BW \xe2\x88\x92 CA| over A B C D, %", 0.0,
-            (double)(v.unitDrift * 100.0f), 1.0)))
+        .add(measure::finding(
+            measure::check("UNIT DRIFT       max |BW − CA| over A B C D, %",
+                           0.0, (double)(v.unitDrift * 100.0f), 1.0)))
         .add(measure::reading("TWILL ANGLE      42 epi = 42 ppi, degrees",
                               std::atan2(1.0, 1.0) * 180.0 / 3.14159265358979))
         .add(measure::reading(
@@ -903,7 +901,6 @@ struct BlackWatch : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(
-    BlackWatch, "Study \xc2\xb7 Pattern",
-    "The Government sett \xe2\x80\x94 24 integers and a mod-4 rule, 63,504 "
-    "emergent cells")
+SIGIL_SKETCH(BlackWatch, "Study · Pattern",
+             "The Government sett — 24 integers and a mod-4 rule, 63,504 "
+             "emergent cells")

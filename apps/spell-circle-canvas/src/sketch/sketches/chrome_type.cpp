@@ -181,5 +181,5 @@ struct ChromeType final : sketch::Sketch {
 }  // namespace
 
 SIGIL_SKETCH_AS(
-    ChromeType, "chrome_type", "Catalog \xc2\xb7 Type",
+    ChromeType, "chrome_type", "Catalog · Type",
     "layer styles dressing glyph outlines, beside the same on a box")

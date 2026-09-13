@@ -119,11 +119,11 @@ struct Config {
 };
 inline constexpr Config kConfigs[] = {
     {1, 58, 2, "58", 15.0f, 9},
-    {2, 28, 2, "2 \xc3\x97 28 + 1 \xc3\x97 2", 13.5f, 6},
-    {3, 18, 2, "3 \xc3\x97 18 + 2 \xc3\x97 2", 12.0f, 5},
-    {4, 13, 2, "4 \xc3\x97 13 + 3 \xc3\x97 2", 10.5f, 5},
-    {5, 10, 2, "5 \xc3\x97 10 + 4 \xc3\x97 2", 9.0f, 4},
-    {6, 8, 2, "6 \xc3\x97 8 + 5 \xc3\x97 2", 9.0f, 4},
+    {2, 28, 2, "2 × 28 + 1 × 2", 13.5f, 6},
+    {3, 18, 2, "3 × 18 + 2 × 2", 12.0f, 5},
+    {4, 13, 2, "4 × 13 + 3 × 2", 10.5f, 5},
+    {5, 10, 2, "5 × 10 + 4 × 2", 9.0f, 4},
+    {6, 8, 2, "6 × 8 + 5 × 2", 9.0f, 4},
 };
 inline constexpr int kConfigCount =
     (int)(sizeof(kConfigs) / sizeof(kConfigs[0]));
@@ -441,8 +441,8 @@ struct GerstnerGrid final : sketch::Sketch {
                    .bottom(26)
                    .font({.size = 10})
                    .ink(g::kInkSoft)
-                   .child(text("KARL GERSTNER \xc2\xb7 CAPITAL "
-                               "\xc2\xb7 1962")
+                   .child(text("KARL GERSTNER · CAPITAL "
+                               "· 1962")
                               .font({.track = 2.6f, .weight = 600}))
                    .child(text("the mobile grid, run")
                               .font({.track = 1.2f})
@@ -454,4 +454,4 @@ struct GerstnerGrid final : sketch::Sketch {
 }  // namespace
 
 SIGIL_SKETCH_AS(GerstnerGrid, "gerstner grid", "Specimen",
-                "Capital 1962 \xe2\x80\x94 the mobile grid, run")
+                "Capital 1962 — the mobile grid, run")

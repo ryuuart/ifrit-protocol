@@ -815,5 +815,5 @@ struct PersonaMenu final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(PersonaMenu, "persona menu", "Catalog \xc2\xb7 Game UI",
+SIGIL_SKETCH_AS(PersonaMenu, "persona menu", "Catalog · Game UI",
                 "P3R menu grammar")

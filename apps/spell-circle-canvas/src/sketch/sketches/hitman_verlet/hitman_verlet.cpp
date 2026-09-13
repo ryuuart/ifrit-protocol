@@ -137,7 +137,6 @@ auto HitmanVerlet::draw(Pen& pen) -> void {
   paintChains(pen, holeX, panelTop(kPanelBH, 1) + kPanelPad + 12 + 4);
 }
 
-SIGIL_SKETCH(
-    HitmanVerlet, "Study \xc2\xb7 Motion",
-    "Jakobsen's Advanced Character Physics (GDC 2001) \xe2\x80\x94 motion "
-    "with state and contact")
+SIGIL_SKETCH(HitmanVerlet, "Study · Motion",
+             "Jakobsen's Advanced Character Physics (GDC 2001) — motion "
+             "with state and contact")

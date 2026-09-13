@@ -149,9 +149,9 @@ struct BlurFalloff final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = {1080, 430}, .captureAt = 2.78});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "BLUR FALLOFF \xc2\xb7 Effect::blur(Paint "
+        {.title = "BLUR FALLOFF · Effect::blur(Paint "
                   "sigmaMap, float maxSigma)",
-         .subtitle = "one effect, four falloffs \xe2\x80\x94 same "
+         .subtitle = "one effect, four falloffs — same "
                      "content, same maximum sigma, only the map "
                      "differs",
          .footer = "the parameter is a PAINT, so it prunes, it "
@@ -165,15 +165,15 @@ struct BlurFalloff final : sketch::Sketch {
                                  kMaxSigma, kMaxSigma, nullptr)),
                              "flat"),
                        panel("blur(linearUnit 3 stops, 14)",
-                             "depth of field \xe2\x80\x94 sharp at the focal "
+                             "depth of field — sharp at the focal "
                              "line, blurred away from it on both sides",
                              mskia::Effect::blur(dofMap(), kMaxSigma), "dof"),
                        panel("blur(glowUnit, 14)",
-                             "a lens edge \xe2\x80\x94 sharp on axis, soft at "
+                             "a lens edge — sharp on axis, soft at "
                              "the inscribed circle",
                              mskia::Effect::blur(lensMap(), kMaxSigma), "lens"),
                        panel("blur(dofMap, 14).uniform(\"maxSigma\", &rack)",
-                             "rack focus \xe2\x80\x94 the SAME map, maxSigma "
+                             "rack focus — the SAME map, maxSigma "
                              "bound inside the declared range: nothing "
                              "re-describes, the held passes are reused",
                              mskia::Effect::blur(dofMap(), kMaxSigma)
@@ -192,6 +192,6 @@ struct BlurFalloff final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(BlurFalloff, "Kit \xc2\xb7 API",
-             "Effect::blur(Paint, maxSigma) \xe2\x80\x94 one effect, four "
+SIGIL_SKETCH(BlurFalloff, "Kit · API",
+             "Effect::blur(Paint, maxSigma) — one effect, four "
              "falloffs: constant, depth of field, a lens edge, a rack focus")

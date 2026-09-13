@@ -136,184 +136,439 @@ struct PopMath final : sketch::Sketch {
     const size_t dropped = selected().drop("core").cloud().size();
 
     ctx.composer.render(sketch::kit::page({.title =
-                                               "POP MATH \xc2\xb7 Math, Fill, "
+                                               "POP MATH · Math, Fill, "
                                                "Affine, Lookup, "
                                                "Select, Mix, Normal, Delete",
-                                           .subtitle =
-                                               "dials \xc2\xb7 the operator "
-                                               "\xc2\xb7 the Mix "
-                                               "weight (0.55) \xc2\xb7 the "
-                                               "Select feather "
-                                               "(0.6 of the extent)",
+                                           .subtitle = "dials · the operator "
+                                                       "· the Mix "
+                                                       "weight (0.55) · the "
+                                                       "Select feather "
+                                                       "(0.6 of the extent)",
                                            .footer =
                                                "an operator names the lane it "
                                                "writes, and a "
                                                "name nothing has written yet "
                                                "is all zeros "
-                                               "\xe2\x80\x94 which is why "
+                                               "— which is why "
                                                "naming an unwritten "
                                                "lane as a mask selects nobody "
                                                "rather than "
                                                "everybody"},
-                                          kit::
-                                              cells({.cells = {kit::cells({.cells = {cell("the cloud, uncut",
-                                                                                          kit::formatted(
-                                                                                              "pop::on(torus, %d) with a "
-                                                                                              "two-stop "
-                                                                                              "Lookup on T \xc2\xb7 every "
-                                                                                              "cell "
-                                                                                              "below starts here",
-                                                                                              kMotes),
-                                                                                          base()
-                                                                                              .cloud()),
-                                                                                     cell("Math{.lane = P, .multiplier = {1, 2.4, "
-                                                                                          "1, "
-                                                                                          "1}}",
-                                                                                          "lane = lane * multiplier + add, per "
-                                                                                          "component "
-                                                                                          "\xc2\xb7 the diagonal case of "
-                                                                                          "Affine, "
-                                                                                          "and the one that needs no "
-                                                                                          "matrix",
-                                                                                          base()
-                                                                                              .operation(pop::Math{pop::
-                                                                                                                       Lane::P,
-                                                                                                                   {1,
-                                                                                                                    2.4f,
-                                                                                                                    1, 1}})
-                                                                                              .cloud()),
-                                                                                     cell("Affine{.matrix = rotate * "
-                                                                                          "shear}",
-                                                                                          "the whole affine vocabulary in "
-                                                                                          "one "
-                                                                                          "op "
-                                                                                          "\xc2\xb7 as a POSITION the "
-                                                                                          "translation applies; as a "
-                                                                                          "DIRECTION "
-                                                                                          "only the upper 3x3 acts",
-                                                                                          base()
-                                                                                              .affine(glm::rotate(glm::mat4(1.0f), 0.5f, glm::vec3{0, 0, 1}) * glm::
-                                                                                                                                                                   mat4{1, 0, 0, 0, 0.55f, 1, 0, 0, 0,
-                                                                                                                                                                        0,
-                                                                                                                                                                        1, 0, 0, 0, 0, 1})
-                                                                                              .cloud()),
-                                                                                     cell(
-                                                                                         "Lookup{.from = P, .weights = "
-                                                                                         "{0,1,0,0}}",
-                                                                                         "key = dot(from, weights), "
-                                                                                         "remapped "
-                                                                                         "from [low, high] onto a table "
-                                                                                         "of "
-                                                                                         "stops and sampled \xc2\xb7 "
-                                                                                         "colour "
-                                                                                         "by "
-                                                                                         "HEIGHT, not by T",
-                                                                                         base()
-                                                                                             .rampBy(pop::Lane::P, 1, {{0.10f, 0.14f, 0.30f, 1}, {0.30f, 0.85f, 0.72f, 1}, {1.00f, 0.95f, 0.55f, 1}},
-                                                                                                     -24,
-                                                                                                     24)
-                                                                                             .cloud())},
-                                                                           .gap =
-                                                                               14}),
-                                                               kit::
-                                                                   cells(
-                                                                       {.cells = {cell("Select{.feather = 0.6} "
-                                                                                       "\xe2\x86\x92 "
-                                                                                       "Math{.mask = \"core\"}",
-                                                                                       "a mask is a LANE: 1 inside "
-                                                                                       "the "
-                                                                                       "region, "
-                                                                                       "0 outside, feathered "
-                                                                                       "across the outer "
-                                                                                       "0.6 \xc2\xb7 the write "
-                                                                                       "lands in "
-                                                                                       "proportion",
-                                                                                       selected()
-                                                                                           .masked(
-                                                                                               "core")
-                                                                                           .operation(pop::
-                                                                                                          Math{pop::Lane::P, {1, 1, 1, 1}, {0, 58, 0, 0}})
-                                                                                           .cloud()),
-                                                                                  cell(
-                                                                                      "Fill{\"anchor\"} "
-                                                                                      "\xe2\x86\x92 "
-                                                                                      "Mix{P, anchor, P, 0.55}",
-                                                                                      kit::
-                                                                                          formatted("to = a + (b "
-                                                                                                    "- a) * "
-                                                                                                    "factor "
-                                                                                                    "\xc2\xb7 "
-                                                                                                    "Fill "
-                                                                                                    "invented "
-                                                                                                    "the lane "
-                                                                                                    "on first "
-                                                                                                    "write and "
-                                                                                                    "Mix drew "
-                                                                                                    "the "
-                                                                                                    "cloud "
-                                                                                                    "%.0f%% of "
-                                                                                                    "the way to "
-                                                                                                    "it",
-                                                                                                    (double)(kFactor *
-                                                                                                             100)),
+                                          kit::cells({.cells =
+                                                          {kit::cells({.cells = {cell("the cloud, uncut",
+                                                                                      kit::formatted(
+                                                                                          "pop::on(torus, %d) with a "
+                                                                                          "two-stop "
+                                                                                          "Lookup on T · every "
+                                                                                          "cell "
+                                                                                          "below starts here",
+                                                                                          kMotes),
                                                                                       base()
-                                                                                          .fill(
-                                                                                              "anchor", {0,
-                                                                                                         86,
-                                                                                                         0, 1})
-                                                                                          .mix(
-                                                                                              pop::Lane::
-                                                                                                  P,
-                                                                                              "anchor", pop::Lane::P,
-                                                                                              kFactor)
                                                                                           .cloud()),
-                                                                                  cell(
-                                                                                      "Normal{.sense = +1} "
-                                                                                      "\xe2\x86\x92 "
-                                                                                      "Peak{34}",
-                                                                                      "Dir made unit and turned "
-                                                                                      "to face AWAY "
-                                                                                      "from the centre, then "
-                                                                                      "every point "
-                                                                                      "pushed along its own "
-                                                                                      "\xc2\xb7 without "
-                                                                                      "the Normal the pushes "
-                                                                                      "disagree",
+                                                                                 cell("Math{.lane = P, .multiplier = {1, 2.4, "
+                                                                                      "1, "
+                                                                                      "1}}",
+                                                                                      "lane = lane * multiplier + add, per "
+                                                                                      "component "
+                                                                                      "· the diagonal case of "
+                                                                                      "Affine, "
+                                                                                      "and the one that needs no "
+                                                                                      "matrix",
                                                                                       base()
-                                                                                          .normal(
-                                                                                              1.0f,
-                                                                                              {0, 0, 0})
-                                                                                          .peak(
-                                                                                              34)
+                                                                                          .operation(
+                                                                                              pop::Math{pop::Lane::P, {1, 2.4f, 1, 1}})
                                                                                           .cloud()),
-                                                                                  cell(
-                                                                                      "Delete{.mask = \"core\", "
-                                                                                      ".keep}",
-                                                                                      kit::
-                                                                                          formatted(
-                                                                                              "the count is what "
-                                                                                              "this op moves: "
-                                                                                              "%zu kept, %zu "
-                                                                                              "dropped, of %d "
-                                                                                              "\xc2\xb7 every "
-                                                                                              "lane compacted "
-                                                                                              "through one "
-                                                                                              "permutation",
-                                                                                              kept,
-                                                                                              dropped,
-                                                                                              kMotes),
-                                                                                      selected()
-                                                                                          .keep(
-                                                                                              "core")
+                                                                                 cell("Affine{.matrix = rotate * "
+                                                                                      "shear}",
+                                                                                      "the whole affine vocabulary in "
+                                                                                      "one "
+                                                                                      "op "
+                                                                                      "· as a POSITION the "
+                                                                                      "translation applies; as a "
+                                                                                      "DIRECTION "
+                                                                                      "only the upper 3x3 acts",
+                                                                                      base()
+                                                                                          .affine(glm::rotate(glm::mat4(1.0f), 0.5f, glm::vec3{0, 0, 1}) * glm::
+                                                                                                                                                               mat4{1, 0, 0, 0, 0.55f, 1, 0, 0, 0, 0,
+                                                                                                                                                                    1, 0, 0, 0, 0, 1})
+                                                                                          .cloud()),
+                                                                                 cell("Lookup{.from = P, .weights = "
+                                                                                      "{0,1,0,0}}",
+                                                                                      "key = dot(from, weights), "
+                                                                                      "remapped "
+                                                                                      "from [low, high] onto a table "
+                                                                                      "of "
+                                                                                      "stops and sampled · "
+                                                                                      "colour "
+                                                                                      "by "
+                                                                                      "HEIGHT, not by T",
+                                                                                      base()
+                                                                                          .rampBy(pop::Lane::P, 1, {{0.10f, 0.14f, 0.30f, 1}, {0.30f, 0.85f, 0.72f, 1}, {1.00f, 0.95f, 0.55f, 1}},
+                                                                                                  -24,
+                                                                                                  24)
                                                                                           .cloud())},
-                                                                        .gap =
-                                                                            14})},
-                                                     .column = true,
-                                                     .gap = 18})));
+                                                                       .gap =
+                                                                           14}),
+                                                           kit::cells(
+                                                               {.cells =
+                                                                    {
+                                                                        cell("S"
+                                                                             "e"
+                                                                             "l"
+                                                                             "e"
+                                                                             "c"
+                                                                             "t"
+                                                                             "{"
+                                                                             "."
+                                                                             "f"
+                                                                             "e"
+                                                                             "a"
+                                                                             "t"
+                                                                             "h"
+                                                                             "e"
+                                                                             "r"
+                                                                             " "
+                                                                             "="
+                                                                             " "
+                                                                             "0"
+                                                                             "."
+                                                                             "6"
+                                                                             "}"
+                                                                             " "
+                                                                             "→"
+                                                                             " "
+                                                                             "M"
+                                                                             "a"
+                                                                             "t"
+                                                                             "h"
+                                                                             "{"
+                                                                             "."
+                                                                             "m"
+                                                                             "a"
+                                                                             "s"
+                                                                             "k"
+                                                                             " "
+                                                                             "="
+                                                                             " "
+                                                                             "\"core\"}",
+                                                                             "a"
+                                                                             " "
+                                                                             "m"
+                                                                             "a"
+                                                                             "s"
+                                                                             "k"
+                                                                             " "
+                                                                             "i"
+                                                                             "s"
+                                                                             " "
+                                                                             "a"
+                                                                             " "
+                                                                             "L"
+                                                                             "A"
+                                                                             "N"
+                                                                             "E"
+                                                                             ":"
+                                                                             " "
+                                                                             "1"
+                                                                             " "
+                                                                             "i"
+                                                                             "n"
+                                                                             "s"
+                                                                             "i"
+                                                                             "d"
+                                                                             "e"
+                                                                             " "
+                                                                             "t"
+                                                                             "h"
+                                                                             "e"
+                                                                             " "
+                                                                             "r"
+                                                                             "e"
+                                                                             "g"
+                                                                             "i"
+                                                                             "o"
+                                                                             "n"
+                                                                             ","
+                                                                             " "
+                                                                             "0"
+                                                                             " "
+                                                                             "o"
+                                                                             "u"
+                                                                             "t"
+                                                                             "s"
+                                                                             "i"
+                                                                             "d"
+                                                                             "e"
+                                                                             ","
+                                                                             " "
+                                                                             "f"
+                                                                             "e"
+                                                                             "a"
+                                                                             "t"
+                                                                             "h"
+                                                                             "e"
+                                                                             "r"
+                                                                             "e"
+                                                                             "d"
+                                                                             " "
+                                                                             "a"
+                                                                             "c"
+                                                                             "r"
+                                                                             "o"
+                                                                             "s"
+                                                                             "s"
+                                                                             " "
+                                                                             "t"
+                                                                             "h"
+                                                                             "e"
+                                                                             " "
+                                                                             "o"
+                                                                             "u"
+                                                                             "t"
+                                                                             "e"
+                                                                             "r"
+                                                                             " "
+                                                                             "0"
+                                                                             "."
+                                                                             "6"
+                                                                             " "
+                                                                             "·"
+                                                                             " "
+                                                                             "t"
+                                                                             "h"
+                                                                             "e"
+                                                                             " "
+                                                                             "w"
+                                                                             "r"
+                                                                             "i"
+                                                                             "t"
+                                                                             "e"
+                                                                             " "
+                                                                             "l"
+                                                                             "a"
+                                                                             "n"
+                                                                             "d"
+                                                                             "s"
+                                                                             " "
+                                                                             "i"
+                                                                             "n"
+                                                                             " "
+                                                                             "p"
+                                                                             "r"
+                                                                             "o"
+                                                                             "p"
+                                                                             "o"
+                                                                             "r"
+                                                                             "t"
+                                                                             "i"
+                                                                             "o"
+                                                                             "n",
+                                                                             selected()
+                                                                                 .masked(
+                                                                                     "core")
+                                                                                 .operation(
+                                                                                     pop::
+                                                                                         Math{
+                                                                                             pop::Lane::
+                                                                                                 P,
+                                                                                             {1, 1, 1, 1},
+                                                                                             {0,
+                                                                                              58, 0, 0}})
+                                                                                 .cloud()),
+                                                                        cell("F"
+                                                                             "i"
+                                                                             "l"
+                                                                             "l"
+                                                                             "{"
+                                                                             "\"anchor\"} "
+                                                                             "→"
+                                                                             " "
+                                                                             "M"
+                                                                             "i"
+                                                                             "x"
+                                                                             "{"
+                                                                             "P"
+                                                                             ","
+                                                                             " "
+                                                                             "a"
+                                                                             "n"
+                                                                             "c"
+                                                                             "h"
+                                                                             "o"
+                                                                             "r"
+                                                                             ","
+                                                                             " "
+                                                                             "P"
+                                                                             ","
+                                                                             " "
+                                                                             "0"
+                                                                             "."
+                                                                             "5"
+                                                                             "5"
+                                                                             "}",
+                                                                             kit::formatted(
+                                                                                 "to = a + (b "
+                                                                                 "- a) * "
+                                                                                 "factor "
+                                                                                 "· "
+                                                                                 "Fill "
+                                                                                 "invented "
+                                                                                 "the lane "
+                                                                                 "on first "
+                                                                                 "write and "
+                                                                                 "Mix drew "
+                                                                                 "the "
+                                                                                 "cloud "
+                                                                                 "%.0f%% of "
+                                                                                 "the way to "
+                                                                                 "it",
+                                                                                 (double)(kFactor *
+                                                                                          100)),
+                                                                             base()
+                                                                                 .fill(
+                                                                                     "anchor",
+                                                                                     {0, 86, 0, 1})
+                                                                                 .mix(
+                                                                                     pop::Lane::
+                                                                                         P,
+                                                                                     "anchor",
+                                                                                     pop::Lane::
+                                                                                         P,
+                                                                                     kFactor)
+                                                                                 .cloud()),
+                                                                        cell(
+                                                                            "No"
+                                                                            "rm"
+                                                                            "al"
+                                                                            "{."
+                                                                            "se"
+                                                                            "ns"
+                                                                            "e "
+                                                                            "= "
+                                                                            "+1"
+                                                                            "} "
+                                                                            "→ "
+                                                                            "Pe"
+                                                                            "ak"
+                                                                            "{3"
+                                                                            "4"
+                                                                            "}",
+                                                                            "Di"
+                                                                            "r "
+                                                                            "ma"
+                                                                            "de"
+                                                                            " u"
+                                                                            "ni"
+                                                                            "t "
+                                                                            "an"
+                                                                            "d "
+                                                                            "tu"
+                                                                            "rn"
+                                                                            "ed"
+                                                                            " "
+                                                                            "to"
+                                                                            " f"
+                                                                            "ac"
+                                                                            "e "
+                                                                            "AW"
+                                                                            "AY"
+                                                                            " "
+                                                                            "fr"
+                                                                            "om"
+                                                                            " t"
+                                                                            "he"
+                                                                            " c"
+                                                                            "en"
+                                                                            "tr"
+                                                                            "e,"
+                                                                            " t"
+                                                                            "he"
+                                                                            "n "
+                                                                            "ev"
+                                                                            "er"
+                                                                            "y "
+                                                                            "po"
+                                                                            "in"
+                                                                            "t "
+                                                                            "pu"
+                                                                            "sh"
+                                                                            "ed"
+                                                                            " a"
+                                                                            "lo"
+                                                                            "ng"
+                                                                            " i"
+                                                                            "ts"
+                                                                            " o"
+                                                                            "wn"
+                                                                            " "
+                                                                            "· "
+                                                                            "wi"
+                                                                            "th"
+                                                                            "ou"
+                                                                            "t "
+                                                                            "th"
+                                                                            "e "
+                                                                            "No"
+                                                                            "rm"
+                                                                            "al"
+                                                                            " t"
+                                                                            "he"
+                                                                            " p"
+                                                                            "us"
+                                                                            "he"
+                                                                            "s "
+                                                                            "di"
+                                                                            "sa"
+                                                                            "gr"
+                                                                            "e"
+                                                                            "e",
+                                                                            base()
+                                                                                .normal(1.0f,
+                                                                                        {0, 0, 0})
+                                                                                .peak(
+                                                                                    34)
+                                                                                .cloud()),
+                                                                        cell(
+                                                                            "De"
+                                                                            "le"
+                                                                            "te"
+                                                                            "{."
+                                                                            "ma"
+                                                                            "sk"
+                                                                            " ="
+                                                                            " "
+                                                                            "\""
+                                                                            "co"
+                                                                            "re"
+                                                                            "\""
+                                                                            ", "
+                                                                            ".k"
+                                                                            "ee"
+                                                                            "p"
+                                                                            "}",
+                                                                            kit::formatted(
+                                                                                "the count is what "
+                                                                                "this op moves: "
+                                                                                "%zu kept, %zu "
+                                                                                "dropped, of %d "
+                                                                                "· every "
+                                                                                "lane compacted "
+                                                                                "through one "
+                                                                                "permutation",
+                                                                                kept,
+                                                                                dropped,
+                                                                                kMotes),
+                                                                            selected()
+                                                                                .keep(
+                                                                                    "core")
+                                                                                .cloud())},
+                                                                .gap = 14})},
+                                                      .column = true,
+                                                      .gap = 18})));
   }
 };
 
-SIGIL_SKETCH(PopMath, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(PopMath, "Kit · API",
              "eight point operators over one scattered torus: the lane "
              "rewrites, the mask a Select writes, and the two that change "
              "what the set is")

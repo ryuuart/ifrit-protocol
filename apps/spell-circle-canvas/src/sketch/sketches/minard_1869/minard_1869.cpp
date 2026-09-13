@@ -153,7 +153,6 @@ auto Minard1869::update(double, sketch::SketchContext& ctx) -> void {
   }
 }
 
-SIGIL_SKETCH(
-    Minard1869, "Study \xc2\xb7 Science",
-    "Minard's BnF presentation copy \xe2\x80\x94 the plate audited against "
-    "its own printed legend")
+SIGIL_SKETCH(Minard1869, "Study · Science",
+             "Minard's BnF presentation copy — the plate audited against "
+             "its own printed legend")

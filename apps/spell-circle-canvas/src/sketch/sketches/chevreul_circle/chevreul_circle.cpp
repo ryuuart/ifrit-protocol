@@ -141,7 +141,6 @@ auto ChevreulCircle::update(double, sketch::SketchContext& ctx) -> void {
   }
 }
 
-SIGIL_SKETCH(
-    ChevreulCircle, "Study \xc2\xb7 Science",
-    "Chevreul's 1er cercle chromatique, Plate V, 1864 \xe2\x80\x94 a study "
-    "whose content is a palette")
+SIGIL_SKETCH(ChevreulCircle, "Study · Science",
+             "Chevreul's 1er cercle chromatique, Plate V, 1864 — a study "
+             "whose content is a palette")

@@ -269,7 +269,7 @@ struct KumikoAsanoha : sketch::Sketch {
     g.child(std::move(art));
 
     // the three jigs, as the three angles one right angle is cut into
-    const char* jig[3] = {"22.5\xc2\xb0", "45\xc2\xb0", "67.5\xc2\xb0"};
+    const char* jig[3] = {"22.5°", "45°", "67.5°"};
     for (int i = 0; i < 3; ++i) {
       const float x = 430.0f + (float)i * 118.0f;
       const float a0 = 22.5f * (float)i;
@@ -281,7 +281,7 @@ struct KumikoAsanoha : sketch::Sketch {
       g.child(text(jig[i]).left(x - 30).top(150).width(60).textAlign(
           weave::TextAlignment::kCenter));
     }
-    g.child(text("THREE JIGS \xe2\x80\x94 AND A RIGHT ANGLE IS "
+    g.child(text("THREE JIGS — AND A RIGHT ANGLE IS "
                  "22.5 + 45 + 22.5")
                 .font({.color = hexColor(0xB7A281, 0.55f), .track = 0.5f})
                 .left(392)
@@ -297,23 +297,23 @@ struct KumikoAsanoha : sketch::Sketch {
             .top(30));
     g.child(text("The diagonal cuts the cell into two right isoceles "
                  "triangles. In each, the three infill pieces run from the "
-                 "triangle's vertices to its INCENTER \xe2\x80\x94 and every "
+                 "triangle's vertices to its INCENTER — and every "
                  "number the panel is built on falls out of that one rule.")
                 .left(760)
                 .top(56)
                 .width(520));
-    g.child(text("incircle r = s(2\xe2\x88\x92\xe2\x88\x9a"
+    g.child(text("incircle r = s(2−√"
                  "2)/2 = "
-                 "0.29289 s  \xc2\xb7  arm off a 45\xc2\xb0 corner = "
-                 "atan(\xe2\x88\x9a"
-                 "2\xe2\x88\x92"
+                 "0.29289 s  ·  arm off a 45° corner = "
+                 "atan(√"
+                 "2−"
                  "1) = "
-                 "22.5\xc2\xb0")
+                 "22.5°")
                 .left(760)
                 .top(126)
                 .width(520));
     g.child(text("1 diagonal + 2 fillers + 4 locking pieces = 7 per "
-                 "cell  \xc2\xb7  60 cells = 420 ha")
+                 "cell  ·  60 cells = 420 ha")
                 .left(760)
                 .top(148)
                 .width(520));
@@ -362,8 +362,8 @@ struct KumikoAsanoha : sketch::Sketch {
         .child(post(kW - 146, 146))
         .child(beam(0, 122, true))
         .child(beam(kRoom - 122, 122, false))
-        .child(text("ASANOHA KUMIKO \xc2\xb7 SQUARE JIGUMI \xc2\xb7 "
-                    "HINOKI ON KEYAKI \xc2\xb7 900\xc3\x97"
+        .child(text("ASANOHA KUMIKO · SQUARE JIGUMI · "
+                    "HINOKI ON KEYAKI · 900×"
                     "400mm TYPE")
                    .font({.size = 12, .color = kCaption, .track = 1.1f})
                    .left(950)
@@ -422,6 +422,6 @@ struct KumikoAsanoha : sketch::Sketch {
   void update(double, sketch::SketchContext&) override {}
 };
 
-SIGIL_SKETCH(KumikoAsanoha, "Study \xc2\xb7 Pattern",
-             "A hinoki asanoha ranma \xe2\x80\x94 514 mitred boards, per-piece "
+SIGIL_SKETCH(KumikoAsanoha, "Study · Pattern",
+             "A hinoki asanoha ranma — 514 mitred boards, per-piece "
              "assembly staggering")

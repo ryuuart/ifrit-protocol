@@ -788,13 +788,13 @@ struct PassiveTree final : sketch::Sketch {
       // Bound only round the card, since everything else on this HUD is
       // set in the tree's own registers rather than in a sheet's.
       const sketch::kit::Provide look(mastheadTheme());
-      root.child(sketch::kit::titleCard(
-                     {.title = {"EMBERWOOD REACH"},
-                      .subtitle = {"passive cluster \xe2\x80\x94 real orbit "
-                                   "geometry, four frame states"}})
-                     .top(30)
-                     .left(38)
-                     .zIndex(8));
+      root.child(
+          sketch::kit::titleCard({.title = {"EMBERWOOD REACH"},
+                                  .subtitle = {"passive cluster — real orbit "
+                                               "geometry, four frame states"}})
+              .top(30)
+              .left(38)
+              .zIndex(8));
     }
     root.child(box()
                    .column()
@@ -901,5 +901,5 @@ struct PassiveTree final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(PassiveTree, "passive tree", "Catalog \xc2\xb7 Game UI",
+SIGIL_SKETCH_AS(PassiveTree, "passive tree", "Catalog · Game UI",
                 "linework + orbit router")

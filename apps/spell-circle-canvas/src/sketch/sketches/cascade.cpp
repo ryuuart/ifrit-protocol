@@ -397,19 +397,18 @@ struct Cascade final : sketch::Sketch {
 
   [[nodiscard]] Element sheet() const {
     return sketch::kit::page(
-        {.title = "THE CASCADE \xc2\xb7 the font, the ink and the "
+        {.title = "THE CASCADE · the font, the ink and the "
                   "custom properties",
-         .subtitle =
-             "they flow down the TREE, wherever the code that built a "
-             "child ran \xc2\xb7 everything else a node says stays on it",
+         .subtitle = "they flow down the TREE, wherever the code that built a "
+                     "child ran · everything else a node says stays on it",
          .footer = "a class and a theme are LEXICAL, read where an element is "
-                   "written \xc2\xb7 the cascade is STRUCTURAL, carried by the "
-                   "tree the element ends up in \xc2\xb7 a bake is a root"},
+                   "written · the cascade is STRUCTURAL, carried by the "
+                   "tree the element ends up in · a bake is a root"},
         sketch::kit::cells(
             {.cells =
                  {row({cell(".font({.size = 15}).ink(teal)",
                             "the boxes between say nothing about type, and "
-                            "the leaf names no style \xe2\x80\x94 it is set "
+                            "the leaf names no style — it is set "
                             "in what is in force where it LANDS",
                             inheritance()),
                        cell("font({.size = 22})",
@@ -417,39 +416,39 @@ struct Cascade final : sketch::Sketch {
                             "face, the tracking and the ink still come down "
                             "to it",
                             oneField()),
-                       cell("stroke(1.5f) \xc2\xb7 Fill::currentInk()",
-                            "one ink \xe2\x80\x94 a stroke that named no "
+                       cell("stroke(1.5f) · Fill::currentInk()",
+                            "one ink — a stroke that named no "
                             "colour, a fill written as the ink, and the "
                             "words, all the same value",
                             inkMarks()),
                        cell(".ink(pale) over a child built first",
                             "the tree carried the ink into a child already "
-                            "built \xc2\xb7 the swatch read theme() where "
+                            "built · the swatch read theme() where "
                             "the code RAN, so the panel cannot reach it",
                             adoption())}),
                   row({cell("styleClass(\"label\" | \"figure\" | \"headline\")",
                             "the sheet is read where the leaf is WRITTEN "
-                            "\xc2\xb7 the third name is on no sheet here, "
+                            "· the third name is on no sheet here, "
                             "so it warns once and sets nothing",
                             classes()),
                        cell("rich().add(utf8, Type{.color = warm})",
                             "a partial run keeps the inherited face and "
-                            "size and changes only what it names \xc2\xb7 a "
+                            "size and changes only what it names · a "
                             "whole style keeps nothing",
                             richRuns()),
-                       cell(".var(\"accent\") \xc2\xb7 Fill::var \xc2\xb7 "
+                       cell(".var(\"accent\") · Fill::var · "
                             "ink(var)",
                             "one property read as a fill and as the ink two "
-                            "levels down, at the same gutter \xc2\xb7 the "
+                            "levels down, at the same gutter · the "
                             "nearer ancestor wins on the second row",
                             properties()),
-                       cell("padding(1_em) \xc2\xb7 font({.size = 1.5_em})",
+                       cell("padding(1_em) · font({.size = 1.5_em})",
                             "a box length is the node's OWN resolved size, "
-                            "so one call is 9 px and 17 px \xc2\xb7 a type "
+                            "so one call is 9 px and 17 px · a type "
                             "size measures against the PARENT's",
                             lengths())}),
                   row({cell(".ink(warm to cool).transition({900ms})",
-                            "the ink was described again on a timer \xc2\xb7 "
+                            "the ink was described again on a timer · "
                             "the node that declares it eases, and the still "
                             "is taken partway through the mixture",
                             crossFade(cooled)),
@@ -459,12 +458,12 @@ struct Cascade final : sketch::Sketch {
                             "push/pop restyles the scope",
                             penCell(), 0),
                        cell("compose::graphics(program)",
-                            "the same door onto pixels that are KEPT \xc2\xb7 "
+                            "the same door onto pixels that are KEPT · "
                             "a translucent ground each frame is the trail "
                             "the repainting pen cannot leave",
                             trail, 0),
                        cell("environment::Provide<Accent>",
-                            "the divergence, on its own \xc2\xb7 a component "
+                            "the divergence, on its own · a component "
                             "handed nothing reads the binding in scope where "
                             "it is COMPOSED, and an inner one shadows it",
                             lexicalChannel())})},
@@ -473,7 +472,7 @@ struct Cascade final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(Cascade, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(Cascade, "Kit · API",
              "the font, the ink and the custom properties flowing down the "
-             "tree \xe2\x80\x94 with classes, relative lengths, an easing "
+             "tree — with classes, relative lengths, an easing "
              "ink, both pens, and the one channel that is lexical instead")

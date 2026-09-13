@@ -117,12 +117,12 @@ struct DecayStep final : sketch::Sketch {
     };
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE CLOCK ARITHMETIC \xc2\xb7 motion::decay, "
+        {.title = "THE CLOCK ARITHMETIC · motion::decay, "
                   "quantizeTime, stepIndex, phase, spring",
-         .subtitle = "dials \xc2\xb7 three seconds across every plot "
-                     "\xc2\xb7 the time constant (0.6 s) \xc2\xb7 "
-                     "the rate (4 Hz) \xc2\xb7 the period (0.8 s) "
-                     "\xc2\xb7 the damping ratios",
+         .subtitle = "dials · three seconds across every plot "
+                     "· the time constant (0.6 s) · "
+                     "the rate (4 Hz) · the period (0.8 s) "
+                     "· the damping ratios",
          .footer = "a spring is a STATE and the rest are functions, "
                    "which is the whole difference: an ease needs "
                    "two fixed endpoints and can only restart when "
@@ -131,8 +131,8 @@ struct DecayStep final : sketch::Sketch {
         kit::cells(
             {.cells =
                  {cell("motion::decay(age, 0.6)",
-                       "exp(-age/tau) \xc2\xb7 1 at the instant it "
-                       "happened, and never quite 0 \xc2\xb7 the grid is "
+                       "exp(-age/tau) · 1 at the instant it "
+                       "happened, and never quite 0 · the grid is "
                        "one tau apart, so the curve crosses each line "
                        "lower by the same fraction",
                        plot("decay",
@@ -141,7 +141,7 @@ struct DecayStep final : sketch::Sketch {
                             (int)(kSpan / kTau))),
                   cell("quantizeTime(t, 4) / 3",
                        "SECONDS posterised at a rate and held still "
-                       "between steps \xc2\xb7 twelve steps across "
+                       "between steps · twelve steps across "
                        "three seconds, against the ramp they came from",
                        plot("quantize",
                             {{[](float t) { return t / kSpan; },
@@ -152,7 +152,7 @@ struct DecayStep final : sketch::Sketch {
                               look.palette.figure}},
                             (int)(kSpan * kHz))),
                   cell("stepIndex(t, 4) / 12",
-                       "the same clock as an INTEGER COUNT \xc2\xb7 the "
+                       "the same clock as an INTEGER COUNT · the "
                        "same staircase, and the number a cursor or a "
                        "frame table indexes with",
                        plot("step",
@@ -164,14 +164,14 @@ struct DecayStep final : sketch::Sketch {
                             (int)(kSpan * kHz))),
                   cell("motion::phase(t, 0.8)",
                        "seconds folded into a wrapping [0, 1) "
-                       "\xc2\xb7 the marching ants, the marquee, the "
-                       "scanline creep \xc2\xb7 three and three quarter "
+                       "· the marching ants, the marquee, the "
+                       "scanline creep · three and three quarter "
                        "turns in three seconds",
                        plot("phase",
                             {{[](float t) { return motion::phase(t, kPeriod); },
                               look.palette.figure}})),
                   cell("spring(s, 1, dt, {0.8, damping})",
-                       "damping 0.25, 0.6 and 1.2 \xc2\xb7 below one it "
+                       "damping 0.25, 0.6 and 1.2 · below one it "
                        "overshoots and rings, at one it arrives as fast "
                        "as it can without crossing, above one it crawls "
                        "in from one side",
@@ -184,7 +184,7 @@ struct DecayStep final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(DecayStep, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(DecayStep, "Kit · API",
              "the open-ended settle, the posterised clock as seconds and as "
              "a count, the wrapping phase, and a spring at three damping "
              "ratios, each plotted over the same three seconds")

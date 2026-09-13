@@ -811,7 +811,6 @@ struct Ds2Bench : sketch::Sketch {
   void update(double, sketch::SketchContext&) override {}
 };
 
-SIGIL_SKETCH(
-    Ds2Bench, "Study \xc2\xb7 Game UI",
-    "Dead Space 2's Nanocircuit bench (2011) \xe2\x80\x94 routers, rails, "
-    "a diegetic hologram")
+SIGIL_SKETCH(Ds2Bench, "Study · Game UI",
+             "Dead Space 2's Nanocircuit bench (2011) — routers, rails, "
+             "a diegetic hologram")

@@ -159,39 +159,38 @@ struct NineSlice final : sketch::Sketch {
     const float breathW = kPanelW + 66 * stretch;
     const float breathH = kPanelH + 26 * stretch;
 
-    Element density = kit::cells(
-        {.cells = {sketch::kit::caption(
-                       kPanelW, u8"Slice::density = 2",
-                       u8"192 px at its design width \xe2\x80\x94 a 16-unit "
-                       u8"band",
-                       panel(carvedFrameSlice(oak, kFrameDensity),
-                             u8"BEGIN QUEST", kQuest)),
-                   sketch::kit::caption(
-                       kPanelW, u8"Slice::density = 1",
-                       u8"the same image at face value \xe2\x80\x94 twice "
-                       u8"as heavy",
-                       panel(carvedFrameSlice(oak, 1.0f), u8"BEGIN QUEST",
-                             kQuest))},
-         .gap = 34,
-         .divider = Fill::color(kRule)});
+    Element density =
+        kit::cells({.cells = {sketch::kit::caption(
+                                  kPanelW, u8"Slice::density = 2",
+                                  u8"192 px at its design width — a 16-unit "
+                                  u8"band",
+                                  panel(carvedFrameSlice(oak, kFrameDensity),
+                                        u8"BEGIN QUEST", kQuest)),
+                              sketch::kit::caption(
+                                  kPanelW, u8"Slice::density = 1",
+                                  u8"the same image at face value — twice "
+                                  u8"as heavy",
+                                  panel(carvedFrameSlice(oak, 1.0f),
+                                        u8"BEGIN QUEST", kQuest))},
+                    .gap = 34,
+                    .divider = Fill::color(kRule)});
 
     Element trap = kit::cells(
         {.cells = {sketch::kit::caption(
                        kPanelW, u8"Slice",
-                       u8"decomposed into rects \xe2\x80\x94 every backend",
+                       u8"decomposed into rects — every backend",
                        panel(carvedFrameSlice(azurePlain, 1.0f), u8"DECOMPOSED",
                              kQuest)),
-                   sketch::kit::caption(
-                       kPanelW, u8"skia::draw::drawLattice",
-                       u8"the same rects \xe2\x80\x94 spelled by hand",
-                       directLattice(azurePlain))},
+                   sketch::kit::caption(kPanelW, u8"skia::draw::drawLattice",
+                                        u8"the same rects — spelled by hand",
+                                        directLattice(azurePlain))},
          .gap = 34,
          .divider = Fill::color(kRule)});
 
     Element source = kit::cells(
         {.cells = {sketch::kit::caption(
                        kPanelW, u8"the source",
-                       u8"drawn once, offscreen, at 2\xc3\x97",
+                       u8"drawn once, offscreen, at 2×",
                        image(oak).width(Dimension(96)).height(Dimension(96))),
                    sketch::kit::caption(
                        kPanelW, u8"re-laid out every frame",
@@ -206,10 +205,10 @@ struct NineSlice final : sketch::Sketch {
 
     return sketch::kit::page(
         {.title = u8"NINE SLICE",
-         .subtitle = u8"one generated texture over every size \xe2\x80\x94 "
+         .subtitle = u8"one generated texture over every size — "
                      u8"the density it declares, and the native op it does "
                      u8"not use",
-         .footer = u8"Sketchbook \xc2\xb7 nine_slice"},
+         .footer = u8"Sketchbook · nine_slice"},
         kit::cells(
             {.cells = {std::move(density), std::move(trap), std::move(source)},
              .column = true,
@@ -242,7 +241,7 @@ struct NineSlice final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(NineSlice, "nine slice", "Kit \xc2\xb7 API",
-                "one frame texture over every size \xe2\x80\x94 the lattice, "
+SIGIL_SKETCH_AS(NineSlice, "nine slice", "Kit · API",
+                "one frame texture over every size — the lattice, "
                 "the density it declares, and the native op that draws "
                 "nothing on a device")

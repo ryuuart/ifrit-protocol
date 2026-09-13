@@ -87,57 +87,62 @@ struct SvgSilhouette final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "SVG SILHOUETTE \xc2\xb7 shapes::svg(d, "
+        {.title = "SVG SILHOUETTE · shapes::svg(d, "
                   "preserveAspect)",
-         .subtitle = "dials \xc2\xb7 the d string (\"M62 4 L18 78 "
-                     "H44 L30 148 L86 62 H56 Z\") \xc2\xb7 the fit "
-                     "\xc2\xb7 the box it is asked to fill",
+         .subtitle = "dials · the d string (\"M62 4 L18 78 "
+                     "H44 L30 148 L86 62 H56 Z\") · the fit "
+                     "· the box it is asked to fill",
          .footer = "the parse happens once, at the call, and what "
                    "the value holds afterwards is the parsed path "
-                   "\xe2\x80\x94 which compares, so a node shaped "
+                   "— which compares, so a node shaped "
                    "by an svg() prunes like any other"},
         kit::cells(
             {.cells =
-                 {kit::cells({.cells =
-                                  {cell("svg(d) in 270 \xc3\x97 96",
-                                        "the default maps the path's own "
-                                        "bounds corner to corner, so a wide "
-                                        "box flattens the figure",
-                                        {270, 96}, false),
-                                   cell("svg(d) in 176 \xc3\x97 176",
-                                        "square: the bolt is taller than it is "
-                                        "wide, so it is still stretched "
-                                        "sideways here",
-                                        {176, 176}, false),
-                                   cell("svg(d) in 96 \xc3\x97 190",
-                                        "a tall box is nearly the path's own "
-                                        "aspect, which is why this one looks "
-                                        "right by accident",
-                                        {96, 190}, false)},
-                              .gap = 14}),
-                  kit::cells({.cells =
-                                  {cell("svg(d, true) in 270 \xc3\x97 96",
-                                        "preserveAspect fits and CENTRES "
-                                        "instead \xc2\xb7 the slack goes to "
-                                        "the long axis, not to the figure",
-                                        {270, 96}, true),
-                                   cell("svg(d, true) in 176 \xc3\x97 176",
-                                        "the same proportions in a square box "
-                                        "\xc2\xb7 one figure, three boxes, no "
-                                        "second d string",
-                                        {176, 176}, true),
-                                   cell("svg(d, true) in 96 \xc3\x97 190",
-                                        "and where the box already matched, "
-                                        "the flag changes almost nothing "
-                                        "\xe2\x80\x94 which is the tell",
-                                        {96, 190}, true)},
-                              .gap = 14})},
+                 {kit::cells(
+                      {.cells =
+                           {cell("svg(d) in 270 × 96",
+                                 "the default maps the path's own "
+                                 "bounds corner to corner, so a wide "
+                                 "box flattens the figure",
+                                 {270, 96}, false),
+                            cell("svg(d) in 176 × 176",
+                                 "square: the bolt is taller than it is "
+                                 "wide, so it is still stretched "
+                                 "sideways here",
+                                 {176, 176}, false),
+                            cell("svg(d) in 96 × 190",
+                                 "a tall box is nearly the path's own "
+                                 "aspect, which is why this one looks "
+                                 "right by accident",
+                                 {96, 190}, false)},
+                       .gap =
+                           14}),
+                  kit::cells(
+                      {.cells =
+                           {cell("svg(d, true) in 270 × 96",
+                                 "preserveAspect fits and CENTRES "
+                                 "instead · the slack goes to "
+                                 "the long axis, not to the figure",
+                                 {270, 96},
+                                 true),
+                            cell("svg(d, true) in 176 × 176",
+                                 "the same proportions in a square box "
+                                 "· one figure, three boxes, no "
+                                 "second d string",
+                                 {176, 176}, true),
+                            cell("svg(d, true) in 96 × 190",
+                                 "and where the box already matched, "
+                                 "the flag changes almost nothing "
+                                 "— which is the tell",
+                                 {96, 190}, true)},
+                       .gap =
+                           14})},
              .column = true,
              .gap = 18})));
   }
 };
 
-SIGIL_SKETCH(SvgSilhouette, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(SvgSilhouette, "Kit · API",
              "one traced d string in three boxes of different shape, mapped "
              "corner to corner and then fitted, so the one flag that "
              "decides between them is the only thing that moves")

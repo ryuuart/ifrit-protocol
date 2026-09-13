@@ -178,6 +178,6 @@ void TwoAdvancedV3::update(double elapsed, sketch::SketchContext& ctx) {
   ctx.composer.renderSlot("bootpct", bootReadout());
 }
 
-SIGIL_SKETCH(TwoAdvancedV3, "Study \xc2\xb7 Screens",
-             "2Advanced Studios V3 Expansions Reboot (2024) \xe2\x80\x94 the "
+SIGIL_SKETCH(TwoAdvancedV3, "Study · Screens",
+             "2Advanced Studios V3 Expansions Reboot (2024) — the "
              "production art, lifted from the live site's own Rive file")

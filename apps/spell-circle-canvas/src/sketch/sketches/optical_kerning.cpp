@@ -106,11 +106,11 @@ struct OpticalKerning final : sketch::Sketch {
                        advance(kHeadline, true) - advance(kHeadline, false));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "OPTICAL KERNING \xc2\xb7 "
+        {.title = "OPTICAL KERNING · "
                   "ShapingStyle::opticalKerning",
-         .subtitle = "dials \xc2\xb7 the size (40 px, which is the "
-                     "size the deltas are for) \xc2\xb7 the pairs "
-                     "measured \xc2\xb7 the face, whose own even "
+         .subtitle = "dials · the size (40 px, which is the "
+                     "size the deltas are for) · the pairs "
+                     "measured · the face, whose own even "
                      "pair is the reference",
          .footer = "the face's table is switched OFF while this is "
                    "on, because the two are answers to the same "
@@ -128,14 +128,14 @@ struct OpticalKerning final : sketch::Sketch {
 
   Element plain() {
     return cell("opticalKerning = false",
-                "the face's own kerning table \xc2\xb7 a designer's pairs, "
+                "the face's own kerning table · a designer's pairs, "
                 "and the setting every other cell is read against",
                 headline(sketch::kit::theme().palette.figure, false));
   }
 
   Element optical() {
     return cell("opticalKerning = true",
-                "every pair measured instead \xc2\xb7 the outlines are read "
+                "every pair measured instead · the outlines are read "
                 "for the narrowest distance between them and closed to the "
                 "face's own even pair",
                 headline(sketch::kit::theme().palette.figure, true));
@@ -146,7 +146,7 @@ struct OpticalKerning final : sketch::Sketch {
   Element both() {
     return cell("both, superimposed",
                 "the table in warm under the measured answer in cool "
-                "\xc2\xb7 the letters drift apart along the line, because "
+                "· the letters drift apart along the line, because "
                 "every pair's delta accumulates into the next",
                 box()
                     .absolute()
@@ -162,13 +162,13 @@ struct OpticalKerning final : sketch::Sketch {
       column.child(text(row, sheet.mono(11, sheet.palette.figure)));
     return cell("measured pair deltas",
                 "each pair set twice and the two advances subtracted "
-                "\xc2\xb7 negative closes the pair up, and the last row is "
+                "· negative closes the pair up, and the last row is "
                 "the whole line",
                 std::move(column));
   }
 };
 
-SIGIL_SKETCH(OpticalKerning, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(OpticalKerning, "Kit · API",
              "one headline under the face's kerning table and under the "
              "measured answer, superimposed, with the per-pair deltas "
              "measured and printed")

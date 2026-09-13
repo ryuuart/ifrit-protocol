@@ -614,7 +614,7 @@ struct WorldHud final : sketch::Set {
                    .top(70)
                    .zIndex(6)
                    .child(text("WELDRIN VALE").font(wh::line(20, 2.6f, 640)))
-                   .child(text("LEVEL 34  \xc2\xb7  CLEAR, LIGHT WIND")
+                   .child(text("LEVEL 34  ·  CLEAR, LIGHT WIND")
                               .font(wh::line(11, 0.9f))
                               .ink(wh::kInkDim)
                               .margin(0, 5, 0, 0)));
@@ -631,8 +631,7 @@ struct WorldHud final : sketch::Set {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(
-    WorldHud, "world hud", "Catalog \xc2\xb7 Game UI",
-    "Voxygen's own dimensions \xe2\x80\x94 bars, hotbar, minimap and "
-    "nameplate \xe2\x80\x94 baked into one texture over a lit voxel "
-    "valley, which is the thing a HUD has to stay legible on")
+SIGIL_SKETCH_AS(WorldHud, "world hud", "Catalog · Game UI",
+                "Voxygen's own dimensions — bars, hotbar, minimap and "
+                "nameplate — baked into one texture over a lit voxel "
+                "valley, which is the thing a HUD has to stay legible on")

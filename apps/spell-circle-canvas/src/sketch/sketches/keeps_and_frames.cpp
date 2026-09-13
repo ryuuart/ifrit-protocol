@@ -146,13 +146,13 @@ struct KeepsAndFrames final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "KEEPS AND FRAME OPTIONS \xc2\xb7 KeepOptions, "
+        {.title = "KEEPS AND FRAME OPTIONS · KeepOptions, "
                   "Element::firstBaseline, Element::distribute",
-         .subtitle = "dials \xc2\xb7 the widow and orphan counts "
-                     "(2 and 2) \xc2\xb7 startInNextFrame \xc2\xb7 "
-                     "the seating rule \xc2\xb7 what becomes of the "
+         .subtitle = "dials · the widow and orphan counts "
+                     "(2 and 2) · startInNextFrame · "
+                     "the seating rule · what becomes of the "
                      "room left over",
-         .footer = "a keep never empties a frame \xe2\x80\x94 a "
+         .footer = "a keep never empties a frame — a "
                    "retraction that would leave the fill with "
                    "nothing is dropped, because the text would "
                    "arrive at the next frame in exactly the state "
@@ -167,14 +167,14 @@ struct KeepsAndFrames final : sketch::Sketch {
   Element chains() {
     return kit::cells(
         {.cells = {sketch::kit::caption(
-                       kChainCell, "KeepOptions{} \xc2\xb7 free",
+                       kChainCell, "KeepOptions{} · free",
                        "the cut falls where the fill reached the foot "
-                       "of frame one \xc2\xb7 the reference",
+                       "of frame one · the reference",
                        chain("free", article(true, {}, {}))),
                    sketch::kit::caption(
                        kChainCell, "keep{.widowLines = 2, .orphanLines = 2}",
                        "no single line may stand alone at either side "
-                       "of the join \xc2\xb7 the lines that would have "
+                       "of the join · the lines that would have "
                        "are taken back out and reported as overflow",
                        chain("keep", article(true,
                                              {.widowLines = kWidows,
@@ -183,7 +183,7 @@ struct KeepsAndFrames final : sketch::Sketch {
                    sketch::kit::caption(
                        kChainCell, "keep{.startInNextFrame = true}",
                        "on the LAST block, over a SHORTER body "
-                       "\xc2\xb7 it starts frame two though frame "
+                       "· it starts frame two though frame "
                        "one still has room for it",
                        chain("start",
                              article(false, {}, {.startInNextFrame = true})))},
@@ -196,7 +196,7 @@ struct KeepsAndFrames final : sketch::Sketch {
     // `weave::Story` takes its bytes as a `std::u8string`, which a plain
     // literal is not, so the four passages are widened once here.
     const auto passage = [](const char* words) {
-      return sigil::compose::toUtf8(words);
+      return words;
     };
     Element seated =
         text(passage("Seated on the first line's own ascent, which is what "
@@ -233,36 +233,33 @@ struct KeepsAndFrames final : sketch::Sketch {
             .distribute(weave::FrameOptions::Distribute::kJustify);
 
     return kit::cells(
-        {.cells = {sketch::kit::caption(
-                       kOptionCell, "firstBaseline(kAscent)",
-                       "the first line's own ascent \xc2\xb7 what a "
-                       "leaf that says nothing gets, and the "
-                       "reference for the cell beside it",
-                       optionPlate(std::move(seated))),
-                   sketch::kit::caption(
-                       kOptionCell, "firstBaseline(kCapHeight)",
-                       "the cap top lands on the box's own top "
-                       "\xc2\xb7 every later baseline follows at its "
-                       "block's pitch, so the passage moves as one",
-                       optionPlate(std::move(capped))),
-                   sketch::kit::caption(
-                       kOptionCell, "distribute(kStart)",
-                       "the leftover room stays past the last line "
-                       "\xc2\xb7 the frame carries a stated height, "
-                       "so there IS room left over here",
-                       optionPlate(std::move(stacked))),
-                   sketch::kit::caption(
-                       kOptionCell, "distribute(kJustify)",
-                       "the same room spread between the lines as "
-                       "extra leading \xc2\xb7 the gaps open evenly "
-                       "and the last line lands on the frame's "
-                       "foot",
-                       optionPlate(std::move(justified)))},
+        {.cells =
+             {sketch::kit::caption(kOptionCell, "firstBaseline(kAscent)",
+                                   "the first line's own ascent · what a "
+                                   "leaf that says nothing gets, and the "
+                                   "reference for the cell beside it",
+                                   optionPlate(std::move(seated))),
+              sketch::kit::caption(kOptionCell, "firstBaseline(kCapHeight)",
+                                   "the cap top lands on the box's own top "
+                                   "· every later baseline follows at its "
+                                   "block's pitch, so the passage moves as one",
+                                   optionPlate(std::move(capped))),
+              sketch::kit::caption(kOptionCell, "distribute(kStart)",
+                                   "the leftover room stays past the last line "
+                                   "· the frame carries a stated height, "
+                                   "so there IS room left over here",
+                                   optionPlate(std::move(stacked))),
+              sketch::kit::caption(kOptionCell, "distribute(kJustify)",
+                                   "the same room spread between the lines as "
+                                   "extra leading · the gaps open evenly "
+                                   "and the last line lands on the frame's "
+                                   "foot",
+                                   optionPlate(std::move(justified)))},
          .gap = 14});
   }
 };
 
-SIGIL_SKETCH(KeepsAndFrames, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(KeepsAndFrames, "Kit · API",
              "one story cut across two frames three times, free and under "
              "two keeps, and one passage seated two ways with its leftover "
              "room left alone and then spread between its lines")

@@ -145,13 +145,13 @@ struct FrameGrid final : sketch::Sketch {
     }();
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "FRAME AND GRID \xc2\xb7 path::Frame, path::Grid, "
+        {.title = "FRAME AND GRID · path::Frame, path::Grid, "
                   "arrange::onRing / moduleSize / cellRect",
-         .subtitle = "dials \xc2\xb7 the frame's zero and sense "
-                     "\xc2\xb7 the module and the gaps \xc2\xb7 the "
+         .subtitle = "dials · the frame's zero and sense "
+                     "· the module and the gaps · the "
                      "grid's scale (7 px per unit) and snap (7 px)",
          .footer = "arrange:: knows nothing about what is being "
-                   "placed \xe2\x80\x94 it takes numbers and "
+                   "placed — it takes numbers and "
                    "answers one point or one rect, which is what "
                    "lets a layout scheme and a sprite buffer reach "
                    "the same body"},
@@ -160,9 +160,9 @@ struct FrameGrid final : sketch::Sketch {
                  {kit::cells(
                       {.cells =
                            {cell("Frame{.zero = North, .sense = CW}",
-                                 "the engraver's convention \xc2\xb7 "
+                                 "the engraver's convention · "
                                  "at(deg, rNorm) and dir(deg) read in "
-                                 "the plate's own units, 0\xc2\xb0 at "
+                                 "the plate's own units, 0° at "
                                  "twelve o'clock",
                                  [](SkCanvas& canvas) {
                                    const path::Frame frame{.centre = middle(),
@@ -175,12 +175,12 @@ struct FrameGrid final : sketch::Sketch {
                                    reading(canvas, frame, 0, kFigure);
                                    reading(canvas, frame, 126, kWarm);
                                  }),
-                            cell("\xe2\x80\xa6"
+                            cell("…"
                                  ".zero = East, "
                                  ".sense = CCW",
-                                 "the SAME two numbers, 0\xc2\xb0 and "
-                                 "126\xc2\xb0, in Skia's convention "
-                                 "running the other way \xc2\xb7 the "
+                                 "the SAME two numbers, 0° and "
+                                 "126°, in Skia's convention "
+                                 "running the other way · the "
                                  "value carries it, not the call site",
                                  [](SkCanvas& canvas) {
                                    const path::Frame frame{
@@ -196,12 +196,12 @@ struct FrameGrid final : sketch::Sketch {
                                    reading(canvas, frame, 0, kFigure);
                                    reading(canvas, frame, 126, kWarm);
                                  }),
-                            cell("scaled(0.62) \xc2\xb7 turned(15) "
-                                 "\xc2\xb7 about(c)",
+                            cell("scaled(0.62) · turned(15) "
+                                 "· about(c)",
                                  "derived frames inherit the "
                                  "convention, which is where it "
                                  "otherwise gets silently dropped "
-                                 "\xc2\xb7 turned composes and inverts",
+                                 "· turned composes and inverts",
                                  [](SkCanvas& canvas) {
                                    const path::Frame frame{.centre = middle(),
                                                            .radius = kRadius};
@@ -221,14 +221,14 @@ struct FrameGrid final : sketch::Sketch {
                        .gap = 14}),
                   kit::cells(
                       {.cells =
-                           {cell("arrange::onRing(i, n, \xe2\x80\xa6"
+                           {cell("arrange::onRing(i, n, …"
                                  ", Turn)",
                                  kit::formatted(
-                                     "seven items over 270\xc2\xb0 "
-                                     "\xc2\xb7 Turn::Open steps "
-                                     "%.1f\xc2\xb0 and lands on both "
+                                     "seven items over 270° "
+                                     "· Turn::Open steps "
+                                     "%.1f° and lands on both "
                                      "ends; Turn::Closed steps "
-                                     "%.1f\xc2\xb0 and stops short",
+                                     "%.1f° and stops short",
                                      (
                                          double)arrange::
                                          step(270, 7, arrange::Turn::Open),
@@ -263,7 +263,7 @@ struct FrameGrid final : sketch::Sketch {
                             cell("moduleSize + cellAt + cellRect",
                                  "the module that fits 4 by 3 of itself "
                                  "plus the gaps EXACTLY into the "
-                                 "container \xc2\xb7 a block spans and "
+                                 "container · a block spans and "
                                  "swallows the gaps it crosses",
                                  [](SkCanvas& canvas) {
                                    const SkSize container{kCell - 40,
@@ -284,7 +284,7 @@ struct FrameGrid final : sketch::Sketch {
                                  }),
                             cell("Grid{.scale = 7, .snap = 0 | 7}",
                                  "one drawing in artefact units through "
-                                 "two grids \xc2\xb7 s() is a LENGTH "
+                                 "two grids · s() is a LENGTH "
                                  "and takes no origin; x() and y() are "
                                  "positions and do",
                                  [unit, snapped, figure](SkCanvas& canvas) {
@@ -306,14 +306,13 @@ struct FrameGrid final : sketch::Sketch {
                                    trace(unit, kCool, 0);
                                    trace(snapped, kWarm, 88);
                                  })},
-                       .gap =
-                           14})},
+                       .gap = 14})},
              .column = true,
              .gap = 18})));
   }
 };
 
-SIGIL_SKETCH(FrameGrid, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(FrameGrid, "Kit · API",
              "the polar frame carrying its own angle convention, the unit "
              "map carrying scale, origin and snap, and the arrangements "
              "that are functions of numbers alone")

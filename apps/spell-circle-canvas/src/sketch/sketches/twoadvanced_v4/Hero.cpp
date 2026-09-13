@@ -303,8 +303,7 @@ auto TwoAdvancedV4::hero(float w, float h) -> Element {
         .child(t(a, micro(10, mskia::withAlpha(kCyan, 0.8f), 220)))
         .child(t(b, micro(10, mskia::withAlpha(kCyanRing, 0.45f), 220)));
   };
-  s.child(corner("REND / MAXON C4D R8", "PASS 04 \xc2\xb7 FRM 0142", 20, 18,
-                 false));
+  s.child(corner("REND / MAXON C4D R8", "PASS 04 · FRM 0142", 20, 18, false));
   s.child(corner("38.2144 N", "121.4944 W", w - 132, 18, true));
   s.child(corner("DEPTH 00.42", "PRESS 1013 HPA", 20, h - 42, false));
   s.child(
@@ -380,7 +379,7 @@ auto TwoAdvancedV4::mfLoadReadout(int section) -> Element {
       .gap(10)
       .alignItems(Align::Center)
       .child(t("ACCESSING", micro(12, mskia::withAlpha(kCyan, 0.85f), 260)))
-      .child(t("\xe2\x96\xb8", micro(11, kCyan, 0)))
+      .child(t("▸", micro(11, kCyan, 0)))
       .child(t(kNavItems[section], heavy(17, kNear, 80)))
       .child(box().width(60).height(10).foreground(
           styles::TickRail{mskia::withAlpha(kCyan, 0.6f), 5, 3, 8, 1, 4, 0.5f,

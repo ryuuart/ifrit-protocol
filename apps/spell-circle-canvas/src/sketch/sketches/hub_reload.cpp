@@ -162,38 +162,38 @@ struct HubReload final : sketch::Sketch {
         hub.image(chartUri);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "A MOUNTED FOLDER \xc2\xb7 Hub::mount, text, "
+        {.title = "A MOUNTED FOLDER · Hub::mount, text, "
                   "registerDecoder / load, poll",
-         .subtitle = "dials \xc2\xb7 the prefix the folder is "
-                     "mounted under \xc2\xb7 the two states each "
-                     "file is written in \xc2\xb7 what a T is "
+         .subtitle = "dials · the prefix the folder is "
+                     "mounted under · the two states each "
+                     "file is written in · what a T is "
                      "decoded from bytes by",
          .footer = "the decode a view was made with rides along "
                    "with the view, so poll() re-runs exactly it "
-                   "\xe2\x80\x94 which is what makes hot reload a "
+                   "— which is what makes hot reload a "
                    "property of the hub rather than of every "
                    "consumer of it"},
         kit::cells(
             {.cells =
                  {cell("hub.text(\"res://notes.txt\")",
-                       "the UTF-8 convenience over blob() \xc2\xb7 read "
+                       "the UTF-8 convenience over blob() · read "
                        "once before the file changed and once after, "
                        "with poll() between them",
                        lines({kit::formatted(
-                                  "first  \xc2\xb7 %s",
+                                  "first  · %s",
                                   firstText ? firstText->c_str() : "-"),
-                              kit::formatted("poll() \xc2\xb7 %s",
+                              kit::formatted("poll() · %s",
                                              moved ? "true" : "false"),
                               kit::formatted(
-                                  "second \xc2\xb7 %s",
+                                  "second · %s",
                                   secondText ? secondText->c_str() : "-")})),
                   cell("hub.load<Cloud>(\"res://cloud.pts\")",
                        "a type the hub has no opinion about, decoded by "
-                       "a function this file registered \xc2\xb7 both "
+                       "a function this file registered · both "
                        "readings drawn over one another",
                        clouds(firstCloud, secondCloud)),
                   cell("hub.image(\"res://chart.png\")",
-                       "the decoder the constructor registered \xc2\xb7 "
+                       "the decoder the constructor registered · "
                        "image(uri) IS load<ImageAsset>(uri) and shares "
                        "one view of the entry",
                        charts(firstChart, secondChart)),
@@ -202,17 +202,17 @@ struct HubReload final : sketch::Sketch {
                        "value, so the first reading is still the first "
                        "reading and the new one arrives by asking again",
                        lines({kit::formatted(
-                                  "first  cloud \xc2\xb7 %zu points",
+                                  "first  cloud · %zu points",
                                   firstCloud ? firstCloud->points.size() : 0),
                               kit::formatted(
-                                  "second cloud \xc2\xb7 %zu points",
+                                  "second cloud · %zu points",
                                   secondCloud ? secondCloud->points.size() : 0),
                               kit::formatted(
-                                  "first  chart \xc2\xb7 "
-                                  "%d\xc3\x97%d",
+                                  "first  chart · "
+                                  "%d×%d",
                                   firstChart ? firstChart->width() : 0,
                                   firstChart ? firstChart->height() : 0),
-                              kit::formatted("mount  \xc2\xb7 %s",
+                              kit::formatted("mount  · %s",
                                              hub.resolve(notesUri)
                                                  .filename()
                                                  .string()
@@ -274,7 +274,7 @@ struct HubReload final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(HubReload, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(HubReload, "Kit · API",
              "one mounted folder read as text, as a type this file taught "
-             "the hub to decode, and as an image \xe2\x80\x94 each before "
+             "the hub to decode, and as an image — each before "
              "and after the files changed under it and poll() ran")

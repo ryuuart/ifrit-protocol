@@ -346,10 +346,9 @@ const std::vector<Label> kL2 = {
     {0, 1.14f, "g"},   {45, 1.15f, "p"},  {90, 1.16f, "q"},  {135, 1.15f, "n"},
     {180, 1.15f, "t"}, {225, 1.15f, "m"}, {270, 1.16f, "r"}, {315, 1.15f, "f"}};
 const std::vector<Label> kL4 = {
-    {0, 1.14f, "h"},          {30, 1.14f, "q"},  {60, 1.15f, "g"},
-    {90, 1.16f, "r"},         {120, 1.15f, "t"}, {150, 1.15f, "p"},
-    {180, 1.15f, "f"},        {210, 1.15f, "b"}, {240, 1.15f, "o"},
-    {270, 1.16f, "\xcf\x91"}, {300, 1.15f, "n"}, {330, 1.14f, "m"}};
+    {0, 1.14f, "h"},   {30, 1.14f, "q"},  {60, 1.15f, "g"},  {90, 1.16f, "r"},
+    {120, 1.15f, "t"}, {150, 1.15f, "p"}, {180, 1.15f, "f"}, {210, 1.15f, "b"},
+    {240, 1.15f, "o"}, {270, 1.16f, "ϑ"}, {300, 1.15f, "n"}, {330, 1.14f, "m"}};
 const std::vector<Label> kL5 = {{0, 1.14f, "h"},   {90, 1.16f, "r"},
                                 {150, 1.15f, "p"}, {180, 1.15f, "f"},
                                 {240, 1.15f, "o"}, {300, 1.15f, "n"}};
@@ -905,7 +904,6 @@ struct ChladniTab1 : sketch::Sketch {
   void update(double, sketch::SketchContext&) override {}
 };
 
-SIGIL_SKETCH(
-    ChladniTab1, "Study \xc2\xb7 Science",
-    "Chladni's Tab. I (1786) \xe2\x80\x94 9,580 instanced grains onto twelve "
-    "nodal geometries")
+SIGIL_SKETCH(ChladniTab1, "Study · Science",
+             "Chladni's Tab. I (1786) — 9,580 instanced grains onto twelve "
+             "nodal geometries")

@@ -188,8 +188,8 @@ struct UsdRoundtrip final : sketch::Sketch {
                      .divider = Fill::color(sketch::kit::theme().palette.rule)};
     shelf.cells.push_back(cell(
         "source", "the set, as values",
-        kit::formatted("%zu vertices \xc2\xb7 %zu triangles \xc2\xb7 no colour "
-                       "lane\n%s light \xc2\xb7 fovY %.1f\xc2\xb0 \xc2\xb7 "
+        kit::formatted("%zu vertices · %zu triangles · no colour "
+                       "lane\n%s light · fovY %.1f° · "
                        "%zu instancer points",
                        source.positions.size(), source.indices.size() / 3,
                        kindName(sun.kind), (double)lens.fovYDeg, motes.size()),
@@ -232,9 +232,9 @@ struct UsdRoundtrip final : sketch::Sketch {
       shelf.cells.push_back(cell(
           extension, extension,
           kit::formatted(
-              "%.1f KiB \xc2\xb7 %zu parts \xc2\xb7 %zu vertices\n"
-              "%zu light%s (%s) \xc2\xb7 %zu camera%s \xc2\xb7 fovY %.1f"
-              "\xc2\xb0",
+              "%.1f KiB · %zu parts · %zu vertices\n"
+              "%zu light%s (%s) · %zu camera%s · fovY %.1f"
+              "°",
               (double)bytes / 1024.0, model ? model->parts.size() : 0,
               back.positions.size(), lamps ? lamps->size() : 0,
               lamps && lamps->size() == 1 ? "" : "s",
@@ -247,29 +247,28 @@ struct UsdRoundtrip final : sketch::Sketch {
     }
 
     std::string foot = kit::formatted(
-        "Writer(metersPerUnit = %g) \xc2\xb7 UsdGeomMesh + "
+        "Writer(metersPerUnit = %g) · UsdGeomMesh + "
         "UsdGeomPointInstancer + UsdLuxDistantLight + UsdGeomCamera "
         "under /World",
         kMetersPerUnit);
     if (!names.empty())
-      foot += "   \xc2\xb7   ReadInfo bound \xe2\x80\x9c" + names +
-              "\xe2\x80\x9d as the material";
+      foot += "   ·   ReadInfo bound “" + names + "” as the material";
     if (!trouble.empty())
-      foot += "   \xc2\xb7   a package layer is not written through save()";
+      foot += "   ·   a package layer is not written through save()";
 
     ctx.composer.render(
-        sketch::kit::page({.title = "USD ROUND TRIP \xc2\xb7 usd::Writer "
-                                    "\xe2\x86\x92 readModel / readLights / "
+        sketch::kit::page({.title = "USD ROUND TRIP · usd::Writer "
+                                    "→ readModel / readLights / "
                                     "readCameras",
-                           .subtitle = "dials \xc2\xb7 the format (.usdc, "
-                                       ".usda, .usdz) \xc2\xb7 metersPerUnit "
-                                       "\xe2\x80\x94 each cell drawn from the "
+                           .subtitle = "dials · the format (.usdc, "
+                                       ".usda, .usdz) · metersPerUnit "
+                                       "— each cell drawn from the "
                                        "camera its own file gave back",
                            .footer = foot},
                           kit::cells(std::move(shelf))));
   }
 };
 
-SIGIL_SKETCH(UsdRoundtrip, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(UsdRoundtrip, "Kit · API",
              "one set written to crate, ASCII and a package, each read "
              "back and drawn from the camera its own file carried")

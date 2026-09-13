@@ -336,20 +336,18 @@ auto ChevreulCircle::verify(sketch::SketchContext& ctx) -> void {
 
 auto ChevreulCircle::buildVerifyTable() -> void {
   verdict = {};
-  verdict
-      .add(measure::check("CIRCLE CLOSES     12 named \xc3\x97 6", 72,
-                          v.closes1))
-      .add(measure::check("                  3 + 3\xc3\x97"
+  verdict.add(measure::check("CIRCLE CLOSES     12 named × 6", 72, v.closes1))
+      .add(measure::check("                  3 + 3×"
                           "23",
                           72, v.closes2))
-      .add(measure::check("SYSTEM TOTAL      72\xc3\x97"
-                          "20\xc3\x97"
+      .add(measure::check("SYSTEM TOTAL      72×"
+                          "20×"
                           "10 + 20 grey",
                           14420L, v.total))
-      .add(measure::check("PLATE DIAMETER    ROUGE\xe2\x86\x92VERT, deg", 180.0,
+      .add(measure::check("PLATE DIAMETER    ROUGE→VERT, deg", 180.0,
                           (double)v.plateDelta, 0.005))
-      .add(measure::check("SEVENTEEN         C(7,2)=21 \xe2\x88\x92 4 named",
-                          17, v.byName))
+      .add(
+          measure::check("SEVENTEEN         C(7,2)=21 − 4 named", 17, v.byName))
       .add(measure::check("                  and they are HIS seventeen",
                           v.nameSetMatches))
       .add(measure::reading("  by geometry     sep==36 / sep>=30",
@@ -368,19 +366,19 @@ auto ChevreulCircle::buildVerifyTable() -> void {
       // \xc2\xa7" "6's four complementary statements against \xc2\xa7" "161's
       // own construction. Three land on the nose; greenish-yellow/violet
       // does not, and that is Chevreul's, not the reconstruction's.
-      .add(measure::finding(measure::check("COMPLEMENTARIES   \xc2\xa7"
+      .add(measure::finding(measure::check("COMPLEMENTARIES   §"
                                            "6 pairs exact, of 4",
                                            4, v.compExact)))
       // \xc2\xa7" "160: yellow lighter and blue darker than red, measured
       // off the plate's own medians.
-      .add(measure::finding(measure::check("LUMINOSITY \xc2\xa7"
+      .add(measure::finding(measure::check("LUMINOSITY §"
                                            "160  jaune is the lightest",
                                            v.jauneHighest)))
       .add(measure::finding(measure::check(
           "                  bleu darker than rouge", v.bleuDarker)))
       .add(measure::check("STAIRCASE         hexes exact, of 20", v.bands,
                           v.bandsExact))
-      .add(measure::check("                  max within-band \xcf\x83", 0.0,
+      .add(measure::check("                  max within-band σ", 0.0,
                           (double)v.bandSigmaMax, 0.0))
       .add(measure::check("EXACT COVER       uncovered", 0, v.covUncovered))
       .add(measure::check("                  doubled", 0, v.covDoubled))

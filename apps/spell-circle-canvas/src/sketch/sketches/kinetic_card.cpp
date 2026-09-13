@@ -212,7 +212,7 @@ struct KineticCard final : sketch::Sketch {
          "left",
          "SLIDE"},
         {"pop", "fx::pop(0.35, 1.70158)",
-         "scale overshoot \xe2\x80\x94 "
+         "scale overshoot — "
          "back.out(1.7)",
          "POP"},
         {"spin", "fx::spinIn(70, 14)",
@@ -224,7 +224,7 @@ struct KineticCard final : sketch::Sketch {
          "offset and lean",
          "SCATTER"},
         {"typeon", "fx::typeOn()",
-         "absent, then simply there \xe2\x80\x94 "
+         "absent, then simply there — "
          "coverage only, no displacement",
          "TYPE ON"},
         {"axis", "fx::variableAxisSweep(\"GRAD\", 400, 1000)",
@@ -267,11 +267,11 @@ struct KineticCard final : sketch::Sketch {
     Element sheet = sketch::kit::page(
         {.title = u8"THE STOCK TEXT EFFECTS",
          .subtitle = u8"nine presets, one cascade, one wrapping "
-                     u8"phase \xe2\x80\x94 and each one's own "
+                     u8"phase — and each one's own "
                      u8"schedule drawn under it",
-         .footer = u8"rise \xc2\xb7 slide \xc2\xb7 pop \xc2\xb7 "
-                   u8"spinIn \xc2\xb7 scatter move their glyphs; "
-                   u8"typeOn \xc2\xb7 variableAxisSweep \xc2\xb7 "
+         .footer = u8"rise · slide · pop · "
+                   u8"spinIn · scatter move their glyphs; "
+                   u8"typeOn · variableAxisSweep · "
                    u8"tint touch coverage, an outline and colour "
                    u8"and leave every pen position alone"},
         kit::cells({.cells = std::move(shelves), .column = true, .gap = 34}));

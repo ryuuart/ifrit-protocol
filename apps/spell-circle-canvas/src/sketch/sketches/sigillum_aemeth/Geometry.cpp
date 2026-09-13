@@ -344,7 +344,7 @@ auto SigillumAemeth::heptagonNames() -> Element {
   for (int k = 0; k < 7; ++k) {
     std::string row;
     for (auto gl : kGodNames[(size_t)k].glyphs) {
-      row += (gl[0] == '*') ? "\xc9\x9b" : gl;  // the 21/8 ligature stands in
+      row += (gl[0] == '*') ? "ɛ" : gl;  // the 21/8 ligature stands in
     }
     g.child(text(row)
                 .inset(0)
@@ -548,7 +548,7 @@ auto SigillumAemeth::inner() -> Element {
       g.child(std::move(tablet));
 
       const std::string nm = ord.names[k];
-      g.child(text(nm == "*" ? "E\xc9\x9b" : nm)
+      g.child(text(nm == "*" ? "Eɛ" : nm)
                   .font({.size = ord.size * kR})
                   .width(Dimension(2 * ord.radius * kR))
                   .height(Dimension(2 * ord.radius * kR))
@@ -579,7 +579,7 @@ auto SigillumAemeth::inner() -> Element {
               .key("zabhept"));
   for (int k = 0; k < 7; ++k) {
     const std::string s = kZabathiel[k];
-    g.child(text(s == "I*" ? "I\xc9\x9b" : s)
+    g.child(text(s == "I*" ? "Iɛ" : s)
                 .font({.size = 0.030f * kR})
                 .inset(0)
                 .key("zab" + std::to_string(k))

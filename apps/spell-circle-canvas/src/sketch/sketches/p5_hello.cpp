@@ -62,4 +62,4 @@ struct P5Hello final : sketch::Sketch {
 
 SIGIL_SKETCH(P5Hello, "Draw",
              "p5's bouncing ball with a trail, as one compose::graphics node "
-             "\xe2\x80\x94 the kept canvas is what makes the trail possible.")
+             "— the kept canvas is what makes the trail possible.")

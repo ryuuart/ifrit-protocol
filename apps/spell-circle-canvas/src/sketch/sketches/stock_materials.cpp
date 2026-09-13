@@ -175,20 +175,19 @@ struct StockMaterialsSheet final : sketch::Sketch {
                    ptn::speckle(120, 34, 1.2f, 4.2f,
                                 {mat::rgb(0xe8e2d2), mat::rgb(0xf2cc4d)}))});
 
-    Element grained =
-        row({painted("kit::stone({.bedAngle = 24, .bedLength = 46})",
-                     mkit::stone({.bedAngle = 24, .bedLength = 46, .seed = 3})),
-             painted("kit::timber({.span = 90, .figure = 0.5})",
-                     mkit::timber({.span = 90, .figure = 0.5f, .seed = 5})),
-             painted("kit::latten({.level = 0.6, .sheen = 0.5})",
-                     mkit::latten({.level = 0.6f, .sheen = 0.5f, .seed = 7})),
-             painted("kit::board({.tooth = 0.4, .wear = 0.3})",
-                     mkit::board({.tooth = 0.4f, .wear = 0.3f, .seed = 11})),
-             tiled("girih8", "kit::girih8(30, fezPalette(), 1.6, 45\xc2\xb0)",
-                   mkit::girih8(30, mkit::fezPalette(), 1.6f, 45.0f)),
-             tiled("girih8 \xc2\xb7 nasrid",
-                   "kit::girih8(30, nasridPalette(), 1.6, 62\xc2\xb0)",
-                   mkit::girih8(30, mkit::nasridPalette(), 1.6f, 62.0f))});
+    Element grained = row(
+        {painted("kit::stone({.bedAngle = 24, .bedLength = 46})",
+                 mkit::stone({.bedAngle = 24, .bedLength = 46, .seed = 3})),
+         painted("kit::timber({.span = 90, .figure = 0.5})",
+                 mkit::timber({.span = 90, .figure = 0.5f, .seed = 5})),
+         painted("kit::latten({.level = 0.6, .sheen = 0.5})",
+                 mkit::latten({.level = 0.6f, .sheen = 0.5f, .seed = 7})),
+         painted("kit::board({.tooth = 0.4, .wear = 0.3})",
+                 mkit::board({.tooth = 0.4f, .wear = 0.3f, .seed = 11})),
+         tiled("girih8", "kit::girih8(30, fezPalette(), 1.6, 45°)",
+               mkit::girih8(30, mkit::fezPalette(), 1.6f, 45.0f)),
+         tiled("girih8 · nasrid", "kit::girih8(30, nasridPalette(), 1.6, 62°)",
+               mkit::girih8(30, mkit::nasridPalette(), 1.6f, 62.0f))});
 
     Element shapesAndRamps =
         row({painted("sdf::circle, bordered and glowing",
@@ -227,11 +226,11 @@ struct StockMaterialsSheet final : sketch::Sketch {
          painted("kit::tunnel(bounds, 1.4 s)", mkit::tunnel(swatchBox, 1.4f))});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "STOCK MATERIALS \xc2\xb7 every generator, "
+        {.title = "STOCK MATERIALS · every generator, "
                   "painted once",
-         .subtitle = "field \xc2\xb7 pattern tiles \xc2\xb7 the "
-                     "grained kit and girih \xc2\xb7 sdf and the "
-                     "unit ramps \xc2\xb7 the text paints",
+         .subtitle = "field · pattern tiles · the "
+                     "grained kit and girih · sdf and the "
+                     "unit ramps · the text paints",
          .footer = "each caption is the recipe's own name; running "
                    "the effect is what crosses the split-Skia "
                    "image boundary, so every cell is PAINTED"},
@@ -246,4 +245,4 @@ struct StockMaterialsSheet final : sketch::Sketch {
 
 SIGIL_SKETCH(StockMaterialsSheet, "Start & fixtures",
              "one of every stock SkSL material, painted from its own "
-             "recipe \xe2\x80\x94 also the split-Skia ctest guard")
+             "recipe — also the split-Skia ctest guard")

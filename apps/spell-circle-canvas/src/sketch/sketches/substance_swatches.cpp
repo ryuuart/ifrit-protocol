@@ -93,7 +93,7 @@ struct Swatch {
 
 Element card(const Swatch& swatch) {
   const std::string size =
-      kit::formatted("%d \xc3\x97 %d", swatch.width, swatch.height);
+      kit::formatted("%d × %d", swatch.width, swatch.height);
   return sketch::kit::caption(
              kCard, swatch.usage, size,
              image(swatch.asset)
@@ -188,13 +188,13 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
     // number this machine's SDK decides, so a plate carrying it would
     // change under an SDK upgrade that changed no pixel anyone authored,
     // and a byte-identity sweep would report that as a mover.
-    std::fprintf(stderr, "[substance] engine %s \xc2\xb7 %s\n",
+    std::fprintf(stderr, "[substance] engine %s · %s\n",
                  substance::Package::engineVersion().c_str(),
                  graph.label().c_str());
 
     const std::string caption = kit::formatted(
-        "%s \xc2\xb7 %zu parameters \xc2\xb7 %zu channels",
-        graph.label().c_str(), graph.parameters().size(), swatches.size());
+        "%s · %zu parameters · %zu channels", graph.label().c_str(),
+        graph.parameters().size(), swatches.size());
 
     std::vector<Element> cards;
     cards.reserve(swatches.size());

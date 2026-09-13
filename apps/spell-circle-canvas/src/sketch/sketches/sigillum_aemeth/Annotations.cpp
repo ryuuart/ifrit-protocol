@@ -94,19 +94,19 @@ auto SigillumAemeth::margin() -> Element {
                .font({.face = faceMono, .size = 15})
                .ink(hexColor(0x8d7a58));
 
-  g.child(text("SIGILLVM DEI \xc3\x86M\xc3\x86TH")
+  g.child(text("SIGILLVM DEI ÆMÆTH")
               .font({.face = faceDisplay,
                      .size = 46,
                      .color = kVellum,
                      .track = 2.6f})
               .at({0, 0}));
   g.child(
-      text("EMETH nuncupatum \xc2\xb7 Mortlake by Richemond \xc2\xb7 "
+      text("EMETH nuncupatum · Mortlake by Richemond · "
            "21 Martii 1582")
           .font({.face = faceItalic, .size = 19, .color = hexColor(0xc7ab74)})
           .at({2, 58}));
-  g.child(text("BL Sloane MS 3188 f.30r \xc2\xb7 wax disc BM 1838,1232.90.a "
-               "\xc2\xb7 23.2 cm")
+  g.child(text("BL Sloane MS 3188 f.30r · wax disc BM 1838,1232.90.a "
+               "· 23.2 cm")
               .font({.face = faceSerif})
               .at({2, 86}));
   g.child(box()
@@ -153,7 +153,7 @@ auto SigillumAemeth::margin() -> Element {
     const float at = (tSolve + (float)n * tSolveEach) * 1000;
     std::string chain;
     for (size_t i = 0; i < s.cells.size(); ++i)
-      chain += (i ? "\xc2\xb7" : "") + std::to_string(s.cells[i]);
+      chain += (i ? "·" : "") + std::to_string(s.cells[i]);
     g.child(text(std::to_string(n + 1) + ".")
                 .font({.size = 17})
                 .at({0, y + 6})
@@ -165,11 +165,10 @@ auto SigillumAemeth::margin() -> Element {
                        .track = 1.2f})
                 .at({34, y})
                 .opacity(animate(from(0.0f).to(1.0f), ramp(at + 120, 420))));
-    g.child(
-        text(s.raw == s.reduced ? "" : "\xe2\x9f\xa8" + s.raw + "\xe2\x9f\xa9")
-            .font({.face = faceItalic, .color = hexColor(0x6f5f45)})
-            .at({212, y + 10})
-            .opacity(animate(from(0.0f).to(1.0f), ramp(at + 240, 420))));
+    g.child(text(s.raw == s.reduced ? "" : "⟨" + s.raw + "⟩")
+                .font({.face = faceItalic, .color = hexColor(0x6f5f45)})
+                .at({212, y + 10})
+                .opacity(animate(from(0.0f).to(1.0f), ramp(at + 240, 420))));
     g.child(text(chain)
                 .font({.size = 14, .color = kTrace})
                 .at({320, y + 10})
@@ -181,11 +180,11 @@ auto SigillumAemeth::margin() -> Element {
     std::string un, unl;
     for (int i = 0; i < 40; ++i)
       if (!visited[(size_t)i]) {
-        un += (un.empty() ? "" : "\xc2\xb7") + std::to_string(i + 1);
+        un += (un.empty() ? "" : "·") + std::to_string(i + 1);
         unl += kRing[(size_t)i].glyph;
       }
     g.child(
-        text(kit::formatted("%d of 40 cells consumed \xc2\xb7 %d never visited",
+        text(kit::formatted("%d of 40 cells consumed · %d never visited",
                             usedCells, 40 - usedCells))
             .at({0, 492})
             .opacity(animate(from(0.0f).to(1.0f), ramp(tDark * 1000, 500))));
@@ -195,7 +194,7 @@ auto SigillumAemeth::margin() -> Element {
                 .opacity(animate(from(0.0f).to(1.0f),
                                  ramp(tDark * 1000 + 200, 500))));
     g.child(
-        text("\xe2\x86\xb3 the same rule reads them as YMON 22\xc2\xb7"
+        text("↳ the same rule reads them as YMON 22·"
              "7\xc2\xb7\x31\x33\xc2\xb7\x33\x31 and BORAOTH "
              "26\xc2\xb7\x33\x36\xc2\xb7\x31\x39\xc2\xb7\xe2\x80\xa6")
             .font({.face = faceItalic, .size = 14, .color = hexColor(0x6f5f45)})
@@ -205,7 +204,7 @@ auto SigillumAemeth::margin() -> Element {
   }
 
   // the 7×7 square the birds delivered; read DOWN the columns
-  g.child(text("SEVEN BASKETS, SEVEN BIRDS \xc2\xb7 READ DOWN")
+  g.child(text("SEVEN BASKETS, SEVEN BIRDS · READ DOWN")
               .styleClass("heading")
               .at({0, 580}));
   // The seven angles UNROLLED, not tabulated. On the plate these rows lie
@@ -303,7 +302,7 @@ auto SigillumAemeth::margin() -> Element {
   for (int r = 0; r < 7; ++r)
     for (int c = 0; c < 7; ++c) {
       const float delay = tBirds * 1000 + (float)r * 260 + (float)c * 34;
-      const bool isCross = kAngles[r][c] == std::string("\xe2\x80\xa0");
+      const bool isCross = kAngles[r][c] == std::string("†");
       const SkPoint at = fanPt(r, c, 0.0f);
       g.child(text(kAngles[r][c])
                   .font({.face = faceSeal,
@@ -324,11 +323,10 @@ auto SigillumAemeth::margin() -> Element {
                                ramp(tBirds * 1000 + 2600, 400))));
 
   // the four orders and their tablets
-  const char* kLegend[4] = {
-      "Fili\xc3\xa6 Lucis \xc2\xb7 blue tablet in the forehead",
-      "Filii Lucis \xc2\xb7 round gold tablet on the breast",
-      "Fili\xc3\xa6 Filiarum \xc2\xb7 four-square white ivory",
-      "Filii Filiorum \xc2\xb7 three-cornered green"};
+  const char* kLegend[4] = {"Filiæ Lucis · blue tablet in the forehead",
+                            "Filii Lucis · round gold tablet on the breast",
+                            "Filiæ Filiarum · four-square white ivory",
+                            "Filii Filiorum · three-cornered green"};
   const SkColor4f kLegendTint[4] = {
       hexColor(0xb9c6da, 0.95f), hexColor(0xe6bf63, 0.95f),
       hexColor(0xf7f1e2, 0.95f), hexColor(0x9dbfa2, 0.95f)};
@@ -417,14 +415,14 @@ auto SigillumAemeth::colophon() -> Element {
                     .fill = Fill::color(hexColor(0xc7ab74, 0.30f)),
                     .dash = {1.6f, 4.4f}}})));
   g.child(
-      text("\xe2\x80\x9cThis is the Seale, whose Name is \xc3\x86meth: "
-           "and it is to be made of perfect wax.\xe2\x80\x9d")
+      text("“This is the Seale, whose Name is Æmeth: "
+           "and it is to be made of perfect wax.”")
           .font({.face = faceItalic, .size = 17, .color = hexColor(0xb59a6c)})
           .left(0)
           .top(16)
           .width(690));
-  g.child(text("Uriel, 14 March 1582 \xc2\xb7 reconstruction from the "
-               "rule, not a tracing \xc2\xb7 SigilCompose study")
+  g.child(text("Uriel, 14 March 1582 · reconstruction from the "
+               "rule, not a tracing · SigilCompose study")
               .font({.face = faceMono, .size = 12, .color = hexColor(0x6f5f45)})
               .at({0, 62}));
   return g;

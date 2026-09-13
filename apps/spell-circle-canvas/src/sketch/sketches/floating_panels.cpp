@@ -211,6 +211,6 @@ struct FloatingPanels final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(FloatingPanels, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(FloatingPanels, "Kit · API",
              "render::drawImagePanel and a textured cylinderPanel — the "
              "same composed card flat in space and bent around a curve")

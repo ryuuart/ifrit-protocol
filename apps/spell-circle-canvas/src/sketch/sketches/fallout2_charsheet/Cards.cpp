@@ -57,7 +57,7 @@ auto Fallout2CharSheet::cardContent(int skill) -> Element {
   // NOT hyphenated. What the screen tests is forced leading, a computed wrap
   // width, a silhouette float, and mixed-size baseline alignment.
   weave::ParagraphBuilder pb(body(kInk));
-  pb.addText(toUtf8(d.blurb));
+  pb.addText(d.blurb);
   cardPara = std::make_shared<weave::Paragraph>(pb.build());
   weave::ParagraphLayoutOptions opts;
   opts.alignment = weave::TextAlignment::kStart;
@@ -179,16 +179,16 @@ auto Fallout2CharSheet::captionBand() -> Element {
       path::Edge::Top,
       stroke(2.0f, Fill::color(hexColor(0x3A3020)), PathFormat::Align::Inner)));
   const std::string audited = kit::formatted(
-      "SEVEN NUMBERS BECOME SIXTY \xc2\xb7 %d/%d derived values "
+      "SEVEN NUMBERS BECOME SIXTY · %d/%d derived values "
       "match the shipped sheets (Narg, Mingan, Chitsa), trait "
       "corrections included",
       sheetAudit.checks() - sheetAudit.failures(), sheetAudit.checks());
   auto line = [](const char* s, float y) {
     return text(s).left(Dimension(30)).top(Dimension(y));
   };
-  band.child(t("FALLOUT 2 \xc2\xb7 CHARACTER SCREEN \xc2\xb7 BLACK ISLE "
-               "STUDIOS, 1998 \xc2\xb7 640\xc3\x97"
-               "480 8-BIT INDEXED, REBUILT AT 2\xc3\x97",
+  band.child(t("FALLOUT 2 · CHARACTER SCREEN · BLACK ISLE "
+               "STUDIOS, 1998 · 640×"
+               "480 8-BIT INDEXED, REBUILT AT 2×",
                fo::sheetType(bodyBold(), 17.0f, kGold, 1.8f))
                  .left(Dimension(30))
                  .top(Dimension(14)));
@@ -204,8 +204,8 @@ auto Fallout2CharSheet::captionBand() -> Element {
                   "id 177). The sheet is RE-SET in real faces.",
                   84)
                  .ink(hexColor(0x6A6A5A)));
-  band.child(line("The screen above is exactly 1280\xc3\x97"
-                  "960 \xe2\x80\x94 "
+  band.child(line("The screen above is exactly 1280×"
+                  "960 — "
                   "halve it and it overlays the 1998 capture. This band is "
                   "not part of the artefact.",
                   104)

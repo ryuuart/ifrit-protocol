@@ -283,9 +283,9 @@ struct PenrosePaving : sketch::Sketch {
             c.pass ? std::string("PASS") : "FAIL want " + c.expected},
            Fill::color(c.pass ? held : broken)});
     }
-    const std::string summary = kit::formatted(
-        "VERIFIED AT STARTUP \xc2\xb7 %d CHECKS, %s", verdict.checks(),
-        verdict.pass() ? "ALL PASSED" : "ONE OR MORE FAILED");
+    const std::string summary =
+        kit::formatted("VERIFIED AT STARTUP · %d CHECKS, %s", verdict.checks(),
+                       verdict.pass() ? "ALL PASSED" : "ONE OR MORE FAILED");
     sketch::kit::Provide bound(look);
     return box()
         .left(1096)
@@ -316,9 +316,9 @@ struct PenrosePaving : sketch::Sketch {
         .stroke(stroke(1.0f, Fill::color(hexColor(0x5E6163, 0.55f)),
                        PathFormat::Align::Inner))
         .background(styles::dropShadow(hexColor(0x000000, 0.55f), {0, 6}, 22))
-        .child(text("DEFLATION \xc2\xb7 FAT \xe2\x86\x92 2 FAT + 1 THIN, "
-                    "\xc3\x97"
-                    "1/\xcf\x86")
+        .child(text("DEFLATION · FAT → 2 FAT + 1 THIN, "
+                    "×"
+                    "1/φ")
                    .left(14)
                    .top(12))
         .child(box().left(10).top(34).width(kDiagW).height(kDiagH).child(
@@ -337,8 +337,8 @@ struct PenrosePaving : sketch::Sketch {
     for (size_t i = 0; i < tiles.size(); ++i) field.child(sett(tiles[i], i));
 
     const std::string spec = kit::formatted(
-        "DE BRUIJN PENTAGRID  \xce\xb3=1/5 (\xce\x93=0)  s=%.0f px  "
-        "%d SETTS  FAT:THIN = %.3f  (\xcf\x86 = 1.618)",
+        "DE BRUIJN PENTAGRID  γ=1/5 (Γ=0)  s=%.0f px  "
+        "%d SETTS  FAT:THIN = %.3f  (φ = 1.618)",
         kModule, audit.tiles, audit.ratio);
 
     return stack()
@@ -434,8 +434,8 @@ struct PenrosePaving : sketch::Sketch {
                    .background(styles::dropShadow(hexColor(0x000000, 0.5f),
                                                   {0, 5}, 18)))
         .child(
-            text("PENROSE TILING \xc2\xb7 P3 RHOMBI \xc2\xb7 ROYAL "
-                 "WHITE & KOBRA GREY GRANITE \xc2\xb7 POLISHED 30 mm "
+            text("PENROSE TILING · P3 RHOMBI · ROYAL "
+                 "WHITE & KOBRA GREY GRANITE · POLISHED 30 mm "
                  "STAINLESS INSERTS")
                 .font(
                     {.size = 13.0f, .color = hexColor(0xDCE0E2), .track = 1.9f})
@@ -444,7 +444,7 @@ struct PenrosePaving : sketch::Sketch {
                 .opacity(1.0f))
         .child(
             text("MATHEMATICAL INSTITUTE, ANDREW WILES BUILDING, "
-                 "OXFORD \xc2\xb7 R. PENROSE 1974 / PAVING 2012")
+                 "OXFORD · R. PENROSE 1974 / PAVING 2012")
                 .font(
                     {.size = 11.5f, .color = hexColor(0xA9AEB1), .track = 1.5f})
                 .left(76)
@@ -479,19 +479,19 @@ struct PenrosePaving : sketch::Sketch {
     // finite patch of a few hundred setts only approaches it, so this is a
     // statement about the paving rather than about the dualization that
     // drew it, and its verdict is never counted against the run.
-    verdict.add(measure::finding(measure::check("fat : thin, tends to \xcf\x86",
-                                                1.6180, audit.ratio, 0.02)));
+    verdict.add(measure::finding(
+        measure::check("fat : thin, tends to φ", 1.6180, audit.ratio, 0.02)));
     verdict.add(
         measure::reading("interior vertices", (long)audit.interiorVerts));
-    verdict.add(measure::check("vertices not closing at 360\xc2\xb0", 0,
-                               audit.badVerts));
+    verdict.add(
+        measure::check("vertices not closing at 360°", 0, audit.badVerts));
     verdict.add(measure::check("worst angle-sum error, deg", 0.0,
                                audit.worstVertErr, 0.5));
     verdict.add(measure::check("arc endpoints left unchained", 0,
                                audit.danglingInterior));
     verdict.add(measure::check("worst endpoint off its midpoint, px", 0.0,
                                audit.worstMidErr, 1e-3));
-    verdict.add(measure::check("worst arc tangent \xc2\xb7 its edge", 0.0,
+    verdict.add(measure::check("worst arc tangent · its edge", 0.0,
                                audit.worstTangentErr, 1e-4));
 
     // --- the deflation vignette's own construction + area audit ------------
@@ -578,9 +578,9 @@ struct PenrosePaving : sketch::Sketch {
           }
         verdict.add(measure::heading("THE DEFLATION"));
         verdict.add(measure::reading(
-            "rhombs, seed \xe2\x86\x92 gen 3",
-            kit::formatted("%zu \xe2\x86\x92 %zu \xe2\x86\x92 %zu "
-                           "\xe2\x86\x92 %zu",
+            "rhombs, seed → gen 3",
+            kit::formatted("%zu → %zu → %zu "
+                           "→ %zu",
                            gens[0].size() / 2, gens[1].size() / 2,
                            gens[2].size() / 2, gens[3].size() / 2)));
         verdict.add(
@@ -641,7 +641,6 @@ struct PenrosePaving : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(
-    PenrosePaving, "Study \xc2\xb7 Pattern",
-    "Penrose's 2012 P3 paving, Oxford \xe2\x80\x94 549 setts from de Bruijn's "
-    "pentagrid")
+SIGIL_SKETCH(PenrosePaving, "Study · Pattern",
+             "Penrose's 2012 P3 paving, Oxford — 549 setts from de Bruijn's "
+             "pentagrid")

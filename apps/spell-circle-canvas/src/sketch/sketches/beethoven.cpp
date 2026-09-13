@@ -183,8 +183,8 @@ struct Beethoven final : sketch::Sketch {
         {"leitung", {"carl schuricht"}},
         {"solist", {"wolfgang schneiderhan"}},
         {"beethoven",
-         {"ouverture zu \xc2\xab"
-          "coriolan\xc2\xbb, op. 62",
+         {"ouverture zu «"
+          "coriolan», op. 62",
           "violinkonzert in d-dur, op. 61",
           "siebente sinfonie in a-dur, op. 92"}},
         {"vorverkauf",
@@ -268,11 +268,11 @@ struct Beethoven final : sketch::Sketch {
                    .inset(bp::kPlateX + bp::kPlateW + 32, bp::kH - 150, 24, 64)
                    .font({.size = 12.0f, .track = 0.4f})
                    .ink(bp::kLabel)
-                   .child(text("josef m\xc3\xbcller-brockmann")
+                   .child(text("josef müller-brockmann")
                               .font({.size = 14.0f, .track = 0.6f}))
-                   .child(text("beethoven \xe2\x80\x94 tonhalle "
-                               "z\xc3\xbcrich, 1955"))
-                   .child(text("measured arc table \xc2\xb7 rings "
+                   .child(text("beethoven — tonhalle "
+                               "zürich, 1955"))
+                   .child(text("measured arc table · rings "
                                "double 1:2:4:8:16"))
                    .key("label"));
   }
@@ -280,5 +280,5 @@ struct Beethoven final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(Beethoven, "beethoven", "Catalog \xc2\xb7 Type",
+SIGIL_SKETCH_AS(Beethoven, "beethoven", "Catalog · Type",
                 "Brockmann arc table, span reveal")

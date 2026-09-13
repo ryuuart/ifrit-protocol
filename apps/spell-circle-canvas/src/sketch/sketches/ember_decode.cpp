@@ -233,7 +233,7 @@ struct EmberDecode : sketch::Sketch {
                        // The faint remark is the sheet's own voice: every
                        // line is set in it unless it says otherwise.
                        .font({.size = 10.5f, .color = kFaint, .track = 0.8f});
-    root.child(text("TEXT AS A SAMPLER \xc2\xb7 ONE SkSL PASS OVER ONE "
+    root.child(text("TEXT AS A SAMPLER · ONE SkSL PASS OVER ONE "
                     "RENDERED LINE")
                    .font({.size = 11.5f, .color = kLabel, .track = 1.6f}));
     root.child(text(u8"EMBER DECODE")
@@ -244,7 +244,7 @@ struct EmberDecode : sketch::Sketch {
                         .unit = weave::Unit::Cluster,
                         .progress = &display}));
     root.child(
-        text("uUnitRect[N] \xc2\xb7 uUnitPhase[N] \xe2\x80\x94 a LETTER "
+        text("uUnitRect[N] · uUnitPhase[N] — a LETTER "
              "is a unit; the bar under each one is the progress that "
              "unit's uniform carries, read back from beatsOf"));
     root.child(box().height(6));
@@ -257,13 +257,13 @@ struct EmberDecode : sketch::Sketch {
                         .progress = &words}));
     root.child(
         text("the same pass, the same source at another count "
-             "\xe2\x80\x94 a WORD is a unit here, and the "
+             "— a WORD is a unit here, and the "
              "runtime compiled and cached one variant per "
              "count"));
     root.child(box().grow(1));
     root.child(
         text("one draw and one pass over each line's own box, "
-             "whatever N is \xc2\xb7 per-unit progress is "
+             "whatever N is · per-unit progress is "
              "uniform DATA, not scene structure"));
 
     // THE SCHEDULE, DRAWN, from the same query the pass agrees with: one
@@ -328,7 +328,6 @@ struct EmberDecode : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(
-    EmberDecode, "Kit \xc2\xb7 API",
-    "text as a sampler \xe2\x80\x94 one SkSL pass burns a line in, reading "
-    "each unit's rect, progress and seed out of uniform arrays")
+SIGIL_SKETCH(EmberDecode, "Kit · API",
+             "text as a sampler — one SkSL pass burns a line in, reading "
+             "each unit's rect, progress and seed out of uniform arrays")

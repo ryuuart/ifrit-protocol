@@ -365,8 +365,7 @@ struct MaterialLab final : sketch::Set {
 
 }  // namespace
 
-SIGIL_SKETCH(
-    MaterialLab, "Set",
-    "What a surface is made of \xe2\x80\x94 five cards over a textured "
-    "floor: one plain, one a stack through a mask, one normal-mapped, "
-    "one sweeping rough to metal, and one emitting")
+SIGIL_SKETCH(MaterialLab, "Set",
+             "What a surface is made of — five cards over a textured "
+             "floor: one plain, one a stack through a mask, one normal-mapped, "
+             "one sweeping rough to metal, and one emitting")

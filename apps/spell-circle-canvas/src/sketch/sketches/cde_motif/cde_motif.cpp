@@ -947,7 +947,6 @@ struct CdeMotifSketch : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(
-    CdeMotifSketch, "Study \xc2\xb7 Screens",
-    "CDE 1.0 on OSF/Motif 2.1 (1995) \xe2\x80\x94 XmGetColors reproduced "
-    "byte-exact")
+SIGIL_SKETCH(CdeMotifSketch, "Study · Screens",
+             "CDE 1.0 on OSF/Motif 2.1 (1995) — XmGetColors reproduced "
+             "byte-exact")

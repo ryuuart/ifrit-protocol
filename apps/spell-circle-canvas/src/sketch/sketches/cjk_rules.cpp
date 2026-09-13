@@ -129,48 +129,48 @@ struct CjkRules final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE JAPANESE TABLES \xc2\xb7 kinsoku, hanging, "
+        {.title = "THE JAPANESE TABLES · kinsoku, hanging, "
                   "mojikumi, tsume, lineBreakLocale",
-         .subtitle = "dials \xc2\xb7 the body size (13 px) \xc2\xb7 "
+         .subtitle = "dials · the body size (13 px) · "
                      "the bracket room and the tsume, as em "
-                     "fractions \xc2\xb7 the locale the "
+                     "fractions · the locale the "
                      "segmentation runs under",
          .footer = "every one of these is DATA the layout asks for "
-                   "and holds no opinion about \xe2\x80\x94 which "
+                   "and holds no opinion about — which "
                    "marks a house forbids, hangs or closes up is a "
                    "decision, and a caller's own table is a peer "
                    "of the stock one"},
         kit::cells(
             {.cells = {cell("writingMode(kVerticalRL)",
-                            "the passage with no table at all \xc2\xb7 the "
+                            "the passage with no table at all · the "
                             "reference every other cell is read against",
                             column()),
                        cell("kinsoku(kit::kinsoku::japanese())",
                             "the closing marks and non-starters may not "
-                            "OPEN a column \xc2\xb7 identical to the "
+                            "OPEN a column · identical to the "
                             "reference, because the segmentation had already "
                             "refused those boundaries",
                             column().kinsoku(
                                 sigil::weave::kit::kinsoku::japanese())),
                        cell("hanging(kit::hanging::japanese())",
-                            "burasagari \xc2\xb7 the sentence marks alone, "
-                            "at a column's END \xc2\xb7 no column of this "
+                            "burasagari · the sentence marks alone, "
+                            "at a column's END · no column of this "
                             "setting closes on one, so nothing hangs",
                             column().hanging(
                                 sigil::weave::kit::hanging::japanese())),
                        cell("mojikumi(brackets(-0.5))",
                             "half an em taken out of the gap between a "
-                            "closing mark and an opening one \xc2\xb7 two "
+                            "closing mark and an opening one · two "
                             "half-air cells set closer",
                             column().mojikumi(brackets(kBracketRoom))),
                        cell("mojikumi({}, tsume = -0.12)",
                             "every full-width gap the table gives no class "
-                            "closed up on top of that \xc2\xb7 the whole "
+                            "closed up on top of that · the whole "
                             "column shortens",
                             column().mojikumi(brackets(kBracketRoom), kTsume)),
                        cell("lineBreakLocale(\"ja\")",
                             "the tailoring the segmentation runs under "
-                            "\xc2\xb7 the default already breaks this "
+                            "· the default already breaks this "
                             "passage the same way, which is the point of "
                             "the two cells before it",
                             column().lineBreakLocale("ja"))},
@@ -178,7 +178,7 @@ struct CjkRules final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(CjkRules, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(CjkRules, "Kit · API",
              "one vertical passage set under each of the Japanese line "
-             "tables in turn \xe2\x80\x94 the prohibitions, the hanging "
+             "tables in turn — the prohibitions, the hanging "
              "marks, the bracket room, the tsume and the locale")

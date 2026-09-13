@@ -91,11 +91,11 @@ auto DunhuangStarChart::locator() -> Element {
                 .stroke(spans::corners(9.0f),
                         brush::solid(1.4f, Fill::color(kTrace))));
   }
-  g.child(text("THE WHOLE SCROLL, 1:16 \xc2\xb7 3,940 \xc3\x97 244 mm "
-               "\xc2\xb7 right: "
+  g.child(text("THE WHOLE SCROLL, 1:16 · 3,940 × 244 mm "
+               "· right: "
                "26 cloud drawings over 80 columns of uranomancy "
-               "\xc2\xb7 left: the "
-               "13-map atlas, 2,100 mm \xc2\xb7 shaded: what this plate "
+               "· left: the "
+               "13-map atlas, 2,100 mm · shaded: what this plate "
                "shows")
               .font({.size = 8.6f, .color = hexColor(0x9a8a68, 0.9f)})
               .left(2)
@@ -314,8 +314,8 @@ auto DunhuangStarChart::poleText() -> Element {
                                                       .window(tPrec0, tPrec1)
                                                       .invert()
                                                       .target(0.0f, bw))));
-  g.child(text("13.00 Julian centuries \xc2\xb7 the sky slides "
-               "18.5\xc2\xb0 in RA")
+  g.child(text("13.00 Julian centuries · the sky slides "
+               "18.5° in RA")
               .font({.size = 8.4f, .color = hexColor(0xc9a35c)})
               .left(0)
               .top(136)
@@ -362,12 +362,12 @@ auto DunhuangStarChart::projectionPanel() -> Element {
     const char* cap;
   };
   const Plot plots[2] = {{0, -27, 43, true,
-                          "map 5 DEC \xe2\x88\x92"
-                          "27\xc2\xb0\xe2\x80\xa6"
-                          "+43\xc2\xb0"},
+                          "map 5 DEC −"
+                          "27°…"
+                          "+43°"},
                          {366, 0, 38, false,
-                          "map 13 polar distance 0\xc2\xb0\xe2\x80\xa6"
-                          "38\xc2\xb0"}};
+                          "map 13 polar distance 0°…"
+                          "38°"}};
   for (const auto& pl : plots) {
     auto p =
         box().left(pl.x).top(30).width(Dimension(pw)).height(Dimension(ph));
@@ -430,10 +430,10 @@ auto DunhuangStarChart::projectionPanel() -> Element {
                 .left(0)
                 .top(ph + 4)
                 .width(Dimension(pw)));
-    p.child(text(merc ? "linear \xe2\x88\x92 Mercator (blue) vs the "
+    p.child(text(merc ? "linear − Mercator (blue) vs the "
                         "hand (red band)"
-                      : "equidist. \xe2\x88\x92 stereo. (blue); the "
-                        "hand is 7.6\xc3\x97 "
+                      : "equidist. − stereo. (blue); the "
+                        "hand is 7.6× "
                         "the plot, off scale")
                 .font({.size = 8.4f, .color = hexColor(0x6d6249)})
                 .left(0)
@@ -442,11 +442,11 @@ auto DunhuangStarChart::projectionPanel() -> Element {
     g.child(std::move(p));
   }
   const char* lines_[6] = {
-      "Mercator parts from linear by %.3f\xc2\xb0 max = %.2f mm of paper;",
-      "  map 5's own DEC residual is 1.61\xc2\xb0. signal/noise %.2f, n=15,",
+      "Mercator parts from linear by %.3f° max = %.2f mm of paper;",
+      "  map 5's own DEC residual is 1.61°. signal/noise %.2f, n=15,",
       "  SE(r) %.4f -> the published 0.002 is %.2f sigma. NOT A RESULT.",
-      "stereographic parts from equidistant by %.3f\xc2\xb0 = %.2f mm;",
-      "  radial residual 3.29\xc2\xb0. signal/noise %.2f, n=19, SE(r) %.4f",
+      "stereographic parts from equidistant by %.3f° = %.2f mm;",
+      "  radial residual 3.29°. signal/noise %.2f, n=19, SE(r) %.4f",
       "  -> the published 0.013 is %.2f sigma. NOT A RESULT EITHER.",
   };
   const std::string rows[6] = {
@@ -464,14 +464,14 @@ auto DunhuangStarChart::projectionPanel() -> Element {
                 .top(196 + (float)i * 13.4f)
                 .width(Dimension(690)));
   g.child(text("all three maps favour PURE CYLINDRICAL (0.974/0.972, "
-               "0.975/0.974, 0.996/0.994) \xe2\x80\x94 3 of 3, p=0.125")
+               "0.975/0.974, 0.996/0.994) — 3 of 3, p=0.125")
               .font({.size = 9.6f, .color = hexColor(0xcf6a4a)})
               .left(0)
               .top(280)
               .width(Dimension(690)));
-  g.child(text("the disc cannot decide BECAUSE IT STOPS AT +52\xc2\xb0: "
+  g.child(text("the disc cannot decide BECAUSE IT STOPS AT +52°: "
                "over a "
-               "full hemisphere the pair would part by 7.00\xc2\xb0")
+               "full hemisphere the pair would part by 7.00°")
               .font({.size = 9.6f, .color = hexColor(0x6d6249)})
               .left(0)
               .top(294)
@@ -489,18 +489,18 @@ auto DunhuangStarChart::auditPanel() -> Element {
                .width(Dimension(880))
                .key("audit")
                .opacity(gate(tAudit - 0.9f, tAudit - 0.2f));
-  g.child(text("MAP 5 \xc2\xb7 THE ORION REGION \xc2\xb7 TABLE 4 OF "
+  g.child(text("MAP 5 · THE ORION REGION · TABLE 4 OF "
                "BONNET-BIDAUD, PRADERIE & WHITFIELD 2009")
               .styleClass("heading")
               .font({.size = 13.0f})
               .left(0)
               .top(0)
               .width(Dimension(880)));
-  g.child(text("month 4 \xc2\xb7 xiu Zui, Shen, Jing \xc2\xb7 listed "
-               "N\xe2\x86\x92"
+  g.child(text("month 4 · xiu Zui, Shen, Jing · listed "
+               "N→"
                "S, "
-               "W\xe2\x86\x92"
-               "E, i.e. by increasing RA \xc2\xb7 R=Shi shi  B=Gan shi  "
+               "W→"
+               "E, i.e. by increasing RA · R=Shi shi  B=Gan shi  "
                "W=Wu Xian shi")
               .font({.size = 8.6f, .color = hexColor(0x9a8a68)})
               .left(0)
@@ -516,10 +516,9 @@ auto DunhuangStarChart::auditPanel() -> Element {
     float x;
     const char* s;
   };
-  const Head heads[9] = {
-      {11, "#"},    {30, "ASTERISM"}, {160, "\xe4\xb8\xad\xe6\x96\x87"},
-      {228, "COL"}, {253, "SXC"},     {281, "MAP"},
-      {312, "CZ"},  {362, "CONF"},    {400, "DEFECT"}};
+  const Head heads[9] = {{11, "#"},    {30, "ASTERISM"}, {160, "中文"},
+                         {228, "COL"}, {253, "SXC"},     {281, "MAP"},
+                         {312, "CZ"},  {362, "CONF"},    {400, "DEFECT"}};
   for (const Head& h : heads)
     g.child(text(h.s)
                 .font({.size = 8.6f, .color = hexColor(0x6d6249)})
@@ -600,7 +599,7 @@ auto DunhuangStarChart::auditPanel() -> Element {
               .opacity(gate(tAudit + 5.4f, tAudit + 5.9f)));
   const std::string tot = kit::formatted(
       "TOTALS  SXC %d   map %d   Chen Zhuo %d distinct (Fa's 3 in, Sanzhu's "
-      "9 absent \xe2\x80\x94 5 + 9 = SXC's 14 for Wuche, exactly)",
+      "9 absent — 5 + 9 = SXC's 14 for Wuche, exactly)",
       m5Sxc, m5Map, m5ChenZhuo);
   g.child(text(tot)
               .font({.size = 9.4f, .color = kChalk})
@@ -616,7 +615,7 @@ auto DunhuangStarChart::auditPanel() -> Element {
               .width(Dimension(878))
               .opacity(gate(tAudit + 5.7f, tAudit + 6.2f)));
   g.child(text("6 documented defects in 20 asterisms, drawn AS FOUND "
-               "\xe2\x80\x94 "
+               "— "
                "ringed on map 5 above. A study that corrects them has "
                "destroyed the object.")
               .font({.size = 9.4f, .color = hexColor(0xb4531f)})
@@ -634,7 +633,7 @@ auto DunhuangStarChart::map13Panel() -> Element {
                .width(Dimension(700))
                .key("m13")
                .opacity(gate(tAudit + 4.6f, tAudit + 5.4f));
-  g.child(text("MAP 13 \xc2\xb7 THE CIRCUMPOLAR DISC \xc2\xb7 TABLE 5")
+  g.child(text("MAP 13 · THE CIRCUMPOLAR DISC · TABLE 5")
               .styleClass("heading")
               .font({.size = 12.0f})
               .left(0)
@@ -643,19 +642,19 @@ auto DunhuangStarChart::map13Panel() -> Element {
   const char* rows[10] = {
       "34 asterisms, stated total 142 stars; the n(map) column sums to 141",
       "(its Tianpei row reads \"5 or 6\", which is where the one goes).",
-      "\xe7\xb4\xab\xe5\xbe\xae Ziwei: two walls, E and W, 14 red + 1 black "
-      "\xe2\x80\x94 Chen Zhuo's",
-      "  \xe6\x9d\xb1\xe5\x9e\xa3 8 + \xe8\xa5\xbf\xe5\x9e\xa3 7 = 15. "
+      "紫微 Ziwei: two walls, E and W, 14 red + 1 black "
+      "— Chen Zhuo's",
+      "  東垣 8 + 西垣 7 = 15. "
       "CLOSES EXACTLY.",
-      "\xe8\x8f\xaf\xe8\x93\x8b Huagai: 7 stars \"+ 6\" the authors cannot "
+      "華蓋 Huagai: 7 stars \"+ 6\" the authors cannot "
       "account for.",
-      "  Chen Zhuo HAS \xe6\x9d\xa0 Gang appended to it \xe2\x80\x94 but 9 "
+      "  Chen Zhuo HAS 杠 Gang appended to it — but 9 "
       "stars, not 6.",
       "  consistent, and it does not close. drawn on the disc, unlabelled.",
       "NI 1: one star, no character, east of Gouchen. "
-      "\xe5\xa4\xa9\xe6\xa3\x93 Tianpei is the",
+      "天棓 Tianpei is the",
       "  SECOND mixed-colour asterism (\"5 R, 1 B?\"), not Ziwei alone.",
-      "\xe4\xb8\x89\xe5\x85\xac Sangong: Chen Zhuo files one copy under WU "
+      "三公 Sangong: Chen Zhuo files one copy under WU "
       "XIAN, the other",
   };
   for (int i = 0; i < 10; ++i)
@@ -757,25 +756,25 @@ auto DunhuangStarChart::headings() -> Element {
               .left(96)
               .top(16)
               .width(Dimension(1200)));
-  g.child(text("British Library Or.8210/S.3326 \xc2\xb7 Mogao Cave 17, "
-               "Dunhuang \xc2\xb7 +649\xe2\x80\x93"
-               "684 \xc2\xb7 3,940 \xc3\x97 244 mm, "
-               "pure mulberry fibre 0.04 mm \xc2\xb7 1,339 dots in 257 "
+  g.child(text("British Library Or.8210/S.3326 · Mogao Cave 17, "
+               "Dunhuang · +649–"
+               "684 · 3,940 × 244 mm, "
+               "pure mulberry fibre 0.04 mm · 1,339 dots in 257 "
                "asterisms")
               .font({.size = 10.2f, .color = hexColor(0x9a8a68)})
               .left(98)
               .top(46)
               .width(Dimension(1500)));
   g.child(text("NOT TRACED. 1,460 real stars precessed J2000 "
-               "\xe2\x86\x92 +700 "
+               "→ +700 "
                "(IAU 1976) and pushed through Table 3's own measured "
                "projection.")
               .font({.size = 10.2f, .color = hexColor(0xc9a35c)})
               .left(1660)
               .top(16)
               .width(Dimension(830)));
-  g.child(text("PLATE I \xc2\xb7 north up, WEST AT RIGHT, RA increasing "
-               "right-to-left \xe2\x80\x94 the direction the scroll reads")
+  g.child(text("PLATE I · north up, WEST AT RIGHT, RA increasing "
+               "right-to-left — the direction the scroll reads")
               .font({.size = 9.4f, .color = hexColor(0x6d6249)})
               .left(1660)
               .top(34)
@@ -804,16 +803,16 @@ auto DunhuangStarChart::headings() -> Element {
                             }))
           .stroke(lines::Line{.width = 1.0f,
                               .fill = Fill::color(hexColor(0x9a8a68, 0.8f))}));
-  g.child(text("10 cm of scroll \xc2\xb7 IDP scan 204.8 px/cm")
+  g.child(text("10 cm of scroll · IDP scan 204.8 px/cm")
               .font({.size = 8.6f, .color = hexColor(0x6d6249)})
               .left(96 + barMm * kPxMm + 10)
               .top(1544)
               .width(Dimension(420)));
-  g.child(text("data: Stellarium chinese_chenzhuo (GPL) \xc2\xb7 "
-               "astronexus/HYG v4.1 \xc2\xb7 arXiv:0906.3034 Tables "
-               "3\xe2\x80\x93"
+  g.child(text("data: Stellarium chinese_chenzhuo (GPL) · "
+               "astronexus/HYG v4.1 · arXiv:0906.3034 Tables "
+               "3–"
                "5 "
-               "\xc2\xb7 IDP 7861395E5F814419BA05483EAB254832")
+               "· IDP 7861395E5F814419BA05483EAB254832")
               .font({.size = 8.6f, .color = hexColor(0x6d6249)})
               .left(1660)
               .top(1544)

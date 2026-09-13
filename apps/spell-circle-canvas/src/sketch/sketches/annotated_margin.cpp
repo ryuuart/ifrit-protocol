@@ -180,7 +180,7 @@ struct AnnotatedMargin final : sketch::Sketch {
                                // that only repeated the word would be showing
                                // nothing the word does not already show.
                                return text(std::to_string(unit.range.start) +
-                                               "\xe2\x80\x93" +
+                                               "–" +
                                                std::to_string(unit.range.end),
                                            m::note(7.5f, m::kMark, 0.2f));
                              })
@@ -201,7 +201,7 @@ struct AnnotatedMargin final : sketch::Sketch {
                          .row()
                          .gap(8)
                          .child(text("line " + std::to_string(unit.lineIndex) +
-                                         " \xc2\xb7 baseline " +
+                                         " · baseline " +
                                          std::to_string((int)unit.axis),
                                      m::note()))
                          .child(box()
@@ -243,5 +243,5 @@ struct AnnotatedMargin final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(AnnotatedMargin, "annotated_margin", "Catalog \xc2\xb7 Type",
+SIGIL_SKETCH_AS(AnnotatedMargin, "annotated_margin", "Catalog · Type",
                 "labels, marginalia and rules read off a text's units")

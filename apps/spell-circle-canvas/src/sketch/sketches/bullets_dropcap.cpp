@@ -153,9 +153,8 @@ struct BulletsDropCap final : sketch::Sketch {
     const std::vector<std::u8string> outerMarks = {u8"1.", u8"2."};
     const std::vector<std::u8string> inner = {
         u8"A number is the caller's to format.",
-        u8"Roman, lettered, restarting, hierarchical \xe2\x80\x94 all data."};
-    const std::vector<std::u8string> innerMarks = {u8"\xe2\x80\x94",
-                                                   u8"\xe2\x80\x94"};
+        u8"Roman, lettered, restarting, hierarchical — all data."};
+    const std::vector<std::u8string> innerMarks = {u8"—", u8"—"};
 
     Element list =
         box()
@@ -169,12 +168,12 @@ struct BulletsDropCap final : sketch::Sketch {
                        .margin(kHang, 0, 0, 0));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "BULLETS AND THE INITIAL LETTER \xc2\xb7 "
+        {.title = "BULLETS AND THE INITIAL LETTER · "
                   "initialLetter, kit::NestedStyle, kit::bullets",
-         .subtitle = "dials \xc2\xb7 the cap's depth in LINES (3, "
-                     "and the size follows from the face) \xc2\xb7 "
-                     "the body's stand-off (7 px) \xc2\xb7 where "
-                     "the nested run stops \xc2\xb7 the hang (16 "
+         .subtitle = "dials · the cap's depth in LINES (3, "
+                     "and the size follows from the face) · "
+                     "the body's stand-off (7 px) · where "
+                     "the nested run stops · the hang (16 "
                      "px per level)",
          .footer = "the initial is a property of the block and the "
                    "layout derives its size; an ornament is still "
@@ -187,22 +186,22 @@ struct BulletsDropCap final : sketch::Sketch {
             {.cells =
                  {cell("text(passage).initialLetter({.lines = 3})",
                        "the size is derived from the block's pitch and "
-                       "the face's cap height \xc2\xb7 one property, no "
+                       "the face's cap height · one property, no "
                        "second element",
                        dropped("cap-plain", {})),
                   cell("ornament.key(k) + text.flowAround(k)",
                        "the star is the painted initial AND the "
                        "silhouette subtracted from each horizontal "
-                       "line \xc2\xb7 type enters its notches",
+                       "line · type enters its notches",
                        illuminated("cap-ornament",
                                    kit::NestedStyle{
                                        .until = kit::NestedStyle::Until::Words,
                                        .count = 6,
                                        .style = smallCaps})),
-                  cell("\xe2\x80\xa6"
+                  cell("…"
                        ", NestedStyle{Delimiter, \"once.\"}",
                        "from the start THROUGH the first occurrence, "
-                       "inclusive \xc2\xb7 an anchored non-greedy regex "
+                       "inclusive · an anchored non-greedy regex "
                        "with the mark literal-quoted",
                        dropped("cap-delim",
                                kit::NestedStyle{
@@ -211,7 +210,7 @@ struct BulletsDropCap final : sketch::Sketch {
                                    .style = smallCaps})),
                   cell("kit::bullets(items, markers, style, hang, "
                        "measure)",
-                       "two levels, two calls \xc2\xb7 every line of an "
+                       "two levels, two calls · every line of an "
                        "item stands one hang in, the first included, "
                        "and the marker keeps the room the indent "
                        "opened",
@@ -220,7 +219,7 @@ struct BulletsDropCap final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(BulletsDropCap, "Kit \xc2\xb7 API",
-             "one initial dropped into a paragraph three ways \xe2\x80\x94 "
+SIGIL_SKETCH(BulletsDropCap, "Kit · API",
+             "one initial dropped into a paragraph three ways — "
              "plain, with a word-counted opening and with one that ends at "
-             "a delimiter \xe2\x80\x94 beside a two-level hanging list")
+             "a delimiter — beside a two-level hanging list")

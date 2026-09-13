@@ -229,13 +229,13 @@ struct MatteLuma final : sketch::Sketch {
                    captioned("by::alpha(coverage)", "keeps what it COVERS",
                              gated(by::alpha(coverage))),
                    captioned("by::alphaOut(coverage)",
-                             "\xe2\x80\xa6"
+                             "…"
                              "and the complement",
                              gated(by::alphaOut(coverage))),
                    captioned("by::luma(coverage)", "keeps what is BRIGHT",
                              gated(by::luma(coverage))),
                    captioned("by::lumaOut(coverage)",
-                             "\xe2\x80\xa6"
+                             "…"
                              "and the complement",
                              gated(by::lumaOut(coverage)))},
          .gap = 12});
@@ -243,28 +243,28 @@ struct MatteLuma final : sketch::Sketch {
     Element law = box()
                       .column()
                       .gap(6)
-                      .child(text("Rec. 601 on ENCODED values \xc2\xb7 each "
+                      .child(text("Rec. 601 on ENCODED values · each "
                                   "colour paired with its 0.299 R + 0.587 G + "
                                   "0.114 B grey twin")
                                  .font({.size = 13, .track = 0}))
                       .child(cell(stripW, 64, box().inset(0).fill(bands)))
                       .child(bandLabels(stripW))
-                      .child(text("\xe2\x80\xa6"
+                      .child(text("…"
                                   "the same eight bands as a by::luma "
-                                  "matte \xe2\x86\x93 each pair reads the SAME")
+                                  "matte ↓ each pair reads the SAME")
                                  .font({.track = 0})
                                  .ink(kDim)
                                  .margin(0, 6, 0, 0))
                       .child(cell(stripW, 64, std::move(bandMatted)));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "TRACK MATTES \xc2\xb7 by::alpha / alphaOut / "
+        {.title = "TRACK MATTES · by::alpha / alphaOut / "
                   "luma / lumaOut",
          .subtitle = "one content, one coverage paint, four gates "
-                     "\xe2\x80\x94 right halves match between alpha "
+                     "— right halves match between alpha "
                      "and luma because the luma is taken on the "
                      "PREMULTIPLIED colour; left halves do not",
-         .footer = "Y' = 0.299 R' + 0.587 G' + 0.114 B' \xc2\xb7 "
+         .footer = "Y' = 0.299 R' + 0.587 G' + 0.114 B' · "
                    "Rec. 709's luminance coefficients on encoded "
                    "values would break every pair above"},
         kit::cells({.cells = {std::move(gates), std::move(law)},
@@ -273,7 +273,6 @@ struct MatteLuma final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(
-    MatteLuma, "Kit \xc2\xb7 API",
-    "by::alpha / alphaOut / luma / lumaOut on one content \xe2\x80\x94 and "
-    "the Rec. 601 pairs that prove the law")
+SIGIL_SKETCH(MatteLuma, "Kit · API",
+             "by::alpha / alphaOut / luma / lumaOut on one content — and "
+             "the Rec. 601 pairs that prove the law")

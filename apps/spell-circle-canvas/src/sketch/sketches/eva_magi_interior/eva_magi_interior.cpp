@@ -71,9 +71,9 @@ struct EvaMagiInterior : sketch::Sketch {
     const float expectedRotation[3] = {60.0f, 0.0f, -60.0f};
     for (size_t i = 0; i < panels.size(); ++i) {
       const auto& p = panels[i];
-      verdict.add(measure::check(
-          kit::formatted("%s  square, w \xe2\x88\x92 h px", p.key),
-          (double)p.box.width(), (double)p.box.height(), 0.1));
+      verdict.add(measure::check(kit::formatted("%s  square, w − h px", p.key),
+                                 (double)p.box.width(), (double)p.box.height(),
+                                 0.1));
       verdict.add(measure::check(
           kit::formatted("%s  edge to the next module, px", p.key),
           (double)sides[(i + 1) % 3], (double)sides[i], 0.5));
@@ -595,7 +595,6 @@ struct EvaMagiInterior : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(
-    EvaMagiInterior, "Study \xc2\xb7 Film",
-    "Evangelion Ep 13 under Ireul \xe2\x80\x94 the camera roll was the "
-    "projection; the infection is a shader")
+SIGIL_SKETCH(EvaMagiInterior, "Study · Film",
+             "Evangelion Ep 13 under Ireul — the camera roll was the "
+             "projection; the infection is a shader")

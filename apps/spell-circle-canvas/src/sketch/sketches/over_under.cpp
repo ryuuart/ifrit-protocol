@@ -131,37 +131,37 @@ Element cell(const char* call, const std::string& note,
 /** The page's own prose, held apart from the tree so the tree reads as a
  *  tree. */
 constexpr const char* kTitle =
-    "OVER AND UNDER \xc2\xb7 over(base, top, mask, blend) and the mask family";
+    "OVER AND UNDER · over(base, top, mask, blend) and the mask family";
 constexpr const char* kSubtitle =
-    "dials \xc2\xb7 the mask kind \xc2\xb7 the fit (0.32 to 0.70) \xc2\xb7 the "
-    "blend \xc2\xb7 the bevel the slope normals come from (26 px)";
+    "dials · the mask kind · the fit (0.32 to 0.70) · the "
+    "blend · the bevel the slope normals come from (26 px)";
 constexpr const char* kFooter =
     "maskVertexColor reads a painted colour lane the same way maskMap reads "
-    "an image \xe2\x80\x94 the renderer supplies the texture, and everything "
+    "an image — the renderer supplies the texture, and everything "
     "after it on this sheet is the same fit and the same invert";
 
 /** Row one: the two sources, the two mask shapes, and the invert. */
 Element sources(const material::Material& mixed) {
   return kit::cells(
-      {.cells = {cell("kit::stone(\xe2\x80\xa6)",
+      {.cells = {cell("kit::stone(…)",
                       "the BASE: a generated bed, grain and speckle, no "
                       "texture at all",
                       stone()),
-                 cell("kit::latten(\xe2\x80\xa6)",
+                 cell("kit::latten(…)",
                       "the TOP: sheet brass, one colour and a ladder of "
                       "lights under a sheen",
                       brass()),
-                 cell("over(\xe2\x80\xa6, maskConstant(0.35))",
-                      "a mask that is the same everywhere \xc2\xb7 the whole "
+                 cell("over(…, maskConstant(0.35))",
+                      "a mask that is the same everywhere · the whole "
                       "plate at 35% brass",
                       material::over(stone(), brass(),
                                      material::maskConstant(0.35f))),
-                 cell("over(\xe2\x80\xa6, maskMap(ramp))",
-                      "one CHANNEL of a painted map \xc2\xb7 its own uv "
+                 cell("over(…, maskMap(ramp))",
+                      "one CHANNEL of a painted map · its own uv "
                       "placement decides where each texel lands",
                       mixed),
                  cell("invert(maskMap(ramp))",
-                      "the same map with its answer flipped \xc2\xb7 brass "
+                      "the same map with its answer flipped · brass "
                       "where the ramp is dark",
                       material::over(stone(), brass(),
                                      material::invertMask(
@@ -174,7 +174,7 @@ Element sources(const material::Material& mixed) {
 Element readings(const material::Material& twice) {
   return kit::cells(
       {.cells = {cell("fit(maskMap(ramp), 0.32, 0.70)",
-                      "the raw range that maps onto 0..1 moved \xc2\xb7 the "
+                      "the raw range that maps onto 0..1 moved · the "
                       "transition narrows to that band",
                       material::over(
                           stone(), brass(),
@@ -182,26 +182,26 @@ Element readings(const material::Material& twice) {
                                             kLow, kHigh))),
                  cell(
                      "maskSlope(bevelNormals(plate, 26))",
-                     "dot(N, up) fitted \xc2\xb7 brass on the shoulder that "
+                     "dot(N, up) fitted · brass on the shoulder that "
                      "faces the light, stone on the one that turns away",
                      material::over(stone(), brass(),
                                     material::maskSlope(
                                         material::bevelNormals(plate(), kBevel),
                                         {0, -1, 0}, 0.05f, 0.55f))),
                  cell("maskHeight(ramp, 0.32, 0.70)",
-                      "the same map read with NO tangent decode \xc2\xb7 a "
+                      "the same map read with NO tangent decode · a "
                       "value dotted with an axis, which is what a tide line is",
                       material::over(stone(), brass(),
                                      material::maskHeight(placedRamp(), kLow,
                                                           kHigh, {0, 1, 0}))),
-                 cell("over(\xe2\x80\xa6, Blend::Add)",
-                      "the top ADDS, scaled by the mask \xc2\xb7 one recipe "
+                 cell("over(…, Blend::Add)",
+                      "the top ADDS, scaled by the mask · one recipe "
                       "per blend, so no body carries a branch",
                       material::over(stone(), brass(),
                                      material::maskMap(placedRamp()),
                                      material::Blend::Add)),
-                 cell("over(over(\xe2\x80\xa6), \xe2\x80\xa6, Multiply)",
-                      kit::formatted("a stack over a stack \xc2\xb7 stackDepth "
+                 cell("over(over(…), …, Multiply)",
+                      kit::formatted("a stack over a stack · stackDepth "
                                      "%d, and under() walks back down to the "
                                      "stone",
                                      material::stackDepth(twice)),
@@ -230,7 +230,7 @@ struct OverUnder final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(OverUnder, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(OverUnder, "Kit · API",
              "brass stacked over stone through every kind of mask the kit "
              "ships, then through each blend, and finally a stack over a "
              "stack")

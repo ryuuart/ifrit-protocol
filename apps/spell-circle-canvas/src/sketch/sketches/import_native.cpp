@@ -255,7 +255,7 @@ struct ImportNative final : sketch::Set {
 
 }  // namespace
 
-SIGIL_SKETCH(ImportNative, "Kit \xc2\xb7 API",
-             "two pictures made outside the material system \xe2\x80\x94 a "
-             "compose scene and a web page \xe2\x80\x94 filling the same "
+SIGIL_SKETCH(ImportNative, "Kit · API",
+             "two pictures made outside the material system — a "
+             "compose scene and a web page — filling the same "
              "surface slot on two bodies")

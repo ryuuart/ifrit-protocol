@@ -230,7 +230,7 @@ struct ThreadedStory final : sketch::Sketch {
                 .gap(5)
                 .child(text("ONE STORY, THREE FRAMES, TWICE")
                            .font({.size = 11, .color = s::kInk, .track = 3.4f}))
-                .child(text("the cut is a word index \xe2\x80\x94 the "
+                .child(text("the cut is a word index — the "
                             "remainder the frame before reported \xe2"
                             "\x80\x94 so a narrower first frame moves "
                             "it, and the columns begin elsewhere")
@@ -261,5 +261,5 @@ struct ThreadedStory final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(ThreadedStory, "threaded_story", "Catalog \xc2\xb7 Type",
+SIGIL_SKETCH_AS(ThreadedStory, "threaded_story", "Catalog · Type",
                 "one story through a chain of frames, the cut moving")

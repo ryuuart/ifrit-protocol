@@ -59,7 +59,7 @@ struct EvaMagiDefense : sketch::Sketch {
       }
     verdict.add(
         measure::heading("ROTATION RULE  theta = snap45(bearing(site "
-                         "\xe2\x86\x92 target) \xe2\x88\x92 90)"));
+                         "→ target) − 90)"));
     for (const Site& s : kSites) {
       const bool hub = s.falls;
       const SkPoint tgt = hub ? kHub : centroid;
@@ -75,12 +75,12 @@ struct EvaMagiDefense : sketch::Sketch {
       // and the stem it turns actually points at the target. A single
       // combined boolean would report a wrong snap and a stem off by twenty
       // degrees with the same word.
-      verdict.add(measure::check(
-          kit::formatted("MAGI %s  (%.0f,%.0f) \xe2\x86\x92 (%.0f,%.0f), "
-                         "declared rotation deg",
-                         s.name, (double)at.fX, (double)at.fY, (double)tgt.fX,
-                         (double)tgt.fY),
-          0.0, (double)wrap180(want - s.rotation), 0.5));
+      verdict.add(
+          measure::check(kit::formatted("MAGI %s  (%.0f,%.0f) → (%.0f,%.0f), "
+                                        "declared rotation deg",
+                                        s.name, (double)at.fX, (double)at.fY,
+                                        (double)tgt.fX, (double)tgt.fY),
+                         0.0, (double)wrap180(want - s.rotation), 0.5));
       verdict.add(measure::check(
           kit::formatted("MAGI %s  stem %+.1f vs bearing %.2f, deg apart",
                          s.name, (double)stemDeg, (double)bearing),
@@ -534,6 +534,6 @@ struct EvaMagiDefense : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(EvaMagiDefense, "Study \xc2\xb7 Film",
-             "The End of Evangelion's MAGI plate (1997) \xe2\x80\x94 six "
+SIGIL_SKETCH(EvaMagiDefense, "Study · Film",
+             "The End of Evangelion's MAGI plate (1997) — six "
              "installations are one component, rotated")

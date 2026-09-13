@@ -213,13 +213,13 @@ struct PainterGpu final : sketch::Sketch {
               u8"canvas";
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "PAINTER RUNTIME \xc2\xb7 MeshStyle::runtime + "
+        {.title = "PAINTER RUNTIME · MeshStyle::runtime + "
                   "sketch::painterRuntime()",
-         .subtitle = "dials \xc2\xb7 the runtime (named on each "
-                     "cell) \xc2\xb7 the panel count (3 flat cards "
+         .subtitle = "dials · the runtime (named on each "
+                     "cell) · the panel count (3 flat cards "
                      "and one curved sheet per cell)",
          .footer = "drawMesh changes hands; drawImagePanel does "
-                   "not \xe2\x80\x94 a panel concats the "
+                   "not — a panel concats the "
                    "perspective and hands the image to the canvas, "
                    "so the cards are the same on both executors and "
                    "only the floor and the curve can differ"},
@@ -236,7 +236,7 @@ struct PainterGpu final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(PainterGpu, "Kit \xc2\xb7 API",
-             "the mesh painter as a value \xe2\x80\x94 the same cockpit "
+SIGIL_SKETCH(PainterGpu, "Kit · API",
+             "the mesh painter as a value — the same cockpit "
              "through Runtime::cpu() and through whichever executor the "
              "process installed")

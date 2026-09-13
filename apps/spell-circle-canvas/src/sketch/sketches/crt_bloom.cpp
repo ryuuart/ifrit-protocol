@@ -181,18 +181,18 @@ struct CrtBloom final : sketch::Sketch {
                               .child(headline(kCore).zIndex(2)));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "CRT BLOOM \xc2\xb7 Effect::glow beside the stack "
+        {.title = "CRT BLOOM · Effect::glow beside the stack "
                   "it names",
          .subtitle = "identical content either side of the seam "
-                     "\xe2\x80\x94 one word, one size, one spread, "
+                     "— one word, one size, one spread, "
                      "one tube; only the construction differs",
          .footer = "glow composites its halo UNDER the letters, "
                    "which is a drop shadow at zero offset; the "
-                   "stack ADDS it, so the core blows out \xc2\xb7 a "
+                   "stack ADDS it, so the core blows out · a "
                    "phosphor adds, a shadow does not"},
         kit::cells(
             {.cells = {sketch::kit::caption(kPanel, "Effect::glow(halo, 14)",
-                                            "one node \xe2\x80\x94 the halo is "
+                                            "one node — the halo is "
                                             "the headline's own coverage, so "
                                             "nothing can drift out of step "
                                             "with the letters",
@@ -200,9 +200,9 @@ struct CrtBloom final : sketch::Sketch {
                        seam(),
                        sketch::kit::caption(
                            kPanel,
-                           "directionalBlur(14, 0\xc2\xb0, 14) + "
+                           "directionalBlur(14, 0°, 14) + "
                            "kPlus",
-                           "two nodes \xe2\x80\x94 the same "
+                           "two nodes — the same "
                            "headline described twice, the lower "
                            "copy blurred, added and baked to a "
                            "texture because it never changes",
@@ -211,7 +211,7 @@ struct CrtBloom final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(CrtBloom, "Kit \xc2\xb7 API",
-             "Effect::glow beside the stack it names \xe2\x80\x94 one node "
+SIGIL_SKETCH(CrtBloom, "Kit · API",
+             "Effect::glow beside the stack it names — one node "
              "against two on identical content, either side of a labelled "
              "seam and under the same field::crtOverlay tube")

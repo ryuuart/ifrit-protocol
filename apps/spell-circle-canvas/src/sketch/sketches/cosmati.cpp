@@ -418,12 +418,12 @@ struct Cosmati final : sketch::Sketch {
             .foreground(stroke(2.0f, Fill::color(cs::kMarble),
                                PathFormat::Align::Inner))
             .background(styles::dropShadow({0, 0, 0, 0.7f}, {0, 8}, 18)));
-    floorPlate.child(text("\xc2\xb7 QVATVOR \xc2\xb7 PRAECEDENTES "
-                          "\xc2\xb7 ET \xc2\xb7 TRES \xc2\xb7")
+    floorPlate.child(text("· QVATVOR · PRAECEDENTES "
+                          "· ET · TRES ·")
                          .left(cs::kBandW)
                          .top(13));
-    floorPlate.child(text("\xc2\xb7 ODORICVS \xc2\xb7 FECIT \xc2\xb7 "
-                          "MCCLXVIII \xc2\xb7")
+    floorPlate.child(text("· ODORICVS · FECIT · "
+                          "MCCLXVIII ·")
                          .left(cs::kBandW)
                          .top(cs::kFieldSide - 24));
 
@@ -466,9 +466,9 @@ struct Cosmati final : sketch::Sketch {
     // glyphs — and it does NOT auto-flip, because the letter-cutters
     // didn't: glyph-up points outward the whole way round.
     floorPlate.child(
-        text("\xc2\xb7 SPHERICVM \xc2\xb7 ARCHETYPVM "
-             "\xc2\xb7 MVNDVM \xc2\xb7 PRIMVM \xc2\xb7 "
-             "TRIPLEX \xc2\xb7")
+        text("· SPHERICVM · ARCHETYPVM "
+             "· MVNDVM · PRIMVM · "
+             "TRIPLEX ·")
             .font(
                 {.size = 9, .color = cs::kGiallo, .track = 2.0f, .weight = 600})
             .width(Dimension(big * 1.50f))
@@ -509,7 +509,7 @@ struct Cosmati final : sketch::Sketch {
                               .color = cs::kInk,
                               .track = 3.4f,
                               .weight = 640}))
-            .child(text("Cosmatesque \xc2\xb7 Westminster "
+            .child(text("Cosmatesque · Westminster "
                         "1268")
                        .font({.size = 11, .track = 1.4f})
                        .margin(0, 6, 0, 0))
@@ -525,7 +525,7 @@ struct Cosmati final : sketch::Sketch {
                                              {cs::kGiallo.fR, cs::kGiallo.fG,
                                               cs::kGiallo.fB, 0.0f}}})))
             .child(text("The governing figure is the QUINCUNX "
-                        "\xe2\x80\x94 four roundels about a "
+                        "— four roundels about a "
                         "fifth. The Great Pavement is a "
                         "quincunx of quincunxes, 25 Roman feet "
                         "square, laid by a Roman crew under "
@@ -539,16 +539,15 @@ struct Cosmati final : sketch::Sketch {
       SkColor4f hi, lo;
     };
     static const Quarry kQuarries[] = {
-        {"porphyry \xc2\xb7 Mons Claudianus", cs::kPorphyry, cs::kPorphyryLo},
-        {"lapis lacedaemonius \xc2\xb7 Krokeai", cs::kSerpentine,
-         cs::kSerpentineLo},
+        {"porphyry · Mons Claudianus", cs::kPorphyry, cs::kPorphyryLo},
+        {"lapis lacedaemonius · Krokeai", cs::kSerpentine, cs::kSerpentineLo},
         {"giallo antico", cs::kGiallo, cs::kGialloLo},
         {"white marble", cs::kMarble, cs::kMarbleLo},
-        {"onyx \xc2\xb7 the centre", cs::kOnyx, cs::kGialloLo},
-        {"Purbeck \xc2\xb7 the framework", cs::kPurbeck, cs::kPurbeckLo},
-        {"glass \xc2\xb7 red", cs::kGlassRed, cs::kPorphyryLo},
-        {"glass \xc2\xb7 turquoise", cs::kGlassTurq, cs::kSerpentineLo},
-        {"glass \xc2\xb7 cobalt", cs::kGlassCobalt, cs::kPurbeckLo},
+        {"onyx · the centre", cs::kOnyx, cs::kGialloLo},
+        {"Purbeck · the framework", cs::kPurbeck, cs::kPurbeckLo},
+        {"glass · red", cs::kGlassRed, cs::kPorphyryLo},
+        {"glass · turquoise", cs::kGlassTurq, cs::kSerpentineLo},
+        {"glass · cobalt", cs::kGlassCobalt, cs::kPurbeckLo},
     };
     // EACH ENTRY'S MARK IS A REAL SAMPLE OF THE STONE, cut to the
     // proportion a tessera is, so the key is quarried from the same
@@ -586,5 +585,5 @@ struct Cosmati final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(Cosmati, "cosmati", "Study \xc2\xb7 Pattern",
-                "opus sectile \xe2\x80\x94 quincunx, guilloche, quarried stone")
+SIGIL_SKETCH_AS(Cosmati, "cosmati", "Study · Pattern",
+                "opus sectile — quincunx, guilloche, quarried stone")

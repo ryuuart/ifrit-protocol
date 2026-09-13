@@ -230,7 +230,7 @@ struct ParagraphSheet final : sketch::Sketch {
     }
     return s::panel(
         "LEADING",
-        "face \xc2\xb7 multiple \xc2\xb7 absolute \xc2\xb7 grid. The rules "
+        "face · multiple · absolute · grid. The rules "
         "under the fourth are the grid it lands on.",
         box()
             .column()
@@ -281,11 +281,11 @@ struct ParagraphSheet final : sketch::Sketch {
     return s::panel(
         "SPACING",
         "the gap between two blocks is the LARGER of the first's "
-        "spaceAfter and the second's spaceBefore \xe2\x80\x94 26 then 24, "
+        "spaceAfter and the second's spaceBefore — 26 then 24, "
         "never 36 or 30.",
-        text(u8"after 26, before 10 \xe2\x80\x94 the gap under this block "
+        text(u8"after 26, before 10 — the gap under this block "
              u8"is twenty-six.\n"
-             u8"after 6, before 24 \xe2\x80\x94 and the gap under THIS one "
+             u8"after 6, before 24 — and the gap under THIS one "
              u8"is twenty-four.\n"
              u8"The block above claimed six and the one below claimed "
              u8"twenty-four, so twenty-four stands.")
@@ -313,7 +313,7 @@ struct ParagraphSheet final : sketch::Sketch {
     return s::panel(
         "INDENTS",
         "start and end on every line, firstLine and lastLine added to "
-        "start on those two \xe2\x80\x94 all of it arithmetic on the "
+        "start on those two — all of it arithmetic on the "
         "intervals the geometry handed back.",
         text(u8"A first-line indent moves the opening of the block and "
              u8"nothing else, which is the oldest way to mark a "
@@ -365,7 +365,7 @@ struct ParagraphSheet final : sketch::Sketch {
 
     return s::panel(
         "JUSTIFIED",
-        "word gaps, then letter spacing, then a glyph scale \xe2\x80\x94 "
+        "word gaps, then letter spacing, then a glyph scale — "
         "each bounded by its own two limits, and a pass at its default "
         "contributes nothing.",
         box()
@@ -415,13 +415,13 @@ struct ParagraphSheet final : sketch::Sketch {
         "the same controls a quarter turn round: the pitch is the "
         "column's width, the indents run down it, and the air between "
         "blocks is a gap across the page.",
-        text(u8"\xe7\xb8\xa6\xe7\xb5\x84\xe3\x81\xbf\n"
-             u8"\xe8\xa1\x8c\xe3\x81\xae\xe9\x96\x93\xe9\x9a\x94\xe3\x81\xaf"
-             u8"\xe6\xae\xb5\xe8\x90\xbd\xe3\x81\x94\xe3\x81\xa8\xe3\x81\xab"
-             u8"\xe6\xb1\xba\xe3\x81\xbe\xe3\x82\x8a\xe3\x80\x81\xe7\xb8\xa6"
-             u8"\xe3\x81\xab\xe7\xb5\x84\xe3\x82\x81\xe3\x81\xb0\xe3\x81\x9d"
-             u8"\xe3\x82\x8c\xe3\x81\x8c\xe5\x88\x97\xe3\x81\xae\xe5\xb9\x85"
-             u8"\xe3\x81\xab\xe3\x81\xaa\xe3\x82\x8b\xe3\x80\x82")
+        text(u8"縦組み\n"
+             u8"行の間隔は"
+             u8"段落ごとに"
+             u8"決まり、縦"
+             u8"に組めばそ"
+             u8"れが列の幅"
+             u8"になる。")
             .styleClass("body")
             .font({.size = 15.0f})
             .width(Dimension(210.0f))
@@ -467,5 +467,5 @@ struct ParagraphSheet final : sketch::Sketch {
 }  // namespace
 
 SIGIL_SKETCH_AS(ParagraphSheet, "paragraph_sheet", "Specimen",
-                "the block controls \xe2\x80\x94 leading, spacing, indents, "
+                "the block controls — leading, spacing, indents, "
                 "justification, tabs")

@@ -157,7 +157,7 @@ struct Mawarikomi final : sketch::Sketch {
                               .font(mw::labelType(12, mw::kAi, 2.6f))
                               .width(Dimension(268.0f)))
                    .child(text("an exclusion cuts a column exactly as it\n"
-                               "cuts a line \xc2\xb7 a clamped column ends "
+                               "cuts a line · a clamped column ends "
                                "in\na marker at its foot")
                               .font(mw::labelType(13, 0.4f))
                               .width(Dimension(268.0f))))
@@ -169,10 +169,10 @@ struct Mawarikomi final : sketch::Sketch {
                    .inset(64, 268, 0, 0)
                    .row()
                    .gap(28)
-                   .child(specimen("UPRIGHT \xc2\xb7 THE FACE'S VERT FORM",
+                   .child(specimen("UPRIGHT · THE FACE'S VERT FORM",
                                    u8"一行に収まらぬときは末に印を置く",
                                    mw::bodyType(20)))
-                   .child(specimen("ROTATED \xc2\xb7 TURNED WITH THE COLUMN",
+                   .child(specimen("ROTATED · TURNED WITH THE COLUMN",
                                    u8"a Latin column turns a quarter turn and "
                                    u8"so does the marker that cuts it",
                                    mw::labelType(17, 0.2f))))
@@ -183,9 +183,9 @@ struct Mawarikomi final : sketch::Sketch {
                    .absolute()
                    .inset(64, 520, 0, 0)
                    .width(Dimension(300.0f)))
-        .child(text("silhouette \xe2\x86\x92 subtracted as itself  "
-                    "\xc2\xb7  a crossed column splits into head and "
-                    "foot  \xc2\xb7  the marker takes the form of the "
+        .child(text("silhouette → subtracted as itself  "
+                    "·  a crossed column splits into head and "
+                    "foot  ·  the marker takes the form of the "
                     "text it cut")
                    .font(mw::labelType(12, mw::kUsu))
                    .absolute()
@@ -195,5 +195,5 @@ struct Mawarikomi final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(Mawarikomi, "mawarikomi", "Catalog \xc2\xb7 Type",
+SIGIL_SKETCH_AS(Mawarikomi, "mawarikomi", "Catalog · Type",
                 "columns around a silhouette, and a clamped column's marker")

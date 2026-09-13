@@ -323,8 +323,8 @@ struct BoundLane : sketch::Sketch {
                     stage("lane.wrap",
                           bind(&phase).scale(3.0f).wrap(1.0f).value(), -0.15f,
                           1.15f)),
-              panel(190, 128, "wiggle \xc2\xb7 3 octaves",
-                    "rails are \xc2\xb1"
+              panel(190, 128, "wiggle · 3 octaves",
+                    "rails are ±"
                     "amount",
                     wiggleStage("lane.wiggle",
                                 wiggle(&seconds, kAmount, kFrequency, kSeedX,
@@ -333,29 +333,28 @@ struct BoundLane : sketch::Sketch {
          .gap = 12});
 
     Element locusRow = kit::cells(
-        {.cells = {panel(230, 230, "SHARED SEED \xc2\xb7 broken",
-                         "x and y both seed 1 \xe2\x86\x92 y = x",
-                         locus("locus.shared", shakeX.value(), sameY.value(),
-                               kTraceB)),
-                   panel(230, 230, "SEEDS 1 / 2 \xc2\xb7 a shake",
-                         "two independent lanes",
-                         locus("locus.split", shakeX.value(), shakeY.value(),
-                               kTrace)),
-                   panel(230, 230, "the same lanes, LIVE",
-                         "amber = shared seed, teal = 1 / 2",
-                         stack()
-                             .child(chip(shakeX, sameY, kTraceB, 62))
-                             .child(chip(shakeX, shakeY, kTrace, 142))),
-                   text("THE ORDER IS THE POINT. wrap folds the affine "
-                        "value, so a wrapped phase still wiggles across "
-                        "the seam; wiggle adds in the property's own "
-                        "units, so its amount is pixels here and laps "
-                        "below; clamp is always last, whenever it was "
-                        "written.")
-                       .font({.face = weave::defaultFace(),
-                              .size = 12,
-                              .color = kDim})
-                       .width(Dimension(420))},
+        {.cells =
+             {panel(230, 230, "SHARED SEED · broken",
+                    "x and y both seed 1 → y = x",
+                    locus("locus.shared", shakeX.value(), sameY.value(),
+                          kTraceB)),
+              panel(
+                  230, 230, "SEEDS 1 / 2 · a shake", "two independent lanes",
+                  locus("locus.split", shakeX.value(), shakeY.value(), kTrace)),
+              panel(230, 230, "the same lanes, LIVE",
+                    "amber = shared seed, teal = 1 / 2",
+                    stack()
+                        .child(chip(shakeX, sameY, kTraceB, 62))
+                        .child(chip(shakeX, shakeY, kTrace, 142))),
+              text("THE ORDER IS THE POINT. wrap folds the affine "
+                   "value, so a wrapped phase still wiggles across "
+                   "the seam; wiggle adds in the property's own "
+                   "units, so its amount is pixels here and laps "
+                   "below; clamp is always last, whenever it was "
+                   "written.")
+                  .font(
+                      {.face = weave::defaultFace(), .size = 12, .color = kDim})
+                  .width(Dimension(420))},
          .gap = 24});
 
     Element tracks = kit::cells(
@@ -368,40 +367,40 @@ struct BoundLane : sketch::Sketch {
                         .height(18)
                         .shape(shapes::circle())
                         .fill(Fill::color(kTraceB)),
-                    "1 \xc2\xb7 t only", ".t = &phase"),
+                    "1 · t only", ".t = &phase"),
               // 2 — lookAhead engages auto-orient: the angle of the chord
               // ahead is ADDED to rotate() (which is 0 here).
               track(shapes::circle(), {.t = &phase, .lookAhead = kLook},
-                    arrowMark(), "2 \xc2\xb7 + lookAhead", ".lookAhead = 0.02"),
+                    arrowMark(), "2 · + lookAhead", ".lookAhead = 0.02"),
               // 3 — …and rotate() still composes on top of the bank. Same
               // flight as 2; the arrow also spins as it goes.
               track(shapes::circle(), {.t = &phase, .lookAhead = kLook},
                     arrowMark().rotate(bind(&phase).target(0.0f, 720.0f)),
-                    "3 \xc2\xb7 + rotate()", "rotate() ADDS to it"),
+                    "3 · + rotate()", "rotate() ADDS to it"),
               // 4 — the lane is the SCHEDULE, so "two laps" is one affine
               // verb on it. A closed curve wraps; no API.
               track(shapes::circle(),
                     {.t = bind(&phase).target(0.0f, kLaps), .lookAhead = kLook},
-                    arrowMark(), "4 \xc2\xb7 two laps", ".target(0, 2) wraps"),
+                    arrowMark(), "4 · two laps", ".target(0, 2) wraps"),
               // 5 — an OPEN curve CLAMPS at its ends and holds the last good
               // chord there, so a parked arrow still points down the final
               // leg instead of reading atan2(0, 0).
               track(shapes::arc(140.0f, 260.0f),
                     {.t = bind(&phase).target(-0.3f, 1.3f), .lookAhead = kLook},
-                    arrowMark(), "5 \xc2\xb7 open curve",
+                    arrowMark(), "5 · open curve",
                     ".target(-0.3, 1.3) clamps")},
          .gap = 8});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE BOUND LANE \xc2\xb7 bind(&output)",
-         .subtitle = "normalise \xe2\x86\x92 envelope "
-                     "\xe2\x86\x92 curve \xe2\x86\x92 quantize "
-                     "\xe2\x86\x92 affine \xe2\x86\x92 wrap "
-                     "\xe2\x86\x92 wiggle \xe2\x86\x92 clamp, "
+        {.title = "THE BOUND LANE · bind(&output)",
+         .subtitle = "normalise → envelope "
+                     "→ curve → quantize "
+                     "→ affine → wrap "
+                     "→ wiggle → clamp, "
                      "in that order whatever order they were "
                      "written in",
          .footer = "outline and motion path are one Shape value "
-                   "\xc2\xb7 translateX/Y are IGNORED while a path "
+                   "· translateX/Y are IGNORED while a path "
                    "is engaged"},
         kit::cells({.cells = {std::move(chain), std::move(locusRow),
                               std::move(tracks)},
@@ -411,6 +410,6 @@ struct BoundLane : sketch::Sketch {
 };
 
 SIGIL_SKETCH(BoundLane, "Specimen",
-             "one BoundFloat chain, stage by stage \xe2\x80\x94 each one "
+             "one BoundFloat chain, stage by stage — each one "
              "graphed because none reads a clock, then the wiggle's locus "
              "and the schedule under travel()")

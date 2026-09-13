@@ -201,6 +201,6 @@ struct HorizontalFlow final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(HorizontalFlow, "Catalog \xc2\xb7 Type",
+SIGIL_SKETCH(HorizontalFlow, "Catalog · Type",
              "horizontal text flowing around a central silhouette and an "
              "ornamented drop cap")

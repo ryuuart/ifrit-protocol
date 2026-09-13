@@ -300,12 +300,12 @@ struct MaterialChild final : sketch::Sketch {
                          "the SAME index texture, another table",
                          tables.fireTable, 0.0f, "fire"),
                    panel(tables, "child(\"uPalette\", ice)",
-                         "\xe2\x80\xa6"
+                         "…"
                          "and another",
                          tables.iceTable, 0.0f, "ice"),
                    panel(tables, "uniform(\"uShade\", 6)",
                          "min(i + 6, 15): the top cells flatten onto the "
-                         "last entry \xe2\x80\x94 index arithmetic, drawn",
+                         "last entry — index arithmetic, drawn",
                          tables.iceTable, kShade, "shade"),
                    panel(tables, "the LUT swapped by update()",
                          "door 3: data changes, the tree is described again, "
@@ -317,7 +317,7 @@ struct MaterialChild final : sketch::Sketch {
         {.cells = {operand("kit::latten({.level = 0.62})",
                            "the BASE of the stack", stackBase(), "base"),
                    operand("kit::stone({.bedAngle = 62})",
-                           "the TOP \xe2\x80\x94 a crust with a bed of its "
+                           "the TOP — a crust with a bed of its "
                            "own",
                            stackTop(), "top"),
                    operand("field::grain(0.018, 4, contrast 3.2)",
@@ -325,24 +325,24 @@ struct MaterialChild final : sketch::Sketch {
                            "channel",
                            stackMask(), "mask"),
                    stacked("over(base, top, mask)",
-                           "Blend::Mix \xe2\x80\x94 the base moves toward "
+                           "Blend::Mix — the base moves toward "
                            "the top where the mask says",
                            mat::Blend::Mix, "over.mix"),
-                   stacked("over(\xe2\x80\xa6, Blend::Multiply)",
+                   stacked("over(…, Blend::Multiply)",
                            "the same three operands, the other law: one "
                            "material, three children",
                            mat::Blend::Multiply, "over.mul")},
          .gap = 20});
 
     return sketch::kit::page(
-        {.title = "CHILD SLOTS \xc2\xb7 a material filling "
+        {.title = "CHILD SLOTS · a material filling "
                   "another's",
-         .subtitle = "top: Paint::sksl(\xe2\x80\xa6).child() "
-                     "\xe2\x80\x94 an index texture read "
-                     "through a palette LUT \xc2\xb7 bottom: "
-                     "over(base, top, mask) \xe2\x80\x94 the "
+         .subtitle = "top: Paint::sksl(…).child() "
+                     "— an index texture read "
+                     "through a palette LUT · bottom: "
+                     "over(base, top, mask) — the "
                      "same idea one level up",
-         .footer = "one effect, two children, ONE draw \xc2\xb7 "
+         .footer = "one effect, two children, ONE draw · "
                    "children ride the prune signature, so a "
                    "swapped LUT repatches and an identical one "
                    "prunes"},
@@ -368,7 +368,6 @@ struct MaterialChild final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(
-    MaterialChild, "Kit \xc2\xb7 API",
-    "child slots \xe2\x80\x94 an index texture through a palette LUT, and "
-    "over(base, top, mask) stacking three materials into one")
+SIGIL_SKETCH(MaterialChild, "Kit · API",
+             "child slots — an index texture through a palette LUT, and "
+             "over(base, top, mask) stacking three materials into one")

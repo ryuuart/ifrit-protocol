@@ -280,8 +280,8 @@ struct TileMap final : sketch::Sketch {
     }
 
     const std::string counts = kit::formatted(
-        "described %zu  \xc2\xb7  memo hits %zu  \xc2\xb7  patched "
-        "%zu  \xc2\xb7  recordings held %zu  \xc2\xb7  painted "
+        "described %zu  ·  memo hits %zu  ·  patched "
+        "%zu  ·  recordings held %zu  ·  painted "
         "live %zu",
         worked.describedNodes, worked.memoHits, worked.patchedNodes,
         worked.picturesLive, worked.nodesPainted);
@@ -293,12 +293,12 @@ struct TileMap final : sketch::Sketch {
             ? kit::formatted(
                   "reconcile and paint: in the "
                   "window, not on the plate")
-            : kit::formatted("reconcile %.3f ms  \xc2\xb7  paint %.3f ms",
+            : kit::formatted("reconcile %.3f ms  ·  paint %.3f ms",
                              worked.reconcileMs, worked.paintMs);
 
     return sketch::kit::page(
         {.title = u8"MEMO CHUNKING",
-         .subtitle = u8"one tile edited every 0.7 s \xe2\x80\x94 the chunk "
+         .subtitle = u8"one tile edited every 0.7 s — the chunk "
                      u8"that holds it is described again and washed; the "
                      u8"other three replay",
          .footer = counts + "   |   " + timing},
@@ -340,7 +340,7 @@ struct TileMap final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(TileMap, "tile map", "Kit \xc2\xb7 API",
-                "memo chunking \xe2\x80\x94 one tile edited on a timer, the "
+SIGIL_SKETCH_AS(TileMap, "tile map", "Kit · API",
+                "memo chunking — one tile edited on a timer, the "
                 "chunk that re-recorded washed and decaying, and the "
                 "reconcile counts under it")

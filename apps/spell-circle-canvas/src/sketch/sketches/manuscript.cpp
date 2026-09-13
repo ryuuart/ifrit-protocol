@@ -211,8 +211,8 @@ struct Manuscript final : sketch::Sketch {
         // The perspective lozenges: one row of gilded diamonds across the
         // frame, drawn on the frame itself rather than mounted on it.
         .background(SwirlCorners{pal, px(kPitch * 1.4f), px(0.5f)})
-        .child(text(u8"T \xc2\xb7 LIVII \xc2\xb7 PATAVINI \xc2\xb7 AB \xc2\xb7 "
-                    u8"VRBE \xc2\xb7 CONDITA \xc2\xb7 LIBER \xc2\xb7 PRIMVS")
+        .child(text(u8"T · LIVII · PATAVINI · AB · "
+                    u8"VRBE · CONDITA · LIBER · PRIMVS")
                    .font({.size = px(kBodySize * 0.86f),
                           .color = pal.gold,
                           .track = px(0.5f)}));
@@ -372,6 +372,6 @@ struct Manuscript final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(Manuscript, "manuscript", "Catalog \xc2\xb7 Type",
-                "Laur. Plut. 63.10's leaf, ruled \xe2\x80\x94 a versal six "
+SIGIL_SKETCH_AS(Manuscript, "manuscript", "Catalog · Type",
+                "Laur. Plut. 63.10's leaf, ruled — a versal six "
                 "lines deep and a vine in the margin")

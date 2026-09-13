@@ -196,7 +196,7 @@ struct PopOrder : sketch::Sketch {
     sorted = depthChain().order(kOrderAxis, kDescending).cloud();
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "POP ORDER \xc2\xb7 order() is a PERMUTATION, "
+        {.title = "POP ORDER · order() is a PERMUTATION, "
                   "and the point sink draws in it",
          .subtitle = "colour is driven from P.z over the ring's own "
                      "depth range, so colour IS depth and a "
@@ -206,16 +206,16 @@ struct PopOrder : sketch::Sketch {
                    "permutation is not a per-point map, so "
                    "SigilWorld declines a chain holding one"},
         kit::cells(
-            {.cells = {panel("no order() \xc2\xb7 WRONG",
+            {.cells = {panel("no order() · WRONG",
                              "scatter order = painter order",
                              splat(unsorted, 34)),
-                       panel("order({0,0,1}) \xc2\xb7 right",
+                       panel("order({0,0,1}) · right",
                              "farthest first, one call", splat(sorted, 34))},
              .gap = 20})));
   }
 };
 
-SIGIL_SKETCH(PopOrder, "Kit \xc2\xb7 API",
-             "geometry::pop order() \xe2\x80\x94 the same points twice, "
+SIGIL_SKETCH(PopOrder, "Kit · API",
+             "geometry::pop order() — the same points twice, "
              "with and without one call, on a sink that has no depth "
              "buffer")

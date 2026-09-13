@@ -132,7 +132,7 @@ struct Bousen final : sketch::Sketch {
     style.paint = bs::banded(bs::kSumi, kind, band, thickness);
     return bs::specimen(
         caption, bs::labelType(9, bs::kUsu, 0.6f),
-        text(u8"\xe5\x82\x8d\xe7\xb7\x9a\xe4\xbe\x8b", style)
+        text(u8"傍線例", style)
             .width(Dimension(28.0f))
             .height(Dimension(62.0f))
             .writingMode(sigil::weave::WritingMode::kVerticalRL),
@@ -236,7 +236,7 @@ struct Bousen final : sketch::Sketch {
                                                weave::Type{.size = 11,
                                                            .color = bs::kAka,
                                                            .track = 1})
-                                          .add("\xe2\x80\x94 anchored to "
+                                          .add("— anchored to "
                                                "the phrase,\nnot to a "
                                                "coordinate"))
                                      .width(Dimension(150.0f)))))
@@ -248,8 +248,7 @@ struct Bousen final : sketch::Sketch {
                 .inset(64, 92, 0, 0)
                 .column()
                 .gap(10)
-                .child(
-                    text("\xe5\x82\x8d\xe7\xb7\x9a", bs::body(44, bs::kSumi)))
+                .child(text("傍線", bs::body(44, bs::kSumi)))
                 .child(box()
                            .width(Dimension(120.0f))
                            .height(Dimension(1.0f))
@@ -258,7 +257,7 @@ struct Bousen final : sketch::Sketch {
                            .font({.size = 13, .color = bs::kAi, .track = 3}))
                 .child(
                     text("a band beside the column, not beneath a\n"
-                         "line \xc2\xb7 a mark on the phrase it names")
+                         "line · a mark on the phrase it names")
                         .font({.size = 13, .color = bs::kSumi, .track = 0.4f})
                         .width(Dimension(260.0f)))
                 .child(box().height(Dimension(20.0f)))
@@ -267,7 +266,7 @@ struct Bousen final : sketch::Sketch {
                            .gap(30)
                            .child(specimen("AS THE FACE GIVES IT",
                                            bs::body(26, bs::kSumi)))
-                           .child(specimen("valt \xc2\xb7 vpal \xc2\xb7 vkna",
+                           .child(specimen("valt · vpal · vkna",
                                            bs::columnFitted(26, bs::kAka))))
                 .child(box().height(Dimension(14.0f)))
                 .child(text("the pair is one string set twice: the "
@@ -299,8 +298,8 @@ struct Bousen final : sketch::Sketch {
                                          {std::chrono::milliseconds(
                                               (int)bs::kColumnEntranceSpan),
                                           &ch::easeNone, 220ms})}))
-        .child(text("\xe2\x86\x91 this strip's entrance beats over\n"
-                    "weave::Unit::Line \xe2\x80\x94 one COLUMN a beat,\n"
+        .child(text("↑ this strip's entrance beats over\n"
+                    "weave::Unit::Line — one COLUMN a beat,\n"
                     "and its band stands at rest")
                    .absolute()
                    .inset(300, 466, 0, 0)
@@ -313,17 +312,17 @@ struct Bousen final : sketch::Sketch {
                 .inset(64, 512, 0, 0)
                 .row()
                 .gap(26)
-                .child(bandSpecimen("UNDERLINE \xc2\xb7 RIGHT",
+                .child(bandSpecimen("UNDERLINE · RIGHT",
                                     sigil::weave::Decoration::Kind::kUnderline,
                                     bs::kAka, 2.5f))
-                .child(bandSpecimen("OVERLINE \xc2\xb7 LEFT",
+                .child(bandSpecimen("OVERLINE · LEFT",
                                     sigil::weave::Decoration::Kind::kOverline,
                                     bs::kAi, 2.0f))
-                .child(bandSpecimen("HIGHLIGHT \xc2\xb7 PITCH",
+                .child(bandSpecimen("HIGHLIGHT · PITCH",
                                     sigil::weave::Decoration::Kind::kHighlight,
                                     {bs::kAi.fR, bs::kAi.fG, bs::kAi.fB, 0.13f},
                                     0)))
-        .child(text("the entrance beats over COLUMNS \xc2\xb7 a band is "
+        .child(text("the entrance beats over COLUMNS · a band is "
                     "beside the column, never beneath a line")
                    .font({.size = 12})
                    .absolute()
@@ -333,5 +332,5 @@ struct Bousen final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(Bousen, "bousen", "Catalog \xc2\xb7 Type",
-                "vertical columns \xe2\x80\x94 sidelines, alternates, marks")
+SIGIL_SKETCH_AS(Bousen, "bousen", "Catalog · Type",
+                "vertical columns — sidelines, alternates, marks")

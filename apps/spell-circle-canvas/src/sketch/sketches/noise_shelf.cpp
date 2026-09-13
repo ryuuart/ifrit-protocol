@@ -120,22 +120,22 @@ struct NoiseShelf final : sketch::Sketch {
     const int columns = (int)(kCell / kBlock);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE MIXERS \xc2\xb7 core::noise hash, "
+        {.title = "THE MIXERS · core::noise hash, "
                   "Mix64Stream, pcgHash, xorshift, lattice, and "
                   "core::hash",
-         .subtitle = "dials \xc2\xb7 one seed for the whole shelf "
-                     "\xc2\xb7 four px a sample \xc2\xb7 the "
-                     "lattice's cell (6 samples) \xc2\xb7 what the "
+         .subtitle = "dials · one seed for the whole shelf "
+                     "· four px a sample · the "
+                     "lattice's cell (6 samples) · what the "
                      "key is folded over",
          .footer = "each of these is a bit-exact function of its "
                    "inputs on every platform, which is what lets a "
                    "shader agree with a CPU preview to the bit "
-                   "\xe2\x80\x94 and why the constants and the "
+                   "— and why the constants and the "
                    "shift schedules are not tuning knobs"},
         kit::cells(
             {.cells = {cell("noise::hash(seed, i)",
                             "the 64-bit avalanche squeezed to a unit float "
-                            "\xc2\xb7 indexed by a counter, here the sample's "
+                            "· indexed by a counter, here the sample's "
                             "own number",
                             field("hash",
                                   [columns](int x, int y) {
@@ -143,7 +143,7 @@ struct NoiseShelf final : sketch::Sketch {
                                         kSeed, (uint32_t)(y * columns + x));
                                   })),
                        cell("Mix64Stream(seed).unit()",
-                            "the same avalanche as a STREAM \xc2\xb7 one "
+                            "the same avalanche as a STREAM · one "
                             "state stepped by the gamma, so successive draws "
                             "are uncorrelated rather than merely different",
                             field("mix64",
@@ -154,7 +154,7 @@ struct NoiseShelf final : sketch::Sketch {
                                   })),
                        cell("noise::pcgUnit(x)",
                             "the PCG word, which the point-operator compute "
-                            "kernel reproduces word for word \xc2\xb7 what "
+                            "kernel reproduces word for word · what "
                             "new code takes",
                             field("pcg",
                                   [columns](int x, int y) {
@@ -163,7 +163,7 @@ struct NoiseShelf final : sketch::Sketch {
                                   })),
                        cell("xorshiftUnitNext(state)",
                             "the xorshift step, walked from one state down "
-                            "the field \xc2\xb7 a different mixer with a "
+                            "the field · a different mixer with a "
                             "different output, kept for the renders seeded "
                             "by it",
                             field("xorshift",
@@ -176,7 +176,7 @@ struct NoiseShelf final : sketch::Sketch {
                                   })),
                        cell("lattice(seed, x, y, 0)",
                             "indexed by a grid POSITION rather than a counter "
-                            "\xc2\xb7 what value noise asks at each corner of "
+                            "· what value noise asks at each corner of "
                             "a cell, drawn here one draw per cell",
                             field("lattice",
                                   [](int x, int y) {
@@ -208,8 +208,8 @@ struct NoiseShelf final : sketch::Sketch {
           kit::formatted("combine(0, 7)"),
           kit::formatted("  %016llx", (unsigned long long)mixed)})
       column.child(text_(row));
-    return cell("fnv1a \xc2\xb7 combine",
-                "one-way folds over a word and over text \xc2\xb7 an address "
+    return cell("fnv1a · combine",
+                "one-way folds over a word and over text · an address "
                 "and not a field, which is why nothing here is drawn",
                 std::move(column).absolute().inset(10));
   }

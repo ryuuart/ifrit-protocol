@@ -118,7 +118,7 @@ double stationTime(int i) { return kFirstStation + (double)i * kStationGap; }
 }  // namespace
 
 struct HitSlots final : sketch::Sketch {
-  std::string hitLabel = "\xe2\x80\x94";
+  std::string hitLabel = "—";
   std::optional<SkRect> hitBounds;
   std::vector<std::string> hitRoutes;
   SkPoint probe{0, 0};
@@ -230,13 +230,13 @@ struct HitSlots final : sketch::Sketch {
     std::string routes;
     for (const std::string& route : hitRoutes)
       routes += (routes.empty() ? "" : ", ") + route;
-    if (routes.empty()) routes = "\xe2\x80\x94";
+    if (routes.empty()) routes = "—";
 
-    std::string rect = "\xe2\x80\x94";
+    std::string rect = "—";
     if (hitBounds)
       rect = std::to_string((int)hitBounds->x()) + ", " +
              std::to_string((int)hitBounds->y()) + ", " +
-             std::to_string((int)hitBounds->width()) + " \xc3\x97 " +
+             std::to_string((int)hitBounds->width()) + " × " +
              std::to_string((int)hitBounds->height());
 
     // The readout is set in ash, and the answer's own line in the ink a
@@ -251,11 +251,10 @@ struct HitSlots final : sketch::Sketch {
             .hitTestable(false)
             .font({.size = 12.5f})
             .ink(look.palette.ash)
-            .child(text("hitTest(probe) \xe2\x86\x92 " + hitLabel)
+            .child(text("hitTest(probe) → " + hitLabel)
                        .font({.size = 16, .color = look.palette.ink}))
-            .child(text("bounds(\"" + hitLabel + "\") \xe2\x86\x92 " + rect))
-            .child(
-                text("routesAt(\"" + hitLabel + "\") \xe2\x86\x92 " + routes)));
+            .child(text("bounds(\"" + hitLabel + "\") → " + rect))
+            .child(text("routesAt(\"" + hitLabel + "\") → " + routes)));
   }
 
   void setup(sketch::SketchContext& ctx) override {
@@ -264,7 +263,7 @@ struct HitSlots final : sketch::Sketch {
         ctx, {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
               .captureAt = stationTime(4),
               .background = SkColor4f{0, 0, 0, 1}});  // standing on target-4
-    hitLabel = "\xe2\x80\x94";
+    hitLabel = "—";
     hitBounds.reset();
     hitRoutes.clear();
     probe = walk(0.0);
@@ -284,7 +283,7 @@ struct HitSlots final : sketch::Sketch {
     // Per frame: the marker moved, so its content is different.
     composer.renderSlot("probe", probeDot());
     // Per change: most frames the answer is the one already on screen.
-    std::string found = composer.hitTest(probe).value_or("\xe2\x80\x94");
+    std::string found = composer.hitTest(probe).value_or("—");
     if (found == hitLabel) return;
     hitLabel = std::move(found);
     hitBounds = composer.bounds(hitLabel);
@@ -293,8 +292,8 @@ struct HitSlots final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(HitSlots, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(HitSlots, "Kit · API",
              "the read-back queries over one scene described once "
-             "\xe2\x80\x94 hitTest naming a target, bounds placing the ring "
+             "— hitTest naming a target, bounds placing the ring "
              "on it and routesAt lighting its wires, in a slot that "
              "re-renders only when the answer changes")

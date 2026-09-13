@@ -239,7 +239,7 @@ struct AxisRipple : sketch::Sketch {
     const float width = pens.back();
     Element panel = box().column().gap(10).width(width);
     panel.child(
-        text("GRAD \xe2\x80\x94 DRIVEN AT DRAW TIME, "
+        text("GRAD — DRIVEN AT DRAW TIME, "
              "ONE SHAPING, LETTERS FIXED"));
     panel.child(text(kProof, proof)
                     .key("ripple")
@@ -251,13 +251,13 @@ struct AxisRipple : sketch::Sketch {
     // One line, deliberately: the panel is the run's own width, so a
     // caption that wraps changes the sheet's height between frames.
     std::snprintf(line, sizeof(line),
-                  "GRAD %.0f\xe2\x80\x93%.0f \xc2\xb7 %.0f WAVE ACROSS "
-                  "THE WORD \xc2\xb7 %.1f S PER PASS \xc2\xb7 RUN WIDTH "
-                  "\xce\x94 %.2f PX ACROSS THE RAMP",
+                  "GRAD %.0f–%.0f · %.0f WAVE ACROSS "
+                  "THE WORD · %.1f S PER PASS · RUN WIDTH "
+                  "Δ %.2f PX ACROSS THE RAMP",
                   axisMin, axisMax, kWavesAcross, kPeriod,
                   gradWidthHi - gradWidthLo);
     panel.child(text(hasGrad ? line
-                             : "THIS FACE DECLARES NO GRAD AXIS \xc2\xb7 "
+                             : "THIS FACE DECLARES NO GRAD AXIS · "
                                "THE DRIVE IS REFUSED AND THE LINE DRAWS "
                                "AT ITS SHAPED COORDINATES")
                     .font({.size = 11.0f, .track = 0.6f})
@@ -327,23 +327,21 @@ struct AxisRipple : sketch::Sketch {
   [[nodiscard]] Element proofPanels() {
     char wght[200];
     std::snprintf(wght, sizeof(wght),
-                  "WIDENS THE RUN BY %.2f PX (%.1f%%) \xc2\xb7 EVERY LETTER "
+                  "WIDENS THE RUN BY %.2f PX (%.1f%%) · EVERY LETTER "
                   "AFTER THE FIRST MOVES, SO THE DRIVE IS REFUSED",
                   widthHi - widthLo,
                   widthLo > 0 ? 100.0f * (widthHi - widthLo) / widthLo : 0.0f);
     char grad[200];
     std::snprintf(
         grad, sizeof(grad),
-        "MOVES THE RUN BY %.2f PX (%.1f%%) \xc2\xb7 THE HEAVY RUN "
+        "MOVES THE RUN BY %.2f PX (%.1f%%) · THE HEAVY RUN "
         "STOPS ON THE LIGHT ONE'S RULE, SO THE DRIVE IS HONOURED",
         gradRowHi - gradRowLo,
         gradRowLo > 0 ? 100.0f * (gradRowHi - gradRowLo) / gradRowLo : 0.0f);
     char wghtHead[120], gradHead[120];
     std::snprintf(wghtHead, sizeof(wghtHead),
-                  "wght %.0f \xe2\x86\x92 %.0f \xe2\x80\x94 A SHAPING AXIS",
-                  kWghtLo, kWghtHi);
-    std::snprintf(gradHead, sizeof(gradHead),
-                  "GRAD %.0f \xe2\x86\x92 %.0f \xe2\x80\x94 A DRAWN AXIS",
+                  "wght %.0f → %.0f — A SHAPING AXIS", kWghtLo, kWghtHi);
+    std::snprintf(gradHead, sizeof(gradHead), "GRAD %.0f → %.0f — A DRAWN AXIS",
                   kGradLo, kGradHi);
     return box()
         .row()
@@ -366,22 +364,20 @@ struct AxisRipple : sketch::Sketch {
                              {0.0f, 0.6f, 1.0f}))
         .font({.face = faceLabel, .size = 11.5f, .track = 2.4f})
         .ink(kLabel)
-        .child(
-            box()
-                .row()
-                .alignItems(Align::End)
-                .child(text("THE AXIS RIPPLE")
-                           .font({.size = 12.5f, .track = 3.4f})
-                           .ink(kInk)
-                           .grow(1))
-                .child(
-                    text("OPENTYPE FONT VARIATIONS \xc2\xb7 2016").ink(kFaint)))
+        .child(box()
+                   .row()
+                   .alignItems(Align::End)
+                   .child(text("THE AXIS RIPPLE")
+                              .font({.size = 12.5f, .track = 3.4f})
+                              .ink(kInk)
+                              .grow(1))
+                   .child(text("OPENTYPE FONT VARIATIONS · 2016").ink(kFaint)))
         .child(box().height(1).fill(Fill::color(kFaint)))
         .child(ripplePanel())
         .child(box().height(6))
         .child(proofPanels())
         .child(box().grow(1))
-        .child(text("A GRADE IS WEIGHT WITHOUT WIDTH \xc2\xb7 IT IS THE "
+        .child(text("A GRADE IS WEIGHT WITHOUT WIDTH · IT IS THE "
                     "ONE AXIS A DRAW-TIME DRIVE CAN HONOUR, AND THE "
                     "REASON THE RIPPLE COSTS ONE SHAPING RATHER THAN "
                     "ONE PER FRAME")
@@ -404,7 +400,7 @@ struct AxisRipple : sketch::Sketch {
     faceLabel = sketch::kit::houseFace(sketch::kit::Voice::Interface, 500);
     const float measure = kW - 2.0f * kPadX;
     const auto runAt = [&](float size) {
-      return runPens(toUtf8(kProof),
+      return runPens(kProof,
                      weave::textStyle({.face = face,
                                        .size = size,
                                        .color = kInk,
@@ -415,7 +411,7 @@ struct AxisRipple : sketch::Sketch {
     proofSize = kRefSize * measure / runAt(kRefSize);
     proof = weave::textStyle(
         {.face = face, .size = proofSize, .color = kInk, .track = kProofTrack});
-    pens = runPens(toUtf8(kProof), proof, *ctx.fonts);
+    pens = runPens(kProof, proof, *ctx.fonts);
     glyphs = (int)pens.size() - 1;
     // ONE WAVE MEANS ONE WAVE. A radians-per-glyph constant is a wavelength
     // stated in the wrong unit: the same number is more than a full wave on
@@ -448,7 +444,7 @@ struct AxisRipple : sketch::Sketch {
            .color = kInk,
            .track = kProofTrack * (size == proofSize ? 1.0f : 0.6f)});
       s.variation(tag, value);
-      return runPens(toUtf8(kProof), s, *ctx.fonts).back();
+      return runPens(kProof, s, *ctx.fonts).back();
     };
     widthLo = widthAt("wght", kWghtLo, kProofRowSize);
     widthHi = widthAt("wght", kWghtHi, kProofRowSize);
@@ -467,7 +463,6 @@ struct AxisRipple : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(
-    AxisRipple, "Study \xc2\xb7 Type",
-    "The variable-font weight wave \xe2\x80\x94 driven on GRAD, with the "
-    "wght advance drift measured and printed beside it")
+SIGIL_SKETCH(AxisRipple, "Study · Type",
+             "The variable-font weight wave — driven on GRAD, with the "
+             "wght advance drift measured and printed beside it")

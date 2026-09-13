@@ -216,11 +216,11 @@ struct FrameInputs final : sketch::Sketch {
     ramped.set("uTint", Color{0.96f, 0.68f, 0.34f, 1});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "FRAME INPUTS \xc2\xb7 Recipe::frame + "
+        {.title = "FRAME INPUTS · Recipe::frame + "
                   "UniformBlock + Material::withRecipe",
-         .subtitle = "dials \xc2\xb7 the content scale (1, then 3) "
-                     "\xc2\xb7 the world translation \xc2\xb7 the "
-                     "block's twelve floats \xc2\xb7 the recipe the "
+         .subtitle = "dials · the content scale (1, then 3) "
+                     "· the world translation · the "
+                     "block's twelve floats · the recipe the "
                      "instance is worn on",
          .footer = "what a compiler KEEPS is what the upload "
                    "fills: a field a body never reads reaches "
@@ -229,20 +229,20 @@ struct FrameInputs final : sketch::Sketch {
                    "once per target"},
         kit::cells(
             {.cells = {kit::cells(
-                           {.cells = {cell("bind(\"uBars\", block) \xc2\xb7 "
+                           {.cells = {cell("bind(\"uBars\", block) · "
                                            "contentScale 1",
                                            kit::formatted(
                                                "twelve floats read LIVE at "
                                                "every "
-                                               "resolve \xc2\xb7 the hairlines "
+                                               "resolve · the hairlines "
                                                "are 1 / uContentScale wide, so "
                                                "here they are 1 px"),
                                            bars, 1.0f),
-                                      cell("\xe2\x80\xa6"
+                                      cell("…"
                                            " contentScale 3",
                                            "the same material and the same "
                                            "block "
-                                           "\xc2\xb7 only the frame value "
+                                           "· only the frame value "
                                            "moved, "
                                            "and the hairlines thinned to a "
                                            "third",
@@ -250,18 +250,18 @@ struct FrameInputs final : sketch::Sketch {
                                       cell("a second block, a second tint",
                                            "the block compares by IDENTITY, so "
                                            "this is a different binding "
-                                           "\xc2\xb7 "
+                                           "· "
                                            "its values never enter the prune "
                                            "comparison",
                                            ramped, 1.0f)},
                             .gap = 14}),
                        kit::cells(
                            {.cells = {cell("frame(WorldTransform) "
-                                           "\xc2\xb7 uWorld "
+                                           "· uWorld "
                                            "translated",
                                            "the body reads column 2 of "
                                            "uWorld as "
-                                           "its phase \xc2\xb7 identity "
+                                           "its phase · identity "
                                            "outside a "
                                            "composite, so it degrades to "
                                            "the "
@@ -274,14 +274,14 @@ struct FrameInputs final : sketch::Sketch {
                                            "second "
                                            "definition of one parameters "
                                            "layout "
-                                           "\xc2\xb7 the values, the "
+                                           "· the values, the "
                                            "binding and "
                                            "the tint all carried over",
                                            bars.withRecipe(dotsRecipe()), 1.0f),
                                       cell("withRecipe(flatRecipe())",
                                            "a body that reads neither "
                                            "uBars nor "
-                                           "uGain \xc2\xb7 the third "
+                                           "uGain · the third "
                                            "definition "
                                            "of one ABI, and the table "
                                            "it is still "
@@ -294,7 +294,7 @@ struct FrameInputs final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(FrameInputs, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(FrameInputs, "Kit · API",
              "one recipe reading the resolution, the content scale and the "
              "world transform, driven by a caller-owned block and worn on "
              "three definitions of one ABI")

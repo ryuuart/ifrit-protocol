@@ -220,45 +220,44 @@ struct ExrChannels final : sketch::Sketch {
                    "   peak " + kit::formatted("%.2f", (double)peak)));
     }
     shelf.cells.push_back(cell("layer", planes.makeImage(), "makeImage()",
-                               "the default layer \xe2\x80\x94 R, G and B "
+                               "the default layer — R, G and B "
                                "composited, alpha filled where absent"));
     shelf.cells.push_back(
         cell("slot", throughRoughnessSlot(planes),
-             "child(kRoughnessSlot, Texture::of(\xe2\x80\xa6))",
+             "child(kRoughnessSlot, Texture::of(…))",
              "the green plane where a surface reads its roughness, read "
              "back with kit::map"));
 
-    std::string foot = "probeImage \xe2\x80\x94 ";
+    std::string foot = "probeImage — ";
     if (probed) {
-      foot += probed->format + ", " + std::to_string(probed->width) +
-              "\xc3\x97" + std::to_string(probed->height) + ", " +
+      foot += probed->format + ", " + std::to_string(probed->width) + "×" +
+              std::to_string(probed->height) + ", " +
               std::to_string(probed->channels) + " channels, " +
               (probed->floatingPoint ? "floating point" : "integer") + ", " +
               std::to_string(byteSize) + " bytes, no pixels decoded";
       if (!probed->channelNames.empty()) {
-        foot += "   \xc2\xb7   names";
+        foot += "   ·   names";
         for (const std::string& name : probed->channelNames) foot += " " + name;
       }
       if (!probed->layers.empty()) {
-        foot += "   \xc2\xb7   layers";
+        foot += "   ·   layers";
         for (const std::string& layer : probed->layers) foot += " " + layer;
       } else {
         foot +=
-            "   \xc2\xb7   one part, no named layers \xe2\x80\x94 which is "
+            "   ·   one part, no named layers — which is "
             "what this build's encoder writes";
       }
     } else {
       foot += "nothing";
     }
 
-    return sketch::kit::page(
-        {.title = "FLOAT CHANNELS \xc2\xb7 decodeChannels "
-                  "+ ChannelData::index / makeImage",
-         .subtitle = "dials \xc2\xb7 the channel (named on "
-                     "each cell) \xc2\xb7 the slot the "
-                     "picked plane fills",
-         .footer = foot},
-        kit::cells(std::move(shelf)));
+    return sketch::kit::page({.title = "FLOAT CHANNELS · decodeChannels "
+                                       "+ ChannelData::index / makeImage",
+                              .subtitle = "dials · the channel (named on "
+                                          "each cell) · the slot the "
+                                          "picked plane fills",
+                              .footer = foot},
+                             kit::cells(std::move(shelf)));
   }
 
   static Element missing(const std::string& why) {
@@ -278,6 +277,6 @@ struct ExrChannels final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(ExrChannels, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(ExrChannels, "Kit · API",
              "an EXR written and read back plane by plane, each picked by "
              "name, the green one landing in a roughness slot")

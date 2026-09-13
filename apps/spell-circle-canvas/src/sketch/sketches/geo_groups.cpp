@@ -209,7 +209,7 @@ struct GeoGroups : sketch::Sketch {
                   .cloud();
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "GEO GROUPS \xc2\xb7 a point group is a pop mask "
+        {.title = "GEO GROUPS · a point group is a pop mask "
                   "the moment it lands",
          .subtitle = caption,
          .footer = "a point group arrives from the file as a 0/1 "
@@ -230,6 +230,6 @@ struct GeoGroups : sketch::Sketch {
 };
 
 SIGIL_SKETCH(
-    GeoGroups, "Kit \xc2\xb7 API",
-    "a Houdini .geo written and read back \xe2\x80\x94 its point group is "
+    GeoGroups, "Kit · API",
+    "a Houdini .geo written and read back — its point group is "
     "a pop mask on arrival, and pop::on(cloud) seeds the chain from it")

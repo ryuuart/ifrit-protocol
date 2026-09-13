@@ -119,6 +119,6 @@ auto SigillumAemeth::update(double, sketch::SketchContext& ctx) -> void {
   }
 }
 
-SIGIL_SKETCH(SigillumAemeth, "Study \xc2\xb7 Esoteric",
-             "Dee's Sigillum Dei Aemeth (1582) \xe2\x80\x94 solved from the "
+SIGIL_SKETCH(SigillumAemeth, "Study · Esoteric",
+             "Dee's Sigillum Dei Aemeth (1582) — solved from the "
              "angels' own jump rule, 33 of 40 cells")

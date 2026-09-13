@@ -165,7 +165,7 @@ auto TwoAdvancedV4::masthead() -> Element {
                                        .alignItems(Align::Center)
                                        .child(box().width(30).height(1).fill(
                                            mskia::withAlpha(kCyan, 0.5f)))
-                                       .child(t("EST. 1999 \xc2\xb7 IRVINE CA",
+                                       .child(t("EST. 1999 · IRVINE CA",
                                                 micro(10, kDustDim, 200)))))
                  .child(box().grow(1))
                  .child(box()
@@ -174,7 +174,7 @@ auto TwoAdvancedV4::masthead() -> Element {
                             .gap(4)
                             .child(t("BUILD 4.0.7", micro(10, kDustDim, 200)))
                             .child(t("FLASH 6 REQ.", micro(10, kDustDim, 200)))
-                            .child(t("1024\xc3\x97"
+                            .child(t("1024×"
                                      "768 MIN",
                                      micro(10, kDustDim, 200)))))
       // the glowing 2px cyan divider under the whole masthead panel
@@ -242,29 +242,28 @@ auto TwoAdvancedV4::legalStrip() -> Element {
                                   "PLAYER 6",
                                   micro(10, kDustDim, 200))))
               .child(box().grow(1))
-              .child(
-                  box()
-                      .row()
-                      .gap(7)
-                      .alignItems(Align::Center)
-                      .child(t("ARCHIVED VERSIONS:", micro(11, kDust, 240)))
-                      .child(
-                          box()
-                              .height(24)
-                              .padding(8, 0)
-                              .shape(shapes::chamfered(
-                                  7, shapes::Corner::Diagonal))
-                              .fill(hexColor(0x2A0A0C))
-                              .stroke(stroke(
-                                  1,
-                                  Fill::color(mskia::withAlpha(kDust, 0.45f)),
-                                  PathFormat::Align::Inner))
-                              .row()
-                              .gap(6)
-                              .alignItems(Align::Center)
-                              .child(t("\xe2\x96\xb8", micro(9, kCyan, 0)))
-                              .child(t("V3 'EXPANSIONS'", label(12, kNear, 90)))
-                              .child(t("\xe2\x96\xbe", micro(9, kDust, 0))))))
+              .child(box()
+                         .row()
+                         .gap(7)
+                         .alignItems(Align::Center)
+                         .child(t("ARCHIVED VERSIONS:", micro(11, kDust, 240)))
+                         .child(box()
+                                    .height(24)
+                                    .padding(8, 0)
+                                    .shape(shapes::chamfered(
+                                        7, shapes::Corner::Diagonal))
+                                    .fill(hexColor(0x2A0A0C))
+                                    .stroke(stroke(1,
+                                                   Fill::color(mskia::withAlpha(
+                                                       kDust, 0.45f)),
+                                                   PathFormat::Align::Inner))
+                                    .row()
+                                    .gap(6)
+                                    .alignItems(Align::Center)
+                                    .child(t("▸", micro(9, kCyan, 0)))
+                                    .child(t("V3 'EXPANSIONS'",
+                                             label(12, kNear, 90)))
+                                    .child(t("▾", micro(9, kDust, 0))))))
       .child(box().grow(1))
       .child(box()
                  .row()
@@ -357,7 +356,7 @@ auto TwoAdvancedV4::footerDock() -> Element {
                    .child(t(title, sigil::weave::kit::tracked(blackFace(), 12,
                                                               kD7, 60, 0.92f)))
                    .child(box().grow(1).height(1).fill(kD4))
-                   .child(t("\xc2\xbb", micro(11, kD5, 0))))
+                   .child(t("»", micro(11, kD5, 0))))
         .child(t(a, micro(10, kD6, 220)))
         .child(t(b, micro(10, mskia::withAlpha(kD6, 0.7f), 220)))
         .child(box().grow(1))
@@ -393,8 +392,8 @@ auto TwoAdvancedV4::footerDock() -> Element {
                   .child(box()
                              .left(Dimension(12))
                              .top(Dimension(122))
-                             .child(t("ARRAY 6\xc3\x97"
-                                      "14 \xc2\xb7 IDLE",
+                             .child(t("ARRAY 6×"
+                                      "14 · IDLE",
                                       micro(10, kD6, 220)))));
 
   strip.child(
@@ -415,7 +414,7 @@ auto TwoAdvancedV4::footerDock() -> Element {
                      .child(t("SIGNAL", sigil::weave::kit::tracked(
                                             blackFace(), 12, kD7, 60, 0.92f)))
                      .child(box().grow(1).height(1).fill(kD4))
-                     .child(t("\xc2\xbb", micro(11, kD5, 0))))
+                     .child(t("»", micro(11, kD5, 0))))
           .child(box()
                      .grow(1)
                      .fill(hexColor(0x0D0202))
@@ -430,8 +429,7 @@ auto TwoAdvancedV4::footerDock() -> Element {
                   .row()
                   .gap(6)
                   .alignItems(Align::Center)
-                  .child(
-                      t("GAIN 0.42 \xc2\xb7 SWEEP 20 MS", micro(10, kD6, 220)))
+                  .child(t("GAIN 0.42 · SWEEP 20 MS", micro(10, kD6, 220)))
                   .child(box().grow(1))
                   .child(box().width(70).height(8).foreground(styles::TickRail{
                       kD5, 5, 3, 7, 1, 3, 0.5f, path::Edge::Top}))));
@@ -559,7 +557,7 @@ auto TwoAdvancedV4::bootOverlay() -> Element {
                          spans::upTo(animate(motion::from(0.0f).to(1.0f),
                                              {800ms, &ch::easeNone, 550ms})),
                          stroke(2, Fill::color(kCyan)))))
-          .child(t("LOADING PROPHECY INTERFACE \xc2\xb7 970\xc3\x97"
+          .child(t("LOADING PROPHECY INTERFACE · 970×"
                    "655",
                    micro(11, mskia::withAlpha(kCyan, 0.6f), 240))));
   // 4. the boot-complete flash

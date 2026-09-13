@@ -49,7 +49,7 @@ auto RotaConvocationis::setup(sketch::SketchContext& ctx) -> void {
   nomText.clear();
   for (const char* n : kNames) {
     nomText += n;
-    nomText += " \xc2\xb7 ";
+    nomText += " · ";
   }
   // THREE SIZES OF SCRIPT, and the ratio between them is the plate's
   // depth: the names are the main register, the invocation and the
@@ -71,7 +71,7 @@ auto RotaConvocationis::setup(sketch::SketchContext& ctx) -> void {
   // taller than the annulus that fences them, more and the ring becomes
   // grain, which is the texture band's job and not a seal's.
   for (int k = 0; k < kSeals; ++k)
-    sealText[k] = deal(0x5EE00u + (uint32_t)k, 2, 7, 8) + "\xc2\xb7 ";
+    sealText[k] = deal(0x5EE00u + (uint32_t)k, 2, 7, 8) + "· ";
 
   voxSize =
       fitToRing(ctx, text(voxText).styleClass("ring").font({.track = 2.2f}), 18,
@@ -254,7 +254,7 @@ auto RotaConvocationis::update(double elapsed, sketch::SketchContext& ctx)
   scribeA = writing ? 1.0f : std::max(0.0, scribeA.value() - 4.5 * dt);
 }
 
-SIGIL_SKETCH(RotaConvocationis, "Study \xc2\xb7 Type",
-             "An invented conjuring wheel in the anime idiom \xe2\x80\x94 "
+SIGIL_SKETCH(RotaConvocationis, "Study · Type",
+             "An invented conjuring wheel in the anime idiom — "
              "twenty-three curved baselines assembling ring by ring, every "
              "start chained from a span")

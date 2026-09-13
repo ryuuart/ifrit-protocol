@@ -185,7 +185,7 @@ const std::array<Cell, 40> kRing = {{
     {"e", 21, -21}, {"b", 10, +10}, {"A", 11, +11}, {"I", 15, +15},
     {"a", 8, +8},   {"r", 16, -16}, {"n", 0, 0},    {"A", 6, +6},
     {"o", 10, -10}, {"G", 5, +5},   {"h", 14, -14}, {"o", 17, -17},
-    {"s", 0, 0},    {"a", 5, -5},   {"a", 24, -24}, {"\xcf\x89", 6, +6},
+    {"s", 0, 0},    {"a", 5, -5},   {"a", 24, -24}, {"ω", 6, +6},
 }};
 
 // the seven Names, in the order Michael insisted on after he reordered them
@@ -196,7 +196,7 @@ struct NameSpec {
 const std::array<NameSpec, 7> kNames = {{{"Galas", 2},
                                          {"Gethog", 18},
                                          {"Thaoth", 1},
-                                         {"Horl\xcf\x89n", 20},
+                                         {"Horlωn", 20},
                                          {"Innon", 28},
                                          {"Aaoth", 32},
                                          {"Galethog", 34}}};
@@ -204,13 +204,10 @@ const std::array<NameSpec, 7> kNames = {{{"Galas", 2},
 // the seven angles: one row per bird, per basket. Read DOWN the columns and
 // the seven archangels run on continuously — 48 letters and a cross.
 inline const char* kAngles[7][7] = {
-    {"Z", "l", "l", "R", "H", "i", "a"},
-    {"a", "Z", "C", "a", "a", "c", "b"},
-    {"p", "a", "u", "p", "n", "h", "r"},
-    {"h", "d", "m", "h", "i", "a", "i"},
-    {"k", "k", "a", "a", "e", "e", "e"},
-    {"i", "i", "e", "e", "l", "l", "l"},
-    {"e", "e", "l", "l", "M", "G", "\xe2\x80\xa0"}};
+    {"Z", "l", "l", "R", "H", "i", "a"}, {"a", "Z", "C", "a", "a", "c", "b"},
+    {"p", "a", "u", "p", "n", "h", "r"}, {"h", "d", "m", "h", "i", "a", "i"},
+    {"k", "k", "a", "a", "e", "e", "e"}, {"i", "i", "e", "e", "l", "l", "l"},
+    {"e", "e", "l", "l", "M", "G", "†"}};
 inline const char* kArchangels[7] = {"Zaphkie",  "l Zadkie", "l Cumael",
                                      " Raphael", " Haniel",  "M ichael",
                                      "G abriel"};
@@ -223,11 +220,11 @@ struct GodName {
   const char* gloss;
 };
 const std::array<GodName, 7> kGodNames = {{
-    {{"S", "A", "A", "*", "E", "M", "E"}, "SAAIEME", "Vivit in c\xc3\xa6lis"},
+    {{"S", "A", "A", "*", "E", "M", "E"}, "SAAIEME", "Vivit in cælis"},
     {{"B", "T", "Z", "K", "A", "S", "E"}, "BTZKASE", "Deus noster"},
     {{"H", "E", "I", "D", "E", "N", "E"}, "HEIDENE", "Dux noster"},
     {{"D", "E", "I", "M", "O", "30", "A"}, "DEIMOLA", "Hic est"},
-    {{"I", "M", "E", "G", "C", "B", "E"}, "IMEGCBE", "Lux in \xc3\xa6ternum"},
+    {{"I", "M", "E", "G", "C", "B", "E"}, "IMEGCBE", "Lux in æternum"},
     {{"I", "L", "A", "O", "*", "V", "N"}, "ILAOIVN", "Finis est"},
     {{"I", "H", "R", "L", "A", "A", "*"},
      "IHRLAAL",

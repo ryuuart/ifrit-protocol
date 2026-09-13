@@ -124,46 +124,46 @@ struct SpacingPasses final : sketch::Sketch {
     lastWord.singleWord = weave::JustificationOptions::SingleWord::kJustify;
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE THREE PASSES \xc2\xb7 JustificationOptions "
+        {.title = "THE THREE PASSES · JustificationOptions "
                   "word gaps, letter spacing, glyph scale",
-         .subtitle = "dials \xc2\xb7 one measure (130 px) for every "
-                     "cell \xc2\xb7 the multiple a gap is aimed at "
-                     "(2.0) \xc2\xb7 "
+         .subtitle = "dials · one measure (130 px) for every "
+                     "cell · the multiple a gap is aimed at "
+                     "(2.0) · "
                      "the em fraction the letter pass adds "
-                     "(0.05) \xc2\xb7 the glyph scale (0.92)",
+                     "(0.05) · the glyph scale (0.92)",
          .footer = "each pass spends only what the one before it "
                    "could not, and a pass whose limits equal its "
                    "desired value contributes nothing and costs "
-                   "nothing \xe2\x80\x94 which is why a caller who "
+                   "nothing — which is why a caller who "
                    "sets none of them gets word spacing alone"},
         kit::cells(
             {.cells = {cell("justification({})",
-                            "the word gaps alone \xc2\xb7 the two later "
+                            "the word gaps alone · the two later "
                             "passes have limits equal to their desired "
                             "values and do not run, so nothing bounds the "
                             "gaps and they take the whole fit",
                             passage(gaps)),
                        cell("wordSpacing = 2.0",
                             "the FIRST pass aimed at twice the shaped space "
-                            "\xc2\xb7 the elasticity is measured from this, "
+                            "· the elasticity is measured from this, "
                             "not from the space the face cut",
                             passage(wider)),
                        cell("letterSpacing = 0.05",
                             "the SECOND pass, in em fractions, applied to "
-                            "every justified line whatever its fit \xc2\xb7 "
+                            "every justified line whatever its fit · "
                             "a pass past the gaps is open, so the gaps hold "
                             "at their stretch limit and the letters carry "
                             "the rest",
                             passage(letters)),
                        cell("glyphScale = 0.92",
                             "the THIRD pass, which scales the letters "
-                            "themselves across \xc2\xb7 the last thing a page "
+                            "themselves across · the last thing a page "
                             "should do: every justified line is set at 92 "
                             "per cent of its shaped width",
                             passage(glyphs)),
                        cell("singleWord = kJustify",
                             "a line holding ONE word has no gaps to "
-                            "spend \xc2\xb7 stretched across the measure by "
+                            "spend · stretched across the measure by "
                             "letter spacing alone, with justifyLastLine "
                             "setting the closing line too",
                             passage(lastWord))},
@@ -171,7 +171,7 @@ struct SpacingPasses final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(SpacingPasses, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(SpacingPasses, "Kit · API",
              "one justified passage in one measure with the three fitting "
              "passes opened one at a time, and a last line of one word "
              "stretched by letter spacing alone")

@@ -306,12 +306,12 @@ struct PsxDoomFire final : sketch::Sketch {
         .child(
             compose::text(
 
-                "id Software / Williams \xe2\x80\x94 PlayStation port "
-                "title screen \xc2\xb7 algorithm reverse-engineered "
+                "id Software / Williams — PlayStation port "
+                "title screen · algorithm reverse-engineered "
                 "from the Doom 64 disassembly by Samuel Villarreal, "
                 "documented by Fabien Sanglard "
-                "\xc2\xb7 fabiensanglard.net/doom_fire_psx "
-                "\xc2\xb7 DoomFirePSX/flames.html")
+                "· fabiensanglard.net/doom_fire_psx "
+                "· DoomFirePSX/flames.html")
                 .font({.size = 11.5f, .track = 0.2f})
                 .opacity(motion::animate(motion::from(0.0f).to(1.0f),
                                          {.duration = 320ms, .delay = 200ms})));
@@ -402,7 +402,7 @@ struct PsxDoomFire final : sketch::Sketch {
     pen.fill(hexColor(0xFFFFFF, 0.9f));
     pen.rect(x, y + kPanelH - kBlit, kPanelW, kBlit);
     chip(pen,
-         "SEED ROW  y = 167  \xc2\xb7  HEAT 36  \xc2\xb7  "
+         "SEED ROW  y = 167  ·  HEAT 36  ·  "
          "WRITTEN ONCE, NEVER RE-RANDOMISED",
          x + 10, y + kPanelH - 12 - 22, 10, hexColor(0xEFEFC7), 1.0f, 0.72f,
          cue(ms, 1000, 300));
@@ -417,13 +417,13 @@ struct PsxDoomFire final : sketch::Sketch {
              (float)(kInspectCells * kBlit) + 1.0f,
              (float)(kInspectRows * kBlit) + 1.0f);
     pen.noStroke();
-    chip(pen, "INSPECT \xe2\x86\x92", x + (float)(kCropX * kBlit),
+    chip(pen, "INSPECT →", x + (float)(kCropX * kBlit),
          y + (float)(kCropY * kBlit) - 22.0f, 9, kAmber, 1.4f, 0.8f, ia);
 
     // the panel's own placard line, and the live step counter beside it
     chip(pen,
-         "BUFFER 320 \xc3\x97 168 CELLS  \xc2\xb7  BLIT \xc3\x97"
-         "3 NEAREST  \xc2\xb7  PANEL 960 \xc3\x97 504 PX",
+         "BUFFER 320 × 168 CELLS  ·  BLIT ×"
+         "3 NEAREST  ·  PANEL 960 × 504 PX",
          x + 22, y + 24, 10, kSteel, 1.0f, 0.0f, cue(ms, 820, 300));
 
     const std::string step =
@@ -483,13 +483,13 @@ struct PsxDoomFire final : sketch::Sketch {
     const float y = kStripY + 34 + 6;
     mono(pen, 10, kSteel, 1.2f);
     pen.textAlign(LEFT, TOP);
-    pen.text("\xe2\x86\x91 IDX 0 \xc2\xb7 ALPHA 0 (THE COLD CORE)", kPadX, y);
+    pen.text("↑ IDX 0 · ALPHA 0 (THE COLD CORE)", kPadX, y);
     pen.textAlign(CENTER, TOP);
-    pen.text("PALETTE \xe2\x80\x94 37 ENTRIES, HARD LUT, NO INTERPOLATION",
+    pen.text("PALETTE — 37 ENTRIES, HARD LUT, NO INTERPOLATION",
              kPadX + kPanelW * 0.5f, y);
     mono(pen, 10, hexColor(0xEFEFC7), 1.2f);
     pen.textAlign(RIGHT, TOP);
-    pen.text("IDX 36 \xc2\xb7 SEED \xe2\x86\x91", kPadX + kPanelW, y);
+    pen.text("IDX 36 · SEED ↑", kPadX + kPanelW, y);
     pen.textAlign(LEFT, TOP);
   }
 
@@ -610,7 +610,7 @@ struct PsxDoomFire final : sketch::Sketch {
     const std::string rate = compose::kit::formatted("%.2f Hz", simRate);
     const std::string drawn = compose::kit::formatted("%.1f Hz", drawRate);
     const std::string ratio =
-        compose::kit::formatted("%.2f\xc3\x97", drawRate / kSimHz);
+        compose::kit::formatted("%.2f×", drawRate / kSimHz);
     float sy = foot;
     statRow(pen, cx, cw, sy, "SIM STEP", std::to_string(simSteps), kBone);
     sy += 13.5f;
@@ -632,7 +632,7 @@ struct PsxDoomFire final : sketch::Sketch {
     pen.text("MEAN HEAT / ROW", cx, foot);
     mono(pen, 9.5f, kSteel, 1.0f);
     pen.textAlign(RIGHT, TOP);
-    pen.text("y=167 \xe2\x86\x92 y=0", cx + cw, foot + 1.5f);
+    pen.text("y=167 → y=0", cx + cw, foot + 1.5f);
     pen.textAlign(LEFT, TOP);
     foot -= 9;
     rule(pen, cx, foot, cw);
@@ -696,7 +696,7 @@ struct PsxDoomFire final : sketch::Sketch {
     pen.pop();
 
     const std::string caption = compose::kit::formatted(
-        "RAW BUFFER \xe2\x80\x94 %d\xc3\x97%d CELLS, %d\xc3\x97 NO "
+        "RAW BUFFER — %d×%d CELLS, %d× NO "
         "FILTER",
         kInspectCells, kInspectRows, kInspectZoom);
     mono(pen, 9.5f, kSteel, 1.0f);
@@ -786,7 +786,6 @@ struct PsxDoomFire final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(
-    PsxDoomFire, "Study \xc2\xb7 Game UI",
-    "The DOOM PlayStation title flame (1995) \xe2\x80\x94 an automaton at a "
-    "fixed 27 Hz")
+SIGIL_SKETCH(PsxDoomFire, "Study · Game UI",
+             "The DOOM PlayStation title flame (1995) — an automaton at a "
+             "fixed 27 Hz")

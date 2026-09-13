@@ -233,24 +233,24 @@ struct CardFlip final : sketch::Sketch {
         // and the title name their ash, the card its paper.
         .font({.face = look.type.sans})
         .ink(look.palette.ink)
-        .child(text("THE DEPTH LANES \xe2\x80\x94 A NODE IS A PLANE")
+        .child(text("THE DEPTH LANES — A NODE IS A PLANE")
                    .font({.size = 14, .color = kAsh, .track = 3})
                    .absolute()
                    .left(gap)
                    .top(14))
         .child(panel(SkRect::MakeXYWH(gap, top, pw, ph),
-                     "CARD \xc2\xb7 rotateY under perspective, backs hidden")
+                     "CARD · rotateY under perspective, backs hidden")
                    .child(card()))
         .child(panel(SkRect::MakeXYWH(2 * gap + pw, top, pw, ph),
-                     "CUBE \xc2\xb7 six planes in one space, sorted by depth")
+                     "CUBE · six planes in one space, sorted by depth")
                    .child(cube()))
         .child(panel(SkRect::MakeXYWH(3 * gap + 2 * pw, top, pw, ph),
-                     "PLATE \xc2\xb7 type on a tilted plane stays sharp")
+                     "PLATE · type on a tilted plane stays sharp")
                    .child(plate()));
   }
 };
 
-SIGIL_SKETCH(CardFlip, "Kit \xc2\xb7 Depth",
+SIGIL_SKETCH(CardFlip, "Kit · Depth",
              "a card flipping on rotateY with its backs hidden, a cube of "
              "six faces depth-sorted in one shared space, and a paragraph "
              "on a tilted plane staying sharp")

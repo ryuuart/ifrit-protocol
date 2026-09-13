@@ -308,9 +308,9 @@ struct Y2kChrome final : sketch::Sketch {
   Element stripContent() {
     namespace yc = y2k_chrome;
     const char* unit =
-        "\xc2\xb7 WELCOME TO SIGILNET 2000 \xc2\xb7 "
-        "Y2K COMPLIANT \xc2\xb7 BEST VIEWED AT 800\xc3\x97"
-        "600 \xc2\xb7 SIGN THE GUESTBOOK \xc2\xb7 NO FRAMES ";
+        "· WELCOME TO SIGILNET 2000 · "
+        "Y2K COMPLIANT · BEST VIEWED AT 800×"
+        "600 · SIGN THE GUESTBOOK · NO FRAMES ";
     Element content =
         box()
             .row()
@@ -337,29 +337,27 @@ struct Y2kChrome final : sketch::Sketch {
             .material();
 
     // ---- title bar: the y2kChrome() PRESET on the bar box -----------------
-    Element titleBar =
-        box()
-            .height(yc::kTitleBarH)
-            // No horizon sliver on a caption bar: at 12px type the
-            // full-width sheen line reads as strikethrough (real Y2K bars
-            // carry the top-edge highlight only).
-            .style(kit::y2kChrome({.horizonSliver = false}))
-            .row()
-            .alignItems(Align::Center)
-            .padding(12, 0)
-            .gap(5)
-            .child(
-                text("SIGILNET 2000 \xe2\x80\x94 hyperportal v4.2")
-                    .font(
-                        {.size = 12,
-                         .color = hexColor(0xF2F6FA),
-                         .track = 0.4f,
-                         .weight = 600,
-                         .underlays = {{yc::ground({0, 0.04f, 0.10f, 0.6f})}}}))
-            .child(box().grow(1))
-            .child(yc::chromeSquare(hexColor(0xD4D0C8)))
-            .child(yc::chromeSquare(hexColor(0xD4D0C8)))
-            .child(yc::chromeSquare(hexColor(0xC87050)));
+    Element titleBar = box()
+                           .height(yc::kTitleBarH)
+                           // No horizon sliver on a caption bar: at 12px type
+                           // the full-width sheen line reads as strikethrough
+                           // (real Y2K bars carry the top-edge highlight only).
+                           .style(kit::y2kChrome({.horizonSliver = false}))
+                           .row()
+                           .alignItems(Align::Center)
+                           .padding(12, 0)
+                           .gap(5)
+                           .child(text("SIGILNET 2000 — hyperportal v4.2")
+                                      .font({.size = 12,
+                                             .color = hexColor(0xF2F6FA),
+                                             .track = 0.4f,
+                                             .weight = 600,
+                                             .underlays = {{yc::ground(
+                                                 {0, 0.04f, 0.10f, 0.6f})}}}))
+                           .child(box().grow(1))
+                           .child(yc::chromeSquare(hexColor(0xD4D0C8)))
+                           .child(yc::chromeSquare(hexColor(0xD4D0C8)))
+                           .child(yc::chromeSquare(hexColor(0xC87050)));
 
     // ---- wordmark: the y2kChrome() PRESET as a plate ----------------------
     // Fixed height so the hard horizon (49/51%) lands at a known y for the
@@ -444,8 +442,8 @@ struct Y2kChrome final : sketch::Sketch {
             .margin(0, -12, 0, -24)
             .cache(Cache::Texture)
             .opacity(animate(motion::from(0.0f).to(1.0f), {400ms}))
-            .child(text("\xc2\xb7 t h e   f u t u r e   i s   "
-                        "c h r o m e \xc2\xb7",
+            .child(text("· t h e   f u t u r e   i s   "
+                        "c h r o m e ·",
                         yc::type(14, hexColor(0x7FD0FF), 2.5f, 650))
                        .effect(styles::textGlow({1.0f, 1.0f, 1.0f, 0.95f}, 2)
                                    .then(styles::textGlow(
@@ -485,7 +483,7 @@ struct Y2kChrome final : sketch::Sketch {
                                .alignItems(Align::Center)
                                .gap(6)
                                .child(yc::aquaPill("AQUA  2000", yc::kBluePill))
-                               .child(text("HAND-BUILT \xc2\xb7 FIVE "
+                               .child(text("HAND-BUILT · FIVE "
                                            "STOPS BY HAND")
                                           .styleClass("caption")))
                     .child(box()
@@ -494,7 +492,7 @@ struct Y2kChrome final : sketch::Sketch {
                                .gap(6)
                                .child(yc::gelPill("AQUA  2000",
                                                   hexColor(0x1E8FFF)))
-                               .child(text("PRESET \xc2\xb7 kit::aquaGel()")
+                               .child(text("PRESET · kit::aquaGel()")
                                           .styleClass("caption"))));
 
     // ---- status bar: marquee, ticker-driven phase -------------------
@@ -609,20 +607,19 @@ struct Y2kChrome final : sketch::Sketch {
                                 .opacity(animate(motion::from(0.0f).to(1.0f),
                                                  {500ms}))
                                 .child(yc::gelOrb())
-                                .child(
-                                    box()
-                                        .column()
-                                        .margin(14, 0, 0, 4)
-                                        .gap(3)
-                                        .child(text(
-                                            "now streaming @ 56k",
-                                            yc::type(12, hexColor(0xC8D6EE),
-                                                     0.6f, 600)))
-                                        .child(text("\xc2\xa9 2000 sigilnet "
-                                                    "industries \xe2\x80\x94 "
-                                                    "best viewed at 800\xc3\x97"
-                                                    "600")
-                                                   .styleClass("note")))
+                                .child(box()
+                                           .column()
+                                           .margin(14, 0, 0, 4)
+                                           .gap(3)
+                                           .child(text(
+                                               "now streaming @ 56k",
+                                               yc::type(12, hexColor(0xC8D6EE),
+                                                        0.6f, 600)))
+                                           .child(text("© 2000 sigilnet "
+                                                       "industries — "
+                                                       "best viewed at 800×"
+                                                       "600")
+                                                      .styleClass("note")))
                                 .child(box().grow(1))
                                 .child(box()
                                            .column()
@@ -631,7 +628,7 @@ struct Y2kChrome final : sketch::Sketch {
                                            .margin(0, 0, 0, 2)
                                            .child(yc::plasticButton(
                                                "ENTER SITE >>"))
-                                           .child(text("[ no frames \xc2\xb7 "
+                                           .child(text("[ no frames · "
                                                        "spacer.gif free ]")
                                                       .styleClass("note")))))
                 .child(statusBar));
@@ -640,5 +637,5 @@ struct Y2kChrome final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(Y2kChrome, "y2k chrome", "Catalog \xc2\xb7 Chrome",
+SIGIL_SKETCH_AS(Y2kChrome, "y2k chrome", "Catalog · Chrome",
                 "chrome presets A/B")

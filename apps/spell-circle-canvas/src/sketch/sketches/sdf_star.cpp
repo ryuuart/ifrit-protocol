@@ -118,67 +118,67 @@ struct SdfStar final : sketch::Sketch {
         {.cells = {kit::cells(
                        {.cells = {cell("sdf::star(6, 2)",
                                        kit::formatted(
-                                           "the clamp's lower end \xc2\xb7 "
+                                           "the clamp's lower end · "
                                            "the notch between two arms is "
-                                           "shallowest here \xc2\xb7 pad "
+                                           "shallowest here · pad "
                                            "%.0f px",
                                            (double)sdf::pad(plain())),
                                        sdf::star(kPoints, 2), plain()),
                                   cell("sdf::star(6, 3.4)",
-                                       "the notch cuts deeper \xc2\xb7 the "
+                                       "the notch cuts deeper · the "
                                        "shape is REBUILT through the factory, "
                                        "never edited into another kind",
                                        sdf::star(kPoints, 3.4f), plain()),
                                   cell("sdf::star(6, 5)",
-                                       "\xe2\x80\xa6"
+                                       "…"
                                        "and deeper again, "
                                        "toward the point count the clamp "
                                        "stops at",
                                        sdf::star(kPoints, 5), plain()),
                                   cell("sdf::star(12, 3)",
-                                       "twice the arms at one m \xc2\xb7 one "
+                                       "twice the arms at one m · one "
                                        "recipe per KIND, not per parameter",
                                        sdf::star(12, 3), plain())},
                         .gap = 14}),
                    kit::cells(
                        {.cells = {cell(
-                                      "\xe2\x80\xa6"
+                                      "…"
                                       ".glowRadius = 14",
-                                      kit::formatted("exp(\xe2\x88\x92"
+                                      kit::formatted("exp(−"
                                                      "d / radius), "
                                                      "not a blurred copy "
-                                                     "\xc2\xb7 pad "
+                                                     "· pad "
                                                      "%.0f px",
                                                      (double)sdf::pad(glowing)),
                                       sdf::star(kPoints, kPointiness), glowing),
-                                  cell("\xe2\x80\xa6"
+                                  cell("…"
                                        ".glowRadius = 22",
-                                       kit::formatted(
-                                           "the falloff is the "
-                                           "radius and "
-                                           "nothing else \xc2\xb7 "
-                                           "pad %.0f "
-                                           "px, so in a fixed box "
-                                           "the "
-                                           "silhouette shrinks; "
-                                           "minBoxFor("
-                                           "style, 120) is %.0f",
-                                           (double)sdf::pad(wide),
-                                           (double)sdf::minBoxFor(wide, 120)),
+                                       kit::formatted("the falloff is the "
+                                                      "radius and "
+                                                      "nothing else · "
+                                                      "pad %.0f "
+                                                      "px, so in a fixed box "
+                                                      "the "
+                                                      "silhouette shrinks; "
+                                                      "minBoxFor("
+                                                      "style, 120) is %.0f",
+                                                      (double)sdf::pad(wide),
+                                                      (double)sdf::minBoxFor(
+                                                          wide, 120)),
                                        sdf::star(kPoints, kPointiness), wide),
                                   cell(
-                                      "\xe2\x80\xa6"
+                                      "…"
                                       ".shadowOffset, "
                                       ".shadowBlur",
                                       kit::formatted("the layer BEHIND the "
                                                      "fill "
-                                                     "\xc2\xb7 pad %.0f px, "
+                                                     "· pad %.0f px, "
                                                      "which is "
                                                      "the offset and the blur "
                                                      "together",
                                                      (double)sdf::pad(dropped)),
                                       sdf::star(kPoints, kPointiness), dropped),
-                                  cell("\xe2\x80\xa6"
+                                  cell("…"
                                        ".borderWidth = 9",
                                        "the border is CENTRED on the edge, "
                                        "so "
@@ -189,10 +189,10 @@ struct SdfStar final : sketch::Sketch {
          .column = true,
          .gap = 18});
     ctx.composer.render(sketch::kit::page(
-        {.title = "SDF STAR \xc2\xb7 sdf::star + sdf::Style + "
+        {.title = "SDF STAR · sdf::star + sdf::Style + "
                   "sdf::pad",
-         .subtitle = "dials \xc2\xb7 the point count (6) \xc2\xb7 "
-                     "the pointiness (m in [2, points]) \xc2\xb7 "
+         .subtitle = "dials · the point count (6) · "
+                     "the pointiness (m in [2, points]) · "
                      "the glow radius (14 px, then 22)",
          .footer = "one draw per cell: shadow, glow, fill and "
                    "border are four layers of one distance, which "
@@ -202,7 +202,7 @@ struct SdfStar final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(SdfStar, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(SdfStar, "Kit · API",
              "the star silhouette across its pointiness clamp, then the "
              "four layers one distance is dressed in and the pad each of "
              "them reserves")

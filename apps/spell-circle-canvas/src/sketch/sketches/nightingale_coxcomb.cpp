@@ -900,7 +900,6 @@ struct NightingaleCoxcomb : sketch::Sketch {
   void update(double, sketch::SketchContext&) override {}
 };
 
-SIGIL_SKETCH(
-    NightingaleCoxcomb, "Study \xc2\xb7 Science",
-    "Nightingale's 1858 coxcomb \xe2\x80\x94 polar-area wedges from the real "
-    "mortality table")
+SIGIL_SKETCH(NightingaleCoxcomb, "Study · Science",
+             "Nightingale's 1858 coxcomb — polar-area wedges from the real "
+             "mortality table")

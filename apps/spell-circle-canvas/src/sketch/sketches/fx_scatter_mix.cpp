@@ -109,15 +109,15 @@ struct FxScatterMix final : sketch::Sketch {
     const SkColor4f figure = sketch::kit::theme().palette.figure;
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "SCATTER, MIX AND THE LADDER \xc2\xb7 fx::"
+        {.title = "SCATTER, MIX AND THE LADDER · fx::"
                   "scatter, fx::mix, Spread::from, distribution",
-         .subtitle = "dials \xc2\xb7 the progress the photograph is "
-                     "taken at (0.50) \xc2\xb7 the scatter's radius "
-                     "(34 px) and lean (26\xc2\xb0) \xc2\xb7 the "
-                     "origin \xc2\xb7 the distribution curve",
+         .subtitle = "dials · the progress the photograph is "
+                     "taken at (0.50) · the scatter's radius "
+                     "(34 px) and lean (26°) · the "
+                     "origin · the distribution curve",
          .footer = "mix composes by the algebra stacked tracks use "
-                   "\xe2\x80\x94 dx, dy and rotation add, scale and "
-                   "alpha multiply \xe2\x80\x94 and the scatter's "
+                   "— dx, dy and rotation add, scale and "
+                   "alpha multiply — and the scatter's "
                    "randomness is seeded from each glyph's own "
                    "identity, so it is the same scatter every "
                    "frame"},
@@ -125,13 +125,13 @@ struct FxScatterMix final : sketch::Sketch {
             {.cells =
                  {cell("fx::scatter(34, 26)",
                        "each glyph flies in from its own offset in a "
-                       "disc, with its own lean \xc2\xb7 From::Start, so "
+                       "disc, with its own lean · From::Start, so "
                        "the head has landed",
                        "sc",
                        {.effect = fx::scatter(kRadius, kLean),
                         .stagger = ladder(motion::Spread::From::Start)}),
                   cell("fx::mix(scatter, tint)",
-                       "both at once at one local t \xc2\xb7 the "
+                       "both at once at one local t · the "
                        "offsets are the scatter's and the colour the "
                        "tint's, composed and not sequenced",
                        "mx",
@@ -140,22 +140,22 @@ struct FxScatterMix final : sketch::Sketch {
                         .stagger = ladder(motion::Spread::From::Start)}),
                   cell("Spread::From::End",
                        "the same effect, the cascade run backwards "
-                       "\xc2\xb7 the LAST glyph is the one that has "
+                       "· the LAST glyph is the one that has "
                        "landed",
                        "en",
                        {.effect = fx::scatter(kRadius, kLean),
                         .stagger = ladder(motion::Spread::From::End)}),
                   cell("Spread::From::Edges",
                        "both ends start together and meet in the middle "
-                       "\xc2\xb7 the centre of the word is still in "
+                       "· the centre of the word is still in "
                        "flight",
                        "ed",
                        {.effect = fx::scatter(kRadius, kLean),
                         .stagger = ladder(motion::Spread::From::Edges)}),
-                  cell("\xe2\x80\xa6"
-                       ", .distribution = t\xc2\xb2",
+                  cell("…"
+                       ", .distribution = t²",
                        "the ramp of DELAYS passed through a curve "
-                       "\xc2\xb7 an ease-in crowds the early units and "
+                       "· an ease-in crowds the early units and "
                        "lets the tail spread out",
                        "di",
                        {.effect = fx::scatter(kRadius, kLean),
@@ -165,7 +165,7 @@ struct FxScatterMix final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(FxScatterMix, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(FxScatterMix, "Kit · API",
              "one word photographed half way through a scatter, then mixed "
              "with a tint, then run from the end, from both edges, and "
              "through an eased distribution")

@@ -305,7 +305,7 @@ struct AstralTome : sketch::Sketch {
                        .zIndex(20)
                        .fill(Fill::color({0.031f, 0.027f, 0.023f, 1.0f}))
                        .font({.face = mono});  // both lines are set in it
-    band.child(text("ASTRAL SORCERY \xc2\xb7 "
+    band.child(text("ASTRAL SORCERY · "
                     "GuiJournalConstellationCluster, PAGE 1 OF 4")
                    .font({.size = 13.0f, .track = 2.6f})
                    .ink(SkColor4f{0.72f, 0.66f, 0.50f, 1.0f}));
@@ -492,6 +492,6 @@ struct AstralTome : sketch::Sketch {
   void update(double, sketch::SketchContext&) override {}
 };
 
-SIGIL_SKETCH(AstralTome, "Study \xc2\xb7 Game UI",
-             "Astral Sorcery's constellation spread \xe2\x80\x94 the chart is "
+SIGIL_SKETCH(AstralTome, "Study · Game UI",
+             "Astral Sorcery's constellation spread — the chart is "
              "square, the CELL is stretched")

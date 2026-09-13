@@ -3,7 +3,7 @@
 auto Minard1869::runAudits(const sketch::SketchContext& ctx) -> void {
   // --- flow conservation, on Minard's own engraved numbers -------------
   auto say = [&](feed::TextRing& r, const std::string& s, const char* style) {
-    r.append({toUtf8(s), style});
+    r.append({s, style});
   };
   // THE VERDICT IS NEVER WRITTEN BY HAND. `measure::check` computes it
   // from the two values and `test::report` prints it in the ink that
@@ -106,9 +106,9 @@ auto Minard1869::runAudits(const sketch::SketchContext& ctx) -> void {
       "measured");
   say(colB, "  STATED                                 1.0000 mm", "dim");
   // THE PLATE'S OWN CLAIM, checked: a finding, not a defect here.
-  row(colB, measure::finding(measure::check(
-                "  \xe2\x86\x92 mm per 10,000 men, against the legend", 1.0,
-                (double)kMmPer10k, 0.01)));
+  row(colB, measure::finding(
+                measure::check("  → mm per 10,000 men, against the legend", 1.0,
+                               (double)kMmPer10k, 0.01)));
   say(colB,
       "  and the SAME factor on the Hannibal panel, other data, other "
       "continent",
@@ -166,12 +166,12 @@ auto Minard1869::runAudits(const sketch::SketchContext& ctx) -> void {
     // the received account gets backwards: the rms residual is three
     // times the floor his data's own 0.1-degree quantisation sets, on a
     // span of 871 km. That is a map, not a schematic.
-    row(colC, measure::reading("  \xe2\x86\x92 rms over the "
-                               "quantisation floor, \xc3\x97",
+    row(colC, measure::reading("  → rms over the "
+                               "quantisation floor, ×",
                                (double)(rms / 3.70f)));
-    row(colC, measure::finding(measure::check(
-                  "  \xe2\x86\x92 median residual over the span, %", 0.0,
-                  (double)(med / 871.0f * 100.0f), 1.0)));
+    row(colC, measure::finding(
+                  measure::check("  → median residual over the span, %", 0.0,
+                                 (double)(med / 871.0f * 100.0f), 1.0)));
     const float kmKM =
         haversineKm(plate.cities[0].rlon, plate.cities[0].rlat,
                     plate.cities[17].rlon, plate.cities[17].rlat);
@@ -252,14 +252,14 @@ auto Minard1869::runAudits(const sketch::SketchContext& ctx) -> void {
       "  °C = °R × 5/4   °F = °R × 9/4 + "
       "32   (exact, no offset)",
       "dim");
-  row(colD, measure::check("  \xe2\x88\x92"
-                           "30 \xc2\xb0"
-                           "R in \xc2\xb0"
+  row(colD, measure::check("  −"
+                           "30 °"
+                           "R in °"
                            "C",
                            -37.5, -30.0 * 5.0 / 4.0, 1e-9));
-  row(colD, measure::check("  \xe2\x88\x92"
-                           "30 \xc2\xb0"
-                           "R in \xc2\xb0"
+  row(colD, measure::check("  −"
+                           "30 °"
+                           "R in °"
                            "F",
                            -35.5, -30.0 * 9.0 / 4.0 + 32.0, 1e-9));
   row(colD, measure::reading("  readings converted", 9));
@@ -515,7 +515,7 @@ auto Minard1869::runAudits(const sketch::SketchContext& ctx) -> void {
       "fatal to a chord.",
       "fail");
   say(colE,
-      "  \xe2\x87\x92 A WIDTH AUDIT IS ONLY AS GOOD AS THE OUTLINE IT "
+      "  ⇒ A WIDTH AUDIT IS ONLY AS GOOD AS THE OUTLINE IT "
       "CROSSES. Reported, not fudged.",
       "fail");
   say(colE,

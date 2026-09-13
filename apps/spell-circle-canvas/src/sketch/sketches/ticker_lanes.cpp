@@ -180,52 +180,51 @@ struct TickerLanes final : sketch::Sketch {
       timelineLane.push_back(ramped);
     }
 
-    readouts[0] = kit::formatted("add \xc2\xb7 %d ticks \xc2\xb7 active %s",
-                                 steps, stillActive ? "true" : "false");
-    readouts[1] = kit::formatted("addFixed %.0f Hz \xc2\xb7 %d steps in %.0f s",
+    readouts[0] = kit::formatted("add · %d ticks · active %s", steps,
+                                 stillActive ? "true" : "false");
+    readouts[1] = kit::formatted("addFixed %.0f Hz · %d steps in %.0f s",
                                  kFixedHz, fixedSteps, kSpan);
-    readouts[2] =
-        kit::formatted("derive \xc2\xb7 quantize(%d) \xc2\xb7 registered %s",
-                       kLevels, derived_ok ? "true" : "false");
-    readouts[3] = kit::formatted("timeline \xc2\xb7 RampTo over %.1f s", kRamp);
+    readouts[2] = kit::formatted("derive · quantize(%d) · registered %s",
+                                 kLevels, derived_ok ? "true" : "false");
+    readouts[3] = kit::formatted("timeline · RampTo over %.1f s", kRamp);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE TICKER'S LANES \xc2\xb7 Ticker::add, "
+        {.title = "THE TICKER'S LANES · Ticker::add, "
                   "addFixed, derive, timeline",
-         .subtitle = "dials \xc2\xb7 three seconds at a 120 Hz delta "
-                     "\xc2\xb7 the fixed rate (5 Hz) \xc2\xb7 the "
-                     "derivation's levels (6) \xc2\xb7 the "
+         .subtitle = "dials · three seconds at a 120 Hz delta "
+                     "· the fixed rate (5 Hz) · the "
+                     "derivation's levels (6) · the "
                      "timeline motion's duration (1.4 s)",
          .footer = "a derivation runs in a SECOND PHASE, after the "
                    "timeline and after every steppable, so it "
                    "never reads a stale source and registration "
-                   "order does not matter \xe2\x80\x94 which is "
+                   "order does not matter — which is "
                    "exactly what a hand-rolled shadow copy cannot "
                    "promise"},
         kit::cells(
             {.cells =
                  {cell("ticker.add([](double dt) { … return true; })",
                        "the free steppable, handed the frame's delta "
-                       "\xc2\xb7 it answers true forever here, which is "
+                       "· it answers true forever here, which is "
                        "what keeps active() true forever",
                        plot("free", {{freeLane, look.palette.figure}}),
                        readouts[0]),
                   cell("ticker.addFixed(5, fn, 8, &alpha)",
                        "the count of fixed steps against the render "
-                       "interpolant \xc2\xb7 the count comes from total "
+                       "interpolant · the count comes from total "
                        "elapsed time, so it is exact at any draw rate",
                        plot("fixed", {{fixedLane, look.palette.figure},
                                       {alphaLane, kSecond}}),
                        readouts[1]),
                   cell("derive(&d, bind(&source).quantize(6))",
-                       "the source under the derivation \xc2\xb7 the "
+                       "the source under the derivation · the "
                        "bind() vocabulary reaching an Output instead of "
                        "a property slot",
                        plot("derive", {{sourceLane, look.palette.ash},
                                        {derivedLane, look.palette.figure}}),
                        readouts[2]),
                   cell("timeline().apply(&v).then<RampTo>(1, 1.4)",
-                       "the master timeline \xc2\xb7 a finished motion "
+                       "the master timeline · a finished motion "
                        "is removed, which is what would let active() "
                        "settle if the steppable above ever retired",
                        plot("timeline", {{timelineLane, look.palette.figure}}),
@@ -234,7 +233,7 @@ struct TickerLanes final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(TickerLanes, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(TickerLanes, "Kit · API",
              "a ticker stepped three seconds at a fixed delta with all four "
              "of its lanes registered, each lane's own answers plotted and "
              "counted")

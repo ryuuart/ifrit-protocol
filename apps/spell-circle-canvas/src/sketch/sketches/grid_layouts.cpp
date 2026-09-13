@@ -118,23 +118,23 @@ struct GridLayouts final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "GRID LAYOUTS \xc2\xb7 layout(layouts::"
+        {.title = "GRID LAYOUTS · layout(layouts::"
                   "Grid | Diagonal | BaselineGrid)",
-         .subtitle = "dials \xc2\xb7 the module (3 columns "
-                     "\xc3\x97 4 rows, 10 px gutter) \xc2\xb7 the "
-                     "baseline rhythm (32 px) \xc2\xb7 the shear "
-                     "(\xe2\x88\x92"
-                     "12\xc2\xb0) \xc2\xb7 the same "
+         .subtitle = "dials · the module (3 columns "
+                     "× 4 rows, 10 px gutter) · the "
+                     "baseline rhythm (32 px) · the shear "
+                     "(−"
+                     "12°) · the same "
                      "twelve cards in all three",
          .footer = "a scheme is arithmetic over LayoutInput, so "
                    "each of these caches like any other static "
-                   "subtree \xe2\x80\x94 and only BaselineGrid "
+                   "subtree — and only BaselineGrid "
                    "reads childBaselines, which a box does not "
                    "have"},
         kit::cells(
             {.cells =
                  {cell("Grid: 3 columns x 4 rows",
-                       "the card is SIZED to its cell \xc2\xb7 twelve "
+                       "the card is SIZED to its cell · twelve "
                        "with no spans auto-flow one module each, "
                        "left to right then down",
                        layout(layouts::Grid{
@@ -143,21 +143,21 @@ struct GridLayouts final : sketch::Sketch {
                            .rows = layouts::repeatTrack(kRows, layouts::fr()),
                            .gap = {kGutter, kGutter}})),
                   cell("layouts::Diagonal{-12, 6}",
-                       "measured sizes kept \xc2\xb7 x tracks the shear "
+                       "measured sizes kept · x tracks the shear "
                        "line at each row's y, and the run is shifted so "
                        "nothing lands at negative x",
                        layout(
                            layouts::Diagonal{.skewDeg = kSkewDeg, .gap = 6})),
                   cell("layouts::BaselineGrid{32}",
                        "each card falls to the next 32 px line by its "
-                       "own FIRST BASELINE \xc2\xb7 three type sizes, "
+                       "own FIRST BASELINE · three type sizes, "
                        "one rhythm",
                        layout(layouts::BaselineGrid{.rhythm = kRhythm}), true)},
              .gap = 16})));
   }
 };
 
-SIGIL_SKETCH(GridLayouts, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(GridLayouts, "Kit · API",
              "the same twelve cards under the modular grid, the sheared "
              "stack and the baseline rhythm, so the one thing each scheme "
              "decides is the only difference between them")

@@ -137,66 +137,54 @@ struct RubyKenten final : sketch::Sketch {
     // MONO — one reading per character.
     Element mono =
         passage(
-            u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e\xe3\x81\xae"
-            u8"\xe6\x9b\xb8\xe7\x89\xa9\xe3\x80\x82")
-            .annotate(kit::ruby(
-                weave::selectors::text(
-                    u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"),
-                weave::Unit::Cluster,
-                {u8"\xe3\x81\xab", u8"\xe3\x81\xbb", u8"\xe3\x81\x94"},
-                rubyType(), 1.0f));
+            u8"日本語の"
+            u8"書物。")
+            .annotate(kit::ruby(weave::selectors::text(u8"日本語"),
+                                weave::Unit::Cluster, {u8"に", u8"ほ", u8"ご"},
+                                rubyType(), 1.0f));
 
     // GROUP — one reading over the whole compound.
-    Element group =
-        passage(
-            u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e\xe3\x81\xae"
-            u8"\xe6\x9b\xb8\xe7\x89\xa9\xe3\x80\x82")
-            .annotate(
-                kit::ruby(weave::selectors::text(u8"\xe6\x9b\xb8\xe7\x89\xa9"),
-                          weave::Unit::Word,
-                          {u8"\xe3\x81\x97\xe3\x82\x87"
-                           u8"\xe3\x82\x82\xe3\x81\xa4"},
-                          rubyType(), 1.0f));
+    Element group = passage(
+                        u8"日本語の"
+                        u8"書物。")
+                        .annotate(kit::ruby(weave::selectors::text(u8"書物"),
+                                            weave::Unit::Word,
+                                            {u8"しょ"
+                                             u8"もつ"},
+                                            rubyType(), 1.0f));
 
     // JUKUGO — the compound per cluster, each character its own reading.
     Element jukugo =
         passage(
-            u8"\xe5\x9b\xbd\xe8\xaa\x9e\xe8\xbe\x9e\xe5\x85\xb8"
-            u8"\xe3\x82\x92\xe5\xbc\x95\xe3\x81\x8f\xe3\x80\x82")
+            u8"国語辞典"
+            u8"を引く。")
             .annotate(kit::ruby(
-                weave::selectors::text(
-                    u8"\xe5\x9b\xbd\xe8\xaa\x9e\xe8\xbe\x9e\xe5\x85\xb8"),
-                weave::Unit::Cluster,
-                {u8"\xe3\x81\x93\xe3\x81\x8f", u8"\xe3\x81\x94",
-                 u8"\xe3\x81\x98", u8"\xe3\x81\xa6\xe3\x82\x93"},
-                rubyType(), 1.0f));
+                weave::selectors::text(u8"国語辞典"), weave::Unit::Cluster,
+                {u8"こく", u8"ご", u8"じ", u8"てん"}, rubyType(), 1.0f));
 
     // SPLIT — a column short enough that the base breaks inside the
     // compound; its reading breaks with it.
     Element split =
         passage(
-            u8"\xe5\xba\x8f\xe6\x96\x87\xe3\x81\xae\xe3\x81\x82\xe3\x81\xa8"
-            u8"\xe3\x81\xab\xe5\x9b\xbd\xe8\xaa\x9e\xe8\xbe\x9e\xe5\x85\xb8"
-            u8"\xe3\x81\x8c\xe7\xab\x8b\xe3\x81\xa4\xe3\x80\x82",
+            u8"序文のあと"
+            u8"に国語辞典"
+            u8"が立つ。",
             f::kSplitHeight)
             .width(Dimension(f::kColumnW * 2.2f))
-            .annotate(kit::ruby(
-                weave::selectors::text(
-                    u8"\xe5\x9b\xbd\xe8\xaa\x9e\xe8\xbe\x9e\xe5\x85\xb8"),
-                weave::Unit::Word,
-                {u8"\xe3\x81\x93\xe3\x81\x8f\xe3\x81\x94\xe3\x81\x98"
-                 u8"\xe3\x81\xa6\xe3\x82\x93"},
-                rubyType(), 1.0f));
+            .annotate(kit::ruby(weave::selectors::text(u8"国語辞典"),
+                                weave::Unit::Word,
+                                {u8"こくごじ"
+                                 u8"てん"},
+                                rubyType(), 1.0f));
 
     // KENTEN — one sesame beside each character, reserving nothing.
     Element kenten =
         passage(
-            u8"\xe3\x81\x93\xe3\x81\x93\xe3\x81\xa0\xe3\x81\x91"
-            u8"\xe3\x81\xaf\xe8\xa6\x8b\xe9\x80\x83\xe3\x81\x99"
-            u8"\xe3\x81\xaa\xe3\x80\x82")
-            .annotate(kit::kenten(weave::selectors::text(
-                                      u8"\xe8\xa6\x8b\xe9\x80\x83\xe3\x81\x99"),
-                                  marks, u8"\xef\xb9\x85", 1.0f));
+            u8"ここだけ"
+            u8"は見逃す"
+            u8"な。")
+            .annotate(kit::kenten(weave::selectors::text(u8"見逃す"), marks,
+                                  u8"﹅", 1.0f));
 
     // The wide caption under the split setting states its remark a size
     // larger than a column's, so it is built under a sheet of its own.
@@ -208,7 +196,7 @@ struct RubyKenten final : sketch::Sketch {
                              .gap = 13,
                              .noteGap = 7,
                              .noteMeasure = 300.0f},
-                            "SPLIT \xc2\xb7 ACROSS A COLUMN BREAK",
+                            "SPLIT · ACROSS A COLUMN BREAK",
                             "the base breaks inside the compound, so its "
                             "reading breaks with it, in proportion to the "
                             "base's advance either side",
@@ -227,8 +215,8 @@ struct RubyKenten final : sketch::Sketch {
                 .inset(52, 44, 0, 0)
                 .column()
                 .gap(4)
-                .child(text("\xe3\x83\xab\xe3\x83\x93\xe3\x81\xa8"
-                            "\xe5\x82\x8d\xe7\x82\xb9",
+                .child(text("ルビと"
+                            "傍点",
                             f::body(30, f::kSumi)))
                 .child(box().height(6))
                 .child(text("A READING IS PART OF THE TEXT")
@@ -245,24 +233,24 @@ struct RubyKenten final : sketch::Sketch {
                    .row()
                    .gap(20)
                    .justify(Justify::End)
-                   .child(f::column("KENTEN \xc2\xb7 CLUSTER",
+                   .child(f::column("KENTEN · CLUSTER",
                                     "one sesame a character, reserving "
                                     "nothing",
                                     std::move(kenten)))
-                   .child(f::column("JUKUGO \xc2\xb7 CLUSTER",
+                   .child(f::column("JUKUGO · CLUSTER",
                                     "the compound per character, each its "
                                     "own reading",
                                     std::move(jukugo)))
-                   .child(f::column("GROUP \xc2\xb7 WORD",
+                   .child(f::column("GROUP · WORD",
                                     "one reading over the whole compound",
                                     std::move(group)))
-                   .child(f::column("MONO \xc2\xb7 CLUSTER",
+                   .child(f::column("MONO · CLUSTER",
                                     "one reading a character; the pitch "
                                     "opens to hold it",
                                     std::move(mono))))
         .child(std::move(splitCell))
-        .child(text("mono \xc2\xb7 group \xc2\xb7 jukugo are the UNIT "
-                    "and nothing else \xe2\x80\x94 the reading's size is "
+        .child(text("mono · group · jukugo are the UNIT "
+                    "and nothing else — the reading's size is "
                     "its own type's, never a fraction of the base's")
                    .absolute()
                    .inset(52, f::kH - 34, 0, 0));
@@ -271,6 +259,6 @@ struct RubyKenten final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(RubyKenten, "ruby_kenten", "Catalog \xc2\xb7 Type",
-                "readings beside the type \xe2\x80\x94 mono, group, jukugo, "
+SIGIL_SKETCH_AS(RubyKenten, "ruby_kenten", "Catalog · Type",
+                "readings beside the type — mono, group, jukugo, "
                 "kenten")

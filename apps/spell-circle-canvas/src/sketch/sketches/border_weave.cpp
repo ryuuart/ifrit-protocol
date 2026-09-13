@@ -109,12 +109,12 @@ struct BorderWeave final : sketch::Sketch {
                          .corner = kArm};
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE RULE AND THE STRANDS \xc2\xb7 Border's four "
+        {.title = "THE RULE AND THE STRANDS · Border's four "
                   "modes, brush::weave over one outline",
-         .subtitle = "dials \xc2\xb7 the width (1.8 px) and inset "
-                     "(7 px) \xc2\xb7 the corner arm (18 px) "
-                     "\xc2\xb7 the strand count (3), amplitude and "
-                     "wavelength \xc2\xb7 the chamfer",
+         .subtitle = "dials · the width (1.8 px) and inset "
+                     "(7 px) · the corner arm (18 px) "
+                     "· the strand count (3), amplitude and "
+                     "wavelength · the chamfer",
          .footer = "a crossing is DISCOVERED and not declared, so "
                    "the strands of a weave must be waves: n "
                    "oscillations of equal amplitude at evenly "
@@ -123,18 +123,18 @@ struct BorderWeave final : sketch::Sketch {
         kit::cells(
             {.cells =
                  {cell("border(1.8, ink, inset 7)",
-                       "Continuous \xc2\xb7 an ordinary rule 7 px inside "
+                       "Continuous · an ordinary rule 7 px inside "
                        "the outline, following the chamfers because it "
                        "follows the silhouette",
                        plaque().foreground(decorations::border(
                            kWidth, Fill::color(sheet.palette.figure), kInset))),
                   cell("Border::Mode::Bracket",
-                       "only within 18 px of each corner \xc2\xb7 the "
+                       "only within 18 px of each corner · the "
                        "four L's, landing on the chamfers with no "
                        "further instruction",
                        plaque().foreground(bracket)),
                   cell("Border::Mode::Gapped",
-                       "everything EXCEPT within 18 px \xc2\xb7 the open "
+                       "everything EXCEPT within 18 px · the open "
                        "corner, which is the complement of the one "
                        "above",
                        plaque().foreground(
@@ -144,7 +144,7 @@ struct BorderWeave final : sketch::Sketch {
                                   .mode = Border::Mode::Gapped,
                                   .corner = kArm})),
                   cell("doubleBorder(weighted, rule)",
-                       "two rules as ONE style value \xc2\xb7 the outer "
+                       "two rules as ONE style value · the outer "
                        "thickens near each turn, the inner is the same "
                        "value at another inset",
                        plaque().style(decorations::doubleBorder(
@@ -165,13 +165,13 @@ struct BorderWeave final : sketch::Sketch {
                   cell("Bracket on a CIRCLE",
                        "a curve has no tangent break, so the corner scan "
                        "finds nothing and the brackets vanish entirely "
-                       "\xc2\xb7 correct, and surprising",
+                       "· correct, and surprising",
                        plaque(true).foreground(bracket))},
              .gap = 10})));
   }
 };
 
-SIGIL_SKETCH(BorderWeave, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(BorderWeave, "Kit · API",
              "one plaque under each of Border's four modes and a woven "
              "braid, and the same brackets on a circle, where the corner "
              "scan finds no corner at all")

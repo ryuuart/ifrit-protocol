@@ -106,11 +106,11 @@ inline Pattern girih(float edge, const mkit::GirihPalette& palette,
 
 inline std::string caption(const char* palette, float edge, float contactDeg,
                            bool rotated) {
-  const std::string buf = kit::formatted(
-      rotated ? "\xce\xb8 = %.0f\xc2\xb0 \xc2\xb7 %s \xc2\xb7 a=%.0f "
-                "\xc2\xb7 rotated"
-              : "\xce\xb8 = %.0f\xc2\xb0 \xc2\xb7 %s \xc2\xb7 a=%.0f",
-      (double)contactDeg, palette, (double)edge);
+  const std::string buf =
+      kit::formatted(rotated ? "θ = %.0f° · %s · a=%.0f "
+                               "· rotated"
+                             : "θ = %.0f° · %s · a=%.0f",
+                     (double)contactDeg, palette, (double)edge);
   return buf;
 }
 
@@ -202,9 +202,9 @@ struct Zellige final : sketch::Sketch {
                               .gap(14)
                               .child(text("ZELLIJE").font(
                                   {.size = 34, .track = 3}))
-                              .child(text("Hankin PIC \xc2\xb7 4.8.8 \xc2\xb7 "
-                                          "\xce\xb8 swept 30\xe2\x80\x93"
-                                          "60\xc2\xb0")
+                              .child(text("Hankin PIC · 4.8.8 · "
+                                          "θ swept 30–"
+                                          "60°")
                                          .font({.size = 14,
                                                 .color = zw::kSub,
                                                 .track = 1})))
@@ -252,6 +252,6 @@ struct Zellige final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(Zellige, "zellige", "Catalog \xc2\xb7 Tiling",
-                "girih Hankin PIC \xe2\x80\x94 the contact angle swept across "
+SIGIL_SKETCH_AS(Zellige, "zellige", "Catalog · Tiling",
+                "girih Hankin PIC — the contact angle swept across "
                 "three regenerating panels")

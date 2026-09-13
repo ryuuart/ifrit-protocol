@@ -725,7 +725,7 @@ struct VagrantStoryTarget final : sketch::Set {
 
 }  // namespace
 
-SIGIL_SKETCH(VagrantStoryTarget, "Study \xc2\xb7 Game UI",
+SIGIL_SKETCH(VagrantStoryTarget, "Study · Game UI",
              "Vagrant Story's battle-mode targeting screen as what it is "
-             "\xe2\x80\x94 a lit 3D scene with a wireframe reach sphere in it "
+             "— a lit 3D scene with a wireframe reach sphere in it "
              "and a baked bitmap overlay on one quad over the frustum")

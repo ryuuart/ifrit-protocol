@@ -517,5 +517,5 @@ struct UiParticles final : sketch::Sketch {
 }  // namespace
 
 SIGIL_SKETCH_AS(UiParticles, "ui particles", "Specimen",
-                "instances() at scale \xe2\x80\x94 two atlases over a "
+                "instances() at scale — two atlases over a "
                 "structure-of-arrays simulation")

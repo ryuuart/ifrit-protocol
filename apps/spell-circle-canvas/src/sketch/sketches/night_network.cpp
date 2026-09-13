@@ -514,7 +514,7 @@ struct NightNetwork final : sketch::Sketch {
                    .child(text("NIGHT NETWORK")
                               .font({.size = 30, .track = 2})
                               .ink(nn::kBone))
-                   .child(text("the brush engine \xe2\x80\x94 twelve"
+                   .child(text("the brush engine — twelve"
                                " constructions")
                               .font({.size = 14, .track = 1})
                               .margin(0, 6, 0, 0)))
@@ -559,5 +559,5 @@ struct NightNetwork final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(NightNetwork, "night network", "Catalog \xc2\xb7 Generative",
+SIGIL_SKETCH_AS(NightNetwork, "night network", "Catalog · Generative",
                 "the brush engine, twelve constructions")

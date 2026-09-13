@@ -154,49 +154,47 @@ struct LaneRetarget final : sketch::Sketch {
     family = run(Change::Family);
     reshaped = run(Change::Reshaped);
 
-    readouts[0] =
-        kit::formatted("one description \xc2\xb7 0 \xe2\x86\x92 %.2f", kFirst);
-    readouts[1] = kit::formatted("retargetSlots at %.2f s \xe2\x86\x92 %.2f",
-                                 kAt, kSecond);
-    readouts[2] = kit::formatted("retargetFamily \xc2\xb7 same shape");
-    readouts[3] =
-        kit::formatted("retargetFamily \xc2\xb7 shape 1 \xe2\x86\x92 2");
+    readouts[0] = kit::formatted("one description · 0 → %.2f", kFirst);
+    readouts[1] =
+        kit::formatted("retargetSlots at %.2f s → %.2f", kAt, kSecond);
+    readouts[2] = kit::formatted("retargetFamily · same shape");
+    readouts[3] = kit::formatted("retargetFamily · shape 1 → 2");
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "RETARGETING A LANE \xc2\xb7 motion::"
+        {.title = "RETARGETING A LANE · motion::"
                   "retargetSlots, motion::retargetFamily",
-         .subtitle = "dials \xc2\xb7 the moment the second "
+         .subtitle = "dials · the moment the second "
                      "description arrives (0.55 s, the rule on "
-                     "every plot) \xc2\xb7 the two targets \xc2\xb7 "
+                     "every plot) · the two targets · "
                      "the transition both ask for (900 ms)",
          .footer = "a description that changes the SHAPE of a "
                    "positional family DROPS its running motions "
                    "rather than carrying them onto endpoints that "
-                   "now mean something else \xe2\x80\x94 the same "
+                   "now mean something else — the same "
                    "rule keys enforce for whole nodes"},
         kit::cells(
             {.cells = {cell("one description, left alone",
-                            "the flight the other three interrupt \xc2\xb7 "
+                            "the flight the other three interrupt · "
                             "one transition from the standing value to the "
                             "first target",
                             plot("plain", {{plain, look.palette.figure}}),
                             readouts[0]),
                        cell("retargetSlots(ticker, anims, prev, next, spec)",
                             "the fixed row bent onto the second target "
-                            "mid-flight \xc2\xb7 the plain flight is under it "
+                            "mid-flight · the plain flight is under it "
                             "for comparison",
                             plot("slots", {{plain, look.palette.ash},
                                            {slots, look.palette.figure}}),
                             readouts[1]),
-                       cell("retargetFamily \xc2\xb7 equal shape",
+                       cell("retargetFamily · equal shape",
                             "a positional family of the same length "
                             "retargets lane by lane, exactly as the fixed "
                             "rows do",
                             plot("family", {{plain, look.palette.ash},
                                             {family, look.palette.figure}}),
                             readouts[2]),
-                       cell("retargetFamily \xc2\xb7 the shape changed",
-                            "one lane became two \xc2\xb7 the motions are "
+                       cell("retargetFamily · the shape changed",
+                            "one lane became two · the motions are "
                             "dropped and the new lanes start where the "
                             "storage starts, which is the jump this rule "
                             "chooses over a wrong carry",
@@ -259,7 +257,7 @@ struct LaneRetarget final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(LaneRetarget, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(LaneRetarget, "Kit · API",
              "one flight interrupted at the same moment three ways \xe2\x80"
              "\x94 a fixed row bent onto a new endpoint, a positional family "
              "of equal shape, and one whose shape changed and dropped its "

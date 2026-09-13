@@ -17,7 +17,7 @@ struct StrokeAtlasSketch : sketch::Sketch {
                     .left(56)
                     .top(34));
     plate.child(roman("a specimen plate of the SigilCompose line, border and "
-                      "corner vocabulary \xe2\x80\x94 every rule captioned "
+                      "corner vocabulary — every rule captioned "
                       "with the call that made it",
                       11.5f, kInk)
                     .absolute()
@@ -37,8 +37,8 @@ struct StrokeAtlasSketch : sketch::Sketch {
     // Straight is the easy case and a specimen book still starts there: the
     // angles exist so cap geometry, tie spacing and anti-aliasing can be
     // compared against the pixel grid at more than one slope.
-    plate.child(sectionTitle(56, 140, "I", "THE FAN \xc2\xb7 STRAIGHT RUNS"));
-    plate.child(call("twenty rules out of one origin \xc2\xb7 numbered to the "
+    plate.child(sectionTitle(56, 140, "I", "THE FAN · STRAIGHT RUNS"));
+    plate.child(call("twenty rules out of one origin · numbered to the "
                      "key",
                      9.0f, kInkSoft)
                     .absolute()
@@ -120,9 +120,8 @@ struct StrokeAtlasSketch : sketch::Sketch {
     }
 
     // ---- II. THE SERPENT -------------------------------------------------
-    plate.child(
-        sectionTitle(636, 140, "II", "THE SERPENT \xc2\xb7 ON A CURVE"));
-    plate.child(call("one gentle bend and one tight one \xe2\x80\x94 a rule "
+    plate.child(sectionTitle(636, 140, "II", "THE SERPENT · ON A CURVE"));
+    plate.child(call("one gentle bend and one tight one — a rule "
                      "that only reads straight is a lie",
                      9.0f, kInkSoft)
                     .absolute()
@@ -150,8 +149,8 @@ struct StrokeAtlasSketch : sketch::Sketch {
     // ---- III. THE RINGS --------------------------------------------------
     // The same style at five curvatures. Concentric so the eye reads "this
     // style, tighter" rather than five unrelated circles.
-    plate.child(sectionTitle(1064, 140, "III", "THE RINGS \xc2\xb7 CURVATURE"));
-    plate.child(call("r = 160 \xe2\x86\x92 42 \xc2\xb7 where offset contours "
+    plate.child(sectionTitle(1064, 140, "III", "THE RINGS · CURVATURE"));
+    plate.child(call("r = 160 → 42 · where offset contours "
                      "shear",
                      9.0f, kInkSoft)
                     .absolute()
@@ -227,8 +226,7 @@ struct StrokeAtlasSketch : sketch::Sketch {
     // Additive glow brushes are built for dark UI and wash out on paper.
     // Printing a black patch to show a rule reversed is what a real specimen
     // sheet does, so the plate does it too.
-    plate.child(
-        sectionTitle(1064, 690, "IV", "THE REVERSE \xc2\xb7 LAYERED STACKS"));
+    plate.child(sectionTitle(1064, 690, "IV", "THE REVERSE · LAYERED STACKS"));
     plate.child(call("additive stacks, shown on the black patch they are for",
                      9.0f, kInkSoft)
                     .absolute()
@@ -257,8 +255,7 @@ struct StrokeAtlasSketch : sketch::Sketch {
     }
 
     // ---- V. THE TORTURE --------------------------------------------------
-    plate.child(
-        sectionTitle(56, 880, "V", "THE TORTURE \xc2\xb7 SPIRAL & HAIRPIN"));
+    plate.child(sectionTitle(56, 880, "V", "THE TORTURE · SPIRAL & HAIRPIN"));
     plate.child(call("where offset contours self-intersect", 9.0f, kInkSoft)
                     .absolute()
                     .left(56)
@@ -285,7 +282,7 @@ struct StrokeAtlasSketch : sketch::Sketch {
     }
 
     // ---- VI. THE FIELDS --------------------------------------------------
-    plate.child(sectionTitle(640, 1062, "VI", "THE FIELDS \xc2\xb7 HATCHING"));
+    plate.child(sectionTitle(640, 1062, "VI", "THE FIELDS · HATCHING"));
     plate.child(
         call("a rule repeated and clipped to a silhouette", 9.0f, kInkSoft)
             .absolute()
@@ -331,15 +328,14 @@ struct StrokeAtlasSketch : sketch::Sketch {
     // ---- VII. THE FRAMES -------------------------------------------------
     // The headline. A frame is not a 1 px rounded rect.
     plate.child(
-        sectionTitle(56, 1300, "VII", "THE FRAMES \xc2\xb7 BORDERS & CORNERS"));
-    plate.child(
-        call("decorations::Border \xc2\xb7 shapes::chamfered/notched "
-             "\xc2\xb7 brush::Pattern corner tiles \xe2\x80\x94 a frame "
-             "is not a 1 px rounded rect",
-             9.0f, kInkSoft)
-            .absolute()
-            .left(56)
-            .top(1320));
+        sectionTitle(56, 1300, "VII", "THE FRAMES · BORDERS & CORNERS"));
+    plate.child(call("decorations::Border · shapes::chamfered/notched "
+                     "· brush::Pattern corner tiles — a frame "
+                     "is not a 1 px rounded rect",
+                     9.0f, kInkSoft)
+                    .absolute()
+                    .left(56)
+                    .top(1320));
     {
       struct Frame {
         const char* label;
@@ -512,9 +508,9 @@ struct StrokeAtlasSketch : sketch::Sketch {
     // difference is unmissable: on the bisector it points out of each
     // corner diagonally; on the outgoing tangent it reads as flow, four
     // arrows chasing each other round the frame.
-    plate.child(sectionTitle(56, 1700, "VIII",
-                             "THE CORNER \xc2\xb7 WHICH WAY IT FACES"));
-    plate.child(call("brush::CornerArt{art, align} \xe2\x80\x94 the same "
+    plate.child(
+        sectionTitle(56, 1700, "VIII", "THE CORNER · WHICH WAY IT FACES"));
+    plate.child(call("brush::CornerArt{art, align} — the same "
                      "art, the same rect, one word different",
                      9.0f, kInkSoft)
                     .absolute()
@@ -601,7 +597,7 @@ struct StrokeAtlasSketch : sketch::Sketch {
                       .height(120)
                       .shape(shapes::chamfered(20.0f))
                       .stroke(std::move(octo))
-                      .child(call("on shapes::chamfered(20) \xe2\x80\x94 eight "
+                      .child(call("on shapes::chamfered(20) — eight "
                                   "vertices, eight tiles",
                                   7.5f, kInkSoft)
                                  .absolute()
@@ -612,13 +608,12 @@ struct StrokeAtlasSketch : sketch::Sketch {
     // ---- colophon --------------------------------------------------------
     plate.child(
         rule(56, 1940, 1488, lines::presets::cased(0.8f, soft(), 3.0f)));
-    plate.child(
-        call("SigilCompose \xc2\xb7 stroke_atlas.cpp \xc2\xb7 render it "
-             "yourself: Sketchbook stroke_atlas.cpp --frame out.png",
-             8.5f, kInkSoft)
-            .absolute()
-            .left(56)
-            .top(1950));
+    plate.child(call("SigilCompose · stroke_atlas.cpp · render it "
+                     "yourself: Sketchbook stroke_atlas.cpp --frame out.png",
+                     8.5f, kInkSoft)
+                    .absolute()
+                    .left(56)
+                    .top(1950));
     return plate;
   }
 
@@ -638,7 +633,6 @@ struct StrokeAtlasSketch : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(
-    StrokeAtlasSketch, "Specimen",
-    "The line, border and corner specimen plate \xe2\x80\x94 every rule "
-    "captioned with the call that made it")
+SIGIL_SKETCH(StrokeAtlasSketch, "Specimen",
+             "The line, border and corner specimen plate — every rule "
+             "captioned with the call that made it")

@@ -408,6 +408,6 @@ struct SceneSurfaces final : sketch::Set {
 }  // namespace
 
 SIGIL_SKETCH(SceneSurfaces, "Set",
-             "One kind of 2D scene on three surfaces \xe2\x80\x94 flat cards, "
+             "One kind of 2D scene on three surfaces — flat cards, "
              "a curved band and a tiled ribbon, each an ordinary texture in "
              "a base-colour slot")

@@ -235,8 +235,8 @@ auto RotaConvocationis::colophon() -> Element {
                    .stagger = {.eachMs = 0, .amountMs = 420, .durationMs = 520},
                    .progress = beat(0.35, 1.8)}))
       .child(text(std::to_string(totalGlyphs) +
-                  " GLYPHS \xc2\xb7 23 CVRVED BASELINES \xc2\xb7 10 "
-                  "TVRNING LAYERS \xc2\xb7 EVERY START CHAINED FROM A "
+                  " GLYPHS · 23 CVRVED BASELINES · 10 "
+                  "TVRNING LAYERS · EVERY START CHAINED FROM A "
                   "SPAN, NONE FITTED BY HAND")
                  .font({.size = 8.5f,
                         .color = hexColor(0x8A8299, 0.42f),

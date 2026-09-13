@@ -542,6 +542,6 @@ void SlitScan2001::update(double e, sketch::SketchContext& ctx) {
   ctx.composer.renderSlot("fit", fitEl());
 }
 
-SIGIL_SKETCH(SlitScan2001, "Study \xc2\xb7 Motion",
-             "Trumbull's slit-scan machine (1966\xe2\x80\x93"
-             "68) \xe2\x80\x94 a frame that is a time integral")
+SIGIL_SKETCH(SlitScan2001, "Study · Motion",
+             "Trumbull's slit-scan machine (1966–"
+             "68) — a frame that is a time integral")

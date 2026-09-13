@@ -34,7 +34,7 @@ auto ThunderFulu::voidWriting() -> Element {
                              .map(hump)
                              .scale(0.92f))
                 .key(kit::formatted("void%d", k)));
-    g.child(text(kit::formatted("%s  \xe2\x80\x94  no mark", how[k]))
+    g.child(text(kit::formatted("%s  —  no mark", how[k]))
                 .font({.size = 10.0f,
                        .color = SkColor4f{cols[k].fR, cols[k].fG, cols[k].fB,
                                           0.85f}})
@@ -131,11 +131,11 @@ auto ThunderFulu::plate() -> Element {
     float y;
     const char* label;
   };
-  const Reg regs[5] = {{34, "FU TOU  head  \xc2\xb7 3 hooks, 3 Pure Ones"},
-                       {184, "FU QIAO  aperture \xc2\xb7 one revolution"},
-                       {296, "FU SHEN  body \xc2\xb7 cloud-seal, 33 strokes"},
-                       {566, "FU DAN  gall \xc2\xb7 GANG, 10 = 10 stems"},
-                       {782, "FU JIAO  foot \xc2\xb7 one breath, 38 strokes"}};
+  const Reg regs[5] = {{34, "FU TOU  head  · 3 hooks, 3 Pure Ones"},
+                       {184, "FU QIAO  aperture · one revolution"},
+                       {296, "FU SHEN  body · cloud-seal, 33 strokes"},
+                       {566, "FU DAN  gall · GANG, 10 = 10 stems"},
+                       {782, "FU JIAO  foot · one breath, 38 strokes"}};
   for (int i = 0; i < 5; ++i) {
     g.child(box()
                 .left(18)
@@ -368,7 +368,7 @@ auto ThunderFulu::tread() -> Element {
 auto ThunderFulu::furniture() -> Element {
   auto g = box().inset(0).key("furn");
   // title block
-  g.child(text("WU LEI HAO LING \xc2\xb7 A THUNDER-RITE COMMAND TALISMAN, "
+  g.child(text("WU LEI HAO LING · A THUNDER-RITE COMMAND TALISMAN, "
                "WRITTEN")
               .font({.face = faceDisplay,
                      .size = 22.0f,
@@ -377,8 +377,8 @@ auto ThunderFulu::furniture() -> Element {
               .left(76)
               .top(34)
               .width(1400));
-  g.child(text("DAOFA HUIYUAN DZ 1220, juan 46 \xc2\xb7 iron plate, five "
-               "cun by three \xc2\xb7 written in cinnabar \xc2\xb7 stroke "
+  g.child(text("DAOFA HUIYUAN DZ 1220, juan 46 · iron plate, five "
+               "cun by three · written in cinnabar · stroke "
                "medians from makemeahanzi, classes recovered from "
                "geometry")
               .font({.size = 10.5f, .color = kGoldDim})
@@ -449,7 +449,7 @@ auto ThunderFulu::furniture() -> Element {
               .top(kPT + kPH + 8)
               .width(40));
   // colophon
-  g.child(text("BU GANG TA DOU \xc2\xb7 THE TREAD, ON THE REAL DIPPER")
+  g.child(text("BU GANG TA DOU · THE TREAD, ON THE REAL DIPPER")
               .styleClass("heading")
               .font({.size = 12.0f})
               .left(1046)
@@ -487,7 +487,7 @@ auto ThunderFulu::furniture() -> Element {
           .width(830));
   g.child(
       text("Zuo Fu (Alcor) lies 0.008 of the asterism's span from "
-           "Kai Yang (Mizar) on the real sky \xe2\x80\x94 every bu "
+           "Kai Yang (Mizar) on the real sky — every bu "
            "gang plate separates the pair by hand, and so does this "
            "one. You Bi is invisible: its station is doctrine, and "
            "it is drawn open.")
@@ -497,8 +497,8 @@ auto ThunderFulu::furniture() -> Element {
           .top(752)
           .width(830));
   g.child(text("Never invert the brush and tap for a pregnant woman or "
-               "a patient with eye disease. \xc2\xb7 SigilCompose study "
-               "\xc2\xb7 no CJK font is loaded: every Han glyph here is "
+               "a patient with eye disease. · SigilCompose study "
+               "· no CJK font is loaded: every Han glyph here is "
                "stroke geometry")
               .font({.size = 9.5f, .color = hexColor(0x5d5341)})
               .left(76)

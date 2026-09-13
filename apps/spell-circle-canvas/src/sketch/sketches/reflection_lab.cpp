@@ -190,8 +190,7 @@ struct ReflectionLab final : sketch::Set {
 
 }  // namespace
 
-SIGIL_SKETCH(
-    ReflectionLab, "Set",
-    "What a body sees past the lights \xe2\x80\x94 chrome, rough metal, a "
-    "dielectric and glass under a turning sky that crossfades from a "
-    "studio to a sunset")
+SIGIL_SKETCH(ReflectionLab, "Set",
+             "What a body sees past the lights — chrome, rough metal, a "
+             "dielectric and glass under a turning sky that crossfades from a "
+             "studio to a sunset")

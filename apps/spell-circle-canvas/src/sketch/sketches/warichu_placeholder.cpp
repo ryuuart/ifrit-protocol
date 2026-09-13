@@ -50,7 +50,6 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -114,7 +113,7 @@ struct WarichuPlaceholder final : sketch::Sketch {
     // base has no say in any of them.
     const weave::TextStyle noteStyle = weave::textStyle(noteType());
     weave::Paragraph note =
-        weave::ParagraphBuilder(noteStyle).addText(toUtf8(kNote)).build();
+        weave::ParagraphBuilder(noteStyle).addText(kNote).build();
     split = weave::warichuSplit(*ctx.fonts, note);
 
     const std::u16string& utf16 = note.text();
@@ -125,21 +124,21 @@ struct WarichuPlaceholder final : sketch::Sketch {
     second = narrow(std::u16string_view(utf16).substr(cut));
 
     oneLine = ctx.measure(box().child(text(kNote, noteStyle))).width();
-    report[0] = kit::formatted("one line \xc2\xb7 advance %.1f px", oneLine);
-    report[1] = kit::formatted("split \xc2\xb7 advance %.1f \xc2\xb7 band %.1f",
+    report[0] = kit::formatted("one line · advance %.1f px", oneLine);
+    report[1] = kit::formatted("split · advance %.1f · band %.1f",
                                split.advance, split.band);
-    report[2] = kit::formatted("cut at word %u \xc2\xb7 \"%s\"", split.cutWord,
+    report[2] = kit::formatted("cut at word %u · \"%s\"", split.cutWord,
                                reinterpret_cast<const char*>(second.c_str()));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "WARICHU \xc2\xb7 weave::warichuSplit into a "
+        {.title = "WARICHU · weave::warichuSplit into a "
                   "reserved inline slot",
-         .subtitle = "dials \xc2\xb7 the note's own size (8 px "
-                     "against a 13 px base) \xc2\xb7 the slot's "
-                     "baseline drop \xc2\xb7 the note's length, "
+         .subtitle = "dials · the note's own size (8 px "
+                     "against a 13 px base) · the slot's "
+                     "baseline drop · the note's length, "
                      "which is what decides the cut",
          .footer = "the cut is the break opportunity that leaves "
-                   "the two lines CLOSEST IN ADVANCE \xe2\x80\x94 "
+                   "the two lines CLOSEST IN ADVANCE — "
                    "two lines of one length is what makes a note "
                    "read as one object rather than as a line with "
                    "something under it"},
@@ -179,7 +178,7 @@ struct WarichuPlaceholder final : sketch::Sketch {
    *  splits it — and why a long aside interrupts so badly. */
   Element oneLineCell() {
     return cell("slot(\"note\", {one line, band})",
-                "the aside set as a single line \xc2\xb7 it takes the base's "
+                "the aside set as a single line · it takes the base's "
                 "whole measure and the line it interrupts has nowhere to go",
                 based({oneLine, kNoteSize * 1.4f}, text(kNote)));
   }
@@ -189,7 +188,7 @@ struct WarichuPlaceholder final : sketch::Sketch {
   Element splitCell() {
     return cell("warichuSplit(fonts, note)",
                 "the same note in two lines of one length, in a slot the "
-                "split sized \xc2\xb7 the band opens the base's own pitch, "
+                "split sized · the band opens the base's own pitch, "
                 "with no leading set by hand",
                 based({split.advance, split.band}, stackedNote()));
   }
@@ -198,9 +197,9 @@ struct WarichuPlaceholder final : sketch::Sketch {
    *  column, which is the setting the form comes from. */
   Element verticalCell() {
     return cell(
-        "\xe2\x80\xa6"
+        "…"
         " in a vertical base",
-        "the two lines stack across the column \xc2\xb7 the slot is "
+        "the two lines stack across the column · the slot is "
         "the same value and the writing mode is the base's",
         based({split.band, split.advance}, stackedNote(true), true));
   }
@@ -239,12 +238,12 @@ struct WarichuPlaceholder final : sketch::Sketch {
                        .width(Dimension(kCell - 24)));
     return cell("WarichuSplit{advance, band, cutWord}",
                 "what the split answered for this note at this size "
-                "\xc2\xb7 the caller cuts its own text at that word's start",
+                "· the caller cuts its own text at that word's start",
                 std::move(column));
   }
 };
 
-SIGIL_SKETCH(WarichuPlaceholder, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(WarichuPlaceholder, "Kit · API",
              "one aside set as a single line and then as two of one length "
              "in the slot the split sized, in a horizontal base and in a "
              "vertical one, with the numbers printed")

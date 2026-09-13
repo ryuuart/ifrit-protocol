@@ -35,7 +35,7 @@ auto ChaucerAstrolabe::projectionPanel() -> Element {
   g.child(text("N")
               .font({.face = faceSerif, .size = 15})
               .centerAt({c.fX + 14, c.fY - rr - 2}));
-  g.child(text("S \xe2\x80\x94 the eye of the projection")
+  g.child(text("S — the eye of the projection")
               .font({.face = faceItalic, .size = 13, .color = kRubric})
               .at({c.fX + 10, c.fY + rr + 2}));
   g.child(slot("projray"));
@@ -90,13 +90,12 @@ auto ChaucerAstrolabe::projRead() -> Element {
       .column()
       .gap(4)
       .font({.face = faceMono, .size = 14})
-      .child(text(kit::formatted("\xce\xb4 = %+7.3f\xc2\xb0", dec)))
-      .child(text(
-          kit::formatted("r = R_eq\xc2\xb7tan((90\xe2\x88\x92\xce\xb4)/2) = "
-                         "%.6f R",
-                         rOfDec(dec))))
+      .child(text(kit::formatted("δ = %+7.3f°", dec)))
+      .child(text(kit::formatted("r = R_eq·tan((90−δ)/2) = "
+                                 "%.6f R",
+                                 rOfDec(dec))))
       .child(note("R_can 0.424423  R_eq 0.651477  R_cap 1.000000"))
-      .child(note("a circle through the EYE projects to a LINE \xe2\x80\x94 "
+      .child(note("a circle through the EYE projects to a LINE — "
                   "which is"))
       .child(note("why the meridian, alone of the 12 azimuths, is straight."));
 }
@@ -135,12 +134,10 @@ auto ChaucerAstrolabe::familiesPanel() -> Element {
     const char* name;
     const char* formula;
   };
-  const Fam fams[4] = {
-      {"CERCLES",
-       "R \xc2\xb7 k\xe2\x81\xbf, k = tan(45\xc2\xb0\xe2\x88\x92\xce\xb5/2)"},
-      {"ALMICANTERAS", "cy = R_eq cos \xcf\x86/(sin \xcf\x86 + sin h)"},
-      {"AZIMVTES", "coaxal, zenith \xe2\x88\xa7 nadir"},
-      {"HOVRES INEQVALES", "3-point circles, err 0.00374 R"}};
+  const Fam fams[4] = {{"CERCLES", "R · kⁿ, k = tan(45°−ε/2)"},
+                       {"ALMICANTERAS", "cy = R_eq cos φ/(sin φ + sin h)"},
+                       {"AZIMVTES", "coaxal, zenith ∧ nadir"},
+                       {"HOVRES INEQVALES", "3-point circles, err 0.00374 R"}};
   for (int i = 0; i < 4; ++i) {
     const arrange::Cell at = arrange::cellAt((size_t)i, 2);
     const float cx = px + 116 + arrange::cellRect(at, {218, 0}).fLeft;
@@ -339,7 +336,7 @@ auto ChaucerAstrolabe::backPanel() -> Element {
             .fill(brass(0.80f))
             .foreground(stroke(1.0f, Fill::color(hexColor(0x2a1d08, 0.6f)))));
   g.child(kit::disc(c, 8).shape(shapes::circle()).fill(brass(0.82f)));
-  g.child(text("altitude 25\xc2\xb0 30\xe2\x80\xb2 \xe2\x80\x94 "
+  g.child(text("altitude 25° 30′ — "
                "12 March 1391")
               .font({.face = faceItalic, .size = 13, .color = kRubric})
               .centerAt({px + 225, py + ph - 22}));
@@ -356,15 +353,15 @@ auto ChaucerAstrolabe::specCard() -> Element {
   };
   const KV rows[] = {
       {"object", "planispheric astrolabe, English"},
-      {"date", "1326 \xe2\x80\x94 earliest DATED astrolabe made in Europe"},
-      {"material", "brass (medieval latten, Cu\xe2\x80\x93Zn)"},
-      {"diameter", "132 mm  \xc2\xb7  mater ~10 mm thick"},
+      {"date", "1326 — earliest DATED astrolabe made in Europe"},
+      {"material", "brass (medieval latten, Cu–Zn)"},
+      {"diameter", "132 mm  ·  mater ~10 mm thick"},
       {"plates",
-       "Oxford \xc2\xb7 Jerusalem \xc2\xb7 Babilonie \xc2\xb7 "
-       "Rome \xc2\xb7 Montpellier \xc2\xb7 Paris"},
+       "Oxford · Jerusalem · Babilonie · "
+       "Rome · Montpellier · Paris"},
       {"rete", "Y-shaped, 33 stars; birds, and a DOG'S HEAD for Sirius"},
       {"manual",
-       "Chaucer, A Treatise on the Astrolabe, 1391 \xe2\x80\x94 "
+       "Chaucer, A Treatise on the Astrolabe, 1391 — "
        "the first technical manual in English"},
   };
   float y = py + 58;
@@ -388,25 +385,25 @@ auto ChaucerAstrolabe::specCard() -> Element {
   g.child(box()
               .rect(SkRect::MakeXYWH(px + 18, y + 6, pw - 36, 1))
               .fill(Fill::color(hexColor(0x241c15, 0.22f))));
-  g.child(text("\xcf\x86 = 51\xc2\xb0 50\xe2\x80\xb2  Chaucer I.14, "
-               "Oxenford        \xce\xb5 = 23\xc2\xb0 50.0\xe2\x80\xb2  "
+  g.child(text("φ = 51° 50′  Chaucer I.14, "
+               "Oxenford        ε = 23° 50.0′  "
                "Chaucer I.17")
               .font({.face = faceMono, .size = 12})
               .left(px + 18)
               .top(y + 14)
               .width(pw - 36));
-  g.child(text("                                        \xce\xb5 = "
-               "23\xc2\xb0 31.6\xe2\x80\xb2  TRVE at 1326      "
-               "\xce\x94 18.4\xe2\x80\xb2")
+  g.child(text("                                        ε = "
+               "23° 31.6′  TRVE at 1326      "
+               "Δ 18.4′")
               .font({.face = faceMono, .size = 12, .color = kRubric})
               .left(px + 18)
               .top(y + 30)
               .width(pw - 36));
-  g.child(text("his \xce\xb5 is an inherited PTOLEMAIC value, 1200 years "
-               "old \xe2\x80\x94 the equator comes out 0.586% small "
-               "(\xe2\x88\x92"
+  g.child(text("his ε is an inherited PTOLEMAIC value, 1200 years "
+               "old — the equator comes out 0.586% small "
+               "(−"
                "0.229 mm), Cancer 1.175% "
-               "(\xe2\x88\x92"
+               "(−"
                "0.299 mm)")
               .font({.face = faceItalic, .size = 12.5f})
               .left(px + 18)
@@ -417,10 +414,10 @@ auto ChaucerAstrolabe::specCard() -> Element {
 
 auto ChaucerAstrolabe::starPanel() -> Element {
   const float px = 1690, py = 450, pw = 646, ph = 450;
-  auto g = panel(px, py, pw, ph, "THE RETE \xc2\xb7 XII STERRES",
-                 "precessed J2000 \xe2\x86\x92 1326.0, IAU 1976 "
-                 "\xce\xb6/z/\xce\xb8 \xe2\x80\x94 the sky has slid "
-                 "8.6\xc2\xb0 in RA");
+  auto g = panel(px, py, pw, ph, "THE RETE · XII STERRES",
+                 "precessed J2000 → 1326.0, IAU 1976 "
+                 "ζ/z/θ — the sky has slid "
+                 "8.6° in RA");
   g.child(text("name on the rete        modern         RA 1326   "
                "dec 1326    r / R")
               .font({.face = faceMono, .size = 11, .color = hexColor(0x6b5a44)})
@@ -455,7 +452,7 @@ auto ChaucerAstrolabe::starPanel() -> Element {
                 .fill(Fill::color(i == 3 ? kRubric : kInk)));
   }
   g.child(text("ALHABOR / Sirius at 0.868 R is the outermost by a long "
-               "way \xe2\x80\x94 the only southern star here, which is "
+               "way — the only southern star here, which is "
                "why it gets the biggest pointer on every rete ever "
                "made.")
               .font({.face = faceItalic, .size = 12, .color = kRubric})
@@ -469,12 +466,12 @@ auto ChaucerAstrolabe::chaucerPanel() -> Element {
   const float px = 1690, py = 920, pw = 646, ph = 260;
   auto g = panel(px, py, pw, ph, "CHAVCER'S OWNE ENSAMPLE",
                  "A Treatise on the Astrolabe, II.3");
-  g.child(text("\xe2\x80\x9cthe yeer of oure lord 1391, the 12 day of "
-               "March \xe2\x80\xa6 I took the altitude of my sonne, and "
-               "fond that it was 25 degrees and 30 of minutes \xe2\x80\xa6 "
+  g.child(text("“the yeer of oure lord 1391, the 12 day of "
+               "March … I took the altitude of my sonne, and "
+               "fond that it was 25 degrees and 30 of minutes … "
                "fond the poynte of my label in the bordure, up-on a "
-               "capital lettre that is cleped an X \xe2\x80\xa6 and fond "
-               "that it was 9 of the clokke of the day.\xe2\x80\x9d")
+               "capital lettre that is cleped an X … and fond "
+               "that it was 9 of the clokke of the day.”")
               .font({.face = faceItalic, .size = 13.5f})
               .left(px + 18)
               .top(py + 62)
@@ -494,8 +491,8 @@ auto ChaucerAstrolabe::chaucerBody() -> Element {
   g.child(text(chaucerA));
   g.child(text(chaucerDelta).ink(kRubric));
   g.child(box().height(6));
-  g.child(text("Chaucer 09:00   \xc2\xb7   computed 08:53.8   "
-               "\xc2\xb7   \xce\x94 6.2 min \xe2\x80\x94 one hour-"
+  g.child(text("Chaucer 09:00   ·   computed 08:53.8   "
+               "·   Δ 6.2 min — one hour-"
                "letter's worth of reading precision on 132 mm")
               .font({.face = faceSerif, .size = 13}));
   return g;
@@ -504,8 +501,8 @@ auto ChaucerAstrolabe::chaucerBody() -> Element {
 auto ChaucerAstrolabe::zodiacPanel() -> Element {
   const float px = 1690, py = 1200, pw = 646, ph = 200;
   auto g = panel(px, py, pw, ph, "THE ZODIAC IS NOT VNIFORM",
-                 "span of each sign ON THE RING \xe2\x80\x94 19.8\xc2\xb0 to "
-                 "44.7\xc2\xb0, and they sum to 360.000000");
+                 "span of each sign ON THE RING — 19.8° to "
+                 "44.7°, and they sum to 360.000000");
   const float bx = px + 22, by = py + 158, bw = pw - 44;
   const float maxSpan = 44.714f;
   for (int i = 0; i < 12; ++i) {
@@ -557,7 +554,7 @@ auto ChaucerAstrolabe::zodiacPanel() -> Element {
                                 skia::toColor(hexColor(0x241c15, 0.55f))))
                         .material()));
   g.child(
-      text("30\xc2\xb0 \xe2\x80\x94 an unprojected ring")
+      text("30° — an unprojected ring")
           .font({.face = faceItalic, .size = 11, .color = hexColor(0x7b6a54)})
           .at({bx + 4, y30 - 16}));
   // the live sign marker
@@ -598,14 +595,14 @@ auto ChaucerAstrolabe::consolePanel() -> Element {
 auto ChaucerAstrolabe::titleStrip() -> Element {
   auto g = box().rect(SkRect::MakeXYWH(0, 0, kW, kH));
   g.child(sketch::kit::titleCard(
-              {.title = {"ASTROLABIVM \xc2\xb7 ANNO DOMINI M CCC "
+              {.title = {"ASTROLABIVM · ANNO DOMINI M CCC "
                          "XXVI"},
                .subtitle = {"compowned after the latitude of "
-                            "Oxenford \xc2\xb7 51\xc2\xb0 "
-                            "50\xe2\x80\xb2"},
+                            "Oxenford · 51° "
+                            "50′"},
                .notes = {{.words = "British Museum 1909,0617.1 "
-                                   "\xc2\xb7 brass \xc2\xb7 132 "
-                                   "mm \xc2\xb7 the earliest "
+                                   "· brass · 132 "
+                                   "mm · the earliest "
                                    "dated astrolabe made in "
                                    "Europe",
                           .ink = Fill::color(hexColor(0x6b5a44))}},
@@ -635,14 +632,11 @@ auto ChaucerAstrolabe::readout() -> Element {
   };
   g.child(cell("LOCAL APPARENT TIME", kit::formatted("%02d:%04.1f", hh, mm),
                hexColor(0xffdc8b)));
-  g.child(cell("HOVR ANGLE",
-               kit::formatted("%+8.3f\xc2\xb0", hourAngle.value()),
+  g.child(cell("HOVR ANGLE", kit::formatted("%+8.3f°", hourAngle.value()),
                hexColor(0xd8c79c)));
-  g.child(cell("SONNE ALTITVDE",
-               kit::formatted("%+7.3f\xc2\xb0", sunAlt.value()),
+  g.child(cell("SONNE ALTITVDE", kit::formatted("%+7.3f°", sunAlt.value()),
                hexColor(0xd8c79c)));
-  g.child(cell("SONNE IN",
-               kit::formatted("\xce\xbb %6.2f\xc2\xb0", sunLam.value()),
+  g.child(cell("SONNE IN", kit::formatted("λ %6.2f°", sunLam.value()),
                hexColor(0xd8c79c)));
   g.child(cell(
       "LETTRE IN THE BORDVRE",
@@ -650,7 +644,7 @@ auto ChaucerAstrolabe::readout() -> Element {
       hexColor(0xffdc8b)));
   g.child(cell("HOVRE INEQVAL",
                sunAlt.value() > 0
-                   ? std::string("\xe2\x80\x94 day")
+                   ? std::string("— day")
                    : std::string("night ") + std::to_string(nightHour),
                hexColor(0xd8c79c)));
   return g;

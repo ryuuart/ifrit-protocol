@@ -122,7 +122,7 @@ struct LiveSettling final : sketch::Sketch {
       for (float w = kWide; w >= kNarrow; w -= 1) step(w);
       step(endAt);
       const TextSettling settled = probe.settling("para");
-      return kit::formatted("live %s \xc2\xb7 reused %d \xc2\xb7 degraded %d",
+      return kit::formatted("live %s · reused %d · degraded %d",
                             settled.live ? "true" : "false", settled.reused,
                             settled.degraded);
     };
@@ -133,36 +133,36 @@ struct LiveSettling final : sketch::Sketch {
     reports[3] = sweep(true, kStarved, kWide);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "A MOVING MEASURE \xc2\xb7 Element::live, "
+        {.title = "A MOVING MEASURE · Element::live, "
                   "Composer::settling",
-         .subtitle = "dials \xc2\xb7 the measure the swell runs "
+         .subtitle = "dials · the measure the swell runs "
                      "between (150 to 230 px, one pixel at a step) "
-                     "\xc2\xb7 the frame's budget (4000 \xc2\xb5s, "
+                     "· the frame's budget (4000 µs, "
                      "then 1)",
          .footer = "a settled passage reports nothing and answers "
-                   "reused 0 \xe2\x80\x94 it decided its breaks "
+                   "reused 0 — it decided its breaks "
                    "once and no later frame asks it again, which "
                    "is why live is DECLARED and never inferred"},
         kit::cells(
-            {.cells = {cell("live(true, 4000) \xc2\xb7 at the narrow end",
+            {.cells = {cell("live(true, 4000) · at the narrow end",
                             "the swell has crossed this measure before "
-                            "\xc2\xb7 the block comes back out of the store, "
+                            "· the block comes back out of the store, "
                             "so this frame costs no break decision at all",
                             kNarrow, true, kBudget, reports[0]),
-                       cell("live(true, 4000) \xc2\xb7 at the wide end",
+                       cell("live(true, 4000) · at the wide end",
                             "the other end of the range, reached from "
-                            "the narrow one \xc2\xb7 the decisions are keyed "
+                            "the narrow one · the decisions are keyed "
                             "on the words and on the measure taken to the "
                             "whole pixel below it",
                             kWide, true, kBudget, reports[1]),
                        cell("no live() at all",
                             "the same swell run on a passage that never said "
-                            "its input moves \xc2\xb7 it decides its breaks "
+                            "its input moves · it decides its breaks "
                             "again every frame and stores nothing",
                             kWide, false, 0, reports[2]),
                        cell("live(true, 1)",
                             "a floor no optimizing break can meet "
-                            "\xc2\xb7 the block is filled greedily for this "
+                            "· the block is filled greedily for this "
                             "frame and counted, and the setting comes back "
                             "the frame the budget is met",
                             kWide, true, kStarved, reports[3])},
@@ -184,7 +184,7 @@ struct LiveSettling final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(LiveSettling, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(LiveSettling, "Kit · API",
              "one passage swelled a pixel at a time between two measures, "
              "with the settling report each run produced printed under the "
              "setting it produced")

@@ -349,7 +349,7 @@ struct AeroDesktop final : sketch::Sketch {
     return box()
         .inset(36, 8, 130, ad::kWH - ad::kCaption)
         .child(
-            text("Aurora Borealis \xe2\x80\x94 Aero Glass")
+            text("Aurora Borealis — Aero Glass")
                 .font(
                     {.size = 12.5f, .color = SkColor4f{0.05f, 0.05f, 0.05f, 1}})
                 .inset(0, 0, 0, 0)
@@ -377,8 +377,8 @@ struct AeroDesktop final : sketch::Sketch {
         .child(box()
                    .inset(0, 34, 0, clientH - 35)
                    .fill(Fill::color({0.71f, 0.76f, 0.82f, 1})))
-        .child(text("Organize \xe2\x96\xbe      "
-                    "Share with \xe2\x96\xbe      Burn")
+        .child(text("Organize ▾      "
+                    "Share with ▾      Burn")
                    .ink(gray(0.28f))
                    .inset(14, 9, 0, 0))
         // left navigation pane
@@ -390,13 +390,10 @@ struct AeroDesktop final : sketch::Sketch {
                    .inset(150, 35, 0, 0)
                    .width(1)
                    .fill(Fill::color({0.88f, 0.90f, 0.93f, 1})))
-        .child(
-            text("\xe2\x98\x85 Favorites").ink(gray(0.25f)).inset(12, 48, 0, 0))
+        .child(text("★ Favorites").ink(gray(0.25f)).inset(12, 48, 0, 0))
         .child(text("Desktop").ink(gray(0.42f)).inset(30, 70, 0, 0))
         .child(text("Downloads").ink(gray(0.42f)).inset(30, 90, 0, 0))
-        .child(text("\xe2\x96\xa3 Libraries")
-                   .ink(gray(0.25f))
-                   .inset(12, 118, 0, 0))
+        .child(text("▣ Libraries").ink(gray(0.25f)).inset(12, 118, 0, 0))
         .child(text("Documents").ink(gray(0.42f)).inset(30, 140, 0, 0))
         .child(text("Pictures").ink(gray(0.42f)).inset(30, 160, 0, 0))
         // main pane: a selected row + file rows
@@ -779,5 +776,5 @@ struct AeroDesktop final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(AeroDesktop, "aero desktop", "Catalog \xc2\xb7 Chrome",
+SIGIL_SKETCH_AS(AeroDesktop, "aero desktop", "Catalog · Chrome",
                 "glass + window colorization")

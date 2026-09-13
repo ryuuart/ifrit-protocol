@@ -157,16 +157,16 @@ struct EncodeWrite final : sketch::Sketch {
     const std::shared_ptr<const img::ImageAsset> read =
         wrote ? hub.image(uri) : nullptr;
     const std::string written =
-        kit::formatted("write %s\nread back %s \xc2\xb7 %d\xc3\x97%d",
+        kit::formatted("write %s\nread back %s · %d×%d",
                        wrote ? "true" : "false", read ? "true" : "false",
                        read ? read->width() : 0, read ? read->height() : 0);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "ENCODE, THEN WRITE \xc2\xb7 image::encodeImage, "
+        {.title = "ENCODE, THEN WRITE · image::encodeImage, "
                   "io::Hub::write",
-         .subtitle = "dials \xc2\xb7 the format \xc2\xb7 the quality the "
-                     "lossy ones honour (24) \xc2\xb7 the source's side "
-                     "(176 px) \xc2\xb7 the mount the bytes are stored "
+         .subtitle = "dials · the format · the quality the "
+                     "lossy ones honour (24) · the source's side "
+                     "(176 px) · the mount the bytes are stored "
                      "under",
          .footer = "the encoder hands bytes back and never looks at "
                    "a filename; the hub stores them through the "
@@ -177,37 +177,33 @@ struct EncodeWrite final : sketch::Sketch {
             {.cells =
                  {cell("the source pixels",
                        "a smooth ramp under hard edges and fine detail "
-                       "\xc2\xb7 the pair of things the lossy codecs "
+                       "· the pair of things the lossy codecs "
                        "disagree about",
-                       art,
-                       kit::formatted("N32 premul \xc2\xb7 %d\xc3\x97%d", kSide,
-                                      kSide)),
+                       art, kit::formatted("N32 premul · %d×%d", kSide, kSide)),
                   cell("encodeImage(art, Png)",
                        "lossless at every setting, and the quality is "
-                       "ignored \xc2\xb7 the bytes decode back to the "
+                       "ignored · the bytes decode back to the "
                        "pixels that went in",
-                       png, kit::formatted("png \xc2\xb7 %zu bytes", pngBytes)),
-                  cell(
-                      "Webp, quality 100",
-                      "100 selects the LOSSLESS codec rather than lossy "
-                      "at maximum \xc2\xb7 two codecs in one container, "
-                      "and this is the one that keeps everything",
-                      webpLossless,
-                      kit::formatted("webp \xc2\xb7 %zu bytes", losslessBytes)),
+                       png, kit::formatted("png · %zu bytes", pngBytes)),
+                  cell("Webp, quality 100",
+                       "100 selects the LOSSLESS codec rather than lossy "
+                       "at maximum · two codecs in one container, "
+                       "and this is the one that keeps everything",
+                       webpLossless,
+                       kit::formatted("webp · %zu bytes", losslessBytes)),
                   cell("Webp, quality 24",
-                       "the same container, the other codec \xc2\xb7 the "
+                       "the same container, the other codec · the "
                        "ramp survives and the fine rules go soft",
                        webpLossy,
-                       kit::formatted("webp \xc2\xb7 %zu bytes", lossyBytes)),
+                       kit::formatted("webp · %zu bytes", lossyBytes)),
                   cell("Jpeg, quality 24",
-                       "the quantisation quality \xc2\xb7 the blocks are "
+                       "the quantisation quality · the blocks are "
                        "the codec's own, and they land where the edges "
                        "are",
-                       jpeg,
-                       kit::formatted("jpeg \xc2\xb7 %zu bytes", jpegBytes)),
+                       jpeg, kit::formatted("jpeg · %zu bytes", jpegBytes)),
                   cell("hub.write(uri, bytes)",
                        "the bytes out through the mount table, then "
-                       "asked back for as an image \xc2\xb7 the write "
+                       "asked back for as an image · the write "
                        "dropped the cached view, so this is the file",
                        read && !read->frames().empty()
                            ? read->frames().front().image
@@ -217,7 +213,7 @@ struct EncodeWrite final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(EncodeWrite, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(EncodeWrite, "Kit · API",
              "one image through each encoder and straight back, with the "
              "byte counts, and then out through the hub and read back as a "
              "file")

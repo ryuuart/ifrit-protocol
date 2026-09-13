@@ -144,14 +144,14 @@ struct PaintShelf final : sketch::Sketch {
     };
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "PAINT SHELF \xc2\xb7 skia::Paint conical, sweep, "
+        {.title = "PAINT SHELF · skia::Paint conical, sweep, "
                   "buffer, worldSpace",
-         .subtitle = "dials \xc2\xb7 the focal offset (44 px) "
-                     "\xc2\xb7 the sweep window (45\xc2\xb0 to "
-                     "315\xc2\xb0) \xc2\xb7 worldSpace on or off",
+         .subtitle = "dials · the focal offset (44 px) "
+                     "· the sweep window (45° to "
+                     "315°) · worldSpace on or off",
          .footer = "a paint sits in one of three volatility tiers "
-                   "\xe2\x80\x94 static, geometry, live "
-                   "\xe2\x80\x94 and every leaf here but the buffer "
+                   "— static, geometry, live "
+                   "— and every leaf here but the buffer "
                    "is static or geometry, so a node painted with "
                    "one still caches and prunes"},
         kit::cells(
@@ -159,23 +159,23 @@ struct PaintShelf final : sketch::Sketch {
                  {kit::cells(
                       {.cells =
                            {swatch("Paint::radial(centre, 92, ember)",
-                                   "the baseline \xc2\xb7 one circle, so "
+                                   "the baseline · one circle, so "
                                    "moving its centre would slide the "
                                    "outer edge with the hot spot",
                                    paint::Paint::radial(middle(), 92, ember())),
                             swatch("conical(focus, 0, centre, 92, ember)",
                                    "the ramp runs from a circle of "
                                    "radius 0 at the focus to the circle "
-                                   "at the centre \xc2\xb7 the outer "
+                                   "at the centre · the outer "
                                    "edge stays put",
                                    paint::Paint::conical(
                                        {middle().fX - kFocus,
                                         middle().fY - kFocus * 0.6f},
                                        0, middle(), 92, ember())),
-                            swatch("\xe2\x80\xa6"
+                            swatch("…"
                                    "with the focus moved "
                                    "across",
-                                   "the one dial \xc2\xb7 the "
+                                   "the one dial · the "
                                    "highlight crosses the face while "
                                    "the outer circle does not move at "
                                    "all",
@@ -184,8 +184,8 @@ struct PaintShelf final : sketch::Sketch {
                                         middle().fY + 0.8f * kFocus},
                                        0, middle(), 92, ember())),
                             swatch("Paint::sweep(centre, wheel)",
-                                   "an angular ramp from 0\xc2\xb0 round "
-                                   "the centre \xc2\xb7 the stops end "
+                                   "an angular ramp from 0° round "
+                                   "the centre · the stops end "
                                    "where they began, so the only edge "
                                    "is the start",
                                    paint::Paint::sweep(middle(), wheel()))},
@@ -194,30 +194,30 @@ struct PaintShelf final : sketch::Sketch {
                       {.cells =
                            {swatch("sweep(centre, wheel, 45, 315)",
                                    "angles CLAMP, they do not wrap "
-                                   "\xc2\xb7 outside the window the "
+                                   "· outside the window the "
                                    "nearest stop's flat colour, which is "
                                    "the wedge at the top",
                                    paint::Paint::sweep(middle(), wheel(),
                                                        kWindowFrom, kWindowTo)),
                             swatch("Paint::buffer(pixels)",
                                    "a caller-owned raster, published "
-                                   "with commit() \xc2\xb7 the recipe "
+                                   "with commit() · the recipe "
                                    "compares by (source, revision), so "
                                    "an unchanged describe prunes",
                                    paint::Paint::buffer(
                                        pixels, SkTileMode::kRepeat,
                                        SkTileMode::kRepeat)),
-                            cell("linearUnit(\xe2\x80\xa6"
+                            cell("linearUnit(…"
                                  ").worldSpace(false)",
-                                 "two nodes, one description \xc2\xb7 "
+                                 "two nodes, one description · "
                                  "each reads uResolution as its OWN box, "
                                  "so each carries a whole copy of the "
                                  "ramp",
                                  pair(false)),
-                            cell("linearUnit(\xe2\x80\xa6"
+                            cell("linearUnit(…"
                                  ").worldSpace(true)",
                                  "the same two nodes anchored to the "
-                                 "root \xc2\xb7 one field across the "
+                                 "root · one field across the "
                                  "whole page, so two small boxes near "
                                  "its far corner both land in one part "
                                  "of it",

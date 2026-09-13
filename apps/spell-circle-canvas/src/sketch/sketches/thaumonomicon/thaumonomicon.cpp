@@ -656,7 +656,6 @@ struct Thaumonomicon : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(
-    Thaumonomicon, "Study \xc2\xb7 Game UI",
-    "Thaumcraft 6's research browser (2018) \xe2\x80\x94 edges that are "
-    "stamped art, not strokes")
+SIGIL_SKETCH(Thaumonomicon, "Study · Game UI",
+             "Thaumcraft 6's research browser (2018) — edges that are "
+             "stamped art, not strokes")

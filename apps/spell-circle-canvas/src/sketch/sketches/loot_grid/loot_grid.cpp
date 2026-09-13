@@ -232,7 +232,7 @@ struct LootGrid final : sketch::Sketch {
         .left(30.0f)
         .top(96.0f)
         .child(text("HOARD").styleClass("heading").left(16.0f).top(492.0f))
-        .child(text("10 \xc3\x97"
+        .child(text("10 ×"
                     " 4")
                    .font({.size = 11, .track = 2.0f})
                    .left(398.0f)
@@ -386,7 +386,7 @@ struct LootGrid final : sketch::Sketch {
                        .child(statRow("FIRE RES", "+65%", hexColor(0xE07A3C)))
                        .child(statRow("COLD RES", "+41%", hexColor(0x5AA6E0)))
                        .child(statRow("LIGHT RES",
-                                      "\xe2\x88\x92"
+                                      "−"
                                       "35%",
                                       hexColor(0xD04040)))));
 
@@ -524,7 +524,7 @@ struct LootGrid final : sketch::Sketch {
         .gap(7)
         .left(500)
         .top(560)
-        .child(text("HORADRIC CUBE \xc2\xb7 3 \xc3\x97"
+        .child(text("HORADRIC CUBE · 3 ×"
                     " 4")
                    .styleClass("heading"))
         .child(std::move(grid));
@@ -617,7 +617,7 @@ struct LootGrid final : sketch::Sketch {
                                      .color = lt::kParch,
                                      .track = 3.4f,
                                      .weight = 640}))
-                   .child(text("grid inventory \xe2\x80\x94 generated "
+                   .child(text("grid inventory — generated "
                                "materials, no sprites")
                               .font({.size = 12, .track = 1.0f})
                               .margin(0, 5, 0, 0)));
@@ -709,5 +709,5 @@ struct LootGrid final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(LootGrid, "loot grid", "Catalog \xc2\xb7 Game UI",
-                "D2 hoard \xe2\x80\x94 generated materials, instances()")
+SIGIL_SKETCH_AS(LootGrid, "loot grid", "Catalog · Game UI",
+                "D2 hoard — generated materials, instances()")

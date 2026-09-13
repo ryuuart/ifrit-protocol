@@ -129,7 +129,7 @@ Element GenesisFire::dipper() {
               .font({.size = 7.0f, .track = 0.9f})
               .opacity(animate(from(0.0f).to(1.0f),
                                {.duration = 400ms, .delay = 1600ms}))
-              .child(text("m = 2.63 FROM \xce\xb5 INDI (3.64 pc)"))
+              .child(text("m = 2.63 FROM ε INDI (3.64 pc)"))
               .child(text("\"OUR SUN WOULD APPEAR AS AN EXTRA STAR\"")
                          .ink(hexColor(0x4FB8D8, 0.7f))));
   return g;
@@ -280,7 +280,7 @@ Element GenesisFire::planInset() {
                  .shape(shapes::circle())
                  .fill(hexColor(0xFFFFFF, 0.95f)))
       // rim caption on a curved baseline
-      .child(text("IMPACT \xc2\xb7 KETI BANDAR \xc2\xb7 \xce\xb5 INDI")
+      .child(text("IMPACT · KETI BANDAR · ε INDI")
                  .font({.face = monoFace(), .size = 8.0f, .track = 1.4f})
                  .ink(kCyan)
                  .left(12)
@@ -299,7 +299,7 @@ Element GenesisFire::stageAbove() {
       .height(kStageH)
       .clip()
       .child(planInset())
-      .child(text("FIG. 2 \xe2\x80\x94 DISTRIBUTION OF PARTICLE SYSTEMS "
+      .child(text("FIG. 2 — DISTRIBUTION OF PARTICLE SYSTEMS "
                   "ON THE PLANET'S SURFACE")
                  .font({.face = monoFace(), .size = 8.5f, .track = 0.6f})
                  .ink(kSteel)
@@ -327,7 +327,7 @@ void GenesisFire::blurCallout(Pen& pen, float x0, float y0, float w, float h,
   pen.fill(hexColor(0x4FB8D8, a));
   pen.textAlign(sigil::draw::LEFT, sigil::draw::TOP);
   pen.text(
-      "MOTION BLUR \xe2\x80\x94 REEVES 1983 \xc2\xa7"
+      "MOTION BLUR — REEVES 1983 §"
       "3",
       x0 + 11, cy);
   cy += 14;
@@ -370,16 +370,15 @@ void GenesisFire::blurCallout(Pen& pen, float x0, float y0, float w, float h,
   pen.text("pos(f + 1/2)", x1 - 8, sy - 18);
   pen.text("pos(f)", x2 - 14, sy - 18);
   penMono(pen, 7.0f, hexColor(0x4FB8D8, a));
-  pen.text("0.5 \xc2\xb7 |v|", (x1 + x2) * 0.5f - 16, by + 4);
+  pen.text("0.5 · |v|", (x1 + x2) * 0.5f - 16, by + 4);
 
   cy = y0 + h - 46;
   penMono(pen, 7.5f, fadeTo(kBone, a), 0.4f);
-  pen.text("SHUTTER 1/50 s @ 24 fps \xe2\x89\x88 \xc2\xbd FRAME OF MOTION",
-           x0 + 11, cy);
+  pen.text("SHUTTER 1/50 s @ 24 fps ≈ ½ FRAME OF MOTION", x0 + 11, cy);
   cy += 11;
   penMono(pen, 7.5f, fadeTo(kSteel, a), 0.4f);
   pen.text(
-      "STREAK = pos(f) \xe2\x86\x92 pos(f+\xc2\xbd), ANTIALIASED, "
+      "STREAK = pos(f) → pos(f+½), ANTIALIASED, "
       "ADDITIVE",
       x0 + 11, cy);
   cy += 11;

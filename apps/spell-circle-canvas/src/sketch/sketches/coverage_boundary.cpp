@@ -146,47 +146,47 @@ struct CoverageBoundary final : sketch::Sketch {
     };
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "COVERAGE BOUNDARY \xc2\xb7 "
+        {.title = "COVERAGE BOUNDARY · "
                   "Element::boundary(Boundary::Coverage)",
-         .subtitle = "dials \xc2\xb7 the boundary \xc2\xb7 the "
+         .subtitle = "dials · the boundary · the "
                      "cut-out's alpha (0.30, under the half a "
-                     "pixel must be covered to join) \xc2\xb7 the "
-                     "glow's blur (11 px) \xc2\xb7 one style value "
+                     "pixel must be covered to join) · the "
+                     "glow's blur (11 px) · one style value "
                      "for every cell",
          .footer = "Coverage costs a raster and a trace whenever "
                    "the node's layer is invalidated, and the "
                    "node's OWN decorations are never in it "
-                   "\xe2\x80\x94 a mark that dressed itself would "
+                   "— a mark that dressed itself would "
                    "have no fixed point"},
         kit::cells(
             {.cells = {cell("image(cutOut)",
-                            "the source \xc2\xb7 an opaque star with a hole "
+                            "the source · an opaque star with a hole "
                             "punched through it, and a rectangle of nothing "
                             "around both",
                             art(cut)),
-                       cell("\xe2\x80\xa6"
+                       cell("…"
                             ".style(halo)",
-                            "Boundary::Auto is the node's own shape \xc2\xb7 "
+                            "Boundary::Auto is the node's own shape · "
                             "the halo hugs the BOX, which is what the "
                             "picture is not",
                             art(cut).style(halo())),
                        cell(
-                           "\xe2\x80\xa6"
+                           "…"
                            ".boundary(Coverage).style(halo)",
-                           "the same style on the traced silhouette \xc2\xb7 "
+                           "the same style on the traced silhouette · "
                            "a staircase of whole pixels, which is what "
                            "reading a raster gives",
                            art(cut).boundary(Boundary::Coverage).style(halo())),
                        cell("the same cut-out at 30% alpha",
                             "under half a pixel covered is not a silhouette "
-                            "\xc2\xb7 the trace comes back EMPTY, and an "
+                            "· the trace comes back EMPTY, and an "
                             "empty trace keeps the node's own shape",
                             art(cut, kWash)
                                 .boundary(Boundary::Coverage)
                                 .style(halo())),
-                       cell("children only \xc2\xb7 boundary(Coverage)",
+                       cell("children only · boundary(Coverage)",
                             "the content and the CHILDREN are in the trace "
-                            "\xc2\xb7 three discs, one outline, and no "
+                            "· three discs, one outline, and no "
                             "shape() that could have said it",
                             box()
                                 .boundary(Boundary::Coverage)
@@ -198,7 +198,7 @@ struct CoverageBoundary final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(CoverageBoundary, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(CoverageBoundary, "Kit · API",
              "one layer style handed the node's box, then the silhouette of "
              "what the node actually drew, and finally a wash too faint to "
              "have one")

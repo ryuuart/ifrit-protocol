@@ -456,7 +456,6 @@ struct LainNavi : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(
-    LainNavi, "Study \xc2\xb7 Film",
-    "Serial Experiments Lain's Copland OS \xe2\x80\x94 no opaque window "
-    "anywhere, and text through a fixed focal plane")
+SIGIL_SKETCH(LainNavi, "Study · Film",
+             "Serial Experiments Lain's Copland OS — no opaque window "
+             "anywhere, and text through a fixed focal plane")

@@ -814,7 +814,6 @@ struct VertigoTitles : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(
-    VertigoTitles, "Study \xc2\xb7 Motion",
-    "Bass and Whitney's Vertigo titles (1958) \xe2\x80\x94 a Lissajous off an "
-    "M-5 gun director")
+SIGIL_SKETCH(VertigoTitles, "Study · Motion",
+             "Bass and Whitney's Vertigo titles (1958) — a Lissajous off an "
+             "M-5 gun director")

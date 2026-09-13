@@ -358,8 +358,8 @@ struct Bg3DiceRoll : sketch::Sketch {
                      bg3::kInk))
         // The caption lives INSIDE the plate: below it the plate deliberately
         // bleeds over the bezel's top flat, and type on the band is unreadable.
-        .child(label("SkillCheck \xc2\xb7 StatsRollType", 148.0f + 26.5f, 82.0f,
-                     9.5f, mskia::withAlpha(bg3::kInk, 0.5f), 1.2f, true));
+        .child(label("SkillCheck · StatsRollType", 148.0f + 26.5f, 82.0f, 9.5f,
+                     mskia::withAlpha(bg3::kInk, 0.5f), 1.2f, true));
   }
 
   // ------------------------------------------------------- the skill ladder
@@ -443,11 +443,11 @@ struct Bg3DiceRoll : sketch::Sketch {
     for (int i = 0; i < rowsMounted && i < (int)bg3::kBonuses.size(); ++i) {
       const auto& b = bg3::kBonuses[(size_t)i];
       const float y = kTop + (float)i * kPitch;
-      const std::string amount =
-          b.numDice > 0
-              ? "+" + std::to_string(b.numDice) + std::string(b.diceSize) +
-                    " \xe2\x86\x92 " + std::to_string(b.resolved)
-              : "+" + std::to_string(b.bonus);
+      const std::string amount = b.numDice > 0
+                                     ? "+" + std::to_string(b.numDice) +
+                                           std::string(b.diceSize) + " → " +
+                                           std::to_string(b.resolved)
+                                     : "+" + std::to_string(b.bonus);
 
       // The row is its OWN node and the entrance binds on IT — a bound
       // opacity is a saveLayer the size of the node's box, so the box is
@@ -518,9 +518,8 @@ struct Bg3DiceRoll : sketch::Sketch {
         .foreground(decorations::weightedCorners(1.2f, 3.4f, bg3::gilt(), 16.0f,
                                                  0.0f, 30.0f))
         .child(label("SUCCESS", 34.0f, 12.0f, 30.0f, bg3::kViridian, 8.0f))
-        .child(label(
-            "RollCritical.None 0  \xc2\xb7  Total 20 \xe2\x89\xa5 DC 15", 34.0f,
-            44.0f, 9.0f, mskia::withAlpha(bg3::kInk, 0.55f), 0.9f, true))
+        .child(label("RollCritical.None 0  ·  Total 20 ≥ DC 15", 34.0f, 44.0f,
+                     9.0f, mskia::withAlpha(bg3::kInk, 0.55f), 0.9f, true))
         .opacity(
             animate(from(0.0f).to(1.0f), {380ms, choreograph::easeOutQuad}));
   }
@@ -629,9 +628,8 @@ struct Bg3DiceRoll : sketch::Sketch {
                                    .mode = Border::Mode::Gapped,
                                    .corner = 46.0f,
                                    .cornerAngleDeg = 24.0f}));
-    g.child(
-        label("BALDUR\xe2\x80\x99S GATE 3  \xc2\xb7  DIALOGUE ABILITY CHECK",
-              56.0f, 44.0f, 13.0f, mskia::withAlpha(bg3::kInk, 0.62f), 3.4f));
+    g.child(label("BALDUR’S GATE 3  ·  DIALOGUE ABILITY CHECK", 56.0f, 44.0f,
+                  13.0f, mskia::withAlpha(bg3::kInk, 0.62f), 3.4f));
 
     // The advantage note: in the top-left margin, clear of both the skill
     // ladder and the bezel. The leader running from it down to the discarded
@@ -643,7 +641,7 @@ struct Bg3DiceRoll : sketch::Sketch {
         kAx2, kAy2 + 17.0f, 188.0f,
         stroke(1.2f, Fill::color(mskia::withAlpha(bg3::kAdvantage, 0.75f))),
         1.2f));
-    g.child(label("2d20 keep highest \xc2\xb7 DiscardedDiceTotal  " +
+    g.child(label("2d20 keep highest · DiscardedDiceTotal  " +
                       std::to_string(bg3::kDiscardedDiceTotal),
                   kAx2, kAy2 + 22.0f, 9.0f, mskia::withAlpha(bg3::kInk, 0.55f),
                   0.8f, true));
@@ -821,7 +819,7 @@ struct Bg3DiceRoll : sketch::Sketch {
                        .gap(7.0f)
                        .zIndex(30)
                        .fill(Fill::color({0.020f, 0.017f, 0.014f, 1.0f}));
-    band.child(label("BALDUR\xe2\x80\x99S GATE 3 \xc2\xb7 DIALOGUE ABILITY "
+    band.child(label("BALDUR’S GATE 3 · DIALOGUE ABILITY "
                      "CHECK, THE INSTANT AFTER THE DIE LANDS",
                      0.0f, 0.0f, 12.0f, mskia::withAlpha(bg3::kGilt, 0.92f),
                      2.8f, true)
@@ -832,7 +830,7 @@ struct Bg3DiceRoll : sketch::Sketch {
                    .top(30.0f));
     band.child(label(
         "Every ordinal and enum name off Norbyte/bg3se's generated Lua "
-        "type surface \xc2\xb7 the modifiers are added AFTER the "
+        "type surface · the modifiers are added AFTER the "
         "natural roll",
         56.0f, 58.0f, 10.0f, mskia::withAlpha(bg3::kInk, 0.46f), 0.6f, true));
     return band;
@@ -908,10 +906,9 @@ struct Bg3DiceRoll : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(
-    Bg3DiceRoll, "Study \xc2\xb7 Game UI",
-    "Baldur's Gate 3's ability check \xe2\x80\x94 an icosahedron, and an "
-    "enum whose ordinals are 5e's skill table")
+SIGIL_SKETCH(Bg3DiceRoll, "Study · Game UI",
+             "Baldur's Gate 3's ability check — an icosahedron, and an "
+             "enum whose ordinals are 5e's skill table")
 
 // -----------------------------------------------------------------------------
 // THREE THINGS WORTH KNOWING BEFORE EDITING THIS PLATE

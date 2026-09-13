@@ -284,6 +284,6 @@ auto TwoAdvancedV4::update(double elapsed, sketch::SketchContext& ctx) -> void {
   ctx.composer.renderSlot("bootpct", bootReadout());
 }
 
-SIGIL_SKETCH(TwoAdvancedV4, "Study \xc2\xb7 Screens",
-             "2Advanced Studios v4 \"Prophecy\" (2003\xe2\x80\x93"
-             "06) \xe2\x80\x94 chamfered Flash chrome, four deep")
+SIGIL_SKETCH(TwoAdvancedV4, "Study · Screens",
+             "2Advanced Studios v4 \"Prophecy\" (2003–"
+             "06) — chamfered Flash chrome, four deep")

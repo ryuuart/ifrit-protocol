@@ -130,45 +130,45 @@ struct ExactTangent final : sketch::Sketch {
     const SkColor4f figure = sketch::kit::theme().palette.figure;
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE TANGENT LADDER \xc2\xb7 "
+        {.title = "THE TANGENT LADDER · "
                   "TextPath::exactTangent on a tight spiral",
-         .subtitle = "dials \xc2\xb7 the size (15 px, then 74, then 260) "
-                     "\xc2\xb7 the spiral's turns (3.2) \xc2\xb7 "
-                     "exactTangent \xc2\xb7 how far off the "
+         .subtitle = "dials · the size (15 px, then 74, then 260) "
+                     "· the spiral's turns (3.2) · "
+                     "exactTangent · how far off the "
                      "baseline the type rides",
          .footer = "the ladder is sixteen steps per pixel of em, "
-                   "clamped between 64 and 2048 \xe2\x80\x94 so a "
+                   "clamped between 64 and 2048 — so a "
                    "step sweeps a glyph's far edge about a fifth "
                    "of a pixel at every size until the ceiling "
                    "binds, which is why the switch is for artwork "
                    "set large and static"},
         kit::cells(
             {.cells = {cell("onPath({spiral(3.2), at = 0.42})",
-                            "the baseline every cell uses \xc2\xb7 one run "
+                            "the baseline every cell uses · one run "
                             "shaped once and placed by arc length, at label "
                             "size with the ladder ON",
                             run("a tight spiral carries its whole run",
                                 kLabelSize, figure, false)),
-                       cell("\xe2\x80\xa6"
+                       cell("…"
                             ".exactTangent = true",
-                            "the same run with the ladder lifted \xc2\xb7 at "
+                            "the same run with the ladder lifted · at "
                             "this size the two are the same picture, which "
                             "is what the default is for",
                             run("a tight spiral carries its whole run",
                                 kLabelSize, figure, true)),
-                       cell("74 px \xc2\xb7 exactTangent = false",
-                            "display size on a circle \xc2\xb7 still on "
+                       cell("74 px · exactTangent = false",
+                            "display size on a circle · still on "
                             "the sixteen-steps-per-pixel ladder, so a step "
                             "sweeps about a fifth of a pixel here too",
                             arcRun("Ravello", kDisplaySize, figure, false)),
-                       cell("74 px \xc2\xb7 exactTangent = true",
+                       cell("74 px · exactTangent = true",
                             "the same letters turned to their exact "
-                            "tangents \xc2\xb7 one strike per letter per "
+                            "tangents · one strike per letter per "
                             "distinct angle, which a static plate can afford",
                             arcRun("Ravello", kDisplaySize, figure, true)),
                        cell("260 px, both at once",
                             "snapped in warm under exact in cool, cropped "
-                            "to a detail \xc2\xb7 no fringe: the two land "
+                            "to a detail · no fringe: the two land "
                             "within a fraction of a pixel, which is the "
                             "ladder doing its job",
                             box()
@@ -183,7 +183,7 @@ struct ExactTangent final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(ExactTangent, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(ExactTangent, "Kit · API",
              "curved lettering with the rotation ladder on and lifted, at "
              "label size where it cannot be seen and at display size "
              "magnified until it can")

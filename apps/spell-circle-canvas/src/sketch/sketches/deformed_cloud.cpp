@@ -158,6 +158,6 @@ struct DeformedCloud final : sketch::Set {
 }  // namespace
 
 SIGIL_SKETCH(DeformedCloud, "Set",
-             "A point chain cooked in a room \xe2\x80\x94 a band selected "
+             "A point chain cooked in a room — a band selected "
              "across a scattered body, twisted inside it and pushed out "
              "beyond it, with one facet stood at every cooked point")

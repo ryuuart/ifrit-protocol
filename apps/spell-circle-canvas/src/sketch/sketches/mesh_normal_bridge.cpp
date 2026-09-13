@@ -216,26 +216,25 @@ struct MeshNormalBridge final : sketch::Sketch {
                             draw(canvas);
                           })
                        .inset(0))
-            .child(text("NORMAL MAPS \xc2\xb7 two sources, one recipe")
+            .child(text("NORMAL MAPS · two sources, one recipe")
                        .font({.size = 15, .track = 2.0f})
                        .left(30)
                        .top(20))
-            .child(caption("Mode::Normals \xe2\x86\x92 material::kit::chrome",
+            .child(caption("Mode::Normals → material::kit::chrome",
                            "a superellipsoid's own normals, rasterised into "
                            "a G-buffer and read back",
                            kStations[0]))
-            .child(caption("Mode::Normals \xe2\x86\x92 material::kit::gold",
+            .child(caption("Mode::Normals → material::kit::gold",
                            "the same bridge, another recipe and another "
                            "environment",
                            kStations[1]))
-            .child(caption(
-                "bevelNormals(path, 118) \xe2\x86\x92 material::kit::chrome",
-                "no mesh at all \xe2\x80\x94 a shoulder derived "
-                "from a flat path's coverage, under the same "
-                "recipe and the same sky",
-                kStations[2]))
+            .child(caption("bevelNormals(path, 118) → material::kit::chrome",
+                           "no mesh at all — a shoulder derived "
+                           "from a flat path's coverage, under the same "
+                           "recipe and the same sky",
+                           kStations[2]))
             .child(text("both encode device-space normals as "
-                        "rgb = n\xc2\xb7"
+                        "rgb = n·"
                         "0.5 + 0.5, and a recipe cannot "
                         "tell which one it was handed")
                        .font({.size = 11})
@@ -245,7 +244,7 @@ struct MeshNormalBridge final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(MeshNormalBridge, "Kit \xc2\xb7 API",
-             "two sources for one normal map \xe2\x80\x94 a mesh's own "
+SIGIL_SKETCH(MeshNormalBridge, "Kit · API",
+             "two sources for one normal map — a mesh's own "
              "normals through Mode::Normals, and a flat path's shoulder "
              "through bevelNormals, under the same surface recipes")

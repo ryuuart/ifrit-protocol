@@ -207,21 +207,21 @@ struct PopDeform final : sketch::Sketch {
 
     Element whole = kit::cells(
         {.cells = {panel("select(\"band\", Box, feather 0.35)",
-                         "the mask lane itself \xe2\x80\x94 the colour ramp "
+                         "the mask lane itself — the colour ramp "
                          "reads it, so the feather is visible",
                          splat(selected)),
                    panel("move({90,0,0}).masked(\"band\")",
                          "one Math, taken by the mask: the band slides out "
                          "and the rest stands",
                          splat(moved)),
-                   panel("twist(150\xc2\xb0, +Y, origin -55x)",
+                   panel("twist(150°, +Y, origin -55x)",
                          "a helix: more turn with height", splat(twisted)),
                    panel("taper(0.25, +Y)", "toward the axis at the top",
                          splat(tapered)),
-                   panel("bend(80\xc2\xb0, +Y, +X)",
-                         "the band arcs; past it, rigid", splat(bent)),
-                   panel("orient(60\xc2\xb0) . peak(70)",
-                         "push along a re-aimed Dir", splat(peaked))},
+                   panel("bend(80°, +Y, +X)", "the band arcs; past it, rigid",
+                         splat(bent)),
+                   panel("orient(60°) . peak(70)", "push along a re-aimed Dir",
+                         splat(peaked))},
          .gap = 14});
 
     Element banded = kit::cells(
@@ -230,7 +230,7 @@ struct PopDeform final : sketch::Sketch {
                   .width(Dimension(kLead))
                   .column()
                   .gap(6)
-                  .child(text("\xe2\x80\xa6"
+                  .child(text("…"
                               "and the same four, "
                               ".masked(\"band\")")
                              .font({.size = 13, .color = kInk, .track = 0.6f}))
@@ -246,25 +246,25 @@ struct PopDeform final : sketch::Sketch {
                              // body line is not
                              .font({.size = 11, .color = kDim, .track = 0})
                              .width(Dimension(kLead))),
-              panel("twist(\xe2\x80\xa6).masked(\"band\")",
-                    "only the band turns", splat(twistedM)),
-              panel("taper(\xe2\x80\xa6).masked(\"band\")",
-                    "only the band narrows", splat(taperedM)),
-              panel("bend(\xe2\x80\xa6).masked(\"band\")", "only the band arcs",
+              panel("twist(…).masked(\"band\")", "only the band turns",
+                    splat(twistedM)),
+              panel("taper(…).masked(\"band\")", "only the band narrows",
+                    splat(taperedM)),
+              panel("bend(…).masked(\"band\")", "only the band arcs",
                     splat(bentM)),
-              panel("peak(\xe2\x80\xa6).masked(\"band\")",
-                    "only the band is pushed", splat(peakedM))},
+              panel("peak(…).masked(\"band\")", "only the band is pushed",
+                    splat(peakedM))},
          .gap = 14});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "POP DEFORM \xc2\xb7 select() writes a lane, "
+        {.title = "POP DEFORM · select() writes a lane, "
                   "masked() takes it",
-         .subtitle = "one column of 1,400 points \xc2\xb7 twist, "
+         .subtitle = "one column of 1,400 points · twist, "
                      "taper, bend and orient+peak, on the whole "
                      "cloud above and on the selected band below",
          .footer = "every chain is cooked once by the CPU "
                    "reference executor and splatted by "
-                   "points::drawBillboards \xc2\xb7 all ten are "
+                   "points::drawBillboards · all ten are "
                    "GPU-executable unchanged"},
         kit::cells({.cells = {std::move(whole), std::move(banded)},
                     .column = true,
@@ -273,6 +273,6 @@ struct PopDeform final : sketch::Sketch {
 };
 
 SIGIL_SKETCH(
-    PopDeform, "Kit \xc2\xb7 API",
+    PopDeform, "Kit · API",
     "geometry::pop select() and masked(), then twist / taper / bend / peak "
-    "\xe2\x80\x94 one column, six chains, every one GPU-executable")
+    "— one column, six chains, every one GPU-executable")

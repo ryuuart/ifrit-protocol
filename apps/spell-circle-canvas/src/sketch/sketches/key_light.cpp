@@ -147,6 +147,6 @@ struct KeyLight final : sketch::Set {
 }  // namespace
 
 SIGIL_SKETCH(KeyLight, "Set",
-             "The emitter's dials \xe2\x80\x94 one still set whose key light's "
+             "The emitter's dials — one still set whose key light's "
              "strength and colour are bound to live values, so what moves "
              "is the lane and never the description")

@@ -175,7 +175,7 @@ struct SpaceJam1996 : sketch::Sketch {
             .alignItems(Align::Center)
             .child(text("SPACE JAM, characters, names, and all related")
                        .font(small))
-            .child(text("indicia are trademarks of Warner Bros. \xc2\xa9 1996")
+            .child(text("indicia are trademarks of Warner Bros. © 1996")
                        .font(small));
 
     (void)ctx;
@@ -449,6 +449,6 @@ struct SpaceJam1996 : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(SpaceJam1996, "Study \xc2\xb7 Screens",
-             "spacejam.com, still live \xe2\x80\x94 the page set by Table, "
+SIGIL_SKETCH(SpaceJam1996, "Study · Screens",
+             "spacejam.com, still live — the page set by Table, "
              "each <TD> naming its own cells")

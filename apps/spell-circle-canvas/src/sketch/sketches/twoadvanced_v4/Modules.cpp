@@ -69,7 +69,7 @@ auto TwoAdvancedV4::featureSystem() -> Element {
                          PathFormat::Align::Inner))
                      // the ONE place this interface is not tracked caps
                      .child(t("2Advanced completes a broadcast spot for "
-                              "BSN's N.O.-Xplode line \xe2\x80\x94 full CG "
+                              "BSN's N.O.-Xplode line — full CG "
                               "environment, character rig and compositing, "
                               "delivered in nine weeks on a Maxon pipeline "
                               "against a live-action plate.",
@@ -87,14 +87,14 @@ auto TwoAdvancedV4::featureSystem() -> Element {
                      .row()
                      .gap(14)
                      .child(specPair("CLIENT", "BSN / N.O.-XPLODE"))
-                     .child(specPair("RUNTIME", "00:30 \xc2\xb7 NTSC"))
+                     .child(specPair("RUNTIME", "00:30 · NTSC"))
                      .child(specPair("TOOLS", "C4D R8 / AE 6.5"))
                      .child(specPair("DELIVERED", "01.24.06")))
           .child(box()
                      .row()
                      .gap(8)
                      .alignItems(Align::Center)
-                     .child(t("\xe2\x80\xba VIEW CASE STUDY",
+                     .child(t("› VIEW CASE STUDY",
                               micro(11, hexColor(0x123B3D), 220)))
                      .child(box().grow(1))
                      .child(box()
@@ -214,7 +214,7 @@ auto TwoAdvancedV4::pressList() -> Element {
                                             blackFace(), 13, kDate, 40, 0.95f)))
                        .child(box().grow(1).height(1).fill(
                            mskia::withAlpha(kDate, 0.3f)))
-                       .child(t("\xe2\x96\xb8", micro(9, kDate, 0))))
+                       .child(t("▸", micro(9, kDate, 0))))
             .child(t(e.headline,
                      sigil::weave::kit::tracked(blackFace(), 13,
                                                 hexColor(0x0E3234), 50, 0.92f)))
@@ -237,7 +237,7 @@ auto TwoAdvancedV4::pressUpdates() -> Element {
         .fill(kPanelSh)
         .justify(Justify::Center)
         .alignItems(Align::Center)
-        .child(t(up ? "\xe2\x96\xb4" : "\xe2\x96\xbe", micro(8, kBody, 0)));
+        .child(t(up ? "▴" : "▾", micro(8, kBody, 0)));
   };
   const sketch::kit::Scrolled well = pressScrolled();
   Element scrollbar =
@@ -287,7 +287,7 @@ auto TwoAdvancedV4::pressUpdates() -> Element {
                      .row()
                      .alignItems(Align::Center)
                      .gap(8)
-                     .child(t("06 ENTRIES \xc2\xb7 PAGE 1/4",
+                     .child(t("06 ENTRIES · PAGE 1/4",
                               micro(11, hexColor(0x123B3D), 220)))
                      .child(box().grow(1))
                      .child(cta("ARCHIVES", 116, 34, kPanelSh)));
@@ -315,7 +315,7 @@ auto TwoAdvancedV4::auxBar(const char* label) -> Element {
       .fill(mskia::Paint::linearUnit(
           {0, 0}, {0, 1},
           {{0.0f, hexColor(0x5A1A20)}, {1.0f, hexColor(0x2E0A0C)}}))
-      .child(t("\xc2\xbb", micro(10, kCyan, 0)))
+      .child(t("»", micro(10, kCyan, 0)))
       .child(t(label, micro(11, kNear, 160)));
 }
 
@@ -342,12 +342,12 @@ auto TwoAdvancedV4::auxiliary() -> Element {
     const char *glyph, *l1, *l2, *link;
   };
   static const Item items[3] = {
-      {"\xe2\x96\xa0", "The Equipment store carries the latest",
-       "2Advanced apparel and publications...", "\xe2\x80\xba VIEW"},
-      {"\xe2\x96\xa3", "Chat live with a 2Advanced sales agent",
-       "inorder to inquire about project pricing...", "\xe2\x80\xba OFFLINE"},
-      {"\xe2\x9c\x89", "Subscribe to the 2Advanced Members",
-       "List and receive exclusive news & press...", "\xe2\x80\xba SUBSCRIBE"},
+      {"■", "The Equipment store carries the latest",
+       "2Advanced apparel and publications...", "› VIEW"},
+      {"▣", "Chat live with a 2Advanced sales agent",
+       "inorder to inquire about project pricing...", "› OFFLINE"},
+      {"✉", "Subscribe to the 2Advanced Members",
+       "List and receive exclusive news & press...", "› SUBSCRIBE"},
   };
   Element supplementals = box()
                               .grow(1)
@@ -527,9 +527,9 @@ auto TwoAdvancedV4::subSystem() -> Element {
                               .row()
                               .gap(5)
                               .alignItems(Align::Center)
-                              .child(t("\xe2\x96\xb8", micro(9, kCyan, 0)))
+                              .child(t("▸", micro(9, kCyan, 0)))
                               .child(t(value, label(13, kNear, 90)))
-                              .child(t("\xe2\x96\xbe", micro(9, kDust, 0)))));
+                              .child(t("▾", micro(9, kDust, 0)))));
   };
 
   Element row =
@@ -582,16 +582,16 @@ auto TwoAdvancedV4::subSystem() -> Element {
                  .column()
                  .gap(3)
                  .child(t("RESOLUTION", micro(10, kDustDim, 240)))
-                 .child(t("\xe2\x96\xb8 1024\xc3\x97"
-                          "768 \xc2\xb7 32-BIT",
+                 .child(t("▸ 1024×"
+                          "768 · 32-BIT",
                           label(13, kNear, 90))))
       .child(box().grow(1))
       .child(box()
                  .column()
                  .alignItems(Align::End)
                  .gap(3)
-                 .child(t("BANDWIDTH  \xe2\x96\xa0\xe2\x96\xa0\xe2\x96\xa0"
-                          "\xe2\x96\xa0\xe2\x96\xa0\xe2\x96\xa1\xe2\x96\xa1",
+                 .child(t("BANDWIDTH  ■■■"
+                          "■■□□",
                           micro(11, mskia::withAlpha(kCyan, 0.85f), 200)))
                  .child(t("UPTIME 118:24:07", micro(10, kDustDim, 200))))
       .child(box().width(70).height(40).foreground(

@@ -487,9 +487,9 @@ struct MatrixRain : sketch::Sketch {
         // thing on the page that could differ between two machines
         // rendering the same declared moment. That there are four planes
         // is a fact about the declaration, so that is what is stated.
-        text("SIMON WHITELEY'S DIGITAL RAIN \xc2\xb7 FOUR PLANES OF "
+        text("SIMON WHITELEY'S DIGITAL RAIN · FOUR PLANES OF "
              "HALF-WIDTH KATAKANA AND DIGITS, "
-             "MIRRORED PER GLYPH, HELD UPRIGHT \xc2\xb7 THE LIGHT FALLS, "
+             "MIRRORED PER GLYPH, HELD UPRIGHT · THE LIGHT FALLS, "
              "THE TYPE STANDS STILL",
              weave::textStyle({.face = faceLabel,
                                .size = 10.5f,
@@ -548,7 +548,7 @@ struct MatrixRain : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(MatrixRain, "Study \xc2\xb7 Type",
-             "The Matrix's digital rain (1999) \xe2\x80\x94 four curtains of "
+SIGIL_SKETCH(MatrixRain, "Study · Type",
+             "The Matrix's digital rain (1999) — four curtains of "
              "mirrored half-width katakana, thousands of glyphs churning on "
              "declared schedules")

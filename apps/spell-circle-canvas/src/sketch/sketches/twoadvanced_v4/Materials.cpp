@@ -153,7 +153,7 @@ auto TwoAdvancedV4::statusBar() -> Element {
           // page hangs over its modules.
           .child(t("INITREQ 2A", micro(12, kNear, 240)))
           .child(box().width(1).height(14).fill(mskia::withAlpha(kCyan, 0.4f)))
-          .child(t("\xe2\x80\xba GLOBAL AMBIENCE",
+          .child(t("› GLOBAL AMBIENCE",
                    micro(11, mskia::withAlpha(kCyan, 0.9f), 240)))
           .child(box().grow(1))
           .child(box().width(90).height(12).foreground(
@@ -175,7 +175,7 @@ auto TwoAdvancedV4::statusBar() -> Element {
                  kChrome)
           .translateY(animate(motion::from(-46.0f).to(0.0f),
                               {380ms, &ch::easeOutQuint, 1530ms}))
-          .child(t("\xe2\x80\xba GLOBAL NAVIGATOR", micro(11, kDust, 260)))
+          .child(t("› GLOBAL NAVIGATOR", micro(11, kDust, 260)))
           .child(box().grow(1))
           // V4.PROPHECY sits in its own hairline-outlined plate at the
           // bar's right end — the one piece of type up here that is
@@ -222,7 +222,7 @@ auto TwoAdvancedV4::audioModule() -> Element {
                     2,
                     Fill::color(sel ? kCyan : mskia::withAlpha(kDust, 0.35f)),
                     PathFormat::Align::Inner)))
-            .child(t(sel ? "\xe2\x96\xb8" : " ", micro(11, kCyan, 0)))
+            .child(t(sel ? "▸" : " ", micro(11, kCyan, 0)))
             .child(t(tracks[i],
                      sigil::weave::kit::tracked(
                          blackFace(), 13, sel ? kNear : kHeadDim, 60, 0.92f))));
@@ -284,10 +284,10 @@ auto TwoAdvancedV4::audioModule() -> Element {
                  .row()
                  .gap(5)
                  .alignItems(Align::Center)
-                 .child(key("\xe2\x97\x82\xe2\x97\x82", false))
-                 .child(key("\xe2\x96\xa0", false))
-                 .child(key("\xe2\x96\xb8", true))
-                 .child(key("\xe2\x96\xb8\xe2\x96\xb8", false))
+                 .child(key("◂◂", false))
+                 .child(key("■", false))
+                 .child(key("▸", true))
+                 .child(key("▸▸", false))
                  .child(box().width(8))
                  .child(meter(64, &vuLeft, mskia::withAlpha(kCyan, 0.85f)))
                  .child(box().grow(1))
@@ -301,7 +301,6 @@ auto TwoAdvancedV4::audioModule() -> Element {
                  .fill(mskia::withAlpha(kChrome, 0.9f))
                  .child(t("AUDIO PREFERENCES", micro(11, kDust, 240)))
                  .child(box().grow(1))
-                 .child(t("STREAM 128K \xc2\xb7 STEREO",
-                          micro(10, kDustDim, 200))));
+                 .child(t("STREAM 128K · STEREO", micro(10, kDustDim, 200))));
   return panel;
 }

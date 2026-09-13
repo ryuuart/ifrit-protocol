@@ -194,6 +194,6 @@ struct LanternRoom final : sketch::Set {
 }  // namespace
 
 SIGIL_SKETCH(LanternRoom, "Set",
-             "The three emitters in one dark room \xe2\x80\x94 four coloured "
+             "The three emitters in one dark room — four coloured "
              "lanterns that are their own light and carry a lamp each, a "
              "spot from above, and a sun faint enough to be an outline")

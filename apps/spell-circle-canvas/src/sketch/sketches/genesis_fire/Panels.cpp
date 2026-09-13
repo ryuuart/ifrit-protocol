@@ -6,15 +6,15 @@ Element GenesisFire::generationPanel() {
   return panel(kPanelH[0], 1)
       .gap(3)
       .child(panelHead("GENERATION LAW"))
-      .child(eqn("NParts_f    = MeanParts_f + Rand() \xc3\x97 VarParts_f"))
-      .child(eqn("MeanParts_f = InitialMeanParts + \xce\x94Mean \xc3\x97 "
-                 "(f \xe2\x88\x92 f\xe2\x82\x80)"))
-      .child(eqn("InitialSpeed = MeanSpeed + Rand() \xc3\x97 VarSpeed"))
+      .child(eqn("NParts_f    = MeanParts_f + Rand() × VarParts_f"))
+      .child(eqn("MeanParts_f = InitialMeanParts + ΔMean × "
+                 "(f − f₀)"))
+      .child(eqn("InitialSpeed = MeanSpeed + Rand() × VarSpeed"))
       .child(box().grow(1))
-      .child(text("Rand() \xe2\x86\x92 UNIFORM [\xe2\x88\x92"
+      .child(text("Rand() → UNIFORM [−"
                   "1.0, +1.0] "
-                  "\xe2\x80\x94 REEVES 1983 \xc2\xa7"
-                  "2.1\xe2\x80\x93"
+                  "— REEVES 1983 §"
+                  "2.1–"
                   "2.2")
                  .font({.size = 7.5f, .track = 0.4f})
                  .ink(kSteelDim)
@@ -61,7 +61,7 @@ Element GenesisFire::liveRow() {
   std::snprintf(per_, sizeof per_, "%d",
                 (int)std::lround((double)liveCount / (33.0 * kDepth)));
   std::snprintf(sys_, sizeof sys_,
-                "33\xc3\x97"
+                "33×"
                 "%d",
                 kDepth);
   return box()
@@ -80,7 +80,7 @@ Element GenesisFire::liveRow() {
 Element GenesisFire::censusPanel() {
   return panel(kPanelH[1], 2)
       .gap(4)
-      .child(panelHead("PARTICLE CENSUS \xe2\x80\x94 REEVES 1983 \xc2\xa7"
+      .child(panelHead("PARTICLE CENSUS — REEVES 1983 §"
                        "3"))
       .child(box()
                  .row()
@@ -101,26 +101,26 @@ Element GenesisFire::censusPanel() {
               .child(censusRow("4", "~21", "25,000", "1,190*", 0.273f, false))
               .child(censusRow("5", "~200", "75,000", "375", 0.491f, false))
               .child(censusRow("6", "~200", "85,000", "425", 0.514f, false))
-              .child(censusRow("7\xe2\x80\x93"
+              .child(censusRow("7–"
                                "8",
                                "~400", ">750,000", ">1,875", 0.945f, false))
               .child(liveRow()))
       .child(box().grow(1))
       .child(text("* FIG. 4 IS \"ONE VERY LARGE PARTICLE SYSTEM AND "
-                  "ABOUT 20 SMALLER ONES\" \xe2\x80\x94 THAT MEAN IS "
+                  "ABOUT 20 SMALLER ONES\" — THAT MEAN IS "
                   "MEANINGLESS.")
                  .styleClass("note")
                  .ink(kSteelDim)
                  .shrink(0))
       .child(text("NO PARAMETER VALUE IS PUBLISHED ANYWHERE. EVERY CONSTANT "
                   "HERE IS ARITHMETIC ON TWO PUBLISHED INTEGERS: 85,000 "
-                  "\xc3\xb7 200 = 425 ALIVE PER EXPLOSION (FIG. 6), AND "
-                  "POPULATION = BIRTH RATE \xc3\x97 LIFETIME \xe2\x80\x94 "
+                  "÷ 200 = 425 ALIVE PER EXPLOSION (FIG. 6), AND "
+                  "POPULATION = BIRTH RATE × LIFETIME — "
                   "PICK MeanLife = 34 f AND THE RATE FOLLOWS. SYSTEMS IGNITE "
                   "EVERY 18.5/168 = 0.110 s: 20 GENERATING + 13 BURNING OUT "
                   "= 24 FULLY-LIT EQUIVALENTS. A LIMB VIEW STACKS THE RING "
                   "IN DEPTH (FIG. 6 IS ~200 SYSTEMS; THIS SLICE ANCHORS 53 "
-                  "COLUMNS), SO EACH COLUMN CARRIES 3: 72 \xc3\x97 425 = "
+                  "COLUMNS), SO EACH COLUMN CARRIES 3: 72 × 425 = "
                   "30,600 PREDICTED. THE \"THIS\" ROW IS MEASURED.")
                  .styleClass("note")
                  .shrink(0));
@@ -156,10 +156,10 @@ Element GenesisFire::rampPanel() {
           std::move(swatches)))
       .child(box().row().gap(2).shrink(0).children(std::move(labels)))
       .child(box().grow(1))
-      .child(text("LIGHT ADDS AND CLAMPS (\xc2\xa7"
-                  "2.5) \xe2\x80\x94 RED "
+      .child(text("LIGHT ADDS AND CLAMPS (§"
+                  "2.5) — RED "
                   "SATURATES AT n=5, GREEN AT n=20, BLUE AT n=111. "
-                  "e\xe2\x82\x80 = (0.220, 0.050, 0.009) IS THE ONE "
+                  "e₀ = (0.220, 0.050, 0.009) IS THE ONE "
                   "RECONSTRUCTED SEED.")
                  .styleClass("note")
                  .shrink(0));
@@ -188,7 +188,7 @@ Element GenesisFire::benchCell(Element content, const char* caption,
 Element GenesisFire::renderModelPanel() {
   return panel(kPanelH[3], 4)
       .gap(4)
-      .child(panelHead("RENDER MODEL \xe2\x80\x94 THREE PATHS, ONE POOL"))
+      .child(panelHead("RENDER MODEL — THREE PATHS, ONE POOL"))
       .child(box()
                  .row()
                  .gap(15)
@@ -196,21 +196,19 @@ Element GenesisFire::renderModelPanel() {
                  .child(benchCell(box().inset(0).child(instancing::instances(
                                       abAtlas, abPool, instancing::Mode::Live,
                                       SkBlendMode::kSrcOver)),
-                                  "instances() \xc2\xb7 kSrcOver",
-                                  hexColor(0x8A93A8)))
+                                  "instances() · kSrcOver", hexColor(0x8A93A8)))
                  .child(benchCell(box().inset(0).child(instancing::instances(
                                       abAtlas, abPool, instancing::Mode::Live,
                                       SkBlendMode::kPlus)),
-                                  "instances() \xc2\xb7 kPlus",
-                                  hexColor(0xFFB672)))
-                 .child(benchCell(box().inset(0), "pen quads \xc2\xb7 kPlus",
+                                  "instances() · kPlus", hexColor(0xFFB672)))
+                 .child(benchCell(box().inset(0), "pen quads · kPlus",
                                   hexColor(0xFFB672))))
       .child(box().grow(1))
       .child(text("SAME 700 PARTICLES, ONE POOL. LEFT AND CENTRE "
                   "DIFFER ONLY IN BLEND: kSrcOver CANNOT ACCUMULATE, "
                   "SO ITS WHOLE PALETTE IS LUT ENTRY n=1. ALL THREE "
-                  "ARE STREAKED SPHERICAL \xe2\x80\x94 LENGTH "
-                  "0.5\xc2\xb7|v|, WIDTH size. THE TWO POOLS TAKE IT "
+                  "ARE STREAKED SPHERICAL — LENGTH "
+                  "0.5·|v|, WIDTH size. THE TWO POOLS TAKE IT "
                   "FROM Pool::sizes(), THE OPT-IN NON-UNIFORM LANE "
                   "THAT STRETCHES ONE BAKED CELL PER INSTANCE.")
                  .styleClass("note")
@@ -220,24 +218,24 @@ Element GenesisFire::renderModelPanel() {
 Element GenesisFire::productionPanel() {
   return panel(kPanelH[4], 5)
       .gap(1)
-      .child(panelHead("PRODUCTION \xe2\x80\x94 SMITH 1982"))
-      .child(prodLine("67-SECOND SHOT \xc2\xb7 250,000 PX/FRAME \xc2\xb7 "
+      .child(panelHead("PRODUCTION — SMITH 1982"))
+      .child(prodLine("67-SECOND SHOT · 250,000 PX/FRAME · "
                       "500-LINE VIDEO MONITOR",
                       kBone))
       .child(prodLine("2 MAN-YEARS OVER AN 80-SECOND PIECE (60 s GENESIS + "
                       "20 s RETINA ID)",
                       kBone))
-      .child(prodLine("FRAMES: 5 MINUTES TO 5 HOURS \xc2\xb7 ~1 MONTH OF "
+      .child(prodLine("FRAMES: 5 MINUTES TO 5 HOURS · ~1 MONTH OF "
                       "VAX TIME FOR THE FRACTALS",
                       kSteel))
-      .child(prodLine("E&S PICTURE SYSTEM II \xc2\xb7 2\xc3\x97 IKONAS "
-                      "\xc2\xb7 BARCO \xc2\xb7 HITACHI TABLET",
+      .child(prodLine("E&S PICTURE SYSTEM II · 2× IKONAS "
+                      "· BARCO · HITACHI TABLET",
                       kSteel))
-      .child(prodLine("DELIVERED MARCH 19, 1982 \xc2\xb7 SHOT TO "
+      .child(prodLine("DELIVERED MARCH 19, 1982 · SHOT TO "
                       "VISTAVISION BY ILM",
                       kSteel))
       .child(box().grow(1))
-      .child(text("Am. Cinematographer 63(10) \xe2\x80\x94 caption: "
+      .child(text("Am. Cinematographer 63(10) — caption: "
                   "67 s; body text: 60 s. Both printed.")
                  .styleClass("note")
                  .ink(kSteelDim)
@@ -268,10 +266,10 @@ Element GenesisFire::header() {
                  .ink(kBone)
                  .key("title")
                  .fx(std::move(rise)))
-      .child(text("W. T. Reeves, Lucasfilm Ltd \xe2\x80\x94 \"Particle "
+      .child(text("W. T. Reeves, Lucasfilm Ltd — \"Particle "
                   "Systems: A Technique for Modeling a Class of Fuzzy "
-                  "Objects\", SIGGRAPH '83 / ACM TOG 2(2) \xc2\xb7 "
-                  "sequence dir. Alvy Ray Smith \xc2\xb7 Star Trek II, "
+                  "Objects\", SIGGRAPH '83 / ACM TOG 2(2) · "
+                  "sequence dir. Alvy Ray Smith · Star Trek II, "
                   "Paramount, June 4, 1982")
                  .font({.size = 11.0f, .track = 0.1f})
                  .opacity(animate(from(0.0f).to(1.0f),

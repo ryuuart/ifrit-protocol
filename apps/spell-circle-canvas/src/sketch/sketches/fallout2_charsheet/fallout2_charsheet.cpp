@@ -278,7 +278,6 @@ auto Fallout2CharSheet::step(double) -> void {
   lampFlash = flash;
 }
 
-SIGIL_SKETCH(
-    Fallout2CharSheet, "Study \xc2\xb7 Game UI",
-    "Fallout 2's character screen (1998) at 2\xc3\x97 \xe2\x80\x94 ~134 runs, "
-    "five alignment regimes")
+SIGIL_SKETCH(Fallout2CharSheet, "Study · Game UI",
+             "Fallout 2's character screen (1998) at 2× — ~134 runs, "
+             "five alignment regimes")

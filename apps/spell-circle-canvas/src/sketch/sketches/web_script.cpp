@@ -222,42 +222,41 @@ struct WebScript final : sketch::Sketch {
               scrolledEvents.accepted(), pressedEvents.accepted()};
 
     const std::string press = kit::formatted(
-        "three events for one click \xe2\x80\x94 the page's own "
+        "three events for one click — the page's own "
         "handler stamped (%d, %d)",
         kClickAt.x(), kClickAt.y());
     const std::string wheel = kit::formatted(
-        "%d px down the page \xe2\x80\x94 a delta is what the "
+        "%d px down the page — a delta is what the "
         "CONTENT moves by, so down is negative",
         kScrollBy);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "DRIVING A PAGE \xc2\xb7 setLoadCallback + "
+        {.title = "DRIVING A PAGE · setLoadCallback + "
                   "evaluateScript + scroll + mouse",
-         .subtitle = "dials \xc2\xb7 the script \xc2\xb7 the wheel "
-                     "\xc2\xb7 the point pressed \xe2\x80\x94 one "
+         .subtitle = "dials · the script · the wheel "
+                     "· the point pressed — one "
                      "document, four views, one call apart",
          .footer =
              std::string(
                  "every call crosses to the web thread, so each cell was "
                  "driven and then waited on for the engine's own events "
-                 "\xe2\x80\x94 the load, then the page's own answer that "
+                 "— the load, then the page's own answer that "
                  "what the call asked for is what the latest frame shows") +
              (settled ? "" : "; one of those waits expired")},
         kit::cells(
-            {.cells = {cell("plain", plain, stills[0],
-                            "loadHTML + setLoadCallback",
-                            std::string("the load callback ") +
-                                (fired ? "fired" : "never fired") + ", and " +
-                                (painted ? "a frame was published"
-                                         : "nothing was published")),
-                       cell("scripted", scripted, stills[1],
-                            "evaluateScript(js, onResult)",
-                            std::string("the page answered \xe2\x80\x9c") +
-                                returned + "\xe2\x80\x9d"),
-                       cell("scrolled", scrolled, stills[2], "scroll(0, -dy)",
-                            wheel),
-                       cell("pressed", pressed, stills[3],
-                            "mouseMove / mouseDown / mouseUp", press)},
+            {.cells =
+                 {cell("plain", plain, stills[0], "loadHTML + setLoadCallback",
+                       std::string("the load callback ") +
+                           (fired ? "fired" : "never fired") + ", and " +
+                           (painted ? "a frame was published"
+                                    : "nothing was published")),
+                  cell("scripted", scripted, stills[1],
+                       "evaluateScript(js, onResult)",
+                       std::string("the page answered “") + returned + "”"),
+                  cell("scrolled", scrolled, stills[2], "scroll(0, -dy)",
+                       wheel),
+                  cell("pressed", pressed, stills[3],
+                       "mouseMove / mouseDown / mouseUp", press)},
              .gap = 18,
              .divider = Fill::color(sketch::kit::theme().palette.rule)})));
   }
@@ -316,7 +315,7 @@ struct WebScript final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(WebScript, "Kit \xc2\xb7 API",
-             "one document in four views, each driven by one call \xe2\x80\x94 "
+SIGIL_SKETCH(WebScript, "Kit · API",
+             "one document in four views, each driven by one call — "
              "a load stamp, a script's own answer, a wheel and a synthetic "
              "press")

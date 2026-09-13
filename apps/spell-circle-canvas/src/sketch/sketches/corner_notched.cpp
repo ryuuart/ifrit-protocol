@@ -88,13 +88,13 @@ struct CornerNotched final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "CORNER TREATMENTS \xc2\xb7 rounded + chamfered + "
+        {.title = "CORNER TREATMENTS · rounded + chamfered + "
                   "notched, over a Corner mask",
-         .subtitle = "dials \xc2\xb7 the radius (22 px) \xc2\xb7 the "
-                     "chamfer (30 px) \xc2\xb7 the notch (38 by 18 "
-                     "px) \xc2\xb7 the mask",
+         .subtitle = "dials · the radius (22 px) · the "
+                     "chamfer (30 px) · the notch (38 by 18 "
+                     "px) · the mask",
          .footer = "every cell here is one value away from the "
-                   "box at the top left \xe2\x80\x94 a radius, a "
+                   "box at the top left — a radius, a "
                    "cut, a bite, or the mask that says which "
                    "corners take one"},
         kit::cells(
@@ -102,7 +102,7 @@ struct CornerNotched final : sketch::Sketch {
                  {kit::cells(
                       {.cells =
                            {cell("parallelogram(0)",
-                                 "no lean \xe2\x80\x94 the clean "
+                                 "no lean — the clean "
                                  "four-point box every cell below is "
                                  "one value away from",
                                  shapes::parallelogram(0)),
@@ -113,51 +113,51 @@ struct CornerNotched final : sketch::Sketch {
                                  shapes::rounded(shapes::parallelogram(0),
                                                  kRadius)),
                             cell("chamfered(30)",
-                                 "the 45\xc2\xb0 cut on all four "
-                                 "\xe2\x80\x94 the corner that reads as "
+                                 "the 45° cut on all four "
+                                 "— the corner that reads as "
                                  "machined metal",
                                  shapes::chamfered(kCut)),
                             cell("chamfered(30, Corner::Diagonal)",
                                  "top-left and bottom-right only "
-                                 "\xe2\x80\x94 the asymmetric pair that "
+                                 "— the asymmetric pair that "
                                  "reads as a tab",
                                  shapes::chamfered(kCut, Corner::Diagonal))},
                        .gap = 14}),
-                  kit::cells({.cells =
-                                  {cell("notched(38, 18)",
-                                        "the rectangular bite on all four "
-                                        "\xe2\x80\x94 the stencil corner, the "
-                                        "fixing lug",
-                                        shapes::notched(
-                                            kNotchWidth, kNotchDepth)),
-                                   cell("notched(38, 18, TopLeft|TopRight)",
-                                        "the mask is a bit set, so any union "
-                                        "of corners is a value \xc2\xb7 two "
-                                        "lugs on the top edge",
-                                        shapes::notched(
-                                            kNotchWidth, kNotchDepth,
-                                            Corner::TopLeft |
-                                                Corner::TopRight)),
-                                   cell("rounded(star(6, 0.5), 10)",
-                                        "the wrapper over a shape with NO box "
-                                        "corners \xc2\xb7 twelve sharp turns, "
-                                        "every one rounded the same",
-                                        shapes::rounded(shapes::star(6, 0.5f),
-                                                        10)),
-                                   cell("rounded(notched(38, 18), 7)",
-                                        "a wrapper over a cut \xc2\xb7 the "
-                                        "bites stay, and the eight corners "
-                                        "they made soften",
-                                        shapes::rounded(shapes::notched(
-                                                            kNotchWidth, kNotchDepth),
-                                                        7))},
-                              .gap = 14})},
+                  kit::cells(
+                      {.cells =
+                           {cell("notched(38, 18)",
+                                 "the rectangular bite on all four "
+                                 "— the stencil corner, the "
+                                 "fixing lug",
+                                 shapes::notched(kNotchWidth, kNotchDepth)),
+                            cell("notched(38, 18, TopLeft|TopRight)",
+                                 "the mask is a bit set, so any union "
+                                 "of corners is a value · two "
+                                 "lugs on the top edge",
+                                 shapes::notched(
+                                     kNotchWidth, kNotchDepth,
+                                     Corner::TopLeft |
+                                         Corner::TopRight)),
+                            cell("rounded(star(6, 0.5), 10)",
+                                 "the wrapper over a shape with NO box "
+                                 "corners · twelve sharp turns, "
+                                 "every one rounded the same",
+                                 shapes::
+                                     rounded(shapes::star(6, 0.5f), 10)),
+                            cell("rounded(notched(38, 18), 7)",
+                                 "a wrapper over a cut · the "
+                                 "bites stay, and the eight corners "
+                                 "they made soften",
+                                 shapes::
+                                     rounded(shapes::notched(kNotchWidth, kNotchDepth), 7))},
+                       .gap =
+                           14})},
              .column = true,
              .gap = 18})));
   }
 };
 
-SIGIL_SKETCH(CornerNotched, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(CornerNotched, "Kit · API",
              "rounding as a wrapper over any silhouette, the chamfer and "
              "the notch as shapes a frame is cut to, and the per-corner "
              "mask both of them take")

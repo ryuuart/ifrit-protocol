@@ -304,7 +304,7 @@ auto Minard1869::bandNumber(SkPoint at, SkVector tangent, float men, float size,
   float runLen = 0;
   float slack = size * 0.3f;  // metrics-free fallback, same shape
   if (fonts) {
-    runLen = runPens(toUtf8(french(men)), style, *fonts).back();
+    runLen = runPens(french(men), style, *fonts).back();
     slack = metrics(style, *fonts).capSlack();
   }
   const float half = std::max(bandPx(men) * 0.5f, runLen * 0.5f) + slack;

@@ -165,15 +165,15 @@ struct ParagraphPaints final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "PARAGRAPH PAINTS \xc2\xb7 the preset text paints "
+        {.title = "PARAGRAPH PAINTS · the preset text paints "
                   "over a page of body type",
-         .subtitle = "one passage \xc2\xb7 one face, size, measure, "
+         .subtitle = "one passage · one face, size, measure, "
                      "leading, breaker and justification "
-                     "\xc2\xb7 eight inks \xc2\xb7 the moment "
+                     "· eight inks · the moment "
                      "(6.4 s)",
          .footer = "the material's unit square spans the WHOLE run, "
                    "so a page gets a sliver of what a word gets "
-                   "whole \xe2\x80\x94 which is the thing to look "
+                   "whole — which is the thing to look "
                    "for here, and the thing a one-word specimen "
                    "cannot show"},
         kit::cells(
@@ -182,47 +182,45 @@ struct ParagraphPaints final : sketch::Sketch {
 
   Element topRow() {
     return kit::cells(
-        {.cells =
-             {field(prose, "kit::water(bounds, t)",
-                    "rippling blue \xc2\xb7 a wave the width of the column, "
-                    "sampled by every stroke in it",
-                    material::kit::water(run(), kMoment)),
-              field(prose, "kit::meshGradient(bounds, t)",
-                    "four corners over the whole block \xc2\xb7 a paragraph "
-                    "sits inside one corner's region",
-                    material::kit::meshGradient(run(), kMoment)),
-              panel(
-                  prose, "kit::sparkle(bounds, t)",
-                  "TRANSPARENT \xc2\xb7 set here over a solid copy of the "
-                  "passage; on its own the page is not there",
-                  paint::Paint::recipe(material::kit::sparkle(run(), kMoment)),
-                  paint::Paint::solid({0.42f, 0.46f, 0.58f, 1})),
-              field(prose, "kit::starNest(bounds, t)",
-                    "a volumetric raymarch \xc2\xb7 the heaviest of the six, "
-                    "and now under every glyph on a page",
-                    material::kit::starNest(run(), kMoment))},
+        {.cells = {field(prose, "kit::water(bounds, t)",
+                         "rippling blue · a wave the width of the column, "
+                         "sampled by every stroke in it",
+                         material::kit::water(run(), kMoment)),
+                   field(prose, "kit::meshGradient(bounds, t)",
+                         "four corners over the whole block · a paragraph "
+                         "sits inside one corner's region",
+                         material::kit::meshGradient(run(), kMoment)),
+                   panel(prose, "kit::sparkle(bounds, t)",
+                         "TRANSPARENT · set here over a solid copy of the "
+                         "passage; on its own the page is not there",
+                         paint::Paint::recipe(
+                             material::kit::sparkle(run(), kMoment)),
+                         paint::Paint::solid({0.42f, 0.46f, 0.58f, 1})),
+                   field(prose, "kit::starNest(bounds, t)",
+                         "a volumetric raymarch · the heaviest of the six, "
+                         "and now under every glyph on a page",
+                         material::kit::starNest(run(), kMoment))},
          .gap = 12});
   }
 
   Element bottomRow() {
     return kit::cells(
-        {.cells =
-             {field(prose, "kit::clouds(bounds, t)",
-                    "ridged and fbm noise \xc2\xb7 large features, small "
-                    "amplitude \xe2\x80\x94 the shape a page tolerates",
-                    material::kit::clouds(run(), kMoment)),
-              field(prose, "kit::tunnel(bounds, t)",
-                    "a kaleidoscope falling away \xc2\xb7 its dark regions "
-                    "swallow whichever paragraph lands in them",
-                    material::kit::tunnel(run(), kMoment)),
-              panel(prose, "kit::sunsetChromeType()",
-                    "a stop list in UNIT space \xc2\xb7 the horizon that "
-                    "crosses a wordmark's capitals now crosses the column",
-                    kit::sunsetChromeType()),
-              panel(prose, "kit::silverChromeType()",
-                    "the same construction, colder \xc2\xb7 nearly flat over "
-                    "a block this tall, which is the point",
-                    kit::silverChromeType())},
+        {.cells = {field(prose, "kit::clouds(bounds, t)",
+                         "ridged and fbm noise · large features, small "
+                         "amplitude — the shape a page tolerates",
+                         material::kit::clouds(run(), kMoment)),
+                   field(prose, "kit::tunnel(bounds, t)",
+                         "a kaleidoscope falling away · its dark regions "
+                         "swallow whichever paragraph lands in them",
+                         material::kit::tunnel(run(), kMoment)),
+                   panel(prose, "kit::sunsetChromeType()",
+                         "a stop list in UNIT space · the horizon that "
+                         "crosses a wordmark's capitals now crosses the column",
+                         kit::sunsetChromeType()),
+                   panel(prose, "kit::silverChromeType()",
+                         "the same construction, colder · nearly flat over "
+                         "a block this tall, which is the point",
+                         kit::silverChromeType())},
          .gap = 12});
   }
 };

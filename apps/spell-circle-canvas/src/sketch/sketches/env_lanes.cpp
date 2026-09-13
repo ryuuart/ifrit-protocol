@@ -166,53 +166,53 @@ struct EnvLanes final : sketch::Sketch {
     shown.backdrop.blur = kBlur;
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE ENVIRONMENT'S DIALS \xc2\xb7 exposure, "
+        {.title = "THE ENVIRONMENT'S DIALS · exposure, "
                   "roughnessBias, diffuse/specular, crossfade, "
                   "backdrop",
-         .subtitle = "dials \xc2\xb7 one stop against two (1.0 and "
-                     "2.0) \xc2\xb7 the roughness added to every "
-                     "surface (0.45) \xc2\xb7 the crossfade (0.75) "
-                     "\xc2\xb7 the sky's strength and blur",
+         .subtitle = "dials · one stop against two (1.0 and "
+                     "2.0) · the roughness added to every "
+                     "surface (0.45) · the crossfade (0.75) "
+                     "· the sky's strength and blur",
          .footer = "a frame holds ONE environment node, so each "
                    "cell here is a frame of its own baked at the "
-                   "pixels it will have \xe2\x80\x94 and exposure "
+                   "pixels it will have — and exposure "
                    "is the only dial that still means something in "
                    "a set carrying no panorama at all"},
         kit::cells(
-            {.cells = {cell("studio() \xc2\xb7 exposure 1",
-                            "the reference \xc2\xb7 a near-mirror body over a "
+            {.cells = {cell("studio() · exposure 1",
+                            "the reference · a near-mirror body over a "
                             "matte slab, lit by the panorama alone",
                             bake(base)),
                        cell("exposure = 2",
-                            "one stop \xc2\xb7 every radiance multiplied "
+                            "one stop · every radiance multiplied "
                             "before the tone curve, so the shoulder falls "
                             "somewhere else",
                             bake(brighter)),
                        cell("roughnessBias = 0.45",
                             "added to every surface's roughness before it "
-                            "picks a prefiltered level \xc2\xb7 the set "
+                            "picks a prefiltered level · the set "
                             "softens and no material was edited",
                             bake(softened)),
                        cell("diffuse .15 specular 2",
-                            "a bright reflection over a dim bounce \xc2\xb7 "
+                            "a bright reflection over a dim bounce · "
                             "pushing one and not the other is a look, not a "
                             "physical claim",
                             bake(mirrored)),
                        cell("crossfade 0.75 to sunset",
-                            "a second panorama mixed over the first \xc2\xb7 "
+                            "a second panorama mixed over the first · "
                             "both are sampled rather than one rebuilt, which "
                             "is what lets a sky change mid-frame",
                             bake(mixed)),
                        cell("backdrop 1.0 blur 0.35",
                             "the sky SHOWN rather than only reflected "
-                            "\xc2\xb7 zero draws none of it, so the strength "
+                            "· zero draws none of it, so the strength "
                             "is also the switch",
                             bake(shown))},
              .gap = 10})));
   }
 };
 
-SIGIL_SKETCH(EnvLanes, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(EnvLanes, "Kit · API",
              "one chrome body baked six times under the environment node's "
-             "own dials \xe2\x80\x94 the stop, the roughness bias, the two "
+             "own dials — the stop, the roughness bias, the two "
              "sides of the map, the crossfade and the shown sky")

@@ -155,6 +155,6 @@ struct DartFlight final : sketch::Set {
 }  // namespace
 
 SIGIL_SKETCH(DartFlight, "Set",
-             "A dart flying a closed loop \xe2\x80\x94 one curve, swept into "
+             "A dart flying a closed loop — one curve, swept into "
              "a rail and ridden by everything on it, each node aimed by the "
              "curve's own frame")

@@ -150,7 +150,7 @@ struct ShapeShelf final : sketch::Sketch {
              {row({cell(shapes::svg(kHeartD, true), "svg(d, preserveAspect)",
                         "an SVG path-d, parsed once; the bounds map onto "
                         "the box"),
-                   cell(shapes::polygon(6, 15), "polygon(6, 15\xc2\xb0)",
+                   cell(shapes::polygon(6, 15), "polygon(6, 15°)",
                         "regular N-gon inscribed in the box, first vertex "
                         "up unless rotated"),
                    cell(shapes::star(5, 0.42f), "star(5, 0.42)",
@@ -160,30 +160,30 @@ struct ShapeShelf final : sketch::Sketch {
                         "a positive waist engraves the arms; a negative "
                         "one bulges them"),
                    cell(shapes::circle(), "circle()",
-                        "the inscribed ellipse \xe2\x80\x94 exact conics, "
+                        "the inscribed ellipse — exact conics, "
                         "not a sampled polyline"),
                    cell(shapes::circle(10.0f), "circle(inset 10)",
                         "pulled inside the box by a stated number of px")}),
               row({cell(shapes::annulus(0.55f), "annulus(0.55)",
                         "even-odd, so it fills as a ring"),
                    cell(shapes::squircle(4.0f), "squircle(4)",
-                        "|x|^e + |y|^e = 1 \xc2\xb7 4 is the app-icon "
+                        "|x|^e + |y|^e = 1 · 4 is the app-icon "
                         "softness"),
                    cell(shapes::squircle(12.0f), "squircle(12)",
                         "large exponents approach the rectangle"),
                    cell(shapes::blob(7, 0.22f, 9), "blob(7, 0.22, 9)",
-                        "seeded lobes on a Catmull-Rom loop \xe2\x80\x94 "
+                        "seeded lobes on a Catmull-Rom loop — "
                         "chaos you can cache"),
-                   cell(shapes::arc(200, 250), "arc(200\xc2\xb0, 250\xc2\xb0)",
+                   cell(shapes::arc(200, 250), "arc(200°, 250°)",
                         "OPEN: it begins at its own start, so an "
                         "arc-length reveal needs no wrap arithmetic",
                         false),
                    cell(shapes::sector(200, 250, 0.45f),
-                        "sector(200\xc2\xb0, 250\xc2\xb0, inner 0.45)",
-                        "the closed, fillable wedge \xe2\x80\x94 the "
+                        "sector(200°, 250°, inner 0.45)",
+                        "the closed, fillable wedge — the "
                         "coxcomb's mark")}),
-              row({cell(shapes::parallelogram(18), "parallelogram(18\xc2\xb0)",
-                        "the top edge shifts by h\xc2\xb7tan(skew), staying "
+              row({cell(shapes::parallelogram(18), "parallelogram(18°)",
+                        "the top edge shifts by h·tan(skew), staying "
                         "inside the box"),
                    cell(shapes::arrow(0.34f, 0.42f), "arrow(0.34, 0.42)",
                         "along +x: a shaft of the height, a head of the "
@@ -193,23 +193,23 @@ struct ShapeShelf final : sketch::Sketch {
                         false),
                    cell(shapes::harmonograph(3, 4, 60),
                         "harmonograph(3, 4, 60)",
-                        "the damped pair \xe2\x80\x94 the figure decays "
+                        "the damped pair — the figure decays "
                         "inward",
                         false),
                    cell(shapes::rose(5, 1), "rose(5)",
-                        "r = cos(k\xce\xb8): odd k gives k petals, even k "
+                        "r = cos(kθ): odd k gives k petals, even k "
                         "gives 2k",
                         false),
                    cell(shapes::spiral(3.5f), "spiral(3.5)",
                         "Archimedean by default; logarithmic on request",
                         false)}),
               row({cell(shapes::trochoid(5, 3, 5), "trochoid(5, 3, 5)",
-                        "the spirograph pair \xe2\x80\x94 a circle rolling "
+                        "the spirograph pair — a circle rolling "
                         "outside another",
                         false),
                    cell(shapes::trochoid(5, 3, 5, true),
                         "trochoid(5, 3, 5, inside)",
-                        "\xe2\x80\xa6"
+                        "…"
                         "and rolling inside it",
                         false),
                    cell(shapes::rounded(shapes::star(5, 0.42f), 8),
@@ -221,7 +221,7 @@ struct ShapeShelf final : sketch::Sketch {
                         "what a box-corner radius cannot do for a figure "
                         "with no box corners"),
                    cell(shapes::chamfered(14), "chamfered(14)",
-                        "the cut is px too \xe2\x80\x94 at 44 px it takes "
+                        "the cut is px too — at 44 px it takes "
                         "most of the box"),
                    cell(shapes::notched(26, 10), "notched(26, 10)",
                         "a notch per corner, width and depth in px")})},
@@ -229,16 +229,16 @@ struct ShapeShelf final : sketch::Sketch {
          .gap = 16});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE SILHOUETTE SHELF \xc2\xb7 every shapes:: "
+        {.title = "THE SILHOUETTE SHELF · every shapes:: "
                   "generator, at two sizes",
          .subtitle = "one comparable VALUE per cell, drawn at 96 px "
                      "and at 44 px from the same parameters "
-                     "\xe2\x80\x94 a generator is written in the "
+                     "— a generator is written in the "
                      "box's coordinates, so the small copy is a "
                      "construction and not a scaling",
          .footer = "closed figures are filled and outlined; the "
                    "open ones are stroked only, since an open path "
-                   "has no inside \xc2\xb7 anything with "
+                   "has no inside · anything with "
                    "path(SkSize) and operator== belongs on this "
                    "shelf"},
         std::move(generators)));
@@ -246,7 +246,7 @@ struct ShapeShelf final : sketch::Sketch {
 };
 
 SIGIL_SKETCH(ShapeShelf, "Specimen",
-             "the silhouette shelf \xe2\x80\x94 every shapes:: generator, "
+             "the silhouette shelf — every shapes:: generator, "
              "curve and operator in a labelled cell, each drawn twice from "
              "one value so a px-keyed parameter shows what it does to a "
              "small box")

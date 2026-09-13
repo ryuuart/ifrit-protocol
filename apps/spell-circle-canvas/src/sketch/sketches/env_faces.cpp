@@ -195,11 +195,11 @@ struct EnvFaces final : sketch::Sketch {
     const SkColor4f mean = resampled.average();
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "ENVIRONMENT FACES \xc2\xb7 EnvironmentMap "
+        {.title = "ENVIRONMENT FACES · EnvironmentMap "
                   "studio, fromFaces, fromCubeMap, fromEquirectangular, "
                   "withGround",
-         .subtitle = "dials \xc2\xb7 the face set (six baked here) "
-                     "\xc2\xb7 the ground colour \xc2\xb7 the "
+         .subtitle = "dials · the face set (six baked here) "
+                     "· the ground colour · the "
                      "roughness the reflection reads the panorama "
                      "at",
          .footer = "one internal form, four ways in: u is azimuth, "
@@ -210,14 +210,14 @@ struct EnvFaces final : sketch::Sketch {
             {.cells =
                  {kit::cells({.cells =
                                   {panorama("kit::studioEnvironment(384)",
-                                            "baked with no assets \xc2\xb7 a "
+                                            "baked with no assets · a "
                                             "graded sky, a floor bounce and "
                                             "three softboxes",
                                             studio),
                                    panorama("fromFaces(six)",
                                             kit::formatted(
                                                 "six cube faces resampled into "
-                                                "one equirect \xc2\xb7 average "
+                                                "one equirect · average "
                                                 "(%.2f %.2f %.2f)",
                                                 (double)mean.fR,
                                                 (double)mean.fG,
@@ -225,7 +225,7 @@ struct EnvFaces final : sketch::Sketch {
                                             resampled),
                                    panorama("fromCubeMap(6:1 row)",
                                             "the SAME six as one sheet, "
-                                            "unpacked by aspect ratio \xc2\xb7 "
+                                            "unpacked by aspect ratio · "
                                             "the layout is read, never "
                                             "declared",
                                             unpacked),
@@ -245,11 +245,11 @@ struct EnvFaces final : sketch::Sketch {
                                              studio),
                                    reflector("kit::chrome(bevel, fromFaces)",
                                              "the same disc, the same "
-                                             "normals \xc2\xb7 the six faces "
+                                             "normals · the six faces "
                                              "are legible in the rim because "
                                              "the rim looks sideways",
                                              resampled),
-                                   reflector("\xe2\x80\xa6"
+                                   reflector("…"
                                              " at roughness 0.45",
                                              "image(roughness) is one of nine "
                                              "wrap-aware blurs, picked by how "
@@ -258,7 +258,7 @@ struct EnvFaces final : sketch::Sketch {
                                    reflector("kit::chrome(bevel, withGround)",
                                              "the same reflection over a "
                                              "panorama whose lower half is one "
-                                             "colour \xc2\xb7 which is what a "
+                                             "colour · which is what a "
                                              "car park is replaced with",
                                              grounded)},
                               .gap = 14})},
@@ -267,6 +267,6 @@ struct EnvFaces final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(EnvFaces, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(EnvFaces, "Kit · API",
              "four ways into one equirect panorama, and the same chrome "
              "disc reflecting each of them")

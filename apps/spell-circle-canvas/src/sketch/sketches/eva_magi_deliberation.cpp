@@ -233,6 +233,6 @@ struct EvaMagiDeliberation : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH(EvaMagiDeliberation, "Study \xc2\xb7 Film",
-             "Evangelion MAGI deliberation \xe2\x80\x94 one rear bus and three "
+SIGIL_SKETCH(EvaMagiDeliberation, "Study · Film",
+             "Evangelion MAGI deliberation — one rear bus and three "
              "rotated module instances")

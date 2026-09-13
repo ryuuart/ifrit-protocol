@@ -128,13 +128,13 @@ struct RichSlotReserve final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "SLOTS AND RESERVED ROOM \xc2\xb7 "
+        {.title = "SLOTS AND RESERVED ROOM · "
                   "weave::RichText::slot, Element::reserve",
-         .subtitle = "dials \xc2\xb7 the slot's size (34\xc3\x97"
+         .subtitle = "dials · the slot's size (34×"
                      "16, "
-                     "then 40\xc3\x97"
-                     "26) \xc2\xb7 its baseline drop "
-                     "(0, then 4) \xc2\xb7 the band reserved beside "
+                     "then 40×"
+                     "26) · its baseline drop "
+                     "(0, then 4) · the band reserved beside "
                      "every line (14 px)",
          .footer = "a text slot is not a mount slot: these names "
                    "live in one rich-text value and are matched "
@@ -144,31 +144,31 @@ struct RichSlotReserve final : sketch::Sketch {
         kit::cells(
             {.cells = {cell("weave::rich(…).slot(\"chip\", {34, 16})",
                             "the box stands ON the baseline, like an inline "
-                            "image \xc2\xb7 the child is keyed \"chip\" and "
+                            "image · the child is keyed \"chip\" and "
                             "lands wherever the placeholder does",
                             slotted(kChip, 0, kChipFill)),
-                       cell("\xe2\x80\xa6"
+                       cell("…"
                             ", baselineDrop = 4",
                             "the box's BOTTOM dropped below the baseline by "
-                            "about the face's descent \xc2\xb7 a pill centred "
+                            "about the face's descent · a pill centred "
                             "on the x-height",
                             slotted(kChip, kDrop, kChipFill)),
                        cell("slot(\"chip\", {40, 26})",
-                            "taller than the type \xc2\xb7 the strut takes "
+                            "taller than the type · the strut takes "
                             "how far it reaches either side of the baseline, "
                             "so every line of the BLOCK opens by that much",
                             slotted(kTall, kDrop, kChipFill)),
                        cell("no reserve",
-                            "the reference pitch \xc2\xb7 the plate is filled "
+                            "the reference pitch · the plate is filled "
                             "so the block's own height is legible",
                             banded({})),
                        cell("reserve({.before = 14})",
                             "room ABOVE every line, and the baseline moved "
-                            "down inside the band \xc2\xb7 where a reading "
+                            "down inside the band · where a reading "
                             "goes",
                             banded({.before = kBand})),
                        cell("reserve({.after = 14})",
-                            "room BELOW every line \xc2\xb7 the pitch opens "
+                            "room BELOW every line · the pitch opens "
                             "by the same amount and the type does not move "
                             "inside it",
                             banded({.after = kBand}))},
@@ -177,7 +177,7 @@ struct RichSlotReserve final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(RichSlotReserve, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(RichSlotReserve, "Kit · API",
              "an element woven into a wrapping line at two baseline drops "
              "and one that opens the line, and one passage under a band "
              "reserved above its lines and below them")

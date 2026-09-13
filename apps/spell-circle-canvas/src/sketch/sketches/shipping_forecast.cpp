@@ -501,7 +501,7 @@ struct ShippingForecast : sketch::Sketch {
                        .child(heroLine("BIGHT", "hero-2", 0.22f));
     panel.child(std::move(name));
 
-    panel.child(text("SEA AREA \xc2\xb7 READ IN ORDER FROM VIKING")
+    panel.child(text("SEA AREA · READ IN ORDER FROM VIKING")
                     .styleClass("eyebrow")
                     .key("ring-cap")
                     .centerAt({kEye.x(), kEye.y() + 118.0f})
@@ -540,7 +540,7 @@ struct ShippingForecast : sketch::Sketch {
         .ink(kAmber)
         .child(box().width(7).height(7).corners({4}).shrink(0).fill(
             Fill::currentInk()))
-        .child(text("GALE WARNING \xc2\xb7 GERMAN BIGHT \xc2\xb7 "
+        .child(text("GALE WARNING · GERMAN BIGHT · "
                     "IMMINENT")
                    .font({.face = faceBold, .size = 13.5f, .track = 2.8f})
                    .key("gale")
@@ -656,7 +656,7 @@ struct ShippingForecast : sketch::Sketch {
     return box()
         .column()
         .gap(7)
-        .child(text("PRESSURE \xc2\xb7 TENDENCY")
+        .child(text("PRESSURE · TENDENCY")
                    .styleClass("eyebrow")
                    .key("baro-eyebrow")
                    .opacity(beat(2.10f, 2.65f)))
@@ -676,7 +676,7 @@ struct ShippingForecast : sketch::Sketch {
                                     .durationMs = 520,
                                     .from = motion::Spread::From::Start},
                         .progress = beat(2.25f, 4.10f)}))
-        .child(text("SLOWLY \xe2\x80\x94 0.1 TO 1.5 MB IN THREE HOURS",
+        .child(text("SLOWLY — 0.1 TO 1.5 MB IN THREE HOURS",
                     body(12.0f, kSlateDim, 0.6f))
                    .key("baro-note")
                    .opacity(beat(3.30f, 3.90f)));
@@ -724,7 +724,7 @@ struct ShippingForecast : sketch::Sketch {
     return box()
         .column()
         .gap(9)
-        .child(text("GENERAL SYNOPSIS \xc2\xb7 0100 UTC")
+        .child(text("GENERAL SYNOPSIS · 0100 UTC")
                    .styleClass("eyebrow")
                    .key("syn-eyebrow")
                    .opacity(beat(2.60f, 3.10f)))
@@ -760,7 +760,7 @@ struct ShippingForecast : sketch::Sketch {
     rule.width = 1.0f;
     rule.strokeFill = Fill::color(kKeyline);
     Element table =
-        box().column().gap(0).child(text("COASTAL STATIONS \xc2\xb7 0100 UTC")
+        box().column().gap(0).child(text("COASTAL STATIONS · 0100 UTC")
                                         .styleClass("eyebrow")
                                         .key("st-eyebrow")
                                         .opacity(beat(2.66f, 3.16f))
@@ -817,12 +817,12 @@ struct ShippingForecast : sketch::Sketch {
         .column()
         .gap(9)
         .opacity(beat(3.20f, 3.80f))
-        .child(text("BEAUFORT FORCE \xc2\xb7 5 TO 7, OCCASIONALLY 8")
+        .child(text("BEAUFORT FORCE · 5 TO 7, OCCASIONALLY 8")
                    .styleClass("eyebrow")
                    .key("bf-eyebrow"))
         .child(std::move(strip))
-        .child(text("5 FRESH BREEZE \xc2\xb7 6 STRONG BREEZE \xc2\xb7 "
-                    "7 NEAR GALE \xc2\xb7 8 GALE",
+        .child(text("5 FRESH BREEZE · 6 STRONG BREEZE · "
+                    "7 NEAR GALE · 8 GALE",
                     body(10.5f, kSlateDim, 0.8f))
                    .key("bf-names"));
   }
@@ -839,7 +839,7 @@ struct ShippingForecast : sketch::Sketch {
    *  layout placed the glyph in, and here that frame is turned with the
    *  column, so the lift runs ACROSS the column rather than up the page. */
   [[nodiscard]] Element spine() {
-    return text("BBC RADIO 4 \xc2\xb7 198 kHz LONG WAVE \xc2\xb7 0048",
+    return text("BBC RADIO 4 · 198 kHz LONG WAVE · 0048",
                 label(12.5f, kSlateDim, 2.6f))
         .key("spine")
         .left(40)
@@ -874,13 +874,13 @@ struct ShippingForecast : sketch::Sketch {
 
   [[nodiscard]] Element header() {
     static constexpr const char* kSlug[] = {
-        "ISSUED 0015 UTC \xc2\xb7 VALID TO 0600 UTC TOMORROW",
+        "ISSUED 0015 UTC · VALID TO 0600 UTC TOMORROW",
         // The literals break after an en dash on purpose: \x93 followed by
         // a digit would be read as one out-of-range hex escape.
-        "IMMINENT: WITHIN 6 H \xc2\xb7 SOON: 6\xe2\x80\x93"
-        "12 H \xc2\xb7 LATER: BEYOND 12 H",
-        "GOOD > 5 NM \xc2\xb7 MODERATE 2\xe2\x80\x93"
-        "5 NM \xc2\xb7 POOR 1000 M \xe2\x80\x93 2 NM",
+        "IMMINENT: WITHIN 6 H · SOON: 6–"
+        "12 H · LATER: BEYOND 12 H",
+        "GOOD > 5 NM · MODERATE 2–"
+        "5 NM · POOR 1000 M – 2 NM",
     };
     std::vector<sketch::kit::Line> slugs;
     for (int i = 0; i < 3; ++i)
@@ -890,7 +890,7 @@ struct ShippingForecast : sketch::Sketch {
 
     const sketch::kit::Provide look(mastheadTheme());
     return sketch::kit::titleCard(
-        {.eyebrow = {.words = "MET OFFICE \xc2\xb7 FOR THE MARITIME AND "
+        {.eyebrow = {.words = "MET OFFICE · FOR THE MARITIME AND "
                               "COASTGUARD AGENCY",
                      .opacity = beat(0.05f, 0.55f)},
          .title = {.words = "THE SHIPPING FORECAST",
@@ -943,7 +943,7 @@ struct ShippingForecast : sketch::Sketch {
                                   .justify(Justify::Center)
                                   .child(ringPanel())))
             .child(text("EVERY ADJECTIVE IN THE BULLETIN IS A DEFINED "
-                        "QUANTITY \xc2\xb7 THE ORDER OF THE AREAS IS "
+                        "QUANTITY · THE ORDER OF THE AREAS IS "
                         "FIXED AND RUNS CLOCKWISE",
                         body(11.0f, kSlateDim, 0.5f))
                        .key("foot")
@@ -1005,8 +1005,7 @@ struct ShippingForecast : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(
-    ShippingForecast, "Study \xc2\xb7 Type",
-    "BBC Radio 4's 0048 bulletin as a sheet that performs itself "
-    "\xe2\x80\x94 a fixed vocabulary, a ring of sea areas, one dominant "
-    "move")
+SIGIL_SKETCH(ShippingForecast, "Study · Type",
+             "BBC Radio 4's 0048 bulletin as a sheet that performs itself "
+             "— a fixed vocabulary, a ring of sea areas, one dominant "
+             "move")

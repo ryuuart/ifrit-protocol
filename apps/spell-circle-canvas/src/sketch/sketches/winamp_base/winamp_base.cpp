@@ -279,6 +279,6 @@ auto WinampBase::step(double dt) -> void {
   }
 }
 
-SIGIL_SKETCH(WinampBase, "Study \xc2\xb7 Screens",
-             "Winamp 2.91's Base skin \xe2\x80\x94 a bitmap skin as generated "
+SIGIL_SKETCH(WinampBase, "Study · Screens",
+             "Winamp 2.91's Base skin — a bitmap skin as generated "
              "material, 28 quantised frames")

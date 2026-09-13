@@ -636,7 +636,6 @@ struct Flourish final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(
-    Flourish, "flourish", "Catalog \xc2\xb7 Generative",
-    "the integration piece \xe2\x80\x94 one ornamental border reaching "
-    "across the whole compose surface")
+SIGIL_SKETCH_AS(Flourish, "flourish", "Catalog · Generative",
+                "the integration piece — one ornamental border reaching "
+                "across the whole compose surface")

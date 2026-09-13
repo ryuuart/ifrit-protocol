@@ -176,25 +176,25 @@ struct CrossingRuleSheet final : sketch::Sketch {
     };
 
     ctx.composer.render(sketch::kit::
-                            page({.title = "CROSSING RULE \xc2\xb7 "
+                            page({.title = "CROSSING RULE · "
                                            "discoverCrossings + "
                                            "CrossingRule + crossingPatch",
-                                  .subtitle = "dials \xc2\xb7 the rule (named "
+                                  .subtitle = "dials · the rule (named "
                                               "on each "
                                               "cell) "
-                                              "\xc2\xb7 the patch width (reach "
+                                              "· the patch width (reach "
                                               "15 px, cap "
                                               "30 px)",
                                   .footer =
                                       "a knot is decided, never drawn in order "
-                                      "\xe2\x80\x94 the cyclic dominance in "
+                                      "— the cyclic dominance in "
                                       "the "
                                       "third ring cell has no draw order at "
                                       "all"},
                                  kit::cells({.cells = {kit::cells({.cells = {cell("hept.alternate",
                                                                                   heptagram(), path::crossing::alternate(), -1,
                                                                                   "crossing::alternate()",
-                                                                                  "{7/2} heptagram \xe2\x80\x94 seven "
+                                                                                  "{7/2} heptagram — seven "
                                                                                   "knots, so the over-under run cannot "
                                                                                   "close and one seam doubles"),
                                                                              cell(
@@ -575,7 +575,7 @@ struct CrossingRuleSheet final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(CrossingRuleSheet, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(CrossingRuleSheet, "Kit · API",
              "who passes over whom: discoverCrossings numbering the knots, "
              "the four CrossingRule spellings deciding each, and "
              "crossingPatch bounding the repaint")

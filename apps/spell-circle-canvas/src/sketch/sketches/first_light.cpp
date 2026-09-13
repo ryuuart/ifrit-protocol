@@ -123,8 +123,7 @@ struct FirstLight final : sketch::Set {
 
 }  // namespace
 
-SIGIL_SKETCH(
-    FirstLight, "Set",
-    "A lit set with one of everything a description can hold \xe2\x80\x94 a "
-    "tube swept along the kit's wave, a comet of stamps riding a "
-    "window of it, and a turntable camera on a rail of its own")
+SIGIL_SKETCH(FirstLight, "Set",
+             "A lit set with one of everything a description can hold — a "
+             "tube swept along the kit's wave, a comet of stamps riding a "
+             "window of it, and a turntable camera on a rail of its own")

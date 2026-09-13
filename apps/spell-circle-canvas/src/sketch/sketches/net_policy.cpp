@@ -133,49 +133,48 @@ struct NetPolicy final : sketch::Sketch {
     const auto verdict = [](const char* name,
                             const std::shared_ptr<const img::ImageAsset>& a) {
       return kit::formatted(
-          "%s \xc2\xb7 %s", name,
-          a ? kit::formatted("served %d\xc3\x97%d", a->width(), a->height())
-                  .c_str()
+          "%s · %s", name,
+          a ? kit::formatted("served %d×%d", a->width(), a->height()).c_str()
             : "null");
     };
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE NETWORK POLICIES \xc2\xb7 Hub::"
+        {.title = "THE NETWORK POLICIES · Hub::"
                   "setNetworkPolicy over a pre-seeded cache",
-         .subtitle = "dials \xc2\xb7 the policy \xc2\xb7 which URL "
-                     "is seeded \xc2\xb7 the cache directory",
+         .subtitle = "dials · the policy · which URL "
+                     "is seeded · the cache directory",
          .footer = "the host is a reserved name that cannot "
                    "resolve, so nothing here leaves the machine "
-                   "\xe2\x80\x94 which is what makes the Refresh "
+                   "— which is what makes the Refresh "
                    "cell a fetch that genuinely failed and fell "
                    "back rather than one that was skipped"},
         kit::cells(
-            {.cells = {cell("CacheFirst \xc2\xb7 seeded",
-                            "the default \xc2\xb7 a present cache file is "
+            {.cells = {cell("CacheFirst · seeded",
+                            "the default · a present cache file is "
                             "served with no traffic at all, which is what "
                             "makes an offline run work once a resource has "
                             "been seen",
                             cacheFirst, verdict("CacheFirst", cacheFirst)),
-                       cell("Offline \xc2\xb7 seeded",
-                            "never touches the network \xc2\xb7 a cache hit "
+                       cell("Offline · seeded",
+                            "never touches the network · a cache hit "
                             "answers exactly as CacheFirst did, because "
                             "neither of them asked anything",
                             offlineHit, verdict("Offline", offlineHit)),
-                       cell("Offline \xc2\xb7 not seeded",
-                            "…and a miss is a miss \xc2\xb7 nothing is "
+                       cell("Offline · not seeded",
+                            "…and a miss is a miss · nothing is "
                             "fetched and nothing is invented, which is what "
                             "a hermetic run wants",
                             offlineMiss, verdict("Offline", offlineMiss)),
-                       cell("Refresh \xc2\xb7 seeded",
+                       cell("Refresh · seeded",
                             "asks the network FIRST to pick up upstream "
-                            "changes \xc2\xb7 the fetch failed here, and a "
+                            "changes · the fetch failed here, and a "
                             "failed fetch falls back to the cached copy",
                             refresh, verdict("Refresh", refresh))},
              .gap = 14})));
   }
 };
 
-SIGIL_SKETCH(NetPolicy, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(NetPolicy, "Kit · API",
              "one pre-seeded cache asked for under each network policy, and "
              "one miss, on a host name that cannot resolve so no cell "
              "leaves the machine")

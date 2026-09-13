@@ -87,82 +87,82 @@ struct CurveShelf final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "CURVE SHELF \xc2\xb7 shapes:: parametric, "
+        {.title = "CURVE SHELF · shapes:: parametric, "
                   "lissajous, harmonograph, rose, spiral, trochoid",
-         .subtitle = "dials \xc2\xb7 the two frequency parameters in "
-                     "each cell \xc2\xb7 the sample count \xc2\xb7 "
+         .subtitle = "dials · the two frequency parameters in "
+                     "each cell · the sample count · "
                      "the stroke width (1.5 px, one for the shelf)",
          .footer = "every curve here evaluates in the unit frame "
                    "and is scaled onto the node's half-extents, so "
                    "a cell twice the size draws the same figure "
                    "twice as large and never a different one"},
         kit::cells(
-            {.cells =
-                 {kit::cells(
-                      {.cells =
-                           {cell("parametric(\"epicycle\", f)",
-                                 "the KEYED escape hatch \xe2\x80\x94 "
-                                 "your callable, comparable by name",
-                                 shapes::parametric(
-                                     "epicycle",
-                                     [](float t) {
-                                       return SkPoint{
-                                           0.62f * std::cos(t) +
-                                               0.34f * std::cos(7 * t),
-                                           0.62f * std::sin(t) +
-                                               0.34f * std::sin(7 * t)};
-                                     },
-                                     0.0f,
-                                     6.2831853f, 1400)),
-                            cell("lissajous(3, 2, 90)",
-                                 "x = sin(a\xc2\xb7t + \xce\xb4), "
-                                 "y = sin(b\xc2\xb7t)",
-                                 shapes::lissajous(3, 2, 90)),
-                            cell("lissajous(5, 4, 45)",
-                                 "the ratio picks the family, "
-                                 "\xce\xb4 the phase",
-                                 shapes::lissajous(5, 4, 45)),
-                            cell("harmonograph(3,2,0,.06,5)",
-                                 "amplitudes DECAY, so a real pendulum "
-                                 "figure spirals in",
-                                 shapes::harmonograph(3, 2, 0, 0.06f, 5, 9)),
-                            cell("rose(5)",
-                                 "r = cos(k\xc2\xb7\xce\xb8) \xc2\xb7 "
-                                 "odd k gives k petals",
-                                 shapes::rose(5))},
-                       .gap =
-                           12}),
-                  kit::cells(
-                      {.cells =
-                           {cell("rose(4)",
-                                 "\xe2\x80\xa6"
-                                 "and EVEN k gives 2k, "
-                                 "which is the rule about this family",
-                                 shapes::
-                                     rose(4)),
-                            cell("spiral(4)",
-                                 "Archimedean \xe2\x80\x94 even "
-                                 "spacing: a clock spring",
-                                 shapes::
-                                     spiral(4)),
-                            cell("spiral(4, true, 0.34)",
-                                 "logarithmic \xe2\x80\x94 a constant "
-                                 "angle: a nautilus",
-                                 shapes::
-                                     spiral(4, true, 0.34f)),
-                            cell("trochoid(5, 3, 5, false, 3)",
-                                 "an EPItrochoid: the rolling circle "
-                                 "runs outside the fixed one",
-                                 shapes::
-                                     trochoid(5, 3, 5, false, 3)),
-                            cell("trochoid(5, 3, 5, true, 3)",
-                                 "\xe2\x80\xa6"
-                                 "and the same three "
-                                 "numbers with it running inside",
-                                 shapes::
-                                     trochoid(5, 3, 5, true, 3))},
-                       .gap =
-                           12})},
+            {.cells = {kit::cells(
+                           {.cells = {cell("parametric(\"epicycle\", f)",
+                                           "the KEYED escape hatch — "
+                                           "your callable, comparable by name",
+                                           shapes::parametric(
+                                               "epicycle",
+                                               [](float t) {
+                                                 return SkPoint{
+                                                     0.62f * std::cos(t) +
+                                                         0.34f *
+                                                             std::cos(7 * t),
+                                                     0.62f * std::sin(t) +
+                                                         0.34f *
+                                                             std::sin(7 * t)};
+                                               },
+                                               0.0f, 6.2831853f, 1400)),
+                                      cell("lissajous(3, 2, 90)",
+                                           "x = sin(a·t + δ), "
+                                           "y = sin(b·t)",
+                                           shapes::lissajous(3, 2, 90)),
+                                      cell("lissajous(5, 4, 45)",
+                                           "the ratio picks the family, "
+                                           "δ the phase",
+                                           shapes::lissajous(5, 4, 45)),
+                                      cell("harmonograph(3,2,0,.06,5)",
+                                           "amplitudes DECAY, so a real "
+                                           "pendulum "
+                                           "figure spirals in",
+                                           shapes::harmonograph(3,
+                                                                2, 0, 0.06f, 5, 9)),
+                                      cell("rose(5)",
+                                           "r = cos(k·θ) · "
+                                           "odd k gives k petals",
+                                           shapes::rose(5))},
+                            .gap = 12}),
+                       kit::cells({.cells = {cell("rose(4)",
+                                                  "…"
+                                                  "and EVEN k gives 2k, "
+                                                  "which is the rule about "
+                                                  "this family",
+                                                  shapes::rose(4)),
+                                             cell("spiral(4)",
+                                                  "Archimedean — even "
+                                                  "spacing: a clock spring",
+                                                  shapes::spiral(4)),
+                                             cell("spiral(4, true, 0.34)",
+                                                  "logarithmic — a constant "
+                                                  "angle: a nautilus",
+                                                  shapes::spiral(4,
+                                                                 true, 0.34f)),
+                                             cell(
+                                                 "trochoid(5, 3, 5, false, 3)",
+                                                 "an EPItrochoid: the rolling "
+                                                 "circle "
+                                                 "runs outside the fixed one",
+                                                 shapes::trochoid(5,
+                                                                  3, 5, false, 3)),
+                                             cell(
+                                                 "trochoid(5, 3, 5, true, 3)",
+                                                 "…"
+                                                 "and the same three "
+                                                 "numbers with it running "
+                                                 "inside",
+                                                 shapes::trochoid(5,
+                                                                  3, 5, true, 3))},
+                                   .gap = 12})},
              .column = true,
              .gap = 16})));
   }

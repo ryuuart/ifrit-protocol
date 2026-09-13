@@ -101,10 +101,9 @@ auto ThunderFulu::setup(sketch::SketchContext& ctx) -> void {
   ctx.composer.render(describe(ctx));
 }
 
-SIGIL_SKETCH(
-    ThunderFulu, "Study \xc2\xb7 Esoteric",
-    "A Thunder-Rite talisman, WRITTEN \xe2\x80\x94 real stroke medians, "
-    "and the foot at 7.1\xc3\x97 the body's tempo")
+SIGIL_SKETCH(ThunderFulu, "Study · Esoteric",
+             "A Thunder-Rite talisman, WRITTEN — real stroke medians, "
+             "and the foot at 7.1× the body's tempo")
 
 // ---------------------------------------------------------------------------
 // WHY A WHOLE WRITTEN PERFORMANCE STAYS CHEAP.

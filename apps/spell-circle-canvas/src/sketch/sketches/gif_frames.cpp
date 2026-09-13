@@ -172,18 +172,18 @@ struct GifFrames final : sketch::Sketch {
   Element sheet(const image::ImageAsset& gif,
                 const std::optional<io::ResourceInfo>& bytes,
                 const std::optional<image::ImageProbe>& meaning) const {
-    std::string foot = "Hub::probe() \xe2\x80\x94 ";
+    std::string foot = "Hub::probe() — ";
     if (meaning && bytes)
       foot += meaning->format + ", " + std::to_string(bytes->byteSize) +
-              " bytes, " + std::to_string(meaning->width) + "\xc3\x97" +
+              " bytes, " + std::to_string(meaning->width) + "×" +
               std::to_string(meaning->height) + ", " +
               std::to_string(meaning->frames) +
               " frames, no pixels "
               "decoded";
     else
       foot += "nothing (the hub could not sniff this resource)";
-    foot += "   \xc2\xb7   decoded \xe2\x80\x94 " +
-            std::to_string(gif.frames().size()) + " frames, " +
+    foot += "   ·   decoded — " + std::to_string(gif.frames().size()) +
+            " frames, " +
             kit::formatted("%.0f ms", (double)gif.totalDurationMs()) +
             " a loop, " +
             (gif.repetitionCount() == image::ImageAsset::kInfinite
@@ -196,7 +196,7 @@ struct GifFrames final : sketch::Sketch {
           headerClasses());
       shelves = kit::cells(
           {.cells = {kit::cell(header(), "DECODED",
-                               "every frame, composited at decode \xe2\x80\x94 "
+                               "every frame, composited at decode — "
                                "drawing one never needs the one before it",
                                decoded(gif)),
                      kit::cell(header(), "PLAYED",
@@ -208,10 +208,10 @@ struct GifFrames final : sketch::Sketch {
            .divider = Fill::color(sketch::kit::theme().palette.rule)});
     }
     return sketch::kit::page(
-        {.title = "ANIMATED FRAMES \xc2\xb7 ImageAsset::frames() "
+        {.title = "ANIMATED FRAMES · ImageAsset::frames() "
                   "+ frameAt(ms)",
-         .subtitle = std::string("dials \xc2\xb7 the file (") + kSource +
-                     ") \xc2\xb7 the moments the lower shelf reads",
+         .subtitle = std::string("dials · the file (") + kSource +
+                     ") · the moments the lower shelf reads",
          .footer = foot},
         std::move(shelves));
   }
@@ -244,6 +244,6 @@ struct GifFrames final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(GifFrames, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(GifFrames, "Kit · API",
              "every frame of a real GIF beside the moments frameAt reads "
              "them back at, with the probe that never decoded a pixel")

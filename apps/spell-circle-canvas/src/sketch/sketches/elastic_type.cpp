@@ -220,11 +220,11 @@ Ticks scaleTicks() {
 }
 
 Ticks shearTicks() {
-  return {{12.5f, "+12.5\xc2\xb0"},
-          {0.0f, "0\xc2\xb0"},
+  return {{12.5f, "+12.5°"},
+          {0.0f, "0°"},
           {-12.5f,
-           "\xe2\x88\x92"
-           "12.5\xc2\xb0"}};
+           "−"
+           "12.5°"}};
 }
 
 /** One lane of one effect, over local time, with a dot at every published
@@ -335,20 +335,19 @@ struct ElasticType : sketch::Sketch {
                               .font({.size = 12.5f, .track = 3.4f})
                               .ink(kInk)
                               .grow(1))
-                   .child(text("ANIMATE.CSS 2013 \xc2\xb7 SQUASH AND "
+                   .child(text("ANIMATE.CSS 2013 · SQUASH AND "
                                "STRETCH 1981")
                               .ink(kFaint)))
         .child(box().height(1).fill(Fill::color(kFaint)))
         .child(text("GREY IS THE REST POSE, SHARING THE LIVE LINE'S "
-                    "ORIGIN \xe2\x80\x94 WHERE IT SHOWS, THAT LETTER "
+                    "ORIGIN — WHERE IT SHOWS, THAT LETTER "
                     "IS DEFORMED")
                    .font({.size = 10.5f, .track = 0.6f})
                    .ink(kRest))
-        .child(row("RUBBERBAND",
-                   "rubberBand \xc2\xb7 SEVEN STOPS ON TWO SCALE AXES",
+        .child(row("RUBBERBAND", "rubberBand · SEVEN STOPS ON TWO SCALE AXES",
                    fx::keys(rubberTable(), &cssEase)))
         .child(row("JELLO",
-                   "jello \xc2\xb7 A HALVING, ALTERNATING SHEAR \xc2\xb7 "
+                   "jello · A HALVING, ALTERNATING SHEAR · "
                    "BOTH AXES",
                    fx::keys(jelloTable(), &cssEase)))
         .child(box().grow(1))
@@ -357,14 +356,14 @@ struct ElasticType : sketch::Sketch {
                 .row()
                 .gap(28)
                 .height(146)
-                .child(plot("rubberBand \xe2\x80\x94 scaleX 0.75 TO 1.25",
+                .child(plot("rubberBand — scaleX 0.75 TO 1.25",
                             graph(
                                 "g-rx", fx::keys(rubberTable(), &cssEase),
                                 rubberTable(),
                                 [](const GlyphModifier& m) { return m.scaleX; },
                                 kX, kScaleLo, kScaleHi, 1.0f, scaleTicks()),
                             kScaleLo, kScaleHi, scaleTicks()))
-                .child(plot("rubberBand \xe2\x80\x94 scaleY 0.75 TO 1.25",
+                .child(plot("rubberBand — scaleY 0.75 TO 1.25",
                             graph(
                                 "g-ry", fx::keys(rubberTable(), &cssEase),
                                 rubberTable(),
@@ -372,15 +371,15 @@ struct ElasticType : sketch::Sketch {
                                 kY, kScaleLo, kScaleHi, 1.0f, scaleTicks()),
                             kScaleLo, kScaleHi, scaleTicks()))
                 .child(plot(
-                    "jello \xe2\x80\x94 skewX = skewY \xc2\xb1"
-                    "12.5\xc2\xb0, HALVING",
+                    "jello — skewX = skewY ±"
+                    "12.5°, HALVING",
                     graph(
                         "g-j", fx::keys(jelloTable(), &cssEase), jelloTable(),
                         [](const GlyphModifier& m) { return m.skewXDeg; }, kX,
                         kShearLo, kShearHi, 0.0f, shearTicks()),
                     kShearLo, kShearHi, shearTicks())))
         .child(text("A NON-UNIFORM SCALE AND A SHEAR ARE THE ONE "
-                    "DEVIATION AN RSXFORM CANNOT CARRY \xc2\xb7 EVERY "
+                    "DEVIATION AN RSXFORM CANNOT CARRY · EVERY "
                     "GLYPH ON THESE TWO LINES DRAWS UNDER ITS OWN "
                     "MATRIX")
                    .font({.size = 11.0f, .track = 0.6f})
@@ -409,6 +408,6 @@ struct ElasticType : sketch::Sketch {
 };
 
 SIGIL_SKETCH(
-    ElasticType, "Study \xc2\xb7 Type",
+    ElasticType, "Study · Type",
     "animate.css rubberBand and jello, transcribed number for number and "
-    "run per glyph \xe2\x80\x94 with the tables plotted")
+    "run per glyph — with the tables plotted")

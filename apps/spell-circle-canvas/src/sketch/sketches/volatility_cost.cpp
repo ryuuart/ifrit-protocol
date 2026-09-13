@@ -403,8 +403,8 @@ struct VolatilityCost final : sketch::Sketch {
   Element costTable(const sketch::SketchContext& ctx) const {
     Element column = box().column().gap(3);
     column.child(text(ctx.deterministic
-                          ? "Composer::profile() \xc2\xb7 self ms, by key"
-                          : "Composer::profile() \xc2\xb7 self ms, "
+                          ? "Composer::profile() · self ms, by key"
+                          : "Composer::profile() · self ms, "
                             "worst first")
                      .styleClass("heading")
                      .margin(0, 0, 0, 4));
@@ -427,7 +427,7 @@ struct VolatilityCost final : sketch::Sketch {
 
   Element readout(const sketch::SketchContext& ctx) const {
     if (!snapped)
-      return box().child(text("reading at " + ms(kSnapAt) + " s\xe2\x80\xa6")
+      return box().child(text("reading at " + ms(kSnapAt) + " s…")
                              .font({.size = 12})
                              .ink(kDim));
     return box().column().gap(12).child(legend()).child(
@@ -444,18 +444,18 @@ struct VolatilityCost final : sketch::Sketch {
     // canvas coordinates, which is what `bounds()` answers in, and a
     // child of the padded page would be offset by the page's margins.
     return stack().inset(0).child(tierMap()).child(sketch::kit::page(
-        {.title = "THE CACHING PROOF \xc2\xb7 what every node "
+        {.title = "THE CACHING PROOF · what every node "
                   "did to produce its pixels",
          .subtitle = "volatility propagates upward, so one "
                      "bound leaf decides what its whole subtree "
-                     "costs \xe2\x80\x94 every keyed node is "
+                     "costs — every keyed node is "
                      "outlined in the tier it took, read back "
                      "from a probe of its own at " +
                      ms(kSnapAt) + " s",
          .footer = "a picture records the DRAW CALLS, so "
                    "replaying one re-runs every shader over "
                    "every pixel; only a bake replaces that with "
-                   "a blit \xc2\xb7 numbers the sheet measured "
+                   "a blit · numbers the sheet measured "
                    "about itself are pinned for a diff"},
         box()
             .column()
@@ -549,7 +549,7 @@ struct VolatilityCost final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(VolatilityCost, "Kit \xc2\xb7 API",
-             "the caching proof \xe2\x80\x94 every keyed node outlined in "
+SIGIL_SKETCH(VolatilityCost, "Kit · API",
+             "the caching proof — every keyed node outlined in "
              "the tier it took, the costliest listed with the condition "
              "that refused each a bake, and Composer::stats() beside them")

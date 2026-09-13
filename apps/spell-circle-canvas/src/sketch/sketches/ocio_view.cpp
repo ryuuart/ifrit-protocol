@@ -146,18 +146,18 @@ struct OcioView final : sketch::Sketch {
                   {.cells =
                        {cell("the wedge, untransformed",
                              "a ten-step wedge over three primary "
-                             "ramps \xc2\xb7 a step wedge is what a "
+                             "ramps · a step wedge is what a "
                              "transform is read off, since a smooth "
                              "ramp hides a lifted shadow",
                              through(ocio::exponent(1.0f, kLutSize))),
                         cell("ocio::exponent(2.2)",
                              "a plain gamma through the raw "
-                             "config \xc2\xb7 needs no config file, "
+                             "config · needs no config file, "
                              "which is what makes it the plumbing "
                              "test",
                              through(ocio::exponent(kGamma, kLutSize))),
                         cell("ocio::exponent(1 / 2.2)",
-                             "and its inverse \xc2\xb7 the two "
+                             "and its inverse · the two "
                              "compose back to the wedge above, "
                              "which is the whole check",
                              through(ocio::exponent(1.0f / kGamma, kLutSize)))},
@@ -167,7 +167,7 @@ struct OcioView final : sketch::Sketch {
                   {.cells =
                        {cell("convert(config, lin_srgb, srgb_tx)",
                              "a colour-space conversion from the "
-                             "same config sources \xc2\xb7 input is "
+                             "same config sources · input is "
                              "whatever the content carries",
                              through(ocio::convert(
                                  kConfig,
@@ -176,7 +176,7 @@ struct OcioView final : sketch::Sketch {
                                  kLutSize))),
                         cell("viewTransform(config, display, view)",
                              "\"sRGB - Display\" and \"ACES 2.0 - "
-                             "SDR 100 nits (Rec.709)\" \xc2\xb7 "
+                             "SDR 100 nits (Rec.709)\" · "
                              "author in the config's scene-linear "
                              "role and the view maps linear to "
                              "display",
@@ -185,10 +185,10 @@ struct OcioView final : sketch::Sketch {
                                  "sRGB - Display",
                                  "ACES 2.0 - SDR 100 nits (Rec.709)",
                                  kLutSize))),
-                        cell("viewTransform(\xe2\x80\xa6"
+                        cell("viewTransform(…"
                              ", bad view)",
                              "a bad name must not take the canvas "
-                             "down \xc2\xb7 the error is reported, "
+                             "down · the error is reported, "
                              "an EMPTY material comes back, and it "
                              "paints nothing",
                              through(ocio::viewTransform(
@@ -199,12 +199,12 @@ struct OcioView final : sketch::Sketch {
          .column = true,
          .gap = 18});
     ctx.composer.render(sketch::kit::page(
-        {.title = "OCIO VIEW \xc2\xb7 ocio::exponent, convert, "
-                  "viewTransform \xe2\x80\x94 each a baked 3D LUT",
+        {.title = "OCIO VIEW · ocio::exponent, convert, "
+                  "viewTransform — each a baked 3D LUT",
          .subtitle = kit::formatted(
-             "dials \xc2\xb7 the exponent (%.1f) \xc2\xb7 the LUT side "
-             "(%d) \xc2\xb7 the config (\"%s\") \xc2\xb7 the display "
-             "and view names \xc2\xb7 available() is %s here",
+             "dials · the exponent (%.1f) · the LUT side "
+             "(%d) · the config (\"%s\") · the display "
+             "and view names · available() is %s here",
              (double)kGamma, kLutSize, kConfig, have ? "true" : "false"),
          .footer = "the transform is a material like any other: "
                    "one open slot, one trilinear sample per pixel, "
@@ -214,7 +214,7 @@ struct OcioView final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(OcioView, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(OcioView, "Kit · API",
              "one step wedge through a gamma and its inverse, a colour-space "
              "conversion, a display view, and the empty material a bad name "
              "answers with")

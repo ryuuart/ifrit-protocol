@@ -188,8 +188,8 @@ void GenesisFire::stageCaption(Pen& pen) {
   if (a <= 0.001f) return;
   char buf[160];
   std::snprintf(buf, sizeof buf,
-                "FIELD: %zu,%03zu STREAKS \xc2\xb7 %zu,%03zu VERTS "
-                "\xc2\xb7 %zu drawVertices \xc2\xb7 BUILD %.2f ms / SIM "
+                "FIELD: %zu,%03zu STREAKS · %zu,%03zu VERTS "
+                "· %zu drawVertices · BUILD %.2f ms / SIM "
                 "FRAME",
                 liveCount / 1000, liveCount % 1000, vertCount / 1000,
                 vertCount % 1000, fieldChunks.size(),
@@ -205,8 +205,8 @@ void GenesisFire::stageCaption(Pen& pen) {
   pen.text(buf, right, kCaptionY);
   penMono(pen, 8.5f, fadeTo(kSteel, a), 0.5f);
   pen.text(
-      "888\xc3\x97"
-      "666 = 4:3 \xe2\x80\x94 THE 500-LINE VIDEO RASTER THE DEMO WAS "
+      "888×"
+      "666 = 4:3 — THE 500-LINE VIDEO RASTER THE DEMO WAS "
       "COMPUTED FOR",
       right, kCaptionY + 12);
   penMono(pen, 8.5f, fadeTo(hexColor(0xFF8A3A, 0.75f), a), 0.5f);
@@ -217,7 +217,6 @@ void GenesisFire::stageCaption(Pen& pen) {
   pen.textAlign(sigil::draw::LEFT, sigil::draw::TOP);
 }
 
-SIGIL_SKETCH(
-    GenesisFire, "Study \xc2\xb7 Motion",
-    "The Genesis Demo wall of fire (Lucasfilm, 1982) \xe2\x80\x94 the first "
-    "particle system")
+SIGIL_SKETCH(GenesisFire, "Study · Motion",
+             "The Genesis Demo wall of fire (Lucasfilm, 1982) — the first "
+             "particle system")

@@ -115,11 +115,11 @@ struct PixFontDotSprite final : sketch::Sketch {
     dot = kit::dotSprite(32);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "PIXEL TYPE AND THE STAMP \xc2\xb7 kit::bakeRun, "
+        {.title = "PIXEL TYPE AND THE STAMP · kit::bakeRun, "
                   "kit::bakeFont / kit::blit, kit::dotSprite",
-         .subtitle = "dials \xc2\xb7 the bake size (9, 12, 16 px) \xc2\xb7 "
-                     "the present scale (3\xc3\x97, integer) \xc2\xb7 the "
-                     "on colour \xc2\xb7 the blit's track (1 and 5 px)",
+         .subtitle = "dials · the bake size (9, 12, 16 px) · "
+                     "the present scale (3×, integer) · the "
+                     "on colour · the blit's track (1 and 5 px)",
          .footer = "the threshold is INERT under aliased shaping: Skia "
                    "lights a pixel iff its centre is inside the outline, "
                    "so the coverage is already binary and what decides "
@@ -147,7 +147,7 @@ struct PixFontDotSprite final : sketch::Sketch {
                          .ink(sketch::kit::theme().palette.ash))
               .child(kit::masked(sweep[i], {.colour = kOn, .scale = 2})));
     return cell("bakeRun(\"3.eg\", fonts, aliased(size))",
-                "one run, three bake sizes, one present scale \xc2\xb7 at the "
+                "one run, three bake sizes, one present scale · at the "
                 "smallest the counters hold no pixel centre and close",
                 std::move(column));
   }
@@ -157,7 +157,7 @@ struct PixFontDotSprite final : sketch::Sketch {
   Element presented() {
     return cell(
         "kit::masked(mask, {.scale = 3})",
-        "the same 1-bit mask at 1\xc3\x97 and at 3\xc3\x97 \xc2\xb7 "
+        "the same 1-bit mask at 1× and at 3× · "
         "nearest sampling, so a bake stays a bake",
         box()
             .column()
@@ -173,7 +173,7 @@ struct PixFontDotSprite final : sketch::Sketch {
     return cell(
         "Present{.shadowOffset = {3, 3}}",
         "one extra pass under the mask, offset in destination px "
-        "and multiplied by a quarter \xc2\xb7 one bake, two draws",
+        "and multiplied by a quarter · one bake, two draws",
         box()
             .column()
             .gap(20)
@@ -191,7 +191,7 @@ struct PixFontDotSprite final : sketch::Sketch {
     const kit::PixFont* f = &font;
     return cell(
         "kit::blit(canvas, font, at, run, colour, Blit)",
-        "a LIVE readout, no text node at all \xc2\xb7 figures, an "
+        "a LIVE readout, no text node at all · figures, an "
         "x-height and a descender on ONE baseline, the same run at "
         "track 1 and track 5",
         custom("pixfont.readout",
@@ -222,7 +222,7 @@ struct PixFontDotSprite final : sketch::Sketch {
     return cell(
         "kit::dotSprite(32)",
         "a white antialiased disc with a transparent ring around it "
-        "\xc2\xb7 baked once, tinted per point, never a square edge",
+        "· baked once, tinted per point, never a square edge",
         custom("pixfont.dot",
                [image](SkCanvas& canvas, const PaintContext& pc) {
                  static constexpr SkColor4f kTints[3] = {
@@ -255,7 +255,7 @@ struct PixFontDotSprite final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(PixFontDotSprite, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(PixFontDotSprite, "Kit · API",
              "the aliased bake at three sizes and one integer scale, a live "
              "number blitted from the 96-cell font, and the white dot a "
              "point sink stamps")

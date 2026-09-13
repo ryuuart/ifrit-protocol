@@ -142,43 +142,43 @@ struct HalfFloat final : sketch::Sketch {
 
     const size_t hot = (size_t)(kSide / 4) * (size_t)kSide + (size_t)kSide - 4;
     const std::string readout = kit::formatted(
-        "isFloatImage \xc2\xb7 %s\nhalves %zu words \xc2\xb7 bytes %zu\n"
-        "hot texel R \xc2\xb7 half %.2f \xc2\xb7 byte %.2f\n"
-        "peak asked for \xc2\xb7 %.2f",
+        "isFloatImage · %s\nhalves %zu words · bytes %zu\n"
+        "hot texel R · half %.2f · byte %.2f\n"
+        "peak asked for · %.2f",
         isFloat ? "true" : "false", halves.size(), bytes.size(),
         halves.size() > hot * 4 ? halfToFloat(halves[hot * 4]) : 0.0f,
         bytes.size() > hot * 4 ? (float)bytes[hot * 4] / 255.0f : 0.0f, kPeak);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE DRAWABLE COPY \xc2\xb7 skia::isFloatImage, "
+        {.title = "THE DRAWABLE COPY · skia::isFloatImage, "
                   "halfFloatPixels, bytePixels",
-         .subtitle = "dials \xc2\xb7 how far past one the ramp runs "
-                     "(6.0) \xc2\xb7 the two exposures each "
+         .subtitle = "dials · how far past one the ramp runs "
+                     "(6.0) · the two exposures each "
                      "readback is tone-mapped at (1.0 and 0.18) "
-                     "\xc2\xb7 the source's side",
+                     "· the source's side",
          .footer = "values above one survive the halves, which is "
                    "the whole point of asking for them rather than "
-                   "for bytes \xe2\x80\x94 and the byte copy clipped "
+                   "for bytes — and the byte copy clipped "
                    "them on the way out, so no exposure brings them "
                    "back"},
         kit::cells(
-            {.cells = {cell("halfFloatPixels \xc2\xb7 exposure 1.0",
-                            "the half readback shown straight \xc2\xb7 "
+            {.cells = {cell("halfFloatPixels · exposure 1.0",
+                            "the half readback shown straight · "
                             "everything past one is off the top of the "
                             "display, which is what a display is",
                             fromHalves(kStops[0])),
-                       cell("halfFloatPixels \xc2\xb7 exposure 0.18",
-                            "the same words brought down \xc2\xb7 the "
+                       cell("halfFloatPixels · exposure 0.18",
+                            "the same words brought down · the "
                             "highlights are still there to bring, because a "
                             "half held them",
                             fromHalves(kStops[1])),
-                       cell("bytePixels \xc2\xb7 exposure 1.0",
-                            "the ordinary readback \xc2\xb7 the same picture, "
+                       cell("bytePixels · exposure 1.0",
+                            "the ordinary readback · the same picture, "
                             "and the top band and the ramp above one are now "
                             "one colour",
                             fromBytes(kStops[0])),
-                       cell("bytePixels \xc2\xb7 exposure 0.18",
-                            "brought down by the same amount \xc2\xb7 nothing "
+                       cell("bytePixels · exposure 0.18",
+                            "brought down by the same amount · nothing "
                             "comes back: the clip happened in the readback "
                             "and not in the display",
                             fromBytes(kStops[1])),
@@ -215,7 +215,7 @@ struct HalfFloat final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(HalfFloat, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(HalfFloat, "Kit · API",
              "one HDR ramp read back as halves and as bytes, each tone-"
              "mapped at the same two exposures, with the words of a hot "
              "texel printed from both")

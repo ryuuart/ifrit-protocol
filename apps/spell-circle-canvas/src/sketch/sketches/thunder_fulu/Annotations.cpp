@@ -10,7 +10,7 @@ auto ThunderFulu::chantPanel() -> Element {
                .key("chant")
                .font({.size = 11.5f})
                .ink(kChalk);
-  g.child(text("ZHAN HONG FU \xc2\xb7 SEVER THE RAINBOW")
+  g.child(text("ZHAN HONG FU · SEVER THE RAINBOW")
               .styleClass("heading")
               .font({.size = 17.0f, .track = 1.4f})
               .left(0)
@@ -112,7 +112,7 @@ auto ThunderFulu::tempoPanel() -> Element {
                .key("tempo")
                .font({.size = 10.5f})
                .ink(hexColor(0x9a8a68));
-  g.child(text("YI QI LI DUAN \xc2\xb7 CUT OFF IN ONE BREATH")
+  g.child(text("YI QI LI DUAN · CUT OFF IN ONE BREATH")
               .styleClass("heading")
               .font({.size = 13.0f, .track = 1.2f})
               .left(0)
@@ -130,7 +130,7 @@ auto ThunderFulu::tempoPanel() -> Element {
     if (i == 4) row.ink(hexColor(0xcf6a4a));
     g.child(std::move(row));
   }
-  g.child(text("the foot is 7.1x the body \xe2\x80\x94 doctrine, measured: "
+  g.child(text("the foot is 7.1x the body — doctrine, measured: "
                "\"the foot is the last")
               .styleClass("gloss")
               .left(0)
@@ -178,7 +178,7 @@ auto ThunderFulu::marginColumn() -> Element {
   };
 
   // --- 踏符頭: one chant line per hook, as the hook goes down -----------
-  g.child(text("TA FU TOU \xc2\xb7 TREADING THE HEAD")
+  g.child(text("TA FU TOU · TREADING THE HEAD")
               .styleClass("heading")
               .left(0)
               .top(126)
@@ -197,7 +197,7 @@ auto ThunderFulu::marginColumn() -> Element {
 
   // --- the width law, PLOTTED. 起 · 行 · 收 as one curve ---------------
   const float py = 260, ph = 126, pw = Wc;
-  g.child(text("QI / XING / SHOU \xc2\xb7 w(s) OVER ARC LENGTH")
+  g.child(text("QI / XING / SHOU · w(s) OVER ARC LENGTH")
               .styleClass("heading")
               .left(0)
               .top(py - 22)
@@ -296,7 +296,7 @@ auto ThunderFulu::marginColumn() -> Element {
   // compressed to buy room — SHU's specimen starts at cell y = 2, already
   // under its own caption — so any change here has to move the heading.
   const float ky = 412;
-  g.child(text("SIX CLASSES \xc2\xb7 w0, RECOVERED")
+  g.child(text("SIX CLASSES · w0, RECOVERED")
               .styleClass("heading")
               .left(0)
               .top(ky)

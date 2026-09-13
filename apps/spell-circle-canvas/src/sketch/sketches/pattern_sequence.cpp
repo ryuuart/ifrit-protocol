@@ -126,114 +126,107 @@ struct PatternSequence final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "PATTERN SEQUENCE \xc2\xb7 pattern::sequence and "
+        {.title = "PATTERN SEQUENCE · pattern::sequence and "
                   "Tile's mapping",
-         .subtitle = "dials \xc2\xb7 the runs and their period "
-                     "\xc2\xb7 the phase (17 px) \xc2\xb7 the pan "
-                     "(21 px) \xc2\xb7 the scale, the rotation and "
+         .subtitle = "dials · the runs and their period "
+                     "· the phase (17 px) · the pan "
+                     "(21 px) · the scale, the rotation and "
                      "the filter",
          .footer = "the top row rebakes and the bottom row does "
-                   "not \xe2\x80\x94 scale, rotation, pan and "
+                   "not — scale, rotation, pan and "
                    "filter act on the sampling matrix, so one "
                    "bake serves every cell under the rule"},
         kit::cells(
             {.cells =
                  {kit::cells(
                       {.cells =
-                           {swatch("pattern::sequence(runs)",
-                                   kit::formatted(
-                                       "four runs along +x \xc2\xb7 the "
-                                       "period is their sum, %.0f px",
-                                       (double)period(sett())),
-                                   pattern::sequence(sett())),
+                           {swatch(
+                                "pattern::sequence(runs)",
+                                kit::formatted("four runs along +x · the "
+                                               "period is their sum, %.0f px",
+                                               (double)period(sett())),
+                                pattern::sequence(sett())),
                             swatch("sequence(runs, 17)",
                                    "the phase slides the whole sequence "
-                                   "along +x, wrapped \xc2\xb7 a "
+                                   "along +x, wrapped · a "
                                    "different PROGRAM, so a different "
                                    "bake",
                                    pattern::sequence(sett(), kPhase)),
                             swatch("sequence({{18, ink}, {6, gold}})",
                                    "as many colours as there are runs "
-                                   "\xc2\xb7 two of them is an awning, "
+                                   "· two of them is an awning, "
                                    "four is a sett",
                                    pattern::sequence(
                                        {{18, {0.13f, 0.20f, 0.24f, 1}},
                                         {6, {0.86f, 0.76f, 0.44f, 1}}})),
                             swatch("pattern::stripes(6, 12, gold)",
                                    "the one-colour case has its own "
-                                   "name \xc2\xb7 the painted width and "
+                                   "name · the painted width and "
                                    "the gap, rather than a run list",
                                    pattern::stripes(
                                        6, 12, {0.86f, 0.76f, 0.44f, 1}))},
                        .gap = 14}),
-                  kit::cells({.cells =
-                                  {swatch("banked.offset({21, 0})",
-                                          "the mapping pans the repeat in the "
-                                          "SAMPLED space's px \xc2\xb7 no "
-                                          "rebake, and the seam never shows",
-                                          pattern::Tile(banked).offset(
-                                              {kPan, 0})),
-                                   swatch("banked.rotate(90).scale(1.4)",
-                                          "rotate, then scale, then translate "
-                                          "\xc2\xb7 a rotated repeat stays "
-                                          "seamless because the bake never "
-                                          "turned",
-                                          pattern::Tile(banked)
-                                              .rotate(90)
-                                              .scale(1.4f)),
-                                   cell("one bake, drawn crossed",
-                                        "the sett along +x and the same bake "
-                                        "turned a right angle over it \xc2\xb7 "
-                                        "which is what a tartan is",
-                                        [banked = banked](SkCanvas& canvas, SkSize
-                                                                                size) {
-                                          paintTile(canvas, banked, size);
-                                          canvas.saveLayerAlphaf(nullptr,
-                                                                 0.55f);
-                                          paintTile(
-                                              canvas,
-                                              pattern::Tile(banked).rotate(90),
-                                              size);
-                                          canvas.restore();
-                                        }),
-                                   cell("filter(kNearest) | filter(kLinear)",
-                                        "linear is the default and is right "
-                                        "for an organic tile \xc2\xb7 on a "
-                                        "pixel grid it is wrong, which the "
-                                        "seam down the middle says",
-                                        [squares = squares](SkCanvas& canvas, SkSize size) {
-                                          canvas.save();
-                                          canvas.clipRect(SkRect::MakeWH(
-                                              size.width() * 0.5f,
-                                              size.height()));
-                                          paintTile(
-                                              canvas,
-                                              pattern::Tile(squares)
-                                                  .scale(5)
-                                                  .filter(
-                                                      SkFilterMode::kNearest),
-                                              size);
-                                          canvas.restore();
-                                          canvas.save();
-                                          canvas.clipRect(SkRect::MakeLTRB(
-                                              size.width() * 0.5f, 0,
-                                              size.width(), size.height()));
-                                          paintTile(
-                                              canvas,
-                                              pattern::Tile(squares)
-                                                  .scale(5)
-                                                  .filter(
-                                                      SkFilterMode::kLinear),
-                                              size);
-                                          canvas.restore();
-                                        })},
-                              .gap = 14})},
+                  kit::cells(
+                      {.cells =
+                           {swatch("banked.offset({21, 0})",
+                                   "the mapping pans the repeat in the "
+                                   "SAMPLED space's px · no "
+                                   "rebake, and the seam never shows",
+                                   pattern::Tile(banked).offset({kPan, 0})),
+                            swatch(
+                                "banked.rotate(90).scale(1.4)",
+                                "rotate, then scale, then translate "
+                                "· a rotated repeat stays "
+                                "seamless because the bake never "
+                                "turned",
+                                pattern::Tile(banked).rotate(90).scale(1.4f)),
+                            cell("one bake, drawn crossed",
+                                 "the sett along +x and the same bake "
+                                 "turned a right angle over it · "
+                                 "which is what a tartan is",
+                                 [banked = banked](
+                                     SkCanvas& canvas,
+                                     SkSize size) {
+                                   paintTile(canvas, banked, size);
+                                   canvas.saveLayerAlphaf(nullptr, 0.55f);
+                                   paintTile(canvas,
+                                             pattern::Tile(banked).rotate(90),
+                                             size);
+                                   canvas.restore();
+                                 }),
+                            cell("filter(kNearest) | filter(kLinear)",
+                                 "linear is the default and is right "
+                                 "for an organic tile · on a "
+                                 "pixel grid it is wrong, which the "
+                                 "seam down the middle says",
+                                 [squares = squares](SkCanvas& canvas, SkSize size) {
+                                   canvas.save();
+                                   canvas.clipRect(SkRect::MakeWH(
+                                       size.width() * 0.5f, size.height()));
+                                   paintTile(
+                                       canvas,
+                                       pattern::Tile(squares).scale(5).filter(
+                                           SkFilterMode::kNearest),
+                                       size);
+                                   canvas.restore();
+                                   canvas.save();
+                                   canvas.clipRect(SkRect::MakeLTRB(
+                                       size.width() * 0.5f, 0, size.width(),
+                                       size.height()));
+                                   paintTile(
+                                       canvas,
+                                       pattern::Tile(squares).scale(5).filter(
+                                           SkFilterMode::kLinear),
+                                       size);
+                                   canvas.restore();
+                                 })},
+                       .gap = 14})},
              .column = true,
              .gap = 18})));
   }
 };
 
-SIGIL_SKETCH(PatternSequence, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(PatternSequence, "Kit · API",
              "a coloured sett as a baked tile, then one bake panned, "
-             "turned, crossed with itself and sampled two ways \xe2\x80\x94 "
+             "turned, crossed with itself and sampled two ways — "
              "none of which rebakes it")

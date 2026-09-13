@@ -171,11 +171,10 @@ struct RoutesProbe final : sketch::Sketch {
             if (!refused.empty()) refused += ", ";
             refused += promotionWord(p);
           }
-          verdicts.push_back(row.label + "  \xc2\xb7  " +
-                             stateWord(row.cacheState) + "\n      " +
-                             Composer::promotionReason(row.promotion) +
-                             "\n      refusals \xc2\xb7 " +
-                             (refused.empty() ? std::string("none") : refused));
+          verdicts.push_back(
+              row.label + "  ·  " + stateWord(row.cacheState) + "\n      " +
+              Composer::promotionReason(row.promotion) + "\n      refusals · " +
+              (refused.empty() ? std::string("none") : refused));
           break;
         }
 
@@ -277,52 +276,52 @@ struct RoutesProbe final : sketch::Sketch {
     constexpr float kList = 260;
     constexpr float kTable = 430;
     return sketch::kit::page(
-        {.title = "ROUTES AND COSTS \xc2\xb7 "
+        {.title = "ROUTES AND COSTS · "
                   "Composer::routesAt, Composer::profile",
-         .subtitle = "dials \xc2\xb7 the probed node (\"hub\") "
-                     "\xc2\xb7 which routes carry a key \xc2\xb7 "
+         .subtitle = "dials · the probed node (\"hub\") "
+                     "· which routes carry a key · "
                      "the property each probe wears: rotate, "
                      "opacity, Cache::None, Cache::Texture",
          .footer = "a profile row's reason names a condition "
                    "under which a bake would produce DIFFERENT "
-                   "pixels \xe2\x80\x94 which is the one thing "
+                   "pixels — which is the one thing "
                    "promotion may never do, and the reason an "
                    "expensive node stays live"},
         kit::cells(
-            {.cells =
-                 {sketch::kit::caption(kDiagram,
-                                       "connector(from, to, router)"
-                                       ".key(\xe2\x80\xa6)",
-                                       "four routes on one hub \xc2\xb7 "
-                                       "three carry keys and the fourth "
-                                       "does not",
-                                       diagram()),
-                  sketch::kit::caption(kList, "composer.routesAt(\"hub\")",
-                                       "in tree order \xc2\xb7 the keyless "
-                                       "route is anchored and drawn, and "
-                                       "not in this list",
-                                       lines(routes, kList,
-                                             "\xe2\x80\x94 nothing yet: the "
-                                             "first describe has not been "
-                                             "drawn")),
-                  sketch::kit::caption(kTable,
-                                       "composer.profile() \xe2\x86\x92 "
-                                       "label \xc2\xb7 cacheState \xc2\xb7 "
-                                       "promotionReason",
-                                       "each probe looked up by its own key "
-                                       "\xc2\xb7 the milliseconds are on "
-                                       "these same rows and are not printed, "
-                                       "because a plate that carries a "
-                                       "timing differs from itself",
-                                       lines(verdicts, kTable,
-                                             "\xe2\x80\x94 empty until a frame "
-                                             "has been drawn with profiling "
-                                             "on"))},
+            {.cells = {sketch::kit::caption(kDiagram,
+                                            "connector(from, to, router)"
+                                            ".key(…)",
+                                            "four routes on one hub · "
+                                            "three carry keys and the fourth "
+                                            "does not",
+                                            diagram()),
+                       sketch::kit::caption(kList, "composer.routesAt(\"hub\")",
+                                            "in tree order · the keyless "
+                                            "route is anchored and drawn, and "
+                                            "not in this list",
+                                            lines(routes, kList,
+                                                  "— nothing yet: the "
+                                                  "first describe has not been "
+                                                  "drawn")),
+                       sketch::kit::caption(
+                           kTable,
+                           "composer.profile() → "
+                           "label · cacheState · "
+                           "promotionReason",
+                           "each probe looked up by its own key "
+                           "· the milliseconds are on "
+                           "these same rows and are not printed, "
+                           "because a plate that carries a "
+                           "timing differs from itself",
+                           lines(verdicts, kTable,
+                                 "— empty until a frame "
+                                 "has been drawn with profiling "
+                                 "on"))},
              .gap = 18}));
   }
 };
 
-SIGIL_SKETCH(RoutesProbe, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(RoutesProbe, "Kit · API",
              "the edge store's back-index for one hub, and the profile row "
              "each of four bake refusals produces, both read off the "
              "composer after the frame they describe")

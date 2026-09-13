@@ -360,7 +360,7 @@ struct TwoAdvancedEquipment : sketch::Sketch {
                                      PathFormat::Align::Inner)))
           .justify(Justify::Center)
           .alignItems(Align::Center)
-          .child(t(up ? "\xe2\x96\xb4" : "\xe2\x96\xbe",
+          .child(t(up ? "▴" : "▾",
                    {.face = verdanaFace(true), .color = kSbArrow}));
     };
     const sketch::kit::Scrolled frame = scrolled();
@@ -461,6 +461,6 @@ struct TwoAdvancedEquipment : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(TwoAdvancedEquipment, "Study \xc2\xb7 Screens",
-             "2Advanced's Equipment.Modules store (2003) \xe2\x80\x94 an HTML "
+SIGIL_SKETCH(TwoAdvancedEquipment, "Study · Screens",
+             "2Advanced's Equipment.Modules store (2003) — an HTML "
              "frameset of Dreamweaver tables, bitmaps and all")

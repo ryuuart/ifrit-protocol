@@ -153,7 +153,7 @@ struct SlangPortable final : sketch::Sketch {
     // THE LAYOUT, as the compiler reported it. Nothing here computes an
     // offset; every number is read back.
     std::string layout = kit::formatted(
-        "stages   vertex %zu words \xc2\xb7 fragment %zu words\n"
+        "stages   vertex %zu words · fragment %zu words\n"
         "buffer   %zu bytes\n"
         "textures %s\n\n"
         "name          offset  bytes  count  stride\n",
@@ -229,14 +229,14 @@ struct SlangPortable final : sketch::Sketch {
                          &garbage, &garbageWhy);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "SLANG PORTABLE \xc2\xb7 compileModule, the "
+        {.title = "SLANG PORTABLE · compileModule, the "
                   "reported layout, and the two modules every "
                   "session carries",
-         .subtitle = kit::formatted(
-             "dials \xc2\xb7 the module source \xc2\xb7 lit (%s, which "
-             "defines SIGIL_LIT) \xc2\xb7 the entry point names "
-             "\xc2\xb7 this module compiled: %s",
-             kLit ? "true" : "false", ok ? "yes" : "no"),
+         .subtitle =
+             kit::formatted("dials · the module source · lit (%s, which "
+                            "defines SIGIL_LIT) · the entry point names "
+                            "· this module compiled: %s",
+                            kLit ? "true" : "false", ok ? "yes" : "no"),
          .footer = "both stages are linked as ONE program, because "
                    "the layout is a property of the linked "
                    "program: linking them apart would let an "
@@ -245,38 +245,42 @@ struct SlangPortable final : sketch::Sketch {
                    "two sets of offsets"},
         kit::cells(
             {.cells =
-                 {kit::cells({.cells =
-                                  {readout(
-                                       "the module",
-                                       "imports resolved in memory \xc2\xb7 "
-                                       "sqrtP is Portable's and lambert is "
-                                       "Shading's, so a host and a device "
-                                       "call one definition",
-                                       std::string(kModule).substr(1),
-                                       sketch::kit::theme().palette.ink),
-                                   readout("Compiled::uniforms",
-                                           "every number read back off the "
-                                           "program that was just built "
-                                           "\xc2\xb7 a sampled slot carries no "
-                                           "bytes, so it is a texture and not "
-                                           "a uniform",
-                                           layout),
-                                   readout("slang::Uniforms \xc2\xb7 one draw",
-                                           "written at those offsets and read "
-                                           "straight back out \xc2\xb7 a name "
-                                           "the program does not carry is "
-                                           "skipped, not faulted",
-                                           bytes)},
-                              .gap = 14}),
-                  kit::cells({.cells = {readout(
-                                            "the kit's bodies through a "
-                                            "scaffold",
-                                            "each grained recipe's generated "
-                                            "declarations and body, plus the "
-                                            "two "
-                                            "stages a renderer supplies "
-                                            "\xc2\xb7 one body, two targets",
-                                            surfaces),
+                 {kit::cells(
+                      {.cells =
+                           {readout("the module",
+                                    "imports resolved in memory · "
+                                    "sqrtP is Portable's and lambert is "
+                                    "Shading's, so a host and a device "
+                                    "call one definition",
+                                    std::string(kModule).substr(1),
+                                    sketch::kit::theme().palette.ink),
+                            readout(
+                                "Compiled::uniforms",
+                                "every number read back off the "
+                                "program that was just built "
+                                "· a sampled slot carries no "
+                                "bytes, so it is a texture and not "
+                                "a uniform",
+                                layout),
+                            readout(
+                                "slang::Uniforms · one draw",
+                                "written at those offsets and read "
+                                "straight back out · a name "
+                                "the program does not carry is "
+                                "skipped, not faulted",
+                                bytes)},
+                       .gap =
+                           14}),
+                  kit::cells({.cells = {readout("the kit's bodies through a "
+                                                "scaffold",
+                                                "each grained recipe's "
+                                                "generated "
+                                                "declarations and body, plus "
+                                                "the "
+                                                "two "
+                                                "stages a renderer supplies "
+                                                "· one body, two targets",
+                                                surfaces),
                                         readout("a missing entry point",
                                                 "the name it could not find is "
                                                 "in "
@@ -293,7 +297,7 @@ struct SlangPortable final : sketch::Sketch {
                                                 "false, an empty Compiled, and "
                                                 "the "
                                                 "compiler's own diagnostics "
-                                                "\xc2\xb7 a body that cannot "
+                                                "· a body that cannot "
                                                 "compile "
                                                 "must say why",
                                                 garbageWhy.empty()
@@ -306,7 +310,7 @@ struct SlangPortable final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(SlangPortable, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(SlangPortable, "Kit · API",
              "one module compiled at run time, the layout its compiler "
              "reported, a draw's bytes landing at those offsets, and the "
              "two ways a compile says no")

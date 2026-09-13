@@ -176,6 +176,6 @@ struct ScatteredModel final : sketch::Set {
 }  // namespace
 
 SIGIL_SKETCH(ScatteredModel, "Set",
-             "An imported model scattered into stamps \xe2\x80\x94 the mesh "
+             "An imported model scattered into stamps — the mesh "
              "codec's output is the same currency a generated body is, and "
              "a cloud over its surface stands a facet at every point")

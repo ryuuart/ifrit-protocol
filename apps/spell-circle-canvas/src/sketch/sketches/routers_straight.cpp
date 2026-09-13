@@ -106,51 +106,51 @@ struct RoutersStraight final : sketch::Sketch {
     };
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE STOCK ROUTES \xc2\xb7 routers::straight, "
+        {.title = "THE STOCK ROUTES · routers::straight, "
                   "orthogonal, arc, octilinear",
-         .subtitle = "dials \xc2\xb7 the router \xc2\xb7 the bend "
-                     "(MidX, HFirst, VFirst) \xc2\xb7 the corner "
-                     "radius (12 px) or the 45\xc2\xb0 cut (14 px, "
-                     "which wins) \xc2\xb7 the arc's bulge (0.26 of "
+         .subtitle = "dials · the router · the bend "
+                     "(MidX, HFirst, VFirst) · the corner "
+                     "radius (12 px) or the 45° cut (14 px, "
+                     "which wins) · the arc's bulge (0.26 of "
                      "the chord)",
          .footer = "a Router is a function of the two endpoint "
                    "rects and a RailRouter one over the whole "
-                   "anchor run \xe2\x80\x94 which is why octilinear "
+                   "anchor run — which is why octilinear "
                    "is reached through rail() and never through "
                    "connector()"},
         kit::cells(
             {.cells =
                  {cell("routers::straight()",
-                       "centre to centre \xc2\xb7 the connector default, "
+                       "centre to centre · the connector default, "
                        "here as a named value, with a 4 px gap pulling "
                        "each end back",
                        "st", wire("st", routers::straight())),
                   cell("orthogonal(Bend::MidX)",
-                       "the Z \xc2\xb7 half way over, one vertical run, "
-                       "half way in \xe2\x80\x94 what a node graph "
+                       "the Z · half way over, one vertical run, "
+                       "half way in — what a node graph "
                        "defaults to",
                        "mx",
                        wire("mx", routers::orthogonal(routers::Bend::MidX))),
                   cell("orthogonal(Bend::HFirst, 12)",
                        "an L bending AT THE TARGET column, its turn "
-                       "rounded \xc2\xb7 the circuit trace",
+                       "rounded · the circuit trace",
                        "hf",
                        wire("hf", routers::orthogonal(routers::Bend::HFirst,
                                                       kRadius))),
                   cell("orthogonal(Bend::VFirst, 0, 14)",
                        "the other L, out of the SOURCE first, its turn "
-                       "cut at 45\xc2\xb0 \xc2\xb7 a chamfer wins over a "
+                       "cut at 45° · a chamfer wins over a "
                        "radius",
                        "vf",
                        wire("vf", routers::orthogonal(routers::Bend::VFirst, 0,
                                                       kChamfer))),
                   cell("routers::arc(0.26)",
                        "the chord bowed by a fraction of its own length "
-                       "\xc2\xb7 the sign picks the side",
+                       "· the sign picks the side",
                        "ar", wire("ar", routers::arc(kBulge))),
                   cell("rail({a, b}, octilinear(8))",
-                       "the metro-map RailRouter \xc2\xb7 the leg runs "
-                       "45\xc2\xb0 for the shorter delta and finishes "
+                       "the metro-map RailRouter · the leg runs "
+                       "45° for the shorter delta and finishes "
                        "straight, and rail() is its only door",
                        "oc",
                        rail({Anchor{"oc-a", {0.5f, 0.5f}, 4},
@@ -160,7 +160,7 @@ struct RoutersStraight final : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(RoutersStraight, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(RoutersStraight, "Kit · API",
              "the same two anchors routed straight, as both orthogonal Ls "
              "and the Z between them, bowed as an arc, and threaded "
              "octilinearly through a rail")

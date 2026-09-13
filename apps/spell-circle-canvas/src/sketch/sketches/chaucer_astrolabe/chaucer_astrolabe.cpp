@@ -273,6 +273,6 @@ auto ChaucerAstrolabe::update(double, sketch::SketchContext& ctx) -> void {
   ctx.composer.renderSlot("projread", projRead());
 }
 
-SIGIL_SKETCH(ChaucerAstrolabe, "Study \xc2\xb7 Science",
-             "A planispheric astrolabe for Oxford 51\xc2\xb0 50\xe2\x80\xb2 "
-             "\xe2\x80\x94 an instrument that tells the time")
+SIGIL_SKETCH(ChaucerAstrolabe, "Study · Science",
+             "A planispheric astrolabe for Oxford 51° 50′ "
+             "— an instrument that tells the time")

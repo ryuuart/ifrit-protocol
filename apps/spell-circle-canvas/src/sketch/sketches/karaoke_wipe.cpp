@@ -321,7 +321,7 @@ struct KaraokeWipe : sketch::Sketch {
                    .row()
                    .alignItems(Align::End)
                    .child(text("FOLLOW THE BOUNCING BALL").grow(1))
-                   .child(text("FLEISCHER 1924 \xc2\xb7 CD+G 1985").ink(kNext)))
+                   .child(text("FLEISCHER 1924 · CD+G 1985").ink(kNext)))
         .child(box().height(1).fill(Fill::color(kFaint)))
         .child(box().grow(1))
         .child(box().alignItems(Align::Center).child(std::move(stage)))
@@ -330,7 +330,7 @@ struct KaraokeWipe : sketch::Sketch {
         // a caption that can disagree with the schedule it describes is the
         // one thing worse than no caption.
         .child(text("THE BALL MARKS THE POINT, THE WIPE MARKS THE "
-                    "BOUNDARY \xc2\xb7 " +
+                    "BOUNDARY · " +
                     std::to_string(wordCues().size()) + " SUNG TIMES, " +
                     std::to_string((int)kEachMs) +
                     " MS PER LETTER INSIDE A WORD, " +
@@ -438,6 +438,6 @@ struct KaraokeWipe : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(KaraokeWipe, "Study \xc2\xb7 Type",
+SIGIL_SKETCH(KaraokeWipe, "Study · Type",
              "Fleischer's bouncing ball (1924) and the CD+G wipe (1985) on one "
-             "schedule \xe2\x80\x94 the point against the boundary")
+             "schedule — the point against the boundary")

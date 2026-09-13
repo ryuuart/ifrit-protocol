@@ -175,7 +175,7 @@ struct SetStagger final : sketch::Set {
 };
 
 SIGIL_SKETCH(SetStagger, "Set",
-             "two rows of children entering on their own cascades \xe2\x80\x94 "
-             "one from the start, one from both edges \xe2\x80\x94 with the "
+             "two rows of children entering on their own cascades — "
+             "one from the start, one from both edges — with the "
              "far row alone selected by key and by material, softened and "
              "laid back over the frame")

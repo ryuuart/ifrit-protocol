@@ -175,73 +175,59 @@ auto DunhuangStarChart::setup(sketch::SketchContext& ctx) -> void {
   }
   rebuild(2000.0f, 0.0f);
 
-  logA.append({toUtf8("THE JOIN"), "heading"});
-  logA.append({toUtf8(kit::formatted(
-                   "chinese_chenzhuo: %d asterisms, 1,883 vertex words", nAst)),
+  logA.append({"THE JOIN", "heading"});
+  logA.append({kit::formatted(
+                   "chinese_chenzhuo: %d asterisms, 1,883 vertex words", nAst),
                "dim"});
-  logA.append({toUtf8("1,463 star TOKENS \xe2\x80\x94 3 are DSO (M44/M7/M31)"),
-               "number"});
+  logA.append({"1,463 star TOKENS — 3 are DSO (M44/M7/M31)", "number"});
   logA.append(
-      {toUtf8(kit::formatted(
-           "  so %d HIP numbers vs Chen Zhuo's canonical 1,464", nStars)),
+      {kit::formatted("  so %d HIP numbers vs Chen Zhuo's canonical 1,464",
+                      nStars),
        "dim"});
-  logA.append({toUtf8("HYG v4.1 join on HIP: 1,457 direct, 3 LOST"), "number"});
-  logA.append({toUtf8("  55203 xi UMa, 78727 xi Sco, 115125 94 Aqr B"), "dim"});
+  logA.append({"HYG v4.1 join on HIP: 1,457 direct, 3 LOST", "number"});
+  logA.append({"  55203 xi UMa, 78727 xi Sco, 115125 94 Aqr B", "dim"});
+  logA.append({"  cause: HYG BLANKS hip on resolved double components", "dim"});
+  logA.append({"  Bayer fallback recovers all three", "pass"});
   logA.append(
-      {toUtf8("  cause: HYG BLANKS hip on resolved double components"), "dim"});
-  logA.append({toUtf8("  Bayer fallback recovers all three"), "pass"});
-  logA.append(
-      {toUtf8(kit::formatted("RESOLVED %d / %d = 100.00%%", nStars, nStars)),
-       "pass"});
-  logA.append(
-      {toUtf8("largest 1300-yr proper motion 1.476 deg (HIP 19849)"), "dim"});
+      {kit::formatted("RESOLVED %d / %d = 100.00%%", nStars, nStars), "pass"});
+  logA.append({"largest 1300-yr proper motion 1.476 deg (HIP 19849)", "dim"});
 
-  logB.append({toUtf8("THE EPOCH, AND THE DECLINATION WINDOW"), "heading"});
+  logB.append({"THE EPOCH, AND THE DECLINATION WINDOW", "heading"});
+  logB.append({"paper precessed to +700, NOT +665 (sect. 4.1)", "number"});
+  logB.append({"  665 vs 700 = 0.489 deg RA; map 5's RA residual 2.26", "dim"});
+  logB.append({"  4.6x below the chart's own hand. UNRESOLVABLE.", "pass"});
+  logB.append({kit::formatted("of %d stars at +700:", nStars), "dim"});
   logB.append(
-      {toUtf8("paper precessed to +700, NOT +665 (sect. 4.1)"), "number"});
-  logB.append(
-      {toUtf8("  665 vs 700 = 0.489 deg RA; map 5's RA residual 2.26"), "dim"});
-  logB.append(
-      {toUtf8("  4.6x below the chart's own hand. UNRESOLVABLE."), "pass"});
-  logB.append({toUtf8(kit::formatted("of %d stars at +700:", nStars)), "dim"});
-  logB.append({toUtf8(kit::formatted("  %4d fall on maps 1-12  (|DEC| <= 45)",
-                                     nOnMaps)),
-               "dim"});
-  logB.append({toUtf8(kit::formatted("  %4d fall on the disc    (DEC >= +52)",
-                                     nOnDisc)),
-               "dim"});
-  logB.append({toUtf8(kit::formatted(
-                   "  %4d fall in the UNCOVERED band +45..+52", nInGap)),
-               "number"});
-  logB.append({toUtf8(kit::formatted(
-                   "  %4d are south of DEC -45, off the chart", nTooSouth)),
-               "number"});
-  logB.append(
-      {toUtf8("Chang'an is 34.3N, so DEC < -55.7 never rises at all"), "dim"});
-
-  logC.append({toUtf8("THE SCHOOLS, AND WHAT IS NOT ATTESTED"), "heading"});
-  logC.append(
-      {toUtf8("S.3326 is the FIRST document to colour the three"), "dim"});
-  logC.append(
-      {toUtf8("  schools: Shi shi RED, Gan shi BLACK, Wu Xian WHITE"), "dim"});
-  logC.append(
-      {toUtf8(kit::formatted(
-           "Tables 4+5 give a colour for 54 asterisms; %d stars", nSchooled)),
+      {kit::formatted("  %4d fall on maps 1-12  (|DEC| <= 45)", nOnMaps),
        "dim"});
-  logC.append(
-      {toUtf8(kit::formatted(
-           "%d stars have NO published school: drawn undeclared", nUnattested)),
+  logB.append(
+      {kit::formatted("  %4d fall on the disc    (DEC >= +52)", nOnDisc),
+       "dim"});
+  logB.append(
+      {kit::formatted("  %4d fall in the UNCOVERED band +45..+52", nInGap),
        "number"});
+  logB.append(
+      {kit::formatted("  %4d are south of DEC -45, off the chart", nTooSouth),
+       "number"});
+  logB.append({"Chang'an is 34.3N, so DEC < -55.7 never rises at all", "dim"});
+
+  logC.append({"THE SCHOOLS, AND WHAT IS NOT ATTESTED", "heading"});
+  logC.append({"S.3326 is the FIRST document to colour the three", "dim"});
+  logC.append({"  schools: Shi shi RED, Gan shi BLACK, Wu Xian WHITE", "dim"});
   logC.append(
-      {toUtf8("guessing the rest would be inventing the evidence"), "dim"});
+      {kit::formatted("Tables 4+5 give a colour for 54 asterisms; %d stars",
+                      nSchooled),
+       "dim"});
   logC.append(
-      {toUtf8("Huagai +6 unaccounted: Chen Zhuo HAS Gang, 9 stars"), "number"});
+      {kit::formatted("%d stars have NO published school: drawn undeclared",
+                      nUnattested),
+       "number"});
+  logC.append({"guessing the rest would be inventing the evidence", "dim"});
+  logC.append({"Huagai +6 unaccounted: Chen Zhuo HAS Gang, 9 stars", "number"});
+  logC.append({"  9 != 6, so it is consistent and does not close", "dim"});
+  logC.append({"Sangong: Chen Zhuo files one under WU XIAN (white),", "dim"});
   logC.append(
-      {toUtf8("  9 != 6, so it is consistent and does not close"), "dim"});
-  logC.append(
-      {toUtf8("Sangong: Chen Zhuo files one under WU XIAN (white),"), "dim"});
-  logC.append({toUtf8("  the map draws BOTH black. printed, not corrected."),
-               "number"});
+      {"  the map draws BOTH black. printed, not corrected.", "number"});
 
   ctx.ticker.add([this, &tick = ctx.ticker](double) {
     clockT = tick.elapsed();
@@ -268,7 +254,7 @@ auto DunhuangStarChart::update(double, sketch::SketchContext& ctx) -> void {
   }
 }
 
-SIGIL_SKETCH(DunhuangStarChart, "Study \xc2\xb7 Esoteric",
-             "The Dunhuang star chart (c. 649\xe2\x80\x93"
+SIGIL_SKETCH(DunhuangStarChart, "Study · Esoteric",
+             "The Dunhuang star chart (c. 649–"
              "684) reprojected from "
-             "1,460 real stars \xe2\x80\x94 and it refuses to answer")
+             "1,460 real stars — and it refuses to answer")

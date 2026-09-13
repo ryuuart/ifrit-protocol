@@ -223,12 +223,11 @@ struct LogGen {
     if (roll < 8) {
       ++breaches;
       LogRow row{t, kBreach, "WARD",
-                 std::format("BREACH sector {:02} \xc2\xb7 rerouting gate {}",
+                 std::format("BREACH sector {:02} · rerouting gate {}",
                              (unsigned)(rng() % 13), (unsigned)(rng() % 7))};
       if (rng() % 2)
-        row.cipher =
-            std::format("{:04x}\xc2\xb7{:04x}", (unsigned)(rng() % 0xffff),
-                        (unsigned)(rng() % 0xffff));
+        row.cipher = std::format("{:04x}·{:04x}", (unsigned)(rng() % 0xffff),
+                                 (unsigned)(rng() % 0xffff));
       return ring.append(std::move(row));
     }
     if (roll < 22) {
@@ -239,21 +238,20 @@ struct LogGen {
     }
     if (roll < 32) {
       ++seals;
-      return ring.append(
-          {t, kSeal, "SEAL",
-           std::format("ward seal reforged \xc2\xb7 sector {:02} "
-                       "holding",
-                       (unsigned)(rng() % 13))});
+      return ring.append({t, kSeal, "SEAL",
+                          std::format("ward seal reforged · sector {:02} "
+                                      "holding",
+                                      (unsigned)(rng() % 13))});
     }
     if (roll < 62)
       return ring.append({t, kTrace, "LATT",
-                          std::format("lattice sweep {:06x} \xc2\xb7 {} pts ok",
+                          std::format("lattice sweep {:06x} · {} pts ok",
                                       packet, (unsigned)(64 + rng() % 900))});
     return ring.append(
         {t, kInfo, "AUTH",
-         std::format("daemon[{}] bound :6{:03} \xc2\xb7 handshake",
+         std::format("daemon[{}] bound :6{:03} · handshake",
                      (unsigned)(rng() % 9), (unsigned)(rng() % 1000)),
-         std::format("{:04x}\xc2\xb7{:04x}", (unsigned)(rng() % 0xffff),
+         std::format("{:04x}·{:04x}", (unsigned)(rng() % 0xffff),
                      (unsigned)(rng() % 0xffff))});
   }
 };
@@ -686,7 +684,7 @@ struct DaemonConsole final : sketch::Sketch {
             .child(
                 text("PERIMETER WATCH").font(chrome(10.5f, dc::kChrome, 3.5f)))
             .child(box().grow(1))
-            .child(text("NODE 07 \xc2\xb7 flooded-causeway")
+            .child(text("NODE 07 · flooded-causeway")
                        .font(chrome(10.5f, dc::kDim, 0.8f)))
             .child(box()
                        .width(6)
@@ -709,7 +707,7 @@ struct DaemonConsole final : sketch::Sketch {
             .child(meterRow("FLUX", &meter[2]))
             .child(meterRow("AUTH", &meter[3]))
             .child(rule(6, 2))
-            .child(text("SEVERITY \xc2\xb7 SESSION").styleClass("label"))
+            .child(text("SEVERITY · SESSION").styleClass("label"))
             .child(counterRow("SEALS", dc::kOk, gen.seals))
             .child(counterRow("FLUX WARNS", dc::kWarn, gen.warns))
             .child(counterRow("BREACHES", dc::kCrit, gen.breaches))
@@ -774,7 +772,7 @@ struct DaemonConsole final : sketch::Sketch {
                                     .target(0.10f, 1.0f))
                        .key("caret"))
             .child(box().grow(1))
-            .child(text(std::format("ring 256 \xc2\xb7 {} events",
+            .child(text(std::format("ring 256 · {} events",
                                     (unsigned long long)gen.events))
                        .styleClass("fine"));
 
@@ -831,5 +829,5 @@ struct DaemonConsole final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(DaemonConsole, "daemon console", "Catalog \xc2\xb7 Game UI",
+SIGIL_SKETCH_AS(DaemonConsole, "daemon console", "Catalog · Game UI",
                 "feed::Ring<LogRow>, with an entrance per severity")

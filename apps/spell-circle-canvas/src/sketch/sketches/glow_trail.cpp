@@ -175,9 +175,8 @@ struct GlowTrail final : sketch::Set {
 
 }  // namespace
 
-SIGIL_SKETCH(
-    GlowTrail, "Set",
-    "The passes, made visible \xe2\x80\x94 one set reached three ways: a "
-    "masked grade where the beads stand, the same beads culled "
-    "into a target of their own and softened, and that laid over "
-    "its own output from the frame before")
+SIGIL_SKETCH(GlowTrail, "Set",
+             "The passes, made visible — one set reached three ways: a "
+             "masked grade where the beads stand, the same beads culled "
+             "into a target of their own and softened, and that laid over "
+             "its own output from the frame before")

@@ -439,10 +439,9 @@ auto DunhuangStarChart::discNotes(int seg) -> Element {
                .key(kit::formatted("discnote%d", seg))
                .opacity(gate(tProj - 1.2f, tProj - 0.3f));
   const std::string rows[4] = {
-      "MAP 13 \xc2\xb7 azimuthal, RA at 1.05\xc2\xb0/cm of circumference,",
-      "DEC radial at 5.10\xc2\xb0/cm, +90\xc2\xb0 to +52\xc2\xb0 (Table 3).",
-      kit::formatted(
-          "disc CENTRE is DEC +87.6\xc2\xb0, NOT the pole: the +700 pole"),
+      "MAP 13 · azimuthal, RA at 1.05°/cm of circumference,",
+      "DEC radial at 5.10°/cm, +90° to +52° (Table 3).",
+      kit::formatted("disc CENTRE is DEC +87.6°, NOT the pole: the +700 pole"),
       kit::formatted("falls %.1f mm away, marked. and a red UNENCIRCLED star,",
                      (90.0f - kDiscCenDec) / kPolPerMm),
   };
@@ -454,7 +453,7 @@ auto DunhuangStarChart::discNotes(int seg) -> Element {
                 .left(0)
                 .top((float)i * 10.4f)
                 .width(Dimension(rOut * 2 + 16)));
-  g.child(text("slightly erased, sits near it \xe2\x80\x94 \"could be "
+  g.child(text("slightly erased, sits near it — \"could be "
                "the Pole "
                "star\". Drawn as found.")
               .font({.size = 8.0f, .color = hexColor(0x8a3020, 0.95f)})
@@ -474,10 +473,10 @@ auto DunhuangStarChart::raRuler(int seg) -> Element {
                .opacity(gate(tFold1 - 0.4f, tFold1 + 0.6f));
   const float y = kBandTop - kSegTop - 46.0f;
   if (seg == 1)
-    g.child(text("EACH FRAME SPANS 48\xc2\xb0 OF RA ON A 30\xc2\xb0 "
-                 "PITCH \xc2\xb7 "
-                 "HATCHED: the 18\xc2\xb0 it shares with its neighbour "
-                 "\xc2\xb7 "
+    g.child(text("EACH FRAME SPANS 48° OF RA ON A 30° "
+                 "PITCH · "
+                 "HATCHED: the 18° it shares with its neighbour "
+                 "· "
                  "the axis JUMPS BACK at every boundary")
                 .font({.size = 8.4f, .color = hexColor(0xc9a35c, 0.9f)})
                 .left(600)
@@ -507,15 +506,15 @@ auto DunhuangStarChart::raRuler(int seg) -> Element {
                               }))
             .stroke(lines::Line{
                 .width = 1.0f, .fill = Fill::color(hexColor(0xc9a35c, 0.7f))}));
-    g.child(text(kit::formatted("%d\xc2\xb0", (int)std::lround(wrap360(
-                                                  mapCentre(k) - 24.0f))))
+    g.child(text(kit::formatted(
+                     "%d°", (int)std::lround(wrap360(mapCentre(k) - 24.0f))))
                 .font({.size = 7.6f, .color = hexColor(0xc9a35c, 0.85f)})
                 .left(xr - 26)
                 .top(y + 13)
                 .width(Dimension(28))
                 .textAlign(weave::TextAlignment::kEnd));
-    g.child(text(kit::formatted("%d\xc2\xb0", (int)std::lround(wrap360(
-                                                  mapCentre(k) + 24.0f))))
+    g.child(text(kit::formatted(
+                     "%d°", (int)std::lround(wrap360(mapCentre(k) + 24.0f))))
                 .font({.size = 7.6f, .color = hexColor(0xc9a35c, 0.85f)})
                 .left(xl - 2)
                 .top(y + 13)
