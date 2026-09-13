@@ -475,12 +475,15 @@ TEST(KitSpecimen, TheCaptionsLinesStandWhereTheVoiceSays) {
   // The body's top and the cell's height, for one arrangement.
   const auto placed = [&](kit::Caption::Where where, bool withNote) {
     Host host(300, 300);
-    const sigil::core::environment::Provide<weave::StyleSheet> classes(
-        captionClasses());
-    host.composer.render(box().width(300).height(300).child(
-        kit::cell(specimenVoice(where), "LABEL", withNote ? "a note" : "",
-                  box().key("body").width(100).height(40))
-            .key("cell")));
+    host.composer.render(
+        box()
+            .width(300)
+            .height(300)
+            .styleSheet(captionClasses())
+            .child(kit::cell(specimenVoice(where), "LABEL",
+                             withNote ? "a note" : "",
+                             box().key("body").width(100).height(40))
+                       .key("cell")));
     host.frame();
     return std::pair{host.composer.bounds("body").value().top(),
                      host.composer.bounds("cell").value().height()};
@@ -515,11 +518,10 @@ TEST(KitSpecimen, AMeasureKeepsALongLabelFromWideningItsCell) {
   const auto width = [](float labelMeasure) {
     kit::Caption voice = specimenVoice(kit::Caption::Where::Split);
     voice.labelMeasure = labelMeasure;
-    const sigil::core::environment::Provide<weave::StyleSheet> classes(
-        captionClasses());
     return intrinsicSize(
                kit::cell(voice, "a label far wider than the body under it", "",
-                         box().width(60).height(40)),
+                         box().width(60).height(40))
+                   .styleSheet(captionClasses()),
                fonts())
         .width();
   };
@@ -615,11 +617,13 @@ TEST(KitSpecimen, ASheetRulesOffItsHeaderAndFooterAndFootsThePage) {
                   .key = "page"};
   // The sheet's three lines are set in the classes of their own names, so
   // the sizes the placement is read against are one entry each.
-  const sigil::core::environment::Provide<weave::StyleSheet> classes(
-      weave::StyleSheet{{"title", {.size = 15}}, {"footer", {.size = 11}}});
   Host host(400, 300);
   host.composer.render(
-      kit::sheet(page, box().key("body")).width(400).height(300));
+      kit::sheet(page, box().key("body"))
+          .styleSheet(weave::StyleSheet{{"title", {.size = 15}},
+                                        {"footer", {.size = 11}}})
+          .width(400)
+          .height(300));
   host.frame();
   const SkRect content = host.composer.bounds("page-content").value();
   // The content stands one content gap under the title, inside the side

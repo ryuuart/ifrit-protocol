@@ -106,6 +106,10 @@ struct Composer::Impl {
   // under nothing is set in the layout's own answer.
   sigil::weave::Block rootBlock;
   std::optional<SkSamplingOptions> rootSampling;
+  // What the root inherits as its sheets: none, so a class under no
+  // styleSheet() resolves to nothing and says so.
+  std::shared_ptr<const sigil::weave::StyleSheet> rootSheet;
+  std::shared_ptr<const sigil::weave::ParagraphStyleSheet> rootBlocks;
   // Whether the resolved fonts, inks and properties on the instances may
   // be stale: set by every reconcile that changed anything and by
   // setInherited, and left set by a pass that found an ink transition
@@ -419,12 +423,14 @@ struct Composer::Impl {
    *  colour moved is marked to repaint. Runs before layout whenever
    *  `cascadeDirty` says the answers may have moved. */
   void runCascade();
-  void resolveCascade(detail::Instance& inst,
-                      const sigil::weave::Type& parentFont,
-                      float parentLineHeight,
-                      const std::shared_ptr<const VarTable>& parentVars,
-                      const sigil::weave::Block& parentBlock,
-                      const std::optional<SkSamplingOptions>& parentSampling);
+  void resolveCascade(
+      detail::Instance& inst, const sigil::weave::Type& parentFont,
+      float parentLineHeight, const std::shared_ptr<const VarTable>& parentVars,
+      const sigil::weave::Block& parentBlock,
+      const std::optional<SkSamplingOptions>& parentSampling,
+      const std::shared_ptr<const sigil::weave::StyleSheet>& parentSheet,
+      const std::shared_ptr<const sigil::weave::ParagraphStyleSheet>&
+          parentBlocks);
   /** An inheriting text leaf whose ink alone changed: the new colour set
    *  on its inherited ranges in place, the restyles replayed over them,
    *  and nothing re-shaped or re-broken. */

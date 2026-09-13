@@ -341,11 +341,7 @@ TEST(ComposeCascade,
   // fields inherit the face and the ink from the tree.
   sigil::weave::StyleSheet sheet;
   sheet.set("big", sigil::weave::Type{.size = 40});
-  Element classed;
-  {
-    const core::environment::Provide<sigil::weave::StyleSheet> scope(sheet);
-    classed = text(u8"AAAA").styleClass("big");
-  }
+  Element classed = text(u8"AAAA").styleSheet(sheet).styleClass("big");
   Host with, without;
   with.composer.render(pageWith(std::move(classed), 10));
   without.composer.render(pageWith(text(u8"AAAA"), 10));
@@ -355,27 +351,50 @@ TEST(ComposeCascade,
   EXPECT_TRUE(anyWhiteIn(with, SkIRect::MakeXYWH(10, 10, 180, 80)));
 }
 
-TEST(ComposeCascade, SeveralClassesFoldInOrderAndAPartialLaysOverThem) {
-  // "dim big" is both partials with big last, so the size is big's; "big
-  // dim" ends dim; and a partial after the names is laid over them all.
-  const sigil::weave::StyleSheet sheet{{"big", {.size = 40}},
-                                       {"dim", {.size = 14}}};
-  Element dimBig, bigDim, over;
-  {
-    const core::environment::Provide<sigil::weave::StyleSheet> scope(sheet);
-    dimBig = text("AAAA").styleClass("dim big");
-    bigDim = text("AAAA").styleClass("big dim");
-    over = text("AAAA").styleClass("big", {.size = 14});
-  }
-  Host a, b, c;
-  a.composer.render(pageWith(std::move(dimBig), 10));
-  b.composer.render(pageWith(std::move(bigDim), 10));
-  c.composer.render(pageWith(std::move(over), 10));
+TEST(ComposeCascade, ClassesFoldInTheSheetsOrderAndAPartialLaysOverThem) {
+  // Between classes the sheet's order decides, so "dim big" and "big dim"
+  // are one thing: the later entry of the sheet in force wins. A partial
+  // after the names is the node's own and stands over both.
+  const sigil::weave::StyleSheet bigLast{{"dim", {.size = 14}},
+                                         {"big", {.size = 40}}};
+  const sigil::weave::StyleSheet dimLast{{"big", {.size = 40}},
+                                         {"dim", {.size = 14}}};
+  Host a, b, c, d;
+  a.composer.render(
+      pageWith(text("AAAA").styleSheet(bigLast).styleClass("dim big"), 10));
+  b.composer.render(
+      pageWith(text("AAAA").styleSheet(bigLast).styleClass("big dim"), 10));
+  c.composer.render(
+      pageWith(text("AAAA").styleSheet(dimLast).styleClass("dim big"), 10));
+  d.composer.render(pageWith(
+      text("AAAA").styleSheet(bigLast).styleClass("big", {.size = 14}), 10));
   a.frame();
   b.frame();
   c.frame();
-  EXPECT_GT(widthOf(a, "t"), widthOf(b, "t") * 2.5f);
-  EXPECT_FLOAT_EQ(widthOf(c, "t"), widthOf(b, "t"));
+  d.frame();
+  EXPECT_FLOAT_EQ(widthOf(a, "t"), widthOf(b, "t"));
+  EXPECT_GT(widthOf(a, "t"), widthOf(c, "t") * 2.5f);
+  EXPECT_FLOAT_EQ(widthOf(d, "t"), widthOf(c, "t"));
+}
+
+TEST(ComposeCascade, ANearerSheetStandsOverAFartherOneByName) {
+  // A subtree states a sheet of its own: the names it carries win there,
+  // the names it leaves alone still resolve through the outer sheet.
+  const sigil::weave::StyleSheet outer{{"big", {.size = 40}},
+                                       {"dim", {.size = 14}}};
+  const sigil::weave::StyleSheet inner{{"big", {.size = 14}}};
+  Host a, b;
+  a.composer.render(
+      pageWith(box().styleSheet(outer).child(box().styleSheet(inner).child(
+                   text("AAAA").styleClass("big").key("t"))),
+               10));
+  b.composer.render(
+      pageWith(box().styleSheet(outer).child(box().styleSheet(inner).child(
+                   text("AAAA").styleClass("dim").key("t"))),
+               10));
+  a.frame();
+  b.frame();
+  EXPECT_FLOAT_EQ(widthOf(a, "t"), widthOf(b, "t"));
 }
 
 TEST(ComposeCascade, AChildrenBlockHoldsElementsAndListsInOrder) {

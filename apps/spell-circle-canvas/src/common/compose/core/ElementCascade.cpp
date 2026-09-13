@@ -4,7 +4,6 @@
  * node sets for everything under it.
  */
 
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilweave/layout/Block.h>
 #include <sigilweave/layout/ParagraphStyleSheet.h>
 #include <sigilweave/style/StyleSheet.h>
@@ -51,30 +50,27 @@ Element& Element::ink(VarRef reference) {
 }
 
 Element& Element::styleClass(std::string_view names) {
-  // The sheets are read HERE, in the scope the element is written in: a
-  // class is lexical, and the description holds the fields it set rather
-  // than the name, so it depends on no scope that has since ended.
-  // One name, two halves: the text sheet's partial and the block sheet's,
-  // whichever of the two carries the name, both when both do; several
-  // names fold in the order they are written, the later over the earlier.
-  const sigil::weave::StyleSheet* sheet =
-      core::environment::inherited<sigil::weave::StyleSheet>();
-  const sigil::weave::ParagraphStyleSheet* blocks =
-      core::environment::inherited<sigil::weave::ParagraphStyleSheet>();
+  // The names are KEPT, and resolved by the cascade pass against the
+  // sheets in force where this node lands: one name, two halves — the
+  // text sheet's partial and the block sheet's, whichever carries it —
+  // several names folding in the order they are written.
+  detail::CascadeData& cascade = m_node->cascadeData.ensure();
   for (size_t at = 0; at < names.size();) {
     const size_t end = std::min(names.find(' ', at), names.size());
     const std::string_view name = names.substr(at, end - at);
     at = end + 1;
-    if (name.empty()) continue;
-    const sigil::weave::Type* cls = sheet ? sheet->find(name) : nullptr;
-    const sigil::weave::Block* blk = blocks ? blocks->find(name) : nullptr;
-    if (!cls && !blk) {
-      detail::warnNoSuchClass(name, sheet != nullptr || blocks != nullptr);
-      continue;
-    }
-    if (cls) font(*cls);
-    if (blk) block(*blk);
+    if (!name.empty()) cascade.classes.emplace_back(name);
   }
+  return *this;
+}
+
+Element& Element::styleSheet(sigil::weave::StyleSheet sheet) {
+  m_node->cascadeData.ensure().sheet = std::move(sheet);
+  return *this;
+}
+
+Element& Element::styleSheet(sigil::weave::ParagraphStyleSheet blocks) {
+  m_node->cascadeData.ensure().blocks = std::move(blocks);
   return *this;
 }
 

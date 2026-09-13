@@ -67,16 +67,9 @@ Element text(std::u8string utf8, sigil::weave::TextStyle style) {
 }
 
 Element text(sigil::weave::RichText spans) {
-  // The sheet a named run resolves through, when the author named none on
-  // the value itself: whatever `environment::Provide<weave::StyleSheet>`
-  // offers this describe scope. Supplied here rather than left to the value
-  // because the scope is this library's — the value holds resolved styles
-  // afterwards and depends on no scope that has since ended — and an
-  // explicit sheet always wins, whichever order the two were written in.
-  if (!spans.hasStyles())
-    if (const sigil::weave::StyleSheet* ambient =
-            core::environment::inherited<sigil::weave::StyleSheet>())
-      spans.styles(*ambient);
+  // A run written with a NAME and no sheet on the value resolves through
+  // the sheet in force where the leaf lands, when the leaf is shaped; a
+  // value that names its own sheet keeps it.
   Element e;
   e.node()->kind = Kind::Text;
   detail::TextData& text = e.node()->textData.ensure();

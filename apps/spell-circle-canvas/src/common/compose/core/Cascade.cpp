@@ -63,6 +63,13 @@ bool sameVars(const std::shared_ptr<const VarTable>& a,
   return *a == *b;
 }
 
+bool sameSheet(const std::shared_ptr<const sigil::weave::StyleSheet>& a,
+               const std::shared_ptr<const sigil::weave::StyleSheet>& b) {
+  if (a == b) return true;
+  if (!a || !b) return false;
+  return *a == *b;
+}
+
 SkColor4f lerpColour(const SkColor4f& from, const SkColor4f& to, float t) {
   SkColor4f out = to;
   for (int i = 0; i < 4; ++i)
@@ -99,15 +106,13 @@ void detail::warnNoSuchClass(std::string_view name, bool anySheetInScope) {
   if (!warned.insert(std::string(name)).second) return;
   SkDebugf(
       "[compose] styleClass(\"%.*s\") names a class neither the "
-      "weave::StyleSheet nor the weave::ParagraphStyleSheet in scope "
-      "carries%s — nothing was set, and the text under it is set in "
-      "whatever it inherits. Bind a sheet with "
-      "environment::Provide<weave::StyleSheet> (the text half) or "
-      "environment::Provide<weave::ParagraphStyleSheet> (the block half) "
-      "around the code that builds the element, and register the name on "
-      "it. (warned once)\n",
+      "weave::StyleSheet nor the weave::ParagraphStyleSheet in force where "
+      "the element lands carries%s — nothing was set, and the text under it "
+      "is set in whatever it inherits. State a sheet with styleSheet() on "
+      "the element or on any node above it, and register the name on it. "
+      "(warned once)\n",
       (int)name.size(), name.data(),
-      anySheetInScope ? "" : " (no sheet is bound at all)");
+      anySheetInScope ? "" : " (no sheet is stated on the tree above it)");
 }
 
 void detail::warnNoSuchVar(VarRef reference, bool wantColour) {
@@ -187,7 +192,7 @@ void Composer::Impl::runCascade() {
   inkAnimating = false;
   if (rootLineHeight <= 0.0f) rootLineHeight = lineHeightAt(rootFont);
   resolveCascade(*root, rootFont, rootLineHeight, nullptr, rootBlock,
-                 rootSampling);
+                 rootSampling, rootSheet, rootBlocks);
   // A running ink transition moves the colour every frame, so the next
   // frame resolves again; otherwise the answers stand until a reconcile
   // says otherwise.
@@ -198,15 +203,80 @@ void Composer::Impl::resolveCascade(
     Instance& inst, const sigil::weave::Type& parentFont,
     float parentLineHeight, const std::shared_ptr<const VarTable>& parentVars,
     const sigil::weave::Block& parentBlock,
-    const std::optional<SkSamplingOptions>& parentSampling) {
+    const std::optional<SkSamplingOptions>& parentSampling,
+    const std::shared_ptr<const sigil::weave::StyleSheet>& parentSheet,
+    const std::shared_ptr<const sigil::weave::ParagraphStyleSheet>&
+        parentBlocks) {
   const ElementNode& node = *inst.description;
   sigil::weave::Type font = parentFont;
   std::shared_ptr<const VarTable> vars = parentVars;
   sigil::weave::Block block = parentBlock;
   std::optional<SkSamplingOptions> sampling = parentSampling;
+  std::shared_ptr<const sigil::weave::StyleSheet> sheet = parentSheet;
+  std::shared_ptr<const sigil::weave::ParagraphStyleSheet> blocks =
+      parentBlocks;
   if (node.cascadeData) {
     const CascadeData& cascade = *node.cascadeData;
-    if (cascade.block) sigil::weave::merge(block, *cascade.block);
+    // The sheets this node states: its entries over the inherited ones by
+    // name, its base standing, the result shared with everything under it.
+    if (cascade.sheet) {
+      auto own = std::make_shared<sigil::weave::StyleSheet>(
+          parentSheet ? *parentSheet : sigil::weave::StyleSheet{});
+      own->base(cascade.sheet->base());
+      for (const auto& entry : cascade.sheet->entries())
+        own->set(entry.first, entry.second);
+      sheet = std::move(own);
+    }
+    if (cascade.blocks) {
+      auto own = std::make_shared<sigil::weave::ParagraphStyleSheet>(
+          parentBlocks ? *parentBlocks : sigil::weave::ParagraphStyleSheet{});
+      for (const auto& entry : cascade.blocks->entries())
+        own->set(entry.first, entry.second);
+      blocks = std::move(own);
+    }
+    // THE CLASSES, then the node's own partials over them: a class's
+    // fields are the node's unless the node states the field itself, as an
+    // inline style beats a class. Between classes the SHEET's order
+    // decides, a later entry over an earlier one, so the order the names
+    // were written in means nothing, as it means nothing in a class
+    // attribute. Both are laid over the PARENT's font in one overlay, so a
+    // relative size in either is measured against the size inherited.
+    std::optional<sigil::weave::Type> ownFont = cascade.font;
+    std::optional<sigil::weave::Block> ownBlock = cascade.block;
+    if (!cascade.classes.empty()) {
+      sigil::weave::Type classFont;
+      sigil::weave::Block classBlock;
+      bool anyFont = false, anyBlock = false;
+      const auto named = [&](std::string_view name) {
+        return std::find(cascade.classes.begin(), cascade.classes.end(),
+                         name) != cascade.classes.end();
+      };
+      if (sheet)
+        for (const auto& entry : sheet->entries())
+          if (named(entry.first)) {
+            sigil::weave::merge(classFont, entry.second);
+            anyFont = true;
+          }
+      if (blocks)
+        for (const auto& entry : blocks->entries())
+          if (named(entry.first)) {
+            sigil::weave::merge(classBlock, entry.second);
+            anyBlock = true;
+          }
+      for (const std::string& name : cascade.classes)
+        if (!(sheet && sheet->contains(name)) &&
+            !(blocks && blocks->contains(name)))
+          warnNoSuchClass(name, sheet != nullptr || blocks != nullptr);
+      if (anyFont) {
+        if (ownFont) sigil::weave::merge(classFont, *ownFont);
+        ownFont = std::move(classFont);
+      }
+      if (anyBlock) {
+        if (ownBlock) sigil::weave::merge(classBlock, *ownBlock);
+        ownBlock = std::move(classBlock);
+      }
+    }
+    if (ownBlock) sigil::weave::merge(block, *ownBlock);
     if (cascade.sampling) sampling = cascade.sampling;
     if (!cascade.vars.empty()) {
       auto own =
@@ -217,9 +287,9 @@ void Composer::Impl::resolveCascade(
     // The node's partial over the parent's font. A relative size in it is
     // measured against the PARENT — the size inherited — which is what
     // `1.5_em` on a heading means.
-    if (cascade.font)
-      font = sigil::weave::overlay(parentFont, *cascade.font,
-                                   fontSizePx(rootFont), parentLineHeight);
+    if (ownFont)
+      font = sigil::weave::overlay(parentFont, *ownFont, fontSizePx(rootFont),
+                                   parentLineHeight);
     if (cascade.inkVar) {
       const VarValue* value = vars ? vars->find(*cascade.inkVar) : nullptr;
       const SkColor4f* colour = value ? std::get_if<SkColor4f>(value) : nullptr;
@@ -248,6 +318,8 @@ void Composer::Impl::resolveCascade(
   inst.vars = vars;
   inst.block = block;
   inst.sampling = sampling;
+  inst.sheet = sheet;
+  inst.blocks = blocks;
   inst.cascadeResolved = true;
   if (shapeChanged) inst.lineHeight = lineHeightAt(font);
 
@@ -260,8 +332,12 @@ void Composer::Impl::resolveCascade(
   if (node.kind == Kind::Text && node.textData) {
     const bool inherits = node.textData->inherits;
     const bool reshapes = inherits && !sameFontButColour(font, inst.textFont);
-    const bool remakes = block.writingMode != inst.textBlock.writingMode ||
-                         block.lineBreakLocale != inst.textBlock.lineBreakLocale;
+    // A named run resolves through the sheet in force, so a sheet that
+    // changed under the leaf is a new paragraph as a new face is.
+    const bool remakes =
+        block.writingMode != inst.textBlock.writingMode ||
+        block.lineBreakLocale != inst.textBlock.lineBreakLocale ||
+        !sameSheet(sheet, inst.textSheet);
     if (inst.textDirty || !inst.paragraph) {
       inst.textDirty = false;
       materializeText(inst);
@@ -297,7 +373,8 @@ void Composer::Impl::resolveCascade(
     contentDirty = true;
   }
   for (auto& child : inst.children)
-    resolveCascade(*child, font, inst.lineHeight, vars, block, sampling);
+    resolveCascade(*child, font, inst.lineHeight, vars, block, sampling, sheet,
+                   blocks);
 }
 
 void Composer::Impl::refreshInheritedInk(Instance& inst) {

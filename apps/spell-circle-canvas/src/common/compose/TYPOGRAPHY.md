@@ -733,9 +733,9 @@ could not place is silent, like every other word that did not fit.
 whole `sigil::weave::TextStyle`, a run in a PARTIAL `sigil::weave::Type`
 that overrides the base field by field, or a run under a NAME — a class
 — resolved through a `sigil::weave::StyleSheet` supplied by
-`weave::RichText::styles` or inherited through `core::environment::Provide`.
-An explicit sheet beats the inherited one whichever order the two are
-written in, and a name the sheet does not register resolves to the base
+`weave::RichText::styles` or in force on the tree through
+`Element::styleSheet`, when the leaf is shaped. An explicit sheet beats
+the one in force, and a name the sheet does not register resolves to the base
 `weave::rich()` was given, so a misspelling shows as content set in the
 default rather than as content that did not draw. A rich text started
 with NO base, `weave::rich()`, is an inheriting passage: it is set in the

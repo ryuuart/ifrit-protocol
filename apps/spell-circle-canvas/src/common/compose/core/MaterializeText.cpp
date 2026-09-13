@@ -53,7 +53,17 @@ void Composer::Impl::materializeText(
         inherits ? inherited : text.rich.base();
     // The runs concatenate with nothing between them: a rich text's spacing
     // is the author's own, exactly as it is in the strings they wrote.
-    for (const sigil::weave::RichText::Run& run : text.rich.runs()) {
+    // The names the runs were written with resolve against the sheet in
+    // force here, so a value built anywhere is set in the classes of the
+    // tree it is placed in; a value carrying its own sheet keeps that.
+    sigil::weave::RichText resolved;
+    const bool bySheet = !text.rich.hasStyles() && inst.sheet != nullptr;
+    if (bySheet) {
+      resolved = text.rich;
+      resolved.styles(*inst.sheet);
+    }
+    const sigil::weave::RichText& rich = bySheet ? resolved : text.rich;
+    for (const sigil::weave::RichText::Run& run : rich.runs()) {
       sigil::weave::TextStyle style = run.style;
       bool inksInherited = false;
       if (inherits && !run.total) {
@@ -99,6 +109,7 @@ void Composer::Impl::materializeText(
   if (inst.block.lineBreakLocale)
     inst.paragraph->setLineBreakLocale(*inst.block.lineBreakLocale);
   inst.textBlock = inst.block;
+  inst.textSheet = inst.sheet;
   if (text.onPath &&
       inst.paragraph->writingMode() != sigil::weave::WritingMode::kHorizontal) {
     warnWritingModeOnPath();
@@ -269,9 +280,16 @@ sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(
       sigil::weave::toParagraphStyle(inst.block);
   options.blockDefault = lane;
   if (text.options.set & TextOptions::kBlockClasses) {
+    // The names resolve against the block sheet in force here; a name
+    // nobody registered changes nothing about its block, and says so.
     options.blocks.clear();
-    for (const sigil::weave::Block& partial : text.options.blockClasses)
-      options.blocks.push_back(sigil::weave::overlay(lane, partial));
+    for (const std::string& name : text.options.blockClassNames) {
+      const sigil::weave::Block* found =
+          inst.blocks ? inst.blocks->find(name) : nullptr;
+      if (!found) warnNoSuchParagraphStyle(name, inst.blocks != nullptr);
+      options.blocks.push_back(found ? sigil::weave::overlay(lane, *found)
+                                     : lane);
+    }
   }
   if ((text.options.set & TextOptions::kInitialLetter) &&
       text.options.initial) {

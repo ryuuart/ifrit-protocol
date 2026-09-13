@@ -10,7 +10,6 @@
  */
 
 #include <include/core/SkTypes.h>  // SkDebugf — the rest-of-non-text diagnostic
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilweave/layout/ParagraphStyleSheet.h>
 #include <sigilweave/unicode/Unicode.h>
 
@@ -96,30 +95,17 @@ Element& Element::paragraphs(std::vector<sigil::weave::ParagraphStyle> blocks) {
   options.blocks = std::move(blocks);
   options.set |= detail::TextOptions::kBlocks;
   // The two spellings are alternatives, and the last one written stands.
-  options.blockClasses.clear();
+  options.blockClassNames.clear();
   options.set &= ~(uint32_t)detail::TextOptions::kBlockClasses;
   return *this;
 }
 
 Element& Element::paragraphs(std::span<const std::string_view> names) {
-  // The set is read HERE, inside the author's describe scope, exactly as a
-  // named character run reads its own: the finished description then holds
-  // real styles and depends on no scope that has since ended.
-  const sigil::weave::ParagraphStyleSheet* set =
-      core::environment::inherited<sigil::weave::ParagraphStyleSheet>();
-  std::vector<sigil::weave::Block> resolved;
-  resolved.reserve(names.size());
-  for (const std::string_view name : names) {
-    const sigil::weave::Block* found = set ? set->find(name) : nullptr;
-    // A name nobody registered changes nothing about its block, which
-    // looks exactly like a style that did not take — so it is said.
-    if (!found) detail::warnNoSuchParagraphStyle(name, set != nullptr);
-    resolved.push_back(found ? *found : sigil::weave::Block{});
-  }
-  // The partials are laid over the block in force when the leaf lays out,
-  // which is where that block is known; here they are only kept.
+  // The names are kept; they resolve against the block sheet in force
+  // where the leaf lands, when it lays out, and lie over the block in
+  // force there.
   detail::TextOptions& options = m_node->textData.ensure().options;
-  options.blockClasses = std::move(resolved);
+  options.blockClassNames.assign(names.begin(), names.end());
   options.set |= detail::TextOptions::kBlockClasses;
   options.blocks.clear();
   options.set &= ~(uint32_t)detail::TextOptions::kBlocks;

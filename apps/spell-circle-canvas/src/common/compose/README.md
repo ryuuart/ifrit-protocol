@@ -465,10 +465,11 @@ CSS's model over it.
 
 ## The cascade
 
-Four things flow down the TREE, from a node to everything under it,
+Five things flow down the TREE, from a node to everything under it,
 wherever the code that built a child ran: the font a passage is set in,
-its colour, which is the ink, the block its paragraphs are set in, and
-the custom properties. Everything else
+its colour, which is the ink, the block its paragraphs are set in, the
+sheet its classes resolve through, and the custom properties. Everything
+else
 a node says about itself — its fill, its stroke, its padding, its
 transform — stays on that node. It is CSS's own split between the
 properties that inherit and the ones that do not, and the rule of thumb
@@ -554,27 +555,36 @@ initial letter's are partials over the text they belong to, so a reading
 at `0.5_em` is half its base whatever the base inherits. A caption's and
 a sheet's lines (`kit::Caption`, `kit::Sheet`) take the same fields by
 NAME instead — `captionLabel`, `captionNote`, `title`, `subtitle`,
-`footer`, classes of the sheet in scope where the component is called. A bake — `snapshot`,
+`footer`, classes of the sheet in force where the component lands, or of
+the sheet the component carries on those lines (`kit::Caption::styles`,
+`kit::Sheet::styles`), which a theme hands it. A bake — `snapshot`,
 `intrinsicSize`, `kit::coverage` — runs the cascade over its own tree,
 so a partial inside it resolves against the bake's root.
 
-**A class is a named partial, in two halves.** `Element::styleClass`
-folds in the `weave::Type` a `weave::StyleSheet` in scope registers
-under the name and the `weave::Block` a `weave::ParagraphStyleSheet` in
-scope registers under it, whichever of the two carries the name and both
-when both do — read where the element is WRITTEN, a class being lexical
-exactly as a CSS class is defined in a sheet and applied by name — and
-the fields either sets then inherit down the tree like any `font()` or
-`block()`. Several names go in one call, separated by spaces as CSS's
-class attribute lists them, folded left to right, and a partial after the
-names is laid over them all: `styleClass("cell", {.color = c})` is the
-cell class in this cell's colour, one verb. A name neither sheet in scope
-carries warns once and sets nothing. A sheet is spelled as a literal, an
-entry per class — `weave::StyleSheet{{"note", {.size = 11}}, {"dim",
-{.color = grey}}}` — and bound around the code that builds the elements.
-The two sheets are one class because the include graph keeps them apart:
-the text sheet is the style vocabulary's, which the rich-text feature
-reads, and a block's fields are the layout's, which sits above it.
+**A sheet is a value on the tree, and a class is a name resolved
+against it.** `Element::styleSheet` states a `weave::StyleSheet`, or a
+`weave::ParagraphStyleSheet`, on any node; it is in force for that node
+and everything under it, inherited as the font is, and a nearer sheet's
+entries stand over a farther one's by name, so a subtree carries a look
+of its own. A sheet is spelled as a literal, an entry per class —
+`weave::StyleSheet{{"note", {.size = 11}}, {"dim", {.color = grey}}}`.
+`Element::styleClass` names classes: several in one call, separated by
+spaces as CSS's class attribute lists them. The cascade pass resolves
+each name against the sheets in force where the element LANDS — the
+`weave::Type` the text sheet registers and the `weave::Block` the block
+sheet registers, whichever carries it — and the fields a class sets
+inherit down the tree like any `font()` or `block()`. Specificity is
+flat and stated: an inherited value loses to a class, between classes
+the SHEET's order decides (a later entry over an earlier, whatever order
+the names were written in), and a class loses to the node's own `font()`
+or `block()`, so `styleClass("cell", {.color = c})` is the cell class in
+this cell's colour. A name no sheet in force carries warns once and sets
+nothing. A run of a `weave::rich()` value written with a name resolves
+the same way when the leaf is shaped, unless the value names a sheet of
+its own. The two sheets are one class because the include graph keeps
+them apart: the text sheet is the style vocabulary's, which the rich-text
+feature reads, and a block's fields are the layout's, which sits above
+it.
 `weave::rich()` started with no base
 is an inheriting passage: a run added with a partial keeps the inherited
 face and size in every field it does not name, and only a run added with
@@ -1312,9 +1322,9 @@ them along one axis with a hairline between neighbours, and
 `kit::sheet`, the titled and footed page that rules its header and
 footer off from the content between them; the props are the CONTENT and
 the arrangement, and every face, size and colour is the cascade's — a
-cell's label is set in the class `captionLabel` of the sheet in scope and
-its note in `captionNote`, a page's three lines in `title`, `subtitle`
-and `footer` — so the kit decides no look and a text prop is a
+cell's label is set in the class `captionLabel` of the sheet in force
+and its note in `captionNote`, a page's three lines in `title`,
+`subtitle` and `footer` — so the kit decides no look and a text prop is a
 `compose::Utf8`, which takes `"…"` and `u8"…"` alike;
 `kit/Ground.h`'s two dressings for a flat ground — `kit::vignette`, a
 radial ramp measured to the CORNER so it meets all four at one value on
@@ -1690,13 +1700,13 @@ promotion switched on.
 Several correct behaviours produce nothing, with no diagnostic, and look
 exactly like a layout bug.
 
-- **A class no sheet in scope carries sets nothing.** `styleClass("labl")`
+- **A class no sheet in force carries sets nothing.** `styleClass("labl")`
   under no `weave::StyleSheet`, or under one that never registered the
   name, leaves the leaf in whatever it inherits and warns once; the
   symptom is text at the inherited size, which looks like a class that
-  did not take. Bind the sheet with `core::environment::Provide` around
-  the code that BUILDS the element, not around the tree it lands in: a
-  class is read where the element is written.
+  did not take. State the sheet with `Element::styleSheet` on the tree
+  the element LANDS in, on the element or any node above it: a class is
+  resolved where the element lands, not where it is written.
 - **A custom property nobody set resolves to nothing.** `Fill::var("acent")`
   paints nothing and a `var("guter")` length is zero, each warning once;
   a property set as a length and read as a colour, or the reverse, is the

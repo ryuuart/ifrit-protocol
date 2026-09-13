@@ -196,6 +196,11 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // THE CUSTOM PROPERTIES IN FORCE: the parent's table shared when this
   // node sets none, or a copy of it with this node's own written over.
   std::shared_ptr<const VarTable> vars;
+  // THE SHEETS IN FORCE: the parent's shared when this node states none,
+  // or a copy of the parent's with this node's entries set over it by
+  // name. A class this node names resolves against them.
+  std::shared_ptr<const sigil::weave::StyleSheet> sheet;
+  std::shared_ptr<const sigil::weave::ParagraphStyleSheet> blocks;
   // Whether the pass has resolved this node at least once — before that,
   // `font` and `vars` are whatever the constructor left and nothing may
   // read them as the truth.
@@ -212,6 +217,10 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // compared against `block` to tell a change that re-materialises (the
   // writing mode, the locale) from one that lays out again.
   sigil::weave::Block textBlock;
+  // On a text leaf: the text sheet the paragraph's named runs were last
+  // resolved through, compared against `sheet` to tell a change that
+  // re-materialises.
+  std::shared_ptr<const sigil::weave::StyleSheet> textSheet;
   // On a text leaf: its text changed at reconcile and the
   // paragraph is owed. The pass materialises it once, in the font it lands
   // in; reconcile shaping it against the root first would be a second

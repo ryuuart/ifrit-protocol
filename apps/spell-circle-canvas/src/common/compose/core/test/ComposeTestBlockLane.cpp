@@ -96,7 +96,6 @@ TEST(ComposeBlockLane, AWholeParagraphStyleInheritsNothing) {
 TEST(ComposeBlockLane, AClassCarriesBothHalves) {
   // One name in both sheets: the text half sets the size, the block half
   // the leading, and styleClass folds both.
-  namespace environment = sigil::core::environment;
   sigil::weave::StyleSheet types;
   types.set("body", {.size = 24.0f});
   sigil::weave::ParagraphStyleSheet blocks;
@@ -105,13 +104,16 @@ TEST(ComposeBlockLane, AClassCarriesBothHalves) {
   blocks.set("body", wide);
   Host plain, classed;
   plain.composer.render(box().padding(10).child(leaf()));
-  {
-    const environment::Provide<sigil::weave::StyleSheet> sheet(types);
-    const environment::Provide<sigil::weave::ParagraphStyleSheet> sheet2(
-        blocks);
-    classed.composer.render(box().padding(10).child(
-        leaf().styleClass("body").width(Dimension(240.0f))));
-  }
+  // The leaf states no size of its own: a node's own font stands over its
+  // classes, so the size here is the class's to give.
+  classed.composer.render(
+      box().padding(10).styleSheet(types).styleSheet(blocks).child(
+          text(kLines)
+              .font({.face = sigil::test::instrument::sans()})
+              .ink({1, 1, 1, 1})
+              .width(Dimension(240.0f))
+              .key("t")
+              .styleClass("body")));
   const SkRect a = boxOf(plain, "t");
   const SkRect b = boxOf(classed, "t");
   EXPECT_GT(b.height(), a.height() * 2.5f)
@@ -121,7 +123,6 @@ TEST(ComposeBlockLane, AClassCarriesBothHalves) {
 TEST(ComposeBlockLane, ANamedBlockIsLaidOverTheBlockInForce) {
   // paragraphs({"lead"}) under double leading: the named block takes its
   // alignment from the name and its leading from the lane.
-  namespace environment = sigil::core::environment;
   sigil::weave::ParagraphStyleSheet blocks;
   Block centred;
   centred.alignment = TextAlignment::kCenter;
@@ -130,12 +131,9 @@ TEST(ComposeBlockLane, ANamedBlockIsLaidOverTheBlockInForce) {
   wide.leading = Leading::multiple(2.0f);
   Host start, named;
   start.composer.render(box().padding(10).block(wide).child(leaf()));
-  {
-    const environment::Provide<sigil::weave::ParagraphStyleSheet> sheet(blocks);
-    const std::array<std::string_view, 1> names{"lead"};
-    named.composer.render(
-        box().padding(10).block(wide).child(leaf().paragraphs(names)));
-  }
+  const std::array<std::string_view, 1> names{"lead"};
+  named.composer.render(box().padding(10).block(wide).styleSheet(blocks).child(
+      leaf().paragraphs(names)));
   const SkRect a = boxOf(start, "t");
   const SkRect b = boxOf(named, "t");
   EXPECT_NEAR(a.height(), b.height(), 0.5f);

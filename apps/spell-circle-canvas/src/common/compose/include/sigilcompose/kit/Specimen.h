@@ -23,6 +23,7 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Utf8.h>
+#include <sigilweave/style/StyleSheet.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -76,6 +77,11 @@ struct Caption {
    *  ranges everything left, `Center` stands a caption over the middle of
    *  its body. */
   Align align = Align::Start;
+  /** THE SHEET THE CAPTION'S OWN LINES RESOLVE THROUGH, when stated: set
+   *  on the label and the note leaves themselves, so `captionLabel` and
+   *  `captionNote` are found whatever the tree above says, and the body —
+   *  the caller's — keeps the sheets in force where the cell lands. */
+  std::optional<sigil::weave::StyleSheet> styles;
 };
 
 /** ONE CAPTIONED CELL: @p body with @p label and @p note set beside it as
@@ -111,11 +117,13 @@ struct Caption {
   Element noteLeaf;
   if (hasLabel) {
     labelLeaf = text(label.bytes()).styleClass("captionLabel");
+    if (caption.styles) labelLeaf.styleSheet(*caption.styles);
     if (caption.labelMeasure > 0)
       labelLeaf.width(Dimension(caption.labelMeasure));
   }
   if (hasNote) {
     noteLeaf = text(note.bytes()).styleClass("captionNote");
+    if (caption.styles) noteLeaf.styleSheet(*caption.styles);
     if (caption.noteMeasure > 0) noteLeaf.width(Dimension(caption.noteMeasure));
   }
   switch (caption.where) {
@@ -299,6 +307,11 @@ struct Sheet {
   Utf8 title;
   Utf8 subtitle;
   Utf8 footer;
+  /** THE SHEET THE PAGE'S OWN LINES RESOLVE THROUGH, when stated: set on
+   *  the title, the subtitle and the footer, so `title`, `subtitle` and
+   *  `footer` are found whatever the tree above says; the content keeps
+   *  the sheets in force where the page lands. */
+  std::optional<sigil::weave::StyleSheet> styles;
   /** The page margins, px: the two sides, the top and the bottom. */
   float marginX = 30.0f;
   float marginTop = 16.0f;
@@ -350,6 +363,7 @@ struct Sheet {
     if (hasTitle)
       header.child(
           named(text(page.title.bytes()).styleClass("title"), "title"));
+    if (page.styles) header.styleSheet(*page.styles);
     if (hasSubtitle) {
       Element subtitle =
           named(text(page.subtitle.bytes()).styleClass("subtitle"), "subtitle");
@@ -369,6 +383,7 @@ struct Sheet {
   if (!page.footer.empty()) {
     Element footer =
         named(text(page.footer.bytes()).styleClass("footer"), "footer");
+    if (page.styles) footer.styleSheet(*page.styles);
     if (ruled)
       root.child(rule("foot-rule"));
     else

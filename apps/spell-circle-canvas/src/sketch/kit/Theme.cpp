@@ -83,7 +83,8 @@ compose::kit::Caption Theme::voice(float noteMeasure) const {
   return {.where = captionWhere,
           .gap = spacing.captionGap,
           .noteGap = spacing.captionNoteGap,
-          .noteMeasure = noteMeasure};
+          .noteMeasure = noteMeasure,
+          .styles = styleSheet()};
 }
 
 sk_sp<SkTypeface> houseFace(Voice voice, int weight, SkFontStyle::Slant slant) {

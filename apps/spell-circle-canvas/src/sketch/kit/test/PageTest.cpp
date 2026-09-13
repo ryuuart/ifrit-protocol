@@ -74,27 +74,26 @@ TEST(SketchKitPage, DrawsTheHandSpelledSheet) {
     return sigil::weave::Type{
         .face = house.type.sans, .size = size, .color = color, .track = track};
   };
-  // By hand the three lines are three classes bound around the sheet, which
-  // is exactly what the register names resolve to under the theme.
-  Element byHand;
-  {
-    const sigil::core::environment::Provide<sigil::weave::StyleSheet> classes(
-        sigil::weave::StyleSheet{
-            {"title", label(14, house.palette.ink, 2.4f)},
-            {"subtitle", label(11.5f, house.palette.ash, 0.8f)},
-            {"footer", label(11, house.palette.ash, 0.4f)}});
-    byHand = compose::kit::sheet({.title = "THE RULE AND THE STRANDS",
-                                  .subtitle = "dials · the width and the inset",
-                                  .footer = "a crossing is discovered",
-                                  .marginX = 24,
-                                  .marginTop = 20,
-                                  .marginBottom = 16,
-                                  .ground = Fill::color(house.palette.ground),
-                                  .rule = Fill::color(house.palette.rule)},
-                                 subject())
-                 .absolute()
-                 .inset(0);
-  }
+  // By hand the three lines are three classes of a sheet stated on the
+  // page, which is exactly what the register names resolve to under the
+  // theme.
+  const sigil::weave::StyleSheet classes{
+      {"title", label(14, house.palette.ink, 2.4f)},
+      {"subtitle", label(11.5f, house.palette.ash, 0.8f)},
+      {"footer", label(11, house.palette.ash, 0.4f)}};
+  Element byHand =
+      compose::kit::sheet({.title = "THE RULE AND THE STRANDS",
+                           .subtitle = "dials · the width and the inset",
+                           .footer = "a crossing is discovered",
+                           .marginX = 24,
+                           .marginTop = 20,
+                           .marginBottom = 16,
+                           .ground = Fill::color(house.palette.ground),
+                           .rule = Fill::color(house.palette.rule)},
+                          subject())
+          .styleSheet(classes)
+          .absolute()
+          .inset(0);
   Element byKit = kit::page({.title = "THE RULE AND THE STRANDS",
                              .subtitle = "dials · the width and the inset",
                              .footer = "a crossing is discovered"},

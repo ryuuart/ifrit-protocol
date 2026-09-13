@@ -26,8 +26,8 @@
 #include <sigilmotion/schedule/Schedule.h>
 #include <sigilmotion/values/Animated.h>
 #include <sigilweave/layout/Block.h>
-#include <sigilweave/layout/ParagraphStyleSheet.h>
 #include <sigilweave/layout/ParagraphLayout.h>
+#include <sigilweave/layout/ParagraphStyleSheet.h>
 #include <sigilweave/style/Style.h>
 
 #include <any>
@@ -359,13 +359,20 @@ class Element {
    *  `ink(var("accent"))`. A property nobody set, or one holding a length,
    *  leaves the inherited ink standing and says so once. */
   Element& ink(VarRef reference);
-  /** CLASSES: the partials the `weave::StyleSheet` and the
-   *  `weave::ParagraphStyleSheet` in scope register under each name in
-   *  @p names — several, separated by spaces, as CSS's class attribute
-   *  lists them, folded in left to right where the element is WRITTEN. A
-   *  class is lexical — it is looked up in the sheets bound around the
-   *  code that builds the element — and the fields it sets then inherit
-   *  down the tree like any `font()` or `block()`. A name neither sheet
+  /** THE SHEETS this node and everything under it resolve their classes
+   *  through: the text half and the block half, each stated on any node
+   *  and inherited down the tree as the font is, a nearer sheet's entries
+   *  standing over a farther one's by name. A sheet is a value on the
+   *  description, so a subtree carries its own and nothing is bound
+   *  around the code that builds it. */
+  Element& styleSheet(sigil::weave::StyleSheet sheet);
+  Element& styleSheet(sigil::weave::ParagraphStyleSheet blocks);
+  /** CLASSES: the partials the sheets in force register under each name
+   *  in @p names — several, separated by spaces, as CSS's class attribute
+   *  lists them, folded in left to right — resolved by the cascade pass
+   *  where the element LANDS, and laid under the node's own `font()` and
+   *  `block()`, as an inline style stands over a class. The fields a class
+   *  sets then inherit down the tree. A name neither sheet in force
    *  carries warns once and sets nothing. */
   Element& styleClass(std::string_view names);
   /** The classes, then @p over laid over them: `styleClass("cell",
@@ -1434,7 +1441,6 @@ class Element {
 
   NodeHandle m_node;
 };
-
 
 /** ONE RUN OF A `children({…})` BLOCK: an element, or the list `each()`
  *  made, so the block mixes both. */

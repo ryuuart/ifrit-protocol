@@ -39,8 +39,11 @@ struct BorderWeave final : sketch::Sketch {
 distances a sheet is set by, and where a cell's caption lines stand.
 
 It arrives at a component through **`sigil::core::environment`**, the
-reconciler's inherited value, bound here by `sketch::kit::Provide`,
-which binds the theme and, beside it, its registers as classes:
+reconciler's inherited value, bound by `sketch::kit::Provide` for the
+spacing, the palette and the faces a component reads; its registers
+reach the tree as a sheet, `Theme::styleSheet()`, which a page and a
+caption carry on the lines they write and a sketch states on its root
+with `styleSheet()`:
 
 ```cpp
 sketch::kit::Theme sheetTheme() {
@@ -50,8 +53,9 @@ sketch::kit::Theme sheetTheme() {
   return paper;
 }
 
-const sketch::kit::Provide look(sheetTheme());   // bound for this scope
-ctx.composer.render(sketch::kit::page({…}, content));
+const sketch::kit::Provide look(sheetTheme());   // the theme, for this scope
+ctx.composer.render(
+    sketch::kit::page({…}, content).styleSheet(sheetTheme().styleSheet()));
 ```
 
 A describe phase is an ordinary C++ call tree evaluated bottom-up, so the
@@ -70,8 +74,9 @@ subtitle in the text face is three faces, and a theme carries two.
 is the register as a `weave::Type` — its face, size and track, no colour,
 so the ink in force paints it — and `Theme::styleSheet()` is all seven as
 classes under their own names: `title`, `subtitle`, `footer`,
-`captionLabel`, `captionNote`, `eyebrow`, `section`. `Provide` binds that
-sheet beside the theme, so under it a leaf is set in a register by name:
+`captionLabel`, `captionNote`, `eyebrow`, `section`. A node that states
+that sheet with `styleSheet()` puts it in force for everything under it,
+so a leaf there is set in a register by name:
 
 ```cpp
 compose::text(u8"CALL").styleClass("captionLabel")   // the register, by name
@@ -87,8 +92,10 @@ lines and a cell's two are one entry each on this sheet and nowhere else:
 a theme with two colours moved moves every line that names them.
 
 A sketch whose classes go past the registers starts from `styleSheet()`,
-adds its own with `weave::StyleSheet::set`, and binds theme and sheet
-together with `Provide(look, classes)`.
+adds its own with `weave::StyleSheet::set` or as a literal, and states
+the result on its root; a nearer sheet's entries stand over a farther
+one's by name, so a panel with registers of its own states them on the
+panel.
 
 The face a register takes comes from somewhere, and three fallback runs
 recur across this repository's sheets: the book face, the terminal face
@@ -112,12 +119,13 @@ never perceptually, never epsilon'd — and why the mono face is resolved
 once and held rather than resolved per call: a face is compared by
 pointer, and two resolutions of one family never compare equal.
 
-**Bind it where the tree is DESCRIBED, not where setup runs.** A sketch
-that describes again — from `update()`, when its data changes — describes
-outside setup's scope, and a theme bound only there would not be in it.
-Put the `Provide` at the top of whatever function builds the tree, and
-another in `setup` if `stage()` is to take its ground from the same
-theme.
+**Bind the theme where the tree is DESCRIBED, not where setup runs.** A
+sketch that describes again — from `update()`, when its data changes —
+describes outside setup's scope, and a theme bound only there would not
+be in it. Put the `Provide` at the top of whatever function builds the
+tree, and another in `setup` if `stage()` is to take its ground from the
+same theme. The registers need no binding: the sheet is a value on the
+tree and goes wherever the tree goes.
 
 **One caveat.** A `custom()` paint program is a callable the kernel
 invokes later, and it runs with no scope. Capture the colours such a

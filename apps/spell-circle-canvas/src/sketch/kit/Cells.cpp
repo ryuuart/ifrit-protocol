@@ -3,7 +3,6 @@
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilsketch/kit/Cells.h>
 #include <sigilweave/style/StyleSheet.h>
 
@@ -57,15 +56,10 @@ compose::Element well(const Well& specification) {
 
 compose::Element caption(float measure, compose::Utf8 label, compose::Utf8 note,
                          compose::Element body) {
-  const Theme& look = theme();
-  // THE REGISTERS ARE IN SCOPE FOR THE TWO LINES THE CELL WRITES: the
-  // label is set in `captionLabel` and the note in `captionNote`, and both
-  // are written inside this call, so the theme's sheet is bound here and a
-  // caption is in the theme's voice whether or not a sketch bound one.
-  // `body` was built before this call and keeps what it resolved.
-  const core::environment::Provide<weave::StyleSheet> registers(
-      look.styleSheet());
-  return compose::kit::cell(look.voice(measure), std::move(label),
+  // The two lines the cell writes are set in the theme's registers,
+  // carried on those lines by the voice; `body` keeps the sheets in force
+  // where the cell lands.
+  return compose::kit::cell(theme().voice(measure), std::move(label),
                             std::move(note), std::move(body));
 }
 

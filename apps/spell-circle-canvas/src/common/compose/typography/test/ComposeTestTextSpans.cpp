@@ -71,11 +71,11 @@ TEST(TextRich, AChangedRunStylePatchesToo) {
   EXPECT_GE(host.composer.stats().patchedNodes, 1u);
 }
 
-TEST(TextRich, NamedRunsResolveThroughTheAmbientStyleSheet) {
+TEST(TextRich, NamedRunsResolveThroughTheSheetInForce) {
   // How a name resolves is weave's (see its own test). What is this
-  // library's is the AMBIENT set: `environment::Provide<weave::StyleSheet>`
-  // reaches a text leaf described in its scope, and a set the value names beats
-  // it.
+  // library's is the sheet IN FORCE: a styleSheet() on the tree above a
+  // text leaf reaches its named runs when the leaf is shaped, and a sheet
+  // the value names beats it.
   const sigil::weave::TextStyle base = coloredStyle(20, SK_ColorWHITE);
   sigil::weave::StyleSheet reds(base);
   reds.set("accent", sigil::weave::Type{.color = SkColor4f{1, 0, 0, 1}});
@@ -83,9 +83,11 @@ TEST(TextRich, NamedRunsResolveThroughTheAmbientStyleSheet) {
   greens.set("accent", sigil::weave::Type{.color = SkColor4f{0, 1, 0, 1}});
 
   Host host(200, 120);
-  const auto accentColor = [&](sigil::weave::RichText content) {
-    host.composer.render(
-        box().padding(6).child(text(std::move(content)).key("t")));
+  const auto accentColor = [&](sigil::weave::RichText content,
+                               const sigil::weave::StyleSheet* inForce) {
+    Element page = box().padding(6).child(text(std::move(content)).key("t"));
+    if (inForce) page.styleSheet(*inForce);
+    host.composer.render(std::move(page));
     host.frame();
     const std::vector<TextUnit> units = host.composer.units(
         "t", selectors::style("accent"), sigil::weave::Unit::Cluster);
@@ -93,18 +95,16 @@ TEST(TextRich, NamedRunsResolveThroughTheAmbientStyleSheet) {
                          : units[0].style.paint.foreground.getColor();
   };
 
-  {
-    core::environment::Provide<sigil::weave::StyleSheet> ambient(reds);
-    EXPECT_EQ(accentColor(sigil::weave::rich(base).add(u8"x", "accent")),
-              SK_ColorRED)
-        << "the environment set never reached the leaf";
-    EXPECT_EQ(accentColor(
-                  sigil::weave::rich(base).add(u8"x", "accent").styles(greens)),
-              SK_ColorGREEN)
-        << "an explicit style set must beat the ambient one";
-  }
-  // Out of scope again: nothing is offered, so rich()'s own base answers.
-  EXPECT_EQ(accentColor(sigil::weave::rich(base).add(u8"x", "accent")),
+  EXPECT_EQ(accentColor(sigil::weave::rich(base).add(u8"x", "accent"), &reds),
+            SK_ColorRED)
+      << "the sheet in force never reached the leaf";
+  EXPECT_EQ(
+      accentColor(sigil::weave::rich(base).add(u8"x", "accent").styles(greens),
+                  &reds),
+      SK_ColorGREEN)
+      << "an explicit style set must beat the one in force";
+  // No sheet on the tree: nothing is offered, so rich()'s own base answers.
+  EXPECT_EQ(accentColor(sigil::weave::rich(base).add(u8"x", "accent"), nullptr),
             SK_ColorWHITE);
 }
 

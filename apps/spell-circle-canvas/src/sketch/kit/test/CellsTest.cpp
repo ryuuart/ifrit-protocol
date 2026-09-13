@@ -38,24 +38,20 @@ TEST(SketchKitCells, CaptionDrawsTheHandSpelledCell) {
       .where = compose::kit::Caption::Where::Split,
       .gap = 7,
       .noteMeasure = 160};
-  // By hand the cell's two lines are two classes bound around it, which is
-  // what the register names resolve to under the theme.
-  Element byHand;
-  {
-    const sigil::core::environment::Provide<sigil::weave::StyleSheet> classes(
-        sigil::weave::StyleSheet{{"captionLabel",
-                                  {.face = house.type.mono,
-                                   .size = 10.5f,
-                                   .color = house.palette.ink}},
-                                 {"captionNote",
-                                  {.face = house.type.sans,
-                                   .size = 10,
-                                   .color = house.palette.ash,
-                                   .track = 0.2f}}});
-    byHand = compose::kit::cell(voice, "border(1.8, ink, inset 7)",
-                                "an ordinary rule 7 px inside the outline",
-                                subject());
-  }
+  // By hand the cell's two lines are two classes of a sheet stated on the
+  // cell, which is what the register names resolve to under the theme.
+  const sigil::weave::StyleSheet classes{
+      {"captionLabel",
+       {.face = house.type.mono, .size = 10.5f, .color = house.palette.ink}},
+      {"captionNote",
+       {.face = house.type.sans,
+        .size = 10,
+        .color = house.palette.ash,
+        .track = 0.2f}}};
+  Element byHand =
+      compose::kit::cell(voice, "border(1.8, ink, inset 7)",
+                         "an ordinary rule 7 px inside the outline", subject())
+          .styleSheet(classes);
   EXPECT_TRUE(sameDrawing(
       std::move(byHand),
       kit::caption(160, "border(1.8, ink, inset 7)",

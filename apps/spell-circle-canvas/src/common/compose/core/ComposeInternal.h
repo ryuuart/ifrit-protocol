@@ -15,9 +15,11 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animated.h>
 #include <sigilweave/layout/Block.h>
+#include <sigilweave/layout/ParagraphStyleSheet.h>
 #include <sigilweave/layout/Story.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/paragraph/RichText.h>
+#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <array>
@@ -186,11 +188,11 @@ struct TextOptions {
   /// layout-wide fields alone, so one style here sets the first block and
   /// leaves the rest plain, which is what a heading over a body wants.
   std::vector<sigil::weave::ParagraphStyle> blocks;
-  /// paragraphs(names): one partial per block, resolved from the block
-  /// sheet where the leaf was written and laid over the block in force
+  /// paragraphs(names): one name per block, resolved against the block
+  /// sheet in force where the leaf lands and laid over the block in force
   /// when the leaf lays out — so a named block keeps the leading it
   /// inherits and changes only what its name says.
-  std::vector<sigil::weave::Block> blockClasses;
+  std::vector<std::string> blockClassNames;
   /// initialLetter(): the passage's opening set large, applied to the
   /// first block at layout whichever way the blocks were styled.
   std::optional<sigil::weave::InitialLetter> initial;
@@ -494,6 +496,15 @@ struct DepthData {
  *  pass from the parent's resolved values and this block. */
 struct CascadeData {
   std::optional<sigil::weave::Type> font;
+  /** The classes this node names (Element::styleClass), in the order they
+   *  were written: resolved in the cascade pass against the sheets in
+   *  force where the node lands, and laid under the node's own partials. */
+  std::vector<std::string> classes;
+  /** The sheets this node states for itself and everything under it
+   *  (Element::styleSheet): the text half and the block half. Its entries
+   *  lie over the inherited sheet's, by name. */
+  std::optional<sigil::weave::StyleSheet> sheet;
+  std::optional<sigil::weave::ParagraphStyleSheet> blocks;
   /** The block partial this node declares for everything under it:
    *  Element::block, and the block half of a class. */
   std::optional<sigil::weave::Block> block;
