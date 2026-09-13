@@ -1,0 +1,79 @@
+{
+  "nav": ["COMPANY", "SERVICES", "PORTFOLIO", "ACCOLADES", "EXPERIMENTAL",
+          "EQUIPMENT", "CONTACT"],
+  "footer": ["HOME", "COMPANY", "SERVICES", "PORTFOLIO", "ACCOLADES",
+             "EXPERIMENTAL", "EQUIPMENT", "CONTACT"],
+  "tracks": ["01. DESERT TRANCE", "02. NEVERRAIN", "03. SYNERGY",
+             "04. EXHILE"],
+  "stills": ["REEL 02", "BOARDS", "RIG TEST", "PLATE"],
+  "feature": {
+    "date": "01.30.06",
+    "headline": "N.O.-XPLODE TV COMMERCIAL",
+    "body": "2Advanced completes a broadcast spot for BSN's N.O.-Xplode line — full CG environment, character rig and compositing, delivered in nine weeks on a Maxon pipeline against a live-action plate.",
+    "specs": [
+      {"name": "CLIENT", "value": "BSN / N.O.-XPLODE"},
+      {"name": "RUNTIME", "value": "00:30 · NTSC"},
+      {"name": "TOOLS", "value": "C4D R8 / AE 6.5"},
+      {"name": "DELIVERED", "value": "01.24.06"}
+    ]
+  },
+  "press": [
+    {"date": "+ 04.05.06", "headline": "PROPHECY PRIME SKIN RELEASED",
+     "body": "The v4 desktop suite ships with the new application skin, the wallpaper set and the FIBERGLASS icon pack."},
+    {"date": "+ 03.11.06", "headline": "NAMED FWA SITE OF THE MONTH",
+     "body": "Prophecy takes the month for interface design and sound integration."},
+    {"date": "+ 01.30.06", "headline": "N.O.-XPLODE SPOT NOW AIRING",
+     "body": "Nine weeks, a full CG environment, delivered on a Maxon pipeline."},
+    {"date": "+ 01.07.06", "headline": "EQUIPMENT PAGE UPDATED",
+     "body": "New render nodes online; the studio moves to a dual-Xeon farm."},
+    {"date": "+ 12.14.05", "headline": "EXPERIMENTAL SECTION REOPENS",
+     "body": "Six new motion studies posted under the experimental banner."},
+    {"date": "+ 11.02.05", "headline": "HOLIDAY DESKTOP SET",
+     "body": "Three widescreen wallpapers in the Prophecy palette."}
+  ],
+  "aux": {
+    "items": [
+      {"glyph": "■", "first": "The Equipment store carries the latest",
+       "second": "2Advanced apparel and publications...", "link": "› VIEW"},
+      {"glyph": "▣", "first": "Chat live with a 2Advanced sales agent",
+       "second": "inorder to inquire about project pricing...",
+       "link": "› OFFLINE"},
+      {"glyph": "✉", "first": "Subscribe to the 2Advanced Members",
+       "second": "List and receive exclusive news & press...",
+       "link": "› SUBSCRIBE"}
+    ],
+    "book": {
+      "bar": "PHOTOSHOP: SECRETS OF THE PROS",
+      "title": "Photoshop", "subtitle": "Secrets of the Pros",
+      "body": "Eric Jordan appears in \"Photoshop: Secrets of the Pros\", a book featuring 20 top designers with insights on their techniques/methods."
+    },
+    "wire": {
+      "bar": "FEATURED PRESS", "name": "2ADVANCED.NET",
+      "tagline": "PRECISION HOSTING PLATFORM",
+      "body": "2advanced Studios is pleased to announce the official launch of 2advanced.net, a flexible and managed web hosting platform."
+    }
+  },
+  "subsystem": {
+    "selectors": [
+      {"name": "DESKTOPS", "value": "'FIBERGLASS'"},
+      {"name": "APP SKINS", "value": "'PROPHECY PRIME'"}
+    ],
+    "resolution": "▸ 1024×768 · 32-BIT",
+    "bandwidth": "BANDWIDTH  ■■■■■□□",
+    "uptime": "UPTIME 118:24:07"
+  },
+  "legal": {
+    "requires": "SITE REQUIRES MACROMEDIA FLASH PLAYER 6",
+    "archived": "ARCHIVED VERSIONS:", "version": "V3 'EXPANSIONS'",
+    "copyright": "COPYRIGHT (C) 2003 2ADVANCED STUDIOS, LLC.  ALL RIGHTS RESERVED.",
+    "links": ["LEGAL", "PRIVACY POLICY", "SITE MAP"]
+  },
+  "dock": [
+    {"title": "NAVIGATION", "first": "SECTOR / PROPHECY",
+     "second": "NODE 04.11.22", "width": 300},
+    {"title": "EQUIPMENT", "first": "RENDER FARM  08/08",
+     "second": "STORAGE  4.2 TB", "width": 300},
+    {"title": "DISPATCH", "first": "QUEUE  00114", "second": "LAST  04.05.06",
+     "width": 280}
+  ]
+}

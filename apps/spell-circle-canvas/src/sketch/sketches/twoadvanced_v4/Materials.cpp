@@ -97,11 +97,15 @@ auto TwoAdvancedV4::waterFx() -> sk_sp<SkRuntimeEffect> {
 }
 
 auto TwoAdvancedV4::tickDots(int cluster, SkColor4f c) -> Element {
-  Element r = box().row().gap(4).alignItems(Align::Center);
-  for (int i = 0; i < 3; ++i)
-    r.children({box().width(5).height(5).fill(c).opacity(
-        &dot[(size_t)cluster * 3 + (size_t)i])});
-  return r;
+  const auto dotAt = [this, cluster, c](int i) {
+    return box().width(5).height(5).fill(c).opacity(
+        &dot[(size_t)cluster * 3 + (size_t)i]);
+  };
+  return box()
+      .row()
+      .gap(4)
+      .alignItems(Align::Center)
+      .children({each(std::views::iota(0, 3), dotAt)});
 }
 
 auto TwoAdvancedV4::radarSweep(int i, SkColor4f tint, float inner) -> Element {
@@ -147,13 +151,14 @@ auto TwoAdvancedV4::statusBar() -> Element {
                    .justify(Justify::Center)
                    .alignItems(Align::Center)
                    .children({box().width(9).height(9).corners({5}).stroke(
-                       stroke(2, Fill::color(kCyan)))})})
-          // The teal segment's voice, verbatim from the interface
-          // capture: the boot callsign, then the two region labels the
-          // page hangs over its modules.
-          .children(
-              {t("INITREQ 2A", micro(12, kNear, 240)),
-               box().width(1).height(14).fill(mskia::withAlpha(kCyan, 0.4f)),
+                       stroke(2, Fill::color(kCyan)))}),
+               // The teal segment's voice, verbatim from the interface
+               // capture: the boot callsign, then the two region labels the
+               // page hangs over its modules.
+               t("INITREQ 2A", micro(12, kNear, 240)),
+               kit::line({.length = Dimension(14),
+                          .column = true,
+                          .fill = Fill::color(mskia::withAlpha(kCyan, 0.4f))}),
                t("› GLOBAL AMBIENCE",
                  micro(11, mskia::withAlpha(kCyan, 0.9f), 240)),
                box().grow(1),
@@ -177,58 +182,48 @@ auto TwoAdvancedV4::statusBar() -> Element {
           .translateY(animate(motion::from(-46.0f).to(0.0f),
                               {380ms, &ch::easeOutQuint, 1530ms}))
           .children(
-              {t("› GLOBAL NAVIGATOR", micro(11, kDust, 260)), box().grow(1)})
-          // V4.PROPHECY sits in its own hairline-outlined plate at the
-          // bar's right end — the one piece of type up here that is
-          // boxed rather than bare.
-          .children({box()
-                         .height(24)
-                         .padding(9, 0)
-                         .stroke(stroke(
-                             1, Fill::color(mskia::withAlpha(kNear, 0.75f)),
-                             PathFormat::Align::Inner))
-                         .row()
-                         .alignItems(Align::Center)
-                         .children({t("V4.PROPHECY", heavy(14, kNear, 80))})});
+              {t("› GLOBAL NAVIGATOR", micro(11, kDust, 260)), box().grow(1),
+               // V4.PROPHECY sits in its own hairline-outlined plate at the
+               // bar's right end — the one piece of type up here that is
+               // boxed rather than bare.
+               box()
+                   .height(24)
+                   .padding(9, 0)
+                   .stroke(stroke(1,
+                                  Fill::color(mskia::withAlpha(kNear, 0.75f)),
+                                  PathFormat::Align::Inner))
+                   .row()
+                   .alignItems(Align::Center)
+                   .children({t("V4.PROPHECY", heavy(14, kNear, 80))})});
 
-  return box()
-      .left(24)
-      .top(0)
-      .width(1892)
-      .height(40)
-      .children({maroon, teal});
+  return box().left(24).top(0).width(1892).height(40).children({maroon, teal});
 }
 
 auto TwoAdvancedV4::audioModule() -> Element {
   using namespace tav;
-  // The playlist verbatim from the interface capture: numbered with
-  // periods, track 01 highlighted, no duration column anywhere.
-  static const char* tracks[4] = {"01. DESERT TRANCE", "02. NEVERRAIN",
-                                  "03. SYNERGY", "04. EXHILE"};
-  Element list = box().column().width(268).gap(2);
-  for (int i = 0; i < 4; ++i) {
-    const bool sel = i == 0;
-    list.children(
-        {box()
-             .height(23)
-             .row()
-             .alignItems(Align::Center)
-             .padding(6, 0)
-             .gap(6)
-             .fill(sel ? kChromeHi
-                       : mskia::withAlpha(hexColor(0x2A0A0C), 0.85f))
-             .foreground(onEdges(
-                 path::Edge::Left,
-                 stroke(
-                     2,
-                     Fill::color(sel ? kCyan : mskia::withAlpha(kDust, 0.35f)),
-                     PathFormat::Align::Inner)))
-             .children({t(sel ? "▸" : " ", micro(11, kCyan, 0))})
-             .children(
-                 {t(tracks[i], sigil::weave::kit::tracked(
-                                   blackFace(), 13, sel ? kNear : kHeadDim, 60,
-                                   0.92f))})});
-  }
+  // ONE ROW PER TRACK IN THE DOCUMENT'S PLAYLIST, the first of them
+  // playing: lit ground, cyan edge and a caret before the name.
+  const auto track = [](const sigil::data::Json& name, size_t i) {
+    const bool playing = i == 0;
+    return box()
+        .height(23)
+        .row()
+        .alignItems(Align::Center)
+        .padding(6, 0)
+        .gap(6)
+        .fill(playing ? kChromeHi : mskia::withAlpha(hexColor(0x2A0A0C), 0.85f))
+        .foreground(onEdges(
+            path::Edge::Left,
+            stroke(
+                2,
+                Fill::color(playing ? kCyan : mskia::withAlpha(kDust, 0.35f)),
+                PathFormat::Align::Inner)))
+        .children({t(playing ? "▸" : " ", micro(11, kCyan, 0)),
+                   t(name, cut(blackFace(), 13, playing ? kNear : kHeadDim, 60,
+                               0.92f))});
+  };
+  Element list = box().column().width(268).gap(2).children(
+      {each(doc()["tracks"].items(), track)});
 
   Element scope =
       box()
@@ -282,30 +277,26 @@ auto TwoAdvancedV4::audioModule() -> Element {
       .foreground(styles::TickRail{mskia::withAlpha(kDust, 0.45f), 7, 3, 6, 1,
                                    4, 0.5f, path::Edge::Bottom})
       .children(
-          {box().row().gap(8).height(100).children({list}).children({scope}),
+          {box().row().gap(8).height(100).children({list, scope}),
            box()
                .row()
                .gap(5)
                .alignItems(Align::Center)
-               .children({key("◂◂", false)})
-               .children({key("■", false)})
-               .children({key("▸", true)})
-               .children({key("▸▸", false)})
-               .children({box().width(8)})
-               .children({meter(64, &vuLeft, mskia::withAlpha(kCyan, 0.85f))})
-               .children({box().grow(1)})
-               .children({t("VOL", micro(10, kDustDim, 200))})
                .children(
-                   {meter(56, &vuRight, mskia::withAlpha(kCyanRing, 0.8f))}),
+                   {key("◂◂", false), key("■", false), key("▸", true),
+                    key("▸▸", false), box().width(8),
+                    meter(64, &vuLeft, mskia::withAlpha(kCyan, 0.85f)),
+                    box().grow(1), t("VOL", micro(10, kDustDim, 200)),
+                    meter(56, &vuRight, mskia::withAlpha(kCyanRing, 0.8f))}),
            box()
                .height(18)
                .row()
                .alignItems(Align::Center)
                .padding(6, 0)
                .fill(mskia::withAlpha(kChrome, 0.9f))
-               .children({t("AUDIO PREFERENCES", micro(11, kDust, 240))})
-               .children({box().grow(1)})
                .children(
-                   {t("STREAM 128K · STEREO", micro(10, kDustDim, 200))})});
+                   {t("AUDIO PREFERENCES", micro(11, kDust, 240)),
+                    box().grow(1),
+                    t("STREAM 128K · STEREO", micro(10, kDustDim, 200))})});
   return panel;
 }

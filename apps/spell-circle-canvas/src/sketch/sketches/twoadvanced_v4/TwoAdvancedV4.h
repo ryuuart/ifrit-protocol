@@ -38,6 +38,20 @@ struct TwoAdvancedV4 : sketch::Sketch {
   std::shared_ptr<const sigil::image::ImageAsset> footerGif;   // 970×110
   std::shared_ptr<const sigil::image::ImageAsset> logoBugSvg;  // circular 2A
 
+  /** EVERY WORD THE PAGE SETS THAT IS NOT ITS OWN CHROME — the taxonomy,
+   *  the playlist, the press wire, the auxiliary modules' copy, the
+   *  subsystem's selectors, the legal strip and the dock's windows — read
+   *  from `data/content.json` beside this file in setup(). EDIT THAT FILE
+   *  to change what the page says: the code below is the template, and a
+   *  reload re-runs setup without a build. A key the document does not
+   *  carry reads as null, which sets an empty line. */
+  std::shared_ptr<const sigil::data::Json> content;
+  /** The document, or an empty one before it has loaded. */
+  const sigil::data::Json& doc() const {
+    static const sigil::data::Json none;
+    return content ? *content : none;
+  }
+
   /** A bitmap stretched to exactly (w, h) — how every shell GIF is
    *  placed: the 2004 page scaled them with IMG width/height attributes,
    *  and this sketch is a ×2 enlargement of those numbers. */
@@ -61,9 +75,6 @@ struct TwoAdvancedV4 : sketch::Sketch {
   // content. The cycle here replays that transition grammar on the nav
   // taxonomy: shutters close L→R, the ACCESSING readout flashes up, the
   // shutters reopen — while the selection mark glides to the next item.
-  static constexpr const char* kNavItems[7] = {
-      "COMPANY",      "SERVICES",  "PORTFOLIO", "ACCOLADES",
-      "EXPERIMENTAL", "EQUIPMENT", "CONTACT"};
   static constexpr tav::SectionCycle kCycle{
       .start = 8.0, .hold = 4.9, .transition = 0.9, .stops = 7};
   std::array<ch::Output<float>, 6> shutter{};  // per-slat cover fraction
@@ -209,7 +220,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
   std::vector<Element> relatedStills();
 
   /** A label-over-value pair on a teal panel — the tabular voice. */
-  Element specPair(const char* k, const char* v);
+  static Element specPair(const sigil::data::Json& spec);
 
   Element featureSystem();
 
@@ -242,7 +253,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
   Element pressUpdates();
 
   /** A module's red title bar inside AUXILIARY PANEL. */
-  Element auxBar(const char* label);
+  Element auxBar(const Utf8& label);
 
   /** The teal full-width VIEW bar the two right modules end on. */
   Element auxView();
@@ -252,7 +263,11 @@ struct TwoAdvancedV4 : sketch::Sketch {
   /** A tiny chamfered radio key — the SUB SYSTEM row's preference bank. */
   Element toggle(const char* lbl, bool on);
 
-  std::vector<Element> footerLinks();
+  /** A RUN OF NAMES OUT OF THE DOCUMENT with a hairline standing between
+   *  every pair, at @p size with a @p rule that tall — the footer's
+   *  taxonomy and the legal strip's three notices are one reading twice. */
+  static std::vector<Element> linkRun(const sigil::data::Json& names,
+                                      float size, float rule);
 
   Element subSystem();
 

@@ -23,6 +23,7 @@
 #include <sigilcompose/kit/Placers.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigildata/decode/Json.h>
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/kit/Solids.h>
@@ -50,6 +51,7 @@
 #include <cstdio>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -146,9 +148,30 @@ inline sigil::weave::Type heavy(float size, SkColor4f c, float tr = 40) {
           .track = size * tr / 1000.0f,
           .condense = 0.94f};
 }
+/** A CUT OF ITS OWN: the face, size, colour, tracking and condensation a
+ *  line names for itself where none of the four registers is it — the
+ *  same fields the registers set, as a PARTIAL, so the line still
+ *  inherits everything it does not name. */
+inline sigil::weave::Type cut(const sk_sp<SkTypeface>& face, float size,
+                              SkColor4f c, float tr, float condense = 1.0f) {
+  return {.face = face,
+          .size = size,
+          .color = c,
+          .track = size * tr / 1000.0f,
+          .condense = condense};
+}
 /** The prose register: untracked, uncondensed. */
 inline sigil::weave::Type prose(float size, SkColor4f c) {
   return {.face = arial(), .size = size, .color = c, .condense = 1.0f};
+}
+
+/** ONE LINE OF THE DOCUMENT BESIDE THE SKETCH, set in @p type — the twin
+ *  of `t(const char*, …)` for a word the page reads out of
+ *  `data/content.json` rather than out of the code. A key the document
+ *  does not carry reads as an empty line, so a half-written document
+ *  draws the page with blanks in it. */
+inline Element t(const sigil::data::Json& word, sigil::weave::Type type) {
+  return sigil::compose::text(word.text()).font(std::move(type));
 }
 
 // ---------------------------------------------------------------------------

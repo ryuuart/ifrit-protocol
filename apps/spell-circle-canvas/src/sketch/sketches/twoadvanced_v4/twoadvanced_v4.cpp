@@ -84,6 +84,11 @@ auto TwoAdvancedV4::setup(sketch::SketchContext& ctx) -> void {
                            .captureAt = 6.0,
                            .background = hexColor(0x0A0000)});
 
+  // EVERY WORD THE PAGE SETS, out of the document beside this file. It is
+  // read before the hero bakes and before anything is measured, because
+  // the press list the overflow is measured off is the document's own.
+  content = ctx.assets.json(ctx.local("data/content.json"));
+
   // The hero's world, baked at twice the panel's pixels because a plate
   // is taken at up to twice the canvas.
   heroPlate = bakeHero(2356, 632, ctx);
@@ -140,8 +145,7 @@ auto TwoAdvancedV4::setup(sketch::SketchContext& ctx) -> void {
   // auto-scroll walks the REAL overflow rather than a guessed one
   pressOverflow = std::max(
       0.0f,
-      ctx.measure(box().width(kPressWellW).children({pressList()}))
-              .height() -
+      ctx.measure(box().width(kPressWellW).children({pressList()})).height() -
           kPressWellH);
 
   // --- the instanced chevron array in the footer dock ---
