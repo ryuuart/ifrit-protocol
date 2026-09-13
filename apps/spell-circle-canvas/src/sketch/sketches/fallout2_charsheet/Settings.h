@@ -203,15 +203,11 @@ inline weave::Type sheetType(const sk_sp<SkTypeface>& tf, float size,
  *  measurement has to survive. */
 constexpr float kBodyAdvance = 5.80f;
 
-/** A run set in @p partial over what is in force where it lands. */
+/** A run set in @p partial over what is in force where it lands — under
+ *  the screen, or over the initial values when `measure()` lays it out
+ *  alone. */
 inline Element t(const std::string& s, weave::Type partial) {
   return text(toUtf8(s)).font(std::move(partial));
-}
-/** The same run as the WHOLE style @p partial names over the initial
- *  values — for `measure()`, whose one-shot layout resolves no cascade and
- *  would measure a partial in the initial font rather than its own. */
-inline Element whole(const std::string& s, const weave::Type& partial) {
-  return text(toUtf8(s), weave::textStyle(partial));
 }
 /** Place at a DOCUMENTED (x, y) in original screen px. `y` is Fallout's draw
  *  y — the top of the glyph cell — so the rise correction lands here, once. */
