@@ -119,8 +119,8 @@ Element GenesisFire::dipper() {
   }
   // Smith's joke, verified in the header block.
   const SkPoint s = at(7);
-  g.children({box().left(s.fX + 4).top(s.fY + 6).width(1).height(16).fill(
-      hexColor(0x4FB8D8, 0.5f))});
+  g.children({kit::at(box().fill(hexColor(0x4FB8D8, 0.5f)), s.fX + 4, s.fY + 6,
+                      1, 16)});
   g.children({box()
                   .left(s.fX + 9)
                   .top(s.fY + 12)
@@ -235,15 +235,12 @@ Element GenesisFire::planInset() {
   // Fig. 2: the distribution of second-level systems on the planet's
   // surface, live.
   Element inner =
-      box()
-          .left(12)
-          .top(12)
-          .width(184)
-          .height(184)
-          .shape(shapes::circle())
-          .clip(true)
-          .stroke(stroke(1.0f, Fill::color(hexColor(0x4FB8D8, 0.55f)),
-                         PathFormat::Align::Inner))
+      kit::at(box()
+                  .shape(shapes::circle())
+                  .clip(true)
+                  .stroke(stroke(1.0f, Fill::color(hexColor(0x4FB8D8, 0.55f)),
+                                 PathFormat::Align::Inner)),
+              12, 12, 184, 184)
           // the expanding wavefront ring — same Output, unit scale
           .children(
               {kit::disc(SkPoint{34, 106}, 124)
@@ -256,40 +253,33 @@ Element GenesisFire::planInset() {
                    planAtlas, planPool, instancing::Mode::Live,
                    SkBlendMode::kPlus)})});
 
-  return box()
-      .left(24)
-      .top(24)
-      .width(208)
-      .height(208)
-      .corners({6})
-      .fill(hexColor(0x0B0D14, 0.86f))
-      .stroke(stroke(1.5f, Fill::color(kKeyline), PathFormat::Align::Inner))
-      .opacity(
-          animate(from(0.0f).to(1.0f), {.duration = 340ms, .delay = 900ms}))
-      .scale(
-          animate(from(0.94f).to(1.0f),
-                  {.duration = 340ms, .ease = ease::outBack(), .delay = 900ms}))
-      .children({std::move(inner)})
+  return kit::at(
+             box()
+                 .corners({6})
+                 .fill(hexColor(0x0B0D14, 0.86f))
+                 .stroke(stroke(1.5f, Fill::color(kKeyline),
+                                PathFormat::Align::Inner))
+                 .opacity(animate(from(0.0f).to(1.0f),
+                                  {.duration = 340ms, .delay = 900ms}))
+                 .scale(animate(from(0.94f).to(1.0f), {.duration = 340ms,
+                                                       .ease = ease::outBack(),
+                                                       .delay = 900ms}))
+                 .children({std::move(inner)}),
+             24, 24, 208, 208)
       // the impact point itself
-      .children({box()
-                     .left(12 + 34 - 2)
-                     .top(12 + 106 - 2)
-                     .width(4)
-                     .height(4)
-                     .shape(shapes::circle())
-                     .fill(hexColor(0xFFFFFF, 0.95f))})
+      .children({kit::at(
+          box().shape(shapes::circle()).fill(hexColor(0xFFFFFF, 0.95f)),
+          12 + 34 - 2, 12 + 106 - 2, 4, 4)})
       // rim caption on a curved baseline
-      .children({text("IMPACT · KETI BANDAR · ε INDI")
-                     .font({.face = monoFace(), .size = 8.0f, .track = 1.4f})
-                     .ink(kCyan)
-                     .left(12)
-                     .top(12)
-                     .width(184)
-                     .height(184)
-                     .onPath(TextPath{.path = shapes::circle(),
-                                      .at = 0.75f,
-                                      .align = TextPath::Align::Center,
-                                      .offset = 8.0f})});
+      .children(
+          {kit::at(text("IMPACT · KETI BANDAR · ε INDI")
+                       .font({.face = monoFace(), .size = 8.0f, .track = 1.4f})
+                       .ink(kCyan)
+                       .onPath(TextPath{.path = shapes::circle(),
+                                        .at = 0.75f,
+                                        .align = TextPath::Align::Center,
+                                        .offset = 8.0f}),
+                   12, 12, 184, 184)});
 }
 
 Element GenesisFire::stageAbove() {

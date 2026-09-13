@@ -1,0 +1,48 @@
+{
+  "header": {
+    "eyebrow": "STOCHASTIC PARTICLE SYSTEMS",
+    "title": "THE GENESIS DEMO, 1982",
+    "credit": "W. T. Reeves, Lucasfilm Ltd — \"Particle Systems: A Technique for Modeling a Class of Fuzzy Objects\", SIGGRAPH '83 / ACM TOG 2(2) · sequence dir. Alvy Ray Smith · Star Trek II, Paramount, June 4, 1982"
+  },
+  "generation": {
+    "head": "GENERATION LAW",
+    "equations": [
+      "NParts_f    = MeanParts_f + Rand() × VarParts_f",
+      "MeanParts_f = InitialMeanParts + ΔMean × (f − f₀)",
+      "InitialSpeed = MeanSpeed + Rand() × VarSpeed"
+    ],
+    "note": "Rand() → UNIFORM [−1.0, +1.0] — REEVES 1983 §2.1–2.2"
+  },
+  "census": {
+    "head": "PARTICLE CENSUS — REEVES 1983 §3",
+    "columns": ["FIG", "SYSTEMS", "PARTICLES", "PER SYS", "LOG SCALE"],
+    "rows": [
+      {"fig": "4", "systems": "~21", "particles": "25,000", "per": "1,190*", "share": 0.273},
+      {"fig": "5", "systems": "~200", "particles": "75,000", "per": "375", "share": 0.491},
+      {"fig": "6", "systems": "~200", "particles": "85,000", "per": "425", "share": 0.514},
+      {"fig": "7–8", "systems": "~400", "particles": ">750,000", "per": ">1,875", "share": 0.945}
+    ],
+    "footnote": "* FIG. 4 IS \"ONE VERY LARGE PARTICLE SYSTEM AND ABOUT 20 SMALLER ONES\" — THAT MEAN IS MEANINGLESS.",
+    "note": "NO PARAMETER VALUE IS PUBLISHED ANYWHERE. EVERY CONSTANT HERE IS ARITHMETIC ON TWO PUBLISHED INTEGERS: 85,000 ÷ 200 = 425 ALIVE PER EXPLOSION (FIG. 6), AND POPULATION = BIRTH RATE × LIFETIME — PICK MeanLife = 34 f AND THE RATE FOLLOWS. SYSTEMS IGNITE EVERY 18.5/168 = 0.110 s: 20 GENERATING + 13 BURNING OUT = 24 FULLY-LIT EQUIVALENTS. A LIMB VIEW STACKS THE RING IN DEPTH (FIG. 6 IS ~200 SYSTEMS; THIS SLICE ANCHORS 53 COLUMNS), SO EACH COLUMN CARRIES 3: 72 × 425 = 30,600 PREDICTED. THE \"THIS\" ROW IS MEASURED."
+  },
+  "ramp": {
+    "head": "COLOUR IS OVERLAP COUNT",
+    "note": "LIGHT ADDS AND CLAMPS (§2.5) — RED SATURATES AT n=5, GREEN AT n=20, BLUE AT n=111. e₀ = (0.220, 0.050, 0.009) IS THE ONE RECONSTRUCTED SEED."
+  },
+  "render": {
+    "head": "RENDER MODEL — THREE PATHS, ONE POOL",
+    "cells": ["instances() · kSrcOver", "instances() · kPlus", "pen quads · kPlus"],
+    "note": "SAME 700 PARTICLES, ONE POOL. LEFT AND CENTRE DIFFER ONLY IN BLEND: kSrcOver CANNOT ACCUMULATE, SO ITS WHOLE PALETTE IS LUT ENTRY n=1. ALL THREE ARE STREAKED SPHERICAL — LENGTH 0.5·|v|, WIDTH size. THE TWO POOLS TAKE IT FROM Pool::sizes(), THE OPT-IN NON-UNIFORM LANE THAT STRETCHES ONE BAKED CELL PER INSTANCE."
+  },
+  "production": {
+    "head": "PRODUCTION — SMITH 1982",
+    "lines": [
+      {"words": "67-SECOND SHOT · 250,000 PX/FRAME · 500-LINE VIDEO MONITOR", "loud": true},
+      {"words": "2 MAN-YEARS OVER AN 80-SECOND PIECE (60 s GENESIS + 20 s RETINA ID)", "loud": true},
+      {"words": "FRAMES: 5 MINUTES TO 5 HOURS · ~1 MONTH OF VAX TIME FOR THE FRACTALS"},
+      {"words": "E&S PICTURE SYSTEM II · 2× IKONAS · BARCO · HITACHI TABLET"},
+      {"words": "DELIVERED MARCH 19, 1982 · SHOT TO VISTAVISION BY ILM"}
+    ],
+    "note": "Am. Cinematographer 63(10) — caption: 67 s; body text: 60 s. Both printed."
+  }
+}

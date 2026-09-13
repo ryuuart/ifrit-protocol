@@ -16,6 +16,18 @@ struct GenesisFire final : sketch::Sketch {
     return deterministic ? pinned : value;
   }
 
+  /** THE WORDS THIS STUDY SETS, from `data/content.json` beside it: the
+   *  masthead, the five panels' heads, their equations, their rows and
+   *  their notes. EDIT THAT FILE to change what the study says — the code
+   *  is the template, and a reload re-runs setup without a build. A key
+   *  the document does not carry reads as null, which sets an empty
+   *  line. */
+  std::shared_ptr<const sigil::data::Json> content;
+  const sigil::data::Json& doc() const {
+    static const sigil::data::Json none;
+    return content ? *content : none;
+  }
+
   // --- the two levels ------------------------------------------------------
   struct Site {
     SkPoint p;      // surface point
@@ -226,7 +238,7 @@ struct GenesisFire final : sketch::Sketch {
   // =========================================================================
   // Sidebar
 
-  Element eqn(const char* s) {
+  Element eqn(const Utf8& s) {
     return text(s)
         .font({.size = 11.0f, .track = 0.1f})
         .ink(kBone)
@@ -234,12 +246,22 @@ struct GenesisFire final : sketch::Sketch {
         .shrink(0);
   }
 
+  /** A PANEL'S CLOSING REMARK, in the class every panel sets one in. */
+  static Element note(const Utf8& words) {
+    return text(words).styleClass("note").shrink(0);
+  }
+
   Element generationPanel();
 
-  /** One cell of a census row, in the register the row states and its
-   *  own colour. */
-  Element censusCell(const char* s, float w, SkColor4f c) {
-    return text(s).ink(c).width(w).shrink(0);
+  /** THE CENSUS'S FIVE COLUMN WIDTHS, stated once: the head row, every
+   *  figure row and the live row take their cells' width from here, so a
+   *  column moved moves the whole table. */
+  static constexpr float kCensusW[5] = {46, 62, 108, 76, 96};
+
+  /** One cell of a census row: the @p column-th of those widths, in the
+   *  register the row states and its own colour. */
+  Element censusCell(const Utf8& s, size_t column, SkColor4f c) {
+    return text(s).ink(c).width(kCensusW[column]).shrink(0);
   }
 
   /** A ROW'S SHARE OF THE LARGEST CENSUS, as a bar SCALED from its left
@@ -251,8 +273,9 @@ struct GenesisFire final : sketch::Sketch {
    *  that row is described again every frame. */
   Element censusBar(float frac, SkColor4f c, const char* key);
 
-  Element censusRow(const char* fig, const char* sys, const char* particles,
-                    const char* per, float frac, bool live);
+  /** ONE FIGURE'S ROW, out of the document: its four cells and the bar
+   *  that says its share of the largest census. */
+  Element censusRow(const sigil::data::Json& row);
 
   /** The live census row. The numbers tick, so the row is re-described
    *  every frame and reconciled against what the guest's own composer
@@ -264,14 +287,14 @@ struct GenesisFire final : sketch::Sketch {
 
   Element rampPanel();
 
-  Element benchCell(Element content, const char* caption, SkColor4f cc);
+  Element benchCell(Element content, const Utf8& caption, SkColor4f cc);
 
   /** The bench's third cell is EMPTY in the tree: the pen draws the quads
    *  into it afterwards, at the cell's own box, because those quads are
    *  the field's renderer and the field is the pen's. */
   Element renderModelPanel();
 
-  Element prodLine(const char* s, SkColor4f c) {
+  Element prodLine(const Utf8& s, SkColor4f c) {
     return text(s).styleClass("line").ink(c).height(10).shrink(0);
   }
 

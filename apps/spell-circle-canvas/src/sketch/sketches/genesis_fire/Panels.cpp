@@ -3,23 +3,19 @@
 #include "GenesisFire.h"
 
 Element GenesisFire::generationPanel() {
+  const sigil::data::Json& law = doc()["generation"];
   return panel(kPanelH[0], 1)
       .gap(3)
-      .children({panelHead("GENERATION LAW"),
-                 eqn("NParts_f    = MeanParts_f + Rand() × VarParts_f"),
-                 eqn("MeanParts_f = InitialMeanParts + ΔMean × "
-                     "(f − f₀)"),
-                 eqn("InitialSpeed = MeanSpeed + Rand() × VarSpeed"),
-                 box().grow(1),
-                 text("Rand() → UNIFORM [−1.0, +1.0] "
-                      "— REEVES 1983 §2.1–2.2")
-                     .font({.size = 7.5f, .track = 0.4f})
-                     .ink(kSteelDim)
-                     .shrink(0)});
+      .children({panelHead(law["head"].text()),
+                 each(law["equations"].items(),
+                      [this](const sigil::data::Json& line) {
+                        return eqn(line.text());
+                      }),
+                 box().grow(1), note(law["note"].text()).ink(kSteelDim)});
 }
 
 Element GenesisFire::censusBar(float frac, SkColor4f c, const char* key) {
-  sketch::kit::Meter bar{.width = Dimension(96),
+  sketch::kit::Meter bar{.width = Dimension(kCensusW[4]),
                          .height = Dimension(7),
                          .track = Fill::color(hexColor(0x171B24)),
                          .bar = Fill::color(c)};
@@ -32,22 +28,20 @@ Element GenesisFire::censusBar(float frac, SkColor4f c, const char* key) {
   return rail;
 }
 
-Element GenesisFire::censusRow(const char* fig, const char* sys,
-                               const char* particles, const char* per,
-                               float frac, bool live) {
-  const SkColor4f c = live ? kCyan : kBone;
-  const SkColor4f cd = live ? kCyan : kSteel;
+Element GenesisFire::censusRow(const sigil::data::Json& row) {
   return box()
       .row()
       .height(14)
       .shrink(0)
       .alignItems(Align::Center)
       .styleClass("cell")
-      .children({censusCell(fig, 46, cd), censusCell(sys, 62, c),
-                 censusCell(particles, 108, c).font({.face = monoBoldFace()}),
-                 censusCell(per, 76, cd),
-                 censusBar(frac, live ? kCyan : hexColor(0x6D5A3F),
-                           live ? "livebar" : nullptr)});
+      .children({censusCell(row["fig"].text(), 0, kSteel),
+                 censusCell(row["systems"].text(), 1, kBone),
+                 censusCell(row["particles"].text(), 2, kBone)
+                     .font({.face = monoBoldFace()}),
+                 censusCell(row["per"].text(), 3, kSteel),
+                 censusBar((float)row["share"].number(), hexColor(0x6D5A3F),
+                           nullptr)});
 }
 
 Element GenesisFire::liveRow() {
@@ -56,113 +50,74 @@ Element GenesisFire::liveRow() {
                 liveCount % 1000);
   std::snprintf(per_, sizeof per_, "%d",
                 (int)std::lround((double)liveCount / (33.0 * kDepth)));
-  std::snprintf(sys_, sizeof sys_,
-                "33×"
-                "%d",
-                kDepth);
+  std::snprintf(sys_, sizeof sys_, "33×%d", kDepth);
   return box()
       .row()
       .height(14)
       .shrink(0)
       .alignItems(Align::Center)
       .styleClass("cell")
-      .children({censusCell("THIS", 46, kCyan).font({.face = monoBoldFace()}),
-                 censusCell(sys_, 62, kCyan),
-                 censusCell(parts_, 108, kCyan).font({.face = monoBoldFace()}),
-                 censusCell(per_, 76, kCyan),
+      .children({censusCell("THIS", 0, kCyan).font({.face = monoBoldFace()}),
+                 censusCell(sys_, 1, kCyan),
+                 censusCell(parts_, 2, kCyan).font({.face = monoBoldFace()}),
+                 censusCell(per_, 3, kCyan),
                  censusBar(0.0f, kCyan, "livebar")});
 }
 
 Element GenesisFire::censusPanel() {
+  const sigil::data::Json& census = doc()["census"];
   return panel(kPanelH[1], 2)
       .gap(4)
       .children(
-          {panelHead("PARTICLE CENSUS — REEVES 1983 §3"),
-           box()
-               .row()
-               .height(11)
-               .shrink(0)
-               .styleClass("colhead")
-               .children({censusCell("FIG", 46, kSteelDim)})
-               .children({censusCell("SYSTEMS", 62, kSteelDim)})
-               .children({censusCell("PARTICLES", 108, kSteelDim)})
-               .children({censusCell("PER SYS", 76, kSteelDim)})
-               .children({censusCell("LOG SCALE", 96, kSteelDim)}),
-           box()
-               .column()
-               .gap(3)
-               .shrink(0)
-               .staggerChildren(70ms)
-               .children(
-                   {censusRow("4", "~21", "25,000", "1,190*", 0.273f, false)})
-               .children(
-                   {censusRow("5", "~200", "75,000", "375", 0.491f, false)})
-               .children(
-                   {censusRow("6", "~200", "85,000", "425", 0.514f, false)})
-               .children({censusRow("7–8", "~400", ">750,000", ">1,875", 0.945f,
-                                    false)})
-               .children({liveRow()}),
-           box().grow(1),
-           text("* FIG. 4 IS \"ONE VERY LARGE PARTICLE SYSTEM AND "
-                "ABOUT 20 SMALLER ONES\" — THAT MEAN IS "
-                "MEANINGLESS.")
-               .styleClass("note")
-               .ink(kSteelDim)
-               .shrink(0),
-           text("NO PARAMETER VALUE IS PUBLISHED ANYWHERE. EVERY CONSTANT "
-                "HERE IS ARITHMETIC ON TWO PUBLISHED INTEGERS: 85,000 "
-                "÷ 200 = 425 ALIVE PER EXPLOSION (FIG. 6), AND "
-                "POPULATION = BIRTH RATE × LIFETIME — "
-                "PICK MeanLife = 34 f AND THE RATE FOLLOWS. SYSTEMS IGNITE "
-                "EVERY 18.5/168 = 0.110 s: 20 GENERATING + 13 BURNING OUT "
-                "= 24 FULLY-LIT EQUIVALENTS. A LIMB VIEW STACKS THE RING "
-                "IN DEPTH (FIG. 6 IS ~200 SYSTEMS; THIS SLICE ANCHORS 53 "
-                "COLUMNS), SO EACH COLUMN CARRIES 3: 72 × 425 = "
-                "30,600 PREDICTED. THE \"THIS\" ROW IS MEASURED.")
-               .styleClass("note")
-               .shrink(0)});
+          {panelHead(census["head"].text()),
+           box().row().height(11).shrink(0).styleClass("colhead").children(
+               {each(census["columns"].items(),
+                     [this](const sigil::data::Json& name, size_t i) {
+                       return censusCell(name.text(), i, kSteelDim);
+                     })}),
+           box().column().gap(3).shrink(0).staggerChildren(70ms).children(
+               {each(census["rows"].items(),
+                     [this](const sigil::data::Json& row) {
+                       return censusRow(row);
+                     }),
+                liveRow()}),
+           box().grow(1), note(census["footnote"].text()).ink(kSteelDim),
+           note(census["note"].text())});
 }
 
 Element GenesisFire::rampPanel() {
-  std::vector<Element> swatches, labels;
-  swatches.reserve(14);
-  labels.reserve(14);
-  for (int n : kRampN) {
-    swatches.push_back(
-        box()
-            .width(28)
-            .height(26)
-            .shrink(0)
-            .fill(Paint::solid(overlap(n)))
-            .transformOrigin(0.5f, 1.0f)
-            .scaleY(animate(from(0.0f).to(1.0f), {.duration = 220ms,
-                                                  .ease = ease::outBack(),
-                                                  .delay = 1500ms})));
-    const bool key = n == 5 || n == 20 || n == 111;
-    labels.push_back(
-        text(std::to_string(n))
-            .styleClass("label")
-            .ink(key ? kBone : kSteelDim)
-            .width(28)
-            .shrink(0)
-            .block({.alignment = sigil::weave::TextAlignment::kCenter}));
-  }
+  // ONE SWATCH AND ONE NUMBER PER OVERLAP COUNT, the number lit where the
+  // count is one of the three a channel saturates at.
+  const auto swatch = [](int n) {
+    return box()
+        .width(28)
+        .height(26)
+        .shrink(0)
+        .fill(Paint::solid(overlap(n)))
+        .transformOrigin(0.5f, 1.0f)
+        .scaleY(animate(
+            from(0.0f).to(1.0f),
+            {.duration = 220ms, .ease = ease::outBack(), .delay = 1500ms}));
+  };
+  const auto count = [](int n) {
+    return text(std::to_string(n))
+        .styleClass("label")
+        .ink(n == 5 || n == 20 || n == 111 ? kBone : kSteelDim)
+        .width(28)
+        .shrink(0)
+        .block({.alignment = sigil::weave::TextAlignment::kCenter});
+  };
+  const sigil::data::Json& ramp = doc()["ramp"];
   return panel(kPanelH[2], 3)
       .gap(3)
-      .children({panelHead("COLOUR IS OVERLAP COUNT"),
+      .children({panelHead(ramp["head"].text()),
                  box().row().gap(2).shrink(0).staggerChildren(26ms).children(
-                     std::move(swatches)),
-                 box().row().gap(2).shrink(0).children(std::move(labels)),
-                 box().grow(1),
-                 text("LIGHT ADDS AND CLAMPS (§2.5) — RED "
-                      "SATURATES AT n=5, GREEN AT n=20, BLUE AT n=111. "
-                      "e₀ = (0.220, 0.050, 0.009) IS THE ONE "
-                      "RECONSTRUCTED SEED.")
-                     .styleClass("note")
-                     .shrink(0)});
+                     {each(kRampN, swatch)}),
+                 box().row().gap(2).shrink(0).children({each(kRampN, count)}),
+                 box().grow(1), note(ramp["note"].text())});
 }
 
-Element GenesisFire::benchCell(Element content, const char* caption,
+Element GenesisFire::benchCell(Element content, const Utf8& caption,
                                SkColor4f cc) {
   return box().column().gap(3).width(130).shrink(0).children(
       {box()
@@ -179,62 +134,39 @@ Element GenesisFire::benchCell(Element content, const char* caption,
 }
 
 Element GenesisFire::renderModelPanel() {
+  // THE SAME POOL THREE WAYS: two instanced cells that differ only in
+  // blend, and an empty third the pen fills with the field's own quads.
+  const auto instanced = [this](SkBlendMode blend) {
+    return box().inset(0).children({instancing::instances(
+        abAtlas, abPool, instancing::Mode::Live, blend)});
+  };
+  const sigil::data::Json& model = doc()["render"];
+  const sigil::data::Json& cells = model["cells"];
   return panel(kPanelH[3], 4)
       .gap(4)
-      .children({panelHead("RENDER MODEL — THREE PATHS, ONE POOL"),
-                 box()
-                     .row()
-                     .gap(15)
-                     .shrink(0)
-                     .children({benchCell(
-                         box().inset(0).children({instancing::instances(
-                             abAtlas, abPool, instancing::Mode::Live,
-                             SkBlendMode::kSrcOver)}),
-                         "instances() · kSrcOver", hexColor(0x8A93A8))})
-                     .children({benchCell(
-                         box().inset(0).children({instancing::instances(
-                             abAtlas, abPool, instancing::Mode::Live,
-                             SkBlendMode::kPlus)}),
-                         "instances() · kPlus", hexColor(0xFFB672))})
-                     .children({benchCell(box().inset(0), "pen quads · kPlus",
-                                          hexColor(0xFFB672))}),
-                 box().grow(1),
-                 text("SAME 700 PARTICLES, ONE POOL. LEFT AND CENTRE "
-                      "DIFFER ONLY IN BLEND: kSrcOver CANNOT ACCUMULATE, "
-                      "SO ITS WHOLE PALETTE IS LUT ENTRY n=1. ALL THREE "
-                      "ARE STREAKED SPHERICAL — LENGTH "
-                      "0.5·|v|, WIDTH size. THE TWO POOLS TAKE IT "
-                      "FROM Pool::sizes(), THE OPT-IN NON-UNIFORM LANE "
-                      "THAT STRETCHES ONE BAKED CELL PER INSTANCE.")
-                     .styleClass("note")
-                     .shrink(0)});
+      .children({panelHead(model["head"].text()),
+                 box().row().gap(15).shrink(0).children(
+                     {benchCell(instanced(SkBlendMode::kSrcOver),
+                                cells[0].text(), hexColor(0x8A93A8)),
+                      benchCell(instanced(SkBlendMode::kPlus), cells[1].text(),
+                                hexColor(0xFFB672)),
+                      benchCell(box().inset(0), cells[2].text(),
+                                hexColor(0xFFB672))}),
+                 box().grow(1), note(model["note"].text())});
 }
 
 Element GenesisFire::productionPanel() {
+  const sigil::data::Json& made = doc()["production"];
   return panel(kPanelH[4], 5)
       .gap(1)
-      .children({panelHead("PRODUCTION — SMITH 1982"),
-                 prodLine("67-SECOND SHOT · 250,000 PX/FRAME · "
-                          "500-LINE VIDEO MONITOR",
-                          kBone),
-                 prodLine("2 MAN-YEARS OVER AN 80-SECOND PIECE (60 s GENESIS + "
-                          "20 s RETINA ID)",
-                          kBone),
-                 prodLine("FRAMES: 5 MINUTES TO 5 HOURS · ~1 MONTH OF "
-                          "VAX TIME FOR THE FRACTALS",
-                          kSteel),
-                 prodLine("E&S PICTURE SYSTEM II · 2× IKONAS "
-                          "· BARCO · HITACHI TABLET",
-                          kSteel),
-                 prodLine("DELIVERED MARCH 19, 1982 · SHOT TO "
-                          "VISTAVISION BY ILM",
-                          kSteel),
-                 box().grow(1),
-                 text("Am. Cinematographer 63(10) — caption: "
-                      "67 s; body text: 60 s. Both printed.")
-                     .styleClass("note")
-                     .ink(kSteelDim)
-                     .shrink(0)});
+      .children({panelHead(made["head"].text()),
+                 each(made["lines"].items(),
+                      [this](const sigil::data::Json& line) {
+                        return prodLine(
+                            line["words"].text(),
+                            line["loud"].boolean() ? kBone : kSteel);
+                      }),
+                 box().grow(1), note(made["note"].text()).ink(kSteelDim)});
 }
 
 Element GenesisFire::header() {
@@ -245,6 +177,7 @@ Element GenesisFire::header() {
                  {.duration = 850ms, .ease = &ch::easeNone, .delay = 120ms})};
   // The masthead is set in the interface face and steel; the title alone
   // takes the black cut and the bone.
+  const sigil::data::Json& head = doc()["header"];
   return box()
       .column()
       .height(kHeaderH)
@@ -253,24 +186,22 @@ Element GenesisFire::header() {
       .font({.face = uiFace()})
       .ink(kSteel)
       .children(
-          {text("STOCHASTIC PARTICLE SYSTEMS")
+          {text(head["eyebrow"].text())
                .font({.size = 11.5f, .track = 2.7f})
                .opacity(animate(from(0.0f).to(1.0f), {.duration = 260ms}))
                .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms})),
-           text("THE GENESIS DEMO, 1982")
+           text(head["title"].text())
                .font({.face = heavyFace(), .size = 46, .track = -0.4f})
                .ink(kBone)
                .key("title")
                .fx(std::move(rise)),
-           text("W. T. Reeves, Lucasfilm Ltd — \"Particle "
-                "Systems: A Technique for Modeling a Class of Fuzzy "
-                "Objects\", SIGGRAPH '83 / ACM TOG 2(2) · "
-                "sequence dir. Alvy Ray Smith · Star Trek II, "
-                "Paramount, June 4, 1982")
+           text(head["credit"].text())
                .font({.size = 11.0f, .track = 0.1f})
                .opacity(animate(from(0.0f).to(1.0f),
                                 {.duration = 240ms, .delay = 420ms})),
            box().grow(1),
-           box().height(1).shrink(0).fill(kKeyline).opacity(animate(
-               from(0.0f).to(1.0f), {.duration = 400ms, .delay = 320ms}))});
+           kit::line({.fill = Fill::color(kKeyline)})
+               .shrink(0)
+               .opacity(animate(from(0.0f).to(1.0f),
+                                {.duration = 400ms, .delay = 320ms}))});
 }

@@ -12,6 +12,8 @@ void GenesisFire::setup(sketch::SketchContext& ctx) {
   ctx.background(kInk);
   ctx.captureAt(4.6);
 
+  content = ctx.assets.json(ctx.local("data/content.json"));
+
   loopT = 0;
   stepped = false;
   simSteps = 0;

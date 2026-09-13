@@ -15,6 +15,7 @@
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Chance.h>
+#include <sigildata/decode/Json.h>
 #include <sigildraw/Draw.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
@@ -249,7 +250,7 @@ inline Element panel(float height, int order) {
       .key(std::string("panel") + std::to_string(order));
 }
 
-inline Element panelHead(const char* s) {
+inline Element panelHead(const Utf8& s) {
   return text(s)
       .font({.face = uiFace(), .size = 9.5f, .track = 1.9f})
       .height(13)
