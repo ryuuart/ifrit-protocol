@@ -91,17 +91,15 @@ Element cell(const char* call, const char* note, paint::Paint fill,
   Element plate = sketch::kit::well({.width = kCell, .height = kPicture})
                       .alignItems(Align::Center)
                       .justify(Justify::Center);
-  Element word =
-      text(toUtf8(kWord)).styleClass("display").textFill(std::move(fill));
+  Element word = text(kWord).styleClass("display").textFill(std::move(fill));
   if (beneath.isSolid() || beneath.asShader())
     plate.child(box()
                     .absolute()
                     .inset(0)
                     .alignItems(Align::Center)
                     .justify(Justify::Center)
-                    .child(text(toUtf8(kWord))
-                               .styleClass("display")
-                               .textFill(std::move(beneath))));
+                    .child(text(kWord).styleClass("display").textFill(
+                        std::move(beneath))));
   return sketch::kit::caption(kCell, toUtf8(call), toUtf8(note),
                               std::move(plate).child(std::move(word)));
 }

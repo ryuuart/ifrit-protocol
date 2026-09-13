@@ -192,10 +192,7 @@ struct RoutesProbe final : sketch::Sketch {
         .width(Dimension(kNode))
         .height(Dimension(34))
         .fill(Fill::color(sheet.palette.cellGround))
-        .child(text(toUtf8(key))
-                   .styleClass("readout")
-                   .absolute()
-                   .inset(9, 9, 0, 0));
+        .child(text(key).styleClass("readout").absolute().inset(9, 9, 0, 0));
   }
 
   Element diagram() const {
@@ -268,13 +265,12 @@ struct RoutesProbe final : sketch::Sketch {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
     Element column = box().column().gap(7);
     if (rows.empty())
-      column.child(text(toUtf8(empty))
+      column.child(text(empty)
                        .styleClass("readout")
                        .ink(sheet.palette.ash)
                        .width(Dimension(measure)));
     for (const std::string& row : rows)
-      column.child(
-          text(toUtf8(row)).styleClass("readout").width(Dimension(measure)));
+      column.child(text(row).styleClass("readout").width(Dimension(measure)));
     return column;
   }
 

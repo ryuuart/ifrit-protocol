@@ -158,7 +158,7 @@ struct EvaMagiDefense : sketch::Sketch {
       // measured, the glyph's centre sits at 30% of a 150 px cell, which is
       // 44 px — the middle of the 88 px width. And it stays UPRIGHT while
       // the plate turns.
-      cell.child(text(toUtf8(std::string(1, (char)('0' + n))))
+      cell.child(text(std::string(1, (char)('0' + n)))
                      .font(type(numeralSize, 0.88f))
                      .centerAt({r.width() * 0.5f, r.width() * 0.5f + 3})
                      .rotate(-s.rotation));
@@ -178,7 +178,7 @@ struct EvaMagiDefense : sketch::Sketch {
                     .rotate(-s.rotation)
                     .ink(ink)
                     .child(text(u8"MAGI").font(type(36, 0.86f)))
-                    .child(text(toUtf8(s.name)).font(type(50, 0.95f))));
+                    .child(text(s.name).font(type(50, 0.95f))));
     return plate;
   }
 
@@ -214,12 +214,11 @@ struct EvaMagiDefense : sketch::Sketch {
     const float step = (L.h - 2.0f * labelStyle.insetY) / (float)count;
     for (int i = 0; i < count; ++i)
       node.child(
-          text(toUtf8(L.lines[i]))
+          text(L.lines[i])
               .font(style)
               .centerAt(
                   {L.role == LabelRole::Country
-                       ? intrinsicSize(text(toUtf8(L.lines[i])).font(style),
-                                       *fonts)
+                       ? intrinsicSize(text(L.lines[i]).font(style), *fonts)
                                  .width() *
                              0.5f
                        : L.w * 0.5f,
@@ -476,8 +475,7 @@ struct EvaMagiDefense : sketch::Sketch {
       float widest = 0.0f;
       for (const char* line : label.lines)
         if (line)
-          widest =
-              std::max(widest, ctx.measure(text(toUtf8(line), probe)).width());
+          widest = std::max(widest, ctx.measure(text(line, probe)).width());
       // The cap height fixes the vertical register; condensation only fits
       // width.
       float condense = (label.w - 2.0f * reg.insetX) / widest;

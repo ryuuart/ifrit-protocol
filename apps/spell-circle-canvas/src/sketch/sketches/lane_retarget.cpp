@@ -131,7 +131,7 @@ Element cell(const char* call, const char* note, Element body,
       kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well({.width = kCell, .height = kPicture})
           .child(std::move(body))
-          .child(text(toUtf8(readout), look.mono(10, look.palette.figure))
+          .child(text(readout, look.mono(10, look.palette.figure))
                      .absolute()
                      .left(Dimension(8.0f))
                      .top(Dimension(6.0f))

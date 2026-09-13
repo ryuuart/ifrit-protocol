@@ -109,7 +109,7 @@ Element cell(const char* call, const char* note, sk_sp<SkImage> picture,
       kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well({.width = kCell, .height = kPicture})
           .child(std::move(art).absolute().inset(0))
-          .child(text(toUtf8(readout), sheet.mono(10, sheet.palette.figure))
+          .child(text(readout, sheet.mono(10, sheet.palette.figure))
                      .absolute()
                      .left(Dimension(6.0f))
                      .top(Dimension(6.0f))

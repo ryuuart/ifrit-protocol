@@ -100,7 +100,7 @@ Element cell(const char* call, const char* note, Element body) {
  *  one text leaf: the initial is not a second element. */
 Element dropped(const char* key, std::optional<kit::NestedStyle> nested) {
   Element block =
-      text(toUtf8(kPassage))
+      text(kPassage)
           .font(serifType(11.5f, kBody))
           .key(key)
           .width(Dimension(kCell - 28))
@@ -127,7 +127,7 @@ Element illuminated(const char* key, std::optional<kit::NestedStyle> nested) {
                                     .left(15)
                                     .top(14));
   ornament.key(key).absolute().left(Dimension(0.0f)).top(Dimension(0.0f));
-  Element body = text(toUtf8(kPassage).substr(1))
+  Element body = text(std::string_view(kPassage).substr(1))
                      .font(serifType(11.5f, kBody))
                      .width(Dimension(kCell - 28))
                      .flowAround(key, kMargin);

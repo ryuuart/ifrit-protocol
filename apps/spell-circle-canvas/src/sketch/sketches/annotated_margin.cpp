@@ -134,16 +134,16 @@ struct AnnotatedMargin final : sketch::Sketch {
             .fill(Fill::color(m::kPaper))
             .font({.face = m::serif(), .size = 19})
             .ink(m::kInk)
-            .child(box()
-                       .absolute()
-                       .inset(52, 44, 0, 0)
-                       .column()
-                       .gap(6)
-                       .child(text(toUtf8("BESIDE THE TEXT"),
-                                   m::note(12, m::kInk, 4.0f)))
-                       .child(text(toUtf8("one element per unit, placed from "
-                                          "the unit's own rect"),
-                                   m::note(10, m::kFaint, 0.3f))))
+            .child(
+                box()
+                    .absolute()
+                    .inset(52, 44, 0, 0)
+                    .column()
+                    .gap(6)
+                    .child(text("BESIDE THE TEXT", m::note(12, m::kInk, 4.0f)))
+                    .child(text("one element per unit, placed from "
+                                "the unit's own rect",
+                                m::note(10, m::kFaint, 0.3f))))
             // The passage itself: one leaf, keyed, and annotated by
             // nothing — everything below reads it from outside.
             .child(text(m::kPassage)
@@ -155,8 +155,8 @@ struct AnnotatedMargin final : sketch::Sketch {
                        .paragraph({.leading = weave::Leading::multiple(1.55f)}))
             // The same text again, lower, under a cascade — the playhead
             // below rides its beats.
-            .child(text(toUtf8("A marker placed from a beat agrees with the "
-                               "letters by construction."))
+            .child(text("A marker placed from a beat agrees with the "
+                        "letters by construction.")
                        .font({.size = 17})
                        .key("cascade")
                        .absolute()
@@ -180,40 +180,38 @@ struct AnnotatedMargin final : sketch::Sketch {
                                // and the line it landed on — because a label
                                // that only repeated the word would be showing
                                // nothing the word does not already show.
-                               return text(
-                                   toUtf8(std::to_string(unit.range.start) +
-                                          "\xe2\x80\x93" +
-                                          std::to_string(unit.range.end)),
-                                   m::note(7.5f, m::kMark, 0.2f));
+                               return text(std::to_string(unit.range.start) +
+                                               "\xe2\x80\x93" +
+                                               std::to_string(unit.range.end),
+                                           m::note(7.5f, m::kMark, 0.2f));
                              })
                    .absolute()
                    .inset(0, 0, 0, 0));
 
     // ── One note per line, in the gutter, with a leader ──────────────────
-    page.child(
-        kit::annotate(
-            composer, "passage", weave::selectors::each(weave::Unit::Line),
-            weave::Unit::Line,
-            {.side = kit::Beside::Side::Start,
-             .gap = m::kGutter,
-             .measure = m::kNoteMeasure},
-            [&](const TextUnit& unit) {
-              return box()
-                  .width(Dimension(m::kNoteMeasure))
-                  .justify(Justify::End)
-                  .row()
-                  .gap(8)
-                  .child(text(toUtf8("line " + std::to_string(unit.lineIndex) +
-                                     " \xc2\xb7 baseline " +
-                                     std::to_string((int)unit.axis)),
-                              m::note()))
-                  .child(box()
-                             .width(Dimension(m::kGutter - 6))
-                             .height(Dimension(1.0f))
-                             .fill(Fill::color(m::kFaint)));
-            })
-            .absolute()
-            .inset(0, 0, 0, 0));
+    page.child(kit::annotate(
+                   composer, "passage",
+                   weave::selectors::each(weave::Unit::Line), weave::Unit::Line,
+                   {.side = kit::Beside::Side::Start,
+                    .gap = m::kGutter,
+                    .measure = m::kNoteMeasure},
+                   [&](const TextUnit& unit) {
+                     return box()
+                         .width(Dimension(m::kNoteMeasure))
+                         .justify(Justify::End)
+                         .row()
+                         .gap(8)
+                         .child(text("line " + std::to_string(unit.lineIndex) +
+                                         " \xc2\xb7 baseline " +
+                                         std::to_string((int)unit.axis),
+                                     m::note()))
+                         .child(box()
+                                    .width(Dimension(m::kGutter - 6))
+                                    .height(Dimension(1.0f))
+                                    .fill(Fill::color(m::kFaint)));
+                   })
+                   .absolute()
+                   .inset(0, 0, 0, 0));
 
     // ── A rule cut to what the block occupies ───────────────────────────
     page.child(kit::rules(composer, "passage",
@@ -236,8 +234,8 @@ struct AnnotatedMargin final : sketch::Sketch {
                    .inset(0, 0, 0, 0));
 
     return page.child(
-        text(toUtf8("a sibling annotation reserves nothing and lags a frame; "
-                    "a reading that must never lag is part of the text"),
+        text("a sibling annotation reserves nothing and lags a frame; "
+             "a reading that must never lag is part of the text",
              m::note(10, m::kFaint, 0.2f))
             .absolute()
             .inset(52, m::kH - 34, 0, 0));

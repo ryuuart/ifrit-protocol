@@ -186,8 +186,7 @@ struct HalfFloat final : sketch::Sketch {
                        cell("what each readback answered",
                             "the question a caller asks first, the two buffer "
                             "sizes, and one hot texel read out of each",
-                            text(toUtf8(readout),
-                                 sheet.mono(10, sheet.palette.figure))
+                            text(readout, sheet.mono(10, sheet.palette.figure))
                                 .width(Dimension(kCell - 20)))},
              .gap = 12})));
   }

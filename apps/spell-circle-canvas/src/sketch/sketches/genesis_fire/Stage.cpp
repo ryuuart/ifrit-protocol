@@ -109,7 +109,7 @@ Element GenesisFire::dipper() {
                 .blend(SkBlendMode::kPlus)
                 .opacity(animate(from(0.0f).to(1.0f),
                                  {.duration = 500ms, .delay = 1200ms})));
-    g.child(text(toUtf8(kStars[i].name))
+    g.child(text(kStars[i].name)
                 .font({.size = 7.0f, .track = 1.1f})
                 .ink(sol ? kCyan : hexColor(0x9FB0CC, 0.85f))
                 .left(p.fX + rad + 5.0f)
@@ -129,8 +129,8 @@ Element GenesisFire::dipper() {
               .font({.size = 7.0f, .track = 0.9f})
               .opacity(animate(from(0.0f).to(1.0f),
                                {.duration = 400ms, .delay = 1600ms}))
-              .child(text(toUtf8("m = 2.63 FROM \xce\xb5 INDI (3.64 pc)")))
-              .child(text(toUtf8("\"OUR SUN WOULD APPEAR AS AN EXTRA STAR\""))
+              .child(text("m = 2.63 FROM \xce\xb5 INDI (3.64 pc)"))
+              .child(text("\"OUR SUN WOULD APPEAR AS AN EXTRA STAR\"")
                          .ink(hexColor(0x4FB8D8, 0.7f))));
   return g;
 }
@@ -280,7 +280,7 @@ Element GenesisFire::planInset() {
                  .shape(shapes::circle())
                  .fill(hexColor(0xFFFFFF, 0.95f)))
       // rim caption on a curved baseline
-      .child(text(toUtf8("IMPACT \xc2\xb7 KETI BANDAR \xc2\xb7 \xce\xb5 INDI"))
+      .child(text("IMPACT \xc2\xb7 KETI BANDAR \xc2\xb7 \xce\xb5 INDI")
                  .font({.face = monoFace(), .size = 8.0f, .track = 1.4f})
                  .ink(kCyan)
                  .left(12)
@@ -299,8 +299,8 @@ Element GenesisFire::stageAbove() {
       .height(kStageH)
       .clip()
       .child(planInset())
-      .child(text(toUtf8("FIG. 2 \xe2\x80\x94 DISTRIBUTION OF PARTICLE SYSTEMS "
-                         "ON THE PLANET'S SURFACE"))
+      .child(text("FIG. 2 \xe2\x80\x94 DISTRIBUTION OF PARTICLE SYSTEMS "
+                  "ON THE PLANET'S SURFACE")
                  .font({.face = monoFace(), .size = 8.5f, .track = 0.6f})
                  .ink(kSteel)
                  .left(24)

@@ -20,7 +20,7 @@ struct AstralTome : sketch::Sketch {
    *  tracking, in the page ink at the page's alpha. */
   Element name(const char* s, float x, float y) const {
     return box().at({x, y}).child(
-        text(toUtf8(s))
+        text(s)
             .font({.face = serif, .size = 19.0f, .track = 2.4f})
             .ink(mskia::scale(at::kInk, 1.0f, kInkAlphaOf())));
   }
@@ -305,17 +305,16 @@ struct AstralTome : sketch::Sketch {
                        .zIndex(20)
                        .fill(Fill::color({0.031f, 0.027f, 0.023f, 1.0f}))
                        .font({.face = mono});  // both lines are set in it
-    band.child(text(toUtf8("ASTRAL SORCERY \xc2\xb7 "
-                           "GuiJournalConstellationCluster, PAGE 1 OF 4"))
+    band.child(text("ASTRAL SORCERY \xc2\xb7 "
+                    "GuiJournalConstellationCluster, PAGE 1 OF 4")
                    .font({.size = 13.0f, .track = 2.6f})
                    .ink(SkColor4f{0.72f, 0.66f, 0.50f, 1.0f}));
-    band.child(
-        text(toUtf8("Four charts on one page at the mod's own numbers: a "
+    band.child(text("Four charts on one page at the mod's own numbers: a "
                     "95x95 SQUARE render box hung on an 80x110 hit cell, the "
                     "offsetMap's zig-zag placing them, and every star's "
-                    "twinkle on its own divisor between 12 and 21."))
-            .font({.size = 11.0f, .track = 0.4f})
-            .ink(SkColor4f{0.50f, 0.46f, 0.38f, 1.0f}));
+                    "twinkle on its own divisor between 12 and 21.")
+                   .font({.size = 11.0f, .track = 0.4f})
+                   .ink(SkColor4f{0.50f, 0.46f, 0.38f, 1.0f}));
     return band;
   }
 

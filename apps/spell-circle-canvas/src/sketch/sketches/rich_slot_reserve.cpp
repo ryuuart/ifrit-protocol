@@ -115,7 +115,7 @@ Element slotted(SkSize size, float drop, SkColor4f fill) {
 /** The same passage under one reserved band, on a tinted plate so the
  *  line pitch is visible as a pitch. */
 Element banded(weave::ReservedBand band) {
-  return text(toUtf8(kPassage))
+  return text(kPassage)
       .width(Dimension(kCell - 24))
       .fill(Fill::color(kBandTint))
       .reserve(band);

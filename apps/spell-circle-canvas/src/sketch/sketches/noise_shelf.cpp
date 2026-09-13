@@ -217,7 +217,7 @@ struct NoiseShelf final : sketch::Sketch {
 
   Element text_(const std::string& row) {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
-    return text(toUtf8(row), sheet.mono(9.5f, sheet.palette.figure));
+    return text(row, sheet.mono(9.5f, sheet.palette.figure));
   }
 };
 

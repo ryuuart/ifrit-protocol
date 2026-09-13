@@ -121,10 +121,7 @@ inline Element station(const char* key, float x, float y, float size = 16) {
 /** A place name, in the ink in force: the root's ash unless the caller
  *  names another. */
 inline Element label(const char* s, float x, float y) {
-  return text(toUtf8(s))
-      .font({.size = 13, .track = 1.5f})
-      .inset(x, y, 0, 0)
-      .zIndex(8);
+  return text(s).font({.size = 13, .track = 1.5f}).inset(x, y, 0, 0).zIndex(8);
 }
 
 /** The ARTLINE art cell: a stem with alternating leaf lenses — reads as a
@@ -162,8 +159,8 @@ inline Element legendRow(const char* name, const char* what, SkColor4f c,
       .inset(30, y, 0, 0)
       .zIndex(8)
       .font({.size = 12.5f})
-      .child(text(toUtf8(name)).font({.track = 1.4f}).ink(c))
-      .child(text(toUtf8(what)).font({.track = 0.4f}).margin(10, 0, 0, 0));
+      .child(text(name).font({.track = 1.4f}).ink(c))
+      .child(text(what).font({.track = 0.4f}).margin(10, 0, 0, 0));
 }
 
 }  // namespace night_network
@@ -515,11 +512,11 @@ struct NightNetwork final : sketch::Sketch {
                    .column()
                    .inset(28, 27, 0, 0)
                    .zIndex(8)
-                   .child(text(toUtf8("NIGHT NETWORK"))
+                   .child(text("NIGHT NETWORK")
                               .font({.size = 30, .track = 2})
                               .ink(nn::kBone))
-                   .child(text(toUtf8("the brush engine \xe2\x80\x94 twelve"
-                                      " constructions"))
+                   .child(text("the brush engine \xe2\x80\x94 twelve"
+                               " constructions")
                               .font({.size = 14, .track = 1})
                               .margin(0, 6, 0, 0)))
         // Ten rows reach into the map now — a feathered ink backing keeps

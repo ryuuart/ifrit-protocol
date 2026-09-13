@@ -144,7 +144,7 @@ struct PixFontDotSprite final : sketch::Sketch {
               .row()
               .gap(10)
               .alignItems(Align::Center)
-              .child(text(toUtf8(kit::formatted("%2.0f", kBakeSizes[i])))
+              .child(text(kit::formatted("%2.0f", kBakeSizes[i]))
                          .font({.face = sketch::kit::theme().type.mono,
                                 .size = 9,
                                 .track = 0})

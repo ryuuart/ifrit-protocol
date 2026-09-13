@@ -91,7 +91,7 @@ Element mapping(const Mapping& properties) {
                         : area.left() + (float)((tick - axis.domain.low) /
                                                 axis.domain.extent()) *
                                             area.width();
-    body.child(text(toUtf8(kit::formatted("%.3g", tick)))
+    body.child(text(kit::formatted("%.3g", tick))
                    .left(x - 20)
                    .top(kHeight - 20)
                    .width(40)

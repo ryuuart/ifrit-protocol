@@ -95,8 +95,7 @@ struct OpticalKerning final : sketch::Sketch {
     const SkColor4f figure = sketch::kit::theme().palette.figure;
     const auto advance = [&](const char* text8, bool optical) {
       return ctx
-          .measure(
-              box().child(text(toUtf8(text8), display(kSize, figure, optical))))
+          .measure(box().child(text(text8, display(kSize, figure, optical))))
           .width();
     };
     for (int i = 0; i < 6; ++i)
@@ -124,7 +123,7 @@ struct OpticalKerning final : sketch::Sketch {
   }
 
   Element headline(SkColor4f colour, bool optical) {
-    return text(toUtf8(kHeadline), display(kSize, colour, optical))
+    return text(kHeadline, display(kSize, colour, optical))
         .width(Dimension(kCell - 24));
   }
 
@@ -161,7 +160,7 @@ struct OpticalKerning final : sketch::Sketch {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
     Element column = box().column().gap(7);
     for (const std::string& row : rows)
-      column.child(text(toUtf8(row), sheet.mono(11, sheet.palette.figure)));
+      column.child(text(row, sheet.mono(11, sheet.palette.figure)));
     return cell("measured pair deltas",
                 "each pair set twice and the two advances subtracted "
                 "\xc2\xb7 negative closes the pair up, and the last row is "

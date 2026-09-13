@@ -153,7 +153,7 @@ Element banner(float length) {
   for (int s = 0; s < kSectors; ++s) {
     column.child(box().grow());
     const std::string numeral = kit::formatted("- %02d -", s + 1);
-    column.child(text(toUtf8(numeral)).font({.size = 34}).ink(kNumeral));
+    column.child(text(numeral).font({.size = 34}).ink(kNumeral));
     column.child(text(pool[(size_t)s % 4]).font({.size = 40}));
   }
   column.child(box().grow());

@@ -191,7 +191,7 @@ struct KineticCard final : sketch::Sketch {
                                 box()
                                     .width(Dimension(kCell))
                                     .height(Dimension(kBodyH))
-                                    .child(text(toUtf8(row.word))
+                                    .child(text(row.word)
                                                .styleClass("specimen")
                                                .font(std::move(over))
                                                .key(row.key)

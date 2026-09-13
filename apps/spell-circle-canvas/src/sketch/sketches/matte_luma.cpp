@@ -185,12 +185,11 @@ Element cell(float w, float h, Element inner) {
 Element bandLabels(float stripW) {
   Element row = box().row().width(stripW);
   for (const Band& band : kBands)
-    row.child(box()
-                  .width(stripW / (float)kBands.size())
-                  .justify(Justify::Center)
-                  .child(text(toUtf8(band.label))
-                             .font({.size = 10, .track = 0})
-                             .ink(kDim)));
+    row.child(
+        box()
+            .width(stripW / (float)kBands.size())
+            .justify(Justify::Center)
+            .child(text(band.label).font({.size = 10, .track = 0}).ink(kDim)));
   return row;
 }
 
@@ -243,23 +242,22 @@ struct MatteLuma final : sketch::Sketch {
                              gated(by::lumaOut(coverage)))},
          .gap = 12});
 
-    Element law =
-        box()
-            .column()
-            .gap(6)
-            .child(text(toUtf8("Rec. 601 on ENCODED values \xc2\xb7 each "
-                               "colour paired with its 0.299 R + 0.587 G + "
-                               "0.114 B grey twin"))
-                       .font({.size = 13, .track = 0}))
-            .child(cell(stripW, 64, box().inset(0).fill(bands)))
-            .child(bandLabels(stripW))
-            .child(text(toUtf8("\xe2\x80\xa6"
-                               "the same eight bands as a by::luma "
-                               "matte \xe2\x86\x93 each pair reads the SAME"))
-                       .font({.track = 0})
-                       .ink(kDim)
-                       .margin(0, 6, 0, 0))
-            .child(cell(stripW, 64, std::move(bandMatted)));
+    Element law = box()
+                      .column()
+                      .gap(6)
+                      .child(text("Rec. 601 on ENCODED values \xc2\xb7 each "
+                                  "colour paired with its 0.299 R + 0.587 G + "
+                                  "0.114 B grey twin")
+                                 .font({.size = 13, .track = 0}))
+                      .child(cell(stripW, 64, box().inset(0).fill(bands)))
+                      .child(bandLabels(stripW))
+                      .child(text("\xe2\x80\xa6"
+                                  "the same eight bands as a by::luma "
+                                  "matte \xe2\x86\x93 each pair reads the SAME")
+                                 .font({.track = 0})
+                                 .ink(kDim)
+                                 .margin(0, 6, 0, 0))
+                      .child(cell(stripW, 64, std::move(bandMatted)));
 
     ctx.composer.render(sketch::kit::page(
         {.title = toUtf8("TRACK MATTES \xc2\xb7 by::alpha / alphaOut / "

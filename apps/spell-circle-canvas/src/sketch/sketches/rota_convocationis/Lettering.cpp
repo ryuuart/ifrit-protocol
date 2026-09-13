@@ -124,7 +124,7 @@ auto RotaConvocationis::ladder(const char* key, int divisions, int skipEvery,
 }
 
 auto RotaConvocationis::invocatio() -> Element {
-  return text(toUtf8(voxText))
+  return text(voxText)
       .styleClass("ring")
       .font({.size = voxSize, .track = 2.2f})
       .key("vox")
@@ -163,7 +163,7 @@ auto RotaConvocationis::invocatio() -> Element {
 }
 
 auto RotaConvocationis::registrum() -> Element {
-  return text(toUtf8(runeText))
+  return text(runeText)
       .font({.size = runeSize, .color = kRuneInk, .track = 2.0f})
       .key("registrum")
       .centerAt(kEye)
@@ -204,7 +204,7 @@ auto RotaConvocationis::nomina() -> Element {
   // under-reporting shears the outer halves off at the layer's edge.
   constexpr float kReach = 90.0f;
   Element names =
-      text(toUtf8(nomText))
+      text(nomText)
           .styleClass("ring")
           .font({.size = nomSize, .color = kGold, .track = 4.2f})
           .key("nomina")
@@ -256,7 +256,7 @@ auto RotaConvocationis::nomina() -> Element {
 }
 
 auto RotaConvocationis::textura() -> Element {
-  return text(toUtf8(texText))
+  return text(texText)
       .font({.size = texSize, .color = kAsh})
       .key("textura")
       .centerAt(kEye)

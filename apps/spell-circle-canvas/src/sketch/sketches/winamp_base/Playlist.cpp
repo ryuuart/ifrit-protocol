@@ -124,7 +124,7 @@ auto WinampBase::trackList() -> Element {
     r.child(ellipsized(i, std::to_string(i + 1) + ". " + tr.title, st,
                        n(listW - 40)));
     r.child(box().grow(1));
-    r.child(text(toUtf8(tr.time), st));
+    r.child(text(tr.time, st));
     // Rows reveal in bands of four: 25 rows on an even stagger reads as 25
     // separate animations, where batching reads as a list populating.
     r.opacity(&rowIn[(size_t)i]);

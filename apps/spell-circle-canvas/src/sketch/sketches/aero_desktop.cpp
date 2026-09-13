@@ -350,7 +350,7 @@ struct AeroDesktop final : sketch::Sketch {
     return box()
         .inset(36, 8, 130, ad::kWH - ad::kCaption)
         .child(
-            text(toUtf8("Aurora Borealis \xe2\x80\x94 Aero Glass"))
+            text("Aurora Borealis \xe2\x80\x94 Aero Glass")
                 .font(
                     {.size = 12.5f, .color = SkColor4f{0.05f, 0.05f, 0.05f, 1}})
                 .inset(0, 0, 0, 0)
@@ -378,8 +378,8 @@ struct AeroDesktop final : sketch::Sketch {
         .child(box()
                    .inset(0, 34, 0, clientH - 35)
                    .fill(Fill::color({0.71f, 0.76f, 0.82f, 1})))
-        .child(text(toUtf8("Organize \xe2\x96\xbe      "
-                           "Share with \xe2\x96\xbe      Burn"))
+        .child(text("Organize \xe2\x96\xbe      "
+                    "Share with \xe2\x96\xbe      Burn")
                    .ink(gray(0.28f))
                    .inset(14, 9, 0, 0))
         // left navigation pane
@@ -391,16 +391,15 @@ struct AeroDesktop final : sketch::Sketch {
                    .inset(150, 35, 0, 0)
                    .width(1)
                    .fill(Fill::color({0.88f, 0.90f, 0.93f, 1})))
-        .child(text(toUtf8("\xe2\x98\x85 Favorites"))
-                   .ink(gray(0.25f))
-                   .inset(12, 48, 0, 0))
-        .child(text(toUtf8("Desktop")).ink(gray(0.42f)).inset(30, 70, 0, 0))
-        .child(text(toUtf8("Downloads")).ink(gray(0.42f)).inset(30, 90, 0, 0))
-        .child(text(toUtf8("\xe2\x96\xa3 Libraries"))
+        .child(
+            text("\xe2\x98\x85 Favorites").ink(gray(0.25f)).inset(12, 48, 0, 0))
+        .child(text("Desktop").ink(gray(0.42f)).inset(30, 70, 0, 0))
+        .child(text("Downloads").ink(gray(0.42f)).inset(30, 90, 0, 0))
+        .child(text("\xe2\x96\xa3 Libraries")
                    .ink(gray(0.25f))
                    .inset(12, 118, 0, 0))
-        .child(text(toUtf8("Documents")).ink(gray(0.42f)).inset(30, 140, 0, 0))
-        .child(text(toUtf8("Pictures")).ink(gray(0.42f)).inset(30, 160, 0, 0))
+        .child(text("Documents").ink(gray(0.42f)).inset(30, 140, 0, 0))
+        .child(text("Pictures").ink(gray(0.42f)).inset(30, 160, 0, 0))
         // main pane: a selected row + file rows
         .child(box()
                    .inset(162, 50, 12, 0)
@@ -410,16 +409,15 @@ struct AeroDesktop final : sketch::Sketch {
                                        {{0.0f, {0.86f, 0.92f, 0.98f, 1}},
                                         {1.0f, {0.74f, 0.85f, 0.96f, 1}}}))
                    .stroke(stroke(1, Fill::color({0.52f, 0.70f, 0.88f, 1}))))
-        .child(text(toUtf8("aurora_over_tromso.jpg"))
+        .child(text("aurora_over_tromso.jpg")
                    .ink(gray(0.15f))
                    .inset(172, 54, 0, 0))
-        .child(text(toUtf8("colorization_formula.txt"))
+        .child(text("colorization_formula.txt")
                    .ink(gray(0.35f))
                    .inset(172, 82, 0, 0))
-        .child(text(toUtf8("blurdeviation_30.reg"))
-                   .ink(gray(0.35f))
-                   .inset(172, 106, 0, 0))
-        .child(text(toUtf8("sky_74B8FC_balances_8_43_49.theme"))
+        .child(
+            text("blurdeviation_30.reg").ink(gray(0.35f)).inset(172, 106, 0, 0))
+        .child(text("sky_74B8FC_balances_8_43_49.theme")
                    .ink(gray(0.35f))
                    .inset(172, 130, 0, 0));
   }
@@ -676,11 +674,11 @@ struct AeroDesktop final : sketch::Sketch {
                               .stroke(stroke(1, Fill::color({0.55f, 0.40f,
                                                              0.10f, 0.8f})))))
         // tray clock, pinned to the right edge (right-aligned for free)
-        .child(text(toUtf8("4:20 PM"))
+        .child(text("4:20 PM")
                    .font({.size = 12, .color = SkColor4f{1, 1, 1, 0.92f}})
                    .top(13)
                    .right(10))
-        .child(text(toUtf8("11/8/2006"))
+        .child(text("11/8/2006")
                    .font({.size = 10, .color = SkColor4f{1, 1, 1, 0.65f}})
                    .top(27)
                    .right(10));
@@ -694,7 +692,7 @@ struct AeroDesktop final : sketch::Sketch {
           .inset(0, 52, 0, 0)
           .row()
           .justify(Justify::Center)
-          .child(text(toUtf8(label)).ink(c));
+          .child(text(label).ink(c));
     };
     return box()
         .inset(x, y, 0, 0)

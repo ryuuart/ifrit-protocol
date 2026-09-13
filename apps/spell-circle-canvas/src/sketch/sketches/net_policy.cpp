@@ -97,7 +97,7 @@ Element cell(const char* call, const char* note,
           .column()
           .gap(10)
           .child(std::move(art))
-          .child(text(toUtf8(readout), sheet.mono(10, sheet.palette.figure))));
+          .child(text(readout, sheet.mono(10, sheet.palette.figure))));
 }
 
 }  // namespace

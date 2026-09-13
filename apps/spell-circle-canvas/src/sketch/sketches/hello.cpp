@@ -100,7 +100,7 @@ struct HelloSketch : sketch::Sketch {
                    .cache(Cache::None))
         // Re-rendered by update() whenever the score changes —
         // the keyed text keeps its identity across renders.
-        .child(text(toUtf8("score " + std::to_string(score)))
+        .child(text("score " + std::to_string(score))
                    .font({.size = 24})
                    .ink(hexColor(0xffd9a0))
                    .key("score")

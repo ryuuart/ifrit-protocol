@@ -89,7 +89,7 @@ const char* kPassage =
 /** The passage at one measure. `live` and the budget are what the cells
  *  vary; everything else is one setting. */
 Element passage(float measure, bool live, float budget) {
-  Element leaf = text(toUtf8(kPassage), body())
+  Element leaf = text(kPassage, body())
                      .key("para")
                      .width(Dimension(measure))
                      .lineBreak(weave::LineBreakStrategy::kKnuthPlass);
@@ -181,7 +181,7 @@ struct LiveSettling final : sketch::Sketch {
             .column()
             .gap(10)
             .child(passage(measure, live, budget))
-            .child(text(toUtf8(report), sheet.mono(10, sheet.palette.figure))));
+            .child(text(report, sheet.mono(10, sheet.palette.figure))));
   }
 };
 

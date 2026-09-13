@@ -239,9 +239,9 @@ struct AxisRipple : sketch::Sketch {
     const float width = pens.back();
     Element panel = box().column().gap(10).width(width);
     panel.child(
-        text(toUtf8("GRAD \xe2\x80\x94 DRIVEN AT DRAW TIME, "
-                    "ONE SHAPING, LETTERS FIXED")));
-    panel.child(text(toUtf8(kProof), proof)
+        text("GRAD \xe2\x80\x94 DRIVEN AT DRAW TIME, "
+             "ONE SHAPING, LETTERS FIXED"));
+    panel.child(text(kProof, proof)
                     .key("ripple")
                     .fx({.effect = gradWave(kGradLo, kGradHi, radPerGlyph),
                          .stagger = {.eachMs = 0, .durationMs = 400},
@@ -256,13 +256,12 @@ struct AxisRipple : sketch::Sketch {
                   "\xce\x94 %.2f PX ACROSS THE RAMP",
                   axisMin, axisMax, kWavesAcross, kPeriod,
                   gradWidthHi - gradWidthLo);
-    panel.child(
-        text(toUtf8(hasGrad ? line
-                            : "THIS FACE DECLARES NO GRAD AXIS \xc2\xb7 "
-                              "THE DRIVE IS REFUSED AND THE LINE DRAWS "
-                              "AT ITS SHAPED COORDINATES"))
-            .font({.size = 11.0f, .track = 0.6f})
-            .ink(hasGrad ? kFaint : kMark));
+    panel.child(text(hasGrad ? line
+                             : "THIS FACE DECLARES NO GRAD AXIS \xc2\xb7 "
+                               "THE DRIVE IS REFUSED AND THE LINE DRAWS "
+                               "AT ITS SHAPED COORDINATES")
+                    .font({.size = 11.0f, .track = 0.6f})
+                    .ink(hasGrad ? kFaint : kMark));
     return panel;
   }
 
@@ -276,7 +275,7 @@ struct AxisRipple : sketch::Sketch {
                           .color = kInk,
                           .track = kProofTrack * 0.6f});
     style.variation(tag, value);
-    Element run = text(toUtf8(kProof), style);
+    Element run = text(kProof, style);
     // THE RULE IS ANCHORED TO THE RUN, not fitted to it. An unsliced
     // selector resolves to the union of every glyph's box, so pct(100) of
     // that rect is the last letter's trailing edge — which moves with the
@@ -290,8 +289,7 @@ struct AxisRipple : sketch::Sketch {
         .row()
         .alignItems(Align::Baseline)
         .gap(14)
-        .child(
-            text(toUtf8(label)).font({.size = 11.0f, .track = 1.6f}).width(52))
+        .child(text(label).font({.size = 11.0f, .track = 1.6f}).width(52))
         .child(std::move(run));
   }
 
@@ -308,15 +306,14 @@ struct AxisRipple : sketch::Sketch {
         .column()
         .gap(12)
         .grow(1)
-        .child(text(toUtf8(heading)))
+        .child(text(heading))
         .child(box()
                    .column()
                    .gap(6)
                    .child(proofRow(tag, lo, loLabel, true))
                    .child(proofRow(tag, hi, hiLabel, false)))
-        .child(text(toUtf8(verdict))
-                   .font({.size = 11.0f, .track = 0.6f})
-                   .ink(verdictInk));
+        .child(
+            text(verdict).font({.size = 11.0f, .track = 0.6f}).ink(verdictInk));
   }
 
   /** The proof, twice: the axis that moves advances beside the axis that
@@ -369,24 +366,25 @@ struct AxisRipple : sketch::Sketch {
                              {0.0f, 0.6f, 1.0f}))
         .font({.face = faceLabel, .size = 11.5f, .track = 2.4f})
         .ink(kLabel)
-        .child(box()
-                   .row()
-                   .alignItems(Align::End)
-                   .child(text(toUtf8("THE AXIS RIPPLE"))
-                              .font({.size = 12.5f, .track = 3.4f})
-                              .ink(kInk)
-                              .grow(1))
-                   .child(text(toUtf8("OPENTYPE FONT VARIATIONS \xc2\xb7 2016"))
-                              .ink(kFaint)))
+        .child(
+            box()
+                .row()
+                .alignItems(Align::End)
+                .child(text("THE AXIS RIPPLE")
+                           .font({.size = 12.5f, .track = 3.4f})
+                           .ink(kInk)
+                           .grow(1))
+                .child(
+                    text("OPENTYPE FONT VARIATIONS \xc2\xb7 2016").ink(kFaint)))
         .child(box().height(1).fill(Fill::color(kFaint)))
         .child(ripplePanel())
         .child(box().height(6))
         .child(proofPanels())
         .child(box().grow(1))
-        .child(text(toUtf8("A GRADE IS WEIGHT WITHOUT WIDTH \xc2\xb7 IT IS THE "
-                           "ONE AXIS A DRAW-TIME DRIVE CAN HONOUR, AND THE "
-                           "REASON THE RIPPLE COSTS ONE SHAPING RATHER THAN "
-                           "ONE PER FRAME"))
+        .child(text("A GRADE IS WEIGHT WITHOUT WIDTH \xc2\xb7 IT IS THE "
+                    "ONE AXIS A DRAW-TIME DRIVE CAN HONOUR, AND THE "
+                    "REASON THE RIPPLE COSTS ONE SHAPING RATHER THAN "
+                    "ONE PER FRAME")
                    .font({.size = 11.0f, .track = 0.6f})
                    .ink(kFaint));
   }

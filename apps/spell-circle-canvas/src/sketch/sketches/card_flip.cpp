@@ -103,7 +103,7 @@ Element panel(SkRect frame, const char* caption) {
       .corners({10})
       .fill(Fill::color(sketch::kit::theme().palette.cellGround))
       .perspective(kViewDistance)
-      .child(text(toUtf8(caption))
+      .child(text(caption)
                  .font({.size = 13, .color = kAsh, .track = 2})
                  .absolute()
                  .left(18)
@@ -157,8 +157,8 @@ struct CardFlip final : sketch::Sketch {
           .rotateY(turn)
           .backface(Backface::Hidden)
           .font({.color = kPaper, .track = 1})
-          .child(text(toUtf8(title)).font({.size = 30}))
-          .child(text(toUtf8(line)).font({.size = 14}).width(pct(100)));
+          .child(text(title).font({.size = 30}))
+          .child(text(line).font({.size = 14}).width(pct(100)));
     };
     return box()
         .absolute()
@@ -181,7 +181,7 @@ struct CardFlip final : sketch::Sketch {
           .foreground(stroke(1.0f, Fill::color(kEdge)))
           .alignItems(Align::Center)
           .justify(Justify::Center)
-          .child(text(toUtf8(kFaceNames[i])).font({.size = 64}));
+          .child(text(kFaceNames[i]).font({.size = 64}));
     };
     return box()
         .absolute()
@@ -218,8 +218,8 @@ struct CardFlip final : sketch::Sketch {
         .transformOrigin(0.5f, 1.0f)  // hinged along its bottom edge
         .rotateX(kTilt)
         .rotateY(motion::bind(&sway).source(-1, 1).target(-14, 14))
-        .child(text(toUtf8("TILTED PLATE")).font({.size = 18, .track = 3}))
-        .child(text(toUtf8(passage)).font({.size = 14}).width(pct(100)));
+        .child(text("TILTED PLATE").font({.size = 18, .track = 3}))
+        .child(text(passage).font({.size = 14}).width(pct(100)));
   }
 
   Element describe() const {
@@ -234,7 +234,7 @@ struct CardFlip final : sketch::Sketch {
         // and the title name their ash, the card its paper.
         .font({.face = look.type.sans})
         .ink(look.palette.ink)
-        .child(text(toUtf8("THE DEPTH LANES \xe2\x80\x94 A NODE IS A PLANE"))
+        .child(text("THE DEPTH LANES \xe2\x80\x94 A NODE IS A PLANE")
                    .font({.size = 14, .color = kAsh, .track = 3})
                    .absolute()
                    .left(gap)

@@ -126,7 +126,7 @@ Element cell(const char* call, const char* note, Element body,
           .child(std::move(body))
           // The readout stands on a scrim of the cell's own ground: a
           // trace runs the whole plate and would otherwise cross it.
-          .child(text(toUtf8(readout), look.mono(10, look.palette.figure))
+          .child(text(readout, look.mono(10, look.palette.figure))
                      .absolute()
                      .left(Dimension(8.0f))
                      .top(Dimension(6.0f))

@@ -404,7 +404,7 @@ auto ChaucerAstrolabe::limb() -> Element {
     const float f = kPlateAngles.fraction(psi);
     const float rr = 1.104f * kR;
     g.child(
-        text(toUtf8(std::to_string(deg == 0 ? 360 : deg)))
+        text(std::to_string(deg == 0 ? 360 : deg))
             .font({.face = faceLimb,
                    .size = 0.026f * kR,
                    .color = hexColor(0x33240c, 0.92f),
@@ -432,7 +432,7 @@ auto ChaucerAstrolabe::limb() -> Element {
     const float f = kPlateAngles.fraction(psi);
     const float rr = 1.044f * kR;
     const bool isX = (n == 21);
-    g.child(text(toUtf8(kLetters[n - 1]))
+    g.child(text(kLetters[n - 1])
                 .font({.face = faceLimb,
                        .size = 0.040f * kR,
                        .color = isX ? hexColor(0x33240c, 1.0f)

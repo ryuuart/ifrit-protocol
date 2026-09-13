@@ -73,19 +73,19 @@ auto RotaConvocationis::setup(sketch::SketchContext& ctx) -> void {
   for (int k = 0; k < kSeals; ++k)
     sealText[k] = deal(0x5EE00u + (uint32_t)k, 2, 7, 8) + "\xc2\xb7 ";
 
-  voxSize = fitToRing(
-      ctx, text(toUtf8(voxText)).styleClass("ring").font({.track = 2.2f}), 18,
-      rVox * kR);
-  runeSize = fitToRing(ctx, text(toUtf8(runeText)).font({.track = 2.0f}), 20,
-                       rRune * kR);
-  nomSize = fitToRing(
-      ctx, text(toUtf8(nomText)).styleClass("ring").font({.track = 4.2f}), 30,
-      rNom * kR);
-  texSize = fitToRing(ctx, text(toUtf8(texText)), 9, rTex * kR, 0.995f);
+  voxSize =
+      fitToRing(ctx, text(voxText).styleClass("ring").font({.track = 2.2f}), 18,
+                rVox * kR);
+  runeSize =
+      fitToRing(ctx, text(runeText).font({.track = 2.0f}), 20, rRune * kR);
+  nomSize =
+      fitToRing(ctx, text(nomText).styleClass("ring").font({.track = 4.2f}), 30,
+                rNom * kR);
+  texSize = fitToRing(ctx, text(texText), 9, rTex * kR, 0.995f);
   for (int k = 0; k < kSeals; ++k)
     sealSize[k] = fitToRing(
-        ctx, text(toUtf8(sealText[k])).styleClass("ring").font({.track = 1.4f}),
-        9, kSealRing, 0.97f);
+        ctx, text(sealText[k]).styleClass("ring").font({.track = 1.4f}), 9,
+        kSealRing, 0.97f);
 
   // ---- the writing cue table: pace, pausing at each cross --------------
   voxCues.clear();

@@ -7,7 +7,7 @@ auto KspMapView::infoRow(const char* label, const char* value) -> Element {
       .height(Dimension(19))
       .alignItems(Align::Center)
       .padding(0, 0, 0, 8)
-      .child(text(toUtf8(label)))
+      .child(text(label))
       .child(box().grow(1))
       .child(t(value, {.face = sansB(), .color = kOrange}));
 }

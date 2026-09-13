@@ -233,8 +233,8 @@ struct EmberDecode : sketch::Sketch {
                        // The faint remark is the sheet's own voice: every
                        // line is set in it unless it says otherwise.
                        .font({.size = 10.5f, .color = kFaint, .track = 0.8f});
-    root.child(text(toUtf8("TEXT AS A SAMPLER \xc2\xb7 ONE SkSL PASS OVER ONE "
-                           "RENDERED LINE"))
+    root.child(text("TEXT AS A SAMPLER \xc2\xb7 ONE SkSL PASS OVER ONE "
+                    "RENDERED LINE")
                    .font({.size = 11.5f, .color = kLabel, .track = 1.6f}));
     root.child(text(u8"EMBER DECODE")
                    .font(burnt(78, 5.0f))
@@ -244,9 +244,9 @@ struct EmberDecode : sketch::Sketch {
                         .unit = weave::Unit::Cluster,
                         .progress = &display}));
     root.child(
-        text(toUtf8("uUnitRect[N] \xc2\xb7 uUnitPhase[N] \xe2\x80\x94 a LETTER "
-                    "is a unit; the bar under each one is the progress that "
-                    "unit's uniform carries, read back from beatsOf")));
+        text("uUnitRect[N] \xc2\xb7 uUnitPhase[N] \xe2\x80\x94 a LETTER "
+             "is a unit; the bar under each one is the progress that "
+             "unit's uniform carries, read back from beatsOf"));
     root.child(box().height(6));
     root.child(text(u8"ONE PASS PER WORD PHASE")
                    .font(burnt(27, 3.0f))
@@ -256,15 +256,15 @@ struct EmberDecode : sketch::Sketch {
                         .unit = weave::Unit::Word,
                         .progress = &words}));
     root.child(
-        text(toUtf8("the same pass, the same source at another count "
-                    "\xe2\x80\x94 a WORD is a unit here, and the "
-                    "runtime compiled and cached one variant per "
-                    "count")));
+        text("the same pass, the same source at another count "
+             "\xe2\x80\x94 a WORD is a unit here, and the "
+             "runtime compiled and cached one variant per "
+             "count"));
     root.child(box().grow(1));
     root.child(
-        text(toUtf8("one draw and one pass over each line's own box, "
-                    "whatever N is \xc2\xb7 per-unit progress is "
-                    "uniform DATA, not scene structure")));
+        text("one draw and one pass over each line's own box, "
+             "whatever N is \xc2\xb7 per-unit progress is "
+             "uniform DATA, not scene structure"));
 
     // THE SCHEDULE, DRAWN, from the same query the pass agrees with: one
     // bar per beat of the display track, at that beat's laid-out rect,

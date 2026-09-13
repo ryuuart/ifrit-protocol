@@ -78,10 +78,9 @@ std::vector<Element> cards() {
   made.reserve(12);
   for (int i = 0; i < 12; ++i) {
     const std::string digits = (i < 9 ? "0" : "") + std::to_string(i + 1);
-    made.push_back(
-        text(toUtf8(digits), look.mono(kSizes[i % 3], look.palette.figure))
-            .padding(8, 4, 8, 4)
-            .fill(Fill::color(kCard)));
+    made.push_back(text(digits, look.mono(kSizes[i % 3], look.palette.figure))
+                       .padding(8, 4, 8, 4)
+                       .fill(Fill::color(kCard)));
   }
   return made;
 }

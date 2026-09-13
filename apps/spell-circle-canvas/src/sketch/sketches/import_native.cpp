@@ -102,12 +102,12 @@ Element dial(float edge) {
                  .inset(34, 34, 34, 34)
                  .column()
                  .gap(22)
-                 .child(text(toUtf8("COMPOSE"))
+                 .child(text("COMPOSE")
                             .font({.size = 30, .track = 6})
                             .ink(SkColor4f{1, 1, 1, 0.92f}))
-                 .child(text(toUtf8("a composer painting into a surface of "
-                                    "its own; texture() is the value a slot "
-                                    "holds"))
+                 .child(text("a composer painting into a surface of "
+                             "its own; texture() is the value a slot "
+                             "holds")
                             .font({.size = 17, .track = 0.4f})
                             .ink(SkColor4f{1, 1, 1, 0.45f})
                             .width(Dimension(edge - 68)))

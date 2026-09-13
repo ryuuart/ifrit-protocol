@@ -409,8 +409,8 @@ struct LainNavi : sketch::Sketch {
     // measure a 40-character run at 100 pt and scale.
     {
       const std::string probe(40, 'M');
-      const SkSize m = ctx.measure(
-          text(toUtf8(probe), type(monoFace(), 100.0f, kConsoleInk)));
+      const SkSize m =
+          ctx.measure(text(probe, type(monoFace(), 100.0f, kConsoleInk)));
       const float advAt100 = m.width() / 40.0f;
       monoSize = advAt100 > 1.0f ? 100.0f * kAdvance / advAt100 : 22.0f;
     }

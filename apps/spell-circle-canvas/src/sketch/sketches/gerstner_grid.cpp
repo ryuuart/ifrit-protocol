@@ -287,7 +287,7 @@ struct GerstnerGrid final : sketch::Sketch {
                          .gap(g::kUnit)
                          .font({.size = c.size});
       for (int b = 0; b < c.blocks; ++b)
-        copy.child(text(toUtf8(g::kBody[(i + b) % g::kBodyCount]))
+        copy.child(text(g::kBody[(i + b) % g::kBodyCount])
                        .ink(b % 2 == 0 ? g::kInk : g::kInkSoft)
                        .width(Dimension(colW)));
       band.child(std::move(copy));
@@ -300,7 +300,7 @@ struct GerstnerGrid final : sketch::Sketch {
                      .fill(Fill::currentInk()));
       const std::string label = kit::formatted("%02d", i + 1);
       band.child(
-          text(toUtf8(label))
+          text(label)
               .font(
                   {.size = 10, .color = g::kRed, .track = 1.6f, .weight = 620})
               .left(0)
@@ -327,11 +327,11 @@ struct GerstnerGrid final : sketch::Sketch {
                    .row()
                    .alignItems(Align::End)
                    .font({.size = 30, .weight = 680})
-                   .child(text(toUtf8("PROGRAMME")).font({.track = 3.2f}))
-                   .child(text(toUtf8("58"))
+                   .child(text("PROGRAMME").font({.track = 3.2f}))
+                   .child(text("58")
                               .font({.color = g::kRed, .track = 1.0f})
                               .margin(14, 0, 0, 0))
-                   .child(text(toUtf8(count))
+                   .child(text(count)
                               .font({.size = 11,
                                      .color = g::kInkSoft,
                                      .track = 3.0f,
@@ -354,12 +354,11 @@ struct GerstnerGrid final : sketch::Sketch {
             .left(g::kFieldX)
             .top(g::kFieldY + g::kFieldH + 16)
             .opacity(animate(motion::from(0.0f).to(1.0f), {300ms}))
-            .child(text(toUtf8("58 ="))
-                       .font({.size = 13,
-                              .color = g::kInkSoft,
-                              .track = 1.2f,
-                              .weight = 600}))
-            .child(text(toUtf8(c.arithmetic))
+            .child(text("58 =").font({.size = 13,
+                                      .color = g::kInkSoft,
+                                      .track = 1.2f,
+                                      .weight = 600}))
+            .child(text(c.arithmetic)
                        .font({.size = 15, .track = 0.8f, .weight = 640}));
     // the ladder of all six, with the live one marked
     Element ladder = box()
@@ -381,7 +380,7 @@ struct GerstnerGrid final : sketch::Sketch {
               .fill(Fill::color(live ? g::kRed : SkColor4f{0, 0, 0, 0}))
               .foreground(
                   stroke(1.0f, Fill::color(live ? g::kRed : g::kInkSoft)))
-              .child(text(toUtf8(n)).ink(live ? g::kPaper : g::kInkSoft)));
+              .child(text(n).ink(live ? g::kPaper : g::kInkSoft)));
     }
     return stack().inset(0).child(std::move(row)).child(std::move(ladder));
   }
@@ -416,7 +415,7 @@ struct GerstnerGrid final : sketch::Sketch {
     // the page, because an unlabelled red rule across live text reads as a
     // defect rather than as an instrument.
     root.child(
-        text(toUtf8("READING INDEX"))
+        text("READING INDEX")
             .font({.size = 7, .color = g::kRed, .track = 0.6f, .weight = 620})
             .left(g::kFieldX + g::kFieldW + 6)
             .top(-4)
@@ -443,10 +442,10 @@ struct GerstnerGrid final : sketch::Sketch {
                    .bottom(26)
                    .font({.size = 10})
                    .ink(g::kInkSoft)
-                   .child(text(toUtf8("KARL GERSTNER \xc2\xb7 CAPITAL "
-                                      "\xc2\xb7 1962"))
+                   .child(text("KARL GERSTNER \xc2\xb7 CAPITAL "
+                               "\xc2\xb7 1962")
                               .font({.track = 2.6f, .weight = 600}))
-                   .child(text(toUtf8("the mobile grid, run"))
+                   .child(text("the mobile grid, run")
                               .font({.track = 1.2f})
                               .margin(0, 3, 0, 0)));
     return root;

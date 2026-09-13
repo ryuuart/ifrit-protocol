@@ -338,7 +338,7 @@ struct MatrixRain : sketch::Sketch {
     std::string probe;
     for (int i = 0; i < 8; ++i) appendUtf8(probe, U'ｱ');
     const SkSize one =
-        ctx.measure(text(toUtf8(probe))
+        ctx.measure(text(probe)
                         .font(voice(size))
                         .writingMode(sigil::weave::WritingMode::kVerticalRL));
     const float step = std::max(1.0f, one.height() / 8.0f);
@@ -393,7 +393,7 @@ struct MatrixRain : sketch::Sketch {
     if (f.glowSigma > 0)
       plane.underlays = {
           sigil::weave::kit::glow(0xC040FF70, f.glowSigma, 1.9f)};
-    return text(toUtf8(fieldText[j]))
+    return text(fieldText[j])
         .font(plane)
         .key(f.key)
         .left(0)
@@ -426,7 +426,7 @@ struct MatrixRain : sketch::Sketch {
     // The bed: the whole screen faintly alive. No streak track — these
     // glyphs are never bright and never absent, they only churn, mirrored
     // and lifted like the curtains above them.
-    root.child(text(toUtf8(bedText))
+    root.child(text(bedText)
                    .font({.size = kBedSize, .color = kBedInk})
                    .key("rain-bed")
                    .left(0)
@@ -487,15 +487,14 @@ struct MatrixRain : sketch::Sketch {
         // thing on the page that could differ between two machines
         // rendering the same declared moment. That there are four planes
         // is a fact about the declaration, so that is what is stated.
-        text(
-            toUtf8("SIMON WHITELEY'S DIGITAL RAIN \xc2\xb7 FOUR PLANES OF "
-                   "HALF-WIDTH KATAKANA AND DIGITS, "
-                   "MIRRORED PER GLYPH, HELD UPRIGHT \xc2\xb7 THE LIGHT FALLS, "
-                   "THE TYPE STANDS STILL"),
-            weave::textStyle({.face = faceLabel,
-                              .size = 10.5f,
-                              .color = kLabel,
-                              .track = 2.2f}))
+        text("SIMON WHITELEY'S DIGITAL RAIN \xc2\xb7 FOUR PLANES OF "
+             "HALF-WIDTH KATAKANA AND DIGITS, "
+             "MIRRORED PER GLYPH, HELD UPRIGHT \xc2\xb7 THE LIGHT FALLS, "
+             "THE TYPE STANDS STILL",
+             weave::textStyle({.face = faceLabel,
+                               .size = 10.5f,
+                               .color = kLabel,
+                               .track = 2.2f}))
             .key("caption")
             .left(26)
             .top(kH - 30));

@@ -171,7 +171,7 @@ struct GeoGroups : sketch::Sketch {
     if (!model || model->parts.empty()) {
       caption = "the .geo did not parse";
       ctx.composer.render(
-          text(toUtf8(caption), weave::textStyle({.size = 15, .color = kInk}))
+          text(caption, weave::textStyle({.size = 15, .color = kInk}))
               .left(30)
               .top(16));
       return;

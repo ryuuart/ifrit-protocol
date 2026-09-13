@@ -81,7 +81,7 @@ Element cell(const char* call, const char* note, const char* key, Track track) {
   return sketch::kit::caption(
       kCell, toUtf8(call), toUtf8(note),
       sketch::kit::well({.width = kCell, .height = kPicture})
-          .child(text(toUtf8("DISPLACEMENT"), specimen())
+          .child(text("DISPLACEMENT", specimen())
                      .key(key)
                      .width(Dimension(kCell - 28))
                      .absolute()

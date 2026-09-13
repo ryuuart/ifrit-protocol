@@ -207,41 +207,40 @@ struct Bousen final : sketch::Sketch {
                 // the rect it anchors to is the union of that phrase's
                 // advance boxes, and in a column those stack downward, so
                 // the note it carries runs down the page beside them.
-                .mark(
-                    weave::selectors::text(u8"列は右から左へ"),
-                    box()
-                        .key("callout")
-                        // A mark is a child of the column and inherits
-                        // its writing mode; the note is Latin and reads
-                        // across, so the callout says so.
-                        .writingMode(sigil::weave::WritingMode::kHorizontal)
-                        .left(Dimension(-168.0f))
-                        .top(pct(0))
-                        .width(Dimension(168.0f))
-                        // THE LEADER. A note standing in the margin is a
-                        // note about nothing until something joins it to
-                        // the phrase; the rule runs from the text block
-                        // to the mark's own left edge, which is the
-                        // phrase's edge, so it lands where the anchor is
-                        // rather than where a coordinate would have put
-                        // it.
-                        .child(box()
-                                   .key("leader")
-                                   .absolute()
-                                   .left(Dimension(0.0f))
-                                   .top(Dimension(42.0f))
-                                   .width(Dimension(168.0f))
-                                   .height(Dimension(1.0f))
-                                   .fill(Fill::color(bs::kAka)))
-                        .child(text(weave::rich()
-                                        .add(toUtf8("mark() "),
-                                             weave::Type{.size = 11,
-                                                         .color = bs::kAka,
-                                                         .track = 1})
-                                        .add(toUtf8("\xe2\x80\x94 anchored to "
-                                                    "the phrase,\nnot to a "
-                                                    "coordinate")))
-                                   .width(Dimension(150.0f)))))
+                .mark(weave::selectors::text(u8"列は右から左へ"),
+                      box()
+                          .key("callout")
+                          // A mark is a child of the column and inherits
+                          // its writing mode; the note is Latin and reads
+                          // across, so the callout says so.
+                          .writingMode(sigil::weave::WritingMode::kHorizontal)
+                          .left(Dimension(-168.0f))
+                          .top(pct(0))
+                          .width(Dimension(168.0f))
+                          // THE LEADER. A note standing in the margin is a
+                          // note about nothing until something joins it to
+                          // the phrase; the rule runs from the text block
+                          // to the mark's own left edge, which is the
+                          // phrase's edge, so it lands where the anchor is
+                          // rather than where a coordinate would have put
+                          // it.
+                          .child(box()
+                                     .key("leader")
+                                     .absolute()
+                                     .left(Dimension(0.0f))
+                                     .top(Dimension(42.0f))
+                                     .width(Dimension(168.0f))
+                                     .height(Dimension(1.0f))
+                                     .fill(Fill::color(bs::kAka)))
+                          .child(text(weave::rich()
+                                          .add("mark() ",
+                                               weave::Type{.size = 11,
+                                                           .color = bs::kAka,
+                                                           .track = 1})
+                                          .add("\xe2\x80\x94 anchored to "
+                                               "the phrase,\nnot to a "
+                                               "coordinate"))
+                                     .width(Dimension(150.0f)))))
         // The plate names itself in the other writing mode, so the two
         // stand side by side.
         .child(
@@ -250,17 +249,17 @@ struct Bousen final : sketch::Sketch {
                 .inset(64, 92, 0, 0)
                 .column()
                 .gap(10)
-                .child(text(toUtf8("\xe5\x82\x8d\xe7\xb7\x9a"),
-                            bs::body(44, bs::kSumi)))
+                .child(
+                    text("\xe5\x82\x8d\xe7\xb7\x9a", bs::body(44, bs::kSumi)))
                 .child(box()
                            .width(Dimension(120.0f))
                            .height(Dimension(1.0f))
                            .fill(Fill::color(bs::kAka)))
-                .child(text(toUtf8("THE COLUMN'S FURNITURE"))
+                .child(text("THE COLUMN'S FURNITURE")
                            .font({.size = 13, .color = bs::kAi, .track = 3}))
                 .child(
-                    text(toUtf8("a band beside the column, not beneath a\n"
-                                "line \xc2\xb7 a mark on the phrase it names"))
+                    text("a band beside the column, not beneath a\n"
+                         "line \xc2\xb7 a mark on the phrase it names")
                         .font({.size = 13, .color = bs::kSumi, .track = 0.4f})
                         .width(Dimension(260.0f)))
                 .child(box().height(Dimension(20.0f)))
@@ -272,9 +271,9 @@ struct Bousen final : sketch::Sketch {
                            .child(specimen("valt \xc2\xb7 vpal \xc2\xb7 vkna",
                                            bs::columnFitted(26, bs::kAka))))
                 .child(box().height(Dimension(14.0f)))
-                .child(text(toUtf8("the pair is one string set twice: the "
-                                   "second asks\nthe face for the metrics it "
-                                   "keeps for a column"))
+                .child(text("the pair is one string set twice: the "
+                            "second asks\nthe face for the metrics it "
+                            "keeps for a column")
                            .font({.size = 11})
                            .width(Dimension(300.0f))))
         // The cascade lives on its own strip, and it wears a band. A track
@@ -301,9 +300,9 @@ struct Bousen final : sketch::Sketch {
                                          {std::chrono::milliseconds(
                                               (int)bs::kColumnEntranceSpan),
                                           &ch::easeNone, 220ms})}))
-        .child(text(toUtf8("\xe2\x86\x91 this strip's entrance beats over\n"
-                           "weave::Unit::Line \xe2\x80\x94 one COLUMN a beat,\n"
-                           "and its band stands at rest"))
+        .child(text("\xe2\x86\x91 this strip's entrance beats over\n"
+                    "weave::Unit::Line \xe2\x80\x94 one COLUMN a beat,\n"
+                    "and its band stands at rest")
                    .absolute()
                    .inset(300, 466, 0, 0)
                    .width(Dimension(180.0f)))
@@ -325,8 +324,8 @@ struct Bousen final : sketch::Sketch {
                                     sigil::weave::Decoration::Kind::kHighlight,
                                     {bs::kAi.fR, bs::kAi.fG, bs::kAi.fB, 0.13f},
                                     0)))
-        .child(text(toUtf8("the entrance beats over COLUMNS \xc2\xb7 a band is "
-                           "beside the column, never beneath a line"))
+        .child(text("the entrance beats over COLUMNS \xc2\xb7 a band is "
+                    "beside the column, never beneath a line")
                    .font({.size = 12})
                    .absolute()
                    .inset(64, bs::kH - 44, 0, 0));

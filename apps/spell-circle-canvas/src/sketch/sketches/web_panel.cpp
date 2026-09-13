@@ -281,7 +281,7 @@ struct WebPanelSketch final : sketch::Sketch {
                 .column()
                 .gap(10)
                 .child(text(u8"no web engine here").font({.size = 22}))
-                .child(text(toUtf8(why)).font({.size = 13, .color = kDim})));
+                .child(text(why).font({.size = 13, .color = kDim})));
   }
 
  private:

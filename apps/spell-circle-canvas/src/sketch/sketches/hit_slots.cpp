@@ -252,12 +252,11 @@ struct HitSlots final : sketch::Sketch {
             .hitTestable(false)
             .font({.size = 12.5f})
             .ink(look.palette.ash)
-            .child(text(toUtf8("hitTest(probe) \xe2\x86\x92 " + hitLabel))
+            .child(text("hitTest(probe) \xe2\x86\x92 " + hitLabel)
                        .font({.size = 16, .color = look.palette.ink}))
-            .child(text(
-                toUtf8("bounds(\"" + hitLabel + "\") \xe2\x86\x92 " + rect)))
-            .child(text(toUtf8("routesAt(\"" + hitLabel + "\") \xe2\x86\x92 " +
-                               routes))));
+            .child(text("bounds(\"" + hitLabel + "\") \xe2\x86\x92 " + rect))
+            .child(
+                text("routesAt(\"" + hitLabel + "\") \xe2\x86\x92 " + routes)));
   }
 
   void setup(sketch::SketchContext& ctx) override {

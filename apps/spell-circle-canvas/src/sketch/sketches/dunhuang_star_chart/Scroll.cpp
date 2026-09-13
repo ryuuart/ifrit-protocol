@@ -201,8 +201,8 @@ auto DunhuangStarChart::mapFrame(int k, int seg) -> Element {
                 .height(Dimension(big ? 8.0f : 4.5f))
                 .fill(Fill::color(hexColor(0x8a7458, 0.40f))));
     if (big)
-      g.child(text(toUtf8(kit::formatted("%d", (int)std::lround(wrap360(
-                                                   mapCentre(k) + (float)t)))))
+      g.child(text(kit::formatted("%d", (int)std::lround(
+                                            wrap360(mapCentre(k) + (float)t))))
                   .font({.size = 7.4f, .color = hexColor(0x8a7458, 0.60f)})
                   .left(x - 11)
                   .top(kFrameH + 3)
@@ -211,7 +211,7 @@ auto DunhuangStarChart::mapFrame(int k, int seg) -> Element {
   }
 
   // the map's own number and month, in the margin above
-  g.child(text(toUtf8(kit::formatted("%d", k)))
+  g.child(text(kit::formatted("%d", k))
               .font({.face = faceDisplay,
                      .size = 13.0f,
                      .color = hexColor(0x4a3b28, 0.82f)})
@@ -246,7 +246,7 @@ auto DunhuangStarChart::mapFrame(int k, int seg) -> Element {
                     .dashIntervals = {7, 5},
                     .trimStart = 0.06f,
                     .trimEnd = 0.94f}));
-    g.child(text(toUtf8(cat.xiu(m).native))
+    g.child(text(cat.xiu(m).native)
                 .font({.face = faceHan ? faceHan : faceSerif,
                        .size = 11.5f,
                        .color = hexColor(0x2a2118, 0.88f)})
@@ -254,7 +254,7 @@ auto DunhuangStarChart::mapFrame(int k, int seg) -> Element {
                 .top(-32)
                 .width(Dimension(18))
                 .textAlign(weave::TextAlignment::kCenter));
-    g.child(text(toUtf8(cat.xiu(m).pinyin))
+    g.child(text(cat.xiu(m).pinyin)
                 .font({.size = 7.0f, .color = hexColor(0x5d4c37, 0.75f)})
                 .left(x - 20)
                 .top(-45)
@@ -383,7 +383,7 @@ auto DunhuangStarChart::discPlate(int seg) -> Element {
       const SkPoint label =
           arrange::onEllipse({rOut, rOut}, {rOut - 16.0f, rOut - 16.0f}, a);
       const float lx = label.fX, ly = label.fY;
-      g.child(text(toUtf8(cat.xiu(m).native))
+      g.child(text(cat.xiu(m).native)
                   .font({.face = faceHan ? faceHan : faceSerif,
                          .size = 11.0f,
                          .color = hexColor(0x2a2118, 0.85f)})
@@ -447,16 +447,16 @@ auto DunhuangStarChart::discNotes(int seg) -> Element {
                      (90.0f - kDiscCenDec) / kPolPerMm),
   };
   for (int i = 0; i < 4; ++i)
-    g.child(text(toUtf8(rows[(size_t)i]))
+    g.child(text(rows[(size_t)i])
                 .font({.size = 8.0f,
                        .color = i >= 2 ? hexColor(0x8a3020, 0.95f)
                                        : hexColor(0x4a3b28, 0.9f)})
                 .left(0)
                 .top((float)i * 10.4f)
                 .width(Dimension(rOut * 2 + 16)));
-  g.child(text(toUtf8("slightly erased, sits near it \xe2\x80\x94 \"could be "
-                      "the Pole "
-                      "star\". Drawn as found."))
+  g.child(text("slightly erased, sits near it \xe2\x80\x94 \"could be "
+               "the Pole "
+               "star\". Drawn as found.")
               .font({.size = 8.0f, .color = hexColor(0x8a3020, 0.95f)})
               .left(0)
               .top(41.6f)
@@ -474,11 +474,11 @@ auto DunhuangStarChart::raRuler(int seg) -> Element {
                .opacity(gate(tFold1 - 0.4f, tFold1 + 0.6f));
   const float y = kBandTop - kSegTop - 46.0f;
   if (seg == 1)
-    g.child(text(toUtf8("EACH FRAME SPANS 48\xc2\xb0 OF RA ON A 30\xc2\xb0 "
-                        "PITCH \xc2\xb7 "
-                        "HATCHED: the 18\xc2\xb0 it shares with its neighbour "
-                        "\xc2\xb7 "
-                        "the axis JUMPS BACK at every boundary"))
+    g.child(text("EACH FRAME SPANS 48\xc2\xb0 OF RA ON A 30\xc2\xb0 "
+                 "PITCH \xc2\xb7 "
+                 "HATCHED: the 18\xc2\xb0 it shares with its neighbour "
+                 "\xc2\xb7 "
+                 "the axis JUMPS BACK at every boundary")
                 .font({.size = 8.4f, .color = hexColor(0xc9a35c, 0.9f)})
                 .left(600)
                 .top(y - 26)
@@ -507,17 +507,15 @@ auto DunhuangStarChart::raRuler(int seg) -> Element {
                               }))
             .stroke(lines::Line{
                 .width = 1.0f, .fill = Fill::color(hexColor(0xc9a35c, 0.7f))}));
-    g.child(text(toUtf8(kit::formatted(
-                     "%d\xc2\xb0",
-                     (int)std::lround(wrap360(mapCentre(k) - 24.0f)))))
+    g.child(text(kit::formatted("%d\xc2\xb0", (int)std::lround(wrap360(
+                                                  mapCentre(k) - 24.0f))))
                 .font({.size = 7.6f, .color = hexColor(0xc9a35c, 0.85f)})
                 .left(xr - 26)
                 .top(y + 13)
                 .width(Dimension(28))
                 .textAlign(weave::TextAlignment::kEnd));
-    g.child(text(toUtf8(kit::formatted(
-                     "%d\xc2\xb0",
-                     (int)std::lround(wrap360(mapCentre(k) + 24.0f)))))
+    g.child(text(kit::formatted("%d\xc2\xb0", (int)std::lround(wrap360(
+                                                  mapCentre(k) + 24.0f))))
                 .font({.size = 7.6f, .color = hexColor(0xc9a35c, 0.85f)})
                 .left(xl - 2)
                 .top(y + 13)
@@ -579,7 +577,7 @@ auto DunhuangStarChart::breakMark() -> Element {
   }
   const float sL = (kOriginR - kBreakR) / kPxMm,
               sR = (kOriginL - kBreakL) / kPxMm;
-  g.child(text(toUtf8(kit::formatted("%d mm", (int)std::lround(sR - sL))))
+  g.child(text(kit::formatted("%d mm", (int)std::lround(sR - sL)))
               .font({.size = 8.2f, .color = hexColor(0x9a8a68, 0.85f)})
               .left(-16)
               .top(h + 4)

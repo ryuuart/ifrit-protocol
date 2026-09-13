@@ -179,7 +179,7 @@ struct Zellige final : sketch::Sketch {
                                       {0.42f, {1, 1, 1, 0.05f}},
                                       {0.58f, {0, 0, 0, 0.03f}},
                                       {1.00f, {0, 0, 0, 0.10f}}}))))
-        .child(text(toUtf8(label)).font({.size = 13, .track = 1.2f}));
+        .child(text(label).font({.size = 13, .track = 1.2f}));
   }
 
   Element describe() {
@@ -193,31 +193,29 @@ struct Zellige final : sketch::Sketch {
         // Speckled plaster grain over the ground — its own full-bleed
         // layer (the root fill and the pattern can't share one slot).
         .child(box().inset(0, 0, 0, 0).fill(grain.material()))
-        .child(
-            box()
-                .column()
-                .inset(50, 44, 50, 44)
-                .gap(14)
-                .child(
-                    box()
-                        .row()
-                        .alignItems(Align::Baseline)
-                        .gap(14)
-                        .child(text(toUtf8("ZELLIJE"))
-                                   .font({.size = 34, .track = 3}))
-                        .child(text(toUtf8("Hankin PIC \xc2\xb7 4.8.8 \xc2\xb7 "
-                                           "\xce\xb8 swept 30\xe2\x80\x93"
-                                           "60\xc2\xb0"))
-                                   .font({.size = 14,
-                                          .color = zw::kSub,
-                                          .track = 1})))
-                .child(box()
-                           .row()
-                           .grow(1)
-                           .gap(22)
-                           .child(panel(left, captions[0]))
-                           .child(panel(middle, captions[1]))
-                           .child(panel(right, captions[2]))));
+        .child(box()
+                   .column()
+                   .inset(50, 44, 50, 44)
+                   .gap(14)
+                   .child(box()
+                              .row()
+                              .alignItems(Align::Baseline)
+                              .gap(14)
+                              .child(text("ZELLIJE").font(
+                                  {.size = 34, .track = 3}))
+                              .child(text("Hankin PIC \xc2\xb7 4.8.8 \xc2\xb7 "
+                                          "\xce\xb8 swept 30\xe2\x80\x93"
+                                          "60\xc2\xb0")
+                                         .font({.size = 14,
+                                                .color = zw::kSub,
+                                                .track = 1})))
+                   .child(box()
+                              .row()
+                              .grow(1)
+                              .gap(22)
+                              .child(panel(left, captions[0]))
+                              .child(panel(middle, captions[1]))
+                              .child(panel(right, captions[2]))));
   }
 
   void update(double elapsed, sketch::SketchContext& ctx) override {

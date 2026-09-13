@@ -32,10 +32,10 @@ auto ChaucerAstrolabe::projectionPanel() -> Element {
   g.child(kit::disc(SkPoint{c.fX, c.fY + rr}, 5.0f)
               .shape(shapes::circle())
               .fill(Fill::color(kRubric)));
-  g.child(text(toUtf8("N"))
+  g.child(text("N")
               .font({.face = faceSerif, .size = 15})
               .centerAt({c.fX + 14, c.fY - rr - 2}));
-  g.child(text(toUtf8("S \xe2\x80\x94 the eye of the projection"))
+  g.child(text("S \xe2\x80\x94 the eye of the projection")
               .font({.face = faceItalic, .size = 13, .color = kRubric})
               .at({c.fX + 10, c.fY + rr + 2}));
   g.child(slot("projray"));
@@ -81,7 +81,7 @@ auto ChaucerAstrolabe::projRead() -> Element {
   // the reading is the terminal face at 14 in the panel's ink; the three
   // notes under it are smaller and dimmer
   auto note = [&](const std::string& s) {
-    return text(toUtf8(s)).font({.size = 12, .color = hexColor(0x7b6a54)});
+    return text(s).font({.size = 12, .color = hexColor(0x7b6a54)});
   };
   return box()
       .left(px + 16)
@@ -90,11 +90,11 @@ auto ChaucerAstrolabe::projRead() -> Element {
       .column()
       .gap(4)
       .font({.face = faceMono, .size = 14})
-      .child(text(toUtf8(kit::formatted("\xce\xb4 = %+7.3f\xc2\xb0", dec))))
-      .child(text(toUtf8(
+      .child(text(kit::formatted("\xce\xb4 = %+7.3f\xc2\xb0", dec)))
+      .child(text(
           kit::formatted("r = R_eq\xc2\xb7tan((90\xe2\x88\x92\xce\xb4)/2) = "
                          "%.6f R",
-                         rOfDec(dec)))))
+                         rOfDec(dec))))
       .child(note("R_can 0.424423  R_eq 0.651477  R_cap 1.000000"))
       .child(note("a circle through the EYE projects to a LINE \xe2\x80\x94 "
                   "which is"))
@@ -185,13 +185,13 @@ auto ChaucerAstrolabe::familiesPanel() -> Element {
                   .fill(Fill::color(hexColor(0x241c15, 0.7f))));
     }
     g.child(std::move(d));
-    g.child(text(toUtf8(fams[i].name))
+    g.child(text(fams[i].name)
                 .font({.face = faceLimb, .size = 11.5f, .track = 1.2f})
                 .width(212)
                 .textAlign(sigil::weave::TextAlignment::kCenter)
                 .centerAt({cx, cy + r + 15}));
     g.child(
-        text(toUtf8(fams[i].formula))
+        text(fams[i].formula)
             .font({.face = faceMono, .size = 9.5f, .color = hexColor(0x7b6a54)})
             .width(212)
             .textAlign(sigil::weave::TextAlignment::kCenter)
@@ -273,14 +273,14 @@ auto ChaucerAstrolabe::backPanel() -> Element {
                   .fill(Fill::none())
                   .stroke(stroke(1.1f, Fill::color(hexColor(0x3a2a10, 0.7f)))));
       const float am = (a0 + a1) * 0.5f;
-      g.child(text(toUtf8(kMonths[m]))
+      g.child(text(kMonths[m])
                   .font({.size = 9.5f, .color = hexColor(0x33240c, 0.85f)})
                   .centerAt(arrange::onEllipse(c, {r * 0.817f, r * 0.817f},
                                                am * kD)));
       const float az =
           arrange::along(-90.0f, 360.0f, (size_t)m, 12, arrange::Turn::Closed);
       const float azm = az + 15.0f;
-      g.child(text(toUtf8(std::string(kSigns[(m + 9) % 12]).substr(0, 3)))
+      g.child(text(std::string(kSigns[(m + 9) % 12]).substr(0, 3))
                   .ink(hexColor(0x33240c, 0.7f))
                   .centerAt(
                       arrange::onEllipse(c, {r * 0.74f, r * 0.74f}, azm * kD)));
@@ -310,10 +310,10 @@ auto ChaucerAstrolabe::backPanel() -> Element {
                       s * (i % 3 == 0 ? 0.34f : 0.20f), 0.8f))
                   .fill(Fill::color(hexColor(0x3a2a10, 0.6f))));
     }
-    g.child(text(toUtf8("VMBRA RECTA"))
+    g.child(text("VMBRA RECTA")
                 .ink(hexColor(0x33240c, 0.8f))
                 .centerAt({c.fX - s * 0.52f, c.fY + s * 0.86f}));
-    g.child(text(toUtf8("VMBRA VERSA"))
+    g.child(text("VMBRA VERSA")
                 .ink(hexColor(0x33240c, 0.8f))
                 .centerAt({c.fX + s * 0.52f, c.fY + s * 0.86f}));
   }
@@ -337,8 +337,8 @@ auto ChaucerAstrolabe::backPanel() -> Element {
             .fill(brass(0.80f))
             .foreground(stroke(1.0f, Fill::color(hexColor(0x2a1d08, 0.6f)))));
   g.child(kit::disc(c, 8).shape(shapes::circle()).fill(brass(0.82f)));
-  g.child(text(toUtf8("altitude 25\xc2\xb0 30\xe2\x80\xb2 \xe2\x80\x94 "
-                      "12 March 1391"))
+  g.child(text("altitude 25\xc2\xb0 30\xe2\x80\xb2 \xe2\x80\x94 "
+               "12 March 1391")
               .font({.face = faceItalic, .size = 13, .color = kRubric})
               .centerAt({px + 225, py + ph - 22}));
   return g;
@@ -367,7 +367,7 @@ auto ChaucerAstrolabe::specCard() -> Element {
   };
   float y = py + 58;
   for (const KV& r : rows) {
-    g.child(text(toUtf8(r.k))
+    g.child(text(r.k)
                 .font({.face = faceLimb,
                        .size = 11,
                        .color = hexColor(0x6b5a44),
@@ -375,7 +375,7 @@ auto ChaucerAstrolabe::specCard() -> Element {
                 .left(px + 18)
                 .top(y)
                 .width(88));
-    g.child(text(toUtf8(r.v))
+    g.child(text(r.v)
                 .font({.face = faceSerif, .size = 13.5f})
                 .left(px + 112)
                 .top(y - 2)
@@ -386,31 +386,30 @@ auto ChaucerAstrolabe::specCard() -> Element {
   g.child(box()
               .rect(SkRect::MakeXYWH(px + 18, y + 6, pw - 36, 1))
               .fill(Fill::color(hexColor(0x241c15, 0.22f))));
-  g.child(text(toUtf8("\xcf\x86 = 51\xc2\xb0 50\xe2\x80\xb2  Chaucer I.14, "
-                      "Oxenford        \xce\xb5 = 23\xc2\xb0 50.0\xe2\x80\xb2  "
-                      "Chaucer I.17"))
+  g.child(text("\xcf\x86 = 51\xc2\xb0 50\xe2\x80\xb2  Chaucer I.14, "
+               "Oxenford        \xce\xb5 = 23\xc2\xb0 50.0\xe2\x80\xb2  "
+               "Chaucer I.17")
               .font({.face = faceMono, .size = 12})
               .left(px + 18)
               .top(y + 14)
               .width(pw - 36));
-  g.child(text(toUtf8("                                        \xce\xb5 = "
-                      "23\xc2\xb0 31.6\xe2\x80\xb2  TRVE at 1326      "
-                      "\xce\x94 18.4\xe2\x80\xb2"))
+  g.child(text("                                        \xce\xb5 = "
+               "23\xc2\xb0 31.6\xe2\x80\xb2  TRVE at 1326      "
+               "\xce\x94 18.4\xe2\x80\xb2")
               .font({.face = faceMono, .size = 12, .color = kRubric})
               .left(px + 18)
               .top(y + 30)
               .width(pw - 36));
-  g.child(
-      text(toUtf8("his \xce\xb5 is an inherited PTOLEMAIC value, 1200 years "
-                  "old \xe2\x80\x94 the equator comes out 0.586% small "
-                  "(\xe2\x88\x92"
-                  "0.229 mm), Cancer 1.175% "
-                  "(\xe2\x88\x92"
-                  "0.299 mm)"))
-          .font({.face = faceItalic, .size = 12.5f})
-          .left(px + 18)
-          .top(y + 52)
-          .width(pw - 36));
+  g.child(text("his \xce\xb5 is an inherited PTOLEMAIC value, 1200 years "
+               "old \xe2\x80\x94 the equator comes out 0.586% small "
+               "(\xe2\x88\x92"
+               "0.229 mm), Cancer 1.175% "
+               "(\xe2\x88\x92"
+               "0.299 mm)")
+              .font({.face = faceItalic, .size = 12.5f})
+              .left(px + 18)
+              .top(y + 52)
+              .width(pw - 36));
   return g;
 }
 
@@ -420,23 +419,23 @@ auto ChaucerAstrolabe::starPanel() -> Element {
                  "precessed J2000 \xe2\x86\x92 1326.0, IAU 1976 "
                  "\xce\xb6/z/\xce\xb8 \xe2\x80\x94 the sky has slid "
                  "8.6\xc2\xb0 in RA");
-  g.child(text(toUtf8("name on the rete        modern         RA 1326   "
-                      "dec 1326    r / R"))
+  g.child(text("name on the rete        modern         RA 1326   "
+               "dec 1326    r / R")
               .font({.face = faceMono, .size = 11, .color = hexColor(0x6b5a44)})
               .at({px + 18, py + 60}));
   for (size_t i = 0; i < kStars.size(); ++i) {
     const float y = py + 80 + (float)i * 25.5f;
     const float r = rOfDec(kStars[i].dec1326);
-    g.child(text(toUtf8(kStars[i].name))
+    g.child(text(kStars[i].name)
                 .font({.face = faceLimb, .size = 12.5f, .track = 0.8f})
                 .at({px + 18, y}));
-    g.child(text(toUtf8(kStars[i].modern))
+    g.child(text(kStars[i].modern)
                 .font({.face = faceItalic,
                        .size = 12.5f,
                        .color = hexColor(0x6b5a44)})
                 .at({px + 168, y}));
-    g.child(text(toUtf8(kit::formatted("%8.3f  %+8.3f   %.5f", kStars[i].ra1326,
-                                       kStars[i].dec1326, r)))
+    g.child(text(kit::formatted("%8.3f  %+8.3f   %.5f", kStars[i].ra1326,
+                                kStars[i].dec1326, r))
                 .font({.face = faceMono, .size = 11.5f})
                 .at({px + 276, y + 1}));
     // where the star lands between Cancer and Capricorn
@@ -453,10 +452,10 @@ auto ChaucerAstrolabe::starPanel() -> Element {
                 .shape(shapes::circle())
                 .fill(Fill::color(i == 3 ? kRubric : kInk)));
   }
-  g.child(text(toUtf8("ALHABOR / Sirius at 0.868 R is the outermost by a long "
-                      "way \xe2\x80\x94 the only southern star here, which is "
-                      "why it gets the biggest pointer on every rete ever "
-                      "made."))
+  g.child(text("ALHABOR / Sirius at 0.868 R is the outermost by a long "
+               "way \xe2\x80\x94 the only southern star here, which is "
+               "why it gets the biggest pointer on every rete ever "
+               "made.")
               .font({.face = faceItalic, .size = 12, .color = kRubric})
               .left(px + 18)
               .top(py + ph - 44)
@@ -468,17 +467,16 @@ auto ChaucerAstrolabe::chaucerPanel() -> Element {
   const float px = 1690, py = 920, pw = 646, ph = 260;
   auto g = panel(px, py, pw, ph, "CHAVCER'S OWNE ENSAMPLE",
                  "A Treatise on the Astrolabe, II.3");
-  g.child(
-      text(toUtf8("\xe2\x80\x9cthe yeer of oure lord 1391, the 12 day of "
-                  "March \xe2\x80\xa6 I took the altitude of my sonne, and "
-                  "fond that it was 25 degrees and 30 of minutes \xe2\x80\xa6 "
-                  "fond the poynte of my label in the bordure, up-on a "
-                  "capital lettre that is cleped an X \xe2\x80\xa6 and fond "
-                  "that it was 9 of the clokke of the day.\xe2\x80\x9d"))
-          .font({.face = faceItalic, .size = 13.5f})
-          .left(px + 18)
-          .top(py + 62)
-          .width(pw - 36));
+  g.child(text("\xe2\x80\x9cthe yeer of oure lord 1391, the 12 day of "
+               "March \xe2\x80\xa6 I took the altitude of my sonne, and "
+               "fond that it was 25 degrees and 30 of minutes \xe2\x80\xa6 "
+               "fond the poynte of my label in the bordure, up-on a "
+               "capital lettre that is cleped an X \xe2\x80\xa6 and fond "
+               "that it was 9 of the clokke of the day.\xe2\x80\x9d")
+              .font({.face = faceItalic, .size = 13.5f})
+              .left(px + 18)
+              .top(py + 62)
+              .width(pw - 36));
   g.child(slot("chaucer"));
   return g;
 }
@@ -490,13 +488,13 @@ auto ChaucerAstrolabe::chaucerBody() -> Element {
   auto g =
       box().left(px + 18).top(py + 140).width(pw - 36).column().gap(3).font(
           {.face = faceMono, .size = 12.5f});
-  g.child(text(toUtf8(chaucerH)));
-  g.child(text(toUtf8(chaucerA)));
-  g.child(text(toUtf8(chaucerDelta)).ink(kRubric));
+  g.child(text(chaucerH));
+  g.child(text(chaucerA));
+  g.child(text(chaucerDelta).ink(kRubric));
   g.child(box().height(6));
-  g.child(text(toUtf8("Chaucer 09:00   \xc2\xb7   computed 08:53.8   "
-                      "\xc2\xb7   \xce\x94 6.2 min \xe2\x80\x94 one hour-"
-                      "letter's worth of reading precision on 132 mm"))
+  g.child(text("Chaucer 09:00   \xc2\xb7   computed 08:53.8   "
+               "\xc2\xb7   \xce\x94 6.2 min \xe2\x80\x94 one hour-"
+               "letter's worth of reading precision on 132 mm")
               .font({.face = faceSerif, .size = 13}));
   return g;
 }
@@ -524,7 +522,7 @@ auto ChaucerAstrolabe::zodiacPanel() -> Element {
                 from(0.0f).to(1.0f),
                 ramp(tYear * 1000 + (float)i * 45, 520, ease::outBack())))
             .transformOrigin(0.5f, 1.0f));
-    g.child(text(toUtf8(std::string(kSigns[i]).substr(0, 3)))
+    g.child(text(std::string(kSigns[i]).substr(0, 3))
                 .font({.face = faceLimb,
                        .size = 10,
                        .color = hexColor(0x6b5a44),
@@ -539,7 +537,7 @@ auto ChaucerAstrolabe::zodiacPanel() -> Element {
     float ly = by - h - 9;
     if (h < 84.0f * 30.0f / maxSpan && ly - 5.0f < y30r)
       ly = 0.5f * ((by - h) + y30r);
-    g.child(text(toUtf8(kit::formatted("%.1f", span)))
+    g.child(text(kit::formatted("%.1f", span))
                 .font({.face = faceMono, .size = 9.5f})
                 .width(w)
                 .textAlign(sigil::weave::TextAlignment::kCenter)
@@ -557,7 +555,7 @@ auto ChaucerAstrolabe::zodiacPanel() -> Element {
                                 skia::toColor(hexColor(0x241c15, 0.55f))))
                         .material()));
   g.child(
-      text(toUtf8("30\xc2\xb0 \xe2\x80\x94 an unprojected ring"))
+      text("30\xc2\xb0 \xe2\x80\x94 an unprojected ring")
           .font({.face = faceItalic, .size = 11, .color = hexColor(0x7b6a54)})
           .at({bx + 4, y30 - 16}));
   // the live sign marker
@@ -627,12 +625,11 @@ auto ChaucerAstrolabe::readout() -> Element {
     return box()
         .column()
         .gap(1)
-        .child(text(toUtf8(k)).font({.face = faceLimb,
-                                     .size = 10,
-                                     .color = hexColor(0x8a99b0),
-                                     .track = 1.4f}))
-        .child(
-            text(toUtf8(v)).font({.face = faceMono, .size = 19, .color = c}));
+        .child(text(k).font({.face = faceLimb,
+                             .size = 10,
+                             .color = hexColor(0x8a99b0),
+                             .track = 1.4f}))
+        .child(text(v).font({.face = faceMono, .size = 19, .color = c}));
   };
   g.child(cell("LOCAL APPARENT TIME", kit::formatted("%02d:%04.1f", hh, mm),
                hexColor(0xffdc8b)));

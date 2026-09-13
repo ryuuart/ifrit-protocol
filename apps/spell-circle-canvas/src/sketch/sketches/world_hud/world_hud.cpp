@@ -192,7 +192,7 @@ struct WorldHud final : sketch::Set {
                                           wh::kCritHp.fB, 0.55f}))
                       .opacity(&lowPulse)
                       .blend(SkBlendMode::kPlus));
-    stackEl.child(text(toUtf8("640 / 1030"))
+    stackEl.child(text("640 / 1030")
                       .font(wh::line(11, 0.8f))
                       .left(wh::kBarX + wh::kHealthW * 0.5f - 30)
                       .top(wh::kBarY + 5));
@@ -303,37 +303,35 @@ struct WorldHud final : sketch::Set {
                 .fill(Paint::linear({0, 0}, {0, wh::kSlot - 4},
                                     {{0.0f, {0.06f, 0.10f, 0.16f, 0.86f}},
                                      {1.0f, {0.10f, 0.16f, 0.24f, 0.72f}}})));
-      rail.child(text(toUtf8(kSlots[i].key))
+      rail.child(text(kSlots[i].key)
                      .font(wh::line(9, 0.6f))
                      .ink(wh::kInkDim)
                      .left(x + 4)
                      .top(wh::kSlotFrame - 13));
     }
     // the selected-exp chip skillbar.rs hangs off slot10
-    rail.child(box()
-                   .left(wh::kSlotsW + 3)
-                   .top(2)
-                   .width(Dimension(34.0f))
-                   .height(Dimension(38.0f))
-                   .child(worldhud::boneFrame(34, 38, 3).inset(0))
-                   .child(box()
-                              .left(3)
-                              .top(20)
-                              .width(Dimension(28.0f))
-                              .height(Dimension(6.0f))
-                              .fill(Paint::solid(worldhud::kTrack))
-                              .child(box()
-                                         .left(0)
-                                         .top(0)
-                                         .width(Dimension(28.0f))
-                                         .height(Dimension(6.0f))
-                                         .transformOrigin(0.0f, 0.5f)
-                                         .scaleX(&xp)
-                                         .fill(Paint::solid(worldhud::kXp))))
-                   .child(text(toUtf8("34"))
-                              .font(wh::line(13, 0.4f, 640))
-                              .left(9)
-                              .top(3)));
+    rail.child(
+        box()
+            .left(wh::kSlotsW + 3)
+            .top(2)
+            .width(Dimension(34.0f))
+            .height(Dimension(38.0f))
+            .child(worldhud::boneFrame(34, 38, 3).inset(0))
+            .child(box()
+                       .left(3)
+                       .top(20)
+                       .width(Dimension(28.0f))
+                       .height(Dimension(6.0f))
+                       .fill(Paint::solid(worldhud::kTrack))
+                       .child(box()
+                                  .left(0)
+                                  .top(0)
+                                  .width(Dimension(28.0f))
+                                  .height(Dimension(6.0f))
+                                  .transformOrigin(0.0f, 0.5f)
+                                  .scaleX(&xp)
+                                  .fill(Paint::solid(worldhud::kXp))))
+            .child(text("34").font(wh::line(13, 0.4f, 640)).left(9).top(3)));
     return rail;
   }
 
@@ -441,17 +439,15 @@ struct WorldHud final : sketch::Set {
                        PathFormat::Align::Inner))
                    .foreground(
                        stroke(1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f}))))
-        .child(text(toUtf8("N"))
-                   .font(wh::line(11, 1.0f, 640))
-                   .left(d * 0.5f - 4)
-                   .top(7))
+        .child(
+            text("N").font(wh::line(11, 1.0f, 640)).left(d * 0.5f - 4).top(7))
         .child(box()
                    .row()
                    .left(0)
                    .right(0)
                    .bottom(-19)
                    .justify(Justify::Center)
-                   .child(text(toUtf8("1204, -388"))
+                   .child(text("1204, -388")
                               .font(wh::line(10, 1.2f))
                               .ink(wh::kInkDim)));
   }
@@ -515,7 +511,7 @@ struct WorldHud final : sketch::Set {
                          .height(Dimension(30.0f * (1.0f - p.left)))
                          .fill(Paint::solid({0, 0, 0, 0.62f}))
                          .zIndex(1))
-              .child(text(toUtf8(p.label))
+              .child(text(p.label)
                          .font(wh::line(9, 0.6f, 640))
                          .ink(p.color)
                          .zIndex(2)));
@@ -561,8 +557,7 @@ struct WorldHud final : sketch::Set {
                                              l.color.fG * 0.28f,
                                              l.color.fB * 0.28f, 1}))
                          .foreground(stroke(1.0f, Fill::color(l.color))))
-              .child(
-                  text(toUtf8(l.text)).font(wh::line(11, 0.4f)).ink(l.color)));
+              .child(text(l.text).font(wh::line(11, 0.4f)).ink(l.color)));
     return feed;
   }
 
@@ -580,8 +575,8 @@ struct WorldHud final : sketch::Set {
         .zIndex(6)
         .opacity(animate(motion::from(0.0f).to(1.0f),
                          {360ms, &choreograph::easeOutQuad, 220ms}))
-        .child(text(toUtf8("CAVE TROLL")).font(wh::line(15, 1.6f, 640)))
-        .child(text(toUtf8("Lv 27"))
+        .child(text("CAVE TROLL").font(wh::line(15, 1.6f, 640)))
+        .child(text("Lv 27")
                    .font(wh::line(10, 1.4f))
                    .ink(wh::kInkDim)
                    .margin(0, 2, 0, 4))
@@ -613,17 +608,16 @@ struct WorldHud final : sketch::Set {
     // name a dimmer or a quality colour of their own.
     auto root = stack().font({.underlays = {{wh::shade()}}}).ink(wh::kInk);
 
-    root.child(
-        box()
-            .column()
-            .left(28)
-            .top(70)
-            .zIndex(6)
-            .child(text(toUtf8("WELDRIN VALE")).font(wh::line(20, 2.6f, 640)))
-            .child(text(toUtf8("LEVEL 34  \xc2\xb7  CLEAR, LIGHT WIND"))
-                       .font(wh::line(11, 0.9f))
-                       .ink(wh::kInkDim)
-                       .margin(0, 5, 0, 0)));
+    root.child(box()
+                   .column()
+                   .left(28)
+                   .top(70)
+                   .zIndex(6)
+                   .child(text("WELDRIN VALE").font(wh::line(20, 2.6f, 640)))
+                   .child(text("LEVEL 34  \xc2\xb7  CLEAR, LIGHT WIND")
+                              .font(wh::line(11, 0.9f))
+                              .ink(wh::kInkDim)
+                              .margin(0, 5, 0, 0)));
 
     root.child(buffRow());
     root.child(minimap());

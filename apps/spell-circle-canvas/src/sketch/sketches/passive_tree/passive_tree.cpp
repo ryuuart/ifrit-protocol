@@ -711,9 +711,9 @@ struct PassiveTree final : sketch::Sketch {
             .zIndex(7)
             .opacity(animate(motion::from(0.0f).to(1.0f), {420ms}))
             .translateY(animate(motion::from(10.0f).to(0.0f), {520ms}))
-            .child(text(toUtf8(detail->name))
+            .child(text(detail->name)
                        .font({.size = 17, .color = pt::kHalo, .track = 2.4f}))
-            .child(text(toUtf8(detail->kind))
+            .child(text(detail->kind)
                        .font({.size = 9.5f, .track = 3.2f})
                        .margin(0, 3, 0, 0))
             .child(
@@ -741,14 +741,14 @@ struct PassiveTree final : sketch::Sketch {
                          .corners({1.5f})
                          .fill(Paint::solid({pt::kRimLit.fR, pt::kRimLit.fG,
                                              pt::kRimLit.fB, 0.9f})))
-              .child(text(toUtf8(line))
+              .child(text(line)
                          .font({.size = 12,
                                 .color = SkColor4f{0.62f, 0.68f, 0.90f, 1},
                                 .track = 0.2f})
                          .grow(1)));
     }
     if (detail->flavour)
-      card.child(text(toUtf8(detail->flavour))
+      card.child(text(detail->flavour)
                      .font({.size = 11.5f,
                             .color = SkColor4f{0.42f, 0.38f, 0.32f, 1},
                             .track = 0.3f,
@@ -798,37 +798,35 @@ struct PassiveTree final : sketch::Sketch {
               .left(38)
               .zIndex(8));
     }
-    root.child(
-        box()
-            .column()
-            .alignItems(Align::End)
-            .top(30)
-            .right(36)
-            .zIndex(8)
-            .child(text(toUtf8(points))
-                       .font({.size = 21, .color = pt::kGold, .track = 2}))
-            .child(text(toUtf8("passive points"))
-                       .font({.size = 10.5f, .track = 1.5f})
-                       .margin(0, 4, 0, 0)));
+    root.child(box()
+                   .column()
+                   .alignItems(Align::End)
+                   .top(30)
+                   .right(36)
+                   .zIndex(8)
+                   .child(text(points).font(
+                       {.size = 21, .color = pt::kGold, .track = 2}))
+                   .child(text("passive points")
+                              .font({.size = 10.5f, .track = 1.5f})
+                              .margin(0, 4, 0, 0)));
     // the search chip, Daripher's box with our palette
-    root.child(
-        box()
-            .row()
-            .alignItems(Align::Center)
-            .gap(8)
-            .bottom(28)
-            .left(38)
-            .zIndex(8)
-            .padding(10, 5)
-            .corners({3})
-            .fill(Paint::solid({0.075f, 0.063f, 0.051f, 0.9f}))
-            .foreground(
-                stroke(1.0f, Fill::color({pt::kSearch.fR, pt::kSearch.fG,
-                                          pt::kSearch.fB, 0.4f})))
-            .child(text(toUtf8("search")).font({.size = 10, .track = 1.8f}))
-            .child(text(toUtf8("fire"))
-                       .font({.size = 12, .color = pt::kSearch, .track = 0.6f}))
-            .child(text(toUtf8(found)).font({.size = 10, .track = 1.2f})));
+    root.child(box()
+                   .row()
+                   .alignItems(Align::Center)
+                   .gap(8)
+                   .bottom(28)
+                   .left(38)
+                   .zIndex(8)
+                   .padding(10, 5)
+                   .corners({3})
+                   .fill(Paint::solid({0.075f, 0.063f, 0.051f, 0.9f}))
+                   .foreground(
+                       stroke(1.0f, Fill::color({pt::kSearch.fR, pt::kSearch.fG,
+                                                 pt::kSearch.fB, 0.4f})))
+                   .child(text("search").font({.size = 10, .track = 1.8f}))
+                   .child(text("fire").font(
+                       {.size = 12, .color = pt::kSearch, .track = 0.6f}))
+                   .child(text(found).font({.size = 10, .track = 1.2f})));
 
     auto swatch = [&](int state, const char* label) {
       return box()
@@ -840,7 +838,7 @@ struct PassiveTree final : sketch::Sketch {
                      .height(Dimension(14.0f))
                      .shape(pt::hline())
                      .stroke(brush::presets::rope(state, 0.8f)))
-          .child(text(toUtf8(label)).font({.size = 11, .track = 0.8f}));
+          .child(text(label).font({.size = 11, .track = 0.8f}));
     };
     root.child(box()
                    .row()

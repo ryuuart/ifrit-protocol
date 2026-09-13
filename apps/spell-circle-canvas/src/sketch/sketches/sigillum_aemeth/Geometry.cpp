@@ -153,7 +153,7 @@ auto SigillumAemeth::circumferenceCells() -> Element {
     const float th = (float)i * 9.0f;
     const float f = frac(th);
     const bool dim = !visited[(size_t)i];
-    auto cellLetter = text(toUtf8(c.glyph))
+    auto cellLetter = text(c.glyph)
                           .width(Dimension(2 * rCellLet * kR))
                           .height(Dimension(2 * rCellLet * kR))
                           .centerAt({kRR, kRR})
@@ -171,7 +171,7 @@ auto SigillumAemeth::circumferenceCells() -> Element {
     if (c.number > 0) {
       const float rr = c.step > 0 ? rNumOut : rNumIn;
       g.child(
-          text(toUtf8(std::to_string(c.number)))
+          text(std::to_string(c.number))
               .font({.size = 0.031f * kR, .color = hexColor(0x4a3210, 1.0f)})
               .width(Dimension(2 * rr * kR))
               .height(Dimension(2 * rr * kR))
@@ -277,7 +277,7 @@ auto SigillumAemeth::angles() -> Element {
     // painting live and out of any texture for the whole hold. The birds'
     // later arrival is therefore marked by a separate cheap rule on each
     // plate rather than by holding this run's opacity.
-    g.child(text(toUtf8(row))
+    g.child(text(row)
                 .inset(0)
                 .key("ang" + std::to_string(k))
                 .onPath(TextPath{.path = heptChords(rAngleHept, 0.0f),
@@ -346,7 +346,7 @@ auto SigillumAemeth::heptagonNames() -> Element {
     for (auto gl : kGodNames[(size_t)k].glyphs) {
       row += (gl[0] == '*') ? "\xc9\x9b" : gl;  // the 21/8 ligature stands in
     }
-    g.child(text(toUtf8(row))
+    g.child(text(row)
                 .inset(0)
                 .key("god" + std::to_string(k))
                 .onPath(TextPath{.path = heptChords(rNameHept, 0.0f),
@@ -356,7 +356,7 @@ auto SigillumAemeth::heptagonNames() -> Element {
                                  .autoFlip = false,
                                  .orient = TextPath::Orient::Tangent}));
     // the Latin marginal reading, inside the heptagon, smaller
-    g.child(text(toUtf8(kGodNames[(size_t)k].gloss))
+    g.child(text(kGodNames[(size_t)k].gloss)
                 .font({.face = faceItalic,
                        .size = 0.022f * kR,
                        .color = hexColor(0x53380f, 0.88f),
@@ -548,7 +548,7 @@ auto SigillumAemeth::inner() -> Element {
       g.child(std::move(tablet));
 
       const std::string nm = ord.names[k];
-      g.child(text(toUtf8(nm == "*" ? "E\xc9\x9b" : nm))
+      g.child(text(nm == "*" ? "E\xc9\x9b" : nm)
                   .font({.size = ord.size * kR})
                   .width(Dimension(2 * ord.radius * kR))
                   .height(Dimension(2 * ord.radius * kR))
@@ -579,7 +579,7 @@ auto SigillumAemeth::inner() -> Element {
               .key("zabhept"));
   for (int k = 0; k < 7; ++k) {
     const std::string s = kZabathiel[k];
-    g.child(text(toUtf8(s == "I*" ? "I\xc9\x9b" : s))
+    g.child(text(s == "I*" ? "I\xc9\x9b" : s)
                 .font({.size = 0.030f * kR})
                 .inset(0)
                 .key("zab" + std::to_string(k))
@@ -623,7 +623,7 @@ auto SigillumAemeth::pentagram() -> Element {
   for (int k = 0; k < 5; ++k) {
     const float th = (float)k * 72.0f;
     g.child(
-        text(toUtf8(kPentaNames[(size_t)k].initial))
+        text(kPentaNames[(size_t)k].initial)
             .width(Dimension(2 * rPentaInit * kR))
             .height(Dimension(2 * rPentaInit * kR))
             .centerAt({kHp, kHp})
@@ -638,7 +638,7 @@ auto SigillumAemeth::pentagram() -> Element {
                              ramp(tInner * 1000 + 900 + (float)k * 40, 420))));
     // the rest of the name runs circularly outward into the exterior angle
     g.child(
-        text(toUtf8(kPentaNames[(size_t)k].tail))
+        text(kPentaNames[(size_t)k].tail)
             .font({.face = faceQuill,
                    .size = 0.024f * kR,
                    .color = hexColor(0x40300f, 0.92f)})
@@ -704,7 +704,7 @@ auto SigillumAemeth::centreCross() -> Element {
                 {"el", 180.0f, rCross * 1.02f},
                 {"LE", 270.0f, rCross * 1.02f}};
   for (int i = 0; i < 4; ++i) {
-    g.child(text(toUtf8(kArms[i].s))
+    g.child(text(kArms[i].s)
                 .width(Dimension(2 * kArms[i].r * kR))
                 .height(Dimension(2 * kArms[i].r * kR))
                 .centerAt({kHc, kHc})

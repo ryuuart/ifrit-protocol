@@ -443,7 +443,7 @@ struct VertigoTitles : sketch::Sketch {
       // The entrance ramp covers the cascade's own span, so the last
       // capital lands exactly when the master progress does.
       const Spread cascade{.eachMs = 30, .durationMs = 480};
-      panel.child(text(toUtf8("VERTIGO"), face)
+      panel.child(text("VERTIGO", face)
                       .key("vertigo")
                       .centerAt(kEye)
                       .fx({.effect = fx::pop(0.30f),
@@ -458,7 +458,7 @@ struct VertigoTitles : sketch::Sketch {
     // laid over the busiest part of the card: that is where the film puts
     // its body credits too.
     panel.child(
-        text(toUtf8("TITLE DESIGN SAUL BASS · SPIRALS JOHN WHITNEY"))
+        text("TITLE DESIGN SAUL BASS · SPIRALS JOHN WHITNEY")
             .font({.face = faceDisplay, .size = 15, .track = 2.6f})
             .ink(kSolidInk)
             .key("credit")
@@ -471,21 +471,20 @@ struct VertigoTitles : sketch::Sketch {
     // lettering would have been one leaf and one measure() per glyph.
     const weave::Type legend{
         .size = 11, .color = hexColor(0xEDE6D8, 0.42f), .track = 3.4f};
+    panel.child(text("JOHN WHITNEY · M-5 GUN DIRECTOR · PENDULUM OVER PLATE")
+                    .font(legend)
+                    .key("ring-top")
+                    .width(544)
+                    .height(544)
+                    .centerAt(kEye)
+                    .onPath({.path = ringPath(),
+                             .at = 0.25f,
+                             .align = TextPath::Align::Center,
+                             .offset = 3.0f,
+                             .autoFlip = false})
+                    .opacity(animate(from(0.0f).to(1.0f), ramp(1000, 500))));
     panel.child(
-        text(toUtf8("JOHN WHITNEY · M-5 GUN DIRECTOR · PENDULUM OVER PLATE"))
-            .font(legend)
-            .key("ring-top")
-            .width(544)
-            .height(544)
-            .centerAt(kEye)
-            .onPath({.path = ringPath(),
-                     .at = 0.25f,
-                     .align = TextPath::Align::Center,
-                     .offset = 3.0f,
-                     .autoFlip = false})
-            .opacity(animate(from(0.0f).to(1.0f), ramp(1000, 500))));
-    panel.child(
-        text(toUtf8("PARAMOUNT 1958 · 1.85:1 · TECHNICOLOR"))
+        text("PARAMOUNT 1958 · 1.85:1 · TECHNICOLOR")
             .font(legend)
             .key("ring-bottom")
             .width(544)
@@ -513,13 +512,13 @@ struct VertigoTitles : sketch::Sketch {
     };
     const weave::Type slug{.size = 10, .track = 1.8f};
     for (int i = 0; i < 4; ++i)
-      panel.child(text(toUtf8(kSlug[i]))
+      panel.child(text(kSlug[i])
                       .font(slug)
                       .key(std::string("slug") + kCards[i].tag)
                       .left(22)
                       .top(20)
                       .opacity(&cardA[i]));
-    panel.child(text(toUtf8("T = 6π · N = 1100 · TURNTABLE 18°/s · easeNone"))
+    panel.child(text("T = 6π · N = 1100 · TURNTABLE 18°/s · easeNone")
                     .font(slug)
                     .ink(hexColor(0xEDE6D8, 0.50f))
                     .key("slug-rig")
@@ -562,13 +561,13 @@ struct VertigoTitles : sketch::Sketch {
                 .shape(figure(kCards[2], 700))
                 .stroke(stroke(0.8f, Fill::color(hexColor(0x2E5C9E, 0.55f))))
                 .rotate(turntable()));
-    p.child(text(toUtf8("VERTIGO"), hollow(faceDisplay, 34, kBone, 1.1f, 4.0f))
+    p.child(text("VERTIGO", hollow(faceDisplay, 34, kBone, 1.1f, 4.0f))
                 .key("spec-outline"));
-    p.child(text(toUtf8("SAUL BASS · JOHN WHITNEY"))
+    p.child(text("SAUL BASS · JOHN WHITNEY")
                 .font({.face = faceDisplay, .size = 14, .track = 2.0f})
                 .key("spec-solid"));
-    p.child(text(toUtf8("OUTLINE DISPLAY OVER THE IMAGE / SOLID BODY BELOW IT "
-                        "— BOTH CLARENDON."))
+    p.child(text("OUTLINE DISPLAY OVER THE IMAGE / SOLID BODY BELOW IT "
+                 "— BOTH CLARENDON.")
                 .font({.size = 10, .color = kSteel, .track = 0.6f})
                 .key("spec-cap"));
     return p;
@@ -598,16 +597,13 @@ struct VertigoTitles : sketch::Sketch {
                                .shape(figure(c, 360))
                                .stroke(stroke(0.9f, Fill::color(c.core)))
                                .rotate(turntable())));
-      row.child(
-          box()
-              .column()
-              .grow(1)
-              .gap(2)
-              .child(
-                  text(toUtf8(c.line1))
-                      .font(
-                          {.face = faceGothicBold, .size = 11, .track = 0.7f}))
-              .child(text(toUtf8(c.line2)).font({.size = 9, .color = kSteel})));
+      row.child(box()
+                    .column()
+                    .grow(1)
+                    .gap(2)
+                    .child(text(c.line1).font(
+                        {.face = faceGothicBold, .size = 11, .track = 0.7f}))
+                    .child(text(c.line2).font({.size = 9, .color = kSteel})));
       p.child(std::move(row));
     }
     return p;
@@ -623,18 +619,18 @@ struct VertigoTitles : sketch::Sketch {
         "CURVES PLOT JULES LISSAJOUS'S PARAMETRIC EQUATIONS",
     };
     auto p = plate(176).gap(5);
-    p.child(text(toUtf8("THE M-5 GUN DIRECTOR"))
+    p.child(text("THE M-5 GUN DIRECTOR")
                 .font({.face = faceGothicBold, .size = 13, .track = 1.6f})
                 .key("rig-h"));
     for (int i = 0; i < 4; ++i)
-      p.child(text(toUtf8(kFacts[i]))
+      p.child(text(kFacts[i])
                   .font({.size = 10.5f, .color = kSteel, .track = 0.3f})
                   .key("rig" + std::to_string(i))
                   .opacity(animate(from(0.0f).to(1.0f),
                                    ramp(900.0f + (float)i * 90.0f, 300))));
     p.child(box().grow(1));
-    p.child(text(toUtf8("hitchcocksvertigo.substack.com · rhizome.org "
-                        "· diyphotography.net"))
+    p.child(text("hitchcocksvertigo.substack.com · rhizome.org "
+                 "· diyphotography.net")
                 .font({.size = 9, .color = kSteelDim})
                 .key("rig-cite"));
     return p;

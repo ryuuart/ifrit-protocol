@@ -346,12 +346,12 @@ struct BoundLane : sketch::Sketch {
                          stack()
                              .child(chip(shakeX, sameY, kTraceB, 62))
                              .child(chip(shakeX, shakeY, kTrace, 142))),
-                   text(toUtf8("THE ORDER IS THE POINT. wrap folds the affine "
-                               "value, so a wrapped phase still wiggles across "
-                               "the seam; wiggle adds in the property's own "
-                               "units, so its amount is pixels here and laps "
-                               "below; clamp is always last, whenever it was "
-                               "written."))
+                   text("THE ORDER IS THE POINT. wrap folds the affine "
+                        "value, so a wrapped phase still wiggles across "
+                        "the seam; wiggle adds in the property's own "
+                        "units, so its amount is pixels here and laps "
+                        "below; clamp is always last, whenever it was "
+                        "written.")
                        .font({.face = weave::defaultFace(),
                               .size = 12,
                               .color = kDim})

@@ -94,22 +94,21 @@ auto SigillumAemeth::margin() -> Element {
                .font({.face = faceMono, .size = 15})
                .ink(hexColor(0x8d7a58));
 
-  g.child(text(toUtf8("SIGILLVM DEI \xc3\x86M\xc3\x86TH"))
+  g.child(text("SIGILLVM DEI \xc3\x86M\xc3\x86TH")
               .font({.face = faceDisplay,
                      .size = 46,
                      .color = kVellum,
                      .track = 2.6f})
               .at({0, 0}));
   g.child(
-      text(toUtf8("EMETH nuncupatum \xc2\xb7 Mortlake by Richemond \xc2\xb7 "
-                  "21 Martii 1582"))
+      text("EMETH nuncupatum \xc2\xb7 Mortlake by Richemond \xc2\xb7 "
+           "21 Martii 1582")
           .font({.face = faceItalic, .size = 19, .color = hexColor(0xc7ab74)})
           .at({2, 58}));
-  g.child(
-      text(toUtf8("BL Sloane MS 3188 f.30r \xc2\xb7 wax disc BM 1838,1232.90.a "
-                  "\xc2\xb7 23.2 cm"))
-          .font({.face = faceSerif})
-          .at({2, 86}));
+  g.child(text("BL Sloane MS 3188 f.30r \xc2\xb7 wax disc BM 1838,1232.90.a "
+               "\xc2\xb7 23.2 cm")
+              .font({.face = faceSerif})
+              .at({2, 86}));
   g.child(box()
               .rect(SkRect::MakeXYWH(0, 114, w, 2))
               .fill(Fill::none())
@@ -130,7 +129,7 @@ auto SigillumAemeth::margin() -> Element {
                     .dash = {2.0f, 5.0f}}})));
 
   // the seven Names, printing as the walk finds them
-  g.child(text(toUtf8("THE SEVEN NAMES, WALKED OFF THE RIM"))
+  g.child(text("THE SEVEN NAMES, WALKED OFF THE RIM")
               .styleClass("heading")
               .at({0, 136}));
   g.child(box()
@@ -155,24 +154,23 @@ auto SigillumAemeth::margin() -> Element {
     std::string chain;
     for (size_t i = 0; i < s.cells.size(); ++i)
       chain += (i ? "\xc2\xb7" : "") + std::to_string(s.cells[i]);
-    g.child(text(toUtf8(std::to_string(n + 1) + "."))
+    g.child(text(std::to_string(n + 1) + ".")
                 .font({.size = 17})
                 .at({0, y + 6})
                 .opacity(animate(from(0.0f).to(1.0f), ramp(at, 300))));
-    g.child(text(toUtf8(kNames[(size_t)n].name))
+    g.child(text(kNames[(size_t)n].name)
                 .font({.face = faceDisplay,
                        .size = 30,
                        .color = kVellum,
                        .track = 1.2f})
                 .at({34, y})
                 .opacity(animate(from(0.0f).to(1.0f), ramp(at + 120, 420))));
-    g.child(text(toUtf8(s.raw == s.reduced
-                            ? ""
-                            : "\xe2\x9f\xa8" + s.raw + "\xe2\x9f\xa9"))
-                .font({.face = faceItalic, .color = hexColor(0x6f5f45)})
-                .at({212, y + 10})
-                .opacity(animate(from(0.0f).to(1.0f), ramp(at + 240, 420))));
-    g.child(text(toUtf8(chain))
+    g.child(
+        text(s.raw == s.reduced ? "" : "\xe2\x9f\xa8" + s.raw + "\xe2\x9f\xa9")
+            .font({.face = faceItalic, .color = hexColor(0x6f5f45)})
+            .at({212, y + 10})
+            .opacity(animate(from(0.0f).to(1.0f), ramp(at + 240, 420))));
+    g.child(text(chain)
                 .font({.size = 14, .color = kTrace})
                 .at({320, y + 10})
                 .opacity(animate(from(0.0f).to(1.0f), ramp(at + 60, 420))));
@@ -187,20 +185,19 @@ auto SigillumAemeth::margin() -> Element {
         unl += kRing[(size_t)i].glyph;
       }
     g.child(
-        text(toUtf8(kit::formatted(
-                 "%d of 40 cells consumed \xc2\xb7 %d never visited", usedCells,
-                 40 - usedCells)))
+        text(kit::formatted("%d of 40 cells consumed \xc2\xb7 %d never visited",
+                            usedCells, 40 - usedCells))
             .at({0, 492})
             .opacity(animate(from(0.0f).to(1.0f), ramp(tDark * 1000, 500))));
-    g.child(text(toUtf8("unvisited  " + un + "   =  " + unl))
+    g.child(text("unvisited  " + un + "   =  " + unl)
                 .ink(kRubric)
                 .at({0, 514})
                 .opacity(animate(from(0.0f).to(1.0f),
                                  ramp(tDark * 1000 + 200, 500))));
     g.child(
-        text(toUtf8("\xe2\x86\xb3 the same rule reads them as YMON 22\xc2\xb7"
-                    "7\xc2\xb7\x31\x33\xc2\xb7\x33\x31 and BORAOTH "
-                    "26\xc2\xb7\x33\x36\xc2\xb7\x31\x39\xc2\xb7\xe2\x80\xa6"))
+        text("\xe2\x86\xb3 the same rule reads them as YMON 22\xc2\xb7"
+             "7\xc2\xb7\x31\x33\xc2\xb7\x33\x31 and BORAOTH "
+             "26\xc2\xb7\x33\x36\xc2\xb7\x31\x39\xc2\xb7\xe2\x80\xa6")
             .font({.face = faceItalic, .size = 14, .color = hexColor(0x6f5f45)})
             .at({0, 536})
             .opacity(
@@ -208,7 +205,7 @@ auto SigillumAemeth::margin() -> Element {
   }
 
   // the 7×7 square the birds delivered; read DOWN the columns
-  g.child(text(toUtf8("SEVEN BASKETS, SEVEN BIRDS \xc2\xb7 READ DOWN"))
+  g.child(text("SEVEN BASKETS, SEVEN BIRDS \xc2\xb7 READ DOWN")
               .styleClass("heading")
               .at({0, 580}));
   // The seven angles UNROLLED, not tabulated. On the plate these rows lie
@@ -297,7 +294,7 @@ auto SigillumAemeth::margin() -> Element {
                                 .capSize = 4.0f})
             .opacity(animate(from(0.0f).to(1.0f), ramp(delay + 120, 300))));
     g.child(
-        text(toUtf8(kArchangels[c]))
+        text(kArchangels[c])
             .font({.face = faceQuill, .size = 21, .color = hexColor(0xd8c08a)})
             .at({nameAt.fX, nameAt.fY})
             .opacity(animate(from(0.0f).to(1.0f), ramp(delay + 220, 360))));
@@ -308,7 +305,7 @@ auto SigillumAemeth::margin() -> Element {
       const float delay = tBirds * 1000 + (float)r * 260 + (float)c * 34;
       const bool isCross = kAngles[r][c] == std::string("\xe2\x80\xa0");
       const SkPoint at = fanPt(r, c, 0.0f);
-      g.child(text(toUtf8(kAngles[r][c]))
+      g.child(text(kAngles[r][c])
                   .font({.face = faceSeal,
                          .size = 23,
                          .color = isCross ? kRubric : kVellum})
@@ -319,8 +316,8 @@ auto SigillumAemeth::margin() -> Element {
                   .textAlign(weaveNs::TextAlignment::kCenter)
                   .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 300))));
     }
-  g.child(text(toUtf8("48 letters, and one is noted by a Cross: which maketh "
-                      "the 49th."))
+  g.child(text("48 letters, and one is noted by a Cross: which maketh "
+               "the 49th.")
               .font({.face = faceItalic})
               .at({0, 840})
               .opacity(animate(from(0.0f).to(1.0f),
@@ -335,7 +332,7 @@ auto SigillumAemeth::margin() -> Element {
   const SkColor4f kLegendTint[4] = {
       hexColor(0xb9c6da, 0.95f), hexColor(0xe6bf63, 0.95f),
       hexColor(0xf7f1e2, 0.95f), hexColor(0x9dbfa2, 0.95f)};
-  g.child(text(toUtf8("THE FOUR ORDERS OF THE CHILDREN OF LIGHT"))
+  g.child(text("THE FOUR ORDERS OF THE CHILDREN OF LIGHT")
               .styleClass("heading")
               .at({0, 870}));
   for (int i = 0; i < 4; ++i) {
@@ -349,7 +346,7 @@ auto SigillumAemeth::margin() -> Element {
     else if (i == 0)
       swatch.shape(shapes::sector(-100.0f, 200.0f, 0.55f));
     g.child(std::move(swatch));
-    g.child(text(toUtf8(kLegend[i]))
+    g.child(text(kLegend[i])
                 .font({.face = faceSerif, .color = hexColor(0x9d8a66)})
                 .at({28, 896 + (float)i * 26}));
   }
@@ -420,14 +417,14 @@ auto SigillumAemeth::colophon() -> Element {
                     .fill = Fill::color(hexColor(0xc7ab74, 0.30f)),
                     .dash = {1.6f, 4.4f}}})));
   g.child(
-      text(toUtf8("\xe2\x80\x9cThis is the Seale, whose Name is \xc3\x86meth: "
-                  "and it is to be made of perfect wax.\xe2\x80\x9d"))
+      text("\xe2\x80\x9cThis is the Seale, whose Name is \xc3\x86meth: "
+           "and it is to be made of perfect wax.\xe2\x80\x9d")
           .font({.face = faceItalic, .size = 17, .color = hexColor(0xb59a6c)})
           .left(0)
           .top(16)
           .width(690));
-  g.child(text(toUtf8("Uriel, 14 March 1582 \xc2\xb7 reconstruction from the "
-                      "rule, not a tracing \xc2\xb7 SigilCompose study"))
+  g.child(text("Uriel, 14 March 1582 \xc2\xb7 reconstruction from the "
+               "rule, not a tracing \xc2\xb7 SigilCompose study")
               .font({.face = faceMono, .size = 12, .color = hexColor(0x6f5f45)})
               .at({0, 62}));
   return g;

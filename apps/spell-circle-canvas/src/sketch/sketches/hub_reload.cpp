@@ -231,7 +231,7 @@ struct HubReload final : sketch::Sketch {
                          .font(look.font({.size = 10, .mono = true}))
                          .ink(look.palette.figure);
     for (const std::string& row : rows)
-      column.child(text(toUtf8(row)).width(Dimension(kCell - 20)));
+      column.child(text(row).width(Dimension(kCell - 20)));
     return column;
   }
 

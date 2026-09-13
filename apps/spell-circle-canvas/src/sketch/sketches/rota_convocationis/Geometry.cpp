@@ -25,7 +25,7 @@ auto RotaConvocationis::spur() -> Element {
                  .fill(Fill::color(hexColor(0x0D0A16, 0.92f)))
                  .opacity(beat(0.9, 1.4)))
       .child(line("spur-rules", spurRules, 1.2f, kIron, 1.0, 0.9))
-      .child(text(toUtf8(spurText))
+      .child(text(spurText)
                  .font({.size = 19.0f})
                  .key("spur-glyph")
                  .centerAt(c)
@@ -94,7 +94,7 @@ auto RotaConvocationis::limina() -> Element {
   const Shape chordPath =
       shapes::chords({.sides = kStations, .step = 3, .inset = 74.0f});
   for (int k = 0; k < kLimens; ++k) {
-    fig.child(text(toUtf8(kLimina[k]))
+    fig.child(text(kLimina[k])
                   .key("limen" + std::to_string(k))
                   .absolute()
                   .inset(0)
@@ -210,7 +210,7 @@ auto RotaConvocationis::sigillum(int k) -> Element {
   // the same clock angle — because the turning is the body's and a run
   // that is not driving its own placement can rest at whole pixels
   // until an ancestor moves it.
-  body.child(text(toUtf8(sealText[k]))
+  body.child(text(sealText[k])
                  .styleClass("ring")
                  .font({.size = sealSize[k], .track = 1.4f})
                  .key(id + "-ring")
@@ -237,7 +237,7 @@ auto RotaConvocationis::sigillum(int k) -> Element {
   // seal that has to be read stands upright at every station the rim
   // brings it to while everything around it turns.
   seal.child(
-      text(toUtf8(s.ordo))
+      text(s.ordo)
           .styleClass("mono")
           .font({.size = 12.0f, .color = kGold, .track = 1.0f})
           .key(id + "-ordo")
@@ -279,7 +279,7 @@ auto RotaConvocationis::emblema() -> Element {
   hub.child(line("hub-motes", hubMotes, 0.9f, kIronDim, tInner + 0.5, 0.7));
   hub.child(emissive("hub-lit", glows[kGlowHub], &litHub));
   hub.child(
-      text(toUtf8(hubRuneText))
+      text(hubRuneText)
           .font({.size = 13.0f, .color = kAsh})
           .key("hub-ring")
           .absolute()
@@ -302,7 +302,7 @@ auto RotaConvocationis::emblema() -> Element {
 
 auto RotaConvocationis::monogramma() -> Element {
   motion::Spread letters = {.eachMs = 240, .durationMs = 760};
-  return text(toUtf8(emblemText))
+  return text(emblemText)
       .font({.size = 52.0f, .track = 6.0f})
       .key("monogramma")
       .centerAt(kEye)

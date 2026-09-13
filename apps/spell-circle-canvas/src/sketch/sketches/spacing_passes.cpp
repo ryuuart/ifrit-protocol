@@ -88,7 +88,7 @@ const char* kPassage =
     "reaches for horizontal glyph-scaling last of all.";
 
 Element passage(weave::JustificationOptions options) {
-  return text(toUtf8(kPassage), body())
+  return text(kPassage, body())
       .width(Dimension(kMeasure))
       .textAlign(weave::TextAlignment::kJustify)
       .lineBreak(weave::LineBreakStrategy::kKnuthPlass)

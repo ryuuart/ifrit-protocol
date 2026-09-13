@@ -230,18 +230,18 @@ struct PopDeform final : sketch::Sketch {
                   .width(Dimension(kLead))
                   .column()
                   .gap(6)
-                  .child(text(toUtf8("\xe2\x80\xa6"
-                                     "and the same four, "
-                                     ".masked(\"band\")"))
+                  .child(text("\xe2\x80\xa6"
+                              "and the same four, "
+                              ".masked(\"band\")")
                              .font({.size = 13, .color = kInk, .track = 0.6f}))
-                  .child(text(toUtf8("a mask is one more lane on the "
-                                     "cloud, so a masked deformer is the "
-                                     "same chain reading one more "
-                                     "channel. The four calls below are "
-                                     "the four above with one more link "
-                                     "in each; the amounts are shared "
-                                     "constants, so the two rows are "
-                                     "comparable by construction."))
+                  .child(text("a mask is one more lane on the "
+                              "cloud, so a masked deformer is the "
+                              "same chain reading one more "
+                              "channel. The four calls below are "
+                              "the four above with one more link "
+                              "in each; the amounts are shared "
+                              "constants, so the two rows are "
+                              "comparable by construction.")
                              // the page's remark voice is tracked; a
                              // body line is not
                              .font({.size = 11, .color = kDim, .track = 0})

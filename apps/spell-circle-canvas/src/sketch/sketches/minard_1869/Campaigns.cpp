@@ -60,7 +60,7 @@ auto Minard1869::hannibalSea() -> Element {
               .stroke(spans::upTo(beat(tHann, tHann + 0.5f)),
                       stroke(1.1f, Fill::color(kInk)))
               .key("coast"));
-  g.child(text(toUtf8("Iles Baléares"))
+  g.child(text("Iles Baléares")
               .font({.face = faceItalic, .size = 9, .track = 0.2f})
               .at({150, 500})
               .key("baleares")
@@ -130,24 +130,24 @@ auto Minard1869::lehmann(const std::vector<std::array<float, 4>>& ridges,
 auto Minard1869::hannibalPanel() -> Element {
   auto g = box().inset(0);
 
-  g.child(text(toUtf8("Carte Figurative des pertes successives en hommes de "
-                      "l'armée qu'Annibal conduisit d'Espagne"))
+  g.child(text("Carte Figurative des pertes successives en hommes de "
+               "l'armée qu'Annibal conduisit d'Espagne")
               .font({.size = 19, .track = 0.2f})
               .at({210, 58})
               .key("htitle1")
               .opacity(beat(tHann, tHann + 0.4f)));
-  g.child(text(toUtf8("en Italie en traversant les Gaules (selon Polybe)."))
+  g.child(text("en Italie en traversant les Gaules (selon Polybe).")
               .font({.size = 17, .track = 0.2f})
               .at({320, 84})
               .key("htitle2")
               .opacity(beat(tHann + 0.1f, tHann + 0.5f)));
-  g.child(text(toUtf8("Dressée par M. Minard, Inspecteur Général "
-                      "des Ponts et Chaussées en retraite."))
+  g.child(text("Dressée par M. Minard, Inspecteur Général "
+               "des Ponts et Chaussées en retraite.")
               .font({.size = 14, .track = 0.15f})
               .at({300, 110})
               .key("htitle3")
               .opacity(beat(tHann + 0.2f, tHann + 0.6f)));
-  g.child(text(toUtf8("Paris, le 20 Novembre 1869."))
+  g.child(text("Paris, le 20 Novembre 1869.")
               .font({.size = 14, .track = 0.15f})
               .at({700, 132})
               .key("htitle4")
@@ -211,7 +211,7 @@ auto Minard1869::hannibalPanel() -> Element {
                           .color = hexColor(0x4e4436),
                           .track = 1.2f}
             : weave::Type{.face = faceItalic, .size = 9, .track = 0.2f};
-    g.child(text(toUtf8(p.name))
+    g.child(text(p.name)
                 .font(st)
                 .at({p.x, p.y})
                 .key("hp" + std::to_string(i))
@@ -244,7 +244,7 @@ auto Minard1869::legendBox() -> Element {
                .stroke(stroke(1.0f, Fill::color(kInk)))
                .key("legendbox")
                .opacity(beat(tHann + 1.5f, tHann + 1.8f));
-  g.child(text(toUtf8("Légende.")).font({.size = 14}).at({140, 4}));
+  g.child(text("Légende.").font({.size = 14}).at({140, 4}));
   const char* lines_[] = {
       "Les nombres d'hommes restés à Annibal sont "
       "représentés",
@@ -258,7 +258,7 @@ auto Minard1869::legendBox() -> Element {
       "prétendre la justifier.",
   };
   for (int i = 0; i < 5; ++i)
-    g.child(text(toUtf8(lines_[i]))
+    g.child(text(lines_[i])
                 .font({.size = 9.6f, .track = 0.05f})
                 .at({8, 24 + 16.0f * (float)i}));
   return g;
@@ -310,7 +310,7 @@ auto Minard1869::bandNumber(SkPoint at, SkVector tangent, float men, float size,
   const float half = std::max(bandPx(men) * 0.5f, runLen * 0.5f) + slack;
   const SkPoint a{at.x() - n.x() * half, at.y() - n.y() * half};
   const SkPoint b{at.x() + n.x() * half, at.y() + n.y() * half};
-  return text(toUtf8(french(men)), style)
+  return text(french(men), style)
       .rect(SkRect::MakeXYWH(0, 0, kSheetW, kSheetH))
       .onPath(TextPath{.path = segFn(a, b),
                        .at = 0.5f,
@@ -338,16 +338,16 @@ auto Minard1869::advanceZones() -> Element {
 auto Minard1869::napoleonPanel(sketch::SketchContext& ctx) -> Element {
   auto g = box().inset(0);
 
-  g.child(text(toUtf8("Carte Figurative des pertes successives en hommes de "
-                      "l'Armée Française dans la campagne de Russie "
-                      "1812—1813."))
+  g.child(text("Carte Figurative des pertes successives en hommes de "
+               "l'Armée Française dans la campagne de Russie "
+               "1812—1813.")
               .font({.size = 18, .track = 0.15f})
               .at({200, kDivHN + 14})
               .key("ntitle")
               .opacity(beat(tLegend, tLegend + 0.3f)));
-  g.child(text(toUtf8("Dressée par M. Minard, Inspecteur Général "
-                      "des Ponts et Chaussées en retraite.        Paris, "
-                      "le 20 Novembre 1869."))
+  g.child(text("Dressée par M. Minard, Inspecteur Général "
+               "des Ponts et Chaussées en retraite.        Paris, "
+               "le 20 Novembre 1869.")
               .font({.size = 13, .track = 0.1f})
               .at({300, kDivHN + 40})
               .key("ntitle2")
@@ -356,7 +356,7 @@ auto Minard1869::napoleonPanel(sketch::SketchContext& ctx) -> Element {
   // the legend as a PARAGRAPH, which is what it is — not a key.
   for (int i = 0; i < 5; ++i) {
     g.child(
-        text(toUtf8(plate.legend[i]))
+        text(plate.legend[i])
             .font({.size = 9.8f, .track = 0.02f})
             .at({i == 3 ? 148.0f : 128.0f, kDivHN + 58 + 14.6f * (float)i})
             .key("nleg" + std::to_string(i))
@@ -373,7 +373,7 @@ auto Minard1869::napoleonPanel(sketch::SketchContext& ctx) -> Element {
                 .stroke(spans::upTo(beat(t0, t0 + 0.35f)),
                         stroke(0.7f, Fill::color(hexColor(0x4e4436, 0.85f))))
                 .key(k));
-    g.child(text(toUtf8(label))
+    g.child(text(label)
                 .font({.face = faceItalic,
                        .size = 8,
                        .color = hexColor(0x4e4436),
@@ -446,7 +446,7 @@ auto Minard1869::napoleonPanel(sketch::SketchContext& ctx) -> Element {
                            "4 + 6 = 10 recrossed"};
     float x = kFrameL + 16;
     for (int i = 0; i < 5; ++i) {
-      g.child(text(toUtf8(ident[i]))
+      g.child(text(ident[i])
                   .font({.face = faceUiBold, .size = 9.5f, .color = kBlue})
                   .at({x, kDivNT - 26})
                   .key("ar" + std::to_string(i))
@@ -454,7 +454,7 @@ auto Minard1869::napoleonPanel(sketch::SketchContext& ctx) -> Element {
                                 tAdv + 0.75f + 0.35f * (float)i)));
       x += 20.0f + 6.4f * (float)std::char_traits<char>::length(ident[i]);
     }
-    g.child(text(toUtf8("all five EXACT"))
+    g.child(text("all five EXACT")
                 .font({.face = faceUiBold, .size = 9.5f, .color = kPass})
                 .at({x, kDivNT - 26})
                 .key("arok")
@@ -488,12 +488,12 @@ auto Minard1869::napoleonPanel(sketch::SketchContext& ctx) -> Element {
     const bool moscou = c.plate == "Moscou";
     // MOSCOU alone is set in spaced roman capitals, and it is the only
     // word on the map that is.
-    Element e =
-        moscou ? text(toUtf8("MOSCOU"))
-                     .font({.face = faceRoman, .size = 13, .track = 2.2f})
-                     .textStroke(0.5f, Fill::currentInk())
-               : text(toUtf8(c.plate))
-                     .font({.face = faceItalic, .size = 9.6f, .track = 0.2f});
+    Element e = moscou
+                    ? text("MOSCOU")
+                          .font({.face = faceRoman, .size = 13, .track = 2.2f})
+                          .textStroke(0.5f, Fill::currentInk())
+                    : text(c.plate).font(
+                          {.face = faceItalic, .size = 9.6f, .track = 0.2f});
     g.child(e.at({mapX(c.lon) + c.dx, mapY(c.lat) + c.dy})
                 .key("city" + std::to_string(i))
                 .opacity(beat(tAdv + 0.1f + 0.03f * (float)i,
@@ -516,8 +516,8 @@ auto Minard1869::napoleonPanel(sketch::SketchContext& ctx) -> Element {
                 .stroke(stroke(0.9f, Fill::color(kBlue)))
                 .key("floorink")
                 .opacity(beat(tScale + 1.4f, tScale + 1.7f)));
-    g.child(text(toUtf8("what the crayon actually laid — 1.57 mm, "
-                        "2.6× the rule"))
+    g.child(text("what the crayon actually laid — 1.57 mm, "
+                 "2.6× the rule")
                 .font({.face = faceUi, .size = 9, .color = kBlue})
                 .at({mapX(24.1f), y + 10})
                 .key("floorinklab")
@@ -525,17 +525,17 @@ auto Minard1869::napoleonPanel(sketch::SketchContext& ctx) -> Element {
   }
 
   // THE CALIPER LIES. Minard's own bar, read against Minard's own map.
-  g.child(text(toUtf8("Minard's own bar reads Kowno→Smolensk as 210 "
-                      "lieues = 933 km.  The truth is 520 km.  ×1.79 — "
-                      "UNEXPLAINED"))
+  g.child(text("Minard's own bar reads Kowno→Smolensk as 210 "
+               "lieues = 933 km.  The truth is 520 km.  ×1.79 — "
+               "UNEXPLAINED")
               .font({.face = faceUiBold, .size = 10.0f, .color = kAmber})
               .at({880, 958})
               .key("barlies")
               .opacity(beat(tBar, tBar + 0.4f)));
   g.child(
-      text(toUtf8("hypotheses: the labels are half their true value · "
-                  "copied unrescaled from Fezensac · my longitude "
-                  "scale is wrong.  None asserted."))
+      text("hypotheses: the labels are half their true value · "
+           "copied unrescaled from Fezensac · my longitude "
+           "scale is wrong.  None asserted.")
           .font(
               {.face = faceUi, .size = 9.0f, .color = hexColor(0xb5761e, 0.9f)})
           .at({880, 972})
@@ -563,7 +563,7 @@ auto Minard1869::scaleBar(float x, float y, float pxPerUnit, int span, int step,
     if (v > 25 && v < span)
       continue;  // the plate's own graduation: 0 5 10 15 20 25 ...... 50
     g.child(box().inset(0).shape(segFn({tx, y - 4}, {tx, y})));
-    g.child(text(toUtf8(std::to_string(v)))
+    g.child(text(std::to_string(v))
                 .font({.face = faceNum, .size = 6.5f})
                 .at({tx - 3, y + 2}));
   }
@@ -581,7 +581,7 @@ auto Minard1869::scaleBar(float x, float y, float pxPerUnit, int span, int step,
                 .shape(pathFn(tb.detach()))
                 .stroke(stroke(0.9f, Fill::color(kInk))));
   }
-  g.child(text(toUtf8(label))
+  g.child(text(label)
               .font({.face = faceItalic, .size = 7.5f, .track = 0.1f})
               .at({x, y - 18}));
   return g;
@@ -589,9 +589,9 @@ auto Minard1869::scaleBar(float x, float y, float pxPerUnit, int span, int step,
 
 auto Minard1869::temperaturePanel() -> Element {
   auto g = box().inset(0);
-  g.child(text(toUtf8("TABLEAU GRAPHIQUE de la température en degrés "
-                      "du thermomètre de Réaumur au dessous de "
-                      "zéro."))
+  g.child(text("TABLEAU GRAPHIQUE de la température en degrés "
+               "du thermomètre de Réaumur au dessous de "
+               "zéro.")
               .font({.size = 13, .track = 0.3f})
               .at({300, kDivNT + 4})
               .key("tempTitle")
@@ -607,7 +607,7 @@ auto Minard1869::temperaturePanel() -> Element {
                                          tTemp + 0.45f + 0.03f * (float)r)),
                         stroke(0.4f, Fill::color(hexColor(0x4e4436, 0.45f))))
                 .key("taxis" + std::to_string(r)));
-    g.child(text(toUtf8(r == 30 ? "30 degrés" : std::to_string(r)))
+    g.child(text(r == 30 ? "30 degrés" : std::to_string(r))
                 .font({.face = faceNum, .size = 7})
                 .at({kFrameR - 30, y - 4})
                 .key("tlab" + std::to_string(r))
@@ -685,7 +685,7 @@ auto Minard1869::temperaturePanel() -> Element {
     // the annotation, as engraved. 8bre / 9bre / Xbre are October /
     // November / December — the old Roman-calendar notation, and a
     // caption that "corrects" Xbre to 10bre is wrong twice over.
-    g.child(text(toUtf8(plate.temps[i].label))
+    g.child(text(plate.temps[i].label)
                 .font({.face = faceNum, .size = 7.4f, .track = 0.1f})
                 .at({x - 26, tempY(plate.temps[i].reaumur) + 5})
                 .key("tann" + std::to_string(i))
@@ -693,18 +693,18 @@ auto Minard1869::temperaturePanel() -> Element {
                               tTemp + 0.8f + 0.06f * (float)i)));
   }
   // the undated −11°, and its two independent recoveries
-  g.child(text(toUtf8("24 novembre  (derived, days column)"))
+  g.child(text("24 novembre  (derived, days column)")
               .font({.face = faceUi, .size = 8, .color = kBlue})
               .at({mapX(29.2f) - 26, tempY(-11) + 16})
               .key("recov1")
               .opacity(beat(tTemp + 1.35f, tTemp + 1.6f)));
-  g.child(text(toUtf8("25 novembre  (derived, lon interpolation)"))
+  g.child(text("25 novembre  (derived, lon interpolation)")
               .font({.face = faceUi, .size = 8, .color = kBlue})
               .at({mapX(29.2f) - 26, tempY(-11) + 27})
               .key("recov2")
               .opacity(beat(tTemp + 1.5f, tTemp + 1.75f)));
 
-  g.child(text(toUtf8("Les Cosaques passent au galop\nle Niémen gelé."))
+  g.child(text("Les Cosaques passent au galop\nle Niémen gelé.")
               .font({.size = 10, .track = 0.1f})
               .at({kFrameL + 20, kDivNT + 40})
               .key("cosaques")
@@ -714,13 +714,13 @@ auto Minard1869::temperaturePanel() -> Element {
 
 auto Minard1869::imprints() -> Element {
   auto g = box().inset(0);
-  g.child(text(toUtf8("Autog. par Regnier, 8. Pas. Sᵗᵉ Marie Sᵗ "
-                      "Gᵃᵉᵐ à Paris."))
+  g.child(text("Autog. par Regnier, 8. Pas. Sᵗᵉ Marie Sᵗ "
+               "Gᵃᵉᵐ à Paris.")
               .font({.face = faceItalic, .size = 7})
               .at({kFrameL + 6, kFrameB + 6})
               .key("imp1")
               .opacity(beat(1.0f, 1.3f)));
-  g.child(text(toUtf8("Imp. Lith. Regnier et Dourdet"))
+  g.child(text("Imp. Lith. Regnier et Dourdet")
               .font({.face = faceItalic, .size = 7})
               .at({kFrameR - 140, kFrameB + 6})
               .key("imp2")

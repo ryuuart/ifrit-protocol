@@ -125,15 +125,14 @@ struct ChromeType final : sketch::Sketch {
     Element onBox = sketch::kit::caption(
         0, toUtf8("Boundary::Auto"), toUtf8("the node's rectangle"),
         box().padding(18).corners({6}).style(style).child(
-            text(toUtf8(c::kWordmark), c::wordmark(letterInk))));
+            text(c::kWordmark, c::wordmark(letterInk))));
     // The letters: the same value, the other boundary.
     Element onGlyphs = sketch::kit::caption(
         0, toUtf8("Boundary::Glyphs"),
         toUtf8("the contours the placement produced"),
-        box().padding(18).child(
-            text(toUtf8(c::kWordmark), c::wordmark({0, 0, 0, 0}))
-                .boundary(Boundary::Glyphs)
-                .style(style)));
+        box().padding(18).child(text(c::kWordmark, c::wordmark({0, 0, 0, 0}))
+                                    .boundary(Boundary::Glyphs)
+                                    .style(style)));
     // The pair's own name stands wider and larger than a cell's call.
     const sketch::kit::Theme& look = sketch::kit::theme();
     return kit::cell(

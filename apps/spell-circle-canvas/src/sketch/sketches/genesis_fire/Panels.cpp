@@ -11,11 +11,11 @@ Element GenesisFire::generationPanel() {
                  "(f \xe2\x88\x92 f\xe2\x82\x80)"))
       .child(eqn("InitialSpeed = MeanSpeed + Rand() \xc3\x97 VarSpeed"))
       .child(box().grow(1))
-      .child(text(toUtf8("Rand() \xe2\x86\x92 UNIFORM [\xe2\x88\x92"
-                         "1.0, +1.0] "
-                         "\xe2\x80\x94 REEVES 1983 \xc2\xa7"
-                         "2.1\xe2\x80\x93"
-                         "2.2"))
+      .child(text("Rand() \xe2\x86\x92 UNIFORM [\xe2\x88\x92"
+                  "1.0, +1.0] "
+                  "\xe2\x80\x94 REEVES 1983 \xc2\xa7"
+                  "2.1\xe2\x80\x93"
+                  "2.2")
                  .font({.size = 7.5f, .track = 0.4f})
                  .ink(kSteelDim)
                  .shrink(0));
@@ -106,26 +106,24 @@ Element GenesisFire::censusPanel() {
                                "~400", ">750,000", ">1,875", 0.945f, false))
               .child(liveRow()))
       .child(box().grow(1))
-      .child(text(toUtf8("* FIG. 4 IS \"ONE VERY LARGE PARTICLE SYSTEM AND "
-                         "ABOUT 20 SMALLER ONES\" \xe2\x80\x94 THAT MEAN IS "
-                         "MEANINGLESS."))
+      .child(text("* FIG. 4 IS \"ONE VERY LARGE PARTICLE SYSTEM AND "
+                  "ABOUT 20 SMALLER ONES\" \xe2\x80\x94 THAT MEAN IS "
+                  "MEANINGLESS.")
                  .styleClass("note")
                  .ink(kSteelDim)
                  .shrink(0))
-      .child(
-          text(toUtf8(
-                   "NO PARAMETER VALUE IS PUBLISHED ANYWHERE. EVERY CONSTANT "
-                   "HERE IS ARITHMETIC ON TWO PUBLISHED INTEGERS: 85,000 "
-                   "\xc3\xb7 200 = 425 ALIVE PER EXPLOSION (FIG. 6), AND "
-                   "POPULATION = BIRTH RATE \xc3\x97 LIFETIME \xe2\x80\x94 "
-                   "PICK MeanLife = 34 f AND THE RATE FOLLOWS. SYSTEMS IGNITE "
-                   "EVERY 18.5/168 = 0.110 s: 20 GENERATING + 13 BURNING OUT "
-                   "= 24 FULLY-LIT EQUIVALENTS. A LIMB VIEW STACKS THE RING "
-                   "IN DEPTH (FIG. 6 IS ~200 SYSTEMS; THIS SLICE ANCHORS 53 "
-                   "COLUMNS), SO EACH COLUMN CARRIES 3: 72 \xc3\x97 425 = "
-                   "30,600 PREDICTED. THE \"THIS\" ROW IS MEASURED."))
-              .styleClass("note")
-              .shrink(0));
+      .child(text("NO PARAMETER VALUE IS PUBLISHED ANYWHERE. EVERY CONSTANT "
+                  "HERE IS ARITHMETIC ON TWO PUBLISHED INTEGERS: 85,000 "
+                  "\xc3\xb7 200 = 425 ALIVE PER EXPLOSION (FIG. 6), AND "
+                  "POPULATION = BIRTH RATE \xc3\x97 LIFETIME \xe2\x80\x94 "
+                  "PICK MeanLife = 34 f AND THE RATE FOLLOWS. SYSTEMS IGNITE "
+                  "EVERY 18.5/168 = 0.110 s: 20 GENERATING + 13 BURNING OUT "
+                  "= 24 FULLY-LIT EQUIVALENTS. A LIMB VIEW STACKS THE RING "
+                  "IN DEPTH (FIG. 6 IS ~200 SYSTEMS; THIS SLICE ANCHORS 53 "
+                  "COLUMNS), SO EACH COLUMN CARRIES 3: 72 \xc3\x97 425 = "
+                  "30,600 PREDICTED. THE \"THIS\" ROW IS MEASURED.")
+                 .styleClass("note")
+                 .shrink(0));
 }
 
 Element GenesisFire::rampPanel() {
@@ -144,7 +142,7 @@ Element GenesisFire::rampPanel() {
                                                   .ease = ease::outBack(),
                                                   .delay = 1500ms})));
     const bool key = n == 5 || n == 20 || n == 111;
-    labels.push_back(text(toUtf8(std::to_string(n)))
+    labels.push_back(text(std::to_string(n))
                          .styleClass("label")
                          .ink(key ? kBone : kSteelDim)
                          .width(28)
@@ -158,11 +156,11 @@ Element GenesisFire::rampPanel() {
           std::move(swatches)))
       .child(box().row().gap(2).shrink(0).children(std::move(labels)))
       .child(box().grow(1))
-      .child(text(toUtf8("LIGHT ADDS AND CLAMPS (\xc2\xa7"
-                         "2.5) \xe2\x80\x94 RED "
-                         "SATURATES AT n=5, GREEN AT n=20, BLUE AT n=111. "
-                         "e\xe2\x82\x80 = (0.220, 0.050, 0.009) IS THE ONE "
-                         "RECONSTRUCTED SEED."))
+      .child(text("LIGHT ADDS AND CLAMPS (\xc2\xa7"
+                  "2.5) \xe2\x80\x94 RED "
+                  "SATURATES AT n=5, GREEN AT n=20, BLUE AT n=111. "
+                  "e\xe2\x82\x80 = (0.220, 0.050, 0.009) IS THE ONE "
+                  "RECONSTRUCTED SEED.")
                  .styleClass("note")
                  .shrink(0));
 }
@@ -183,11 +181,8 @@ Element GenesisFire::benchCell(Element content, const char* caption,
                  .stroke(stroke(1.0f, Fill::color(hexColor(0x1B2029)),
                                 PathFormat::Align::Inner))
                  .child(std::move(content)))
-      .child(text(toUtf8(caption))
-                 .styleClass("label")
-                 .ink(cc)
-                 .width(130)
-                 .textAlign(sigil::weave::TextAlignment::kCenter));
+      .child(text(caption).styleClass("label").ink(cc).width(130).textAlign(
+          sigil::weave::TextAlignment::kCenter));
 }
 
 Element GenesisFire::renderModelPanel() {
@@ -211,13 +206,13 @@ Element GenesisFire::renderModelPanel() {
                  .child(benchCell(box().inset(0), "pen quads \xc2\xb7 kPlus",
                                   hexColor(0xFFB672))))
       .child(box().grow(1))
-      .child(text(toUtf8("SAME 700 PARTICLES, ONE POOL. LEFT AND CENTRE "
-                         "DIFFER ONLY IN BLEND: kSrcOver CANNOT ACCUMULATE, "
-                         "SO ITS WHOLE PALETTE IS LUT ENTRY n=1. ALL THREE "
-                         "ARE STREAKED SPHERICAL \xe2\x80\x94 LENGTH "
-                         "0.5\xc2\xb7|v|, WIDTH size. THE TWO POOLS TAKE IT "
-                         "FROM Pool::sizes(), THE OPT-IN NON-UNIFORM LANE "
-                         "THAT STRETCHES ONE BAKED CELL PER INSTANCE."))
+      .child(text("SAME 700 PARTICLES, ONE POOL. LEFT AND CENTRE "
+                  "DIFFER ONLY IN BLEND: kSrcOver CANNOT ACCUMULATE, "
+                  "SO ITS WHOLE PALETTE IS LUT ENTRY n=1. ALL THREE "
+                  "ARE STREAKED SPHERICAL \xe2\x80\x94 LENGTH "
+                  "0.5\xc2\xb7|v|, WIDTH size. THE TWO POOLS TAKE IT "
+                  "FROM Pool::sizes(), THE OPT-IN NON-UNIFORM LANE "
+                  "THAT STRETCHES ONE BAKED CELL PER INSTANCE.")
                  .styleClass("note")
                  .shrink(0));
 }
@@ -242,8 +237,8 @@ Element GenesisFire::productionPanel() {
                       "VISTAVISION BY ILM",
                       kSteel))
       .child(box().grow(1))
-      .child(text(toUtf8("Am. Cinematographer 63(10) \xe2\x80\x94 caption: "
-                         "67 s; body text: 60 s. Both printed."))
+      .child(text("Am. Cinematographer 63(10) \xe2\x80\x94 caption: "
+                  "67 s; body text: 60 s. Both printed.")
                  .styleClass("note")
                  .ink(kSteelDim)
                  .shrink(0));
@@ -264,20 +259,20 @@ Element GenesisFire::header() {
       .gap(4)
       .font({.face = uiFace()})
       .ink(kSteel)
-      .child(text(toUtf8("STOCHASTIC PARTICLE SYSTEMS"))
+      .child(text("STOCHASTIC PARTICLE SYSTEMS")
                  .font({.size = 11.5f, .track = 2.7f})
                  .opacity(animate(from(0.0f).to(1.0f), {.duration = 260ms}))
                  .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms})))
-      .child(text(toUtf8("THE GENESIS DEMO, 1982"))
+      .child(text("THE GENESIS DEMO, 1982")
                  .font({.face = heavyFace(), .size = 46, .track = -0.4f})
                  .ink(kBone)
                  .key("title")
                  .fx(std::move(rise)))
-      .child(text(toUtf8("W. T. Reeves, Lucasfilm Ltd \xe2\x80\x94 \"Particle "
-                         "Systems: A Technique for Modeling a Class of Fuzzy "
-                         "Objects\", SIGGRAPH '83 / ACM TOG 2(2) \xc2\xb7 "
-                         "sequence dir. Alvy Ray Smith \xc2\xb7 Star Trek II, "
-                         "Paramount, June 4, 1982"))
+      .child(text("W. T. Reeves, Lucasfilm Ltd \xe2\x80\x94 \"Particle "
+                  "Systems: A Technique for Modeling a Class of Fuzzy "
+                  "Objects\", SIGGRAPH '83 / ACM TOG 2(2) \xc2\xb7 "
+                  "sequence dir. Alvy Ray Smith \xc2\xb7 Star Trek II, "
+                  "Paramount, June 4, 1982")
                  .font({.size = 11.0f, .track = 0.1f})
                  .opacity(animate(from(0.0f).to(1.0f),
                                   {.duration = 240ms, .delay = 420ms})))

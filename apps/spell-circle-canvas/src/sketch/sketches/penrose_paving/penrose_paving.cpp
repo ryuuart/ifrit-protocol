@@ -300,7 +300,7 @@ struct PenrosePaving : sketch::Sketch {
         .column()
         .padding(14)
         .gap(9)
-        .child(text(toUtf8(summary)))
+        .child(text(summary))
         .child(sketch::kit::table(
             std::move(rows),
             {.columns = {{202}, {92, true}, {}}, .gap = 8, .swatchSide = 7}));
@@ -317,12 +317,11 @@ struct PenrosePaving : sketch::Sketch {
         .stroke(stroke(1.0f, Fill::color(hexColor(0x5E6163, 0.55f)),
                        PathFormat::Align::Inner))
         .background(styles::dropShadow(hexColor(0x000000, 0.55f), {0, 6}, 22))
-        .child(
-            text(toUtf8("DEFLATION \xc2\xb7 FAT \xe2\x86\x92 2 FAT + 1 THIN, "
-                        "\xc3\x97"
-                        "1/\xcf\x86"))
-                .left(14)
-                .top(12))
+        .child(text("DEFLATION \xc2\xb7 FAT \xe2\x86\x92 2 FAT + 1 THIN, "
+                    "\xc3\x97"
+                    "1/\xcf\x86")
+                   .left(14)
+                   .top(12))
         .child(box().left(10).top(34).width(kDiagW).height(kDiagH).child(
             slot("deflate")));
   }
@@ -436,23 +435,23 @@ struct PenrosePaving : sketch::Sketch {
                    .background(styles::dropShadow(hexColor(0x000000, 0.5f),
                                                   {0, 5}, 18)))
         .child(
-            text(toUtf8("PENROSE TILING \xc2\xb7 P3 RHOMBI \xc2\xb7 ROYAL "
-                        "WHITE & KOBRA GREY GRANITE \xc2\xb7 POLISHED 30 mm "
-                        "STAINLESS INSERTS"))
+            text("PENROSE TILING \xc2\xb7 P3 RHOMBI \xc2\xb7 ROYAL "
+                 "WHITE & KOBRA GREY GRANITE \xc2\xb7 POLISHED 30 mm "
+                 "STAINLESS INSERTS")
                 .font(
                     {.size = 13.0f, .color = hexColor(0xDCE0E2), .track = 1.9f})
                 .left(76)
                 .top(1100)
                 .opacity(1.0f))
         .child(
-            text(toUtf8("MATHEMATICAL INSTITUTE, ANDREW WILES BUILDING, "
-                        "OXFORD \xc2\xb7 R. PENROSE 1974 / PAVING 2012"))
+            text("MATHEMATICAL INSTITUTE, ANDREW WILES BUILDING, "
+                 "OXFORD \xc2\xb7 R. PENROSE 1974 / PAVING 2012")
                 .font(
                     {.size = 11.5f, .color = hexColor(0xA9AEB1), .track = 1.5f})
                 .left(76)
                 .top(1126)
                 .opacity(1.0f))
-        .child(text(toUtf8(spec))
+        .child(text(spec)
                    .font({.color = hexColor(0x8E9598), .track = 1.3f})
                    .left(76)
                    .top(1152)

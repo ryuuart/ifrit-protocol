@@ -221,12 +221,12 @@ struct ThreadedStory final : sketch::Sketch {
                 .inset(s::kMargin, s::kMargin - 14, 0, 0)
                 .column()
                 .gap(5)
-                .child(text(toUtf8("ONE STORY, THREE FRAMES, TWICE"))
+                .child(text("ONE STORY, THREE FRAMES, TWICE")
                            .font({.size = 11, .color = s::kInk, .track = 3.4f}))
-                .child(text(toUtf8("the cut is a word index \xe2\x80\x94 the "
-                                   "remainder the frame before reported \xe2"
-                                   "\x80\x94 so a narrower first frame moves "
-                                   "it, and the columns begin elsewhere"))
+                .child(text("the cut is a word index \xe2\x80\x94 the "
+                            "remainder the frame before reported \xe2"
+                            "\x80\x94 so a narrower first frame moves "
+                            "it, and the columns begin elsewhere")
                            .font({.track = 0.3f})
                            .width(Dimension(700.0f))))
         .child(box()
@@ -244,12 +244,11 @@ struct ThreadedStory final : sketch::Sketch {
                                     "more fits before them, and the same two "
                                     "columns begin further in",
                                     chain("wide", s::kWide, article))))
-        .child(
-            text(toUtf8("a Western column is a FRAME; the vertical writing "
-                        "mode keeps the word for the thing it already meant"))
-                .font({.track = 0.2f})
-                .absolute()
-                .inset(s::kMargin, s::kH - 32, 0, 0));
+        .child(text("a Western column is a FRAME; the vertical writing "
+                    "mode keeps the word for the thing it already meant")
+                   .font({.track = 0.2f})
+                   .absolute()
+                   .inset(s::kMargin, s::kH - 32, 0, 0));
   }
 };
 

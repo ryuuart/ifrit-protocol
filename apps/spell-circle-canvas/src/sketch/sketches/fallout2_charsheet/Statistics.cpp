@@ -276,7 +276,7 @@ auto Fallout2CharSheet::skillsColumn() -> Element {
                   .inset(0)
                   .justify(Justify::Center)
                   .alignItems(Align::Center)
-                  .child(text(toUtf8(k == 0 ? "+" : "-"))
+                  .child(text(k == 0 ? "+" : "-")
                              .font({.size = n(7.0f), .color = kGold})));
     slider.child(btn);
   }

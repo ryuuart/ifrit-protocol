@@ -124,7 +124,7 @@ struct WarichuPlaceholder final : sketch::Sketch {
     first = narrow(std::u16string_view(utf16).substr(0, cut));
     second = narrow(std::u16string_view(utf16).substr(cut));
 
-    oneLine = ctx.measure(box().child(text(toUtf8(kNote), noteStyle))).width();
+    oneLine = ctx.measure(box().child(text(kNote, noteStyle))).width();
     report[0] = kit::formatted("one line \xc2\xb7 advance %.1f px", oneLine);
     report[1] = kit::formatted("split \xc2\xb7 advance %.1f \xc2\xb7 band %.1f",
                                split.advance, split.band);
@@ -181,7 +181,7 @@ struct WarichuPlaceholder final : sketch::Sketch {
     return cell("slot(\"note\", {one line, band})",
                 "the aside set as a single line \xc2\xb7 it takes the base's "
                 "whole measure and the line it interrupts has nowhere to go",
-                based({oneLine, kNoteSize * 1.4f}, text(toUtf8(kNote))));
+                based({oneLine, kNoteSize * 1.4f}, text(kNote)));
   }
 
   /** The two lines, cut where the split said, stacked across the band it
@@ -235,7 +235,7 @@ struct WarichuPlaceholder final : sketch::Sketch {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
     Element column = box().column().gap(8);
     for (const std::string& row : report)
-      column.child(text(toUtf8(row), sheet.mono(10, sheet.palette.figure))
+      column.child(text(row, sheet.mono(10, sheet.palette.figure))
                        .width(Dimension(kCell - 24)));
     return cell("WarichuSplit{advance, band, cutWord}",
                 "what the split answered for this note at this size "

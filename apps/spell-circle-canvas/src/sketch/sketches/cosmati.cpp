@@ -419,12 +419,12 @@ struct Cosmati final : sketch::Sketch {
             .foreground(stroke(2.0f, Fill::color(cs::kMarble),
                                PathFormat::Align::Inner))
             .background(styles::dropShadow({0, 0, 0, 0.7f}, {0, 8}, 18)));
-    floorPlate.child(text(toUtf8("\xc2\xb7 QVATVOR \xc2\xb7 PRAECEDENTES "
-                                 "\xc2\xb7 ET \xc2\xb7 TRES \xc2\xb7"))
+    floorPlate.child(text("\xc2\xb7 QVATVOR \xc2\xb7 PRAECEDENTES "
+                          "\xc2\xb7 ET \xc2\xb7 TRES \xc2\xb7")
                          .left(cs::kBandW)
                          .top(13));
-    floorPlate.child(text(toUtf8("\xc2\xb7 ODORICVS \xc2\xb7 FECIT \xc2\xb7 "
-                                 "MCCLXVIII \xc2\xb7"))
+    floorPlate.child(text("\xc2\xb7 ODORICVS \xc2\xb7 FECIT \xc2\xb7 "
+                          "MCCLXVIII \xc2\xb7")
                          .left(cs::kBandW)
                          .top(cs::kFieldSide - 24));
 
@@ -467,9 +467,9 @@ struct Cosmati final : sketch::Sketch {
     // glyphs — and it does NOT auto-flip, because the letter-cutters
     // didn't: glyph-up points outward the whole way round.
     floorPlate.child(
-        text(toUtf8("\xc2\xb7 SPHERICVM \xc2\xb7 ARCHETYPVM "
-                    "\xc2\xb7 MVNDVM \xc2\xb7 PRIMVM \xc2\xb7 "
-                    "TRIPLEX \xc2\xb7"))
+        text("\xc2\xb7 SPHERICVM \xc2\xb7 ARCHETYPVM "
+             "\xc2\xb7 MVNDVM \xc2\xb7 PRIMVM \xc2\xb7 "
+             "TRIPLEX \xc2\xb7")
             .font(
                 {.size = 9, .color = cs::kGiallo, .track = 2.0f, .weight = 600})
             .width(Dimension(big * 1.50f))
@@ -505,13 +505,13 @@ struct Cosmati final : sketch::Sketch {
             .column()
             .left(px)
             .top(cs::kFieldY + 4)
-            .child(text(toUtf8("OPUS SECTILE"))
+            .child(text("OPUS SECTILE")
                        .font({.size = 21,
                               .color = cs::kInk,
                               .track = 3.4f,
                               .weight = 640}))
-            .child(text(toUtf8("Cosmatesque \xc2\xb7 Westminster "
-                               "1268"))
+            .child(text("Cosmatesque \xc2\xb7 Westminster "
+                        "1268")
                        .font({.size = 11, .track = 1.4f})
                        .margin(0, 6, 0, 0))
             .child(box()
@@ -525,12 +525,12 @@ struct Cosmati final : sketch::Sketch {
                                             {1.0f,
                                              {cs::kGiallo.fR, cs::kGiallo.fG,
                                               cs::kGiallo.fB, 0.0f}}})))
-            .child(text(toUtf8("The governing figure is the QUINCUNX "
-                               "\xe2\x80\x94 four roundels about a "
-                               "fifth. The Great Pavement is a "
-                               "quincunx of quincunxes, 25 Roman feet "
-                               "square, laid by a Roman crew under "
-                               "Odoricus."))
+            .child(text("The governing figure is the QUINCUNX "
+                        "\xe2\x80\x94 four roundels about a "
+                        "fifth. The Great Pavement is a "
+                        "quincunx of quincunxes, 25 Roman feet "
+                        "square, laid by a Roman crew under "
+                        "Odoricus.")
                        .font({.size = 11.5f, .track = 0.2f})
                        .width(Dimension(210.0f))));
 

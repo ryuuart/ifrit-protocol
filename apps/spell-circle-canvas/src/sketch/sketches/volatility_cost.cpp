@@ -372,9 +372,8 @@ struct VolatilityCost final : sketch::Sketch {
     return box()
         .column()
         .gap(3)
-        .child(text(toUtf8("Composer::stats()"))
-                   .styleClass("heading")
-                   .margin(0, 0, 0, 4))
+        .child(
+            text("Composer::stats()").styleClass("heading").margin(0, 0, 0, 4))
         .child(sketch::kit::readout(
             {{u8"instances", count(frame.instances)},
              {u8"describedNodes", count(frame.describedNodes)},
@@ -391,8 +390,7 @@ struct VolatilityCost final : sketch::Sketch {
              {u8"paint ms", toUtf8(ms(ctx.measured(frame.paintMs)))}},
             how))
         .child(box().height(8))
-        .child(
-            text(toUtf8("the split")).styleClass("heading").margin(0, 0, 0, 4))
+        .child(text("the split").styleClass("heading").margin(0, 0, 0, 4))
         .child(sketch::kit::readout(
             {{u8"refused: Volatile", count((size_t)volatileNodes)},
              {u8"reached a bake", count((size_t)bakedNodes)},
@@ -405,13 +403,12 @@ struct VolatilityCost final : sketch::Sketch {
    *  number lands on the node that actually costs. */
   Element costTable(const sketch::SketchContext& ctx) const {
     Element column = box().column().gap(3);
-    column.child(
-        text(toUtf8(ctx.deterministic
-                        ? "Composer::profile() \xc2\xb7 self ms, by key"
-                        : "Composer::profile() \xc2\xb7 self ms, "
-                          "worst first"))
-            .styleClass("heading")
-            .margin(0, 0, 0, 4));
+    column.child(text(ctx.deterministic
+                          ? "Composer::profile() \xc2\xb7 self ms, by key"
+                          : "Composer::profile() \xc2\xb7 self ms, "
+                            "worst first")
+                     .styleClass("heading")
+                     .margin(0, 0, 0, 4));
     std::vector<sketch::kit::Row> rows;
     rows.reserve(worst.size());
     for (const Composer::NodeCost& row : worst)
@@ -431,10 +428,9 @@ struct VolatilityCost final : sketch::Sketch {
 
   Element readout(const sketch::SketchContext& ctx) const {
     if (!snapped)
-      return box().child(
-          text(toUtf8("reading at " + ms(kSnapAt) + " s\xe2\x80\xa6"))
-              .font({.size = 12})
-              .ink(kDim));
+      return box().child(text("reading at " + ms(kSnapAt) + " s\xe2\x80\xa6")
+                             .font({.size = 12})
+                             .ink(kDim));
     return box().column().gap(12).child(legend()).child(
         box().row().gap(34).child(statsBlock(ctx)).child(costTable(ctx)));
   }

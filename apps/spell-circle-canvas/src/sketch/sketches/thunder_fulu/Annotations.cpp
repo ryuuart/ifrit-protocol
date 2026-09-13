@@ -10,7 +10,7 @@ auto ThunderFulu::chantPanel() -> Element {
                .key("chant")
                .font({.size = 11.5f})
                .ink(kChalk);
-  g.child(text(toUtf8("ZHAN HONG FU \xc2\xb7 SEVER THE RAINBOW"))
+  g.child(text("ZHAN HONG FU \xc2\xb7 SEVER THE RAINBOW")
               .styleClass("heading")
               .font({.size = 17.0f, .track = 1.4f})
               .left(0)
@@ -47,22 +47,21 @@ auto ThunderFulu::chantPanel() -> Element {
   };
   for (int i = 0; i < 5; ++i) {
     const float t = tGall + (float)i * 0.7f;
-    g.child(text(toUtf8(lines_[i]))
+    g.child(text(lines_[i])
                 .left(0)
                 .top(36 + (float)i * 19)
                 .width(468)
                 .opacity(bind(&scribe).window(t, t + 0.4f).target(0.22f, 1.0f))
                 .key(kit::formatted("chant%d", i)));
   }
-  g.child(
-      text(toUtf8("\xe2\x80\x9c\xe6\x80\xa5\xe6\x80\xa5\xe5\xa6\x82\xe5\xbe"
-                  "\x8b\xe4\xbb\xa4\xe2\x80\x9d is the Han imperial-document "
-                  "closing formula, borrowed whole. It ends"))
-          .styleClass("gloss")
-          .left(0)
-          .top(136)
-          .width(468));
-  g.child(text(toUtf8("almost every fu, and it goes at the FOOT."))
+  g.child(text("\xe2\x80\x9c\xe6\x80\xa5\xe6\x80\xa5\xe5\xa6\x82\xe5\xbe"
+               "\x8b\xe4\xbb\xa4\xe2\x80\x9d is the Han imperial-document "
+               "closing formula, borrowed whole. It ends")
+              .styleClass("gloss")
+              .left(0)
+              .top(136)
+              .width(468));
+  g.child(text("almost every fu, and it goes at the FOOT.")
               .styleClass("gloss")
               .left(0)
               .top(150)
@@ -113,7 +112,7 @@ auto ThunderFulu::tempoPanel() -> Element {
                .key("tempo")
                .font({.size = 10.5f})
                .ink(hexColor(0x9a8a68));
-  g.child(text(toUtf8("YI QI LI DUAN \xc2\xb7 CUT OFF IN ONE BREATH"))
+  g.child(text("YI QI LI DUAN \xc2\xb7 CUT OFF IN ONE BREATH")
               .styleClass("heading")
               .font({.size = 13.0f, .track = 1.2f})
               .left(0)
@@ -127,25 +126,23 @@ auto ThunderFulu::tempoPanel() -> Element {
       "FU JIAO  foot       38 str   0.034 s/stroke   NO LIFT, FLYING WHITE",
   };
   for (int i = 0; i < 5; ++i) {
-    Element row =
-        text(toUtf8(rows[i])).left(0).top(20 + (float)i * 15).width(468);
+    Element row = text(rows[i]).left(0).top(20 + (float)i * 15).width(468);
     if (i == 4) row.ink(hexColor(0xcf6a4a));
     g.child(std::move(row));
   }
-  g.child(
-      text(toUtf8("the foot is 7.1x the body \xe2\x80\x94 doctrine, measured: "
-                  "\"the foot is the last"))
-          .styleClass("gloss")
-          .left(0)
-          .top(100)
-          .width(468));
-  g.child(text(toUtf8("step; total concentration, cut off in a single breath, "
-                      "no slowing"))
+  g.child(text("the foot is 7.1x the body \xe2\x80\x94 doctrine, measured: "
+               "\"the foot is the last")
+              .styleClass("gloss")
+              .left(0)
+              .top(100)
+              .width(468));
+  g.child(text("step; total concentration, cut off in a single breath, "
+               "no slowing")
               .styleClass("gloss")
               .left(0)
               .top(114)
               .width(468));
-  g.child(text(toUtf8("or dragging.\"  A fu written at one tempo is not a fu."))
+  g.child(text("or dragging.\"  A fu written at one tempo is not a fu.")
               .styleClass("gloss")
               .left(0)
               .top(128)
@@ -181,7 +178,7 @@ auto ThunderFulu::marginColumn() -> Element {
   };
 
   // --- 踏符頭: one chant line per hook, as the hook goes down -----------
-  g.child(text(toUtf8("TA FU TOU \xc2\xb7 TREADING THE HEAD"))
+  g.child(text("TA FU TOU \xc2\xb7 TREADING THE HEAD")
               .styleClass("heading")
               .left(0)
               .top(126)
@@ -189,7 +186,7 @@ auto ThunderFulu::marginColumn() -> Element {
   g.child(rule(144, Wc));
   for (int k = 0; k < 3; ++k) {
     const float t = tHead + (float)k * (tHeadEach + tHeadGap);
-    g.child(text(toUtf8(kHeadChant[k]))
+    g.child(text(kHeadChant[k])
                 .styleClass("chant")
                 .left(0)
                 .top(154 + (float)k * 26)
@@ -200,7 +197,7 @@ auto ThunderFulu::marginColumn() -> Element {
 
   // --- the width law, PLOTTED. 起 · 行 · 收 as one curve ---------------
   const float py = 260, ph = 126, pw = Wc;
-  g.child(text(toUtf8("QI / XING / SHOU \xc2\xb7 w(s) OVER ARC LENGTH"))
+  g.child(text("QI / XING / SHOU \xc2\xb7 w(s) OVER ARC LENGTH")
               .styleClass("heading")
               .left(0)
               .top(py - 22)
@@ -276,13 +273,13 @@ auto ThunderFulu::marginColumn() -> Element {
     const float mx[3] = {0.0f, 0.28f, 0.88f};
     const float off[3] = {2, -18, -52};
     for (int i = 0; i < 3; ++i)
-      g.child(text(toUtf8(marks[i]))
+      g.child(text(marks[i])
                   .font({.size = 8.5f, .color = hexColor(0xa89778)})
                   .left(mx[i] * pw + off[i])
                   .top(cy + chh - widthLaw(mx[i]) * sc + (i == 1 ? 4 : -13))
                   .width(120)
                   .key(kit::formatted("lawmk%d", i)));
-    g.child(text(toUtf8("s = distance / fullLength, NOT PathSample::fraction"))
+    g.child(text("s = distance / fullLength, NOT PathSample::fraction")
                 .font({.size = 8.5f, .color = hexColor(0x6f6047)})
                 .left(0)
                 .top(cy + chh + 4)
@@ -299,7 +296,7 @@ auto ThunderFulu::marginColumn() -> Element {
   // compressed to buy room — SHU's specimen starts at cell y = 2, already
   // under its own caption — so any change here has to move the heading.
   const float ky = 412;
-  g.child(text(toUtf8("SIX CLASSES \xc2\xb7 w0, RECOVERED"))
+  g.child(text("SIX CLASSES \xc2\xb7 w0, RECOVERED")
               .styleClass("heading")
               .left(0)
               .top(ky)
@@ -332,18 +329,18 @@ auto ThunderFulu::marginColumn() -> Element {
                                       .step = 1.2f,
                                       .width = LawBand{w0}})
                 .key(kit::formatted("spec%d", c)));
-    g.child(text(toUtf8(kit::formatted("%s  %.3f em", kClsName[c],
-                                       (double)w0ForClass(c))))
-                .font({.size = 9.0f, .color = hexColor(0xa48c5c)})
-                .left(cx)
-                .top(y + 56)
-                .width(140)
-                .key(kit::formatted("speclbl%d", c)));
+    g.child(
+        text(kit::formatted("%s  %.3f em", kClsName[c], (double)w0ForClass(c)))
+            .font({.size = 9.0f, .color = hexColor(0xa48c5c)})
+            .left(cx)
+            .top(y + 56)
+            .width(140)
+            .key(kit::formatted("speclbl%d", c)));
   }
 
   // --- the six phrases sung while 罡 is drawn ---------------------------
   const float gy = 646;  // see the note above ky
-  g.child(text(toUtf8("SUNG WHILE GANG IS DRAWN"))
+  g.child(text("SUNG WHILE GANG IS DRAWN")
               .styleClass("heading")
               .left(0)
               .top(gy)
@@ -353,7 +350,7 @@ auto ThunderFulu::marginColumn() -> Element {
     // the chant must finish exactly as the tenth stroke lands
     const float t = tGall + (float)k * (10.0f * tGallEach / 6.0f);
     Element line =
-        text(toUtf8(kit::formatted("%d/6  %s", k + 1, kGallChant[k])))
+        text(kit::formatted("%d/6  %s", k + 1, kGallChant[k]))
             .styleClass("chant")
             .left(0)
             .top(gy + 28 + (float)k * 18)
@@ -363,7 +360,7 @@ auto ThunderFulu::marginColumn() -> Element {
     if (k == 5) line.ink(hexColor(0xe07a52));  // the phrase that lands
     g.child(std::move(line));
   }
-  g.child(text(toUtf8("the sixth phrase lands on the tenth stroke"))
+  g.child(text("the sixth phrase lands on the tenth stroke")
               .font({.size = 9.0f, .color = hexColor(0x6f6047)})
               .left(0)
               .top(gy + 132)

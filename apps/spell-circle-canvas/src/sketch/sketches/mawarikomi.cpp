@@ -142,28 +142,26 @@ struct Mawarikomi final : sketch::Sketch {
                    .flowAround("in", 9)
                    .zIndex(1))
         // The plate names itself in the other writing mode.
-        .child(
-            box()
-                .absolute()
-                .inset(64, 84, 0, 0)
-                .column()
-                .gap(10)
-                .child(
-                    text(toUtf8("\xe5\x9b\x9e\xe3\x82\x8a\xe8\xbe\xbc\xe3\x81"
-                                "\xbf"))
-                        .font(mw::bodyType(42)))
-                .child(box()
-                           .width(Dimension(120.0f))
-                           .height(Dimension(1.0f))
-                           .fill(Fill::color(mw::kAka)))
-                .child(text(toUtf8("THE COLUMN PARTS, AND THE COLUMN STOPS"))
-                           .font(mw::labelType(12, mw::kAi, 2.6f))
-                           .width(Dimension(268.0f)))
-                .child(text(toUtf8("an exclusion cuts a column exactly as it\n"
-                                   "cuts a line \xc2\xb7 a clamped column ends "
-                                   "in\na marker at its foot"))
-                           .font(mw::labelType(13, 0.4f))
-                           .width(Dimension(268.0f))))
+        .child(box()
+                   .absolute()
+                   .inset(64, 84, 0, 0)
+                   .column()
+                   .gap(10)
+                   .child(text("\xe5\x9b\x9e\xe3\x82\x8a\xe8\xbe\xbc\xe3\x81"
+                               "\xbf")
+                              .font(mw::bodyType(42)))
+                   .child(box()
+                              .width(Dimension(120.0f))
+                              .height(Dimension(1.0f))
+                              .fill(Fill::color(mw::kAka)))
+                   .child(text("THE COLUMN PARTS, AND THE COLUMN STOPS")
+                              .font(mw::labelType(12, mw::kAi, 2.6f))
+                              .width(Dimension(268.0f)))
+                   .child(text("an exclusion cuts a column exactly as it\n"
+                               "cuts a line \xc2\xb7 a clamped column ends "
+                               "in\na marker at its foot")
+                              .font(mw::labelType(13, 0.4f))
+                              .width(Dimension(268.0f))))
         // The pair: one clamp in each script, so the marker's two forms
         // are side by side. Both columns hold far more than one column of
         // room, so both are cut.
@@ -179,18 +177,17 @@ struct Mawarikomi final : sketch::Sketch {
                                    u8"a Latin column turns a quarter turn and "
                                    u8"so does the marker that cuts it",
                                    mw::labelType(17, 0.2f))))
-        .child(
-            text(toUtf8("both columns are clamped to ONE column and both "
-                        "overflow;\nthe cut moved up the column to make room "
-                        "for the marker"))
-                .font(mw::labelType(11, mw::kUsu))
-                .absolute()
-                .inset(64, 520, 0, 0)
-                .width(Dimension(300.0f)))
-        .child(text(toUtf8("silhouette \xe2\x86\x92 subtracted as itself  "
-                           "\xc2\xb7  a crossed column splits into head and "
-                           "foot  \xc2\xb7  the marker takes the form of the "
-                           "text it cut"))
+        .child(text("both columns are clamped to ONE column and both "
+                    "overflow;\nthe cut moved up the column to make room "
+                    "for the marker")
+                   .font(mw::labelType(11, mw::kUsu))
+                   .absolute()
+                   .inset(64, 520, 0, 0)
+                   .width(Dimension(300.0f)))
+        .child(text("silhouette \xe2\x86\x92 subtracted as itself  "
+                    "\xc2\xb7  a crossed column splits into head and "
+                    "foot  \xc2\xb7  the marker takes the form of the "
+                    "text it cut")
                    .font(mw::labelType(12, mw::kUsu))
                    .absolute()
                    .inset(64, mw::kH - 44, 0, 0));

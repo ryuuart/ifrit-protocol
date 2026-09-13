@@ -192,7 +192,7 @@ auto DunhuangStarChart::map5Labels() -> Element {
       lx = c.fX + 26;
     }  // Ping, misplaced
     if (!none)
-      g.child(text(toUtf8(written))
+      g.child(text(written)
                   .font({.face = faceHan ? faceHan : faceSerif,
                          .size = 12.5f,
                          .color = hexColor(0x241d15, 0.92f)})
@@ -201,7 +201,7 @@ auto DunhuangStarChart::map5Labels() -> Element {
                   .width(Dimension(60))
                   .opacity(gate(tLine1 - 0.6f, tLine1 + 0.5f)));
     else
-      g.child(text(toUtf8("[no label]"))
+      g.child(text("[no label]")
                   .font({.size = 8.2f, .color = hexColor(0xb4531f, 0.9f)})
                   .left(c.fX + 22)
                   .top(c.fY - 40)
@@ -334,13 +334,13 @@ auto DunhuangStarChart::archer() -> Element {
                             }))
           .stroke(spans::upTo(gate(tArch + 0.75f, tArch + 1.15f)),
                   lines::presets::arrow(1.5f, Fill::color(kCinnabar), 9.0f)));
-  g.child(text(toUtf8("a bowman in traditional dress, captioned THE GOD OF"))
+  g.child(text("a bowman in traditional dress, captioned THE GOD OF")
               .font({.size = 8.4f, .color = hexColor(0x4a3b28, 0.85f)})
               .left(-18)
               .top(h - 12)
               .width(Dimension(300))
               .opacity(gate(tArch + 1.0f, tArch + 1.6f)));
-  g.child(text(toUtf8("LIGHTNING, over a title nobody can read convincingly"))
+  g.child(text("LIGHTNING, over a title nobody can read convincingly")
               .font({.size = 8.4f, .color = hexColor(0x4a3b28, 0.85f)})
               .left(-18)
               .top(h + 0)

@@ -85,7 +85,7 @@ weave::StyleSheet voices() {
  *  node's own box, so the leaf carries the plate's dimensions. */
 Element run(const char* word, float size, SkColor4f colour, bool exact,
             float inset = 16) {
-  return text(toUtf8(word))
+  return text(word)
       .styleClass("inscription")
       .font({.size = size, .color = colour})
       .absolute()
@@ -100,7 +100,7 @@ Element run(const char* word, float size, SkColor4f colour, bool exact,
  *  the type inside the baseline so a big face stays on the plate. */
 Element arcRun(const char* word, float size, SkColor4f colour, bool exact,
                float at = 0.30f, float offset = -22, float inset = 14) {
-  return text(toUtf8(word))
+  return text(word)
       .styleClass("inscription")
       .font({.size = size, .color = colour})
       .absolute()

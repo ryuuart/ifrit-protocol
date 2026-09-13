@@ -657,7 +657,7 @@ struct ChladniTab1 : sketch::Sketch {
     // ---- the numeral, upper left of its circle (measured at
     // -0.80R, -1.04R from the centre, baseline-left) ----
     root.child(
-        text(toUtf8(std::to_string(f.num) + "."))
+        text(std::to_string(f.num) + ".")
             .font({.face = faceNumeral, .size = 37, .track = 0.5f})
             .key(tag + "num")
             .centerAt({c.fX - 0.82f * kR, c.fY - 1.15f * kR})
@@ -669,7 +669,7 @@ struct ChladniTab1 : sketch::Sketch {
     for (size_t li = 0; li < labels.size(); ++li) {
       const Label& l = labels[li];
       root.child(
-          text(toUtf8(l.glyph))
+          text(l.glyph)
               .font({.face = faceLabel, .size = 33})
               .key(tag + "lab" + std::to_string(li))
               .centerAt(polar(c, kR * l.radius, l.bearing))
@@ -753,7 +753,7 @@ struct ChladniTab1 : sketch::Sketch {
               .stagger = {.eachMs = 0, .amountMs = 520, .durationMs = 60},
               .progress = animate(from(0.0f).to(1.0f),
                                   ramp(tTitle * 1000, 620, ch::easeNone))};
-    root.child(text(toUtf8("Tab. I."))
+    root.child(text("Tab. I.")
                    .font({.face = faceSwash, .size = 62, .track = 1.0f})
                    .key("title")
                    .fx(std::move(pen))
@@ -768,7 +768,7 @@ struct ChladniTab1 : sketch::Sketch {
 
     // ---- the engraver's signature, inside the frame at the foot ----
     root.child(
-        text(toUtf8("Capieux. sculps. 1786."))
+        text("Capieux. sculps. 1786.")
             .font({.face = faceSwash, .size = 27, .track = 0.3f})
             .ink(kInkSoft)
             .key("credit")

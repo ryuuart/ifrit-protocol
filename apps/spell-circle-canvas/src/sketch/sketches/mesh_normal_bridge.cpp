@@ -200,11 +200,9 @@ struct MeshNormalBridge final : sketch::Sketch {
           .width(300)
           .absolute()
           .inset(kCanvas.width() * 0.5f + x - 150, kCanvas.height() - 92, 0, 0)
-          .child(text(toUtf8(call)).font({.size = 12.5f, .track = 0.4f}))
-          .child(text(toUtf8(note))
-                     .font({.size = 10.5f})
-                     .ink(kDim)
-                     .width(Dimension(300)));
+          .child(text(call).font({.size = 12.5f, .track = 0.4f}))
+          .child(
+              text(note).font({.size = 10.5f}).ink(kDim).width(Dimension(300)));
     };
     ctx.composer.render(
         // Every line is set in the bright ink unless it says otherwise;
@@ -218,7 +216,7 @@ struct MeshNormalBridge final : sketch::Sketch {
                             draw(canvas);
                           })
                        .inset(0))
-            .child(text(toUtf8("NORMAL MAPS \xc2\xb7 two sources, one recipe"))
+            .child(text("NORMAL MAPS \xc2\xb7 two sources, one recipe")
                        .font({.size = 15, .track = 2.0f})
                        .left(30)
                        .top(20))
@@ -236,10 +234,10 @@ struct MeshNormalBridge final : sketch::Sketch {
                 "from a flat path's coverage, under the same "
                 "recipe and the same sky",
                 kStations[2]))
-            .child(text(toUtf8("both encode device-space normals as "
-                               "rgb = n\xc2\xb7"
-                               "0.5 + 0.5, and a recipe cannot "
-                               "tell which one it was handed"))
+            .child(text("both encode device-space normals as "
+                        "rgb = n\xc2\xb7"
+                        "0.5 + 0.5, and a recipe cannot "
+                        "tell which one it was handed")
                        .font({.size = 11})
                        .ink(kDim)
                        .left(30)

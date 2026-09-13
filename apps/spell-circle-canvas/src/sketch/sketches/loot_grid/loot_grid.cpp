@@ -231,10 +231,9 @@ struct LootGrid final : sketch::Sketch {
         .height(Dimension(690.0f))
         .left(30.0f)
         .top(96.0f)
-        .child(
-            text(toUtf8("HOARD")).styleClass("heading").left(16.0f).top(492.0f))
-        .child(text(toUtf8("10 \xc3\x97"
-                           " 4"))
+        .child(text("HOARD").styleClass("heading").left(16.0f).top(492.0f))
+        .child(text("10 \xc3\x97"
+                    " 4")
                    .font({.size = 11, .track = 2.0f})
                    .left(398.0f)
                    .top(493.0f))
@@ -338,7 +337,7 @@ struct LootGrid final : sketch::Sketch {
         // which narrows the run without cutting the cap height the label
         // is read by.
         const bool narrow = s.w < 2;
-        socket.child(text(toUtf8(s.label))
+        socket.child(text(s.label)
                          .font({.size = 7.0f,
                                 .track = narrow ? 0.4f : 1.3f,
                                 .condense = narrow ? 0.86f : 1.0f})
@@ -358,13 +357,13 @@ struct LootGrid final : sketch::Sketch {
           .row()
           .width(Dimension(166.0f))
           .alignItems(Align::Center)
-          .child(text(toUtf8(label)).font({.size = 10.5f, .track = 1.1f}))
+          .child(text(label).font({.size = 10.5f, .track = 1.1f}))
           .child(box()
                      .grow(1)
                      .height(Dimension(1.0f))
                      .margin(6, 0, 6, 0)
                      .fill(Paint::solid({0.42f, 0.38f, 0.31f, 0.28f})))
-          .child(text(toUtf8(value)).styleClass("value").ink(valueColor));
+          .child(text(value).styleClass("value").ink(valueColor));
     };
     body.child(
         box()
@@ -398,8 +397,7 @@ struct LootGrid final : sketch::Sketch {
         .top(96)
         .child(loot::panel(pw, ph).inset(0))
         .child(loot::rivets(pw, ph))
-        .child(
-            text(toUtf8("EQUIPPED")).styleClass("heading").left(pad).top(pad))
+        .child(text("EQUIPPED").styleClass("heading").left(pad).top(pad))
         .child(std::move(body));
   }
 
@@ -434,19 +432,19 @@ struct LootGrid final : sketch::Sketch {
         // everything else in a small serif, and the difference between
         // those two registers is most of what makes a tooltip feel like
         // that game's tooltip.
-        .child(text(toUtf8("Doomslinger"))
+        .child(text("Doomslinger")
                    .font({.face = displayFace,
                           .size = 17,
                           .color = rc,
                           .track = 1.2f,
                           .weight = 620}))
-        .child(text(toUtf8("Colossus Blade"))
+        .child(text("Colossus Blade")
                    .font({.color = lt::kParch, .track = 0.8f})
                    .margin(0, 0, 0, 6))
-        .child(text(toUtf8("189% Enhanced Damage")).styleClass("affix"))
-        .child(text(toUtf8("+2 to Fire Skills")).styleClass("affix"))
-        .child(text(toUtf8("Adds 40-92 Fire Damage")).styleClass("affix"))
-        .child(text(toUtf8("Ignores Target's Defence")).styleClass("affix"))
+        .child(text("189% Enhanced Damage").styleClass("affix"))
+        .child(text("+2 to Fire Skills").styleClass("affix"))
+        .child(text("Adds 40-92 Fire Damage").styleClass("affix"))
+        .child(text("Ignores Target's Defence").styleClass("affix"))
         .child(box()
                    .width(Dimension(180.0f))
                    .height(Dimension(1.0f))
@@ -455,8 +453,8 @@ struct LootGrid final : sketch::Sketch {
                                        {{0.0f, {rc.fR, rc.fG, rc.fB, 0.0f}},
                                         {0.5f, {rc.fR, rc.fG, rc.fB, 0.5f}},
                                         {1.0f, {rc.fR, rc.fG, rc.fB, 0.0f}}})))
-        .child(text(toUtf8("Required Strength: 189")))
-        .child(text(toUtf8("Required Level: 63")).ink(hexColor(0xD04040)));
+        .child(text("Required Strength: 189"))
+        .child(text("Required Level: 63").ink(hexColor(0xD04040)));
   }
 
   /** THE BELT: four quick-slots on the same cell, which is the one place
@@ -483,10 +481,8 @@ struct LootGrid final : sketch::Sketch {
               .child(lt::artwork(
                   kHeld[i], lt::kCell * 0.6f, lt::kCell * 0.7f,
                   i == 3 ? hexColor(0xB9A06A) : hexColor(0xC24040), i != 3)));
-      slot.child(text(toUtf8(kKeys[i]))
-                     .font({.size = 8, .track = 0.4f})
-                     .left(3)
-                     .top(2));
+      slot.child(
+          text(kKeys[i]).font({.size = 8, .track = 0.4f}).left(3).top(2));
       rack.child(std::move(slot));
     }
     return box()
@@ -494,7 +490,7 @@ struct LootGrid final : sketch::Sketch {
         .gap(7)
         .left(500)
         .top(150)
-        .child(text(toUtf8("BELT")).styleClass("heading"))
+        .child(text("BELT").styleClass("heading"))
         .child(std::move(rack));
   }
 
@@ -528,8 +524,8 @@ struct LootGrid final : sketch::Sketch {
         .gap(7)
         .left(500)
         .top(560)
-        .child(text(toUtf8("HORADRIC CUBE \xc2\xb7 3 \xc3\x97"
-                           " 4"))
+        .child(text("HORADRIC CUBE \xc2\xb7 3 \xc3\x97"
+                    " 4")
                    .styleClass("heading"))
         .child(std::move(grid));
   }
@@ -616,13 +612,13 @@ struct LootGrid final : sketch::Sketch {
                    .column()
                    .left(30)
                    .top(34)
-                   .child(text(toUtf8("HOARD OF THE HORADRIM"))
+                   .child(text("HOARD OF THE HORADRIM")
                               .font({.size = 23,
                                      .color = lt::kParch,
                                      .track = 3.4f,
                                      .weight = 640}))
-                   .child(text(toUtf8("grid inventory \xe2\x80\x94 generated "
-                                      "materials, no sprites"))
+                   .child(text("grid inventory \xe2\x80\x94 generated "
+                               "materials, no sprites")
                               .font({.size = 12, .track = 1.0f})
                               .margin(0, 5, 0, 0)));
 
@@ -653,12 +649,11 @@ struct LootGrid final : sketch::Sketch {
                                            {{0.0f, hexColor(0xFFE9A8)},
                                             {0.6f, hexColor(0xD8A93C)},
                                             {1.0f, hexColor(0x7A5C15)}})))
-            .child(text(toUtf8(goldText))
-                       .font({.size = 17,
-                              .color = hexColor(0xD8B95C),
-                              .track = 1.6f,
-                              .weight = 620}))
-            .child(text(toUtf8("GOLD")).font({.size = 10, .track = 2.2f})));
+            .child(text(goldText).font({.size = 17,
+                                        .color = hexColor(0xD8B95C),
+                                        .track = 1.6f,
+                                        .weight = 620}))
+            .child(text("GOLD").font({.size = 10, .track = 2.2f})));
 
     // The two keys, bottom left and bottom right. Both are
     // `sketch::kit::legend` under the sheet's own theme: a dim body

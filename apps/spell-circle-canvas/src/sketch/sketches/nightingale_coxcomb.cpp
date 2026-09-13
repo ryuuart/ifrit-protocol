@@ -610,7 +610,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
              .stagger = {.eachMs = 0, .amountMs = 620, .durationMs = 40},
              .progress = animate(from(0.0f).to(1.0f),
                                  ramp(tTitle1 * 1000, 700, ch::easeNone))};
-    root.child(text(toUtf8("DIAGRAM of the CAUSES of MORTALITY"), title1)
+    root.child(text("DIAGRAM of the CAUSES of MORTALITY", title1)
                    .key("title1")
                    .fx(std::move(t1))
                    .echo({0.8f, 0.5f}, hexColor(0x241c15, 0.8f))
@@ -620,7 +620,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
              .stagger = {.eachMs = 0, .amountMs = 340, .durationMs = 40},
              .progress = animate(from(0.0f).to(1.0f),
                                  ramp(tTitle2 * 1000, 400, ch::easeNone))};
-    root.child(text(toUtf8("in the ARMY in the EAST."), title2)
+    root.child(text("in the ARMY in the EAST.", title2)
                    .key("title2")
                    .fx(std::move(t2))
                    .echo({0.6f, 0.4f}, hexColor(0x241c15, 0.7f))
@@ -642,13 +642,13 @@ struct NightingaleCoxcomb : sketch::Sketch {
     // ---- the two diagram captions -----------------------------------
     auto caption = [&](const char* num, const char* label, float cx, float numX,
                        float startSec, const char* key) {
-      root.child(text(toUtf8(num))
+      root.child(text(num)
                      .font({.face = faceGrotesque, .size = 24})
                      .key(std::string(key) + "n")
                      .centerAt({numX, 40})
                      .opacity(animate(from(0.0f).to(1.0f),
                                       ramp(startSec * 1000, 320))));
-      root.child(text(toUtf8(label))
+      root.child(text(label)
                      .font({.face = faceGrotesque, .size = 21, .track = 0.4f})
                      .key(std::string(key) + "t")
                      .centerAt({cx, 78})
@@ -763,7 +763,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
                 .progress = animate(
                     from(0.0f).to(1.0f),
                     ramp(tLegend * 1000, penStagger.spanMs(2), ch::easeNone))};
-      legend.child(text(toUtf8(legendText[i].text))
+      legend.child(text(legendText[i].text)
                        .key("leg" + std::to_string(i))
                        .fx(std::move(pen))
                        .left(171.0f + (float)legendText[i].indent * 22.0f)
@@ -772,7 +772,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
     root.child(std::move(legend));
 
     // ---- printer's imprint ------------------------------------------
-    root.child(text(toUtf8("Harrison & Sons, St. Martin's Lane."))
+    root.child(text("Harrison & Sons, St. Martin's Lane.")
                    .font({.face = faceScript, .size = 20})
                    .ink(kInkSoft)
                    .key("imprint")

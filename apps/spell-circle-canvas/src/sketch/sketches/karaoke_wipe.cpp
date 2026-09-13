@@ -229,7 +229,7 @@ struct KaraokeWipe : sketch::Sketch {
     // until each letter's own beat arrives — the inversion a colour
     // multiplier forces, which is why the effect takes the two colours in
     // time order and does the division itself.
-    return text(toUtf8(kLine1), lyric)
+    return text(kLine1, lyric)
         .key("line1")
         .fx({.effect = fx::tint(kPale, kSung),
              .stagger = wipeCascade(),
@@ -300,7 +300,7 @@ struct KaraokeWipe : sketch::Sketch {
                                   .translateY(&ballY)))
             .child(lyricLine())
             .child(ruler().margin(0, 12, 0, 0))
-            .child(text(toUtf8(kLine2))
+            .child(text(kLine2)
                        .font({.size = kLyricSize * 0.78f,
                               .color = kNext,
                               .track = kTrack,
@@ -320,9 +320,8 @@ struct KaraokeWipe : sketch::Sketch {
         .child(box()
                    .row()
                    .alignItems(Align::End)
-                   .child(text(toUtf8("FOLLOW THE BOUNCING BALL")).grow(1))
-                   .child(text(toUtf8("FLEISCHER 1924 \xc2\xb7 CD+G 1985"))
-                              .ink(kNext)))
+                   .child(text("FOLLOW THE BOUNCING BALL").grow(1))
+                   .child(text("FLEISCHER 1924 \xc2\xb7 CD+G 1985").ink(kNext)))
         .child(box().height(1).fill(Fill::color(kFaint)))
         .child(box().grow(1))
         .child(box().alignItems(Align::Center).child(std::move(stage)))
@@ -330,12 +329,12 @@ struct KaraokeWipe : sketch::Sketch {
         // The numbers are read off the table rather than typed beside it:
         // a caption that can disagree with the schedule it describes is the
         // one thing worse than no caption.
-        .child(text(toUtf8("THE BALL MARKS THE POINT, THE WIPE MARKS THE "
-                           "BOUNDARY \xc2\xb7 " +
-                           std::to_string(wordCues().size()) + " SUNG TIMES, " +
-                           std::to_string((int)kEachMs) +
-                           " MS PER LETTER INSIDE A WORD, " +
-                           std::to_string((int)kSwitchMs) + " MS TO CHANGE"))
+        .child(text("THE BALL MARKS THE POINT, THE WIPE MARKS THE "
+                    "BOUNDARY \xc2\xb7 " +
+                    std::to_string(wordCues().size()) + " SUNG TIMES, " +
+                    std::to_string((int)kEachMs) +
+                    " MS PER LETTER INSIDE A WORD, " +
+                    std::to_string((int)kSwitchMs) + " MS TO CHANGE")
                    .font({.track = 0.5f})
                    .ink(kFaint));
   }

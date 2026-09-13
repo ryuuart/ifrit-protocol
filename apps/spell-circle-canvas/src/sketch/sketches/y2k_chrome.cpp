@@ -138,7 +138,7 @@ inline Element gelPill(std::string_view label, SkColor4f tint, float w = kPillW,
       .row()
       .justify(Justify::Center)
       .alignItems(Align::Center)
-      .child(text(toUtf8(label)).styleClass("gelLabel").font(gelGround(tint)));
+      .child(text(label).styleClass("gelLabel").font(gelGround(tint)));
 }
 
 inline Element gelOrb(float d = kOrbD) {
@@ -224,7 +224,7 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
                  .justify(Justify::Center)
                  .alignItems(Align::Center)
                  .zIndex(1)
-                 .child(text(toUtf8(label))
+                 .child(text(label)
                             .styleClass("gelLabel")
                             .font(gelGround({t.deep.fR * 1.3f, t.deep.fG * 1.3f,
                                              t.deep.fB * 1.3f, 1}))));
@@ -249,7 +249,7 @@ inline Element plasticButton(std::string_view label) {
       .row()
       .justify(Justify::Center)
       .alignItems(Align::Center)
-      .child(text(toUtf8(label), type(13, hexColor(0xFFFFFF), 0.5f, 600)));
+      .child(text(label, type(13, hexColor(0xFFFFFF), 0.5f, 600)));
 }
 
 /** Tiny window-chrome bevel square (the min/max/close cluster). */
@@ -317,9 +317,8 @@ struct Y2kChrome final : sketch::Sketch {
             .row()
             .alignItems(Align::Center)
             .height(Dimension(yc::kStatusH))
-            .child(
-                text(toUtf8(unit), yc::type(11, hexColor(0x39424C), 1.0f, 550))
-                    .shrink(0));
+            .child(text(unit, yc::type(11, hexColor(0x39424C), 1.0f, 550))
+                       .shrink(0));
     if (unitW > 0) content.width(Dimension(unitW)).shrink(0);
     return content;
   }
@@ -351,7 +350,7 @@ struct Y2kChrome final : sketch::Sketch {
             .padding(12, 0)
             .gap(5)
             .child(
-                text(toUtf8("SIGILNET 2000 \xe2\x80\x94 hyperportal v4.2"))
+                text("SIGILNET 2000 \xe2\x80\x94 hyperportal v4.2")
                     .font(
                         {.size = 12,
                          .color = hexColor(0xF2F6FA),
@@ -377,7 +376,7 @@ struct Y2kChrome final : sketch::Sketch {
             .justify(Justify::Center)
             .alignItems(Align::Center)
             .padding(34, 0)
-            .child(text(toUtf8("MILLENNIUM"),
+            .child(text("MILLENNIUM",
                         [] {
                           namespace yc = y2k_chrome;
                           auto s = yc::type(54, {1, 1, 1, 0.97f}, 3, 800);
@@ -446,8 +445,8 @@ struct Y2kChrome final : sketch::Sketch {
             .margin(0, -12, 0, -24)
             .cache(Cache::Texture)
             .opacity(animate(motion::from(0.0f).to(1.0f), {400ms}))
-            .child(text(toUtf8("\xc2\xb7 t h e   f u t u r e   i s   "
-                               "c h r o m e \xc2\xb7"),
+            .child(text("\xc2\xb7 t h e   f u t u r e   i s   "
+                        "c h r o m e \xc2\xb7",
                         yc::type(14, hexColor(0x7FD0FF), 2.5f, 650))
                        .effect(styles::textGlow({1.0f, 1.0f, 1.0f, 0.95f}, 2)
                                    .then(styles::textGlow(
@@ -487,19 +486,17 @@ struct Y2kChrome final : sketch::Sketch {
                                .alignItems(Align::Center)
                                .gap(6)
                                .child(yc::aquaPill("AQUA  2000", yc::kBluePill))
-                               .child(text(toUtf8("HAND-BUILT \xc2\xb7 FIVE "
-                                                  "STOPS BY HAND"))
+                               .child(text("HAND-BUILT \xc2\xb7 FIVE "
+                                           "STOPS BY HAND")
                                           .styleClass("caption")))
-                    .child(
-                        box()
-                            .column()
-                            .alignItems(Align::Center)
-                            .gap(6)
-                            .child(
-                                yc::gelPill("AQUA  2000", hexColor(0x1E8FFF)))
-                            .child(
-                                text(toUtf8("PRESET \xc2\xb7 kit::aquaGel()"))
-                                    .styleClass("caption"))));
+                    .child(box()
+                               .column()
+                               .alignItems(Align::Center)
+                               .gap(6)
+                               .child(yc::gelPill("AQUA  2000",
+                                                  hexColor(0x1E8FFF)))
+                               .child(text("PRESET \xc2\xb7 kit::aquaGel()")
+                                          .styleClass("caption"))));
 
     // ---- status bar: marquee, ticker-driven phase -------------------
     // The crawl, named: a strip run past a window twice so the loop has no
@@ -522,8 +519,7 @@ struct Y2kChrome final : sketch::Sketch {
             .child(strip)
             .child(
                 box().width(1).height(11).fill(Fill::color(hexColor(0xA6ADB4))))
-            .child(text(toUtf8("56K"),
-                        yc::type(10, hexColor(0x6A737D), 1.0f, 700)));
+            .child(text("56K", yc::type(10, hexColor(0x6A737D), 1.0f, 700)));
 
     // The window's large blurred shadow is static and the marquee inside it
     // is not, and a node combining the two inherits the marquee's
@@ -620,30 +616,25 @@ struct Y2kChrome final : sketch::Sketch {
                                         .margin(14, 0, 0, 4)
                                         .gap(3)
                                         .child(text(
-                                            toUtf8("now streaming @ 56k"),
+                                            "now streaming @ 56k",
                                             yc::type(12, hexColor(0xC8D6EE),
                                                      0.6f, 600)))
-                                        .child(
-                                            text(
-                                                toUtf8(
-                                                    "\xc2\xa9 2000 sigilnet "
+                                        .child(text("\xc2\xa9 2000 sigilnet "
                                                     "industries \xe2\x80\x94 "
                                                     "best viewed at 800\xc3\x97"
-                                                    "600"))
-                                                .styleClass("note")))
+                                                    "600")
+                                                   .styleClass("note")))
                                 .child(box().grow(1))
-                                .child(
-                                    box()
-                                        .column()
-                                        .alignItems(Align::End)
-                                        .gap(5)
-                                        .margin(0, 0, 0, 2)
-                                        .child(
-                                            yc::plasticButton("ENTER SITE >>"))
-                                        .child(
-                                            text(toUtf8("[ no frames \xc2\xb7 "
-                                                        "spacer.gif free ]"))
-                                                .styleClass("note")))))
+                                .child(box()
+                                           .column()
+                                           .alignItems(Align::End)
+                                           .gap(5)
+                                           .margin(0, 0, 0, 2)
+                                           .child(yc::plasticButton(
+                                               "ENTER SITE >>"))
+                                           .child(text("[ no frames \xc2\xb7 "
+                                                       "spacer.gif free ]")
+                                                      .styleClass("note")))))
                 .child(statusBar));
   }
 };

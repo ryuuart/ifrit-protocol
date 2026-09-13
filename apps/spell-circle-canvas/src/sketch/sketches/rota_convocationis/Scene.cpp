@@ -215,7 +215,7 @@ auto RotaConvocationis::colophon() -> Element {
       .hitTestable(false)
       .styleClass("label")
       .child(
-          text(toUtf8("ROTA CONVOCATIONIS"))
+          text("ROTA CONVOCATIONIS")
               .font({.size = 12.0f, .color = kAshDim, .track = 5.2f})
               .key("titulus")
               // A lozenge stands at the word the whole figure
@@ -234,10 +234,10 @@ auto RotaConvocationis::colophon() -> Element {
               .fx({.effect = fx::rise(10.0f),
                    .stagger = {.eachMs = 0, .amountMs = 420, .durationMs = 520},
                    .progress = beat(0.35, 1.8)}))
-      .child(text(toUtf8(std::to_string(totalGlyphs) +
-                         " GLYPHS \xc2\xb7 23 CVRVED BASELINES \xc2\xb7 10 "
-                         "TVRNING LAYERS \xc2\xb7 EVERY START CHAINED FROM A "
-                         "SPAN, NONE FITTED BY HAND"))
+      .child(text(std::to_string(totalGlyphs) +
+                  " GLYPHS \xc2\xb7 23 CVRVED BASELINES \xc2\xb7 10 "
+                  "TVRNING LAYERS \xc2\xb7 EVERY START CHAINED FROM A "
+                  "SPAN, NONE FITTED BY HAND")
                  .font({.size = 8.5f,
                         .color = hexColor(0x8A8299, 0.42f),
                         .track = 2.4f})

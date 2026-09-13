@@ -195,8 +195,7 @@ struct Beethoven final : sketch::Sketch {
     Element table = box().column().gap(9 * bp::kScale);
     for (size_t g = 0; g < groups.size(); ++g) {
       Element entries = box().column().gap(1 * bp::kScale);
-      for (const char* line : groups[g].lines)
-        entries.child(text(toUtf8(line)));
+      for (const char* line : groups[g].lines) entries.child(text(line));
       table.child(box()
                       .key("group" + std::to_string(g))
                       .row()
@@ -205,7 +204,7 @@ struct Beethoven final : sketch::Sketch {
                                  .width(56 * bp::kScale)
                                  .row()
                                  .justify(Justify::End)
-                                 .child(text(toUtf8(groups[g].label))))
+                                 .child(text(groups[g].label)))
                       .child(std::move(entries)));
     }
     return table;
@@ -235,7 +234,7 @@ struct Beethoven final : sketch::Sketch {
     // narrow column against their entries flush left. That table is the
     // poster's most characteristic detail and the reason its lower half
     // reads as setting rather than as caption.
-    poster.child(text(toUtf8("beethoven"))
+    poster.child(text("beethoven")
                      .font({.size = 38 * bp::kScale})
                      .key("title")
                      .absolute()
@@ -270,12 +269,12 @@ struct Beethoven final : sketch::Sketch {
                    .inset(bp::kPlateX + bp::kPlateW + 32, bp::kH - 150, 24, 64)
                    .font({.size = 12.0f, .track = 0.4f})
                    .ink(bp::kLabel)
-                   .child(text(toUtf8("josef m\xc3\xbcller-brockmann"))
+                   .child(text("josef m\xc3\xbcller-brockmann")
                               .font({.size = 14.0f, .track = 0.6f}))
-                   .child(text(toUtf8("beethoven \xe2\x80\x94 tonhalle "
-                                      "z\xc3\xbcrich, 1955")))
-                   .child(text(toUtf8("measured arc table \xc2\xb7 rings "
-                                      "double 1:2:4:8:16")))
+                   .child(text("beethoven \xe2\x80\x94 tonhalle "
+                               "z\xc3\xbcrich, 1955"))
+                   .child(text("measured arc table \xc2\xb7 rings "
+                               "double 1:2:4:8:16"))
                    .key("label"));
   }
 };

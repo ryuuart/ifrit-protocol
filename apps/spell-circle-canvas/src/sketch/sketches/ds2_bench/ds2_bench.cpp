@@ -242,7 +242,7 @@ struct Ds2Bench : sketch::Sketch {
             .alignItems(Align::Center)
             .justify(Justify::Center)
             .zIndex(7)
-            .child(text(toUtf8("CONTACT BEAM"))
+            .child(text("CONTACT BEAM")
                        .font(benchType(31, kTitle, 0.10f))
                        .key("title")
                        .fx({.effect = fx::typeOn(),
@@ -258,7 +258,7 @@ struct Ds2Bench : sketch::Sketch {
         box()
             .at({kPX + 34, kRuleY + 13})
             .zIndex(7)
-            .child(text(toUtf8("NANOCIRCUIT REPAIR · TIER III"))
+            .child(text("NANOCIRCUIT REPAIR · TIER III")
                        .font(benchType(10.5f, mskia::withAlpha(kCyan, 0.5f),
                                        0.2f, false))));
     const float gaugeD = 26, gaugeX = 786, gaugeY = kRuleY + 6;
@@ -280,7 +280,7 @@ struct Ds2Bench : sketch::Sketch {
         box()
             .at({gaugeX + 34, kRuleY + 13})
             .zIndex(7)
-            .child(text(toUtf8("R.I.G. INTEGRITY 78%"))
+            .child(text("R.I.G. INTEGRITY 78%")
                        .font(benchType(10.5f, mskia::withAlpha(kCyan, 0.5f),
                                        0.2f, false))));
   }
@@ -433,7 +433,7 @@ struct Ds2Bench : sketch::Sketch {
                                   {{0.0f, mskia::withAlpha(art.ring, 0.42f)},
                                    {1.0f, mskia::withAlpha(art.ring, 0.0f)}}))
               .zIndex(5));
-      layer.child(text(toUtf8(art.label))
+      layer.child(text(art.label)
                       .font(benchType(c.labelSize,
                                       mskia::withAlpha(kCyan, 0.78f), 0.11f))
                       .centerAt({at.fX + dia * 0.88f, at.fY + c.labelDy})
@@ -456,20 +456,17 @@ struct Ds2Bench : sketch::Sketch {
     // whose corona then eats the digits — and the lattice geometry is read
     // off the reference frame, so it is the caption that moves.
     constexpr float kRuleW = 350.0f;
-    root.child(
-        box()
-            .at({c.x0 - 34, c.y0 - 58})
-            .width(Dimension(kRuleW))
-            .row()
-            .alignItems(Align::Center)
-            .justify(Justify::SpaceBetween)
-            .zIndex(8)
-            .child(
-                text(toUtf8(c.caption))
-                    .font(benchType(11, mskia::withAlpha(kCyan, 0.62f), 0.18f)))
-            .child(text(toUtf8(slots))
-                       .font(benchType(9.5f, mskia::withAlpha(kCyan, 0.4f),
-                                       0.18f, false))));
+    root.child(box()
+                   .at({c.x0 - 34, c.y0 - 58})
+                   .width(Dimension(kRuleW))
+                   .row()
+                   .alignItems(Align::Center)
+                   .justify(Justify::SpaceBetween)
+                   .zIndex(8)
+                   .child(text(c.caption).font(
+                       benchType(11, mskia::withAlpha(kCyan, 0.62f), 0.18f)))
+                   .child(text(slots).font(benchType(
+                       9.5f, mskia::withAlpha(kCyan, 0.4f), 0.18f, false))));
     root.child(
         box()
             .rect(SkRect::MakeXYWH(c.x0 - 34, c.y0 - 32, kRuleW, 1.0f))
@@ -497,9 +494,8 @@ struct Ds2Bench : sketch::Sketch {
         .child(box()
                    .width(Dimension(160.0f))
                    .alignItems(Align::End)
-                   .child(text(toUtf8(s.label))
-                              .font(benchType(
-                                  14, mskia::withAlpha(kCyan, 0.95f), 0.10f))))
+                   .child(text(s.label).font(
+                       benchType(14, mskia::withAlpha(kCyan, 0.95f), 0.10f))))
         .child(box()
                    .width(Dimension(9.0f))
                    .height(Dimension(9.0f))
@@ -516,9 +512,8 @@ struct Ds2Bench : sketch::Sketch {
         .child(box().grow(1))
         .child(box()
                    .width(Dimension(84.0f))
-                   .child(text(toUtf8(s.value))
-                              .font(benchType(13, hexColor(0xDCEEF2), 0.02f,
-                                              false))));
+                   .child(text(s.value).font(
+                       benchType(13, hexColor(0xDCEEF2), 0.02f, false))));
   }
 
   void legend(Element& root) {
@@ -547,11 +542,11 @@ struct Ds2Bench : sketch::Sketch {
             .child(box()
                        .width(Dimension(160.0f))
                        .alignItems(Align::End)
-                       .child(text(toUtf8("SPECIFICATION"))))
+                       .child(text("SPECIFICATION")))
             .child(box().width(Dimension(35.0f)))
-            .child(text(toUtf8("NANOCIRCUIT LOAD")))
+            .child(text("NANOCIRCUIT LOAD"))
             .child(box().grow(1))
-            .child(box().width(Dimension(84.0f)).child(text(toUtf8("VALUE")))));
+            .child(box().width(Dimension(84.0f)).child(text("VALUE"))));
     for (int r = 0; r < kStatCount; ++r) card.child(statRow(r));
     root.child(std::move(card));
 
@@ -596,18 +591,16 @@ struct Ds2Bench : sketch::Sketch {
             .padding(16, 11)
             .gap(2)
             .zIndex(7)
-            .child(
-                box()
-                    .width(Dimension(112.0f))
-                    .height(Dimension(21.0f))
-                    .alignItems(Align::Center)
-                    .justify(Justify::Center)
-                    .shape(chamfer(6))
-                    .stroke(stroke(1.0f,
-                                   Fill::color(mskia::withAlpha(kCyan, 0.45f))))
-                    .child(text(toUtf8("NODES"))
-                               .font(benchType(
-                                   12, mskia::withAlpha(kCyan, 0.95f), 0.16f))))
+            .child(box()
+                       .width(Dimension(112.0f))
+                       .height(Dimension(21.0f))
+                       .alignItems(Align::Center)
+                       .justify(Justify::Center)
+                       .shape(chamfer(6))
+                       .stroke(stroke(
+                           1.0f, Fill::color(mskia::withAlpha(kCyan, 0.45f))))
+                       .child(text("NODES").font(benchType(
+                           12, mskia::withAlpha(kCyan, 0.95f), 0.16f))))
             // the brass power-node puck: side wall, top face, bore ring
             .child(
                 box()
@@ -638,7 +631,7 @@ struct Ds2Bench : sketch::Sketch {
                             .shape(shapes::squircle(2.0f))
                             .stroke(stroke(
                                 1.3f, Fill::color(hexColor(0x74590F, 0.9f))))))
-            .child(text(toUtf8("2"))
+            .child(text("2")
                        .font(benchType(40, kTitle, 0.0f))
                        .key("nodecount")
                        .transition({.duration = 200ms})));
@@ -710,9 +703,9 @@ struct Ds2Bench : sketch::Sketch {
                             .width(Dimension(15.0f))
                             .height(Dimension(15.0f))
                             .cache(Cache::None))
-                    .child(text(toUtf8("Navigate"))))
-            .child(text(toUtf8("[Enter] Select")))
-            .child(text(toUtf8("[Esc] Exit"))));
+                    .child(text("Navigate")))
+            .child(text("[Enter] Select"))
+            .child(text("[Esc] Exit")));
 
     // the empty hardware sockets the bezel carries at its bottom corners
     for (float x : {kPX + 34, kPR - 46}) {

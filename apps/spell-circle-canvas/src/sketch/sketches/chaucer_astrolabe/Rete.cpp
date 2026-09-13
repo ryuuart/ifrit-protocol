@@ -147,7 +147,7 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
       const float f = std::fmod(1.0f - mid / 360.0f + 1.0f, 1.0f);
       const float size =
           std::min(0.052f * kR, span / (float)std::strlen(kSigns[i]) * 1.62f);
-      clipped.child(text(toUtf8(kSigns[i]))
+      clipped.child(text(kSigns[i])
                         .font({.face = faceEngrave,
                                .size = size,
                                .color = hexColor(0x33240c, 0.88f),
@@ -225,7 +225,7 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
     const float a = std::atan2(p.fY, p.fX) / kD;
     const float f = std::fmod(1.0f - a / 360.0f + 1.0f, 1.0f);
     g.child(
-        text(toUtf8(kStars[i].name))
+        text(kStars[i].name)
             .font({.face = faceEngrave,
                    .size = 0.026f * kR,
                    .color = hexColor(0x33240c, 0.82f),

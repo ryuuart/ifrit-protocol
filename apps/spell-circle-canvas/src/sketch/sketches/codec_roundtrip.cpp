@@ -260,13 +260,13 @@ struct CodecRoundtrip final : sketch::Sketch {
                                  "\xe2\x80\x94 nx/ny/nz, uchar rgba, and "
                                  "each scalar under its own name",
                                  box().padding(12, 10).child(
-                                     text(toUtf8(cloudPly.substr(
+                                     text(cloudPly.substr(
                                               0, cloudPly.find("end_header") +
                                                      (cloudPly.find(
                                                           "end_header") ==
                                                               std::string::npos
                                                           ? 0
-                                                          : 10))),
+                                                          : 10)),
                                           mono(9.5f, kFigure))
                                          .width(kCell - 24)))},
                        .gap = 14})},

@@ -343,7 +343,7 @@ struct SpaceJam1996 : sketch::Sketch {
         .padding(S(12))
         .gap(S(8))
         .child(
-            text(toUtf8("THE TABLE DOES NOT RESOLVE THE BROWSER'S GRID"))
+            text("THE TABLE DOES NOT RESOLVE THE BROWSER'S GRID")
                 .font(
                     {.face = display(), .size = S(11), .color = C5(0xFFFF00)}))
         .child(sketch::kit::table(std::move(rows),

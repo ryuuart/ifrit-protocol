@@ -117,8 +117,7 @@ Element notice(std::u8string heading, const std::string& detail) {
       .gap(10)
       .child(text(std::move(heading),
                   weave::textStyle({.size = 22, .color = kInk})))
-      .child(
-          text(toUtf8(detail), weave::textStyle({.size = 13, .color = kDim})));
+      .child(text(detail, weave::textStyle({.size = 13, .color = kDim})));
 }
 
 }  // namespace

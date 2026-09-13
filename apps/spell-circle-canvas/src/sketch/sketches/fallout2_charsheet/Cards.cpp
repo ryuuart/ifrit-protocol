@@ -185,7 +185,7 @@ auto Fallout2CharSheet::captionBand() -> Element {
       "corrections included",
       sheetAudit.checks() - sheetAudit.failures(), sheetAudit.checks());
   auto line = [](const char* s, float y) {
-    return text(toUtf8(s)).left(Dimension(30)).top(Dimension(y));
+    return text(s).left(Dimension(30)).top(Dimension(y));
   };
   band.child(t("FALLOUT 2 \xc2\xb7 CHARACTER SCREEN \xc2\xb7 BLACK ISLE "
                "STUDIOS, 1998 \xc2\xb7 640\xc3\x97"

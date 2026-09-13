@@ -34,7 +34,7 @@ auto ThunderFulu::voidWriting() -> Element {
                              .map(hump)
                              .scale(0.92f))
                 .key(kit::formatted("void%d", k)));
-    g.child(text(toUtf8(kit::formatted("%s  \xe2\x80\x94  no mark", how[k])))
+    g.child(text(kit::formatted("%s  \xe2\x80\x94  no mark", how[k]))
                 .font({.size = 10.0f,
                        .color = SkColor4f{cols[k].fR, cols[k].fG, cols[k].fB,
                                           0.85f}})
@@ -155,7 +155,7 @@ auto ThunderFulu::plate() -> Element {
                     .strokeFill = Fill::color(hexColor(0x0e0d0c, 0.28f)),
                     .dashIntervals = {1.5f, 6.0f}})
                 .key(kit::formatted("reg%d", i)));
-    g.child(text(toUtf8(regs[i].label))
+    g.child(text(regs[i].label)
                 .font({.size = 8.5f, .color = hexColor(0x0b0a09, 0.60f)})
                 .left(20)
                 .top(regs[i].y + 3)
@@ -251,7 +251,7 @@ auto ThunderFulu::tread() -> Element {
     // has already stopped. Every other ritual name clears its own
     // segments, which is why the rest of the table is 0.
     static const float kRitualDodge[9] = {0, 54, 0, 0, 0, 0, 0, 0, 0};
-    g.child(text(toUtf8(kit::formatted("%d %s", i + 1, kDipper[i].ritual)))
+    g.child(text(kit::formatted("%d %s", i + 1, kDipper[i].ritual))
                 .font({.size = 9.5f, .color = hexColor(0xa48c5c, 0.9f)})
                 .left(p.fX - 44 + kRitualDodge[i])
                 .top(p.fY - 34)
@@ -269,7 +269,7 @@ auto ThunderFulu::tread() -> Element {
     // and "Alcor" is only 38 px wide, so a larger left dodge would push it
     // over the margin's own rules.
     static const float kNameDodge[9] = {-34, 0, 0, 0, 0, 30, 0, -30, 0};
-    g.child(text(toUtf8(kDipper[i].name))
+    g.child(text(kDipper[i].name)
                 .font({.face = faceItalic,
                        .size = 9.0f,
                        .color = hexColor(0x6f6047, 0.85f)})
@@ -347,12 +347,12 @@ auto ThunderFulu::tread() -> Element {
             .fill(Fill::none())
             .stroke(brush::presets::taper(3.6f, 1.4f, Fill::color(kCinnaWet))));
     if (i < 9) {
-      mp.child(text(toUtf8(kOthers[i].pinyin))
+      mp.child(text(kOthers[i].pinyin)
                    .font({.size = 8.0f, .color = hexColor(0xa89264, 0.95f)})
                    .left(-16)
                    .top(ph + 10)
                    .width(124));
-      mp.child(text(toUtf8(kOthers[i].gloss))
+      mp.child(text(kOthers[i].gloss)
                    .font({.face = faceItalic,
                           .size = 8.0f,
                           .color = hexColor(0x776953, 0.9f)})
@@ -368,25 +368,23 @@ auto ThunderFulu::tread() -> Element {
 auto ThunderFulu::furniture() -> Element {
   auto g = box().inset(0).key("furn");
   // title block
-  g.child(
-      text(toUtf8("WU LEI HAO LING \xc2\xb7 A THUNDER-RITE COMMAND TALISMAN, "
-                  "WRITTEN"))
-          .font({.face = faceDisplay,
-                 .size = 22.0f,
-                 .color = kChalk,
-                 .track = 2.6f})
-          .left(76)
-          .top(34)
-          .width(1400));
-  g.child(
-      text(toUtf8("DAOFA HUIYUAN DZ 1220, juan 46 \xc2\xb7 iron plate, five "
-                  "cun by three \xc2\xb7 written in cinnabar \xc2\xb7 stroke "
-                  "medians from makemeahanzi, classes recovered from "
-                  "geometry"))
-          .font({.size = 10.5f, .color = kGoldDim})
-          .left(76)
-          .top(62)
-          .width(1500));
+  g.child(text("WU LEI HAO LING \xc2\xb7 A THUNDER-RITE COMMAND TALISMAN, "
+               "WRITTEN")
+              .font({.face = faceDisplay,
+                     .size = 22.0f,
+                     .color = kChalk,
+                     .track = 2.6f})
+              .left(76)
+              .top(34)
+              .width(1400));
+  g.child(text("DAOFA HUIYUAN DZ 1220, juan 46 \xc2\xb7 iron plate, five "
+               "cun by three \xc2\xb7 written in cinnabar \xc2\xb7 stroke "
+               "medians from makemeahanzi, classes recovered from "
+               "geometry")
+              .font({.size = 10.5f, .color = kGoldDim})
+              .left(76)
+              .top(62)
+              .width(1500));
   // registration marks at the four corners of the sheet
   for (int i = 0; i < 4; ++i) {
     const float rx = ((unsigned)i & 1u) ? kW - 46 : 46;
@@ -439,19 +437,19 @@ auto ThunderFulu::furniture() -> Element {
                   .strokeFill = Fill::color(hexColor(0xb2914f, 0.40f))})
               .key("ladder"));
   for (int i = 0; i <= 5; ++i)
-    g.child(text(toUtf8(kit::formatted("%d", i)))
+    g.child(text(kit::formatted("%d", i))
                 .font({.size = 8.5f, .color = hexColor(0x8b7644)})
                 .left(kPL - 46)
                 .top(kPT + kPH * (float)i / 5.0f - 5)
                 .width(16)
                 .key(kit::formatted("ladlbl%d", i)));
-  g.child(text(toUtf8("CUN"))
+  g.child(text("CUN")
               .font({.size = 8.0f, .color = hexColor(0x8b7644)})
               .left(kPL - 52)
               .top(kPT + kPH + 8)
               .width(40));
   // colophon
-  g.child(text(toUtf8("BU GANG TA DOU \xc2\xb7 THE TREAD, ON THE REAL DIPPER"))
+  g.child(text("BU GANG TA DOU \xc2\xb7 THE TREAD, ON THE REAL DIPPER")
               .styleClass("heading")
               .font({.size = 12.0f})
               .left(1046)
@@ -479,29 +477,29 @@ auto ThunderFulu::furniture() -> Element {
                     .fill = Fill::color(hexColor(0xb2914f, 0.26f)),
                     .dash = {1.3f, 4.2f}}})));
   g.child(
-      text(toUtf8("Nine stations: J2000 right ascension and declination, "
-                  "gnomonically projected about the asterism's own "
-                  "centroid. Yu bu is \"three steps, nine prints\"."))
+      text("Nine stations: J2000 right ascension and declination, "
+           "gnomonically projected about the asterism's own "
+           "centroid. Yu bu is \"three steps, nine prints\".")
           .font(
               {.face = faceItalic, .size = 10.0f, .color = hexColor(0x8d7f60)})
           .left(1046)
           .top(734)
           .width(830));
   g.child(
-      text(toUtf8("Zuo Fu (Alcor) lies 0.008 of the asterism's span from "
-                  "Kai Yang (Mizar) on the real sky \xe2\x80\x94 every bu "
-                  "gang plate separates the pair by hand, and so does this "
-                  "one. You Bi is invisible: its station is doctrine, and "
-                  "it is drawn open."))
+      text("Zuo Fu (Alcor) lies 0.008 of the asterism's span from "
+           "Kai Yang (Mizar) on the real sky \xe2\x80\x94 every bu "
+           "gang plate separates the pair by hand, and so does this "
+           "one. You Bi is invisible: its station is doctrine, and "
+           "it is drawn open.")
           .font(
               {.face = faceItalic, .size = 10.0f, .color = hexColor(0x6d6047)})
           .left(1046)
           .top(752)
           .width(830));
-  g.child(text(toUtf8("Never invert the brush and tap for a pregnant woman or "
-                      "a patient with eye disease. \xc2\xb7 SigilCompose study "
-                      "\xc2\xb7 no CJK font is loaded: every Han glyph here is "
-                      "stroke geometry"))
+  g.child(text("Never invert the brush and tap for a pregnant woman or "
+               "a patient with eye disease. \xc2\xb7 SigilCompose study "
+               "\xc2\xb7 no CJK font is loaded: every Han glyph here is "
+               "stroke geometry")
               .font({.size = 9.5f, .color = hexColor(0x5d5341)})
               .left(76)
               .top(kH - 34)

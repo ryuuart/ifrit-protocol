@@ -278,13 +278,12 @@ struct ElasticType : sketch::Sketch {
     return box()
         .column()
         .gap(8)
-        .child(text(toUtf8(caption)))
+        .child(text(caption))
         .child(kit::restGhost(
-            text(toUtf8(word), set)
-                .key(word)
-                .fx({.effect = std::move(effect),
-                     .stagger = {.eachMs = kEachMs, .durationMs = kDurMs},
-                     .progress = &pass}),
+            text(word, set).key(word).fx(
+                {.effect = std::move(effect),
+                 .stagger = {.eachMs = kEachMs, .durationMs = kDurMs},
+                 .progress = &pass}),
             kRest));
   }
 
@@ -300,7 +299,7 @@ struct ElasticType : sketch::Sketch {
                         .stroke(stroke(1.0f, Fill::color(kFaint)))
                         .child(std::move(inner).inset(0));
     for (const Tick& tick : ticks)
-      frame.child(text(toUtf8(tick.label))
+      frame.child(text(tick.label)
                       .font({.size = 9.5f, .track = 0.4f})
                       .absolute()
                       .right(5)
@@ -314,7 +313,7 @@ struct ElasticType : sketch::Sketch {
         .grow(1)
         .gap(7)
         .child(std::move(frame))
-        .child(text(toUtf8(title)).font({.size = 11.0f, .track = 0.8f}));
+        .child(text(title).font({.size = 11.0f, .track = 0.8f}));
   }
 
   /** The label type is stated once on the root; a caption restates only what
@@ -332,17 +331,17 @@ struct ElasticType : sketch::Sketch {
         .child(box()
                    .row()
                    .alignItems(Align::End)
-                   .child(text(toUtf8("ELASTIC TYPE"))
+                   .child(text("ELASTIC TYPE")
                               .font({.size = 12.5f, .track = 3.4f})
                               .ink(kInk)
                               .grow(1))
-                   .child(text(toUtf8("ANIMATE.CSS 2013 \xc2\xb7 SQUASH AND "
-                                      "STRETCH 1981"))
+                   .child(text("ANIMATE.CSS 2013 \xc2\xb7 SQUASH AND "
+                               "STRETCH 1981")
                               .ink(kFaint)))
         .child(box().height(1).fill(Fill::color(kFaint)))
-        .child(text(toUtf8("GREY IS THE REST POSE, SHARING THE LIVE LINE'S "
-                           "ORIGIN \xe2\x80\x94 WHERE IT SHOWS, THAT LETTER "
-                           "IS DEFORMED"))
+        .child(text("GREY IS THE REST POSE, SHARING THE LIVE LINE'S "
+                    "ORIGIN \xe2\x80\x94 WHERE IT SHOWS, THAT LETTER "
+                    "IS DEFORMED")
                    .font({.size = 10.5f, .track = 0.6f})
                    .ink(kRest))
         .child(row("RUBBERBAND",
@@ -380,10 +379,10 @@ struct ElasticType : sketch::Sketch {
                         [](const GlyphModifier& m) { return m.skewXDeg; }, kX,
                         kShearLo, kShearHi, 0.0f, shearTicks()),
                     kShearLo, kShearHi, shearTicks())))
-        .child(text(toUtf8("A NON-UNIFORM SCALE AND A SHEAR ARE THE ONE "
-                           "DEVIATION AN RSXFORM CANNOT CARRY \xc2\xb7 EVERY "
-                           "GLYPH ON THESE TWO LINES DRAWS UNDER ITS OWN "
-                           "MATRIX"))
+        .child(text("A NON-UNIFORM SCALE AND A SHEAR ARE THE ONE "
+                    "DEVIATION AN RSXFORM CANNOT CARRY \xc2\xb7 EVERY "
+                    "GLYPH ON THESE TWO LINES DRAWS UNDER ITS OWN "
+                    "MATRIX")
                    .font({.size = 11.0f, .track = 0.6f})
                    .ink(kFaint));
   }

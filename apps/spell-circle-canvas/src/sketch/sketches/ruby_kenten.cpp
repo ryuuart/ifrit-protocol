@@ -199,16 +199,16 @@ struct RubyKenten final : sketch::Sketch {
                 .inset(52, 44, 0, 0)
                 .column()
                 .gap(4)
-                .child(text(toUtf8("\xe3\x83\xab\xe3\x83\x93\xe3\x81\xa8"
-                                   "\xe5\x82\x8d\xe7\x82\xb9"),
+                .child(text("\xe3\x83\xab\xe3\x83\x93\xe3\x81\xa8"
+                            "\xe5\x82\x8d\xe7\x82\xb9",
                             f::body(30, f::kSumi)))
                 .child(box().height(6))
-                .child(text(toUtf8("A READING IS PART OF THE TEXT"))
+                .child(text("A READING IS PART OF THE TEXT")
                            .font({.size = 11, .color = f::kAi, .track = 3.0f}))
-                .child(text(toUtf8("the band it needs is in the base's strut "
-                                   "before the base is broken, so the column "
-                                   "pitch opens once\nand the reading is "
-                                   "placed on the result"))
+                .child(text("the band it needs is in the base's strut "
+                            "before the base is broken, so the column "
+                            "pitch opens once\nand the reading is "
+                            "placed on the result")
                            .font({.size = 10.5f})
                            .width(Dimension(430.0f))))
         .child(box()
@@ -245,12 +245,11 @@ struct RubyKenten final : sketch::Sketch {
                          std::move(split))
                    .absolute()
                    .inset(52, 320, 0, 0))
-        .child(
-            text(toUtf8("mono \xc2\xb7 group \xc2\xb7 jukugo are the UNIT "
-                        "and nothing else \xe2\x80\x94 the reading's size is "
-                        "its own type's, never a fraction of the base's"))
-                .absolute()
-                .inset(52, f::kH - 34, 0, 0));
+        .child(text("mono \xc2\xb7 group \xc2\xb7 jukugo are the UNIT "
+                    "and nothing else \xe2\x80\x94 the reading's size is "
+                    "its own type's, never a fraction of the base's")
+                   .absolute()
+                   .inset(52, f::kH - 34, 0, 0));
   }
 };
 

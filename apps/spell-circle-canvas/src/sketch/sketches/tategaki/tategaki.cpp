@@ -171,16 +171,15 @@ struct Tategaki final : sketch::Sketch {
                 .inset(64, 88, 0, 0)
                 .column()
                 .gap(10)
-                .child(text(toUtf8("\xe7\xb8\xa6\xe7\xb5\x84\xe3\x81\xbf"))
+                .child(text("\xe7\xb8\xa6\xe7\xb5\x84\xe3\x81\xbf")
                            .font(tg::bodyType(46)))
                 .child(box()
                            .width(Dimension(120.0f))
                            .height(Dimension(1.0f))
                            .fill(Fill::color(tg::kAi)))
-                .child(text(toUtf8("VERTICAL-RL"))
-                           .font(tg::labelType(15, tg::kAi, 4)))
-                .child(text(toUtf8("UTR#50 orientation, 'vert' forms,\n"
-                                   "tate-chu-yoko digits, rotated Latin"))
+                .child(text("VERTICAL-RL").font(tg::labelType(15, tg::kAi, 4)))
+                .child(text("UTR#50 orientation, 'vert' forms,\n"
+                            "tate-chu-yoko digits, rotated Latin")
                            .font(tg::labelType(14, 0.5f))
                            .width(Dimension(240.0f)))
                 .child(box().height(Dimension(26.0f)))
@@ -208,12 +207,12 @@ struct Tategaki final : sketch::Sketch {
                                 .add(u8"年"),
                             tg::bodyType(28))))
                 .child(box().height(Dimension(22.0f)))
-                .child(text(toUtf8("one paragraph \xc2\xb7 one writingMode "
-                                   "\xc2\xb7 three forms"))
+                .child(text("one paragraph \xc2\xb7 one writingMode "
+                            "\xc2\xb7 three forms")
                            .font(tg::labelType(13, {0.55f, 0.53f, 0.50f, 1}))
                            .width(Dimension(300.0f))))
-        .child(text(toUtf8("cluster-unit entrance staggers DOWN the column, "
-                           "columns advance right to left"))
+        .child(text("cluster-unit entrance staggers DOWN the column, "
+                    "columns advance right to left")
                    .font(tg::labelType(13, {0.48f, 0.46f, 0.44f, 1}))
                    .absolute()
                    .inset(64, tg::kH - 46, 0, 0));

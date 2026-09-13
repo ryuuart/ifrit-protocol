@@ -277,11 +277,11 @@ struct EvaMagiInterior : sketch::Sketch {
                                         .join = SkPaint::kMiter_Join}));
     }
     if (!red && seeded[(size_t)i]) node.child(box().inset(0).fill(infection));
-    node.child(text(toUtf8(p.number))
+    node.child(text(p.number)
                    .font(fitCap(evangelion::voteNumeral(number), 86.0f))
                    .centerAt({sz.width() * 0.5f,
                               sz.height() * layout.numberSlotY(number)}));
-    node.child(text(toUtf8(p.label))
+    node.child(text(p.label)
                    .font(fitWithin(evangelion::moduleLabel(), toUtf8(p.label),
                                    31.0f, sz.width() - 44.0f))
                    .centerAt({sz.width() * 0.5f,
@@ -409,11 +409,11 @@ struct EvaMagiInterior : sketch::Sketch {
   Element countdownNumeral() {
     if (countdown < 0) return box().absolute().width(0).height(0);
     const std::string buf = kit::formatted("%d", countdown);
-    return box().left(1096).top(96).child(text(toUtf8(buf))
-                                              .font({.face = magi::latin(),
-                                                     .size = 260.0f,
-                                                     .color = magi::kRedHot,
-                                                     .condense = 1.2f}));
+    return box().left(1096).top(96).child(
+        text(buf).font({.face = magi::latin(),
+                        .size = 260.0f,
+                        .color = magi::kRedHot,
+                        .condense = 1.2f}));
   }
 
   /** The HUD slot: everything that changes on a CLOCK rather than on the
