@@ -92,12 +92,15 @@ struct Tategaki final : sketch::Sketch {
 
   /** One form, named and shown: a Latin caption over a short column set
    *  the way the caption says. The three together are the whole per-span
-   *  vocabulary, side by side at a size where the difference reads. */
-  Element specimen(const char* caption, weave::RichText run) {
+   *  vocabulary, side by side at a size where the difference reads. The
+   *  column's runs inherit @p style, so a run says only the form it takes. */
+  Element specimen(const char* caption, weave::RichText run,
+                   weave::Type style) {
     namespace tg = tategaki;
     return tg::specimen(
         caption, tg::labelType(12, tg::kAi, 2),
         text(std::move(run))
+            .font(std::move(style))
             .width(Dimension(46.0f))
             .height(Dimension(140.0f))
             .writingMode(sigil::weave::WritingMode::kVerticalRL),
@@ -115,24 +118,35 @@ struct Tategaki final : sketch::Sketch {
     // Latin word name a form; everything else takes UTR#50's, which is what
     // stands the ideographs upright and turns the Latin on its side by
     // itself.
+    // The passage inherits the body register from its leaf, so a run says
+    // only the form it takes, and the Latin word its size and colour too.
     auto passage =
-        weave::rich(tg::body(tg::kBodySize, tg::kGofun))
+        weave::rich()
             .add(u8"縦組みの文章は、上から下へ、右から左へと流れる。平成")
-            .add(u8"31", tg::body(tg::kBodySize, tg::kGofun,
-                                  sigil::weave::VerticalForm::kTateChuYoko))
+            .add(u8"31",
+                 weave::Type{.verticalForm =
+                                 sigil::weave::VerticalForm::kTateChuYoko})
             .add(u8"年")
-            .add(u8"12", tg::body(tg::kBodySize, tg::kGofun,
-                                  sigil::weave::VerticalForm::kTateChuYoko))
+            .add(u8"12",
+                 weave::Type{.verticalForm =
+                                 sigil::weave::VerticalForm::kTateChuYoko})
             .add(u8"月、組版の器")
-            .add(u8"SigilWeave", tg::body(tg::kBodySize * 0.86f, tg::kAi,
-                                          sigil::weave::VerticalForm::kRotated))
+            .add(u8"SigilWeave",
+                 weave::Type{
+                     .size = tg::kBodySize * 0.86f,
+                     .color = tg::kAi,
+                     .verticalForm = sigil::weave::VerticalForm::kRotated})
             .add(u8"は縦書きに対応した。字は立ち、欧文は寝る。")
             .add(u8"数字は縦中横に組み、二桁のまま読ませる。")
             .add(u8"行は列となり、列は右から左へ積まれてゆく。");
 
+    // The plate is printed shell white on sumi: every run that names no
+    // colour is set in it.
     return box()
         .fill(std::move(ground))
+        .ink(tg::kGofun)
         .child(text(std::move(passage))
+                   .font(tg::bodyType(tg::kBodySize))
                    .absolute()
                    .inset(tg::kW - tg::kColumnBlockRight - tg::kColumnBlockW,
                           92, tg::kColumnBlockRight, 0)
@@ -157,16 +171,17 @@ struct Tategaki final : sketch::Sketch {
                 .inset(64, 88, 0, 0)
                 .column()
                 .gap(10)
-                .child(text(toUtf8("\xe7\xb8\xa6\xe7\xb5\x84\xe3\x81\xbf"),
-                            tg::body(46, tg::kGofun)))
+                .child(text(toUtf8("\xe7\xb8\xa6\xe7\xb5\x84\xe3\x81\xbf"))
+                           .font(tg::bodyType(46)))
                 .child(box()
                            .width(Dimension(120.0f))
                            .height(Dimension(1.0f))
                            .fill(Fill::color(tg::kAi)))
-                .child(text(toUtf8("VERTICAL-RL"), tg::label(15, tg::kAi, 4)))
+                .child(text(toUtf8("VERTICAL-RL"))
+                           .font(tg::labelType(15, tg::kAi, 4)))
                 .child(text(toUtf8("UTR#50 orientation, 'vert' forms,\n"
-                                   "tate-chu-yoko digits, rotated Latin"),
-                            tg::label(14, tg::kGofun, 0.5f))
+                                   "tate-chu-yoko digits, rotated Latin"))
+                           .font(tg::labelType(14, 0.5f))
                            .width(Dimension(240.0f)))
                 .child(box().height(Dimension(26.0f)))
                 .child(
@@ -174,34 +189,32 @@ struct Tategaki final : sketch::Sketch {
                         .row()
                         .gap(34)
                         .child(specimen(
-                            "UPRIGHT",
-                            weave::rich(
-                                tg::body(28, tg::kGofun,
-                                         sigil::weave::VerticalForm::kUpright))
-                                .add(u8"字は立つ")))
+                            "UPRIGHT", weave::rich().add(u8"字は立つ"),
+                            tg::bodyType(28,
+                                         sigil::weave::VerticalForm::kUpright)))
                         .child(specimen(
-                            "ROTATED",
-                            weave::rich(
-                                tg::body(24, tg::kAi,
-                                         sigil::weave::VerticalForm::kRotated))
-                                .add(u8"Latin lies")))
+                            "ROTATED", weave::rich().add(u8"Latin lies"),
+                            tg::bodyType(24, tg::kAi,
+                                         sigil::weave::VerticalForm::kRotated)))
                         .child(specimen(
                             "TATE-CHU-YOKO",
-                            weave::rich(tg::body(28, tg::kGofun))
+                            weave::rich()
                                 .add(u8"令和")
-                                .add(u8"07",
-                                     tg::body(28, tg::kAka,
-                                              sigil::weave::VerticalForm::
-                                                  kTateChuYoko))
-                                .add(u8"年"))))
+                                .add(
+                                    u8"07",
+                                    weave::Type{.color = tg::kAka,
+                                                .verticalForm = sigil::weave::
+                                                    VerticalForm::kTateChuYoko})
+                                .add(u8"年"),
+                            tg::bodyType(28))))
                 .child(box().height(Dimension(22.0f)))
                 .child(text(toUtf8("one paragraph \xc2\xb7 one writingMode "
-                                   "\xc2\xb7 three forms"),
-                            tg::label(13, {0.55f, 0.53f, 0.50f, 1}))
+                                   "\xc2\xb7 three forms"))
+                           .font(tg::labelType(13, {0.55f, 0.53f, 0.50f, 1}))
                            .width(Dimension(300.0f))))
         .child(text(toUtf8("cluster-unit entrance staggers DOWN the column, "
-                           "columns advance right to left"),
-                    tg::label(13, {0.48f, 0.46f, 0.44f, 1}))
+                           "columns advance right to left"))
+                   .font(tg::labelType(13, {0.48f, 0.46f, 0.44f, 1}))
                    .absolute()
                    .inset(64, tg::kH - 46, 0, 0));
   }

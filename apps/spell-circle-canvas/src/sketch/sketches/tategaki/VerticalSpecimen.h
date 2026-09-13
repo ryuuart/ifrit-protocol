@@ -90,6 +90,16 @@ inline sigil::weave::Type bodyType(
   t.verticalForm = form;
   return t;
 }
+/** The body register as a partial with no colour of its own: set in the
+ *  ink in force where the run lands. */
+inline sigil::weave::Type bodyType(
+    float size,
+    sigil::weave::VerticalForm form = sigil::weave::VerticalForm::kAuto) {
+  sigil::weave::Type t{.face = mincho(), .size = size};
+  t.language = "ja";
+  t.verticalForm = form;
+  return t;
+}
 
 /** THE CAPTION REGISTER: Latin, horizontal, tracked open, in whatever the
  *  default family is — a label is not part of the setting it names. */
@@ -103,6 +113,11 @@ inline sigil::weave::TextStyle label(float size, SkColor4f color,
 inline sigil::weave::Type labelType(float size, SkColor4f color,
                                     float tracking = 0) {
   return {.size = size, .color = color, .track = tracking};
+}
+/** The caption register as a partial with no colour of its own: set in
+ *  the ink in force where the run lands. */
+inline sigil::weave::Type labelType(float size, float tracking = 0) {
+  return {.size = size, .track = tracking};
 }
 
 /** A CAPTION OVER A SHORT VERTICAL COLUMN.
