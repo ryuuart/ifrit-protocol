@@ -208,16 +208,21 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
                        .children({sketch::kit::panelGrid(
                            {.cells = std::move(cards), .columns = kPerRow})});
 
-    ctx.composer.render(stack().children(
-        {sketch::kit::backdrop({.over = ctx.size,
-                                .ground = linearGradient(
-                                    {0, 0}, {0, ctx.size.height()},
-                                    {hexColor(0x1a120b), hexColor(0x0f0d10)})}),
-         sketch::kit::titleCard({.title = {u8"A PROCEDURAL ARCHIVE, COOKED"},
-                                 .subtitle = {caption}})
-             .left(kMargin)
-             .top(34),
-         std::move(grid)}));
+    // No page stands here, so the root states the theme's registers.
+    ctx.composer.render(
+        stack()
+            .styleSheet(sketch::kit::theme().styleSheet())
+            .children({sketch::kit::backdrop(
+                           {.over = ctx.size,
+                            .ground = linearGradient(
+                                {0, 0}, {0, ctx.size.height()},
+                                {hexColor(0x1a120b), hexColor(0x0f0d10)})}),
+                       sketch::kit::titleCard(
+                           {.title = {u8"A PROCEDURAL ARCHIVE, COOKED"},
+                            .subtitle = {caption}})
+                           .left(kMargin)
+                           .top(34),
+                       std::move(grid)}));
   }
 };
 

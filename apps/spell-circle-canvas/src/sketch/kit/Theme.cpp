@@ -38,10 +38,7 @@ weave::StyleSheet Theme::styleSheet() const {
   return classes;
 }
 
-Provide::Provide(Theme look) : Provide(look, look.styleSheet()) {}
-
-Provide::Provide(Theme look, weave::StyleSheet classes)
-    : m_look(std::move(look)), m_classes(std::move(classes)) {}
+Provide::Provide(Theme look) : m_look(std::move(look)) {}
 
 weave::TextStyle Theme::style(const Register& line, SkColor4f color) const {
   return weave::textStyle(
@@ -79,12 +76,12 @@ weave::TextStyle Theme::mono(float size, SkColor4f color, float track) const {
 
 compose::kit::Caption Theme::voice(float noteMeasure) const {
   // No type: a cell's two lines are set in the classes `captionLabel` and
-  // `captionNote`, which `styleSheet()` registers.
+  // `captionNote` of the sheet in force where the cell lands — the page
+  // root's, or the one a sketch without a page states on its own root.
   return {.where = captionWhere,
           .gap = spacing.captionGap,
           .noteGap = spacing.captionNoteGap,
-          .noteMeasure = noteMeasure,
-          .styles = styleSheet()};
+          .noteMeasure = noteMeasure};
 }
 
 sk_sp<SkTypeface> houseFace(Voice voice, int weight, SkFontStyle::Slant slant) {

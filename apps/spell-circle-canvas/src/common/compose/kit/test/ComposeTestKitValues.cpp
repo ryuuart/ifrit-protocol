@@ -527,6 +527,54 @@ TEST(KitSpecimen, AMeasureKeepsALongLabelFromWideningItsCell) {
   EXPECT_FLOAT_EQ(width(60), 60.0f);  // measured: the body does
 }
 
+TEST(KitSpecimen, APartSetsOneLineWithTheParametersItNames) {
+  // The label as a function of its text: the leaf it returns stands where
+  // the register's would, and the body under it moves down by exactly the
+  // taller line.
+  kit::Caption voice = specimenVoice(kit::Caption::Where::Split);
+  voice.label = [](const sigil::compose::Utf8& t) {
+    return text(t.bytes()).key("label").font({.size = 20});
+  };
+  Host host(300, 300);
+  host.composer.render(
+      box()
+          .width(300)
+          .height(300)
+          .styleSheet(captionClasses())
+          .children({kit::cell(voice, "LABEL", "a note",
+                               box().key("body").width(100).height(40))
+                         .key("cell")}));
+  host.frame();
+  EXPECT_NEAR(host.composer.bounds("label").value().height(), lineHeight(20),
+              1.5f);
+  EXPECT_NEAR(host.composer.bounds("body").value().top(), lineHeight(20) + 6,
+              1.5f);
+
+  // A part takes a prefix of what the caption offers: nothing, the text,
+  // or the text and the caption itself.
+  int calls = 0;
+  using CaptionPart = kit::Part<sigil::compose::Utf8, kit::Caption>;
+  const CaptionPart none = [&] {
+    ++calls;
+    return box();
+  };
+  const CaptionPart one = [&](const sigil::compose::Utf8& t) {
+    calls += t.empty() ? 100 : 1;
+    return text(t.bytes());
+  };
+  const CaptionPart two = [&](const sigil::compose::Utf8&,
+                              const kit::Caption& c) {
+    calls += c.where == kit::Caption::Where::Split ? 1 : 100;
+    return box();
+  };
+  none("x", voice);
+  one("x", voice);
+  two("x", voice);
+  EXPECT_EQ(calls, 3);
+  EXPECT_TRUE(static_cast<bool>(none));
+  EXPECT_FALSE(static_cast<bool>(CaptionPart{}));
+}
+
 TEST(KitSpecimen, AWellAppliesTheCallersSizeGroundAndPadding) {
   Host host(160, 120);
   host.composer.render(box().width(160).height(120).children({kit::well(

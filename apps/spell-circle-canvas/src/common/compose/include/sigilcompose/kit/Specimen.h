@@ -23,6 +23,7 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Utf8.h>
+#include <sigilcompose/kit/Part.h>
 #include <sigilweave/layout/StyleSheet.h>
 
 #include <algorithm>
@@ -39,14 +40,28 @@ namespace sigil::compose::kit {
 // ---------------------------------------------------------------------------
 // The captioned cell
 
+/** The leaf a caption's label defaults to: @p text in the class
+ *  `captionLabel`, so the sheet in force sets it. */
+[[nodiscard]] inline Element captionLabel(const Utf8& text) {
+  return compose::text(text.bytes()).styleClass("captionLabel");
+}
+/** The leaf a caption's note defaults to: @p text in the class
+ *  `captionNote`. */
+[[nodiscard]] inline Element captionNote(const Utf8& text) {
+  return compose::text(text.bytes()).styleClass("captionNote");
+}
+
 /** HOW A CELL IS CAPTIONED: where its two lines stand, the air between
  *  them and the body, and the width either wraps at. One value per sheet,
  *  handed to every cell on it, so the sheet has one voice.
  *
- *  NO TYPE IS HERE. A label is set in the class `captionLabel` and a note
- *  in `captionNote` of the sheet in force where the cell lands — or of
- *  `styles`, the sheet the caption carries for its own two lines — so
- *  what they look like is one rule each in a sheet. */
+ *  NO TYPE IS HERE. The two lines are PARTS: `label` and `note` default to
+ *  `captionLabel` and `captionNote`, leaves in the class of that name of
+ *  the sheet in force where the cell lands, so what they look like is one
+ *  rule each in a sheet. A cell whose call must stand otherwise hands
+ *  `label` its own leaf — the register with a font over it, or a leaf of
+ *  its own — and the cells under it keep the register, because no sheet
+ *  moved. */
 struct Caption {
   /** WHERE THE CAPTION'S LINES STAND relative to the body.
    *
@@ -78,11 +93,10 @@ struct Caption {
    *  ranges everything left, `Center` stands a caption over the middle of
    *  its body. */
   Align align = Align::Start;
-  /** THE SHEET THE CAPTION'S OWN LINES RESOLVE THROUGH, when stated: set
-   *  on the label and the note leaves themselves, so `captionLabel` and
-   *  `captionNote` are found whatever the tree above says, and the body —
-   *  the caller's — keeps the sheets in force where the cell lands. */
-  std::optional<sigil::weave::StyleSheet> styles;
+  /** THE TWO LINES, as functions of their text and then of this caption;
+   *  a part takes the parameters it names. Empty means the default. */
+  Part<Utf8, Caption> label = captionLabel;
+  Part<Utf8, Caption> note = captionNote;
 };
 
 /** ONE CAPTIONED CELL: @p body with @p label and @p note set beside it as
@@ -117,14 +131,13 @@ struct Caption {
   Element labelLeaf;
   Element noteLeaf;
   if (hasLabel) {
-    labelLeaf = text(label.bytes()).styleClass("captionLabel");
-    if (caption.styles) labelLeaf.styleSheet(*caption.styles);
+    labelLeaf =
+        caption.label ? caption.label(label, caption) : captionLabel(label);
     if (caption.labelMeasure > 0)
       labelLeaf.width(Dimension(caption.labelMeasure));
   }
   if (hasNote) {
-    noteLeaf = text(note.bytes()).styleClass("captionNote");
-    if (caption.styles) noteLeaf.styleSheet(*caption.styles);
+    noteLeaf = caption.note ? caption.note(note, caption) : captionNote(note);
     if (caption.noteMeasure > 0) noteLeaf.width(Dimension(caption.noteMeasure));
   }
   switch (caption.where) {
@@ -308,11 +321,6 @@ struct Sheet {
   Utf8 title;
   Utf8 subtitle;
   Utf8 footer;
-  /** THE SHEET THE PAGE'S OWN LINES RESOLVE THROUGH, when stated: set on
-   *  the title, the subtitle and the footer, so `title`, `subtitle` and
-   *  `footer` are found whatever the tree above says; the content keeps
-   *  the sheets in force where the page lands. */
-  std::optional<sigil::weave::StyleSheet> styles;
   /** The page margins, px: the two sides, the top and the bottom. */
   float marginX = 30.0f;
   float marginTop = 16.0f;
@@ -364,7 +372,6 @@ struct Sheet {
     if (hasTitle)
       header.children(
           {named(text(page.title.bytes()).styleClass("title"), "title")});
-    if (page.styles) header.styleSheet(*page.styles);
     if (hasSubtitle) {
       Element subtitle =
           named(text(page.subtitle.bytes()).styleClass("subtitle"), "subtitle");
@@ -384,7 +391,6 @@ struct Sheet {
   if (!page.footer.empty()) {
     Element footer =
         named(text(page.footer.bytes()).styleClass("footer"), "footer");
-    if (page.styles) footer.styleSheet(*page.styles);
     if (ruled)
       root.children({rule("foot-rule")});
     else

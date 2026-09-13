@@ -134,18 +134,20 @@ struct ChromeType final : sketch::Sketch {
                  .boundary(Boundary::Glyphs)
                  .style(style)}));
     // The pair's own name stands wider and larger than a cell's call, so
-    // the caption class it is set in is this one register for this cell.
+    // its label is this cell's own leaf — the register, this size over it
+    // — and the two captions under it keep the register as it is.
     const sketch::kit::Theme& look = sketch::kit::theme();
-    weave::StyleSheet classes = look.styleSheet();
-    classes.set("captionLabel",
-                look.font(sketch::kit::Register{9.5f, 2.6f}, c::kPale));
+    kit::Caption voice{.where = kit::Caption::Where::Above, .gap = 10};
+    voice.label = [&look](const Utf8& call) {
+      return kit::captionLabel(call).font(
+          look.font(sketch::kit::Register{9.5f, 2.6f}, c::kPale));
+    };
     return kit::cell(
-               {.where = kit::Caption::Where::Above, .gap = 10}, name, "",
-               kit::cells({.cells = {std::move(onBox), std::move(onGlyphs)},
-                           .gap = 26,
-                           .divider = Fill::color(c::kFaint),
-                           .align = Align::Center}))
-        .styleSheet(std::move(classes));
+        voice, name, "",
+        kit::cells({.cells = {std::move(onBox), std::move(onGlyphs)},
+                    .gap = 26,
+                    .divider = Fill::color(c::kFaint),
+                    .align = Align::Center}));
   }
 
   Element describe() {

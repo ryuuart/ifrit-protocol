@@ -554,9 +554,10 @@ initial letter's are partials over the text they belong to, so a reading
 at `0.5_em` is half its base whatever the base inherits. A caption's and
 a sheet's lines (`kit::Caption`, `kit::Sheet`) take the same fields by
 NAME instead — `captionLabel`, `captionNote`, `title`, `subtitle`,
-`footer`, classes of the sheet in force where the component lands, or of
-the sheet the component carries on those lines (`kit::Caption::styles`,
-`kit::Sheet::styles`), which a theme hands it. A bake — `snapshot`,
+`footer`, classes of the sheet in force where the component lands, which
+is what a theme states on a page's root; each such line is a `kit::Part`,
+so a cell whose call must differ hands in its own leaf and the cells
+under it keep the register. A bake — `snapshot`,
 `intrinsicSize`, `kit::coverage` — runs the cascade over its own tree,
 so a partial inside it resolves against the bake's root.
 
@@ -1303,9 +1304,17 @@ variable walked over its own domain, ruled at values stated in that
 domain's units and dotted at the samples a reference quotes, so a curve
 can be checked against one; its `Plot::at` is the mapping the drawing
 uses, which is how a caller's own label lands ON the curve rather than
-near it) — the furniture of a specimen sheet in
+near it) — a component's own lines as parts in
+`kit/Part.h` — `kit::Part`, one such line as a function of what the
+component offers about it, the text and then the component, handed any
+callable whose parameters are a prefix of that offer (as a range's
+children take a function of the item or of the item and its index), so
+a sketch sets one line otherwise and nothing else under the component
+changes — the furniture of a specimen sheet in
 `kit/Specimen.h` — `kit::cell`, a body with a label and a note set
-beside it as a `kit::Caption` says (`Caption::Where` puts the note under
+beside it as a `kit::Caption` says (its `label` and `note` are parts
+that default to `captionLabel` and `captionNote`, leaves in the
+register's class; `Caption::Where` puts the note under
 the body, or both lines above it, or both below, and `labelMeasure` and
 `noteMeasure` wrap either line at a stated width so a long one does not
 widen the cell it captions), `kit::well`, the fixed, clipped surface a

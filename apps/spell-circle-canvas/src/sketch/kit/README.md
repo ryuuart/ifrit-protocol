@@ -41,9 +41,9 @@ distances a sheet is set by, and where a cell's caption lines stand.
 It arrives at a component through **`sigil::core::environment`**, the
 reconciler's inherited value, bound by `sketch::kit::Provide` for the
 spacing, the palette and the faces a component reads; its registers
-reach the tree as a sheet, `Theme::styleSheet()`, which a page and a
-caption carry on the lines they write and a sketch states on its root
-with `styleSheet()`:
+reach the tree as a sheet, `Theme::styleSheet()`, which `page()` states
+on its root and a sketch without a page states on its own with
+`styleSheet()`:
 
 ```cpp
 sketch::kit::Theme sheetTheme() {
@@ -54,8 +54,7 @@ sketch::kit::Theme sheetTheme() {
 }
 
 const sketch::kit::Provide look(sheetTheme());   // the theme, for this scope
-ctx.composer.render(
-    sketch::kit::page({…}, content).styleSheet(sheetTheme().styleSheet()));
+ctx.composer.render(sketch::kit::page({…}, content));  // its root states the sheet
 ```
 
 A describe phase is an ordinary C++ call tree evaluated bottom-up, so the
@@ -199,11 +198,13 @@ which `Fill::currentInk()` also reads back; and a padding written as a
 nothing and is set exactly as it was written. The page's own title,
 subtitle and footer and a cell's label and note are the exception: each is
 set in the CLASS of its own name, a partial over what the page inherits.
-`page()` and `caption()` bind `Theme::styleSheet()` around the lines they
-write themselves, so those lines are in the theme's voice whether or not
-the sketch around them bound a theme; the content handed to either was
-built before the call and keeps the classes it resolved where it was
-written. A register always states its face: one set in the theme's sans,
+`page()` states `Theme::styleSheet()` on its root, so those lines and
+every cell under the page are in the theme's voice whether or not the
+sketch around it bound a theme, and a sheet the sketch states nearer to
+a leaf stands over the root's by name; a sketch that renders no page
+states the sheet on its own root. A cell whose call must stand otherwise
+hands `Caption::label` its own leaf, and the cells under it keep the
+register. A register always states its face: one set in the theme's sans,
 which the house theme leaves as the font context's default family, says
 so, and a caption under an ancestor that named a face is still set in the
 register's own.

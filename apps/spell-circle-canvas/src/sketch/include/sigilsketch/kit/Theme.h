@@ -267,16 +267,19 @@ enum class Voice {
 
 /** BIND A THEME for everything described while this object lives, the
  *  way a provider does — the reconciler's own inherited value, so a
- *  sketch needs one include and one word — AND ITS REGISTERS AS CLASSES:
- *  the theme's `styleSheet()` is bound beside it, so under the scope a
- *  leaf says `.styleClass("captionLabel")` and is set in that register.
+ *  sketch needs one include and one word. The registers reach the tree
+ *  as CLASSES through `styleSheet()`, which `page()` states on its root;
+ *  a sketch that renders no page states it on its own root, and a leaf
+ *  under either says `.styleClass("captionLabel")` and is set in that
+ *  register.
  *
  *      sketch::kit::Provide look(sheetTheme());
  *      ctx.composer.render(sketch::kit::page({...}, content));
  *
- *  A sketch whose classes go past the registers builds the sheet from
- *  `styleSheet()`, adds its own, and binds the pair with the two-argument
- *  form. RAII and LIFO. BIND IT WHERE THE TREE IS DESCRIBED: a sketch
+ *  A sketch whose classes go past the registers builds its sheet from
+ *  `styleSheet()`, adds its own, and states the result on its root or on
+ *  the panel those classes belong to. RAII and LIFO. BIND IT WHERE THE
+ *  TREE IS DESCRIBED: a sketch
  *  that describes again when its data changes does so outside the scope
  *  its setup opened, and a theme bound only there is not in scope for the
  *  second description. A callable the KERNEL invokes later — a `custom()`
@@ -286,13 +289,11 @@ enum class Voice {
 class Provide {
  public:
   explicit Provide(Theme look);
-  Provide(Theme look, weave::StyleSheet classes);
   Provide(const Provide&) = delete;
   Provide& operator=(const Provide&) = delete;
 
  private:
   sigil::core::environment::Provide<Theme> m_look;
-  sigil::core::environment::Provide<weave::StyleSheet> m_classes;
 };
 
 }  // namespace sigil::sketch::kit

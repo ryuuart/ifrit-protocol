@@ -20,16 +20,15 @@ void stage(SketchContext& ctx, const Stage& surface) {
 
 compose::Element page(const Page& sheet, compose::Element content) {
   const Theme& look = theme();
-  // THE THREE LINES THE SHEET WRITES ARE SET IN THE THEME'S REGISTERS:
-  // the title, the subtitle and the footer resolve through the theme's
-  // sheet carried on those lines themselves, so a page is in the theme's
-  // voice whatever sheet the tree above states, and `content` keeps the
-  // sheets in force where the page lands.
+  // THE PAGE ROOT CARRIES THE THEME'S SHEET. The title, the subtitle and
+  // the footer name their classes, and so does every cell under the page,
+  // and all of them resolve through the sheet stated on the root below —
+  // unless a sheet nearer to a leaf says otherwise, which is how a sketch
+  // re-registers one class for one panel.
   const compose::kit::Sheet specification{
       .title = sheet.title,
       .subtitle = sheet.subtitle,
       .footer = sheet.footer,
-      .styles = look.styleSheet(),
       .marginX = look.spacing.marginX,
       .marginTop = look.spacing.marginTop,
       .marginBottom = look.spacing.marginBottom,
@@ -53,6 +52,7 @@ compose::Element page(const Page& sheet, compose::Element content) {
       compose::kit::sheet(specification, std::move(content))
           .absolute()
           .inset(0)
+          .styleSheet(look.styleSheet())
           .font(look.font(running))
           .ink(look.palette.ink);
   return surface;

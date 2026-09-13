@@ -101,12 +101,10 @@ TEST(SketchKitPage, DrawsTheHandSpelledSheet) {
   EXPECT_TRUE(sameDrawing(std::move(byHand), std::move(byKit)));
 }
 
-/** The page's own lines are set in the theme's registers with NO sheet
- *  bound around the call: the component binds them for the lines it
- *  writes, so a sketch that bound no theme still gets the sheet's voice. */
+/** The page's own lines are set in the theme's registers with NO theme
+ *  bound around the call: the page states the theme's sheet on its root,
+ *  so a sketch that bound no theme still gets the house voice. */
 TEST(SketchKitPage, SetsItsLinesWithNoSheetBound) {
-  namespace environment = sigil::core::environment;
-  EXPECT_EQ(environment::inherited<sigil::weave::StyleSheet>(), nullptr);
   const kit::Theme& house = kit::houseTheme();
   Element unbound = kit::page({.title = "TITLE", .footer = "FOOT"}, subject());
   Element bound;

@@ -39,7 +39,10 @@ TEST(SketchKitCells, CaptionDrawsTheHandSpelledCell) {
       .gap = 7,
       .noteMeasure = 160};
   // By hand the cell's two lines are two classes of a sheet stated on the
-  // cell, which is what the register names resolve to under the theme.
+  // cell. The kit's caption names the same two classes and states no
+  // sheet of its own: a page states the theme's on its root, and here the
+  // test states it on the cell, where the theme's registers resolve to
+  // the two rules spelled out below.
   const sigil::weave::StyleSheet classes{
       {"captionLabel",
        {.face = house.type.mono, .size = 10.5f, .color = house.palette.ink}},
@@ -55,7 +58,8 @@ TEST(SketchKitCells, CaptionDrawsTheHandSpelledCell) {
   EXPECT_TRUE(sameDrawing(
       std::move(byHand),
       kit::caption(160, "border(1.8, ink, inset 7)",
-                   "an ordinary rule 7 px inside the outline", subject())));
+                   "an ordinary rule 7 px inside the outline", subject())
+          .styleSheet(house.styleSheet())));
 }
 
 TEST(SketchKitCells, WellTakesTheThemesCellGround) {

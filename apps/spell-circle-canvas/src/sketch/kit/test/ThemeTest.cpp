@@ -111,15 +111,11 @@ TEST(SketchKitTheme, ARegisterInTheHouseSansStatesTheDefaultFamily) {
   EXPECT_EQ(*under.face, nullptr) << "not the serif above it";
 }
 
-TEST(SketchKitTheme, TheRegistersAreClassesUnderABoundTheme) {
-  namespace environment = sigil::core::environment;
-  EXPECT_EQ(environment::inherited<sigil::weave::StyleSheet>(), nullptr);
+TEST(SketchKitTheme, TheRegistersAreClasses) {
   const kit::Theme& house = kit::houseTheme();
   {
-    const kit::Provide bound(house);
-    const sigil::weave::StyleSheet* classes =
-        environment::inherited<sigil::weave::StyleSheet>();
-    ASSERT_NE(classes, nullptr);
+    const sigil::weave::StyleSheet sheet = house.styleSheet();
+    const sigil::weave::StyleSheet* classes = &sheet;
     EXPECT_EQ(classes->size(), 7u);
     ASSERT_NE(classes->find("eyebrow"), nullptr);
     EXPECT_EQ(classes->find("eyebrow")->type(), house.font(house.type.eyebrow))
@@ -138,17 +134,10 @@ TEST(SketchKitTheme, TheRegistersAreClassesUnderABoundTheme) {
 
     sigil::weave::StyleSheet own = house.styleSheet();
     own.set("value", {.size = 13.0f});
-    {
-      const kit::Provide inner(house, own);
-      const sigil::weave::StyleSheet* bound =
-          environment::inherited<sigil::weave::StyleSheet>();
-      ASSERT_NE(bound, nullptr);
-      EXPECT_EQ(bound->size(), 8u) << "the registers and the sketch's own";
-      EXPECT_NE(bound->find("value"), nullptr);
-    }
-    EXPECT_EQ(environment::inherited<sigil::weave::StyleSheet>()->size(), 7u);
+    EXPECT_EQ(own.size(), 8u) << "the registers and the sketch's own";
+    EXPECT_NE(own.find("value"), nullptr);
+    EXPECT_EQ(house.styleSheet().size(), 7u) << "a copy, not the theme's";
   }
-  EXPECT_EQ(environment::inherited<sigil::weave::StyleSheet>(), nullptr);
 }
 
 /** The four registers a sheet is set in, spelled the long way at the call

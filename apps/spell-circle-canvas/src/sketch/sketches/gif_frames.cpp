@@ -88,17 +88,6 @@ weave::Type labelType(float size, SkColor4f color, float track = 0) {
   return {.size = size, .color = color, .track = track};
 }
 
-/** THE VOICE THE TWO SHELVES ARE TITLED IN — a heading over the run
- *  rather than a caption under a picture, so the sheet's two caption
- *  classes stand at sizes of their own for the length of the run. */
-weave::StyleSheet headerClasses() {
-  const sketch::kit::Theme& sheet = sketch::kit::theme();
-  weave::StyleSheet classes = sheet.styleSheet();
-  classes.set("captionLabel", labelType(11.5f, sheet.palette.ink, 2.0f));
-  classes.set("captionNote", labelType(10.5f, sheet.palette.ash, 0.2f));
-  return classes;
-}
-
 /** One frame, drawn at kScale with the texels kept hard: this file is
  *  forty pixels across and a smooth resample would invent everything the
  *  sheet is about. */
@@ -189,20 +178,18 @@ struct GifFrames final : sketch::Sketch {
                  ? std::string("repeating forever")
                  : std::to_string(gif.repetitionCount()) + " repetitions");
 
-    Element shelves =
-        kit::cells(
-            {.cells = {kit::cell(header(), "DECODED",
-                                 "every frame, composited at decode — "
-                                 "drawing one never needs the one before it",
-                                 decoded(gif)),
-                       kit::cell(header(), "PLAYED",
-                                 "frameAt looks the moment up in the durations "
-                                 "and loops past the last one",
-                                 sampled(gif))},
-             .column = true,
-             .gap = 26,
-             .divider = Fill::color(sketch::kit::theme().palette.rule)})
-            .styleSheet(headerClasses());
+    Element shelves = kit::cells(
+        {.cells = {kit::cell(header(), "DECODED",
+                             "every frame, composited at decode — "
+                             "drawing one never needs the one before it",
+                             decoded(gif)),
+                   kit::cell(header(), "PLAYED",
+                             "frameAt looks the moment up in the durations "
+                             "and loops past the last one",
+                             sampled(gif))},
+         .column = true,
+         .gap = 26,
+         .divider = Fill::color(sketch::kit::theme().palette.rule)});
     return sketch::kit::page(
         {.title = "ANIMATED FRAMES · ImageAsset::frames() "
                   "+ frameAt(ms)",
@@ -212,10 +199,23 @@ struct GifFrames final : sketch::Sketch {
         std::move(shelves));
   }
 
-  /** The voice the two shelves are titled in — a heading over the run
-   *  rather than a caption under a picture. */
+  /** THE VOICE THE TWO SHELVES ARE TITLED IN — a heading over the run
+   *  rather than a caption under a picture, so its two lines are this
+   *  cell's own leaves: the register, a size of its own over it — and the
+   *  frame captions under each shelf keep the register as it is. */
   static kit::Caption header() {
-    return {.where = kit::Caption::Where::Above, .gap = 12, .noteGap = 5};
+    const sketch::kit::Theme& sheet = sketch::kit::theme();
+    kit::Caption voice{
+        .where = kit::Caption::Where::Above, .gap = 12, .noteGap = 5};
+    voice.label = [&sheet](const Utf8& call) {
+      return kit::captionLabel(call).font(
+          labelType(11.5f, sheet.palette.ink, 2.0f));
+    };
+    voice.note = [&sheet](const Utf8& remark) {
+      return kit::captionNote(remark).font(
+          labelType(10.5f, sheet.palette.ash, 0.2f));
+    };
+    return voice;
   }
 
   /** What stands here when the file decoded to nothing. The availability
