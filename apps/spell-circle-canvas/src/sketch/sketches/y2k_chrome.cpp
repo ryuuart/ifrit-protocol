@@ -36,6 +36,7 @@
 #include <sigilcompose/kit/Gel.h>
 #include <sigilcompose/kit/Gloss.h>
 #include <sigilcompose/kit/Kinetic.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilmaterial/pattern/Patterns.h>
@@ -44,6 +45,8 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Ticker.h>
+#include <sigilweave/style/PaintLayer.h>
+#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -88,16 +91,38 @@ inline sigil::weave::TextStyle type(float size, SkColor4f color,
       {.size = size, .color = color, .track = tracking, .weight = weight});
 }
 
-/** Label riding a gel surface: white with a 1px tint-derived ground. */
-inline sigil::weave::TextStyle gelLabel(SkColor4f tint, float size = 16) {
-  auto s = type(size, {1, 1, 1, 0.98f}, 1.0f, 650);
-  sigil::weave::PaintLayer ground;
-  ground.paint.setColor4f(
-      {tint.fR * 0.30f, tint.fG * 0.30f, tint.fB * 0.30f, 0.5f}, nullptr);
-  ground.paint.setAntiAlias(true);
-  ground.offset = {0, 1.2f};
-  s.paint.addUnderlay(ground);
-  return s;
+/** One pass under the glyphs, offset down: the 1px ground a label on gel
+ *  or chrome stands on. */
+inline weave::PaintLayer ground(SkColor4f colour, float dy = 1.2f) {
+  weave::PaintLayer layer;
+  layer.paint.setColor4f(colour, nullptr);
+  layer.paint.setAntiAlias(true);
+  layer.offset = {0, dy};
+  return layer;
+}
+
+/** The one field a gel label adds to its class: the ground under it,
+ *  derived from the gel's tint. */
+inline weave::Type gelGround(SkColor4f tint) {
+  return {.underlays = {{ground(
+              {tint.fR * 0.30f, tint.fG * 0.30f, tint.fB * 0.30f, 0.5f})}}};
+}
+
+/** The type this card names, bound around the description: `gelLabel` is
+ *  the white label riding a gel surface, over the ground each pill derives
+ *  from its own tint; `caption` the small line under the A/B specimens;
+ *  `note` the footer's fine print. */
+inline weave::StyleSheet classes() {
+  return weave::StyleSheet()
+      .set("gelLabel", {.size = 16,
+                        .color = SkColor4f{1, 1, 1, 0.98f},
+                        .track = 1.0f,
+                        .weight = 650})
+      .set("caption", {.size = 10,
+                       .color = hexColor(0xAFC0DE),
+                       .track = 0.8f,
+                       .weight = 600})
+      .set("note", {.size = 10, .color = hexColor(0x8DA0C4), .track = 0.4f});
 }
 
 // ---------------------------------------------------------------------------
@@ -113,7 +138,7 @@ inline Element gelPill(std::string_view label, SkColor4f tint, float w = kPillW,
       .row()
       .justify(Justify::Center)
       .alignItems(Align::Center)
-      .child(text(toUtf8(label), gelLabel(tint)));
+      .child(text(toUtf8(label)).styleClass("gelLabel").font(gelGround(tint)));
 }
 
 inline Element gelOrb(float d = kOrbD) {
@@ -199,9 +224,10 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
                  .justify(Justify::Center)
                  .alignItems(Align::Center)
                  .zIndex(1)
-                 .child(text(toUtf8(label),
-                             gelLabel({t.deep.fR * 1.3f, t.deep.fG * 1.3f,
-                                       t.deep.fB * 1.3f, 1}))));
+                 .child(text(toUtf8(label))
+                            .styleClass("gelLabel")
+                            .font(gelGround({t.deep.fR * 1.3f, t.deep.fG * 1.3f,
+                                             t.deep.fB * 1.3f, 1}))));
 }
 
 // ---------------------------------------------------------------------------
@@ -248,11 +274,6 @@ inline Element glint(float size, float rotationDeg, float alpha = 0.95f) {
       .fill(Fill::color({1, 1, 1, alpha}))
       .rotate(rotationDeg)
       .zIndex(3);
-}
-
-/** Small caption under the A/B specimens. */
-inline Element caption(std::string_view s) {
-  return text(toUtf8(s), type(10, hexColor(0xAFC0DE), 0.8f, 600));
 }
 
 }  // namespace y2k_chrome
@@ -307,6 +328,10 @@ struct Y2kChrome final : sketch::Sketch {
     namespace yc = y2k_chrome;
     namespace ch = choreograph;
     using namespace std::chrono_literals;
+    // A class is read where the element is written, so the card's sheet is
+    // bound around the whole description, the pill helpers included.
+    const sigil::core::environment::Provide<weave::StyleSheet> sheet(
+        yc::classes());
 
     // ---- period page ground: gray + subtle woven checker -----------------
     Paint check =
@@ -325,17 +350,14 @@ struct Y2kChrome final : sketch::Sketch {
             .alignItems(Align::Center)
             .padding(12, 0)
             .gap(5)
-            .child(text(toUtf8("SIGILNET 2000 \xe2\x80\x94 hyperportal v4.2"),
-                        [] {
-                          auto s = yc::type(12, hexColor(0xF2F6FA), 0.4f, 600);
-                          sigil::weave::PaintLayer ground;
-                          ground.paint.setColor4f({0, 0.04f, 0.10f, 0.6f},
-                                                  nullptr);
-                          ground.paint.setAntiAlias(true);
-                          ground.offset = {0, 1.2f};
-                          s.paint.addUnderlay(ground);
-                          return s;
-                        }()))
+            .child(
+                text(toUtf8("SIGILNET 2000 \xe2\x80\x94 hyperportal v4.2"))
+                    .font(
+                        {.size = 12,
+                         .color = hexColor(0xF2F6FA),
+                         .track = 0.4f,
+                         .weight = 600,
+                         .underlays = {{yc::ground({0, 0.04f, 0.10f, 0.6f})}}}))
             .child(box().grow(1))
             .child(yc::chromeSquare(hexColor(0xD4D0C8)))
             .child(yc::chromeSquare(hexColor(0xD4D0C8)))
@@ -465,16 +487,19 @@ struct Y2kChrome final : sketch::Sketch {
                                .alignItems(Align::Center)
                                .gap(6)
                                .child(yc::aquaPill("AQUA  2000", yc::kBluePill))
-                               .child(yc::caption("HAND-BUILT \xc2\xb7 FIVE "
-                                                  "STOPS BY HAND")))
-                    .child(box()
-                               .column()
-                               .alignItems(Align::Center)
-                               .gap(6)
-                               .child(yc::gelPill("AQUA  2000",
-                                                  hexColor(0x1E8FFF)))
-                               .child(yc::caption(
-                                   "PRESET \xc2\xb7 kit::aquaGel()"))));
+                               .child(text(toUtf8("HAND-BUILT \xc2\xb7 FIVE "
+                                                  "STOPS BY HAND"))
+                                          .styleClass("caption")))
+                    .child(
+                        box()
+                            .column()
+                            .alignItems(Align::Center)
+                            .gap(6)
+                            .child(
+                                yc::gelPill("AQUA  2000", hexColor(0x1E8FFF)))
+                            .child(
+                                text(toUtf8("PRESET \xc2\xb7 kit::aquaGel()"))
+                                    .styleClass("caption"))));
 
     // ---- status bar: marquee, ticker-driven phase -------------------
     // The crawl, named: a strip run past a window twice so the loop has no
@@ -598,26 +623,27 @@ struct Y2kChrome final : sketch::Sketch {
                                             toUtf8("now streaming @ 56k"),
                                             yc::type(12, hexColor(0xC8D6EE),
                                                      0.6f, 600)))
-                                        .child(text(
-                                            toUtf8("\xc2\xa9 2000 sigilnet "
-                                                   "industries \xe2\x80\x94 "
-                                                   "best viewed at 800\xc3\x97"
-                                                   "600"),
-                                            yc::type(10, hexColor(0x8DA0C4),
-                                                     0.4f))))
+                                        .child(
+                                            text(
+                                                toUtf8(
+                                                    "\xc2\xa9 2000 sigilnet "
+                                                    "industries \xe2\x80\x94 "
+                                                    "best viewed at 800\xc3\x97"
+                                                    "600"))
+                                                .styleClass("note")))
                                 .child(box().grow(1))
-                                .child(box()
-                                           .column()
-                                           .alignItems(Align::End)
-                                           .gap(5)
-                                           .margin(0, 0, 0, 2)
-                                           .child(yc::plasticButton(
-                                               "ENTER SITE >>"))
-                                           .child(text(
-                                               toUtf8("[ no frames \xc2\xb7 "
-                                                      "spacer.gif free ]"),
-                                               yc::type(10, hexColor(0x8DA0C4),
-                                                        0.4f))))))
+                                .child(
+                                    box()
+                                        .column()
+                                        .alignItems(Align::End)
+                                        .gap(5)
+                                        .margin(0, 0, 0, 2)
+                                        .child(
+                                            yc::plasticButton("ENTER SITE >>"))
+                                        .child(
+                                            text(toUtf8("[ no frames \xc2\xb7 "
+                                                        "spacer.gif free ]"))
+                                                .styleClass("note")))))
                 .child(statusBar));
   }
 };
