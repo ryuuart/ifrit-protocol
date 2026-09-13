@@ -241,7 +241,7 @@ TEST(ComposeReport, ATableLandsInTheFeedRowByRowInTheInkOfItsStanding) {
   // The row carries the formatter's line -- how SigilMeasure lays a
   // reading out is SigilMeasure's own claim, so what is asserted here is
   // that the line arrived whole and named its reading.
-  EXPECT_NE(rows[4].value.text.find(u8"residual"), std::u8string::npos);
+  EXPECT_NE(rows[4].value.text.bytes().find(u8"residual"), std::u8string::npos);
   // A plate that tells a finding from a failure names its ink.
   test::report(ring, table.rows[3], {.finding = "measured"});
   EXPECT_EQ(ring.rows().back().value.style, "measured");

@@ -52,6 +52,11 @@ class Story {
       : m_content(RichText(std::move(style))) {
     m_content.add(utf8);
   }
+  /** The same story from UTF-8 held as `char`. */
+  Story(std::string_view utf8, TextStyle style)
+      : m_content(RichText(std::move(style))) {
+    m_content.add(utf8);
+  }
 
   /** How each BLOCK of the story is set, in block order — stated once, and
    *  the same for every frame the story runs through. */

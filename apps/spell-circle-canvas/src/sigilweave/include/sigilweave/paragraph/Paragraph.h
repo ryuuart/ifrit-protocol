@@ -411,6 +411,11 @@ class ParagraphBuilder {
     return *this;
   }
   /** Appends UTF-8 text using the active style. */
+  /** The same run from UTF-8 held as `char`. */
+  ParagraphBuilder& addText(std::string_view utf8) {
+    return addText(std::u8string_view(
+        reinterpret_cast<const char8_t*>(utf8.data()), utf8.size()));
+  }
   ParagraphBuilder& addText(std::u8string_view utf8) {
     m_paragraph.appendText(utf8, m_styleStack.back());
     return *this;

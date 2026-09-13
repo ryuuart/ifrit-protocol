@@ -130,6 +130,10 @@ std::vector<float> measureRun(std::u8string_view utf8,
 std::vector<float> runPens(std::u8string_view utf8,
                            const sigil::weave::TextStyle& style,
                            sigil::weave::FontContext& fonts);
+/** The same run from UTF-8 held as `char`. */
+std::vector<float> runPens(std::string_view utf8,
+                           const sigil::weave::TextStyle& style,
+                           sigil::weave::FontContext& fonts);
 
 /** @p style solved so its face's CAP HEIGHT is exactly @p capPx.
  *

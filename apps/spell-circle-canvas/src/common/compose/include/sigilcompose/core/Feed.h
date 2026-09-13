@@ -31,6 +31,7 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Measure.h>
+#include <sigilcompose/core/Utf8.h>
 #include <sigilcore/reconcile/Environment.h>
 
 #include <chrono>
@@ -206,7 +207,7 @@ template <class RowFunction>
  *  is resolved against a `weave::StyleSheet` at build time, so an unregistered
  *  name — including the default empty one — takes the set's base style. */
 struct TextRow {
-  std::u8string text;
+  Utf8 text;
   std::string style;
 
   bool operator==(const TextRow&) const = default;
@@ -236,7 +237,7 @@ struct TextOptions {
  *  something the options do not carry, keying each row with `rowKey()`. */
 [[nodiscard]] inline Element textRow(const TextRow& row,
                                      const sigil::weave::StyleSheet& styles) {
-  return text(row.text, styles[row.style]);
+  return text(row.text.bytes(), styles[row.style]);
 }
 
 /** The text feed: rows set in the styles they name. */

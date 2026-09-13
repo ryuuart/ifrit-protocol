@@ -867,7 +867,7 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
   ASSERT_EQ(ring.size(), 2u);
   EXPECT_EQ(ring.rows()[0].value.style, "pass");
   EXPECT_EQ(ring.rows()[1].value.style, "fail");
-  EXPECT_NE(ring.rows()[1].value.text.find(u8"FAIL"), std::u8string::npos);
+  EXPECT_NE(ring.rows()[1].value.text.bytes().find(u8"FAIL"), std::u8string::npos);
 
   // And it renders: a plate whose checks never reach the screen is the
   // situation this replaces.
