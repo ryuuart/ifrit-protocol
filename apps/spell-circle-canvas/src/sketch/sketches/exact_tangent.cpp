@@ -42,6 +42,7 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <utility>
@@ -67,17 +68,26 @@ constexpr float kTurns = 3.2f;      // the spiral's turns
 constexpr SkColor4f kSnapped{0.95f, 0.44f, 0.32f, 0.75f};
 constexpr SkColor4f kExact{0.40f, 0.76f, 0.98f, 0.75f};
 
-weave::TextStyle inscription(float size, SkColor4f color) {
-  const sk_sp<SkTypeface> face = weave::ports::face(
-      {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
+/** THE INSCRIPTION'S VOICE, as a class beside the page's registers: the
+ *  old-style serif, untracked — stated, because the page's running
+ *  register is tracked and an inscription is not. A run states its size
+ *  and colour over it. */
+weave::StyleSheet voices() {
+  weave::StyleSheet classes = sketch::kit::theme().styleSheet();
+  classes.set("inscription",
+              {.face = weave::ports::face(
+                   {"Iowan Old Style", "Georgia", "Times New Roman", "serif"}),
+               .track = 0.0f});
+  return classes;
 }
 
 /** A run on the tight spiral. The baseline resolves against the TEXT
  *  node's own box, so the leaf carries the plate's dimensions. */
 Element run(const char* word, float size, SkColor4f colour, bool exact,
             float inset = 16) {
-  return text(toUtf8(word), inscription(size, colour))
+  return text(toUtf8(word))
+      .styleClass("inscription")
+      .font({.size = size, .color = colour})
       .absolute()
       .inset(inset)
       .onPath({.path = shapes::spiral(kTurns),
@@ -90,7 +100,9 @@ Element run(const char* word, float size, SkColor4f colour, bool exact,
  *  the type inside the baseline so a big face stays on the plate. */
 Element arcRun(const char* word, float size, SkColor4f colour, bool exact,
                float at = 0.30f, float offset = -22, float inset = 14) {
-  return text(toUtf8(word), inscription(size, colour))
+  return text(toUtf8(word))
+      .styleClass("inscription")
+      .font({.size = size, .color = colour})
       .absolute()
       .inset(inset)
       .onPath({.path = shapes::circle(),
@@ -116,6 +128,7 @@ struct ExactTangent final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    const sketch::kit::Provide look(sketch::kit::theme(), voices());
     const SkColor4f figure = sketch::kit::theme().palette.figure;
 
     ctx.composer.render(sketch::kit::page(
