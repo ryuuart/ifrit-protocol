@@ -9,6 +9,7 @@
 // TAGS: Interfaces/Film
 
 #include <sigilcompose/core/Measure.h>
+#include <sigilcompose/kit/Frame.h>
 
 #include "DefenseLayout.h"
 
@@ -131,11 +132,9 @@ struct EvaMagiDefense : sketch::Sketch {
                        SkVector{turned.centerX() - module.barWidth * 0.5f,
                                 turned.centerY() - module.totalHeight() * 0.5f};
     auto plate =
-        box()
-            .left(at.fX - module.barWidth * 0.5f)
-            .top(at.fY - module.totalHeight() * 0.5f)
-            .width(module.barWidth)
-            .height(module.totalHeight())
+        kit::at(at.fX - module.barWidth * 0.5f,
+                at.fY - module.totalHeight() * 0.5f, module.barWidth,
+                module.totalHeight())
             .shape(siteSilhouette())
             .rotate(s.rotation)
             .fill(Fill::color(plateFill))
@@ -146,10 +145,7 @@ struct EvaMagiDefense : sketch::Sketch {
     for (int n : {1, 2, 3}) {
       const SkRect r = module.cell(n);
       auto cell = box()
-                      .left(r.left())
-                      .top(r.top())
-                      .width(r.width())
-                      .height(r.height())
+                      .rect(r)
                       .corners({module.cellRadius})
                       .fill(Fill::color(kCell))
                       .foreground(rimStroke(3.2f, rim))
@@ -177,8 +173,8 @@ struct EvaMagiDefense : sketch::Sketch {
                         .gap(-6)
                         .rotate(-s.rotation)
                         .ink(ink)
-                        .children({text(u8"MAGI").font(type(36, 0.86f))})
-                        .children({text(s.name).font(type(50, 0.95f))})});
+                        .children({text(u8"MAGI").font(type(36, 0.86f)),
+                                   text(s.name).font(type(50, 0.95f))})});
     return plate;
   }
 
@@ -189,11 +185,7 @@ struct EvaMagiDefense : sketch::Sketch {
     const LabelRegister labelStyle = labelRegister(L.role);
     const SkColor4f ink = L.alarm ? kAlarm : kRim;
     const SkPoint at = unroll(L.centre) - origin;
-    auto node = box()
-                    .left(at.fX - L.w * 0.5f)
-                    .top(at.fY - L.h * 0.5f)
-                    .width(L.w)
-                    .height(L.h)
+    auto node = kit::at(at.fX - L.w * 0.5f, at.fY - L.h * 0.5f, L.w, L.h)
                     .rotate(L.rotate)
                     .column()
                     .alignItems(L.role == LabelRole::Country ? Align::Start
@@ -284,11 +276,8 @@ struct EvaMagiDefense : sketch::Sketch {
     using namespace eva;
     const SkRect bounds = turnedBounds(centre, w, h, degrees);
     const SkPoint origin{bounds.left() - kHaloReach, bounds.top() - kHaloReach};
-    return box()
-        .left(origin.fX)
-        .top(origin.fY)
-        .width(bounds.width() + 2.0f * kHaloReach)
-        .height(bounds.height() + 2.0f * kHaloReach)
+    return kit::at(origin.fX, origin.fY, bounds.width() + 2.0f * kHaloReach,
+                   bounds.height() + 2.0f * kHaloReach)
         .children({mark(origin)})
         .effect(tubeBloom())
         .cache(Cache::Texture)
@@ -372,28 +361,24 @@ struct EvaMagiDefense : sketch::Sketch {
     // The ribbons: flat fills of one continuous field, panned by the front.
     // In a SLOT, so a fall's re-describe never reaches the funnel and the
     // funnel's pan never reaches the marks.
-    picture.children({camera(slot("funnel"))});
-    // …their halo, screened over them, and the marks on their own bakes
-    // above both — a panel hides the ribbon under it, halo and all.
-    picture.children({camera(ribbonGlow())});
-    picture.children({camera(art())});
-    picture.children({camera(collapsingLayer(0))});
-    picture.children({camera(collapsingLayer(1))});
+    picture.children(
+        {camera(slot("funnel")),
+         // …their halo, screened over them, and the marks on their own bakes
+         // above both — a panel hides the ribbon under it, halo and all.
+         camera(ribbonGlow()), camera(art()), camera(collapsingLayer(0)),
+         camera(collapsingLayer(1))});
     root.children({std::move(picture).key("phosphor")});
 
     // the photographed CRT: scanlines + vignette baked once, crept
     mskia::Paint crt = mskia::Paint::recipe(evangelion::tube());
-    root.children({box()
-                       .left(0)
-                       .top(-8)
-                       .width(kW)
-                       .height(kH + 16)
+    root.children({kit::at(0, -8, kW, kH + 16)
                        .fill(crt)
                        .translateY(&creep)
                        .cache(Cache::Texture)
-                       .key("crt")});
-    // phosphor flicker: an alpha-0 plane 99% of the time, so it costs nothing
-    root.children({box()
+                       .key("crt"),
+                   // phosphor flicker: an alpha-0 plane 99% of the time, so it
+                   // costs nothing
+                   box()
                        .inset(0)
                        .fill(Fill::color({0, 0, 0, 1}))
                        .opacity(&flicker)
@@ -426,11 +411,7 @@ struct EvaMagiDefense : sketch::Sketch {
                               : SkColor4f{0.62f, 0, 0, 1})});
     }
     sketch::kit::Provide bound(look);
-    return box()
-        .left(0)
-        .top(300)
-        .width(eva::kW)
-        .height(150.0f + 30.0f * (float)rows.size())
+    return kit::at(0, 300, eva::kW, 150.0f + 30.0f * (float)rows.size())
         .fill(Fill::color({1, 0, 1, 0.93f}))
         .column()
         .padding(26)
