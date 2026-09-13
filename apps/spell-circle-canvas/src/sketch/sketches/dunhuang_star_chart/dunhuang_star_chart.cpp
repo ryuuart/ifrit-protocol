@@ -1,100 +1,83 @@
 // dunhuang star chart: scene assembly and animation.
+//
+// EDIT THESE FIRST: the sentences are in data/content.json beside this file.
+// Its keys are `title`, `provenance`, `claim`, `plate`, `scale`, `sources`,
+// `locator`, `raRuler`, `poleTitle`/`pole`/`poleEpochs`/`poleSweep`/
+// `poleMarks`, `ruleTitle`/`rule`, `disc`, `auditTitle`/`auditLead`/
+// `auditHeads`/`auditFoot`/`auditNoLabel`, `projectionTitle`/
+// `projectionPlots`/`projection`, `map13Title`/`map13`, `archer`, and the
+// three console runs `logJoin`, `logEpoch` and `logSchools`. A line is the
+// words alone, or `{"words": …, "class": …}` where the CONTENT decides the
+// class; `{name}` in a line is the figure this study measured under that
+// name.
 
 // TAGS: Data/Astronomy
 
 #include "DunhuangStarChart.h"
 
+auto DunhuangStarChart::graticule() -> Element {
+  return box()
+      .rect(SkRect::MakeXYWH(108, 250, 2344, 764))
+      .key("grat")
+      .opacity(gate(tSky - 0.6f, tSky + 0.6f))
+      .zIndex(-1)
+      .shape(keyedShape(std::string_view("graticule"),
+                        [](SkSize s) {
+                          SkPathBuilder b;
+                          for (int i = 0; i <= 12; ++i) {
+                            const float x = s.width() * (float)i / 12.0f;
+                            b.moveTo(x, 0);
+                            b.lineTo(x, s.height());
+                          }
+                          for (int j = 0; j <= 6; ++j) {
+                            const float y = s.height() * (float)j / 6.0f;
+                            b.moveTo(0, y);
+                            b.lineTo(s.width(), y);
+                          }
+                          return b.detach();
+                        }))
+      .stroke(PathFormat{.width = 0.8f,
+                         .strokeFill = Fill::color(hexColor(0x2f6d86, 0.42f)),
+                         .dashIntervals = {3, 7}});
+}
+
+auto DunhuangStarChart::starField() -> Element {
+  return box()
+      .absolute()
+      .inset(0)
+      .key("stars")
+      .opacity(gate(tSky - 0.5f, tSky + 0.7f))
+      .children({instancing::instances(atlas, pool, instancing::Mode::Live)});
+}
+
+auto DunhuangStarChart::segment(int seg) -> Element {
+  const auto maps = std::views::iota(1, 13);
+  return box()
+      .rect(SkRect::MakeLTRB(segLo(seg), kSegTop, segHi(seg), kSegTop + kSegH))
+      .clip(true)
+      .key(seg ? "segR" : "segL")
+      .children({each(maps, [this, seg](int k) { return mapFrame(k, seg); }),
+                 each(maps, [this, seg](int k) { return columnBand(k, seg); }),
+                 discPlate(seg), discNotes(seg), raRuler(seg),
+                 seg ? box() : unreadTitle(), seg ? box() : archer()});
+}
+
 auto DunhuangStarChart::describe(sketch::SketchContext&) -> Element {
-  // the plate's type is the terminal face wherever a leaf names none, and
-  // its voices stand here for every leaf under them
-  auto root = box()
-                  .left(0)
-                  .top(0)
-                  .width(kW)
-                  .height(kH)
-                  .font({.face = faceMono})
-                  .styleSheet(voices());
-  root.children({ground()});
-  root.children({locator()});
-
-  // the equatorial graticule the stars arrive in, fading as the fold runs
-  root.children(
-      {box()
-           .left(108)
-           .top(250)
-           .width(2344)
-           .height(764)
-           .key("grat")
-           .opacity(gate(tSky - 0.6f, tSky + 0.6f))
-           .zIndex(-1)
-           .shape(keyedShape(std::string_view("graticule"),
-                             [](SkSize s) {
-                               SkPathBuilder b;
-                               for (int i = 0; i <= 12; ++i) {
-                                 const float x = s.width() * (float)i / 12.0f;
-                                 b.moveTo(x, 0);
-                                 b.lineTo(x, s.height());
-                               }
-                               for (int j = 0; j <= 6; ++j) {
-                                 const float y = s.height() * (float)j / 6.0f;
-                                 b.moveTo(0, y);
-                                 b.lineTo(s.width(), y);
-                               }
-                               return b.detach();
-                             }))
-           .stroke(
-               PathFormat{.width = 0.8f,
-                          .strokeFill = Fill::color(hexColor(0x2f6d86, 0.42f)),
-                          .dashIntervals = {3, 7}})});
-
-  root.children({scrollBand(-90, kBreakL, "bandL", -0.42f)});
-  root.children({scrollBand(kBreakR, kW + 90, "bandR", -0.42f)});
-  for (int seg = 0; seg < 2; ++seg) {
-    auto sg = box()
-                  .left(segLo(seg))
-                  .top(kSegTop)
-                  .width(segHi(seg) - segLo(seg))
-                  .height(kSegH)
-                  .clip(true)
-                  .key(seg ? "segR" : "segL");
-    for (int k = 1; k <= 12; ++k) {
-      sg.children({mapFrame(k, seg)});
-      sg.children({columnBand(k, seg)});
-    }
-    sg.children({discPlate(seg)});
-    sg.children({discNotes(seg)});
-    sg.children({raRuler(seg)});
-    if (seg == 0) {
-      sg.children({unreadTitle()});
-      sg.children({archer()});
-    }
-    root.children({std::move(sg)});
-  }
-  root.children({breakMark()});
-
-  // the star field — ONE leaf for 1,460 dots
-  root.children({box()
-                     .left(0)
-                     .top(0)
-                     .width(kW)
-                     .height(kH)
-                     .key("stars")
-                     .opacity(gate(tSky - 0.5f, tSky + 0.7f))
-                     .children({instancing::instances(
-                         atlas, pool, instancing::Mode::Live)})});
-
-  root.children({asterismLines()});
-  root.children({map5Labels()});
-
-  root.children({headings()});
-  root.children({poleDrift()});
-  root.children({poleText()});
-  root.children({ruleNote()});
-  root.children({projectionPanel()});
-  root.children({map13Panel()});
-  root.children({slot("audit")});
-  root.children({consolePanel()});
-  return root;
+  // THE PLATE'S RUNNING VOICE AND ITS WHOLE CLASS TABLE STAND HERE, so every
+  // leaf under them is set by name: the terminal face at the note's size in
+  // the note's ink, which a class steps away from and nothing restates.
+  return box()
+      .width(100_pw)
+      .height(100_ph)
+      .font({.face = faceMono, .size = 9.0f, .color = hexColor(0x9a8a68)})
+      .styleSheet(voices())
+      .children({ground(), locator(), graticule(),
+                 scrollBand(-90, kBreakL, "bandL", -0.42f),
+                 scrollBand(kBreakR, kW + 90, "bandR", -0.42f), segment(0),
+                 segment(1), breakMark(), starField(), asterismLines(),
+                 map5Labels(), headings(), poleDrift(), poleText(), ruleNote(),
+                 projectionPanel(), map13Panel(), slot("audit"),
+                 consolePanel()});
 }
 
 auto DunhuangStarChart::setup(sketch::SketchContext& ctx) -> void {
@@ -131,6 +114,7 @@ auto DunhuangStarChart::setup(sketch::SketchContext& ctx) -> void {
                                   skia::toColor(hexColor(0x2a2118, 0.08f))});
   paperSpeck.seed(649);
 
+  doc = ctx.assets.json(ctx.local("data/content.json"));
   cat = catalogue(ctx);
   conc = readConcordance(ctx);
   nStars = cat.stars();
@@ -176,59 +160,39 @@ auto DunhuangStarChart::setup(sketch::SketchContext& ctx) -> void {
   }
   rebuild(2000.0f, 0.0f);
 
-  logA.append({"THE JOIN", "heading"});
-  logA.append({kit::formatted(
-                   "chinese_chenzhuo: %d asterisms, 1,883 vertex words", nAst),
-               "dim"});
-  logA.append({"1,463 star TOKENS — 3 are DSO (M44/M7/M31)", "number"});
-  logA.append(
-      {kit::formatted("  so %d HIP numbers vs Chen Zhuo's canonical 1,464",
-                      nStars),
-       "dim"});
-  logA.append({"HYG v4.1 join on HIP: 1,457 direct, 3 LOST", "number"});
-  logA.append({"  55203 xi UMa, 78727 xi Sco, 115125 94 Aqr B", "dim"});
-  logA.append({"  cause: HYG BLANKS hip on resolved double components", "dim"});
-  logA.append({"  Bayer fallback recovers all three", "pass"});
-  logA.append(
-      {kit::formatted("RESOLVED %d / %d = 100.00%%", nStars, nStars), "pass"});
-  logA.append({"largest 1300-yr proper motion 1.476 deg (HIP 19849)", "dim"});
+  // THE FIGURES THE SENTENCES NAME, under the names the document calls them
+  // by and at the width the columns of the console read at. Every number on
+  // this plate is the join's own, and none of them is typed twice.
+  figures = {
+      {"ast", kit::formatted("%d", nAst)},
+      {"stars", kit::formatted("%d", nStars)},
+      {"onMaps", kit::formatted("%4d", nOnMaps)},
+      {"onDisc", kit::formatted("%4d", nOnDisc)},
+      {"inGap", kit::formatted("%4d", nInGap)},
+      {"tooSouth", kit::formatted("%4d", nTooSouth)},
+      {"schooled", kit::formatted("%d", nSchooled)},
+      {"unattested", kit::formatted("%d", nUnattested)},
+      {"m5Sxc", kit::formatted("%d", m5Sxc)},
+      {"m5Map", kit::formatted("%d", m5Map)},
+      {"m5ChenZhuo", kit::formatted("%d", m5ChenZhuo)},
+      {"poleOffMm", kit::formatted("%.1f", (90.0f - kDiscCenDec) / kPolPerMm)},
+      {"mercDeg", kit::formatted("%.3f", depMerc.maxDeg)},
+      {"mercMm", kit::formatted("%.2f", depMerc.mm)},
+      {"mercRatio", kit::formatted("%.2f", depMerc.ratio)},
+      {"mercSigma", kit::formatted("%.4f", depMerc.sigma)},
+      {"mercPub", kit::formatted("%.2f", 0.002f / depMerc.sigma)},
+      {"stereoDeg", kit::formatted("%.3f", depStereo.maxDeg)},
+      {"stereoMm", kit::formatted("%.2f", depStereo.mm)},
+      {"stereoRatio", kit::formatted("%.2f", depStereo.ratio)},
+      {"stereoSigma", kit::formatted("%.4f", depStereo.sigma)},
+      {"stereoPub", kit::formatted("%.2f", 0.013f / depStereo.sigma)}};
 
-  logB.append({"THE EPOCH, AND THE DECLINATION WINDOW", "heading"});
-  logB.append({"paper precessed to +700, NOT +665 (sect. 4.1)", "number"});
-  logB.append({"  665 vs 700 = 0.489 deg RA; map 5's RA residual 2.26", "dim"});
-  logB.append({"  4.6x below the chart's own hand. UNRESOLVABLE.", "pass"});
-  logB.append({kit::formatted("of %d stars at +700:", nStars), "dim"});
-  logB.append(
-      {kit::formatted("  %4d fall on maps 1-12  (|DEC| <= 45)", nOnMaps),
-       "dim"});
-  logB.append(
-      {kit::formatted("  %4d fall on the disc    (DEC >= +52)", nOnDisc),
-       "dim"});
-  logB.append(
-      {kit::formatted("  %4d fall in the UNCOVERED band +45..+52", nInGap),
-       "number"});
-  logB.append(
-      {kit::formatted("  %4d are south of DEC -45, off the chart", nTooSouth),
-       "number"});
-  logB.append({"Chang'an is 34.3N, so DEC < -55.7 never rises at all", "dim"});
-
-  logC.append({"THE SCHOOLS, AND WHAT IS NOT ATTESTED", "heading"});
-  logC.append({"S.3326 is the FIRST document to colour the three", "dim"});
-  logC.append({"  schools: Shi shi RED, Gan shi BLACK, Wu Xian WHITE", "dim"});
-  logC.append(
-      {kit::formatted("Tables 4+5 give a colour for 54 asterisms; %d stars",
-                      nSchooled),
-       "dim"});
-  logC.append(
-      {kit::formatted("%d stars have NO published school: drawn undeclared",
-                      nUnattested),
-       "number"});
-  logC.append({"guessing the rest would be inventing the evidence", "dim"});
-  logC.append({"Huagai +6 unaccounted: Chen Zhuo HAS Gang, 9 stars", "number"});
-  logC.append({"  9 != 6, so it is consistent and does not close", "dim"});
-  logC.append({"Sangong: Chen Zhuo files one under WU XIAN (white),", "dim"});
-  logC.append(
-      {"  the map draws BOTH black. printed, not corrected.", "number"});
+  // THE THREE CHECKING RUNS, read out of the document: one append per line,
+  // and the feed's levels are the classes the file names.
+  const std::pair<feed::TextRing*, const char*> runs[3] = {
+      {&logA, "logJoin"}, {&logB, "logEpoch"}, {&logC, "logSchools"}};
+  for (const auto& [ring, key] : runs)
+    for (const Line& l : lines(key)) ring->append({l.words, l.style});
 
   ctx.ticker.add([this, &tick = ctx.ticker] {
     clockT = tick.elapsed();

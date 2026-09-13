@@ -5,16 +5,86 @@
 struct DunhuangStarChart : sketch::Sketch {
   sk_sp<SkTypeface> faceSerif, faceItalic, faceMono, faceDisplay, faceHan;
 
-  /** THE ONE NAMED VOICE: a panel's heading, the display face in the
-   *  chart's gold, tracked; a heading states its own size over it. Bound
-   *  around the description and again around the audit panel, which is
-   *  described into its slot from the clock. */
+  /** THE PLATE'S WHOLE LOOK, AS CLASSES. The running voice is the root's own
+   *  font, so a line that names no class is the plate's note and a class
+   *  states only what differs from it: a colour for the registers that are a
+   *  colour, a size and a colour for the small hands, a face for the Han
+   *  graphs. `heading` is the one named voice — the display face in the
+   *  chart's gold, tracked, over whatever size the heading states. Bound on
+   *  the description and again on the audit panel, which is described into
+   *  its slot from the clock. */
   [[nodiscard]] weave::StyleSheet voices() const {
     weave::StyleSheet classes;
-    classes.set(
-        "heading",
-        {.face = faceDisplay, .color = hexColor(0xc9a35c), .track = 1.0f});
+    classes.set("heading", weave::Type{.face = faceDisplay,
+                                       .color = hexColor(0xc9a35c),
+                                       .track = 1.0f});
+    // THE SIZES FIRST, THE COLOURS AFTER, because a later entry stands over
+    // an earlier one by name: `styleClass("caption dim")` is then the small
+    // hand in the quiet ink, which is what a plate of notes is set in.
+    classes.set("caption",
+                weave::Type{.size = 8.4f, .color = hexColor(0x9a8a68)});
+    classes.set("paper",
+                weave::Type{.size = 8.0f, .color = hexColor(0x4a3b28, 0.9f)});
+    classes.set("tick",
+                weave::Type{.size = 7.4f, .color = hexColor(0x8a7458, 0.6f)});
+    classes.set("ruler",
+                weave::Type{.size = 7.6f, .color = hexColor(0xc9a35c, 0.85f)});
+    classes.set("han", weave::Type{.face = faceHan ? faceHan : faceSerif,
+                                   .size = 11.5f,
+                                   .color = hexColor(0x2a2118, 0.88f)});
+    classes.set("brush", weave::Type{.face = faceHan ? faceHan : faceSerif,
+                                     .size = 12.5f,
+                                     .color = hexColor(0x241d15, 0.92f)});
+    classes.set("mapno", weave::Type{.face = faceDisplay,
+                                     .size = 13.0f,
+                                     .color = hexColor(0x4a3b28, 0.82f)});
+    classes.set("xiu",
+                weave::Type{.size = 7.0f, .color = hexColor(0x5d4c37, 0.75f)});
+    classes.set("note", weave::Type{.color = hexColor(0x9a8a68)});
+    classes.set("dim", weave::Type{.color = hexColor(0x6d6249)});
+    classes.set("chalk", weave::Type{.color = kChalk});
+    classes.set("number", weave::Type{.color = hexColor(0xcf6a4a)});
+    classes.set("flag", weave::Type{.color = hexColor(0xb4531f)});
+    classes.set("pass", weave::Type{.color = hexColor(0x6ba87e)});
+    classes.set("gold", weave::Type{.color = hexColor(0xc9a35c)});
+    classes.set("vermilion", weave::Type{.color = hexColor(0x8a3020, 0.95f)});
+    // THE THREE SCHOOLS ARE CLASSES, so a name and the dot beside it take one
+    // statement: S.3326 is the first document to colour them, and cinnabar,
+    // carbon and oxidised lead white are what it colours them with.
+    classes.set("shishi", weave::Type{.color = kCinnabar});
+    classes.set("ganshi", weave::Type{.color = kInk});
+    classes.set("wuxian", weave::Type{.color = kLead});
+    classes.set("undeclared", weave::Type{.color = kInkFaint});
+    // THE PARTS A CHART DRAWS, in this plate's own inks rather than the
+    // theme's: the pole wheel's rings, its track, its dots and its captions,
+    // the departure curves, and the hand's own residual ruled across them.
+    classes.set("plotRule", weave::Type{.color = hexColor(0x8a7458, 0.30f)});
+    classes.set("plotTrace", weave::Type{.color = kTrace});
+    classes.set("plotMark", weave::Type{.color = kCinnabar});
+    classes.set("plotLabel",
+                weave::Type{.size = 7.4f, .color = hexColor(0x9a8a68)});
+    classes.set("ghost", weave::Type{.color = hexColor(0x8a7458, 0.45f)});
+    classes.set("hand", weave::Type{.color = hexColor(0xa8382a, 0.45f)});
     return classes;
+  }
+
+  // --- the words -----------------------------------------------------------
+
+  /** data/content.json, read once in setup, and the figures this study
+   *  measured, under the names its sentences call them by. */
+  std::shared_ptr<const data::Json> doc;
+  Figures figures;
+
+  [[nodiscard]] std::vector<Line> lines(std::string_view key) const {
+    return run(doc.get(), key, figures);
+  }
+  [[nodiscard]] std::string phrase(std::string_view key) const {
+    return dunhuang_star_chart::phrase(doc.get(), key, figures);
+  }
+  /** THE DOCUMENT'S LINES AS A COLUMN — the shape every note on this plate
+   *  takes, each line in the class the file gave it. */
+  [[nodiscard]] Element noteStack(std::string_view key) const {
+    return box().column().gap(2.4f).children(each(lines(key), lineOf));
   }
 
   // ONE Output writes the plate: the score position in seconds.
@@ -139,6 +209,16 @@ struct DunhuangStarChart : sketch::Sketch {
 
   Element ground();
 
+  /** The equatorial graticule the stars arrive in, fading as the fold runs. */
+  Element graticule();
+
+  /** ONE LEAF FOR 1,460 DOTS. */
+  Element starField();
+
+  /** One of the two scroll segments, each its own clipping window: a map cut
+   *  by the drafting break must be drawn CUT, not skipped. */
+  Element segment(int seg);
+
   /** The scroll band: the mulberry sheet, the Kraft lining showing at the
    *  edges, the roll's contact replication marks, and two rules of UNEQUAL
    *  weight along the top and bottom — a scroll's edges are not a rect. */
@@ -220,6 +300,11 @@ struct DunhuangStarChart : sketch::Sketch {
   feed::TextOptions logStyle();
 
   Element projectionPanel();
+
+  /** ONE AUDITED ROW: the index, the name, the school's dot and the name in
+   *  the school's own ink, the three censuses side by side, the confidence
+   *  index as five cells, and the documented defect where there is one. */
+  Element auditRow(int i);
 
   /** Map 5's twenty asterisms, audited one at a time. Six of them carry a
    *  documented defect and every one is drawn AS FOUND. */

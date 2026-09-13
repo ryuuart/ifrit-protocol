@@ -19,6 +19,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigildata/decode/Json.h>
 #include <sigildata/table/Table.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
@@ -41,6 +42,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -373,6 +375,22 @@ inline int astUnique(const Catalogue& cat, const AstRec& A) {
   return n;
 }
 
+/** THE CLASSES A SCHOOL'S NAME IS SET IN: the Han face and size, and the
+ *  school's own ink over it, because which of the three a name belongs to is
+ *  the DOCUMENT'S business and a class is how a document says it. */
+inline const char* schoolClass(char c) {
+  switch (c) {
+    case 'R':
+      return "han shishi";
+    case 'B':
+      return "han ganshi";
+    case 'W':
+      return "han wuxian";
+    default:
+      return "han undeclared";
+  }
+}
+
 inline SkColor4f schoolInk(char c) {
   switch (c) {
     case 'R':
@@ -408,6 +426,79 @@ struct BonePress {
   float max() const { return w0 * 1.30f; }
   bool operator==(const BonePress&) const = default;
 };
+
+// ---------------------------------------------------------------------------
+// THE WORDS. Every sentence this plate sets stands in data/content.json
+// beside it: the code below is the template — the structure, the classes and
+// the layout — and the file is the content, so an edit to a sentence re-runs
+// setup without a rebuild.
+
+/** ONE LINE OF THE WORDS: the sentence with its figures filled in, and the
+ *  class the document gave it. */
+struct Line {
+  std::string words, style;
+};
+
+/** The figures a sentence may name, under the names the document writes them
+ *  as. Already formatted, because how a number reads is the measurement's
+ *  business and not the layout's. */
+using Figures = std::vector<std::pair<std::string, std::string>>;
+
+/** @p text with every `{name}` replaced by the figure of that name, left
+ *  exactly as written where no figure carries the name. */
+inline std::string filled(std::string_view text, const Figures& figures) {
+  std::string out;
+  out.reserve(text.size());
+  for (size_t i = 0; i < text.size();) {
+    const size_t open = text.find('{', i);
+    const size_t close =
+        open == std::string_view::npos ? open : text.find('}', open);
+    if (close == std::string_view::npos) {
+      out += text.substr(i);
+      break;
+    }
+    out += text.substr(i, open - i);
+    const std::string_view name = text.substr(open + 1, close - open - 1);
+    const auto found =
+        std::find_if(figures.begin(), figures.end(),
+                     [name](const std::pair<std::string, std::string>& f) {
+                       return f.first == name;
+                     });
+    out += found != figures.end() ? std::string_view(found->second)
+                                  : text.substr(open, close - open + 1);
+    i = close + 1;
+  }
+  return out;
+}
+
+/** The run of lines at @p key. A bare string is that sentence in no class of
+ *  its own; a record names its own, which is what a line whose CONTENT
+ *  decides its colour needs. A key the document does not carry answers no
+ *  lines, so a sentence removed from the file removes its line. */
+inline std::vector<Line> run(const data::Json* doc, std::string_view key,
+                             const Figures& figures) {
+  std::vector<Line> out;
+  if (!doc) return out;
+  for (const data::Json& item : (*doc)[key].items())
+    out.push_back(
+        {filled(item.kind() == data::Json::Kind::Text ? item.text()
+                                                      : item["words"].text(),
+                figures),
+         std::string(item["class"].text())});
+  return out;
+}
+
+/** One line of the document set as a leaf, in the class the document gave
+ *  it — an empty class being the running voice the tree already carries. */
+inline Element lineOf(const Line& l) {
+  return text(l.words).styleClass(l.style);
+}
+
+/** The one sentence at @p key, with its figures filled in. */
+inline std::string phrase(const data::Json* doc, std::string_view key,
+                          const Figures& figures) {
+  return doc ? filled((*doc)[key].text(), figures) : std::string();
+}
 
 }  // namespace dunhuang_star_chart
 
