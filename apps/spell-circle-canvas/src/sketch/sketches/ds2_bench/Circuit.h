@@ -9,12 +9,14 @@
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Placers.h>
 #include <sigilcompose/kit/Routers.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigildraw/Draw.h>
 #include <sigilgeometry/kit/Divisions.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
@@ -46,6 +48,7 @@ namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using sigil::draw::Pen;
 using namespace sigil::motion;
 using namespace std::chrono_literals;
 using sigil::material::skia::Effect;
