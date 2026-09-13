@@ -170,9 +170,12 @@ of its own is set in the sheet's own voice; `compose::Element::font({.size
 which `Fill::currentInk()` also reads back; and a padding written as a
 `weave::Length` measures against the type in force. A leaf handed a whole
 `weave::TextStyle` — `compose::text(utf8, style)`, which is what
-`Theme::style` builds and what every component here passes — inherits
+`Theme::style` builds and what most components here pass — inherits
 nothing and is set exactly as it was written, so a sheet drawn before this
-paragraph existed draws the same.
+paragraph existed draws the same. The sheet's own title, subtitle and
+footer and the caption voice are the exception: they are partials,
+`Theme::font(register, colour)`, set over what the page inherits — the
+same picture, stated in the cascade's terms.
 
 **A PLATE IS A WELL WITH TWO MORE FIELDS.** A grounded panel with rounded
 corners and one hairline round it is what a page puts a heading, a rack of
