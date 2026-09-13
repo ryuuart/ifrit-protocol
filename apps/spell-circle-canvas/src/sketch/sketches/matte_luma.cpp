@@ -93,8 +93,8 @@ constexpr SkColor4f kFrame{0.24f, 0.28f, 0.36f, 1};
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look = sketch::kit::houseTheme();
   look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
-  look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
-  look.palette.ash = {0.55f, 0.60f, 0.70f, 1};
+  look.palette.ink = kInk;
+  look.palette.ash = kDim;
   look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
   look.type.title = {.size = 15, .track = 2};
   look.type.subtitle = {.size = 11, .track = 0.6f};
@@ -105,10 +105,6 @@ sketch::kit::Theme sheetTheme() {
   look.spacing.marginTop = 22;
   look.spacing.captionGap = 6;
   return look;
-}
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
 }
 
 /** The "is it there?" backdrop — the stock checker tile, 8 px cells. */
@@ -170,7 +166,9 @@ Element content(float w, float h) {
                                       {1.0f, {0.35f, 0.40f, 0.98f, 1}}}))
       .alignItems(Align::Center)
       .justify(Justify::Center)
-      .child(text(u8"MATTE", label(30, {1, 1, 1, 0.92f})));
+      .child(text(u8"MATTE")
+                 .font({.size = 30, .track = 0})
+                 .ink(SkColor4f{1, 1, 1, 0.92f}));
 }
 
 /** A panel: checkerboard, then the content, then the gate. */
@@ -190,7 +188,9 @@ Element bandLabels(float stripW) {
     row.child(box()
                   .width(stripW / (float)kBands.size())
                   .justify(Justify::Center)
-                  .child(text(toUtf8(band.label), label(10, kDim))));
+                  .child(text(toUtf8(band.label))
+                             .font({.size = 10, .track = 0})
+                             .ink(kDim)));
   return row;
 }
 
@@ -247,17 +247,17 @@ struct MatteLuma final : sketch::Sketch {
         box()
             .column()
             .gap(6)
-            .child(
-                text(toUtf8("Rec. 601 on ENCODED values \xc2\xb7 each colour "
-                            "paired with its 0.299 R + 0.587 G + 0.114 B "
-                            "grey twin"),
-                     label(13, kInk)))
+            .child(text(toUtf8("Rec. 601 on ENCODED values \xc2\xb7 each "
+                               "colour paired with its 0.299 R + 0.587 G + "
+                               "0.114 B grey twin"))
+                       .font({.size = 13, .track = 0}))
             .child(cell(stripW, 64, box().inset(0).fill(bands)))
             .child(bandLabels(stripW))
             .child(text(toUtf8("\xe2\x80\xa6"
                                "the same eight bands as a by::luma "
-                               "matte \xe2\x86\x93 each pair reads the SAME"),
-                        label(11, kDim))
+                               "matte \xe2\x86\x93 each pair reads the SAME"))
+                       .font({.track = 0})
+                       .ink(kDim)
                        .margin(0, 6, 0, 0))
             .child(cell(stripW, 64, std::move(bandMatted)));
 
