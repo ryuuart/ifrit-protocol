@@ -51,7 +51,6 @@
 
 namespace sketch = sigil::sketch;
 namespace motion = sigil::motion;
-namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using sigil::compose::toUtf8;
@@ -95,10 +94,6 @@ sketch::kit::Theme sheetTheme() {
   return look;
 }
 
-weave::TextStyle type(float size, SkColor4f color, float track = 0) {
-  return sketch::kit::theme().sans(size, color, track);
-}
-
 /** A panel: a dark plate with a caption under it, and the view every
  *  child of the plate is seen through. */
 Element panel(SkRect frame, const char* caption) {
@@ -108,7 +103,8 @@ Element panel(SkRect frame, const char* caption) {
       .corners({10})
       .fill(Fill::color(sketch::kit::theme().palette.cellGround))
       .perspective(kViewDistance)
-      .child(text(toUtf8(caption), type(13, kAsh, 2))
+      .child(text(toUtf8(caption))
+                 .font({.size = 13, .color = kAsh, .track = 2})
                  .absolute()
                  .left(18)
                  .bottom(14));
@@ -160,8 +156,9 @@ struct CardFlip final : sketch::Sketch {
           .justify(Justify::SpaceBetween)
           .rotateY(turn)
           .backface(Backface::Hidden)
-          .child(text(toUtf8(title), type(30, kPaper, 1)))
-          .child(text(toUtf8(line), type(14, kPaper, 1)).width(pct(100)));
+          .font({.color = kPaper, .track = 1})
+          .child(text(toUtf8(title)).font({.size = 30}))
+          .child(text(toUtf8(line)).font({.size = 14}).width(pct(100)));
     };
     return box()
         .absolute()
@@ -184,7 +181,7 @@ struct CardFlip final : sketch::Sketch {
           .foreground(stroke(1.0f, Fill::color(kEdge)))
           .alignItems(Align::Center)
           .justify(Justify::Center)
-          .child(text(toUtf8(kFaceNames[i]), type(64, kInk)));
+          .child(text(toUtf8(kFaceNames[i])).font({.size = 64}));
     };
     return box()
         .absolute()
@@ -221,8 +218,8 @@ struct CardFlip final : sketch::Sketch {
         .transformOrigin(0.5f, 1.0f)  // hinged along its bottom edge
         .rotateX(kTilt)
         .rotateY(motion::bind(&sway).source(-1, 1).target(-14, 14))
-        .child(text(toUtf8("TILTED PLATE"), type(18, kInk, 3)))
-        .child(text(toUtf8(passage), type(14, kInk)).width(pct(100)));
+        .child(text(toUtf8("TILTED PLATE")).font({.size = 18, .track = 3}))
+        .child(text(toUtf8(passage)).font({.size = 14}).width(pct(100)));
   }
 
   Element describe() const {
@@ -230,10 +227,15 @@ struct CardFlip final : sketch::Sketch {
     // Not arrange::moduleSize: this measure takes the outer margins out
     // of the width as well, and a module's gaps sit only between.
     constexpr float pw = (kCanvas.fWidth - 4 * gap) / 3;
+    const sketch::kit::Theme& look = sketch::kit::theme();
     return stack()
-        .fill(Fill::color(sketch::kit::theme().palette.ground))
-        .child(text(toUtf8("THE DEPTH LANES \xe2\x80\x94 A NODE IS A PLANE"),
-                    type(14, kAsh, 3))
+        .fill(Fill::color(look.palette.ground))
+        // The sheet's face and ink, inherited by every line: the captions
+        // and the title name their ash, the card its paper.
+        .font({.face = look.type.sans})
+        .ink(look.palette.ink)
+        .child(text(toUtf8("THE DEPTH LANES \xe2\x80\x94 A NODE IS A PLANE"))
+                   .font({.size = 14, .color = kAsh, .track = 3})
                    .absolute()
                    .left(gap)
                    .top(14))
