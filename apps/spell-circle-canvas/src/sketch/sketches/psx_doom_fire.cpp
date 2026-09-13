@@ -139,18 +139,13 @@ sk_sp<SkTypeface> uiFace() {
   return weave::ports::face({"Helvetica Neue"}, SkFontStyle::Normal());
 }
 
-/** The pen's two registers. A pen carries one type and one fill, so a
- *  register is set rather than described: face and size on the type,
- *  colour on the fill, as p5 colours text. */
+/** The pen's register. A pen carries one type and one fill, so a register
+ *  is set rather than described: face and size on the type, colour on the
+ *  fill, as p5 colours text. The header's voice is the retained tree's
+ *  own, stated once on the header. */
 void mono(Pen& pen, float size, SkColor4f c, float track = 0.0f) {
   pen.textFont(weave::Type{.face = monoFace(), .size = size, .track = track});
   pen.fill(c);
-}
-/** The same register as a TextStyle, for the lines that ride in as a
- *  retained tree. */
-weave::TextStyle uiStyle(float size, SkColor4f c, float track = 0.0f) {
-  return weave::textStyle(
-      {.face = uiFace(), .size = size, .color = c, .track = track});
 }
 
 SkColor4f fade(SkColor4f c, float a) { return {c.fR, c.fG, c.fB, c.fA * a}; }
@@ -286,17 +281,21 @@ struct PsxDoomFire final : sketch::Sketch {
     return compose::box()
         .column()
         .gap(5)
-        .child(compose::text(compose::toUtf8("CELLULAR AUTOMATON"),
-                             uiStyle(12, kSteel, 2.6f))
+        // The header's voice: the eyebrow and the provenance line are set
+        // in it and name only their size and tracking; the title names its
+        // own face and colour over it.
+        .font({.face = uiFace(), .color = kSteel})
+        .child(compose::text(compose::toUtf8("CELLULAR AUTOMATON"))
+                   .font({.size = 12, .track = 2.6f})
                    .opacity(motion::animate(motion::from(0.0f).to(1.0f),
                                             {.duration = 260ms}))
                    .translateY(motion::animate(motion::from(8.0f).to(0.0f),
                                                {.duration = 260ms})))
-        .child(compose::text(compose::toUtf8(kTitle),
-                             weave::textStyle({.face = heavyFace(),
-                                               .size = 50,
-                                               .color = kBone,
-                                               .track = -0.6f}))
+        .child(compose::text(compose::toUtf8(kTitle))
+                   .font({.face = heavyFace(),
+                          .size = 50,
+                          .color = kBone,
+                          .track = -0.6f})
                    .key("title")
                    .fx({.effect = compose::fx::rise(24),
                         .stagger = cascade,
@@ -312,8 +311,8 @@ struct PsxDoomFire final : sketch::Sketch {
                     "from the Doom 64 disassembly by Samuel Villarreal, "
                     "documented by Fabien Sanglard "
                     "\xc2\xb7 fabiensanglard.net/doom_fire_psx "
-                    "\xc2\xb7 DoomFirePSX/flames.html"),
-                uiStyle(11.5f, kSteel, 0.2f))
+                    "\xc2\xb7 DoomFirePSX/flames.html"))
+                .font({.size = 11.5f, .track = 0.2f})
                 .opacity(motion::animate(motion::from(0.0f).to(1.0f),
                                          {.duration = 320ms, .delay = 200ms})));
   }
