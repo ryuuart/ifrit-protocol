@@ -131,8 +131,10 @@ struct EvaMagiInterior : sketch::Sketch {
   // EB and the available Mincho fallback do not share a set width. Labels use
   // Helvetica CONDENSED — the frame is the authority on how much.
   // A Latin solve answers a PARTIAL (face, size, condensation): the words take
-  // the ink where they land, and a probe is measured as a whole style. The Han
-  // runs stay whole: a stand-in Mincho below extra-bold strokes its paint.
+  // the ink where they land, and a probe laid out alone is set in it over the
+  // initial values; the metrics probe takes it whole, since metrics() reads a
+  // style rather than a tree. The Han runs stay whole: a stand-in Mincho below
+  // extra-bold strokes its paint.
 
   weave::Type fitCap(const sk_sp<SkTypeface>& tf, float cap,
                      float* slack = nullptr) const {
@@ -153,8 +155,7 @@ struct EvaMagiInterior : sketch::Sketch {
                      float cap, float inkW, float* slack = nullptr) const {
     weave::Type st = fitCap(tf, cap, slack);
     if (fonts && inkW > 1.0f) {
-      const SkSize m =
-          sigil::compose::intrinsicSize(text(s, weave::textStyle(st)), *fonts);
+      const SkSize m = sigil::compose::intrinsicSize(text(s).font(st), *fonts);
       if (m.width() > 1.0f)
         st.condense = std::clamp(inkW / m.width(), 0.40f, 1.8f);
     }
@@ -166,7 +167,7 @@ struct EvaMagiInterior : sketch::Sketch {
     weave::Type st = fitCap(tf, cap);
     if (!fonts) return st;
     const SkSize measured =
-        sigil::compose::intrinsicSize(text(s, weave::textStyle(st)), *fonts);
+        sigil::compose::intrinsicSize(text(s).font(st), *fonts);
     if (measured.width() > maxWidth && measured.width() > 1.0f)
       st.condense = std::min(maxWidth / measured.width(), 1.0f);
     return st;
@@ -376,7 +377,9 @@ struct EvaMagiInterior : sketch::Sketch {
 
   /** The verdict card — 否決 x4, then 可決, then the struck-through 否決 of
    *  "we are 1 sec. ahead". It appears only AFTER the reference moment, so the
-   *  capture at 2.5 s still diffs against the anchor. */
+   *  capture at 2.5 s still diffs against the anchor. The verdict's colour is
+   *  the card's ink: its rim is drawn in it, and the whole-style Han names
+   *  it. */
   Element verdictCard() {
     if (verdictStep < 0) return box().absolute().width(0).height(0);
     const bool carried = verdictStep == 4;
@@ -390,7 +393,8 @@ struct EvaMagiInterior : sketch::Sketch {
             .height(130)
             .shape(shapes::chamfered(22.0f, shapes::Corner::Diagonal))
             .fill(mskia::Paint::solid(hexColor(0x0A0102)))
-            .foreground(decorations::border(4.0f, Fill::color(ink), 3.0f))
+            .ink(ink)
+            .foreground(decorations::border(4.0f, Fill::currentInk(), 3.0f))
             .child(text(carried ? u8"可決" : u8"否決", st)
                        .centerAt({137.5f, 65.0f}));
     if (verdictStep == 5)
