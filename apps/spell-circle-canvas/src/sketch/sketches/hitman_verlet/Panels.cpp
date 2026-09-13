@@ -1,187 +1,141 @@
 #include "HitmanVerlet.h"
 
-auto HitmanVerlet::codeLine(const char* s, SkColor4f c, bool caret) -> Element {
-  auto row = box().row().gap(4).height(12).shrink(0);
-  row.children({t(caret ? "◄" : " ", mono(7.0f, caret ? kRed : kInk))
-                    .width(8)
-                    .shrink(0)});
-  row.children({t(s, mono(9.5f, c, 0.1f))});
-  return row;
+auto HitmanVerlet::codeLine(const sigil::data::Json& listed, SkColor4f c)
+    -> Element {
+  // A MARKED LINE is one the paper prints wrong: the caret and the alarm
+  // colour are the document's own flag, not the panel's.
+  const bool marked = listed["marked"].boolean();
+  return box().row().gap(4).height(12).shrink(0).children(
+      {t(marked ? "\u25c4" : " ", mono(7.0f, marked ? kRed : kInk))
+           .width(8)
+           .shrink(0),
+       t(listed["line"], mono(9.5f, marked ? kRed : c, 0.1f))});
 }
 
 auto HitmanVerlet::panelA1() -> Element {
-  return panel(kPanelAH[0],
-               "A1 · VERLET — NO VELOCITY "
-               "VARIABLE",
-               1)
+  const sigil::data::Json& a1 = doc()["a1"];
+  return panel(kPanelAH[0], a1["heading"].text(), 1)
       .gap(4)
-      .children({t("x' = 2x − x* + a·Δt²      x* "
-                   "= x",
-                   monoB(12.0f, kBone, 0.2f))
-                     .height(16)
-                     .shrink(0),
-                 codeLine("temp    = x[i];", kBlue),
-                 codeLine("x[i]   += DRAG*(x[i]-oldx[i]) + g;", kBlue),
-                 codeLine("oldx[i] = temp;", kBlue), box().grow(1),
-                 t("1.99 IS A VELOCITY DAMP, NOT A POSITION ONE",
-                   ui(7.5f, kRed, 0.5f)),
-                 t("x' = 1.99x − 0.99x* + aΔt²  ==  "
-                   "x + 0.99(x−x*) + aΔt²",
-                   mono(7.5f, kSteel, 0.1f)),
-                 t("AS PRINTED, A PARTICLE AT REST AT x = 500 DRIFTS 5 u/STEP "
-                   "TOWARD THE ORIGIN.",
-                   ui(7.0f, kTick, 0.4f))});
+      .children({t(a1["law"], monoB(12.0f, kBone, 0.2f)).height(16).shrink(0),
+                 each(a1["code"].items(),
+                      [this](const sigil::data::Json& line) {
+                        return codeLine(line, kBlue);
+                      }),
+                 box().grow(1), t(a1["alarm"], ui(7.5f, kRed, 0.5f)),
+                 t(a1["working"], mono(7.5f, kSteel, 0.1f)),
+                 t(a1["note"], ui(7.0f, kTick, 0.4f))});
 }
 
 auto HitmanVerlet::panelA2() -> Element {
-  return panel(kPanelAH[1], "A2 · THE STICK CONSTRAINT, AND A SIGN", 2)
-      .children(
-          {codeLine("delta = x2-x1;", kBlue),
-           codeLine("deltalength = sqrt(delta*delta);", kBlue),
-           codeLine("diff = (deltalength-restlength)/deltalength;", kBlue),
-           codeLine("x1 -= delta*0.5*diff;", kRed, true),
-           codeLine("x2 += delta*0.5*diff;", kRed, true),
-           box().height(2).shrink(0),
-           t("r = 100, |x2−x1| = 120 → diff = 1/6, "
-             "delta·0.5·diff = (10, 0)",
-             mono(7.5f, kSteel, 0.1f)),
-           t("AS PRINTED : x1 = (−10,0)  x2 = (130,0)  "
-             "→ d = 140  DIVERGES",
-             mono(8.0f, kRed, 0.1f)),
-           t("CORRECTED  : x1 = ( 10,0)  x2 = (110,0)  "
-             "→ d = 100  EXACT",
-             mono(8.0f, hexColor(0x4FC79E), 0.1f)),
-           box().height(2).shrink(0),
-           t("FOUR OF THE FIVE STICK LISTINGS CARRY IT: (C2), "
-             "STICK-IN-A-BOX, CLOTH, MASS-WEIGHTED.",
-             ui(7.5f, kSteel, 0.4f)),
-           t("THE FIFTH — THE SQRT APPROXIMATION, THE ONE THAT "
-             "SHIPPED IN HITMAN — IS CORRECT WITH THE SAME TWO "
-             "ASSIGNMENT LINES, BECAUSE ITS FACTOR IS ALREADY NEGATIVE "
-             "UNDER TENSION. THE EXPOSITION FORM WAS MADE BY REMOVING THE "
-             "APPROXIMATION, AND THE SIGN WENT WITH IT.",
-             ui(7.5f, kTick, 0.4f)),
-           box().grow(1),
-           t("THE PAPER'S OWN STICK CODE PUSHES WHEN IT SHOULD PULL.",
-             monoB(9.0f, kRed, 0.2f))});
+  const sigil::data::Json& a2 = doc()["a2"];
+  return panel(kPanelAH[1], a2["heading"].text(), 2)
+      .children({each(a2["code"].items(),
+                      [this](const sigil::data::Json& line) {
+                        return codeLine(line, kBlue);
+                      }),
+                 box().height(2).shrink(0),
+                 t(a2["working"], mono(7.5f, kSteel, 0.1f)),
+                 t(a2["printed"], mono(8.0f, kRed, 0.1f)),
+                 t(a2["corrected"], mono(8.0f, hexColor(0x4FC79E), 0.1f)),
+                 box().height(2).shrink(0),
+                 t(a2["carried"], ui(7.5f, kSteel, 0.4f)),
+                 t(a2["fifth"], ui(7.5f, kTick, 0.4f)), box().grow(1),
+                 t(a2["verdict"], monoB(9.0f, kRed, 0.2f))});
 }
 
 auto HitmanVerlet::panelA3() -> Element {
-  // s_exact(u) = 0.5 - 1/(2u);  s_approx(u) = 0.5 - 1/(1+u^2)
-  auto curve = [](bool approx) {
-    return shapes::parametric(
-        [approx](float u) {
-          const float s =
-              approx ? 0.5f - 1.0f / (1.0f + u * u) : 0.5f - 1.0f / (2.0f * u);
-          const float x = (u - 1.25f) / 0.75f;     // u in [0.5, 2] -> [-1,1]
-          const float y = -(s - (-0.1f)) / 0.45f;  // s in [-0.55,0.35], flipped
-          return SkPoint{x, std::clamp(y, -1.0f, 1.0f)};
-        },
-        0.5f, 2.0f, 240);
-  };
-  auto plotCurve = [&](bool approx, SkColor4f c, float w) {
-    PathFormat f = stroke(w, Fill::color(c));
-    if (!approx) f.dashIntervals = {3.5f, 3.0f};
+  const sigil::data::Json& a3 = doc()["a3"];
+  // WHAT THE TWO AXES MEAN: the ratio u = d/r across, the correction
+  // factor s up. Nothing below turns a value into a pixel.
+  //   s_exact(u) = 0.5 − 1/(2u)      s_approx(u) = 0.5 − 1/(1+u²)
+  const sketch::kit::Plot factor{.x = {.domain = {0.5, 2.0}},
+                                 .y = {.domain = {-0.55, 0.35}}};
+  const sketch::kit::Anchor fromLeft{.across = Align::Start,
+                                     .down = Align::Start};
+  // THE FIVE ITERATION COUNTS, each column growing from its own base out
+  // to its measured error — not a fraction along a rail with its name
+  // over it, which is what a meter is. The percentages ARE the band
+  // scale's ticks, so the numbers under the columns and the columns are
+  // one datum read twice.
+  static constexpr std::array<double, 5> kSoft{60, 80, 90, 95, 97.5};
+  const auto column = [](std::size_t i) {
     return box()
-        .inset(0)
-        .shape(curve(approx))
-        .stroke(spans::upTo(animate(to(1.0f), {.duration = 520ms,
-                                               .ease = ch::easeOutCubic,
-                                               .delay = 1400ms})),
-                f);
+        .fill(Fill::currentInk())
+        .styleClass(i + 1 == kSoft.size() ? "hit" : "")
+        .scaleY(animate(
+            from(0.0f).to(1.0f),
+            {.duration = 220ms, .ease = ease::outBack(), .delay = 1600ms}))
+        .transformOrigin(0.5f, 1.0f);
   };
-  // A COLUMN PER ITERATION COUNT, growing from its own base — not a
-  // fraction along a rail with its name over it, which is what a meter
-  // is. What each column says is a MEASURED error against the four
-  // beside it, and the reading is the run of them.
-  auto bar = [&](int i, const char* label, float h) {
-    return box()
-        .column()
-        .gap(2)
-        .width(52)
-        .shrink(0)
-        .alignItems(Align::Center)
-        .children(
-            {box().grow(1),
-             box()
-                 .width(30)
-                 .height(h)
-                 .fill(i == 4 ? kBlue : hexColor(0x6FA8DC, 0.42f))
-                 .scaleY(animate(from(0.0f).to(1.0f), {.duration = 220ms,
-                                                       .ease = ease::outBack(),
-                                                       .delay = 1600ms}))
-                 .transformOrigin(0.5f, 1.0f),
-             t(label, mono(7.0f, kSteel))});
-  };
-  return panel(kPanelAH[2], "A3 · THE SQUARE-ROOT APPROXIMATION", 3)
-      .children({codeLine("delta *= r*r/(delta*delta+r*r) - 0.5;", kBlue),
-                 codeLine("x1 -= delta;   x2 += delta;", kBlue),
-                 box()
-                     .height(64)
-                     .shrink(0)
-                     .children({box()  // s = 0
-                                    .left(0)
-                                    .top(39.1f)
-                                    .width(324)
-                                    .height(1)
-                                    .fill(hexColor(0x2A2E38))})
-                     .children({box()  // u = 1
-                                    .left(108)
-                                    .top(0)
-                                    .width(1)
-                                    .height(64)
-                                    .fill(hexColor(0x2A2E38))})
-                     .children({plotCurve(false, kSteel, 1.4f)})
-                     .children({plotCurve(true, kBlue, 1.8f)})
-                     .children({t("s_exact", mono(7.0f, kSteel))
-                                    .left(4)
-                                    .top(2)})
-                     .children({t("s_approx", mono(7.0f, kBlue))
-                                    .left(4)
-                                    .top(13)})
-                     .children({t("u = d/r   0.5 → 2.0", mono(7.0f, kTick))
-                                    .left(244)
-                                    .top(52)}),
-                 t("approx/exact:  0.60× at u=0.5 · 0.88 · "
-                   "1.08 · 1.15 · 1.20× at u=2.0",
-                   mono(7.5f, kSteel, 0.1f)),
-                 t("AGREES IN VALUE AND SLOPE AT u = 1. DENOMINATOR "
-                   "d²+r² ≥ r² > 0, SO IT "
-                   "CANNOT DIVIDE BY ZERO: §7's SINGULARITY NOTE "
-                   "APPLIES ONLY TO THE EXACT FORM.",
-                   ui(7.0f, kTick, 0.4f)),
-                 box()
-                     .row()
-                     .gap(2)
-                     .height(38)
-                     .shrink(0)
-                     .staggerChildren(60ms)
-                     .children({bar(0, "60", 12)})
-                     .children({bar(1, "80", 16)})
-                     .children({bar(2, "90", 18)})
-                     .children({bar(3, "95", 19)})
-                     .children({bar(4, "97.5", 19.5f)}),
-                 t("§7 SOFT CONSTRAINTS: HALF THE DEVIATION PER FRAME.",
-                   ui(7.0f, kTick, 0.4f))});
+  return panel(kPanelAH[2], a3["heading"].text(), 3)
+      .styleSheet(plotClasses())
+      .children(
+          {each(a3["code"].items(),
+                [this](const sigil::data::Json& line) {
+                  return codeLine(line, kBlue);
+                }),
+           sketch::kit::plot(
+               "a3-s", factor,
+               {sketch::kit::axis({.at = 0.0, .reach = 0, .numbers = false}),
+                sketch::kit::rules({.x = {1.0}}),
+                sketch::kit::trace(
+                    [](double u) { return 0.5 - 1.0 / (2.0 * u); },
+                    {.width = 1.4f, .styleClass = "exact"}),
+                sketch::kit::trace(
+                    [](double u) { return 0.5 - 1.0 / (1.0 + u * u); },
+                    {.width = 1.8f, .styleClass = "approx"}),
+                sketch::kit::label("s_exact", 0.52, 0.33,
+                                   {.anchor = fromLeft, .styleClass = "exact"}),
+                sketch::kit::label(
+                    "s_approx", 0.52, 0.17,
+                    {.anchor = fromLeft, .styleClass = "approx"}),
+                sketch::kit::label(
+                    "u = d/r   0.5 → 2.0", 2.0, -0.53,
+                    {.anchor = {.across = Align::End, .down = Align::End},
+                     .styleClass = "plotTick"})})
+               .height(64)
+               .shrink(0),
+           t(a3["ratios"], mono(7.5f, kSteel, 0.1f)),
+           t(a3["note"], ui(7.0f, kTick, 0.4f)),
+           sketch::kit::plot(
+               "a3-soft",
+               {.x = {.transform = sigil::data::Transform::Band,
+                      .steps = (int)kSoft.size(),
+                      .padding = 0.42},
+                .y = {.domain = {0, 20}},
+                // The room the numbers under the columns stand in.
+                .pad = 12},
+               {[&column](const sketch::kit::Plot& f, std::string_view key,
+                          std::size_t i) {
+                  return sketch::kit::bands(
+                             kSoft, {.y = [](double v) { return v * 0.2; },
+                                     .part = column})(f, key, i)
+                      .staggerChildren(60ms);
+                },
+                sketch::kit::axis({.line = false,
+                                   .reach = 0,
+                                   .tickLine =
+                                       [](double v) {
+                                         return sketch::kit::tickLabel(
+                                             kit::formatted(
+                                                 "%g", kSoft[(std::size_t)v]));
+                                       }})})
+               .height(44)
+               .shrink(0),
+           t(a3["soft"], ui(7.0f, kTick, 0.4f))});
 }
 
 auto HitmanVerlet::panelB1() -> Element {
-  return panel(kPanelBH[0], "B1 · FIGURE 9: THE ANATOMY", 4)
+  const sigil::data::Json& b1 = doc()["b1"];
+  // The hole: the anatomy is drawn into this panel by the pen, so the
+  // panel keeps the room for it and says nothing about what stands there.
+  return panel(kPanelBH[0], b1["heading"].text(), 4)
       .gap(4)
-      .children(
-          {box().height(118).shrink(0),
-           t("16 PARTICLES · 24 STICKS · 1 INEQUALITY "
-             "(KNEES, §6)",
-             monoB(8.5f, kBone, 0.1f)),
-           t("16×2 − 24 = 8 PLANAR DOF   "
-             "(16×3 − 24 = 24 IN THE PAPER'S 3D)",
-             mono(8.0f, kSteel, 0.1f)),
-           t("COMPARE §5's TETRAHEDRON: 4×3 − 6 = 6", mono(8.0f, kSteel, 0.1f)),
-           t("RE-COUNTED AT 600 dpi: THRESHOLD, ERODE BY A DISC r = 8 px "
-             "— EVERY STICK AND EVERY BODY-TEXT STEM DIES AND "
-             "EXACTLY 16 COMPONENTS OF 620–657 px SURVIVE. "
-             "THE PAPER PUBLISHES NO COUNT.",
-             ui(7.0f, kTick, 0.4f))});
+      .children({box().height(118).shrink(0),
+                 t(b1["count"], monoB(8.5f, kBone, 0.1f)),
+                 t(b1["dof"], mono(8.0f, kSteel, 0.1f)),
+                 t(b1["compare"], mono(8.0f, kSteel, 0.1f)),
+                 t(b1["note"], ui(7.0f, kTick, 0.4f))});
 }
 
 auto HitmanVerlet::paintAnatomy(Pen& pen, float x0, float y0, float w) -> void {
@@ -222,20 +176,11 @@ auto HitmanVerlet::paintAnatomy(Pen& pen, float x0, float y0, float w) -> void {
 }
 
 auto HitmanVerlet::panelB2() -> Element {
-  return panel(kPanelBH[1],
-               "B2 · RELAXATION: 1 · 4 · "
-               "10",
-               5)
+  const sigil::data::Json& b2 = doc()["b2"];
+  return panel(kPanelBH[1], b2["heading"].text(), 5)
       .gap(4)
-      .children(
-          {box().height(156).shrink(0),
-           box().height(34).shrink(0),
-           t("\"ITERATIONS USED IN HITMAN VARY BETWEEN 1 AND 10 WITH THE "
-             "KIND OF OBJECT SIMULATED.\" — §7. "
-             "ORDER MATTERS AS MUCH AS COUNT: LISTED FROM THE PIN A CHAIN "
-             "CONVERGES IN ONE SWEEP AND ALL THREE ARE IDENTICAL. THESE "
-             "ARE LISTED FROM THE FREE END.",
-             ui(7.0f, kTick, 0.4f))});
+      .children({box().height(156).shrink(0), box().height(34).shrink(0),
+                 t(b2["note"], ui(7.0f, kTick, 0.4f))});
 }
 
 auto HitmanVerlet::paintChains(Pen& pen, float x0, float y0) -> void {
@@ -291,39 +236,25 @@ auto HitmanVerlet::paintChains(Pen& pen, float x0, float y0) -> void {
 }
 
 auto HitmanVerlet::panelB3() -> Element {
-  auto restRow = [&](const char* name, const char* val, bool anchor) {
-    return box()
-        .row()
-        .height(11)
-        .shrink(0)
-        .children({t(name, mono(8.0f, anchor ? kBlue : kSteel, 0.1f)).grow(1),
-                   t(val, anchor ? monoB(8.0f, kBlue, 0.1f)
-                                 : mono(8.0f, kBone, 0.1f))});
+  // ONE ROW PER MEASURED REST LENGTH: the name at the left, the figure at
+  // the right, and the anchor the whole figure is scaled from in its own
+  // colour because the document says which one it is.
+  const auto restRow = [](const sigil::data::Json& rest) {
+    const bool anchor = rest["anchor"].boolean();
+    return box().row().height(11).shrink(0).children(
+        {t(rest["name"], mono(8.0f, anchor ? kBlue : kSteel, 0.1f)).grow(1),
+         t(rest["value"],
+           anchor ? monoB(8.0f, kBlue, 0.1f) : mono(8.0f, kBone, 0.1f))});
   };
-  return panel(kPanelBH[2], "B3 · REST LENGTHS & PRODUCTION", 6)
+  const sigil::data::Json& b3 = doc()["b3"];
+  return panel(kPanelBH[2], b3["heading"].text(), 6)
       .gap(3)
       .children(
-          {restRow("head – neck", "56.0", false),
-           restRow("shoulder bar", "168.0", false),
-           restRow("neck – waist (brace)", "176.0", false),
-           restRow("hip bar", "140.0", false),
-           restRow("hip – knee  (THE ANCHOR)", "100.0", true),
-           restRow("knee – foot", "98.0", false),
-           t("restlength = 100 ON THE THIGH FIXES THE FIGURE AT 486.2 "
-             "UNITS — 48.6% OF THE PAPER'S OWN CUBE. THIGH "
-             "100.0 / SHANK 98.0 IS 1.91% APART, SO THE DRILLIS & CONTINI "
-             "CROSS-CHECK IS DROPPED: NO PRIMARY SCAN, AND THE DIAGRAM "
-             "WOULD HAVE FAILED IT.",
-             ui(7.0f, kTick, 0.4f)),
-           box().height(4).shrink(0),
-           t("IO INTERACTIVE / EIDOS · 19 NOV 2000 · GLACIER "
-             "· DirectX 7.0a · GDC 2001, SAN JOSE",
-             ui(7.0f, kSteel, 0.3f)),
-           t("\"THE PRESS OXYMORON: LIFELIKE DEATH ANIMATIONS\"",
-             ui(7.0f, kSteel, 0.3f)),
-           t("HITMAN.INI: \"enableconsole 1\" + \"consolecmd ip_debug 1\" "
-             "— SHIFT+F9 BOMBS AN NPC, K = FREE CAM",
-             ui(7.0f, kSteel, 0.3f))});
+          {each(b3["rests"].items(), restRow),
+           t(b3["note"], ui(7.0f, kTick, 0.4f)), box().height(4).shrink(0),
+           each(b3["production"].items(), [](const sigil::data::Json& line) {
+             return t(line, ui(7.0f, kSteel, 0.3f));
+           })});
 }
 
 auto HitmanVerlet::header() -> Element {
@@ -332,31 +263,20 @@ auto HitmanVerlet::header() -> Element {
              .progress = animate(from(0.0f).to(1.0f), {.duration = 1100ms,
                                                        .ease = ch::easeOutQuad,
                                                        .delay = 120ms})};
-  return box()
-      .column()
-      .height(kHeaderH)
-      .shrink(0)
-      .gap(3)
-      .children(
-          {t("STATE AND CONTACT", ui(10.0f, kSteel, 2.6f))
-               .opacity(animate(from(0.0f).to(1.0f), {.duration = 260ms}))
-               .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms})),
-           t("THE HITMAN RAGDOLL, 2000", faced(heavyFace(), 42, kBone, -0.3f))
-               .key("title")
-               .fx(std::move(rise)),
-           t("Thomas Jakobsen, IO Interactive — \"Advanced "
-             "Character Physics\", GDC 2001 · shipped in Hitman: "
-             "Codename 47 (Eidos, 19 Nov 2000, Glacier engine, DirectX "
-             "7.0a) · every stick coloured by its LIVE constraint "
-             "error",
-             ui(10.5f, kSteel, 0.1f))
-               .opacity(animate(from(0.0f).to(1.0f),
-                                {.duration = 240ms, .delay = 400ms})),
-           box().grow(1),
-           box()
-               .height(1)
-               .shrink(0)
-               .fill(kKeyline)
-               .opacity(animate(from(0.0f).to(1.0f),
-                                {.duration = 400ms, .delay = 320ms}))});
+  const sigil::data::Json& head = doc()["header"];
+  return box().column().height(kHeaderH).shrink(0).gap(3).children(
+      {t(head["eyebrow"], ui(10.0f, kSteel, 2.6f))
+           .opacity(animate(from(0.0f).to(1.0f), {.duration = 260ms}))
+           .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms})),
+       t(head["title"], faced(heavyFace(), 42, kBone, -0.3f))
+           .key("title")
+           .fx(std::move(rise)),
+       t(head["credit"], ui(10.5f, kSteel, 0.1f))
+           .opacity(animate(from(0.0f).to(1.0f),
+                            {.duration = 240ms, .delay = 400ms})),
+       box().grow(1),
+       kit::line({.fill = Fill::color(kKeyline)})
+           .shrink(0)
+           .opacity(animate(from(0.0f).to(1.0f),
+                            {.duration = 400ms, .delay = 320ms}))});
 }

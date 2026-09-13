@@ -1,0 +1,73 @@
+{
+  "header": {
+    "eyebrow": "STATE AND CONTACT",
+    "title": "THE HITMAN RAGDOLL, 2000",
+    "credit": "Thomas Jakobsen, IO Interactive — \"Advanced Character Physics\", GDC 2001 · shipped in Hitman: Codename 47 (Eidos, 19 Nov 2000, Glacier engine, DirectX 7.0a) · every stick coloured by its LIVE constraint error"
+  },
+  "a1": {
+    "heading": "A1 · VERLET — NO VELOCITY VARIABLE",
+    "law": "x' = 2x − x* + a·Δt²      x* = x",
+    "code": [
+      {"line": "temp    = x[i];"},
+      {"line": "x[i]   += DRAG*(x[i]-oldx[i]) + g;"},
+      {"line": "oldx[i] = temp;"}
+    ],
+    "alarm": "1.99 IS A VELOCITY DAMP, NOT A POSITION ONE",
+    "working": "x' = 1.99x − 0.99x* + aΔt²  ==  x + 0.99(x−x*) + aΔt²",
+    "note": "AS PRINTED, A PARTICLE AT REST AT x = 500 DRIFTS 5 u/STEP TOWARD THE ORIGIN."
+  },
+  "a2": {
+    "heading": "A2 · THE STICK CONSTRAINT, AND A SIGN",
+    "code": [
+      {"line": "delta = x2-x1;"},
+      {"line": "deltalength = sqrt(delta*delta);"},
+      {"line": "diff = (deltalength-restlength)/deltalength;"},
+      {"line": "x1 -= delta*0.5*diff;", "marked": true},
+      {"line": "x2 += delta*0.5*diff;", "marked": true}
+    ],
+    "working": "r = 100, |x2−x1| = 120 → diff = 1/6, delta·0.5·diff = (10, 0)",
+    "printed": "AS PRINTED : x1 = (−10,0)  x2 = (130,0)  → d = 140  DIVERGES",
+    "corrected": "CORRECTED  : x1 = ( 10,0)  x2 = (110,0)  → d = 100  EXACT",
+    "carried": "FOUR OF THE FIVE STICK LISTINGS CARRY IT: (C2), STICK-IN-A-BOX, CLOTH, MASS-WEIGHTED.",
+    "fifth": "THE FIFTH — THE SQRT APPROXIMATION, THE ONE THAT SHIPPED IN HITMAN — IS CORRECT WITH THE SAME TWO ASSIGNMENT LINES, BECAUSE ITS FACTOR IS ALREADY NEGATIVE UNDER TENSION. THE EXPOSITION FORM WAS MADE BY REMOVING THE APPROXIMATION, AND THE SIGN WENT WITH IT.",
+    "verdict": "THE PAPER'S OWN STICK CODE PUSHES WHEN IT SHOULD PULL."
+  },
+  "a3": {
+    "heading": "A3 · THE SQUARE-ROOT APPROXIMATION",
+    "code": [
+      {"line": "delta *= r*r/(delta*delta+r*r) - 0.5;"},
+      {"line": "x1 -= delta;   x2 += delta;"}
+    ],
+    "ratios": "approx/exact:  0.60× at u=0.5 · 0.88 · 1.08 · 1.15 · 1.20× at u=2.0",
+    "note": "AGREES IN VALUE AND SLOPE AT u = 1. DENOMINATOR d²+r² ≥ r² > 0, SO IT CANNOT DIVIDE BY ZERO: §7's SINGULARITY NOTE APPLIES ONLY TO THE EXACT FORM.",
+    "soft": "§7 SOFT CONSTRAINTS: HALF THE DEVIATION PER FRAME."
+  },
+  "b1": {
+    "heading": "B1 · FIGURE 9: THE ANATOMY",
+    "count": "16 PARTICLES · 24 STICKS · 1 INEQUALITY (KNEES, §6)",
+    "dof": "16×2 − 24 = 8 PLANAR DOF   (16×3 − 24 = 24 IN THE PAPER'S 3D)",
+    "compare": "COMPARE §5's TETRAHEDRON: 4×3 − 6 = 6",
+    "note": "RE-COUNTED AT 600 dpi: THRESHOLD, ERODE BY A DISC r = 8 px — EVERY STICK AND EVERY BODY-TEXT STEM DIES AND EXACTLY 16 COMPONENTS OF 620–657 px SURVIVE. THE PAPER PUBLISHES NO COUNT."
+  },
+  "b2": {
+    "heading": "B2 · RELAXATION: 1 · 4 · 10",
+    "note": "\"ITERATIONS USED IN HITMAN VARY BETWEEN 1 AND 10 WITH THE KIND OF OBJECT SIMULATED.\" — §7. ORDER MATTERS AS MUCH AS COUNT: LISTED FROM THE PIN A CHAIN CONVERGES IN ONE SWEEP AND ALL THREE ARE IDENTICAL. THESE ARE LISTED FROM THE FREE END."
+  },
+  "b3": {
+    "heading": "B3 · REST LENGTHS & PRODUCTION",
+    "rests": [
+      {"name": "head – neck", "value": "56.0"},
+      {"name": "shoulder bar", "value": "168.0"},
+      {"name": "neck – waist (brace)", "value": "176.0"},
+      {"name": "hip bar", "value": "140.0"},
+      {"name": "hip – knee  (THE ANCHOR)", "value": "100.0", "anchor": true},
+      {"name": "knee – foot", "value": "98.0"}
+    ],
+    "note": "restlength = 100 ON THE THIGH FIXES THE FIGURE AT 486.2 UNITS — 48.6% OF THE PAPER'S OWN CUBE. THIGH 100.0 / SHANK 98.0 IS 1.91% APART, SO THE DRILLIS & CONTINI CROSS-CHECK IS DROPPED: NO PRIMARY SCAN, AND THE DIAGRAM WOULD HAVE FAILED IT.",
+    "production": [
+      "IO INTERACTIVE / EIDOS · 19 NOV 2000 · GLACIER · DirectX 7.0a · GDC 2001, SAN JOSE",
+      "\"THE PRESS OXYMORON: LIFELIKE DEATH ANIMATIONS\"",
+      "HITMAN.INI: \"enableconsole 1\" + \"consolecmd ip_debug 1\" — SHIFT+F9 BOMBS AN NPC, K = FREE CAM"
+    ]
+  }
+}

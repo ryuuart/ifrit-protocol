@@ -3,6 +3,18 @@
 #include "Settings.h"
 
 struct HitmanVerlet final : sketch::Sketch {
+  /** EVERY WORD THE SIX PANELS SET — the headings, the listed code, the
+   *  workings, the verdicts and the measured rest lengths — from
+   *  `data/content.json` beside this file. EDIT THAT FILE to change what
+   *  the study says: the code is the template, and a reload re-runs setup
+   *  without a build. A line the document MARKS is one the paper prints
+   *  wrong, and the panel draws it with the caret in the alarm colour. */
+  std::shared_ptr<const sigil::data::Json> content;
+  const sigil::data::Json& doc() const {
+    static const sigil::data::Json none;
+    return content ? *content : none;
+  }
+
   // -------------------------------------------------------------------------
   // §4 — the mechanism
 
@@ -287,7 +299,10 @@ struct HitmanVerlet final : sketch::Sketch {
   // Sidebar — the six panels. Three of them are laid out with a HOLE the
   // pen draws into afterwards.
 
-  Element codeLine(const char* s, SkColor4f c, bool caret = false);
+  /** ONE LISTED LINE out of the document — its words in @p c, and the
+   *  caret and the alarm colour where the document marks it as a line the
+   *  paper prints wrong. */
+  Element codeLine(const sigil::data::Json& listed, SkColor4f c);
 
   Element panelA1();
 

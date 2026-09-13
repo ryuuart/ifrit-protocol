@@ -180,11 +180,8 @@ auto HitmanVerlet::simulation(Pen& pen) -> void {
 }
 
 auto HitmanVerlet::stageOverlay() -> Element {
-  return stack()
-      .width(kStage)
-      .height(kStage)
-      .children({box().inset(0).children(
-          {instancing::instances(dotAtlas, dotPool, instancing::Mode::Live)})});
+  return stack().width(kStage).height(kStage).children({box().inset(0).children(
+      {instancing::instances(dotAtlas, dotPool, instancing::Mode::Live)})});
 }
 
 auto HitmanVerlet::blastGlow(Pen& pen) -> void {

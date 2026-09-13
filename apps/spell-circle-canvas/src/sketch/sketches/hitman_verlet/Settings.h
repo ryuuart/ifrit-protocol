@@ -11,6 +11,7 @@
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigildata/decode/Json.h>
 #include <sigildraw/Draw.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/field/Field.h>
@@ -19,6 +20,7 @@
 #include <sigilmotion/physics/Constraints.h>
 #include <sigilmotion/physics/Points.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Chart.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -26,10 +28,12 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <concepts>
 #include <cstdint>
 #include <cstdio>
 #include <limits>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "../genesis_fire/Instrument.h"
@@ -199,10 +203,37 @@ inline float cue(double ms, float delayMs, float durationMs,
   return ease ? ease(u) : u;
 }
 
+/** ONE LINE OF THE DOCUMENT BESIDE THE SKETCH, set in @p style — the
+ *  twin of `instrument::t` for a word this study READS rather than
+ *  states. A key the document does not carry sets an empty line. */
+template <class Word>
+  requires std::same_as<std::remove_cvref_t<Word>, sigil::data::Json>
+inline Element t(const Word& word, sigil::weave::TextStyle style) {
+  return sigil::compose::text(word.text(), std::move(style));
+}
+
+/** WHAT A PLOT ON THIS SHEET LOOKS LIKE. The chart kit names the part —
+ *  the axis, the rules, a curve, a tick, a word, a band — and this says
+ *  what each is drawn in, so a series is named at the layer and coloured
+ *  here. `exact` and `approx` are the two curves of A3, and `hit` is the
+ *  one column of its five that the shipped code lands on. */
+inline weave::StyleSheet plotClasses() {
+  weave::StyleSheet look;
+  look.set("plotAxis", {.color = hexColor(0x2A2E38)});
+  look.set("plotRule", {.color = hexColor(0x2A2E38)});
+  look.set("plotTick", {.face = monoFace(), .size = 7.0f, .color = kTick});
+  look.set("plotLabel", {.face = monoFace(), .size = 7.0f, .color = kSteel});
+  look.set("plotBar", {.color = hexColor(0x6FA8DC, 0.42f)});
+  look.set("exact", {.face = monoFace(), .size = 7.0f, .color = kSteel});
+  look.set("approx", {.face = monoFace(), .size = 7.0f, .color = kBlue});
+  look.set("hit", {.color = kBlue});
+  return look;
+}
+
 /** A sidebar panel shell. Each panel is its own guest at its own box, so
  *  each carries its own entrance delay rather than taking a stagger from
  *  a column above it. */
-inline Element panel(float height, const char* heading, int order) {
+inline Element panel(float height, std::string_view heading, int order) {
   const auto delay = std::chrono::milliseconds(85 * order);
   return box()
       .column()
@@ -220,8 +251,7 @@ inline Element panel(float height, const char* heading, int order) {
       .translateX(
           animate(from(14.0f).to(0.0f), {.duration = 300ms, .delay = delay}))
       .key(std::string("panel") + std::to_string(order))
-      .children(
-          {t(heading, ui(9.5f, kSteel, 1.9f)).height(12).shrink(0)});
+      .children({t(heading, ui(9.5f, kSteel, 1.9f)).height(12).shrink(0)});
 }
 
 }  // namespace hitman_verlet

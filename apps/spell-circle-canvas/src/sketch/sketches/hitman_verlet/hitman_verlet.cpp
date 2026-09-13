@@ -14,6 +14,8 @@ auto HitmanVerlet::setup(sketch::SketchContext& ctx) -> void {
   // floor, which is the one still a physics study must not ship.
   ctx.captureAt(3.35);
 
+  content = ctx.assets.json(ctx.local("data/content.json"));
+
   loopT = 0;
   simSteps = 0;
   didHit = didBomb = dragging = false;
