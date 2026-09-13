@@ -107,19 +107,23 @@ constexpr float kSlotsY = 556;
 constexpr float kSlotsW = kSlotCount * kSlotFrame + (kSlotCount - 1) * kSlotGap;
 constexpr float kSlotsX = (kW - kSlotsW) * 0.5f;
 
-inline sigil::weave::TextStyle type(float size, SkColor4f color,
-                                    float tracking = 0, float weight = 0) {
-  sigil::weave::TextStyle s = sigil::weave::textStyle(
-      {.size = size, .color = color, .track = tracking, .weight = weight});
-  // Veloren draws every HUD string twice: black underneath, then the
-  // colour on top. At 10px over terrain that is the whole legibility
-  // budget, so it is not optional.
-  sigil::weave::PaintLayer shade;
-  shade.paint.setColor4f({0, 0, 0, 0.9f}, nullptr);
-  shade.paint.setAntiAlias(true);
-  shade.offset = {1, 1};
-  s.paint.addUnderlay(shade);
-  return s;
+/** Veloren draws every HUD string twice: black underneath, then the
+ *  colour on top. At 10px over terrain that is the whole legibility
+ *  budget, so it is not optional — the HUD's root sets it once and every
+ *  line inherits it. */
+inline sigil::weave::PaintLayer shade() {
+  sigil::weave::PaintLayer layer;
+  layer.paint.setColor4f({0, 0, 0, 0.9f}, nullptr);
+  layer.paint.setAntiAlias(true);
+  layer.offset = {1, 1};
+  return layer;
+}
+
+/** A line's own fields over the HUD's voice: its size, tracking and
+ *  weight; its colour is the ink unless it names one. */
+inline sigil::weave::Type line(float size, float tracking = 0,
+                               float weight = 0) {
+  return {.size = size, .track = tracking, .weight = weight};
 }
 
 /** A sunk track: the black slot a bar's content sits in. */
