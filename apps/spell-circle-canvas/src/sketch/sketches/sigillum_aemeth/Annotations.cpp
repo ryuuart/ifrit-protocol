@@ -132,7 +132,7 @@ auto SigillumAemeth::nameRows() -> Element {
 }
 
 auto SigillumAemeth::basketFan() -> Element {
-  const float w = 690, h = 300;
+  const float w = 690, h = 260;
   // the fan's hub stands BELOW its own box: seven nested arcs opening upward,
   // one per row of the angles, so a column is a ray and reading down is
   // reading outward
@@ -268,7 +268,7 @@ auto SigillumAemeth::margin() -> Element {
       .scale(kS)
       .transformOrigin(0.0f, 0.0f)
       .column()
-      .gap(20)
+      .gap(10)
       .font({.face = faceMono, .size = 15})
       .ink(hexColor(0x8d7a58))
       .styleSheet(voices())

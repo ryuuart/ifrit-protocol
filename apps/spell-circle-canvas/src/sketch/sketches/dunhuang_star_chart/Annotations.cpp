@@ -335,14 +335,14 @@ auto DunhuangStarChart::projectionPanel() -> Element {
       .at({96, 1046})
       .width(700)
       .column()
-      .gap(12)
+      .gap(8)
       .key("proj")
       .opacity(gate(tProj, tProj + 0.9f))
       .children({text(phrase("projectionTitle"))
                      .styleClass("heading")
                      .font({.size = 13.0f, .track = 1.1f}),
                  box().row().gap(46).children(each(curves, field)),
-                 noteStack("projection").font({.size = 9.6f})});
+                 noteStack("projection").gap(1.5f).font({.size = 9.6f})});
 }
 
 auto DunhuangStarChart::auditRow(int i) -> Element {
@@ -423,7 +423,7 @@ auto DunhuangStarChart::map13Panel() -> Element {
   // THE DISC'S OWN ERRATA. Table 5 is 34 asterisms and 142 stars — and its
   // n(map) column sums to 141. Everything here is quoted, nothing resolved.
   return box()
-      .at({96, 1362})
+      .at({96, 1368})
       .width(700)
       .column()
       .gap(6)
@@ -432,7 +432,7 @@ auto DunhuangStarChart::map13Panel() -> Element {
       .children({text(phrase("map13Title"))
                      .styleClass("heading")
                      .font({.size = 12.0f}),
-                 noteStack("map13").font({.size = 9.2f})});
+                 noteStack("map13").gap(1.5f).font({.size = 9.2f})});
 }
 
 auto DunhuangStarChart::consolePanel() -> Element {
