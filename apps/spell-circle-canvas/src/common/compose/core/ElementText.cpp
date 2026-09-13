@@ -64,9 +64,9 @@ Element& Element::textStroke(float width, Fill fill) {
   return *this;
 }
 
-Element& Element::ellipsis(std::u8string_view marker) {
+Element& Element::ellipsis(Utf8 marker) {
   detail::TextOptions& options = m_node->textData.ensure().options;
-  options.ellipsis = weave::unicode::toUtf16(marker);
+  options.ellipsis = weave::unicode::toUtf16(marker.bytes());
   options.set |= detail::TextOptions::kEllipsis;
   return *this;
 }

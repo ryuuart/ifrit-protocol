@@ -37,7 +37,7 @@ namespace sigil::compose::kit {
 /** The leaf a table's head cell defaults to: @p text in the class
  *  `section`, the register a name INSIDE the content is set in. */
 [[nodiscard]] inline Element section(const Utf8& text) {
-  return compose::text(text.bytes()).styleClass("section");
+  return compose::text(text).styleClass("section");
 }
 
 // ---------------------------------------------------------------------------

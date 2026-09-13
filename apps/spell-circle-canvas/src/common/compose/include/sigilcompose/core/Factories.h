@@ -35,11 +35,6 @@ class Story;
 
 namespace sigil::compose {
 
-/** UTF-8 std::string → std::u8string for text() call sites. */
-inline std::u8string toUtf8(std::string_view s) {
-  return std::u8string(s.begin(), s.end());
-}
-
 // ---- factories -----------------------------------------------------------
 
 Element box();
@@ -97,14 +92,10 @@ template <std::ranges::input_range R, class Fn>
  *  or after it is adopted, wherever the code that built it ran, it takes
  *  the style of the node it ends up under, which is what a dark panel
  *  needs to recolour content handed to it already made. */
-Element text(std::u8string utf8);
-/** The same leaf from UTF-8 held as `char` — a literal, a `std::string`,
- *  a view — so text that arrives as a plain string is not respelled. */
-Element text(std::string_view utf8);
+Element text(Utf8 utf8);
 /** A text leaf set in @p style ALONE. A `TextStyle` is total, so the leaf
  *  inherits nothing: whatever its ancestors set, it draws exactly this. */
-Element text(std::u8string utf8, sigil::weave::TextStyle style);
-Element text(std::string_view utf8, sigil::weave::TextStyle style);
+Element text(Utf8 utf8, sigil::weave::TextStyle style);
 /** Mixed-style text as a COMPARABLE VALUE — see weave::RichText. A re-described
  *  identical value prunes, which is the whole difference between this and
  *  the pointer overload below. */

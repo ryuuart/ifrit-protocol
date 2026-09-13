@@ -42,7 +42,7 @@ TEST(ComposeFeed, AnAppendCostsOneMountAndNeverRerecordsTheRowsAboveIt) {
   // append and re-patch the whole window.
   feed::TextRing ring;
   for (int i = 0; i < 30; ++i)
-    ring.append({toUtf8("boot sequence line " + std::to_string(i))});
+    ring.append({"boot sequence line " + std::to_string(i)});
   const feed::TextOptions options = feedOptions(10);
   Host host(200, 400);
   auto describe = [&] {
@@ -51,7 +51,7 @@ TEST(ComposeFeed, AnAppendCostsOneMountAndNeverRerecordsTheRowsAboveIt) {
   host.composer.render(describe());
   host.frame();  // records the visible window
 
-  ring.append({toUtf8("intrusion detected")});
+  ring.append({u8"intrusion detected"});
   host.composer.render(describe());
   EXPECT_EQ(host.composer.stats().patchedNodes, 1u);  // the new tail only
   host.frame();
@@ -67,7 +67,7 @@ TEST(ComposeFeed, AnAppendCostsOneMountAndNeverRerecordsTheRowsAboveIt) {
   // The price is CONSTANT, which is the whole claim: a second append costs
   // exactly what the first did, and the retained tree does not grow.
   const size_t liveAfterFirst = host.composer.stats().instances;
-  ring.append({toUtf8("second intrusion")});
+  ring.append({u8"second intrusion"});
   host.composer.render(describe());
   EXPECT_EQ(host.composer.stats().patchedNodes, 1u);
   host.frame();
@@ -83,7 +83,7 @@ TEST(ComposeFeed, ASurvivingRowKeepsItsInstanceRatherThanReentering) {
   // was silently remounted by an append would flash back to nothing. Every
   // row here is fully lit before the append, and must still be after it.
   feed::TextRing ring;
-  for (int i = 0; i < 4; ++i) ring.append({toUtf8("row")});
+  for (int i = 0; i < 4; ++i) ring.append({u8"row"});
   const feed::TextOptions options = feedOptions(6, 16.0f);
   auto lit = [&](const feed::TextRow& row) {
     return feed::textRow(row, options.styles)
@@ -104,7 +104,7 @@ TEST(ComposeFeed, ASurvivingRowKeepsItsInstanceRatherThanReentering) {
     EXPECT_GT(brightestIn(host, *band), 150) << "row " << sequence;
   }
 
-  ring.append({toUtf8("tail")});
+  ring.append({u8"tail"});
   host.composer.render(describe());
   host.frame(0.016);
   for (uint64_t sequence = 1; sequence <= 4; ++sequence) {
@@ -126,7 +126,7 @@ TEST(ComposeFeed, TheWindowNeverMountsTheRowsOutsideIt) {
   // and no layout cost, and a ring that keeps growing does not.
   feed::TextRing ring{600};
   for (int i = 0; i < 300; ++i)
-    ring.append({toUtf8("line " + std::to_string(i))});
+    ring.append({"line " + std::to_string(i)});
   const feed::TextOptions options = feedOptions(8);
   Host host(200, 200);
   host.composer.render(box().children({feed::feed(ring, options)}));
@@ -141,7 +141,7 @@ TEST(ComposeFeed, TheWindowNeverMountsTheRowsOutsideIt) {
 
   const size_t live = host.composer.stats().instances;
   for (int i = 0; i < 200; ++i)
-    ring.append({toUtf8("more " + std::to_string(i))});
+    ring.append({"more " + std::to_string(i)});
   host.composer.render(box().children({feed::feed(ring, options)}));
   host.frame();
   EXPECT_EQ(host.composer.stats().instances, live)
@@ -155,7 +155,7 @@ TEST(ComposeFeed, TheEntranceStaggerDelaysOnlyTheRowsThatMount) {
   // so it enters AT ONCE instead of inheriting a full window's worth of steps,
   // and no row already on screen re-enters.
   feed::TextRing ring;
-  for (int i = 0; i < 3; ++i) ring.append({toUtf8("row")});
+  for (int i = 0; i < 3; ++i) ring.append({u8"row"});
   feed::TextOptions options = feedOptions(6, 16.0f);
   options.window.entrance = {.eachMs = 400};
   auto lit = [&](const feed::TextRow& row) {
@@ -182,7 +182,7 @@ TEST(ComposeFeed, TheEntranceStaggerDelaysOnlyTheRowsThatMount) {
   // The append: one new mount, so no extra delay at all. Waiting only its
   // own 200 ms entrance is what proves the cascade counts MOUNTS and not
   // positions — an ordinal-based delay would hold this row for 1.2 s.
-  ring.append({toUtf8("tail")});
+  ring.append({u8"tail"});
   host.composer.render(describe());
   host.frame(0.25);
   const std::optional<SkRect> r4 = host.composer.bounds(feed::rowKey(4));

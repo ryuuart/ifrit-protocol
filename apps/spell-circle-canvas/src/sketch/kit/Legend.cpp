@@ -23,11 +23,11 @@ void words(Element& line, const LegendEntry& entry) {
   const Theme& look = theme();
   if (!entry.label.empty())
     line.children(
-        {text(entry.label.bytes(),
+        {text(entry.label,
               look.style(look.type.captionNote,
                          entry.ink.value_or(Fill::color(look.palette.ink))))});
   if (!entry.note.empty())
-    line.children({text(entry.note.bytes(),
+    line.children({text(entry.note,
                         look.style(look.type.captionNote, look.palette.ash))});
 }
 
@@ -109,7 +109,7 @@ compose::Element swatchStrip(const SwatchStrip& strip) {
              .column()
              .alignItems(Align::Center)
              .children({std::move(patch)})
-             .children({text(strip.labels[i].bytes(),
+             .children({text(strip.labels[i],
                              look.style(look.type.eyebrow, look.palette.ash))
                             .margin(0, look.spacing.captionNoteGap, 0, 0)})});
   }
@@ -122,7 +122,7 @@ compose::Element chip(const Chip& tag) {
       box().padding(look.spacing.chipPaddingX, look.spacing.chipPaddingY);
   tag.ground.value_or(Fill::color(look.palette.figure)).apply(plate);
   plate.children(
-      {text(tag.label.bytes(),
+      {text(tag.label,
             look.style(look.type.eyebrow,
                        tag.ink.value_or(Fill::color(look.palette.ground))))});
   if (const float round = tag.corners.value_or(look.spacing.chipCorners);

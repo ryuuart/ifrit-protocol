@@ -375,7 +375,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
   Element ringRun(const weave::TextStyle& style, SkPoint centre,
                   const std::string& content, float bearingDeg, float radius,
                   float delayMs, const std::string& key) {
-    return text(std::u8string(content.begin(), content.end()), style)
+    return text(content, style)
         .key(key)
         .width(2 * radius)
         .height(2 * radius)
@@ -395,7 +395,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
                    float delayMs, const std::string& key) {
     const float half = 120.0f;  // half the reach the run is given, px
     const float box = radius + half;
-    return text(std::u8string(content.begin(), content.end()), style)
+    return text(content, style)
         .key(key)
         .width(2 * box)
         .height(2 * box)

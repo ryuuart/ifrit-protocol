@@ -707,13 +707,16 @@ sound model; nothing below them changes kernel semantics.
   `SkPicture` as a leaf, sized at what it was recorded at — the door out
   of a `snapshot()` that keeps the pruning and the caching the bake was
   taken for), `pathFigure` (a path already in canvas coordinates,
-  re-based into its own bounds), `custom`, `slot`, `layout`, `memo`,
-  with `toUtf8` for a call site holding a `std::string`.
+  re-based into its own bounds), `custom`, `slot`, `layout`, `memo`.
+  `text` takes `Utf8`, so `text("…")`, `text(u8"…")`, `text(std::string)`
+  and `text(std::u8string)` are one factory and nothing widens a string to
+  reach it; `Element::ellipsis` takes the same value.
 - `core/Utf8.h` — `Utf8`, the value a prop or a parameter that takes TEXT
   is declared as: it accepts `"…"` and `u8"…"`, a `std::string` and a
   `std::u8string` alike, holds the bytes as a `std::u8string`, and
-  `bytes()` reads them back out. The kit's text props are these, so a
-  call site writes the words and never a conversion around them.
+  `bytes()` reads them back out. The kit's text props are these, and so is
+  every text this library's own verbs take, so a call site writes the words
+  and never a conversion around them.
 - `core/Measure.h` — the one-shot verbs that take a tree without a live
   composer: `snapshot`, `intrinsicSize`, `metrics`, `measureRun`,
   `runPens`, and the two that solve a style BACKWARDS from a size the

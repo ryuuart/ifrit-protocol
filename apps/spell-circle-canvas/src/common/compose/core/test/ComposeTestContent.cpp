@@ -110,6 +110,34 @@ TEST(ComposeComposer, DeclaredInputSpaceIsALoudDeclarationAndNothingElse) {
          "conversion";
 }
 
+TEST(ComposeContent, EverySpellingOfOneTextDrawsTheSamePixels) {
+  // One text type: a `char` literal, a u8 literal, a std::string, a
+  // std::u8string and a view of either are the SAME leaf, byte for byte, and
+  // no call site widens a string to reach the factory.
+  const std::string held = "Wg";
+  const std::u8string wide = u8"Wg";
+  auto plate = [](Element leaf) {
+    Host h;
+    h.composer.render(box().children({std::move(leaf)}));
+    h.frame();
+    SkBitmap bm;
+    bm.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
+    h.surface->readPixels(bm.pixmap(), 0, 0);
+    return bm;
+  };
+  const SkBitmap plain = plate(text("Wg", whiteStyle(24)));
+  for (const SkBitmap& other :
+       {plate(text(u8"Wg", whiteStyle(24))), plate(text(held, whiteStyle(24))),
+        plate(text(wide, whiteStyle(24))),
+        plate(text(std::string_view(held), whiteStyle(24))),
+        plate(text(std::u8string_view(wide), whiteStyle(24)))}) {
+    ASSERT_EQ(plain.computeByteSize(), other.computeByteSize());
+    EXPECT_EQ(0, std::memcmp(plain.getPixels(), other.getPixels(),
+                             plain.computeByteSize()))
+        << "the spelling of the bytes must not reach the drawing";
+  }
+}
+
 TEST(ComposeContent, AHeldPathShapePrunesWhereALambdaNeverCan) {
   // The commonest escape hatch in the tree: a path cooked in the author's
   // own coordinates handed to a node through a lambda. The lambda is

@@ -530,7 +530,7 @@ TEST(KitSpecimen, APartSetsOneLineWithTheParametersItNames) {
   // taller line.
   kit::Caption voice = specimenVoice(kit::Caption::Where::Split);
   voice.label = [](const sigil::compose::Utf8& t) {
-    return text(t.bytes()).key("label").font({.size = 20});
+    return text(t).key("label").font({.size = 20});
   };
   Host host(300, 300);
   host.composer.render(
@@ -557,7 +557,7 @@ TEST(KitSpecimen, APartSetsOneLineWithTheParametersItNames) {
   };
   const CaptionPart one = [&](const sigil::compose::Utf8& t) {
     calls += t.empty() ? 100 : 1;
-    return text(t.bytes());
+    return text(t);
   };
   const CaptionPart two = [&](const sigil::compose::Utf8&,
                               const kit::Caption& c) {
@@ -676,7 +676,7 @@ TEST(KitSpecimen, AReadingStandsOverTheBodyOnAScrimOfItsGround) {
   voice.body = kit::Well{.width = 100, .height = 80, .ground = green()};
   voice.reading = u8"12";
   voice.readingLine = [](const sigil::compose::Utf8& t) {
-    return text(t.bytes()).key("figure").font({.size = 10});
+    return text(t).key("figure").font({.size = 10});
   };
   Host host(200, 200);
   host.composer.render(
@@ -708,7 +708,7 @@ TEST(KitSpecimen, ASheetsLinesArePartsOfTheirOwnText) {
                   .marginBottom = 14,
                   .key = "page"};
   page.titleLine = [](const sigil::compose::Utf8& t) {
-    return text(t.bytes()).font({.size = 20});
+    return text(t).font({.size = 20});
   };
   Host host(400, 300);
   host.composer.render(
@@ -1042,7 +1042,7 @@ TEST(KitPanel, RangesItsNoteAtTheFarEdgeOfTheHeadsLastLine) {
                       .note = "3 / 8",
                       .body = kit::Well{.width = 200, .padding = 10}};
     region.noteLine = [](const sigil::compose::Utf8& t) {
-      return text(t.bytes()).key("note").font({.size = 10});
+      return text(t).key("note").font({.size = 10});
     };
     Host host(300, 300);
     host.composer.render(
@@ -1174,10 +1174,10 @@ TEST(KitRows, AReadingPutsItsFigureAtTheFarEdgeOfTheMeasure) {
   kit::Rows how{
       .measure = 220, .nameMeasure = 120, .labelGap = 10, .swatchSide = 9};
   how.nameLine = [](const sigil::compose::Utf8& t) {
-    return text(t.bytes()).key("name").font({.size = 10});
+    return text(t).key("name").font({.size = 10});
   };
   how.valueLine = [](const sigil::compose::Utf8& t) {
-    return text(t.bytes()).key("value").font({.size = 12});
+    return text(t).key("value").font({.size = 12});
   };
   Host host(300, 300);
   host.composer.render(box()
@@ -1263,7 +1263,7 @@ TEST(KitRows, ARowIsItsOwnRunOfCellsSoAShortRowStaysShort) {
                  .swatchSide = 9};
   // Every word is its own key, so where each cell lands can be read back.
   how.cellLine = [](const sigil::compose::Utf8& t) {
-    return text(t.bytes())
+    return text(t)
         .key(std::string(reinterpret_cast<const char*>(t.bytes().c_str())))
         .font({.size = 10});
   };
@@ -1297,7 +1297,7 @@ TEST(KitRows, ATableHeadsItsColumnsInTheSectionClassAndRulesUnderThem) {
                  .dividerWidth = 2,
                  .headRuled = true};
   how.headLine = [](const sigil::compose::Utf8& t) {
-    return text(t.bytes()).key("head").font({.size = 11});
+    return text(t).key("head").font({.size = 11});
   };
   const std::vector<sigil::compose::Utf8> only = {u8"alpha", u8"12"};
   const std::vector<std::span<const sigil::compose::Utf8>> rows = {only};

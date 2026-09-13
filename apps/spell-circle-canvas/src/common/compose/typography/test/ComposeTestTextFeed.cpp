@@ -27,7 +27,7 @@ TEST(ComposeFeed, ATypedOnRowPaintsLiveThenCachesWhenItsTrackSettles) {
   // is a static leaf again, cached like every row above it. A track that
   // never settled would pin the whole window volatile.
   feed::TextRing ring;
-  ring.append({toUtf8("daemon bound port 6042")});
+  ring.append({u8"daemon bound port 6042"});
   const feed::TextOptions options = feedOptions(8, 16.0f);
   auto typed = [&](const feed::TextRow& row) {
     return feed::textRow(row, options.styles)
@@ -80,9 +80,9 @@ TEST(ComposeFeed, AStructuredRowAppendsAtItsOwnConstantCost) {
   auto rowEl = [&](const StructuredRow& r) {
     auto line = sigil::weave::rich(styles.base())
                     .styles(styles.types())
-                    .add(toUtf8(r.ts + "  "), "ts")
-                    .add(toUtf8(r.tag + "  "), "tag")
-                    .add(toUtf8(r.body));
+                    .add(r.ts + "  ", "ts")
+                    .add(r.tag + "  ", "tag")
+                    .add(r.body);
     return box().row().gap(6).children(
         {box().width(3).height(10).fill(Fill::color(SkColors::kRed)),
          text(std::move(line))

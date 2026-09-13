@@ -56,7 +56,7 @@ struct EvaMagiDeliberation : sketch::Sketch {
     weave::Type style{.face = face, .size = size};
     if (fonts && maxWidth > 1.0f) {
       const SkSize measured =
-          sigil::compose::intrinsicSize(text(run.bytes()).font(style), *fonts);
+          sigil::compose::intrinsicSize(text(run).font(style), *fonts);
       if (measured.width() > maxWidth && measured.width() > 1.0f)
         style.condense = maxWidth / measured.width();
     }

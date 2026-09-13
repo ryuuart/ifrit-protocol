@@ -20,7 +20,7 @@ namespace {
  *  beat the caller gave the line. */
 Element spoken(const Line& line, const weave::TextStyle& style,
                const std::string& key) {
-  Element el = text(line.words.bytes(), style);
+  Element el = text(line.words, style);
   if (!key.empty()) el.key(key);
   if (line.opacity) el.opacity(*line.opacity);
   if (line.lift) el.translateY(*line.lift);
@@ -90,7 +90,7 @@ compose::Element sectionHeader(const SectionHeader& header) {
   Element row =
       box().row().alignItems(Align::Center).gap(look.spacing.labelGap);
   if (!header.label.empty())
-    row.children({text(header.label.bytes(),
+    row.children({text(header.label,
                        look.style(look.type.section, look.palette.ink))});
   // The rule is what GROWS, so the label stays at the left and the note at
   // the right however wide the header is given.
@@ -98,7 +98,7 @@ compose::Element sectionHeader(const SectionHeader& header) {
   if (header.ruled) between.fill(Fill::color(look.palette.rule));
   row.children({std::move(between)});
   if (!header.note.empty())
-    row.children({text(header.note.bytes(),
+    row.children({text(header.note,
                        look.style(look.type.captionNote, look.palette.ash))});
   return row;
 }

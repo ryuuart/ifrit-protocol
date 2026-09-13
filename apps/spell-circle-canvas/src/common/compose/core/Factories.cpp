@@ -34,11 +34,11 @@ Element positioned() {
   return e;
 }
 
-Element text(std::u8string utf8) {
+Element text(Utf8 utf8) {
   Element e;
   e.node()->kind = Kind::Text;
   detail::TextData& text = e.node()->textData.ensure();
-  text.utf8 = std::move(utf8);
+  text.utf8 = utf8.bytes();
   // Set in the font and ink in force where the leaf lands in the tree:
   // the cascade pass resolves them and materialises the paragraph from
   // the instance's font, and `style` here is never read.
@@ -46,17 +46,11 @@ Element text(std::u8string utf8) {
   return e;
 }
 
-Element text(std::string_view utf8) { return text(toUtf8(utf8)); }
-
-Element text(std::string_view utf8, sigil::weave::TextStyle style) {
-  return text(toUtf8(utf8), std::move(style));
-}
-
-Element text(std::u8string utf8, sigil::weave::TextStyle style) {
+Element text(Utf8 utf8, sigil::weave::TextStyle style) {
   Element e;
   e.node()->kind = Kind::Text;
   detail::TextData& text = e.node()->textData.ensure();
-  text.utf8 = std::move(utf8);
+  text.utf8 = utf8.bytes();
   text.style = std::move(style);
   // The box fits the type: measured text must not stretch on the cross
   // axis. That demotion is NOT applied here — it happens when layout properties

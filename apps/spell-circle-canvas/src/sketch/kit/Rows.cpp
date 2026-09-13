@@ -41,10 +41,10 @@ compose::kit::Rows arrangement(const Readout& how, const Theme& look) {
       .swatchCorners = how.swatchCorners};
   const Registers set = registers(look);
   rows.nameLine = [quiet = set.quiet](const Utf8& words) {
-    return compose::text(words.bytes(), quiet);
+    return compose::text(words, quiet);
   };
   rows.valueLine = [number = set.number](const Utf8& words) {
-    return compose::text(words.bytes(), number);
+    return compose::text(words, number);
   };
   rows.noteLine = rows.nameLine;
   return rows;
@@ -106,7 +106,7 @@ compose::Element table(std::vector<Row> rows, const Table& how) {
     const bool figure =
         !shape.columns.empty() &&
         shape.columns[std::min(column, shape.columns.size() - 1)].figure;
-    return compose::text(words.bytes(), figure ? set.number : set.quiet);
+    return compose::text(words, figure ? set.number : set.quiet);
   };
   return compose::kit::table(cells, specification);
 }
@@ -126,7 +126,7 @@ compose::Element bars(std::span<const compose::Utf8> labels,
           Fill::color(material::skia::withAlpha(look.palette.figure, 0.25f)))};
   const Registers set = registers(look);
   specification.labelLine = [quiet = set.quiet](const Utf8& words) {
-    return compose::text(words.bytes(), quiet);
+    return compose::text(words, quiet);
   };
   specification.figureLine = [number = set.number](double value) {
     return compose::text(compose::kit::formatted("%.0f", value), number);

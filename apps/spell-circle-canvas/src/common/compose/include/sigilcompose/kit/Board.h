@@ -56,7 +56,7 @@ struct Board {
 /** The leaf a panel's eyebrow defaults to: @p text in the class
  *  `eyebrow`, so the sheet in force sets it. */
 [[nodiscard]] inline Element panelEyebrow(const Utf8& text) {
-  return compose::text(text.bytes()).styleClass("eyebrow");
+  return compose::text(text).styleClass("eyebrow");
 }
 
 /** THE TITLED REGION A PAGE DIVIDES ITSELF INTO: an eyebrow over a

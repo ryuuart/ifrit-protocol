@@ -183,7 +183,7 @@ TEST(SketchKitRows, BarsStandAgainstTheLargestValue) {
   const auto number =
       house.style(house.type.captionLabel, house.palette.figure);
   how.labelLine = [quiet](const compose::Utf8& words) {
-    return compose::text(words.bytes(), quiet);
+    return compose::text(words, quiet);
   };
   how.figureLine = [number](double value) {
     return compose::text(compose::kit::formatted("%.0f", value), number);

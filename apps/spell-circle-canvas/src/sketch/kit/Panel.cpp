@@ -82,7 +82,7 @@ compose::Element frame(const Frame& chrome, compose::Element screen) {
     shell.corners(Corners{round});
   shell.children({std::move(opening)});
   if (!chrome.plate.empty())
-    shell.children({text(chrome.plate.bytes(),
+    shell.children({text(chrome.plate,
                          look.style(look.type.eyebrow, look.palette.ash))
                         .margin(0, bezel * 0.5f, 0, 0)
                         .alignSelf(Align::Center)});

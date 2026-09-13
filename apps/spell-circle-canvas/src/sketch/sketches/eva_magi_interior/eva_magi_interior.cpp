@@ -167,7 +167,7 @@ struct EvaMagiInterior : sketch::Sketch {
     weave::Type st = fitCap(tf, cap);
     if (!fonts) return st;
     const SkSize measured =
-        sigil::compose::intrinsicSize(text(s.bytes()).font(st), *fonts);
+        sigil::compose::intrinsicSize(text(s).font(st), *fonts);
     if (measured.width() > maxWidth && measured.width() > 1.0f)
       st.condense = std::min(maxWidth / measured.width(), 1.0f);
     return st;
@@ -199,7 +199,7 @@ struct EvaMagiInterior : sketch::Sketch {
     return box()
         .left(ink.fX)
         .top(ink.fY - slack)
-        .children({text(s.bytes()).font(st)});
+        .children({text(s).font(st)});
   }
 
   // ==========================================================================

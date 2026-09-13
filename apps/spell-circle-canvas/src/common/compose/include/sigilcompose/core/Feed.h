@@ -238,7 +238,7 @@ struct TextOptions {
  *  something the options do not carry, keying each row with `rowKey()`. */
 [[nodiscard]] inline Element textRow(const TextRow& row,
                                      const sigil::weave::StyleSheet& styles) {
-  return text(row.text.bytes(), styles[row.style]);
+  return text(row.text, styles[row.style]);
 }
 
 /** The text feed: rows set in the styles they name. */

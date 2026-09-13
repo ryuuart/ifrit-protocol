@@ -34,7 +34,7 @@ Element bars(const data::Table* table, const char* names, const char* values,
   Element column = box().column().gap(4).width(kCell - 28);
   if (!table || !table->has(names) || !table->has(values))
     return column.children(
-        {text(std::u8string(missing.begin(), missing.end()))});
+        {text(missing)});
   const std::span<const std::string> label = table->column<std::string>(names);
   const std::span<const double> value = table->column<double>(values);
   double largest = 0;

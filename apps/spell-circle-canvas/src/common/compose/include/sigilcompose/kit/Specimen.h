@@ -43,18 +43,18 @@ namespace sigil::compose::kit {
 /** The leaf a caption's label defaults to: @p text in the class
  *  `captionLabel`, so the sheet in force sets it. */
 [[nodiscard]] inline Element captionLabel(const Utf8& text) {
-  return compose::text(text.bytes()).styleClass("captionLabel");
+  return compose::text(text).styleClass("captionLabel");
 }
 /** The leaf a caption's note defaults to: @p text in the class
  *  `captionNote`. */
 [[nodiscard]] inline Element captionNote(const Utf8& text) {
-  return compose::text(text.bytes()).styleClass("captionNote");
+  return compose::text(text).styleClass("captionNote");
 }
 /** THE LEAF A MEASURED FIGURE DEFAULTS TO: @p text in the class
  *  `readout` — a caption's reading, a readout's value, a figure column's
  *  cells. One leaf, because it is one line wherever it stands. */
 [[nodiscard]] inline Element figure(const Utf8& text) {
-  return compose::text(text.bytes()).styleClass("readout");
+  return compose::text(text).styleClass("readout");
 }
 
 /** THE FIXED SURFACE A SPECIMEN IS SHOWN IN. Its size, ground, padding,
@@ -359,17 +359,17 @@ struct PanelGrid {
 /** The leaf a sheet's title defaults to: @p text in the class `title`,
  *  so the sheet in force sets it. */
 [[nodiscard]] inline Element sheetTitle(const Utf8& text) {
-  return compose::text(text.bytes()).styleClass("title");
+  return compose::text(text).styleClass("title");
 }
 /** The leaf a sheet's subtitle defaults to: @p text in the class
  *  `subtitle`. */
 [[nodiscard]] inline Element sheetSubtitle(const Utf8& text) {
-  return compose::text(text.bytes()).styleClass("subtitle");
+  return compose::text(text).styleClass("subtitle");
 }
 /** The leaf a sheet's footer defaults to: @p text in the class
  *  `footer`. */
 [[nodiscard]] inline Element sheetFooter(const Utf8& text) {
-  return compose::text(text.bytes()).styleClass("footer");
+  return compose::text(text).styleClass("footer");
 }
 
 /** THE SHEET: a page with a titled header, a footer line, and the content

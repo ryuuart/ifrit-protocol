@@ -155,15 +155,15 @@ struct LainNavi : sketch::Sketch {
       g.children({box()
                       .centerAt(p.centre)
                       .key("ph" + std::to_string(i))
-                      .children({text(std::u8string(p.text),
+                      .children({text(p.text,
                                       type(serifFace(), p.size,
                                            mskia::scale(c, 0.42f), 6.5f))
                                      .inset(0)})
-                      .children({text(std::u8string(p.text),
+                      .children({text(p.text,
                                       type(serifFace(), p.size,
                                            mskia::scale(c, 0.55f), 2.2f))
                                      .inset(0)})
-                      .children({text(std::u8string(p.text),
+                      .children({text(p.text,
                                       type(serifFace(), p.size, c, 0.7f))})});
     }
     return g;
@@ -195,7 +195,7 @@ struct LainNavi : sketch::Sketch {
         // what a right-to-left vertical original looks like when it is set
         // horizontally by a compositor who did not care
         const float x = -34.0f + 14.0f * std::sin((float)i * 1.7f);
-        g.children({text(std::u8string(kProseLines[i]),
+        g.children({text(kProseLines[i],
                          type(minchoFace(), proseSize, kProse, 0.95f, 1.5f))
                         .at({x, y})
                         .key("prose" + std::to_string(i))});

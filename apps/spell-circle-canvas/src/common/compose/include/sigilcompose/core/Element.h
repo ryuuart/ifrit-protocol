@@ -20,6 +20,7 @@
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/Stroke.h>
 #include <sigilcompose/core/SurfacePaint.h>
+#include <sigilcompose/core/Utf8.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
@@ -1186,7 +1187,7 @@ class Element {
 
   /** Text leaves only: the marker appended to the last line when the text
    *  overflows its geometry. Empty disables it. */
-  Element& ellipsis(std::u8string_view marker);
+  Element& ellipsis(Utf8 marker);
   /** Text leaves only: use at most this many lines (CSS line-clamp); the
    *  rest reports as overflow and `ellipsis()`, when set, lands on the
    *  clamped line. 0 is unclamped. */

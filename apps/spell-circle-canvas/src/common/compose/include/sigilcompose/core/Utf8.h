@@ -23,7 +23,10 @@ namespace sigil::compose {
  *  IT HOLDS A `std::u8string`, the type the shaping vocabulary
  *  underneath takes, and `bytes()` is the ONE way to read it out: there
  *  is no implicit conversion out, so a sink spells `value.bytes()` and
- *  every use is visible where it stands.
+ *  every use is visible where it stands. A sink in this library takes THIS
+ *  type rather than the bytes — `text`, `ellipsis`, every kit prop — so
+ *  `bytes()` at a call site means the caller is reading the bytes
+ *  themselves, not fitting a signature.
  *
  *  Comparable by value, so a props struct that carries one stays
  *  comparable and a description that holds one still prunes. */

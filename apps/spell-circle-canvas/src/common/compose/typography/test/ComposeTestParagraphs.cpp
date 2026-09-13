@@ -38,20 +38,18 @@ sigil::weave::Type colouredType(float size, SkColor colour) {
 
 /** A passage long enough to wrap at the measures below. */
 std::u8string passage() {
-  return toUtf8(
-      "One two three four five six seven eight nine ten eleven twelve.");
+  return u8"One two three four five six seven eight nine ten eleven twelve.";
 }
 
 /** Three sentences at a measure that breaks the second across two lines. */
 std::u8string threeSentences() {
-  return toUtf8("Aa bb. Cc dd ee ff gg hh ii jj kk. Ll mm.");
+  return u8"Aa bb. Cc dd ee ff gg hh ii jj kk. Ll mm.";
 }
 
 /** Two blocks, the second after a hard break. */
 std::u8string twoBlocks() {
-  return toUtf8(
-      "First block runs on for several words so that it wraps here.\n"
-      "Second block does the same and wraps as well over here.");
+  return u8"First block runs on for several words so that it wraps here.\n"
+      u8"Second block does the same and wraps as well over here.";
 }
 
 /** Distinct baselines of a keyed text node's placed lines, ascending. */
@@ -118,7 +116,7 @@ TEST(ComposeParagraphs, OneEntryStylesTheFirstBlockAndLeavesTheRestPlain) {
 TEST(ComposeUnits, EveryUnitASelectorAddressesIsReportedOnce) {
   Host host(400, 300);
   host.composer.render(
-      box().children({text(toUtf8("alpha beta gamma"), whiteStyle(16))
+      box().children({text(u8"alpha beta gamma", whiteStyle(16))
                           .key("t")
                           .width(360.0f)}));
   host.frame();
@@ -161,7 +159,7 @@ TEST(ComposeUnits, AUnitReportsOnEveryLineItLandedOn) {
 TEST(ComposeUnits, AnUnknownKeyAndAnEmptySelectionAnswerEmpty) {
   Host host(300, 200);
   host.composer.render(
-      box().children({text(toUtf8("alpha beta"), whiteStyle(16))
+      box().children({text(u8"alpha beta", whiteStyle(16))
                           .key("t")
                           .width(280.0f)}));
   host.frame();
@@ -172,7 +170,7 @@ TEST(ComposeUnits, AnUnknownKeyAndAnEmptySelectionAnswerEmpty) {
                  sigil::weave::Unit::Word)
           .empty());
   EXPECT_TRUE(host.composer
-                  .units("t", sigil::weave::selectors::text(toUtf8("omega")),
+                  .units("t", sigil::weave::selectors::text(u8"omega"),
                          sigil::weave::Unit::Word)
                   .empty());
 }
@@ -181,7 +179,7 @@ TEST(ComposeUnits, ASiblingAnnotationPlacesOneElementPerUnit) {
   Host host(400, 300);
   const auto describe = [&] {
     return box().children(
-        {text(toUtf8("alpha beta gamma"), whiteStyle(16))
+        {text(u8"alpha beta gamma", whiteStyle(16))
              .key("t")
              .absolute()
              .left(20.0f)
@@ -232,14 +230,14 @@ TEST(ComposeUnits, AnAnchoredObjectStandsWhereTheOffsetPutsIt) {
   Host host(400, 300);
   const auto describe = [&](kit::Anchored anchored) {
     return box().children(
-        {text(toUtf8("alpha beta gamma"), whiteStyle(16))
+        {text(u8"alpha beta gamma", whiteStyle(16))
              .key("t")
              .absolute()
              .left(80.0f)
              .top(40.0f)
              .width(300.0f),
          kit::annotate(host.composer, "t",
-                       sigil::weave::selectors::text(toUtf8("gamma")),
+                       sigil::weave::selectors::text(u8"gamma"),
                        sigil::weave::Unit::Word, anchored,
                        [](const TextUnit&) {
                          return box()
@@ -260,7 +258,7 @@ TEST(ComposeUnits, AnAnchoredObjectStandsWhereTheOffsetPutsIt) {
   host.frame();
 
   const std::vector<TextUnit> words =
-      host.composer.units("t", sigil::weave::selectors::text(toUtf8("gamma")),
+      host.composer.units("t", sigil::weave::selectors::text(u8"gamma"),
                           sigil::weave::Unit::Word);
   ASSERT_EQ(words.size(), 1u);
   const SkRect& word = words.front().rect;
@@ -288,7 +286,7 @@ TEST(ComposeTypeset, ANestedStyleCoversTheWordsItCountsAndStops) {
                                  .count = 3,
                                  .style = colouredType(16, SK_ColorGREEN)};
   host.composer.render(box().children(
-      {text(toUtf8("alpha beta gamma delta epsilon"), whiteStyle(16))
+      {text(u8"alpha beta gamma delta epsilon", whiteStyle(16))
            .key("t")
            .absolute()
            .left(20.0f)
@@ -316,10 +314,10 @@ TEST(ComposeTypeset, ANestedRunEndsOnItsDelimiterAndIncludesIt) {
   // delimiter that is also a regular-expression operator means itself.
   Host host(400, 300);
   const kit::NestedStyle lead{.until = kit::NestedStyle::Until::Delimiter,
-                              .delimiter = toUtf8("."),
+                              .delimiter = u8".",
                               .style = colouredType(16, SK_ColorGREEN)};
   host.composer.render(
-      box().children({text(toUtf8("alpha beta. gamma delta"), whiteStyle(16))
+      box().children({text(u8"alpha beta. gamma delta", whiteStyle(16))
                           .key("t")
                           .absolute()
                           .left(20.0f)
@@ -344,10 +342,10 @@ TEST(ComposeTypeset, ANestedRunEndsOnItsDelimiterAndIncludesIt) {
   // A delimiter that never occurs covers nothing, rather than everything.
   Host missing(400, 300);
   const kit::NestedStyle absent{.until = kit::NestedStyle::Until::Delimiter,
-                                .delimiter = toUtf8("§"),
+                                .delimiter = u8"§",
                                 .style = colouredType(16, SK_ColorGREEN)};
   missing.composer.render(
-      box().children({text(toUtf8("alpha beta. gamma delta"), whiteStyle(16))
+      box().children({text(u8"alpha beta. gamma delta", whiteStyle(16))
                           .key("t")
                           .absolute()
                           .left(20.0f)
@@ -375,7 +373,7 @@ TEST(ComposeTypeset, AnInitialLetterCarriesANestedOpeningIntoItsBlock) {
            .width(340.0f)
            .height(200.0f)
            .children(
-               {text(toUtf8("Whale alpha beta gamma"), whiteStyle(16))
+               {text(u8"Whale alpha beta gamma", whiteStyle(16))
                     .key("body")
                     .width(240.0f)
                     .initialLetter({.lines = 3, .margin = 6.0f})
@@ -415,8 +413,8 @@ TEST(ComposeAnnotate, AReservingReadingOpensThePitchBeforeTheBaseIsBroken) {
       {text(passage(), whiteStyle(16))
            .key("t")
            .width(220.0f)
-           .annotate(kit::ruby(sigil::weave::selectors::text(toUtf8("three")),
-                               sigil::weave::Unit::Word, {toUtf8("iii")},
+           .annotate(kit::ruby(sigil::weave::selectors::text(u8"three"),
+                               sigil::weave::Unit::Word, {u8"iii"},
                                {.size = 8.0f}, 1.0f))}));
   read.frame();
 
@@ -440,8 +438,8 @@ TEST(ComposeAnnotate, AReadingThatReservesNothingLeavesThePitchAlone) {
       {text(passage(), whiteStyle(16))
            .key("t")
            .width(220.0f)
-           .annotate(kit::kenten(sigil::weave::selectors::text(toUtf8("three")),
-                                 {.size = 6.0f}, toUtf8("."), 1.0f))}));
+           .annotate(kit::kenten(sigil::weave::selectors::text(u8"three"),
+                                 {.size = 6.0f}, u8".", 1.0f))}));
   marked.frame();
 
   EXPECT_NEAR(pitchOf(marked), pitchOf(bare), 0.01f);
@@ -460,9 +458,9 @@ TEST(ComposeAnnotate, ReserveIsWhatOpensTheBaseLineBox) {
     return lines.empty() ? 0.0f : lines.front().pitch;
   };
   const auto reading = [](bool reserve) {
-    return Annotation{.where = sigil::weave::selectors::text(toUtf8("three")),
+    return Annotation{.where = sigil::weave::selectors::text(u8"three"),
                       .unit = sigil::weave::Unit::Word,
-                      .readings = {toUtf8("iii")},
+                      .readings = {u8"iii"},
                       .style = {.size = 8.0f},
                       .side = Annotation::Side::Before,
                       .gap = 1.0f,
@@ -494,7 +492,7 @@ TEST(ComposeAnnotate, ReserveIsWhatOpensTheBaseLineBox) {
 TEST(ComposeStory, EachFrameFillsFromWhereTheOneBeforeItStopped) {
   sigil::weave::Story article(sigil::weave::rich(whiteStyle(13))
                                   .add(passage())
-                                  .add(toUtf8(" "))
+                                  .add(u8" ")
                                   .add(passage()));
   Host host(500, 300);
   host.composer.render(box().row().children({frame(article)
@@ -530,7 +528,7 @@ TEST(ComposeStory, ANarrowerFirstFrameMovesTheCut) {
   const auto cutAt = [](float measure) {
     sigil::weave::Story article(sigil::weave::rich(whiteStyle(13))
                                     .add(passage())
-                                    .add(toUtf8(" "))
+                                    .add(u8" ")
                                     .add(passage()));
     Host host(500, 300);
     host.composer.render(
@@ -561,7 +559,7 @@ TEST(ComposeStory, TheMarkerEndsTheChainAndNoCutInsideIt) {
   const auto chainOf = [](Host& host, std::u8string marker) {
     sigil::weave::Story article(sigil::weave::rich(whiteStyle(13))
                                     .add(passage())
-                                    .add(toUtf8(" "))
+                                    .add(u8" ")
                                     .add(passage()));
     host.composer.render(box().children({kit::columns(
         article, 3, 12.0f, 240.0f, 32.0f, "col", std::move(marker))}));
@@ -591,7 +589,7 @@ TEST(ComposeBoundary, GlyphsHandTheDecorationsTheLettersInsteadOfTheBox) {
   // covers only where letters are — so a point inside the box but between
   // two lines is painted by one and not by the other.
   const auto describe = [](Boundary boundary) {
-    Element leaf = text(toUtf8("HH HH"), whiteStyle(40))
+    Element leaf = text(u8"HH HH", whiteStyle(40))
                        .key("t")
                        .absolute()
                        .left(10.0f)
@@ -629,7 +627,7 @@ namespace {
  *  can notice it has run out. */
 std::u8string longPassage() {
   std::u8string out;
-  for (int i = 0; i < 30; ++i) out += passage() + toUtf8(" ");
+  for (int i = 0; i < 30; ++i) out += passage() + u8" ";
   return out;
 }
 
@@ -914,7 +912,7 @@ TEST(ComposeLineTables, TsumeClosesTheGapsBetweenFullWidthCharacters) {
   const auto widthWith = [](float tsume) {
     Host host(400, 300);
     Element leaf =
-        text(toUtf8("あいうえお、かきくけこ。さしすせそ"), whiteStyle(20))
+        text(u8"あいうえお、かきくけこ。さしすせそ", whiteStyle(20))
             .key("t")
             .width(360.0f);
     if (tsume != 0)
@@ -1046,7 +1044,7 @@ std::vector<float> justifiedEdges(sigil::weave::JustificationOptions spec,
                                   const char* body, float measure) {
   Host host(400, 400);
   host.composer.render(box().children(
-      {text(toUtf8(body), whiteStyle(12))
+      {text(body, whiteStyle(12))
            .key("t")
            .width(measure)
            .block({.alignment = sigil::weave::TextAlignment::kJustify})
@@ -1096,13 +1094,13 @@ TextSettling sweptSettling(bool live, float budgetMicroseconds, float endAt) {
     // words, so a block has to carry enough of them for the search to be
     // still running at its second reading.
     Element leaf =
-        text(toUtf8("A measure that animates is one input of a run of layouts "
-                    "rather than a question somebody asked once, and the block "
-                    "that knows so keeps the break decisions it has already "
-                    "made. A measure that animates is one input of a run of "
-                    "layouts rather than a question somebody asked once, and "
-                    "the block that knows so keeps the break decisions it has "
-                    "already made."),
+        text(u8"A measure that animates is one input of a run of layouts "
+                    u8"rather than a question somebody asked once, and the block "
+                    u8"that knows so keeps the break decisions it has already "
+                    u8"made. A measure that animates is one input of a run of "
+                    u8"layouts rather than a question somebody asked once, and "
+                    u8"the block that knows so keeps the break decisions it has "
+                    u8"already made.",
              whiteStyle(11.5f))
             .key("para")
             .width(measure)
@@ -1162,8 +1160,8 @@ TEST(KitBullets, TheMarkerKeepsTheRoomTheIndentOpened) {
   // item's own: its leftmost column IS where the first line begins.
   constexpr float kHang = 24.0f;
   const std::array<std::u8string, 1> items = {
-      toUtf8("First line long enough that this item wraps, and a second that "
-             "carries on under it.")};
+      u8"First line long enough that this item wraps, and a second that "
+             u8"carries on under it."};
   const std::array<std::u8string, 1> markers = {std::u8string()};
   Host host(300, 160);
   host.composer.render(box().padding(0).children({kit::bullets(
@@ -1200,7 +1198,7 @@ TEST(ComposeAnnotate, ABrokenBaseSharesOneReadingAndShiftsNothingAfterIt) {
            .annotate(kit::ruby(
                sigil::weave::selectors::each(sigil::weave::Unit::Sentence),
                sigil::weave::Unit::Sentence,
-               {toUtf8("one"), toUtf8("two two two"), toUtf8("three")}, reading,
+               {u8"one", u8"two two two", u8"three"}, reading,
                2.0f))}));
   host.frame();
 

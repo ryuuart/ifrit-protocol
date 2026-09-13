@@ -149,7 +149,7 @@ std::vector<float> runPens(std::u8string_view utf8,
 std::vector<float> runPens(std::string_view utf8,
                            const sigil::weave::TextStyle& style,
                            sigil::weave::FontContext& fonts) {
-  return runPens(toUtf8(utf8), style, fonts);
+  return runPens(Utf8(utf8).bytes(), style, fonts);
 }
 
 sigil::weave::TextStyle fitRun(std::u8string_view utf8,
