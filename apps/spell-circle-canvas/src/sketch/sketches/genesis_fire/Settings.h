@@ -15,6 +15,7 @@
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Chance.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigildraw/Draw.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
@@ -27,6 +28,7 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Meter.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -178,15 +180,26 @@ constexpr const char* kSite = "site";
 // ---------------------------------------------------------------------------
 // Type
 
-using instrument::faced;
 using instrument::heavyFace;
-using instrument::mono;
-using instrument::monoB;
 using instrument::monoBoldFace;
 using instrument::monoFace;
-using instrument::t;
-using instrument::ui;
 using instrument::uiFace;
+
+/** THE PANEL REGISTERS AS CLASSES, each a size over the mono face and
+ *  the 0.2 px tracking every panel's root states: a footnote, a census
+ *  column head, a census cell, a swatch or bench label, and a production
+ *  line. Bound where a panel is described — in setup for the panels
+ *  built once, and in the loop for the census panel described again
+ *  every frame. */
+inline weave::StyleSheet registers() {
+  weave::StyleSheet classes;
+  classes.set("note", {.size = 6.5f});
+  classes.set("colhead", {.size = 7.5f, .track = 0.9f});
+  classes.set("cell", {.size = 9.5f, .track = 0.4f});
+  classes.set("label", {.size = 7.0f});
+  classes.set("line", {.size = 8.0f});
+  return classes;
+}
 
 /** The same register on the PEN: a pen carries one type and one fill, so
  *  a register is set rather than described. */
@@ -212,9 +225,11 @@ inline std::function<SkPath(SkSize)> limbOutline() {
   };
 }
 
-/** A panel shell: ground, keyline, corners, padding. Each panel is its
- *  own guest at its own box, so each carries its own entrance delay
- *  rather than taking a stagger from a column above it. */
+/** A panel shell: ground, keyline, corners, padding, and the type every
+ *  line in it inherits — the mono face, tracked 0.2 px, in steel — so a
+ *  line names only its register and, where it differs, its colour. Each
+ *  panel is its own guest at its own box, so each carries its own
+ *  entrance delay rather than taking a stagger from a column above it. */
 inline Element panel(float height, int order) {
   const auto delay = std::chrono::milliseconds(90 * order);
   return box()
@@ -224,6 +239,8 @@ inline Element panel(float height, int order) {
       .shrink(0)
       .padding(12)
       .corners({5})
+      .font({.face = monoFace(), .track = 0.2f})
+      .ink(kSteel)
       .fill(kPanel)
       .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner))
       .opacity(
@@ -234,7 +251,10 @@ inline Element panel(float height, int order) {
 }
 
 inline Element panelHead(const char* s) {
-  return t(s, ui(9.5f, kSteel, 1.9f)).height(13).shrink(0);
+  return text(toUtf8(s))
+      .font({.face = uiFace(), .size = 9.5f, .track = 1.9f})
+      .height(13)
+      .shrink(0);
 }
 
 }  // namespace genesis

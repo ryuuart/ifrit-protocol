@@ -66,6 +66,9 @@ void GenesisFire::setup(sketch::SketchContext& ctx) {
       },
       8, &simAlpha);
 
+  // The panel registers are classes, read where a panel is described.
+  const sigil::core::environment::Provide<weave::StyleSheet> classes(
+      registers());
   headerEl = header();
   belowEl = stageBelow();
   aboveEl = stageAbove();
@@ -152,6 +155,10 @@ void GenesisFire::draw(Pen& pen) {
   stageCaption(pen);
 
   // --- the sidebar: five panels, each its own guest --------------------
+  // The census panel is described again every frame, from inside the
+  // loop, so its registers are bound here as well as in setup.
+  const sigil::core::environment::Provide<weave::StyleSheet> classes(
+      registers());
   pen.element(genEl, SkRect::MakeXYWH(kSideX, panelTop(0), kSideW, kPanelH[0]));
   pen.element(censusPanel(),
               SkRect::MakeXYWH(kSideX, panelTop(1), kSideW, kPanelH[1]));

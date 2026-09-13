@@ -65,7 +65,9 @@ Element GenesisFire::dipper() {
     return SkPoint{bx + kStars[i].u * bw, by + kStars[i].v * bh};
   };
 
-  Element g = box().inset(0);
+  // The star names and Smith's joke are set in the mono face and cyan;
+  // a name that is not the Sun's names its own grey.
+  Element g = box().inset(0).font({.face = monoFace()}).ink(kCyan);
 
   // the asterism, drawn on
   g.child(
@@ -107,8 +109,9 @@ Element GenesisFire::dipper() {
                 .blend(SkBlendMode::kPlus)
                 .opacity(animate(from(0.0f).to(1.0f),
                                  {.duration = 500ms, .delay = 1200ms})));
-    g.child(t(kStars[i].name,
-              mono(7.0f, sol ? kCyan : hexColor(0x9FB0CC, 0.85f), 1.1f))
+    g.child(text(toUtf8(kStars[i].name))
+                .font({.size = 7.0f, .track = 1.1f})
+                .ink(sol ? kCyan : hexColor(0x9FB0CC, 0.85f))
                 .left(p.fX + rad + 5.0f)
                 .top(p.fY - 5.0f)
                 .opacity(animate(from(0.0f).to(1.0f),
@@ -123,12 +126,12 @@ Element GenesisFire::dipper() {
               .top(s.fY + 12)
               .column()
               .gap(1)
+              .font({.size = 7.0f, .track = 0.9f})
               .opacity(animate(from(0.0f).to(1.0f),
                                {.duration = 400ms, .delay = 1600ms}))
-              .child(t("m = 2.63 FROM \xce\xb5 INDI (3.64 pc)",
-                       mono(7.0f, kCyan, 0.9f)))
-              .child(t("\"OUR SUN WOULD APPEAR AS AN EXTRA STAR\"",
-                       mono(7.0f, hexColor(0x4FB8D8, 0.7f), 0.9f))));
+              .child(text(toUtf8("m = 2.63 FROM \xce\xb5 INDI (3.64 pc)")))
+              .child(text(toUtf8("\"OUR SUN WOULD APPEAR AS AN EXTRA STAR\""))
+                         .ink(hexColor(0x4FB8D8, 0.7f))));
   return g;
 }
 
@@ -277,8 +280,9 @@ Element GenesisFire::planInset() {
                  .shape(shapes::circle())
                  .fill(hexColor(0xFFFFFF, 0.95f)))
       // rim caption on a curved baseline
-      .child(t("IMPACT \xc2\xb7 KETI BANDAR \xc2\xb7 \xce\xb5 INDI",
-               mono(8.0f, kCyan, 1.4f))
+      .child(text(toUtf8("IMPACT \xc2\xb7 KETI BANDAR \xc2\xb7 \xce\xb5 INDI"))
+                 .font({.face = monoFace(), .size = 8.0f, .track = 1.4f})
+                 .ink(kCyan)
                  .left(12)
                  .top(12)
                  .width(184)
@@ -295,9 +299,10 @@ Element GenesisFire::stageAbove() {
       .height(kStageH)
       .clip()
       .child(planInset())
-      .child(t("FIG. 2 \xe2\x80\x94 DISTRIBUTION OF PARTICLE SYSTEMS ON THE "
-               "PLANET'S SURFACE",
-               mono(8.5f, kSteel, 0.6f))
+      .child(text(toUtf8("FIG. 2 \xe2\x80\x94 DISTRIBUTION OF PARTICLE SYSTEMS "
+                         "ON THE PLANET'S SURFACE"))
+                 .font({.face = monoFace(), .size = 8.5f, .track = 0.6f})
+                 .ink(kSteel)
                  .left(24)
                  .top(236)
                  .width(300)
