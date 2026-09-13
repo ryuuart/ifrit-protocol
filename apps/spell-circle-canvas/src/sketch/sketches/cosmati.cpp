@@ -33,6 +33,7 @@
 
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/LayerStyles.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
@@ -47,6 +48,7 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
+#include <ranges>
 #include <string>
 #include <utility>
 #include <vector>
@@ -253,28 +255,28 @@ struct Cosmati final : sketch::Sketch {
                      .scale(animate(motion::from(0.86f).to(1.0f),
                                     {520ms, &ch::easeOutQuint, delay}));
     // the bed
-    el.children({box().inset(0).corners({r}).fill(Paint::solid(cs::kMortar))});
-    // outer fillet
-    el.children({box().inset(0).corners({r}).foreground(
-        stroke(3.0f, Fill::color(cs::kMarble), PathFormat::Align::Inner))});
-    // two ring courses of lozenges, counter-phased
-    el.children({box()
-                     .inset(0)
-                     .shape(cs::lozengeRing(12, r * 0.56f, r * 0.90f, 0.0f))
-                     .fill(cs::stone(cs::kSerpentine, cs::kSerpentineLo, 40))
-                     .stroke(stroke(0.8f, Fill::color(cs::kMortar)))});
     el.children(
-        {box()
+        {box().inset(0).corners({r}).fill(Paint::solid(cs::kMortar)),
+         // outer fillet
+         box().inset(0).corners({r}).foreground(
+             stroke(3.0f, Fill::color(cs::kMarble), PathFormat::Align::Inner)),
+         // two ring courses of lozenges, counter-phased
+         box()
+             .inset(0)
+             .shape(cs::lozengeRing(12, r * 0.56f, r * 0.90f, 0.0f))
+             .fill(cs::stone(cs::kSerpentine, cs::kSerpentineLo, 40))
+             .stroke(stroke(0.8f, Fill::color(cs::kMortar))),
+         box()
              .inset(0)
              .shape(cs::lozengeRing(8, r * 0.30f, r * 0.54f, 0.3926991f))
              .fill(cs::stone(cs::kGiallo, cs::kGialloLo, 12))
-             .stroke(stroke(0.8f, Fill::color(cs::kMortar)))});
-    // the eye
-    el.children({box()
-                     .inset(r * 0.72f)
-                     .corners({r * 0.28f})
-                     .fill(cs::stone(eyeHi, eyeLo, 60))
-                     .foreground(stroke(1.6f, Fill::color(cs::kMarble)))});
+             .stroke(stroke(0.8f, Fill::color(cs::kMortar))),
+         // the eye
+         box()
+             .inset(r * 0.72f)
+             .corners({r * 0.28f})
+             .fill(cs::stone(eyeHi, eyeLo, 60))
+             .foreground(stroke(1.6f, Fill::color(cs::kMarble)))});
     return el;
   }
 
@@ -295,19 +297,18 @@ struct Cosmati final : sketch::Sketch {
                        .cache(Cache::Texture)
                        .opacity(animate(motion::from(0.0f).to(1.0f),
                                         {360ms, &ch::easeOutQuad, delay}));
-    band.children({box()
-                       .inset(0)
-                       .fill(cs::stone(cs::kPurbeck, cs::kPurbeckLo, 8))
-                       .foreground(stroke(1.4f, Fill::color(cs::kMarble),
-                                          PathFormat::Align::Inner))});
     band.children(
         {box()
              .inset(0)
+             .fill(cs::stone(cs::kPurbeck, cs::kPurbeckLo, 8))
+             .foreground(stroke(1.4f, Fill::color(cs::kMarble),
+                                PathFormat::Align::Inner)),
+         box()
+             .inset(0)
              .shape(cs::guillocheStrand((float)periods, 0.0f, h * 0.26f))
              .stroke(spans::upTo(&lay),
-                     stroke(h * 0.20f, Fill::color(cs::kGiallo)))});
-    band.children(
-        {box()
+                     stroke(h * 0.20f, Fill::color(cs::kGiallo))),
+         box()
              .inset(0)
              .shape(cs::guillocheStrand((float)periods, 3.14159265f, h * 0.26f))
              .stroke(spans::upTo(&lay),
@@ -315,14 +316,12 @@ struct Cosmati final : sketch::Sketch {
     // the discs the strands plait around
     for (int i = 0; i < periods; ++i) {
       const float cx = w * ((float)i + 0.5f) / (float)periods;
-      band.children({box()
-                         .left(cx - h * 0.20f)
-                         .top(h * 0.30f)
-                         .width(h * 0.40f)
-                         .height(h * 0.40f)
-                         .corners({h * 0.20f})
-                         .fill(cs::stone(cs::kPorphyry, cs::kPorphyryLo, 30))
-                         .foreground(stroke(1.0f, Fill::color(cs::kMarble)))});
+      band.children(
+          {kit::at(box()
+                       .corners({h * 0.20f})
+                       .fill(cs::stone(cs::kPorphyry, cs::kPorphyryLo, 30))
+                       .foreground(stroke(1.0f, Fill::color(cs::kMarble))),
+                   cx - h * 0.20f, h * 0.30f, h * 0.40f, h * 0.40f)});
     }
     return band;
   }
@@ -338,14 +337,11 @@ struct Cosmati final : sketch::Sketch {
     // gradients. It is static once it has entered, so bake it: the
     // alternative is re-evaluating that shader over the whole quarter on
     // every frame, which the CPU raster backend does literally.
-    Element q = stack()
-                    .width(side)
-                    .height(side)
-                    .left(x)
-                    .top(y)
-                    .cache(Cache::Texture)
-                    .opacity(animate(motion::from(0.0f).to(1.0f),
-                                     {420ms, &ch::easeOutQuad, delay}));
+    Element q = kit::at(stack()
+                            .cache(Cache::Texture)
+                            .opacity(animate(motion::from(0.0f).to(1.0f),
+                                             {420ms, &ch::easeOutQuad, delay})),
+                        x, y, side, side);
     q.children({box().inset(0).fill(Paint::solid(cs::kMortar))});
     // The pavement's tesserae are an order of magnitude smaller than one
     // coarse course: no interstitial area on the Great Pavement reads as
@@ -355,17 +351,17 @@ struct Cosmati final : sketch::Sketch {
     q.children({box()
                     .inset(0)
                     .shape(cs::triangleCourse(cols, rows, 0))
-                    .fill(cs::stone(cs::kPorphyry, cs::kPorphyryLo, 18))});
-    q.children({box()
+                    .fill(cs::stone(cs::kPorphyry, cs::kPorphyryLo, 18)),
+                box()
                     .inset(0)
                     .shape(cs::triangleCourse(cols, rows, 1))
-                    .fill(cs::stone(cs::kMarble, cs::kMarbleLo, 52))});
-    q.children({box()
+                    .fill(cs::stone(cs::kMarble, cs::kMarbleLo, 52)),
+                box()
                     .inset(0)
                     .shape(cs::triangleCourse(cols, rows, 2))
-                    .fill(cs::stone(cs::kSerpentine, cs::kSerpentineLo, 34))});
-    q.children({box().inset(0).foreground(
-        stroke(2.0f, Fill::color(cs::kMarble), PathFormat::Align::Inner))});
+                    .fill(cs::stone(cs::kSerpentine, cs::kSerpentineLo, 34)),
+                box().inset(0).foreground(stroke(2.0f, Fill::color(cs::kMarble),
+                                                 PathFormat::Align::Inner))});
     return q;
   }
 
@@ -394,13 +390,9 @@ struct Cosmati final : sketch::Sketch {
     // ---- the pavement ------------------------------------------------
     // The frame's lettering is the plate's own font: the two lines cut
     // into the Purbeck band inherit it whole.
-    Element floorPlate = stack()
-                             .key("floor")
-                             .left(cs::kFieldX)
-                             .top(cs::kFieldY)
-                             .width(cs::kFieldSide)
-                             .height(cs::kFieldSide)
-                             .font({.size = 11, .track = 3.4f});
+    Element floorPlate =
+        kit::at(stack().key("floor").font({.size = 11, .track = 3.4f}),
+                cs::kFieldX, cs::kFieldY, cs::kFieldSide, cs::kFieldSide);
 
     // THE PURBECK FRAME IS A FRAME: a shell carrying the inscription
     // band, with the mortar bed set into it by the band's own width on
@@ -418,15 +410,15 @@ struct Cosmati final : sketch::Sketch {
              .inset(0)
              .foreground(stroke(2.0f, Fill::color(cs::kMarble),
                                 PathFormat::Align::Inner))
-             .background(styles::dropShadow({0, 0, 0, 0.7f}, {0, 8}, 18))});
-    floorPlate.children({text("· QVATVOR · PRAECEDENTES "
-                              "· ET · TRES ·")
-                             .left(cs::kBandW)
-                             .top(13)});
-    floorPlate.children({text("· ODORICVS · FECIT · "
-                              "MCCLXVIII ·")
-                             .left(cs::kBandW)
-                             .top(cs::kFieldSide - 24)});
+             .background(styles::dropShadow({0, 0, 0, 0.7f}, {0, 8}, 18)),
+         text("· QVATVOR · PRAECEDENTES "
+              "· ET · TRES ·")
+             .left(cs::kBandW)
+             .top(13),
+         text("· ODORICVS · FECIT · "
+              "MCCLXVIII ·")
+             .left(cs::kBandW)
+             .top(cs::kFieldSide - 24)});
 
     // ---- the quincunx of quincunxes ---------------------------------
     const float c = cs::kFieldSide * 0.5f;
@@ -454,49 +446,46 @@ struct Cosmati final : sketch::Sketch {
     }
 
     // the roundels: four around one
-    for (int i = 0; i < 4; ++i)
-      floorPlate.children({roundel(
+    floorPlate.children({each(std::views::iota(0, 4), [&](int i) {
+      return roundel(
           arrange::onRing((size_t)i, 4, {c, c}, {arm * 1.414f, arm * 1.414f},
                           0.7853982f, 6.2831853f, arrange::Turn::Closed),
-          small, cs::kGlassTurq, cs::kGlassCobalt, i + 1)});
-    floorPlate.children({roundel({c, c}, big, cs::kOnyx, cs::kGialloLo, 0)});
-
-    // The circular inscription these pavements carry round their centre
-    // roundel. Real Cosmati work sets it in the ring itself; this is one
-    // shaped run on a circular baseline — onPath, not 40 hand-placed
-    // glyphs — and it does NOT auto-flip, because the letter-cutters
-    // didn't: glyph-up points outward the whole way round.
-    floorPlate.children({text("· SPHERICVM · ARCHETYPVM "
-                              "· MVNDVM · PRIMVM · "
-                              "TRIPLEX ·")
-                             .font({.size = 9,
-                                    .color = cs::kGiallo,
-                                    .track = 2.0f,
-                                    .weight = 600})
-                             .width(big * 1.50f)
-                             .height(big * 1.50f)
-                             .centerAt({c, c})
-                             .onPath({.path = shapes::arc(-90.0f, 359.9f),
-                                      .at = 0.0f,
-                                      .align = TextPath::Align::Start,
-                                      .offset = 0.0f})
-                             .zIndex(6)});
-
-    // the raking light: a soft band crossing the polished floor
+          small, cs::kGlassTurq, cs::kGlassCobalt, i + 1);
+    })});
     floorPlate.children(
-        {box()
-             .left(-260)
-             .top(-40)
-             .width(210.0f)
-             .height(cs::kFieldSide + 80)
-             .rotate(14.0f)
-             .translateX(motion::bind(&rake).target(-260, cosmati::kW + 260))
-             .fill(Paint::linear({0, 0}, {210, 0},
-                                 {{0.0f, {1, 0.96f, 0.88f, 0.0f}},
-                                  {0.5f, {1, 0.96f, 0.88f, 0.13f}},
-                                  {1.0f, {1, 0.96f, 0.88f, 0.0f}}}))
-             .blend(SkBlendMode::kPlus)
-             .zIndex(9)});
+        {roundel({c, c}, big, cs::kOnyx, cs::kGialloLo, 0),
+         // The circular inscription these pavements carry round their centre
+         // roundel. Real Cosmati work sets it in the ring itself; this is one
+         // shaped run on a circular baseline — onPath, not 40 hand-placed
+         // glyphs — and it does NOT auto-flip, because the letter-cutters
+         // didn't: glyph-up points outward the whole way round.
+         text("· SPHERICVM · ARCHETYPVM "
+              "· MVNDVM · PRIMVM · "
+              "TRIPLEX ·")
+             .font({.size = 9,
+                    .color = cs::kGiallo,
+                    .track = 2.0f,
+                    .weight = 600})
+             .width(big * 1.50f)
+             .height(big * 1.50f)
+             .centerAt({c, c})
+             .onPath({.path = shapes::arc(-90.0f, 359.9f),
+                      .at = 0.0f,
+                      .align = TextPath::Align::Start,
+                      .offset = 0.0f})
+             .zIndex(6),
+         // the raking light: a soft band crossing the polished floor
+         kit::at(box()
+                     .rotate(14.0f)
+                     .translateX(
+                         motion::bind(&rake).target(-260, cosmati::kW + 260))
+                     .fill(Paint::linear({0, 0}, {210, 0},
+                                         {{0.0f, {1, 0.96f, 0.88f, 0.0f}},
+                                          {0.5f, {1, 0.96f, 0.88f, 0.13f}},
+                                          {1.0f, {1, 0.96f, 0.88f, 0.0f}}}))
+                     .blend(SkBlendMode::kPlus)
+                     .zIndex(9),
+                 -260, -40, 210.0f, cs::kFieldSide + 80)});
     root.children({std::move(floorPlate)});
 
     // ---- the apparatus beside the floor ------------------------------
@@ -509,12 +498,12 @@ struct Cosmati final : sketch::Sketch {
                                       .font({.size = 21,
                                              .color = cs::kInk,
                                              .track = 3.4f,
-                                             .weight = 640})})
-                       .children({text("Cosmatesque · Westminster "
+                                             .weight = 640}),
+                                  text("Cosmatesque · Westminster "
                                        "1268")
                                       .font({.size = 11, .track = 1.4f})
-                                      .margin(0, 6, 0, 0)})
-                       .children({box()
+                                      .margin(0, 6, 0, 0),
+                                  box()
                                       .width(190.0f)
                                       .height(1.0f)
                                       .margin(0, 12, 0, 12)
@@ -525,8 +514,8 @@ struct Cosmati final : sketch::Sketch {
                                              cs::kGiallo.fB, 0.7f}},
                                            {1.0f,
                                             {cs::kGiallo.fR, cs::kGiallo.fG,
-                                             cs::kGiallo.fB, 0.0f}}}))})
-                       .children({text("The governing figure is the QUINCUNX "
+                                             cs::kGiallo.fB, 0.0f}}})),
+                                  text("The governing figure is the QUINCUNX "
                                        "— four roundels about a "
                                        "fifth. The Great Pavement is a "
                                        "quincunx of quincunxes, 25 Roman feet "
