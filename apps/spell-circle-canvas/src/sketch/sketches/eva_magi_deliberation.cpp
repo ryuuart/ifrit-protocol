@@ -46,7 +46,9 @@ struct EvaMagiDeliberation : sketch::Sketch {
   weave::FontContext* fonts = nullptr;
 
   /** A Latin run solved to a cap height and a measure, as a PARTIAL (face,
-   *  size, condensation) set in the ink where it lands; probes are it whole. */
+   *  size, condensation) set in the ink where it lands, or over the initial
+   *  values when a probe lays it out alone; the metrics probe takes it whole,
+   *  since metrics() reads a style rather than a tree. */
   weave::Type fit(const sk_sp<SkTypeface>& face, const std::u8string& run,
                   float capHeight, float maxWidth) const {
     float size = capHeight * 1.4f;
@@ -57,8 +59,8 @@ struct EvaMagiDeliberation : sketch::Sketch {
     }
     weave::Type style{.face = face, .size = size};
     if (fonts && maxWidth > 1.0f) {
-      const SkSize measured = sigil::compose::intrinsicSize(
-          text(run, weave::textStyle(style)), *fonts);
+      const SkSize measured =
+          sigil::compose::intrinsicSize(text(run).font(style), *fonts);
       if (measured.width() > maxWidth && measured.width() > 1.0f)
         style.condense = maxWidth / measured.width();
     }
@@ -132,11 +134,12 @@ struct EvaMagiDeliberation : sketch::Sketch {
         .rotate(layout.rotationFor(number))
         .transformOrigin(0.5f, 0.5f)
         .fill(mskia::Paint::solid(kMint))
+        // The module's ink is its label colour; the inner rule is drawn in it.
         .ink(kInk)
         .clip(true)
         .style(decorations::doubleBorder(
             decorations::border(6.0f, Fill::color(kOrange), 0.0f),
-            decorations::border(3.0f, Fill::color(kInk), 9.0f)))
+            decorations::border(3.0f, Fill::currentInk(), 9.0f)))
         .child(text(numeral)
                    .font(fit(evangelion::voteNumeral(number), numeral, 88.0f,
                              side - 48.0f))
