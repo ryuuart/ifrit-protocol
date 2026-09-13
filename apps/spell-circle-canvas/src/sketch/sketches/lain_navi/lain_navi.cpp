@@ -65,7 +65,7 @@ struct LainNavi : sketch::Sketch {
     g.children({box()
                     .inset(0)
                     .shape(keyedShape(
-                        phi, [phi](SkSize) { return generatrices(phi, 7); }))
+                        phi, [phi] { return generatrices(phi, 7); }))
                     .foreground(add(1.5f, mskia::scale(kWire, 0.44f), 0.0f))
                     .key("ruling")});
 
@@ -78,7 +78,7 @@ struct LainNavi : sketch::Sketch {
           {box()
                .inset(0)
                .shape(keyedShape(std::tuple{c.fX, c.fY, a, b, tilt, t0, t1},
-                                 [c, a, b, tilt, t0, t1](SkSize) {
+                                 [c, a, b, tilt, t0, t1] {
                                    return ellipsePath(c, a, b, tilt, t0, t1);
                                  }))
                .foreground(add(w, col, 0.0f, dot))
@@ -104,7 +104,7 @@ struct LainNavi : sketch::Sketch {
     g.children({box()
                     .inset(0)
                     .shape(keyedShape(std::string_view("wire-axis"),
-                                      [](SkSize) {
+                                      [] {
                                         SkPathBuilder b;
                                         b.moveTo(503 + kWireShift.fX,
                                                  28 + kWireShift.fY);
@@ -272,7 +272,7 @@ struct LainNavi : sketch::Sketch {
     root.children({box()
                        .inset(0)
                        .shape(keyedShape(std::string_view("side-rails"),
-                                         [](SkSize) {
+                                         [] {
                                            SkPathBuilder b;
                                            b.moveTo(kBodyL, kBarTopB - 4);
                                            b.lineTo(kBodyL + 8, kBarBotT + 4);

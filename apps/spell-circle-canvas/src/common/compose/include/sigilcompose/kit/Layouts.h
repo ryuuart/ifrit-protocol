@@ -72,9 +72,9 @@ struct Radial {
 };
 
 /** Children along an arbitrary contour by arc length. The path is a
- *  generator over the container size — any shapes:: outline or your own —
- *  and children center on evenly spaced samples of the
- *  [startFraction, endFraction] stretch of it.
+ *  generator over the container size — any shapes:: outline or your own,
+ *  naming the size or leaving it unnamed — and children center on evenly
+ *  spaced samples of the [startFraction, endFraction] stretch of it.
  *
  *  ONLY THE FIRST CONTOUR IS USED. A generator returning several subpaths
  *  places children on the first one and silently ignores the rest; give
@@ -84,7 +84,7 @@ struct Radial {
  *  the last child does not land on the first. Any other stretch, and any
  *  open contour, includes both ends. */
 struct AlongPath {
-  std::function<SkPath(SkSize)> path;
+  core::Callable<SkPath(SkSize)> path;
   float startFraction = 0.0f;
   float endFraction = 1.0f;
 

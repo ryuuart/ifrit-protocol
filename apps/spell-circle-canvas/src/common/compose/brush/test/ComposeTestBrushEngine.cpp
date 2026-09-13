@@ -371,7 +371,7 @@ TEST(ComposeBrushes, PatternCornerLandsOnTheVertexAndFacesTheBisector) {
   host.composer.render(box().children({box()
                                            .absolute()
                                            .inset(0)
-                                           .shape([](SkSize) {
+                                           .shape([] {
                                              SkPathBuilder p;
                                              p.moveTo(100, 100);
                                              p.lineTo(300, 100);
@@ -437,7 +437,7 @@ TEST(ComposeBrushes, OutgoingCornerAlignmentFacesTheNextEdge) {
   host.composer.render(box().children({box()
                                            .absolute()
                                            .inset(0)
-                                           .shape([](SkSize) {
+                                           .shape([] {
                                              SkPathBuilder p;
                                              p.moveTo(100, 100);
                                              p.lineTo(300, 100);

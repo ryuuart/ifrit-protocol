@@ -15,6 +15,7 @@
 #include <include/core/SkPath.h>
 #include <include/core/SkSize.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilcore/callable/Callable.h>
 #include <sigilmotion/values/Animatable.h>
 
 #include <any>
@@ -31,7 +32,9 @@ namespace sigil::compose {
 // ---------------------------------------------------------------------------
 // The shape seam — a COMPARABLE silhouette value
 
-/** A shape scheme: `SkPath path(SkSize) const`, plus equality.
+/** A shape scheme: `SkPath path(SkSize) const`, plus equality. (A raw
+ *  callable is the escape hatch below and may name the size or leave it
+ *  unnamed; a SCHEME spells the member, so it takes the size.)
  *
  *  This is the seam-value convention the library uses throughout — one
  *  named required member and a comparable value. `Shaper` spells
@@ -58,7 +61,9 @@ concept ShapeScheme =
  *  - a COMPARABLE scheme (any `shapes::` generator, or your own value
  *    with `path(SkSize)` + `==`) — the node prunes while the value and
  *    its size are unchanged;
- *  - a raw callable (`[](SkSize) -> SkPath`, an `OutlineFunction`) — the escape
+ *  - a raw callable answering the path, over the laid-out size or over
+ *    nothing (`[](SkSize s) { … }`, `[] { return p; }`, an
+ *    `OutlineFunction`) — the escape
  *    hatch. It never compares equal to a separately-constructed Shape, so
  *    the node re-patches on every describe and can never prune. That is a
  *    real per-frame cost on a node that would otherwise be static; reach
@@ -86,14 +91,15 @@ class Shape {
     m_state = std::make_shared<const State>(std::move(state));
   }
 
-  /** The escape hatch: any callable over the laid-out size. Never
-   *  compares equal to a separately-constructed Shape. */
+  /** The escape hatch: any callable answering the outline, over the
+   *  laid-out size or over nothing — an outline that is the same path
+   *  whatever the box is takes `[] { return p; }`. Never compares equal to
+   *  a separately-constructed Shape. */
   template <typename F>
     requires(!ShapeScheme<std::remove_cvref_t<F>> &&
              !std::same_as<std::remove_cvref_t<F>, Shape> &&
-             std::is_invocable_r_v<SkPath, const std::remove_cvref_t<F>&,
-                                   SkSize>)
-  Shape(F fn) {  // NOLINT: implicit by design (.shape([](SkSize s) {...}))
+             core::PrefixCallable<F, SkPath(SkSize)>)
+  Shape(F fn) {  // NOLINT: implicit by design (.shape([](SkSize s) {…}))
     State state;
     state.generate = std::move(fn);
     m_state = std::make_shared<const State>(std::move(state));
@@ -124,7 +130,7 @@ class Shape {
 
  private:
   struct State {
-    std::function<SkPath(SkSize)> generate;
+    core::Callable<SkPath(SkSize)> generate;
     std::any held;
     bool (*equals)(const std::any&, const std::any&) = nullptr;
   };
@@ -194,11 +200,11 @@ inline HeldPath heldPath(SkPath cooked) { return HeldPath(std::move(cooked)); }
  *  own type match, which is what makes a `std::tuple` of the closed-over
  *  numbers the natural spelling. */
 template <std::equality_comparable K, typename F>
-  requires std::is_invocable_r_v<SkPath, const F&, SkSize>
+  requires core::PrefixCallable<F, SkPath(SkSize)>
 class KeyedShape {
  public:
   KeyedShape(K key, F fn) : m_key(std::move(key)), m_fn(std::move(fn)) {}
-  SkPath path(SkSize size) const { return m_fn(size); }
+  SkPath path(SkSize size) const { return core::callPrefix(m_fn, size); }
   const K& key() const { return m_key; }
   bool operator==(const KeyedShape& o) const { return m_key == o.m_key; }
 
@@ -208,7 +214,7 @@ class KeyedShape {
 };
 
 template <std::equality_comparable K, typename F>
-  requires std::is_invocable_r_v<SkPath, const F&, SkSize>
+  requires core::PrefixCallable<F, SkPath(SkSize)>
 KeyedShape<K, F> keyedShape(K key, F fn) {
   return KeyedShape<K, F>(std::move(key), std::move(fn));
 }

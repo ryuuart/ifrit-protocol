@@ -114,7 +114,7 @@ auto ThunderFulu::plate() -> Element {
   g.children({box()
                   .inset(0)
                   .shape(keyedShape(std::string_view("plate-spine"),
-                                    [](SkSize) {
+                                    [] {
                                       SkPathBuilder b;
                                       b.moveTo(kCol, 28);
                                       b.lineTo(kCol, kPH - 24);
@@ -145,7 +145,7 @@ auto ThunderFulu::plate() -> Element {
                     .width(kPW - 36)
                     .height(1)
                     .shape(keyedShape(kPW - 36,
-                                      [w = kPW - 36](SkSize) {
+                                      [w = kPW - 36] {
                                         SkPathBuilder b;
                                         b.moveTo(0, 0.5f);
                                         b.lineTo(w, 0.5f);
@@ -465,7 +465,7 @@ auto ThunderFulu::furniture() -> Element {
                   .width(830)
                   .height(3)
                   .shape(keyedShape(std::string_view("rule-830"),
-                                    [](SkSize) {
+                                    [] {
                                       SkPathBuilder b;
                                       b.moveTo(0, 1.5f);
                                       b.lineTo(830, 1.5f);

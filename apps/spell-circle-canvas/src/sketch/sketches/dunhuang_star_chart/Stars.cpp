@@ -306,7 +306,7 @@ auto DunhuangStarChart::archer() -> Element {
                   .width(w)
                   .height(h)
                   .shape(keyedShape(std::string_view("bow"),
-                                    [](SkSize) {
+                                    [] {
                                       SkPathBuilder b;
                                       b.moveTo(34, 8);
                                       b.cubicTo(-10, 56, -10, 126, 34, 176);
@@ -326,7 +326,7 @@ auto DunhuangStarChart::archer() -> Element {
            .width(w)
            .height(h)
            .shape(keyedShape(std::string_view("arrow"),
-                             [](SkSize) {
+                             [] {
                                SkPathBuilder b;
                                b.moveTo(140, 90);
                                b.lineTo(6, 92);

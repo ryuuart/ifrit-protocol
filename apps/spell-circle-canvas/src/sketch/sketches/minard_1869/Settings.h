@@ -482,7 +482,7 @@ inline float cityKm(const City& c) {
 // copy carries.
 
 inline Shape segFn(SkPoint a, SkPoint b) {
-  return keyedShape(std::tuple(a.x(), a.y(), b.x(), b.y()), [a, b](SkSize) {
+  return keyedShape(std::tuple(a.x(), a.y(), b.x(), b.y()), [a, b] {
     SkPathBuilder p;
     p.moveTo(a);
     p.lineTo(b);

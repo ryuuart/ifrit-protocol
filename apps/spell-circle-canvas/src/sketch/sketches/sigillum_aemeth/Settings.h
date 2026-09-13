@@ -300,7 +300,7 @@ inline SkPoint heptVertex(int k, float rNorm) {
  *  TextPath walks every contour in order as ONE arc-length coordinate, so
  *  side k's midpoint is at exactly (k + 0.5)/7 of the whole. */
 inline shapes::OutlineFunction heptChords(float rNorm, float inset) {
-  return [rNorm, inset](SkSize) {
+  return [rNorm, inset] {
     SkPathBuilder b;
     for (int k = 0; k < 7; ++k) {
       SkPoint a = heptVertex(k, rNorm), c = heptVertex(k + 1, rNorm);

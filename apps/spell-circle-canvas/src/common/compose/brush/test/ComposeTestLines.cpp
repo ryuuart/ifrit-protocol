@@ -162,7 +162,7 @@ Element corneredRun(lines::Line style) {
   return box().children({box()
                              .absolute()
                              .inset(20, 20, 20, 20)
-                             .shape([](SkSize s) {
+                             .shape([] {
                                SkPathBuilder b;
                                b.moveTo(0, 120);
                                b.lineTo(120, 120);
@@ -646,7 +646,7 @@ TEST(ComposeRouters, ManhattanCasedRailMatchesCleanGeometry) {
   clean.composer.render(boxes(box()
                                   .absolute()
                                   .inset(0)
-                                  .shape([](SkSize) {
+                                  .shape([] {
                                     SkPathBuilder b;
                                     b.moveTo(20, 100);
                                     b.lineTo(180, 100);

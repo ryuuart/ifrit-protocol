@@ -74,7 +74,7 @@ Element GenesisFire::dipper() {
       {box()
            .inset(0)
            .shape(keyedShape(std::string_view("asterism"),
-                             [](SkSize) {
+                             [] {
                                SkPathBuilder b;
                                auto P = [](int i) {
                                  return SkPoint{bx + kStars[i].u * bw,

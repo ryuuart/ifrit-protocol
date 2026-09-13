@@ -121,8 +121,7 @@ TEST(ComposeContent, AHeldPathShapePrunesWhereALambdaNeverCan) {
   auto tree = [&cooked](bool held) {
     return box().children(
         {held ? box().width(60).height(60).shape(heldPath(cooked))
-              : box().width(60).height(60).shape(
-                    [cooked](SkSize) { return cooked; })});
+              : box().width(60).height(60).shape([cooked] { return cooked; })});
   };
   Host host;
   host.composer.render(tree(true));
@@ -145,6 +144,35 @@ TEST(ComposeContent, AHeldPathShapePrunesWhereALambdaNeverCan) {
   raw.frame();
   raw.composer.render(tree(false));
   EXPECT_GE(raw.composer.stats().patchedNodes, 1u);
+}
+
+TEST(ComposeContent, AnOutlineThatIgnoresTheBoxNeedNotNameIt) {
+  // The laid-out size is OFFERED to an outline, not demanded: a generator
+  // that draws the same path whatever the box is names nothing, and keyed on
+  // the value it closes over it compares and prunes exactly as a sized one.
+  auto tree = [](float inset) {
+    return box().children(
+        {box().width(60).height(60).fill(red()).shape(inset, [inset] {
+          SkPathBuilder pb;
+          pb.addOval(
+              SkRect::MakeXYWH(inset, inset, 60 - 2 * inset, 60 - 2 * inset));
+          return pb.detach();
+        })});
+  };
+  Host host;
+  host.composer.render(tree(0.0f));
+  host.frame();
+  EXPECT_EQ(host.pixel(30, 30), SK_ColorRED);
+  host.composer.render(tree(0.0f));  // the same key: prune
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+  // A changed key is a change, and the new nullary outline reaches the paint.
+  host.composer.render(tree(25.0f));
+  EXPECT_GE(host.composer.stats().patchedNodes, 1u);
+  host.frame();
+  EXPECT_EQ(host.pixel(2, 30), SK_ColorBLACK)
+      << "the inset outline never reached the paint";
 }
 
 TEST(ComposeContent, AKeyedShapeSettlesOnTheValueItClosesOver) {

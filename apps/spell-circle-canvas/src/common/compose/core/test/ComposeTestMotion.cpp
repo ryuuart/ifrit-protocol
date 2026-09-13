@@ -221,7 +221,7 @@ TEST(ComposeTravel, TIsAFractionOfTotalArcLengthAcrossEveryContour) {
 TEST(ComposeTravel, APathWithNoMeasurableLengthLeavesTheLanesStanding) {
   Host host(200, 200);
   host.composer.render(
-      travelFrame(rider({.path = [](SkSize) { return SkPath(); }, .t = 0.5f})
+      travelFrame(rider({.path = [] { return SkPath(); }, .t = 0.5f})
                       .translateX(40)));
   host.frame();
   const SkPoint ink = inkCentroid(host, SK_ColorRED, 200, 200);

@@ -251,7 +251,7 @@ class Element {
    *  KeyedShape for the one-key-one-drawing contract the author takes on.
    *  A path already cooked wants `shape(heldPath(p))` instead. */
   template <typename K, typename F>
-    requires std::is_invocable_r_v<SkPath, const F&, SkSize>
+    requires core::PrefixCallable<F, SkPath(SkSize)>
   Element& shape(K key, F fn) {
     return shape(Shape(keyedShape(std::move(key), std::move(fn))));
   }

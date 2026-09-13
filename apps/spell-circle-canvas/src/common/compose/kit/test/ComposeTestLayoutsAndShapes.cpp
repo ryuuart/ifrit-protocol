@@ -690,7 +690,7 @@ TEST(ComposeLayouts, RadialRadiusAtGivesEachChildItsOwnRing) {
 TEST(ComposeLayouts, AlongPathUsesTheSelectedContoursClosure) {
   for (bool firstClosed : {false, true}) {
     SCOPED_TRACE(firstClosed);
-    layouts::AlongPath scheme{.path = [firstClosed](SkSize) {
+    layouts::AlongPath scheme{.path = [firstClosed] {
       SkPathBuilder path;
       path.moveTo(0, 0).lineTo(100, 0);
       if (firstClosed) path.close();

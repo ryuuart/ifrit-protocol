@@ -127,7 +127,7 @@ auto SigillumAemeth::circumferenceCells() -> Element {
       {box()
            .inset(0)
            .shape(keyedShape(std::string_view("band-dividers"),
-                             [](SkSize) {
+                             [] {
                                SkPathBuilder b;
                                for (int i = 0; i < 40; ++i) {
                                  const float th = (float)i * 9.0f - 4.5f;
@@ -452,7 +452,7 @@ auto SigillumAemeth::innerRings() -> Element {
       {box()
            .inset(0)
            .shape(keyedShape(std::string_view("heptagram"),
-                             [](SkSize) {
+                             [] {
                                SkPathBuilder b;
                                b.setFillType(SkPathFillType::kEvenOdd);
                                for (int k = 0; k < 7; ++k) {

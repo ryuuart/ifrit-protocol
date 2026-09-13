@@ -22,7 +22,7 @@ auto ThunderFulu::chantPanel() -> Element {
                   .width(468)
                   .height(3)
                   .shape(keyedShape(std::string_view("rule-468"),
-                                    [](SkSize) {
+                                    [] {
                                       SkPathBuilder b;
                                       b.moveTo(0, 1.5f);
                                       b.lineTo(468, 1.5f);
@@ -161,7 +161,7 @@ auto ThunderFulu::marginColumn() -> Element {
         .width(w)
         .height(3)
         .shape(keyedShape(w,
-                          [w](SkSize) {
+                          [w] {
                             SkPathBuilder b;
                             b.moveTo(0, 1.5f);
                             b.lineTo(w, 1.5f);
@@ -232,7 +232,7 @@ auto ThunderFulu::marginColumn() -> Element {
                     .width(pw)
                     .height(chh)
                     .shape(keyedShape(std::tuple{pw, chh, sc},
-                                      [pw, chh, sc](SkSize) {
+                                      [pw, chh, sc] {
                                         SkPathBuilder b;
                                         b.moveTo(0, chh - sc);
                                         b.lineTo(pw, chh - sc);

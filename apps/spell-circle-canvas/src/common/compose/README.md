@@ -1822,7 +1822,11 @@ your outputs where you hold your model.
 The raw-callable escape hatches — a `Shape` built from a lambda, an
 unkeyed `custom()` program, a bare `PaintProgram` decoration — can never
 compare equal to a separately constructed one, so their nodes re-patch on
-every describe. They stay in the grammar and they stay always-live: a
+every describe. (Each of them names only the parameters it reads: the
+laid-out size is offered to an outline and the canvas and its context to a
+program, so `.shape([] { return p; })` is as much an outline as
+`.shape([](SkSize s) { … })` is. What a callable NAMES has no bearing on
+what it compares — which is nothing.) They stay in the grammar and they stay always-live: a
 node carrying one is re-patched and re-recorded for as long as it exists,
 which is the price of handing over something the library cannot read.
 
@@ -1830,7 +1834,7 @@ which is the price of handing over something the library cannot read.
 there are three spellings for that, one per kind of identity:
 
 - **the path is the identity** — `.shape(heldPath(p))` over
-  `.shape([p](SkSize) { return p; })`. A path cooked once and held
+  `.shape([p] { return p; })`. A path cooked once and held
   compares by its own generation, which every copy carries. Rebuilding the
   path each describe is a new generation and stays conservative: cook it,
   hold it, hand it here. `pathFigure(p, bleed)` is the leaf that also

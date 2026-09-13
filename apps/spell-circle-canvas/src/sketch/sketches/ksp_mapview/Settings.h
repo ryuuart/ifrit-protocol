@@ -188,7 +188,7 @@ using path::ConicSpan;
  *  the few numbers it stands on, so those numbers are the key and a node
  *  wearing one settles instead of re-recording on every describe. */
 inline Shape trajectory(const Conic& conic, ConicSpan span) {
-  return keyedShape(std::pair(conic, span), [conic, span](SkSize) {
+  return keyedShape(std::pair(conic, span), [conic, span] {
     return path::conicPath(conic, span);
   });
 }

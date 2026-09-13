@@ -308,7 +308,7 @@ inline Element straightTile(SkColor4f tint, const Element& spatter,
       .width(w)
       .height(h)
       .shape(keyedShape(std::tuple{w, h},
-                        [w, h](SkSize) {
+                        [w, h] {
                           SkPathBuilder p;
                           p.moveTo(0, h * 0.5f);
                           p.lineTo(w, h * 0.5f);
@@ -361,7 +361,7 @@ inline Element elbowTile(float arm, float handed, SkColor4f tint,
       .width(side)
       .height(side)
       .shape(keyedShape(std::tuple{entry.fX, entry.fY, exit.fX, exit.fY, half},
-                        [entry, exit, half](SkSize) {
+                        [entry, exit, half] {
                           SkPathBuilder p;
                           p.moveTo(entry);
                           p.lineTo(half, half);

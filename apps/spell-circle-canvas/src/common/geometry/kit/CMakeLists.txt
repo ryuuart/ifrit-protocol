@@ -22,7 +22,7 @@ sigil_library(SigilGeometryKit
   SOURCES Hatches.cpp Sections.cpp Silhouettes.cpp Solids.cpp
   HEADERS Corners.h Curves.h Divisions.h Generators.h Hatches.h Sections.h
           Shapers.h Silhouettes.h Solids.h
-  PUBLIC SigilGeometryPath SigilGeometryMesh SigilCoreCompute
+  PUBLIC SigilGeometryPath SigilGeometryMesh SigilCoreCallable SigilCoreCompute
   PRIVATE earcut_hpp::earcut_hpp)
 
 # Links only the shelves, over Skia — a link edge that pulled a component

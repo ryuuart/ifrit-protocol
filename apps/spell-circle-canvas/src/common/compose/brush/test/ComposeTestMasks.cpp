@@ -1352,7 +1352,7 @@ TEST(ComposeSpans, EachContourStitchesItsOwnSeamOnAMultiContourPath) {
                            .absolute()
                            .inset(0)
                            .fill(Fill::none())
-                           .shape([](SkSize) {
+                           .shape([] {
                              SkPathBuilder b;
                              b.addCircle(50, 100, 30);
                              b.addCircle(150, 100, 30);

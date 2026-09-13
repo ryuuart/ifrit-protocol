@@ -303,7 +303,7 @@ Element sectorBox(SkPoint c, float r, float startDeg, float sweepDeg) {
   return box()
       .rect(bounds)
       .shape(keyedShape(std::tuple{centre.fX, centre.fY, r, startDeg, sweepDeg},
-                        [centre, r, startDeg, sweepDeg](SkSize) {
+                        [centre, r, startDeg, sweepDeg] {
                           SkPathBuilder b;
                           b.moveTo(centre);
                           b.arcTo(SkRect::MakeXYWH(centre.fX - r, centre.fY - r,
@@ -738,7 +738,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
                        .key("leader")
                        .fill(Fill::none())
                        .shape(keyedShape(std::string_view("leader"),
-                                         [](SkSize) {
+                                         [] {
                                            SkPathBuilder p;
                                            p.moveTo(202, 398);
                                            p.lineTo(614, 522);

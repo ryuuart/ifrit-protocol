@@ -30,7 +30,7 @@ auto ChaucerAstrolabe::reteShadow() -> Element {
              .key("shband")
              .shape(keyedShape(
                  std::tuple(ro, ri, c.fX, c.fY, ci.fX, ci.fY),
-                 [ro, ri, c, ci](SkSize) {
+                 [ro, ri, c, ci] {
                    SkPathBuilder b;
                    b.setFillType(SkPathFillType::kEvenOdd);
                    b.addOval(SkRect::MakeWH(2 * ro, 2 * ro));
@@ -76,7 +76,7 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
              .key("band")
              .shape(keyedShape(
                  std::tuple(ro, ri, c.fX, c.fY, ci.fX, ci.fY),
-                 [ro, ri, c, ci](SkSize) {
+                 [ro, ri, c, ci] {
                    SkPathBuilder b;
                    b.setFillType(SkPathFillType::kEvenOdd);
                    b.addOval(SkRect::MakeWH(2 * ro, 2 * ro));

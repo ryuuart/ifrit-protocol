@@ -89,7 +89,7 @@ struct MagiModule {
 
   [[nodiscard]] sigil::geometry::shapes::OutlineFunction outline() const {
     const MagiModule geometry = *this;
-    return [geometry](SkSize) {
+    return [geometry] {
       const float stemLeft = geometry.stemLeft();
       SkPathBuilder path;
       path.moveTo(0, 0);

@@ -50,6 +50,25 @@ struct Generator {
   OutlineFunction make;
 };
 
+TEST(Silhouettes, AnOutlineFunctionMayLeaveTheBoxUnnamed) {
+  // The box is offered, not demanded: a hand-rolled outline that is the same
+  // path at every size takes no parameter, and the stock generators — which
+  // do read it — are unchanged beside it.
+  SkPathBuilder pb;
+  pb.addRect(SkRect::MakeXYWH(1, 2, 3, 4));
+  const SkPath fixed = pb.detach();
+  const OutlineFunction same = [fixed] { return fixed; };
+  const OutlineFunction sized = [](SkSize box) {
+    SkPathBuilder b;
+    b.addRect(SkRect::MakeWH(box.width(), box.height()));
+    return b.detach();
+  };
+  EXPECT_EQ(same(kBox).getBounds(), SkRect::MakeXYWH(1, 2, 3, 4));
+  EXPECT_EQ(same(SkSize::Make(9, 9)).getBounds(), SkRect::MakeXYWH(1, 2, 3, 4));
+  EXPECT_EQ(sized(kBox).getBounds(),
+            SkRect::MakeWH(kBox.width(), kBox.height()));
+}
+
 class SilhouetteGenerator : public ::testing::TestWithParam<Generator> {};
 
 TEST_P(SilhouetteGenerator, StaysInsideTheBoxItIsGiven) {

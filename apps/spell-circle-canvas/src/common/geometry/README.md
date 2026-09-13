@@ -1436,7 +1436,10 @@ that is the whole contract: a consumer that caches drawings prunes on the
 equality, and a consumer that wants a plain path-over-size function gets
 one from the call operator. Your own generator written the same way has
 the same standing — the kit is stock, never privileged, and equal values
-must draw identical paths at every size.
+must draw identical paths at every size. A hand-rolled
+`shapes::OutlineFunction` is the escape hatch beside them, and the size is
+offered to it rather than demanded: one that draws the same path whatever
+the box is takes `[] { return p; }`.
 
 **One table for the lane convention, and one for the stamp.**
 `pop::attributeFor` and `pop::cloudLaneFor` are the whole of the mapping

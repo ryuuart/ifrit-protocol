@@ -367,7 +367,7 @@ auto DunhuangStarChart::discPlate(int seg) -> Element {
                     .width(d)
                     .height(d)
                     .shape(keyedShape(std::tuple(ang, rOut),
-                                      [ang, rOut](SkSize) {
+                                      [ang, rOut] {
                                         SkPathBuilder b;
                                         const float a = ang * kD;
                                         b.moveTo(arrange::onEllipse(

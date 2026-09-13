@@ -7,6 +7,7 @@
  */
 
 #include <include/core/SkPathBuilder.h>
+#include <sigilcore/callable/Callable.h>
 
 #include <cstdint>
 #include <functional>
@@ -17,11 +18,12 @@
 namespace sigil::geometry::shapes {
 
 /** A silhouette generator: local-coordinate path over the node's laid-out
- *  size. The ESCAPE-HATCH spelling of what Element::shape() accepts — a
- *  raw callable never prunes, where the generator values below do. It
- *  exists because a hand-rolled curve has to start somewhere; promote it
- *  to a value once it settles. */
-using OutlineFunction = std::function<SkPath(SkSize)>;
+ *  size, which it may name or leave unnamed — an outline that is the same
+ *  path whatever the box is takes `[] { return p; }`. The ESCAPE-HATCH
+ *  spelling of what a node's shape accepts — a raw callable never prunes,
+ *  where the generator values below do. It exists because a hand-rolled
+ *  curve has to start somewhere; promote it to a value once it settles. */
+using OutlineFunction = sigil::core::Callable<SkPath(SkSize)>;
 
 /** An outline from an SVG path-d string (SkParsePath) — trace a reference
  *  silhouette in any vector tool, paste the `d`, done. The path's bounds

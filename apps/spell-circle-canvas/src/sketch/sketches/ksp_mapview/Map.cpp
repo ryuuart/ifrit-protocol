@@ -303,7 +303,7 @@ auto KspMapView::gizmo() -> Element {
     return box()
         .inset(0)
         .shape(keyedShape(std::tuple{a.fX, a.fY, b.fX, b.fY},
-                          [a, b](SkSize) {
+                          [a, b] {
                             SkPathBuilder p;
                             p.moveTo(a);
                             p.lineTo(b);
@@ -340,7 +340,7 @@ auto KspMapView::gizmo() -> Element {
   g.children({box()
                   .inset(0)
                   .shape(keyedShape(std::tuple{hub.fX, hub.fY, pro.x, pro.y},
-                                    [hub, pro](SkSize) {
+                                    [hub, pro] {
                                       SkPathBuilder b;
                                       b.moveTo(hub);
                                       b.lineTo(hub.fX + pro.x * 96,

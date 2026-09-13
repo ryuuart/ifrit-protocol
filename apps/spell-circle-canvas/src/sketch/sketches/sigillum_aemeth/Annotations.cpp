@@ -113,7 +113,7 @@ auto SigillumAemeth::margin() -> Element {
                   .rect(SkRect::MakeXYWH(0, 114, w, 2))
                   .fill(Fill::none())
                   .shape(keyedShape(w,
-                                    [w](SkSize) {
+                                    [w] {
                                       SkPathBuilder b;
                                       b.moveTo(0, 1);
                                       b.lineTo(w, 1);
@@ -135,7 +135,7 @@ auto SigillumAemeth::margin() -> Element {
   g.children({box()
                   .rect(SkRect::MakeXYWH(0, 158, w, 324))
                   .shape(keyedShape(w,
-                                    [w](SkSize) {
+                                    [w] {
                                       SkPathBuilder b;
                                       for (int n = 0; n <= 7; ++n) {
                                         b.moveTo(0, 4 + (float)n * 46);
@@ -232,7 +232,7 @@ auto SigillumAemeth::margin() -> Element {
            .rect(SkRect::MakeXYWH(0, 560, w, 300))
            .shape(keyedShape(
                std::tuple{fanCx, fanCy, fanR0, fanDR, fanSpan},
-               [fanCx, fanCy, fanR0, fanDR, fanSpan](SkSize) {
+               [fanCx, fanCy, fanR0, fanDR, fanSpan] {
                  SkPathBuilder b;
                  for (int r = 0; r <= 7; ++r) {
                    const float rr = fanR0 - (float)r * fanDR + fanDR * 0.5f;
@@ -261,7 +261,7 @@ auto SigillumAemeth::margin() -> Element {
     g.children({box()
                     .inset(0)
                     .shape(keyedShape(std::tuple{a0.fX, a0.fY, a1.fX, a1.fY},
-                                      [a0, a1](SkSize) {
+                                      [a0, a1] {
                                         SkPathBuilder b;
                                         b.moveTo(a0);
                                         b.lineTo(a1);
@@ -280,7 +280,7 @@ auto SigillumAemeth::margin() -> Element {
         {box()
              .inset(0)
              .shape(keyedShape(std::tuple{a1.fX, a1.fY, nameAt.fX, nameAt.fY},
-                               [a1, nameAt](SkSize) {
+                               [a1, nameAt] {
                                  SkPathBuilder b;
                                  b.moveTo(a1);
                                  b.quadTo(
@@ -404,7 +404,7 @@ auto SigillumAemeth::colophon() -> Element {
   g.children({box()
                   .rect(SkRect::MakeXYWH(0, 0, 690, 2))
                   .shape(keyedShape(std::string_view("colophon-rule"),
-                                    [](SkSize) {
+                                    [] {
                                       SkPathBuilder b;
                                       b.moveTo(0, 1);
                                       b.lineTo(690, 1);
