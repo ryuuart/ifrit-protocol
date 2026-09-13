@@ -5,84 +5,65 @@
 #include "ChaucerAstrolabe.h"
 
 auto ChaucerAstrolabe::describe(sketch::SketchContext&) -> Element {
-  // The plate's sheet stands for everything described below it, so a kit
+  // The plate's theme stands for everything described below it, so a kit
   // component four levels down is set in this plate's registers without
-  // being handed them.
+  // being handed them; the sheet on the root is the same statement for the
+  // classes, and the font and the ink under it are the plate's running
+  // voice.
   sketch::kit::Provide look(sheetLook);
-  auto root = stack().fill(Fill::color(kVellum));
-
-  // vellum: grain at very low contrast, and a soft warm falloff.
-  // A fBm field over the WHOLE canvas, on the same bake rule as the
-  // mater's passes — and the one that needs it most, because a bare fill
-  // leaf records no picture at all (one drawRect is cheaper than a nested
-  // recording), so undeclared this evaluates the noise across 2400x1600
-  // every frame. Texture, not Picture: replaying a picture re-runs the
-  // shader; an image blits.
-  root.children({box()
-                     .inset(0)
-                     .key("vgrain")
-                     .cache(Cache::Texture)
-                     .fill(vellumGrain)
-                     .opacity(0.13f)
-                     .blend(SkBlendMode::kSoftLight)});
-
-  // the case: the object sits in a vitrine, not on the page
-  root.children(
-      {box()
-           .rect(SkRect::MakeXYWH(56, 140, 1132, 1258))
-           .key("case")
-           .corners({3})
-           .fill(Fill::color(kCase))
-           .opacity(animate(from(0.0f).to(1.0f), ramp(tGround * 1000, 700)))});
-  root.children(
-      {box()
-           .rect(SkRect::MakeXYWH(56, 140, 1132, 1258))
-           .key("vignette")
-           .corners({3})
-           .cache(Cache::Texture)
-           .fill(Paint::glowUnit({0.50f, 0.46f}, 1.05f,
-                                 {{0.0f, hexColor(0x33405a, 0.55f)},
-                                  {0.62f, hexColor(0x1d222d, 0.0f)},
-                                  {1.0f, hexColor(0x080a10, 0.75f)}}))
-           .opacity(animate(from(0.0f).to(1.0f), ramp(tGround * 1000, 900)))});
-  // the contact shadow
-  root.children(
-      {box()
-           .rect(SkRect::MakeXYWH(kCx - kMaterR * 1.02f, kCy + kMaterR * 0.86f,
-                                  kMaterR * 2.04f, kMaterR * 0.30f))
-           .key("contact")
-           .shape(shapes::circle())
-           .cache(Cache::Texture)
-           .fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                 {{0.0f, hexColor(0x05070c, 0.75f)},
-                                  {1.0f, hexColor(0x05070c, 0.0f)}}))
-           .opacity(animate(from(0.0f).to(1.0f), ramp(tMater * 1000, 900)))});
-
-  root.children({titleStrip()});
-  root.children({limb()});
-  root.children({plate()});
-  // the rete is a physically raised sheet: it casts onto the plate
-  root.children({box()
-                     .rect(SkRect::MakeXYWH(0, 0, kW, kH))
-                     .key("retewrap")
-                     .children({reteShadow()})
-                     .children({reteGroup()})});
-  // the only saturated thing on the object, and it reads as a line drawn ON
-  // the brass rather than engraved into it — no groove, no bevel
-  root.children({rule()});
-  root.children({slot("sun")});
-  root.children({construction()});
-  root.children({slot("readout")});
-
-  root.children({projectionPanel()});
-  root.children({familiesPanel()});
-  root.children({backPanel()});
-  root.children({specCard()});
-  root.children({starPanel()});
-  root.children({chaucerPanel()});
-  root.children({zodiacPanel()});
-  root.children({consolePanel()});
-  return root;
+  return stack()
+      .fill(Fill::color(kVellum))
+      .styleSheet(cardLook)
+      .font(sheetLook.font(sheetLook.type.captionNote))
+      .ink(kInk)
+      .children(
+          {// vellum: grain at very low contrast over the whole canvas, on
+           // the same bake rule as the mater's passes — and the one that
+           // needs it most, because a bare fill leaf records no picture at
+           // all (one drawRect is cheaper than a nested recording), so
+           // undeclared this evaluates the noise across 2400x1600 every
+           // frame. Texture, not Picture: replaying a picture re-runs the
+           // shader; an image blits.
+           box()
+               .inset(0)
+               .key("vgrain")
+               .cache(Cache::Texture)
+               .fill(vellumGrain)
+               .opacity(0.13f)
+               .blend(SkBlendMode::kSoftLight),
+           // the case: the object sits in a vitrine, not on the page
+           kit::at(56, 140, 1132, 1258)
+               .key("case")
+               .corners({3})
+               .fill(Fill::color(kCase))
+               .opacity(rise(ramp(tGround * 1000, 700))),
+           kit::at(56, 140, 1132, 1258)
+               .key("vignette")
+               .corners({3})
+               .cache(Cache::Texture)
+               .fill(Paint::glowUnit({0.50f, 0.46f}, 1.05f,
+                                     {{0.0f, hexColor(0x33405a, 0.55f)},
+                                      {0.62f, hexColor(0x1d222d, 0.0f)},
+                                      {1.0f, hexColor(0x080a10, 0.75f)}}))
+               .opacity(rise(ramp(tGround * 1000, 900))),
+           // the contact shadow
+           kit::at(kCx - kMaterR * 1.02f, kCy + kMaterR * 0.86f,
+                   kMaterR * 2.04f, kMaterR * 0.30f)
+               .key("contact")
+               .shape(shapes::circle())
+               .cache(Cache::Texture)
+               .fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
+                                     {{0.0f, hexColor(0x05070c, 0.75f)},
+                                      {1.0f, hexColor(0x05070c, 0.0f)}}))
+               .opacity(rise(ramp(tMater * 1000, 900))),
+           titleStrip(), limb(), plate(),
+           // the rete is a physically raised sheet: it casts onto the plate
+           box().inset(0).key("retewrap").children({reteShadow(), reteGroup()}),
+           // the only saturated thing on the canvas, and it reads as a line
+           // drawn ON the brass rather than engraved into it — no groove,
+           // no bevel
+           rule(), slot("sun"), construction(), slot("readout"), rack(),
+           consolePanel()});
 }
 
 auto ChaucerAstrolabe::setup(sketch::SketchContext& ctx) -> void {
@@ -138,6 +119,28 @@ auto ChaucerAstrolabe::setup(sketch::SketchContext& ctx) -> void {
   sheetLook.spacing.subtitleGap = 12;
   sheetLook.spacing.contentGap = 28;
   sheetLook.spacing.rowGap = 5;
+
+  // THE PLATE'S WORDS, and the registers they are set in. Every heading,
+  // gloss, listing and verdict on the commentary is read out of the
+  // document beside this file, and every class a card writes is registered
+  // here once — over the theme's own eight registers and the eight a chart
+  // draws, so a plot on a card is dressed without the card saying anything.
+  doc = ctx.assets.json(ctx.local("data/content.json"));
+  cardLook = sheetLook.styleSheet();
+  cardLook.set("title", partial(faceLimb, 15, kRubric, 1.9f));
+  cardLook.set("subtitle", partial(faceItalic, 14, hexColor(0x6b5a44)));
+  cardLook.set("gloss", partial(faceItalic, 13, kRubric));
+  cardLook.set("note", partial(faceItalic, 12, hexColor(0x7b6a54)));
+  cardLook.set("quote", partial(faceItalic, 13.5f, kInk));
+  cardLook.set("figure", partial(faceMono, 12, kInk));
+  cardLook.set("engrave", partial(faceLimb, 9, hexColor(0x33240c, 0.85f)));
+  cardLook.set("captionLabel", partial(faceLimb, 11.5f, kInk, 1.2f));
+  cardLook.set("captionNote", partial(faceMono, 9.5f, hexColor(0x7b6a54)));
+  cardLook.set("plotTick", partial(faceMono, 9.5f, kInk));
+  cardLook.set("plotLabel", partial(faceItalic, 11, hexColor(0x7b6a54)));
+  cardLook.set("dial", partial(faceLimb, 10, hexColor(0x8a99b0), 1.4f));
+  cardLook.set("readout", partial(faceMono, 19, hexColor(0xd8c79c)));
+  cardLook.set("time", partial(faceMono, 19, hexColor(0xffdc8b)));
 
   brassGrain = Paint::recipe(field::grain(0.9f, 3, 11.0f, 0.30f));
   verdigris = patterns::speckle(420, 16, 1.6f, 5.0f,

@@ -63,19 +63,17 @@ auto ChaucerAstrolabe::plate() -> Element {
   // very low-amplitude speckle, only over the engraved field.
   // The speckle is SEEDED, so it is the same field every run and every
   // frame: baked over the plate disc, and the growth is the blit's alpha.
-  g.children(
-      {box()
-           .inset(0)
-           .key("verdigris")
-           .shape(shapes::circle())
-           .cache(Cache::Texture)
-           .fill(verdigris.material())
-           .opacity(animate(from(0.0f).to(1.0f), ramp(tTropics * 1000, 900)))});
-
-  // the recess: the plate sits one millimetre below the limb. A filter
-  // over the whole disc with nothing behind it that changes — baked, on
-  // the same rule as the mater's four passes.
   g.children({box()
+                  .inset(0)
+                  .key("verdigris")
+                  .shape(shapes::circle())
+                  .cache(Cache::Texture)
+                  .fill(verdigris.material())
+                  .opacity(rise(ramp(tTropics * 1000, 900))),
+              // the recess: the plate sits one millimetre below the limb. A
+              // filter over the whole disc with nothing behind it that changes
+              // — baked, on the same rule as the mater's four passes.
+              box()
                   .inset(0)
                   .key("recess")
                   .shape(shapes::circle())
@@ -89,11 +87,8 @@ auto ChaucerAstrolabe::plate() -> Element {
     PathFormat dotted{.width = 1.5f,
                       .strokeFill = Fill::color(hexColor(0x3a2a10, 0.42f)),
                       .dashIntervals = {3.0f, 5.0f}};
-    g.children({kit::disc(PL(0, almCy(-18.0f)), almR(-18.0f) * kR)
+    g.children({ring(PL(0, almCy(-18.0f)), almR(-18.0f) * kR, dotted)
                     .key("twilight")
-                    .shape(shapes::circle())
-                    .fill(Fill::none())
-                    .stroke(dotted)
                     .opacity(animate(from(0.0f).to(1.0f),
                                      ramp(tHorizon * 1000 + 700, 700)))});
   }
@@ -141,13 +136,10 @@ auto ChaucerAstrolabe::plate() -> Element {
       for (int s = -1; s <= 1; s += 2) {
         const path::PlaneCircle az = azimuth((float)s * ap);
         const float rad = az.radius * kR;
-        sky.children(
-            {kit::disc(local(az.centre.x, az.centre.y), rad)
-                 .key("az" + std::to_string(i * s))
-                 .shape(shapes::circle())
-                 .fill(Fill::none())
-                 .stroke(groove(rad, 1.3f, 0.42f, 0.20f))
-                 .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 460)))});
+        sky.children({ring(local(az.centre.x, az.centre.y), rad,
+                           groove(rad, 1.3f, 0.42f, 0.20f))
+                          .key("az" + std::to_string(i * s))
+                          .opacity(rise(ramp(delay, 460)))});
       }
     }
     // the prime vertical (A = 90/270): a circle centred on the axis, and it
@@ -156,11 +148,9 @@ auto ChaucerAstrolabe::plate() -> Element {
     {
       const path::PlaneCircle pv = azimuth(0.0f);
       const float rad = pv.radius * kR;
-      sky.children({kit::disc(local(pv.centre.x, pv.centre.y), rad)
+      sky.children({ring(local(pv.centre.x, pv.centre.y), rad,
+                         groove(rad, 1.7f, 0.55f, 0.26f))
                         .key("azPV")
-                        .shape(shapes::circle())
-                        .fill(Fill::none())
-                        .stroke(groove(rad, 1.7f, 0.55f, 0.26f))
                         .opacity(animate(from(0.0f).to(1.0f),
                                          ramp(tAzim * 1000, 460)))});
     }
@@ -207,21 +197,17 @@ auto ChaucerAstrolabe::plate() -> Element {
       if (!c)  // k = 6 is straight: midnight is midnight at every dec
         continue;
       const float rad = c->radius * kR;
-      night.children(
-          {kit::disc(PL(c->centre.x, c->centre.y), rad)
-               .key("hr" + std::to_string(k))
-               .shape(shapes::circle())
-               .fill(Fill::none())
-               .stroke(groove(rad, 1.5f, 0.50f, 0.24f))
-               .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 480)))});
+      night.children({ring(PL(c->centre.x, c->centre.y), rad,
+                           groove(rad, 1.5f, 0.50f, 0.24f))
+                          .key("hr" + std::to_string(k))
+                          .opacity(rise(ramp(delay, 480)))});
     }
     // k = 6, the straight one
-    night.children(
-        {box()
-             .rect(SkRect::MakeXYWH(kR - 0.8f, kR, 1.6f, kR))
-             .key("hr6")
-             .fill(Fill::color(hexColor(0x3a2a10, 0.5f)))
-             .opacity(animate(from(0.0f).to(1.0f), ramp(tHours * 1000, 480)))});
+    night.children({box()
+                        .rect(SkRect::MakeXYWH(kR - 0.8f, kR, 1.6f, kR))
+                        .key("hr6")
+                        .fill(Fill::color(hexColor(0x3a2a10, 0.5f)))
+                        .opacity(rise(ramp(tHours * 1000, 480)))});
     g.children({std::move(night)});
   }
 
@@ -245,19 +231,14 @@ auto ChaucerAstrolabe::plate() -> Element {
   // Exact invariant: √(R_eq² + R_eq²/tan²φ) = R_eq/sin φ, to the last bit
   // of a double. The cheapest real check on the whole instrument.
   for (int s = -1; s <= 1; s += 2)
-    g.children({kit::disc(PL(s * kReq, 0), 5.0f)
+    g.children({dot(PL(s * kReq, 0), 5.0f, Fill::color(kTrace))
                     .key(std::string("ew") + (s < 0 ? "E" : "W"))
-                    .shape(shapes::circle())
-                    .fill(Fill::color(kTrace))
                     .opacity(bind(&trace).scale(0.9f).clamp(0, 1))});
 
   // --- the zenith ------------------------------------------------------
-  g.children(
-      {kit::disc(PL(0, kYzen), 3.6f)
-           .key("zenith")
-           .shape(shapes::circle())
-           .fill(Fill::color(hexColor(0x3a2a10, 0.85f)))
-           .opacity(animate(from(0.0f).to(1.0f), ramp(tAlmu * 1000, 400)))});
+  g.children({dot(PL(0, kYzen), 3.6f, Fill::color(hexColor(0x3a2a10, 0.85f)))
+                  .key("zenith")
+                  .opacity(rise(ramp(tAlmu * 1000, 400)))});
 
   return g;
 }
@@ -276,19 +257,13 @@ auto ChaucerAstrolabe::construction() -> Element {
   const float cy = almCy(h), ra = almR(h);
 
   // the sun's declination circle
-  g.children(
-      {kit::disc(PL(0, 0), rs * kR)
-           .key("tdec")
-           .shape(shapes::circle())
-           .fill(Fill::none())
-           .stroke(stroke(2.0f, Fill::color(hexColor(0x2f6f9c, 0.85f))))});
-  // the almucantar for the measured altitude
-  g.children(
-      {kit::disc(PL(0, cy), ra * kR)
-           .key("talm")
-           .shape(shapes::circle())
-           .fill(Fill::none())
-           .stroke(stroke(2.0f, Fill::color(hexColor(0x2f6f9c, 0.85f))))});
+  g.children({ring(PL(0, 0), rs * kR,
+                   stroke(2.0f, Fill::color(hexColor(0x2f6f9c, 0.85f))))
+                  .key("tdec"),
+              // the almucantar for the measured altitude
+              ring(PL(0, cy), ra * kR,
+                   stroke(2.0f, Fill::color(hexColor(0x2f6f9c, 0.85f))))
+                  .key("talm")});
 
   // their intersection — the hour angle, read off the DRAWN geometry
   const float y = (rs * rs - ra * ra + cy * cy) / (2 * cy);
@@ -296,19 +271,16 @@ auto ChaucerAstrolabe::construction() -> Element {
   for (int s = -1; s <= 1; s += 2) {
     const SkPoint p = PL(s * x, y);
     g.children(
-        {kit::disc(p, 23.0f)
-             .key(std::string("xr") + (s < 0 ? "a" : "b"))
-             .shape(shapes::circle())
-             .fill(Fill::none())
-             .stroke(stroke(1.8f, Fill::color(hexColor(0x2f6f9c, 0.9f))))});
-    g.children({box()
-                    .rect(SkRect::MakeXYWH(p.fX - 34, p.fY - 1.4f, 68, 2.8f))
-                    .key(std::string("xh") + (s < 0 ? "a" : "b"))
-                    .fill(Fill::color(kTrace))});
-    g.children({box()
-                    .rect(SkRect::MakeXYWH(p.fX - 1.4f, p.fY - 34, 2.8f, 68))
-                    .key(std::string("xv") + (s < 0 ? "a" : "b"))
-                    .fill(Fill::color(kTrace))});
+        {ring(p, 23.0f, stroke(1.8f, Fill::color(hexColor(0x2f6f9c, 0.9f))))
+             .key(std::string("xr") + (s < 0 ? "a" : "b")),
+         box()
+             .rect(SkRect::MakeXYWH(p.fX - 34, p.fY - 1.4f, 68, 2.8f))
+             .key(std::string("xh") + (s < 0 ? "a" : "b"))
+             .fill(Fill::color(kTrace)),
+         box()
+             .rect(SkRect::MakeXYWH(p.fX - 1.4f, p.fY - 34, 2.8f, 68))
+             .key(std::string("xv") + (s < 0 ? "a" : "b"))
+             .fill(Fill::color(kTrace))});
   }
   return g;
 }
@@ -327,11 +299,9 @@ auto ChaucerAstrolabe::limb() -> Element {
 
   // the mater's brass field
   g.children(
-      {kit::disc(SkPoint{kCx, kCy}, kMaterR)
+      {dot(SkPoint{kCx, kCy}, kMaterR, brass(0.50f))
            .key("mater")
-           .shape(shapes::circle())
            .cache(Cache::Texture)
-           .fill(brass(0.50f))
            .background(shadow(hexColor(0x05070c, 0.62f), {8, 12}, 26))
            .foreground(
                styles::BevelEmboss{.depth = 3,
@@ -339,44 +309,37 @@ auto ChaucerAstrolabe::limb() -> Element {
                                    .angleDeg = 125,
                                    .highlight = hexColor(0xfff0c4, 0.5f),
                                    .shadow = hexColor(0x2a1d08, 0.6f)})
-           .opacity(animate(from(0.0f).to(1.0f), ramp(tMater * 1000, 700)))});
-
-  // the polished dome: a sheen centred slightly above the pin. glowUnit,
-  // because it must FILL its box — radialUnit's radius is a fraction of
-  // the HALF-DIAGONAL, so it reaches the corners and stops short of the
-  // edges, which on a disc is the wrong stop entirely.
-  g.children({kit::disc(SkPoint{kCx, kCy}, kMaterR)
-                  .key("sheen")
-                  .shape(shapes::circle())
-                  .cache(Cache::Texture)
-                  .fill(Paint::glowUnit({0.40f, 0.30f}, 0.95f,
-                                        {{0.0f, hexColor(0xfff3cf, 0.30f)},
-                                         {0.55f, hexColor(0xffdc8b, 0.10f)},
-                                         {1.0f, hexColor(0x4f360e, 0.14f)}}))
-                  .blend(SkBlendMode::kSoftLight)
-                  .opacity(animate(from(0.0f).to(1.0f),
-                                   ramp(tMater * 1000 + 200, 700)))});
-
-  // brass is TOOLED, and the tool marks are fine concentric turning —
-  // 120 stroked circles, which a picture would REPLAY by re-stroking
-  // all 120. An image blits.
-  g.children({kit::disc(SkPoint{kCx, kCy}, kMaterR)
-                  .key("turning")
-                  .shape(shapes::circle())
-                  .cache(Cache::Texture)
-                  .background(lines::presets::concentric(
-                      Fill::color(hexColor(0x6b4d18, 0.055f)), 120, 0.9f))
-                  .opacity(animate(from(0.0f).to(1.0f),
-                                   ramp(tMater * 1000 + 300, 600)))});
-  // …and the tooling's own tooth, over the whole mater
-  g.children({kit::disc(SkPoint{kCx, kCy}, kMaterR)
-                  .key("brassgrain")
-                  .shape(shapes::circle())
-                  .cache(Cache::Texture)
-                  .fill(brassGrain)
-                  .blend(SkBlendMode::kOverlay)
-                  .opacity(animate(from(0.0f).to(0.30f),
-                                   ramp(tMater * 1000 + 300, 600)))});
+           .opacity(rise(ramp(tMater * 1000, 700))),
+       // the polished dome: a sheen centred slightly above the pin. glowUnit,
+       // because it must FILL its box — radialUnit's radius is a fraction of
+       // the HALF-DIAGONAL, so it reaches the corners and stops short of the
+       // edges, which on a disc is the wrong stop entirely.
+       dot(SkPoint{kCx, kCy}, kMaterR,
+           Paint::glowUnit({0.40f, 0.30f}, 0.95f,
+                           {{0.0f, hexColor(0xfff3cf, 0.30f)},
+                            {0.55f, hexColor(0xffdc8b, 0.10f)},
+                            {1.0f, hexColor(0x4f360e, 0.14f)}}))
+           .key("sheen")
+           .cache(Cache::Texture)
+           .blend(SkBlendMode::kSoftLight)
+           .opacity(rise(ramp(tMater * 1000 + 200, 700))),
+       // brass is TOOLED, and the tool marks are fine concentric turning —
+       // 120 stroked circles, which a picture would REPLAY by re-stroking
+       // all 120. An image blits.
+       kit::disc(SkPoint{kCx, kCy}, kMaterR)
+           .key("turning")
+           .shape(shapes::circle())
+           .cache(Cache::Texture)
+           .background(lines::presets::concentric(
+               Fill::color(hexColor(0x6b4d18, 0.055f)), 120, 0.9f))
+           .opacity(rise(ramp(tMater * 1000 + 300, 600))),
+       // …and the tooling's own tooth, over the whole mater
+       dot(SkPoint{kCx, kCy}, kMaterR, brassGrain)
+           .key("brassgrain")
+           .cache(Cache::Texture)
+           .blend(SkBlendMode::kOverlay)
+           .opacity(
+               animate(from(0.0f).to(0.30f), ramp(tMater * 1000 + 300, 600)))});
 
   // the three rules of the limb: 1.155 / 1.082 / 1.005 R
   const float rules[3] = {1.155f, 1.082f, 1.005f};
@@ -398,13 +361,12 @@ auto ChaucerAstrolabe::limb() -> Element {
   // FILLED rect, so a non-uniform scale changes its length without
   // changing the width of the mark. On a stroked circle the stroke IS the
   // shape's outline, and RSXform would scale it with the geometry.
-  g.children(
-      {box()
-           .rect(SkRect::MakeXYWH(0, 0, kW, kH))
-           .key("ticks")
-           .opacity(animate(from(0.0f).to(1.0f), ramp(tTicks * 1000, 700)))
-           .children({instancing::instances(tickAtlas, tickPool,
-                                            instancing::Mode::Data)})});
+  g.children({box()
+                  .rect(SkRect::MakeXYWH(0, 0, kW, kH))
+                  .key("ticks")
+                  .opacity(rise(ramp(tTicks * 1000, 700)))
+                  .children({instancing::instances(tickAtlas, tickPool,
+                                                   instancing::Mode::Data)})});
 
   // the 12 degree numerals, RADIAL — the type radiates like a spoke,
   // because you turn the instrument to read a limb
@@ -462,12 +424,11 @@ auto ChaucerAstrolabe::limb() -> Element {
                               ramp(tLetters * 1000 + (float)n * 12, 380)))});
     // the letter under the label lights as it passes
     const SkPoint glow = arrange::onEllipse({0, 0}, {1.044f, 1.044f}, psi * kD);
-    g.children({kit::disc(MC(glow.fX, glow.fY), 0.052f * kR)
+    g.children({dot(MC(glow.fX, glow.fY), 0.052f * kR,
+                    Paint::glowUnit({0.5f, 0.5f}, 1.0f,
+                                    {{0.0f, hexColor(0xfff3cf, 0.85f)},
+                                     {1.0f, hexColor(0xfff3cf, 0.0f)}}))
                     .key("hlg" + std::to_string(n))
-                    .shape(shapes::circle())
-                    .fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                          {{0.0f, hexColor(0xfff3cf, 0.85f)},
-                                           {1.0f, hexColor(0xfff3cf, 0.0f)}}))
                     .blend(SkBlendMode::kPlus)
                     .opacity(&letterGlow[n - 1])});
   }
@@ -476,25 +437,24 @@ auto ChaucerAstrolabe::limb() -> Element {
   {
     const float th = 0.20f * kR;
     const SkPoint top{kCx, kCy - kMaterR};
-    g.children({box()
-                    .rect(SkRect::MakeXYWH(top.fX - 0.16f * kR, top.fY - th,
-                                           0.32f * kR, th + 0.05f * kR))
-                    .key("throne")
-                    .shape(shapes::blob(3u, 0.10f, 9))
-                    .fill(brass(0.74f))
-                    .foreground(styles::BevelEmboss{
-                        .depth = 2,
-                        .size = 4,
-                        .angleDeg = 125,
-                        .highlight = hexColor(0xfff0c4, 0.6f),
-                        .shadow = hexColor(0x2a1d08, 0.6f)})
-                    .translateY(animate(
-                        from(-26.0f).to(0.0f),
-                        ramp(tMater * 1000 + 200, 900, ease::outBack())))
-                    .opacity(animate(from(0.0f).to(1.0f),
-                                     ramp(tMater * 1000 + 200, 600)))});
     g.children(
-        {kit::disc(SkPoint{top.fX, top.fY - th - 0.055f * kR}, 0.075f * kR)
+        {box()
+             .rect(SkRect::MakeXYWH(top.fX - 0.16f * kR, top.fY - th,
+                                    0.32f * kR, th + 0.05f * kR))
+             .key("throne")
+             .shape(shapes::blob(3u, 0.10f, 9))
+             .fill(brass(0.74f))
+             .foreground(
+                 styles::BevelEmboss{.depth = 2,
+                                     .size = 4,
+                                     .angleDeg = 125,
+                                     .highlight = hexColor(0xfff0c4, 0.6f),
+                                     .shadow = hexColor(0x2a1d08, 0.6f)})
+             .translateY(
+                 animate(from(-26.0f).to(0.0f),
+                         ramp(tMater * 1000 + 200, 900, ease::outBack())))
+             .opacity(rise(ramp(tMater * 1000 + 200, 600))),
+         kit::disc(SkPoint{top.fX, top.fY - th - 0.055f * kR}, 0.075f * kR)
              .key("shackle")
              .shape(shapes::annulus(0.62f))
              .fill(brass(0.78f))
@@ -524,15 +484,10 @@ auto ChaucerAstrolabe::rule() -> Element {
                           .strokeFill = Fill::color(hexColor(0x3a2a10, 0.85f)),
                           .dashIntervals = {2.0f, 6.0f}})
            .background(shadow(hexColor(0x2a1d08, 0.5f), {4, 5}, 7))
-           .opacity(
-               animate(from(0.0f).to(1.0f), ramp(tPin * 1000 + 200, 600)))});
-
-  // the pin and its horse
-  g.children(
-      {kit::disc(SkPoint{kCx, kCy}, 0.040f * kR)
+           .opacity(rise(ramp(tPin * 1000 + 200, 600))),
+       // the pin and its horse
+       dot(SkPoint{kCx, kCy}, 0.040f * kR, brass(0.82f))
            .key("pin")
-           .shape(shapes::circle())
-           .fill(brass(0.82f))
            .foreground(
                styles::BevelEmboss{.depth = 2,
                                    .size = 2,
@@ -540,7 +495,7 @@ auto ChaucerAstrolabe::rule() -> Element {
                                    .highlight = hexColor(0xfff0c4, 0.7f),
                                    .shadow = hexColor(0x2a1d08, 0.6f)})
            .background(shadow(hexColor(0x2a1d08, 0.5f), {2, 3}, 5))
-           .opacity(animate(from(0.0f).to(1.0f), ramp(tPin * 1000, 420)))});
+           .opacity(rise(ramp(tPin * 1000, 420)))});
   return g;
 }
 
@@ -562,12 +517,11 @@ auto ChaucerAstrolabe::sunMark() -> Element {
   return box()
       .rect(SkRect::MakeXYWH(0, 0, kW, kH))
       .children(
-          {kit::disc(p, 34.0f)
-               .shape(shapes::circle())
-               .fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                     {{0.0f, up ? hexColor(0xfff3cf, 0.60f)
-                                                : hexColor(0x8fb0d0, 0.30f)},
-                                      {1.0f, hexColor(0xfff3cf, 0.0f)}}))
+          {dot(p, 34.0f,
+               Paint::glowUnit({0.5f, 0.5f}, 1.0f,
+                               {{0.0f, up ? hexColor(0xfff3cf, 0.60f)
+                                          : hexColor(0x8fb0d0, 0.30f)},
+                                {1.0f, hexColor(0xfff3cf, 0.0f)}}))
                .blend(SkBlendMode::kPlus),
            kit::disc(p, 15.0f)
                .shape(shapes::star(12, 0.40f, 0.16f))
@@ -575,14 +529,7 @@ auto ChaucerAstrolabe::sunMark() -> Element {
                                     : hexColor(0xa8bed2, 0.9f)))
                .foreground(
                    stroke(1.4f, Fill::color(hexColor(0x2a1d08, 0.75f)))),
-           kit::disc(p, 5.0f)
-               .shape(shapes::circle())
-               .fill(Fill::color(hexColor(0x6b4d18, 0.8f))),
-           kit::disc(q, 7.0f)
-               .shape(shapes::circle())
-               .fill(Fill::none())
-               .stroke(stroke(1.6f, Fill::color(hexColor(0x2f6f9c, 0.75f)))),
-           kit::disc(q, 2.2f)
-               .shape(shapes::circle())
-               .fill(Fill::color(hexColor(0x2f6f9c, 0.8f)))});
+           dot(p, 5.0f, Fill::color(hexColor(0x6b4d18, 0.8f))),
+           ring(q, 7.0f, stroke(1.6f, Fill::color(hexColor(0x2f6f9c, 0.75f)))),
+           dot(q, 2.2f, Fill::color(hexColor(0x2f6f9c, 0.8f)))});
 }

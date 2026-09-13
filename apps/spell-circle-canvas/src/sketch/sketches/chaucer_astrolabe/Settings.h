@@ -21,6 +21,7 @@
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigildata/decode/Json.h>
 #include <sigilgeometry/kit/Divisions.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
@@ -37,8 +38,11 @@
 #include <sigilmeasure/check/Check.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Cells.h>
+#include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Heading.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Rows.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/layout/StyleSheet.h>
@@ -49,11 +53,13 @@
 #include <array>
 #include <cmath>
 #include <optional>
+#include <ranges>
 #include <string>
 #include <vector>
 
 namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
+namespace data = sigil::data;
 namespace field = sigil::material::field;
 namespace mat = sigil::material;
 namespace motion = sigil::motion;
@@ -535,6 +541,33 @@ inline std::vector<Piece> retePieces(const Rete& r) {
 // ---------------------------------------------------------------------------
 // paint helpers
 
+// ---------------------------------------------------------------------------
+// the document beside this sketch
+
+/** THE RECORD AT @p key of @p doc — `data/content.json`, whose keys are
+ *  `masthead`, `projection`, `families`, `back`, `spec`, `stars`,
+ *  `chaucer`, `zodiac` and `readout`. A missing file or a missing key
+ *  reads as a null value, so every reader states what it falls back to,
+ *  which for a line of lettering is no line at all. */
+inline const data::Json& record(const std::shared_ptr<const data::Json>& doc,
+                                const char* key) {
+  static const data::Json none;
+  return doc ? (*doc)[key] : none;
+}
+
+/** @p node's words — empty where the document does not carry them. */
+inline Utf8 words(const data::Json& node) { return Utf8(node.text()); }
+
+/** One entry per member of @p range, read by @p of — the vector a
+ *  component's props take, whether the run comes out of a document's list
+ *  (`node.items()`) or out of this study's own construction data. */
+template <class T, std::ranges::input_range R, class Fn>
+inline std::vector<T> listOf(R&& range, Fn of) {
+  std::vector<T> out;
+  for (auto&& one : range) out.push_back(of(one));
+  return out;
+}
+
 /** A positional shorthand over the library's designated-init `weave::Type`
  *  for the two lines a panel's sheet is headed with: a PARTIAL over what
  *  the panel inherits. Every other line on the plate writes its partial in
@@ -558,6 +591,29 @@ inline PathFormat groove(float rad, float w, float darkA, float liteA) {
       SkColor4f{kGrooveLite.fR, kGrooveLite.fG, kGrooveLite.fB, liteA});
 }
 
+/** THE ENTRANCE every pass, family and mark on this plate is brought in
+ *  by: from nothing to whole over @p spec, which `ramp` states as a moment
+ *  of the loop and a duration. Forty nodes say it. */
+inline Transitioned<float> rise(Transition spec) {
+  return animate(from(0.0f).to(1.0f), std::move(spec));
+}
+
+/** ONE CIRCLE STROKED AND NOT FILLED, of radius @p r about @p c: the ring
+ *  this instrument is made of — a rule of the limb, a member of a family,
+ *  a declination circle. */
+inline Element ring(SkPoint c, float r, PathFormat pen) {
+  return kit::disc(c, r)
+      .shape(shapes::circle())
+      .fill(Fill::none())
+      .stroke(std::move(pen));
+}
+
+/** ONE FILLED CIRCLE of radius @p r about @p c: a pole, a star, a
+ *  crossing, a point of the construction. */
+inline Element dot(SkPoint c, float r, SurfacePaint paint) {
+  return kit::disc(c, r).shape(shapes::circle()).fill(std::move(paint));
+}
+
 /** One engraved circle: centre and radius in R units of the math frame,
  *  positioned in the plate box. This function is called ~73 times, and each
  *  call is a distinct circle: every groove has its own centre and radius, so
@@ -571,6 +627,16 @@ inline Element cut(SkPoint mc, float mr, float w, float darkA, float liteA,
       .fill(Fill::none())
       .stroke(groove(rad, w, darkA, liteA));
 }
+
+// ---------------------------------------------------------------------------
+// the commentary's own frame: two columns of cards down the right of the
+// sheet, and the section of the sphere the projection card is drawn on
+
+constexpr float kRackX = 1210, kRackY = 148, kRackW = 1126, kRackH = 1252;
+constexpr float kCardGap = 17;
+constexpr float kNarrow = 450, kWide = 646;  // the two columns' widths
+constexpr SkPoint kSectionC{180, 126};       // in the section box's own frame
+constexpr float kSectionR = 100, kSectionH = 258;
 
 // ---------------------------------------------------------------------------
 // The verification runs in DOUBLE. The plate is drawn in float because SkPoint

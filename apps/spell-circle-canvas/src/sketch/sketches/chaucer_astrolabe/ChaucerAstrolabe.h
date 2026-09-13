@@ -33,6 +33,15 @@ struct ChaucerAstrolabe : sketch::Sketch {
   /** The look every kit component below this sketch is set in; built in
    *  setup, once the faces it names have been resolved. */
   sketch::kit::Theme sheetLook;
+  /** The registers a commentary card sets its lines in — the engraver's
+   *  limb face for a heading, the italic for a gloss — stated once and in
+   *  force for everything under every card. */
+  weave::StyleSheet cardLook;
+  /** THE PLATE'S WORDS: every heading, gloss, listing and verdict on the
+   *  commentary stands in `data/content.json` beside this file and is read
+   *  by key in setup, so an edit to the document re-runs setup and no line
+   *  of lettering is typed into the code. */
+  std::shared_ptr<const data::Json> doc;
   std::string chaucerH, chaucerA, chaucerDelta;
 
   // =========================================================================
@@ -132,16 +141,16 @@ struct ChaucerAstrolabe : sketch::Sketch {
   // =========================================================================
   // panels
 
-  /** A VELLUM CARD: `kit::sheet`'s header — the title, the gloss under it
-   *  and the rule under both — on a bordered ground, laid at (x, y, w, h).
-   *  The header FLOWS, so a two-line gloss pushes its own rule down instead
-   *  of running through a rule ruled at a fixed distance.
-   *
-   *  The container spans the WHOLE canvas so that everything in this sketch
-   *  — instrument, panels, overlays — is authored in one coordinate frame;
-   *  the card itself is just the first child. */
-  Element panel(float x, float y, float w, float h, const char* title,
-                const char* sub);
+  /** A VELLUM CARD: `kit::sheet`'s header — the title and the gloss under
+   *  it out of @p page, and the rule under both — on a bordered ground,
+   *  with @p content FLOWING beneath. Nothing in a card is placed: a
+   *  two-line gloss pushes its own rule down and the content after it, and
+   *  the card takes the width of the column it stands in. */
+  Element card(const data::Json& page, Element content);
+
+  /** The two columns the eight cards stand in, down the right of the
+   *  sheet: each card states how tall it is and nothing about where. */
+  Element rack();
 
   Element familiesPanel();
 

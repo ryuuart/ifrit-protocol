@@ -46,7 +46,7 @@ auto ChaucerAstrolabe::reteShadow() -> Element {
       .key("reteshadow")
       .translateX(7.0f)
       .translateY(9.0f)
-      .opacity(animate(from(0.0f).to(1.0f), ramp(tRete * 1000 + 200, 900)))
+      .opacity(rise(ramp(tRete * 1000 + 200, 900)))
       .children({std::move(inner)});
 }
 
@@ -92,8 +92,7 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
                                      .angleDeg = 125,
                                      .highlight = hexColor(0xffe9b0, 0.55f),
                                      .shadow = hexColor(0x2a1d08, 0.5f)})
-             .opacity(
-                 animate(from(0.0f).to(1.0f), ramp(tRete * 1000 + 620, 700)))});
+             .opacity(rise(ramp(tRete * 1000 + 620, 700)))});
 
     // the 360 degree divisions INSIDE the signs, at the projection's own
     // non-uniform spacing — they visibly bunch toward Cancer, and that is
@@ -125,12 +124,11 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
     // — 12.5% OUTSIDE the rete — so it is clipped, and the band appears to
     // fuse with the outer ring near 0° Capricorn. That fusion is not a
     // stylisation; it is what the stated width forces.
-    clipped.children({cut({0, cyI}, rI, 1.8f, 0.62f, 0.34f, "bandin")});
-    clipped.children({cut({0, cyO}, rO, 1.8f, 0.62f, 0.34f, "bandout")});
-
-    // the ecliptic line itself, engraved down the middle of the band
     clipped.children(
-        {cut({0, kEclCy}, kEclR, 2.0f, 0.72f, 0.36f, "eclline")
+        {cut({0, cyI}, rI, 1.8f, 0.62f, 0.34f, "bandin"),
+         cut({0, cyO}, rO, 1.8f, 0.62f, 0.34f, "bandout"),
+         // the ecliptic line itself, engraved down the middle of the band
+         cut({0, kEclCy}, kEclR, 2.0f, 0.72f, 0.36f, "eclline")
              .mask(by::spans(spans::upTo(
                  animate(from(0.0f).to(1.0f),
                          ramp(tRete * 1000 + 700, 1100, ch::easeOutQuint)))))});
@@ -255,41 +253,34 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
     if (i == 3) {
       // ALHABOR — the dog-star. The 1326 maker gave it a dog's head, and
       // it is the joke he built into the object.
-      g.children(
-          {kit::disc(c, 0.030f * kR)
-               .key("dog")
-               .shape(shapes::blob(7u, 0.30f, 7))
-               .fill(Fill::color(kBrassP70))
-               .foreground(
-                   styles::BevelEmboss{.depth = 2,
-                                       .size = 2,
-                                       .angleDeg = 125,
-                                       .highlight = hexColor(0xffe9b0, 0.6f),
-                                       .shadow = hexColor(0x2a1d08, 0.55f)})
-               .rotate(-40.0f)
-               .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 420)))});
-      // the ear and the muzzle
-      g.children(
-          {kit::disc(SkPoint{c.fX - 0.020f * kR, c.fY - 0.020f * kR},
-                     0.011f * kR)
-               .key("dogear")
-               .shape(shapes::polygon(3, 20))
-               .fill(Fill::color(kBrassP70))
-               .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 420)))});
-      g.children(
-          {kit::disc(c, 3.0f)
-               .key("dogeye")
-               .shape(shapes::circle())
-               .fill(Fill::color(hexColor(0x2a1d08, 0.8f)))
-               .opacity(animate(from(0.0f).to(1.0f), ramp(delay + 120, 300)))});
+      g.children({kit::disc(c, 0.030f * kR)
+                      .key("dog")
+                      .shape(shapes::blob(7u, 0.30f, 7))
+                      .fill(Fill::color(kBrassP70))
+                      .foreground(styles::BevelEmboss{
+                          .depth = 2,
+                          .size = 2,
+                          .angleDeg = 125,
+                          .highlight = hexColor(0xffe9b0, 0.6f),
+                          .shadow = hexColor(0x2a1d08, 0.55f)})
+                      .rotate(-40.0f)
+                      .opacity(rise(ramp(delay, 420))),
+                  // the ear and the muzzle
+                  kit::disc(SkPoint{c.fX - 0.020f * kR, c.fY - 0.020f * kR},
+                            0.011f * kR)
+                      .key("dogear")
+                      .shape(shapes::polygon(3, 20))
+                      .fill(Fill::color(kBrassP70))
+                      .opacity(rise(ramp(delay, 420))),
+                  dot(c, 3.0f, Fill::color(hexColor(0x2a1d08, 0.8f)))
+                      .key("dogeye")
+                      .opacity(rise(ramp(delay + 120, 300)))});
     } else {
       g.children(
-          {kit::disc(c, 4.2f)
+          {dot(c, 4.2f, Fill::color(kBrassP90))
                .key("tip" + std::to_string(i))
-               .shape(shapes::circle())
-               .fill(Fill::color(kBrassP90))
                .foreground(stroke(1.0f, Fill::color(hexColor(0x2a1d08, 0.6f))))
-               .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 380)))});
+               .opacity(rise(ramp(delay, 380)))});
     }
   }
 
@@ -305,23 +296,21 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
     SkPathBuilder pb;
     pb.moveTo(a);
     pb.lineTo(b);
-    g.children({pathFigure(pb.detach(), 3)
-                    .key("prec" + std::to_string(i))
-                    .fill(Fill::none())
-                    .stroke(PathFormat{
-                        .width = 1.0f,
-                        .strokeFill = Fill::color(hexColor(0x2a1d08, 0.4f)),
-                        .dashIntervals = {2.5f, 3.5f}})
-                    .opacity(animate(
-                        from(0.0f).to(1.0f),
-                        ramp(tRete * 1000 + 2400 + (float)i * 30, 500)))});
-    g.children({kit::disc(b, 2.6f)
-                    .key("ghost" + std::to_string(i))
-                    .shape(shapes::circle())
-                    .fill(Fill::color(hexColor(0x2a1d08, 0.45f)))
-                    .opacity(animate(
-                        from(0.0f).to(1.0f),
-                        ramp(tRete * 1000 + 2400 + (float)i * 30, 500)))});
+    g.children(
+        {pathFigure(pb.detach(), 3)
+             .key("prec" + std::to_string(i))
+             .fill(Fill::none())
+             .stroke(
+                 PathFormat{.width = 1.0f,
+                            .strokeFill = Fill::color(hexColor(0x2a1d08, 0.4f)),
+                            .dashIntervals = {2.5f, 3.5f}})
+             .opacity(animate(from(0.0f).to(1.0f),
+                              ramp(tRete * 1000 + 2400 + (float)i * 30, 500))),
+         dot(b, 2.6f, Fill::color(hexColor(0x2a1d08, 0.45f)))
+             .key("ghost" + std::to_string(i))
+             .opacity(
+                 animate(from(0.0f).to(1.0f),
+                         ramp(tRete * 1000 + 2400 + (float)i * 30, 500)))});
   }
 
   // --- the quatrefoil above, the trefoil below (MHS 45133) -------------
@@ -361,17 +350,13 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
                                         .angleDeg = 125,
                                         .highlight = hexColor(0xffe9b0, 0.55f),
                                         .shadow = hexColor(0x2a1d08, 0.55f)})
-        .opacity(
-            animate(from(0.0f).to(1.0f), ramp(delay, 520, ease::outBack())));
+        .opacity(rise(ramp(delay, 520, ease::outBack())));
   };
   g.children(
-      {foil(4, 0.100f * kR, PL(0, 0.72f), "quatrefoil", tRete * 1000 + 1000)});
-  g.children(
-      {foil(3, 0.090f * kR, PL(0, -0.66f), "trefoil", tRete * 1000 + 1100)});
-
-  // --- the central rosette --------------------------------------------
-  g.children(
-      {kit::disc(PL(0, 0), 0.110f * kR)
+      {foil(4, 0.100f * kR, PL(0, 0.72f), "quatrefoil", tRete * 1000 + 1000),
+       foil(3, 0.090f * kR, PL(0, -0.66f), "trefoil", tRete * 1000 + 1100),
+       // --- the central rosette --------------------------------------------
+       kit::disc(PL(0, 0), 0.110f * kR)
            .key("rosette")
            .shape(shapes::star(12, 0.52f, 0.16f))
            .fill(brass(0.68f))
@@ -382,15 +367,13 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
                                    .highlight = hexColor(0xffe9b0, 0.6f),
                                    .shadow = hexColor(0x2a1d08, 0.6f)})
            .opacity(animate(from(0.0f).to(1.0f),
-                            ramp(tRete * 1000 + 900, 500, ease::outBack())))});
-
-  // --- the almury: "the Denticle of Capricorne" (I.23), at 0° Capricorn -
-  g.children(
-      {kit::disc(PL(0, -1.0f + 0.055f), 0.048f * kR)
+                            ramp(tRete * 1000 + 900, 500, ease::outBack()))),
+       // --- the almury: "the Denticle of Capricorne" (I.23), at 0° Capricorn -
+       kit::disc(PL(0, -1.0f + 0.055f), 0.048f * kR)
            .key("almury")
            .shape(shapes::polygon(3, 180))
            .fill(brass(0.68f))
-           .opacity(animate(from(0.0f).to(1.0f), ramp(tPin * 1000, 420)))});
+           .opacity(rise(ramp(tPin * 1000, 420)))});
 
   return g;
 }
