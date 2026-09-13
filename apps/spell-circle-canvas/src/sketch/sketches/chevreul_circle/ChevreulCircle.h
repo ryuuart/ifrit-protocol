@@ -8,11 +8,7 @@ struct ChevreulCircle : sketch::Sketch {
    *  stands in `data/content.json` beside this file, read in setup. EDIT
    *  THAT FILE to change what the plate says; a name it does not carry
    *  reads as empty, and a reload re-runs setup without a build. */
-  std::shared_ptr<const sigil::data::Json> content;
-  std::string say(const char* name) const {
-    static const sigil::data::Json none;
-    return std::string((content ? *content : none)[name].text());
-  }
+  sketch::kit::Document doc;
 
   static constexpr float kW = 1800.0f;
   static constexpr float kH = 1200.0f;

@@ -40,6 +40,7 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Cells.h>
 #include <sigilsketch/kit/Chart.h>
+#include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Heading.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Rows.h>
@@ -543,20 +544,6 @@ inline std::vector<Piece> retePieces(const Rete& r) {
 
 // ---------------------------------------------------------------------------
 // the document beside this sketch
-
-/** THE RECORD AT @p key of @p doc — `data/content.json`, whose keys are
- *  `masthead`, `projection`, `families`, `back`, `spec`, `stars`,
- *  `chaucer`, `zodiac` and `readout`. A missing file or a missing key
- *  reads as a null value, so every reader states what it falls back to,
- *  which for a line of lettering is no line at all. */
-inline const data::Json& record(const std::shared_ptr<const data::Json>& doc,
-                                const char* key) {
-  static const data::Json none;
-  return doc ? (*doc)[key] : none;
-}
-
-/** @p node's words — empty where the document does not carry them. */
-inline Utf8 words(const data::Json& node) { return Utf8(node.text()); }
 
 /** One entry per member of @p range, read by @p of — the vector a
  *  component's props take, whether the run comes out of a document's list

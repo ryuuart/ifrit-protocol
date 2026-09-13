@@ -250,12 +250,6 @@ inline Element panel(float height, int order) {
       .key(std::string("panel") + std::to_string(order));
 }
 
-/** THE WORDS OF ONE NODE of the sketch's document, as a text prop takes
- *  them: the one place a document read is spelled, so a call site reads
- *  as the line it sets rather than as a lookup. A node the document does
- *  not carry answers nothing, which sets an empty line. */
-inline Utf8 said(const sigil::data::Json& node) { return node.text(); }
-
 inline Element panelHead(const Utf8& s) {
   return text(s)
       .font({.face = uiFace(), .size = 9.5f, .track = 1.9f})

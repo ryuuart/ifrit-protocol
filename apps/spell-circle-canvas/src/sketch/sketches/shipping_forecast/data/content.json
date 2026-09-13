@@ -84,21 +84,21 @@
     "runs": [
       {
         "words": "Southwesterly",
-        "style": "dir"
+        "class": "dir"
       },
       {
         "words": " 5 to 7, occasionally gale 8 "
       },
       {
         "words": "later",
-        "style": "term"
+        "class": "term"
       },
       {
         "words": ". Rain then showers. Moderate or good, occasionally "
       },
       {
         "words": "poor",
-        "style": "term"
+        "class": "term"
       },
       {
         "words": "."
@@ -116,7 +116,7 @@
     "runs": [
       {
         "words": "Low",
-        "style": "dir"
+        "class": "dir"
       },
       {
         "words": ", Rockall, "
@@ -129,7 +129,7 @@
       },
       {
         "words": "deepening rapidly",
-        "style": "term"
+        "class": "term"
       },
       {
         "words": ", expected Fair Isle "

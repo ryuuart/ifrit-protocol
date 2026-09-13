@@ -3,11 +3,11 @@
 auto ChevreulCircle::theHeader() -> Element {
   Element g = box();
   g.children(
-      {label(say("title"), 56, 40, 1700)
+      {label(doc["title"], 56, 40, 1700)
            .font(
                {.face = serifBold(), .size = 26, .color = kInk, .track = 2.6f})
            .opacity(bind(&demo).window(0.0f, 0.02f)),
-       label(say("imprint"), 58, 84, 1700)
+       label(doc["imprint"], 58, 84, 1700)
            .font({.size = 9.5f, .track = 0.7f})
            .opacity(bind(&demo).window(0.01f, 0.04f)),
        at(56, 104, 1688, 1).fill(Fill::color(kRule))});
@@ -76,7 +76,7 @@ auto ChevreulCircle::theLabPlot() -> Element {
       {at(x0, y0, S, S)
            .fill(Fill::color(kWell))
            .foreground(stroke(1, Fill::color(kRule), PathFormat::Align::Inner)),
-       label(say("lab.head"), x0 + 10, y0 + 6, S - 20).styleClass("heading"),
+       label(doc["lab.head"], x0 + 10, y0 + 6, S - 20).styleClass("heading"),
        sketch::kit::plot(
            "lab", field,
            {sketch::kit::rules({.x = ladder, .y = ladder, .width = 0.5f}),
@@ -114,7 +114,7 @@ auto ChevreulCircle::theObservations() -> Element {
       {at(x0, y0, W, H)
            .fill(Fill::color(kWell))
            .foreground(stroke(1, Fill::color(kRule), PathFormat::Align::Inner)),
-       label(say("obs.head"), x0 + 10, y0 + 6, W - 20).styleClass("heading")});
+       label(doc["obs.head"], x0 + 10, y0 + 6, W - 20).styleClass("heading")});
   const float rowH = 19.4f, top = y0 + 24;
   for (size_t i = 0; i < kObs.size(); ++i) {
     const Observation& o = kObs[i];
@@ -157,7 +157,7 @@ auto ChevreulCircle::theObservations() -> Element {
                     x0 + 10, y0 + H - 32, W - 20)
                   .styleClass("finding")
                   .opacity(bind(&demo).window(0.79f, 0.80f)),
-              label(say("obs.note"), x0 + 10, y0 + H - 18, W - 20)
+              label(doc["obs.note"], x0 + 10, y0 + H - 18, W - 20)
                   .styleClass("column")});
   return g;
 }
@@ -185,9 +185,9 @@ auto ChevreulCircle::aStaircase(const std::array<SkColor4f, 20>& ramp, float y,
 auto ChevreulCircle::theIllusion() -> Element {
   Element g = box();
   g.children(
-      {label(say("illusion.head"), 852, 552, 500)
+      {label(doc["illusion.head"], 852, 552, 500)
            .font({.size = 9, .color = kInk, .track = 0.6f}),
-       rightAt(say("illusion.strips"), 1100, 553, 644)
+       rightAt(doc["illusion.strips"], 1100, 553, 644)
            .font({.size = 7.5f, .track = 0.3f}),
        at(kStairX, kStairYA - 2, kBandW * kBandN, kStairH + 4)
            .background(styles::dropShadow(hexColor(0x3A352D, 0.22f), {2, 2}, 5))
@@ -218,7 +218,7 @@ auto ChevreulCircle::theIllusion() -> Element {
                kStairX, kStairYC + 32, 760)
              .styleClass("note")});
   } else {
-    g.children({label(say("illusion.noOcio"), kStairX, kStairYC + 10, 400)
+    g.children({label(doc["illusion.noOcio"], kStairX, kStairYC + 10, 400)
                     .font({.size = 9, .color = kRed, .track = 0.4f})});
   }
 
@@ -229,7 +229,7 @@ auto ChevreulCircle::theIllusion() -> Element {
                     .font({.size = 6.8f, .color = b < 12 ? kInk : kWhite})});
 
   g.children(
-      {label(say("illusion.quote"), 852, 774, 600)
+      {label(doc["illusion.quote"], 852, 774, 600)
            .styleClass("quote")
            .font({.size = 9.5f, .color = kInk}),
        rightAt(kit::formatted("%d bands · per-band σ = %.2f · %d/%d hexes "
@@ -339,7 +339,7 @@ auto ChevreulCircle::theVerification() -> Element {
                   .opacity(bind(&demo).window(lo, hi))
                   .children({sketch::kit::table(
                       std::move(lines), {.columns = {{222}, {66, true}, {}}})}),
-              label(say("contrast.quote"), x0, ty0 + (float)rows * lh + 12, W)
+              label(doc["contrast.quote"], x0, ty0 + (float)rows * lh + 12, W)
                   .styleClass("quote")});
   return g;
 }

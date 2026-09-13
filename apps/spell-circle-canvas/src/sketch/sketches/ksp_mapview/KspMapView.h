@@ -26,7 +26,7 @@ struct KspMapView : sketch::Sketch {
   /** THE VESSEL CARD'S WORDS — every name, figure and head stands in
    *  `data/content.json` beside this sketch, read in setup, so the card is
    *  the template and an edit to the words needs no rebuild. */
-  std::shared_ptr<const data::Json> doc;
+  sketch::kit::Document doc;
 
   std::shared_ptr<instancing::Atlas> starAtlas;
   std::shared_ptr<instancing::Pool> starPool;

@@ -5,6 +5,7 @@
  * so the text may be written either way at the call site.
  */
 
+#include <concepts>
 #include <string>
 #include <string_view>
 
@@ -28,6 +29,14 @@ namespace sigil::compose {
  *  `bytes()` at a call site means the caller is reading the bytes
  *  themselves, not fitting a signature.
  *
+ *  A VALUE THAT READS ITSELF OUT AS TEXT IS TEXT. Anything answering
+ *  `text()` with something a `std::string_view` reads — a node of a
+ *  decoded document is the one in this tree — is accepted as well, so a
+ *  caller whose words live in a file writes the node where the words
+ *  would go. The constraint is what keeps this library from naming the
+ *  vocabulary that value belongs to: nothing here includes it and nothing
+ *  links it.
+ *
  *  Comparable by value, so a props struct that carries one stays
  *  comparable and a description that holds one still prunes. */
 class Utf8 {
@@ -43,6 +52,13 @@ class Utf8 {
                                 : std::u8string_view()) {}
   Utf8(std::u8string_view utf8) : m_bytes(utf8) {}
   Utf8(std::u8string utf8) noexcept : m_bytes(std::move(utf8)) {}
+  /** A value that reads itself out as text — the document node whose
+   *  words a call site would otherwise unwrap by hand. */
+  template <class Read>
+    requires requires(const Read& value) {
+      { value.text() } -> std::convertible_to<std::string_view>;
+    }
+  Utf8(const Read& value) : m_bytes(widen(std::string_view(value.text()))) {}
 
   /** The bytes, as the text vocabulary takes them. */
   [[nodiscard]] const std::u8string& bytes() const { return m_bytes; }

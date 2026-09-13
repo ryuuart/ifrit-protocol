@@ -94,12 +94,10 @@ auto Minard1869::cardScale(const data::Json& said) -> Element {
                                     {rx + rwUnit * (float)n["mm"].number(), y}))
                        .stroke(spans::upTo(beat(t0, t0 + 0.3f)),
                                stroke(2.0f, Fill::currentInk())),
-                   text(std::string(n["value"].text()))
+                   text(n["value"])
                        .font({.face = faceUiBold, .size = 17})
                        .at({rx, y - 26}),
-                   text(std::string(n["what"].text()))
-                       .font({.size = 10})
-                       .at({rx, y + 6})});
+                   text(n["what"]).font({.size = 10}).at({rx, y + 6})});
   };
   return box().inset(0).children(
       {sketch::kit::plot(

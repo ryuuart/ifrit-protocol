@@ -6,12 +6,11 @@ Element GenesisFire::generationPanel() {
   const sigil::data::Json& law = doc()["generation"];
   return panel(kPanelH[0], 1)
       .gap(3)
-      .children({panelHead(said(law["head"])),
-                 each(law["equations"].items(),
-                      [this](const sigil::data::Json& line) {
-                        return eqn(said(line));
-                      }),
-                 box().grow(1), note(said(law["note"])).ink(kSteelDim)});
+      .children(
+          {panelHead(law["head"]),
+           each(law["equations"].items(),
+                [this](const sigil::data::Json& line) { return eqn(line); }),
+           box().grow(1), note(law["note"]).ink(kSteelDim)});
 }
 
 Element GenesisFire::censusBar(float frac, SkColor4f c, const char* key) {
@@ -35,11 +34,11 @@ Element GenesisFire::censusRow(const sigil::data::Json& row) {
       .shrink(0)
       .alignItems(Align::Center)
       .styleClass("cell")
-      .children({censusCell(said(row["fig"]), 0, kSteel),
-                 censusCell(said(row["systems"]), 1, kBone),
-                 censusCell(said(row["particles"]), 2, kBone)
+      .children({censusCell(row["fig"], 0, kSteel),
+                 censusCell(row["systems"], 1, kBone),
+                 censusCell(row["particles"], 2, kBone)
                      .font({.face = monoBoldFace()}),
-                 censusCell(said(row["per"]), 3, kSteel),
+                 censusCell(row["per"], 3, kSteel),
                  censusBar((float)row["share"].number(), hexColor(0x6D5A3F),
                            nullptr)});
 }
@@ -69,11 +68,11 @@ Element GenesisFire::censusPanel() {
   return panel(kPanelH[1], 2)
       .gap(4)
       .children(
-          {panelHead(said(census["head"])),
+          {panelHead(census["head"]),
            box().row().height(11).shrink(0).styleClass("colhead").children(
                {each(census["columns"].items(),
                      [this](const sigil::data::Json& name, size_t i) {
-                       return censusCell(said(name), i, kSteelDim);
+                       return censusCell(name, i, kSteelDim);
                      })}),
            box().column().gap(3).shrink(0).staggerChildren(70ms).children(
                {each(census["rows"].items(),
@@ -81,8 +80,8 @@ Element GenesisFire::censusPanel() {
                        return censusRow(row);
                      }),
                 liveRow()}),
-           box().grow(1), note(said(census["footnote"])).ink(kSteelDim),
-           note(said(census["note"]))});
+           box().grow(1), note(census["footnote"]).ink(kSteelDim),
+           note(census["note"])});
 }
 
 Element GenesisFire::rampPanel() {
@@ -110,11 +109,11 @@ Element GenesisFire::rampPanel() {
   const sigil::data::Json& ramp = doc()["ramp"];
   return panel(kPanelH[2], 3)
       .gap(3)
-      .children({panelHead(said(ramp["head"])),
+      .children({panelHead(ramp["head"]),
                  box().row().gap(2).shrink(0).staggerChildren(26ms).children(
                      {each(kRampN, swatch)}),
                  box().row().gap(2).shrink(0).children({each(kRampN, count)}),
-                 box().grow(1), note(said(ramp["note"]))});
+                 box().grow(1), note(ramp["note"])});
 }
 
 Element GenesisFire::benchCell(Element content, const Utf8& caption,
@@ -144,29 +143,28 @@ Element GenesisFire::renderModelPanel() {
   const sigil::data::Json& cells = model["cells"];
   return panel(kPanelH[3], 4)
       .gap(4)
-      .children(
-          {panelHead(said(model["head"])),
-           box().row().gap(15).shrink(0).children(
-               {benchCell(instanced(SkBlendMode::kSrcOver), said(cells[0]),
-                          hexColor(0x8A93A8)),
-                benchCell(instanced(SkBlendMode::kPlus), said(cells[1]),
-                          hexColor(0xFFB672)),
-                benchCell(box().inset(0), said(cells[2]), hexColor(0xFFB672))}),
-           box().grow(1), note(said(model["note"]))});
+      .children({panelHead(model["head"]),
+                 box().row().gap(15).shrink(0).children(
+                     {benchCell(instanced(SkBlendMode::kSrcOver), cells[0],
+                                hexColor(0x8A93A8)),
+                      benchCell(instanced(SkBlendMode::kPlus), cells[1],
+                                hexColor(0xFFB672)),
+                      benchCell(box().inset(0), cells[2], hexColor(0xFFB672))}),
+                 box().grow(1), note(model["note"])});
 }
 
 Element GenesisFire::productionPanel() {
   const sigil::data::Json& made = doc()["production"];
   return panel(kPanelH[4], 5)
       .gap(1)
-      .children({panelHead(said(made["head"])),
+      .children({panelHead(made["head"]),
                  each(made["lines"].items(),
                       [this](const sigil::data::Json& line) {
-                        return prodLine(
-                            said(line["words"]),
-                            line["loud"].boolean() ? kBone : kSteel);
+                        return prodLine(line["words"], line["loud"].boolean()
+                                                           ? kBone
+                                                           : kSteel);
                       }),
-                 box().grow(1), note(said(made["note"])).ink(kSteelDim)});
+                 box().grow(1), note(made["note"]).ink(kSteelDim)});
 }
 
 Element GenesisFire::header() {
@@ -186,16 +184,16 @@ Element GenesisFire::header() {
       .font({.face = uiFace()})
       .ink(kSteel)
       .children(
-          {text(said(head["eyebrow"]))
+          {text(head["eyebrow"])
                .font({.size = 11.5f, .track = 2.7f})
                .opacity(animate(from(0.0f).to(1.0f), {.duration = 260ms}))
                .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms})),
-           text(said(head["title"]))
+           text(head["title"])
                .font({.face = heavyFace(), .size = 46, .track = -0.4f})
                .ink(kBone)
                .key("title")
                .fx(std::move(rise)),
-           text(said(head["credit"]))
+           text(head["credit"])
                .font({.size = 11.0f, .track = 0.1f})
                .opacity(animate(from(0.0f).to(1.0f),
                                 {.duration = 240ms, .delay = 420ms})),

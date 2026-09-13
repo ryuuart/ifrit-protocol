@@ -125,7 +125,7 @@ auto ChaucerAstrolabe::setup(sketch::SketchContext& ctx) -> void {
   // document beside this file, and every class a card writes is registered
   // here once — over the theme's own eight registers and the eight a chart
   // draws, so a plot on a card is dressed without the card saying anything.
-  doc = ctx.assets.json(ctx.local("data/content.json"));
+  doc = sketch::kit::Document(ctx, "data/content.json");
   cardLook = sheetLook.styleSheet();
   cardLook.set("title", partial(faceLimb, 15, kRubric, 1.9f));
   cardLook.set("subtitle", partial(faceItalic, 14, hexColor(0x6b5a44)));

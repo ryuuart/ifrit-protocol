@@ -67,21 +67,15 @@ struct DunhuangStarChart : sketch::Sketch {
 
   // --- the words -----------------------------------------------------------
 
-  /** data/content.json, read once in setup, and the figures this study
-   *  measured, under the names its sentences call them by. */
-  std::shared_ptr<const data::Json> doc;
-  Figures figures;
+  /** data/content.json, read once in setup, carrying the figures this
+   *  study measured under the names its sentences call them by. */
+  sketch::kit::Document doc;
 
-  [[nodiscard]] std::vector<Line> lines(std::string_view key) const {
-    return run(doc.get(), key, figures);
-  }
-  [[nodiscard]] std::string phrase(std::string_view key) const {
-    return dunhuang_star_chart::phrase(doc.get(), key, figures);
-  }
   /** THE DOCUMENT'S LINES AS A COLUMN — the shape every note on this plate
    *  takes, each line in the class the file gave it. */
   [[nodiscard]] Element noteStack(std::string_view key) const {
-    return box().column().gap(2.4f).children(each(lines(key), lineOf));
+    return box().column().gap(2.4f).children(
+        each(doc.run(key), sketch::kit::lineOf));
   }
 
   // ONE Output writes the plate: the score position in seconds.

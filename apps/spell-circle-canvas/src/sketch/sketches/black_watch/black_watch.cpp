@@ -36,7 +36,7 @@ struct BlackWatch : sketch::Sketch {
    *  so the code is the card's structure and the file is what it says. The
    *  verification's lines are not here: each is computed from the two values
    *  it reports, and a claim and its evidence may not be typed apart. */
-  std::shared_ptr<const data::Json> doc;
+  sketch::kit::Document doc;
 
   // The drawdown window: threads 60..91 of the sett. The 18-thread black of
   // unit A sits between the last blue and the first green, so no shorter
@@ -283,10 +283,10 @@ struct BlackWatch : sketch::Sketch {
     weave::TextStyle attrib =
         weave::textStyle({.face = serifIt(), .size = 11, .color = kInk2});
     weave::ParagraphBuilder b(body);
-    const data::Json& said = record(doc, "douglas");
-    b.addText(words(said["body"]));
+    const data::Json& said = doc["douglas"];
+    b.addText(said["body"].text());
     b.pushStyle(attrib);
-    b.addText(words(said["attribution"]));
+    b.addText(said["attribution"].text());
     quote = std::make_shared<weave::Paragraph>(b.build());
   }
 
@@ -424,8 +424,7 @@ struct BlackWatch : sketch::Sketch {
                                    .map(backOut()))});
         if (rep == 0)
           g.children(
-              {centred(words(record(doc, "sett")["pivots"][i]), x - 45,
-                       kBarY - 26, 90)
+              {centred(doc["sett"]["pivots"][i], x - 45, kBarY - 26, 90)
                    .font({.size = 8, .color = kRed, .track = 0.8f})
                    .opacity(bind(&loom)
                                 .source(kWeaveEnd + 0.01f, kWeaveEnd + 0.045f)
@@ -433,20 +432,19 @@ struct BlackWatch : sketch::Sketch {
       }
 
     // the register's own phrase, out of the way of the pivot flags
-    g.children(
-        {label(words(record(doc, "sett")["register"]), 660, kBarY - 26, 420)
-             .font({.size = 8.5f, .color = kRed, .track = 0.4f})});
+    g.children({label(doc["sett"]["register"], 660, kBarY - 26, 420)
+                    .font({.size = 8.5f, .color = kRed, .track = 0.4f})});
 
     // the count itself, set as one mono run
     std::string count;
     static const char kCode[] = "KBGYW";
     for (const auto& run : bwRuns)
       count += kit::formatted("%c%d ", kCode[run.shade], run.threads);
-    g.children({label(count, kClothX, kBarY + kBarH + 27, kClothW)
-                    .font({.size = 11.5f, .color = kInk, .track = 0.3f}),
-                label(words(record(doc, "sett")["notation"]), kClothX,
-                      kBarY + kBarH + 47, kClothW)
-                    .font({.size = 8.5f, .track = 0.5f})});
+    g.children(
+        {label(count, kClothX, kBarY + kBarH + 27, kClothW)
+             .font({.size = 11.5f, .color = kInk, .track = 0.3f}),
+         label(doc["sett"]["notation"], kClothX, kBarY + kBarH + 47, kClothW)
+             .font({.size = 8.5f, .track = 0.5f})});
     return g;
   }
 
@@ -460,7 +458,7 @@ struct BlackWatch : sketch::Sketch {
     const float x0 = kColX, y0 = 172;
     const float bodyY = y0 + 4 * c + 20;     // 228
     const float tieX = x0 + kDrawN * c + 8;  // 1400
-    const data::Json& tags = record(doc, "draft")["tags"];
+    const data::Json& tags = doc["draft"]["tags"];
     Element g = box();
 
     g.children(
@@ -521,12 +519,11 @@ struct BlackWatch : sketch::Sketch {
       g.children(
           {centred(std::to_string(s + 1), x0 - 15, y0 + (float)s * c - 1, 13)
                .font({.size = 7})});
-    g.children(
-        {// the four quarters of the notation, named where each stands
-         centred(words(tags[0]), x0 + 60, y0 - 11, 120).styleClass("tag"),
-         centred(words(tags[1]), tieX - 8, y0 - 11, 60).styleClass("tag"),
-         centred(words(tags[2]), tieX - 14, bodyY - 12, 72).styleClass("tag"),
-         centred(words(tags[3]), x0 + 60, bodyY - 12, 120).styleClass("tag")});
+    g.children({// the four quarters of the notation, named where each stands
+                centred(tags[0], x0 + 60, y0 - 11, 120).styleClass("tag"),
+                centred(tags[1], tieX - 8, y0 - 11, 60).styleClass("tag"),
+                centred(tags[2], tieX - 14, bodyY - 12, 72).styleClass("tag"),
+                centred(tags[3], x0 + 60, bodyY - 12, 120).styleClass("tag")});
     return g;
   }
 
@@ -534,15 +531,15 @@ struct BlackWatch : sketch::Sketch {
 
   Element theBlendTable() {
     const float y0 = 584, cell = 46, gap = 6, gx = kColX + 20;
-    const data::Json& page = record(doc, "blends");
+    const data::Json& page = doc["blends"];
     Element g = box();
-    g.children({label(words(page["heading"]), kColX, 556, kColW)
-                    .styleClass("heading")});
+    g.children(
+        {label(page["heading"], kColX, 556, kColW).styleClass("heading")});
     const SkSize module{cell, cell};
     const SkSize gaps{gap, gap};
     for (int i = 0; i < 3; ++i) {
       const SkRect head = arrange::cellRect({i, i}, module, gaps, {gx, y0});
-      const std::string name = words(page["codes"][(size_t)i]);
+      const Utf8 name = page["codes"][(size_t)i];
       g.children({centred(name, head.fLeft, y0 - 14, cell)
                       .font({.size = 9, .track = 0.8f}),
                   centred(name, kColX, head.fTop + cell / 2 - 7, 16)
@@ -559,16 +556,16 @@ struct BlackWatch : sketch::Sketch {
       }
     const float tx =
         arrange::cellRect({3, 0}, module, gaps, {gx, y0}).fLeft + 12;
-    g.children({label(words(page["notes"][0]), tx, y0 - 2, 200)
+    g.children({label(page["notes"][0], tx, y0 - 2, 200)
                     .font({.size = 8, .track = 0.3f}),
-                label(words(page["notes"][1]), tx, y0 + 10, 200)
+                label(page["notes"][1], tx, y0 + 10, 200)
                     .font({.size = 8, .track = 0.3f}),
                 label(kit::formatted(
                           "n = %d  →  %d solid + %d blend  =  %d  =  n(n+1)/2",
                           v.solids, v.solids, v.blends, v.perceived),
                       tx, y0 + 30, 210)
                     .font({.size = 8.5f, .color = kRed, .track = 0.2f}),
-                label(words(page["reading"]), tx, y0 + 52, 200)
+                label(page["reading"], tx, y0 + 52, 200)
                     .font({.face = serifIt(), .size = 11})});
     return g;
   }
@@ -578,8 +575,7 @@ struct BlackWatch : sketch::Sketch {
   Element thePaletteStrip() {
     const float y0 = 790, rowH = 34;
     Element g = box();
-    g.children({label(words(record(doc, "palettes")["heading"]), kColX, 762,
-                      kColW + 40)
+    g.children({label(doc["palettes"]["heading"], kColX, 762, kColW + 40)
                     .styleClass("heading")});
     // which family the cloth is wearing, right now
     const float spans[5][2] = {{kWeaveEnd, kProveEnd},
@@ -620,10 +616,10 @@ struct BlackWatch : sketch::Sketch {
 
   Element theProvenance() {
     const float y0 = 1052, sw = 180, sh = 110, gap = 16;
-    const data::Json& page = record(doc, "provenance");
+    const data::Json& page = doc["provenance"];
     Element g = box();
-    g.children({label(words(page["heading"]), kClothX, 1030, 700)
-                    .styleClass("heading")});
+    g.children(
+        {label(page["heading"], kClothX, 1030, 700).styleClass("heading")});
     for (int i = 0; i < 4; ++i) {
       const float x =
           arrange::cellRect({i, 0}, {sw, sh}, {gap, 0}, {kClothX, 0}).fLeft;
@@ -639,7 +635,7 @@ struct BlackWatch : sketch::Sketch {
                                      .fill(gridMat)
                                      .blend(SkBlendMode::kMultiply)
                                      .opacity(0.85f)}),
-                  centred(words(page["labels"][(size_t)i]), x, y0 + sh + 6, sw)
+                  centred(page["labels"][(size_t)i], x, y0 + sh + 6, sw)
                       .styleClass("name")
                       .ink(kInk)
                       .opacity(bind(&loom)
@@ -647,35 +643,34 @@ struct BlackWatch : sketch::Sketch {
                                            0.66f + (float)i * 0.022f)
                                    .clamp(0.0f, 1.0f))});
     }
-    g.children({label(words(page["quote"][0]), kClothX, y0 + sh + 28, 800)
+    g.children({label(page["quote"][0], kClothX, y0 + sh + 28, 800)
                     .styleClass("quote"),
-                label(words(page["quote"][1]), kClothX, y0 + sh + 43, 800)
+                label(page["quote"][1], kClothX, y0 + sh + 43, 800)
                     .styleClass("quote")});
 
     // ...and the cloth that carries one of those names honestly
     const float ax =
         arrange::cellRect({4, 0}, {sw, sh}, {gap, 0}, {kClothX, 0}).fLeft + 12;
-    g.children({at(ax, y0, sw, sh)
-                    .clip(true)
-                    .background(styles::dropShadow(hexColor(0x3E3A33, 0.45f),
-                                                   {2, 3}, 7))
-                    .fill(argyllMat)
-                    .foreground(stroke(1.5f, Fill::color(kRed),
-                                       PathFormat::Align::Outer))
-                    .children({at(0, 0, sw, sh)
-                                   .fill(gridMat)
-                                   .blend(SkBlendMode::kMultiply)
-                                   .opacity(0.85f)}),
-                centred(words(page["honest"]), ax, y0 + sh + 6, sw)
-                    .styleClass("name")
-                    .ink(kRed),
-                label(words(page["note"][0]), ax, y0 + sh + 28, sw + 30)
-                    .styleClass("note"),
-                label(words(page["note"][1]), ax, y0 + sh + 39, sw + 30)
-                    .styleClass("note"),
-                label(words(page["note"][2]), ax, y0 + sh + 50, sw + 30)
-                    .styleClass("note")
-                    .ink(kRed)});
+    g.children(
+        {at(ax, y0, sw, sh)
+             .clip(true)
+             .background(
+                 styles::dropShadow(hexColor(0x3E3A33, 0.45f), {2, 3}, 7))
+             .fill(argyllMat)
+             .foreground(
+                 stroke(1.5f, Fill::color(kRed), PathFormat::Align::Outer))
+             .children({at(0, 0, sw, sh)
+                            .fill(gridMat)
+                            .blend(SkBlendMode::kMultiply)
+                            .opacity(0.85f)}),
+         centred(page["honest"], ax, y0 + sh + 6, sw)
+             .styleClass("name")
+             .ink(kRed),
+         label(page["note"][0], ax, y0 + sh + 28, sw + 30).styleClass("note"),
+         label(page["note"][1], ax, y0 + sh + 39, sw + 30).styleClass("note"),
+         label(page["note"][2], ax, y0 + sh + 50, sw + 30)
+             .styleClass("note")
+             .ink(kRed)});
     return g;
   }
 
@@ -687,20 +682,19 @@ struct BlackWatch : sketch::Sketch {
   Element theComparison() {
     const float y0 = 1276, barW = 880, barH = 26, x0 = kClothX + 140;
     Element g = box();
-    g.children(
-        {label(words(record(doc, "comparison")["heading"]), kClothX, 1242, 900)
-             .styleClass("heading")});
+    g.children({label(doc["comparison"]["heading"], kClothX, 1242, 900)
+                    .styleClass("heading")});
 
     struct Bar {
-      std::string name;
+      Utf8 name;
       const std::vector<Run>* runs;
       int total;
       float y;
     };
-    const data::Json& said = record(doc, "comparison");
+    const data::Json& said = doc["comparison"];
     const Bar bars[2] = {
-        {words(said["bars"][0]), &bwRuns, v.total, y0},
-        {words(said["bars"][1]), &caRuns, v.argyllTotal, y0 + barH + 8}};
+        {said["bars"][0], &bwRuns, v.total, y0},
+        {said["bars"][1], &caRuns, v.argyllTotal, y0 + barH + 8}};
     const Shades modern = shadesOf(kPalettes[0]);
     for (const Bar& b : bars) {
       g.children({label(b.name, kClothX, b.y + 8, 140)
@@ -726,7 +720,7 @@ struct BlackWatch : sketch::Sketch {
     for (int u = 0; u < 4; ++u) {
       const float cx =
           x0 + barW * (cum + (float)units[u] * 0.5f) / (float)v.total;
-      g.children({centred(words(said["units"][(size_t)u]), cx - 12, y0 - 15, 24)
+      g.children({centred(said["units"][(size_t)u], cx - 12, y0 - 15, 24)
                       .font({.size = 8.5f, .color = kRed, .track = 0.6f})});
       cum += (float)units[u];
       if (u < 3)
@@ -750,13 +744,12 @@ struct BlackWatch : sketch::Sketch {
     const float x0 = 1060, y0 = 1052, lh = 13.6f;
     const size_t rows = verdict.rows.size();
     Element g = box();
-    g.children(
-        {label(words(record(doc, "verification")["heading"]), x0, 1030, kColW)
-             .styleClass("heading"),
-         at(x0 - 12, y0 - 8, 472, (float)rows * lh + 14)
-             .fill(hexColor(0xDCD4C4, 0.8f))
-             .foreground(
-                 stroke(1, Fill::color(kRule), PathFormat::Align::Inner))});
+    g.children({label(doc["verification"]["heading"], x0, 1030, kColW)
+                    .styleClass("heading"),
+                at(x0 - 12, y0 - 8, 472, (float)rows * lh + 14)
+                    .fill(hexColor(0xDCD4C4, 0.8f))
+                    .foreground(stroke(1, Fill::color(kRule),
+                                       PathFormat::Align::Inner))});
     // The words are the run's own — the label it was made under, the figure
     // it came to, and the verdict computed from the two. The mark before
     // each row carries that verdict as colour, so a row that failed is
@@ -792,7 +785,7 @@ struct BlackWatch : sketch::Sketch {
     // handed it; the root states the voice every line inherits and the
     // classes every name under it resolves through.
     const sketch::kit::Provide look(sheet());
-    const data::Json& head = record(doc, "masthead");
+    const data::Json& head = doc["masthead"];
     Element root = stack()
                        .width(kCanvasW)
                        .height(kCanvasH)
@@ -807,18 +800,18 @@ struct BlackWatch : sketch::Sketch {
              .foreground(
                  stroke(1, Fill::color(kRule), PathFormat::Align::Inner)),
          // 1. the heading
-         label(words(head["title"]), kClothX, 46, 900)
+         label(head["title"], kClothX, 46, 900)
              .font({.face = sansB(), .size = 34, .color = kInk, .track = 4.6f}),
-         label(words(head["registration"]), kClothX, 96, 1200)
+         label(head["registration"], kClothX, 96, 1200)
              .font({.size = 10.5f, .track = 1.1f}),
          rule(kClothX, 122, kCanvasW - 2 * kClothX, 1, kRule)});
 
     // the specimen ticket — the physical facts, in the header's dead corner
     {
-      root.children({each(run(head["ticket"]),
+      root.children({each(head["ticket"].items(),
                           [](const data::Json& line, std::size_t i) {
-                            return label(words(line), kColX,
-                                         48 + (float)i * 12.5f, kColW + 40)
+                            return label(line, kColX, 48 + (float)i * 12.5f,
+                                         kColW + 40)
                                 .font({.size = 7.5f, .track = 0.35f});
                           }),
                      rule(kColX - 14, 46, 1, 62, kRule)});
@@ -846,7 +839,7 @@ struct BlackWatch : sketch::Sketch {
 
     root.children(
         {rule(kClothX, 1408, kCanvasW - 2 * kClothX, 1, kRule),
-         label(words(head["colophon"]), kClothX, 1414, kCanvasW - 2 * kClothX)
+         label(head["colophon"], kClothX, 1414, kCanvasW - 2 * kClothX)
              .font({.size = 8.5f, .track = 0.7f})});
     return root;
   }
@@ -854,7 +847,7 @@ struct BlackWatch : sketch::Sketch {
   // =========================================================================
 
   void setup(sketch::SketchContext& ctx) override {
-    doc = ctx.assets.json(ctx.local("data/content.json"));
+    doc = sketch::kit::Document(ctx, "data/content.json");
     build();
     // The still belongs to the MODERN hold, and has to be declared, because
     // an undeclared capture lands mid-cycle. The loop weaves, proves, then

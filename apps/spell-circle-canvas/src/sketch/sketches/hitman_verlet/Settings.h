@@ -203,15 +203,6 @@ inline float cue(double ms, float delayMs, float durationMs,
   return ease ? ease(u) : u;
 }
 
-/** ONE LINE OF THE DOCUMENT BESIDE THE SKETCH, set in @p style — the
- *  twin of `instrument::t` for a word this study READS rather than
- *  states. A key the document does not carry sets an empty line. */
-template <class Word>
-  requires std::same_as<std::remove_cvref_t<Word>, sigil::data::Json>
-inline Element t(const Word& word, sigil::weave::TextStyle style) {
-  return sigil::compose::text(word.text(), std::move(style));
-}
-
 /** WHAT A PLOT ON THIS SHEET LOOKS LIKE. The chart kit names the part —
  *  the axis, the rules, a curve, a tick, a word, a band — and this says
  *  what each is drawn in, so a series is named at the layer and coloured

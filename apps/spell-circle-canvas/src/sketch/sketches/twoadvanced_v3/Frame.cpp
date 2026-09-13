@@ -97,7 +97,7 @@ Element TwoAdvancedV3::headerStrip() {
 
 Element TwoAdvancedV3::wordmark() {
   using namespace tv3;
-  const data::Json& mark2 = record(doc, "wordmark");
+  const data::Json& mark2 = doc["wordmark"];
   // The mark and BOTH text lines are near-white on the steel — the
   // panel carries all the contrast, the lockup none of it.
   Element mark = box().width(46).height(46);
@@ -129,12 +129,11 @@ Element TwoAdvancedV3::wordmark() {
                         .row()
                         .alignItems(Align::Start)
                         .gap(4)
-                        .children({text(words(mark2["name"]),
+                        .children({text(mark2["name"],
                                         sigil::weave::kit::tracked(
                                             grotBold(), 27, kNear, 80, 1.02f)),
-                                   t(words(mark2["registered"]),
-                                     micro(9, kNear, 0))}),
-                    text(words(mark2["studios"]),
+                                   t(mark2["registered"], micro(9, kNear, 0))}),
+                    text(mark2["studios"],
                          sigil::weave::kit::tracked(grotBold(), 12, kNear, 560,
                                                     1.0f))}),
                box().grow(1)});
@@ -147,7 +146,7 @@ Element TwoAdvancedV3::wordmark() {
 
 Element TwoAdvancedV3::navBar() {
   using namespace tv3;
-  const data::Json& nav = record(doc, "navbar");
+  const data::Json& nav = doc["navbar"];
   Element bar =
       at(box().row().alignItems(Align::Center), kStageX, 174, kStageW, 33);
   if (navbarBg)
@@ -161,24 +160,23 @@ Element TwoAdvancedV3::navBar() {
                                        {1.0f, hexColor(0x3C4A63)}}));
 
   // Left: the section label window (dark, baked into the bitmap).
-  bar.children(
-      {box()
-           .width(230)
-           .height(33)
-           .row()
-           .alignItems(Align::Center)
-           .padding(12, 0)
-           .gap(7)
-           .fill(mskia::withAlpha(hexColor(0x39445C), 0.92f))
-           .foreground(
-               onEdges(path::Edge::Right,
-                       stroke(1, Fill::color(mskia::withAlpha(kInk, 0.8f)),
-                              PathFormat::Align::Inner)))
-           .children({t(words(nav["arrow"]), micro(11, kSteelHi, 0)),
-                      t(words(nav["label"]), micro(11.5f, kNear, 80))}),
-       // Right: the six tab slots live in a slot so the active-section
-       // indicator can move without re-describing the bar.
-       slot("navtabs")});
+  bar.children({box()
+                    .width(230)
+                    .height(33)
+                    .row()
+                    .alignItems(Align::Center)
+                    .padding(12, 0)
+                    .gap(7)
+                    .fill(mskia::withAlpha(hexColor(0x39445C), 0.92f))
+                    .foreground(onEdges(
+                        path::Edge::Right,
+                        stroke(1, Fill::color(mskia::withAlpha(kInk, 0.8f)),
+                               PathFormat::Align::Inner)))
+                    .children({t(nav["arrow"], micro(11, kSteelHi, 0)),
+                               t(nav["label"], micro(11.5f, kNear, 80))}),
+                // Right: the six tab slots live in a slot so the active-section
+                // indicator can move without re-describing the bar.
+                slot("navtabs")});
   return bar
       .translateY(animate(motion::from(-40.0f).to(0.0f),
                           {380ms, &ch::easeOutQuint, 1750ms}))
@@ -232,7 +230,7 @@ Element TwoAdvancedV3::hairlines() {
 
 Element TwoAdvancedV3::scrollStrip() {
   using namespace tv3;
-  const data::Json& strip = record(doc, "scroll");
+  const data::Json& strip = doc["scroll"];
   return at(box()
                 .row()
                 .alignItems(Align::Center)
@@ -243,11 +241,11 @@ Element TwoAdvancedV3::scrollStrip() {
                     path::Edge::Top,
                     stroke(1, Fill::color(mskia::withAlpha(kSteelHi, 0.55f)),
                            PathFormat::Align::Inner)))
-                .children({t(words(strip["arrow"]), micro(9, kSteelHi, 0)),
-                           t(words(strip["left"]),
+                .children({t(strip["arrow"], micro(9, kSteelHi, 0)),
+                           t(strip["left"],
                              micro(9, mskia::withAlpha(kSteelHi, 0.85f), 180)),
                            box().grow(1),
-                           t(words(strip["right"]),
+                           t(strip["right"],
                              micro(9, mskia::withAlpha(kSteel, 0.9f), 180))}),
             kStageX, 617, kStageW, 16)
       .opacity(animate(motion::from(0.0f).to(1.0f),
@@ -256,7 +254,7 @@ Element TwoAdvancedV3::scrollStrip() {
 
 Element TwoAdvancedV3::footerRail() {
   using namespace tv3;
-  const data::Json& foot = record(doc, "footer");
+  const data::Json& foot = doc["footer"];
   return at(box()
                 .row()
                 .alignItems(Align::Center)
@@ -269,18 +267,17 @@ Element TwoAdvancedV3::footerRail() {
                 // them, so the run is one each() over what the document
                 // names and the last link carries none
                 .children(
-                    {each(run(foot["links"]),
+                    {each(foot["links"].items(),
                           [&foot](const data::Json& link, std::size_t i) {
                             Element one = box().row().gap(8).children(
-                                {t(words(link), micro(9, kInk, 140))});
+                                {t(link, micro(9, kInk, 140))});
                             if (i + 1 < foot["links"].size())
                               one.children({t(
-                                  words(foot["divider"]),
+                                  foot["divider"],
                                   micro(9, mskia::withAlpha(kInk, 0.5f), 0))});
                             return one;
                           }),
-                     box().grow(1),
-                     t(words(foot["hosting"]), micro(9, kInk, 140)),
+                     box().grow(1), t(foot["hosting"], micro(9, kInk, 140)),
                      box().width(12).height(12).corners({6}).fill(kHost)}),
             kStageX, 1045, kStageW, 20)
       .opacity(animate(motion::from(0.0f).to(1.0f),
@@ -289,7 +286,7 @@ Element TwoAdvancedV3::footerRail() {
 
 Element TwoAdvancedV3::bootOverlay() {
   using namespace tv3;
-  const data::Json& boot = record(doc, "boot");
+  const data::Json& boot = doc["boot"];
   const SkColor4f kPreBg = hexColor(0x2A3753), kPreInk = hexColor(0x7183A5);
   Element lockup = box().width(197).height(94);
   if (pageLogo)
@@ -299,9 +296,9 @@ Element TwoAdvancedV3::bootOverlay() {
   else
     lockup.justify(Justify::Center)
         .alignItems(Align::Center)
-        .children({text(
-            words(boot["wordmark"]),
-            sigil::weave::kit::tracked(grotBold(), 24, kNear, 200, 1.0f))});
+        .children(
+            {text(boot["wordmark"], sigil::weave::kit::tracked(
+                                        grotBold(), 24, kNear, 200, 1.0f))});
 
   Element o = stack().inset(0).zIndex(90);
   o.children(
@@ -311,11 +308,10 @@ Element TwoAdvancedV3::bootOverlay() {
           kH / 2 - 170, 600, 360)
            .opacity(animate(motion::through(
                {{0ms, 0.0f}, {150ms, 1.0f}, {1200ms, 1.0f}, {1350ms, 0.0f}})))
-           .children(
-               {lockup,
-                text(words(boot["motto"]), sigil::weave::kit::tracked(
-                                               grot(), 10, kPreInk, 400, 1.0f)),
-                slot("bootpct")})});
+           .children({lockup,
+                      text(boot["motto"], sigil::weave::kit::tracked(
+                                              grot(), 10, kPreInk, 400, 1.0f)),
+                      slot("bootpct")})});
   o.opacity(animate(motion::through({{1400ms, 1.0f}, {1450ms, 0.0f}})));
   return o;
 }

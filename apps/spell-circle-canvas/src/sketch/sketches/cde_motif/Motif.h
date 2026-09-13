@@ -21,6 +21,7 @@
 #include <sigilmaterial/kit/Patterns.h>
 #include <sigilmotion/bind/Bind.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Scrollbar.h>
 #include <sigilweave/paragraph/RichText.h>
@@ -459,19 +460,6 @@ inline sigil::weave::Type uiType() {
 
 /** ONE RUN OF UI TYPE IN THE INK IN FORCE — a window title, a menu item, a
  *  file name: each is just its own words. */
-/** THE RECORD AT @p key of @p doc — `data/content.json`, whose keys are
- *  `fileManager`, `colorDialog`, `postedMenu`, `derivation`, `date`,
- *  `workspaces`, `subpanel` and `iconified`. A missing file or key reads
- *  as a null value, so a reader falls back to no words at all. */
-inline const data::Json& record(const std::shared_ptr<const data::Json>& doc,
-                                const char* key) {
-  static const data::Json none;
-  return doc ? (*doc)[key] : none;
-}
-
-/** @p node's words — empty where the document does not carry them. */
-inline std::string_view words(const data::Json& node) { return node.text(); }
-
 /** The words of @p node's list, in order. */
 inline std::vector<std::string> wordList(const data::Json& node) {
   std::vector<std::string> out;
@@ -479,12 +467,12 @@ inline std::vector<std::string> wordList(const data::Json& node) {
   return out;
 }
 
-inline Element label(std::string_view t) { return text(t).shrink(0); }
+inline Element label(const Utf8& t) { return text(t).shrink(0); }
 
 /** The same at another size, and in a colour of its own where the run is
  *  not in the set's: a calendar page's month over its day, the one figure a
  *  proof row fails on. */
-inline Element label(std::string_view t, float size,
+inline Element label(const Utf8& t, float size,
                      std::optional<SkColor4f> c = std::nullopt) {
   return text(t).font({.size = size, .color = c}).shrink(0);
 }
@@ -553,7 +541,7 @@ inline Element pushButton(std::string_view t, bool armed = false,
 /** XmTextField: XmSHADOW_IN at T = 2 over colour set 4 — the only set
  *  that is ever near-white, and therefore the only one that ever takes
  *  the LITE branch. */
-inline Element textField(std::string_view t, float w, bool caret = false,
+inline Element textField(const Utf8& t, float w, bool caret = false,
                          const ch::Output<float>* caretOut = nullptr) {
   const ColorSet s = ambient();
   Element inner = box()

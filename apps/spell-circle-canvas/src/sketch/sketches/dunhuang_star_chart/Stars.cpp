@@ -177,7 +177,7 @@ auto DunhuangStarChart::map5Labels() -> Element {
     const SkPoint word = misplaced ? SkPoint{c.fX + 26, c.fY - 96}
                                    : SkPoint{c.fX + 6, c.fY - 30};
     if (cid == "21A" || cid == "19P")  // Shen, Jiuliu: no label at all
-      labels.push_back(text(phrase("auditNoLabel"))
+      labels.push_back(text(doc.phrase("auditNoLabel"))
                            .styleClass("caption flag")
                            .at({c.fX + 22, c.fY - 40})
                            .width(70)

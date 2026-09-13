@@ -11,11 +11,7 @@ struct PenrosePaving : sketch::Sketch {
    *  shows. EDIT THAT FILE to change what the plaza says; a name it does
    *  not carry reads as empty. Every other line on the plate is a
    *  MEASUREMENT of the tiling and is computed, never written. */
-  std::shared_ptr<const sigil::data::Json> content;
-  std::string say(const char* name) const {
-    static const sigil::data::Json none;
-    return std::string((content ? *content : none)[name].text());
-  }
+  sketch::kit::Document doc;
 
   std::vector<Tile> tiles;
   GraniteBank bank;
@@ -321,7 +317,7 @@ struct PenrosePaving : sketch::Sketch {
             .background(
                 styles::dropShadow(hexColor(0x000000, 0.55f), {0, 6}, 22))
             .children(
-                {text(say("inset.head")).left(14).top(12),
+                {text(doc["inset.head"]).left(14).top(12),
                  box().left(10).top(34).width(kDiagW).height(kDiagH).children(
                      {slot("deflate")})}),
         r.left(), r.top(), r.width(), r.height());
@@ -438,11 +434,11 @@ struct PenrosePaving : sketch::Sketch {
              // paving's name, where it stands, and the pentagrid it was
              // struck from.
              kit::at(box().column().gap(13).children(
-                         {text(say("plaque.title"))
+                         {text(doc["plaque.title"])
                               .font({.size = 13.0f,
                                      .color = hexColor(0xDCE0E2),
                                      .track = 1.9f}),
-                          text(say("plaque.place"))
+                          text(doc["plaque.place"])
                               .font({.size = 11.5f,
                                      .color = hexColor(0xA9AEB1),
                                      .track = 1.5f}),
@@ -461,7 +457,7 @@ struct PenrosePaving : sketch::Sketch {
         ctx,
         {.size = SkSize::Make(kW, kH), .captureAt = 4.6, .background = kNight});
 
-    content = ctx.assets.json(ctx.local("data/content.json"));
+    doc = sketch::kit::Document(ctx, "data/content.json");
     tiles = buildField(kModule, kModule * 1.2f);
     audit = verify(tiles, kModule);
 

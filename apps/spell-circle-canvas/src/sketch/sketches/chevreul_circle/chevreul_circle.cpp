@@ -34,7 +34,7 @@ auto ChevreulCircle::describe(sketch::SketchContext& ctx) -> Element {
   root.children(
       {theHeader(), theWheel(ctx), theQuadrant(), theLabPlot(),
        theObservations(), theIllusion(), theContrast(), theVerification(),
-       label(say("footer"), 56, 1168, 1690).font({.size = 8, .track = 0.55f})});
+       label(doc["footer"], 56, 1168, 1690).font({.size = 8, .track = 0.55f})});
   return root;
 }
 
@@ -47,7 +47,7 @@ auto ChevreulCircle::setup(sketch::SketchContext& ctx) -> void {
       ctx,
       {.size = SkSize::Make(kW, kH), .captureAt = 12.6, .background = kPaper});
 
-  content = ctx.assets.json(ctx.local("data/content.json"));
+  doc = sketch::kit::Document(ctx, "data/content.json");
   computeColours();
 
   // materials held as members so their identity survives re-describes

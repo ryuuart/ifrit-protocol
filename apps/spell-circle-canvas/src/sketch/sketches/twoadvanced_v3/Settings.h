@@ -33,6 +33,7 @@
 #include <sigilmotion/bind/Bind.h>
 #include <sigilmotion/values/Keyframes.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
 
 #include <algorithm>
@@ -105,34 +106,6 @@ inline sigil::weave::Type prose(float size, SkColor4f c) {
 
 // ---------------------------------------------------------------------------
 // The page's own copy, beside the sketch
-
-/** THE RECORD AT @p key of @p doc — `data/content.json`, whose keys are
- *  `wordmark`, `navbar`, `art`, `scroll`, `footer`, `boot` and `modules`
- *  (one record per module, each with its glyph, its bar, its head and its
- *  copy). A missing file or key reads as a null value, so a reader falls
- *  back to no words at all. */
-inline const data::Json& record(const std::shared_ptr<const data::Json>& doc,
-                                const char* key) {
-  static const data::Json none;
-  return doc ? (*doc)[key] : none;
-}
-
-/** @p node's words — empty where the document does not carry them. */
-inline Utf8 words(const data::Json& node) { return Utf8(node.text()); }
-
-/** The members of @p node's list, as the run `each()` walks. */
-inline std::span<const data::Json> run(const data::Json& node) {
-  return node.items();
-}
-
-/** The studio's two lines from a value read off the DOCUMENT rather than
- *  from a literal, spelled the same way. */
-inline Element t(const Utf8& s, weave::Type partial) {
-  return text(s).font(std::move(partial));
-}
-inline Element t(const Utf8& s, weave::TextStyle style) {
-  return text(s, std::move(style));
-}
 
 // ---------------------------------------------------------------------------
 // Frame constants — the capture's own geometry.

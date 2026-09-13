@@ -84,7 +84,7 @@ auto DunhuangStarChart::locator() -> Element {
                       .stroke(spans::corners(9.0f),
                               brush::solid(1.4f, Fill::color(kTrace)));
                 }),
-           text(phrase("locator"))
+           text(doc.phrase("locator"))
                .styleClass("caption dim")
                .at({2, lh + 5})
                .width(1700)});
@@ -134,7 +134,7 @@ auto DunhuangStarChart::poleDrift() -> Element {
   const Ref refs[3] = {{37.9529f, 89.2641f, Align::Start, Align::Start},
                        {222.6764f, 74.1555f, Align::Start, Align::End},
                        {211.0973f, 64.3758f, Align::End, Align::End}};
-  const std::vector<Line> names = lines("poleMarks");
+  const std::vector<sketch::kit::Document::Line> names = doc.run("poleMarks");
   const auto polarDistance = [](const Ref& r) { return 90.0 - (double)r.dec; };
   const path::Spherical at700 = pole(700.0f);
   const std::array<sketch::kit::Datum, 1> hub{{{0, 0}}};
@@ -203,7 +203,7 @@ auto DunhuangStarChart::poleDrift() -> Element {
 }
 
 auto DunhuangStarChart::poleText() -> Element {
-  const std::vector<Line> epochs = lines("poleEpochs");
+  const std::vector<sketch::kit::Document::Line> epochs = doc.run("poleEpochs");
   const float bw = 430.0f;
   return box()
       .at({300, 228})
@@ -213,7 +213,7 @@ auto DunhuangStarChart::poleText() -> Element {
       .key("poletext")
       .opacity(gate(tPrec0 - 0.6f, tPrec0 + 0.4f))
       .children(
-          {text(phrase("poleTitle"))
+          {text(doc.phrase("poleTitle"))
                .styleClass("heading")
                .font({.size = 12.0f}),
            noteStack("pole"),
@@ -262,7 +262,7 @@ auto DunhuangStarChart::poleText() -> Element {
                     .at({bw - 40, 12})
                     .width(40)
                     .block({.alignment = weave::TextAlignment::kEnd})}),
-           text(phrase("poleSweep")).styleClass("caption gold")});
+           text(doc.phrase("poleSweep")).styleClass("caption gold")});
 }
 
 auto DunhuangStarChart::logStyle() -> feed::TextOptions {
@@ -305,12 +305,7 @@ auto DunhuangStarChart::projectionPanel() -> Element {
     // curve is drawn in, clamped to the field it has to fit inside
     const float hand = std::min(
         1.25f, (merc ? 1.61f : 3.29f) / (merc ? depMerc : depStereo).maxDeg);
-    const std::string caption =
-        doc ? std::string((*doc)["projectionPlots"][i]["caption"].text())
-            : std::string();
-    const std::string note =
-        doc ? std::string((*doc)["projectionPlots"][i]["note"].text())
-            : std::string();
+    const data::Json& plot = doc["projectionPlots"][i];
     return box().width(320).column().gap(4).children(
         {sketch::kit::plot(
              i ? "dep1" : "dep0",
@@ -328,8 +323,8 @@ auto DunhuangStarChart::projectionPanel() -> Element {
              .shrink(0)
              .stroke(spans::edges(16.0f),
                      brush::solid(0.9f, Fill::color(hexColor(0x8a7458, 0.5f)))),
-         text(caption).styleClass("caption"),
-         text(note).styleClass("caption dim")});
+         text(plot["caption"]).styleClass("caption"),
+         text(plot["note"]).styleClass("caption dim")});
   };
   return box()
       .at({96, 1046})
@@ -338,7 +333,7 @@ auto DunhuangStarChart::projectionPanel() -> Element {
       .gap(8)
       .key("proj")
       .opacity(gate(tProj, tProj + 0.9f))
-      .children({text(phrase("projectionTitle"))
+      .children({text(doc.phrase("projectionTitle"))
                      .styleClass("heading")
                      .font({.size = 13.0f, .track = 1.1f}),
                  box().row().gap(46).children(each(curves, field)),
@@ -391,7 +386,7 @@ auto DunhuangStarChart::auditPanel() -> Element {
   // monospace string cannot land on these columns, because the numeric block
   // is a third size and the CJK pair in the middle is double-advance.
   static constexpr float kHeads[6] = {30, 126, 86, 100, 44, 0};
-  const std::vector<Line> heads = lines("auditHeads");
+  const std::vector<sketch::kit::Document::Line> heads = doc.run("auditHeads");
   return box()
       .at({840, 1046})
       .width(880)
@@ -401,13 +396,13 @@ auto DunhuangStarChart::auditPanel() -> Element {
       .opacity(gate(tAudit - 0.9f, tAudit - 0.2f))
       .styleSheet(voices())
       .children(
-          {text(phrase("auditTitle"))
+          {text(doc.phrase("auditTitle"))
                .styleClass("heading")
                .font({.size = 13.0f}),
-           text(phrase("auditLead")).styleClass("caption"),
+           text(doc.phrase("auditLead")).styleClass("caption"),
            box().row().gap(6).children(
                each(heads,
-                    [](const Line& h, size_t i) {
+                    [](const sketch::kit::Document::Line& h, size_t i) {
                       Element cell = text(h.words).styleClass("caption dim");
                       return i + 1 < std::size(kHeads) ? cell.width(kHeads[i])
                                                        : cell.grow(1);
@@ -429,7 +424,7 @@ auto DunhuangStarChart::map13Panel() -> Element {
       .gap(6)
       .key("m13")
       .opacity(gate(tAudit + 4.6f, tAudit + 5.4f))
-      .children({text(phrase("map13Title"))
+      .children({text(doc.phrase("map13Title"))
                      .styleClass("heading")
                      .font({.size = 12.0f}),
                  noteStack("map13").gap(1.5f).font({.size = 9.2f})});
@@ -461,7 +456,7 @@ auto DunhuangStarChart::ruleNote() -> Element {
       .gap(6)
       .key("rulenote")
       .opacity(gate(tFold1 - 0.2f, tFold1 + 0.8f))
-      .children({text(phrase("ruleTitle"))
+      .children({text(doc.phrase("ruleTitle"))
                      .styleClass("heading")
                      .font({.size = 12.0f}),
                  noteStack("rule")});
@@ -472,20 +467,23 @@ auto DunhuangStarChart::headings() -> Element {
   const float barMm = 100.0f;
   return box().absolute().inset(0).key("head").children(
       {box().at({96, 16}).width(1500).column().gap(4).children(
-           {text(phrase("title"))
+           {text(doc.phrase("title"))
                 .font({.face = faceDisplay,
                        .size = 27.0f,
                        .color = hexColor(0xe0cfa6),
                        .track = 2.4f}),
-            text(phrase("provenance")).font({.size = 10.2f})}),
+            text(doc.phrase("provenance")).font({.size = 10.2f})}),
        box()
            .at({1660, 16})
            .width(880)
            .column()
            .gap(3)
-           .children(
-               {text(phrase("claim")).styleClass("gold").font({.size = 10.2f}),
-                text(phrase("plate")).styleClass("dim").font({.size = 9.4f})}),
+           .children({text(doc.phrase("claim"))
+                          .styleClass("gold")
+                          .font({.size = 10.2f}),
+                      text(doc.phrase("plate"))
+                          .styleClass("dim")
+                          .font({.size = 9.4f})}),
        box()
            .at({96, 1544})
            .row()
@@ -512,8 +510,8 @@ auto DunhuangStarChart::headings() -> Element {
                           .stroke(lines::Line{
                               .width = 1.0f,
                               .fill = Fill::color(hexColor(0x9a8a68, 0.8f))}),
-                      text(phrase("scale")).styleClass("caption dim")}),
-       text(phrase("sources"))
+                      text(doc.phrase("scale")).styleClass("caption dim")}),
+       text(doc.phrase("sources"))
            .styleClass("caption dim")
            .at({1660, 1544})
            .width(880)});

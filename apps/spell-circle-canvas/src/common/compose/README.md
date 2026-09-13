@@ -722,7 +722,14 @@ sound model; nothing below them changes kernel semantics.
   `std::u8string` alike, holds the bytes as a `std::u8string`, and
   `bytes()` reads them back out. The kit's text props are these, and so is
   every text this library's own verbs take, so a call site writes the words
-  and never a conversion around them.
+  and never a conversion around them. It also takes ANY VALUE THAT READS
+  ITSELF OUT AS TEXT — anything answering `text()` with something a
+  `std::string_view` reads, which is what a node of a decoded document is —
+  so a caller whose words live in a file writes the node where the words
+  would go. The constraint is what keeps this library from naming the
+  vocabulary such a value belongs to: a string spelling has no such member
+  and keeps its own constructor, so a literal stays unambiguous, and
+  nothing here includes or links a data library.
 - `core/Measure.h` — the one-shot verbs that take a tree without a live
   composer: `snapshot`, `intrinsicSize`, `metrics`, `measureRun`,
   `runPens`, and the two that solve a style BACKWARDS from a size the

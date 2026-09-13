@@ -6,8 +6,8 @@ auto ChaucerAstrolabe::card(const data::Json& page, Element content)
   // under both — and it FLOWS, so a two-line gloss pushes its own rule down
   // and the content after it. The two headed lines are the classes of their
   // own names, which the sheet on this plate's root states.
-  return kit::sheet({.title = words(page["title"]),
-                     .subtitle = words(page["subtitle"]),
+  return kit::sheet({.title = page["title"],
+                     .subtitle = page["subtitle"],
                      .marginX = 16,
                      .marginTop = 11,
                      .marginBottom = 12,
@@ -35,7 +35,7 @@ auto ChaucerAstrolabe::rack() -> Element {
 }
 
 auto ChaucerAstrolabe::projectionPanel() -> Element {
-  const data::Json& page = record(doc, "projection");
+  const data::Json& page = doc["projection"];
   const SkPoint c = kSectionC;
   const float rr = kSectionR;
   const float chord = rr * std::cos(kEps * kD);
@@ -62,10 +62,8 @@ auto ChaucerAstrolabe::projectionPanel() -> Element {
        // EYE every ring on the plate is seen from
        dot({c.fX, c.fY - rr}, 3.4f, Fill::currentInk()),
        dot({c.fX, c.fY + rr}, 5.0f, Fill::color(kRubric)),
-       text(words(page["north"])).at({c.fX + 14, c.fY - rr - 10}),
-       text(words(page["south"]))
-           .styleClass("gloss")
-           .at({c.fX + 10, c.fY + rr + 2}),
+       text(page["north"]).at({c.fX + 14, c.fY - rr - 10}),
+       text(page["south"]).styleClass("gloss").at({c.fX + 10, c.fY + rr + 2}),
        slot("projray")});
   return card(page, box().children({std::move(section), slot("projread")}));
 }
@@ -107,14 +105,12 @@ auto ChaucerAstrolabe::projRead() -> Element {
   return box().gap(4).styleClass("figure").children(
       {text(kit::formatted("δ = %+7.3f°", dec)),
        text(kit::formatted("r = R_eq·tan((90−δ)/2) = %.6f R", rOfDec(dec))),
-       each(record(doc, "projection")["notes"].items(),
-            [](const data::Json& n) {
-              return text(words(n)).styleClass("note");
-            })});
+       each(doc["projection"]["notes"].items(),
+            [](const data::Json& n) { return text(n).styleClass("note"); })});
 }
 
 auto ChaucerAstrolabe::familiesPanel() -> Element {
-  const data::Json& page = record(doc, "families");
+  const data::Json& page = doc["families"];
   // Every curve on the plate is a circle, and the four families differ
   // only in what they are struck about. Each face is one cell: the circles
   // in units of its own radius, its name over them and its rule under.
@@ -162,7 +158,7 @@ auto ChaucerAstrolabe::familiesPanel() -> Element {
           put(c->centre.x, c->centre.y, c->radius, 0.8f, 0.6f);
       spoke(r, r);
     }
-    return sketch::kit::caption(0, words(row["name"]), words(row["formula"]),
+    return sketch::kit::caption(0, row["name"], row["formula"],
                                 box()
                                     .height(2 * r + 4)
                                     .alignItems(Align::Center)
@@ -181,7 +177,7 @@ auto ChaucerAstrolabe::familiesPanel() -> Element {
 }
 
 auto ChaucerAstrolabe::backPanel() -> Element {
-  const data::Json& page = record(doc, "back");
+  const data::Json& page = doc["back"];
   const SkPoint c{(kNarrow - 32) * 0.5f, 172};
   const float r = 156;
   const float s = r * 0.50f;  // the shadow square's own half-side
@@ -266,10 +262,10 @@ auto ChaucerAstrolabe::backPanel() -> Element {
            .rect(SkRect::MakeXYWH(c.fX - s, c.fY, 2 * s, s))
            .fill(Fill::none())
            .stroke(stroke(1.4f, Fill::color(hexColor(0x3a2a10, 0.75f)))),
-       text(words(page["umbraRecta"]))
+       text(page["umbraRecta"])
            .ink(hexColor(0x33240c, 0.8f))
            .centerAt({c.fX - s * 0.52f, c.fY + s * 0.86f}),
-       text(words(page["umbraVersa"]))
+       text(page["umbraVersa"])
            .ink(hexColor(0x33240c, 0.8f))
            .centerAt({c.fX + s * 0.52f, c.fY + s * 0.86f})});
   for (int i = 1; i < 12; ++i) {
@@ -310,13 +306,13 @@ auto ChaucerAstrolabe::backPanel() -> Element {
   return card(page,
               box().children(
                   {std::move(face),
-                   text(words(page["reading"]))
+                   text(page["reading"])
                        .styleClass("gloss")
                        .block({.alignment = weave::TextAlignment::kCenter})}));
 }
 
 auto ChaucerAstrolabe::specCard() -> Element {
-  const data::Json& page = record(doc, "spec");
+  const data::Json& page = doc["spec"];
   // What the object is, as a table of a name and what answers it; then the
   // two obliquities side by side, and what the difference between them
   // costs the plate.
@@ -326,18 +322,18 @@ auto ChaucerAstrolabe::specCard() -> Element {
                        listOf<sketch::kit::Row>(
                            page["rows"].items(),
                            [](const data::Json& row) -> sketch::kit::Row {
-                             return {{words(row["key"]), words(row["value"])}};
+                             return {{row["key"], row["value"]}};
                            }),
                        {.columns = {{96}, {}}}),
                    kit::line({.fill = Fill::color(hexColor(0x241c15, 0.22f))}),
-                   box().styleClass("figure").children({each(
-                       page["obliquity"].items(),
-                       [](const data::Json& n) { return text(words(n)); })}),
-                   text(words(page["note"])).styleClass("gloss")}));
+                   box().styleClass("figure").children(
+                       {each(page["obliquity"].items(),
+                             [](const data::Json& n) { return text(n); })}),
+                   text(page["note"]).styleClass("gloss")}));
 }
 
 auto ChaucerAstrolabe::starPanel() -> Element {
-  const data::Json& page = record(doc, "stars");
+  const data::Json& page = doc["stars"];
   // Where a star lands is r = R_eq·tan((90−δ)/2), so the twelve readings
   // and the strip beside them are one mapping: the table's last column and
   // the plot's abscissa are the same number.
@@ -352,7 +348,7 @@ auto ChaucerAstrolabe::starPanel() -> Element {
   return card(
       page,
       box().gap(6).children(
-          {text(words(page["head"])).styleClass("captionNote"),
+          {text(page["head"]).styleClass("captionNote"),
            box().row().gap(14).grow(1).children(
                {sketch::kit::table(
                     listOf<sketch::kit::Row>(
@@ -375,14 +371,14 @@ auto ChaucerAstrolabe::starPanel() -> Element {
                     {sketch::kit::rules({.x = {kRcan, kReq, 1.0}}),
                      sketch::kit::marks(kStars, pointer, {.x = radius})})
                     .grow(1)}),
-           text(words(page["note"])).styleClass("gloss")}));
+           text(page["note"]).styleClass("gloss")}));
 }
 
 auto ChaucerAstrolabe::chaucerPanel() -> Element {
-  const data::Json& page = record(doc, "chaucer");
-  return card(page, box().gap(10).children(
-                        {text(words(page["quote"])).styleClass("quote"),
-                         slot("chaucer")}));
+  const data::Json& page = doc["chaucer"];
+  return card(page,
+              box().gap(10).children(
+                  {text(page["quote"]).styleClass("quote"), slot("chaucer")}));
 }
 
 auto ChaucerAstrolabe::chaucerBody() -> Element {
@@ -390,14 +386,14 @@ auto ChaucerAstrolabe::chaucerBody() -> Element {
   // delta in the rubric, and the verdict under it in the running voice.
   return box().gap(3).styleClass("figure").children(
       {text(chaucerH), text(chaucerA), text(chaucerDelta).ink(kRubric),
-       text(words(record(doc, "chaucer")["verdict"]))
+       text(doc["chaucer"]["verdict"])
            .styleClass("gloss")
            .ink(kInk)
            .margin(0, 6, 0, 0)});
 }
 
 auto ChaucerAstrolabe::zodiacPanel() -> Element {
-  const data::Json& page = record(doc, "zodiac");
+  const data::Json& page = doc["zodiac"];
   // The projection is not uniform along the ecliptic ring: Capricorn is
   // 2.26× wider on it than Cancer. The twelve spans are read off the ring
   // itself, so the bars and the rule at 30° are the same statement.
@@ -445,7 +441,7 @@ auto ChaucerAstrolabe::zodiacPanel() -> Element {
                            return sketch::kit::tickLabel(
                                std::string(kSigns[(size_t)v]).substr(0, 3));
                          }}),
-                sketch::kit::label(words(page["reference"]), 0, 30,
+                sketch::kit::label(page["reference"], 0, 30,
                                    {.anchor = {.across = Align::Start,
                                                .down = Align::Start}})})
                .grow(1),
@@ -485,11 +481,11 @@ auto ChaucerAstrolabe::consolePanel() -> Element {
 }
 
 auto ChaucerAstrolabe::titleStrip() -> Element {
-  const data::Json& page = record(doc, "masthead");
+  const data::Json& page = doc["masthead"];
   return sketch::kit::titleCard(
-             {.title = {words(page["title"])},
-              .subtitle = {words(page["subtitle"])},
-              .notes = {{.words = words(page["note"]),
+             {.title = {page["title"]},
+              .subtitle = {page["subtitle"]},
+              .notes = {{.words = page["note"],
                          .ink = Fill::color(hexColor(0x6b5a44))}},
               .ruled = true})
       .left(64)
@@ -516,11 +512,10 @@ auto ChaucerAstrolabe::readout() -> Element {
       .row()
       .gap(26)
       .alignItems(Align::Baseline)
-      .children({each(record(doc, "readout").items(),
-                      [&](const data::Json& name, std::size_t i) {
-                        return box().gap(1).children(
-                            {text(words(name)).styleClass("dial"),
-                             text(value[i]).styleClass(
-                                 i == 0 || i == 4 ? "time" : "readout")});
-                      })});
+      .children({each(doc["readout"].items(), [&](const data::Json& name,
+                                                  std::size_t i) {
+        return box().gap(1).children(
+            {text(name).styleClass("dial"),
+             text(value[i]).styleClass(i == 0 || i == 4 ? "time" : "readout")});
+      })});
 }

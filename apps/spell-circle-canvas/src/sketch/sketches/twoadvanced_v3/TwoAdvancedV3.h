@@ -61,7 +61,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
    *  rebuild stands in `data/content.json` beside this sketch, read in
    *  setup, so the code is the page's structure and the file is what it
    *  says. */
-  std::shared_ptr<const data::Json> doc;
+  sketch::kit::Document doc;
 
   // --- the out-of-band assets, fetched directly --------------------------
   ImagePtr pageTile;      // background.gif, 10×1600

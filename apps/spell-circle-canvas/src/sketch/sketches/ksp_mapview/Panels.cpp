@@ -19,11 +19,11 @@ auto KspMapView::infoCard() -> Element {
   // registers are one sheet: a row's name is `captionNote`, the figure that
   // answers it `readout`, a strip head `section`. So every line below says
   // only its words, and the card's words are the document's.
-  const data::Json& page = record(doc, "info");
+  const data::Json& page = doc["info"];
   const kit::Rows how{.measure = 224, .gap = 7};
   const auto section = [&how, this](const data::Json& part) {
-    return box().children({infoHead(words(part["head"])),
-                           kit::readout(readings(part["rows"]), how)});
+    return box().children(
+        {infoHead(part["head"]), kit::readout(readings(part["rows"]), how)});
   };
   return at(
       box()
@@ -40,7 +40,7 @@ auto KspMapView::infoCard() -> Element {
                    .height(26)
                    .justify(Justify::Center)
                    .fill(kOrange)
-                   .children({text(words(page["vessel"]))
+                   .children({text(page["vessel"])
                                   .font({.face = sansB(),
                                          .size = 14,
                                          .color = hexColor(0xFFFFFF)})}),
@@ -48,10 +48,10 @@ auto KspMapView::infoCard() -> Element {
                    .height(19)
                    .justify(Justify::Center)
                    .fill(kCardSub)
-                   .children({text(words(page["tab"]))
+                   .children({text(page["tab"])
                                   .font({.face = sansB(),
                                          .color = hexColor(0xE8E8EA)})}),
-               infoHead(words(page["classification"])),
+               infoHead(page["classification"]),
                // the part icon, and the three readings that name the ship
                box()
                    .row()
@@ -80,8 +80,7 @@ auto KspMapView::toolbar() -> Element {
   using namespace ksp;
   // Six buttons down the right edge, one per glyph the document names.
   return stack().inset(0).staggerChildren(45ms).children(
-      {each(record(doc, "toolbar").items(), [](const data::Json& glyph,
-                                               std::size_t i) {
+      {each(doc["toolbar"].items(), [](const data::Json& glyph, std::size_t i) {
         return at(
             box()
                 .corners({5})
@@ -96,7 +95,7 @@ auto KspMapView::toolbar() -> Element {
                 .justify(Justify::Center)
                 .opacity(animate(from(0.0f).to(1.0f), {260ms}))
                 .scale(animate(from(0.7f).to(1.0f), {320ms, ease::outBack()}))
-                .children({text(words(glyph), body(13, hexColor(0xD3DBE0)))}),
+                .children({text(glyph, body(13, hexColor(0xD3DBE0)))}),
             1156, 34.0f + (float)i * 46.0f, 38, 38);
       })});
 }
@@ -112,8 +111,7 @@ auto KspMapView::missionClock() -> Element {
               .fill(Paint::solid(hexColor(0x26282C, 0.94f)))
               .stroke(PathFormat{.width = 1.0f,
                                  .strokeFill = Fill::color(hexColor(0x4A5157))})
-              .children({text(words(record(doc, "clock")), lcd(13, kLcd))
-                             .key("met")}),
+              .children({text(doc["clock"], lcd(13, kLcd)).key("met")}),
           18, 14, 200, 28),
        at(box()
               .corners({4})

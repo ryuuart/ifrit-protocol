@@ -68,7 +68,7 @@ auto SigillumAemeth::setup(sketch::SketchContext& ctx) -> void {
                                {skia::toColor(hexColor(0x6a4a20, 0.10f))});
   waxSpeck.seed(1582);
 
-  doc = ctx.assets.json(ctx.local("data/content.json"));
+  doc = sketch::kit::Document(ctx, "data/content.json");
 
   // solve, then draw what the solver said
   for (int n = 0; n < 7; ++n)
@@ -89,10 +89,10 @@ auto SigillumAemeth::setup(sketch::SketchContext& ctx) -> void {
       un += (un.empty() ? "" : "·") + std::to_string(i + 1);
       glyphs += kRing[(size_t)i].glyph;
     }
-  figures = {{"used", std::to_string(usedCells)},
-             {"unvisited", std::to_string(40 - usedCells)},
-             {"cells", un},
-             {"glyphs", glyphs}};
+  doc.figures({{"used", std::to_string(usedCells)},
+               {"unvisited", std::to_string(40 - usedCells)},
+               {"cells", un},
+               {"glyphs", glyphs}});
 
   // ONE Output: three systems turn off it and stop together at 0.
   ctx.ticker.add([this](double dt) {

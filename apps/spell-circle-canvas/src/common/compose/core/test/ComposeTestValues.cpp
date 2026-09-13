@@ -4,6 +4,8 @@
 // resolved against, and the store a node keeps its stamp bakes in.
 
 #include <memory>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include "support/CoreTestSupport.h"
@@ -80,4 +82,21 @@ TEST(ComposeStamps, ReBakingOneArtKeepsEveryOtherBakeInTheStore) {
   // An art the store never held is answered with nothing, however full
   // the store is.
   EXPECT_EQ(cache.get(std::make_shared<int>(99)), nullptr);
+}
+
+TEST(ComposeValues, AValueThatReadsItselfOutAsTextIsText) {
+  // A node of a document, standing in for the one this library may not
+  // name: it answers `text()` and nothing else, and it is text wherever
+  // text is taken. A value that does not answer it — every string
+  // spelling — keeps its own constructor, which is what keeps a literal
+  // from becoming ambiguous.
+  struct Node {
+    std::string_view text() const { return "THE RULE AND THE STRANDS"; }
+  };
+  const Utf8 read = Node{};
+  EXPECT_EQ(std::string(reinterpret_cast<const char*>(read.bytes().data()),
+                        read.bytes().size()),
+            "THE RULE AND THE STRANDS");
+  EXPECT_TRUE(Utf8("THE RULE AND THE STRANDS") == read);
+  EXPECT_TRUE(Utf8().empty());
 }

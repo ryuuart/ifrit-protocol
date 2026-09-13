@@ -374,7 +374,7 @@ auto DunhuangStarChart::raRuler(int seg) -> Element {
   const float y = kBandTop - kSegTop - 46.0f;
   std::vector<Element> spans;
   if (seg == 1)  // just clear of the sheet
-    spans.push_back(text(phrase("raRuler"))
+    spans.push_back(text(doc.phrase("raRuler"))
                         .styleClass("caption gold")
                         .at({600, y - 26})
                         .width(900));

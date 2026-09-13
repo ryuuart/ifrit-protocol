@@ -201,4 +201,4 @@ sigil_doc_probes(sketch
            "<sigilweave/ports/SystemFontManager.h>"
   ALIASES scry=::sigil::scry
   FLOORS 50,10,10,0,0
-  LIBRARIES SigilSketch SigilSketchPublish SigilDataScale)
+  LIBRARIES SigilSketch SigilSketchPublish SigilDataDecode SigilDataScale)

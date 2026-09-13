@@ -286,11 +286,6 @@ inline std::vector<Utf8> wordsOf(const data::Json& doc) {
   return out;
 }
 
-/** ONE STRING out of a record, empty where the key is not there. */
-inline std::string said(const data::Json& doc, const char* named) {
-  return std::string(doc[named].text());
-}
-
 inline Sheet readSheet(sketch::SketchContext& ctx) {
   Sheet s;
   const auto file = [&ctx](const char* name) {

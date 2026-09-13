@@ -70,8 +70,9 @@ inline sigil::weave::TextStyle uiB(float size, SkColor4f color,
   return faced(uiBoldFace(), size, color, track);
 }
 
-/** One line of the panel. */
-inline sigil::compose::Element t(std::string_view line,
+/** One line of the panel — a word stated here or one read out of the
+ *  study's own document, which is text wherever text is taken. */
+inline sigil::compose::Element t(const sigil::compose::Utf8& line,
                                  sigil::weave::TextStyle style) {
   return sigil::compose::text(line, std::move(style));
 }

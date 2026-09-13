@@ -26,6 +26,7 @@
 #include <sigilmeasure/check/Check.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Rows.h>
 #include <sigilsketch/kit/Theme.h>
@@ -452,34 +453,14 @@ inline const weave::StyleSheet& classes() {
   return look;
 }
 
-/** THE RECORD AT @p key of @p doc — `data/content.json`, whose keys are
- *  `masthead`, `sett`, `draft`, `blends`, `palettes`, `provenance`,
- *  `comparison`, `verification` and `douglas`. A missing file or key reads
- *  as a null value, so a reader falls back to no words at all. */
-inline const data::Json& record(const std::shared_ptr<const data::Json>& doc,
-                                const char* key) {
-  static const data::Json none;
-  return doc ? (*doc)[key] : none;
-}
-
-/** @p node's words — empty where the document does not carry them. */
-inline std::string words(const data::Json& node) {
-  return std::string(node.text());
-}
-
-/** The members of @p node's list, as the run `each()` walks. */
-inline std::span<const data::Json> run(const data::Json& node) {
-  return node.items();
-}
-
 /** One line of type at a card position, ranged left or centred, set in
  *  whatever the caller states on it — a class or a partial — over the root
  *  voice. The line box is 1.6 em of that type, so it follows the size the
  *  line resolves to. */
-inline Element label(const std::string& s, float x, float y, float w) {
+inline Element label(const Utf8& s, float x, float y, float w) {
   return at(x, y, w, 0).height(1.6_em).children({text(s)});
 }
-inline Element centred(const std::string& s, float x, float y, float w) {
+inline Element centred(const Utf8& s, float x, float y, float w) {
   return at(x, y, w, 0)
       .height(1.6_em)
       .children({text(s)

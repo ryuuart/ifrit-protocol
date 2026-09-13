@@ -13,13 +13,14 @@
 # CanvasSpecification through a SketchContext, which is why SigilSketch is PUBLIC
 # here; it links no device backend, no window and no sketch.
 sigil_library(SigilSketchKit
-  SOURCES Cells.cpp Chart.cpp ChartMarks.cpp Console.cpp Heading.cpp
-          Legend.cpp Meter.cpp Page.cpp Panel.cpp Passage.cpp Rows.cpp
-          Scrollbar.cpp Theme.cpp Ticker.cpp
-  HEADERS Cells.h Chart.h Console.h Heading.h Kit.h Legend.h Meter.h Page.h
-          Panel.h Passage.h Rows.h Scrollbar.h Theme.h Ticker.h
+  SOURCES Cells.cpp Chart.cpp ChartMarks.cpp Console.cpp Document.cpp
+          Heading.cpp Legend.cpp Meter.cpp Page.cpp Panel.cpp Passage.cpp
+          Rows.cpp Scrollbar.cpp Theme.cpp Ticker.cpp
+  HEADERS Cells.h Chart.h Console.h Document.h Heading.h Kit.h Legend.h
+          Meter.h Page.h Panel.h Passage.h Rows.h Scrollbar.h Theme.h Ticker.h
   PUBLIC SigilSketch SigilComposeCore SigilComposeKit SigilCoreReconcile
-         SigilDataScale SigilGeometryKit SigilMaterial SigilWeave
+         SigilDataDecode SigilDataScale SigilGeometryKit SigilMaterial
+         SigilWeave
   PRIVATE SigilWeavePorts SigilIO SigilDataTable)
 
 # The kit's own claim: the theme is a comparable value a scope binds, and
@@ -28,6 +29,7 @@ sigil_library(SigilSketchKit
 # migrated sketch's plate rests on.
 sigil_test(sketch_test
   SOURCES test/CellsTest.cpp test/ChartTest.cpp test/ConsoleTest.cpp
+          test/DocumentTest.cpp
           test/HeadingTest.cpp test/LegendTest.cpp test/MeterTest.cpp
           test/PageTest.cpp test/PanelTest.cpp test/PassageTest.cpp
           test/RowsTest.cpp test/ScrollbarTest.cpp test/ThemeTest.cpp

@@ -28,6 +28,7 @@
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Chart.h>
+#include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Rows.h>
 #include <sigilsketch/kit/Theme.h>
@@ -334,17 +335,17 @@ inline std::string hexOf(SkColor4f c) {
  *  — set in whatever the caller states on it, a class or a partial, over
  *  the root voice. The line box is 1.7 em of that type, so it follows the
  *  size the line resolves to. */
-inline Element label(const std::string& s, float x, float y, float w) {
+inline Element label(const Utf8& s, float x, float y, float w) {
   return at(x, y, w, 0).height(1.7_em).children({text(s)});
 }
-inline Element centred(const std::string& s, float x, float y, float w) {
+inline Element centred(const Utf8& s, float x, float y, float w) {
   return at(x, y, w, 0)
       .height(1.7_em)
       .children({text(s)
                      .block({.alignment = weave::TextAlignment::kCenter})
                      .width(w)});
 }
-inline Element rightAt(const std::string& s, float x, float y, float w) {
+inline Element rightAt(const Utf8& s, float x, float y, float w) {
   return at(x, y, w, 0)
       .height(1.7_em)
       .children(

@@ -245,7 +245,7 @@ auto SigillumAemeth::margin() -> Element {
   // leaves off and no line names a y. Its voice is the terminal face at the
   // body size in the note ink; a heading is the rubric, tracked; every other
   // line says only what differs, by class.
-  const std::vector<std::string> orders = phrases("orders");
+  const std::vector<sketch::kit::Document::Line> orders = doc.run("orders");
   const SkColor4f kTablet[4] = {
       hexColor(0xb9c6da, 0.95f), hexColor(0xe6bf63, 0.95f),
       hexColor(0xf7f1e2, 0.95f), hexColor(0x9dbfa2, 0.95f)};
@@ -274,9 +274,9 @@ auto SigillumAemeth::margin() -> Element {
       .styleSheet(voices())
       .children(
           {box().column().gap(4).children(
-               {text(phrase("title")).styleClass("title"),
-                text(phrase("subtitle")).styleClass("subtitle"),
-                text(phrase("provenance")).styleClass("serif")}),
+               {text(doc.phrase("title")).styleClass("title"),
+                text(doc.phrase("subtitle")).styleClass("subtitle"),
+                text(doc.phrase("provenance")).styleClass("serif")}),
            // the double rule under the masthead: heavy, with a dotted
            // companion held off it
            box()
@@ -298,31 +298,34 @@ auto SigillumAemeth::margin() -> Element {
                      .width = 0.8f,
                      .fill = Fill::color(hexColor(0xc7ab74, 0.40f)),
                      .dash = {2.0f, 5.0f}}})),
-           text(phrase("namesHeading")).styleClass("heading"), nameRows(),
+           text(doc.phrase("namesHeading")).styleClass("heading"), nameRows(),
            // the leftovers
            box().column().gap(4).children(
-               {text(phrase("consumed")).opacity(lit(tDark * 1000)),
-                text(phrase("unvisited"))
+               {text(doc.phrase("consumed")).opacity(lit(tDark * 1000)),
+                text(doc.phrase("unvisited"))
                     .styleClass("rubric")
                     .opacity(lit(tDark * 1000 + 200)),
-                text(phrase("leftovers"))
+                text(doc.phrase("leftovers"))
                     .styleClass("gloss")
                     .opacity(lit(tDark * 1000 + 400))}),
-           text(phrase("basketsHeading")).styleClass("heading"), basketFan(),
-           text(phrase("crossNote"))
+           text(doc.phrase("basketsHeading")).styleClass("heading"),
+           basketFan(),
+           text(doc.phrase("crossNote"))
                .styleClass("italic")
                .opacity(lit(tBirds * 1000 + 2600)),
-           text(phrase("ordersHeading")).styleClass("heading"),
+           text(doc.phrase("ordersHeading")).styleClass("heading"),
            // the four orders, each with the tablet the record gives it: an
            // arc-segment worn in the forehead, a round gold plate on the
            // breast, a four-square white ivory, a three-cornered green
-           box().column().gap(10).children(
-               each(orders, [&tablet](const std::string& line, size_t i) {
+           box().column().gap(10).children(each(
+               orders,
+               [&tablet](const sketch::kit::Document::Line& line, size_t i) {
                  return box()
                      .row()
                      .gap(10)
                      .alignItems(Align::Center)
-                     .children({tablet(i), text(line).styleClass("legend")});
+                     .children(
+                         {tablet(i), text(line.words).styleClass("legend")});
                }))});
 }
 
@@ -393,12 +396,12 @@ auto SigillumAemeth::colophon() -> Element {
                            .width = 0.7f,
                            .fill = Fill::color(hexColor(0xc7ab74, 0.30f)),
                            .dash = {1.6f, 4.4f}}})),
-                 text(phrase("seal"))
+                 text(doc.phrase("seal"))
                      .font({.face = faceItalic,
                             .size = 17,
                             .color = hexColor(0xb59a6c)})
                      .width(690),
-                 text(phrase("imprint"))
+                 text(doc.phrase("imprint"))
                      .font({.face = faceMono,
                             .size = 12,
                             .color = hexColor(0x6f5f45)})});

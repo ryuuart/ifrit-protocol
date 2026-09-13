@@ -58,7 +58,7 @@ void TwoAdvancedV3::setup(sketch::SketchContext& ctx) {
   // THE PAGE'S COPY: every label, head, paragraph and button stands in the
   // document beside this sketch, so an edit to the words re-runs setup
   // without a rebuild.
-  doc = ctx.assets.json(ctx.local("data/content.json"));
+  doc = sketch::kit::Document(ctx, "data/content.json");
 
   diag =
       patterns::stripes(2, 9, mskia::toColor(mskia::withAlpha(kSteelHi, 0.5f)));

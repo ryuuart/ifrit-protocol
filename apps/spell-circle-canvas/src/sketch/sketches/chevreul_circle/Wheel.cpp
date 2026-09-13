@@ -278,7 +278,7 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
                         v.covUncovered, v.covDoubled, v.covSamples,
                         v.closedContours, v.endpointPoints),
          kInk2},
-        {say("wheel.outer"), kRed},
+        {std::string(doc["wheel.outer"].text()), kRed},
     }};
     for (size_t i = 0; i < lines.size(); ++i)
       g.children({label(lines[i].first, 56, 864 + (float)i * 11.8f, 760)
@@ -291,7 +291,7 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
 
 auto ChevreulCircle::theQuadrant() -> Element {
   Element g = box();
-  g.children({label(say("quadrant.head"), 56, 918, 760)
+  g.children({label(doc["quadrant.head"], 56, 918, 760)
                   .font({.size = 9, .color = kInk, .track = 0.6f})});
   const float gw = 10 * (kQCellW + kQGapX) - kQGapX;
   const float gh = 20 * (kQCellH + kQGapY) - kQGapY;
@@ -320,7 +320,8 @@ auto ChevreulCircle::theQuadrant() -> Element {
            .fill(Fill::color(kWell))
            .children({instancing::instances(quadAtlas, quadPool,
                                             instancing::Mode::Live)}),
-       label(derivation2 + "   " + say("quadrant.note"), 56, kQY + gh + 6, 760)
+       label(derivation2 + "   " + std::string(doc["quadrant.note"].text()), 56,
+             kQY + gh + 6, 760)
            .styleClass("readout"),
        label(kit::formatted("instanced: 1 atlas cell, 200 tints, %d/%d "
                             "colour-exact on readback (max channel dev %d)",

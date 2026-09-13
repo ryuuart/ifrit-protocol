@@ -171,7 +171,7 @@ sheets accept the same value. Theme wrappers resolve defaults, then pass
 that value through unchanged. Pass it to `compose::Element::fill` when
 painting an Element directly.
 
-### The surface — `Page.h`, `Cells.h`, `Passage.h`
+### The surface — `Page.h`, `Cells.h`, `Passage.h`, `Document.h`
 
 | | |
 | --- | --- |
@@ -182,6 +182,8 @@ painting an Element directly.
 | `cells(Run)` | a run of cells along one axis at the theme's gutter, each at its own width |
 | `panelGrid(PanelGrid)` | equal shares of the width, one per cell — what `cells` cannot do, because a fixed width does not know how wide the page is — on one row where `columns` is 0, wrapped every N above that, with a short last row keeping its share |
 | `passage(ctx, name)` | the prose in the sketch's own files, `ctx.local(name)` (`"data/manuscript_1.txt"`), minus the newlines a file ends with — the prose a sheet about setting a page is SET IN, kept beside the sketch rather than typed into it |
+| `Document(ctx, name)` | the JSON document in the sketch's own files, read as the WORDS THE PLATE SETS: a record at a key, a sentence with its figures written in, a run of lines each in the class the document named, and a passage as one mixed-text value |
+| `lineOf(line)` | one of that run as a leaf, in the class the document named for it |
 
 ```cpp
 sketch::kit::page({.title = "THE STROKE ATLAS"},
@@ -246,6 +248,38 @@ and the lip says where it breaks. `relief` is the same reading with its
 sign turned over — the light one lifted edge catches and the shadow the
 opposite one casts, which is what a carved frame, a raised boss and a key
 cap all are over a ground. Unset is flush, which is the specimen well.
+
+**THE WORDS ARE A FILE, AND THE FIGURES ARE THE RUN'S.** A plate that
+sets sentences keeps them in `data/content.json` beside it and reads them
+through `Document`, so the code is the template — the structure, the
+classes, the layout — and the file is the content. A record answers at a
+key, a sentence comes back with every `{name}` in it replaced by the
+figure of that name, a list comes back as the run of lines `each()` walks,
+and the same list comes back as one mixed-text value where the sentences
+are one paragraph:
+
+```cpp
+kit::Document doc{ctx, "data/content.json"};        // in setup
+doc.figures({{"rest", compose::kit::formatted("%.2f", measured)}});
+…
+column().children({text(doc["masthead"]["title"]).styleClass("title"),
+                   each(doc.run("notes"), sketch::kit::lineOf)})
+```
+
+A LINE NAMES A CLASS AND NOT A LOOK: a bare string in the list is a
+sentence in the running voice the tree already carries, and
+`{"words": …, "class": …}` is one whose CONTENT decides its colour — a
+verdict, a warning, a school of thought — resolved by the sheet in force
+where it lands. A document is read and never demanded: a missing file, a
+missing key and a key holding the wrong kind all answer nothing, so a
+sentence deleted from the file deletes its line and a plate whose file did
+not arrive draws its furniture and none of its lettering. A figure is
+already formatted when it arrives, because how a number reads is the
+measurement's business.
+
+Nothing here reads a theme: a class is a name, and a node is text wherever
+text is taken, because `compose::Utf8` accepts any value that reads itself
+out with `text()`.
 
 ### What announces something — `Heading.h`
 
@@ -585,9 +619,10 @@ A leaf may not invent what an ancestor should own.
   in compose's own types.
 * A memoised typeface — `weave::ports::face()`. This library holds no
   font cache; it holds the one face its own theme is set in.
-* A resource that is not prose — an image, a video, a blob, a probe —
-  `ctx.assets`. `passage` is the one reader here, and it is here because
-  a passage is the only resource whose exact bytes decide a plate.
+* A resource that is not the sketch's own words — an image, a video, a
+  blob, a probe, a table, a database — `ctx.assets`. `passage` and
+  `Document` are the two readers here, and they are here because the words
+  are the only resource whose exact bytes decide a plate.
 * The mapping a plot's two axes are — `data::Scale`, with its domain, its
   range, its transform and its tick ladder. `Chart.h` puts a box's own size
   into two of those and reads `Scale::apply`; it holds no arithmetic of its

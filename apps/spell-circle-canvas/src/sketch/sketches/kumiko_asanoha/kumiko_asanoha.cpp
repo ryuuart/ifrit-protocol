@@ -11,7 +11,7 @@ struct KumikoAsanoha : sketch::Sketch {
    *  reading under them stand in `data/content.json` beside this sketch,
    *  read in setup, so the code is the drawing and the file is what it
    *  says about it. */
-  std::shared_ptr<const data::Json> doc;
+  sketch::kit::Document doc;
   std::vector<choreograph::Output<float>> fade, pop;
   choreograph::Output<float> glow{0}, seat{0}, frameTrim{0};
   double t = 0;
@@ -262,9 +262,9 @@ struct KumikoAsanoha : sketch::Sketch {
 
     // the three jigs, as the three angles one right angle is cut into: a
     // wedge each, with the angle named under it
-    const data::Json& jigs = record(doc, "jigs");
+    const data::Json& jigs = doc["jigs"];
     g.children(
-        {each(run(jigs["angles"]),
+        {each(jigs["angles"].items(),
               [](const data::Json& angle, std::size_t i) {
                 const float x = 430.0f + (float)i * 118.0f;
                 return box().inset(0).children(
@@ -275,13 +275,10 @@ struct KumikoAsanoha : sketch::Sketch {
                          .stroke(stroke(0.9f,
                                         Fill::color(hexColor(0xC79A57, 0.55f)),
                                         PathFormat::Align::Inner)),
-                     text(words(angle))
-                         .left(x - 30)
-                         .top(150)
-                         .width(60)
-                         .block({.alignment = weave::TextAlignment::kCenter})});
+                     text(angle).left(x - 30).top(150).width(60).block(
+                         {.alignment = weave::TextAlignment::kCenter})});
               }),
-         text(words(jigs["note"]))
+         text(jigs["note"])
              .font({.color = hexColor(0xB7A281, 0.55f), .track = 0.5f})
              .left(392)
              .top(24)
@@ -291,14 +288,13 @@ struct KumikoAsanoha : sketch::Sketch {
          // down instead of running through a top typed for it
          kit::at(760, 30, 520, kBandH - 60)
              .gap(12)
-             .children({text(words(record(doc, "reading")["title"]))
-                            .font({.size = 12,
-                                   .color = hexColor(0xE4D5B2, 0.86f),
-                                   .track = 1.3f}),
-                        each(run(record(doc, "reading")["lines"]),
-                             [](const data::Json& line) {
-                               return text(words(line));
-                             })})});
+             .children(
+                 {text(doc["reading"]["title"])
+                      .font({.size = 12,
+                             .color = hexColor(0xE4D5B2, 0.86f),
+                             .track = 1.3f}),
+                  each(doc["reading"]["lines"].items(),
+                       [](const data::Json& line) { return text(line); })})});
     return g;
   }
 
@@ -333,7 +329,7 @@ struct KumikoAsanoha : sketch::Sketch {
                            .align = PathFormat::Align::Center}),
                    post(0, 146), post(kW - 146, 146), beam(0, 122, true),
                    beam(kRoom - 122, 122, false),
-                   text(words(record(doc, "caption")))
+                   text(doc["caption"])
                        .font({.size = 12, .color = kCaption, .track = 1.1f})
                        .left(950)
                        .top(916)
@@ -361,7 +357,7 @@ struct KumikoAsanoha : sketch::Sketch {
         ctx,
         {.size = SkSize::Make(kW, kH), .captureAt = 4.2, .background = kNight});
 
-    doc = ctx.assets.json(ctx.local("data/content.json"));
+    doc = sketch::kit::Document(ctx, "data/content.json");
 
     panel = Panel{};
     panel.build();

@@ -23,6 +23,7 @@
 #include <sigilmotion/Animation.h>
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Rows.h>
 #include <sigilsketch/kit/Theme.h>

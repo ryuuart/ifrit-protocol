@@ -94,7 +94,7 @@ auto Minard1869::provenance() -> Element {
         .at({(float)n["x"].number() - r, (float)n["y"].number() - r * 0.66f})
         .shape(shapes::circle())
         .stroke(stroke(1.5f, Fill::color(kStampRed)))
-        .children({text(std::string(n["words"].text()))
+        .children({text(n["words"])
                        .font({.face = faceRoman,
                               .size = 7.5f,
                               .color = kStampRed,
@@ -398,9 +398,7 @@ auto Minard1869::legendBox() -> Element {
       .stroke(stroke(1.0f, Fill::color(kInk)))
       .key("legendbox")
       .opacity(beat(tHann + 1.5f, tHann + 1.8f))
-      .children({text(std::string(legend["heading"].text()))
-                     .font({.size = 14})
-                     .at({140, 4}),
+      .children({text(legend["heading"]).font({.size = 14}).at({140, 4}),
                  box()
                      .column()
                      .at({8, 24})
@@ -850,7 +848,7 @@ auto Minard1869::imprints() -> Element {
   return box().inset(0).children(
       {each(imprints.items(), [this](const data::Json& n, size_t i) {
         const bool left = n["at"].text() == "left";
-        return text(std::string(n["words"].text()))
+        return text(n["words"])
             .font({.face = faceItalic, .size = 7})
             .at({left ? kFrameL + 6 : kFrameR - 140, kFrameB + 6})
             .key("imp" + std::to_string(i))

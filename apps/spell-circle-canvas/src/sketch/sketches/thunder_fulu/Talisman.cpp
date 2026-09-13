@@ -137,7 +137,7 @@ auto ThunderFulu::plate() -> Element {
                            .width = 0.7f,
                            .strokeFill = Fill::color(hexColor(0x0e0d0c, 0.28f)),
                            .dashIntervals = {1.5f, 6.0f}}),
-                   text(std::string(n["words"].text()))
+                   text(n["words"])
                        .styleClass("register")
                        .at({2, 3})
                        .width(360)});
@@ -386,7 +386,7 @@ auto ThunderFulu::furniture() -> Element {
                   .at({1046, 706})
                   .width(830)
                   .gap(6)
-                  .children({text(std::string(colophon["heading"].text()))
+                  .children({text(colophon["heading"])
                                  .styleClass("heading")
                                  .font({.size = 12.0f}),
                              rail(830),

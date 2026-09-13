@@ -9,6 +9,7 @@
 #include <sigilsketch/kit/Cells.h>
 #include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Console.h>
+#include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Heading.h>
 #include <sigilsketch/kit/Legend.h>
 #include <sigilsketch/kit/Meter.h>

@@ -494,13 +494,13 @@ auto KspMapView::altimeter() -> Element {
                 d, lcd(20, red ? hexColor(0xFFFFFF) : hexColor(0x101214)))}),
         x, 8, 26, 34);
   };
-  const data::Json& page = record(doc, "altimeter");
+  const data::Json& page = doc["altimeter"];
   g.children(
       {each(page["digits"].items(),
             [&wheel](const data::Json& d, std::size_t i) {
-              return wheel(words(d), 18.0f + (float)i * 28.0f, false);
+              return wheel(d, 18.0f + (float)i * 28.0f, false);
             }),
-       wheel(words(page["suffix"]), 18.0f + 6 * 28.0f, true),
+       wheel(page["suffix"], 18.0f + 6 * 28.0f, true),
        // ATMOSPHERE tape
        at(stack()
               .fill(Paint::linearUnit({0, 0}, {0, 1},
@@ -511,32 +511,32 @@ auto KspMapView::altimeter() -> Element {
                                  .strokeFill = Fill::color(hexColor(0x18333F)),
                                  .align = PathFormat::Align::Inner})
               .clip()
-              .children({box()
-                             .inset(0)
-                             .shape(keyedShape(
-                                 std::string_view("atmosphere-rail"),
-                                 [](SkSize s) {
-                                   SkPathBuilder b;
-                                   b.moveTo(2, s.height() * 0.62f);
-                                   b.lineTo(s.width() - 2, s.height() * 0.62f);
-                                   return b.detach();
-                                 }))
-                             .stroke(lines::Line{
-                                 .width = 0.9f,
-                                 .fill = Fill::color(hexColor(0xE8F4FA, 0.85f)),
-                                 .tickSpacing = 5.0f,
-                                 .tickLength = 12.0f}),
-                         box().left(6).top(1).children(
-                             {text(words(page["tape"]),
-                                   bold(8, hexColor(0xEAF4FA), 1.4f))}),
-                         box()
-                             .width(9)
-                             .height(8)
-                             .left(30)
-                             .top(0)
-                             .shape(shapes::polygon(3, 180))
-                             .fill(Paint::solid(hexColor(0xFFFFFF)))
-                             .translateX(bind(&yawTape).target(0, 190))}),
+              .children(
+                  {box()
+                       .inset(0)
+                       .shape(keyedShape(std::string_view("atmosphere-rail"),
+                                         [](SkSize s) {
+                                           SkPathBuilder b;
+                                           b.moveTo(2, s.height() * 0.62f);
+                                           b.lineTo(s.width() - 2,
+                                                    s.height() * 0.62f);
+                                           return b.detach();
+                                         }))
+                       .stroke(lines::Line{
+                           .width = 0.9f,
+                           .fill = Fill::color(hexColor(0xE8F4FA, 0.85f)),
+                           .tickSpacing = 5.0f,
+                           .tickLength = 12.0f}),
+                   box().left(6).top(1).children(
+                       {text(page["tape"], bold(8, hexColor(0xEAF4FA), 1.4f))}),
+                   box()
+                       .width(9)
+                       .height(8)
+                       .left(30)
+                       .top(0)
+                       .shape(shapes::polygon(3, 180))
+                       .fill(Paint::solid(hexColor(0xFFFFFF)))
+                       .translateX(bind(&yawTape).target(0, 190))}),
           18, 48, 238, 22)});
 
   // vertical-speed dial
@@ -562,13 +562,13 @@ auto KspMapView::altimeter() -> Element {
   dial.children(
       {// the dial's own four words: its name over two lines, and the two
        // bounds it reads between
-       at(text(words(page["dial"][0]), bold(6.5f, hexColor(0x4A5157), 0.6f)),
+       at(text(page["dial"][0], bold(6.5f, hexColor(0x4A5157), 0.6f)),
           {dc.fX + 15, dc.fY - 6}, 26, 9),
-       at(text(words(page["dial"][1]), bold(6.5f, hexColor(0x4A5157), 0.6f)),
+       at(text(page["dial"][1], bold(6.5f, hexColor(0x4A5157), 0.6f)),
           {dc.fX + 15, dc.fY + 3}, 26, 9),
-       at(text(words(page["dial"][2]), body(6, hexColor(0x5A6167))),
+       at(text(page["dial"][2], body(6, hexColor(0x5A6167))),
           {dc.fX - 5, dc.fY - 26}, 20, 8),
-       at(text(words(page["dial"][3]), body(6, hexColor(0x5A6167))),
+       at(text(page["dial"][3], body(6, hexColor(0x5A6167))),
           {dc.fX - 5, dc.fY + 26}, 22, 8),
        at(box()
               .shape(shapes::sector(-2.2f, 4.4f, 0.0f))

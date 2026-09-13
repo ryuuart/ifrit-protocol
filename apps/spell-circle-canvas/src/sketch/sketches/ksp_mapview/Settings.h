@@ -30,6 +30,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -170,24 +171,11 @@ inline Element t(const char* s, weave::Type partial) {
   return text(s).font(std::move(partial));
 }
 
-/** THE RECORD AT @p key of @p doc — `data/content.json`, whose keys are
- *  `info` (the vessel card's own words), `toolbar`, `clock` and
- *  `altimeter`. A missing file or key reads as a null value, so a reader
- *  falls back to no words at all. */
-inline const data::Json& record(const std::shared_ptr<const data::Json>& doc,
-                                const char* key) {
-  static const data::Json none;
-  return doc ? (*doc)[key] : none;
-}
-
-/** @p node's words — empty where the document does not carry them. */
-inline Utf8 words(const data::Json& node) { return Utf8(node.text()); }
-
 /** The readings @p node's list holds, each `{name, value}`. */
 inline std::vector<kit::Reading> readings(const data::Json& node) {
   std::vector<kit::Reading> out;
   for (const data::Json& row : node.items())
-    out.push_back({.name = words(row["name"]), .value = words(row["value"])});
+    out.push_back({.name = row["name"], .value = row["value"]});
   return out;
 }
 

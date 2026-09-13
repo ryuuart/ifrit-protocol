@@ -35,6 +35,7 @@
 #include <sigilmeasure/check/Check.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/fonts/FontContext.h>
@@ -451,43 +452,6 @@ inline Fill grooveFill(float rad, float w, float darkA, float liteA) {
        SkColor4f{kCutLite.fR, kCutLite.fG, kCutLite.fB, liteA},
        SkColor4f{kCutLite.fR, kCutLite.fG, kCutLite.fB, liteA}},
       {0.0f, m - e, m + e, 1.0f});
-}
-
-// ---------------------------------------------------------------------------
-// THE WORDS. Every sentence the margin sets stands in data/content.json beside
-// this sketch: the code is the template — structure, classes, layout — and the
-// file is the content, so an edit to a sentence re-runs setup without a
-// rebuild.
-
-/** The figures a sentence may name, under the names the document calls them
- *  by, already formatted. */
-using Figures = std::vector<std::pair<std::string, std::string>>;
-
-/** @p text with every `{name}` replaced by the figure of that name, left as
- *  written where no figure carries the name. */
-inline std::string filled(std::string_view text, const Figures& figures) {
-  std::string out;
-  out.reserve(text.size());
-  for (size_t i = 0; i < text.size();) {
-    const size_t open = text.find('{', i);
-    const size_t close =
-        open == std::string_view::npos ? open : text.find('}', open);
-    if (close == std::string_view::npos) {
-      out += text.substr(i);
-      break;
-    }
-    out += text.substr(i, open - i);
-    const std::string_view name = text.substr(open + 1, close - open - 1);
-    const auto found =
-        std::find_if(figures.begin(), figures.end(),
-                     [name](const std::pair<std::string, std::string>& f) {
-                       return f.first == name;
-                     });
-    out += found != figures.end() ? std::string_view(found->second)
-                                  : text.substr(open, close - open + 1);
-    i = close + 1;
-  }
-  return out;
 }
 
 }  // namespace sigillum_aemeth

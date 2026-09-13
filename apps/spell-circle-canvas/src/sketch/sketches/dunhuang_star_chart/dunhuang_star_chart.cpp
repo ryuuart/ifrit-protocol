@@ -114,7 +114,7 @@ auto DunhuangStarChart::setup(sketch::SketchContext& ctx) -> void {
                                   skia::toColor(hexColor(0x2a2118, 0.08f))});
   paperSpeck.seed(649);
 
-  doc = ctx.assets.json(ctx.local("data/content.json"));
+  doc = sketch::kit::Document(ctx, "data/content.json");
   cat = catalogue(ctx);
   conc = readConcordance(ctx);
   nStars = cat.stars();
@@ -163,36 +163,37 @@ auto DunhuangStarChart::setup(sketch::SketchContext& ctx) -> void {
   // THE FIGURES THE SENTENCES NAME, under the names the document calls them
   // by and at the width the columns of the console read at. Every number on
   // this plate is the join's own, and none of them is typed twice.
-  figures = {
-      {"ast", kit::formatted("%d", nAst)},
-      {"stars", kit::formatted("%d", nStars)},
-      {"onMaps", kit::formatted("%4d", nOnMaps)},
-      {"onDisc", kit::formatted("%4d", nOnDisc)},
-      {"inGap", kit::formatted("%4d", nInGap)},
-      {"tooSouth", kit::formatted("%4d", nTooSouth)},
-      {"schooled", kit::formatted("%d", nSchooled)},
-      {"unattested", kit::formatted("%d", nUnattested)},
-      {"m5Sxc", kit::formatted("%d", m5Sxc)},
-      {"m5Map", kit::formatted("%d", m5Map)},
-      {"m5ChenZhuo", kit::formatted("%d", m5ChenZhuo)},
-      {"poleOffMm", kit::formatted("%.1f", (90.0f - kDiscCenDec) / kPolPerMm)},
-      {"mercDeg", kit::formatted("%.3f", depMerc.maxDeg)},
-      {"mercMm", kit::formatted("%.2f", depMerc.mm)},
-      {"mercRatio", kit::formatted("%.2f", depMerc.ratio)},
-      {"mercSigma", kit::formatted("%.4f", depMerc.sigma)},
-      {"mercPub", kit::formatted("%.2f", 0.002f / depMerc.sigma)},
-      {"stereoDeg", kit::formatted("%.3f", depStereo.maxDeg)},
-      {"stereoMm", kit::formatted("%.2f", depStereo.mm)},
-      {"stereoRatio", kit::formatted("%.2f", depStereo.ratio)},
-      {"stereoSigma", kit::formatted("%.4f", depStereo.sigma)},
-      {"stereoPub", kit::formatted("%.2f", 0.013f / depStereo.sigma)}};
+  doc.figures(
+      {{"ast", kit::formatted("%d", nAst)},
+       {"stars", kit::formatted("%d", nStars)},
+       {"onMaps", kit::formatted("%4d", nOnMaps)},
+       {"onDisc", kit::formatted("%4d", nOnDisc)},
+       {"inGap", kit::formatted("%4d", nInGap)},
+       {"tooSouth", kit::formatted("%4d", nTooSouth)},
+       {"schooled", kit::formatted("%d", nSchooled)},
+       {"unattested", kit::formatted("%d", nUnattested)},
+       {"m5Sxc", kit::formatted("%d", m5Sxc)},
+       {"m5Map", kit::formatted("%d", m5Map)},
+       {"m5ChenZhuo", kit::formatted("%d", m5ChenZhuo)},
+       {"poleOffMm", kit::formatted("%.1f", (90.0f - kDiscCenDec) / kPolPerMm)},
+       {"mercDeg", kit::formatted("%.3f", depMerc.maxDeg)},
+       {"mercMm", kit::formatted("%.2f", depMerc.mm)},
+       {"mercRatio", kit::formatted("%.2f", depMerc.ratio)},
+       {"mercSigma", kit::formatted("%.4f", depMerc.sigma)},
+       {"mercPub", kit::formatted("%.2f", 0.002f / depMerc.sigma)},
+       {"stereoDeg", kit::formatted("%.3f", depStereo.maxDeg)},
+       {"stereoMm", kit::formatted("%.2f", depStereo.mm)},
+       {"stereoRatio", kit::formatted("%.2f", depStereo.ratio)},
+       {"stereoSigma", kit::formatted("%.4f", depStereo.sigma)},
+       {"stereoPub", kit::formatted("%.2f", 0.013f / depStereo.sigma)}});
 
   // THE THREE CHECKING RUNS, read out of the document: one append per line,
   // and the feed's levels are the classes the file names.
   const std::pair<feed::TextRing*, const char*> runs[3] = {
       {&logA, "logJoin"}, {&logB, "logEpoch"}, {&logC, "logSchools"}};
   for (const auto& [ring, key] : runs)
-    for (const Line& l : lines(key)) ring->append({l.words, l.style});
+    for (const sketch::kit::Document::Line& l : doc.run(key))
+      ring->append({l.words, l.styleClass});
 
   ctx.ticker.add([this, &tick = ctx.ticker] {
     clockT = tick.elapsed();

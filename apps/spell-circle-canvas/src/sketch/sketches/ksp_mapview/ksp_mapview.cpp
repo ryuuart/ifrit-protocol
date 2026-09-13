@@ -51,7 +51,7 @@ auto KspMapView::setup(sketch::SketchContext& ctx) -> void {
   // THE VESSEL CARD'S WORDS, and the three registers they are set in: a
   // row's name, the figure that answers it, and a strip's head. The card
   // states this sheet and every line under it is dressed by name.
-  doc = ctx.assets.json(ctx.local("data/content.json"));
+  doc = sketch::kit::Document(ctx, "data/content.json");
   cardLook = weave::StyleSheet{
       {"captionNote",
        weave::Type{.face = sans(), .size = 11, .color = kCardInk}},

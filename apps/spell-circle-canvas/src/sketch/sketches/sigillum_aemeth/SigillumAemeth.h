@@ -22,21 +22,9 @@ struct SigillumAemeth : sketch::Sketch {
 
   // --- the words -----------------------------------------------------------
 
-  /** data/content.json, read once in setup, and the figures the walk
-   *  measured, under the names its sentences call them by. */
-  std::shared_ptr<const data::Json> doc;
-  Figures figures;
-
-  [[nodiscard]] std::string phrase(std::string_view key) const {
-    return doc ? filled((*doc)[key].text(), figures) : std::string();
-  }
-  [[nodiscard]] std::vector<std::string> phrases(std::string_view key) const {
-    std::vector<std::string> out;
-    if (doc)
-      for (const data::Json& item : (*doc)[key].items())
-        out.push_back(filled(item.text(), figures));
-    return out;
-  }
+  /** data/content.json, read once in setup, carrying the figures the walk
+   *  measured under the names its sentences call them by. */
+  sketch::kit::Document doc;
 
   /** THE MARGIN'S WHOLE LOOK, as classes on the panel: the terminal face at
    *  the body size in the note ink is the panel's own font, so a line that

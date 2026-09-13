@@ -14,6 +14,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/style/Type.h>
 
@@ -40,23 +41,6 @@ using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 
 namespace {
-
-/** THE RECORD AT @p key of @p doc — `data/content.json`, whose keys are
- *  `caption`, `jigs` and `reading`. A missing file or key reads as a null
- *  value, so a reader falls back to no words at all. */
-inline const data::Json& record(const std::shared_ptr<const data::Json>& doc,
-                                const char* key) {
-  static const data::Json none;
-  return doc ? (*doc)[key] : none;
-}
-
-/** @p node's words — empty where the document does not carry them. */
-inline Utf8 words(const data::Json& node) { return Utf8(node.text()); }
-
-/** The members of @p node's list, as the run `each()` walks. */
-inline std::span<const data::Json> run(const data::Json& node) {
-  return node.items();
-}
 
 /** ONE CIRCLE STROKED AND NOT FILLED, of radius @p r about @p c — the
  *  struck construction circle this drawing is derived from. */

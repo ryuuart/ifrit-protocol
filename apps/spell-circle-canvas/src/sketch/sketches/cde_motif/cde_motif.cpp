@@ -14,7 +14,7 @@ struct CdeMotifSketch : sketch::Sketch {
    *  button stands in `data/content.json` beside this sketch and is read in
    *  setup, so the code is the desktop's structure and the file is what it
    *  says. */
-  std::shared_ptr<const data::Json> doc;
+  sketch::kit::Document doc;
   int paletteIndex = 0;
   double nextSwitch = 0.0;
 
@@ -92,7 +92,7 @@ struct CdeMotifSketch : sketch::Sketch {
    *  at the left and minimise/maximise at the right [MEAS]. The label is
    *  centred in the derived foreground — white on both #B24D7A and
    *  #EDA870, because both sets fall under the 70% threshold. */
-  Element titleBar(std::string_view t, bool active) {
+  Element titleBar(const Utf8& t, bool active) {
     const Set s = cde::ambient();
     auto furniture = [&](Element glyph) {
       return box()
@@ -155,9 +155,9 @@ struct CdeMotifSketch : sketch::Sketch {
     // path field is its own (set 4 is the near-white text set, and the
     // only one that ever takes the LITE branch), and the scrollbar is
     // set 3 because a scrollbar is dtwm's, not the application's.
-    const data::Json& page = cde::record(doc, "fileManager");
+    const data::Json& page = doc["fileManager"];
     environment::Provide<cde::ColorSet> chrome(theme[1]);
-    Element title = titleBar(cde::words(page["title"]), true);
+    Element title = titleBar(page["title"], true);
 
     Element window;
     {
@@ -173,8 +173,7 @@ struct CdeMotifSketch : sketch::Sketch {
                 .width(70)
                 .alignItems(Align::Center)
                 .gap(2)
-                .children({cde::art(cde::icoFolder(), 2.0f),
-                           cde::label(cde::words(name))});
+                .children({cde::art(cde::icoFolder(), 2.0f), cde::label(name)});
           })});
 
       // The scrollbar: a sunken trough with a raised slider, and a
@@ -220,11 +219,10 @@ struct CdeMotifSketch : sketch::Sketch {
                             .alignItems(Align::Center)
                             .padding(8, 6)
                             .gap(8)
-                            .children({cde::label(cde::words(page["path"]))});
+                            .children({cde::label(page["path"])});
       {
         environment::Provide<cde::ColorSet> field(theme[4]);
-        pathRow.children(
-            {cde::textField(cde::words(page["location"]), 420, true, &caret)});
+        pathRow.children({cde::textField(page["location"], 420, true, &caret)});
       }
 
       Element client =
@@ -235,24 +233,23 @@ struct CdeMotifSketch : sketch::Sketch {
               // The icon pane is an XmScrolledWindow: XmSHADOW_IN at
               // T = 2, which is why a CDE file view reads as a well and
               // not as a sheet of colour.
-              .children(
-                  {box()
-                       .grow(1)
-                       .margin(6, 0, 6, 0)
-                       .row()
-                       .overlay(cde::bevel(2, true, false))
-                       .padding(2)
-                       .children(
-                           {box().grow(1).clip().children({std::move(grid)}),
-                            std::move(scrollbar)}),
-                   box().height(2).margin(2, 3).overlay(
-                       cde::bevel(2, true, true)),
-                   box()
-                       .height(22)
-                       .row()
-                       .alignItems(Align::Center)
-                       .padding(8, 2)
-                       .children({cde::label(cde::words(page["status"]))})});
+              .children({box()
+                             .grow(1)
+                             .margin(6, 0, 6, 0)
+                             .row()
+                             .overlay(cde::bevel(2, true, false))
+                             .padding(2)
+                             .children({box().grow(1).clip().children(
+                                            {std::move(grid)}),
+                                        std::move(scrollbar)}),
+                         box().height(2).margin(2, 3).overlay(
+                             cde::bevel(2, true, true)),
+                         box()
+                             .height(22)
+                             .row()
+                             .alignItems(Align::Center)
+                             .padding(8, 2)
+                             .children({cde::label(page["status"])})});
 
       window = box().grow(1).column().children(
           {std::move(title), menuBar(cde::wordList(page["menu"]), 3),
@@ -266,7 +263,7 @@ struct CdeMotifSketch : sketch::Sketch {
   // eight numbers of the theme, on screen, in the theme.
 
   Element colorDialog() {
-    const data::Json& page = cde::record(doc, "colorDialog");
+    const data::Json& page = doc["colorDialog"];
     const Set& c1 = theme[1];
     const Set& c2 = theme[2];  // dtsession's primary set — unstyled widgets
     const Set& c6 = theme[6];  // list panes
@@ -294,7 +291,7 @@ struct CdeMotifSketch : sketch::Sketch {
           .alignItems(Align::Center)
           .height(20)
           .padding(6, 0)
-          .children({cde::label(cde::words(n))});
+          .children({cde::label(n)});
     })});
 
     // XmScrollBar: a sunken trough in the workspace set with a raised
@@ -334,28 +331,25 @@ struct CdeMotifSketch : sketch::Sketch {
             .gap(10)
             .justify(Justify::SpaceBetween)
             .children(
-                {cde::pushButton(cde::words(page["buttons"][0]), false, true),
-                 cde::pushButton(cde::words(page["buttons"][1])),
-                 cde::pushButton(cde::words(page["buttons"][2]), false, false,
-                                 true),
-                 cde::pushButton(cde::words(page["buttons"][3]))});
+                {cde::pushButton(page["buttons"][0].text(), false, true),
+                 cde::pushButton(page["buttons"][1].text()),
+                 cde::pushButton(page["buttons"][2].text(), false, false, true),
+                 cde::pushButton(page["buttons"][3].text())});
 
     Element body =
         cde::surface(c2).grow(1).column().padding(10).gap(10).children(
             {box().row().gap(12).grow(1).children(
                  {box().gap(4).children(
-                      {cde::label(cde::words(page["palettes"])),
-                       std::move(listPane)}),
-                  box().gap(4).children(
-                      {cde::label(cde::words(page["sets"])),
-                       std::move(swatches), box().height(6),
-                       cde::label(cde::words(page["count"])),
-                       cde::label(cde::words(page["depth"]))})}),
+                      {cde::label(page["palettes"]), std::move(listPane)}),
+                  box().gap(4).children({cde::label(page["sets"]),
+                                         std::move(swatches), box().height(6),
+                                         cde::label(page["count"]),
+                                         cde::label(page["depth"])})}),
              box().height(2).overlay(cde::bevel(2, false, true)),
              std::move(buttons)});
 
     return windowFrame(box().grow(1).column().children(
-        {titleBar(cde::words(page["title"]), false), std::move(body)}));
+        {titleBar(page["title"], false), std::move(body)}));
   }
 
   // -------------------------------------------------------------------------
@@ -392,14 +386,13 @@ struct CdeMotifSketch : sketch::Sketch {
         .padding(2)
         .width(214)
         .children({std::move(tearOff),
-                   each(cde::record(doc, "postedMenu").items(),
-                        [&](const data::Json& line) {
-                          return line["separator"].boolean()
-                                     ? separator()
-                                     : item(cde::words(line["words"]),
-                                            line["cascade"].boolean(),
-                                            line["insensitive"].boolean());
-                        })});
+                   each(doc["postedMenu"].items(), [&](const data::Json& line) {
+                     return line["separator"].boolean()
+                                ? separator()
+                                : item(line["words"].text(),
+                                       line["cascade"].boolean(),
+                                       line["insensitive"].boolean());
+                   })});
   }
 
   // -------------------------------------------------------------------------
@@ -443,8 +436,8 @@ struct CdeMotifSketch : sketch::Sketch {
         .overlay(cde::bevel(2, false, false))
         .padding(2)
         .column()
-        .children({box().padding(8, 6).children({cde::mnemonicLabel(
-                       cde::words(cde::record(doc, "derivation")), s.fg, 0)}),
+        .children({box().padding(8, 6).children(
+                       {cde::mnemonicLabel(doc["derivation"].text(), s.fg, 0)}),
                    box()
                        .row()
                        .gap(18)
@@ -582,8 +575,7 @@ struct CdeMotifSketch : sketch::Sketch {
              .fill(s.sel)
              .alignItems(Align::Center)
              .justify(Justify::Center)
-             .children({cde::label(
-                 cde::words(cde::record(doc, "date")["month"]), 11.0f)}),
+             .children({cde::label(doc["date"]["month"], 11.0f)}),
          box()
              .left(5)
              .top(18)
@@ -591,8 +583,8 @@ struct CdeMotifSketch : sketch::Sketch {
              .height(24)
              .alignItems(Align::Center)
              .justify(Justify::Center)
-             .children({cde::label(cde::words(cde::record(doc, "date")["day"]),
-                                   19.0f, cde::C(cde::kIconColor[0]))})});
+             .children({cde::label(doc["date"]["day"], 19.0f,
+                                   cde::C(cde::kIconColor[0]))})});
   }
 
   /** The SWITCH: dtwm.fp.src gives it NUMBER_OF_ROWS 2, plus Lock, the
@@ -600,8 +592,7 @@ struct CdeMotifSketch : sketch::Sketch {
    *  with colour set 3, 8, 6 and 7 respectively [MEAS] — the single most
    *  visible use of the palette on the screen. */
   Element workspaceSwitch() {
-    const std::vector<std::string> names =
-        cde::wordList(cde::record(doc, "workspaces"));
+    const std::vector<std::string> names = cde::wordList(doc["workspaces"]);
     static const int kSets[4] = {3, 8, 6, 7};
     Element gridEl = box().column().gap(3);
     for (int r = 0; r < 2; ++r) {
@@ -709,7 +700,7 @@ struct CdeMotifSketch : sketch::Sketch {
             .alignItems(Align::Center)
             .gap(4)
             .children(
-                {cde::label(cde::words(cde::record(doc, "subpanel"))),
+                {cde::label(doc["subpanel"]),
                  box().row().gap(6).children({cde::art(cde::icoHelp(), 1.4f),
                                               cde::art(cde::icoApps(), 1.4f)}),
                  box().height(6).width(60).overlay(cde::bevel(2, true, true))});
@@ -772,12 +763,9 @@ struct CdeMotifSketch : sketch::Sketch {
          helpSubpanel().left(865).top(700).width(150).height(106),
          // 6b. Iconified windows on the root, where dtwm parks them.
          box().left(48).top(690).row().gap(34).children(
-             {iconifiedWindow(cde::words(cde::record(doc, "iconified")[0]),
-                              cde::icoEditor()),
-              iconifiedWindow(cde::words(cde::record(doc, "iconified")[1]),
-                              cde::icoMail()),
-              iconifiedWindow(cde::words(cde::record(doc, "iconified")[2]),
-                              cde::icoPrinter())}),
+             {iconifiedWindow(doc["iconified"][0].text(), cde::icoEditor()),
+              iconifiedWindow(doc["iconified"][1].text(), cde::icoMail()),
+              iconifiedWindow(doc["iconified"][2].text(), cde::icoPrinter())}),
          // 7. The Front Panel, bottom-centred. 960 wide => 948 of content,
          //    which is exactly the measured control list.
          frontPanel().left(96).top(806).width(960).height(86)});
@@ -798,7 +786,7 @@ struct CdeMotifSketch : sketch::Sketch {
                              .captureAt = 13.5,
                              .background = cde::C(0x000000)});
 
-    doc = ctx.assets.json(ctx.local("data/content.json"));
+    doc = sketch::kit::Document(ctx, "data/content.json");
     theme.load(*cde::kPalettes[0]);
 
     if (!backdropsBuilt) {

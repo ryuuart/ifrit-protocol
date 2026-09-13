@@ -41,7 +41,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
    *  commentary stands in `data/content.json` beside this file and is read
    *  by key in setup, so an edit to the document re-runs setup and no line
    *  of lettering is typed into the code. */
-  std::shared_ptr<const data::Json> doc;
+  sketch::kit::Document doc;
   std::string chaucerH, chaucerA, chaucerDelta;
 
   // =========================================================================

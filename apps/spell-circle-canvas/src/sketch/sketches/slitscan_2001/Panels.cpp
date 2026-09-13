@@ -54,7 +54,7 @@ auto SlitScan2001::prose(const data::Json& said) -> std::vector<Element> {
       return slot(std::string(n["slot"].text()))
           .height((float)n["height"].number(19.0))
           .shrink(0);
-    Element line = text(std::string(n["words"].text()))
+    Element line = text(n["words"])
                        .font({.size = (float)n["size"].number(6.5)})
                        .styleClass(std::string(n["style"].text()))
                        .shrink(0);

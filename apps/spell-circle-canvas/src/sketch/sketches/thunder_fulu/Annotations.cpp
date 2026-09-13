@@ -53,15 +53,13 @@ auto ThunderFulu::chantPanel() -> Element {
       .key("chant")
       .font({.size = 11.5f})
       .ink(kChalk)
-      .children({text(std::string(said["heading"].text()))
+      .children({text(said["heading"])
                      .styleClass("heading")
                      .font({.size = 17.0f, .track = 1.4f}),
                  rail(468),
                  box().column().width(468).gap(7).children(
                      {sung(said["lines"], tGall, 0.7f, 0.4f, "chant")}),
-                 text(std::string(said["gloss"].text()))
-                     .styleClass("gloss")
-                     .width(468)});
+                 text(said["gloss"]).styleClass("gloss").width(468)});
 }
 
 auto ThunderFulu::logStyle() -> feed::TextOptions {
@@ -114,16 +112,14 @@ auto ThunderFulu::tempoPanel() -> Element {
       .key("tempo")
       .font({.size = 10.5f})
       .ink(hexColor(0x9a8a68))
-      .children({text(std::string(said["heading"].text()))
+      .children({text(said["heading"])
                      .styleClass("heading")
                      .font({.size = 13.0f, .track = 1.2f}),
                  sketch::kit::table(std::move(rows),
                                     {.columns = {{62}, {72}, {50}, {112}, {}}})
                      .width(468)
                      .key("tempoRows"),
-                 text(std::string(said["gloss"].text()))
-                     .styleClass("gloss")
-                     .width(468)});
+                 text(said["gloss"]).styleClass("gloss").width(468)});
 }
 
 auto ThunderFulu::widthLawPlot(float w) const -> Element {
@@ -159,8 +155,7 @@ auto ThunderFulu::marginColumn() -> Element {
 
   // --- 踏符頭: one chant line per hook, as the hook goes down -----------
   g.children({box().column().at({0, 126}).width(Wc).gap(8).children(
-      {text(std::string(said["head"]["heading"].text())).styleClass("heading"),
-       rail(Wc),
+      {text(said["head"]["heading"]).styleClass("heading"), rail(Wc),
        box().column().width(Wc).gap(13).children(
            {sung(said["head"]["lines"], tHead, tHeadEach + tHeadGap, 0.3f,
                  "hc")})})});
@@ -174,9 +169,7 @@ auto ThunderFulu::marginColumn() -> Element {
            .width(Wc)
            .gap(6)
            .children(
-               {text(std::string(said["law"]["heading"].text()))
-                    .styleClass("heading"),
-                rail(Wc),
+               {text(said["law"]["heading"]).styleClass("heading"), rail(Wc),
                 // THE BAND THE LAW ACTUALLY PAINTS, by the same Ribbon that
                 // paints the plate.
                 box()
@@ -196,7 +189,7 @@ auto ThunderFulu::marginColumn() -> Element {
                         .width = LawBand{21.0f}})
                     .key("lawband"),
                 widthLawPlot(Wc),
-                text(std::string(said["law"]["note"].text()))
+                text(said["law"]["note"])
                     .font({.size = 8.5f, .color = hexColor(0x6f6047)})})});
 
   // --- the six recovered classes, as specimens -------------------------
@@ -213,7 +206,7 @@ auto ThunderFulu::marginColumn() -> Element {
       {{6, 8}, {96, 5}, {106, 16}, {100, 52}},  // TURN
   };
   const float ky = 412;
-  g.children({text(std::string(said["classes"]["heading"].text()))
+  g.children({text(said["classes"]["heading"])
                   .styleClass("heading")
                   .at({0, ky})
                   .width(Wc),
@@ -245,14 +238,13 @@ auto ThunderFulu::marginColumn() -> Element {
   // just above it and a section rule follows this heading immediately.
   const float gy = 646;
   g.children({box().column().at({0, gy}).width(Wc).gap(8).children(
-      {text(std::string(said["gall"]["heading"].text())).styleClass("heading"),
-       rail(Wc),
+      {text(said["gall"]["heading"]).styleClass("heading"), rail(Wc),
        box().column().width(Wc).gap(5).children(
            // the chant must finish exactly as the tenth stroke
            // lands, so its step is ten strokes over six phrases
            {sung(said["gall"]["lines"], tGall, 10.0f * tGallEach / 6.0f, 0.28f,
                  "gc")}),
-       text(std::string(said["gall"]["note"].text()))
+       text(said["gall"]["note"])
            .font({.size = 9.0f, .color = hexColor(0x6f6047)})})});
   return g;
 }
