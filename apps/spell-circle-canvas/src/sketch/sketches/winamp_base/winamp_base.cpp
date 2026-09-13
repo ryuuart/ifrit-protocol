@@ -34,7 +34,7 @@ auto WinampBase::describe() -> Element {
                               {200ms, motion::ease::outBack(), ms(d.atMs)}));
          return w.translateY(
              animate(motion::from(-60.0f).to(0.0f),
-                     {250ms, motion::ease::outBack(), ms(d.atMs - 250)}));
+                     {250ms, motion::ease::outBack(), ms(d.atMs)}));
        })});
 }
 
