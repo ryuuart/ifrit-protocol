@@ -119,8 +119,8 @@ constexpr SkColor4f kAccent{0.95f, 0.35f, 0.18f, 1};
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look = sketch::kit::houseTheme();
   look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
-  look.palette.ink = {0.92f, 0.94f, 0.98f, 1};
-  look.palette.ash = {0.56f, 0.61f, 0.72f, 1};
+  look.palette.ink = kInk;
+  look.palette.ash = kDim;
   look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
   look.type.title = {.size = 15, .track = 2};
   look.type.subtitle = {.size = 11, .track = 0.5f};
@@ -176,8 +176,12 @@ const char* tierName(Composer::CacheState state) {
   return "?";
 }
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
+/** The sheet's one class past the registers: the heading over each block
+ *  of the readout, in the page's own ink. */
+weave::StyleSheet sheetClasses(const sketch::kit::Theme& look) {
+  weave::StyleSheet classes = look.styleSheet();
+  classes.set("heading", {.size = 12.5f, .track = 0.8f});
+  return classes;
 }
 
 std::string ms(double v) {
@@ -368,7 +372,8 @@ struct VolatilityCost final : sketch::Sketch {
     return box()
         .column()
         .gap(3)
-        .child(text(toUtf8("Composer::stats()"), label(12.5f, kInk, 0.8f))
+        .child(text(toUtf8("Composer::stats()"))
+                   .styleClass("heading")
                    .margin(0, 0, 0, 4))
         .child(sketch::kit::readout(
             {{u8"instances", count(frame.instances)},
@@ -386,8 +391,8 @@ struct VolatilityCost final : sketch::Sketch {
              {u8"paint ms", toUtf8(ms(ctx.measured(frame.paintMs)))}},
             how))
         .child(box().height(8))
-        .child(text(toUtf8("the split"), label(12.5f, kInk, 0.8f))
-                   .margin(0, 0, 0, 4))
+        .child(
+            text(toUtf8("the split")).styleClass("heading").margin(0, 0, 0, 4))
         .child(sketch::kit::readout(
             {{u8"refused: Volatile", count((size_t)volatileNodes)},
              {u8"reached a bake", count((size_t)bakedNodes)},
@@ -404,8 +409,8 @@ struct VolatilityCost final : sketch::Sketch {
         text(toUtf8(ctx.deterministic
                         ? "Composer::profile() \xc2\xb7 self ms, by key"
                         : "Composer::profile() \xc2\xb7 self ms, "
-                          "worst first"),
-             label(12.5f, kInk, 0.8f))
+                          "worst first"))
+            .styleClass("heading")
             .margin(0, 0, 0, 4));
     std::vector<sketch::kit::Row> rows;
     rows.reserve(worst.size());
@@ -427,8 +432,9 @@ struct VolatilityCost final : sketch::Sketch {
   Element readout(const sketch::SketchContext& ctx) const {
     if (!snapped)
       return box().child(
-          text(toUtf8("reading at " + ms(kSnapAt) + " s\xe2\x80\xa6"),
-               label(12, kDim)));
+          text(toUtf8("reading at " + ms(kSnapAt) + " s\xe2\x80\xa6"))
+              .font({.size = 12})
+              .ink(kDim));
     return box().column().gap(12).child(legend()).child(
         box().row().gap(34).child(statsBlock(ctx)).child(costTable(ctx)));
   }
@@ -437,7 +443,8 @@ struct VolatilityCost final : sketch::Sketch {
     // The theme is bound where the tree is DESCRIBED, not where setup
     // runs: this sketch describes again on every reading, and a scope
     // that ended with setup would not be there.
-    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Theme look = sheetTheme();
+    const sketch::kit::Provide bound(look, sheetClasses(look));
     // The map is a SIBLING of the sheet, not a child of it: it draws in
     // canvas coordinates, which is what `bounds()` answers in, and a
     // child of the padded page would be offset by the page's margins.
