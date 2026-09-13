@@ -116,7 +116,9 @@ TEST(SketchKitTheme, TheRegistersAreClasses) {
   {
     const sigil::weave::StyleSheet sheet = house.styleSheet();
     const sigil::weave::StyleSheet* classes = &sheet;
-    EXPECT_EQ(classes->size(), 8u);
+    // The seven registers, `readout`, and the eight a chart's parts are
+    // dressed in.
+    EXPECT_EQ(classes->size(), 16u);
     ASSERT_NE(classes->find("eyebrow"), nullptr);
     EXPECT_EQ(classes->find("eyebrow")->type(), house.font(house.type.eyebrow))
         << "a register a sheet sets inside its content names no colour";
@@ -139,9 +141,9 @@ TEST(SketchKitTheme, TheRegistersAreClasses) {
 
     sigil::weave::StyleSheet own = house.styleSheet();
     own.set("value", {.size = 13.0f});
-    EXPECT_EQ(own.size(), 9u) << "the registers and the sketch's own";
+    EXPECT_EQ(own.size(), 17u) << "the registers and the sketch's own";
     EXPECT_NE(own.find("value"), nullptr);
-    EXPECT_EQ(house.styleSheet().size(), 8u) << "a copy, not the theme's";
+    EXPECT_EQ(house.styleSheet().size(), 16u) << "a copy, not the theme's";
   }
 }
 

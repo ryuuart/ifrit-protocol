@@ -1,3 +1,4 @@
+#include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -40,6 +41,23 @@ weave::StyleSheet Theme::styleSheet() const {
   // one width — in the palette's figure colour, wherever it stands: a
   // readout's value, a figure column's cells, a reading over a picture.
   classes.set("readout", font(type.captionLabel, palette.figure));
+  // THE PARTS A CHART DRAWS. The furniture is quiet — the axis line and
+  // its ticks in the ash a remark is set in, the rules across the field in
+  // the hairline colour — and the reading is the figure colour, which is
+  // the one thing on the sheet a reader's eye is meant to find: a curve, a
+  // datum's own mark, the band it is drawn as, and the band's fill under a
+  // curve dimmed so the curve still reads over it. Only `tick` and `label`
+  // carry type, because only they set words; the rest name a colour alone
+  // and a recording paints in it as the ink in force.
+  classes.set("axis", weave::Type{.color = palette.ash});
+  classes.set("tick", font(type.captionLabel, palette.ash));
+  classes.set("rule", weave::Type{.color = palette.rule});
+  classes.set("trace", weave::Type{.color = palette.figure});
+  classes.set("area", weave::Type{.color = material::skia::withAlpha(
+                                      palette.figure, 0.25f)});
+  classes.set("mark", weave::Type{.color = palette.figure});
+  classes.set("bar", weave::Type{.color = palette.figure});
+  classes.set("label", font(type.captionLabel, palette.ink));
   return classes;
 }
 

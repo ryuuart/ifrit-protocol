@@ -97,6 +97,11 @@ where a MEASURED FIGURE stands: a readout's value, a figure column's
 cells, a reading pinned over a picture. It is an eighth entry on the
 sheet, so a figure reads as one wherever it is written.
 
+**And eight more entries answer no register at all**: the parts a CHART
+draws, tabled under "the classes a chart draws" below, so a plot is dressed
+by the same sheet a page states and a theme with one colour moved moves
+every drawing that names it.
+
 A sketch whose classes go past the registers starts from `styleSheet()`,
 adds its own with `weave::StyleSheet::set` or as a literal, and states
 the result on its root; a nearer sheet's entries stand over a farther
@@ -370,6 +375,103 @@ is a width, and a width is layout.
 `keyline` and `inset` make the rail a BEZELLED gauge — a line drawn
 inside its own box and a bar held off that line — where the same reading
 on a sheet is a bare bar.
+### A frame with scales, and layers as functions of it — `Chart.h`
+
+| | |
+| --- | --- |
+| `plot(key, frame, layers)` | the frame, and the layers over it in the order they were written, each filling the plot's own box |
+| `axis(Ruler)` | one of the frame's two scales drawn: its line, its ticks, and the numbers under them |
+| `rules(Rules)` | hairlines across the field at the domain values a curve is read against |
+| `trace(f, Trace)` | a function of one variable walked across the x domain and stroked, with a dot at every sample it names |
+| `area(f, Area)` | the band between that curve and a base, filled |
+| `marks(rows, mark, Marks)` | one element per row, placed where the frame maps its datum |
+| `bands(rows, Bands)` | the band each row owns drawn out to its value — a bar on a Cartesian frame, a wedge on a polar one |
+| `label(words, x, y, Anchor)` | a word at a point of the field |
+
+```cpp
+sketch::kit::plot("s", {.x = {.domain = {0.5, 2}},
+                        .y = {.domain = {-0.55, 0.35}}, .pad = 2},
+                  {sketch::kit::axis({.of = sketch::kit::Axis::Y,
+                                      .ticks = {0}}),
+                   sketch::kit::rules({.x = {1.0}}),
+                   sketch::kit::trace(exact, {.width = 1.4f}),
+                   sketch::kit::label("s_exact", 1.6, 0.2)})
+    .width(324)
+    .height(64)
+```
+
+**THE FRAME IS WHAT THE TWO AXES MEAN, AND NOTHING ABOUT PIXELS.** A
+`sketch::kit::Plot` carries two `data::Scale`s, the room it keeps inside its
+box and, where it is a wheel rather than a plane, a `sketch::kit::Polar`.
+Its RANGES are the box's: x runs across and y runs UP, inside the pad on
+every side, and on a polar frame x runs over the sweep and y from the inner
+radius out to the rim. **So a sketch states domains, transforms, steps and
+band paddings, and never computes a pixel from a datum** — which is the
+whole reason this lives here rather than in the compose kit: it is the one
+component in this library that needs `data::Scale`, and the compose kit does
+not link SigilData.
+
+**A LAYER IS A FUNCTION OF THAT FRAME.** `sketch::kit::Layer` is called with
+the frame, the plot's key and the layer's own index in the run, and takes the
+parameters it names, so `[](const Plot& f) { return … ; }` and `[] { return
+… ; }` are layers too: a drawing of the sketch's own goes into a plot beside
+the library's and reads the same mapping. `Plot::at` is the whole of what
+such a layer needs — the point a datum lands on, band-centred where the
+transform has bands — with `Plot::scale` for the band's own extent,
+`Plot::centre`, `Plot::radius`, `Plot::angle` and `Plot::radiusFraction` for
+a wheel's.
+
+**CARTESIAN AND POLAR ARE ONE `plot`.** A band angle scale with a
+square-root radius scale is the coxcomb; the wedge, the ring, the spoke and
+the label on the rim are the same layers reading the same two scales. That
+is why the coordinates are a property of the FRAME: a second component would
+be a second arithmetic, and the two would drift.
+
+**A LAYER EITHER RECORDS A PATH OR PLACES ELEMENTS**, and which one it is
+decides what it can do. `axis`, `rules`, `trace` and `area` are keyed
+recordings that map at paint through the box's own size — one node each,
+however many samples — and they prune on the plot's key, because a callable
+compares to nothing and the key is the caller's statement that this is the
+same drawing. `marks`, `bands` and `label` are containers whose LAYOUT
+SCHEME places each child at its datum's position, so a mark is a real
+element: keyed, animatable, hit-testable, and free to be anything the sketch
+can build. A plot does not size itself — every layer is absolute against its
+box — so the width and the height are the caller's, as a console's placement
+is.
+
+#### The classes a chart draws
+
+Every part names a class and reads its look from the `weave::StyleSheet` in
+force where it lands. `Theme::styleSheet()` registers all eight, so a plot
+under a `page()` is dressed without the sketch saying anything, and a sketch
+that wants otherwise states a sheet of its own on the plot or on its root —
+never a prop, because a colour is not content.
+
+| | | |
+| --- | --- | --- |
+| `axis` | an axis line | `Palette::ash` |
+| `tick` | a tick mark, and the number under it — one mark, one colour | `TypeScale::captionLabel` in `Palette::ash` |
+| `rule` | a hairline across the field | `Palette::rule` |
+| `trace` | a curve | `Palette::figure` |
+| `area` | the band under a curve | `Palette::figure`, dimmed |
+| `mark` | a datum's own element | `Palette::figure` |
+| `bar` | the band a datum is drawn as | `Palette::figure` |
+| `label` | a word placed in the field | `TypeScale::captionLabel` in `Palette::ink` |
+
+A RECORDING READS ITS COLOUR THROUGH THE INK IN FORCE, which is what the
+class resolves to, exactly as text's colour is — `Fill::currentInk()` is the
+spelling where a fill is demanded — so the six classes that dress a drawing
+name a colour and nothing else, and only `tick` and `label` carry type,
+because only they set words. What stays a prop is a stroke width, a radius,
+a sampling count and a distance: geometry, never look.
+
+**A TICK'S NUMBER IS A `Part`.** `Ruler::tickLine` is a function of the
+VALUE, because how a number reads is the data's business and not the kit's;
+empty is the value to three significant figures in the class `tick`, which
+`tickLabel` is the leaf of. The band layer's own `part` is the same door for
+the element a datum is drawn as, and `marks`'s mark is the caller's
+outright — a bar that must be a gradient, a sprite or a stack of two is that
+element, and the layer still places it.
 
 ### A window's share of what it scrolls — `Scrollbar.h`
 
@@ -469,6 +571,10 @@ A leaf may not invent what an ancestor should own.
 * A resource that is not prose — an image, a video, a blob, a probe —
   `ctx.assets`. `passage` is the one reader here, and it is here because
   a passage is the only resource whose exact bytes decide a plate.
+* The mapping a plot's two axes are — `data::Scale`, with its domain, its
+  range, its transform and its tick ladder. `Chart.h` puts a box's own size
+  into two of those and reads `Scale::apply`; it holds no arithmetic of its
+  own, and it is the one component here that links SigilData.
 * Numbers a sketch measured about its own execution — `ctx.measured`,
   before they reach any component here. A sketch that draws its own
   timings into its own plate differs from itself between runs.

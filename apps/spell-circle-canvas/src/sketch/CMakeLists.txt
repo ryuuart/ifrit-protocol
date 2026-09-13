@@ -177,6 +177,7 @@ sigil_doc_probes(sketch
           ${CMAKE_CURRENT_SOURCE_DIR}/publish/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/sketches/README.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../common/core/include
+           ${CMAKE_CURRENT_SOURCE_DIR}/../common/data/include/sigildata
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/motion/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/compose/include/sigilcompose
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/geometry/include/sigilgeometry
@@ -200,4 +201,4 @@ sigil_doc_probes(sketch
            "<sigilweave/ports/SystemFontManager.h>"
   ALIASES scry=::sigil::scry
   FLOORS 50,10,10,0,0
-  LIBRARIES SigilSketch SigilSketchPublish)
+  LIBRARIES SigilSketch SigilSketchPublish SigilDataScale)

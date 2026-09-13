@@ -193,7 +193,17 @@ struct Theme {
    *  `captionNote` in its ash, and `readout` — the register a CALL is set
    *  in, which is where a MEASURED FIGURE stands — in its figure colour.
    *  `eyebrow` and `section` name no colour, so each is painted in the
-   *  ink in force where it is read. */
+   *  ink in force where it is read.
+   *
+   *  AND THE EIGHT A CHART DRESSES: `axis` for an axis line, `tick` for
+   *  its ticks and the numbers under them, `rule` for the hairlines across
+   *  a field, `trace` for a curve, `area` for the band under one, `mark`
+   *  for a datum's own element, `bar` for the band a datum is drawn as,
+   *  and `label` for a word placed in the field. A plot names those and
+   *  nothing else about its look, so a plot under a page is dressed
+   *  already; the two that set WORDS carry type and the six that dress a
+   *  recording name a colour alone, which the recording paints in as the
+   *  ink in force. */
   [[nodiscard]] weave::StyleSheet styleSheet() const;
   /** @p line in @p color, set in whichever of the two faces it names. */
   [[nodiscard]] weave::TextStyle style(const Register& line,
