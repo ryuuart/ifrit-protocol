@@ -24,6 +24,7 @@
 #include <sigilsketch/kit/Rows.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
@@ -99,15 +100,13 @@ inline sk_sp<SkTypeface> serif() {
                             SkFontStyle::kNormal_Weight);
 }
 
-inline sigil::weave::TextStyle ty(const sk_sp<SkTypeface>& tf, float size,
-                                  SkColor4f color, float track = 0) {
-  sigil::weave::TextStyle s;
-  s.shaping.typeface = tf;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = track;
-  s.paint.foreground.setColor4f(color, nullptr);
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+/** A run's type: the page has one signature and names its four parameters
+ *  over weave's designated-init `Type`. A PARTIAL — every piece of art here
+ *  is baked alone, so a run resolves over the initial values, and the two
+ *  live lines on the page over the page's. */
+inline sigil::weave::Type ty(const sk_sp<SkTypeface>& tf, float size,
+                             SkColor4f color, float track = 0) {
+  return {.face = tf, .size = size, .color = color, .track = track};
 }
 
 inline std::u8string U(const char* s) { return toUtf8(s); }
@@ -409,17 +408,17 @@ inline Element navLabel(sigil::weave::FontContext& fonts, const char* s,
   const float track = 0.4f * kScale;
   auto styleAt = [&](float sz) { return ty(display(), sz, ink, track); };
   float size = capPx / 0.72f;  // Impact cap height ~0.72 em
-  SkSize m = intrinsicSize(text(U(s), styleAt(size)), fonts);
+  SkSize m = intrinsicSize(text(U(s)).font(styleAt(size)), fonts);
   float sx = 1.0f;
   if (m.width() > w && m.width() > 1) {
     sx = w / m.width();
     if (sx < 0.70f) {  // past the condensing floor, give up cap height
       size *= sx / 0.70f;
-      m = intrinsicSize(text(U(s), styleAt(size)), fonts);
+      m = intrinsicSize(text(U(s)).font(styleAt(size)), fonts);
       sx = (m.width() > w && m.width() > 1) ? w / m.width() : 1.0f;
     }
   }
-  Element t = text(U(s), styleAt(size));
+  Element t = text(U(s)).font(styleAt(size));
   outlineText(t, kScale);
   // scaleX is PAINT-only, so a condensed run still MEASURES at its natural
   // width and wraps against the image box. Pinning the node to that natural

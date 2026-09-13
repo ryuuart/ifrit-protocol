@@ -382,7 +382,7 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
   auto letters = [&](const char* s, float capPx, float targetW, float x,
                      float capTopY, float lean) {
     const float size = capPx / 0.72f;
-    Element t = text(U(s), ty(display(), size, C5(0x2FA9A0), 0));
+    Element t = text(U(s)).font(ty(display(), size, C5(0x2FA9A0), 0));
     t.textFill(mskia::Paint::linear({0, 0}, {0, 1},
                                     {{0.0f, C5(0x006BA5)},
                                      {0.22f, C5(0x007BAD)},
@@ -394,7 +394,7 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
                            {-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
     for (auto& v : d) t.echo({v[0] * r, v[1] * r}, C5(0x101831));
     const SkSize m =
-        intrinsicSize(text(U(s), ty(display(), size, kLabel, 0)), fonts);
+        intrinsicSize(text(U(s)).font(ty(display(), size, kLabel, 0)), fonts);
     const float sx = m.width() > 1 ? targetW / m.width() : 1.0f;
     return t.left(Dimension(x))
         .top(Dimension(capTopY - 0.20f * size))
@@ -444,10 +444,10 @@ inline Element wordmark(sigil::weave::FontContext& fonts, const char* s,
     return ty(display(), sz, C5(0xFF0000), track);
   };
   float size = h * 1.16f;
-  SkSize m = intrinsicSize(text(U(s), styleAt(size)), fonts);
+  SkSize m = intrinsicSize(text(U(s)).font(styleAt(size)), fonts);
   float sx = 1.0f;
   if (m.width() > target && m.width() > 1) sx = target / m.width();
-  Element t = text(U(s), styleAt(size));
+  Element t = text(U(s)).font(styleAt(size));
   t.echo({kScale, kScale}, C5(0x8C0000));
   t.left(Dimension(rightAlign ? w - target : 0))
       .top(Dimension(-h * 0.22f))

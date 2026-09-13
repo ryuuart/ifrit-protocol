@@ -173,11 +173,11 @@ struct SpaceJam1996 : sketch::Sketch {
             .width(Dimension(S(640)))
             .column()
             .alignItems(Align::Center)
+            .child(text(U("SPACE JAM, characters, names, and all related"))
+                       .font(small))
             .child(
-                text(U("SPACE JAM, characters, names, and all related"), small))
-            .child(
-                text(U("indicia are trademarks of Warner Bros. \xc2\xa9 1996"),
-                     small));
+                text(U("indicia are trademarks of Warner Bros. \xc2\xa9 1996"))
+                    .font(small));
 
     (void)ctx;
     return stack()
@@ -342,10 +342,10 @@ struct SpaceJam1996 : sketch::Sketch {
         .column()
         .padding(S(12))
         .gap(S(8))
-        .child(text(
-            toUtf8("THE TABLE DOES NOT RESOLVE THE BROWSER'S GRID"),
-            weave::textStyle(
-                {.face = display(), .size = S(11), .color = C5(0xFFFF00)})))
+        .child(
+            text(toUtf8("THE TABLE DOES NOT RESOLVE THE BROWSER'S GRID"))
+                .font(
+                    {.face = display(), .size = S(11), .color = C5(0xFFFF00)}))
         .child(sketch::kit::table(std::move(rows),
                                   {.columns = {{S(230)}, {S(46), true}, {}},
                                    .gap = S(6),
