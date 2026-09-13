@@ -87,7 +87,6 @@ namespace mskia = sigil::material::skia;
 namespace arrange = sigil::geometry::arrange;
 namespace shapes = sigil::geometry::shapes;
 namespace sdf = sigil::material::sdf;
-namespace weave = sigil::weave;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
@@ -158,15 +157,6 @@ inline SkColor4f ringColor(data::State s) {
   return s == data::State::Allocated     ? kGold
          : s == data::State::CanAllocate ? kRimLit
                                          : kPewter;
-}
-
-inline sigil::weave::TextStyle type(float size, SkColor4f color,
-                                    float tracking = 0, bool italic = false) {
-  return weave::textStyle({.size = size,
-                           .color = color,
-                           .track = tracking,
-                           .slant = italic ? -10.0f : 0.0f,
-                           .color8 = true});
 }
 
 /** Full-circle outline for orbit guide rings, centered in the node. */
@@ -721,8 +711,10 @@ struct PassiveTree final : sketch::Sketch {
             .zIndex(7)
             .opacity(animate(motion::from(0.0f).to(1.0f), {420ms}))
             .translateY(animate(motion::from(10.0f).to(0.0f), {520ms}))
-            .child(text(toUtf8(detail->name), pt::type(17, pt::kHalo, 2.4f)))
-            .child(text(toUtf8(detail->kind), pt::type(9.5f, pt::kAsh, 3.2f))
+            .child(text(toUtf8(detail->name))
+                       .font({.size = 17, .color = pt::kHalo, .track = 2.4f}))
+            .child(text(toUtf8(detail->kind))
+                       .font({.size = 9.5f, .track = 3.2f})
                        .margin(0, 3, 0, 0))
             .child(
                 box()
@@ -749,13 +741,18 @@ struct PassiveTree final : sketch::Sketch {
                          .corners({1.5f})
                          .fill(Paint::solid({pt::kRimLit.fR, pt::kRimLit.fG,
                                              pt::kRimLit.fB, 0.9f})))
-              .child(text(toUtf8(line),
-                          pt::type(12, {0.62f, 0.68f, 0.90f, 1}, 0.2f))
+              .child(text(toUtf8(line))
+                         .font({.size = 12,
+                                .color = SkColor4f{0.62f, 0.68f, 0.90f, 1},
+                                .track = 0.2f})
                          .grow(1)));
     }
     if (detail->flavour)
-      card.child(text(toUtf8(detail->flavour),
-                      pt::type(11.5f, {0.42f, 0.38f, 0.32f, 1}, 0.3f, true))
+      card.child(text(toUtf8(detail->flavour))
+                     .font({.size = 11.5f,
+                            .color = SkColor4f{0.42f, 0.38f, 0.32f, 1},
+                            .track = 0.3f,
+                            .slant = -10.0f})
                      .margin(0, 9, 0, 0));
     // the leader from the card back to the node it describes
     root.child(rail({{"detail"}, {nodeKey(sel)}})
@@ -801,33 +798,37 @@ struct PassiveTree final : sketch::Sketch {
               .left(38)
               .zIndex(8));
     }
-    root.child(box()
-                   .column()
-                   .alignItems(Align::End)
-                   .top(30)
-                   .right(36)
-                   .zIndex(8)
-                   .child(text(toUtf8(points), pt::type(21, pt::kGold, 2)))
-                   .child(text(toUtf8("passive points"),
-                               pt::type(10.5f, pt::kAsh, 1.5f))
-                              .margin(0, 4, 0, 0)));
+    root.child(
+        box()
+            .column()
+            .alignItems(Align::End)
+            .top(30)
+            .right(36)
+            .zIndex(8)
+            .child(text(toUtf8(points))
+                       .font({.size = 21, .color = pt::kGold, .track = 2}))
+            .child(text(toUtf8("passive points"))
+                       .font({.size = 10.5f, .track = 1.5f})
+                       .margin(0, 4, 0, 0)));
     // the search chip, Daripher's box with our palette
-    root.child(box()
-                   .row()
-                   .alignItems(Align::Center)
-                   .gap(8)
-                   .bottom(28)
-                   .left(38)
-                   .zIndex(8)
-                   .padding(10, 5)
-                   .corners({3})
-                   .fill(Paint::solid({0.075f, 0.063f, 0.051f, 0.9f}))
-                   .foreground(
-                       stroke(1.0f, Fill::color({pt::kSearch.fR, pt::kSearch.fG,
-                                                 pt::kSearch.fB, 0.4f})))
-                   .child(text(toUtf8("search"), pt::type(10, pt::kAsh, 1.8f)))
-                   .child(text(toUtf8("fire"), pt::type(12, pt::kSearch, 0.6f)))
-                   .child(text(toUtf8(found), pt::type(10, pt::kAsh, 1.2f))));
+    root.child(
+        box()
+            .row()
+            .alignItems(Align::Center)
+            .gap(8)
+            .bottom(28)
+            .left(38)
+            .zIndex(8)
+            .padding(10, 5)
+            .corners({3})
+            .fill(Paint::solid({0.075f, 0.063f, 0.051f, 0.9f}))
+            .foreground(
+                stroke(1.0f, Fill::color({pt::kSearch.fR, pt::kSearch.fG,
+                                          pt::kSearch.fB, 0.4f})))
+            .child(text(toUtf8("search")).font({.size = 10, .track = 1.8f}))
+            .child(text(toUtf8("fire"))
+                       .font({.size = 12, .color = pt::kSearch, .track = 0.6f}))
+            .child(text(toUtf8(found)).font({.size = 10, .track = 1.2f})));
 
     auto swatch = [&](int state, const char* label) {
       return box()
@@ -839,7 +840,7 @@ struct PassiveTree final : sketch::Sketch {
                      .height(Dimension(14.0f))
                      .shape(pt::hline())
                      .stroke(brush::presets::rope(state, 0.8f)))
-          .child(text(toUtf8(label), pt::type(11, pt::kAsh, 0.8f)));
+          .child(text(toUtf8(label)).font({.size = 11, .track = 0.8f}));
     };
     root.child(box()
                    .row()
@@ -856,9 +857,19 @@ struct PassiveTree final : sketch::Sketch {
   Element describe() {
     namespace pt = skill_tree;
 
-    auto root = stack().fill(Paint::radial(
-        {pt::kW * 0.5f, pt::kH * 0.48f}, 600,
-        {{0.0f, pt::kBgLift}, {0.55f, pt::kBg}, {1.0f, pt::kBgSink}}));
+    auto root =
+        stack()
+            .fill(Paint::radial(
+                {pt::kW * 0.5f, pt::kH * 0.48f}, 600,
+                {{0.0f, pt::kBgLift}, {0.55f, pt::kBg}, {1.0f, pt::kBgSink}}))
+            // THE TREE'S TYPE, stated once and inherited by every line the
+            // card, the counter, the chip and the legend set: ash, the
+            // colour most of them are set in, and the 8-bit colour ladder
+            // the palette was quoted on, so a hex-quoted colour lands on
+            // the rung it names. The masthead is set in its own sheet's
+            // whole styles and takes nothing from here.
+            .font({.color8 = true})
+            .ink(pt::kAsh);
 
     groundwork(root);
     cometRing(root);
