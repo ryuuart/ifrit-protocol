@@ -1,206 +1,160 @@
 #include "RotaConvocationis.h"
 
 auto RotaConvocationis::wheel() -> Element {
-  Element panel = box().key("rota").absolute().inset(0).hitTestable(false);
+  // THE COMPASS WORK, AS A TABLE. Every rule is half of a PAIR, and the pair
+  // is what makes a band: no line on this plate stands on its own, and nothing
+  // is written anywhere except between two of them. Each row is the key, the
+  // chalk path it is struck along, the width, the ink, the second it opens and
+  // how long the sweep takes.
+  struct Ruled {
+    const char* key;
+    int chalk;
+    float width;
+    SkColor4f ink;
+    double at, dur;
+  };
+  const Ruled kRuled[] = {
+      {"r-edge", kChalkEdge, 2.1f, kIron, 0.35, 1.3},
+      {"r-edge-in", kChalkEdgeIn, 0.6f, kIronDim, 0.45, 1.2},
+      {"r-rune-out", kChalkRuneOut, 1.1f, kIron, 0.55, 1.3},
+      {"r-rune-in", kChalkRuneIn, 1.1f, kIron, 0.62, 1.3},
+      {"r-vox-out", kChalkVoxOut, 0.5f, kIronDim, 0.70, 1.2},
+      {"r-vox-in", kChalkVoxIn, 1.0f, kIron, 0.76, 1.3},
+      {"r-tick-mid", kChalkTickMid, 0.5f, kIronDim, 0.86, 1.2},
+      {"r-nom-out", kChalkNomOut, 1.2f, kIron, 0.86, 1.3},
+      {"r-nom-in", kChalkNomIn, 1.2f, kIron, 0.94, 1.3},
+      {"r-nom-case", kChalkNomCase, 0.5f, kIronDim, 1.02, 1.2},
+      {"r-tex-out", kChalkTexOut, 0.9f, kIron, tTex - 0.5, 1.0},
+      {"r-tex-in", kChalkTexIn, 0.9f, kIron, tTex - 0.35, 1.0},
+      {"r-tex-case", kChalkTexCase, 0.5f, kIronDim, tTex, 1.0},
+      {"r-serr-in", kChalkSerrIn, 0.5f, kIronDim, tTex + 0.15, 1.0},
+      {"r-env", kChalkEnv, 1.0f, kIron, tStar + 0.3, 1.0},
+      {"r-env-in", kChalkEnvIn, 0.5f, kIronDim, tStar + 0.45, 1.0},
+      {"r-hub-out", kChalkHubOut, 1.6f, kIron, tInner - 0.4, 0.8},
+      {"r-hub-in", kChalkHubIn, 0.6f, kIronDim, tInner - 0.3, 0.8},
+      {"r-hub-case", kChalkHubCase, 0.9f, kIron, tInner - 0.2, 0.8},
+      {"r-hub-kern", kChalkHubKern, 0.7f, kIron, tInner + 0.1, 0.8}};
 
-  // The ground wash under the figure.
-  panel.children({box()
-                      .key("rota-wash")
-                      .absolute()
-                      .inset(0)
-                      .hitTestable(false)
-                      .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 0.62f,
-                                                   {{0.0f, kNightLift},
-                                                    {0.66f, hexColor(0x0D0A18)},
-                                                    {1.0f, kNight}}))});
+  // THE DIVISION LADDERS: the serration at the rim, three length classes
+  // inside it at two pitches, the serration round the texture band and the
+  // hub's own teeth — the density an engraved figure carries and a single
+  // ladder cannot. Different bands take different symmetry orders on purpose;
+  // a plate whose every ring counted twelve would read as one drawing rather
+  // than as several mechanisms. Every count is a multiple of the twelve the
+  // plate is built on, and the mid class is offset HALF A STEP from the long
+  // one so the two interleave instead of doubling up.
+  struct Ladder {
+    const char* key;
+    int count, skip;
+    float outer, inner, width;
+    SkColor4f ink;
+    double at, dur;
+    float from;
+  };
+  const Ladder kLadders[] = {
+      {"teeth", 240, 12, rEdge, rEdgeIn, 0.7f, kIron, 0.5, 1.7, 0.0f},
+      {"ticks-long", kStations, 0, rTickOut, rTickMid - 0.028f, 1.3f, kAshDim,
+       0.9, 1.4, 0.0f},
+      {"ticks-mid", 24, 2, rTickOut, rTickMid - 0.010f, 0.9f, kIron, 0.9, 1.6,
+       kPitch * 0.5f},
+      {"ticks-short", 144, 6, rTickOut, rTickMid, 0.7f, kIron, 0.9, 2.1, 0.0f},
+      {"serration", 48, 4, rTexCase, rSerrIn, 0.7f, kIron, tTex + 0.1, 1.4,
+       kPitch * 0.25f},
+      {"hub-teeth", 72, 6, rHubOut, rHubIn, 0.6f, kIronDim, tInner - 0.35, 0.9,
+       0.0f}};
 
-  // THE FLOOD: light thrown at the whole sheet from behind the figure.
-  // It screens, so it lifts what is already there toward white instead
-  // of laying a wash over it, and it is worth its full-panel gradient
-  // only while it is on — at gain zero the node is not painted at all.
-  panel.children(
-      {box()
-           .key("flood")
-           .absolute()
-           .inset(-120)
-           .hitTestable(false)
+  return layer("rota").children(
+      {// the ground wash under the figure
+       layer("rota-wash")
+           .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 0.62f,
+                                        {{0.0f, kNightLift},
+                                         {0.66f, hexColor(0x0D0A18)},
+                                         {1.0f, kNight}})),
+       // THE FLOOD: light thrown at the whole sheet from behind the figure.
+       // It screens, so it lifts what is already there toward white instead
+       // of laying a wash over it, and it is worth its full-panel gradient
+       // only while it is on — at gain zero the node is not painted at all.
+       layer("flood", -120)
            .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 0.86f,
                                         {{0.0f, hexColor(0xFFD98A, 0.55f)},
                                          {0.42f, hexColor(0xE79A32, 0.30f)},
                                          {1.0f, hexColor(0xC96F1E, 0.0f)}}))
            .blend(SkBlendMode::kScreen)
-           .opacity(&floodA)});
-
-  // THE RAYS, thrown past the figure at ignition — the reading that
-  // makes an ignition a whole-frame event and not a brighter drawing.
-  // They pass BEHIND the lettering: light coming out from the figure is
-  // occluded by the figure, and rays laid over the type would only be a
-  // veil across the words.
-  panel.children(
-      {box()
-           .key("rays")
-           .absolute()
-           .inset(-170)
-           .hitTestable(false)
+           .opacity(&floodA),
+       // THE RAYS, thrown past the figure at ignition — the reading that
+       // makes an ignition a whole-frame event and not a brighter drawing.
+       // They pass BEHIND the lettering: light coming out from the figure is
+       // occluded by the figure, and rays laid over the type would only be a
+       // veil across the words.
+       layer("rays", -170)
            .fill(mskia::Paint::recipe(sigil::material::Material(raysRecipe()))
                      .uniform("uInk", kHalo))
            .blend(SkBlendMode::kPlus)
-           .opacity(&raysA)});
-
-  // THE COMPASS WORK. Every rule below is half of a PAIR, and the pair
-  // is what makes a band: no line on this plate stands on its own, and
-  // nothing is written anywhere except between two of them.
-  panel.children({rule("r-edge", kChalkEdge, 2.1f, kIron, 0.35, 1.3)});
-  panel.children({rule("r-edge-in", kChalkEdgeIn, 0.6f, kIronDim, 0.45, 1.2)});
-  panel.children({rule("r-rune-out", kChalkRuneOut, 1.1f, kIron, 0.55, 1.3)});
-  panel.children({rule("r-rune-in", kChalkRuneIn, 1.1f, kIron, 0.62, 1.3)});
-  panel.children({rule("r-vox-out", kChalkVoxOut, 0.5f, kIronDim, 0.70, 1.2)});
-  panel.children({rule("r-vox-in", kChalkVoxIn, 1.0f, kIron, 0.76, 1.3)});
-  panel.children({rule("r-nom-out", kChalkNomOut, 1.2f, kIron, 0.86, 1.3)});
-  panel.children({rule("r-nom-in", kChalkNomIn, 1.2f, kIron, 0.94, 1.3)});
-  panel.children(
-      {rule("r-nom-case", kChalkNomCase, 0.5f, kIronDim, 1.02, 1.2)});
-
-  // THE DIVISION LADDERS: the serration at the rim, and three length
-  // classes inside it at two pitches — the density an engraved figure
-  // carries and a single ladder cannot. Different bands take different
-  // symmetry orders on purpose; a plate whose every ring counted twelve
-  // would read as one drawing rather than as several mechanisms.
-  panel.children(
-      {ladder("teeth", 240, 12, rEdge, rEdgeIn, 0.7f, kIron, 0.5, 1.7)});
-  // The ladder band is fenced like every other band and split in two:
-  // the still classes in its outer half, the turning one in its inner
-  // half, so two ladders never stamp the same mark. Every count is a
-  // multiple of the twelve the plate is built on, and the mid class is
-  // offset HALF A STEP from the long one so the two interleave instead
-  // of doubling up.
-  panel.children(
-      {rule("r-tick-mid", kChalkTickMid, 0.5f, kIronDim, 0.86, 1.2)});
-  panel.children({ladder("ticks-long", kStations, 0, rTickOut,
-                         rTickMid - 0.028f, 1.3f, kAshDim, 0.9, 1.4)});
-  panel.children({ladder("ticks-mid", 24, 2, rTickOut, rTickMid - 0.010f, 0.9f,
-                         kIron, 0.9, 1.6, kPitch * 0.5f)});
-  panel.children({ladder("ticks-short", 144, 6, rTickOut, rTickMid, 0.7f, kIron,
-                         0.9, 2.1)});
-
-  // THE FAST LAYER: a hairline ladder in the band's inner half, turning
-  // at seconds per revolution against everything inside it. It is the
-  // layer that can afford the rate — cached geometry replayed under a
-  // bound transform, where the lettering it sits beside would have to
-  // re-place every glyph.
-  panel.children({box()
-                      .key("ladder-turn")
-                      .absolute()
-                      .inset(0)
-                      .hitTestable(false)
-                      .rotate(motion::bind(&tickSpin).target(0.0f, 360.0f))
-                      .children({ladder("ticks-fine", 288, 6, rTickMid - 0.003f,
-                                        rTickIn, 0.6f, kIron, 1.1, 2.3)})});
-
-  // The bands the rules frame.
-  panel.children({invocatio()});
-  panel.children({registrum()});
-  panel.children({nomina()});
-
-  // The texture band and its own frame.
-  panel.children(
-      {rule("r-tex-out", kChalkTexOut, 0.9f, kIron, tTex - 0.5, 1.0)});
-  panel.children(
-      {rule("r-tex-in", kChalkTexIn, 0.9f, kIron, tTex - 0.35, 1.0)});
-  panel.children(
-      {rule("r-tex-case", kChalkTexCase, 0.5f, kIronDim, tTex, 1.0)});
-  panel.children(
-      {rule("r-serr-in", kChalkSerrIn, 0.5f, kIronDim, tTex + 0.15, 1.0)});
-  panel.children({ladder("serration", 48, 4, rTexCase, rSerrIn, 0.7f, kIron,
-                         tTex + 0.1, 1.4, kPitch * 0.25f)});
-  panel.children({textura()});
-
-  // The turning layers, outside in.
-  panel.children({arcus()});
-  panel.children({rule("r-env", kChalkEnv, 1.0f, kIron, tStar + 0.3, 1.0)});
-  panel.children(
-      {rule("r-env-in", kChalkEnvIn, 0.5f, kIronDim, tStar + 0.45, 1.0)});
-  panel.children({stella()});
-  panel.children({stellaInterior()});
-  panel.children({limina()});
-
-  // THE HUB'S OWN FRAME is struck with the inner compound, not with the
-  // emblem it will hold: the centre of a figure like this is never a
-  // hole waiting to be filled, and a plate whose middle is empty for
-  // eight seconds reads as unfinished rather than as forming.
-  panel.children(
-      {rule("r-hub-out", kChalkHubOut, 1.6f, kIron, tInner - 0.4, 0.8)});
-  panel.children(
-      {rule("r-hub-in", kChalkHubIn, 0.6f, kIronDim, tInner - 0.3, 0.8)});
-  panel.children(
-      {rule("r-hub-case", kChalkHubCase, 0.9f, kIron, tInner - 0.2, 0.8)});
-  panel.children({ladder("hub-teeth", 72, 6, rHubOut, rHubIn, 0.6f, kIronDim,
-                         tInner - 0.35, 0.9)});
-  panel.children(
-      {rule("r-hub-kern", kChalkHubKern, 0.7f, kIron, tInner + 0.1, 0.8)});
-  panel.children({emblemDisc()});
-  panel.children({emblema()});
-  panel.children({monogramma()});
-
-  // The light that lands on the struck rules, group by group. The ones
-  // that do not turn are painted here; the ones that do are painted
-  // inside the layers that turn them.
-  panel.children({emissive("rim-lit", glows[kGlowRim], &litRim)});
-  panel.children({emissive("nom-lit", glows[kGlowNom], &litNom)});
-
-  // THE CARRIER: one node holding all twelve seals, turning them about
-  // the circle's own centre. It is painted here, after the rim's light,
-  // for the same reason each seal carries an opaque ground — a seal
-  // SITS ON the plate, and a rule that runs under one does not print
-  // across it however hard the rule is burning.
-  //
-  // A ring of stations that turns is what makes the seals read as
-  // MOUNTED rather than as drawn at twelve places: the whole rim is one
-  // mechanism, and the exception that proves it is the medallion below,
-  // which is at the rim and does not travel — the seals pass behind it.
-  Element ferrum =
-      box().key("ferrum").absolute().inset(0).hitTestable(false).rotate(
-          motion::bind(&sealOrbit).target(0.0f, 360.0f));
-  for (int k = 0; k < kSeals; ++k) ferrum.children({sigillum(k)});
-  panel.children({std::move(ferrum)});
-
-  panel.children({spur()});
-
-  // The embers: a live pool stamped as one draw, rising off the rim at
-  // ignition and drizzling for as long as the circle is charged.
-  panel.children({box()
-                      .key("embers")
-                      .absolute()
-                      .inset(0)
-                      .hitTestable(false)
-                      .opacity(&emberA)
-                      .children({instancing::instances(emberAtlas, embers,
-                                                       instancing::Mode::Live,
-                                                       SkBlendMode::kPlus)})});
-
-  // THE CREST'S FRINGE: half a second of the frame beneath re-sampled
-  // with its channels pulled apart along the radius.
-  panel.children(
-      {box()
-           .key("fringe")
-           .absolute()
-           .inset(0)
-           .hitTestable(false)
+           .opacity(&raysA),
+       each(kRuled,
+            [this](const Ruled& r) {
+              return rule(r.key, r.chalk, r.width, r.ink, r.at, r.dur);
+            }),
+       each(kLadders,
+            [this](const Ladder& l) {
+              return ladder(l.key, l.count, l.skip, l.outer, l.inner, l.width,
+                            l.ink, l.at, l.dur, l.from);
+            }),
+       // THE FAST LAYER: a hairline ladder in the tick band's inner half,
+       // turning at seconds per revolution against everything inside it. It is
+       // the layer that can afford the rate — cached geometry replayed under a
+       // bound transform, where the lettering it sits beside would have to
+       // re-place every glyph.
+       layer("ladder-turn")
+           .rotate(motion::bind(&tickSpin).target(0.0f, 360.0f))
+           .children({ladder("ticks-fine", 288, 6, rTickMid - 0.003f, rTickIn,
+                             0.6f, kIron, 1.1, 2.3)}),
+       // the bands the rules frame
+       invocatio(), registrum(), nomina(), textura(),
+       // the turning layers, outside in
+       arcus(), stella(), stellaInterior(), limina(),
+       // THE HUB'S OWN FRAME is struck with the inner compound, not with the
+       // emblem it will hold: the centre of a figure like this is never a hole
+       // waiting to be filled, and a plate whose middle is empty for eight
+       // seconds reads as unfinished rather than as forming.
+       emblemDisc(), emblema(), monogramma(),
+       // the light that lands on the struck rules, group by group. The ones
+       // that do not turn are painted here; the ones that do are painted
+       // inside the layers that turn them.
+       emissive("rim-lit", glows[kGlowRim], &litRim),
+       emissive("nom-lit", glows[kGlowNom], &litNom),
+       // THE CARRIER: one node holding all twelve seals, turning them about
+       // the circle's own centre. It is painted here, after the rim's light,
+       // for the same reason each seal carries an opaque ground — a seal SITS
+       // ON the plate, and a rule that runs under one does not print across it
+       // however hard the rule is burning.
+       //
+       // A ring of stations that turns is what makes the seals read as MOUNTED
+       // rather than as drawn at twelve places: the whole rim is one
+       // mechanism, and the exception that proves it is the medallion below,
+       // which is at the rim and does not travel — the seals pass behind it.
+       layer("ferrum")
+           .rotate(motion::bind(&sealOrbit).target(0.0f, 360.0f))
+           .children(each(std::views::iota(0, kSeals),
+                          [this](int k) { return sigillum(k); })),
+       spur(),
+       // the embers: a live pool stamped as one draw, rising off the rim at
+       // ignition and drizzling for as long as the circle is charged
+       layer("embers").opacity(&emberA).children({instancing::instances(
+           emberAtlas, embers, instancing::Mode::Live, SkBlendMode::kPlus)}),
+       // THE CREST'S FRINGE: half a second of the frame beneath re-sampled
+       // with its channels pulled apart along the radius.
+       layer("fringe")
            .backdrop(mskia::Effect::shader(
                          fringeFx, {{"uCx", kEye.x()}, {"uCy", kEye.y()}})
                          .uniform("uSpread", &fringeK))
-           .opacity(&fringeA)});
-
-  // The scribe: the point of the pen, led round the band by the writing
-  // cascade — placed every frame from the schedule read back, so it
-  // cannot drift from the letters it appears to write.
-  panel.children(
-      {box()
+           .opacity(&fringeA),
+       // the scribe: the point of the pen, led round the band by the writing
+       // cascade — placed every frame from the schedule read back, so it
+       // cannot drift from the letters it appears to write
+       box()
            .key("scribe")
-           .left(-9)
-           .top(-9)
-           .width(18)
-           .height(18)
+           .rect(SkRect::MakeXYWH(-9, -9, 18, 18))
            .hitTestable(false)
            .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 0.5f,
                                         {{0.0f, hexColor(0xFFE9B0)},
@@ -209,7 +163,6 @@ auto RotaConvocationis::wheel() -> Element {
            .translateX(&scribeX)
            .translateY(&scribeY)
            .opacity(&scribeA)});
-  return panel;
 }
 
 auto RotaConvocationis::colophon() -> Element {

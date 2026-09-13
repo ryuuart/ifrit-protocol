@@ -346,6 +346,15 @@ inline SkPoint P(float thDeg, float rNorm) {
 
 /** The pitch of the twelve stations, and the angle of station k. */
 constexpr float kPitch = 360.0f / (float)kStations;
+/** ONE LAYER OF THE FIGURE: a node filling the plate, named so its drawing
+ *  prunes on that name, and out of the pointer's way — `hitTestable` excludes
+ *  a node's OWN box and not its subtree, so a figure of thirty stacked layers
+ *  either says it thirty times or answers a hit with whichever one is on top.
+ *  A negative @p bleed is a layer that throws light past the figure. */
+inline Element layer(std::string key, float bleed = 0.0f) {
+  return box().key(std::move(key)).absolute().inset(bleed).hitTestable(false);
+}
+
 inline float station(int k) { return kPitch * (float)k; }
 
 // Slots in the two baked tables. The chalk table holds one wobbled

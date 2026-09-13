@@ -1,4 +1,27 @@
+#include <sigilgeometry/path/Frame.h>
+
 #include "RotaConvocationis.h"
+
+namespace {
+
+/** ONE BAND OF SCRIPT ROUND THE FIGURE: @p run measured in the square of the
+ *  circle of radius @p r it is set on, its baseline advanced to @p at and held
+ *  off that circle by @p lift — which is what puts a letter's body inside the
+ *  pair of rules that fences it. The TEXT node is the ring; a ring given to a
+ *  parent resolves against the run's intrinsic size and collapses. */
+Element onRing(Element run, const char* key, float r,
+               motion::Animatable<float> at, float lift) {
+  return run.key(key)
+      .rect(sigil::geometry::path::centred(kEye, {2 * r, 2 * r}))
+      .hitTestable(false)
+      .onPath({.path = shapes::circle(),
+               .at = std::move(at),
+               .align = TextPath::Align::Start,
+               .offset = lift,
+               .autoFlip = false});
+}
+
+}  // namespace
 
 auto RotaConvocationis::pulse(double from, double to, double edge)
     -> motion::Animatable<float> {
@@ -36,11 +59,7 @@ auto RotaConvocationis::fitToRing(sketch::SketchContext& ctx, Element probe,
 auto RotaConvocationis::rule(const char* key, int chalkIndex, float width,
                              SkColor4f color, double from, double dur)
     -> Element {
-  return box()
-      .key(key)
-      .absolute()
-      .inset(0)
-      .hitTestable(false)
+  return layer(key)
       .shape(heldPath(chalk[(size_t)chalkIndex]))
       .fill(Fill::none())
       .stroke(spans::upTo(beat(from, from + dur)),
@@ -50,11 +69,7 @@ auto RotaConvocationis::rule(const char* key, int chalkIndex, float width,
 auto RotaConvocationis::line(const char* key, const SkPath& path, float width,
                              SkColor4f color, double from, double dur)
     -> Element {
-  return box()
-      .key(key)
-      .absolute()
-      .inset(0)
-      .hitTestable(false)
+  return layer(key)
       .shape(heldPath(path))
       .fill(Fill::none())
       .stroke(spans::upTo(beat(from, from + dur)),
@@ -115,11 +130,7 @@ auto RotaConvocationis::ladder(const char* key, int divisions, int skipEvery,
                   .mark = {inner / outer, 1.0f},
                   .longEvery = skipEvery,
                   .longMark = {1.0f, 1.0f}};
-  return box()
-      .key(key)
-      .absolute()
-      .inset((1.0f - outer) * kR + (kEye.x() - kR))
-      .hitTestable(false)
+  return layer(key, (1.0f - outer) * kR + (kEye.x() - kR))
       .shape(shapes::ticks(t))
       .fill(Fill::none())
       .stroke(spans::upTo(beat(from, from + dur)),
@@ -127,19 +138,9 @@ auto RotaConvocationis::ladder(const char* key, int divisions, int skipEvery,
 }
 
 auto RotaConvocationis::invocatio() -> Element {
-  return text(voxText)
-      .styleClass("ring")
-      .font({.size = voxSize, .track = 2.2f})
-      .key("vox")
-      .centerAt(kEye)
-      .width(2 * rVox * kR)
-      .height(2 * rVox * kR)
-      .hitTestable(false)
-      .onPath({.path = shapes::circle(),
-               .at = &voxDrift,
-               .align = TextPath::Align::Start,
-               .offset = -voxSize * 0.34f,
-               .autoFlip = false})
+  return onRing(text(voxText).styleClass("ring").font(
+                    {.size = voxSize, .track = 2.2f}),
+                "vox", rVox, &voxDrift, -voxSize * 0.34f)
       .fx({.effect = fx::hold(fx::rise(voxSize * 1.1f)),
            .stagger = voxCascade(),
            .unit = weave::Unit::Word,
@@ -166,18 +167,9 @@ auto RotaConvocationis::invocatio() -> Element {
 }
 
 auto RotaConvocationis::registrum() -> Element {
-  return text(runeText)
-      .font({.size = runeSize, .color = kRuneInk, .track = 2.0f})
-      .key("registrum")
-      .centerAt(kEye)
-      .width(2 * rRune * kR)
-      .height(2 * rRune * kR)
-      .hitTestable(false)
-      .onPath({.path = shapes::circle(),
-               .at = &runeDrift,
-               .align = TextPath::Align::Start,
-               .offset = -runeSize * 0.34f,
-               .autoFlip = false})
+  return onRing(text(runeText).font(
+                    {.size = runeSize, .color = kRuneInk, .track = 2.0f}),
+                "registrum", rRune, &runeDrift, -runeSize * 0.34f)
       .fx({.effect = fx::hold(fx::pop(0.55f)),
            .stagger = {.eachMs = 7,
                        .durationMs = 420,
@@ -212,9 +204,8 @@ auto RotaConvocationis::nomina() -> Element {
           .font({.size = nomSize, .color = kGold, .track = 4.2f})
           .key("nomina")
           .effect(styles::textGlow(kHalo, 6.0f))
-          .centerAt(kEye)
-          .width(2 * rNom * kR)
-          .height(2 * rNom * kR)
+          .rect(sigil::geometry::path::centred(kEye,
+                                               {2 * rNom * kR, 2 * rNom * kR}))
           .hitTestable(false)
           // TURNED AS A BODY, not advanced along its path — the same
           // rule the seals are built on, and for the same reason: a
@@ -259,18 +250,8 @@ auto RotaConvocationis::nomina() -> Element {
 }
 
 auto RotaConvocationis::textura() -> Element {
-  return text(texText)
-      .font({.size = texSize, .color = kAsh})
-      .key("textura")
-      .centerAt(kEye)
-      .width(2 * rTex * kR)
-      .height(2 * rTex * kR)
-      .hitTestable(false)
-      .onPath({.path = shapes::circle(),
-               .at = &texDrift,
-               .align = TextPath::Align::Start,
-               .offset = -texSize * 0.30f,
-               .autoFlip = false})
+  return onRing(text(texText).font({.size = texSize, .color = kAsh}), "textura",
+                rTex, &texDrift, -texSize * 0.30f)
       .fx({.effect = fx::hold(fx::rise(texSize * 0.9f)),
            .stagger = {.eachMs = 4,
                        .durationMs = 300,
