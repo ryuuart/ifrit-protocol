@@ -491,7 +491,7 @@ auto Minard1869::napoleonPanel(sketch::SketchContext& ctx) -> Element {
     Element e =
         moscou ? text(toUtf8("MOSCOU"))
                      .font({.face = faceRoman, .size = 13, .track = 2.2f})
-                     .textStroke(0.5f, Fill::color(kInk))
+                     .textStroke(0.5f, Fill::currentInk())
                : text(toUtf8(c.plate))
                      .font({.face = faceItalic, .size = 9.6f, .track = 0.2f});
     g.child(e.at({mapX(c.lon) + c.dx, mapY(c.lat) + c.dy})
