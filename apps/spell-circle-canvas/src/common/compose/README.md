@@ -1291,6 +1291,11 @@ a comparable `TextEffect` built from the constructor any caller may use —
 with `kit/Marquee.h`'s `kit::marquee`, the seamless ticker built from a
 clipped strip and a wrapping phase, whose every dial is one options
 struct,
+`kit/Board.h`'s `kit::board`, the ground a placed drawing stands on — a
+`stack` at its own size on its own ground, each child keeping the rect it
+was built with, which is the root of a plate that has no layout at all
+and names no class, states no sheet and sets no font, so a page-less
+drawing states its own with `Element::styleSheet` on what it returns —
 `kit/Placers.h`'s `place::grid`, `place::ring` and `place::repeat`, the
 fillers of an instanced leaf's pool — the first two over the same ring
 and grid arithmetic the layout schemes use, which is SigilGeometry's —

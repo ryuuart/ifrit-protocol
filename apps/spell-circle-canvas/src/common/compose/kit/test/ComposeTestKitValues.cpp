@@ -932,3 +932,54 @@ TEST(KitSpecimen, SurfacePaintPreservesBindingsAndMaterialResolution) {
     EXPECT_NEAR(SkColorGetR(middle), SkColorGetB(middle), 5);
   }
 }
+
+// ---------------------------------------------------------------------------
+// kit/Board.h — the ground a placed drawing stands on
+
+TEST(KitBoard, TakesWhateverItsParentGivesItWhereNoSizeIsStated) {
+  Host host(200, 150);
+  host.composer.render(box().width(200).height(150).children(
+      {kit::board({}).key("board").children(
+          {kit::at(0, 0, 10, 10).key("pin")})}));
+  host.frame();
+  EXPECT_EQ(require(host.composer.bounds("board")), SkRect::MakeWH(200, 150));
+  EXPECT_EQ(require(host.composer.bounds("pin")), SkRect::MakeWH(10, 10));
+}
+
+TEST(KitBoard, StandsAtItsOwnSizeOnItsOwnGroundAndPlacesEveryChildByItsRect) {
+  Host host(200, 150);
+  host.composer.render(box().width(200).height(150).children(
+      {kit::board({.size = {120, 90}, .ground = red()})
+           .key("board")
+           .children({kit::at(20, 30, 10, 10).fill(green()).key("pin")})}));
+  host.frame();
+  EXPECT_EQ(require(host.composer.bounds("board")), SkRect::MakeWH(120, 90));
+  // Every child keeps the rect it was built with, against the board's
+  // own edge.
+  EXPECT_EQ(require(host.composer.bounds("pin")),
+            SkRect::MakeXYWH(20, 30, 10, 10));
+  EXPECT_EQ(host.pixel(5, 5), SK_ColorRED);
+  EXPECT_EQ(host.pixel(25, 35), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(130, 40), SK_ColorBLACK);
+}
+
+TEST(KitBoard, StatesNoSheetAndNoFontSoTheCallersVerbsDecide) {
+  // A board is a box property throughout: the font, the ink and the sheet
+  // are the caller's own verbs on what it returns, which is what a
+  // page-less drawing states its classes with.
+  Host host(200, 150);
+  host.composer.render(
+      box()
+          .width(200)
+          .height(150)
+          .font({.size = 20})
+          .styleSheet(weave::StyleSheet{{"captionNote", {.size = 9}}})
+          .children({kit::board({}).children(
+              {text(u8"Hg").key("inherited"),
+               text(u8"Hg").styleClass("captionNote").key("named")})}));
+  host.frame();
+  EXPECT_NEAR(require(host.composer.bounds("inherited")).height(),
+              lineHeight(20), 1.5f);
+  EXPECT_NEAR(require(host.composer.bounds("named")).height(), lineHeight(9),
+              1.5f);
+}
