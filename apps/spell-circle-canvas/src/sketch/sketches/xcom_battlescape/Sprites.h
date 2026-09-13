@@ -738,10 +738,7 @@ inline PixelText pixelText(const std::u8string& s, weave::TextStyle style,
 inline Element pixelTextEl(const PixelText& t, float x, float y) {
   if (!t.image) return box().width(0).height(0);
   return box()
-      .left(x)
-      .top(y)
-      .width((float)t.w * PX)
-      .height((float)t.h * PX)
+      .rect(SkRect::MakeXYWH(x, y, (float)t.w * PX, (float)t.h * PX))
       .fill(Paint::image(t.image, SkTileMode::kDecal, SkTileMode::kDecal,
                          SkMatrix::Scale(PX, PX),
                          SkSamplingOptions(SkFilterMode::kNearest)));
@@ -912,9 +909,9 @@ inline Element statBar(float x, float y, int value, int maxValue, int colorIdx,
   Element g = box().inset(0).hitTestable(false);
   g.children({at(x, y, (float)(maxValue + 1), 1)
                   .fill(C(outline))
-                  .key(std::string(key) + "-max")});
-  g.children({at(x, y + 2, (float)(maxValue + 1), 1).fill(C(outline))});
-  g.children({at(x + (float)maxValue, y + 1, 1, 1).fill(C(outline))});
+                  .key(std::string(key) + "-max"),
+              at(x, y + 2, (float)(maxValue + 1), 1).fill(C(outline)),
+              at(x + (float)maxValue, y + 1, 1, 1).fill(C(outline))});
   if (value > 0)
     g.children({at(x, y + 1, (float)value, 1).fill(C(colorIdx)).key(key)});
   return g;

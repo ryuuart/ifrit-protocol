@@ -345,48 +345,38 @@ struct XcomBattlescape : sketch::Sketch {
       const int sh = tileShade(u.mx, u.my);
       root.children(
           {box()
-               .left(tl.fX)
-               .top(tl.fY)
-               .width(kCellW)
-               .height(kCellH)
+               .rect(SkRect::MakeXYWH(tl.fX, tl.fY, kCellW, kCellH))
                .key(key)
-               .children({custom(kit::formatted("unit s%d %s", sh,
-                                                alien ? "alien" : "soldier"),
-                                 [sh, alien](SkCanvas& c) {
-                                   paintUnit(c, sh, alien);
-                                 })})});
+               .children({custom(
+                   kit::formatted("unit s%d %s", sh,
+                                  alien ? "alien" : "soldier"),
+                   [sh, alien](SkCanvas& c) { paintUnit(c, sh, alien); })})});
     }
     {
       const SkPoint tl = mapToScreen(kSoldierA.mx, kSoldierA.my, 0);
       const int frame = phase.frame;
       root.children(
           {box()
-               .left(tl.fX)
-               .top(tl.fY - n(4))
-               .width(kCellW)
-               .height(kCellH)
-               .children({custom(kit::formatted("bob arrow f%d", frame),
-                                 [frame](SkCanvas& c) {
-                                   paintBobArrow(c, frame);
-                                 })})});
+               .rect(SkRect::MakeXYWH(tl.fX, tl.fY - n(4), kCellW, kCellH))
+               .children({custom(
+                   kit::formatted("bob arrow f%d", frame),
+                   [frame](SkCanvas& c) { paintBobArrow(c, frame); })})});
     }
 
     // ---- z3/z4 path arrows, TU numbers, the box selector -------------------
-    root.children(
-        {at(0, 0, 320, 144).children({instancing::instances(tiles, overlay)})});
-    root.children(
-        {at(0, 0, 320, 144)
-             .children({instancing::instances(fontAtlas, mapGlyphs)})});
-
     // ---- z5 the control panel ---------------------------------------------
-    root.children({panel(ctx)});
+    root.children(
+        {at(0, 0, 320, 144).children({instancing::instances(tiles, overlay)}),
+         at(0, 0, 320, 144)
+             .children({instancing::instances(fontAtlas, mapGlyphs)}),
+         panel(ctx)});
 
     // ---- z6 spotted-enemy tags. visibleUnits pos [300,-16] out of
     //      interfaces.rul, hence the y-16 and the upward stack.
     for (int i = 0; i < phase.tags; ++i) {
       Element tag = box().inset(0);
-      tag.children({at(300, 128 - 13 * i, 15, 12).fill(C(blk(0, 15)))});
-      tag.children({at(301, 129 - 13 * i, 13, 10).fill(C(phase.tag))});
+      tag.children({at(300, 128 - 13 * i, 15, 12).fill(C(blk(0, 15))),
+                    at(301, 129 - 13 * i, 13, 10).fill(C(phase.tag))});
       root.children({tag});
     }
 
@@ -412,9 +402,9 @@ struct XcomBattlescape : sketch::Sketch {
     // bottom of the frame.
     Element p = box().inset(0);
     // The metal body: a dithered block-5 field, no gradient, no direction.
-    p.children({at(0, 144, 320, 56).fill(metalPattern.material())});
-    p.children({at(0, 144, 320, 1).fill(C(blk(5, 1)))});
-    p.children({at(0, 199, 320, 1).fill(C(blk(5, 13)))});
+    p.children({at(0, 144, 320, 56).fill(metalPattern.material()),
+                at(0, 144, 320, 1).fill(C(blk(5, 1))),
+                at(0, 199, 320, 1).fill(C(blk(5, 13)))});
 
     // Fourteen 32x16 plates, seven columns, two rows. They read in COLUMNS.
     const float bx[7] = {48, 80, 112, 144, 176, 208, 240};
@@ -424,24 +414,21 @@ struct XcomBattlescape : sketch::Sketch {
         p.children(
             {at(bx[col], 144 + 16 * row, 32, 16)
                  .key("btn" + std::to_string(id))
-                 .children({custom("plate 32x16",
-                                   [](SkCanvas& c) {
-                                     paintPlate(c, 32, 16);
-                                   })
-                                .inset(0)})
-                 .children({custom(kit::formatted("button glyph %d", id),
-                                   [id](SkCanvas& c) {
-                                     paintButtonGlyph(c, id);
-                                   })
-                                .inset(0)})});
+                 .children(
+                     {custom("plate 32x16",
+                             [](SkCanvas& c) { paintPlate(c, 32, 16); })
+                          .inset(0),
+                      custom(kit::formatted("button glyph %d", id),
+                             [id](SkCanvas& c) { paintButtonGlyph(c, id); })
+                          .inset(0)})});
       }
 
     // The six reserve buttons. buttonReserveNone declares 67, the other three
     // and buttonZeroTUs declare 35 — block 4 step 3 against block 2 step 3.
     const auto reserveBtn = [&](float x, float y, float w, float h, int idx,
                                 const char* key) {
-      p.children({at(x, y, w, h).fill(C(idx + 4))});
-      p.children({at(x + 1, y + 1, w - 2, h - 2).fill(C(idx)).key(key)});
+      p.children({at(x, y, w, h).fill(C(idx + 4)),
+                  at(x + 1, y + 1, w - 2, h - 2).fill(C(idx)).key(key)});
     };
     reserveBtn(49, 177, 10, 23, 35, "zeroTUs");
     reserveBtn(60, 177, 17, 11, 67, "resNone");  // the lit one, per the capture
@@ -453,69 +440,68 @@ struct XcomBattlescape : sketch::Sketch {
     for (const auto& [x, y] :
          {std::pair{60.0f, 177.0f}, std::pair{78.0f, 177.0f},
           std::pair{60.0f, 189.0f}, std::pair{78.0f, 189.0f}})
-      p.children({at(x + 3, y + 3, 11, 5)
-                      .children({custom("reserve glyph",
-                                        [](SkCanvas& c) {
-                                          const Ink ink{c};
-                                          ink.rect(0, 0, 2, 5, blk(0, 15));
-                                          ink.rect(2, 2, 5, 1, blk(0, 15));
-                                          ink.rect(8, 1, 1, 3, blk(0, 15));
-                                          ink.rect(10, 0, 1, 5, blk(0, 15));
-                                        })})});
-
-    // The rank badge, 26x23 — a gold plate, block 9 over block 10.
-    p.children(
-        {at(107, 177, 26, 23)
-             .key("rank")
-             .children({custom("rank badge", [](SkCanvas& c) {
-               const Ink ink{c};
-               for (int r = 0; r < 23; ++r)
-                 ink.row(0, (float)r, 26, blk(9, 2 + r / 6));
-               ink.row(0, 0, 26, blk(9, 0));
-               ink.row(0, 22, 26, blk(10, 6));
-               for (int r = 0; r < 23; ++r) {
-                 ink.px(0, (float)r, blk(9, 1));
-                 ink.px(25, (float)r, blk(10, 5));
-               }
-               // A chevron — STR_SQUADDIE.
-               for (int k = 0; k < 7; ++k) {
-                 ink.row((float)(13 - k - 1), (float)(6 + k), 3, blk(10, 8));
-                 ink.row((float)(13 + k - 1), (float)(6 + k), 3, blk(10, 8));
-               }
-               for (int k = 0; k < 7; ++k) {
-                 ink.row((float)(13 - k - 1), (float)(5 + k), 3, blk(9, 0));
-                 ink.row((float)(13 + k - 1), (float)(5 + k), 3, blk(9, 0));
-               }
-             })})});
-
-    // The stat block sits in a BLACK WELL, not on the metal — measured off the
-    // reference, x 132..320, y 175..200. Without it the bars' transparent
-    // middle row shows brushed steel and the gauge stops reading as a gauge.
-    p.children({at(132, 175, 188, 25).fill(C(blk(0, 15)))});
-    p.children({at(131, 175, 1, 25).fill(C(blk(5, 12)))});
-
-    // The name — textName declares 128, PAL[128] #A8D0F0.
-    p.children({pixelTextEl(nameText, n(135), n(176))});
-
-    // Four number recesses: seven-row single-step ramps, one hue each. The TU
-    // one uses the GREEN block, not its own yellow-green. Measured, not
-    // derived.
-    p.children({recess(134, 185, blk(3, 7))});
-    p.children({recess(152, 185, blk(1, 5))});
-    p.children({recess(134, 193, blk(2, 5))});
-    p.children({recess(152, 193, blk(12, 5))});
-
-    // The lattice behind the bars: a 5 px x 2 px pitch, one pitch per axis.
-    p.children({at(176, 185, 136, 15).fill(C(blk(0, 15)))});
-    p.children({at(176, 185, 136, 15).fill(latticePattern.material())});
+      // The rank badge, 26x23 — a gold plate, block 9 over block 10.
+      // The stat block sits in a BLACK WELL, not on the metal — measured off
+      // the reference, x 132..320, y 175..200. Without it the bars' transparent
+      // middle row shows brushed steel and the gauge stops reading as a gauge.
+      // The name — textName declares 128, PAL[128] #A8D0F0.
+      // Four number recesses: seven-row single-step ramps, one hue each. The TU
+      // one uses the GREEN block, not its own yellow-green. Measured, not
+      // derived.
+      // The lattice behind the bars: a 5 px x 2 px pitch, one pitch per axis.
+      p.children(
+          {at(x + 3, y + 3, 11, 5)
+               .children({custom("reserve glyph",
+                                 [](SkCanvas& c) {
+                                   const Ink ink{c};
+                                   ink.rect(0, 0, 2, 5, blk(0, 15));
+                                   ink.rect(2, 2, 5, 1, blk(0, 15));
+                                   ink.rect(8, 1, 1, 3, blk(0, 15));
+                                   ink.rect(10, 0, 1, 5, blk(0, 15));
+                                 })}),
+           at(107, 177, 26, 23)
+               .key("rank")
+               .children({custom("rank badge",
+                                 [](SkCanvas& c) {
+                                   const Ink ink{c};
+                                   for (int r = 0; r < 23; ++r)
+                                     ink.row(0, (float)r, 26,
+                                             blk(9, 2 + r / 6));
+                                   ink.row(0, 0, 26, blk(9, 0));
+                                   ink.row(0, 22, 26, blk(10, 6));
+                                   for (int r = 0; r < 23; ++r) {
+                                     ink.px(0, (float)r, blk(9, 1));
+                                     ink.px(25, (float)r, blk(10, 5));
+                                   }
+                                   // A chevron — STR_SQUADDIE.
+                                   for (int k = 0; k < 7; ++k) {
+                                     ink.row((float)(13 - k - 1),
+                                             (float)(6 + k), 3, blk(10, 8));
+                                     ink.row((float)(13 + k - 1),
+                                             (float)(6 + k), 3, blk(10, 8));
+                                   }
+                                   for (int k = 0; k < 7; ++k) {
+                                     ink.row((float)(13 - k - 1),
+                                             (float)(5 + k), 3, blk(9, 0));
+                                     ink.row((float)(13 + k - 1),
+                                             (float)(5 + k), 3, blk(9, 0));
+                                   }
+                                 })}),
+           at(132, 175, 188, 25).fill(C(blk(0, 15))),
+           at(131, 175, 1, 25).fill(C(blk(5, 12))),
+           pixelTextEl(nameText, n(135), n(176)), recess(134, 185, blk(3, 7)),
+           recess(152, 185, blk(1, 5)), recess(134, 193, blk(2, 5)),
+           recess(152, 193, blk(12, 5)),
+           at(176, 185, 136, 15).fill(C(blk(0, 15))),
+           at(176, 185, 136, 15).fill(latticePattern.material())});
 
     // Four bars at 1 px per point. barTUs 64, barEnergy 16, barHealth 32
     // (color2 82), barMorale 192.
     const int tu = phase.fired ? 43 : 58;
-    p.children({statBar(170, 185, tu, kMaxTU, 64, "barTU")});
-    p.children({statBar(170, 189, 56, kMaxEnergy, 16, "barEnergy")});
-    p.children({statBar(170, 193, 36, kMaxHealth, 32, "barHealth")});
-    p.children({statBar(170, 197, 100, kMaxMorale, 192, "barMorale")});
+    p.children({statBar(170, 185, tu, kMaxTU, 64, "barTU"),
+                statBar(170, 189, 56, kMaxEnergy, 16, "barEnergy"),
+                statBar(170, 193, 36, kMaxHealth, 32, "barHealth"),
+                statBar(170, 197, 100, kMaxMorale, 192, "barMorale")});
 
     // Two hand wells, 32x48: interior index 15, bevel block 14 232/235.
     for (const auto& [x, right] :
@@ -562,12 +548,12 @@ struct XcomBattlescape : sketch::Sketch {
     Element g = box().inset(0);
     for (int i = 0; i < 3; ++i) {
       const float y = 160.0f - (float)i * 40.0f;
-      g.children({at(24, y, 272, 40).fill(C(blk(3, 11)))});
-      g.children({at(26, y + 2, 268, 36).fill(C(blk(3, 5)))});
-      g.children({at(30, y + 6, 260, 28).fill(C(blk(3, 13)))});
-      g.children({pixelTextEl(popupRow[i], n(34), n(y + 13))});
-      g.children({pixelTextEl(popupAcc[i], n(164), n(y + 13))});
-      g.children({pixelTextEl(popupTU[i], n(234), n(y + 13))});
+      g.children({at(24, y, 272, 40).fill(C(blk(3, 11))),
+                  at(26, y + 2, 268, 36).fill(C(blk(3, 5))),
+                  at(30, y + 6, 260, 28).fill(C(blk(3, 13))),
+                  pixelTextEl(popupRow[i], n(34), n(y + 13)),
+                  pixelTextEl(popupAcc[i], n(164), n(y + 13)),
+                  pixelTextEl(popupTU[i], n(234), n(y + 13))});
     }
     return g;
   }
@@ -735,10 +721,8 @@ struct XcomBattlescape : sketch::Sketch {
     }
     sketch::kit::Provide bound(look);
     return box()
-        .left(n(12))
-        .top(n(18))
-        .width(n(296))
-        .height(n(12) + n(8) * (float)rows.size())
+        .rect(SkRect::MakeXYWH(n(12), n(18), n(296),
+                               n(12) + n(8) * (float)rows.size()))
         .fill(Fill::color(C(blk(2, 12))))
         .foreground(
             stroke(PX, Fill::color(C(blk(2, 3))), PathFormat::Align::Inner))
