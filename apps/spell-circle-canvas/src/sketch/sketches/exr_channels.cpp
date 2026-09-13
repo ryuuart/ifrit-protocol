@@ -66,7 +66,6 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace image = sigil::image;
 namespace material = sigil::material;
 
@@ -91,10 +90,6 @@ sketch::kit::Theme sheetTheme() {
   look.type.captionNote = {.size = 10.5f, .track = 0.2f};
   look.spacing.captionGap = 6;
   return look;
-}
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
 }
 
 /** THE FIXTURE, as floats. Three fields that have nothing to do with one
@@ -276,9 +271,10 @@ struct ExrChannels final : sketch::Sketch {
         .column()
         .gap(10)
         .padding(40)
-        .child(
-            text(toUtf8("no float source here"), label(20, sheet.palette.ink)))
-        .child(text(toUtf8(why), label(12, sheet.palette.ash))
+        .ink(sheet.palette.ink)
+        .child(text(toUtf8("no float source here")).font({.size = 20}))
+        .child(text(toUtf8(why))
+                   .font({.size = 12, .color = sheet.palette.ash})
                    .width(Dimension(620.0f)));
   }
 };
