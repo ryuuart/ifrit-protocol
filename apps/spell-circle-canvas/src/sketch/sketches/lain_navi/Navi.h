@@ -33,6 +33,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <tuple>

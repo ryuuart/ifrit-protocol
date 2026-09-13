@@ -26,6 +26,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <ranges>
 #include <string>
 #include <vector>
 

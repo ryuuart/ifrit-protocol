@@ -234,15 +234,15 @@ struct AstralTome : sketch::Sketch {
     // star1.png is a BLURRED point, and its falloff is most of what makes
     // a chart read as a sky rather than as a dot diagram: the halo carries
     // further and holds more of the light than the glyph does.
-    grp.children({box().inset(0).fill(
-        Paint::glowUnit({0.5f, 0.5f}, 0.62f,
-                        {{0.0f, mskia::scale(col, 1.0f, 0.60f)},
-                         {0.22f, mskia::scale(col, 1.0f, 0.30f)},
-                         {0.55f, mskia::scale(col, 1.0f, 0.09f)},
-                         {1.0f, mskia::scale(col, 1.0f, 0.0f)}}))});
     // the glyph
     grp.children(
-        {box()
+        {box().inset(0).fill(
+             Paint::glowUnit({0.5f, 0.5f}, 0.62f,
+                             {{0.0f, mskia::scale(col, 1.0f, 0.60f)},
+                              {0.22f, mskia::scale(col, 1.0f, 0.30f)},
+                              {0.55f, mskia::scale(col, 1.0f, 0.09f)},
+                              {1.0f, mskia::scale(col, 1.0f, 0.0f)}})),
+         box()
              .rect(SkRect::MakeXYWH((side - r) * 0.5f, (side - r) * 0.5f, r, r))
              .shape(shapes::star(4, 0.24f, 0.16f))
              .fill(Fill::color(mskia::scale(col, 1.15f, 0.74f)))});
@@ -305,12 +305,12 @@ struct AstralTome : sketch::Sketch {
                        .zIndex(20)
                        .fill(Fill::color({0.031f, 0.027f, 0.023f, 1.0f}))
                        .font({.face = mono});  // both lines are set in it
-    band.children({text("ASTRAL SORCERY · "
-                        "GuiJournalConstellationCluster, PAGE 1 OF 4")
-                       .font({.size = 13.0f, .track = 2.6f})
-                       .ink(SkColor4f{0.72f, 0.66f, 0.50f, 1.0f})});
     band.children(
-        {text("Four charts on one page at the mod's own numbers: a "
+        {text("ASTRAL SORCERY · "
+              "GuiJournalConstellationCluster, PAGE 1 OF 4")
+             .font({.size = 13.0f, .track = 2.6f})
+             .ink(SkColor4f{0.72f, 0.66f, 0.50f, 1.0f}),
+         text("Four charts on one page at the mod's own numbers: a "
               "95x95 SQUARE render box hung on an 80x110 hit cell, the "
               "offsetMap's zig-zag placing them, and every star's "
               "twinkle on its own divisor between 12 and 21.")
@@ -319,38 +319,33 @@ struct AstralTome : sketch::Sketch {
     return band;
   }
 
+  /** THE FOUR BOOKMARKS down the tome's outer edge. None is lettered: a
+   *  tab's label rides 15 GUI px into a tab that starts 2.75 px from the
+   *  right edge, so at 3x it is entirely off-canvas and the tab bleeds
+   *  rather than printing the name as a clipped fragment. */
   Element bookmarkRail() const {
-    static constexpr const char* kNames[4] = {"RESEARCH", "CONSTELLATIONS",
-                                              "PERKS", "KNOWLEDGE"};
-    Element rail = box().inset(0).key("bm").zIndex(12);
-    for (int i = 0; i < 4; ++i) {
-      const bool sel = i == 1;  // bookmarkIndex 20 = Constellations
-      const float w = 67.0f + (sel ? 0.0f : 5.0f);
-      const float y = 20.0f + 18.0f * (float)i;
-      rail.children(
-          {box()
-               .rect(SkRect::MakeXYWH(at::gx(at::kGuiW - 17.25f), at::gy(y),
-                                      at::g(w), at::g(15)))
-               .key(std::string("bmk") + std::to_string(i))
-               .shape(shapes::notched(
-                   at::g(9.0f), at::g(4.0f),
-                   shapes::Corner::TopRight | shapes::Corner::BottomRight))
-               .fill(Paint::linearUnit(
-                   {0, 0}, {1, 0},
-                   {{0.0f, sel ? at::kLeatherWarm : at::kLeatherMid},
-                    {0.6f, mskia::scale(at::kLeatherMid, 0.8f)},
-                    {1.0f, at::kLeatherDark}}))
-               .foreground(decorations::border(
-                   1.2f,
-                   Fill::color(
-                       mskia::scale(at::kGilt, 1.25f, sel ? 1.0f : 0.6f)),
-                   1.0f))});
-      (void)kNames;  // the label rides 15 GUI px into a tab that starts
-                     // 2.75 px from the tome's right edge: at 3x it is
-                     // entirely off-canvas, so the tab bleeds and the name
-                     // does not print as a clipped fragment.
-    }
-    return rail;
+    return box().inset(0).key("bm").zIndex(12).children(
+        {each(std::views::iota(0, 4), [](int i) -> Element {
+          const bool sel = i == 1;  // bookmarkIndex 20 = Constellations
+          return box()
+              .rect(SkRect::MakeXYWH(
+                  at::gx(at::kGuiW - 17.25f), at::gy(20.0f + 18.0f * (float)i),
+                  at::g(67.0f + (sel ? 0.0f : 5.0f)), at::g(15)))
+              .key("bmk" + std::to_string(i))
+              .shape(shapes::notched(
+                  at::g(9.0f), at::g(4.0f),
+                  shapes::Corner::TopRight | shapes::Corner::BottomRight))
+              .fill(Paint::linearUnit(
+                  {0, 0}, {1, 0},
+                  {{0.0f, sel ? at::kLeatherWarm : at::kLeatherMid},
+                   {0.6f, mskia::scale(at::kLeatherMid, 0.8f)},
+                   {1.0f, at::kLeatherDark}}))
+              .foreground(
+                  decorations::border(1.2f,
+                                      Fill::color(mskia::scale(
+                                          at::kGilt, 1.25f, sel ? 1.0f : 0.6f)),
+                                      1.0f));
+        })});
   }
 
   // --------------------------------------------------------------- setup
@@ -382,8 +377,7 @@ struct AstralTome : sketch::Sketch {
 
     // ---- the tree -------------------------------------------------------
     Element root = box().inset(0);
-    root.children({leather().zIndex(0)});
-    root.children({pagePlate().zIndex(1)});
+    root.children({leather().zIndex(0), pagePlate().zIndex(1)});
 
     // THE TWINKLE. Ten divisors is the whole of it (12 + rand.nextInt(10)),
     // so ten ch::Output<float> drive 31 stars and 62 connection passes — but
@@ -455,8 +449,7 @@ struct AstralTome : sketch::Sketch {
       links.children({std::move(chartLinks)});
       stars.children({std::move(chartStars)});
     }
-    root.children({std::move(links)});
-    root.children({std::move(stars)});
+    root.children({std::move(links), std::move(stars)});
 
     // The names. Cluster:252-253 centres on x = 40 of an 80-wide cell — 7.5
     // GUI px left of the 95-wide chart — and drops the baseline at y = 90,
@@ -471,10 +464,6 @@ struct AstralTome : sketch::Sketch {
                          .zIndex(6)});
     }
 
-    root.children({arrow(367, 125, false, false, "arrowNext").zIndex(10)});
-    root.children({arrow(197, 230, true, false, "arrowBack").zIndex(10)});
-    root.children({bookmarkRail()});
-
     // THE CAPTION BAND, outside the tome. Everything this study has to
     // say about the page — the 95-against-80 overhang, the offsetMap's
     // zig-zag, the twinkle's divisor ladder, the sprite's own three-band
@@ -484,7 +473,9 @@ struct AstralTome : sketch::Sketch {
     // rather than of the page. The measurements live in this file's
     // header now, and what stands under the artefact is one band naming
     // what the plate is.
-    root.children({captionBand()});
+    root.children({arrow(367, 125, false, false, "arrowNext").zIndex(10),
+                   arrow(197, 230, true, false, "arrowBack").zIndex(10),
+                   bookmarkRail(), captionBand()});
 
     ctx.composer.render(root);
   }
