@@ -1,21 +1,53 @@
 #include "SigillumAemeth.h"
 
-auto SigillumAemeth::waxGround() -> Element {
-  auto g = box().inset(0);
+namespace {
 
-  // the cake: rim, body, and the tool-marks of a warm knife
-  g.children({kit::disc(SkPoint{kRR, kRR}, kWaxEdge * 1.055f * kR)
-                  .shape(shapes::annulus(0.90f))
-                  .fill(Paint::radialUnit({0.5f, 0.5f}, 1.0f,
-                                          {{0.0f, hexColor(0x05070a, 0.0f)},
-                                           {0.905f, hexColor(0x05070a, 0.0f)},
-                                           {0.945f, hexColor(0x05070a, 0.62f)},
-                                           {1.0f, hexColor(0x05070a, 0.0f)}}))
-                  .translateX(5)
-                  .translateY(11)
-                  .key("waxshadow")});
-  g.children(
-      {kit::disc(SkPoint{kRR, kRR}, kWaxEdge * kR)
+/** ONE RUN SET ROUND A CIRCLE about @p centre at radius @p r, turned to
+ *  @p thDeg: the box the run is measured in is that circle's own square,
+ *  which is where `TextPath` strikes its normal from. */
+Element onCircle(Utf8 words, SkPoint centre, float r, float thDeg,
+                 TextPath::Orient orient) {
+  return text(std::move(words))
+      .rect(path::centred(centre, {2 * r, 2 * r}))
+      .onPath(TextPath{.path = shapes::circle(),
+                       .at = frac(thDeg),
+                       .align = TextPath::Align::Center,
+                       .offset = 0.0f,
+                       .autoFlip = false,
+                       .orient = orient});
+}
+
+/** ONE RUN SET ALONG SIDE @p k of the heptagon at radius @p r, centred on
+ *  that side — seven sides addressed as one continuous arc-length. */
+Element onSide(Utf8 words, int k, float r) {
+  return text(std::move(words))
+      .absolute()
+      .inset(0)
+      .onPath(TextPath{.path = heptChords(r, 0.0f),
+                       .at = ((float)k + 0.5f) / 7.0f,
+                       .align = TextPath::Align::Center,
+                       .offset = 0.0f,
+                       .autoFlip = false,
+                       .orient = TextPath::Orient::Tangent});
+}
+
+}  // namespace
+
+auto SigillumAemeth::waxGround() -> Element {
+  const SkPoint hub{kRR, kRR};
+  return box().inset(0).children(
+      {// the cake: rim, body, and the tool-marks of a warm knife
+       kit::disc(hub, kWaxEdge * 1.055f * kR)
+           .shape(shapes::annulus(0.90f))
+           .fill(Paint::radialUnit({0.5f, 0.5f}, 1.0f,
+                                   {{0.0f, hexColor(0x05070a, 0.0f)},
+                                    {0.905f, hexColor(0x05070a, 0.0f)},
+                                    {0.945f, hexColor(0x05070a, 0.62f)},
+                                    {1.0f, hexColor(0x05070a, 0.0f)}}))
+           .translateX(5)
+           .translateY(11)
+           .key("waxshadow"),
+       kit::disc(hub, kWaxEdge * kR)
            .shape(shapes::circle())
            .fill(Paint::blend({{Paint::radialUnit({0.42f, 0.36f}, 1.05f,
                                                   {{0.0f, kWaxPale},
@@ -32,56 +64,55 @@ auto SigillumAemeth::waxGround() -> Element {
                .strokeFill = grooveFill(kWaxEdge * kR, 9.0f, 0.55f, 0.42f),
                .align = PathFormat::Align::Inner})
            .cache(Cache::Texture)
-           .key("wax")});
-
-  // the burnish left by the shew-stone. A ball of quartz stood on the
-  // middle of this figure for its whole working life.
-  g.children({kit::disc(SkPoint{kRR, kRR}, 0.33f * kR)
-                  .shape(shapes::circle())
-                  .fill(Paint::radialUnit({0.42f, 0.38f}, 1.0f,
-                                          {{0.0f, hexColor(0xfff6dd, 0.34f)},
-                                           {0.55f, hexColor(0xffeec6, 0.14f)},
-                                           {1.0f, hexColor(0x000000, 0.0f)}}))
-                  .blend(SkBlendMode::kScreen)
-                  .key("shew")});
-  g.children({kit::disc(SkPoint{kRR, kRR}, 0.335f * kR)
-                  .shape(shapes::circle())
-                  .fill(Fill::none())
-                  .stroke(PathFormat{
-                      .width = 2.0f,
-                      .strokeFill = Fill::color(hexColor(0x7d5f2c, 0.20f))})
-                  .key("shewring")});
-  return g;
+           .key("wax"),
+       // the burnish left by the shew-stone. A ball of quartz stood on the
+       // middle of this figure for its whole working life.
+       kit::disc(hub, 0.33f * kR)
+           .shape(shapes::circle())
+           .fill(Paint::radialUnit({0.42f, 0.38f}, 1.0f,
+                                   {{0.0f, hexColor(0xfff6dd, 0.34f)},
+                                    {0.55f, hexColor(0xffeec6, 0.14f)},
+                                    {1.0f, hexColor(0x000000, 0.0f)}}))
+           .blend(SkBlendMode::kScreen)
+           .key("shew"),
+       kit::disc(hub, 0.335f * kR)
+           .shape(shapes::circle())
+           .fill(Fill::none())
+           .stroke(stroke(2.0f, Fill::color(hexColor(0x7d5f2c, 0.20f))))
+           .key("shewring")});
 }
 
 auto SigillumAemeth::circumferenceRules() -> Element {
-  auto g = box().inset(0);
-
-  // the greatest Circle and its hairline companion — heavy OUTSIDE,
-  // hair INSIDE. lines::Line cannot say this; lines::Rails can.
-  auto rule = [&](float rNorm, float heavy, float hair, float gap,
-                  const char* key, bool dotted) {
-    Element e = kit::disc(SkPoint{kRR, kRR}, rNorm * kR)
-                    .shape(wobbled(shapes::circle(), 1582))
-                    .fill(Fill::none())
-                    .key(key);
-    std::vector<lines::Rail> set;
-    set.push_back({.across = 0.0f,
-                   .width = heavy,
-                   .fill = grooveFill(rNorm * kR, heavy, 0.95f, 0.55f)});
-    lines::Rail inner{.across = -gap,
-                      .width = hair,
-                      .fill = Fill::color(hexColor(0x4a3418, 0.72f))};
-    if (dotted) inner.dash = {1.2f, 5.0f};
-    set.push_back(inner);
+  // the greatest Circle and its hairline companion — heavy OUTSIDE, hair
+  // INSIDE. lines::Line cannot say this; lines::Rails can.
+  const auto rule = [](float rNorm, float heavy, float hair, float gap,
+                       const char* key, bool dotted) {
+    std::vector<lines::Rail> set{
+        {.across = 0.0f,
+         .width = heavy,
+         .fill = grooveFill(rNorm * kR, heavy, 0.95f, 0.55f)},
+        {.across = -gap,
+         .width = hair,
+         .fill = Fill::color(hexColor(0x4a3418, 0.72f)),
+         .dash =
+             dotted ? std::vector<float>{1.2f, 5.0f} : std::vector<float>{}}};
     lines::Rails rails = lines::rails(std::move(set));
     rails.offsetStep = 7.0f;
-    e.stroke(std::move(rails));
-    e.mask(by::spans(
-        spans::upTo(animate(from(0.0f).to(1.0f), ramp(tPlate * 1000, 900)))));
-    return e;
+    return kit::disc(SkPoint{kRR, kRR}, rNorm * kR)
+        .shape(wobbled(shapes::circle(), 1582))
+        .fill(Fill::none())
+        .key(key)
+        .stroke(std::move(rails))
+        .mask(by::spans(spans::upTo(
+            animate(from(0.0f).to(1.0f), ramp(tPlate * 1000, 900)))));
   };
-  g.children(
+  // THE COMPASS PRICKS. Forty divisions are not measured, they are STEPPED
+  // round with dividers, and the point leaves a mark at every step. The inner
+  // circle's contour starts due east, which is a cell CENTRE, so an Interval
+  // scatter with no phase lands its first stamp half a cell along — exactly on
+  // the boundary — and every one after.
+  const float step = 2.0f * SK_FloatPI * rBandIn * kR / 40.0f;
+  return box().inset(0).children(
       {kit::disc(SkPoint{kRR, kRR}, rGreat * kR)
            .shape(shapes::annulus(rBandIn / rGreat))
            .fill(Fill::none())
@@ -92,110 +123,86 @@ auto SigillumAemeth::circumferenceRules() -> Element {
                .width = 0.8f,
                .holeFraction = rBandIn / rGreat})
            .opacity(animate(from(0.0f).to(1.0f), ramp(tCells * 1000, 700)))
-           .key("bandhatch")});
-  g.children({rule(rGreat, 5.6f, 1.2f, 11.0f, "great", false)});
-  g.children({rule(rBandIn, 3.4f, 0.9f, -8.0f, "second", true)});
-
-  // The compass pricks. Forty divisions are not measured, they are
-  // STEPPED round with dividers, and the point leaves a mark at every
-  // step. The inner circle's contour starts due east, which is a cell
-  // CENTRE, so an Interval scatter with no phase lands its first stamp
-  // half a cell along — exactly on the boundary — and every one after.
-  const float step = 2.0f * SK_FloatPI * rBandIn * kR / 40.0f;
-  g.children({kit::disc(SkPoint{kRR, kRR}, rBandIn * kR)
-                  .shape(shapes::circle())
-                  .fill(Fill::none())
-                  .stroke(brush::Scatter{
-                      .art = box()
-                                 .width(5)
-                                 .height(5)
-                                 .shape(shapes::polygon(4))
-                                 .fill(Fill::color(hexColor(0x2c1c06, 0.85f))),
-                      .spacing = step,
-                      .alignToPath = true,
-                      .bleedPx = 8.0f})
-                  .key("pricks")});
-  return g;
+           .key("bandhatch"),
+       rule(rGreat, 5.6f, 1.2f, 11.0f, "great", false),
+       rule(rBandIn, 3.4f, 0.9f, -8.0f, "second", true),
+       kit::disc(SkPoint{kRR, kRR}, rBandIn * kR)
+           .shape(shapes::circle())
+           .fill(Fill::none())
+           .stroke(brush::Scatter{
+               .art = box()
+                          .width(5)
+                          .height(5)
+                          .shape(shapes::polygon(4))
+                          .fill(Fill::color(hexColor(0x2c1c06, 0.85f))),
+               .spacing = step,
+               .alignToPath = true,
+               .bleedPx = 8.0f})
+           .key("pricks")});
 }
 
 auto SigillumAemeth::circumferenceCells() -> Element {
-  auto g = box().inset(0).transformOrigin(0.5f, 0.5f);
-
-  // the 40 radial dividers: INTERRUPTED rules that stop short of both
-  // circles. One node, forty contours, one trim window on the stroke.
-  g.children(
-      {box()
-           .inset(0)
-           .shape(keyedShape(std::string_view("band-dividers"),
-                             [] {
-                               SkPathBuilder b;
-                               for (int i = 0; i < 40; ++i) {
-                                 const float th = (float)i * 9.0f - 4.5f;
-                                 b.moveTo(P(th, rBandIn));
-                                 b.lineTo(P(th, rGreat));
-                               }
-                               return b.detach();
-                             }))
-           .fill(Fill::none())
-           .stroke(
-               PathFormat{.width = 1.9f,
-                          .strokeFill = Fill::color(hexColor(0x2c1c06, 1.0f)),
-                          .cap = SkPaint::kRound_Cap,
-                          .trimStart = 0.09f,
-                          .trimEnd = 0.91f})
-           .opacity(animate(from(0.0f).to(1.0f), ramp(tCells * 1000, 620)))
-           .key("dividers")});
-
-  // the letters, upright-radial, and their numbers above or below: the
+  // WHAT THE 40 DIVISIONS ACTUALLY ARE: the cells, and only the cells. The
+  // letters stand upright-radial and their numbers above or below — the
   // ring's face, the letter's size and its ink are the cells' own, and a
-  // number is set smaller and browner
-  g.font({.face = faceRing, .size = 0.060f * kR}).ink(hexColor(0x241603, 1.0f));
+  // number is set smaller and browner.
+  std::vector<Element> cells;
   for (int i = 0; i < 40; ++i) {
     const Cell& c = kRing[(size_t)i];
     const float th = (float)i * 9.0f;
-    const float f = frac(th);
-    const bool dim = !visited[(size_t)i];
-    auto cellLetter = text(c.glyph)
-                          .width(2 * rCellLet * kR)
-                          .height(2 * rCellLet * kR)
-                          .centerAt({kRR, kRR})
-                          .key("cl" + std::to_string(i))
-                          .onPath(TextPath{.path = shapes::circle(),
-                                           .at = f,
-                                           .align = TextPath::Align::Center,
-                                           .offset = 0.0f,
-                                           .autoFlip = false,
-                                           .orient = TextPath::Orient::Radial});
-    if (dim)
-      cellLetter.opacity(
+    Element letter = onCircle(c.glyph, {kRR, kRR}, rCellLet * kR, th,
+                              TextPath::Orient::Radial)
+                         .key("cl" + std::to_string(i));
+    if (!visited[(size_t)i])  // never reached by the walk: it dims
+      letter.opacity(
           animate(to(0.30f), ramp(tDark * 1000 + (float)i * 9, 700)));
-    g.children({std::move(cellLetter)});
-    if (c.number > 0) {
-      const float rr = c.step > 0 ? rNumOut : rNumIn;
-      g.children(
-          {text(std::to_string(c.number))
-               .font({.size = 0.031f * kR, .color = hexColor(0x4a3210, 1.0f)})
-               .width(2 * rr * kR)
-               .height(2 * rr * kR)
-               .centerAt({kRR, kRR})
-               .key("cn" + std::to_string(i))
-               .onPath(TextPath{.path = shapes::circle(),
-                                .at = f,
-                                .align = TextPath::Align::Center,
-                                .offset = 0.0f,
-                                .autoFlip = false,
-                                .orient = TextPath::Orient::Radial})});
-    }
+    cells.push_back(std::move(letter));
+    if (c.number > 0)
+      cells.push_back(onCircle(std::to_string(c.number), {kRR, kRR},
+                               (c.step > 0 ? rNumOut : rNumIn) * kR, th,
+                               TextPath::Orient::Radial)
+                          .styleClass("cellNumber")
+                          .key("cn" + std::to_string(i)));
   }
-  return g;
+  // the 40 radial dividers: INTERRUPTED rules that stop short of both
+  // circles. One node, forty contours, one trim window on the stroke.
+  return box()
+      .inset(0)
+      .transformOrigin(0.5f, 0.5f)
+      .font({.face = faceRing, .size = 0.060f * kR})
+      .ink(hexColor(0x241603, 1.0f))
+      .styleSheet(weaveNs::StyleSheet{
+          {"cellNumber", weaveNs::Type{.size = 0.031f * kR,
+                                       .color = hexColor(0x4a3210, 1.0f)}}})
+      .children(
+          {box()
+               .inset(0)
+               .shape(keyedShape(std::string_view("band-dividers"),
+                                 [] {
+                                   SkPathBuilder b;
+                                   for (int i = 0; i < 40; ++i) {
+                                     const float th = (float)i * 9.0f - 4.5f;
+                                     b.moveTo(P(th, rBandIn));
+                                     b.lineTo(P(th, rGreat));
+                                   }
+                                   return b.detach();
+                                 }))
+               .fill(Fill::none())
+               .stroke(PathFormat{
+                   .width = 1.9f,
+                   .strokeFill = Fill::color(hexColor(0x2c1c06, 1.0f)),
+                   .cap = SkPaint::kRound_Cap,
+                   .trimStart = 0.09f,
+                   .trimEnd = 0.91f})
+               .opacity(animate(from(0.0f).to(1.0f), ramp(tCells * 1000, 620)))
+               .key("dividers"),
+           cells});
 }
 
 auto SigillumAemeth::angles() -> Element {
-  auto g = box().inset(0).transformOrigin(0.5f, 0.5f);
-
-  // the seven "segments of circles" — annular plates, radially hatched,
-  // with brush::Pattern corner tiles: "at each corner of these
-  // segments of circles, to make little Crosses."
+  // THE SEVEN "SEGMENTS OF CIRCLES" — annular plates, radially hatched, with
+  // brush::Pattern corner tiles: "at each corner of these segments of
+  // circles, to make little Crosses."
   //
   // A CROSS TURNED 45 DEGREES IS AN X, so `cornerAlign` is stated here and
   // not left to the default. The art below is a Greek cross drawn with its
@@ -207,7 +214,7 @@ auto SigillumAemeth::angles() -> Element {
   // the same 90-fold symmetry that makes Outgoing corner-agnostic makes
   // Bisector uniformly wrong here: not a tilt to notice, a saltire. Any art
   // whose own axes carry meaning has to name the frame it was drawn in.
-  Element crossTile =
+  const Element crossTile =
       box()
           .width(13)
           .height(13)
@@ -232,149 +239,132 @@ auto SigillumAemeth::angles() -> Element {
                               return b.detach();
                             }))
           .fill(Fill::color(hexColor(0x402c10, 0.92f)));
-  Element sideTile = box().width(20).height(3).fill(Fill::none());
-
-  auto plates = box().inset(0).cache(Cache::Texture);
-  for (int k = 0; k < 7; ++k) {
-    const float mid = ((float)k + 0.5f) * 360.0f / 7.0f;
+  // ONE PLATE, as the sector the record cuts it as; the bare form is the
+  // outline every reading of it shares
+  const auto plate = [](int k) {
     const float half = 360.0f / 7.0f * 0.5f - 1.1f;
-    plates.children(
-        {kit::disc(SkPoint{kRR, kRR}, 0.868f * kR)
-             .shape(
-                 shapes::sector(skAngle(mid - half), 2 * half, 0.720f / 0.868f))
-             .fill(Fill::color(hexColor(0xd9bd88, 0.30f)))
-             .foreground(lines::RadialHatch{
-                 .strokeFill = Fill::color(hexColor(0x6d5228, 0.13f)),
-                 .spokes = 96,
-                 .rings = 0,
-                 .width = 0.9f,
-                 .holeFraction = 0.70f})
-             .stroke(Brush{}
-                         .layer(PathFormat{.width = 1.5f,
-                                           .strokeFill = Fill::color(
-                                               hexColor(0x4a3418, 0.55f))})
-                         .layer(brush::Pattern{
-                             .side = sideTile,
-                             .corner =
-                                 brush::CornerArt{crossTile,
-                                                  brush::CornerAlign::Outgoing},
-                             .advance = 22.0f,
-                             .cornerAngleDeg = 40.0f,
-                             .bleedPx = 16.0f}))
-             .key("plate" + std::to_string(k))});
-  }
-  g.children({std::move(plates)});
-
-  // the 49 letters: ONE text run per row on a SEVEN-CONTOUR chord path,
-  // addressed by (k + 0.5)/7 of one continuous arc-length coordinate.
-  g.font({.face = faceSeal, .size = 0.049f * kR, .track = 0.034f * kR})
-      .ink(hexColor(0x201404, 1.0f));
-  for (int k = 0; k < 7; ++k) {
-    std::string row;
-    for (int c = 0; c < 7; ++c) row += kAngles[k][c];
-    // The entrance is a plain ramp that FINISHES, and it has to be: a
-    // keyframe path that is still running counts as live volatility even
-    // while its value is constant, so a long hold on one of these seven
-    // text-on-path nodes would keep all of them, and their parents,
-    // painting live and out of any texture for the whole hold. The birds'
-    // later arrival is therefore marked by a separate cheap rule on each
-    // plate rather than by holding this run's opacity.
-    g.children({text(row)
-                    .inset(0)
-                    .key("ang" + std::to_string(k))
-                    .onPath(TextPath{.path = heptChords(rAngleHept, 0.0f),
-                                     .at = ((float)k + 0.5f) / 7.0f,
-                                     .align = TextPath::Align::Center,
-                                     .offset = 0.0f,
-                                     .autoFlip = false,
-                                     .orient = TextPath::Orient::Tangent})});
-    // the bird lands: its angle-plate takes a rule it did not have before
-    const float mid2 = ((float)k + 0.5f) * 360.0f / 7.0f;
-    const float half2 = 360.0f / 7.0f * 0.5f - 1.1f;
-    g.children({kit::disc(SkPoint{kRR, kRR}, 0.868f * kR)
-                    .shape(shapes::sector(skAngle(mid2 - half2), 2 * half2,
-                                          0.720f / 0.868f))
-                    .fill(Fill::none())
-                    .stroke(PathFormat{
-                        .width = 2.2f,
-                        .strokeFill = Fill::color(hexColor(0x402c10, 0.85f)),
-                        .align = PathFormat::Align::Inner})
-                    .opacity(animate(from(0.0f).to(1.0f),
-                                     ramp(tBirds * 1000 + (float)k * 260, 420)))
-                    .key("birdlit" + std::to_string(k))});
-  }
-  return g;
+    return kit::disc(SkPoint{kRR, kRR}, 0.868f * kR)
+        .shape(shapes::sector(skAngle(((float)k + 0.5f) * 360.0f / 7.0f - half),
+                              2 * half, 0.720f / 0.868f));
+  };
+  return box()
+      .inset(0)
+      .transformOrigin(0.5f, 0.5f)
+      .font({.face = faceSeal, .size = 0.049f * kR, .track = 0.034f * kR})
+      .ink(hexColor(0x201404, 1.0f))
+      .children(
+          {box()
+               .inset(0)
+               .cache(Cache::Texture)
+               .children(each(
+                   std::views::iota(0, 7),
+                   [&plate, crossTile](int k) {
+                     return plate(k)
+                         .fill(Fill::color(hexColor(0xd9bd88, 0.30f)))
+                         .foreground(lines::RadialHatch{
+                             .strokeFill =
+                                 Fill::color(hexColor(0x6d5228, 0.13f)),
+                             .spokes = 96,
+                             .rings = 0,
+                             .width = 0.9f,
+                             .holeFraction = 0.70f})
+                         .stroke(Brush{}
+                                     .layer(stroke(1.5f, Fill::color(hexColor(
+                                                             0x4a3418, 0.55f))))
+                                     .layer(brush::Pattern{
+                                         .side = box().width(20).height(3).fill(
+                                             Fill::none()),
+                                         .corner =
+                                             brush::CornerArt{
+                                                 crossTile,
+                                                 brush::CornerAlign::Outgoing},
+                                         .advance = 22.0f,
+                                         .cornerAngleDeg = 40.0f,
+                                         .bleedPx = 16.0f}))
+                         .key("plate" + std::to_string(k));
+                   })),
+           // THE 49 LETTERS: ONE text run per row on a SEVEN-CONTOUR chord
+           // path. The entrance is a plain ramp that FINISHES, and it has to
+           // be: a keyframe path that is still running counts as live
+           // volatility even while its value is constant, so a long hold on
+           // one of these seven text-on-path nodes would keep all of them, and
+           // their parents, painting live and out of any texture for the whole
+           // hold. The birds' later arrival is therefore marked by a separate
+           // cheap rule on each plate rather than by holding this run's
+           // opacity.
+           each(std::views::iota(0, 7),
+                [](int k) {
+                  std::string row;
+                  for (int c = 0; c < 7; ++c) row += kAngles[k][c];
+                  return onSide(row, k, rAngleHept)
+                      .key("ang" + std::to_string(k));
+                }),
+           // the bird lands: its angle-plate takes a rule it did not have
+           each(std::views::iota(0, 7), [&plate](int k) {
+             return plate(k)
+                 .fill(Fill::none())
+                 .stroke(stroke(2.2f, Fill::color(hexColor(0x402c10, 0.85f)),
+                                PathFormat::Align::Inner))
+                 .opacity(animate(from(0.0f).to(1.0f),
+                                  ramp(tBirds * 1000 + (float)k * 260, 420)))
+                 .key("birdlit" + std::to_string(k));
+           })});
 }
 
 auto SigillumAemeth::heptagonNames() -> Element {
-  auto g = box().inset(0).transformOrigin(0.5f, 0.5f);
-
-  g.children(
-      {box()
-           .inset(0)
-           .shape(wobbled(heptChords(rHept, 0.0f), 30, 30.0f, 0.45f))
-           .fill(Fill::none())
-           .stroke(Brush{}
-                       .layer(brush::presets::calligraphic(
-                           34.0f, 6.8f, Fill::color(hexColor(0x291a05, 0.95f)),
-                           0.22f))
-                       .layer(PathFormat{
-                           .width = 0.9f,
-                           .strokeFill = Fill::color(hexColor(0xf7e9c4, 0.35f)),
-                           .trimStart = 0.0f,
-                           .trimEnd = 1.0f}))
-           .key("heptrule")});
-
-  // the second, inner heptagon rule — the Names sit between the two
-  g.children({box()
-                  .inset(0)
-                  .shape(heptChords(rNameHept - 0.043f, 0.0f))
-                  .fill(Fill::none())
-                  .stroke(lines::rails(
-                      {{.across = 0.0f,
-                        .width = 2.2f,
-                        .fill = Fill::color(hexColor(0x4a3418, 0.72f))},
-                       {.across = -5.0f,
-                        .width = 0.8f,
-                        .fill = Fill::color(hexColor(0x4a3418, 0.45f)),
-                        .dash = {1.4f, 4.6f}}}))
-                  .key("heptrule2")});
-
-  // the quill's face, size, tracking and ink are the band's; the gloss
-  // inside it is the italic, untracked
-  g.font({.face = faceQuill, .size = 0.048f * kR, .track = 0.026f * kR})
-      .ink(hexColor(0x201404, 1.0f));
-  for (int k = 0; k < 7; ++k) {
-    std::string row;
-    for (auto gl : kGodNames[(size_t)k].glyphs) {
-      row += (gl[0] == '*') ? "ɛ" : gl;  // the 21/8 ligature stands in
-    }
-    g.children({text(row)
-                    .inset(0)
-                    .key("god" + std::to_string(k))
-                    .onPath(TextPath{.path = heptChords(rNameHept, 0.0f),
-                                     .at = ((float)k + 0.5f) / 7.0f,
-                                     .align = TextPath::Align::Center,
-                                     .offset = 0.0f,
-                                     .autoFlip = false,
-                                     .orient = TextPath::Orient::Tangent})});
-    // the Latin marginal reading, inside the heptagon, smaller
-    g.children(
-        {text(kGodNames[(size_t)k].gloss)
-             .font({.face = faceItalic,
-                    .size = 0.022f * kR,
-                    .color = hexColor(0x53380f, 0.88f),
-                    .track = 0.0f})
-             .inset(0)
-             .key("gloss" + std::to_string(k))
-             .onPath(TextPath{.path = heptChords(rNameHept - 0.056f, 0.0f),
-                              .at = ((float)k + 0.5f) / 7.0f,
-                              .align = TextPath::Align::Center,
-                              .offset = 0.0f,
-                              .autoFlip = false,
-                              .orient = TextPath::Orient::Tangent})});
-  }
-  return g;
+  // THE HEPTAGON and the seven Names of God, written along its sides with a
+  // quill — the seven sides come out at seven weights from one nib. The
+  // quill's face, size, tracking and ink are the band's; the Latin gloss
+  // inside it is the italic, untracked.
+  return box()
+      .inset(0)
+      .transformOrigin(0.5f, 0.5f)
+      .font({.face = faceQuill, .size = 0.048f * kR, .track = 0.026f * kR})
+      .ink(hexColor(0x201404, 1.0f))
+      .styleSheet(weaveNs::StyleSheet{
+          {"gloss", weaveNs::Type{.face = faceItalic,
+                                  .size = 0.022f * kR,
+                                  .color = hexColor(0x53380f, 0.88f),
+                                  .track = 0.0f}}})
+      .children(
+          {box()
+               .inset(0)
+               .shape(wobbled(heptChords(rHept, 0.0f), 30, 30.0f, 0.45f))
+               .fill(Fill::none())
+               .stroke(Brush{}
+                           .layer(brush::presets::calligraphic(
+                               34.0f, 6.8f,
+                               Fill::color(hexColor(0x291a05, 0.95f)), 0.22f))
+                           .layer(stroke(
+                               0.9f, Fill::color(hexColor(0xf7e9c4, 0.35f)))))
+               .key("heptrule"),
+           // the second, inner heptagon rule — the Names sit between the two
+           box()
+               .inset(0)
+               .shape(heptChords(rNameHept - 0.043f, 0.0f))
+               .fill(Fill::none())
+               .stroke(lines::rails(
+                   {{.across = 0.0f,
+                     .width = 2.2f,
+                     .fill = Fill::color(hexColor(0x4a3418, 0.72f))},
+                    {.across = -5.0f,
+                     .width = 0.8f,
+                     .fill = Fill::color(hexColor(0x4a3418, 0.45f)),
+                     .dash = {1.4f, 4.6f}}}))
+               .key("heptrule2"),
+           each(std::views::iota(0, 7),
+                [](int k) {
+                  std::string row;
+                  for (auto gl : kGodNames[(size_t)k].glyphs)
+                    row += (gl[0] == '*') ? "ɛ" : gl;  // the 21/8 ligature
+                  return onSide(row, k, rNameHept)
+                      .key("god" + std::to_string(k));
+                }),
+           each(std::views::iota(0, 7), [](int k) {
+             return onSide(kGodNames[(size_t)k].gloss, k, rNameHept - 0.056f)
+                 .styleClass("gloss")
+                 .key("gloss" + std::to_string(k));
+           })});
 }
 
 auto SigillumAemeth::heptagram() -> Element {
@@ -445,11 +435,12 @@ auto SigillumAemeth::heptagram() -> Element {
 }
 
 auto SigillumAemeth::innerRings() -> Element {
-  auto g = box().inset(0);
-
-  // the deepest recesses — crosshatched wax between the star's limbs
-  g.children(
-      {box()
+  // Concentric circles and a crosshatched annular recess: invariant under
+  // rotation about their own centre, so they stay OUT of the turning layer,
+  // where they would be resampled every frame and look identical.
+  return box().inset(0).children(
+      {// the deepest recesses — crosshatched wax between the star's limbs
+       box()
            .inset(0)
            .shape(keyedShape(std::string_view("heptagram"),
                              [] {
@@ -473,257 +464,210 @@ auto SigillumAemeth::innerRings() -> Element {
            .fill(Fill::color(hexColor(0x7d5f2c, 0.10f)))
            .foreground(lines::presets::crosshatch(
                Fill::color(hexColor(0x5a4218, 0.16f)), 8.0f, 0.8f, 22.0f))
-           .key("recess")});
-
-  // the concentric rules that cut the points into cells
-  for (int i = 0; i < 5; ++i) {
-    const float rr = kCellRings[i];
-    g.children(
-        {kit::disc(SkPoint{kRR, kRR}, rr * kR)
+           .key("recess"),
+       // the concentric rules that cut the points into cells
+       each(std::views::iota(0, 5), [](int i) {
+         const float rr = kCellRings[i];
+         const float width = i == 4 ? 2.4f : 1.5f;
+         return kit::disc(SkPoint{kRR, kRR}, rr * kR)
              .shape(wobbled(shapes::circle(), (uint32_t)(7 + i), 22.0f, 0.30f))
              .fill(Fill::none())
-             .stroke(
-                 spans::upTo(
-                     animate(from(0.0f).to(1.0f),
-                             ramp(tInner * 1000 + 200 + (float)i * 90, 620))),
-                 PathFormat{.width = i == 4 ? 2.4f : 1.5f,
-                            .strokeFill = grooveFill(
-                                rr * kR, i == 4 ? 2.4f : 1.5f, 0.50f, 0.34f)})
-             .key("ring" + std::to_string(i))});
-  }
-  return g;
+             .stroke(spans::upTo(animate(
+                         from(0.0f).to(1.0f),
+                         ramp(tInner * 1000 + 200 + (float)i * 90, 620))),
+                     PathFormat{.width = width,
+                                .strokeFill =
+                                    grooveFill(rr * kR, width, 0.50f, 0.34f)})
+             .key("ring" + std::to_string(i));
+       })});
 }
 
 auto SigillumAemeth::inner() -> Element {
-  // every letter inside the heptagram is the seal's face in one ink;
-  // only the size differs between an order's ring and ZABATHIEL's
-  auto g =
-      box().inset(0).font({.face = faceSeal}).ink(hexColor(0x201404, 1.0f));
-
-  // The four orders, each with the tablet the record gives it: an
-  // arc-segment worn in the forehead, a round gold plate on the breast,
-  // a four-square white ivory, a three-cornered green. Four silhouettes,
-  // cut in the same wax as everything else — not four tinted rectangles.
+  // THE FOUR ORDERS OF THE CHILDREN OF LIGHT, each with the tablet the record
+  // gives it: an arc-segment worn in the forehead, a round gold plate on the
+  // breast, a four-square white ivory, a three-cornered green. Four
+  // silhouettes, cut in the same wax as everything else — not four tinted
+  // rectangles. Every letter inside the heptagram is the seal's face in one
+  // ink; only the size differs between an order's ring and ZABATHIEL's.
   struct Order {
     const char* const* names;
     float radius;
-    int shape;  // 0 arc-segment, 1 disc, 2 four-square, 3 three-cornered
-    SkColor4f rule;
+    std::optional<Shape> tablet;  // unset is the box's own four-square
     float size;
   };
   const Order orders[4] = {
-      {kFiliaeLucis, rFiliaeLucis, 0, hexColor(0x2c1c06, 0.95f), 0.027f},
-      {kFiliiLucis, rFiliiLucis, 1, hexColor(0x2c1c06, 0.95f), 0.025f},
-      {kFiliaeFil, rFiliaeFil, 2, hexColor(0x2c1c06, 0.95f), 0.024f},
-      {kFiliiFil, rFiliiFil, 3, hexColor(0x2c1c06, 0.95f), 0.023f}};
+      {kFiliaeLucis, rFiliaeLucis, std::nullopt, 0.027f},
+      {kFiliiLucis, rFiliiLucis, shapes::circle(), 0.025f},
+      {kFiliaeFil, rFiliaeFil, std::nullopt, 0.024f},
+      {kFiliiFil, rFiliiFil, shapes::polygon(3, 180.0f), 0.023f}};
   const SkColor4f kTabletFace[4] = {
       hexColor(0xe4cd9e, 0.62f), hexColor(0xecd7a8, 0.66f),
       hexColor(0xe8d2a2, 0.60f), hexColor(0xdfc793, 0.58f)};
-
+  const SkColor4f kTabletRule = hexColor(0x2c1c06, 0.95f);
+  std::vector<Element> marks;
   for (int o = 0; o < 4; ++o) {
     const Order& ord = orders[o];
     for (int k = 0; k < 7; ++k) {
       const float th = (float)k * 360.0f / 7.0f;
       const float em = 0.034f * kR;            // the tablet itself
       const float rTab = ord.radius - 0.032f;  // it sits below the name
-      const SkPoint at = P(th, rTab);
-      Element tablet =
-          box()
-              .width(em)
-              .height(em)
-              .centerAt(at)
-              .fill(Fill::color(kTabletFace[o]))
-              .foreground(
-                  lines::presets::hatch(Fill::color(hexColor(0x4a3418, 0.30f)),
-                                        3.6f, 0.7f, 20.0f + (float)o * 40.0f))
-              .stroke(PathFormat{.width = 1.7f,
-                                 .strokeFill = Fill::color(ord.rule)})
-              .rotate(th)
-              .key("tab" + std::to_string(o * 7 + k));
-      if (ord.shape == 1)
-        tablet.shape(shapes::circle());
-      else if (ord.shape == 3)
-        tablet.shape(shapes::polygon(3, 180.0f));
-      else if (ord.shape == 0)
-        tablet.shape(shapes::sector(skAngle(th - 5.2f), 10.4f, 0.905f))
-            .width(2 * rTab * 1.05f * kR)
-            .height(2 * rTab * 1.05f * kR)
-            .centerAt({kRR, kRR})
-            .rotate(0.0f);
-      g.children({std::move(tablet)});
-
+      Element tablet = box()
+                           .foreground(lines::presets::hatch(
+                               Fill::color(hexColor(0x4a3418, 0.30f)), 3.6f,
+                               0.7f, 20.0f + (float)o * 40.0f))
+                           .fill(Fill::color(kTabletFace[o]))
+                           .stroke(stroke(1.7f, Fill::color(kTabletRule)))
+                           .key("tab" + std::to_string(o * 7 + k));
+      // the forehead's arc-segment is a SECTOR of the ring it is worn on, so
+      // it takes the ring's own box; the other three are their own small box,
+      // turned to the ray they stand on
+      if (o == 0)
+        tablet
+            .rect(path::centred({kRR, kRR},
+                                {2 * rTab * 1.05f * kR, 2 * rTab * 1.05f * kR}))
+            .shape(shapes::sector(skAngle(th - 5.2f), 10.4f, 0.905f));
+      else {
+        tablet.rect(path::centred(P(th, rTab), {em, em})).rotate(th);
+        if (ord.tablet) tablet.shape(*ord.tablet);
+      }
+      marks.push_back(std::move(tablet));
       const std::string nm = ord.names[k];
-      g.children({text(nm == "*" ? "Eɛ" : nm)
-                      .font({.size = ord.size * kR})
-                      .width(2 * ord.radius * kR)
-                      .height(2 * ord.radius * kR)
-                      .centerAt({kRR, kRR})
-                      .key("chl" + std::to_string(o * 7 + k))
-                      .onPath(TextPath{.path = shapes::circle(),
-                                       .at = frac(th),
-                                       .align = TextPath::Align::Center,
-                                       .offset = 0.0f,
-                                       .autoFlip = false,
-                                       .orient = TextPath::Orient::Radial})});
+      marks.push_back(onCircle(nm == "*" ? "Eɛ" : nm, {kRR, kRR},
+                               ord.radius * kR, th, TextPath::Orient::Radial)
+                          .font({.size = ord.size * kR})
+                          .key("chl" + std::to_string(o * 7 + k)));
     }
   }
-
-  // ZABATHIEL — "this name must be distributed in his letters into 7 sides
-  // of that innermost Heptagonum. So have you just 7 places."
-  g.children({box()
-                  .inset(0)
-                  .shape(heptChords(rInnerHept, 0.0f))
-                  .fill(Fill::none())
-                  .stroke(lines::rails(
-                      {{.across = 0.0f,
-                        .width = 2.2f,
-                        .fill = Fill::color(hexColor(0x3f2c12, 0.88f))},
-                       {.across = 4.0f,
-                        .width = 0.7f,
-                        .fill = Fill::color(hexColor(0xfbf0d0, 0.40f))}}))
-                  .key("zabhept")});
-  for (int k = 0; k < 7; ++k) {
-    const std::string s = kZabathiel[k];
-    g.children(
-        {text(s == "I*" ? "Iɛ" : s)
-             .font({.size = 0.030f * kR})
-             .inset(0)
-             .key("zab" + std::to_string(k))
-             .onPath(TextPath{.path = heptChords(rInnerHept - 0.028f, 0.0f),
-                              .at = ((float)k + 0.5f) / 7.0f,
-                              .align = TextPath::Align::Center,
-                              .offset = 0.0f,
-                              .autoFlip = false,
-                              .orient = TextPath::Orient::Tangent})});
-  }
-  return g;
+  // ZABATHIEL — "this name must be distributed in his letters into 7 sides of
+  // that innermost Heptagonum. So have you just 7 places."
+  return box()
+      .inset(0)
+      .font({.face = faceSeal})
+      .ink(hexColor(0x201404, 1.0f))
+      .children({marks,
+                 box()
+                     .inset(0)
+                     .shape(heptChords(rInnerHept, 0.0f))
+                     .fill(Fill::none())
+                     .stroke(lines::rails(
+                         {{.across = 0.0f,
+                           .width = 2.2f,
+                           .fill = Fill::color(hexColor(0x3f2c12, 0.88f))},
+                          {.across = 4.0f,
+                           .width = 0.7f,
+                           .fill = Fill::color(hexColor(0xfbf0d0, 0.40f))}}))
+                     .key("zabhept"),
+                 each(std::views::iota(0, 7), [](int k) {
+                   const std::string s = kZabathiel[k];
+                   return onSide(s == "I*" ? "Iɛ" : s, k, rInnerHept - 0.028f)
+                       .font({.size = 0.030f * kR})
+                       .key("zab" + std::to_string(k));
+                 })});
 }
 
 auto SigillumAemeth::pentagram() -> Element {
-  // the initials' seal face, size and ink; a name's tail is the quill
-  auto g = box()
-               .rect(SkRect::MakeXYWH(kRR - kHp, kRR - kHp, 2 * kHp, 2 * kHp))
-               .transformOrigin(0.5f, 0.5f)
-               .font({.face = faceSeal, .size = 0.052f * kR})
-               .ink(hexColor(0x241704, 1.0f));
   // "Set Z, of Zedekieil within the angle which standeth up toward the
-  // begynning of the greatest Circle" — point-up, aligned on division 1.
-  g.children(
-      {kit::disc(SkPoint{kHp, kHp}, rPenta * kR)
-           .shape(wobbled(shapes::star(5, 0.382f), 5, 16.0f, 0.30f))
-           .fill(Fill::color(hexColor(0xe6cf9e, 0.18f)))
-           .stroke(
-               lines::rails({{.across = 0.0f,
-                              .width = 3.0f,
-                              .fill = Fill::color(hexColor(0x3f2c12, 0.92f))},
-                             {.across = 3.2f,
-                              .width = 0.8f,
-                              .fill = Fill::color(hexColor(0xfbf0d0, 0.45f))}}))
-           // THE MARKS, and not the wash under them: the reveal runs on
-           // the rails only, and the 18%-alpha ground is simply there
-           // from the start. Sweeping a wash that faint across its own
-           // background is a change too small to read as an entrance.
-           .mask(parts::marks(),
-                 by::spans(spans::upTo(animate(
-                     from(0.0f).to(1.0f), ramp(tInner * 1000 + 500, 800)))))
-           .key("penta")});
-  for (int k = 0; k < 5; ++k) {
-    const float th = (float)k * 72.0f;
-    g.children({text(kPentaNames[(size_t)k].initial)
-                    .width(2 * rPentaInit * kR)
-                    .height(2 * rPentaInit * kR)
-                    .centerAt({kHp, kHp})
-                    .key("pi" + std::to_string(k))
-                    .onPath(TextPath{.path = shapes::circle(),
-                                     .at = frac(th),
-                                     .align = TextPath::Align::Center,
-                                     .offset = 0.0f,
-                                     .autoFlip = false,
-                                     .orient = TextPath::Orient::Radial})
-                    .opacity(animate(
-                        from(0.0f).to(1.0f),
-                        ramp(tInner * 1000 + 900 + (float)k * 40, 420)))});
-    // the rest of the name runs circularly outward into the exterior angle
-    g.children({text(kPentaNames[(size_t)k].tail)
-                    .font({.face = faceQuill,
-                           .size = 0.024f * kR,
-                           .color = hexColor(0x40300f, 0.92f)})
-                    .width(2 * rPentaTail * kR)
-                    .height(2 * rPentaTail * kR)
-                    .centerAt({kHp, kHp})
-                    .key("pt" + std::to_string(k))
-                    .onPath(TextPath{.path = shapes::circle(),
-                                     .at = frac(th + 38.0f),
-                                     .align = TextPath::Align::Center,
-                                     .offset = 0.0f,
-                                     .autoFlip = false,
-                                     .orient = TextPath::Orient::Tangent})
-                    .opacity(animate(
-                        from(0.0f).to(1.0f),
-                        ramp(tInner * 1000 + 980 + (float)k * 40, 420)))});
-  }
-  return g;
+  // begynning of the greatest Circle" — point-up, aligned on division 1. The
+  // initials take the seal face, size and ink; a name's tail is the quill.
+  const SkPoint hub{kHp, kHp};
+  const auto lit = [](float delay) {
+    return animate(from(0.0f).to(1.0f), ramp(delay, 420));
+  };
+  return box()
+      .rect(path::centred({kRR, kRR}, {2 * kHp, 2 * kHp}))
+      .transformOrigin(0.5f, 0.5f)
+      .font({.face = faceSeal, .size = 0.052f * kR})
+      .ink(hexColor(0x241704, 1.0f))
+      .styleSheet(weaveNs::StyleSheet{
+          {"tail", weaveNs::Type{.face = faceQuill,
+                                 .size = 0.024f * kR,
+                                 .color = hexColor(0x40300f, 0.92f)}}})
+      .children(
+          {kit::disc(hub, rPenta * kR)
+               .shape(wobbled(shapes::star(5, 0.382f), 5, 16.0f, 0.30f))
+               .fill(Fill::color(hexColor(0xe6cf9e, 0.18f)))
+               .stroke(lines::rails(
+                   {{.across = 0.0f,
+                     .width = 3.0f,
+                     .fill = Fill::color(hexColor(0x3f2c12, 0.92f))},
+                    {.across = 3.2f,
+                     .width = 0.8f,
+                     .fill = Fill::color(hexColor(0xfbf0d0, 0.45f))}}))
+               // THE MARKS, and not the wash under them: the reveal runs on
+               // the rails only, and the 18%-alpha ground is simply there from
+               // the start. Sweeping a wash that faint across its own
+               // background is a change too small to read as an entrance.
+               .mask(parts::marks(),
+                     by::spans(spans::upTo(animate(
+                         from(0.0f).to(1.0f), ramp(tInner * 1000 + 500, 800)))))
+               .key("penta"),
+           each(std::views::iota(0, 5),
+                [hub, lit](int k) {
+                  return onCircle(kPentaNames[(size_t)k].initial, hub,
+                                  rPentaInit * kR, (float)k * 72.0f,
+                                  TextPath::Orient::Radial)
+                      .key("pi" + std::to_string(k))
+                      .opacity(lit(tInner * 1000 + 900 + (float)k * 40));
+                }),
+           // the rest of the name runs circularly outward into the exterior
+           // angle
+           each(std::views::iota(0, 5), [hub, lit](int k) {
+             return onCircle(kPentaNames[(size_t)k].tail, hub, rPentaTail * kR,
+                             (float)k * 72.0f + 38.0f,
+                             TextPath::Orient::Tangent)
+                 .styleClass("tail")
+                 .key("pt" + std::to_string(k))
+                 .opacity(lit(tInner * 1000 + 980 + (float)k * 40));
+           })});
 }
 
 auto SigillumAemeth::centreCross() -> Element {
-  auto g = box()
-               .rect(SkRect::MakeXYWH(kRR - kHc, kRR - kHc, 2 * kHc, 2 * kHc))
-               .font({.face = faceSeal, .size = 0.025f * kR})
-               .ink(hexColor(0x2b1d08, 1.0f));
-  const float arm = rCross * kR;
-  g.children({box()
-                  .width(2.4f * arm)
-                  .height(2.4f * arm)
-                  .centerAt({kHc, kHc})
-                  .shape(keyedShape(std::string_view("crux"),
-                                    [](SkSize s) {
-                                      SkPathBuilder b;
-                                      const float w = s.width(), h = s.height();
-                                      const float t = w * 0.085f;
-                                      const float top = h * 0.06f;
-                                      b.moveTo(w * 0.5f - t, top);
-                                      b.lineTo(w * 0.5f + t, top);
-                                      b.lineTo(w * 0.5f + t, h * 0.34f - t);
-                                      b.lineTo(w * 0.90f, h * 0.34f - t);
-                                      b.lineTo(w * 0.90f, h * 0.34f + t);
-                                      b.lineTo(w * 0.5f + t, h * 0.34f + t);
-                                      b.lineTo(w * 0.5f + t, h * 0.96f);
-                                      b.lineTo(w * 0.5f - t, h * 0.96f);
-                                      b.lineTo(w * 0.5f - t, h * 0.34f + t);
-                                      b.lineTo(w * 0.10f, h * 0.34f + t);
-                                      b.lineTo(w * 0.10f, h * 0.34f - t);
-                                      b.lineTo(w * 0.5f - t, h * 0.34f - t);
-                                      b.close();
-                                      return b.detach();
-                                    }))
-                  .fill(Fill::color(hexColor(0xe9d4a4, 0.34f)))
-                  .stroke(PathFormat{
-                      .width = 2.4f,
-                      .strokeFill = Fill::color(hexColor(0x3f2c12, 0.92f))})
-                  .key("crux")});
   // LE · VA · NA · el, on the arms — Levanael read left, top, right, foot
-  const struct {
+  struct Arm {
     const char* s;
-    float th;
-    float r;
-  } kArms[4] = {{"VA", 0.0f, rCross * 0.72f},
-                {"NA", 90.0f, rCross * 1.02f},
-                {"el", 180.0f, rCross * 1.02f},
-                {"LE", 270.0f, rCross * 1.02f}};
-  for (int i = 0; i < 4; ++i) {
-    g.children({text(kArms[i].s)
-                    .width(2 * kArms[i].r * kR)
-                    .height(2 * kArms[i].r * kR)
-                    .centerAt({kHc, kHc})
-                    .key("lev" + std::to_string(i))
-                    .onPath(TextPath{.path = shapes::circle(),
-                                     .at = frac(kArms[i].th),
-                                     .align = TextPath::Align::Center,
-                                     .offset = 0.0f,
-                                     .autoFlip = false,
-                                     .orient = TextPath::Orient::Upright})
-                    .opacity(animate(from(0.0f).to(1.0f),
-                                     ramp(tInner * 1000 + 1200, 500)))});
-  }
-  return g;
+    float th, r;
+  };
+  const Arm kArms[4] = {{"VA", 0.0f, rCross * 0.72f},
+                        {"NA", 90.0f, rCross * 1.02f},
+                        {"el", 180.0f, rCross * 1.02f},
+                        {"LE", 270.0f, rCross * 1.02f}};
+  const float arm = rCross * kR;
+  return box()
+      .rect(path::centred({kRR, kRR}, {2 * kHc, 2 * kHc}))
+      .font({.face = faceSeal, .size = 0.025f * kR})
+      .ink(hexColor(0x2b1d08, 1.0f))
+      .children(
+          {box()
+               .rect(path::centred({kHc, kHc}, {2.4f * arm, 2.4f * arm}))
+               .shape(keyedShape(std::string_view("crux"),
+                                 [](SkSize s) {
+                                   SkPathBuilder b;
+                                   const float w = s.width(), h = s.height();
+                                   const float t = w * 0.085f;
+                                   const float top = h * 0.06f;
+                                   b.moveTo(w * 0.5f - t, top);
+                                   b.lineTo(w * 0.5f + t, top);
+                                   b.lineTo(w * 0.5f + t, h * 0.34f - t);
+                                   b.lineTo(w * 0.90f, h * 0.34f - t);
+                                   b.lineTo(w * 0.90f, h * 0.34f + t);
+                                   b.lineTo(w * 0.5f + t, h * 0.34f + t);
+                                   b.lineTo(w * 0.5f + t, h * 0.96f);
+                                   b.lineTo(w * 0.5f - t, h * 0.96f);
+                                   b.lineTo(w * 0.5f - t, h * 0.34f + t);
+                                   b.lineTo(w * 0.10f, h * 0.34f + t);
+                                   b.lineTo(w * 0.10f, h * 0.34f - t);
+                                   b.lineTo(w * 0.5f - t, h * 0.34f - t);
+                                   b.close();
+                                   return b.detach();
+                                 }))
+               .fill(Fill::color(hexColor(0xe9d4a4, 0.34f)))
+               .stroke(stroke(2.4f, Fill::color(hexColor(0x3f2c12, 0.92f))))
+               .key("crux"),
+           each(kArms, [](const Arm& a, size_t i) {
+             return onCircle(a.s, {kHc, kHc}, a.r * kR, a.th,
+                             TextPath::Orient::Upright)
+                 .key("lev" + std::to_string(i))
+                 .opacity(animate(from(0.0f).to(1.0f),
+                                  ramp(tInner * 1000 + 1200, 500)));
+           })});
 }

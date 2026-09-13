@@ -5,45 +5,37 @@
 #include "SigillumAemeth.h"
 
 auto SigillumAemeth::describe(sketch::SketchContext&) -> Element {
-  auto root = box().inset(0);
-
-  auto seal =
-      box().rect(SkRect::MakeXYWH(kCx - kRR, kCy - kRR, 2 * kRR, 2 * kRR));
-  seal.children({waxGround().cache(Cache::Texture)});
-  seal.children({circumferenceRules()});
-  // The settle. The rim is the FRAME and the two inner systems turn
-  // against it off ONE Output — the seven-fold body one way, the five-fold
-  // heart the other. Relative motion is what the figure is about: since
-  // gcd(40,7) = gcd(40,5) = gcd(7,5) = 1 the three agree in exactly one
-  // direction, and arriving there is the ending. Turning the rim as well
-  // would add a third full-plate layer resampled every frame and show no
-  // relative motion that is not already on screen.
-  seal.children({circumferenceCells()});
-  // the whole seven-fold system turns as one body — heptagon, its two
-  // letter bands, the heptagram woven on its vertices, and everything the
-  // heptagram's points contain.
-  seal.children(
+  // THE SETTLE. The rim is the FRAME and the two inner systems turn against
+  // it off ONE Output — the seven-fold body one way, the five-fold heart the
+  // other. Relative motion is what the figure is about: since gcd(40,7) =
+  // gcd(40,5) = gcd(7,5) = 1 the three agree in exactly one direction, and
+  // arriving there is the ending. Turning the rim as well would add a third
+  // full-plate layer resampled every frame and show no relative motion that
+  // is not already on screen.
+  return box().inset(0).children(
       {box()
-           .inset(0)
-           .transformOrigin(0.5f, 0.5f)
-           .rotate(bind(&settle).target(0.0f, -360.0f / 7.0f))
-           .opacity(animate(from(0.0f).to(1.0f), ramp(tInner * 1000, 900)))
-           .cache(Cache::Texture)
-           .children({angles()})
-           .children({heptagonNames()})
-           .children({heptagram()})
-           .children({inner()})});
-  seal.children({innerRings()});
-  seal.children({pentagram()
-                     .rotate(bind(&settle).target(0.0f, 72.0f))
-                     .transformOrigin(0.5f, 0.5f)});
-  seal.children({centreCross()});
-  seal.children({slot("solver")});
-  root.children({std::move(seal)});
-  root.children({margin()});
-  root.children({consolePanel()});
-  root.children({colophon()});
-  return root;
+           .rect(path::centred({kCx, kCy}, {2 * kRR, 2 * kRR}))
+           .children({waxGround().cache(Cache::Texture), circumferenceRules(),
+                      circumferenceCells(),
+                      // the whole seven-fold system turns as one body —
+                      // heptagon, its two letter bands, the heptagram woven on
+                      // its vertices, and everything the heptagram's points
+                      // contain
+                      box()
+                          .inset(0)
+                          .transformOrigin(0.5f, 0.5f)
+                          .rotate(bind(&settle).target(0.0f, -360.0f / 7.0f))
+                          .opacity(animate(from(0.0f).to(1.0f),
+                                           ramp(tInner * 1000, 900)))
+                          .cache(Cache::Texture)
+                          .children({angles(), heptagonNames(), heptagram(),
+                                     inner()}),
+                      innerRings(),
+                      pentagram()
+                          .rotate(bind(&settle).target(0.0f, 72.0f))
+                          .transformOrigin(0.5f, 0.5f),
+                      centreCross(), slot("solver")}),
+       margin(), consolePanel(), colophon()});
 }
 
 auto SigillumAemeth::setup(sketch::SketchContext& ctx) -> void {
@@ -76,6 +68,8 @@ auto SigillumAemeth::setup(sketch::SketchContext& ctx) -> void {
                                {skia::toColor(hexColor(0x6a4a20, 0.10f))});
   waxSpeck.seed(1582);
 
+  doc = ctx.assets.json(ctx.local("data/content.json"));
+
   // solve, then draw what the solver said
   for (int n = 0; n < 7; ++n)
     solved[(size_t)n] = walkFrom(kNames[(size_t)n].start);
@@ -86,6 +80,19 @@ auto SigillumAemeth::setup(sketch::SketchContext& ctx) -> void {
   for (bool v : visited) usedCells += v ? 1 : 0;
   weave = buildWeave(rHept);
   runChecks();
+
+  // THE FIGURES THE MARGIN'S SENTENCES NAME, under the names the document
+  // calls them by: the walk's own counts and the cells it never reached.
+  std::string un, glyphs;
+  for (int i = 0; i < 40; ++i)
+    if (!visited[(size_t)i]) {
+      un += (un.empty() ? "" : "·") + std::to_string(i + 1);
+      glyphs += kRing[(size_t)i].glyph;
+    }
+  figures = {{"used", std::to_string(usedCells)},
+             {"unvisited", std::to_string(40 - usedCells)},
+             {"cells", un},
+             {"glyphs", glyphs}};
 
   // ONE Output: three systems turn off it and stop together at 0.
   ctx.ticker.add([this](double dt) {

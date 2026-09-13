@@ -22,10 +22,12 @@
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigildata/decode/Json.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Crossings.h>
+#include <sigilgeometry/path/Frame.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -44,12 +46,15 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
+#include <optional>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <tuple>
 #include <vector>
 
 namespace arrange = sigil::geometry::arrange;
+namespace data = sigil::data;
 namespace sketch = sigil::sketch;
 
 namespace skia = sigil::material::skia;
@@ -446,6 +451,43 @@ inline Fill grooveFill(float rad, float w, float darkA, float liteA) {
        SkColor4f{kCutLite.fR, kCutLite.fG, kCutLite.fB, liteA},
        SkColor4f{kCutLite.fR, kCutLite.fG, kCutLite.fB, liteA}},
       {0.0f, m - e, m + e, 1.0f});
+}
+
+// ---------------------------------------------------------------------------
+// THE WORDS. Every sentence the margin sets stands in data/content.json beside
+// this sketch: the code is the template — structure, classes, layout — and the
+// file is the content, so an edit to a sentence re-runs setup without a
+// rebuild.
+
+/** The figures a sentence may name, under the names the document calls them
+ *  by, already formatted. */
+using Figures = std::vector<std::pair<std::string, std::string>>;
+
+/** @p text with every `{name}` replaced by the figure of that name, left as
+ *  written where no figure carries the name. */
+inline std::string filled(std::string_view text, const Figures& figures) {
+  std::string out;
+  out.reserve(text.size());
+  for (size_t i = 0; i < text.size();) {
+    const size_t open = text.find('{', i);
+    const size_t close =
+        open == std::string_view::npos ? open : text.find('}', open);
+    if (close == std::string_view::npos) {
+      out += text.substr(i);
+      break;
+    }
+    out += text.substr(i, open - i);
+    const std::string_view name = text.substr(open + 1, close - open - 1);
+    const auto found =
+        std::find_if(figures.begin(), figures.end(),
+                     [name](const std::pair<std::string, std::string>& f) {
+                       return f.first == name;
+                     });
+    out += found != figures.end() ? std::string_view(found->second)
+                                  : text.substr(open, close - open + 1);
+    i = close + 1;
+  }
+  return out;
 }
 
 }  // namespace sigillum_aemeth

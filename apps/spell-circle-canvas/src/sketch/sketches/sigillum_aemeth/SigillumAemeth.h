@@ -20,6 +20,59 @@ struct SigillumAemeth : sketch::Sketch {
   Paint waxGrain;
   Pattern waxSpeck;
 
+  // --- the words -----------------------------------------------------------
+
+  /** data/content.json, read once in setup, and the figures the walk
+   *  measured, under the names its sentences call them by. */
+  std::shared_ptr<const data::Json> doc;
+  Figures figures;
+
+  [[nodiscard]] std::string phrase(std::string_view key) const {
+    return doc ? filled((*doc)[key].text(), figures) : std::string();
+  }
+  [[nodiscard]] std::vector<std::string> phrases(std::string_view key) const {
+    std::vector<std::string> out;
+    if (doc)
+      for (const data::Json& item : (*doc)[key].items())
+        out.push_back(filled(item.text(), figures));
+    return out;
+  }
+
+  /** THE MARGIN'S WHOLE LOOK, as classes on the panel: the terminal face at
+   *  the body size in the note ink is the panel's own font, so a line that
+   *  names no class is the note and a class states only what differs — the
+   *  rubric of a heading, the display cut of a Name, the quill of an
+   *  archangel, the seal face of a letter on the fan. */
+  [[nodiscard]] weaveNs::StyleSheet voices() const {
+    return weaveNs::StyleSheet{
+        {"title",
+         weaveNs::Type{
+             .face = faceDisplay, .size = 46, .color = kVellum, .track = 2.6f}},
+        {"subtitle",
+         weaveNs::Type{
+             .face = faceItalic, .size = 19, .color = hexColor(0xc7ab74)}},
+        {"serif", weaveNs::Type{.face = faceSerif}},
+        {"italic", weaveNs::Type{.face = faceItalic}},
+        {"gloss",
+         weaveNs::Type{
+             .face = faceItalic, .size = 14, .color = hexColor(0x6f5f45)}},
+        {"legend",
+         weaveNs::Type{.face = faceSerif, .color = hexColor(0x9d8a66)}},
+        {"index", weaveNs::Type{.size = 17}},
+        {"name",
+         weaveNs::Type{
+             .face = faceDisplay, .size = 30, .color = kVellum, .track = 1.2f}},
+        {"raw", weaveNs::Type{.face = faceItalic, .color = hexColor(0x6f5f45)}},
+        {"chain", weaveNs::Type{.size = 14, .color = kTrace}},
+        {"archangel",
+         weaveNs::Type{
+             .face = faceQuill, .size = 21, .color = hexColor(0xd8c08a)}},
+        {"fan", weaveNs::Type{.face = faceSeal, .size = 23, .color = kVellum}},
+        {"rubric", weaveNs::Type{.color = kRubric}},
+        {"heading", weaveNs::Type{.color = kRubric, .track = 1.6f}},
+    };
+  }
+
   // --- the reading order, in seconds ---------------------------------------
   static constexpr float tPlate = 0.05f;
   static constexpr float tCells = 0.35f;
@@ -101,6 +154,18 @@ struct SigillumAemeth : sketch::Sketch {
   // THE MARGIN — title, the seven Names assembling, the 7×7 square, legend.
 
   Element margin();
+
+  /** The seven Names as flow rows, printing as the walk finds them: the
+   *  index, the Name, the raw reading where it differs, and the chain of
+   *  cells it came off. */
+  Element nameRows();
+
+  /** THE SEVEN ANGLES UNROLLED, not tabulated. On the plate these rows lie
+   *  along seven sides of a heptagon; here they lie on seven nested arcs of
+   *  the same fan, so a "column" is a RADIAL RAY and reading down a column is
+   *  reading outward — which is what the columns do on the object. A leader
+   *  curves from each ray to the archangel it spells. */
+  Element basketFan();
 
   // =========================================================================
 
