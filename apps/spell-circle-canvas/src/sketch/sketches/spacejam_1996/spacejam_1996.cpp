@@ -173,11 +173,10 @@ struct SpaceJam1996 : sketch::Sketch {
             .width(Dimension(S(640)))
             .column()
             .alignItems(Align::Center)
-            .child(text(U("SPACE JAM, characters, names, and all related"))
+            .child(text("SPACE JAM, characters, names, and all related")
                        .font(small))
-            .child(
-                text(U("indicia are trademarks of Warner Bros. \xc2\xa9 1996"))
-                    .font(small));
+            .child(text("indicia are trademarks of Warner Bros. \xc2\xa9 1996")
+                       .font(small));
 
     (void)ctx;
     return stack()
@@ -326,9 +325,8 @@ struct SpaceJam1996 : sketch::Sketch {
     std::vector<sketch::kit::Row> rows;
     for (const measure::Check& c : verdict.rows) {
       if (!c.judged() || c.pass) continue;
-      rows.push_back(
-          {{toUtf8(c.label), toUtf8(c.actual), toUtf8("want " + c.expected)},
-           Fill::color(C5(0xFF0000))});
+      rows.push_back({{c.label, c.actual, "want " + c.expected},
+                      Fill::color(C5(0xFF0000))});
     }
     sketch::kit::Provide bound(look);
     return box()

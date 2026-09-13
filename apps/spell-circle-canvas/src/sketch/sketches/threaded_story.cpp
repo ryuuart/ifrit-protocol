@@ -42,11 +42,13 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/layout/Story.h>
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <string>
@@ -56,7 +58,6 @@
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 using namespace std::chrono_literals;
 namespace weave = sigil::weave;
 
@@ -88,7 +89,7 @@ sk_sp<SkTypeface> grotesque() {
   return weave::ports::face({"Helvetica Neue", "Inter", "Helvetica", "Arial"});
 }
 
-/** A caption line: a whole style, which is what a kit::Caption takes. */
+/** A caption line: a partial over what the cell inherits. */
 weave::Type label(float size, SkColor4f colour, float track) {
   return {.face = grotesque(), .size = size, .color = colour, .track = track};
 }
@@ -98,11 +99,16 @@ weave::Type label(float size, SkColor4f colour, float track) {
  *  they describe. */
 kit::Caption voice() {
   return {.where = kit::Caption::Where::Above,
-          .label = label(9.5f, kMark, 2.4f),
-          .note = label(9.0f, kFaint, 0.2f),
           .gap = 12,
           .noteGap = 8,
           .noteMeasure = 300.0f};
+}
+
+/** THE TWO CLASSES THAT VOICE IS SET IN — the name in the mark colour, the
+ *  remark a size under it in the faint one. */
+weave::StyleSheet voiceClasses() {
+  return weave::StyleSheet{{"captionLabel", label(9.5f, kMark, 2.4f)},
+                           {"captionNote", label(9.0f, kFaint, 0.2f)}};
 }
 
 /** The story, declared once. Its blocks are numbered from its own start,
@@ -207,8 +213,9 @@ struct ThreadedStory final : sketch::Sketch {
 
     const auto captioned = [&](const char* name, const char* note,
                                Element built) {
-      return kit::cell(s::voice(), toUtf8(name), toUtf8(note),
-                       std::move(built));
+      const sigil::core::environment::Provide<weave::StyleSheet> voice(
+          s::voiceClasses());
+      return kit::cell(s::voice(), name, note, std::move(built));
     };
 
     return box()

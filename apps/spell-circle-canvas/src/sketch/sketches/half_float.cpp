@@ -54,7 +54,6 @@ namespace img = sigil::image;
 namespace skia = sigil::skia;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -109,7 +108,7 @@ sk_sp<SkImage> hdrSource() {
 
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 10})
           .child(std::move(body)));
 }
@@ -151,17 +150,17 @@ struct HalfFloat final : sketch::Sketch {
         bytes.size() > hot * 4 ? (float)bytes[hot * 4] / 255.0f : 0.0f, kPeak);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("THE DRAWABLE COPY \xc2\xb7 skia::isFloatImage, "
-                         "halfFloatPixels, bytePixels"),
-         .subtitle = toUtf8("dials \xc2\xb7 how far past one the ramp runs "
-                            "(6.0) \xc2\xb7 the two exposures each "
-                            "readback is tone-mapped at (1.0 and 0.18) "
-                            "\xc2\xb7 the source's side"),
-         .footer = toUtf8("values above one survive the halves, which is "
-                          "the whole point of asking for them rather than "
-                          "for bytes \xe2\x80\x94 and the byte copy clipped "
-                          "them on the way out, so no exposure brings them "
-                          "back")},
+        {.title = "THE DRAWABLE COPY \xc2\xb7 skia::isFloatImage, "
+                  "halfFloatPixels, bytePixels",
+         .subtitle = "dials \xc2\xb7 how far past one the ramp runs "
+                     "(6.0) \xc2\xb7 the two exposures each "
+                     "readback is tone-mapped at (1.0 and 0.18) "
+                     "\xc2\xb7 the source's side",
+         .footer = "values above one survive the halves, which is "
+                   "the whole point of asking for them rather than "
+                   "for bytes \xe2\x80\x94 and the byte copy clipped "
+                   "them on the way out, so no exposure brings them "
+                   "back"},
         kit::cells(
             {.cells = {cell("halfFloatPixels \xc2\xb7 exposure 1.0",
                             "the half readback shown straight \xc2\xb7 "

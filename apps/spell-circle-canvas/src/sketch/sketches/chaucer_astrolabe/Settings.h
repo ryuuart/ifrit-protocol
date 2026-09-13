@@ -21,6 +21,7 @@
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigilgeometry/kit/Divisions.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
@@ -42,6 +43,7 @@
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>

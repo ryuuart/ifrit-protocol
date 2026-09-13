@@ -62,7 +62,6 @@ namespace mskia = sigil::material::skia;
 namespace ptn = sigil::material::pattern;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -212,8 +211,7 @@ struct MatteLuma final : sketch::Sketch {
     };
     const auto captioned = [&](const char* call, const char* note,
                                Element body) {
-      return sketch::kit::caption(kPanel, toUtf8(call), toUtf8(note),
-                                  std::move(body));
+      return sketch::kit::caption(kPanel, call, note, std::move(body));
     };
 
     // The bottom row: the run as a picture, and the run as a matte.
@@ -260,15 +258,15 @@ struct MatteLuma final : sketch::Sketch {
                       .child(cell(stripW, 64, std::move(bandMatted)));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("TRACK MATTES \xc2\xb7 by::alpha / alphaOut / "
-                         "luma / lumaOut"),
-         .subtitle = toUtf8("one content, one coverage paint, four gates "
-                            "\xe2\x80\x94 right halves match between alpha "
-                            "and luma because the luma is taken on the "
-                            "PREMULTIPLIED colour; left halves do not"),
-         .footer = toUtf8("Y' = 0.299 R' + 0.587 G' + 0.114 B' \xc2\xb7 "
-                          "Rec. 709's luminance coefficients on encoded "
-                          "values would break every pair above")},
+        {.title = "TRACK MATTES \xc2\xb7 by::alpha / alphaOut / "
+                  "luma / lumaOut",
+         .subtitle = "one content, one coverage paint, four gates "
+                     "\xe2\x80\x94 right halves match between alpha "
+                     "and luma because the luma is taken on the "
+                     "PREMULTIPLIED colour; left halves do not",
+         .footer = "Y' = 0.299 R' + 0.587 G' + 0.114 B' \xc2\xb7 "
+                   "Rec. 709's luminance coefficients on encoded "
+                   "values would break every pair above"},
         kit::cells({.cells = {std::move(gates), std::move(law)},
                     .column = true,
                     .gap = 26})));

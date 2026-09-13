@@ -47,7 +47,6 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -75,7 +74,7 @@ weave::TextStyle display(float size, SkColor4f color, bool optical) {
 
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
           .child(std::move(body)));
 }
@@ -107,17 +106,17 @@ struct OpticalKerning final : sketch::Sketch {
                        advance(kHeadline, true) - advance(kHeadline, false));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("OPTICAL KERNING \xc2\xb7 "
-                         "ShapingStyle::opticalKerning"),
-         .subtitle = toUtf8("dials \xc2\xb7 the size (40 px, which is the "
-                            "size the deltas are for) \xc2\xb7 the pairs "
-                            "measured \xc2\xb7 the face, whose own even "
-                            "pair is the reference"),
-         .footer = toUtf8("the face's table is switched OFF while this is "
-                          "on, because the two are answers to the same "
-                          "question and a page takes one of them \xe2\x80"
-                          "\x94 and the reference is the face's own even "
-                          "pair, so a loose face stays loose")},
+        {.title = "OPTICAL KERNING \xc2\xb7 "
+                  "ShapingStyle::opticalKerning",
+         .subtitle = "dials \xc2\xb7 the size (40 px, which is the "
+                     "size the deltas are for) \xc2\xb7 the pairs "
+                     "measured \xc2\xb7 the face, whose own even "
+                     "pair is the reference",
+         .footer = "the face's table is switched OFF while this is "
+                   "on, because the two are answers to the same "
+                   "question and a page takes one of them \xe2\x80"
+                   "\x94 and the reference is the face's own even "
+                   "pair, so a loose face stays loose"},
         kit::cells(
             {.cells = {plain(), optical(), both(), table()}, .gap = 14})));
   }

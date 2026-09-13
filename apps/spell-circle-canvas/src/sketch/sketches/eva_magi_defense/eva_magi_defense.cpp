@@ -419,8 +419,8 @@ struct EvaMagiDefense : sketch::Sketch {
     for (const measure::Check& c : verdict.rows) {
       if (!c.judged()) continue;
       rows.push_back(
-          {{toUtf8(c.label), toUtf8(c.actual),
-            toUtf8(c.pass ? std::string("PASS") : "FAIL want " + c.expected)},
+          {{c.label, c.actual,
+            c.pass ? std::string("PASS") : "FAIL want " + c.expected},
            Fill::color(c.pass ? SkColor4f{0, 0.30f, 0.14f, 1}
                               : SkColor4f{0.62f, 0, 0, 1})});
     }

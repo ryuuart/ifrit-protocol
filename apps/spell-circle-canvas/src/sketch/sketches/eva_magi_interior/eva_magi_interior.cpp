@@ -100,8 +100,8 @@ struct EvaMagiInterior : sketch::Sketch {
     for (const measure::Check& c : verdict.rows) {
       if (!c.judged()) continue;
       rows.push_back(
-          {{toUtf8(c.label), toUtf8(c.actual),
-            toUtf8(c.pass ? std::string("PASS") : "FAIL want " + c.expected)},
+          {{c.label, c.actual,
+            c.pass ? std::string("PASS") : "FAIL want " + c.expected},
            Fill::color(c.pass ? SkColor4f{0, 0.30f, 0.14f, 1}
                               : SkColor4f{0.62f, 0, 0, 1})});
     }
@@ -162,12 +162,12 @@ struct EvaMagiInterior : sketch::Sketch {
     return st;
   }
 
-  weave::Type fitWithin(const sk_sp<SkTypeface>& tf, const std::u8string& s,
-                        float cap, float maxWidth) const {
+  weave::Type fitWithin(const sk_sp<SkTypeface>& tf, const Utf8& s, float cap,
+                        float maxWidth) const {
     weave::Type st = fitCap(tf, cap);
     if (!fonts) return st;
     const SkSize measured =
-        sigil::compose::intrinsicSize(text(s).font(st), *fonts);
+        sigil::compose::intrinsicSize(text(s.bytes()).font(st), *fonts);
     if (measured.width() > maxWidth && measured.width() > 1.0f)
       st.condense = std::min(maxWidth / measured.width(), 1.0f);
     return st;
@@ -195,12 +195,11 @@ struct EvaMagiInterior : sketch::Sketch {
   /** A run of type placed by its measured INK top-left. Nothing on this plate
    *  is rotated: the rectification says every baseline is horizontal to within
    *  1.3 deg, and the "varying roll" was the projection. */
-  Element inked(std::u8string s, const weave::Type& st, SkPoint ink,
-                float slack) {
+  Element inked(Utf8 s, const weave::Type& st, SkPoint ink, float slack) {
     return box()
         .left(ink.fX)
         .top(ink.fY - slack)
-        .child(text(std::move(s)).font(st));
+        .child(text(s.bytes()).font(st));
   }
 
   // ==========================================================================
@@ -282,8 +281,8 @@ struct EvaMagiInterior : sketch::Sketch {
                    .centerAt({sz.width() * 0.5f,
                               sz.height() * layout.numberSlotY(number)}));
     node.child(text(p.label)
-                   .font(fitWithin(evangelion::moduleLabel(), toUtf8(p.label),
-                                   31.0f, sz.width() - 44.0f))
+                   .font(fitWithin(evangelion::moduleLabel(), p.label, 31.0f,
+                                   sz.width() - 44.0f))
                    .centerAt({sz.width() * 0.5f,
                               sz.height() * layout.nameSlotY(number)}));
     return node;
@@ -340,8 +339,8 @@ struct EvaMagiInterior : sketch::Sketch {
     static const char* kBlock[5] = {"FILE:MAGI_SYS", "EXTENTION:2048",
                                     "EX_MODE:ON", "PRIORITY:A__", nullptr};
     for (int i = 0; kBlock[i]; ++i)
-      g.child(inked(toUtf8(kBlock[i]), file,
-                    {151.0f, 350.0f + (float)i * 32.0f}, sFile));
+      g.child(
+          inked(kBlock[i], file, {151.0f, 350.0f + (float)i * 32.0f}, sFile));
 
     const auto k1 = fitEmSpan(u8"提訴", 300.0f, magi::kKanji);
     const auto k1h = fitEmSpan(u8"提訴", 300.0f, magi::kKanjiHot);

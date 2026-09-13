@@ -97,8 +97,8 @@ Element mapping(const Mapping& properties) {
                    .width(40)
                    .textAlign(sigil::weave::TextAlignment::kCenter));
   }
-  return sketch::kit::caption(kWidth, toUtf8(properties.title),
-                              toUtf8(properties.note), std::move(body));
+  return sketch::kit::caption(kWidth, properties.title, properties.note,
+                              std::move(body));
 }
 
 struct DataScales final : sketch::Sketch {

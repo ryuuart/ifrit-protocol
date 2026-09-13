@@ -58,7 +58,6 @@ namespace img = sigil::image;
 namespace io = sigil::io;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -111,7 +110,7 @@ sk_sp<SkData> chart(int bars, SkColor4f ink) {
 
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 10})
           .child(std::move(body)));
 }
@@ -163,17 +162,17 @@ struct HubReload final : sketch::Sketch {
         hub.image(chartUri);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("A MOUNTED FOLDER \xc2\xb7 Hub::mount, text, "
-                         "registerDecoder / load, poll"),
-         .subtitle = toUtf8("dials \xc2\xb7 the prefix the folder is "
-                            "mounted under \xc2\xb7 the two states each "
-                            "file is written in \xc2\xb7 what a T is "
-                            "decoded from bytes by"),
-         .footer = toUtf8("the decode a view was made with rides along "
-                          "with the view, so poll() re-runs exactly it "
-                          "\xe2\x80\x94 which is what makes hot reload a "
-                          "property of the hub rather than of every "
-                          "consumer of it")},
+        {.title = "A MOUNTED FOLDER \xc2\xb7 Hub::mount, text, "
+                  "registerDecoder / load, poll",
+         .subtitle = "dials \xc2\xb7 the prefix the folder is "
+                     "mounted under \xc2\xb7 the two states each "
+                     "file is written in \xc2\xb7 what a T is "
+                     "decoded from bytes by",
+         .footer = "the decode a view was made with rides along "
+                   "with the view, so poll() re-runs exactly it "
+                   "\xe2\x80\x94 which is what makes hot reload a "
+                   "property of the hub rather than of every "
+                   "consumer of it"},
         kit::cells(
             {.cells =
                  {cell("hub.text(\"res://notes.txt\")",

@@ -45,7 +45,6 @@ namespace pattern = sigil::material::pattern;
 
 using namespace sigil::compose;
 using material::Color;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -99,7 +98,7 @@ void paintTile(SkCanvas& canvas, const pattern::Tile& tile, SkSize size) {
 Element cell(const char* call, const std::string& note,
              std::function<void(SkCanvas&, SkSize)> draw) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well(
           {.width = kCell, .height = kPicture},
           custom(call, [draw = std::move(draw)](SkCanvas& canvas,
@@ -127,16 +126,16 @@ struct PatternSequence final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("PATTERN SEQUENCE \xc2\xb7 pattern::sequence and "
-                         "Tile's mapping"),
-         .subtitle = toUtf8("dials \xc2\xb7 the runs and their period "
-                            "\xc2\xb7 the phase (17 px) \xc2\xb7 the pan "
-                            "(21 px) \xc2\xb7 the scale, the rotation and "
-                            "the filter"),
-         .footer = toUtf8("the top row rebakes and the bottom row does "
-                          "not \xe2\x80\x94 scale, rotation, pan and "
-                          "filter act on the sampling matrix, so one "
-                          "bake serves every cell under the rule")},
+        {.title = "PATTERN SEQUENCE \xc2\xb7 pattern::sequence and "
+                  "Tile's mapping",
+         .subtitle = "dials \xc2\xb7 the runs and their period "
+                     "\xc2\xb7 the phase (17 px) \xc2\xb7 the pan "
+                     "(21 px) \xc2\xb7 the scale, the rotation and "
+                     "the filter",
+         .footer = "the top row rebakes and the bottom row does "
+                   "not \xe2\x80\x94 scale, rotation, pan and "
+                   "filter act on the sampling matrix, so one "
+                   "bake serves every cell under the rule"},
         kit::cells(
             {.cells =
                  {kit::cells(

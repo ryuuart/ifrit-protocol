@@ -58,7 +58,6 @@ namespace motion = sigil::motion;
 
 using namespace sigil::compose;
 namespace weave = sigil::weave;
-using sigil::compose::toUtf8;
 using namespace std::chrono_literals;
 
 namespace {

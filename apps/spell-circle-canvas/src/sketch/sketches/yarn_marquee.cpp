@@ -82,7 +82,6 @@ namespace render = sigil::geometry::mesh::render;
 namespace wkit = sigil::world::kit;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -229,7 +228,7 @@ struct YarnMarquee final : sketch::Sketch {
   Element panel(const char* call, const char* note, std::string key,
                 const std::vector<curve::Frame3>* rail) const {
     return sketch::kit::caption(
-        kPanel, toUtf8(call), toUtf8(note),
+        kPanel, call, note,
         custom(std::move(key),
                [this, rail](SkCanvas& canvas, const PaintContext&) {
                  paintRail(canvas, *rail, art);
@@ -268,14 +267,14 @@ struct YarnMarquee final : sketch::Sketch {
     hung = curve::hangFrames(rail, kSections, 1.0f, 1.0f);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("THE HUNG RAIL \xc2\xb7 curve::hangFrames against "
-                         "curve::frames"),
-         .subtitle = toUtf8("one closed winding, one banner, a two-point "
-                            "line profile \xe2\x80\x94 the ticks are each "
-                            "frame's across-vector at the band's own "
-                            "width"),
-         .footer = toUtf8("painter order is the depth test \xc2\xb7 the "
-                          "cull is off, so both faces of a cloth show")},
+        {.title = "THE HUNG RAIL \xc2\xb7 curve::hangFrames against "
+                  "curve::frames",
+         .subtitle = "one closed winding, one banner, a two-point "
+                     "line profile \xe2\x80\x94 the ticks are each "
+                     "frame's across-vector at the band's own "
+                     "width",
+         .footer = "painter order is the depth test \xc2\xb7 the "
+                   "cull is off, so both faces of a cloth show"},
         kit::cells(
             {.cells = {panel("curve::frames(loop, 220)",
                              "parallel transport \xe2\x80\x94 the smallest "

@@ -109,8 +109,6 @@ inline sigil::weave::Type ty(const sk_sp<SkTypeface>& tf, float size,
   return {.face = tf, .size = size, .color = color, .track = track};
 }
 
-inline std::u8string U(const char* s) { return toUtf8(s); }
-
 /** The label outline, spelled with echo() because there is no glyph stroke.
  *  Eight re-stamps at ±r plus one at (2r, 2r): the shipped art carries a
  *  1 px black outline all round PLUS a 1 px offset shadow down-right, and
@@ -408,17 +406,17 @@ inline Element navLabel(sigil::weave::FontContext& fonts, const char* s,
   const float track = 0.4f * kScale;
   auto styleAt = [&](float sz) { return ty(display(), sz, ink, track); };
   float size = capPx / 0.72f;  // Impact cap height ~0.72 em
-  SkSize m = intrinsicSize(text(U(s)).font(styleAt(size)), fonts);
+  SkSize m = intrinsicSize(text(s).font(styleAt(size)), fonts);
   float sx = 1.0f;
   if (m.width() > w && m.width() > 1) {
     sx = w / m.width();
     if (sx < 0.70f) {  // past the condensing floor, give up cap height
       size *= sx / 0.70f;
-      m = intrinsicSize(text(U(s)).font(styleAt(size)), fonts);
+      m = intrinsicSize(text(s).font(styleAt(size)), fonts);
       sx = (m.width() > w && m.width() > 1) ? w / m.width() : 1.0f;
     }
   }
-  Element t = text(U(s)).font(styleAt(size));
+  Element t = text(s).font(styleAt(size));
   outlineText(t, kScale);
   // scaleX is PAINT-only, so a condensed run still MEASURES at its natural
   // width and wraps against the image box. Pinning the node to that natural

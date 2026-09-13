@@ -49,7 +49,6 @@ namespace material = sigil::material;
 namespace field = sigil::material::field;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -107,7 +106,7 @@ material::Material rippled(float amplitude, float wavelength, bool vertical) {
 Element cell(const char* call, const char* note,
              std::function<void(SkCanvas&, const material::FrameData&)> draw) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well(
           {.width = kCell, .height = kPicture},
           custom(call, [draw = std::move(draw)](SkCanvas& canvas,
@@ -146,16 +145,16 @@ struct FieldShelf final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("FIELD SHELF \xc2\xb7 field:: halftoneRamp, noise, "
-                         "grain, ripple, crtOverlay"),
-         .subtitle = toUtf8("dials \xc2\xb7 the pitch (9 px) \xc2\xb7 the "
-                            "frequency (0.035 features per px) \xc2\xb7 "
-                            "the seed (4) \xc2\xb7 and, in the bottom row, "
-                            "the one dial that changes what each means"),
-         .footer = toUtf8("every parameter is a uniform, so a field is "
-                          "shaded per pixel and never baked \xe2\x80\x94 "
-                          "which is what lets halftoneRamp's drift be a "
-                          "binding rather than a re-bake")},
+        {.title = "FIELD SHELF \xc2\xb7 field:: halftoneRamp, noise, "
+                  "grain, ripple, crtOverlay",
+         .subtitle = "dials \xc2\xb7 the pitch (9 px) \xc2\xb7 the "
+                     "frequency (0.035 features per px) \xc2\xb7 "
+                     "the seed (4) \xc2\xb7 and, in the bottom row, "
+                     "the one dial that changes what each means",
+         .footer = "every parameter is a uniform, so a field is "
+                   "shaded per pixel and never baked \xe2\x80\x94 "
+                   "which is what lets halftoneRamp's drift be a "
+                   "binding rather than a re-bake"},
         kit::cells(
             {.cells =
                  {kit::cells(

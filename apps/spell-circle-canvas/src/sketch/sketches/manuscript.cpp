@@ -76,7 +76,6 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 using namespace std::chrono_literals;
 using namespace sigil::compose::kit::ornament;
 
@@ -102,7 +101,7 @@ constexpr double kTurnSecs = 7.0;
 constexpr float kMm = 3.0f;  ///< canvas pixels to the millimetre
 constexpr float kLeafW = 259.0f;
 constexpr float kLeafH = 360.0f;
-constexpr SkSize kSceneSize = {kLeafW * kMm, kLeafH* kMm};
+constexpr SkSize kSceneSize = {kLeafW * kMm, kLeafH * kMm};
 
 // ── The ninths canon, in millimetres ───────────────────────────────────
 constexpr float kSpine = kLeafW / 9.0f;                  // 28.78

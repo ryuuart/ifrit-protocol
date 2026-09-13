@@ -52,7 +52,6 @@ using material::Color;
 using material::FrameInput;
 using material::Recipe;
 using material::Target;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -168,7 +167,7 @@ SkPath whole() {
 Element cell(const char* call, const std::string& note, material::Material m,
              float contentScale, glm::mat3 world = glm::mat3(1.0f)) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well(
           {.width = kCell, .height = kPicture},
           custom(call, [m = std::move(m), contentScale, world, face = whole()](
@@ -217,17 +216,17 @@ struct FrameInputs final : sketch::Sketch {
     ramped.set("uTint", Color{0.96f, 0.68f, 0.34f, 1});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("FRAME INPUTS \xc2\xb7 Recipe::frame + "
-                         "UniformBlock + Material::withRecipe"),
-         .subtitle = toUtf8("dials \xc2\xb7 the content scale (1, then 3) "
-                            "\xc2\xb7 the world translation \xc2\xb7 the "
-                            "block's twelve floats \xc2\xb7 the recipe the "
-                            "instance is worn on"),
-         .footer = toUtf8("what a compiler KEEPS is what the upload "
-                          "fills: a field a body never reads reaches "
-                          "nothing, and the program cache names the "
-                          "recipe and every field the compiler dropped "
-                          "once per target")},
+        {.title = "FRAME INPUTS \xc2\xb7 Recipe::frame + "
+                  "UniformBlock + Material::withRecipe",
+         .subtitle = "dials \xc2\xb7 the content scale (1, then 3) "
+                     "\xc2\xb7 the world translation \xc2\xb7 the "
+                     "block's twelve floats \xc2\xb7 the recipe the "
+                     "instance is worn on",
+         .footer = "what a compiler KEEPS is what the upload "
+                   "fills: a field a body never reads reaches "
+                   "nothing, and the program cache names the "
+                   "recipe and every field the compiler dropped "
+                   "once per target"},
         kit::cells(
             {.cells = {kit::cells(
                            {.cells = {cell("bind(\"uBars\", block) \xc2\xb7 "

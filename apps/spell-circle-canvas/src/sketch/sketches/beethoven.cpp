@@ -58,7 +58,6 @@ namespace motion = sigil::motion;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 using namespace std::chrono_literals;
 
 namespace {

@@ -49,7 +49,6 @@
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 using namespace std::chrono_literals;
 namespace motion = sigil::motion;
 namespace weave = sigil::weave;

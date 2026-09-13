@@ -16,8 +16,10 @@
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/kit/Gel.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -72,14 +74,17 @@ struct SurfaceComponents : sketch::Sketch {
     const SurfacePaint ramp = material::skia::Paint::linearUnit(
         {0, 0}, {1, 1},
         {{0, {0.28f, 0.10f, 0.38f, 1}}, {1, {0.07f, 0.28f, 0.35f, 1}}});
+    // The sheet's three lines differ from a card's in size alone, so each
+    // class is a size over the root's ink and face.
+    const sigil::core::environment::Provide<weave::StyleSheet> classes(
+        weave::StyleSheet{{"title", {.size = 30}},
+                          {"subtitle", {.size = 17}},
+                          {"footer", {.size = 14}}});
     return kit::sheet(
-               {.title = u8"Components for VFX",
-                .subtitle = u8"Props + children",
-                .footer = u8"One card · three paints · responsive styles · "
-                          u8"a shared grid",
-                .titleStyle = {.size = 30},
-                .subtitleStyle = {.size = 17},
-                .footerStyle = {.size = 14},
+               {.title = "Components for VFX",
+                .subtitle = "Props + children",
+                .footer = "One card · three paints · responsive styles · "
+                          "a shared grid",
                 .marginX = 28,
                 .marginTop = 24,
                 .ground = Fill::color({0.035f, 0.045f, 0.07f, 1})},

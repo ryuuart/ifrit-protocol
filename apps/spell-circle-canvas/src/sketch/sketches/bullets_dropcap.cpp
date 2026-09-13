@@ -58,7 +58,6 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -90,7 +89,7 @@ weave::Type serifType(float size, SkColor4f color, float track = 0) {
 
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 14})
           .child(std::move(body)));
 }
@@ -170,20 +169,20 @@ struct BulletsDropCap final : sketch::Sketch {
                        .margin(kHang, 0, 0, 0));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("BULLETS AND THE INITIAL LETTER \xc2\xb7 "
-                         "initialLetter, kit::NestedStyle, kit::bullets"),
-         .subtitle = toUtf8("dials \xc2\xb7 the cap's depth in LINES (3, "
-                            "and the size follows from the face) \xc2\xb7 "
-                            "the body's stand-off (7 px) \xc2\xb7 where "
-                            "the nested run stops \xc2\xb7 the hang (16 "
-                            "px per level)"),
-         .footer = toUtf8("the initial is a property of the block and the "
-                          "layout derives its size; an ornament is still "
-                          "an exclusion the body flows around; the nested "
-                          "style is a span restyle over a selector the "
-                          "vocabulary could already name; and a list is "
-                          "an indent with the marker standing in the room "
-                          "it opened")},
+        {.title = "BULLETS AND THE INITIAL LETTER \xc2\xb7 "
+                  "initialLetter, kit::NestedStyle, kit::bullets",
+         .subtitle = "dials \xc2\xb7 the cap's depth in LINES (3, "
+                     "and the size follows from the face) \xc2\xb7 "
+                     "the body's stand-off (7 px) \xc2\xb7 where "
+                     "the nested run stops \xc2\xb7 the hang (16 "
+                     "px per level)",
+         .footer = "the initial is a property of the block and the "
+                   "layout derives its size; an ornament is still "
+                   "an exclusion the body flows around; the nested "
+                   "style is a span restyle over a selector the "
+                   "vocabulary could already name; and a list is "
+                   "an indent with the marker standing in the room "
+                   "it opened"},
         kit::cells(
             {.cells =
                  {cell("text(passage).initialLetter({.lines = 3})",

@@ -34,7 +34,6 @@ namespace weave = sigil::weave;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -156,9 +155,9 @@ Element droppedPassage() {
 }
 
 Element panel(float left, const char* title, const char* note, Element body) {
-  return sketch::kit::well({.width = Dimension(476), .height = Dimension(438)},
-                           sketch::kit::caption(kMeasure, toUtf8(title),
-                                                toUtf8(note), std::move(body)))
+  return sketch::kit::well(
+             {.width = Dimension(476), .height = Dimension(438)},
+             sketch::kit::caption(kMeasure, title, note, std::move(body)))
       .absolute()
       .left(left)
       .top(126);

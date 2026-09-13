@@ -57,7 +57,6 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -117,7 +116,7 @@ Element column() {
 
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
           .child(std::move(body)));
 }
@@ -130,17 +129,17 @@ struct CjkRules final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("THE JAPANESE TABLES \xc2\xb7 kinsoku, hanging, "
-                         "mojikumi, tsume, lineBreakLocale"),
-         .subtitle = toUtf8("dials \xc2\xb7 the body size (13 px) \xc2\xb7 "
-                            "the bracket room and the tsume, as em "
-                            "fractions \xc2\xb7 the locale the "
-                            "segmentation runs under"),
-         .footer = toUtf8("every one of these is DATA the layout asks for "
-                          "and holds no opinion about \xe2\x80\x94 which "
-                          "marks a house forbids, hangs or closes up is a "
-                          "decision, and a caller's own table is a peer "
-                          "of the stock one")},
+        {.title = "THE JAPANESE TABLES \xc2\xb7 kinsoku, hanging, "
+                  "mojikumi, tsume, lineBreakLocale",
+         .subtitle = "dials \xc2\xb7 the body size (13 px) \xc2\xb7 "
+                     "the bracket room and the tsume, as em "
+                     "fractions \xc2\xb7 the locale the "
+                     "segmentation runs under",
+         .footer = "every one of these is DATA the layout asks for "
+                   "and holds no opinion about \xe2\x80\x94 which "
+                   "marks a house forbids, hangs or closes up is a "
+                   "decision, and a caller's own table is a peer "
+                   "of the stock one"},
         kit::cells(
             {.cells = {cell("writingMode(kVerticalRL)",
                             "the passage with no table at all \xc2\xb7 the "

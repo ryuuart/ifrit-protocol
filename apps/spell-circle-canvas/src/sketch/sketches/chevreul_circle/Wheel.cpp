@@ -166,7 +166,7 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
       // The BASELINE resolves against the text node's OWN laid-out box, so
       // the run has to be the disc-sized element itself; wrapping it in a
       // sized parent silently collapses all 72 labels onto one point.
-      g.child(text(U(s), st)
+      g.child(text(s, st)
                   .key(key)
                   .width(Dimension(2 * rMid))
                   .height(Dimension(2 * rMid))
@@ -222,7 +222,7 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
   // that genuinely radiates, which is what Orient::Radial is for.
   for (int i = 0; i < 12; ++i) {
     const int n = i * 6;
-    g.child(text(U(std::to_string(n)))
+    g.child(text(std::to_string(n))
                 .font({.size = 10, .color = kRed, .track = 0.3f})
                 .key("ix" + std::to_string(n))
                 .width(Dimension(2 * (kRSweepOut + 11)))

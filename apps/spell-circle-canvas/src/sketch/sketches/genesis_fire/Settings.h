@@ -251,7 +251,7 @@ inline Element panel(float height, int order) {
 }
 
 inline Element panelHead(const char* s) {
-  return text(toUtf8(s))
+  return text(s)
       .font({.face = uiFace(), .size = 9.5f, .track = 1.9f})
       .height(13)
       .shrink(0);

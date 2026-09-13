@@ -60,7 +60,6 @@ namespace sketch = sigil::sketch;
 namespace scry = sigil::scry;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -232,18 +231,18 @@ struct WebScript final : sketch::Sketch {
         kScrollBy);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("DRIVING A PAGE \xc2\xb7 setLoadCallback + "
-                         "evaluateScript + scroll + mouse"),
-         .subtitle = toUtf8("dials \xc2\xb7 the script \xc2\xb7 the wheel "
-                            "\xc2\xb7 the point pressed \xe2\x80\x94 one "
-                            "document, four views, one call apart"),
-         .footer = toUtf8(
+        {.title = "DRIVING A PAGE \xc2\xb7 setLoadCallback + "
+                  "evaluateScript + scroll + mouse",
+         .subtitle = "dials \xc2\xb7 the script \xc2\xb7 the wheel "
+                     "\xc2\xb7 the point pressed \xe2\x80\x94 one "
+                     "document, four views, one call apart",
+         .footer =
              std::string(
                  "every call crosses to the web thread, so each cell was "
                  "driven and then waited on for the engine's own events "
                  "\xe2\x80\x94 the load, then the page's own answer that "
                  "what the call asked for is what the latest frame shows") +
-             (settled ? "" : "; one of those waits expired"))},
+             (settled ? "" : "; one of those waits expired")},
         kit::cells(
             {.cells = {cell("plain", plain, stills[0],
                             "loadHTML + setLoadCallback",
@@ -280,7 +279,7 @@ struct WebScript final : sketch::Sketch {
                       std::string note) {
     const SkRect where = SkRect::MakeWH((float)kViewW, (float)kViewH);
     return sketch::kit::caption(
-        (float)kViewW, toUtf8(call), toUtf8(note),
+        (float)kViewW, call, note,
         custom(std::move(key),
                [view, still = std::move(still), where](SkCanvas& canvas,
                                                        const PaintContext&) {

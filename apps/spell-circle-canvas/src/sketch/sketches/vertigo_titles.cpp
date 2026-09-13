@@ -671,7 +671,7 @@ struct VertigoTitles : sketch::Sketch {
     std::vector<sketch::kit::Line> sources;
     for (int i = 0; i < 4; ++i)
       sources.push_back(
-          {.words = toUtf8(kSrc[i]),
+          {.words = kSrc[i],
            .ink = Fill::color(kSteelDim),
            .opacity = animate(from(0.0f).to(1.0f),
                               ramp(520.0f + (float)i * 70.0f, 260))});
@@ -682,11 +682,11 @@ struct VertigoTitles : sketch::Sketch {
       const sketch::kit::Provide look(mastheadTheme());
       root.child(
           sketch::kit::titleCard(
-              {.eyebrow = {.words = toUtf8("PRECESSING LISSAJOUS FIGURES"),
+              {.eyebrow = {.words = "PRECESSING LISSAJOUS FIGURES",
                            .opacity =
                                animate(from(0.0f).to(1.0f), ramp(0, 260)),
                            .lift = animate(from(8.0f).to(0.0f), ramp(0, 260))},
-               .title = {.words = toUtf8("VERTIGO, 1958"),
+               .title = {.words = "VERTIGO, 1958",
                          .fx = Track{.effect = fx::rise(18.0f),
                                      .stagger = {.eachMs = 26,
                                                  .amountMs = 0,
@@ -694,9 +694,9 @@ struct VertigoTitles : sketch::Sketch {
                                      .progress = animate(
                                          from(0.0f).to(1.0f),
                                          ramp(140, 900, ch::easeOutExpo))}},
-               .subtitle = {.words = toUtf8("Saul Bass, title design — John "
-                                            "Whitney, spirals — Paramount, "
-                                            "dir. Alfred Hitchcock"),
+               .subtitle = {.words = "Saul Bass, title design — John "
+                                     "Whitney, spirals — Paramount, "
+                                     "dir. Alfred Hitchcock",
                             .opacity =
                                 animate(from(0.0f).to(1.0f), ramp(420, 240))},
                .notes = std::move(sources),

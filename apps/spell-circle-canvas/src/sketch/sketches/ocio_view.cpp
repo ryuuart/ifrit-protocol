@@ -49,7 +49,6 @@ namespace material = sigil::material;
 namespace ocio = sigil::material::ocio;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -113,7 +112,7 @@ material::Material through(material::Material transform) {
 Element cell(const char* call, const std::string& note,
              material::Material paint) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well(
           {.width = kCell, .height = kPicture},
           custom(call, [paint = std::move(paint), face = whole()](
@@ -200,17 +199,17 @@ struct OcioView final : sketch::Sketch {
          .column = true,
          .gap = 18});
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("OCIO VIEW \xc2\xb7 ocio::exponent, convert, "
-                         "viewTransform \xe2\x80\x94 each a baked 3D LUT"),
-         .subtitle = toUtf8(kit::formatted(
+        {.title = "OCIO VIEW \xc2\xb7 ocio::exponent, convert, "
+                  "viewTransform \xe2\x80\x94 each a baked 3D LUT",
+         .subtitle = kit::formatted(
              "dials \xc2\xb7 the exponent (%.1f) \xc2\xb7 the LUT side "
              "(%d) \xc2\xb7 the config (\"%s\") \xc2\xb7 the display "
              "and view names \xc2\xb7 available() is %s here",
-             (double)kGamma, kLutSize, kConfig, have ? "true" : "false")),
-         .footer = toUtf8("the transform is a material like any other: "
-                          "one open slot, one trilinear sample per pixel, "
-                          "and nothing of OCIO proper between the bake "
-                          "and the frame")},
+             (double)kGamma, kLutSize, kConfig, have ? "true" : "false"),
+         .footer = "the transform is a material like any other: "
+                   "one open slot, one trilinear sample per pixel, "
+                   "and nothing of OCIO proper between the bake "
+                   "and the frame"},
         std::move(content)));
   }
 };

@@ -94,19 +94,16 @@ weave::StyleSheet voices() {
 /** The caption IS the call: monospaced, small, and set in the same ink as
  *  the body unless a caller asks for a lighter one. */
 Element call(const char* words, float size = 9.5f, SkColor4f c = kInk) {
-  return text(toUtf8(words))
-      .styleClass("call")
-      .font({.size = size, .color = c});
+  return text(words).styleClass("call").font({.size = size, .color = c});
 }
 Element roman(const char* words, float size, SkColor4f c = kInk,
               float tracking = 0) {
-  return text(toUtf8(words))
-      .styleClass("roman")
-      .font({.size = size, .color = c, .track = tracking});
+  return text(words).styleClass("roman").font(
+      {.size = size, .color = c, .track = tracking});
 }
 Element romanBold(const char* words, float size, SkColor4f c = kInk,
                   float tracking = 0) {
-  return text(toUtf8(words))
+  return text(words)
       .styleClass("romanBold")
       .font({.size = size, .color = c, .track = tracking});
 }

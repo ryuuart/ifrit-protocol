@@ -52,7 +52,6 @@ namespace weave = sigil::weave;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -118,8 +117,7 @@ Element plate(Element body) {
 }
 
 Element cell(const char* call, const char* note, Element body) {
-  return sketch::kit::caption(kCell, toUtf8(call), toUtf8(note),
-                              plate(std::move(body)));
+  return sketch::kit::caption(kCell, call, note, plate(std::move(body)));
 }
 
 }  // namespace
@@ -132,19 +130,18 @@ struct ExactTangent final : sketch::Sketch {
     const SkColor4f figure = sketch::kit::theme().palette.figure;
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("THE TANGENT LADDER \xc2\xb7 "
-                         "TextPath::exactTangent on a tight spiral"),
-         .subtitle =
-             toUtf8("dials \xc2\xb7 the size (15 px, then 74, then 260) "
-                    "\xc2\xb7 the spiral's turns (3.2) \xc2\xb7 "
-                    "exactTangent \xc2\xb7 how far off the "
-                    "baseline the type rides"),
-         .footer = toUtf8("the ladder is sixteen steps per pixel of em, "
-                          "clamped between 64 and 2048 \xe2\x80\x94 so a "
-                          "step sweeps a glyph's far edge about a fifth "
-                          "of a pixel at every size until the ceiling "
-                          "binds, which is why the switch is for artwork "
-                          "set large and static")},
+        {.title = "THE TANGENT LADDER \xc2\xb7 "
+                  "TextPath::exactTangent on a tight spiral",
+         .subtitle = "dials \xc2\xb7 the size (15 px, then 74, then 260) "
+                     "\xc2\xb7 the spiral's turns (3.2) \xc2\xb7 "
+                     "exactTangent \xc2\xb7 how far off the "
+                     "baseline the type rides",
+         .footer = "the ladder is sixteen steps per pixel of em, "
+                   "clamped between 64 and 2048 \xe2\x80\x94 so a "
+                   "step sweeps a glyph's far edge about a fifth "
+                   "of a pixel at every size until the ceiling "
+                   "binds, which is why the switch is for artwork "
+                   "set large and static"},
         kit::cells(
             {.cells = {cell("onPath({spiral(3.2), at = 0.42})",
                             "the baseline every cell uses \xc2\xb7 one run "

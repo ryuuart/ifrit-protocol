@@ -46,7 +46,6 @@ namespace material = sigil::material;
 namespace paint = sigil::material::skia;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -100,7 +99,7 @@ Element cell(const char* call, const char* note, paint::Paint fill,
                     .justify(Justify::Center)
                     .child(text(kWord).styleClass("display").textFill(
                         std::move(beneath))));
-  return sketch::kit::caption(kCell, toUtf8(call), toUtf8(note),
+  return sketch::kit::caption(kCell, call, note,
                               std::move(plate).child(std::move(word)));
 }
 
@@ -118,17 +117,17 @@ struct TextPaints final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("TEXT PAINTS \xc2\xb7 Element::textFill over "
-                         "kit::water, meshGradient, sparkle, starNest, "
-                         "clouds, tunnel"),
-         .subtitle = toUtf8("dials \xc2\xb7 the paint \xc2\xb7 the type "
-                            "size (56 px \xe2\x80\x94 change it and the "
-                            "fills do not move) \xc2\xb7 the moment "
-                            "(6.4 s)"),
-         .footer = toUtf8("the material's unit square lands with x across "
-                          "the widest line and y from cap top to "
-                          "baseline, so a ramp authored once in [0, 1] "
-                          "crosses the capitals at any size")},
+        {.title = "TEXT PAINTS \xc2\xb7 Element::textFill over "
+                  "kit::water, meshGradient, sparkle, starNest, "
+                  "clouds, tunnel",
+         .subtitle = "dials \xc2\xb7 the paint \xc2\xb7 the type "
+                     "size (56 px \xe2\x80\x94 change it and the "
+                     "fills do not move) \xc2\xb7 the moment "
+                     "(6.4 s)",
+         .footer = "the material's unit square lands with x across "
+                   "the widest line and y from cap top to "
+                   "baseline, so a ramp authored once in [0, 1] "
+                   "crosses the capitals at any size"},
         kit::cells(
             {.cells =
                  {kit::cells(

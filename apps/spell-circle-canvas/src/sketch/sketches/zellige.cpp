@@ -50,7 +50,6 @@ namespace mskia = sigil::material::skia;
 using sigil::material::skia::Paint;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 using namespace std::chrono_literals;
 
 namespace {

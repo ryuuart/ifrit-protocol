@@ -56,7 +56,6 @@ namespace sketch = sigil::sketch;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -91,7 +90,7 @@ Element plot(const char* key, std::vector<kit::Trace> curves, int gridLines = 0,
 
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture})
           .child(std::move(body)));
 }
@@ -118,17 +117,17 @@ struct DecayStep final : sketch::Sketch {
     };
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("THE CLOCK ARITHMETIC \xc2\xb7 motion::decay, "
-                         "quantizeTime, stepIndex, phase, spring"),
-         .subtitle = toUtf8("dials \xc2\xb7 three seconds across every plot "
-                            "\xc2\xb7 the time constant (0.6 s) \xc2\xb7 "
-                            "the rate (4 Hz) \xc2\xb7 the period (0.8 s) "
-                            "\xc2\xb7 the damping ratios"),
-         .footer = toUtf8("a spring is a STATE and the rest are functions, "
-                          "which is the whole difference: an ease needs "
-                          "two fixed endpoints and can only restart when "
-                          "the target moves, where a spring carries the "
-                          "motion it already has into the new one")},
+        {.title = "THE CLOCK ARITHMETIC \xc2\xb7 motion::decay, "
+                  "quantizeTime, stepIndex, phase, spring",
+         .subtitle = "dials \xc2\xb7 three seconds across every plot "
+                     "\xc2\xb7 the time constant (0.6 s) \xc2\xb7 "
+                     "the rate (4 Hz) \xc2\xb7 the period (0.8 s) "
+                     "\xc2\xb7 the damping ratios",
+         .footer = "a spring is a STATE and the rest are functions, "
+                   "which is the whole difference: an ease needs "
+                   "two fixed endpoints and can only restart when "
+                   "the target moves, where a spring carries the "
+                   "motion it already has into the new one"},
         kit::cells(
             {.cells =
                  {cell("motion::decay(age, 0.6)",

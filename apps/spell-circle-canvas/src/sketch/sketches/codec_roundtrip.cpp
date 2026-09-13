@@ -57,7 +57,6 @@ namespace camera = sigil::geometry::mesh::camera;
 namespace render = sigil::geometry::mesh::render;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -123,7 +122,7 @@ std::string kib(size_t bytes) {
  *  of them line up whatever each one drew. */
 Element cell(const char* heading, const std::string& reading, Element picture) {
   return sketch::kit::caption(
-      kCell, toUtf8(heading), toUtf8(reading),
+      kCell, heading, reading,
       sketch::kit::well({.width = kCell, .height = kPicture, .clip = false},
                         std::move(picture)));
 }
@@ -186,15 +185,15 @@ struct CodecRoundtrip final : sketch::Sketch {
         (double)hi.z);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("CODEC ROUND TRIP \xc2\xb7 encode::ply "
-                         "\xe2\x86\x92 decode::model"),
-         .subtitle = toUtf8("dials \xc2\xb7 the format (ascii, binary, "
-                            "faceless cloud) \xc2\xb7 the generator "
-                            "(torus R 62 r 23, 48 by 24)"),
-         .footer = toUtf8("one decode::model call reads all of them "
-                          "\xe2\x80\x94 the reader is picked off the "
-                          "path hint, and OBJ, glTF, STL, Alembic and "
-                          ".geo come through the same door")},
+        {.title = "CODEC ROUND TRIP \xc2\xb7 encode::ply "
+                  "\xe2\x86\x92 decode::model",
+         .subtitle = "dials \xc2\xb7 the format (ascii, binary, "
+                     "faceless cloud) \xc2\xb7 the generator "
+                     "(torus R 62 r 23, 48 by 24)",
+         .footer = "one decode::model call reads all of them "
+                   "\xe2\x80\x94 the reader is picked off the "
+                   "path hint, and OBJ, glTF, STL, Alembic and "
+                   ".geo come through the same door"},
         kit::cells(
             {.cells =
                  {kit::cells(

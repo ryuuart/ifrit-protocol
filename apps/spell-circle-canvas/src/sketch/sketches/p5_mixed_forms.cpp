@@ -64,7 +64,7 @@ struct P5MixedForms final : sketch::Sketch {
         .fill(compose::Fill::color({0.16f, 0.20f, 0.34f, 0.92f}))
         .font({.size = 15})
         .child(compose::text(u8"a compose card, retained"))
-        .child(compose::text(compose::toUtf8("frame " + std::to_string(frame)))
+        .child(compose::text("frame " + std::to_string(frame))
                    .font({.size = 12})
                    .key("frame"));
   }

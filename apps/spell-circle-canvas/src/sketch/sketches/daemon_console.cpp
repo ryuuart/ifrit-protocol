@@ -91,7 +91,6 @@ namespace weave = sigil::weave;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 
@@ -584,7 +583,7 @@ struct DaemonConsole final : sketch::Sketch {
    *  channel is named in are this console's, carried down by its theme. */
   Element meterRow(const char* label, choreograph::Output<float>* level) {
     sketch::kit::Meter bar{
-        .label = toUtf8(label), .height = Dimension(4), .corners = 2};
+        .label = label, .height = Dimension(4), .corners = 2};
     bar.level = level;
     return sketch::kit::meter(bar);
   }

@@ -90,7 +90,6 @@ namespace sdf = sigil::material::sdf;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 
@@ -789,14 +788,13 @@ struct PassiveTree final : sketch::Sketch {
       // Bound only round the card, since everything else on this HUD is
       // set in the tree's own registers rather than in a sheet's.
       const sketch::kit::Provide look(mastheadTheme());
-      root.child(
-          sketch::kit::titleCard(
-              {.title = {toUtf8("EMBERWOOD REACH")},
-               .subtitle = {toUtf8("passive cluster \xe2\x80\x94 real orbit "
-                                   "geometry, four frame states")}})
-              .top(30)
-              .left(38)
-              .zIndex(8));
+      root.child(sketch::kit::titleCard(
+                     {.title = {"EMBERWOOD REACH"},
+                      .subtitle = {"passive cluster \xe2\x80\x94 real orbit "
+                                   "geometry, four frame states"}})
+                     .top(30)
+                     .left(38)
+                     .zIndex(8));
     }
     root.child(box()
                    .column()

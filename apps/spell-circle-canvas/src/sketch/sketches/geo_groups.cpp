@@ -139,7 +139,7 @@ Element splat(geometry::mesh::Cloud cloud) {
 
 Element panel(const char* title, const char* note, Element inner) {
   return sketch::kit::caption(
-      kPanel, toUtf8(title), toUtf8(note),
+      kPanel, title, note,
       sketch::kit::well({.width = Dimension(kPanel),
                          .height = Dimension(kPanel * 0.8f),
                          .ground = Fill::none(),
@@ -209,13 +209,13 @@ struct GeoGroups : sketch::Sketch {
                   .cloud();
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("GEO GROUPS \xc2\xb7 a point group is a pop mask "
-                         "the moment it lands"),
-         .subtitle = toUtf8(caption),
-         .footer = toUtf8("a point group arrives from the file as a 0/1 "
-                          "lane under its own name — which is what "
-                          "masked() reads, and what encode::geo writes "
-                          "back out")},
+        {.title = "GEO GROUPS \xc2\xb7 a point group is a pop mask "
+                  "the moment it lands",
+         .subtitle = caption,
+         .footer = "a point group arrives from the file as a 0/1 "
+                   "lane under its own name — which is what "
+                   "masked() reads, and what encode::geo writes "
+                   "back out"},
         kit::cells(
             {.cells = {panel("pop::on(part.asCloud())",
                              "Cd from the file; group \"ring\" scaled up",

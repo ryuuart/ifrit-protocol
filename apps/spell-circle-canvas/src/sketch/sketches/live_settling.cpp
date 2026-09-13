@@ -60,7 +60,6 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -134,16 +133,16 @@ struct LiveSettling final : sketch::Sketch {
     reports[3] = sweep(true, kStarved, kWide);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("A MOVING MEASURE \xc2\xb7 Element::live, "
-                         "Composer::settling"),
-         .subtitle = toUtf8("dials \xc2\xb7 the measure the swell runs "
-                            "between (150 to 230 px, one pixel at a step) "
-                            "\xc2\xb7 the frame's budget (4000 \xc2\xb5s, "
-                            "then 1)"),
-         .footer = toUtf8("a settled passage reports nothing and answers "
-                          "reused 0 \xe2\x80\x94 it decided its breaks "
-                          "once and no later frame asks it again, which "
-                          "is why live is DECLARED and never inferred")},
+        {.title = "A MOVING MEASURE \xc2\xb7 Element::live, "
+                  "Composer::settling",
+         .subtitle = "dials \xc2\xb7 the measure the swell runs "
+                     "between (150 to 230 px, one pixel at a step) "
+                     "\xc2\xb7 the frame's budget (4000 \xc2\xb5s, "
+                     "then 1)",
+         .footer = "a settled passage reports nothing and answers "
+                   "reused 0 \xe2\x80\x94 it decided its breaks "
+                   "once and no later frame asks it again, which "
+                   "is why live is DECLARED and never inferred"},
         kit::cells(
             {.cells = {cell("live(true, 4000) \xc2\xb7 at the narrow end",
                             "the swell has crossed this measure before "
@@ -176,7 +175,7 @@ struct LiveSettling final : sketch::Sketch {
                float budget, const std::string& report) {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
     return sketch::kit::caption(
-        kCell, toUtf8(call), toUtf8(note),
+        kCell, call, note,
         sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
             .column()
             .gap(10)

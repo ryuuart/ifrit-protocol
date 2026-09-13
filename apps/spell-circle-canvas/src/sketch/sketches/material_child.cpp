@@ -68,7 +68,6 @@ namespace field = sigil::material::field;
 namespace mkit = sigil::material::kit;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -215,7 +214,7 @@ Element lutStrip(const sk_sp<SkImage>& table) {
 Element panel(const Tables& tables, const char* call, const char* note,
               const sk_sp<SkImage>& table, float shade, std::string key) {
   return sketch::kit::caption(
-      kPanel, toUtf8(call), toUtf8(note),
+      kPanel, call, note,
       box()
           .column()
           .gap(6)
@@ -255,7 +254,7 @@ mat::Material stackMask() {
 Element operand(const char* call, const char* note, mat::Material material,
                 std::string key) {
   return sketch::kit::caption(
-      kPanel, toUtf8(call), toUtf8(note),
+      kPanel, call, note,
       box()
           .key(std::move(key))
           .width(kPanel)
@@ -336,17 +335,17 @@ struct MaterialChild final : sketch::Sketch {
          .gap = 20});
 
     return sketch::kit::page(
-        {.title = toUtf8("CHILD SLOTS \xc2\xb7 a material filling "
-                         "another's"),
-         .subtitle = toUtf8("top: Paint::sksl(\xe2\x80\xa6).child() "
-                            "\xe2\x80\x94 an index texture read "
-                            "through a palette LUT \xc2\xb7 bottom: "
-                            "over(base, top, mask) \xe2\x80\x94 the "
-                            "same idea one level up"),
-         .footer = toUtf8("one effect, two children, ONE draw \xc2\xb7 "
-                          "children ride the prune signature, so a "
-                          "swapped LUT repatches and an identical one "
-                          "prunes")},
+        {.title = "CHILD SLOTS \xc2\xb7 a material filling "
+                  "another's",
+         .subtitle = "top: Paint::sksl(\xe2\x80\xa6).child() "
+                     "\xe2\x80\x94 an index texture read "
+                     "through a palette LUT \xc2\xb7 bottom: "
+                     "over(base, top, mask) \xe2\x80\x94 the "
+                     "same idea one level up",
+         .footer = "one effect, two children, ONE draw \xc2\xb7 "
+                   "children ride the prune signature, so a "
+                   "swapped LUT repatches and an identical one "
+                   "prunes"},
         kit::cells({.cells = {std::move(slots), std::move(stack)},
                     .column = true,
                     .gap = 26}));

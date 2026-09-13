@@ -55,7 +55,6 @@ namespace sketch = sigil::sketch;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -128,7 +127,7 @@ Element cell(const char* call, const char* note, Element body,
              const std::string& readout) {
   const sketch::kit::Theme& look = sketch::kit::theme();
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture})
           .child(std::move(body))
           .child(text(readout, look.mono(10, look.palette.figure))
@@ -164,17 +163,17 @@ struct LaneRetarget final : sketch::Sketch {
         kit::formatted("retargetFamily \xc2\xb7 shape 1 \xe2\x86\x92 2");
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("RETARGETING A LANE \xc2\xb7 motion::"
-                         "retargetSlots, motion::retargetFamily"),
-         .subtitle = toUtf8("dials \xc2\xb7 the moment the second "
-                            "description arrives (0.55 s, the rule on "
-                            "every plot) \xc2\xb7 the two targets \xc2\xb7 "
-                            "the transition both ask for (900 ms)"),
-         .footer = toUtf8("a description that changes the SHAPE of a "
-                          "positional family DROPS its running motions "
-                          "rather than carrying them onto endpoints that "
-                          "now mean something else \xe2\x80\x94 the same "
-                          "rule keys enforce for whole nodes")},
+        {.title = "RETARGETING A LANE \xc2\xb7 motion::"
+                  "retargetSlots, motion::retargetFamily",
+         .subtitle = "dials \xc2\xb7 the moment the second "
+                     "description arrives (0.55 s, the rule on "
+                     "every plot) \xc2\xb7 the two targets \xc2\xb7 "
+                     "the transition both ask for (900 ms)",
+         .footer = "a description that changes the SHAPE of a "
+                   "positional family DROPS its running motions "
+                   "rather than carrying them onto endpoints that "
+                   "now mean something else \xe2\x80\x94 the same "
+                   "rule keys enforce for whole nodes"},
         kit::cells(
             {.cells = {cell("one description, left alone",
                             "the flight the other three interrupt \xc2\xb7 "

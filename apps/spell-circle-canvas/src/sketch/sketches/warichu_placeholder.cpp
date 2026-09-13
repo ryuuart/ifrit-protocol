@@ -92,7 +92,7 @@ std::u8string narrow(std::u16string_view utf16) {
 
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
           .child(std::move(body)));
 }
@@ -132,17 +132,17 @@ struct WarichuPlaceholder final : sketch::Sketch {
                                reinterpret_cast<const char*>(second.c_str()));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("WARICHU \xc2\xb7 weave::warichuSplit into a "
-                         "reserved inline slot"),
-         .subtitle = toUtf8("dials \xc2\xb7 the note's own size (8 px "
-                            "against a 13 px base) \xc2\xb7 the slot's "
-                            "baseline drop \xc2\xb7 the note's length, "
-                            "which is what decides the cut"),
-         .footer = toUtf8("the cut is the break opportunity that leaves "
-                          "the two lines CLOSEST IN ADVANCE \xe2\x80\x94 "
-                          "two lines of one length is what makes a note "
-                          "read as one object rather than as a line with "
-                          "something under it")},
+        {.title = "WARICHU \xc2\xb7 weave::warichuSplit into a "
+                  "reserved inline slot",
+         .subtitle = "dials \xc2\xb7 the note's own size (8 px "
+                     "against a 13 px base) \xc2\xb7 the slot's "
+                     "baseline drop \xc2\xb7 the note's length, "
+                     "which is what decides the cut",
+         .footer = "the cut is the break opportunity that leaves "
+                   "the two lines CLOSEST IN ADVANCE \xe2\x80\x94 "
+                   "two lines of one length is what makes a note "
+                   "read as one object rather than as a line with "
+                   "something under it"},
         kit::cells({.cells = {oneLineCell(), splitCell(), verticalCell(),
                               readoutCell()},
                     .gap = 14})));

@@ -70,7 +70,6 @@ namespace scry = sigil::scry;
 namespace gm = sigil::geometry::mesh;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 

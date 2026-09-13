@@ -285,13 +285,13 @@ struct PsxDoomFire final : sketch::Sketch {
         // in it and name only their size and tracking; the title names its
         // own face and colour over it.
         .font({.face = uiFace(), .color = kSteel})
-        .child(compose::text(compose::toUtf8("CELLULAR AUTOMATON"))
+        .child(compose::text("CELLULAR AUTOMATON")
                    .font({.size = 12, .track = 2.6f})
                    .opacity(motion::animate(motion::from(0.0f).to(1.0f),
                                             {.duration = 260ms}))
                    .translateY(motion::animate(motion::from(8.0f).to(0.0f),
                                                {.duration = 260ms})))
-        .child(compose::text(compose::toUtf8(kTitle))
+        .child(compose::text(kTitle)
                    .font({.face = heavyFace(),
                           .size = 50,
                           .color = kBone,
@@ -305,13 +305,13 @@ struct PsxDoomFire final : sketch::Sketch {
                                                      .delay = 120ms})}))
         .child(
             compose::text(
-                compose::toUtf8(
-                    "id Software / Williams \xe2\x80\x94 PlayStation port "
-                    "title screen \xc2\xb7 algorithm reverse-engineered "
-                    "from the Doom 64 disassembly by Samuel Villarreal, "
-                    "documented by Fabien Sanglard "
-                    "\xc2\xb7 fabiensanglard.net/doom_fire_psx "
-                    "\xc2\xb7 DoomFirePSX/flames.html"))
+
+                "id Software / Williams \xe2\x80\x94 PlayStation port "
+                "title screen \xc2\xb7 algorithm reverse-engineered "
+                "from the Doom 64 disassembly by Samuel Villarreal, "
+                "documented by Fabien Sanglard "
+                "\xc2\xb7 fabiensanglard.net/doom_fire_psx "
+                "\xc2\xb7 DoomFirePSX/flames.html")
                 .font({.size = 11.5f, .track = 0.2f})
                 .opacity(motion::animate(motion::from(0.0f).to(1.0f),
                                          {.duration = 320ms, .delay = 200ms})));
@@ -329,7 +329,7 @@ struct PsxDoomFire final : sketch::Sketch {
                                            .track = 34.0f});
     s.paint.addUnderlay(sigil::weave::kit::outline(
         hexColor(0x2A0805).toSkColor(), 7.0f, SkPaint::kRound_Join));
-    return compose::text(compose::toUtf8("DOOM"), std::move(s))
+    return compose::text("DOOM", std::move(s))
         .width(kPanelW)
         .textAlign(weave::TextAlignment::kCenter)
         .opacity(motion::animate(motion::from(0.0f).to(1.0f),

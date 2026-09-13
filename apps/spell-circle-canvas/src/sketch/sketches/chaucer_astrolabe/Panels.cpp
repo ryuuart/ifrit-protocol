@@ -106,22 +106,24 @@ auto ChaucerAstrolabe::panel(float x, float y, float w, float h,
   // every line a panel holds is set in the plate's ink unless it says
   // otherwise, so a panel's own lines say only what differs
   auto g = box().rect(SkRect::MakeXYWH(0, 0, kW, kH)).ink(kInk);
-  g.child(
-      kit::sheet({.title = toUtf8(title),
-                  .subtitle = sub && *sub ? toUtf8(sub) : std::u8string(),
-                  .titleStyle = partial(faceLimb, 15, kRubric, 1.9f),
-                  .subtitleStyle = partial(faceItalic, 14, hexColor(0x6b5a44)),
-                  .marginX = 16,
-                  .marginTop = 11,
-                  .marginBottom = 12,
-                  .subtitleGap = 5,
-                  .contentGap = 13,
-                  .ground = Fill::color(hexColor(0xe8dcc2, 0.62f)),
-                  .rule = Fill::color(hexColor(0x241c15, 0.28f))},
-                 box())
-          .rect(SkRect::MakeXYWH(x, y, w, h))
-          .stroke(stroke(1.0f, Fill::color(hexColor(0x241c15, 0.24f)),
-                         PathFormat::Align::Inner)));
+  // the sheet's two headed lines are the classes of their own names
+  const sigil::core::environment::Provide<weave::StyleSheet> classes(
+      weave::StyleSheet{
+          {"title", partial(faceLimb, 15, kRubric, 1.9f)},
+          {"subtitle", partial(faceItalic, 14, hexColor(0x6b5a44))}});
+  g.child(kit::sheet({.title = title,
+                      .subtitle = sub != nullptr && *sub != '\0' ? sub : "",
+                      .marginX = 16,
+                      .marginTop = 11,
+                      .marginBottom = 12,
+                      .subtitleGap = 5,
+                      .contentGap = 13,
+                      .ground = Fill::color(hexColor(0xe8dcc2, 0.62f)),
+                      .rule = Fill::color(hexColor(0x241c15, 0.28f))},
+                     box())
+              .rect(SkRect::MakeXYWH(x, y, w, h))
+              .stroke(stroke(1.0f, Fill::color(hexColor(0x241c15, 0.24f)),
+                             PathFormat::Align::Inner)));
   return g;
 }
 
@@ -596,16 +598,16 @@ auto ChaucerAstrolabe::consolePanel() -> Element {
 auto ChaucerAstrolabe::titleStrip() -> Element {
   auto g = box().rect(SkRect::MakeXYWH(0, 0, kW, kH));
   g.child(sketch::kit::titleCard(
-              {.title = {toUtf8("ASTROLABIVM \xc2\xb7 ANNO DOMINI M CCC "
-                                "XXVI")},
-               .subtitle = {toUtf8("compowned after the latitude of "
-                                   "Oxenford \xc2\xb7 51\xc2\xb0 "
-                                   "50\xe2\x80\xb2")},
-               .notes = {{.words = toUtf8("British Museum 1909,0617.1 "
-                                          "\xc2\xb7 brass \xc2\xb7 132 "
-                                          "mm \xc2\xb7 the earliest "
-                                          "dated astrolabe made in "
-                                          "Europe"),
+              {.title = {"ASTROLABIVM \xc2\xb7 ANNO DOMINI M CCC "
+                         "XXVI"},
+               .subtitle = {"compowned after the latitude of "
+                            "Oxenford \xc2\xb7 51\xc2\xb0 "
+                            "50\xe2\x80\xb2"},
+               .notes = {{.words = "British Museum 1909,0617.1 "
+                                   "\xc2\xb7 brass \xc2\xb7 132 "
+                                   "mm \xc2\xb7 the earliest "
+                                   "dated astrolabe made in "
+                                   "Europe",
                           .ink = Fill::color(hexColor(0x6b5a44))}},
                .ruled = true})
               .left(64)

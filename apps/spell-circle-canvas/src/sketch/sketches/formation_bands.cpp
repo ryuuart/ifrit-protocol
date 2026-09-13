@@ -47,7 +47,6 @@ namespace shapers = sigil::geometry::shapers;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -103,7 +102,7 @@ SkPaint fillPaint(SkColor4f color) {
 Element cell(const char* call, const std::string& note,
              std::function<void(SkCanvas&)> draw) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well(
           {.width = kCell, .height = kPicture, .clip = false},
           custom(call, [draw = std::move(draw)](SkCanvas& canvas,
@@ -138,16 +137,16 @@ struct FormationBands final : sketch::Sketch {
         path::Profile(shapers::wave(kAmplitude, kWavelength));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("FORMATION BANDS \xc2\xb7 Profile + profileOffset "
-                         "+ bandRegion"),
-         .subtitle = toUtf8("dials \xc2\xb7 the formation (Centered, "
-                            "Outward, Inward) \xc2\xb7 the amplitude "
-                            "(11 px) \xc2\xb7 the wavelength (54 px per "
-                            "cycle)"),
-         .footer = toUtf8("positive across is LEFT of travel, which on a "
-                          "clockwise path is outside it \xe2\x80\x94 so "
-                          "Outward and Inward are not a sign the caller "
-                          "picks but a side the formation names")},
+        {.title = "FORMATION BANDS \xc2\xb7 Profile + profileOffset "
+                  "+ bandRegion",
+         .subtitle = "dials \xc2\xb7 the formation (Centered, "
+                     "Outward, Inward) \xc2\xb7 the amplitude "
+                     "(11 px) \xc2\xb7 the wavelength (54 px per "
+                     "cycle)",
+         .footer = "positive across is LEFT of travel, which on a "
+                   "clockwise path is outside it \xe2\x80\x94 so "
+                   "Outward and Inward are not a sign the caller "
+                   "picks but a side the formation names"},
         kit::cells(
             {.cells =
                  {kit::cells(

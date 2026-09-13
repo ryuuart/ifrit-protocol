@@ -183,7 +183,7 @@ using instrument::uiFace;
  *  panel's mono in the type-2 ink, the masthead's interface face, the
  *  film frame's 8 px tracked 0.6 — naming only what differs. */
 inline Element t(std::string_view line, weave::Type partial) {
-  return text(toUtf8(line)).font(std::move(partial));
+  return text(line).font(std::move(partial));
 }
 
 /** The quotation register: the interface face, condensed 0.94 with 0.4

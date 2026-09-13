@@ -75,7 +75,6 @@ namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 

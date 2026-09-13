@@ -141,8 +141,7 @@ auto Fallout2CharSheet::failureCard() const -> Element {
   std::vector<sketch::kit::Row> rows;
   for (const sigil::measure::Check& c : sheetAudit.rows) {
     if (c.pass || !c.judged()) continue;
-    rows.push_back({{toUtf8(c.label), toUtf8(c.actual),
-                     toUtf8("shipped sheet says " + c.expected)},
+    rows.push_back({{c.label, c.actual, "shipped sheet says " + c.expected},
                     Fill::color(hexColor(0xE04020))});
   }
   sketch::kit::Provide bound(look);

@@ -457,14 +457,14 @@ inline sigil::weave::Type uiType() {
 
 /** ONE RUN OF UI TYPE IN THE INK IN FORCE — a window title, a menu item, a
  *  file name: each is just its own words. */
-inline Element label(std::string_view t) { return text(toUtf8(t)).shrink(0); }
+inline Element label(std::string_view t) { return text(t).shrink(0); }
 
 /** The same at another size, and in a colour of its own where the run is
  *  not in the set's: a calendar page's month over its day, the one figure a
  *  proof row fails on. */
 inline Element label(std::string_view t, float size,
                      std::optional<SkColor4f> c = std::nullopt) {
-  return text(toUtf8(t)).font({.size = size, .color = c}).shrink(0);
+  return text(t).font({.size = size, .color = c}).shrink(0);
 }
 
 /** One run with Motif's mnemonic underline on exactly one character. Two
@@ -487,9 +487,9 @@ inline Element mnemonicLabel(std::string_view t, SkColor4f c, int mnemonic) {
   d.color = c.toSkColor();
   under.paint.addDecoration(d);
   return text(weave::rich()
-                  .add(toUtf8(t.substr(0, (size_t)mnemonic)))
-                  .add(toUtf8(t.substr((size_t)mnemonic, 1)), under)
-                  .add(toUtf8(t.substr((size_t)mnemonic + 1))))
+                  .add(t.substr(0, (size_t)mnemonic))
+                  .add(t.substr((size_t)mnemonic, 1), under)
+                  .add(t.substr((size_t)mnemonic + 1)))
       .shrink(0);
 }
 

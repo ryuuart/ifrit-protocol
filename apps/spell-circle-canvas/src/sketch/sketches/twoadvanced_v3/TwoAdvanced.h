@@ -94,11 +94,10 @@ inline sk_sp<SkTypeface> verdanaFace(bool bold) {
  *  set in a whole style, which inherits nothing, or in a partial over the
  *  font in force where the label lands. */
 inline sigil::compose::Element t(const char* s, sigil::weave::TextStyle style) {
-  return sigil::compose::text(sigil::compose::toUtf8(s), std::move(style));
+  return sigil::compose::text(s, std::move(style));
 }
 inline sigil::compose::Element t(const char* s, sigil::weave::Type partial) {
-  return sigil::compose::text(sigil::compose::toUtf8(s))
-      .font(std::move(partial));
+  return sigil::compose::text(s).font(std::move(partial));
 }
 
 // ---------------------------------------------------------------------------

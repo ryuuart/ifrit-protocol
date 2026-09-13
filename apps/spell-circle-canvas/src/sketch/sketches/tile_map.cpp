@@ -58,7 +58,6 @@ namespace motion = sigil::motion;
 namespace ch = choreograph;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -302,7 +301,7 @@ struct TileMap final : sketch::Sketch {
          .subtitle = u8"one tile edited every 0.7 s \xe2\x80\x94 the chunk "
                      u8"that holds it is described again and washed; the "
                      u8"other three replay",
-         .footer = toUtf8(counts + "   |   " + timing)},
+         .footer = counts + "   |   " + timing},
         std::move(grid));
   }
 

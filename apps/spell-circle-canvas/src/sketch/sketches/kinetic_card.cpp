@@ -65,7 +65,6 @@ namespace motion = sigil::motion;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -187,7 +186,7 @@ struct KineticCard final : sketch::Sketch {
   Element cell(const Row& row, Track track, weave::Type over = {}) {
     track.progress = &phase;
     track.stagger = kCascade;
-    return sketch::kit::caption(kCell, toUtf8(row.call), toUtf8(row.note),
+    return sketch::kit::caption(kCell, row.call, row.note,
                                 box()
                                     .width(Dimension(kCell))
                                     .height(Dimension(kBodyH))

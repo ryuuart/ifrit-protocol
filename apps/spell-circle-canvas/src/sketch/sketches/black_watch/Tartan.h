@@ -449,21 +449,18 @@ inline const weave::StyleSheet& classes() {
   return look;
 }
 
-inline std::u8string U(const std::string& s) { return toUtf8(s); }
-
 /** One line of type at a card position, ranged left or centred, set in
  *  whatever the caller states on it — a class or a partial — over the root
  *  voice. The line box is 1.6 em of that type, so it follows the size the
  *  line resolves to. */
 inline Element label(const std::string& s, float x, float y, float w) {
-  return at(x, y, w, 0).height(1.6_em).child(text(U(s)));
+  return at(x, y, w, 0).height(1.6_em).child(text(s));
 }
 inline Element centred(const std::string& s, float x, float y, float w) {
   return at(x, y, w, 0)
       .height(1.6_em)
-      .child(text(U(s))
-                 .textAlign(weave::TextAlignment::kCenter)
-                 .width(Dimension(w)));
+      .child(
+          text(s).textAlign(weave::TextAlignment::kCenter).width(Dimension(w)));
 }
 inline Element rule(float x, float y, float w, float h, SkColor4f c) {
   return at(x, y, w, h).fill(c);

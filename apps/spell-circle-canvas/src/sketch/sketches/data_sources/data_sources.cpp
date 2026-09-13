@@ -40,19 +40,18 @@ Element bars(const data::Table* table, const char* names, const char* values,
   for (const double v : value) largest = std::max(largest, v);
   const data::Scale length{.domain = {0, largest}, .range = {0, kBars}};
   for (size_t row = 0; row < table->size(); ++row) {
-    column.child(box()
-                     .row()
-                     .alignItems(Align::Center)
-                     .gap(8)
-                     .child(text(sigil::compose::toUtf8(label[row]))
-                                .width(Dimension(96.0f)))
-                     .child(box()
-                                .height(Dimension(11.0f))
-                                .width(Dimension((float)length(value[row])))
-                                .fill(Fill::color(row == 0 ? kBar : kBarDim)))
-                     .child(text(sigil::compose::toUtf8(
-                                     std::to_string((long)value[row])))
-                                .font({.size = 9.5f})));
+    column.child(
+        box()
+            .row()
+            .alignItems(Align::Center)
+            .gap(8)
+            .child(text(label[row]).width(Dimension(96.0f)))
+            .child(box()
+                       .height(Dimension(11.0f))
+                       .width(Dimension((float)length(value[row])))
+                       .fill(Fill::color(row == 0 ? kBar : kBarDim)))
+            .child(
+                text(std::to_string((long)value[row])).font({.size = 9.5f})));
   }
   return column;
 }

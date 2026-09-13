@@ -50,7 +50,6 @@ namespace weave = sigil::weave;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -79,7 +78,7 @@ weave::TextStyle specimen() {
 Element cell(const char* call, const char* note, const char* key, Track track) {
   track.progress = kProgress;
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture})
           .child(text("DISPLACEMENT", specimen())
                      .key(key)
@@ -110,18 +109,18 @@ struct FxScatterMix final : sketch::Sketch {
     const SkColor4f figure = sketch::kit::theme().palette.figure;
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("SCATTER, MIX AND THE LADDER \xc2\xb7 fx::"
-                         "scatter, fx::mix, Spread::from, distribution"),
-         .subtitle = toUtf8("dials \xc2\xb7 the progress the photograph is "
-                            "taken at (0.50) \xc2\xb7 the scatter's radius "
-                            "(34 px) and lean (26\xc2\xb0) \xc2\xb7 the "
-                            "origin \xc2\xb7 the distribution curve"),
-         .footer = toUtf8("mix composes by the algebra stacked tracks use "
-                          "\xe2\x80\x94 dx, dy and rotation add, scale and "
-                          "alpha multiply \xe2\x80\x94 and the scatter's "
-                          "randomness is seeded from each glyph's own "
-                          "identity, so it is the same scatter every "
-                          "frame")},
+        {.title = "SCATTER, MIX AND THE LADDER \xc2\xb7 fx::"
+                  "scatter, fx::mix, Spread::from, distribution",
+         .subtitle = "dials \xc2\xb7 the progress the photograph is "
+                     "taken at (0.50) \xc2\xb7 the scatter's radius "
+                     "(34 px) and lean (26\xc2\xb0) \xc2\xb7 the "
+                     "origin \xc2\xb7 the distribution curve",
+         .footer = "mix composes by the algebra stacked tracks use "
+                   "\xe2\x80\x94 dx, dy and rotation add, scale and "
+                   "alpha multiply \xe2\x80\x94 and the scatter's "
+                   "randomness is seeded from each glyph's own "
+                   "identity, so it is the same scatter every "
+                   "frame"},
         kit::cells(
             {.cells =
                  {cell("fx::scatter(34, 26)",

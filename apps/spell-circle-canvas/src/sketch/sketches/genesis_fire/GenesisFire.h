@@ -227,7 +227,7 @@ struct GenesisFire final : sketch::Sketch {
   // Sidebar
 
   Element eqn(const char* s) {
-    return text(toUtf8(s))
+    return text(s)
         .font({.size = 11.0f, .track = 0.1f})
         .ink(kBone)
         .height(16)
@@ -239,7 +239,7 @@ struct GenesisFire final : sketch::Sketch {
   /** One cell of a census row, in the register the row states and its
    *  own colour. */
   Element censusCell(const char* s, float w, SkColor4f c) {
-    return text(toUtf8(s)).ink(c).width(w).shrink(0);
+    return text(s).ink(c).width(w).shrink(0);
   }
 
   /** A ROW'S SHARE OF THE LARGEST CENSUS, as a bar SCALED from its left
@@ -272,7 +272,7 @@ struct GenesisFire final : sketch::Sketch {
   Element renderModelPanel();
 
   Element prodLine(const char* s, SkColor4f c) {
-    return text(toUtf8(s)).styleClass("line").ink(c).height(10).shrink(0);
+    return text(s).styleClass("line").ink(c).height(10).shrink(0);
   }
 
   Element productionPanel();

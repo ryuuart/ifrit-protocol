@@ -53,7 +53,6 @@ namespace sketch = sigil::sketch;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 

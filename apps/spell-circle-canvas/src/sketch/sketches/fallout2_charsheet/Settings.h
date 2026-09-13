@@ -207,7 +207,7 @@ constexpr float kBodyAdvance = 5.80f;
  *  the screen, or over the initial values when `measure()` lays it out
  *  alone. */
 inline Element t(const std::string& s, weave::Type partial) {
-  return text(toUtf8(s)).font(std::move(partial));
+  return text(s).font(std::move(partial));
 }
 /** Place at a DOCUMENTED (x, y) in original screen px. `y` is Fallout's draw
  *  y — the top of the glyph cell — so the rise correction lands here, once. */

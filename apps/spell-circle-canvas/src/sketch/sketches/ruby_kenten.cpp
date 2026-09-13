@@ -42,10 +42,12 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/query/Selector.h>
+#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <string>
@@ -57,7 +59,6 @@
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 namespace weave = sigil::weave;
 
 namespace {
@@ -84,17 +85,25 @@ constexpr float kSplitHeight = 120;
  *  in the same breath as showing it. */
 inline kit::Caption voice() {
   return {.where = kit::Caption::Where::Above,
-          .label = labelType(9.5f, kAka, 1.6f),
-          .note = labelType(8.5f, kUsu, 0.2f),
           .gap = 13,
           .noteGap = 7,
           .noteMeasure = 112.0f,
           .align = Align::Center};
 }
 
+/** THE TWO CLASSES A CAPTION IS SET IN — the name in the seal red, the
+ *  remark a size down in the faded one. @p noteSize is the remark's,
+ *  which the wide caption under the split setting states larger. */
+inline weave::StyleSheet voiceClasses(float noteSize) {
+  return weave::StyleSheet{{"captionLabel", labelType(9.5f, kAka, 1.6f)},
+                           {"captionNote", labelType(noteSize, kUsu, 0.2f)}};
+}
+
 /** A captioned column: the caption over it, the specimen under it. */
 inline Element column(const char* caption, const char* note, Element specimen) {
-  return kit::cell(voice(), toUtf8(caption), toUtf8(note), std::move(specimen));
+  const sigil::core::environment::Provide<weave::StyleSheet> classes(
+      voiceClasses(8.5f));
+  return kit::cell(voice(), caption, note, std::move(specimen));
 }
 
 }  // namespace furigana
@@ -189,6 +198,25 @@ struct RubyKenten final : sketch::Sketch {
                                       u8"\xe8\xa6\x8b\xe9\x80\x83\xe3\x81\x99"),
                                   marks, u8"\xef\xb9\x85", 1.0f));
 
+    // The wide caption under the split setting states its remark a size
+    // larger than a column's, so it is built under a sheet of its own.
+    Element splitCell;
+    {
+      const sigil::core::environment::Provide<weave::StyleSheet> classes(
+          f::voiceClasses(9.0f));
+      splitCell = kit::cell({.where = kit::Caption::Where::Above,
+                             .gap = 13,
+                             .noteGap = 7,
+                             .noteMeasure = 300.0f},
+                            "SPLIT \xc2\xb7 ACROSS A COLUMN BREAK",
+                            "the base breaks inside the compound, so its "
+                            "reading breaks with it, in proportion to the "
+                            "base's advance either side",
+                            std::move(split))
+                      .absolute()
+                      .inset(52, 320, 0, 0);
+    }
+
     return box()
         .fill(linearGradient({0, 0}, {0, f::kH}, {f::kKinariLift, f::kKinari}))
         .font({.size = 10, .track = 0.2f})
@@ -232,19 +260,7 @@ struct RubyKenten final : sketch::Sketch {
                                     "one reading a character; the pitch "
                                     "opens to hold it",
                                     std::move(mono))))
-        .child(kit::cell({.where = kit::Caption::Where::Above,
-                          .label = f::labelType(9.5f, f::kAka, 1.6f),
-                          .note = f::labelType(9.0f, f::kUsu, 0.2f),
-                          .gap = 13,
-                          .noteGap = 7,
-                          .noteMeasure = 300.0f},
-                         toUtf8("SPLIT \xc2\xb7 ACROSS A COLUMN BREAK"),
-                         toUtf8("the base breaks inside the compound, so its "
-                                "reading breaks with it, in proportion to the "
-                                "base's advance either side"),
-                         std::move(split))
-                   .absolute()
-                   .inset(52, 320, 0, 0))
+        .child(std::move(splitCell))
         .child(text("mono \xc2\xb7 group \xc2\xb7 jukugo are the UNIT "
                     "and nothing else \xe2\x80\x94 the reading's size is "
                     "its own type's, never a fraction of the base's")

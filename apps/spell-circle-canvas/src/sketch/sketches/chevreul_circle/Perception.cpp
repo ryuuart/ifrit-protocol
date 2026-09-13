@@ -344,7 +344,7 @@ auto ChevreulCircle::theVerification() -> Element {
     std::string verdictWord;
     if (c.judged()) verdictWord = c.pass ? "PASS" : "FAIL want " + c.expected;
     lines.push_back(
-        {.cells = {U(c.label), U(c.actual), U(verdictWord)},
+        {.cells = {c.label, c.actual, verdictWord},
          .swatch = Fill::color(!c.judged() ? kRule : (c.pass ? kInk : kRed)),
          .key = "vr" + std::to_string(i)});
   }

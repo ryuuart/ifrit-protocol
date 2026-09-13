@@ -61,7 +61,6 @@ namespace motion = sigil::motion;
 namespace ch = choreograph;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -121,7 +120,7 @@ Element cell(const char* call, const char* note, Element body,
              const std::string& readout) {
   const sketch::kit::Theme& look = sketch::kit::theme();
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture})
           .child(std::move(body))
           // The readout stands on a scrim of the cell's own ground: a
@@ -191,18 +190,18 @@ struct TickerLanes final : sketch::Sketch {
     readouts[3] = kit::formatted("timeline \xc2\xb7 RampTo over %.1f s", kRamp);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("THE TICKER'S LANES \xc2\xb7 Ticker::add, "
-                         "addFixed, derive, timeline"),
-         .subtitle = toUtf8("dials \xc2\xb7 three seconds at a 120 Hz delta "
-                            "\xc2\xb7 the fixed rate (5 Hz) \xc2\xb7 the "
-                            "derivation's levels (6) \xc2\xb7 the "
-                            "timeline motion's duration (1.4 s)"),
-         .footer = toUtf8("a derivation runs in a SECOND PHASE, after the "
-                          "timeline and after every steppable, so it "
-                          "never reads a stale source and registration "
-                          "order does not matter \xe2\x80\x94 which is "
-                          "exactly what a hand-rolled shadow copy cannot "
-                          "promise")},
+        {.title = "THE TICKER'S LANES \xc2\xb7 Ticker::add, "
+                  "addFixed, derive, timeline",
+         .subtitle = "dials \xc2\xb7 three seconds at a 120 Hz delta "
+                     "\xc2\xb7 the fixed rate (5 Hz) \xc2\xb7 the "
+                     "derivation's levels (6) \xc2\xb7 the "
+                     "timeline motion's duration (1.4 s)",
+         .footer = "a derivation runs in a SECOND PHASE, after the "
+                   "timeline and after every steppable, so it "
+                   "never reads a stale source and registration "
+                   "order does not matter \xe2\x80\x94 which is "
+                   "exactly what a hand-rolled shadow copy cannot "
+                   "promise"},
         kit::cells(
             {.cells =
                  {cell("ticker.add([](double dt) { … return true; })",

@@ -45,7 +45,6 @@ namespace camera = sigil::geometry::mesh::camera;
 namespace points = sigil::geometry::mesh::points;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 namespace pop = sigil::geometry::mesh::pop;
 
 namespace {
@@ -110,7 +109,7 @@ pop::Builder base() {
  *  the same pixels reached once and blitted after. */
 Element cell(const char* call, const std::string& note, gm::Cloud cloud) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well(
           {.width = kCell, .height = kPicture},
           custom(call, [cloud = std::move(cloud)](SkCanvas& canvas,
@@ -136,17 +135,17 @@ struct PopMath final : sketch::Sketch {
     const size_t kept = selected().keep("core").cloud().size();
     const size_t dropped = selected().drop("core").cloud().size();
 
-    ctx.composer.render(sketch::kit::page({.title = toUtf8(
+    ctx.composer.render(sketch::kit::page({.title =
                                                "POP MATH \xc2\xb7 Math, Fill, "
                                                "Affine, Lookup, "
-                                               "Select, Mix, Normal, Delete"),
-                                           .subtitle = toUtf8(
+                                               "Select, Mix, Normal, Delete",
+                                           .subtitle =
                                                "dials \xc2\xb7 the operator "
                                                "\xc2\xb7 the Mix "
                                                "weight (0.55) \xc2\xb7 the "
                                                "Select feather "
-                                               "(0.6 of the extent)"),
-                                           .footer = toUtf8(
+                                               "(0.6 of the extent)",
+                                           .footer =
                                                "an operator names the lane it "
                                                "writes, and a "
                                                "name nothing has written yet "
@@ -155,7 +154,7 @@ struct PopMath final : sketch::Sketch {
                                                "naming an unwritten "
                                                "lane as a mask selects nobody "
                                                "rather than "
-                                               "everybody")},
+                                               "everybody"},
                                           kit::
                                               cells({.cells = {kit::cells({.cells = {cell("the cloud, uncut",
                                                                                           kit::formatted(

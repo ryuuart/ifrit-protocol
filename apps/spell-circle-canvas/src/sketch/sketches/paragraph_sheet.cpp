@@ -40,6 +40,7 @@
 
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/kit/Hyphenation.h>
@@ -54,7 +55,6 @@
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 namespace weave = sigil::weave;
 
 namespace {
@@ -133,8 +133,6 @@ weave::StyleSheet classes() {
 /// the specimen under both.
 kit::Caption panelVoice() {
   return {.where = kit::Caption::Where::Above,
-          .label = label(9.5f, 2.0f, kMark),
-          .note = label(9.0f, 0.4f),
           .gap = 13,
           .noteGap = 9,
           .noteMeasure = kMeasure};
@@ -143,17 +141,33 @@ kit::Caption panelVoice() {
 /// THE SPECIMEN'S VOICE, inside a panel: the call that set it, and the
 /// setting under the call.
 kit::Caption callVoice(float measure) {
-  return {.where = kit::Caption::Where::Above,
-          .label = label(8.5f, 1.2f),
-          .note = label(8.5f, 1.2f),
-          .gap = 5,
-          .noteMeasure = measure};
+  return {
+      .where = kit::Caption::Where::Above, .gap = 5, .noteMeasure = measure};
+}
+
+/// A PANEL'S TWO CAPTION CLASSES, over the sheet's own: the control's name
+/// in the mark colour, what it decides a size under it.
+weave::StyleSheet panelClasses() {
+  weave::StyleSheet sheet = classes();
+  sheet.set("captionLabel", label(9.5f, 2.0f, kMark));
+  sheet.set("captionNote", label(9.0f, 0.4f));
+  return sheet;
+}
+
+/// A SPECIMEN'S TWO, one step under a panel's: a call and its setting read
+/// as one line, so both are the same size.
+weave::StyleSheet callClasses() {
+  weave::StyleSheet sheet = classes();
+  sheet.set("captionLabel", label(8.5f, 1.2f));
+  sheet.set("captionNote", label(8.5f, 1.2f));
+  return sheet;
 }
 
 /// A panel: a name, what the control decides, and the specimen under it.
 Element panel(const char* name, const char* note, Element specimen) {
-  return kit::cell(panelVoice(), toUtf8(name), toUtf8(note),
-                   std::move(specimen));
+  const sigil::core::environment::Provide<weave::StyleSheet> voice(
+      panelClasses());
+  return kit::cell(panelVoice(), name, note, std::move(specimen));
 }
 
 constexpr const char8_t* kFourWays =
@@ -164,7 +178,9 @@ constexpr const char8_t* kFourWays =
 Element leadingSpecimen(const char* caption, weave::Leading leading) {
   weave::ParagraphStyle style;
   style.leading = leading;
-  return kit::cell(callVoice(kMeasure * 0.48f), toUtf8(caption), u8"",
+  const sigil::core::environment::Provide<weave::StyleSheet> voice(
+      callClasses());
+  return kit::cell(callVoice(kMeasure * 0.48f), caption, "",
                    text(kFourWays)
                        .styleClass("body")
                        .font({.size = 11.5f})
@@ -188,6 +204,30 @@ struct ParagraphSheet final : sketch::Sketch {
     namespace s = sheet;
     weave::ParagraphStyle grid;
     grid.leading = weave::Leading::grid(s::kGrid);
+    // The grid specimen is captioned as the three beside it are, so it is
+    // built under the same specimen voice.
+    Element gridCell;
+    {
+      const sigil::core::environment::Provide<weave::StyleSheet> voice(
+          s::callClasses());
+      gridCell =
+          kit::cell(s::callVoice(s::kMeasure * 0.48f), "Leading::grid(21)", "",
+                    // The grid, drawn: every rule is one step, so a
+                    // baseline off the rhythm is a thing to see rather
+                    // than to argue about.
+                    box()
+                        .height(Dimension(s::kGrid * 4))
+                        .width(Dimension(s::kMeasure * 0.48f))
+                        .child(gridRules())
+                        .child(text(s::kFourWays)
+                                   .styleClass("body")
+                                   .font({.size = 11.5f})
+                                   .absolute()
+                                   .inset(0, 0, 0, 0)
+                                   .width(Dimension(s::kMeasure * 0.48f))
+                                   .paragraph(grid)))
+              .width(Dimension(s::kMeasure * 0.48f));
+    }
     return s::panel(
         "LEADING",
         "face \xc2\xb7 multiple \xc2\xb7 absolute \xc2\xb7 grid. The rules "
@@ -203,31 +243,12 @@ struct ParagraphSheet final : sketch::Sketch {
                                               weave::Leading::face()))
                     .child(s::leadingSpecimen("Leading::multiple(1.7)",
                                               weave::Leading::multiple(1.7f))))
-            .child(
-                box()
-                    .row()
-                    .gap(18)
-                    .child(s::leadingSpecimen("Leading::absolute(22)",
-                                              weave::Leading::absolute(22)))
-                    .child(kit::cell(s::callVoice(s::kMeasure * 0.48f),
-                                     toUtf8("Leading::grid(21)"), u8"",
-                                     // The grid, drawn: every rule is one
-                                     // step, so a baseline off the rhythm is
-                                     // a thing to see rather than to argue
-                                     // about.
-                                     box()
-                                         .height(Dimension(s::kGrid * 4))
-                                         .width(Dimension(s::kMeasure * 0.48f))
-                                         .child(gridRules())
-                                         .child(text(s::kFourWays)
-                                                    .styleClass("body")
-                                                    .font({.size = 11.5f})
-                                                    .absolute()
-                                                    .inset(0, 0, 0, 0)
-                                                    .width(Dimension(
-                                                        s::kMeasure * 0.48f))
-                                                    .paragraph(grid)))
-                               .width(Dimension(s::kMeasure * 0.48f)))));
+            .child(box()
+                       .row()
+                       .gap(18)
+                       .child(s::leadingSpecimen("Leading::absolute(22)",
+                                                 weave::Leading::absolute(22)))
+                       .child(std::move(gridCell))));
   }
 
   /// Four rules one grid step apart, behind the grid specimen.
@@ -328,7 +349,9 @@ struct ParagraphSheet final : sketch::Sketch {
 
     const auto column = [&](const char* caption,
                             const weave::JustificationOptions& spec) {
-      return kit::cell(s::callVoice(s::kMeasure * 0.31f), toUtf8(caption), u8"",
+      const sigil::core::environment::Provide<weave::StyleSheet> voice(
+          s::callClasses());
+      return kit::cell(s::callVoice(s::kMeasure * 0.31f), caption, "",
                        text(passage)
                            .styleClass("body")
                            .font({.size = 11.0f})

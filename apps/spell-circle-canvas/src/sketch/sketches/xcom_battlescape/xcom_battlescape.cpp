@@ -726,9 +726,8 @@ struct XcomBattlescape : sketch::Sketch {
     std::vector<sketch::kit::Row> rows;
     for (const measure::Check& c : verdict.rows) {
       if (!c.judged() || c.pass) continue;
-      rows.push_back(
-          {{toUtf8(c.label), toUtf8(c.actual), toUtf8("want " + c.expected)},
-           Fill::color(C(blk(2, 3)))});
+      rows.push_back({{c.label, c.actual, "want " + c.expected},
+                      Fill::color(C(blk(2, 3)))});
     }
     sketch::kit::Provide bound(look);
     return box()

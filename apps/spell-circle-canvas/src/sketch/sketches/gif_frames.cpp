@@ -42,10 +42,12 @@
 #include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <memory>
@@ -58,7 +60,6 @@ namespace image = sigil::image;
 namespace io = sigil::io;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -88,13 +89,24 @@ weave::Type labelType(float size, SkColor4f color, float track = 0) {
   return {.size = size, .color = color, .track = track};
 }
 
+/** THE VOICE THE TWO SHELVES ARE TITLED IN — a heading over the run
+ *  rather than a caption under a picture, so the sheet's two caption
+ *  classes stand at sizes of their own for the length of the run. */
+weave::StyleSheet headerClasses() {
+  const sketch::kit::Theme& sheet = sketch::kit::theme();
+  weave::StyleSheet classes = sheet.styleSheet();
+  classes.set("captionLabel", labelType(11.5f, sheet.palette.ink, 2.0f));
+  classes.set("captionNote", labelType(10.5f, sheet.palette.ash, 0.2f));
+  return classes;
+}
+
 /** One frame, drawn at kScale with the texels kept hard: this file is
  *  forty pixels across and a smooth resample would invent everything the
  *  sheet is about. */
 Element cell(std::string key, sk_sp<SkImage> frame, float w, float h,
              const char* call, std::string note) {
   return sketch::kit::caption(
-      0, toUtf8(call), toUtf8(note),
+      0, call, note,
       custom(std::move(key),
              [frame, w, h](SkCanvas& canvas, const PaintContext&) {
                if (!frame) return;
@@ -178,39 +190,36 @@ struct GifFrames final : sketch::Sketch {
                  ? std::string("repeating forever")
                  : std::to_string(gif.repetitionCount()) + " repetitions");
 
+    Element shelves;
+    {
+      const sigil::core::environment::Provide<weave::StyleSheet> classes(
+          headerClasses());
+      shelves = kit::cells(
+          {.cells = {kit::cell(header(), "DECODED",
+                               "every frame, composited at decode \xe2\x80\x94 "
+                               "drawing one never needs the one before it",
+                               decoded(gif)),
+                     kit::cell(header(), "PLAYED",
+                               "frameAt looks the moment up in the durations "
+                               "and loops past the last one",
+                               sampled(gif))},
+           .column = true,
+           .gap = 26,
+           .divider = Fill::color(sketch::kit::theme().palette.rule)});
+    }
     return sketch::kit::page(
-        {.title = toUtf8("ANIMATED FRAMES \xc2\xb7 ImageAsset::frames() "
-                         "+ frameAt(ms)"),
-         .subtitle = toUtf8(std::string("dials \xc2\xb7 the file (") + kSource +
-                            ") \xc2\xb7 the moments the lower "
-                            "shelf reads"),
-         .footer = toUtf8(foot)},
-        kit::cells(
-            {.cells = {kit::cell(header(), toUtf8("DECODED"),
-                                 toUtf8("every frame, composited "
-                                        "at decode \xe2\x80\x94 "
-                                        "drawing one never needs "
-                                        "the one before it"),
-                                 decoded(gif)),
-                       kit::cell(header(), toUtf8("PLAYED"),
-                                 toUtf8("frameAt looks the moment "
-                                        "up in the durations and "
-                                        "loops past the last one"),
-                                 sampled(gif))},
-             .column = true,
-             .gap = 26,
-             .divider = Fill::color(sketch::kit::theme().palette.rule)}));
+        {.title = "ANIMATED FRAMES \xc2\xb7 ImageAsset::frames() "
+                  "+ frameAt(ms)",
+         .subtitle = std::string("dials \xc2\xb7 the file (") + kSource +
+                     ") \xc2\xb7 the moments the lower shelf reads",
+         .footer = foot},
+        std::move(shelves));
   }
 
   /** The voice the two shelves are titled in — a heading over the run
    *  rather than a caption under a picture. */
   static kit::Caption header() {
-    const sketch::kit::Theme& sheet = sketch::kit::theme();
-    return {.where = kit::Caption::Where::Above,
-            .label = labelType(11.5f, sheet.palette.ink, 2.0f),
-            .note = labelType(10.5f, sheet.palette.ash, 0.2f),
-            .gap = 12,
-            .noteGap = 5};
+    return {.where = kit::Caption::Where::Above, .gap = 12, .noteGap = 5};
   }
 
   /** What stands here when the file decoded to nothing. The availability

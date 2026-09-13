@@ -72,7 +72,6 @@ namespace pattern = sigil::material::pattern;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 using namespace std::chrono_literals;
 
 namespace {

@@ -45,7 +45,6 @@ namespace material = sigil::material;
 namespace sdf = sigil::material::sdf;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -72,7 +71,7 @@ sdf::Style plain() {
 Element cell(const char* call, const std::string& note, sdf::Shape shape,
              const sdf::Style& style) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well(
           {.width = kCell, .height = kPicture},
           custom(call, [paint = sdf::material(shape, style), face = whole()](
@@ -190,15 +189,15 @@ struct SdfStar final : sketch::Sketch {
          .column = true,
          .gap = 18});
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("SDF STAR \xc2\xb7 sdf::star + sdf::Style + "
-                         "sdf::pad"),
-         .subtitle = toUtf8("dials \xc2\xb7 the point count (6) \xc2\xb7 "
-                            "the pointiness (m in [2, points]) \xc2\xb7 "
-                            "the glow radius (14 px, then 22)"),
-         .footer = toUtf8("one draw per cell: shadow, glow, fill and "
-                          "border are four layers of one distance, which "
-                          "is what a path and four stacked passes would "
-                          "have cost four of")},
+        {.title = "SDF STAR \xc2\xb7 sdf::star + sdf::Style + "
+                  "sdf::pad",
+         .subtitle = "dials \xc2\xb7 the point count (6) \xc2\xb7 "
+                     "the pointiness (m in [2, points]) \xc2\xb7 "
+                     "the glow radius (14 px, then 22)",
+         .footer = "one draw per cell: shadow, glow, fill and "
+                   "border are four layers of one distance, which "
+                   "is what a path and four stacked passes would "
+                   "have cost four of"},
         std::move(content)));
   }
 };

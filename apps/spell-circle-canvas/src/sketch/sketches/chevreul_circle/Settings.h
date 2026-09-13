@@ -314,7 +314,6 @@ inline const weave::StyleSheet& classes() {
   return look;
 }
 
-inline std::u8string U(const std::string& s) { return toUtf8(s); }
 inline std::string hexOf(SkColor4f c) {
   auto q = [](float v) {
     return (int)std::lround(std::clamp(v, 0.f, 1.f) * 255.f);
@@ -327,20 +326,18 @@ inline std::string hexOf(SkColor4f c) {
  *  the root voice. The line box is 1.7 em of that type, so it follows the
  *  size the line resolves to. */
 inline Element label(const std::string& s, float x, float y, float w) {
-  return at(x, y, w, 0).height(1.7_em).child(text(U(s)));
+  return at(x, y, w, 0).height(1.7_em).child(text(s));
 }
 inline Element centred(const std::string& s, float x, float y, float w) {
   return at(x, y, w, 0)
       .height(1.7_em)
-      .child(text(U(s))
-                 .textAlign(weave::TextAlignment::kCenter)
-                 .width(Dimension(w)));
+      .child(
+          text(s).textAlign(weave::TextAlignment::kCenter).width(Dimension(w)));
 }
 inline Element rightAt(const std::string& s, float x, float y, float w) {
   return at(x, y, w, 0)
       .height(1.7_em)
-      .child(
-          text(U(s)).textAlign(weave::TextAlignment::kEnd).width(Dimension(w)));
+      .child(text(s).textAlign(weave::TextAlignment::kEnd).width(Dimension(w)));
 }
 
 /** The rim baseline: a circle wound COUNTER-CLOCKWISE and starting at

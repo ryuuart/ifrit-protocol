@@ -50,7 +50,6 @@ namespace path = sigil::geometry::path;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 using namespace std::chrono_literals;
 using namespace sigil::compose::kit::ornament;
 using namespace sigil::compose::kit::flourish;

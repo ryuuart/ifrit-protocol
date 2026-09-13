@@ -37,10 +37,6 @@ const SkColor4f kInk = hexColor(0x071615);
 const SkColor4f kRed = hexColor(0xA20915);
 const SkColor4f kRedHot = hexColor(0xE1262E);
 
-std::u8string toUtf8(const char* value) {
-  return std::u8string(reinterpret_cast<const char8_t*>(value));
-}
-
 struct EvaMagiDeliberation : sketch::Sketch {
   evangelion::MagiVoteLayout layout;
   weave::FontContext* fonts = nullptr;
@@ -49,7 +45,7 @@ struct EvaMagiDeliberation : sketch::Sketch {
    *  size, condensation) set in the ink where it lands, or over the initial
    *  values when a probe lays it out alone; the metrics probe takes it whole,
    *  since metrics() reads a style rather than a tree. */
-  weave::Type fit(const sk_sp<SkTypeface>& face, const std::u8string& run,
+  weave::Type fit(const sk_sp<SkTypeface>& face, const Utf8& run,
                   float capHeight, float maxWidth) const {
     float size = capHeight * 1.4f;
     if (fonts) {
@@ -60,7 +56,7 @@ struct EvaMagiDeliberation : sketch::Sketch {
     weave::Type style{.face = face, .size = size};
     if (fonts && maxWidth > 1.0f) {
       const SkSize measured =
-          sigil::compose::intrinsicSize(text(run).font(style), *fonts);
+          sigil::compose::intrinsicSize(text(run.bytes()).font(style), *fonts);
       if (measured.width() > maxWidth && measured.width() > 1.0f)
         style.condense = maxWidth / measured.width();
     }
@@ -125,7 +121,6 @@ struct EvaMagiDeliberation : sketch::Sketch {
     const float side = layout.moduleSide;
     const std::u8string numeral =
         number == 1 ? u8"1" : (number == 2 ? u8"2" : u8"3");
-    const std::u8string label = toUtf8(name);
     return box()
         .left(rect.left())
         .top(rect.top())
@@ -144,10 +139,10 @@ struct EvaMagiDeliberation : sketch::Sketch {
                    .font(fit(evangelion::voteNumeral(number), numeral, 88.0f,
                              side - 48.0f))
                    .centerAt({side * 0.5f, side * layout.numberSlotY(number)}))
-        .child(text(label)
-                   .font(fit(evangelion::moduleLabel(), label, 31.0f,
-                             side - 48.0f))
-                   .centerAt({side * 0.5f, side * layout.nameSlotY(number)}));
+        .child(
+            text(name)
+                .font(fit(evangelion::moduleLabel(), name, 31.0f, side - 48.0f))
+                .centerAt({side * 0.5f, side * layout.nameSlotY(number)}));
   }
 
   /** The layer's Latin is orange, stated once; the whole-style Han names its
@@ -173,7 +168,7 @@ struct EvaMagiDeliberation : sketch::Sketch {
     static const char* kData[] = {"FILE:MAGI_SYS", "EXTENTION:2048",
                                   "EX_MODE:ON", "PRIORITY:A__"};
     for (int line = 0; line < 4; ++line) {
-      const std::u8string run = toUtf8(kData[line]);
+      const char* run = kData[line];
       group.child(
           text(run)
               .font(fit(evangelion::condensedBold(), run, 22.0f, 286.0f))

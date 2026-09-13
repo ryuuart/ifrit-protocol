@@ -34,7 +34,6 @@ namespace field = sigil::material::field;
 namespace mpattern = sigil::material::pattern;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 

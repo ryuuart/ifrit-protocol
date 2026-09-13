@@ -218,7 +218,7 @@ Element panel(float width, float height, const char* title, const char* sub,
               Element inner) {
   inner.inset(0);  // the plot fills its frame
   return sketch::kit::caption(
-      width, toUtf8(title), toUtf8(sub),
+      width, title, sub,
       sketch::kit::well({.width = Dimension(width),
                          .height = Dimension(height),
                          .ground = Fill::none(),
@@ -245,7 +245,7 @@ Element track(Shape curve, MotionPath along, Element mark, const char* caption,
               const char* spelling) {
   along.path = curve;
   mark.travel(std::move(along));
-  return sketch::kit::caption(232, toUtf8(caption), toUtf8(spelling),
+  return sketch::kit::caption(232, caption, spelling,
                               box()
                                   .width(176)
                                   .height(176)
@@ -393,16 +393,16 @@ struct BoundLane : sketch::Sketch {
          .gap = 8});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("THE BOUND LANE \xc2\xb7 bind(&output)"),
-         .subtitle = toUtf8("normalise \xe2\x86\x92 envelope "
-                            "\xe2\x86\x92 curve \xe2\x86\x92 quantize "
-                            "\xe2\x86\x92 affine \xe2\x86\x92 wrap "
-                            "\xe2\x86\x92 wiggle \xe2\x86\x92 clamp, "
-                            "in that order whatever order they were "
-                            "written in"),
-         .footer = toUtf8("outline and motion path are one Shape value "
-                          "\xc2\xb7 translateX/Y are IGNORED while a path "
-                          "is engaged")},
+        {.title = "THE BOUND LANE \xc2\xb7 bind(&output)",
+         .subtitle = "normalise \xe2\x86\x92 envelope "
+                     "\xe2\x86\x92 curve \xe2\x86\x92 quantize "
+                     "\xe2\x86\x92 affine \xe2\x86\x92 wrap "
+                     "\xe2\x86\x92 wiggle \xe2\x86\x92 clamp, "
+                     "in that order whatever order they were "
+                     "written in",
+         .footer = "outline and motion path are one Shape value "
+                   "\xc2\xb7 translateX/Y are IGNORED while a path "
+                   "is engaged"},
         kit::cells({.cells = {std::move(chain), std::move(locusRow),
                               std::move(tracks)},
                     .column = true,

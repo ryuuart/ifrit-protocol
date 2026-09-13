@@ -50,7 +50,6 @@ namespace camera = sigil::geometry::mesh::camera;
 namespace points = sigil::geometry::mesh::points;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 namespace pop = sigil::geometry::mesh::pop;
 
 namespace {
@@ -138,7 +137,7 @@ pop::Builder kinked() {
 Element cell(const char* call, const std::string& note,
              std::function<void(SkCanvas&, SkSize)> draw) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well(
           {.width = kCell, .height = kPicture},
           custom(call, [draw = std::move(draw)](SkCanvas& canvas,
@@ -161,15 +160,15 @@ struct PopBillboards final : sketch::Sketch {
     const std::vector<glm::vec4>* tex = tagged.colorIf("Tex");
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("POP BILLBOARDS \xc2\xb7 cookBillboards + "
-                         "BillboardStyle + Relax"),
-         .subtitle = toUtf8("dials \xc2\xb7 the relax iterations (0, 3, "
-                            "12) \xc2\xb7 the sprite \xc2\xb7 the atlas "
-                            "cell (4 by 4)"),
-         .footer = toUtf8("the splatting sink forms no geometry: it "
-                          "projects, sorts back to front and draws one "
-                          "sprite per point, which is why it is the sink "
-                          "a camera-facing mark belongs to")},
+        {.title = "POP BILLBOARDS \xc2\xb7 cookBillboards + "
+                  "BillboardStyle + Relax",
+         .subtitle = "dials \xc2\xb7 the relax iterations (0, 3, "
+                     "12) \xc2\xb7 the sprite \xc2\xb7 the atlas "
+                     "cell (4 by 4)",
+         .footer = "the splatting sink forms no geometry: it "
+                   "projects, sorts back to front and draws one "
+                   "sprite per point, which is why it is the sink "
+                   "a camera-facing mark belongs to"},
         kit::cells(
             {.cells =
                  {kit::cells(

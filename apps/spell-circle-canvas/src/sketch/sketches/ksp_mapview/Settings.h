@@ -158,12 +158,12 @@ inline weave::TextStyle lcd(float sz, SkColor4f c, float tr = 0) {
   return ty(mono(), sz, c, tr);
 }
 inline Element t(const char* s, weave::TextStyle st) {
-  return text(toUtf8(s), std::move(st));
+  return text(s, std::move(st));
 }
 /** The same line as a PARTIAL over the font in force where it lands —
  *  the info card's sans 11 in the card ink — naming only what differs. */
 inline Element t(const char* s, weave::Type partial) {
-  return text(toUtf8(s)).font(std::move(partial));
+  return text(s).font(std::move(partial));
 }
 
 /** A node centred on a canvas point — the marker/gizmo idiom. */

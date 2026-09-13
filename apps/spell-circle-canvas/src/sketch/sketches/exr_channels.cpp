@@ -70,7 +70,6 @@ namespace image = sigil::image;
 namespace material = sigil::material;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -139,7 +138,7 @@ sk_sp<SkData> writeExr() {
 Element cell(std::string key, sk_sp<SkImage> picture, const char* call,
              std::string note) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       custom(std::move(key),
              [picture](SkCanvas& canvas, const PaintContext&) {
                if (!picture) return;
@@ -253,12 +252,12 @@ struct ExrChannels final : sketch::Sketch {
     }
 
     return sketch::kit::page(
-        {.title = toUtf8("FLOAT CHANNELS \xc2\xb7 decodeChannels "
-                         "+ ChannelData::index / makeImage"),
-         .subtitle = toUtf8("dials \xc2\xb7 the channel (named on "
-                            "each cell) \xc2\xb7 the slot the "
-                            "picked plane fills"),
-         .footer = toUtf8(foot)},
+        {.title = "FLOAT CHANNELS \xc2\xb7 decodeChannels "
+                  "+ ChannelData::index / makeImage",
+         .subtitle = "dials \xc2\xb7 the channel (named on "
+                     "each cell) \xc2\xb7 the slot the "
+                     "picked plane fills",
+         .footer = foot},
         kit::cells(std::move(shelf)));
   }
 

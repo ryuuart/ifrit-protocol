@@ -40,9 +40,11 @@
 #include <sigilcompose/kit/Gel.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <string>
@@ -52,7 +54,6 @@
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 namespace weave = sigil::weave;
 
 namespace {
@@ -122,25 +123,26 @@ struct ChromeType final : sketch::Sketch {
     namespace c = chrome;
     // On the box: the style dresses the node's own shape and the word
     // sits inside it.
-    Element onBox = sketch::kit::caption(
-        0, toUtf8("Boundary::Auto"), toUtf8("the node's rectangle"),
-        box().padding(18).corners({6}).style(style).child(
-            text(c::kWordmark, c::wordmark(letterInk))));
+    Element onBox =
+        sketch::kit::caption(0, "Boundary::Auto", "the node's rectangle",
+                             box().padding(18).corners({6}).style(style).child(
+                                 text(c::kWordmark, c::wordmark(letterInk))));
     // The letters: the same value, the other boundary.
     Element onGlyphs = sketch::kit::caption(
-        0, toUtf8("Boundary::Glyphs"),
-        toUtf8("the contours the placement produced"),
+        0, "Boundary::Glyphs", "the contours the placement produced",
         box().padding(18).child(text(c::kWordmark, c::wordmark({0, 0, 0, 0}))
                                     .boundary(Boundary::Glyphs)
                                     .style(style)));
-    // The pair's own name stands wider and larger than a cell's call.
+    // The pair's own name stands wider and larger than a cell's call, so
+    // the caption class it is set in is this one register for this cell.
     const sketch::kit::Theme& look = sketch::kit::theme();
+    weave::StyleSheet classes = look.styleSheet();
+    classes.set("captionLabel",
+                look.font(sketch::kit::Register{9.5f, 2.6f}, c::kPale));
+    const sigil::core::environment::Provide<weave::StyleSheet> bound(
+        std::move(classes));
     return kit::cell(
-        {.where = kit::Caption::Where::Above,
-         .label = look.font(sketch::kit::Register{9.5f, 2.6f}, c::kPale),
-         .note = look.font(sketch::kit::Register{8, 0.3f}, c::kFaint),
-         .gap = 10},
-        toUtf8(name), u8"",
+        {.where = kit::Caption::Where::Above, .gap = 10}, name, "",
         kit::cells({.cells = {std::move(onBox), std::move(onGlyphs)},
                     .gap = 26,
                     .divider = Fill::color(c::kFaint),

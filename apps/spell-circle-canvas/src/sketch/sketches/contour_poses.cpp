@@ -48,7 +48,6 @@ namespace shapes = sigil::geometry::shapes;
 namespace arrange = sigil::geometry::arrange;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -112,7 +111,7 @@ void ghost(SkCanvas& canvas, const SkPath& p) {
 Element cell(const char* call, const std::string& note,
              std::function<void(SkCanvas&)> draw) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well(
           {.width = kCell, .height = kPicture, .clip = false},
           custom(call, [draw = std::move(draw)](SkCanvas& canvas,
@@ -141,15 +140,15 @@ struct ContourPoses final : sketch::Sketch {
             : contours.front().corners(kCornerDeg, 6.0f, 2.0f, &sharpest);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("CONTOUR POSES \xc2\xb7 Contour::of + poseAlong + "
-                         "corners + cornerWindows"),
-         .subtitle = toUtf8("dials \xc2\xb7 the station count (24) "
-                            "\xc2\xb7 the corner angle (30\xc2\xb0) "
-                            "\xc2\xb7 the window reach (26 px)"),
-         .footer = toUtf8("one measurement, taken in Contour::of and "
-                          "shared by every copy \xe2\x80\x94 each cell "
-                          "below asks the same run of contours a "
-                          "different question about the same distances")},
+        {.title = "CONTOUR POSES \xc2\xb7 Contour::of + poseAlong + "
+                  "corners + cornerWindows",
+         .subtitle = "dials \xc2\xb7 the station count (24) "
+                     "\xc2\xb7 the corner angle (30\xc2\xb0) "
+                     "\xc2\xb7 the window reach (26 px)",
+         .footer = "one measurement, taken in Contour::of and "
+                   "shared by every copy \xe2\x80\x94 each cell "
+                   "below asks the same run of contours a "
+                   "different question about the same distances"},
         kit::cells(
             {.cells =
                  {kit::cells(
@@ -159,7 +158,8 @@ struct ContourPoses final : sketch::Sketch {
                                      "%zu contour \xc2\xb7 closed %s "
                                      "\xc2\xb7 totalLength %.1f px "
                                      "\xc2\xb7 seam ringed",
-                                     contours.size(),
+                                     contours
+                                         .size(),
                                      path::closedThroughout(run) ? "yes"
                                                                  : "no",
                                      (

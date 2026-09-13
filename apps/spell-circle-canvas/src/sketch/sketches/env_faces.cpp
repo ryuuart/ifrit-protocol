@@ -52,7 +52,6 @@ namespace sketch = sigil::sketch;
 namespace material = sigil::material;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -129,7 +128,7 @@ material::Texture shoulder() { return material::bevelNormals(disc(), kBevel); }
 Element cell(const char* call, const std::string& note,
              std::function<void(SkCanvas&, const material::FrameData&)> draw) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well(
           {.width = kCell, .height = kPicture},
           custom(call, [draw = std::move(draw)](SkCanvas& canvas,
@@ -196,17 +195,17 @@ struct EnvFaces final : sketch::Sketch {
     const SkColor4f mean = resampled.average();
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("ENVIRONMENT FACES \xc2\xb7 EnvironmentMap "
-                         "studio, fromFaces, fromCubeMap, fromEquirectangular, "
-                         "withGround"),
-         .subtitle = toUtf8("dials \xc2\xb7 the face set (six baked here) "
-                            "\xc2\xb7 the ground colour \xc2\xb7 the "
-                            "roughness the reflection reads the panorama "
-                            "at"),
-         .footer = toUtf8("one internal form, four ways in: u is azimuth, "
-                          "v is 0 at the zenith, and every source is "
-                          "resampled into that while the value is built "
-                          "rather than at each lookup")},
+        {.title = "ENVIRONMENT FACES \xc2\xb7 EnvironmentMap "
+                  "studio, fromFaces, fromCubeMap, fromEquirectangular, "
+                  "withGround",
+         .subtitle = "dials \xc2\xb7 the face set (six baked here) "
+                     "\xc2\xb7 the ground colour \xc2\xb7 the "
+                     "roughness the reflection reads the panorama "
+                     "at",
+         .footer = "one internal form, four ways in: u is azimuth, "
+                   "v is 0 at the zenith, and every source is "
+                   "resampled into that while the value is built "
+                   "rather than at each lookup"},
         kit::cells(
             {.cells =
                  {kit::cells({.cells =

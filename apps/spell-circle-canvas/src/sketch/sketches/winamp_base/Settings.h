@@ -149,10 +149,10 @@ inline sigil::weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
 
 /** A run set in @p partial over the font and ink in force where it lands. */
 inline Element t(const char* s, sigil::weave::Type partial) {
-  return text(toUtf8(s)).font(std::move(partial));
+  return text(s).font(std::move(partial));
 }
 inline Element t(const std::string& s, sigil::weave::Type partial) {
-  return text(toUtf8(s)).font(std::move(partial));
+  return text(s).font(std::move(partial));
 }
 
 // ---------------------------------------------------------------------------

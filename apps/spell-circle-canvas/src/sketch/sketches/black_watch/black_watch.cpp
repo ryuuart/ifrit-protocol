@@ -774,7 +774,7 @@ struct BlackWatch : sketch::Sketch {
     for (const measure::Check& c : verdict.rows) {
       std::string verdictWord;
       if (c.judged()) verdictWord = c.pass ? "PASS" : "FAIL want " + c.expected;
-      lines.push_back({.cells = {U(c.label), U(c.actual), U(verdictWord)},
+      lines.push_back({.cells = {c.label, c.actual, verdictWord},
                        .swatch = Fill::color(
                            !c.judged() ? kRule : (c.pass ? kInk : kRed))});
     }

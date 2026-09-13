@@ -349,8 +349,7 @@ struct VolatilityCost final : sketch::Sketch {
     // sheet is outlined in its tier's colour, not filled with it.
     std::vector<sketch::kit::LegendEntry> entries;
     for (const auto& [state, what] : tiers)
-      entries.push_back({Fill::color(tierColor(state)), toUtf8(tierName(state)),
-                         toUtf8(what)});
+      entries.push_back({Fill::color(tierColor(state)), tierName(state), what});
     return sketch::kit::legend({.entries = std::move(entries),
                                 .column = false,
                                 .swatchSide = 11,
@@ -367,7 +366,7 @@ struct VolatilityCost final : sketch::Sketch {
     // a TIME is a function of the machine and is pinned when the host is
     // capturing for a diff, so a plate carries the shape and not the
     // stopwatch.
-    const auto count = [](size_t v) { return toUtf8(std::to_string(v)); };
+    const auto count = [](size_t v) { return std::to_string(v); };
     const sketch::kit::Readout how{.nameMeasure = 168};
     return box()
         .column()
@@ -384,10 +383,10 @@ struct VolatilityCost final : sketch::Sketch {
              {u8"picturesRecorded", count(frame.picturesRecorded)},
              {u8"texturesBaked", count(frame.texturesBaked)},
              {u8"nodesPainted", count(frame.nodesPainted)},
-             {u8"reconcile ms", toUtf8(ms(ctx.measured(frame.reconcileMs)))},
-             {u8"layout ms", toUtf8(ms(ctx.measured(frame.layoutMs)))},
-             {u8"volatile ms", toUtf8(ms(ctx.measured(frame.volatileMs)))},
-             {u8"paint ms", toUtf8(ms(ctx.measured(frame.paintMs)))}},
+             {u8"reconcile ms", ms(ctx.measured(frame.reconcileMs))},
+             {u8"layout ms", ms(ctx.measured(frame.layoutMs))},
+             {u8"volatile ms", ms(ctx.measured(frame.volatileMs))},
+             {u8"paint ms", ms(ctx.measured(frame.paintMs))}},
             how))
         .child(box().height(8))
         .child(text("the split").styleClass("heading").margin(0, 0, 0, 4))
@@ -412,10 +411,10 @@ struct VolatilityCost final : sketch::Sketch {
     std::vector<sketch::kit::Row> rows;
     rows.reserve(worst.size());
     for (const Composer::NodeCost& row : worst)
-      rows.push_back({{toUtf8(row.label), toUtf8(ms(ctx.measured(row.selfMs))),
-                       toUtf8(tierName(row.cacheState)),
-                       toUtf8(Composer::promotionReason(row.promotion))},
-                      Fill::color(tierColor(row.cacheState))});
+      rows.push_back(
+          {{row.label, ms(ctx.measured(row.selfMs)), tierName(row.cacheState),
+            Composer::promotionReason(row.promotion)},
+           Fill::color(tierColor(row.cacheState))});
     // The tier and the reason are the row's own quiet columns; the key
     // and the cost are what a reader is looking for, so those two carry
     // the figure register.
@@ -445,19 +444,19 @@ struct VolatilityCost final : sketch::Sketch {
     // canvas coordinates, which is what `bounds()` answers in, and a
     // child of the padded page would be offset by the page's margins.
     return stack().inset(0).child(tierMap()).child(sketch::kit::page(
-        {.title = toUtf8("THE CACHING PROOF \xc2\xb7 what every node "
-                         "did to produce its pixels"),
-         .subtitle = toUtf8("volatility propagates upward, so one "
-                            "bound leaf decides what its whole subtree "
-                            "costs \xe2\x80\x94 every keyed node is "
-                            "outlined in the tier it took, read back "
-                            "from a probe of its own at " +
-                            ms(kSnapAt) + " s"),
-         .footer = toUtf8("a picture records the DRAW CALLS, so "
-                          "replaying one re-runs every shader over "
-                          "every pixel; only a bake replaces that with "
-                          "a blit \xc2\xb7 numbers the sheet measured "
-                          "about itself are pinned for a diff")},
+        {.title = "THE CACHING PROOF \xc2\xb7 what every node "
+                  "did to produce its pixels",
+         .subtitle = "volatility propagates upward, so one "
+                     "bound leaf decides what its whole subtree "
+                     "costs \xe2\x80\x94 every keyed node is "
+                     "outlined in the tier it took, read back "
+                     "from a probe of its own at " +
+                     ms(kSnapAt) + " s",
+         .footer = "a picture records the DRAW CALLS, so "
+                   "replaying one re-runs every shader over "
+                   "every pixel; only a bake replaces that with "
+                   "a blit \xc2\xb7 numbers the sheet measured "
+                   "about itself are pinned for a diff"},
         box()
             .column()
             .gap(16)

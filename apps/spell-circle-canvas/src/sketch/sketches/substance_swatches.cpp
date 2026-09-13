@@ -95,7 +95,7 @@ Element card(const Swatch& swatch) {
   const std::string size =
       kit::formatted("%d \xc3\x97 %d", swatch.width, swatch.height);
   return sketch::kit::caption(
-             kCard, toUtf8(swatch.usage), toUtf8(size),
+             kCard, swatch.usage, size,
              image(swatch.asset)
                  .width(kCard)
                  .height(kCard)
@@ -217,7 +217,7 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
                                     {hexColor(0x1a120b), hexColor(0x0f0d10)})}))
             .child(sketch::kit::titleCard(
                        {.title = {u8"A PROCEDURAL ARCHIVE, COOKED"},
-                        .subtitle = {toUtf8(caption)}})
+                        .subtitle = {caption}})
                        .left(kMargin)
                        .top(34))
             .child(std::move(grid)));

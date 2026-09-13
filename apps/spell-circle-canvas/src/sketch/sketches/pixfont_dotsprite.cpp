@@ -53,7 +53,6 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -93,8 +92,7 @@ Element plate(Element body) {
 }
 
 Element cell(const char* call, const char* note, Element body) {
-  return sketch::kit::caption(kCell, toUtf8(call), toUtf8(note),
-                              plate(std::move(body)));
+  return sketch::kit::caption(kCell, call, note, plate(std::move(body)));
 }
 
 }  // namespace
@@ -117,17 +115,15 @@ struct PixFontDotSprite final : sketch::Sketch {
     dot = kit::dotSprite(32);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("PIXEL TYPE AND THE STAMP \xc2\xb7 kit::bakeRun, "
-                         "kit::bakeFont / kit::blit, kit::dotSprite"),
-         .subtitle =
-             toUtf8("dials \xc2\xb7 the bake size (9, 12, 16 px) \xc2\xb7 "
-                    "the present scale (3\xc3\x97, integer) \xc2\xb7 the "
-                    "on colour \xc2\xb7 the blit's track (1 and 5 px)"),
-         .footer =
-             toUtf8("the threshold is INERT under aliased shaping: Skia "
-                    "lights a pixel iff its centre is inside the outline, "
-                    "so the coverage is already binary and what decides "
-                    "legibility is whether the x-height rounds up or down")},
+        {.title = "PIXEL TYPE AND THE STAMP \xc2\xb7 kit::bakeRun, "
+                  "kit::bakeFont / kit::blit, kit::dotSprite",
+         .subtitle = "dials \xc2\xb7 the bake size (9, 12, 16 px) \xc2\xb7 "
+                     "the present scale (3\xc3\x97, integer) \xc2\xb7 the "
+                     "on colour \xc2\xb7 the blit's track (1 and 5 px)",
+         .footer = "the threshold is INERT under aliased shaping: Skia "
+                   "lights a pixel iff its centre is inside the outline, "
+                   "so the coverage is already binary and what decides "
+                   "legibility is whether the x-height rounds up or down"},
         kit::cells({.cells = {sizeSweep(), presented(), shadowed(), readout(),
                               stamp()},
                     .gap = 12})));

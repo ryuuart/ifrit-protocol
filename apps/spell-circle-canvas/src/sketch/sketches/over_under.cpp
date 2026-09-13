@@ -51,7 +51,6 @@ namespace material = sigil::material;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -118,7 +117,7 @@ material::Material brass() {
 Element cell(const char* call, const std::string& note,
              material::Material paint) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well(
           {.width = kCell, .height = kPicture},
           custom(call, [paint = std::move(paint), face = plate()](
@@ -224,9 +223,7 @@ struct OverUnder final : sketch::Sketch {
         material::maskConstant(0.35f), material::Blend::Multiply);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8(kTitle),
-         .subtitle = toUtf8(kSubtitle),
-         .footer = toUtf8(kFooter)},
+        {.title = kTitle, .subtitle = kSubtitle, .footer = kFooter},
         kit::cells({.cells = {sources(mixed), readings(twice)},
                     .column = true,
                     .gap = 16})));

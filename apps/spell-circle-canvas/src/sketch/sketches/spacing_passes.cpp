@@ -59,7 +59,6 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -97,7 +96,7 @@ Element passage(weave::JustificationOptions options) {
 
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
           .child(std::move(body)));
 }
@@ -125,18 +124,18 @@ struct SpacingPasses final : sketch::Sketch {
     lastWord.singleWord = weave::JustificationOptions::SingleWord::kJustify;
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("THE THREE PASSES \xc2\xb7 JustificationOptions "
-                         "word gaps, letter spacing, glyph scale"),
-         .subtitle = toUtf8("dials \xc2\xb7 one measure (130 px) for every "
-                            "cell \xc2\xb7 the multiple a gap is aimed at "
-                            "(2.0) \xc2\xb7 "
-                            "the em fraction the letter pass adds "
-                            "(0.05) \xc2\xb7 the glyph scale (0.92)"),
-         .footer = toUtf8("each pass spends only what the one before it "
-                          "could not, and a pass whose limits equal its "
-                          "desired value contributes nothing and costs "
-                          "nothing \xe2\x80\x94 which is why a caller who "
-                          "sets none of them gets word spacing alone")},
+        {.title = "THE THREE PASSES \xc2\xb7 JustificationOptions "
+                  "word gaps, letter spacing, glyph scale",
+         .subtitle = "dials \xc2\xb7 one measure (130 px) for every "
+                     "cell \xc2\xb7 the multiple a gap is aimed at "
+                     "(2.0) \xc2\xb7 "
+                     "the em fraction the letter pass adds "
+                     "(0.05) \xc2\xb7 the glyph scale (0.92)",
+         .footer = "each pass spends only what the one before it "
+                   "could not, and a pass whose limits equal its "
+                   "desired value contributes nothing and costs "
+                   "nothing \xe2\x80\x94 which is why a caller who "
+                   "sets none of them gets word spacing alone"},
         kit::cells(
             {.cells = {cell("justification({})",
                             "the word gaps alone \xc2\xb7 the two later "

@@ -269,19 +269,18 @@ struct PenrosePaving : sketch::Sketch {
     std::vector<sketch::kit::Row> rows;
     for (const measure::Check& c : verdict.rows) {
       if (c.standing == measure::Standing::Heading) {
-        rows.push_back({{toUtf8(c.label)}, {}});
+        rows.push_back({{c.label}, {}});
         continue;
       }
       // A reading has no verdict to mark, but it keeps the mark's WIDTH:
       // an unmarked row that also loses the indent reads as a heading.
       if (!c.judged()) {
-        rows.push_back({{toUtf8(c.label), toUtf8(c.actual), u8""},
-                        Fill::color({0, 0, 0, 0})});
+        rows.push_back({{c.label, c.actual, u8""}, Fill::color({0, 0, 0, 0})});
         continue;
       }
       rows.push_back(
-          {{toUtf8(c.label), toUtf8(c.actual),
-            toUtf8(c.pass ? std::string("PASS") : "FAIL want " + c.expected)},
+          {{c.label, c.actual,
+            c.pass ? std::string("PASS") : "FAIL want " + c.expected},
            Fill::color(c.pass ? held : broken)});
     }
     const std::string summary = kit::formatted(

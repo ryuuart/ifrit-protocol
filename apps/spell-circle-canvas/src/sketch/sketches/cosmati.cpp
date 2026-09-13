@@ -59,7 +59,6 @@ namespace mkit = sigil::material::kit;
 namespace mskia = sigil::material::skia;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 
@@ -557,7 +556,7 @@ struct Cosmati final : sketch::Sketch {
     std::vector<sketch::kit::LegendEntry> quarries;
     for (const Quarry& q : kQuarries)
       quarries.push_back(
-          {.label = toUtf8(q.label),
+          {.label = q.label,
            .mark = box()
                        .width(Dimension(20.0f))
                        .height(Dimension(13.0f))

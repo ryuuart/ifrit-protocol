@@ -181,8 +181,10 @@ auto Minard1869::card(float y, float h, const char* title, const char* key,
                .translateY(bind(&T).window(t0, t0 + 0.4f).invert().scale(14))
                .font({.face = faceUi})
                .ink(kGrey);
-  c.child(kit::sheet({.title = toUtf8(title),
-                      .titleStyle = partial(faceUiBold, 15, kCardInk, 1.6f),
+  // the card's headed line is the class of its own name
+  const sigil::core::environment::Provide<weave::StyleSheet> classes(
+      weave::StyleSheet{{"title", partial(faceUiBold, 15, kCardInk, 1.6f)}});
+  c.child(kit::sheet({.title = title,
                       .marginX = 18,
                       .marginTop = 12,
                       .marginBottom = 12,
@@ -647,30 +649,29 @@ auto Minard1869::auditColumn() -> Element {
 
 auto Minard1869::titleStrip() -> Element {
   auto g = box().rect(SkRect::MakeXYWH(48, 28, 2464, 80));
-  g.child(
-      sketch::kit::titleCard(
-          {.title = {toUtf8("Carte figurative des pertes successives en "
-                            "hommes de l'armée française dans la campagne "
-                            "de Russie 1812–1813, comparée à celle "
-                            "d'Annibal durant la 2ᵉᵐᵉ guerre punique")},
-           .subtitle = {toUtf8("BnF, Ge Don 4182 · lithograph · 62 × 54 "
-                               "cm · Paris, 20 novembre 1869 · Minard was "
-                               "88, and died ten months later during the "
-                               "siege of Paris")},
-           .notes = {{.words = toUtf8("the sheet is drawn at its own aspect "
-                                      "— 2.258 px per millimetre of "
-                                      "Minard's paper, so every band width "
-                                      "on screen is a real millimetre "
-                                      "count"),
-                      .ink = Fill::color(hexColor(0x2f6f9c))},
-                     {.words = toUtf8("THE PLATE STATES ITS OWN "
-                                      "CONSTRUCTION RULE.  THIS SKETCH "
-                                      "CHECKS IT — AND THEN CHECKS ITSELF "
-                                      "WITH THE SAME MEASUREMENT."),
-                      .ink = Fill::color(hexColor(0xb5761e))}}})
-          .left(Dimension(0))
-          .top(Dimension(0))
-          .width(Dimension(2464)));
+  g.child(sketch::kit::titleCard(
+              {.title = {"Carte figurative des pertes successives en "
+                         "hommes de l'armée française dans la campagne "
+                         "de Russie 1812–1813, comparée à celle "
+                         "d'Annibal durant la 2ᵉᵐᵉ guerre punique"},
+               .subtitle = {"BnF, Ge Don 4182 · lithograph · 62 × 54 "
+                            "cm · Paris, 20 novembre 1869 · Minard was "
+                            "88, and died ten months later during the "
+                            "siege of Paris"},
+               .notes = {{.words = "the sheet is drawn at its own aspect "
+                                   "— 2.258 px per millimetre of "
+                                   "Minard's paper, so every band width "
+                                   "on screen is a real millimetre "
+                                   "count",
+                          .ink = Fill::color(hexColor(0x2f6f9c))},
+                         {.words = "THE PLATE STATES ITS OWN "
+                                   "CONSTRUCTION RULE.  THIS SKETCH "
+                                   "CHECKS IT — AND THEN CHECKS ITSELF "
+                                   "WITH THE SAME MEASUREMENT.",
+                          .ink = Fill::color(hexColor(0xb5761e))}}})
+              .left(Dimension(0))
+              .top(Dimension(0))
+              .width(Dimension(2464)));
   return g;
 }
 

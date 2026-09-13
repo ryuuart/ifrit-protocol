@@ -52,7 +52,6 @@ namespace material = sigil::material;
 namespace slang = sigil::material::slang;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -132,7 +131,7 @@ weave::TextStyle mono(float size, SkColor4f color) {
 Element readout(const char* call, const std::string& note,
                 const std::string& body, SkColor4f colour = kFigure) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture})
           .padding(12, 10)
           .child(text(body, mono(9.0f, colour)).width(Dimension(kCell - 24))));
@@ -230,20 +229,20 @@ struct SlangPortable final : sketch::Sketch {
                          &garbage, &garbageWhy);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("SLANG PORTABLE \xc2\xb7 compileModule, the "
-                         "reported layout, and the two modules every "
-                         "session carries"),
-         .subtitle = toUtf8(kit::formatted(
+        {.title = "SLANG PORTABLE \xc2\xb7 compileModule, the "
+                  "reported layout, and the two modules every "
+                  "session carries",
+         .subtitle = kit::formatted(
              "dials \xc2\xb7 the module source \xc2\xb7 lit (%s, which "
              "defines SIGIL_LIT) \xc2\xb7 the entry point names "
              "\xc2\xb7 this module compiled: %s",
-             kLit ? "true" : "false", ok ? "yes" : "no")),
-         .footer = toUtf8("both stages are linked as ONE program, because "
-                          "the layout is a property of the linked "
-                          "program: linking them apart would let an "
-                          "unused uniform be dropped from one and not the "
-                          "other, and the two would read one buffer at "
-                          "two sets of offsets")},
+             kLit ? "true" : "false", ok ? "yes" : "no"),
+         .footer = "both stages are linked as ONE program, because "
+                   "the layout is a property of the linked "
+                   "program: linking them apart would let an "
+                   "unused uniform be dropped from one and not the "
+                   "other, and the two would read one buffer at "
+                   "two sets of offsets"},
         kit::cells(
             {.cells =
                  {kit::cells({.cells =

@@ -884,16 +884,16 @@ struct ShippingForecast : sketch::Sketch {
     };
     std::vector<sketch::kit::Line> slugs;
     for (int i = 0; i < 3; ++i)
-      slugs.push_back({.words = toUtf8(kSlug[i]),
+      slugs.push_back({.words = kSlug[i],
                        .opacity = beat(0.55f + (float)i * 0.16f,
                                        1.15f + (float)i * 0.16f)});
 
     const sketch::kit::Provide look(mastheadTheme());
     return sketch::kit::titleCard(
-        {.eyebrow = {.words = toUtf8("MET OFFICE \xc2\xb7 FOR THE MARITIME AND "
-                                     "COASTGUARD AGENCY"),
+        {.eyebrow = {.words = "MET OFFICE \xc2\xb7 FOR THE MARITIME AND "
+                              "COASTGUARD AGENCY",
                      .opacity = beat(0.05f, 0.55f)},
-         .title = {.words = toUtf8("THE SHIPPING FORECAST"),
+         .title = {.words = "THE SHIPPING FORECAST",
                    .fx = Track{.effect = fx::rise(16.0f),
                                .stagger = {.eachMs = 0,
                                            .amountMs = 420,

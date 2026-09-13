@@ -54,7 +54,6 @@ namespace material = sigil::material;
 namespace gm = sigil::geometry::mesh;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -116,7 +115,7 @@ Element cell(const char* call, const char* note, sk_sp<SkImage> baked) {
                   sigil::image::ImageAsset::wrap(std::move(baked))))
             : box();
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture})
           .child(std::move(picture).absolute().inset(0)));
 }
@@ -167,18 +166,18 @@ struct EnvLanes final : sketch::Sketch {
     shown.backdrop.blur = kBlur;
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("THE ENVIRONMENT'S DIALS \xc2\xb7 exposure, "
-                         "roughnessBias, diffuse/specular, crossfade, "
-                         "backdrop"),
-         .subtitle = toUtf8("dials \xc2\xb7 one stop against two (1.0 and "
-                            "2.0) \xc2\xb7 the roughness added to every "
-                            "surface (0.45) \xc2\xb7 the crossfade (0.75) "
-                            "\xc2\xb7 the sky's strength and blur"),
-         .footer = toUtf8("a frame holds ONE environment node, so each "
-                          "cell here is a frame of its own baked at the "
-                          "pixels it will have \xe2\x80\x94 and exposure "
-                          "is the only dial that still means something in "
-                          "a set carrying no panorama at all")},
+        {.title = "THE ENVIRONMENT'S DIALS \xc2\xb7 exposure, "
+                  "roughnessBias, diffuse/specular, crossfade, "
+                  "backdrop",
+         .subtitle = "dials \xc2\xb7 one stop against two (1.0 and "
+                     "2.0) \xc2\xb7 the roughness added to every "
+                     "surface (0.45) \xc2\xb7 the crossfade (0.75) "
+                     "\xc2\xb7 the sky's strength and blur",
+         .footer = "a frame holds ONE environment node, so each "
+                   "cell here is a frame of its own baked at the "
+                   "pixels it will have \xe2\x80\x94 and exposure "
+                   "is the only dial that still means something in "
+                   "a set carrying no panorama at all"},
         kit::cells(
             {.cells = {cell("studio() \xc2\xb7 exposure 1",
                             "the reference \xc2\xb7 a near-mirror body over a "

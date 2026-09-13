@@ -79,7 +79,6 @@ namespace weave = sigil::weave;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 

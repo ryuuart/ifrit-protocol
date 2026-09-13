@@ -48,7 +48,6 @@ namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -75,7 +74,7 @@ Element motif() {
 
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture})
           .child(std::move(body)));
 }
@@ -132,18 +131,17 @@ struct PlaceRepeatTiles final : sketch::Sketch {
     strip = tiles::sliceable(snapshot(box().child(std::move(run)), *ctx.fonts));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("REPEAT AND TILE \xc2\xb7 instancing::place::"
-                         "repeat, tiles::window / tiles::sliceable"),
-         .subtitle =
-             toUtf8("dials \xc2\xb7 the copy count (9) \xc2\xb7 the "
-                    "per-copy translate (19 px), rotation and scale step "
-                    "\xc2\xb7 the opacity ramp \xc2\xb7 the tile count (4) "
-                    "and its facing"),
-         .footer = toUtf8("a chain's scale step is EXPONENTIAL and its "
-                          "translate linear, and a tile is a clip and a "
-                          "translate \xe2\x80\x94 there is no windowed "
-                          "bake and no need for one, because neighbouring "
-                          "tiles share their boundary texels")},
+        {.title = "REPEAT AND TILE \xc2\xb7 instancing::place::"
+                  "repeat, tiles::window / tiles::sliceable",
+         .subtitle = "dials \xc2\xb7 the copy count (9) \xc2\xb7 the "
+                     "per-copy translate (19 px), rotation and scale step "
+                     "\xc2\xb7 the opacity ramp \xc2\xb7 the tile count (4) "
+                     "and its facing",
+         .footer = "a chain's scale step is EXPONENTIAL and its "
+                   "translate linear, and a tile is a clip and a "
+                   "translate \xe2\x80\x94 there is no windowed "
+                   "bake and no need for one, because neighbouring "
+                   "tiles share their boundary texels"},
         kit::cells({.cells = {chain(), turned(), ramped(), sliced(false),
                               sliced(true)},
                     .gap = 12})));

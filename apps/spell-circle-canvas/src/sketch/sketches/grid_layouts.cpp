@@ -42,7 +42,6 @@
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -107,8 +106,7 @@ Element cell(const char* call, const char* note, Element placed,
   Element plate = sketch::kit::well({.width = kCell, .height = kPicture});
   if (ruled) plate.child(rhythmLines());
   plate.child(placed.absolute().inset(kInset).children(cards()));
-  return sketch::kit::caption(kCell, toUtf8(call), toUtf8(note),
-                              std::move(plate));
+  return sketch::kit::caption(kCell, call, note, std::move(plate));
 }
 
 }  // namespace
@@ -120,19 +118,19 @@ struct GridLayouts final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("GRID LAYOUTS \xc2\xb7 layout(layouts::"
-                         "Grid | Diagonal | BaselineGrid)"),
-         .subtitle = toUtf8("dials \xc2\xb7 the module (3 columns "
-                            "\xc3\x97 4 rows, 10 px gutter) \xc2\xb7 the "
-                            "baseline rhythm (32 px) \xc2\xb7 the shear "
-                            "(\xe2\x88\x92"
-                            "12\xc2\xb0) \xc2\xb7 the same "
-                            "twelve cards in all three"),
-         .footer = toUtf8("a scheme is arithmetic over LayoutInput, so "
-                          "each of these caches like any other static "
-                          "subtree \xe2\x80\x94 and only BaselineGrid "
-                          "reads childBaselines, which a box does not "
-                          "have")},
+        {.title = "GRID LAYOUTS \xc2\xb7 layout(layouts::"
+                  "Grid | Diagonal | BaselineGrid)",
+         .subtitle = "dials \xc2\xb7 the module (3 columns "
+                     "\xc3\x97 4 rows, 10 px gutter) \xc2\xb7 the "
+                     "baseline rhythm (32 px) \xc2\xb7 the shear "
+                     "(\xe2\x88\x92"
+                     "12\xc2\xb0) \xc2\xb7 the same "
+                     "twelve cards in all three",
+         .footer = "a scheme is arithmetic over LayoutInput, so "
+                   "each of these caches like any other static "
+                   "subtree \xe2\x80\x94 and only BaselineGrid "
+                   "reads childBaselines, which a box does not "
+                   "have"},
         kit::cells(
             {.cells =
                  {cell("Grid: 3 columns x 4 rows",

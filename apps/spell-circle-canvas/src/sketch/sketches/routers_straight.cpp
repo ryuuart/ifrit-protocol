@@ -48,7 +48,6 @@
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -92,8 +91,7 @@ Element plate(const std::string& tag, Element route) {
 
 Element cell(const char* call, const char* note, const std::string& tag,
              Element route) {
-  return sketch::kit::caption(kCell, toUtf8(call), toUtf8(note),
-                              plate(tag, std::move(route)));
+  return sketch::kit::caption(kCell, call, note, plate(tag, std::move(route)));
 }
 
 }  // namespace
@@ -108,18 +106,18 @@ struct RoutersStraight final : sketch::Sketch {
     };
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("THE STOCK ROUTES \xc2\xb7 routers::straight, "
-                         "orthogonal, arc, octilinear"),
-         .subtitle = toUtf8("dials \xc2\xb7 the router \xc2\xb7 the bend "
-                            "(MidX, HFirst, VFirst) \xc2\xb7 the corner "
-                            "radius (12 px) or the 45\xc2\xb0 cut (14 px, "
-                            "which wins) \xc2\xb7 the arc's bulge (0.26 of "
-                            "the chord)"),
-         .footer = toUtf8("a Router is a function of the two endpoint "
-                          "rects and a RailRouter one over the whole "
-                          "anchor run \xe2\x80\x94 which is why octilinear "
-                          "is reached through rail() and never through "
-                          "connector()")},
+        {.title = "THE STOCK ROUTES \xc2\xb7 routers::straight, "
+                  "orthogonal, arc, octilinear",
+         .subtitle = "dials \xc2\xb7 the router \xc2\xb7 the bend "
+                     "(MidX, HFirst, VFirst) \xc2\xb7 the corner "
+                     "radius (12 px) or the 45\xc2\xb0 cut (14 px, "
+                     "which wins) \xc2\xb7 the arc's bulge (0.26 of "
+                     "the chord)",
+         .footer = "a Router is a function of the two endpoint "
+                   "rects and a RailRouter one over the whole "
+                   "anchor run \xe2\x80\x94 which is why octilinear "
+                   "is reached through rail() and never through "
+                   "connector()"},
         kit::cells(
             {.cells =
                  {cell("routers::straight()",

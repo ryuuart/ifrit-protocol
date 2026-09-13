@@ -60,7 +60,6 @@ namespace sdf = sigil::material::sdf;
 namespace mkit = sigil::material::kit;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -91,9 +90,9 @@ sketch::kit::Theme sheetTheme() {
 
 /** The one voice: the recipe's name under the swatch, the call that made
  *  it under that, both ranged left at the cell's width. */
-Element swatch(std::u8string name, const char* call, mskia::Paint paint) {
+Element swatch(Utf8 name, const char* call, mskia::Paint paint) {
   return sketch::kit::caption(
-      kCell, std::move(name), toUtf8(call),
+      kCell, std::move(name), call,
       box()
           .width(kCell)
           .height(kSwatch)
@@ -103,16 +102,14 @@ Element swatch(std::u8string name, const char* call, mskia::Paint paint) {
 
 /** A material's own recipe names the cell — nothing here retypes it. */
 Element painted(const char* call, mat::Material material) {
-  std::u8string name = toUtf8(material.recipe().name());
-  return swatch(std::move(name), call,
-                mskia::Paint::recipe(std::move(material)));
+  const std::string name = material.recipe().name();
+  return swatch(name, call, mskia::Paint::recipe(std::move(material)));
 }
 
 /** A tile names itself by its generator, since a baked tile has no recipe
  *  of its own: what repeats is an image, sampled through the mapping. */
 Element tiled(const char* name, const char* call, ptn::Tile tile) {
-  return swatch(toUtf8(name), call,
-                mskia::Paint::shader(tile.texture().shader()));
+  return swatch(name, call, mskia::Paint::shader(tile.texture().shader()));
 }
 
 Element row(std::vector<Element> cells) {
@@ -147,11 +144,11 @@ struct StockMaterialsSheet final : sketch::Sketch {
          painted("field::noise(0.03, 4)", field::noise(0.03f, 4, 3.0f)),
          painted("field::grain(0.35, 4, stretch 2.4)",
                  field::grain(0.35f, 4, 3.0f, 1.0f, 2.4f)),
-         swatch(toUtf8(field::rippleRecipe()->name()),
+         swatch(field::rippleRecipe()->name(),
                 "field::ripple(7 px, 46 px) over a checker child",
                 mskia::Paint::recipe(field::ripple(7.0f, 46.0f, 0.6f))
                     .child("content", under)),
-         swatch(toUtf8(field::crtOverlayRecipe()->name()),
+         swatch(field::crtOverlayRecipe()->name(),
                 "field::crtOverlay(4 px) laid over the same checker",
                 mskia::Paint::blend({{under, SkBlendMode::kSrc},
                                      {mskia::Paint::recipe(field::crtOverlay()),
@@ -230,14 +227,14 @@ struct StockMaterialsSheet final : sketch::Sketch {
          painted("kit::tunnel(bounds, 1.4 s)", mkit::tunnel(swatchBox, 1.4f))});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("STOCK MATERIALS \xc2\xb7 every generator, "
-                         "painted once"),
-         .subtitle = toUtf8("field \xc2\xb7 pattern tiles \xc2\xb7 the "
-                            "grained kit and girih \xc2\xb7 sdf and the "
-                            "unit ramps \xc2\xb7 the text paints"),
-         .footer = toUtf8("each caption is the recipe's own name; running "
-                          "the effect is what crosses the split-Skia "
-                          "image boundary, so every cell is PAINTED")},
+        {.title = "STOCK MATERIALS \xc2\xb7 every generator, "
+                  "painted once",
+         .subtitle = "field \xc2\xb7 pattern tiles \xc2\xb7 the "
+                     "grained kit and girih \xc2\xb7 sdf and the "
+                     "unit ramps \xc2\xb7 the text paints",
+         .footer = "each caption is the recipe's own name; running "
+                   "the effect is what crosses the split-Skia "
+                   "image boundary, so every cell is PAINTED"},
         sketch::kit::cells(
             {.cells = {std::move(fields), std::move(patterns),
                        std::move(grained), std::move(shapesAndRamps),

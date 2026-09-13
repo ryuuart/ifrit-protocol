@@ -52,7 +52,6 @@ namespace img = sigil::image;
 namespace io = sigil::io;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -92,7 +91,7 @@ Element cell(const char* call, const char* note,
                           .height(Dimension(100))
                           .fill(Fill::color({0.13f, 0.10f, 0.11f, 1}));
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
           .column()
           .gap(10)
@@ -141,15 +140,15 @@ struct NetPolicy final : sketch::Sketch {
     };
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("THE NETWORK POLICIES \xc2\xb7 Hub::"
-                         "setNetworkPolicy over a pre-seeded cache"),
-         .subtitle = toUtf8("dials \xc2\xb7 the policy \xc2\xb7 which URL "
-                            "is seeded \xc2\xb7 the cache directory"),
-         .footer = toUtf8("the host is a reserved name that cannot "
-                          "resolve, so nothing here leaves the machine "
-                          "\xe2\x80\x94 which is what makes the Refresh "
-                          "cell a fetch that genuinely failed and fell "
-                          "back rather than one that was skipped")},
+        {.title = "THE NETWORK POLICIES \xc2\xb7 Hub::"
+                  "setNetworkPolicy over a pre-seeded cache",
+         .subtitle = "dials \xc2\xb7 the policy \xc2\xb7 which URL "
+                     "is seeded \xc2\xb7 the cache directory",
+         .footer = "the host is a reserved name that cannot "
+                   "resolve, so nothing here leaves the machine "
+                   "\xe2\x80\x94 which is what makes the Refresh "
+                   "cell a fetch that genuinely failed and fell "
+                   "back rather than one that was skipped"},
         kit::cells(
             {.cells = {cell("CacheFirst \xc2\xb7 seeded",
                             "the default \xc2\xb7 a present cache file is "

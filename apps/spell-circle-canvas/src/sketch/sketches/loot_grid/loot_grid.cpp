@@ -663,7 +663,7 @@ struct LootGrid final : sketch::Sketch {
       const SkColor4f c = lt::rarityColor(r);
       return sketch::kit::LegendEntry{
           Fill::color({c.fR * 0.35f, c.fG * 0.35f, c.fB * 0.35f, 1}),
-          toUtf8(label),
+          label,
           {},
           Fill::color(c),
           Fill::color(c)};
@@ -687,12 +687,12 @@ struct LootGrid final : sketch::Sketch {
     // than five steps of one scale.
     root.child(sketch::kit::legend(
                    {.entries = {{Fill::color({0.16f, 0.80f, 0.24f, 0.30f}),
-                                 toUtf8("fits"),
+                                 "fits",
                                  {},
                                  Fill::color({0.35f, 1.0f, 0.45f, 0.8f}),
                                  Fill::color(lt::kAsh)},
                                 {Fill::color({0.90f, 0.16f, 0.14f, 0.34f}),
-                                 toUtf8("blocked"),
+                                 "blocked",
                                  {},
                                  Fill::color({1.0f, 0.35f, 0.30f, 0.8f}),
                                  Fill::color(lt::kAsh)}},

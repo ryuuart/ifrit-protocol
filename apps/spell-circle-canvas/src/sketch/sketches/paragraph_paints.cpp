@@ -57,7 +57,6 @@ namespace material = sigil::material;
 namespace paint = sigil::material::skia;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -126,7 +125,7 @@ Element panel(const std::u8string& prose, const char* call, const char* note,
     plate.child(
         box().absolute().inset(0).child(column(prose, std::move(beneath))));
   return sketch::kit::caption(
-      kPanel, toUtf8(call), toUtf8(note),
+      kPanel, call, note,
       std::move(plate).child(column(prose, std::move(fill))));
 }
 
@@ -166,17 +165,17 @@ struct ParagraphPaints final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("PARAGRAPH PAINTS \xc2\xb7 the preset text paints "
-                         "over a page of body type"),
-         .subtitle = toUtf8("one passage \xc2\xb7 one face, size, measure, "
-                            "leading, breaker and justification "
-                            "\xc2\xb7 eight inks \xc2\xb7 the moment "
-                            "(6.4 s)"),
-         .footer = toUtf8("the material's unit square spans the WHOLE run, "
-                          "so a page gets a sliver of what a word gets "
-                          "whole \xe2\x80\x94 which is the thing to look "
-                          "for here, and the thing a one-word specimen "
-                          "cannot show")},
+        {.title = "PARAGRAPH PAINTS \xc2\xb7 the preset text paints "
+                  "over a page of body type",
+         .subtitle = "one passage \xc2\xb7 one face, size, measure, "
+                     "leading, breaker and justification "
+                     "\xc2\xb7 eight inks \xc2\xb7 the moment "
+                     "(6.4 s)",
+         .footer = "the material's unit square spans the WHOLE run, "
+                   "so a page gets a sliver of what a word gets "
+                   "whole \xe2\x80\x94 which is the thing to look "
+                   "for here, and the thing a one-word specimen "
+                   "cannot show"},
         kit::cells(
             {.cells = {topRow(), bottomRow()}, .column = true, .gap = 14})));
   }

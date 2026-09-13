@@ -50,7 +50,6 @@ namespace sketch = sigil::sketch;
 namespace material = sigil::material;
 
 using namespace sigil::compose;
-using sigil::compose::toUtf8;
 
 namespace {
 
@@ -150,7 +149,7 @@ std::string sequenceNames(const material::Atlas& atlas) {
 Element cell(const char* call, const std::string& note,
              std::function<void(SkCanvas&)> draw) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well(
           {.width = kCell, .height = kPicture},
           custom(call, [draw = std::move(draw)](SkCanvas& canvas,
@@ -207,12 +206,12 @@ struct MaterialAtlas final : sketch::Sketch {
       };
     };
 
-    ctx.composer.render(sketch::kit::page({.title = toUtf8(
+    ctx.composer.render(sketch::kit::page({.title =
                                                "MATERIAL ATLAS \xc2\xb7 Atlas "
                                                "grid, "
                                                "fromTexturePacker, "
-                                               "fromAseprite, region, frame"),
-                                           .subtitle = toUtf8(kit::formatted(
+                                               "fromAseprite, region, frame",
+                                           .subtitle = kit::formatted(
                                                "d"
                                                "i"
                                                "a"
@@ -275,20 +274,19 @@ struct MaterialAtlas final : sketch::Sketch {
                                                "n"
                                                ")",
                                                kCols, kRows, kCellSide,
-                                               kPlayhead)),
-                                           .footer =
-                                               toUtf8("a region is an ordinary "
-                                                      "texture cut from the "
-                                                      "sheet, so a sprite "
-                                                      "needs no "
-                                                      "second sampling "
-                                                      "path \xe2\x80\x94 and "
-                                                      "frame() "
-                                                      "wraps, so a "
-                                                      "playhead is a counter "
-                                                      "and not "
-                                                      "a modulus at "
-                                                      "every call site")},
+                                               kPlayhead),
+                                           .footer = "a region is an ordinary "
+                                                     "texture cut from the "
+                                                     "sheet, so a sprite "
+                                                     "needs no "
+                                                     "second sampling "
+                                                     "path \xe2\x80\x94 and "
+                                                     "frame() "
+                                                     "wraps, so a "
+                                                     "playhead is a counter "
+                                                     "and not "
+                                                     "a modulus at "
+                                                     "every call site"},
                                           kit::cells(
                                               {.cells = {kit::cells({.cells = {cell("the sheet, whole",
                                                                                     kit::formatted(

@@ -54,7 +54,6 @@ namespace environment = sigil::core::environment;
 using namespace sigil::compose;
 using namespace sigil::weave::literals;
 using namespace std::chrono_literals;
-using sigil::compose::toUtf8;
 using sigil::draw::Pen;
 
 namespace {
@@ -361,7 +360,7 @@ Element lexicalChannel() {
 Element cell(const char* call, const char* note, Element body,
              float padding = kPad) {
   return sketch::kit::caption(
-      kCell, toUtf8(call), toUtf8(note),
+      kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kBody, .padding = padding})
           .child(std::move(body)));
 }
@@ -398,15 +397,14 @@ struct Cascade final : sketch::Sketch {
 
   [[nodiscard]] Element sheet() const {
     return sketch::kit::page(
-        {.title = toUtf8("THE CASCADE \xc2\xb7 the font, the ink and the "
-                         "custom properties"),
-         .subtitle = toUtf8(
+        {.title = "THE CASCADE \xc2\xb7 the font, the ink and the "
+                  "custom properties",
+         .subtitle =
              "they flow down the TREE, wherever the code that built a "
-             "child ran \xc2\xb7 everything else a node says stays on it"),
-         .footer = toUtf8(
-             "a class and a theme are LEXICAL, read where an element is "
-             "written \xc2\xb7 the cascade is STRUCTURAL, carried by the "
-             "tree the element ends up in \xc2\xb7 a bake is a root")},
+             "child ran \xc2\xb7 everything else a node says stays on it",
+         .footer = "a class and a theme are LEXICAL, read where an element is "
+                   "written \xc2\xb7 the cascade is STRUCTURAL, carried by the "
+                   "tree the element ends up in \xc2\xb7 a bake is a root"},
         sketch::kit::cells(
             {.cells =
                  {row({cell(".font({.size = 15}).ink(teal)",

@@ -128,7 +128,7 @@ Element panel(const char* title, const char* note, Element inner) {
   // panel would otherwise widen the cell and the two rows would stop
   // lining up column for column.
   return sketch::kit::caption(
-             kPanel, toUtf8(title), toUtf8(note),
+             kPanel, title, note,
              sketch::kit::well({.width = Dimension(kPanel),
                                 .height = Dimension(kPanel * 1.6f),
                                 .ground = Fill::none(),
@@ -257,15 +257,15 @@ struct PopDeform final : sketch::Sketch {
          .gap = 14});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("POP DEFORM \xc2\xb7 select() writes a lane, "
-                         "masked() takes it"),
-         .subtitle = toUtf8("one column of 1,400 points \xc2\xb7 twist, "
-                            "taper, bend and orient+peak, on the whole "
-                            "cloud above and on the selected band below"),
-         .footer = toUtf8("every chain is cooked once by the CPU "
-                          "reference executor and splatted by "
-                          "points::drawBillboards \xc2\xb7 all ten are "
-                          "GPU-executable unchanged")},
+        {.title = "POP DEFORM \xc2\xb7 select() writes a lane, "
+                  "masked() takes it",
+         .subtitle = "one column of 1,400 points \xc2\xb7 twist, "
+                     "taper, bend and orient+peak, on the whole "
+                     "cloud above and on the selected band below",
+         .footer = "every chain is cooked once by the CPU "
+                   "reference executor and splatted by "
+                   "points::drawBillboards \xc2\xb7 all ten are "
+                   "GPU-executable unchanged"},
         kit::cells({.cells = {std::move(whole), std::move(banded)},
                     .column = true,
                     .gap = 22})));
