@@ -181,14 +181,11 @@ Element specimen(float x, float y, float w, float h,
                  shapes::OutlineFunction shape, Decoration dec,
                  const char* label, float labelDy = 6) {
   return box()
-      .absolute()
-      .left(x)
-      .top(y)
-      .width(w)
-      .height(h)
+
+      .rect(SkRect::MakeXYWH(x, y, w, h))
       .shape(std::move(shape))
       .stroke(std::move(dec))
-      .children({call(label).absolute().left(0).top(h + labelDy)});
+      .children({call(label).at({0, h + labelDy})});
 }
 
 /** The same, with no caption (for the rings, which are captioned outside
@@ -196,22 +193,16 @@ Element specimen(float x, float y, float w, float h,
 Element bare(float x, float y, float w, float h, shapes::OutlineFunction shape,
              Decoration dec) {
   return box()
-      .absolute()
-      .left(x)
-      .top(y)
-      .width(w)
-      .height(h)
+
+      .rect(SkRect::MakeXYWH(x, y, w, h))
       .shape(std::move(shape))
       .stroke(std::move(dec));
 }
 
 Element rule(float x, float y, float w, Decoration dec) {
   return box()
-      .absolute()
-      .left(x)
-      .top(y)
-      .width(w)
-      .height(10)
+
+      .rect(SkRect::MakeXYWH(x, y, w, 10))
       .shape(hline())
       .stroke(std::move(dec));
 }
@@ -224,9 +215,8 @@ Element rule(float x, float y, float w, Decoration dec) {
  *  in any face. */
 Element sectionTitle(float x, float y, const char* n, const char* name) {
   return box()
-      .absolute()
-      .left(x)
-      .top(y)
+
+      .at({x, y})
       .row()
       .gap(11)
       .alignItems(Align::Baseline)

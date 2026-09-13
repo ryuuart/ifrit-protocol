@@ -14,41 +14,29 @@ struct StrokeAtlasSketch : sketch::Sketch {
         stack().fill(mskia::Paint::solid(kPaper)).styleSheet(voices());
 
     // ---- masthead --------------------------------------------------------
-    plate.children({romanBold("THE STROKE ATLAS", 26, kInk, 6.0f)
-                        .absolute()
-                        .left(56)
-                        .top(34)});
     plate.children(
-        {roman("a specimen plate of the SigilCompose line, border and "
+        {romanBold("THE STROKE ATLAS", 26, kInk, 6.0f).at({56, 34}),
+         roman("a specimen plate of the SigilCompose line, border and "
                "corner vocabulary — every rule captioned "
                "with the call that made it",
                11.5f, kInk)
-             .absolute()
-             .left(58)
-             .top(70)});
-    plate.children({call("sigilcompose/brush/{Lines,Brushes,Hatches,Rails}.h + "
-                         "shape/Shapes.h",
-                         9.0f, kRed)
-                        .absolute()
-                        .left(58)
-                        .top(88)});
-    plate.children(
-        {call("PLATE I", 9.0f, kInkSoft).absolute().left(1470).top(88)});
-    plate.children(
-        {rule(56, 112, 1488,
-              brush::presets::heavyHairHeavy(1.2f, 0.5f, ink(), 3.0f))});
-
-    // ---- I. THE FAN ------------------------------------------------------
-    // Straight is the easy case and a specimen book still starts there: the
-    // angles exist so cap geometry, tie spacing and anti-aliasing can be
-    // compared against the pixel grid at more than one slope.
-    plate.children({sectionTitle(56, 140, "I", "THE FAN · STRAIGHT RUNS")});
-    plate.children({call("twenty rules out of one origin · numbered to the "
-                         "key",
-                         9.0f, kInkSoft)
-                        .absolute()
-                        .left(56)
-                        .top(160)});
+             .at({58, 70}),
+         call("sigilcompose/brush/{Lines,Brushes,Hatches,Rails}.h + "
+              "shape/Shapes.h",
+              9.0f, kRed)
+             .at({58, 88}),
+         call("PLATE I", 9.0f, kInkSoft).at({1470, 88}),
+         rule(56, 112, 1488,
+              brush::presets::heavyHairHeavy(1.2f, 0.5f, ink(), 3.0f)),
+         // I. THE FAN · STRAIGHT RUNS. Straight is the easy case and a
+         // specimen book still starts there: the angles exist so cap geometry,
+         // tie spacing and anti-aliasing can be compared against the pixel
+         // grid at more than one slope.
+         sectionTitle(56, 140, "I", "THE FAN · STRAIGHT RUNS"),
+         call("twenty rules out of one origin · numbered to the "
+              "key",
+              9.0f, kInkSoft)
+             .at({56, 160})});
     {
       std::vector<Style> fan = railStyles();
       for (Style& s : furnishedStyles()) fan.push_back(std::move(s));
@@ -65,75 +53,51 @@ struct StrokeAtlasSketch : sketch::Sketch {
         // key is what a specimen sheet does with a crowded figure, and it
         // lets the calls be set at a readable size in reading order, which
         // is the actual payload: a reader is here to learn what to type.
-        plate.children({box()
-                            .absolute()
-                            .left(originX)
-                            .top(originY - 19)
-                            .width(length)
-                            .height(38)
-                            .transformOrigin(0, 0.5f)
-                            .rotate(deg)
-                            .shape(hline())
-                            .stroke(fan[(size_t)i].dec)});
+        plate.children(
+            {box()
+                 .rect(SkRect::MakeXYWH(originX, originY - 19, length, 38))
+                 .transformOrigin(0, 0.5f)
+                 .rotate(deg)
+                 .shape(hline())
+                 .stroke(fan[(size_t)i].dec)});
         const float rad = deg * 0.0174532925f;
         const SkPoint end = arrange::onEllipse({originX, originY},
                                                {length + 9, length + 9}, rad);
         const float ex = end.fX, ey = end.fY;
         const std::string numeral = kit::formatted("%d", i + 1);
-        plate.children({call(numeral.c_str(), 8.5f, kRed)
-                            .absolute()
-                            .left(ex)
-                            .top(ey - 6)});
+        plate.children({call(numeral.c_str(), 8.5f, kRed).at({ex, ey - 6})});
       }
       // The pivot, drawn as a registration mark.
-      plate.children({box()
-                          .absolute()
-                          .left(originX - 8)
-                          .top(originY - 8)
-                          .width(16)
-                          .height(16)
-                          .shape(shapes::circle())
-                          .foreground(stroke(1.0f, red()))});
-      plate.children({box()
-                          .absolute()
-                          .left(originX - 13)
-                          .top(originY - 0.5f)
-                          .width(26)
-                          .height(1)
-                          .fill(kRed)});
-      plate.children({box()
-                          .absolute()
-                          .left(originX - 0.5f)
-                          .top(originY - 13)
-                          .width(1)
-                          .height(26)
-                          .fill(kRed)});
+      plate.children(
+          {box()
+               .rect(SkRect::MakeXYWH(originX - 8, originY - 8, 16, 16))
+               .shape(shapes::circle())
+               .foreground(stroke(1.0f, red())),
+           box()
+               .rect(SkRect::MakeXYWH(originX - 13, originY - 0.5f, 26, 1))
+               .fill(kRed),
+           box()
+               .rect(SkRect::MakeXYWH(originX - 0.5f, originY - 13, 1, 26))
+               .fill(kRed)});
 
       // The key.
       const float keyX = 330, keyTop = 236;
-      plate.children(
-          {call("KEY", 8.5f, kInk).absolute().left(keyX).top(keyTop - 16)});
+      plate.children({call("KEY", 8.5f, kInk).at({keyX, keyTop - 16})});
       for (int i = 0; i < n; ++i) {
         const std::string numeral = kit::formatted("%2d", i + 1);
         plate.children({call(numeral.c_str(), 8.5f, kRed)
-                            .absolute()
-                            .left(keyX)
-                            .top(keyTop + (float)i * 13.6f)});
-        plate.children({call(fan[(size_t)i].label, 7.8f, kInkSoft)
-                            .absolute()
-                            .left(keyX + 19)
-                            .top(keyTop + (float)i * 13.6f)});
+                            .at({keyX, keyTop + (float)i * 13.6f}),
+                        call(fan[(size_t)i].label, 7.8f, kInkSoft)
+                            .at({keyX + 19, keyTop + (float)i * 13.6f})});
       }
     }
 
     // ---- II. THE SERPENT -------------------------------------------------
-    plate.children({sectionTitle(636, 140, "II", "THE SERPENT · ON A CURVE")});
-    plate.children({call("one gentle bend and one tight one — a rule "
+    plate.children({sectionTitle(636, 140, "II", "THE SERPENT · ON A CURVE"),
+                    call("one gentle bend and one tight one — a rule "
                          "that only reads straight is a lie",
                          9.0f, kInkSoft)
-                        .absolute()
-                        .left(636)
-                        .top(160)});
+                        .at({636, 160})});
     {
       std::vector<Style> column = displacedStyles();
       for (Style& s : bandStyles()) column.push_back(std::move(s));
@@ -156,13 +120,11 @@ struct StrokeAtlasSketch : sketch::Sketch {
     // ---- III. THE RINGS --------------------------------------------------
     // The same style at five curvatures. Concentric so the eye reads "this
     // style, tighter" rather than five unrelated circles.
-    plate.children({sectionTitle(1064, 140, "III", "THE RINGS · CURVATURE")});
-    plate.children({call("r = 160 → 42 · where offset contours "
+    plate.children({sectionTitle(1064, 140, "III", "THE RINGS · CURVATURE"),
+                    call("r = 160 → 42 · where offset contours "
                          "shear",
                          9.0f, kInkSoft)
-                        .absolute()
-                        .left(1064)
-                        .top(160)});
+                        .at({1064, 160})});
     {
       const float cx = 1178, cy = 430;
       struct Ring {
@@ -209,22 +171,14 @@ struct StrokeAtlasSketch : sketch::Sketch {
         // the rings outside it, which is the one thing a plate of concentric
         // rules must not do.
         const float capX = 1352;
-        plate.children({box()
-                            .absolute()
-                            .left(lx)
-                            .top(ly - 0.5f)
-                            .width(capX - 6 - lx)
-                            .height(1)
-                            .fill(kInkSoft)});
         plate.children(
-            {call(r.label, 8.0f, kInkSoft).absolute().left(capX).top(ly - 5)});
+            {box()
+                 .rect(SkRect::MakeXYWH(lx, ly - 0.5f, capX - 6 - lx, 1))
+                 .fill(kInkSoft),
+             call(r.label, 8.0f, kInkSoft).at({capX, ly - 5})});
       }
       plate.children({box()
-                          .absolute()
-                          .left(cx - 3)
-                          .top(cy - 3)
-                          .width(6)
-                          .height(6)
+                          .rect(SkRect::MakeXYWH(cx - 3, cy - 3, 6, 6))
                           .shape(shapes::circle())
                           .fill(kRed)});
     }
@@ -234,54 +188,41 @@ struct StrokeAtlasSketch : sketch::Sketch {
     // Printing a black patch to show a rule reversed is what a real specimen
     // sheet does, so the plate does it too.
     plate.children(
-        {sectionTitle(1064, 690, "IV", "THE REVERSE · LAYERED STACKS")});
-    plate.children(
-        {call("additive stacks, shown on the black patch they are for", 9.0f,
+        {sectionTitle(1064, 690, "IV", "THE REVERSE · LAYERED STACKS"),
+         call("additive stacks, shown on the black patch they are for", 9.0f,
               kInkSoft)
-             .absolute()
-             .left(1064)
-             .top(710)});
+             .at({1064, 710})});
     {
-      plate.children(
-          {box().absolute().left(1058).top(732).width(486).height(300).fill(
-              SkColor4f{0.055f, 0.055f, 0.068f, 1})});
+      plate.children({box()
+                          .rect(SkRect::MakeXYWH(1058, 732, 486, 300))
+                          .fill(SkColor4f{0.055f, 0.055f, 0.068f, 1})});
       float y = 748;
       for (Style& s : stackStyles()) {
         plate.children(
             {box()
-                 .absolute()
-                 .left(1078)
-                 .top(y)
-                 .width(330)
-                 .height(44)
+                 .rect(SkRect::MakeXYWH(1078, y, 330, 44))
                  .shape(serpent())
                  .stroke(std::move(s.dec))
                  .children({call(s.label, 8.0f, {0.72f, 0.74f, 0.78f, 1})
-                                .absolute()
-                                .left(0)
-                                .top(46)})});
+                                .at({0, 46})})});
         y += 72;
       }
     }
 
     // ---- V. THE TORTURE --------------------------------------------------
     plate.children(
-        {sectionTitle(56, 880, "V", "THE TORTURE · SPIRAL & HAIRPIN")});
-    plate.children({call("where offset contours self-intersect", 9.0f, kInkSoft)
-                        .absolute()
-                        .left(56)
-                        .top(900)});
+        {sectionTitle(56, 880, "V", "THE TORTURE · SPIRAL & HAIRPIN"),
+         call("where offset contours self-intersect", 9.0f, kInkSoft)
+             .at({56, 900})});
     {
       plate.children(
           {specimen(56, 926, 180, 180, shapes::spiral(3.2f, false, 0.10f),
                     lines::presets::cased(1.6f, ink(), 5.0f),
-                    "cased(1.6,ink,5) on shapes::spiral(3.2)")});
-      plate.children(
-          {specimen(258, 926, 180, 180, shapes::spiral(3.2f, false, 0.10f),
+                    "cased(1.6,ink,5) on shapes::spiral(3.2)"),
+           specimen(258, 926, 180, 180, shapes::spiral(3.2f, false, 0.10f),
                     lines::presets::railway(1.2f, red(), 11.0f, 8.0f),
-                    "railway(1.2,red,11,8), same spiral")});
-      plate.children(
-          {specimen(460, 926, 150, 74, hairpin(),
+                    "railway(1.2,red,11,8), same spiral"),
+           specimen(460, 926, 150, 74, hairpin(),
                     brush::presets::heavyHairHeavy(2.2f, 0.6f, ink(), 5.0f),
                     "heavyHairHeavy round a hairpin")});
       Brush hairSketch;
@@ -293,64 +234,52 @@ struct StrokeAtlasSketch : sketch::Sketch {
     }
 
     // ---- VI. THE FIELDS --------------------------------------------------
-    plate.children({sectionTitle(640, 1062, "VI", "THE FIELDS · HATCHING")});
     plate.children(
-        {call("a rule repeated and clipped to a silhouette", 9.0f, kInkSoft)
-             .absolute()
-             .left(640)
-             .top(1082)});
+        {sectionTitle(640, 1062, "VI", "THE FIELDS · HATCHING"),
+         call("a rule repeated and clipped to a silhouette", 9.0f, kInkSoft)
+             .at({640, 1082})});
     {
       auto field = [&](float x, float dy, const char* label,
                        shapes::OutlineFunction shape, Decoration dec) {
         return box()
-            .absolute()
-            .left(x)
-            .top(1108 + dy)
-            .width(124)
-            .height(124)
+            .rect(SkRect::MakeXYWH(x, 1108 + dy, 124, 124))
             .shape(std::move(shape))
             .background(std::move(dec))
             .foreground(stroke(1.0f, ink()))
-            .children(
-                {call(label, 8.0f, kInkSoft).absolute().left(0).top(130)});
+            .children({call(label, 8.0f, kInkSoft).at({0, 130})});
       };
       // Staggered, not ruled: the shapes differ, so their baselines should.
-      plate.children({field(640, 0, "lines::presets::hatch(ink, 5, 0.9, 45)",
-                            shapes::star(6, 0.52f),
-                            lines::presets::hatch(ink(), 5.0f, 0.9f, 45.0f))});
       plate.children(
-          {field(786, 18, "lines::presets::crosshatch(ink, 7, 0.8, 20)",
+          {field(640, 0, "lines::presets::hatch(ink, 5, 0.9, 45)",
+                 shapes::star(6, 0.52f),
+                 lines::presets::hatch(ink(), 5.0f, 0.9f, 45.0f)),
+           field(786, 18, "lines::presets::crosshatch(ink, 7, 0.8, 20)",
                  shapes::blob(4, 0.16f, 7),
-                 lines::presets::crosshatch(ink(), 7.0f, 0.8f, 20.0f))});
-      plate.children(
-          {field(932, -8, "lines::presets::radialHatch(ink, 72, 0.8)",
+                 lines::presets::crosshatch(ink(), 7.0f, 0.8f, 20.0f)),
+           field(932, -8, "lines::presets::radialHatch(ink, 72, 0.8)",
                  shapes::polygon(6, 90.0f),
-                 lines::presets::radialHatch(ink(), 72, 0.8f))});
-      plate.children(
-          {field(1078, 22, "lines::presets::concentric(red, 14, 0.8)",
+                 lines::presets::radialHatch(ink(), 72, 0.8f)),
+           field(1078, 22, "lines::presets::concentric(red, 14, 0.8)",
                  shapes::squircle(4.0f),
-                 lines::presets::concentric(red(), 14, 0.8f))});
-      plate.children(
-          {field(1224, 2, "decorations::wash(halftoneRamp)", shapes::circle(),
+                 lines::presets::concentric(red(), 14, 0.8f)),
+           field(1224, 2, "decorations::wash(halftoneRamp)", shapes::circle(),
                  decorations::wash(mskia::Paint::recipe(field::halftoneRamp(
                                        8, 1.0f, 3.2f, mskia::toColor(kInk))),
-                                   SkBlendMode::kSrcOver, 0.95f))});
-      plate.children({field(
-          1370, 26, "hatch on shapes::chamfered(22)", shapes::chamfered(22.0f),
-          lines::presets::hatch(soft(), 6.0f, 0.8f, -45.0f))});
+                                   SkBlendMode::kSrcOver, 0.95f)),
+           field(1370, 26, "hatch on shapes::chamfered(22)",
+                 shapes::chamfered(22.0f),
+                 lines::presets::hatch(soft(), 6.0f, 0.8f, -45.0f))});
     }
 
     // ---- VII. THE FRAMES -------------------------------------------------
     // The headline. A frame is not a 1 px rounded rect.
     plate.children(
-        {sectionTitle(56, 1300, "VII", "THE FRAMES · BORDERS & CORNERS")});
-    plate.children({call("decorations::Border · shapes::chamfered/notched "
-                         "· brush::Pattern corner tiles — a frame "
-                         "is not a 1 px rounded rect",
-                         9.0f, kInkSoft)
-                        .absolute()
-                        .left(56)
-                        .top(1320)});
+        {sectionTitle(56, 1300, "VII", "THE FRAMES · BORDERS & CORNERS"),
+         call("decorations::Border · shapes::chamfered/notched "
+              "· brush::Pattern corner tiles — a frame "
+              "is not a 1 px rounded rect",
+              9.0f, kInkSoft)
+             .at({56, 1320})});
     {
       struct Frame {
         const char* label;
@@ -492,11 +421,7 @@ struct StrokeAtlasSketch : sketch::Sketch {
                                                         : (i % 3 == 2) ? -8.0f
                                                                        : 0.0f);
         Element frame = box()
-                            .absolute()
-                            .left(x)
-                            .top(y)
-                            .width(150)
-                            .height(100)
+                            .rect(SkRect::MakeXYWH(x, y, 150, 100))
                             .transformOrigin(0.5f, 0.5f)
                             .rotate(frames[i].rot)
                             .shape(frames[i].shape);
@@ -507,10 +432,8 @@ struct StrokeAtlasSketch : sketch::Sketch {
           frame.stroke(spec.where.value(), spec.dec);
         else
           frame.stroke(spec.dec);
-        plate.children({frame.children({call(frames[i].label, 7.5f, kInkSoft)
-                                            .absolute()
-                                            .left(0)
-                                            .top(106)})});
+        plate.children({frame.children(
+            {call(frames[i].label, 7.5f, kInkSoft).at({0, 106})})});
       }
     }
 
@@ -526,13 +449,11 @@ struct StrokeAtlasSketch : sketch::Sketch {
     // corner diagonally; on the outgoing tangent it reads as flow, four
     // arrows chasing each other round the frame.
     plate.children(
-        {sectionTitle(56, 1700, "VIII", "THE CORNER · WHICH WAY IT FACES")});
-    plate.children({call("brush::CornerArt{art, align} — the same "
-                         "art, the same rect, one word different",
-                         9.0f, kInkSoft)
-                        .absolute()
-                        .left(56)
-                        .top(1720)});
+        {sectionTitle(56, 1700, "VIII", "THE CORNER · WHICH WAY IT FACES"),
+         call("brush::CornerArt{art, align} — the same "
+              "art, the same rect, one word different",
+              9.0f, kInkSoft)
+             .at({56, 1720})});
     {
       // A chevron pointing along local +x: two strokes meeting at the tip.
       auto chevron = [] {
@@ -570,18 +491,14 @@ struct StrokeAtlasSketch : sketch::Sketch {
         pb.advance = 12.0f;
         pb.cornerLength = 20.0f;
         pb.bleedPx = 20.0f;
-        plate.children({box()
-                            .absolute()
-                            .left(56.0f + 360.0f * (float)i)
-                            .top(1762)
-                            .width(230)
-                            .height(120)
-                            .shape(frameRect(10))
-                            .stroke(std::move(pb))
-                            .children({call(variants[i].label, 7.5f, kInkSoft)
-                                           .absolute()
-                                           .left(0)
-                                           .top(126)})});
+        plate.children(
+            {box()
+                 .rect(SkRect::MakeXYWH(56.0f + 360.0f * (float)i, 1762, 230,
+                                        120))
+                 .shape(frameRect(10))
+                 .stroke(std::move(pb))
+                 .children(
+                     {call(variants[i].label, 7.5f, kInkSoft).at({0, 126})})});
       }
       // And the placement itself: the corner art sits ON the vertex. A
       // chamfer has EIGHT vertices at short intervals, which is the case
@@ -607,31 +524,22 @@ struct StrokeAtlasSketch : sketch::Sketch {
       octo.cornerLength = 16.0f;
       octo.bleedPx = 18.0f;
       plate.children({box()
-                          .absolute()
-                          .left(776)
-                          .top(1762)
-                          .width(230)
-                          .height(120)
+                          .rect(SkRect::MakeXYWH(776, 1762, 230, 120))
                           .shape(shapes::chamfered(20.0f))
                           .stroke(std::move(octo))
                           .children({call("on shapes::chamfered(20) — eight "
                                           "vertices, eight tiles",
                                           7.5f, kInkSoft)
-                                         .absolute()
-                                         .left(0)
-                                         .top(126)})});
+                                         .at({0, 126})})});
     }
 
     // ---- colophon --------------------------------------------------------
     plate.children(
-        {rule(56, 1940, 1488, lines::presets::cased(0.8f, soft(), 3.0f))});
-    plate.children(
-        {call("SigilCompose · stroke_atlas.cpp · render it "
+        {rule(56, 1940, 1488, lines::presets::cased(0.8f, soft(), 3.0f)),
+         call("SigilCompose · stroke_atlas.cpp · render it "
               "yourself: Sketchbook stroke_atlas.cpp --frame out.png",
               8.5f, kInkSoft)
-             .absolute()
-             .left(56)
-             .top(1950)});
+             .at({56, 1950})});
     return plate;
   }
 
