@@ -35,6 +35,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <span>
 #include <string>
 #include <vector>
 

@@ -5,6 +5,13 @@
 #include "ResearchArt.h"
 
 struct Thaumonomicon : sketch::Sketch {
+  /** THE HOVERED NODE, and the one parent of it that is not complete — the
+   *  tooltip's whole subject, named by key so its title, its position on the
+   *  lattice and its missing line all come off the graph rather than being
+   *  typed here three times. */
+  static constexpr std::string_view kHovered = "THAUMATORIUM";
+  static constexpr std::string_view kMissing = "CENTRIFUGE";
+
   // ---- motion --------------------------------------------------------------
   ch::Output<float> pulse{0};   // the 600 ms lockstep unlockable pulse
   ch::Output<float> spin{0};    // drawForbidden's swirl
@@ -365,85 +372,71 @@ struct Thaumonomicon : sketch::Sketch {
   // the 22x22 plate at (x-3, y-3) is UV(13,13) — the SAME cell as the frame's
   // four corners, which is why one art element serves both here.
 
+  /** ONE STROKE OF A RUNE, in the 16-px GUI cell the tab is drawn on. */
+  struct Stroke {
+    float x, y, w, h;
+  };
+  /** A CATEGORY TAB: its name, the aspect colour its rune is cut in, and
+   *  the rune itself as the strokes it is made of — seven distinct marks
+   *  stated as DATA, so the drawing is one loop and not a switch. */
   struct Category {
     const char* name;
     uint32_t aspect;
-    int rune;
+    std::span<const Stroke> rune;
   };
 
   Element tabRail() const {
+    static constexpr Stroke kFundamentals[] = {{7, 2, 2, 12}, {3, 6, 10, 2}};
+    static constexpr Stroke kAuromancy[] = {
+        {3, 4, 10, 2}, {3, 10, 10, 2}, {7, 4, 2, 8}};
+    static constexpr Stroke kAlchemy[] = {{4, 3, 8, 2},
+                                          {4, 3, 2, 10},
+                                          {10, 3, 2, 10},
+                                          {4, 11, 8, 2},
+                                          {7, 7, 2, 2}};
+    static constexpr Stroke kArtifice[] = {
+        {3, 7, 10, 2}, {6, 3, 2, 10}, {10, 3, 2, 10}};
+    static constexpr Stroke kInfusion[] = {
+        {7, 2, 2, 12}, {3, 5, 10, 2}, {5, 11, 6, 2}};
+    static constexpr Stroke kGolemancy[] = {
+        {6, 2, 4, 4}, {4, 7, 8, 4}, {5, 11, 2, 3}, {9, 11, 2, 3}};
+    static constexpr Stroke kEldritch[] = {
+        {3, 3, 2, 10}, {11, 3, 2, 10}, {5, 7, 6, 2}, {7, 3, 2, 4}};
     static const Category kCats[7] = {
-        {"Fundamentals", aspect::kHerba, 0},
-        {"Auromancy", aspect::kAuram, 1},
-        {"Alchemy", aspect::kAlkimia, 2},
-        {"Artifice", aspect::kMachina, 3},
-        {"Arcane Infusion", aspect::kPraecantatio, 4},
-        {"Golemancy", aspect::kHumanus, 5},
-        {"Eldritch", aspect::kAlienis, 6},
+        {"Fundamentals", aspect::kHerba, kFundamentals},
+        {"Auromancy", aspect::kAuram, kAuromancy},
+        {"Alchemy", aspect::kAlkimia, kAlchemy},
+        {"Artifice", aspect::kMachina, kArtifice},
+        {"Arcane Infusion", aspect::kPraecantatio, kInfusion},
+        {"Golemancy", aspect::kHumanus, kGolemancy},
+        {"Eldritch", aspect::kAlienis, kEldritch},
     };
-    Element rail = box().inset(0);
-    for (int i = 0; i < 7; ++i) {
+    // ALCHEMY is the open category, so its boss is tinted and its rune is
+    // cut at full strength; the other six stand back.
+    const auto tab = [](const Category& cat, std::size_t i) {
       const float y = 10.0f + (float)(i + 1) * 24.0f;
-      const bool selected = i == 2;  // ALCHEMY
-      rail.children({cornerPlate(selected ? SkColor4f{0.6f, 1.0f, 1.0f, 1}
-                                          : SkColor4f{1, 1, 1, 1})
-                         .left(g(-2 - 1))
-                         .top(g(y - 3 - 1))
-                         .opacity(selected ? 1.0f : 0.86f)});
-      const Category& cat = kCats[i];
-      rail.children({box()
-                         .left(g(1))
-                         .top(g(y))
-                         .width(g(16))
-                         .height(g(16))
-                         .opacity(selected ? 1.0f : 0.8f)
-                         .background(prog([cat, selected](SkCanvas& c) {
-                           const kit::PixelInk k{c, U};
-                           const SkColor4f col =
-                               hexColor(cat.aspect, selected ? 1.0f : 0.66f);
-                           // seven distinct runes, one per category
-                           switch (cat.rune) {
-                             case 0:
-                               k.rect(7, 2, 2, 12, col);
-                               k.rect(3, 6, 10, 2, col);
-                               break;
-                             case 1:
-                               k.rect(3, 4, 10, 2, col);
-                               k.rect(3, 10, 10, 2, col);
-                               k.rect(7, 4, 2, 8, col);
-                               break;
-                             case 2:
-                               k.rect(4, 3, 8, 2, col);
-                               k.rect(4, 3, 2, 10, col);
-                               k.rect(10, 3, 2, 10, col);
-                               k.rect(4, 11, 8, 2, col);
-                               k.rect(7, 7, 2, 2, col);
-                               break;
-                             case 3:
-                               k.rect(3, 7, 10, 2, col);
-                               k.rect(6, 3, 2, 10, col);
-                               k.rect(10, 3, 2, 10, col);
-                               break;
-                             case 4:
-                               k.rect(7, 2, 2, 12, col);
-                               k.rect(3, 5, 10, 2, col);
-                               k.rect(5, 11, 6, 2, col);
-                               break;
-                             case 5:
-                               k.rect(6, 2, 4, 4, col);
-                               k.rect(4, 7, 8, 4, col);
-                               k.rect(5, 11, 2, 3, col);
-                               k.rect(9, 11, 2, 3, col);
-                               break;
-                             default:
-                               k.rect(3, 3, 2, 10, col);
-                               k.rect(11, 3, 2, 10, col);
-                               k.rect(5, 7, 6, 2, col);
-                               k.rect(7, 3, 2, 4, col);
-                               break;
-                           }
-                         }))});
-    }
+      const bool selected = i == 2;
+      return box().inset(0).children(
+          {cornerPlate(selected ? SkColor4f{0.6f, 1.0f, 1.0f, 1}
+                                : SkColor4f{1, 1, 1, 1})
+               .left(g(-2 - 1))
+               .top(g(y - 3 - 1))
+               .opacity(selected ? 1.0f : 0.86f),
+           box()
+               .left(g(1))
+               .top(g(y))
+               .width(g(16))
+               .height(g(16))
+               .opacity(selected ? 1.0f : 0.8f)
+               .background(prog([cat, selected](SkCanvas& c) {
+                 const kit::PixelInk k{c, U};
+                 const SkColor4f col =
+                     hexColor(cat.aspect, selected ? 1.0f : 0.66f);
+                 for (const Stroke& mark : cat.rune)
+                   k.rect(mark.x, mark.y, mark.w, mark.h, col);
+               }))});
+    };
+    Element rail = box().inset(0).children({each(kCats, tab)});
     // the search button (:170, UV 160,16 at x=1, y=height-17), 0.8 grey
     rail.children({box()
                        .left(g(1))
@@ -480,33 +473,33 @@ struct Thaumonomicon : sketch::Sketch {
     // column that would run off the right edge, so it FLIPS to the cursor's
     // left — the vanilla clamp, and the reason the card ends up lying across
     // three edges and two neighbours instead of hanging in clear space.
-    const SkPoint hc = centreOf(10, -2);
+    const Node& hovered = nodeByKey(kHovered);
+    const SkPoint hc = centreOf(hovered.col, hovered.row);
     const float mx = hc.fX / U + 2, my = hc.fY / U + 4;
     const float x = (mx + 3 + wd + 4 <= kGuiW) ? mx + 3 : mx - 3 - wd;
     const float y = my - 3;
-    return box().inset(0).background(
-        prog([a, b, d, x, y, wd, ht](SkCanvas& c) {
-          SkPaint p;
-          p.setAntiAlias(false);
-          // Vanilla GuiScreen.drawHoveringText fills k1-3 .. k1+j1+3 under a
-          // k1-4 .. k1-3 top strip, i.e. THREE px of sill below the last
-          // line — not one. One px of sill is not enough room for a descender
-          // plus its 1 px shadow, which then cross the inner border.
-          const SkRect r = SkRect::MakeLTRB(g(x - 4), g(y - 4), g(x + wd + 4),
-                                            g(y + ht + 3));
-          p.setColor4f(hexColor(0x100010, 0.94f), nullptr);
-          c.drawRect(r, p);
-          // the vanilla two-tone inner border
-          p.setStyle(SkPaint::kStroke_Style);
-          p.setStrokeWidth(g(1));
-          p.setColor4f(hexColor(0x5000FF, 0.31f), nullptr);
-          c.drawRect(r.makeInset(g(1), g(1)), p);
-          p.setColor4f(hexColor(0x28007F, 0.31f), nullptr);
-          c.drawRect(r.makeInset(g(2), g(2)), p);
-          blitText(c, a, x, y, kTextGold);
-          blitText(c, b, x, y + 10, kTextRed);
-          blitText(c, d, x, y + 20, kTextYellow);
-        }));
+    return box().inset(0).background(prog([a, b, d, x, y, wd, ht](SkCanvas& c) {
+      SkPaint p;
+      p.setAntiAlias(false);
+      // Vanilla GuiScreen.drawHoveringText fills k1-3 .. k1+j1+3 under a
+      // k1-4 .. k1-3 top strip, i.e. THREE px of sill below the last
+      // line — not one. One px of sill is not enough room for a descender
+      // plus its 1 px shadow, which then cross the inner border.
+      const SkRect r =
+          SkRect::MakeLTRB(g(x - 4), g(y - 4), g(x + wd + 4), g(y + ht + 3));
+      p.setColor4f(hexColor(0x100010, 0.94f), nullptr);
+      c.drawRect(r, p);
+      // the vanilla two-tone inner border
+      p.setStyle(SkPaint::kStroke_Style);
+      p.setStrokeWidth(g(1));
+      p.setColor4f(hexColor(0x5000FF, 0.31f), nullptr);
+      c.drawRect(r.makeInset(g(1), g(1)), p);
+      p.setColor4f(hexColor(0x28007F, 0.31f), nullptr);
+      c.drawRect(r.makeInset(g(2), g(2)), p);
+      blitText(c, a, x, y, kTextGold);
+      blitText(c, b, x, y + 10, kTextRed);
+      blitText(c, d, x, y + 20, kTextYellow);
+    }));
   }
 
   // -------------------------------------------------------------------------
@@ -522,12 +515,15 @@ struct Thaumonomicon : sketch::Sketch {
     face = systemFace();
     if (ctx.fonts) {
       // The size is load-bearing; see kPixSizePx and the note above it.
+      // The three lines are READ OFF THE GRAPH: the hovered node's own
+      // title, and the title of the one parent of it that is not complete.
+      // A retyped line could disagree with the web it describes.
       tipTitle =
-          bakeText("Alchemical Automation", *ctx.fonts, face, kPixSizePx);
+          bakeText(nodeByKey(kHovered).title, *ctx.fonts, face, kPixSizePx);
       tipMissing =
           bakeText("Missing required research:", *ctx.fonts, face, kPixSizePx);
-      tipParent =
-          bakeText(" - Essentia Centrifuge", *ctx.fonts, face, kPixSizePx);
+      tipParent = bakeText(std::string(" - ") + nodeByKey(kMissing).title,
+                           *ctx.fonts, face, kPixSizePx);
     }
 
     for (int t = 0; t < 3; ++t) {
@@ -583,8 +579,8 @@ struct Thaumonomicon : sketch::Sketch {
     plate.children({backdropBase()
                         .cache(Cache::Texture)
                         .translateX(bind(&driftX).scale(-U / 2.0f))
-                        .translateY(bind(&driftY).scale(-U / 2.0f))});
-    plate.children({backdropOver()
+                        .translateY(bind(&driftY).scale(-U / 2.0f)),
+                    backdropOver()
                         .cache(Cache::Texture)
                         .translateX(bind(&driftX).scale(-U / 1.5f))
                         .translateY(bind(&driftY).scale(-U / 1.5f))});
@@ -620,15 +616,11 @@ struct Thaumonomicon : sketch::Sketch {
       if (n.flagResearch || n.flagPage) plates.children({nodeBadges(n)});
     inner.children({std::move(plates)});
 
-    root.children({std::move(inner)});
-
-    // 3. the frame, drawn last (genResearchBackgroundFixedPost).
-    root.children({innerRule()});
-    root.children({frameBand()});
-    root.children({tabRail()});
-
-    // 4. the hover tooltip, over everything including the frame.
-    root.children({tooltip()});
+    root.children({std::move(inner),
+                   // 3. the frame, drawn last (genResearchBackgroundFixedPost).
+                   innerRule(), frameBand(), tabRail(),
+                   // 4. the hover tooltip, over everything including the frame.
+                   tooltip()});
 
     ctx.composer.render(root);
   }
