@@ -11,6 +11,7 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/SurfacePaint.h>
+#include <sigilcompose/core/Utf8.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <optional>
@@ -84,13 +85,13 @@ struct Frame {
   std::optional<compose::Fill> keyline;
   /** Engraved under the screen in the theme's eyebrow register; empty
    *  leaves the shell blank and spends no room on a plate. */
-  std::u8string plate;
+  compose::Utf8 plate;
 };
 
 /** THE CHROME, with @p screen inside its opening.
  *
  *      sketch::kit::frame({.width = Dimension(275), .height = Dimension(116),
- *                          .bezel = 6, .plate = toUtf8("MAIN WINDOW")},
+ *                          .bezel = 6, .plate = "MAIN WINDOW"},
  *                         readout({.rows = tape}))
  *
  *  The opening is a flex column, so what goes into it lays out normally;

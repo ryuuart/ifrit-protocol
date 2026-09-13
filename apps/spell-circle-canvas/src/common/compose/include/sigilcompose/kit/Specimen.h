@@ -9,11 +9,12 @@
  * between them.
  *
  * Every component is plain composition over the public API and decides no
- * look. Every face, size, colour and distance is the caller's, handed in
- * once as a `Caption` for the cells and a `Sheet` for the page; what is
- * fixed here is only the ARRANGEMENT — which side of the body a note
- * stands on, what a rule is and where a footer lands — because that is
- * the part every sheet spelled out by hand, and spelled differently.
+ * look. Its props carry the CONTENT and the ARRANGEMENT — the words, the
+ * measures, which side of the body a note stands on, what a rule is and
+ * where a footer lands. Every face, size and colour is the CASCADE's: a
+ * component names the class each line of it is set in, and the
+ * `weave::StyleSheet` in scope where the component is called says what
+ * that class is.
  */
 
 #include <include/core/SkColor.h>
@@ -21,8 +22,7 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
-#include <sigilweave/style/TextStyle.h>
-#include <sigilweave/style/Type.h>
+#include <sigilcompose/core/Utf8.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -38,10 +38,13 @@ namespace sigil::compose::kit {
 // ---------------------------------------------------------------------------
 // The captioned cell
 
-/** HOW A CELL IS CAPTIONED: the two partials its lines are set in, over
- *  what the cell inherits, the air between them and the body, and where
- *  they stand. One value per sheet, handed to every cell on it, so the
- *  sheet has one voice. */
+/** HOW A CELL IS CAPTIONED: where its two lines stand, the air between
+ *  them and the body, and the width either wraps at. One value per sheet,
+ *  handed to every cell on it, so the sheet has one voice.
+ *
+ *  NO TYPE IS HERE. A label is set in the class `captionLabel` of the
+ *  sheet in scope and a note in `captionNote`, so what the two lines look
+ *  like is one entry each in the sheet the caller binds. */
 struct Caption {
   /** WHERE THE CAPTION'S LINES STAND relative to the body.
    *
@@ -54,8 +57,6 @@ struct Caption {
    *  whose name is a legend. */
   enum class Where : uint8_t { Split, Above, Below };
   Where where = Where::Split;
-  sigil::weave::Type label;
-  sigil::weave::Type note;
   /** Between a caption line and the body, px. */
   float gap = 6.0f;
   /** Between the label and the note where the two stand together
@@ -80,15 +81,20 @@ struct Caption {
 /** ONE CAPTIONED CELL: @p body with @p label and @p note set beside it as
  *  @p caption says.
  *
- *      kit::cell(voice, u8"blur(14, 14)", u8"all or nothing",
+ *      kit::cell(voice, "blur(14, 14)", "all or nothing",
  *                subject().key("flat").effect(blur))
+ *
+ *  THE LABEL IS SET IN THE CLASS `captionLabel` and the note in
+ *  `captionNote`, of the `weave::StyleSheet` in scope here — nothing else
+ *  is said about their type, so a sheet that registers the two names
+ *  clothes every cell on it at once.
  *
  *  An empty label or an empty note is simply absent — the cell has fewer
  *  children and spends no gap on the missing line. The result is an
  *  ordinary column: size it, key it, or key the body where a query needs
  *  the body rather than the cell. */
-[[nodiscard]] inline Element cell(const Caption& caption, std::u8string label,
-                                  std::u8string note, Element body) {
+[[nodiscard]] inline Element cell(const Caption& caption, Utf8 label, Utf8 note,
+                                  Element body) {
   Element column = box().column().alignItems(caption.align);
   // The space above each part is that part's own margin rather than the
   // column's gap, because a caption's two distances differ and a line that
@@ -104,12 +110,12 @@ struct Caption {
   Element labelLeaf;
   Element noteLeaf;
   if (hasLabel) {
-    labelLeaf = text(std::move(label)).font(caption.label);
+    labelLeaf = text(label.bytes()).styleClass("captionLabel");
     if (caption.labelMeasure > 0)
       labelLeaf.width(Dimension(caption.labelMeasure));
   }
   if (hasNote) {
-    noteLeaf = text(std::move(note)).font(caption.note);
+    noteLeaf = text(note.bytes()).styleClass("captionNote");
     if (caption.noteMeasure > 0) noteLeaf.width(Dimension(caption.noteMeasure));
   }
   switch (caption.where) {
@@ -267,15 +273,18 @@ struct PanelGrid {
 /** THE SHEET: a page with a titled header, a footer line, and the content
  *  between them ruled off from both where the page rules at all.
  *
- *      kit::sheet({.title = u8"THE BLOCK CONTROLS",
- *                  .subtitle = u8"one text leaf per panel",
- *                  .footer = u8"Sketchbook · paragraph_sheet",
- *                  .titleStyle = display, .subtitleStyle = small,
- *                  .footerStyle = small, .marginX = 64, .marginTop = 64,
+ *      kit::sheet({.title = "THE BLOCK CONTROLS",
+ *                  .subtitle = "one text leaf per panel",
+ *                  .footer = "Sketchbook · paragraph_sheet",
+ *                  .marginX = 64, .marginTop = 64,
  *                  .marginBottom = 34, .ground = Fill::color(kPaper),
  *                  .rule = Fill::color(kFaint)},
  *                 kit::cells({.cells = panels, .gap = 40}))
  *          .absolute().inset(0)
+ *
+ *  ITS THREE LINES ARE SET IN THE CLASSES `title`, `subtitle` and
+ *  `footer`, of the `weave::StyleSheet` in scope here, and nothing else is
+ *  said about their type.
  *
  *  **It does not size itself.** The page is a padded column: the caller
  *  gives it the canvas (`absolute().inset(0)`) or a rect, and the content
@@ -287,13 +296,9 @@ struct PanelGrid {
  *  `<key>-header`, `<key>-content`, `<key>-footer`, `<key>-head-rule` and
  *  `<key>-foot-rule` — so a query can read the page back. */
 struct Sheet {
-  std::u8string title;
-  std::u8string subtitle;
-  std::u8string footer;
-  /** What each line is set in: a partial over what the sheet inherits. */
-  sigil::weave::Type titleStyle;
-  sigil::weave::Type subtitleStyle;
-  sigil::weave::Type footerStyle;
+  Utf8 title;
+  Utf8 subtitle;
+  Utf8 footer;
   /** The page margins, px: the two sides, the top and the bottom. */
   float marginX = 30.0f;
   float marginTop = 16.0f;
@@ -343,10 +348,11 @@ struct Sheet {
   if (hasTitle || hasSubtitle) {
     Element header = named(box().column(), "header");
     if (hasTitle)
-      header.child(named(text(page.title).font(page.titleStyle), "title"));
+      header.child(
+          named(text(page.title.bytes()).styleClass("title"), "title"));
     if (hasSubtitle) {
       Element subtitle =
-          named(text(page.subtitle).font(page.subtitleStyle), "subtitle");
+          named(text(page.subtitle.bytes()).styleClass("subtitle"), "subtitle");
       if (hasTitle) subtitle.margin(0, page.subtitleGap, 0, 0);
       header.child(std::move(subtitle));
     }
@@ -361,7 +367,8 @@ struct Sheet {
   root.child(named(std::move(content), "content"));
 
   if (!page.footer.empty()) {
-    Element footer = named(text(page.footer).font(page.footerStyle), "footer");
+    Element footer =
+        named(text(page.footer.bytes()).styleClass("footer"), "footer");
     if (ruled)
       root.child(rule("foot-rule"));
     else

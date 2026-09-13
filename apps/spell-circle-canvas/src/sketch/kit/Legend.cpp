@@ -23,12 +23,12 @@ void words(Element& line, const LegendEntry& entry) {
   const Theme& look = theme();
   if (!entry.label.empty())
     line.child(
-        text(entry.label,
+        text(entry.label.bytes(),
              look.style(look.type.captionNote,
                         entry.ink.value_or(Fill::color(look.palette.ink)))));
   if (!entry.note.empty())
-    line.child(
-        text(entry.note, look.style(look.type.captionNote, look.palette.ash)));
+    line.child(text(entry.note.bytes(),
+                    look.style(look.type.captionNote, look.palette.ash)));
 }
 
 /** The beat the entry rides in on, where it has one. */
@@ -108,7 +108,7 @@ compose::Element swatchStrip(const SwatchStrip& strip) {
                   .column()
                   .alignItems(Align::Center)
                   .child(std::move(patch))
-                  .child(text(strip.labels[i],
+                  .child(text(strip.labels[i].bytes(),
                               look.style(look.type.eyebrow, look.palette.ash))
                              .margin(0, look.spacing.captionNoteGap, 0, 0)));
   }
@@ -120,7 +120,7 @@ compose::Element chip(const Chip& tag) {
   Element plate =
       box().padding(look.spacing.chipPaddingX, look.spacing.chipPaddingY);
   tag.ground.value_or(Fill::color(look.palette.figure)).apply(plate);
-  plate.child(text(tag.label,
+  plate.child(text(tag.label.bytes(),
                    look.style(look.type.eyebrow, tag.ink.value_or(Fill::color(
                                                      look.palette.ground)))));
   if (const float round = tag.corners.value_or(look.spacing.chipCorners);

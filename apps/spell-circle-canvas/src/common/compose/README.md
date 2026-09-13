@@ -532,10 +532,12 @@ with a `weave::Type` lays the fields it names over the style the range is
 set in — the inherited font for an inheriting leaf, the leaf's own style
 otherwise — and a partial naming no shaping field repaints without
 re-shaping. A reading's style (`Annotation`, `kit::ruby`, `kit::kenten`),
-a nested run (`kit::NestedStyle`), a list's items (`kit::bullets`), an
-initial letter's and a caption's or a sheet's lines (`kit::Caption`,
-`kit::Sheet`) are partials over the text they belong to, so a reading at
-`0.5_em` is half its base whatever the base inherits. A bake — `snapshot`,
+a nested run (`kit::NestedStyle`), a list's items (`kit::bullets`) and an
+initial letter's are partials over the text they belong to, so a reading
+at `0.5_em` is half its base whatever the base inherits. A caption's and
+a sheet's lines (`kit::Caption`, `kit::Sheet`) take the same fields by
+NAME instead — `captionLabel`, `captionNote`, `title`, `subtitle`,
+`footer`, classes of the sheet in scope where the component is called. A bake — `snapshot`,
 `intrinsicSize`, `kit::coverage` — runs the cascade over its own tree,
 so a partial inside it resolves against the bake's root.
 
@@ -678,6 +680,11 @@ sound model; nothing below them changes kernel semantics.
   taken for), `pathFigure` (a path already in canvas coordinates,
   re-based into its own bounds), `custom`, `slot`, `layout`, `memo`,
   with `toUtf8` for a call site holding a `std::string`.
+- `core/Utf8.h` — `Utf8`, the value a prop or a parameter that takes TEXT
+  is declared as: it accepts `"…"` and `u8"…"`, a `std::string` and a
+  `std::u8string` alike, holds the bytes as a `std::u8string`, and
+  `bytes()` reads them back out. The kit's text props are these, so a
+  call site writes the words and never a conversion around them.
 - `core/Measure.h` — the one-shot verbs that take a tree without a live
   composer: `snapshot`, `intrinsicSize`, `metrics`, `measureRun`,
   `runPens`, and the two that solve a style BACKWARDS from a size the
@@ -1286,8 +1293,12 @@ captions use, `kit::panelGrid`, equal-width panels that wrap at the stated
 column count and keep a short last row aligned, and `kit::cells`, a run of
 them along one axis with a hairline between neighbours, and
 `kit::sheet`, the titled and footed page that rules its header and
-footer off from the content between them; every face, size and distance
-is the `Caption`'s and the `Sheet`'s, so the kit decides no look;
+footer off from the content between them; the props are the CONTENT and
+the arrangement, and every face, size and colour is the cascade's — a
+cell's label is set in the class `captionLabel` of the sheet in scope and
+its note in `captionNote`, a page's three lines in `title`, `subtitle`
+and `footer` — so the kit decides no look and a text prop is a
+`compose::Utf8`, which takes `"…"` and `u8"…"` alike;
 `kit/Ground.h`'s two dressings for a flat ground — `kit::vignette`, a
 radial ramp measured to the CORNER so it meets all four at one value on
 a surface that is not square, and `kit::grained`, value noise collapsed

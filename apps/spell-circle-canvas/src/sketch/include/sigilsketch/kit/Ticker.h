@@ -10,6 +10,7 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/SurfacePaint.h>
+#include <sigilcompose/core/Utf8.h>
 #include <sigilmotion/values/Animated.h>
 #include <sigilsketch/kit/Theme.h>
 
@@ -53,7 +54,7 @@ struct Timeline {
     /** 0 at the rail's start, 1 at its end. */
     float at = 0;
     /** Empty draws the tick and no word. */
-    std::u8string label;
+    compose::Utf8 label;
     /** A minor mark's tick is half as long and its word is absent. */
     bool major = true;
     /** THE WORD'S OWN INK; unset leaves it in the scale's. It is here

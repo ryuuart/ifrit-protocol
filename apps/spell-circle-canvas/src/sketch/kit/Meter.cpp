@@ -61,11 +61,11 @@ compose::Element meter(const Meter& bar) {
   if (bar.width.unit != Dimension::Unit::Auto) column.width(bar.width);
   Element head = box().row().alignItems(Align::Baseline);
   if (!bar.label.empty())
-    head.child(
-        text(bar.label, look.style(look.type.captionNote, look.palette.ash)));
+    head.child(text(bar.label.bytes(),
+                    look.style(look.type.captionNote, look.palette.ash)));
   head.child(box().grow(1));
   if (!bar.reading.empty())
-    head.child(text(bar.reading,
+    head.child(text(bar.reading.bytes(),
                     look.style(look.type.captionLabel, look.palette.figure)));
   column.child(std::move(head));
   column.child(std::move(rail.margin(0, look.spacing.captionNoteGap, 0, 0)));
@@ -99,8 +99,9 @@ compose::Element gauge(const Gauge& dial) {
                    .inset(0)
                    .alignItems(Align::Center)
                    .justify(compose::Justify::Center)
-                   .child(text(dial.reading, look.style(look.type.captionLabel,
-                                                        look.palette.figure))));
+                   .child(text(dial.reading.bytes(),
+                               look.style(look.type.captionLabel,
+                                          look.palette.figure))));
   return face;
 }
 

@@ -9,6 +9,7 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/SurfacePaint.h>
+#include <sigilcompose/core/Utf8.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <optional>
@@ -20,10 +21,10 @@ namespace sigil::sketch::kit {
 /** ONE READING: what was measured, what it came to, and — where the
  *  figure alone would not say — what that means. */
 struct Reading {
-  std::u8string name;
-  std::u8string value;
+  compose::Utf8 name;
+  compose::Utf8 value;
   /** After the figure, in the quieter ink: a unit, a bound, a verdict. */
-  std::u8string note;
+  compose::Utf8 note;
   /** A mark standing BEFORE the name, for a row that is also a key —
    *  a tier, a channel, a series on a chart beside it. Empty (default)
    *  draws none and spends no room. */
@@ -73,7 +74,7 @@ struct Readout {
 /** ONE ROW OF A TABLE: its words in column order, with the mark that
  *  stands before them. */
 struct Row {
-  std::vector<std::u8string> cells;
+  std::vector<compose::Utf8> cells;
   /** Before the first column, for a table that is also a key. */
   compose::SurfacePaint swatch;
   /** Names the row, so a query can read it back and a reveal can address

@@ -185,7 +185,12 @@ struct Theme {
    *  "captionNote", "eyebrow", "section" — so a leaf under a bound theme
    *  says `.styleClass("eyebrow")` and is set as the theme's eyebrow is.
    *  `Provide` binds it beside the theme; a sketch with classes of its
-   *  own adds them to this sheet and binds that. */
+   *  own adds them to this sheet and binds that.
+   *
+   *  EACH CLASS CARRIES ITS WHOLE LOOK, colour included: `title` and
+   *  `captionLabel` in the palette's ink, `subtitle`, `footer` and
+   *  `captionNote` in its ash. `eyebrow` and `section` name no colour, so
+   *  each is painted in the ink in force where it is read. */
   [[nodiscard]] weave::StyleSheet styleSheet() const;
   /** @p line in @p color, set in whichever of the two faces it names. */
   [[nodiscard]] weave::TextStyle style(const Register& line,
@@ -206,10 +211,13 @@ struct Theme {
   [[nodiscard]] weave::TextStyle mono(float size, SkColor4f color,
                                       float track = 0) const;
 
-  /** THE SHEET'S VOICE: how every cell on it is captioned. @p noteMeasure
-   *  is the width the remark wraps at, which is the cell's own width —
-   *  the one distance a caption cannot inherit, because it is a fact
-   *  about the specimen and not about the look. */
+  /** THE SHEET'S VOICE: how every cell on it is captioned — where the
+   *  two lines stand and the air around them. What they are SET IN is the
+   *  classes `captionLabel` and `captionNote` of `styleSheet()`, so no
+   *  type is carried here. @p noteMeasure is the width the remark wraps
+   *  at, which is the cell's own width — the one distance a caption
+   *  cannot inherit, because it is a fact about the specimen and not
+   *  about the look. */
   [[nodiscard]] compose::kit::Caption voice(float noteMeasure) const;
 };
 

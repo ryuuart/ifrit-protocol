@@ -22,11 +22,17 @@ weave::Type Theme::font(const Register& line, SkColor4f color) const {
 
 weave::StyleSheet Theme::styleSheet() const {
   weave::StyleSheet classes;
-  classes.set("title", font(type.title));
-  classes.set("subtitle", font(type.subtitle));
-  classes.set("footer", font(type.footer));
-  classes.set("captionLabel", font(type.captionLabel));
-  classes.set("captionNote", font(type.captionNote));
+  // A CLASS CARRIES ITS WHOLE LOOK, colour included, as a CSS class does:
+  // the palette's ink for the lines that NAME something — the page's title,
+  // the call over a cell — and its ash for the lines that qualify one.
+  classes.set("title", font(type.title, palette.ink));
+  classes.set("subtitle", font(type.subtitle, palette.ash));
+  classes.set("footer", font(type.footer, palette.ash));
+  classes.set("captionLabel", font(type.captionLabel, palette.ink));
+  classes.set("captionNote", font(type.captionNote, palette.ash));
+  // The two registers a sheet sets INSIDE its content name no colour, so
+  // each is painted in the ink in force wherever it is read — which is
+  // what a section standing on a panel of its own asks for.
   classes.set("eyebrow", font(type.eyebrow));
   classes.set("section", font(type.section));
   return classes;
@@ -72,9 +78,9 @@ weave::TextStyle Theme::mono(float size, SkColor4f color, float track) const {
 }
 
 compose::kit::Caption Theme::voice(float noteMeasure) const {
+  // No type: a cell's two lines are set in the classes `captionLabel` and
+  // `captionNote`, which `styleSheet()` registers.
   return {.where = captionWhere,
-          .label = font(type.captionLabel, palette.ink),
-          .note = font(type.captionNote, palette.ash),
           .gap = spacing.captionGap,
           .noteGap = spacing.captionNoteGap,
           .noteMeasure = noteMeasure};

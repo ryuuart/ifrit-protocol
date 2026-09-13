@@ -75,7 +75,7 @@ compose::Element timeline(const Timeline& scale) {
             .width(Dimension(0))
             .row()
             .justify(compose::Justify::Center)
-            .child(text(mark.label,
+            .child(text(mark.label.bytes(),
                         mark.ink ? look.style(look.type.eyebrow, *mark.ink)
                                  : sharedInk)
                        .shrink(0)));

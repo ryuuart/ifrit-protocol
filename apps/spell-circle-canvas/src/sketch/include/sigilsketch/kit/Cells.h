@@ -11,6 +11,7 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/SurfacePaint.h>
+#include <sigilcompose/core/Utf8.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <optional>
@@ -103,12 +104,13 @@ struct Well {
 [[nodiscard]] compose::Element well(const Well& specification);
 
 /** ONE CAPTIONED SPECIMEN: @p body with @p label over it and @p note
- *  under it, set in the theme's caption registers and spaced by its
- *  caption gaps.
+ *  under it, set in the classes `captionLabel` and `captionNote` — the
+ *  theme's own registers, bound around the two lines this call writes —
+ *  and spaced by the theme's caption gaps.
  *
  *      sketch::kit::caption(
- *          kCell, toUtf8("Border::Mode::Bracket"),
- *          toUtf8("only within 18 px of each corner"),
+ *          kCell, "Border::Mode::Bracket",
+ *          "only within 18 px of each corner",
  *          well({.width = kCell, .height = kPicture}).child(plaque()))
  *
  *  @p measure is the width the remark wraps at — the cell's own width.
@@ -116,8 +118,8 @@ struct Well {
  *  about the specimen rather than about the look; 0 lets the remark take
  *  whatever width the cell resolves to. An empty label or an empty note
  *  is simply absent, and spends no gap. */
-[[nodiscard]] compose::Element caption(float measure, std::u8string label,
-                                       std::u8string note,
+[[nodiscard]] compose::Element caption(float measure, compose::Utf8 label,
+                                       compose::Utf8 note,
                                        compose::Element body);
 
 /** A RUN OF CELLS along one axis, at the theme's gutter. */

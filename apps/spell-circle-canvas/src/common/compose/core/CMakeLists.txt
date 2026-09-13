@@ -70,7 +70,7 @@ sigil_library(SigilComposeCore
   HEADERS ../Compose.h Cascade.h Composer.h Core.h Derive.h Element.h
           Factories.h Feed.h Grid.h Instances.h Layout.h Mask.h Measure.h
           Paint.h Pattern.h Shape.h Shelf.h Stroke.h SurfacePaint.h Table.h
-          TextPainter.h Tiles.h Var.h
+          TextPainter.h Tiles.h Utf8.h Var.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
   PUBLIC SigilCoreCache SigilCoreComparable SigilCoreCompute
          SigilCoreReconcile SigilGeometryPath SigilImage SigilMaterial

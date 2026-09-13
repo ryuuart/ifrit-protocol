@@ -11,6 +11,7 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/SurfacePaint.h>
+#include <sigilcompose/core/Utf8.h>
 #include <sigilmotion/values/Animated.h>
 #include <sigilsketch/kit/Theme.h>
 
@@ -23,9 +24,9 @@ namespace sigil::sketch::kit {
 /** ONE ENTRY OF A KEY: a colour and what it stands for. */
 struct LegendEntry {
   compose::SurfacePaint swatch;
-  std::u8string label;
+  compose::Utf8 label;
   /** After the label, in the quieter ink. */
-  std::u8string note;
+  compose::Utf8 note;
   /** A LINE AROUND THE SWATCH, over its fill — for the key whose mark is
    *  a dim body inside a bright edge rather than a flat patch, which is
    *  what a rarity ladder and a fits/blocked pair are. Unset draws none.
@@ -100,7 +101,7 @@ struct SwatchStrip {
   std::vector<compose::SurfacePaint> swatches;
   /** Parallel to the swatches, and shorter is allowed: a strip that names
    *  only its ends labels only its ends. An empty label names nothing. */
-  std::vector<std::u8string> labels;
+  std::vector<compose::Utf8> labels;
   compose::Dimension width;
   compose::Dimension height;
   /** Between neighbours; unset is the theme's row gap. 0 butts the
@@ -120,7 +121,7 @@ struct SwatchStrip {
 
 /** ONE WORD ON ITS OWN GROUND: a state, a tier, a tag. */
 struct Chip {
-  std::u8string label;
+  compose::Utf8 label;
   /** Unset is the theme's figure colour. */
   std::optional<compose::SurfacePaint> ground;
   /** Unset is the theme's page ground, so the word is knocked out of the
@@ -132,7 +133,7 @@ struct Chip {
 
 /** THE CHIP, set in the theme's eyebrow register.
  *
- *      sketch::kit::chip({.label = toUtf8("PINNED")})
+ *      sketch::kit::chip({.label = "PINNED"})
  *
  *  It sizes itself to its word plus the theme's chip padding, so a run of
  *  chips in a row is a row of them at their own widths. */

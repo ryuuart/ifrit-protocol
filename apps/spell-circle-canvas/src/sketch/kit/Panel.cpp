@@ -60,10 +60,10 @@ compose::Element frame(const Frame& chrome, compose::Element screen) {
     shell.corners(Corners{round});
   shell.child(std::move(opening));
   if (!chrome.plate.empty())
-    shell.child(
-        text(chrome.plate, look.style(look.type.eyebrow, look.palette.ash))
-            .margin(0, bezel * 0.5f, 0, 0)
-            .alignSelf(Align::Center));
+    shell.child(text(chrome.plate.bytes(),
+                     look.style(look.type.eyebrow, look.palette.ash))
+                    .margin(0, bezel * 0.5f, 0, 0)
+                    .alignSelf(Align::Center));
   return shell;
 }
 

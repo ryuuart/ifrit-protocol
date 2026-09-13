@@ -10,6 +10,7 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/SurfacePaint.h>
+#include <sigilcompose/core/Utf8.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <optional>
@@ -66,9 +67,9 @@ void stage(SketchContext& ctx, const Stage& surface);
  *  margin and rule the page is set in is the theme's, which is the whole
  *  of what this component adds over `compose::kit::sheet`. */
 struct Page {
-  std::u8string title;
-  std::u8string subtitle;
-  std::u8string footer;
+  compose::Utf8 title;
+  compose::Utf8 subtitle;
+  compose::Utf8 footer;
   /** false rules neither the header nor the footer off from the content.
    *  A rule is the sheet's own arrangement rather than the theme's
    *  colour, so it is asked for here. */
@@ -84,14 +85,15 @@ struct Page {
 };
 
 /** THE SHEET, over the whole canvas, in the theme's voice: the title, the
- *  subtitle and the footer set in the theme's three registers, the page
- *  margins and the content gap the theme's distances, the ground and the
- *  hairline the theme's colours.
+ *  subtitle and the footer set in the classes `title`, `subtitle` and
+ *  `footer` — the theme's own registers, bound around the lines this call
+ *  writes — the page margins and the content gap the theme's distances,
+ *  the ground and the hairline the theme's colours.
  *
  *      ctx.composer.render(sketch::kit::page(
- *          {.title = toUtf8("THE RULE AND THE STRANDS"),
- *           .subtitle = toUtf8("dials · the width and the inset"),
- *           .footer = toUtf8("a crossing is discovered, not declared")},
+ *          {.title = "THE RULE AND THE STRANDS",
+ *           .subtitle = "dials · the width and the inset",
+ *           .footer = "a crossing is discovered, not declared"},
  *          kit::cells({.cells = {a, b, c}, .gap = 10})));
  *
  *  A PAGE IS THE WHOLE SURFACE, so this one places itself over the

@@ -9,6 +9,7 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilcompose/core/Utf8.h>
 #include <sigilcompose/typography/Track.h>
 #include <sigilmotion/values/Animated.h>
 #include <sigilsketch/kit/Theme.h>
@@ -28,11 +29,11 @@ namespace sigil::sketch::kit {
  *  card whose lines all moved together would be a different picture. A
  *  line written as words alone rests, which is what a set card is:
  *
- *      {.title = {toUtf8("THE SHIPPING FORECAST")}}
- *      {.title = {.words = toUtf8("VERTIGO, 1958"), .fx = rise}}
+ *      {.title = {"THE SHIPPING FORECAST"}}
+ *      {.title = {.words = "VERTIGO, 1958", .fx = rise}}
  */
 struct Line {
-  std::u8string words;
+  compose::Utf8 words;
   /** THE LINE'S OWN INK; unset is whatever the theme's palette gives the
    *  register this line is set in. It is here rather than in the palette
    *  because a note ranged at the far edge is often a step quieter than
@@ -80,10 +81,9 @@ struct TitleCard {
 
 /** THE CARD, set in the theme's registers and spaced by its gaps.
  *
- *      sketch::kit::titleCard({.eyebrow = {toUtf8("SIGIL \xc2\xb7 COMPOSE")},
- *                              .title = {toUtf8("THE STROKE ATLAS")},
- *                              .subtitle = {toUtf8("every rail, at one
- * width")}})
+ *      sketch::kit::titleCard({.eyebrow = {"SIGIL \xc2\xb7 COMPOSE"},
+ *                              .title = {"THE STROKE ATLAS"},
+ *                              .subtitle = {"every rail, at one width"}})
  *
  *  It sizes itself to its lines and takes the width it is given, so it
  *  goes into a column as it is. A missing line is absent and spends no
@@ -93,9 +93,9 @@ struct TitleCard {
 /** A SECTION INSIDE THE CONTENT: a name at the left, a remark at the
  *  right, and the rule that fills what the two leave between them. */
 struct SectionHeader {
-  std::u8string label;
+  compose::Utf8 label;
   /** Ranged to the far edge — a count, a unit, a source. */
-  std::u8string note;
+  compose::Utf8 note;
   /** The hairline that spans the space between the two. false leaves the
    *  space empty, which still ranges the note to the far edge. */
   bool ruled = true;
@@ -103,8 +103,8 @@ struct SectionHeader {
 
 /** THE HEADER, one line high.
  *
- *      sketch::kit::sectionHeader({.label = toUtf8("DYNAMICS"),
- *                                  .note = toUtf8("6 presets")})
+ *      sketch::kit::sectionHeader({.label = "DYNAMICS",
+ *                                  .note = "6 presets"})
  *
  *  It stretches across whatever width it is given: the rule is what grows,
  *  so the label stays at the left and the note at the right however wide

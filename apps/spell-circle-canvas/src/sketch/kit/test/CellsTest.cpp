@@ -7,10 +7,14 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/PixelStyles.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilweave/style/StyleSheet.h>
+
+#include <utility>
 
 #include "Drawn.h"
 
@@ -32,18 +36,30 @@ TEST(SketchKitCells, CaptionDrawsTheHandSpelledCell) {
   const kit::Theme& house = kit::houseTheme();
   const compose::kit::Caption voice{
       .where = compose::kit::Caption::Where::Split,
-      .label = {.face = house.type.mono,
-                .size = 10.5f,
-                .color = house.palette.ink},
-      .note = {.size = 10, .color = house.palette.ash, .track = 0.2f},
       .gap = 7,
       .noteMeasure = 160};
+  // By hand the cell's two lines are two classes bound around it, which is
+  // what the register names resolve to under the theme.
+  Element byHand;
+  {
+    const sigil::core::environment::Provide<sigil::weave::StyleSheet> classes(
+        sigil::weave::StyleSheet{{"captionLabel",
+                                  {.face = house.type.mono,
+                                   .size = 10.5f,
+                                   .color = house.palette.ink}},
+                                 {"captionNote",
+                                  {.face = house.type.sans,
+                                   .size = 10,
+                                   .color = house.palette.ash,
+                                   .track = 0.2f}}});
+    byHand = compose::kit::cell(voice, "border(1.8, ink, inset 7)",
+                                "an ordinary rule 7 px inside the outline",
+                                subject());
+  }
   EXPECT_TRUE(sameDrawing(
-      compose::kit::cell(voice, u8"border(1.8, ink, inset 7)",
-                         u8"an ordinary rule 7 px inside the outline",
-                         subject()),
-      kit::caption(160, u8"border(1.8, ink, inset 7)",
-                   u8"an ordinary rule 7 px inside the outline", subject())));
+      std::move(byHand),
+      kit::caption(160, "border(1.8, ink, inset 7)",
+                   "an ordinary rule 7 px inside the outline", subject())));
 }
 
 TEST(SketchKitCells, WellTakesTheThemesCellGround) {

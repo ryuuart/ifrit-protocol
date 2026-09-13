@@ -24,9 +24,9 @@ struct BorderWeave final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     sketch::kit::stage(ctx, {.size = {1100, 424}, .captureAt = 0.05});
     ctx.composer.render(sketch::kit::page(
-        {.title = toUtf8("THE RULE AND THE STRANDS"),
-         .subtitle = toUtf8("dials · the width and the inset"),
-         .footer = toUtf8("a crossing is discovered, not declared")},
+        {.title = "THE RULE AND THE STRANDS",
+         .subtitle = "dials · the width and the inset",
+         .footer = "a crossing is discovered, not declared"},
         kit::cells({.cells = {cell(…), cell(…)}, .gap = 10})));
   }
 };
@@ -78,6 +78,14 @@ compose::text(u8"CALL").styleClass("captionLabel")   // the register, by name
 compose::text(u8"note").font(look.font(look.type.eyebrow))  // or as a value
 ```
 
+**A CLASS CARRIES ITS WHOLE LOOK, COLOUR INCLUDED**, as a CSS class does:
+`title` and `captionLabel` are registered in `Palette::ink`, `subtitle`,
+`footer` and `captionNote` in `Palette::ash`. The two registers a sheet
+sets INSIDE its content — `eyebrow` and `section` — name no colour, so
+each is painted in the ink in force wherever it is read. So a page's three
+lines and a cell's two are one entry each on this sheet and nowhere else:
+a theme with two colours moved moves every line that names them.
+
 A sketch whose classes go past the registers starts from `styleSheet()`,
 adds its own with `weave::StyleSheet::set`, and binds theme and sheet
 together with `Provide(look, classes)`.
@@ -128,6 +136,15 @@ a component nests inside another the way a box does — which is the point:
 a sketch is meant to read as its algorithm plus a run of these calls, not
 as a thousand lines of furniture.
 
+**A COMPONENT'S TYPE IS THE THEME'S, NEVER A PROP.** No props struct here
+carries a face, a size or a colour for the words it sets: the register the
+line is set in is fixed by the component, and what that register looks
+like is the theme's. A line that must be a step quieter than its register
+says so with an ink (`Line::ink`), which is a colour and not a type. **A
+text prop is a `compose::Utf8`** — it takes `"…"` and `u8"…"`, a
+`std::string` and a `std::u8string` alike — so a sketch writes
+`.title = "THE STROKE ATLAS"` and never a conversion around the words.
+
 Every component field that paints an area uses `compose::SurfacePaint`
 from `<sigilcompose/core/SurfacePaint.h>`. It accepts a Fill, a live fill
 binding, a material paint or a recipe directly. Neutral Compose wells and
@@ -140,16 +157,16 @@ painting an Element directly.
 | | |
 | --- | --- |
 | `stage(ctx, Stage)` | the canvas, the ground and the capture moment in one call — the whole `CanvasSpecification`, with the ground taken from the theme unless the stage names one |
-| `page(Page, content)` | the sheet over the whole canvas: title, subtitle and footer set in the theme's three registers, its margins, its ground and its hairline |
+| `page(Page, content)` | the sheet over the whole canvas: title, subtitle and footer set in the classes `title`, `subtitle` and `footer`, its margins, its ground and its hairline |
 | `well(Well, surface)` | the fixed surface a specimen is shown in, on the theme's cell ground — with `corners` and a `keyline`, the PLATE a panel stands on; with a `recess`, the hole punched in one; with a `relief`, the piece standing proud of one |
-| `caption(measure, label, note, body)` | one captioned specimen in the theme's voice; `measure` is the cell's own width, the one distance a caption cannot inherit |
+| `caption(measure, label, note, body)` | one captioned specimen in the theme's voice — the label set in the class `captionLabel`, the note in `captionNote`; `measure` is the cell's own width, the one distance a caption cannot inherit |
 | `cells(Run)` | a run of cells along one axis at the theme's gutter, each at its own width |
 | `columns(Columns)` | equal shares of the width, one per cell — what `cells` cannot do, because a fixed width does not know how wide the page is |
 | `panelGrid(PanelGrid)` | the same, wrapped every N, with a short last row keeping its share |
 | `passage(ctx, name)` | the prose at `res://passages/<name>`, minus the newlines a file ends with — the prose a sheet about setting a page is SET IN, kept beside the sketch rather than typed into it |
 
 ```cpp
-sketch::kit::page({.title = toUtf8("THE STROKE ATLAS")},
+sketch::kit::page({.title = "THE STROKE ATLAS"},
                   sketch::kit::panelGrid({.cells = panels, .columns = 4}));
 ```
 
@@ -171,14 +188,17 @@ which `Fill::currentInk()` also reads back; and a padding written as a
 `weave::Length` measures against the type in force. A leaf handed a whole
 `weave::TextStyle` — `compose::text(utf8, style)`, which is what
 `Theme::style` builds and what most components here pass — inherits
-nothing and is set exactly as it was written, so a sheet drawn before this
-paragraph existed draws the same. The sheet's own title, subtitle and
-footer and the caption voice are the exception: they are partials,
-`Theme::font(register, colour)`, set over what the page inherits — the
-same picture, stated in the cascade's terms. A register always states its
-face: one set in the theme's sans, which the house theme leaves as the
-font context's default family, says so, and a caption under an ancestor
-that named a face is still set in the register's own.
+nothing and is set exactly as it was written. The page's own title,
+subtitle and footer and a cell's label and note are the exception: each is
+set in the CLASS of its own name, a partial over what the page inherits.
+`page()` and `caption()` bind `Theme::styleSheet()` around the lines they
+write themselves, so those lines are in the theme's voice whether or not
+the sketch around them bound a theme; the content handed to either was
+built before the call and keeps the classes it resolved where it was
+written. A register always states its face: one set in the theme's sans,
+which the house theme leaves as the font context's default family, says
+so, and a caption under an ancestor that named a face is still set in the
+register's own.
 
 **A PLATE IS A WELL WITH TWO MORE FIELDS.** A grounded panel with rounded
 corners and one hairline round it is what a page puts a heading, a rack of
@@ -215,9 +235,9 @@ cap all are over a ground. Unset is flush, which is the specimen well.
 | `sectionHeader(SectionHeader)` | a name at the left, a remark at the right, and the rule that fills what the two leave between them |
 
 ```cpp
-sketch::kit::titleCard({.eyebrow = {toUtf8("SIGIL · COMPOSE")},
-                        .title = {toUtf8("THE STROKE ATLAS")},
-                        .subtitle = {toUtf8("every rail, at one width")}});
+sketch::kit::titleCard({.eyebrow = {"SIGIL · COMPOSE"},
+                        .title = {"THE STROKE ATLAS"},
+                        .subtitle = {"every rail, at one width"}});
 ```
 
 **EACH LINE IS A `Line`, NOT A STRING**, because a masthead is performed
@@ -236,8 +256,8 @@ and `Row::key` do.
 
 ```cpp
 sketch::kit::titleCard(
-    {.eyebrow = {.words = toUtf8("MET OFFICE"), .opacity = beat(0.05f, 0.55f)},
-     .title = {.words = toUtf8("THE SHIPPING FORECAST"),
+    {.eyebrow = {.words = "MET OFFICE", .opacity = beat(0.05f, 0.55f)},
+     .title = {.words = "THE SHIPPING FORECAST",
                .fx = Track{.effect = fx::rise(16.0f), .progress = …}},
      .notes = std::move(slugs),
      .align = Align::Stretch,
@@ -313,8 +333,8 @@ returns.
 | `gauge(Gauge)` | the same reading around a dial, over `geometry::shapes::sector` |
 
 ```cpp
-sketch::kit::meter({.fraction = load, .label = toUtf8("cache"),
-                    .reading = toUtf8("74%"), .width = Dimension(220)});
+sketch::kit::meter({.fraction = load, .label = "cache",
+                    .reading = "74%", .width = Dimension(220)});
 ```
 
 A live fraction is a re-describe rather than a binding: the filled part
@@ -365,7 +385,7 @@ computed from anything states its `thumbLength` instead.
 
 ```cpp
 sketch::kit::frame({.width = Dimension(275), .height = Dimension(116), .bezel = 6,
-                    .plate = toUtf8("MAIN WINDOW")}, tape);
+                    .plate = "MAIN WINDOW"}, tape);
 ```
 
 `Backdrop::over` is the canvas — a vignette is a fact about an extent,

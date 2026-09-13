@@ -29,8 +29,8 @@ compose::Element labelRow(const Reading& reading, const Readout& how) {
     row.child(std::move(mark));
   }
   if (!reading.name.empty()) {
-    Element name =
-        text(reading.name, look.style(look.type.captionNote, look.palette.ash));
+    Element name = text(reading.name.bytes(),
+                        look.style(look.type.captionNote, look.palette.ash));
     if (how.nameMeasure > 0) name.width(Dimension(how.nameMeasure));
     row.child(std::move(name));
   }
@@ -38,10 +38,10 @@ compose::Element labelRow(const Reading& reading, const Readout& how) {
   // every figure on one edge however long the names are.
   if (how.measure > 0) row.child(box().grow(1));
   if (!reading.value.empty())
-    row.child(text(reading.value,
+    row.child(text(reading.value.bytes(),
                    look.style(look.type.captionLabel, look.palette.figure)));
   if (!reading.note.empty())
-    row.child(text(reading.note,
+    row.child(text(reading.note.bytes(),
                    look.style(look.type.captionNote, look.palette.ash)));
   return row;
 }
@@ -99,7 +99,7 @@ compose::Element table(std::vector<Row> rows, const Table& how) {
           how.columns.empty()
               ? Column{}
               : how.columns[std::min(i, how.columns.size() - 1)];
-      Element cell = text(row.cells[i], ink(specification.figure));
+      Element cell = text(row.cells[i].bytes(), ink(specification.figure));
       if (specification.width > 0 && i < how.columns.size())
         cell.width(Dimension(specification.width));
       line.child(std::move(cell));

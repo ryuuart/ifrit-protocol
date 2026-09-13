@@ -5,8 +5,12 @@
 
 #include <gtest/gtest.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilweave/style/StyleSheet.h>
+
+#include <utility>
 
 #include "Drawn.h"
 
@@ -67,49 +71,72 @@ TEST(SketchKitStage, TheGroundIsTheThemesUnlessTheStageSaysOtherwise) {
 TEST(SketchKitPage, DrawsTheHandSpelledSheet) {
   const kit::Theme& house = kit::houseTheme();
   const auto label = [&](float size, SkColor4f color, float track) {
-    return sigil::weave::Type{.size = size, .color = color, .track = track};
+    return sigil::weave::Type{
+        .face = house.type.sans, .size = size, .color = color, .track = track};
   };
-  Element byHand = compose::kit::sheet(
-                       {.title = u8"THE RULE AND THE STRANDS",
-                        .subtitle = u8"dials · the width and the inset",
-                        .footer = u8"a crossing is discovered",
-                        .titleStyle = label(14, house.palette.ink, 2.4f),
-                        .subtitleStyle = label(11.5f, house.palette.ash, 0.8f),
-                        .footerStyle = label(11, house.palette.ash, 0.4f),
-                        .marginX = 24,
-                        .marginTop = 20,
-                        .marginBottom = 16,
-                        .ground = Fill::color(house.palette.ground),
-                        .rule = Fill::color(house.palette.rule)},
-                       subject())
-                       .absolute()
-                       .inset(0);
-  Element byKit = kit::page({.title = u8"THE RULE AND THE STRANDS",
-                             .subtitle = u8"dials · the width and the inset",
-                             .footer = u8"a crossing is discovered"},
+  // By hand the three lines are three classes bound around the sheet, which
+  // is exactly what the register names resolve to under the theme.
+  Element byHand;
+  {
+    const sigil::core::environment::Provide<sigil::weave::StyleSheet> classes(
+        sigil::weave::StyleSheet{
+            {"title", label(14, house.palette.ink, 2.4f)},
+            {"subtitle", label(11.5f, house.palette.ash, 0.8f)},
+            {"footer", label(11, house.palette.ash, 0.4f)}});
+    byHand = compose::kit::sheet({.title = "THE RULE AND THE STRANDS",
+                                  .subtitle = "dials · the width and the inset",
+                                  .footer = "a crossing is discovered",
+                                  .marginX = 24,
+                                  .marginTop = 20,
+                                  .marginBottom = 16,
+                                  .ground = Fill::color(house.palette.ground),
+                                  .rule = Fill::color(house.palette.rule)},
+                                 subject())
+                 .absolute()
+                 .inset(0);
+  }
+  Element byKit = kit::page({.title = "THE RULE AND THE STRANDS",
+                             .subtitle = "dials · the width and the inset",
+                             .footer = "a crossing is discovered"},
                             subject());
   EXPECT_TRUE(sameDrawing(std::move(byHand), std::move(byKit)));
+}
+
+/** The page's own lines are set in the theme's registers with NO sheet
+ *  bound around the call: the component binds them for the lines it
+ *  writes, so a sketch that bound no theme still gets the sheet's voice. */
+TEST(SketchKitPage, SetsItsLinesWithNoSheetBound) {
+  namespace environment = sigil::core::environment;
+  EXPECT_EQ(environment::inherited<sigil::weave::StyleSheet>(), nullptr);
+  const kit::Theme& house = kit::houseTheme();
+  Element unbound = kit::page({.title = "TITLE", .footer = "FOOT"}, subject());
+  Element bound;
+  {
+    const kit::Provide look(house);
+    bound = kit::page({.title = "TITLE", .footer = "FOOT"}, subject());
+  }
+  EXPECT_TRUE(sameDrawing(std::move(unbound), std::move(bound)));
 }
 
 /** A bound theme reaches the page four levels down without being handed
  *  to it — and moves what it draws. */
 TEST(SketchKitPage, ReadsTheThemeInScope) {
-  Element house = kit::page({.title = u8"TITLE"}, subject());
+  Element house = kit::page({.title = "TITLE"}, subject());
   kit::Theme paper = kit::houseTheme();
   paper.palette.ground = {0.945f, 0.937f, 0.918f, 1};
   paper.palette.ink = {0.114f, 0.106f, 0.098f, 1};
   Element other;
   {
     const kit::Provide bound(paper);
-    other = kit::page({.title = u8"TITLE"}, subject());
+    other = kit::page({.title = "TITLE"}, subject());
   }
   EXPECT_FALSE(sameDrawing(std::move(house), std::move(other)));
 }
 
 TEST(SketchKitPage, UnruledRulesNeither) {
   EXPECT_FALSE(sameDrawing(
-      kit::page({.title = u8"T", .footer = u8"F"}, subject()),
-      kit::page({.title = u8"T", .footer = u8"F", .ruled = false}, subject())));
+      kit::page({.title = "T", .footer = "F"}, subject()),
+      kit::page({.title = "T", .footer = "F", .ruled = false}, subject())));
 }
 
 }  // namespace

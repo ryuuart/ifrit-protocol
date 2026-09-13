@@ -1,0 +1,57 @@
+#pragma once
+
+/** @file
+ * Utf8 — the value a prop or a parameter that takes TEXT is declared as,
+ * so the text may be written either way at the call site.
+ */
+
+#include <string>
+#include <string_view>
+
+namespace sigil::compose {
+
+/** TEXT, SPELLED EITHER WAY.
+ *
+ *  A prop or a parameter declared as this accepts `"…"`, `u8"…"`, a
+ *  `std::string`, a `std::string_view`, a `std::u8string` and a
+ *  `std::u8string_view`, so a call site writes `.title = "THE RULE AND
+ *  THE STRANDS"` and never a conversion around it. Both spellings mean
+ *  the same bytes: a `char` string is read as UTF-8, which is what every
+ *  string in this repository holds, and the bytes are kept exactly as
+ *  they arrive.
+ *
+ *  IT HOLDS A `std::u8string`, the type the shaping vocabulary
+ *  underneath takes, and `bytes()` is the ONE way to read it out: there
+ *  is no implicit conversion out, so a sink spells `value.bytes()` and
+ *  every use is visible where it stands.
+ *
+ *  Comparable by value, so a props struct that carries one stays
+ *  comparable and a description that holds one still prunes. */
+class Utf8 {
+ public:
+  Utf8() = default;
+  Utf8(const char* utf8)
+      : m_bytes(widen(utf8 != nullptr ? std::string_view(utf8)
+                                      : std::string_view())) {}
+  Utf8(std::string_view utf8) : m_bytes(widen(utf8)) {}
+  Utf8(const std::string& utf8) : m_bytes(widen(utf8)) {}
+  Utf8(const char8_t* utf8)
+      : m_bytes(utf8 != nullptr ? std::u8string_view(utf8)
+                                : std::u8string_view()) {}
+  Utf8(std::u8string_view utf8) : m_bytes(utf8) {}
+  Utf8(std::u8string utf8) noexcept : m_bytes(std::move(utf8)) {}
+
+  /** The bytes, as the text vocabulary takes them. */
+  [[nodiscard]] const std::u8string& bytes() const { return m_bytes; }
+  [[nodiscard]] bool empty() const { return m_bytes.empty(); }
+  bool operator==(const Utf8&) const = default;
+
+ private:
+  static std::u8string widen(std::string_view utf8) {
+    return std::u8string(utf8.begin(), utf8.end());
+  }
+
+  std::u8string m_bytes;
+};
+
+}  // namespace sigil::compose

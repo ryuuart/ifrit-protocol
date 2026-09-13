@@ -1,6 +1,8 @@
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilweave/style/StyleSheet.h>
 
 #include <utility>
 
@@ -19,13 +21,19 @@ void stage(SketchContext& ctx, const Stage& surface) {
 
 compose::Element page(const Page& sheet, compose::Element content) {
   const Theme& look = theme();
+  // THE REGISTERS ARE IN SCOPE FOR THE THREE LINES THE SHEET WRITES. The
+  // title, the subtitle and the footer are set in the classes of those
+  // names, and they are written inside this call rather than by the
+  // caller, so the theme's sheet is bound here — which is what makes a
+  // page set in the theme's voice whether or not a sketch bound one.
+  // `content` was built before this call and keeps the classes it
+  // resolved where it was written.
+  const core::environment::Provide<weave::StyleSheet> registers(
+      look.styleSheet());
   const compose::kit::Sheet specification{
       .title = sheet.title,
       .subtitle = sheet.subtitle,
       .footer = sheet.footer,
-      .titleStyle = look.font(look.type.title, look.palette.ink),
-      .subtitleStyle = look.font(look.type.subtitle, look.palette.ash),
-      .footerStyle = look.font(look.type.footer, look.palette.ash),
       .marginX = look.spacing.marginX,
       .marginTop = look.spacing.marginTop,
       .marginBottom = look.spacing.marginBottom,

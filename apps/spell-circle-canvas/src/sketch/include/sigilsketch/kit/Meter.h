@@ -8,6 +8,7 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/SurfacePaint.h>
+#include <sigilcompose/core/Utf8.h>
 #include <sigilmotion/values/Animated.h>
 #include <sigilsketch/kit/Theme.h>
 
@@ -29,10 +30,10 @@ struct Meter {
    *  rounded. */
   std::optional<motion::Animatable<float>> level;
   /** Over the bar at the left; empty draws the bar alone. */
-  std::u8string label;
+  compose::Utf8 label;
   /** Over the bar at the right, in the theme's figure colour — what the
    *  fraction came to, written out. */
-  std::u8string reading;
+  compose::Utf8 reading;
   compose::Dimension width;
   /** Unset is the theme's bar height. */
   std::optional<compose::Dimension> height;
@@ -57,8 +58,8 @@ struct Meter {
 
 /** THE METER.
  *
- *      sketch::kit::meter({.fraction = load, .label = toUtf8("cache"),
- *                          .reading = toUtf8("74%"), .width = Dimension(220)})
+ *      sketch::kit::meter({.fraction = load, .label = "cache",
+ *                          .reading = "74%", .width = Dimension(220)})
  *
  *  A plain fraction is a WIDTH, so a bar that changes is a re-describe;
  *  `level` is the binding for one that moves every frame. */
@@ -82,13 +83,13 @@ struct Gauge {
   /** The swept part; unset is the theme's figure colour. */
   std::optional<compose::SurfacePaint> bar;
   /** Inside the dial, in the theme's figure colour; empty draws none. */
-  std::u8string reading;
+  compose::Utf8 reading;
 };
 
 /** THE DIAL.
  *
  *      sketch::kit::gauge({.fraction = 0.62f, .diameter = 84,
- *                          .reading = toUtf8("0.62")})
+ *                          .reading = "0.62"})
  */
 [[nodiscard]] compose::Element gauge(const Gauge& dial);
 

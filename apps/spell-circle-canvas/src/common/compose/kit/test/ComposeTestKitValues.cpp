@@ -5,6 +5,8 @@
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/kit/Ground.h>
 #include <sigilcompose/kit/Kit.h>
+#include <sigilcore/reconcile/Environment.h>
+#include <sigilweave/style/StyleSheet.h>
 
 #include <cmath>
 #include <utility>
@@ -447,11 +449,14 @@ TEST(KitSprites, MarginAndSizeAreTheCallersNumbers) {
 namespace {
 
 kit::Caption specimenVoice(kit::Caption::Where where) {
-  return {.where = where,
-          .label = {.size = 12},
-          .note = {.size = 10},
-          .gap = 6,
-          .noteGap = 4};
+  return {.where = where, .gap = 6, .noteGap = 4};
+}
+
+/** The sheet the caption's two classes are registered on — the only place
+ *  a cell's type comes from. */
+weave::StyleSheet captionClasses() {
+  return weave::StyleSheet{{"captionLabel", {.size = 12}},
+                           {"captionNote", {.size = 10}}};
 }
 
 /** One line of type at @p size, as the layout will size it. */
@@ -470,8 +475,10 @@ TEST(KitSpecimen, TheCaptionsLinesStandWhereTheVoiceSays) {
   // The body's top and the cell's height, for one arrangement.
   const auto placed = [&](kit::Caption::Where where, bool withNote) {
     Host host(300, 300);
+    const sigil::core::environment::Provide<weave::StyleSheet> classes(
+        captionClasses());
     host.composer.render(box().width(300).height(300).child(
-        kit::cell(specimenVoice(where), u8"LABEL", withNote ? u8"a note" : u8"",
+        kit::cell(specimenVoice(where), "LABEL", withNote ? "a note" : "",
                   box().key("body").width(100).height(40))
             .key("cell")));
     host.frame();
@@ -508,9 +515,11 @@ TEST(KitSpecimen, AMeasureKeepsALongLabelFromWideningItsCell) {
   const auto width = [](float labelMeasure) {
     kit::Caption voice = specimenVoice(kit::Caption::Where::Split);
     voice.labelMeasure = labelMeasure;
+    const sigil::core::environment::Provide<weave::StyleSheet> classes(
+        captionClasses());
     return intrinsicSize(
-               kit::cell(voice, u8"a label far wider than the body under it",
-                         u8"", box().width(60).height(40)),
+               kit::cell(voice, "a label far wider than the body under it", "",
+                         box().width(60).height(40)),
                fonts())
         .width();
   };
@@ -595,10 +604,8 @@ TEST(KitSpecimen, ARunSpacesItsCellsAndRulesBetweenThem) {
 TEST(KitSpecimen, ASheetRulesOffItsHeaderAndFooterAndFootsThePage) {
   const float title = lineHeight(15);
   const float footer = lineHeight(11);
-  kit::Sheet page{.title = u8"TITLE",
-                  .footer = u8"the footer",
-                  .titleStyle = {.size = 15},
-                  .footerStyle = {.size = 11},
+  kit::Sheet page{.title = "TITLE",
+                  .footer = "the footer",
                   .marginX = 30,
                   .marginTop = 16,
                   .marginBottom = 14,
@@ -606,6 +613,10 @@ TEST(KitSpecimen, ASheetRulesOffItsHeaderAndFooterAndFootsThePage) {
                   .rule = red(),
                   .ruleWidth = 2,
                   .key = "page"};
+  // The sheet's three lines are set in the classes of their own names, so
+  // the sizes the placement is read against are one entry each.
+  const sigil::core::environment::Provide<weave::StyleSheet> classes(
+      weave::StyleSheet{{"title", {.size = 15}}, {"footer", {.size = 11}}});
   Host host(400, 300);
   host.composer.render(
       kit::sheet(page, box().key("body")).width(400).height(300));

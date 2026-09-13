@@ -33,6 +33,7 @@
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/core/Utf8.h>
 #include <sigilcompose/typography/Annotation.h>
 #include <sigilcompose/typography/Selector.h>
 #include <sigilcompose/typography/TextUnit.h>
@@ -93,11 +94,11 @@ namespace sigil::compose::kit {
  *  of the type asks for leading rather than for a reservation. */
 [[nodiscard]] inline Annotation kenten(sigil::weave::Selector over,
                                        sigil::weave::Type style,
-                                       std::u8string mark = u8"\xef\xb9\x85",
+                                       Utf8 mark = u8"\xef\xb9\x85",
                                        float gap = 0) {
   return Annotation{.where = std::move(over),
                     .unit = sigil::weave::Unit::Cluster,
-                    .readings = {std::move(mark)},
+                    .readings = {mark.bytes()},
                     .style = std::move(style),
                     .side = Annotation::Side::Before,
                     .gap = gap,
@@ -128,7 +129,7 @@ struct NestedStyle {
   /** `Characters` and `Words`: how many. Zero covers nothing. */
   uint32_t count = 1;
   /** `Delimiter`: the mark the run ends on, and includes. */
-  std::u8string delimiter;
+  Utf8 delimiter;
   /** What the run it names is set in. */
   /** What the opening is set in: a partial over the block's style. */
   sigil::weave::Type style;
@@ -160,7 +161,7 @@ struct NestedStyle {
   }
   if (nested.delimiter.empty()) return sigil::weave::selectors::words(0, 0);
   return sigil::weave::selectors::regex(u8"\\A[\\s\\S]*?\\Q" +
-                                        nested.delimiter + u8"\\E");
+                                        nested.delimiter.bytes() + u8"\\E");
 }
 
 /** A LIST WHOSE MARKERS HANG IN THE INDENT.
@@ -225,7 +226,7 @@ struct NestedStyle {
 [[nodiscard]] inline Element columns(sigil::weave::Story story, int count,
                                      float gutter, float width, float height,
                                      std::string keyPrefix = "column",
-                                     std::u8string ellipsis = {}) {
+                                     Utf8 ellipsis = {}) {
   Element row = box().row().gap(gutter);
   if (count < 1) return row;
   const float measure = (width - gutter * static_cast<float>(count - 1)) /
@@ -238,7 +239,7 @@ struct NestedStyle {
     if (index + 1 < count)
       column.thread(keyPrefix + std::to_string(index + 1));
     else if (!ellipsis.empty())
-      column.ellipsis(ellipsis);
+      column.ellipsis(ellipsis.bytes());
     row.child(std::move(column));
   }
   return row;
@@ -289,7 +290,7 @@ struct ColumnSet {
   std::vector<Spanner> spanners;
   const Composer* composer = nullptr;
   std::string keyPrefix = "column";
-  std::u8string ellipsis;
+  Utf8 ellipsis;
 };
 
 [[nodiscard]] inline Element columns(ColumnSet set) {
@@ -327,7 +328,7 @@ struct ColumnSet {
       if (index + 1 < rows * set.count)
         column.thread(keyAt(index + 1));
       else if (!set.ellipsis.empty())
-        column.ellipsis(set.ellipsis);
+        column.ellipsis(set.ellipsis.bytes());
       row.child(std::move(column));
     }
     stack.child(std::move(row));
