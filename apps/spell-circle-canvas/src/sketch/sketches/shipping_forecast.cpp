@@ -166,6 +166,7 @@
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
+#include <ranges>
 #include <string>
 #include <utility>
 #include <vector>
@@ -275,62 +276,77 @@ struct ShippingForecast : sketch::Sketch {
   // ------------------------------------------------------------------
   // Type
 
-  [[nodiscard]] sigil::weave::TextStyle body(float size, SkColor4f color,
-                                             float track = 0) const {
-    return weave::textStyle(
-        {.face = faceBody, .size = size, .color = color, .track = track});
-  }
-  [[nodiscard]] sigil::weave::TextStyle label(float size, SkColor4f color,
-                                              float track = 2.4f) const {
-    return weave::textStyle(
-        {.face = faceBold, .size = size, .color = color, .track = track});
+  /** THE SHEET'S REGISTERS, AS NAMED PARTIALS rather than as a call site
+   *  each: a line or a run names its register and the sheet says what that
+   *  looks like. A name the sheet does not register resolves to the base,
+   *  so a misspelling shows as body copy rather than as something that did
+   *  not draw; the base is the forecast paragraph's own voice, which is
+   *  also what the synopsis's spanStyle grades against. */
+  [[nodiscard]] sigil::weave::StyleSheet registers() const {
+    return {
+        weave::textStyle({.face = faceBody, .size = 19.5f, .color = kBone}),
+        {
+            // The line that names a block — seven of them, one per panel.
+            {"eyebrow",
+             {.face = faceBold,
+              .size = 11.0f,
+              .color = kSlateDim,
+              .track = 3.0f}},
+            // A sea area on the ring: a name rather than a label, so it is
+            // set a shade under the body ink.
+            {"area",
+             {.face = faceBold,
+              .size = 11.5f,
+              .color = hexColor(0xBFC7D1),
+              .track = 1.1f}},
+            // The wind direction: the one thing in the sentence that is a
+            // heading, so it is set as one — condensed, tracked, and a shade
+            // brighter. It states only that: the size and the colour are
+            // the base's.
+            {"dir", {.face = faceBold, .track = 0.6f, .condense = 0.94f}},
+            // A defined term. A serif italic inside a grotesque paragraph
+            // reads as a citation of a glossary, which is exactly what
+            // these words are.
+            {"term",
+             {.face = faceTerm, .size = 20.5f, .color = kAmber, .track = 0.2f}},
+            // A Beaufort numeral. NO COLOUR: the number and the bar over it
+            // are one fact, so the cell sets the ink and both take it.
+            {"force", {.face = faceBold, .size = 10.5f, .track = 0.4f}},
+            // The barometer, and the column a station's reading stands in.
+            {"readout",
+             {.face = faceMono, .size = 27.0f, .color = kBone, .track = 3.0f}},
+            {"station",
+             {.face = faceMono, .size = 12.0f, .color = kSlate, .track = 0.4f}},
+            // The area being read, the compass points, the gale strip.
+            {"hero",
+             {.face = faceDisplay,
+              .size = kHero,
+              .color = kBone,
+              .track = 1.5f}},
+            {"cardinal",
+             {.face = faceBold, .size = 12.0f, .color = kAmber, .track = 2.0f}},
+            {"warning", {.face = faceBold, .size = 13.5f, .track = 2.8f}},
+            // The small print: a note under a readout, a station's name and
+            // its wind, the Beaufort bands, the spine, the foot.
+            {"note", {.size = 12.0f, .color = kSlateDim, .track = 0.6f}},
+            {"place", {.size = 12.5f, .color = kBone, .track = 0.8f}},
+            {"wind",
+             {.face = faceBold, .size = 12.5f, .color = kSlate, .track = 1.4f}},
+            {"bands", {.size = 10.5f, .color = kSlateDim, .track = 0.8f}},
+            {"spine",
+             {.face = faceBold,
+              .size = 12.5f,
+              .color = kSlateDim,
+              .track = 2.6f}},
+            {"foot", {.size = 11.0f, .color = kSlateDim, .track = 0.5f}},
+        }};
   }
 
-  /** THE SHEET'S REGISTERS, AS NAMED PARTIALS rather than as a call site
-   *  each: a line or a run says what it IS — an eyebrow, a wind direction,
-   *  a defined term, a sea area, a Beaufort force — and the sheet says what
-   *  that looks like. A name the sheet does not register resolves to the
-   *  base, so a misspelling shows as body copy rather than as something
-   *  that did not draw; the base is the forecast paragraph's own voice,
-   *  which is also what the synopsis's spanStyle grades against. */
-  [[nodiscard]] sigil::weave::StyleSheet registers() const {
-    sigil::weave::StyleSheet set{body(19.5f, kBone)};
-    // The line that names a block — seven of them, one per panel.
-    set.set("eyebrow", weave::Type{.face = faceBold,
-                                   .size = 11.0f,
-                                   .color = kSlateDim,
-                                   .track = 3.0f});
-    // A sea area on the ring: a name rather than a label, so it is set a
-    // shade under the body ink.
-    set.set("area", weave::Type{.face = faceBold,
-                                .size = 11.5f,
-                                .color = hexColor(0xBFC7D1),
-                                .track = 1.1f});
-    // The wind direction: the one thing in the sentence that is a heading,
-    // so it is set as one — condensed, tracked, and a shade brighter. It
-    // states only that: the size and the colour are the base's.
-    set.set("dir",
-            weave::Type{.face = faceBold, .track = 0.6f, .condense = 0.94f});
-    // A defined term. A serif italic inside a grotesque paragraph reads as
-    // a citation of a glossary, which is exactly what these words are.
-    set.set(
-        "term",
-        weave::Type{
-            .face = faceTerm, .size = 20.5f, .color = kAmber, .track = 0.2f});
-    // A Beaufort numeral. NO COLOUR: the number and the bar over it are one
-    // fact, so the cell sets the ink and both take it.
-    set.set("force",
-            weave::Type{.face = faceBold, .size = 10.5f, .track = 0.4f});
-    // The barometer, and the column a station's reading stands in.
-    set.set(
-        "readout",
-        weave::Type{
-            .face = faceMono, .size = 27.0f, .color = kBone, .track = 3.0f});
-    set.set(
-        "station",
-        weave::Type{
-            .face = faceMono, .size = 12.0f, .color = kSlate, .track = 0.4f});
-    return set;
+  /** The line that names a panel: seven of them, each arriving on its
+   *  own beat. */
+  [[nodiscard]] Element eyebrow(std::string_view words, const char* key,
+                                float from, float to) {
+    return text(words).styleClass("eyebrow").key(key).opacity(beat(from, to));
   }
 
   // ------------------------------------------------------------------
@@ -374,11 +390,9 @@ struct ShippingForecast : sketch::Sketch {
         .progress =
             motion::bind(&secs).source(0.0f, (float)kBreathPeriod).cosine()};
 
-    return box().clip().width(pct(100)).child(
-        text(words, weave::textStyle({.face = faceDisplay,
-                                      .size = kHero,
-                                      .color = kBone,
-                                      .track = 1.5f}))
+    return box().clip().width(pct(100)).children({
+        text(words)
+            .styleClass("hero")
             .key(key)
             .width(pct(100))
             .textAlign(sigil::weave::TextAlignment::kCenter)
@@ -389,7 +403,8 @@ struct ShippingForecast : sketch::Sketch {
             // letter; the letter travels through the gradient.
             .textFill(heroInk)
             .fx(std::move(rise))
-            .fx(std::move(swell)));
+            .fx(std::move(swell)),
+    });
   }
 
   // ------------------------------------------------------------------
@@ -404,109 +419,106 @@ struct ShippingForecast : sketch::Sketch {
   }
 
   [[nodiscard]] Element ringPanel() {
-    Element panel = box().width(kRingBox).height(kRingBox).shrink(0);
-
-    // The wash under the ring: a soft light filling the square, so the
-    // lettering has something to sit on without a visible plate edge.
-    panel.child(box().inset(0).fill(mskia::Paint::glowUnit(
-        {0.5f, 0.5f}, 0.94f,
-        {{0.0f, kSeaLift}, {0.62f, hexColor(0x090E15)}, {1.0f, kSea}})));
-
     const auto hair = [](float r, SkColor4f color, float width) {
       return kit::disc(kEye, r)
           .corners({r})
           .fill(Fill::none())
           .stroke(stroke(width, Fill::color(color)));
     };
-    panel.child(hair(kRingR + 21.0f, kKeyline, 1.0f).key("ring-outer"));
-    panel.child(hair(kInnerR, kKeyline, 1.0f).key("ring-inner"));
-    panel.child(
-        hair(kInnerR - 9.0f, hexColor(0x121B26), 1.0f).key("ring-inner-2"));
+    // A bearing is clockwise from twelve, which is a quarter turn back
+    // from where the ellipse's own angle starts.
+    const auto radians = [](const Area& a) {
+      return a.bearingDeg * 3.14159265f / 180.0f - 1.5707963f;
+    };
+    static constexpr const char* kCardinals[4] = {"N", "E", "S", "W"};
 
-    // THE COMPASS. A tick at every area's own bearing, and a longer one
-    // with a letter at each cardinal point, so the ring can be read as a
-    // bearing and not only as a list.
-    for (int i = 0; i < kAreaCount; ++i) {
-      // A bearing is clockwise from twelve, which is a quarter turn back
-      // from where the ellipse's own angle starts.
-      const float rad =
-          kAreaRing[i].bearingDeg * 3.14159265f / 180.0f - 1.5707963f;
-      panel.child(
-          box()
-              .key("tick" + std::to_string(i))
-              .width(1.0f)
-              .height(9.0f)
-              .rotate(kAreaRing[i].bearingDeg)
-              .centerAt(arrange::onEllipse(
-                  {kEye.x(), kEye.y()}, {kRingR + 28.0f, kRingR + 28.0f}, rad))
-              .fill(Fill::color(kSlateDim))
-              .opacity(beat(0.10f, 1.20f)));
-    }
-    const char* kCardinals[4] = {"N", "E", "S", "W"};
-    for (int q = 0; q < 4; ++q) {
-      panel.child(text(kCardinals[q], label(12.0f, kAmber, 2.0f))
-                      .key(std::string("card") + kCardinals[q])
-                      .centerAt(arrange::onRing(
-                          (size_t)q, 4, {kEye.x(), kEye.y()},
-                          {kRingR + 46.0f, kRingR + 46.0f}, -1.5707963f,
-                          6.2831853f, arrange::Turn::Closed))
-                      .opacity(beat(0.10f, 1.20f)));
-    }
-
-    // THE AREAS, one run each, ON the circle at its own bearing. `at` is
-    // where along the baseline a run sits as a fraction of the whole path,
-    // and shapes::circle() starts at due east and runs clockwise, so a
-    // bearing becomes a fraction by subtracting the quarter turn between
-    // the two conventions. Every run is centred on its own bearing, which
-    // is the whole difference between a chart ring and a band of type
-    // going round.
-    //
-    // NOT flipped. A ring has no side to be turned over to, so the rule is
-    // the engraver's: glyph-up points radially outward everywhere, which is
-    // what a coin's legend and a chart's compass ring both do.
-    for (int i = 0; i < kAreaCount; ++i) {
-      const float frac =
-          std::fmod(kAreaRing[i].bearingDeg / 360.0f + 0.75f, 1.0f);
-      // TWO RADII, ALTERNATING. Sixteen bearings thirteen to seventeen
-      // degrees apart, and a name twenty degrees of arc long: on one
-      // circle every neighbour collides, and the fix a chart uses is not
-      // to move a label off its bearing but to move it off its
-      // neighbour's ring.
-      const float radius = (i % 2 == 0) ? kRingR : kRingR - 31.0f;
-      // The sixteen beat in READ ORDER, not in bearing order — they are the
-      // same sweep here, and saying it once in the delay is what makes that
-      // visible rather than coincidental.
-      const float start = 0.20f + (float)i * 0.17f;
-      panel.child(text(kAreaRing[i].name)
-                      .styleClass("area")
-                      .key(std::string("area") + std::to_string(i))
-                      .inset(kRingBox * 0.5f - radius)
-                      .onPath({.path = shapes::circle(),
-                               .at = frac,
-                               .align = TextPath::Align::Center,
-                               .offset = 7.0f,
-                               .autoFlip = false})
-                      .fx({.effect = fx::rise(13.0f),
-                           .stagger = ringCascade(),
-                           .progress = beat(start, start + 0.62f)}));
-    }
-
-    // The area being read, in the middle of its own ring.
-    Element name = box()
-                       .column()
-                       .width(2.0f * kInnerR - 40.0f)
-                       .centerAt({kEye.x(), kEye.y() - 6.0f})
-                       .key("hero")
-                       .child(heroLine("GERMAN", "hero-1", 0.0f))
-                       .child(heroLine("BIGHT", "hero-2", 0.22f));
-    panel.child(std::move(name));
-
-    panel.child(text("SEA AREA · READ IN ORDER FROM VIKING")
-                    .styleClass("eyebrow")
-                    .key("ring-cap")
-                    .centerAt({kEye.x(), kEye.y() + 118.0f})
-                    .opacity(beat(2.30f, 2.95f)));
-    return panel;
+    return box().width(kRingBox).height(kRingBox).shrink(0).children({
+        // The wash under the ring: a soft light filling the square, so the
+        // lettering has something to sit on without a visible plate edge.
+        box().inset(0).fill(mskia::Paint::glowUnit(
+            {0.5f, 0.5f}, 0.94f,
+            {{0.0f, kSeaLift}, {0.62f, hexColor(0x090E15)}, {1.0f, kSea}})),
+        hair(kRingR + 21.0f, kKeyline, 1.0f).key("ring-outer"),
+        hair(kInnerR, kKeyline, 1.0f).key("ring-inner"),
+        hair(kInnerR - 9.0f, hexColor(0x121B26), 1.0f).key("ring-inner-2"),
+        // THE COMPASS. A tick at every area's own bearing, and a longer one
+        // with a letter at each cardinal point, so the ring can be read as
+        // a bearing and not only as a list.
+        each(kAreaRing,
+             [&](const Area& a, size_t i) {
+               return box()
+                   .key("tick" + std::to_string(i))
+                   .width(1.0f)
+                   .height(9.0f)
+                   .rotate(a.bearingDeg)
+                   .centerAt(arrange::onEllipse(
+                       {kEye.x(), kEye.y()}, {kRingR + 28.0f, kRingR + 28.0f},
+                       radians(a)))
+                   .fill(Fill::color(kSlateDim))
+                   .opacity(beat(0.10f, 1.20f));
+             }),
+        each(kCardinals,
+             [&](const char* letter, size_t q) {
+               return text(letter)
+                   .styleClass("cardinal")
+                   .key(std::string("card") + letter)
+                   .centerAt(arrange::onRing(q, 4, {kEye.x(), kEye.y()},
+                                             {kRingR + 46.0f, kRingR + 46.0f},
+                                             -1.5707963f, 6.2831853f,
+                                             arrange::Turn::Closed))
+                   .opacity(beat(0.10f, 1.20f));
+             }),
+        // THE AREAS, one run each, ON the circle at its own bearing. `at`
+        // is where along the baseline a run sits as a fraction of the
+        // whole path, and shapes::circle() starts at due east and runs
+        // clockwise, so a bearing becomes a fraction by subtracting the
+        // quarter turn between the two conventions. Every run is centred
+        // on its own bearing, which is the whole difference between a
+        // chart ring and a band of type going round.
+        //
+        // NOT flipped. A ring has no side to be turned over to, so the
+        // rule is the engraver's: glyph-up points radially outward
+        // everywhere, which is what a coin's legend and a chart's compass
+        // ring both do.
+        //
+        // TWO RADII, ALTERNATING. Sixteen bearings thirteen to seventeen
+        // degrees apart, and a name twenty degrees of arc long: on one
+        // circle every neighbour collides, and the fix a chart uses is not
+        // to move a label off its bearing but to move it off its
+        // neighbour's ring. The sixteen beat in READ ORDER, not in bearing
+        // order — they are the same sweep here, and saying it once in the
+        // delay is what makes that visible rather than coincidental.
+        each(kAreaRing,
+             [&](const Area& a, size_t i) {
+               const float frac =
+                   std::fmod(a.bearingDeg / 360.0f + 0.75f, 1.0f);
+               const float radius = (i % 2 == 0) ? kRingR : kRingR - 31.0f;
+               const float start = 0.20f + (float)i * 0.17f;
+               return text(a.name)
+                   .styleClass("area")
+                   .key(std::string("area") + std::to_string(i))
+                   .inset(kRingBox * 0.5f - radius)
+                   .onPath({.path = shapes::circle(),
+                            .at = frac,
+                            .align = TextPath::Align::Center,
+                            .offset = 7.0f,
+                            .autoFlip = false})
+                   .fx({.effect = fx::rise(13.0f),
+                        .stagger = ringCascade(),
+                        .progress = beat(start, start + 0.62f)});
+             }),
+        // The area being read, in the middle of its own ring.
+        box()
+            .column()
+            .width(2.0f * kInnerR - 40.0f)
+            .centerAt({kEye.x(), kEye.y() - 6.0f})
+            .key("hero")
+            .children({heroLine("GERMAN", "hero-1", 0.0f),
+                       heroLine("BIGHT", "hero-2", 0.22f)}),
+        eyebrow("SEA AREA · READ IN ORDER FROM VIKING", "ring-cap", 2.30f,
+                2.95f)
+            .centerAt({kEye.x(), kEye.y() + 118.0f}),
+    });
   }
 
   // ------------------------------------------------------------------
@@ -538,17 +550,18 @@ struct ShippingForecast : sketch::Sketch {
         // are one statement, so the amber is named once and the mark that
         // names no colour takes it.
         .ink(kAmber)
-        .child(box().width(7).height(7).corners({4}).shrink(0).fill(
-            Fill::currentInk()))
-        .child(text("GALE WARNING · GERMAN BIGHT · "
-                    "IMMINENT")
-                   .font({.face = faceBold, .size = 13.5f, .track = 2.8f})
-                   .key("gale")
-                   .fx({.effect = std::move(arrive),
-                        .stagger = {.eachMs = 0,
-                                    .amountMs = 520,
-                                    .durationMs = 620},
-                        .progress = beat(0.25f, 1.85f)}));
+        .children({
+            box().width(7).height(7).corners({4}).shrink(0).fill(
+                Fill::currentInk()),
+            text("GALE WARNING · GERMAN BIGHT · IMMINENT")
+                .styleClass("warning")
+                .key("gale")
+                .fx({.effect = std::move(arrive),
+                     .stagger = {.eachMs = 0,
+                                 .amountMs = 520,
+                                 .durationMs = 620},
+                     .progress = beat(0.25f, 1.85f)}),
+        });
   }
 
   /** The forecast itself: one paragraph, three faces, two tracks and one
@@ -577,12 +590,12 @@ struct ShippingForecast : sketch::Sketch {
     // AN INHERITING PASSAGE: the unnamed runs are set in the voice the node
     // carries and each named run changes only what its register states.
     weave::RichText copy = weave::rich();
-    copy.add(u8"Southwesterly", "dir")
-        .add(u8" 5 to 7, occasionally gale 8 ")
-        .add(u8"later", "term")
-        .add(u8". Rain then showers. Moderate or good, occasionally ")
-        .add(u8"poor", "term")
-        .add(u8".");
+    copy.add("Southwesterly", "dir")
+        .add(" 5 to 7, occasionally gale 8 ")
+        .add("later", "term")
+        .add(". Rain then showers. Moderate or good, occasionally ")
+        .add("poor", "term")
+        .add(".");
 
     // THREE TRACKS OVER ONE PARAGRAPH, ON ONE CLOCK. `beats::Text` numbers
     // each cascade by the word's place in the PARAGRAPH rather than by its
@@ -628,23 +641,19 @@ struct ShippingForecast : sketch::Sketch {
                  .beatsOver = beats::Text,
                  .progress = beat(1.83f, 4.30f)};
 
-    return box()
-        .column()
-        .gap(9)
-        .child(text("AREA FORECAST")
-                   .styleClass("eyebrow")
-                   .key("fc-eyebrow")
-                   .opacity(beat(1.50f, 2.10f)))
-        .child(text(copy)
-                   .font({.size = 19.5f})
-                   .key("forecast")
-                   .width(pct(100))
-                   .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
-                   .spanPaint(weave::selectors::regex(u8"[0-9]+"),
-                              sigil::weave::PaintStyle(kAmber.toSkColor()))
-                   .fx(std::move(initials))
-                   .fx(std::move(grade))
-                   .fx(std::move(bodies)));
+    return box().column().gap(9).children({
+        eyebrow("AREA FORECAST", "fc-eyebrow", 1.50f, 2.10f),
+        text(copy)
+            .font({.size = 19.5f})
+            .key("forecast")
+            .width(pct(100))
+            .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
+            .spanPaint(weave::selectors::regex(u8"[0-9]+"),
+                       sigil::weave::PaintStyle(kAmber.toSkColor()))
+            .fx(std::move(initials))
+            .fx(std::move(grade))
+            .fx(std::move(bodies)),
+    });
   }
 
   /** The barometer. A substitution draws a different letter at the original
@@ -653,33 +662,29 @@ struct ShippingForecast : sketch::Sketch {
    *  why its charset is digits and capitals of one width. On a proportional
    *  face the runtime measures both, refuses, and draws the true letter. */
   [[nodiscard]] Element barometer() {
-    return box()
-        .column()
-        .gap(7)
-        .child(text("PRESSURE · TENDENCY")
-                   .styleClass("eyebrow")
-                   .key("baro-eyebrow")
-                   .opacity(beat(2.10f, 2.65f)))
-        .child(text("1003 FALLING SLOWLY")
-                   .styleClass("readout")
-                   .key("baro")
-                   // HELD, because a decode is otherwise churning at local
-                   // 0: the substitution is in force from the track's first
-                   // frame, so a glyph waiting its turn would show a wrong
-                   // letter rather than no letter. The hold is per GLYPH,
-                   // which is what a node-wide fade cannot be — each
-                   // character of the readout arrives on its own beat and
-                   // is simply absent before it.
-                   .fx({.effect = fx::hold(fx::scramble(
-                            U"0123456789ABCDEFGHJKLMNPRSTUVWXYZ", 16)),
-                        .stagger = {.eachMs = 26,
-                                    .durationMs = 520,
-                                    .from = motion::Spread::From::Start},
-                        .progress = beat(2.25f, 4.10f)}))
-        .child(text("SLOWLY — 0.1 TO 1.5 MB IN THREE HOURS",
-                    body(12.0f, kSlateDim, 0.6f))
-                   .key("baro-note")
-                   .opacity(beat(3.30f, 3.90f)));
+    return box().column().gap(7).children({
+        eyebrow("PRESSURE · TENDENCY", "baro-eyebrow", 2.10f, 2.65f),
+        text("1003 FALLING SLOWLY")
+            .styleClass("readout")
+            .key("baro")
+            // HELD, because a decode is otherwise churning at local
+            // 0: the substitution is in force from the track's first
+            // frame, so a glyph waiting its turn would show a wrong
+            // letter rather than no letter. The hold is per GLYPH,
+            // which is what a node-wide fade cannot be — each
+            // character of the readout arrives on its own beat and
+            // is simply absent before it.
+            .fx({.effect = fx::hold(
+                     fx::scramble(U"0123456789ABCDEFGHJKLMNPRSTUVWXYZ", 16)),
+                 .stagger = {.eachMs = 26,
+                             .durationMs = 520,
+                             .from = motion::Spread::From::Start},
+                 .progress = beat(2.25f, 4.10f)}),
+        text("SLOWLY — 0.1 TO 1.5 MB IN THREE HOURS")
+            .styleClass("note")
+            .key("baro-note")
+            .opacity(beat(3.30f, 3.90f)),
+    });
   }
 
   /** The general synopsis — which in the bulletin comes BEFORE the areas,
@@ -712,34 +717,30 @@ struct ShippingForecast : sketch::Sketch {
     sigil::weave::TextStyle graded = registers().base();
     graded.variation("GRAD", 800.0f);
     weave::RichText copy = weave::rich();
-    copy.add(u8"Low", "dir")
-        .add(u8", Rockall, ")
-        .add(u8"987")
-        .add(u8", ")
-        .add(u8"deepening rapidly", "term")
-        .add(u8", expected Fair Isle ")
-        .add(u8"968")
-        .add(u8" by 0700 tomorrow. Atlantic high losing its grip.");
+    copy.add("Low", "dir")
+        .add(", Rockall, ")
+        .add("987")
+        .add(", ")
+        .add("deepening rapidly", "term")
+        .add(", expected Fair Isle ")
+        .add("968")
+        .add(" by 0700 tomorrow. Atlantic high losing its grip.");
 
-    return box()
-        .column()
-        .gap(9)
-        .child(text("GENERAL SYNOPSIS · 0100 UTC")
-                   .styleClass("eyebrow")
-                   .key("syn-eyebrow")
-                   .opacity(beat(2.60f, 3.10f)))
-        .child(text(copy)
-                   .font({.size = 19.5f})
-                   .key("synopsis")
-                   .width(pct(100))
-                   .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
-                   .spanStyle(weave::selectors::regex(u8"[0-9]+"), graded)
-                   .spanPaint(weave::selectors::regex(u8"[0-9]+"),
-                              sigil::weave::PaintStyle(kAmber.toSkColor()))
-                   .fx({.effect = fx::slide(-22.0f),
-                        .stagger = {.eachMs = 150, .durationMs = 620},
-                        .unit = weave::Unit::Line,
-                        .progress = beat(2.70f, 4.60f)}));
+    return box().column().gap(9).children({
+        eyebrow("GENERAL SYNOPSIS · 0100 UTC", "syn-eyebrow", 2.60f, 3.10f),
+        text(copy)
+            .font({.size = 19.5f})
+            .key("synopsis")
+            .width(pct(100))
+            .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
+            .spanStyle(weave::selectors::regex(u8"[0-9]+"), graded)
+            .spanPaint(weave::selectors::regex(u8"[0-9]+"),
+                       sigil::weave::PaintStyle(kAmber.toSkColor()))
+            .fx({.effect = fx::slide(-22.0f),
+                 .stagger = {.eachMs = 150, .durationMs = 620},
+                 .unit = weave::Unit::Line,
+                 .progress = beat(2.70f, 4.60f)}),
+    });
   }
 
   /** Coastal stations: the quiet part of the sheet, and deliberately still.
@@ -759,30 +760,28 @@ struct ShippingForecast : sketch::Sketch {
     PathFormat rule;
     rule.width = 1.0f;
     rule.strokeFill = Fill::color(kKeyline);
-    Element table =
-        box().column().gap(0).child(text("COASTAL STATIONS · 0100 UTC")
-                                        .styleClass("eyebrow")
-                                        .key("st-eyebrow")
-                                        .opacity(beat(2.66f, 3.16f))
-                                        .margin(0, 0, 0, 8));
-    for (int i = 0; i < 3; ++i) {
-      const Row& r = kRows[i];
-      table.child(
-          box()
-              .row()
-              .height(29)
-              .alignItems(Align::Center)
-              .key(std::string("st") + std::to_string(i))
-              .foreground(onEdges(sigil::geometry::path::Edge::Top, rule))
-              .opacity(beat(2.80f + (float)i * 0.14f, 3.40f + (float)i * 0.14f))
-              .child(text(r.place, body(12.5f, kBone, 0.8f)).grow(1))
-              .child(text(r.wind, label(12.5f, kSlate, 1.4f))
-                         .width(74)
-                         .textAlign(sigil::weave::TextAlignment::kEnd))
-              .child(text(r.baro).styleClass("station").width(166).textAlign(
-                  sigil::weave::TextAlignment::kEnd)));
-    }
-    return table;
+    return box().column().gap(0).children({
+        eyebrow("COASTAL STATIONS · 0100 UTC", "st-eyebrow", 2.66f, 3.16f)
+            .margin(0, 0, 0, 8),
+        each(kRows,
+             [&](const Row& r, size_t i) {
+               return box()
+                   .row()
+                   .height(29)
+                   .alignItems(Align::Center)
+                   .key(std::string("st") + std::to_string(i))
+                   .foreground(onEdges(sigil::geometry::path::Edge::Top, rule))
+                   .opacity(
+                       beat(2.80f + (float)i * 0.14f, 3.40f + (float)i * 0.14f))
+                   .children({
+                       text(r.place).styleClass("place").grow(1),
+                       text(r.wind).styleClass("wind").width(74).textAlign(
+                           sigil::weave::TextAlignment::kEnd),
+                       text(r.baro).styleClass("station").width(166).textAlign(
+                           sigil::weave::TextAlignment::kEnd),
+                   });
+             }),
+    });
   }
 
   /** The Beaufort scale, which is the reason the paragraph has numerals in
@@ -792,39 +791,48 @@ struct ShippingForecast : sketch::Sketch {
    *  the same amber the paragraph's found numerals wear, so the two read as
    *  one fact stated twice. */
   [[nodiscard]] Element beaufort() {
-    Element strip = box().row().gap(6).height(56).alignItems(Align::End);
-    for (int f = 0; f <= 12; ++f) {
-      const bool named = f >= 5 && f <= 8;
-      strip.child(
-          box()
-              .grow(1)
-              .column()
-              .gap(6)
-              .alignItems(Align::Center)
-              .key("bf" + std::to_string(f))
-              // THE BAR AND THE NUMERAL ARE ONE FACT, so the cell names the
-              // ink and the numeral takes it. A force this bulletin does not
-              // quote has a darker bar than numeral — the one place they part.
-              .ink(named ? kAmber : kSlateDim)
-              .child(box()
-                         .width(pct(100))
-                         .height(6.0f + (float)f * 2.6f)
-                         .fill(named ? Fill::currentInk()
-                                     : Fill::color(hexColor(0x37475B))))
-              .child(text(std::to_string(f)).styleClass("force")));
-    }
     return box()
         .column()
         .gap(9)
         .opacity(beat(3.20f, 3.80f))
-        .child(text("BEAUFORT FORCE · 5 TO 7, OCCASIONALLY 8")
-                   .styleClass("eyebrow")
-                   .key("bf-eyebrow"))
-        .child(std::move(strip))
-        .child(text("5 FRESH BREEZE · 6 STRONG BREEZE · "
-                    "7 NEAR GALE · 8 GALE",
-                    body(10.5f, kSlateDim, 0.8f))
-                   .key("bf-names"));
+        .children({
+            text("BEAUFORT FORCE · 5 TO 7, OCCASIONALLY 8")
+                .styleClass("eyebrow")
+                .key("bf-eyebrow"),
+            box()
+                .row()
+                .gap(6)
+                .height(56)
+                .alignItems(Align::End)
+                .children(each(
+                    std::views::iota(0, 13),
+                    [](int f) {
+                      const bool named = f >= 5 && f <= 8;
+                      return box()
+                          .grow(1)
+                          .column()
+                          .gap(6)
+                          .alignItems(Align::Center)
+                          .key("bf" + std::to_string(f))
+                          // THE BAR AND THE NUMERAL ARE ONE FACT, so the cell
+                          // names the ink and the numeral takes it. A force
+                          // this bulletin does not quote has a darker bar than
+                          // numeral — the one place they part.
+                          .ink(named ? kAmber : kSlateDim)
+                          .children({
+                              box()
+                                  .width(pct(100))
+                                  .height(6.0f + (float)f * 2.6f)
+                                  .fill(named
+                                            ? Fill::currentInk()
+                                            : Fill::color(hexColor(0x37475B))),
+                              text(std::to_string(f)).styleClass("force"),
+                          });
+                    })),
+            text("5 FRESH BREEZE · 6 STRONG BREEZE · 7 NEAR GALE · 8 GALE")
+                .styleClass("bands")
+                .key("bf-names"),
+        });
   }
 
   // ------------------------------------------------------------------
@@ -839,8 +847,8 @@ struct ShippingForecast : sketch::Sketch {
    *  layout placed the glyph in, and here that frame is turned with the
    *  column, so the lift runs ACROSS the column rather than up the page. */
   [[nodiscard]] Element spine() {
-    return text("BBC RADIO 4 · 198 kHz LONG WAVE · 0048",
-                label(12.5f, kSlateDim, 2.6f))
+    return text("BBC RADIO 4 · 198 kHz LONG WAVE · 0048")
+        .styleClass("spine")
         .key("spine")
         .left(40)
         .top(196)
@@ -906,45 +914,6 @@ struct ShippingForecast : sketch::Sketch {
     // whole description.
     const sigil::core::environment::Provide<sigil::weave::StyleSheet> sheet(
         registers());
-    Element column =
-        box()
-            .column()
-            .inset(112, 40, 44, 38)
-            .gap(26)
-            // The whole performance under one envelope: it rises once at
-            // the head of the bulletin and leaves before the wrap, so the
-            // loop's cut happens on a dark sheet.
-            .opacity(envelope())
-            .child(header())
-            .child(box().height(1).fill(Fill::color(kKeyline)))
-            .child(box()
-                       .row()
-                       .gap(48)
-                       .grow(1)
-                       .child(box()
-                                  .width(kColW)
-                                  .shrink(0)
-                                  .column()
-                                  .gap(26)
-                                  .child(galeStrip())
-                                  .child(forecast())
-                                  .child(barometer())
-                                  .child(synopsis())
-                                  .child(box().grow(1))
-                                  .child(beaufort())
-                                  .child(stations()))
-                       .child(box()
-                                  .grow(1)
-                                  .alignItems(Align::Center)
-                                  .justify(Justify::Center)
-                                  .child(ringPanel())))
-            .child(text("EVERY ADJECTIVE IN THE BULLETIN IS A DEFINED "
-                        "QUANTITY · THE ORDER OF THE AREAS IS "
-                        "FIXED AND RUNS CLOCKWISE",
-                        body(11.0f, kSlateDim, 0.5f))
-                       .key("foot")
-                       .opacity(beat(3.10f, 3.75f)));
-
     return stack()
         .fill(linearGradient({0, 0}, {0, kH},
                              {kSea, kSeaLift, hexColor(0x05080C)},
@@ -954,8 +923,43 @@ struct ShippingForecast : sketch::Sketch {
         // takes. A register states what it changes against these.
         .font({.face = faceBody})
         .ink(kBone)
-        .child(spine().opacity(envelope()))
-        .child(std::move(column));
+        .children({
+            spine().opacity(envelope()),
+            box()
+                .column()
+                .inset(112, 40, 44, 38)
+                .gap(26)
+                // The whole performance under one envelope: it rises once
+                // at the head of the bulletin and leaves before the wrap,
+                // so the loop's cut happens on a dark sheet.
+                .opacity(envelope())
+                .children({
+                    header(),
+                    box().height(1).fill(Fill::color(kKeyline)),
+                    box().row().gap(48).grow(1).children({
+                        box().width(kColW).shrink(0).column().gap(26).children({
+                            galeStrip(),
+                            forecast(),
+                            barometer(),
+                            synopsis(),
+                            box().grow(1),
+                            beaufort(),
+                            stations(),
+                        }),
+                        box()
+                            .grow(1)
+                            .alignItems(Align::Center)
+                            .justify(Justify::Center)
+                            .children({ringPanel()}),
+                    }),
+                    text("EVERY ADJECTIVE IN THE BULLETIN IS A DEFINED "
+                         "QUANTITY · THE ORDER OF THE AREAS IS FIXED AND RUNS "
+                         "CLOCKWISE")
+                        .styleClass("foot")
+                        .key("foot")
+                        .opacity(beat(3.10f, 3.75f)),
+                }),
+        });
   }
 
   // ------------------------------------------------------------------

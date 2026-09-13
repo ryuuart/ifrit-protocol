@@ -41,9 +41,11 @@
 // TAGS: Typography/Lettering
 
 #include <sigilcompose/brush/LayerStyles.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -56,6 +58,7 @@ namespace sketch = sigil::sketch;
 
 namespace motion = sigil::motion;
 namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;
@@ -109,6 +112,14 @@ inline constexpr auto kRuns = std::to_array<Run>({
 });
 // Ring index per run (for the doubling reveal durations).
 inline constexpr auto kRings = std::to_array<int>({0, 0, 1, 1, 2, 2, 3, 4, 5});
+
+/** The registers — the poster's title, and the museum label's two lines
+ *  — over the sheet's own setting. */
+inline weave::StyleSheet look() {
+  return {{"title", {.size = 38 * kScale}},
+          {"labelTitle", {.size = 14.0f, .track = 0.6f}},
+          {"labelLine", {.size = 12.0f, .track = 0.4f}}};
+}
 
 }  // namespace beethoven_plate
 
@@ -189,22 +200,28 @@ struct Beethoven final : sketch::Sketch {
          {"tonhalle-kasse, hug, jecklin,", "kuoni",
           "karten zu fr. 3.50 bis 9.50"}}};
 
-    Element table = box().column().gap(9 * bp::kScale);
-    for (size_t g = 0; g < groups.size(); ++g) {
-      Element entries = box().column().gap(1 * bp::kScale);
-      for (const char* line : groups[g].lines) entries.child(text(line));
-      table.child(box()
-                      .key("group" + std::to_string(g))
+    return box()
+        .column()
+        .gap(9 * bp::kScale)
+        .children(each(groups, [&](const Group& g, size_t i) {
+          return box()
+              .key("group" + std::to_string(i))
+              .row()
+              .gap(7 * bp::kScale)
+              .children({
+                  box()
+                      .width(56 * bp::kScale)
                       .row()
-                      .gap(7 * bp::kScale)
-                      .child(box()
-                                 .width(56 * bp::kScale)
-                                 .row()
-                                 .justify(Justify::End)
-                                 .child(text(groups[g].label)))
-                      .child(std::move(entries)));
-    }
-    return table;
+                      .justify(Justify::End)
+                      .children({text(g.label)}),
+                  box()
+                      .column()
+                      .gap(1 * bp::kScale)
+                      .children(
+                          each(g.lines,
+                               [](const char* line) { return text(line); })),
+              });
+        }));
   }
 
   /** The poster itself, in plate coordinates. */
@@ -213,66 +230,63 @@ struct Beethoven final : sketch::Sketch {
     // The sheet's setting, stated once: the imprint's size and tracking in
     // the one ink, which every line on the poster inherits and the title
     // steps up from.
-    auto poster =
-        stack()
-            .fill(Fill::color(bp::kPaper))
-            .background(styles::dropShadow({0, 0, 0, 0.45f}, {0, 8}, 22))
-            .clip()
-            .font({.size = 11.5f * bp::kScale, .track = 0.2f * bp::kScale})
-            .ink(bp::kInk);
-    const auto& table = bp::kRuns;
-    const auto& ringOf = bp::kRings;
-    for (size_t i = 0; i < table.size(); ++i)
-      poster.child(arcRun(table[i], ringOf[i]).key("arc" + std::to_string(i)));
-
-    // THE TYPE BLOCK, as the sheet sets it: "beethoven" alone at the left
-    // margin at about 62% depth, in the clear white, and the imprint below
-    // it as a TWO-COLUMN TABLE — five hanging labels flush right in a
-    // narrow column against their entries flush left. That table is the
-    // poster's most characteristic detail and the reason its lower half
-    // reads as setting rather than as caption.
-    poster.child(text("beethoven")
-                     .font({.size = 38 * bp::kScale})
-                     .key("title")
-                     .absolute()
-                     .left(0.055f * bp::kPlateW)
-                     .top(0.600f * bp::kPlateH));
-    poster.child(imprint()
-                     .key("imprint")
-                     .absolute()
-                     .left(0.175f * bp::kPlateW)
-                     .top(0.690f * bp::kPlateH));
-    return poster;
+    return stack()
+        .fill(Fill::color(bp::kPaper))
+        .background(styles::dropShadow({0, 0, 0, 0.45f}, {0, 8}, 22))
+        .clip()
+        .font({.size = 11.5f * bp::kScale, .track = 0.2f * bp::kScale})
+        .ink(bp::kInk)
+        .children({
+            each(bp::kRuns,
+                 [&](const bp::Run& run, size_t i) {
+                   return arcRun(run, bp::kRings[i])
+                       .key("arc" + std::to_string(i));
+                 }),
+            // THE TYPE BLOCK, as the sheet sets it: "beethoven" alone at
+            // the left margin at about 62% depth, in the clear white, and
+            // the imprint below it as a TWO-COLUMN TABLE — five hanging
+            // labels flush right in a narrow column against their entries
+            // flush left. That table is the poster's most characteristic
+            // detail and the reason its lower half reads as setting rather
+            // than as caption.
+            text("beethoven")
+                .styleClass("title")
+                .key("title")
+                .at({0.055f * bp::kPlateW, 0.600f * bp::kPlateH}),
+            imprint().key("imprint").at(
+                {0.175f * bp::kPlateW, 0.690f * bp::kPlateH}),
+        });
   }
 
   Element describe() {
     namespace bp = beethoven_plate;
+    const sigil::core::environment::Provide<weave::StyleSheet> registers(
+        bp::look());
     return stack()
         .fill(Fill::color(bp::kWall))
         // Every line on the wall sends its colour to the paint through the
         // 8-bit ladder the poster's palette was read in.
         .font({.color8 = true})
-        // The plate, centered on the wall — the letterbox panels are the
-        // mat itself.
-        .child(plate()
-                   .inset(bp::kPlateX, bp::kPlateY,
-                          bp::kW - bp::kPlateX - bp::kPlateW,
-                          bp::kH - bp::kPlateY - bp::kPlateH)
-                   .key("plate"))
-        // The museum label, right panel, at hanging height.
-        .child(box()
-                   .column()
-                   .gap(4)
-                   .inset(bp::kPlateX + bp::kPlateW + 32, bp::kH - 150, 24, 64)
-                   .font({.size = 12.0f, .track = 0.4f})
-                   .ink(bp::kLabel)
-                   .child(text("josef müller-brockmann")
-                              .font({.size = 14.0f, .track = 0.6f}))
-                   .child(text("beethoven — tonhalle "
-                               "zürich, 1955"))
-                   .child(text("measured arc table · rings "
-                               "double 1:2:4:8:16"))
-                   .key("label"));
+        .children({
+            // The plate, centered on the wall — the letterbox panels are
+            // the mat itself.
+            plate().key("plate").rect(SkRect::MakeXYWH(
+                bp::kPlateX, bp::kPlateY, bp::kPlateW, bp::kPlateH)),
+            // The museum label, right panel, at hanging height.
+            box()
+                .key("label")
+                .column()
+                .gap(4)
+                .inset(bp::kPlateX + bp::kPlateW + 32, bp::kH - 150, 24, 64)
+                .ink(bp::kLabel)
+                .children({
+                    text("josef müller-brockmann").styleClass("labelTitle"),
+                    text("beethoven — tonhalle zürich, 1955")
+                        .styleClass("labelLine"),
+                    text("measured arc table · rings double 1:2:4:8:16")
+                        .styleClass("labelLine"),
+                }),
+        });
   }
 };
 
