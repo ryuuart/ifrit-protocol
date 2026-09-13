@@ -13,6 +13,7 @@
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/testing/Checks.h>
+#include <sigildata/decode/Json.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilimage/asset/ImageAsset.h>
@@ -40,6 +41,7 @@
 #include <array>
 #include <cmath>
 #include <memory>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -52,6 +54,7 @@ namespace measure = sigil::measure;
 namespace patterns = sigil::material::pattern;
 namespace shapes = sigil::geometry::shapes;
 namespace skia = sigil::material::skia;
+namespace data = sigil::data;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
@@ -447,6 +450,26 @@ inline const weave::StyleSheet& classes() {
           .set("quote", {.face = serif(), .size = 10.5f})
           .set("name", {.face = serifIt(), .size = 13});
   return look;
+}
+
+/** THE RECORD AT @p key of @p doc — `data/content.json`, whose keys are
+ *  `masthead`, `sett`, `draft`, `blends`, `palettes`, `provenance`,
+ *  `comparison`, `verification` and `douglas`. A missing file or key reads
+ *  as a null value, so a reader falls back to no words at all. */
+inline const data::Json& record(const std::shared_ptr<const data::Json>& doc,
+                                const char* key) {
+  static const data::Json none;
+  return doc ? (*doc)[key] : none;
+}
+
+/** @p node's words — empty where the document does not carry them. */
+inline std::string words(const data::Json& node) {
+  return std::string(node.text());
+}
+
+/** The members of @p node's list, as the run `each()` walks. */
+inline std::span<const data::Json> run(const data::Json& node) {
+  return node.items();
 }
 
 /** One line of type at a card position, ranged left or centred, set in

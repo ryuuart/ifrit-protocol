@@ -1,0 +1,86 @@
+{
+  "masthead": {
+    "title": "BLACK WATCH (GOVERNMENT)",
+    "registration": "STA 207  ·  STWR 207  ·  SRT 277  ·  TARTAN DATE 01/01/1739  ·  CATEGORY MILITARY  ·  DESIGNER UNKNOWN",
+    "ticket": [
+      "WORSTED WOOL  ·  2/2 BALANCED TWILL  ·  STRAIGHT DRAW",
+      "252 ENDS AT 42 EPI  =  6.00 IN SETT  =  152.4 MM",
+      "KILTING CLOTH 10 / 13 / 16 OZ  ·  REGIMENTAL WORSTED ~21 OZ",
+      "SAMPLE: SCOTTISH TARTANS AUTHORITY, SCARLETT COLLECTION",
+      "OLDEST DATED: COCKBURN COLLECTION, MITCHELL LIBRARY, GLASGOW"
+    ],
+    "colophon": "SETT AFTER H. C. DOUGLAS, SCOTCH TARTAN SETTS, SHUTTLE-CRAFT GUILD, 1949  ·  252 ENDS  ·  2/2 TWILL, STRAIGHT DRAW  ·  PALETTE: SCOTTISH REGISTER OF TARTANS COLOUR SHADES  ·  63,504 CELLS, NONE AUTHORED"
+  },
+  "sett": {
+    "register": "“THE DNA OF A TARTAN.”   — SCOTTISH REGISTER OF TARTANS, ON THE THREADCOUNT",
+    "notation": "HALF-SETT, REGISTER NOTATION:  B/9 K2 B6 K2 B6 K18 G18 K6 G18 K18 B18 K2 B/3   =  126  =  252 / 2",
+    "pivots": [
+      "PIVOT  B/9",
+      "PIVOT  B/3"
+    ]
+  },
+  "draft": {
+    "heading": "THE DRAFT  ·  4 SHAFTS, STRAIGHT DRAW, 2/2 BALANCED TWILL, TROMP AS WRIT",
+    "tags": [
+      "THREADING",
+      "TIE-UP",
+      "TREADLING",
+      "DRAWDOWN"
+    ]
+  },
+  "blends": {
+    "heading": "THE THIRD COLOURS  ·  WARP ACROSS, WEFT DOWN",
+    "notes": [
+      "EACH CELL IS 6 × 6 THREADS AT 8 PX.",
+      "THE BLENDS ARE WOVEN, NOT MIXED."
+    ],
+    "reading": "A tartan has six colours from\nthree threads because the blend\nis spatial: at 42 ends per inch\nthe eye does the mixing, not\nthe dyer.",
+    "codes": [
+      "K",
+      "B",
+      "G"
+    ]
+  },
+  "palettes": {
+    "heading": "ONE THREAD COUNT, FIVE SHADE CARDS  ·  SCOTTISH REGISTER OF TARTANS"
+  },
+  "provenance": {
+    "heading": "THE COCKBURN COLLECTION, 1810–15  ·  ONE CLOTH, FOUR LABELS",
+    "labels": [
+      "Campbell Argyll",
+      "Grant",
+      "Munro",
+      "Sutherland"
+    ],
+    "quote": [
+      "“The Cockburn Collection (1810-15) includes four specimens of the Government tartan labelled;",
+      "‘Campbell Argyll’, ‘Grant’, ‘Munro’ and ‘Sutherland’.”   — Scottish Register of Tartans, registration note, SRT 277"
+    ],
+    "honest": "Campbell of Argyll",
+    "note": [
+      "416 ends: the Government sett",
+      "with its two black centre-lines",
+      "recoloured YELLOW and WHITE."
+    ]
+  },
+  "comparison": {
+    "heading": "THE SAME SETT, TWICE  ·  EACH NORMALISED TO ITS OWN TOTAL, UNIT FOR UNIT",
+    "bars": [
+      "BLACK WATCH        252",
+      "CAMPBELL ARGYLL   416"
+    ],
+    "units": [
+      "A",
+      "B",
+      "C",
+      "B"
+    ]
+  },
+  "verification": {
+    "heading": "VERIFIED AT STARTUP, NOT ASSERTED"
+  },
+  "douglas": {
+    "body": "“The per­fect bal­ance of the weav­ing — ex­actly as many weft shots per inch as there are warp ends, to give a 45-de­gree twill an­gle — is of ut­most im­por­tance in pro­duc­ing a true Tar­tan, as each of the col­or blocks must be squared in its prop­er suc­ces­sion.”  ",
+    "attribution": "— Harriet C. Douglas, Scotch Tartan Setts, Shuttle-Craft Guild, 1949"
+  }
+}
