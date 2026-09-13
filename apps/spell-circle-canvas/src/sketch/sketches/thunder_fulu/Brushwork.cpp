@@ -46,15 +46,13 @@ auto ThunderFulu::inkStroke(const Stroke& s) const -> Element {
 
   const SkRect f = s.frame;
   const SkPath local = s.path.makeOffset(-f.left(), -f.top());
-  Element e = box()
-                  .left(f.left())
-                  .top(f.top())
-                  .width(f.width())
-                  .height(f.height())
-                  .shape(heldPath(local))
-                  .fill(Fill::none())
-                  .stroke(std::move(brush))
-                  .key(s.key);
+  Element e =
+      box()
+          .rect(SkRect::MakeXYWH(f.left(), f.top(), f.width(), f.height()))
+          .shape(heldPath(local))
+          .fill(Fill::none())
+          .stroke(std::move(brush))
+          .key(s.key);
   // The wet 頓 pool riding the head of the self-drawing line. A decoration
   // receives the ALREADY-trimmed outline, so its own window is a fraction
   // of the revealed part — this needs no second node.
@@ -116,22 +114,31 @@ auto ThunderFulu::ironGround() -> Element {
   auto g = box().inset(0);
 
   // the plate stands off the altar cloth
-  g.children({box()
-                  .left(-16)
-                  .top(-8)
-                  .width(kPW + 46)
-                  .height(kPH + 44)
-                  .shape(shapes::chamfered(26.0f))
-                  .fill(Paint::radialUnit({0.5f, 0.5f}, 0.78f,
-                                          {{0.0f, hexColor(0x000000, 0.66f)},
-                                           {0.72f, hexColor(0x000000, 0.40f)},
-                                           {1.0f, hexColor(0x000000, 0.0f)}}))
-                  .key("ironshadow")});
-
   // the plate itself: hammered iron, warm under an altar lamp. The edge is
   // NOT a radius — it is what a hammer leaves.
+  // the beaten edge, and the corners rounded BY HAMMERING. brush::Pattern
+  // corner tiles: a facet, not a fillet.
+  //
+  // `cornerAlign` is spelled out below even though the value it names is
+  // the default, because the frame a corner stamp is drawn in is part of
+  // the art and should not be inherited silently. Bisector is right here:
+  // a hammer lands on the CORNER, and the flat it leaves straddles both
+  // legs instead of lying along one of them. The facet is a stubby lozenge
+  // with no strong axis, so forcing Outgoing instead rotates each one by
+  // half its corner's turn without anything snapping into or out of
+  // alignment — a mild difference, which is exactly why the choice has to
+  // be written down rather than left to whatever the default happens to
+  // be.
   g.children(
       {box()
+           .rect(SkRect::MakeXYWH(-16, -8, kPW + 46, kPH + 44))
+           .shape(shapes::chamfered(26.0f))
+           .fill(Paint::radialUnit({0.5f, 0.5f}, 0.78f,
+                                   {{0.0f, hexColor(0x000000, 0.66f)},
+                                    {0.72f, hexColor(0x000000, 0.40f)},
+                                    {1.0f, hexColor(0x000000, 0.0f)}}))
+           .key("ironshadow"),
+       box()
            .inset(0)
            .shape(shapes::shaped(shapes::chamfered(17.0f),
                                  shapers::Jitter{46.0f, 2.6f, 1356}))
@@ -155,23 +162,8 @@ auto ThunderFulu::ironGround() -> Element {
                             .blend = SkBlendMode::kMultiply,
                             .amount = 0.85f})
            .cache(Cache::Texture)
-           .key("iron")});
-
-  // the beaten edge, and the corners rounded BY HAMMERING. brush::Pattern
-  // corner tiles: a facet, not a fillet.
-  //
-  // `cornerAlign` is spelled out below even though the value it names is
-  // the default, because the frame a corner stamp is drawn in is part of
-  // the art and should not be inherited silently. Bisector is right here:
-  // a hammer lands on the CORNER, and the flat it leaves straddles both
-  // legs instead of lying along one of them. The facet is a stubby lozenge
-  // with no strong axis, so forcing Outgoing instead rotates each one by
-  // half its corner's turn without anything snapping into or out of
-  // alignment — a mild difference, which is exactly why the choice has to
-  // be written down rather than left to whatever the default happens to
-  // be.
-  g.children(
-      {box()
+           .key("iron"),
+       box()
            .inset(0)
            .shape(shapes::shaped(shapes::chamfered(17.0f),
                                  shapers::Jitter{38.0f, 3.1f, 46}))

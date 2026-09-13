@@ -26,6 +26,13 @@ struct ThunderFulu : sketch::Sketch {
     return verdict.rows.back().pass ? "pass" : "fail";
   }
 
+  /** THE DOCUMENT the plate's words are set from, or a null value where
+   *  the file did not load: every chant, heading, gloss and register label
+   *  is read out of `data/content.json` by key, so the code is the
+   *  template and an edit to the words re-runs setup. */
+  std::shared_ptr<const data::Json> words;
+  const data::Json& doc() const;
+
   Paint ironGrain;
   Pattern ironSpeck;
   Element footPrint;  // brush::Scatter art, held for pointer stability
@@ -134,6 +141,20 @@ struct ThunderFulu : sketch::Sketch {
 
   // =========================================================================
   // MARGINALIA
+
+  /** THE PLATE'S ONE DIVIDER: a gold rule with a dashed hairline held off
+   *  under it. Every heading on this sheet stands over one. */
+  Element rail(float w) const;
+
+  /** A CHANT, sung while the stroke goes down: one line per entry of @p
+   *  said, each windowed on the same Output the ink is. */
+  std::vector<Element> sung(const data::Json& said, float t0, float each,
+                            float hold, const char* tag) const;
+
+  /** THE WIDTH LAW, plotted: arc length across, the law's multiple of w₀
+   *  up, ruled at 0 and at 1 so the belly and the two swells are read
+   *  against the body width. */
+  Element widthLawPlot(float w) const;
 
   Element chantPanel();
 

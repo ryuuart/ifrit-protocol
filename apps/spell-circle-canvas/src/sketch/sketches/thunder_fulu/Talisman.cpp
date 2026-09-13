@@ -3,7 +3,7 @@
 auto ThunderFulu::voidWriting() -> Element {
   auto g = box().inset(0).key("xushu");
   const SkColor4f cols[3] = {kVoidBlue, kVoidRed, kVoidWhite};
-  const char* how[3] = {"left eye", "right eye", "tongue"};
+  const std::vector<Utf8> how = wordsOf(doc()["void"]);
   const SkPoint at[3] = {{kCol - 116, 214}, {kCol + 116, 214}, {kCol, 330}};
   const int src[3] = {WU, GANG, LING};
   for (int k = 0; k < 3; ++k) {
@@ -17,10 +17,7 @@ auto ThunderFulu::voidWriting() -> Element {
     auto hump = [](float t) { return std::sin(t * SK_ScalarPI); };
     g.children(
         {box()
-             .left(at[k].fX - 46)
-             .top(at[k].fY - 46)
-             .width(92)
-             .height(92)
+             .rect(SkRect::MakeXYWH(at[k].fX - 46, at[k].fY - 46, 92, 92))
              .shape(heldPath(
                  b.detach().makeOffset(-(at[k].fX - 46), -(at[k].fY - 46))))
              .fill(Fill::none())
@@ -34,19 +31,18 @@ auto ThunderFulu::voidWriting() -> Element {
                                   tVoid + tVoidDur + (float)k * 0.16f)
                           .map(hump)
                           .scale(0.92f))
-             .key(kit::formatted("void%d", k))});
-    g.children({text(kit::formatted("%s  —  no mark", how[k]))
-                    .font({.size = 10.0f,
-                           .color = SkColor4f{cols[k].fR, cols[k].fG,
-                                              cols[k].fB, 0.85f}})
-                    .left(at[k].fX - 72)
-                    .top(at[k].fY + 50)
-                    .width(168)
-                    .opacity(bind(&scribe)
-                                 .window(tVoid + (float)k * 0.16f,
-                                         tVoid + tVoidDur + (float)k * 0.16f)
-                                 .map(hump))
-                    .key(kit::formatted("voidlbl%d", k))});
+             .key(kit::formatted("void%d", k)),
+         text(how[(size_t)k])
+             .font({.size = 10.0f,
+                    .color =
+                        SkColor4f{cols[k].fR, cols[k].fG, cols[k].fB, 0.85f}})
+             .at({at[k].fX - 72, at[k].fY + 50})
+             .width(168)
+             .opacity(bind(&scribe)
+                          .window(tVoid + (float)k * 0.16f,
+                                  tVoid + tVoidDur + (float)k * 0.16f)
+                          .map(hump))
+             .key(kit::formatted("voidlbl%d", k))});
   }
   return g;
 }
@@ -55,10 +51,7 @@ auto ThunderFulu::sealBlock() -> Element {
   const float S = 104.0f, x = 474.0f, y = 786.0f;
   auto g =
       box()
-          .left(x)
-          .top(y)
-          .width(S)
-          .height(S)
+          .rect(SkRect::MakeXYWH(x, y, S, S))
           .rotate(-6.0f)
           .transformOrigin(0.5f, 0.5f)
           .opacity(bind(&scribe).window(tSeal, tSeal + 0.45f))
@@ -102,73 +95,54 @@ auto ThunderFulu::sealBlock() -> Element {
 
 auto ThunderFulu::plate() -> Element {
   auto g = box()
-               .left(kPL)
-               .top(kPT)
-               .width(kPW)
-               .height(kPH)
+               .rect(SkRect::MakeXYWH(kPL, kPT, kPW, kPH))
                .opacity(bind(&scribe).window(tPlate, tPlateEnd))
                .key("plate");
-  g.children({ironGround()});
-
   // the spine every component is strung on — a fu is a COLUMN
-  g.children({box()
-                  .inset(0)
-                  .shape(keyedShape(std::string_view("plate-spine"),
-                                    [] {
-                                      SkPathBuilder b;
-                                      b.moveTo(kCol, 28);
-                                      b.lineTo(kCol, kPH - 24);
-                                      return b.detach();
-                                    }))
-                  .fill(Fill::none())
-                  .stroke(PathFormat{
-                      .width = 0.8f,
-                      .strokeFill = Fill::color(hexColor(0x0e0d0c, 0.26f)),
-                      .dashIntervals = {2.0f, 9.0f}})
-                  .key("spine")});
-
-  // the four registers, ruled faintly in the margin the way a plate is
-  // laid out before it is written
-  struct Reg {
-    float y;
-    const char* label;
-  };
-  const Reg regs[5] = {{34, "FU TOU  head  · 3 hooks, 3 Pure Ones"},
-                       {184, "FU QIAO  aperture · one revolution"},
-                       {296, "FU SHEN  body · cloud-seal, 33 strokes"},
-                       {566, "FU DAN  gall · GANG, 10 = 10 stems"},
-                       {782, "FU JIAO  foot · one breath, 38 strokes"}};
-  for (int i = 0; i < 5; ++i) {
-    g.children({box()
-                    .left(18)
-                    .top(regs[i].y)
-                    .width(kPW - 36)
-                    .height(1)
-                    .shape(keyedShape(kPW - 36,
-                                      [w = kPW - 36] {
-                                        SkPathBuilder b;
-                                        b.moveTo(0, 0.5f);
-                                        b.lineTo(w, 0.5f);
-                                        return b.detach();
-                                      }))
-                    .fill(Fill::none())
-                    .stroke(PathFormat{
-                        .width = 0.7f,
-                        .strokeFill = Fill::color(hexColor(0x0e0d0c, 0.28f)),
-                        .dashIntervals = {1.5f, 6.0f}})
-                    .key(kit::formatted("reg%d", i))});
-    g.children({text(regs[i].label)
-                    .font({.size = 8.5f, .color = hexColor(0x0b0a09, 0.60f)})
-                    .left(20)
-                    .top(regs[i].y + 3)
-                    .width(360)
-                    .key(kit::formatted("reglbl%d", i))});
-  }
-
-  g.children({inkLayer()});
-  g.children({voidWriting()});
-  g.children({sealBlock()});
-  g.children({ironWash()});
+  // the five registers, ruled faintly in the margin the way a plate is
+  // laid out before it is written, each naming what is written on it
+  g.children(
+      {ironGround(),
+       box()
+           .inset(0)
+           .shape(keyedShape(std::string_view("plate-spine"),
+                             [] {
+                               SkPathBuilder b;
+                               b.moveTo(kCol, 28);
+                               b.lineTo(kCol, kPH - 24);
+                               return b.detach();
+                             }))
+           .fill(Fill::none())
+           .stroke(
+               PathFormat{.width = 0.8f,
+                          .strokeFill = Fill::color(hexColor(0x0e0d0c, 0.26f)),
+                          .dashIntervals = {2.0f, 9.0f}})
+           .key("spine"),
+       each(doc()["registers"].items(),
+            [this](const data::Json& n, size_t i) -> Element {
+              const float y = (float)n["y"].number();
+              return box().at({18, y}).width(kPW - 36).children(
+                  {box()
+                       .width(kPW - 36)
+                       .height(1)
+                       .shape(keyedShape(kPW - 36,
+                                         [w = kPW - 36] {
+                                           SkPathBuilder b;
+                                           b.moveTo(0, 0.5f);
+                                           b.lineTo(w, 0.5f);
+                                           return b.detach();
+                                         }))
+                       .fill(Fill::none())
+                       .stroke(PathFormat{
+                           .width = 0.7f,
+                           .strokeFill = Fill::color(hexColor(0x0e0d0c, 0.28f)),
+                           .dashIntervals = {1.5f, 6.0f}}),
+                   text(std::string(n["words"].text()))
+                       .styleClass("register")
+                       .at({2, 3})
+                       .width(360)});
+            }),
+       inkLayer(), voidWriting(), sealBlock(), ironWash()});
   return g;
 }
 
@@ -184,12 +158,7 @@ auto ThunderFulu::tread() -> Element {
   // "roll up fog" are lost against its own lit top edge.
   static const float kOffX[9] = {-56, 48, 48, -56, 48, -58, 50, 54, 52};
   static const float kOffY[9] = {26, 26, 26, 26, 26, -104, 50, 26, 34};
-  auto g = box()
-               .left(x0)
-               .top(y0)
-               .width(W)
-               .height(H + 130)
-               .key("tread");
+  auto g = box().rect(SkRect::MakeXYWH(x0, y0, W, H + 130)).key("tread");
 
   auto S = [&](int i) { return SkPoint{kDipper[i].x * W, kDipper[i].y * W}; };
 
@@ -221,66 +190,45 @@ auto ThunderFulu::tread() -> Element {
                   .opacity(bind(&scribe).window(tStars - 0.4f, tStars + 0.5f))
                   .key("walkpath")});
 
-  // the nine stations
-  for (int i = 0; i < 9; ++i) {
-    const SkPoint p = S(i);
+  // the nine stations. Two dodge tables sit here because they are facts
+  // about where the WALK falls, not about the stars: 天璇 is reached from
+  // straight overhead, so its ritual name hangs to the star's right where
+  // the Dubhe–Merak leg has already stopped; and at 天樞, 開陽 and 左輔 the
+  // walk would cross "Dubhe", "Mizar" and "Alcor" at their x-height, so
+  // those three names step aside. 左輔's step is 30 and no more — the
+  // margin column ends at x = 1000 and a larger one would push "Alcor"
+  // over its rules. Every other entry is 0 and stays under its star.
+  static const float kRitualDodge[9] = {0, 54, 0, 0, 0, 0, 0, 0, 0};
+  static const float kNameDodge[9] = {-34, 0, 0, 0, 0, 30, 0, -30, 0};
+  g.children({each(kDipper, [&](const Star& star, size_t i) -> Element {
+    const SkPoint p = S((int)i);
     const bool invisible = i == 8;
     const float t = tStars + (float)i * 0.16f;
-    auto st = box()
-                  .left(p.fX - 13)
-                  .top(p.fY - 13)
-                  .width(26)
-                  .height(26)
-                  .opacity(bind(&scribe).window(t, t + 0.45f))
-                  .key(kit::formatted("star%d", i));
-    st.children(
-        {box()
-             .inset(0)
-             .shape(shapes::star(6, 0.30f))
-             .fill(invisible ? Fill::none()
-                             : Fill::color(hexColor(0xe4c98a, 0.92f)))
-             .stroke(PathFormat{
-                 .width = 1.0f,
-                 .strokeFill =
-                     Fill::color(hexColor(0xe4c98a, invisible ? 0.7f : 0.4f)),
-                 .dashIntervals = invisible ? std::vector<SkScalar>{2.0f, 2.6f}
-                                            : std::vector<SkScalar>{}})});
-    g.children({std::move(st)});
-    // 天璇 is the one station the walk reaches from straight overhead — the
-    // Dubhe–Merak leg is 8 px of run over 169 of rise — so at the common
-    // 44 px left of the star the tread comes straight down through the
-    // ritual name. It hangs to the star's right instead, where that leg
-    // has already stopped. Every other ritual name clears its own
-    // segments, which is why the rest of the table is 0.
-    static const float kRitualDodge[9] = {0, 54, 0, 0, 0, 0, 0, 0, 0};
-    g.children({text(kit::formatted("%d %s", i + 1, kDipper[i].ritual))
-                    .font({.size = 9.5f, .color = hexColor(0xa48c5c, 0.9f)})
-                    .left(p.fX - 44 + kRitualDodge[i])
-                    .top(p.fY - 34)
-                    .width(140)
-                    .opacity(bind(&scribe).window(t, t + 0.45f))
-                    .key(kit::formatted("starlbl%d", i))});
-    // THE BAYER NAME DODGES THE WALK. It hangs 12 px under its own star,
-    // which is clear for the stations the tread leaves sideways and not
-    // for the three it leaves downward — at 天樞, 開陽 and 左輔 the walk
-    // would cross "Dubhe", "Mizar" and "Alcor" at their x-height. A plate
-    // sets the name clear of the line, not on it, so those three carry a
-    // dodge: left at 天樞 and 左輔, right at 開陽, where the segment falls
-    // the other way. The other six are 0 and stay under their star.
-    // 左輔's dodge is 30 and no more: the margin column ends at x = 1000
-    // and "Alcor" is only 38 px wide, so a larger left dodge would push it
-    // over the margin's own rules.
-    static const float kNameDodge[9] = {-34, 0, 0, 0, 0, 30, 0, -30, 0};
-    g.children({text(kDipper[i].name)
-                    .font({.face = faceItalic,
-                           .size = 9.0f,
-                           .color = hexColor(0x6f6047, 0.85f)})
-                    .left(p.fX - 22 + kNameDodge[i])
-                    .top(p.fY + 12)
-                    .width(140)
-                    .opacity(bind(&scribe).window(t, t + 0.45f))
-                    .key(kit::formatted("starnm%d", i))});
-  }
+    return box()
+        .rect(SkRect::MakeXYWH(p.fX, p.fY, 0, 0))
+        .opacity(bind(&scribe).window(t, t + 0.45f))
+        .key(kit::formatted("star%d", (int)i))
+        .children({box()
+                       .rect(SkRect::MakeXYWH(-13, -13, 26, 26))
+                       .shape(shapes::star(6, 0.30f))
+                       .fill(invisible ? Fill::none()
+                                       : Fill::color(hexColor(0xe4c98a, 0.92f)))
+                       .stroke(PathFormat{
+                           .width = 1.0f,
+                           .strokeFill = Fill::color(
+                               hexColor(0xe4c98a, invisible ? 0.7f : 0.4f)),
+                           .dashIntervals =
+                               invisible ? std::vector<SkScalar>{2.0f, 2.6f}
+                                         : std::vector<SkScalar>{}}),
+                   text(kit::formatted("%d %s", (int)i + 1, star.ritual))
+                       .styleClass("station")
+                       .at({-44 + kRitualDodge[i], -34})
+                       .width(140),
+                   text(star.name)
+                       .styleClass("bayer")
+                       .at({-22 + kNameDodge[i], 12})
+                       .width(140)});
+  })});
 
   // The eleven other plates. Nine stand on stations; the last two bleed
   // off the sheet, one walking off the right edge and one off the top,
@@ -297,10 +245,7 @@ auto ThunderFulu::tread() -> Element {
     const float pw = 52.0f, ph = pw * 5.0f / 3.0f;
     const float t = tStars + (float)i * 0.15f + 0.2f;
     auto mp = box()
-                  .left(at.fX - pw * 0.5f)
-                  .top(at.fY)
-                  .width(pw)
-                  .height(ph)
+                  .rect(SkRect::MakeXYWH(at.fX - pw * 0.5f, at.fY, pw, ph))
                   .rotate(((i * 37) % 11 - 5) * 0.62f)
                   .transformOrigin(0.5f, 0.0f)
                   .opacity(bind(&scribe).window(t, t + 0.5f))
@@ -348,20 +293,15 @@ auto ThunderFulu::tread() -> Element {
                      .fill(Fill::none())
                      .stroke(brush::presets::taper(3.6f, 1.4f,
                                                    Fill::color(kCinnaWet)))});
-    if (i < 9) {
+    if (i < 9)
       mp.children({text(kOthers[i].pinyin)
-                       .font({.size = 8.0f, .color = hexColor(0xa89264, 0.95f)})
-                       .left(-16)
-                       .top(ph + 10)
+                       .styleClass("miniName")
+                       .at({-16, ph + 10})
+                       .width(124),
+                   text(kOthers[i].gloss)
+                       .styleClass("miniGloss")
+                       .at({-16, ph + 22})
                        .width(124)});
-      mp.children({text(kOthers[i].gloss)
-                       .font({.face = faceItalic,
-                              .size = 8.0f,
-                              .color = hexColor(0x776953, 0.9f)})
-                       .left(-16)
-                       .top(ph + 22)
-                       .width(124)});
-    }
     g.children({std::move(mp)});
   }
   return g;
@@ -369,144 +309,96 @@ auto ThunderFulu::tread() -> Element {
 
 auto ThunderFulu::furniture() -> Element {
   auto g = box().inset(0).key("furn");
-  // title block
-  g.children({text("WU LEI HAO LING · A THUNDER-RITE COMMAND TALISMAN, "
-                   "WRITTEN")
-                  .font({.face = faceDisplay,
-                         .size = 22.0f,
-                         .color = kChalk,
-                         .track = 2.6f})
-                  .left(76)
-                  .top(34)
-                  .width(1400)});
-  g.children({text("DAOFA HUIYUAN DZ 1220, juan 46 · iron plate, five "
-                   "cun by three · written in cinnabar · stroke "
-                   "medians from makemeahanzi, classes recovered from "
-                   "geometry")
-                  .font({.size = 10.5f, .color = kGoldDim})
-                  .left(76)
-                  .top(62)
-                  .width(1500)});
+  // the title block
+  g.children({box().column().at({76, 34}).width(1500).gap(6).children(
+      {text(std::string(doc()["title"].text()))
+           .font({.face = faceDisplay,
+                  .size = 22.0f,
+                  .color = kChalk,
+                  .track = 2.6f}),
+       text(std::string(doc()["subtitle"].text()))
+           .font({.size = 10.5f, .color = kGoldDim})})});
   // registration marks at the four corners of the sheet
-  for (int i = 0; i < 4; ++i) {
-    const float rx = ((unsigned)i & 1u) ? kW - 46 : 46;
-    const float ry = ((unsigned)i & 2u) ? kH - 46 : 46;
-    g.children({box()
-                    .left(rx - 11)
-                    .top(ry - 11)
-                    .width(22)
-                    .height(22)
-                    .shape(keyedShape(std::string_view("register-mark"),
-                                      [](SkSize s) {
-                                        SkPathBuilder b;
-                                        b.moveTo(s.width() * 0.5f, 0);
-                                        b.lineTo(s.width() * 0.5f, s.height());
-                                        b.moveTo(0, s.height() * 0.5f);
-                                        b.lineTo(s.width(), s.height() * 0.5f);
-                                        b.addCircle(s.width() * 0.5f,
-                                                    s.height() * 0.5f,
-                                                    s.width() * 0.30f);
-                                        return b.detach();
-                                      }))
-                    .fill(Fill::none())
-                    .stroke(PathFormat{
-                        .width = 0.8f,
-                        .strokeFill = Fill::color(hexColor(0xb2914f, 0.42f))})
-                    .key(kit::formatted("reg%d", i + 10))});
-  }
-  // tick ladder down the plate's left margin — cun and fen
-  g.children({box()
-                  .left(kPL - 26)
-                  .top(kPT)
-                  .width(20)
-                  .height(kPH)
-                  .shape(keyedShape(std::string_view("tick-ladder"),
+  const std::array<SkPoint, 4> corners{
+      {{46, 46}, {kW - 46, 46}, {46, kH - 46}, {kW - 46, kH - 46}}};
+  // the tick ladder down the plate's left margin — cun and fen
+  g.children(
+      {each(corners,
+            [](SkPoint at, size_t i) -> Element {
+              return box()
+                  .rect(SkRect::MakeXYWH(at.fX - 11, at.fY - 11, 22, 22))
+                  .shape(keyedShape(std::string_view("register-mark"),
                                     [](SkSize s) {
                                       SkPathBuilder b;
-                                      for (int i = 0; i <= 50; ++i) {
-                                        const float y =
-                                            s.height() * (float)i / 50.0f;
-                                        const float len =
-                                            (i % 10 == 0)
-                                                ? 17.0f
-                                                : (i % 5 == 0 ? 10.0f : 5.0f);
-                                        b.moveTo(s.width(), y);
-                                        b.lineTo(s.width() - len, y);
-                                      }
+                                      b.moveTo(s.width() * 0.5f, 0);
+                                      b.lineTo(s.width() * 0.5f, s.height());
+                                      b.moveTo(0, s.height() * 0.5f);
+                                      b.lineTo(s.width(), s.height() * 0.5f);
+                                      b.addCircle(s.width() * 0.5f,
+                                                  s.height() * 0.5f,
+                                                  s.width() * 0.30f);
                                       return b.detach();
                                     }))
                   .fill(Fill::none())
                   .stroke(PathFormat{
-                      .width = 0.9f,
-                      .strokeFill = Fill::color(hexColor(0xb2914f, 0.40f))})
-                  .key("ladder")});
-  for (int i = 0; i <= 5; ++i)
-    g.children({text(kit::formatted("%d", i))
-                    .font({.size = 8.5f, .color = hexColor(0x8b7644)})
-                    .left(kPL - 46)
-                    .top(kPT + kPH * (float)i / 5.0f - 5)
-                    .width(16)
-                    .key(kit::formatted("ladlbl%d", i))});
-  g.children({text("CUN")
-                  .font({.size = 8.0f, .color = hexColor(0x8b7644)})
-                  .left(kPL - 52)
-                  .top(kPT + kPH + 8)
+                      .width = 0.8f,
+                      .strokeFill = Fill::color(hexColor(0xb2914f, 0.42f))})
+                  .key(kit::formatted("reg%d", (int)i + 10));
+            }),
+       box()
+           .rect(SkRect::MakeXYWH(kPL - 26, kPT, 20, kPH))
+           .shape(keyedShape(std::string_view("tick-ladder"),
+                             [](SkSize s) {
+                               SkPathBuilder b;
+                               for (int i = 0; i <= 50; ++i) {
+                                 const float y = s.height() * (float)i / 50.0f;
+                                 const float len =
+                                     (i % 10 == 0)
+                                         ? 17.0f
+                                         : (i % 5 == 0 ? 10.0f : 5.0f);
+                                 b.moveTo(s.width(), y);
+                                 b.lineTo(s.width() - len, y);
+                               }
+                               return b.detach();
+                             }))
+           .fill(Fill::none())
+           .stroke(
+               PathFormat{.width = 0.9f,
+                          .strokeFill = Fill::color(hexColor(0xb2914f, 0.40f))})
+           .key("ladder")});
+  const std::array<int, 6> cun{0, 1, 2, 3, 4, 5};
+  g.children({each(cun,
+                   [](int i) -> Element {
+                     return text(kit::formatted("%d", i))
+                         .styleClass("ladder")
+                         .at({kPL - 46, kPT + kPH * (float)i / 5.0f - 5})
+                         .width(16);
+                   }),
+              text("CUN")
+                  .styleClass("ladder")
+                  .font({.size = 8.0f})
+                  .at({kPL - 52, kPT + kPH + 8})
                   .width(40)});
-  // colophon
-  g.children({text("BU GANG TA DOU · THE TREAD, ON THE REAL DIPPER")
-                  .styleClass("heading")
-                  .font({.size = 12.0f})
-                  .left(1046)
-                  .top(706)
-                  .width(830)});
+  // the colophon over the tread
+  const data::Json& colophon = doc()["colophon"];
   g.children({box()
-                  .left(1046)
-                  .top(724)
+                  .column()
+                  .at({1046, 706})
                   .width(830)
-                  .height(3)
-                  .shape(keyedShape(std::string_view("rule-830"),
-                                    [] {
-                                      SkPathBuilder b;
-                                      b.moveTo(0, 1.5f);
-                                      b.lineTo(830, 1.5f);
-                                      return b.detach();
-                                    }))
-                  .fill(Fill::none())
-                  .stroke(lines::rails(
-                      {{.across = 0.0f,
-                        .width = 1.3f,
-                        .fill = Fill::color(hexColor(0xb2914f, 0.48f))},
-                       {.across = -3.4f,
-                        .width = 0.6f,
-                        .fill = Fill::color(hexColor(0xb2914f, 0.26f)),
-                        .dash = {1.3f, 4.2f}}}))});
-  g.children(
-      {text("Nine stations: J2000 right ascension and declination, "
-            "gnomonically projected about the asterism's own "
-            "centroid. Yu bu is \"three steps, nine prints\".")
-           .font(
-               {.face = faceItalic, .size = 10.0f, .color = hexColor(0x8d7f60)})
-           .left(1046)
-           .top(734)
-           .width(830)});
-  g.children(
-      {text("Zuo Fu (Alcor) lies 0.008 of the asterism's span from "
-            "Kai Yang (Mizar) on the real sky — every bu "
-            "gang plate separates the pair by hand, and so does this "
-            "one. You Bi is invisible: its station is doctrine, and "
-            "it is drawn open.")
-           .font(
-               {.face = faceItalic, .size = 10.0f, .color = hexColor(0x6d6047)})
-           .left(1046)
-           .top(752)
-           .width(830)});
-  g.children({text("Never invert the brush and tap for a pregnant woman or "
-                   "a patient with eye disease. · SigilCompose study "
-                   "· no CJK font is loaded: every Han glyph here is "
-                   "stroke geometry")
-                  .font({.size = 9.5f, .color = hexColor(0x5d5341)})
-                  .left(76)
-                  .top(kH - 34)
+                  .gap(6)
+                  .children({text(std::string(colophon["heading"].text()))
+                                 .styleClass("heading")
+                                 .font({.size = 12.0f}),
+                             rail(830),
+                             box().column().width(830).gap(6).children(
+                                 {each(colophon["lines"].items(),
+                                       [](const data::Json& n) -> Element {
+                                         return text(std::string(n.text()))
+                                             .styleClass("colophon");
+                                       })})}),
+              text(std::string(doc()["footer"].text()))
+                  .styleClass("note")
+                  .at({76, kH - 34})
                   .width(1600)});
   return g;
 }

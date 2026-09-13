@@ -20,6 +20,7 @@
 #include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
+#include <sigildata/decode/Json.h>
 #include <sigildata/table/Table.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
@@ -32,7 +33,9 @@
 #include <sigilmeasure/check/Check.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Rows.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/layout/StyleSheet.h>
@@ -43,6 +46,7 @@
 #include <array>
 #include <charconv>
 #include <cmath>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -68,6 +72,25 @@ namespace ch = choreograph;
 
 namespace thunder_fulu {}
 using namespace thunder_fulu;
+namespace thunder_fulu {
+
+/** THE WORDS OF A LIST, one per entry — a table's row of cells, or a
+ *  paragraph's run of lines. */
+inline std::vector<Utf8> wordsOf(const data::Json& node) {
+  std::vector<Utf8> out;
+  for (const data::Json& n : node.items())
+    out.emplace_back(std::string(n.text()));
+  return out;
+}
+
+/** THE WORDS OF A LINE, whether the document wrote it bare or as a record
+ *  with a class of its own. */
+inline std::string spoken(const data::Json& n) {
+  return std::string(n.kind() == data::Json::Kind::Record ? n["words"].text()
+                                                          : n.text());
+}
+
+}  // namespace thunder_fulu
 namespace thunder_fulu {
 
 // ---------------------------------------------------------------------------
@@ -455,20 +478,6 @@ constexpr float tFoot = 20.00f, tFootEach = 0.034f;  // 38 strokes → 1.292 s
 constexpr float tSeal = 21.45f;
 constexpr float tStars = 13.10f;
 constexpr float kLoop = 27.0f;
-
-// the 踏符頭 chant: one line said silently per hook, as the hook goes down
-inline const char* kHeadChant[3] = {
-    "1st stroke  the world moves",
-    "2nd stroke  the patriarch's sword",
-    "3rd stroke  malign gods, a thousand li hence",
-};
-// the six phrases sung WHILE 罡 is drawn — the chant must finish exactly as
-// the tenth stroke lands
-inline const char* kGallChant[6] = {
-    "open the gate of heaven", "kill the ghost-road",
-    "open the earth-prison",   "bar the road of men",
-    "slay the ghost-troops",   "break the ghost's belly",
-};
 
 }  // namespace thunder_fulu
 

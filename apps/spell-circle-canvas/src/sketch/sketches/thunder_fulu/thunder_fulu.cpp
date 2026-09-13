@@ -14,20 +14,40 @@ auto ThunderFulu::describe(sketch::SketchContext&) -> Element {
            {.face = faceDisplay, .size = 11.5f, .color = kGold, .track = 1.1f})
       .set("gloss",
            {.face = faceItalic, .size = 10.5f, .color = hexColor(0x7d6f52)})
-      .set("chant", {.face = faceItalic, .size = 11.0f, .color = kChalk});
-  auto root = box().inset(0).font({.face = faceMono}).styleSheet(classes);
-  root.children({plate()});
-  root.children({tread()});
-  root.children({marginColumn()});
-  root.children({chantPanel()});
-  root.children({tempoPanel()});
-  root.children({consolePanel()});
-  root.children({furniture()});
-  return root;
+      .set("chant", {.face = faceItalic, .size = 11.0f, .color = kChalk})
+      .set("lands", {.color = hexColor(0xe07a52)})
+      .set("lawMark", {.size = 8.5f, .color = hexColor(0xa89778)})
+      .set("plotRule", {.color = hexColor(0x8b7f66, 0.5f)})
+      .set("plotTrace", {.color = hexColor(0xe6d7ae, 0.95f)})
+      .set("ladder", {.size = 8.5f, .color = hexColor(0x8b7644)})
+      .set("station", {.size = 9.5f, .color = hexColor(0xa48c5c, 0.9f)})
+      .set("bayer", {.face = faceItalic,
+                     .size = 9.0f,
+                     .color = hexColor(0x6f6047, 0.85f)})
+      .set("miniName", {.size = 8.0f, .color = hexColor(0xa89264, 0.95f)})
+      .set(
+          "miniGloss",
+          {.face = faceItalic, .size = 8.0f, .color = hexColor(0x776953, 0.9f)})
+      .set("register", {.size = 8.5f, .color = hexColor(0x0b0a09, 0.60f)})
+      .set("colophon",
+           {.face = faceItalic, .size = 10.0f, .color = hexColor(0x8d7f60)})
+      .set("note", {.size = 9.5f, .color = hexColor(0x5d5341)});
+  return box()
+      .inset(0)
+      .font({.face = faceMono})
+      .styleSheet(classes)
+      .children({plate(), tread(), marginColumn(), chantPanel(), tempoPanel(),
+                 consolePanel(), furniture()});
+}
+
+auto ThunderFulu::doc() const -> const data::Json& {
+  static const data::Json none;
+  return words ? *words : none;
 }
 
 auto ThunderFulu::setup(sketch::SketchContext& ctx) -> void {
   font = readFont(ctx);
+  words = ctx.assets.json(ctx.local("data/content.json"));
 
   // The single frame this sketch is photographed at, chosen on the 27 s
   // score: everything through the 19.65 s tap is complete and the foot is

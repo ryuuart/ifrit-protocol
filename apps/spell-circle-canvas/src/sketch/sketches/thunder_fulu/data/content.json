@@ -1,0 +1,147 @@
+{
+  "title": "WU LEI HAO LING · A THUNDER-RITE COMMAND TALISMAN, WRITTEN",
+  "subtitle": "DAOFA HUIYUAN DZ 1220, juan 46 · iron plate, five cun by three · written in cinnabar · stroke medians from makemeahanzi, classes recovered from geometry",
+  "footer": "Never invert the brush and tap for a pregnant woman or a patient with eye disease. · SigilCompose study · no CJK font is loaded: every Han glyph here is stroke geometry",
+  "registers": [
+    {
+      "y": 34,
+      "words": "FU TOU  head  · 3 hooks, 3 Pure Ones"
+    },
+    {
+      "y": 184,
+      "words": "FU QIAO  aperture · one revolution"
+    },
+    {
+      "y": 296,
+      "words": "FU SHEN  body · cloud-seal, 33 strokes"
+    },
+    {
+      "y": 566,
+      "words": "FU DAN  gall · GANG, 10 = 10 stems"
+    },
+    {
+      "y": 782,
+      "words": "FU JIAO  foot · one breath, 38 strokes"
+    }
+  ],
+  "void": [
+    "left eye",
+    "right eye",
+    "tongue"
+  ],
+  "chant": {
+    "heading": "ZHAN HONG FU · SEVER THE RAINBOW",
+    "lines": [
+      "SHANG DI YOU LING      The High Emperor has commanded:",
+      "YAO NI MIE XING        demon-rainbow, annihilate its form.",
+      "FENG DAO CUN ZHAN      The wind-blade cuts it inch by inch.",
+      "QING KE LIU XING       In an instant, a shooting star.",
+      "JI JI RU LU LING       Swiftly, swiftly, per the statutes."
+    ],
+    "gloss": "“急急如律令” is the Han imperial-document closing formula, borrowed whole. It ends almost every fu, and it goes at the FOOT."
+  },
+  "tempo": {
+    "heading": "YI QI LI DUAN · CUT OFF IN ONE BREATH",
+    "rows": [
+      [
+        "FU TOU",
+        "head",
+        "3 str",
+        "1.000 s/stroke",
+        "tap fu tou"
+      ],
+      [
+        "FU QIAO",
+        "aperture",
+        "1 rev",
+        "1.150 s",
+        "ends not meeting"
+      ],
+      [
+        "FU SHEN",
+        "body",
+        "33 str",
+        "0.240 s/stroke",
+        "cloud-seal"
+      ],
+      [
+        "FU DAN",
+        "gall",
+        "10 str",
+        "0.360 s/stroke",
+        "chant lands on 10"
+      ],
+      [
+        "FU JIAO",
+        "foot",
+        "38 str",
+        "0.034 s/stroke",
+        "NO LIFT, FLYING WHITE"
+      ]
+    ],
+    "gloss": "the foot is 7.1x the body — doctrine, measured: \"the foot is the last step; total concentration, cut off in a single breath, no slowing or dragging.\"  A fu written at one tempo is not a fu."
+  },
+  "margin": {
+    "head": {
+      "heading": "TA FU TOU · TREADING THE HEAD",
+      "lines": [
+        "1st stroke  the world moves",
+        "2nd stroke  the patriarch's sword",
+        "3rd stroke  malign gods, a thousand li hence"
+      ]
+    },
+    "law": {
+      "heading": "QI / XING / SHOU · w(s) OVER ARC LENGTH",
+      "marks": [
+        {
+          "words": "ni feng 1.77",
+          "s": 0.0
+        },
+        {
+          "words": "belly 0.73",
+          "s": 0.28
+        },
+        {
+          "words": "dun 1.42",
+          "s": 0.88
+        }
+      ],
+      "note": "s = distance / fullLength, NOT PathSample::fraction"
+    },
+    "classes": {
+      "heading": "SIX CLASSES · w0, RECOVERED"
+    },
+    "gall": {
+      "heading": "SUNG WHILE GANG IS DRAWN",
+      "lines": [
+        {
+          "words": "open the gate of heaven"
+        },
+        {
+          "words": "kill the ghost-road"
+        },
+        {
+          "words": "open the earth-prison"
+        },
+        {
+          "words": "bar the road of men"
+        },
+        {
+          "words": "slay the ghost-troops"
+        },
+        {
+          "words": "break the ghost's belly",
+          "style": "chant lands"
+        }
+      ],
+      "note": "the sixth phrase lands on the tenth stroke"
+    }
+  },
+  "colophon": {
+    "heading": "BU GANG TA DOU · THE TREAD, ON THE REAL DIPPER",
+    "lines": [
+      "Nine stations: J2000 right ascension and declination, gnomonically projected about the asterism's own centroid. Yu bu is \"three steps, nine prints\".",
+      "Zuo Fu (Alcor) lies 0.008 of the asterism's span from Kai Yang (Mizar) on the real sky — every bu gang plate separates the pair by hand, and so does this one. You Bi is invisible: its station is doctrine, and it is drawn open."
+    ]
+  }
+}
