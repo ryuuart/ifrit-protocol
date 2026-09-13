@@ -73,10 +73,18 @@ constexpr SkColor4f kBody{0.84f, 0.85f, 0.88f, 1};
 constexpr SkColor4f kChipFill{0.86f, 0.52f, 0.34f, 1};
 constexpr SkColor4f kBandTint{0.16f, 0.20f, 0.24f, 1};
 
-weave::TextStyle body() {
-  const sk_sp<SkTypeface> face = weave::ports::face(
-      {"Helvetica Neue", "Helvetica", "Arial", "sans-serif"});
-  return weave::textStyle({.face = face, .size = 12, .color = kBody});
+/** THE VOICE ALL SIX CELLS ARE SET IN, stated once over the run of them:
+ *  the sheet is about where a line breaks, so nothing but where the room
+ *  went differs between the cells. The tracking is stated because the
+ *  page's running register tracks its remarks and a passage is not
+ *  tracked, and the face because a passage here is not set in the sheet's
+ *  own text face. */
+weave::Type bodyVoice() {
+  return {.face = weave::ports::face(
+              {"Helvetica Neue", "Helvetica", "Arial", "sans-serif"}),
+          .size = 12,
+          .color = kBody,
+          .track = 0};
 }
 
 /** The paragraph the reserve cells all set, so the only difference
@@ -94,7 +102,7 @@ Element cell(const char* call, const char* note, Element body) {
 
 /** One passage with an inline slot in the middle of it. */
 Element slotted(SkSize size, float drop, SkColor4f fill) {
-  return text(weave::rich(body())
+  return text(weave::rich()
                   .add(u8"A reserved box is one unbreakable word, so a "
                        u8"line never breaks inside ")
                   .slot("chip", size, drop)
@@ -107,7 +115,7 @@ Element slotted(SkSize size, float drop, SkColor4f fill) {
 /** The same passage under one reserved band, on a tinted plate so the
  *  line pitch is visible as a pitch. */
 Element banded(weave::ReservedBand band) {
-  return text(toUtf8(kPassage), body())
+  return text(toUtf8(kPassage))
       .width(Dimension(kCell - 24))
       .fill(Fill::color(kBandTint))
       .reserve(band);
@@ -165,7 +173,8 @@ struct RichSlotReserve final : sketch::Sketch {
                             "by the same amount and the type does not move "
                             "inside it",
                             banded({.after = kBand}))},
-             .gap = 10})));
+             .gap = 10})
+            .font(bodyVoice())));
   }
 };
 
