@@ -109,8 +109,8 @@ Element column() {
              u8"「組版」「行送り」の禁則は、行頭に句読点を置かない。"
              u8"約物の空きは詰め、行末には句点をぶら下げる。",
              body())
-      .width(Dimension(kCell - 24))
-      .height(Dimension(kPicture - 24))
+      .width(kCell - 24)
+      .height(kPicture - 24)
       .block({.writingMode = weave::WritingMode::kVerticalRL});
 }
 

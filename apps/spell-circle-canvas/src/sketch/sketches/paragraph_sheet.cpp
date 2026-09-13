@@ -180,10 +180,10 @@ Element leadingSpecimen(const char* caption, weave::Leading leading) {
                    text(kFourWays)
                        .styleClass("body")
                        .font({.size = 11.5f})
-                       .width(Dimension(kMeasure * 0.48f))
+                       .width(kMeasure * 0.48f)
                        .paragraphs({style}))
       .styleSheet(callClasses())
-      .width(Dimension(kMeasure * 0.48f));
+      .width(kMeasure * 0.48f);
 }
 
 }  // namespace sheet
@@ -211,18 +211,18 @@ struct ParagraphSheet final : sketch::Sketch {
                     // baseline off the rhythm is a thing to see rather
                     // than to argue about.
                     box()
-                        .height(Dimension(s::kGrid * 4))
-                        .width(Dimension(s::kMeasure * 0.48f))
+                        .height(s::kGrid * 4)
+                        .width(s::kMeasure * 0.48f)
                         .children({gridRules(),
                                    text(s::kFourWays)
                                        .styleClass("body")
                                        .font({.size = 11.5f})
                                        .absolute()
                                        .inset(0, 0, 0, 0)
-                                       .width(Dimension(s::kMeasure * 0.48f))
+                                       .width(s::kMeasure * 0.48f)
                                        .paragraphs({grid})}))
               .styleSheet(s::callClasses())
-              .width(Dimension(s::kMeasure * 0.48f));
+              .width(s::kMeasure * 0.48f);
     }
     return s::panel(
         "LEADING",
@@ -253,10 +253,10 @@ struct ParagraphSheet final : sketch::Sketch {
       stackOfRules.children(
           {box()
                .absolute()
-               .left(Dimension(0.0f))
-               .top(Dimension(s::kGrid * static_cast<float>(line + 1)))
-               .width(Dimension(s::kMeasure * 0.48f))
-               .height(Dimension(1.0f))
+               .left(0.0f)
+               .top(s::kGrid * static_cast<float>(line + 1))
+               .width(s::kMeasure * 0.48f)
+               .height(1.0f)
                .fill(Fill::color(s::kRule))});
     return stackOfRules;
   }
@@ -284,7 +284,7 @@ struct ParagraphSheet final : sketch::Sketch {
              u8"The block above claimed six and the one below claimed "
              u8"twenty-four, so twenty-four stands.")
             .styleClass("body")
-            .width(Dimension(s::kMeasure))
+            .width(s::kMeasure)
             .paragraphs({first, second, third}));
   }
 
@@ -321,7 +321,7 @@ struct ParagraphSheet final : sketch::Sketch {
              u8"A last-line indent pulls the closing line in, and it is "
              u8"the fit that decides which line that is.")
             .styleClass("body")
-            .width(Dimension(s::kMeasure))
+            .width(s::kMeasure)
             .paragraphs({firstLine, hanging, bothEnds, lastLine}));
   }
 
@@ -347,7 +347,7 @@ struct ParagraphSheet final : sketch::Sketch {
                        text(passage)
                            .styleClass("body")
                            .font({.size = 11.0f})
-                           .width(Dimension(s::kMeasure * 0.31f))
+                           .width(s::kMeasure * 0.31f)
                            .block({.alignment = weave::TextAlignment::kJustify})
                            .block({.lineBreak =
                                        weave::LineBreakStrategy::kKnuthPlass})
@@ -356,7 +356,7 @@ struct ParagraphSheet final : sketch::Sketch {
                                            .patterns = &s::hyphenator()}})
                            .block({.justification = spec}))
           .styleSheet(s::callClasses())
-          .width(Dimension(s::kMeasure * 0.31f));
+          .width(s::kMeasure * 0.31f);
     };
 
     return s::panel(
@@ -390,7 +390,7 @@ struct ParagraphSheet final : sketch::Sketch {
              u8"verso\tfold\tcodex\t3.5\tIV")
             .styleClass("figures")
             .font({.size = 11.5f})
-            .width(Dimension(520.0f))
+            .width(520.0f)
             .block({.tabStops = stops}));
   }
 
@@ -417,8 +417,8 @@ struct ParagraphSheet final : sketch::Sketch {
              u8"になる。")
             .styleClass("body")
             .font({.size = 15.0f})
-            .width(Dimension(210.0f))
-            .height(Dimension(250.0f))
+            .width(210.0f)
+            .height(250.0f)
             .block({.writingMode = weave::WritingMode::kVerticalRL})
             .paragraphs({heading, verse}));
   }

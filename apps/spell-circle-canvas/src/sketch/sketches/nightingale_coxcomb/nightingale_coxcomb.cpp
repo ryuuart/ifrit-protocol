@@ -377,8 +377,8 @@ struct NightingaleCoxcomb : sketch::Sketch {
                   float delayMs, const std::string& key) {
     return text(std::u8string(content.begin(), content.end()), style)
         .key(key)
-        .width(Dimension(2 * radius))
-        .height(Dimension(2 * radius))
+        .width(2 * radius)
+        .height(2 * radius)
         .centerAt(centre)
         .onPath(TextPath{.path = rimBaseline(),
                          .at = bearingDeg / 360.0f,
@@ -397,8 +397,8 @@ struct NightingaleCoxcomb : sketch::Sketch {
     const float box = radius + half;
     return text(std::u8string(content.begin(), content.end()), style)
         .key(key)
-        .width(Dimension(2 * box))
-        .height(Dimension(2 * box))
+        .width(2 * box)
+        .height(2 * box)
         .centerAt(centre)
         .onPath(
             TextPath{.path = spokeBaseline(bearingDeg, (radius - half) / box,

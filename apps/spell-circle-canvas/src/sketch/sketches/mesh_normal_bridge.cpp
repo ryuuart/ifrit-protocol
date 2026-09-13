@@ -204,7 +204,7 @@ struct MeshNormalBridge final : sketch::Sketch {
                      text(note)
                          .font({.size = 10.5f})
                          .ink(kDim)
-                         .width(Dimension(300))});
+                         .width(300)});
     };
     ctx.composer.render(
         // Every line is set in the bright ink unless it says otherwise;

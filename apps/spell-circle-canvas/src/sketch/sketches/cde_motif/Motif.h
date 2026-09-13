@@ -516,7 +516,7 @@ inline Element pushButton(std::string_view t, bool armed = false,
                       .padding(2)
                       .alignItems(Align::Center)
                       .justify(Justify::Center)
-                      .height(Dimension(25))
+                      .height(25)
                       .children({box()
                                      .padding(6, 2)
                                      .alignItems(Align::Center)
@@ -542,22 +542,22 @@ inline Element textField(std::string_view t, float w, bool caret = false,
                       .children({label(t)});
   if (caret && caretOut)
     inner.children({box()
-                        .width(Dimension(1))
-                        .height(Dimension(13))
+                        .width(1)
+                        .height(13)
                         .fill(s.fg)
                         .opacity(motion::bind(caretOut).quantize(2))});
   Element field = surface(s)
                       .overlay(bevel(2, true, false))
                       .padding(2)
-                      .height(Dimension(24))
+                      .height(24)
                       .row()
                       .alignItems(Align::Center)
                       .children({std::move(inner)});
-  if (!caret) return field.width(Dimension(w));
+  if (!caret) return field.width(w);
   // The focused widget carries XmeDrawHighlight's ring OUTSIDE its
   // shadow: four plain rectangles of highlightThickness, no mitre.
   return box()
-      .width(Dimension(w))
+      .width(w)
       .padding(2)
       .overlay(highlight(2))
       .children({std::move(field).grow(1)});

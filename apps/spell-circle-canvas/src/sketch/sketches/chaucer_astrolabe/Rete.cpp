@@ -155,8 +155,8 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
                       .size = size,
                       .color = hexColor(0x33240c, 0.88f),
                       .track = size * 0.055f})
-               .width(Dimension(2 * kEclR * kR))
-               .height(Dimension(2 * kEclR * kR))
+               .width(2 * kEclR * kR)
+               .height(2 * kEclR * kR)
                .centerAt(PL(0, kEclCy))
                .key("sign" + std::to_string(i))
                .onPath(TextPath{.path = shapes::circle(),
@@ -232,8 +232,8 @@ auto ChaucerAstrolabe::reteGroup() -> Element {
                            .size = 0.026f * kR,
                            .color = hexColor(0x33240c, 0.82f),
                            .track = 0.4f})
-                    .width(Dimension(2 * kR * (1.0f - kRingW * 0.5f)))
-                    .height(Dimension(2 * kR * (1.0f - kRingW * 0.5f)))
+                    .width(2 * kR * (1.0f - kRingW * 0.5f))
+                    .height(2 * kR * (1.0f - kRingW * 0.5f))
                     .centerAt(PL(0, 0))
                     .key("sname" + std::to_string(i))
                     .onPath(TextPath{.path = shapes::circle(),

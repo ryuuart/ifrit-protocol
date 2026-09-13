@@ -120,8 +120,8 @@ struct LootGrid final : sketch::Sketch {
   Element gridPanel() {
     namespace lt = loot;
     Element grid = stack()
-                       .width(Dimension(lt::kGridW))
-                       .height(Dimension(lt::kGridH))
+                       .width(lt::kGridW)
+                       .height(lt::kGridH)
                        .left(16.0f)
                        .top(516.0f);
 
@@ -136,8 +136,8 @@ struct LootGrid final : sketch::Sketch {
           item.rarity == lt::Rarity::Unique || item.rarity == lt::Rarity::Set;
       Element cell =
           box()
-              .width(Dimension(w))
-              .height(Dimension(h))
+              .width(w)
+              .height(h)
               .corners({2})
               .left(lt::cellX(item.col))
               .top(lt::cellY(item.row))
@@ -167,8 +167,8 @@ struct LootGrid final : sketch::Sketch {
       if (item.rarity == lt::Rarity::Unique)
         cell.children({box().inset(1).clip().children(
             {box()
-                 .width(Dimension(w * 0.30f))
-                 .height(Dimension(h * 1.8f))
+                 .width(w * 0.30f)
+                 .height(h * 1.8f)
                  .left(-w * 0.4f)
                  .top(-h * 0.4f)
                  .translateX(motion::bind(&shimmer).target(-70, 170))
@@ -187,8 +187,8 @@ struct LootGrid final : sketch::Sketch {
     // footprint is free, red the moment it overlaps something.
     grid.children(
         {box()
-             .width(Dimension(dw))
-             .height(Dimension(dh))
+             .width(dw)
+             .height(dh)
              .corners({2})
              .left(0)
              .top(0)
@@ -200,8 +200,8 @@ struct LootGrid final : sketch::Sketch {
              .zIndex(5)});
     grid.children(
         {box()
-             .width(Dimension(dw))
-             .height(Dimension(dh))
+             .width(dw)
+             .height(dh)
              .corners({2})
              .left(0)
              .top(0)
@@ -214,8 +214,8 @@ struct LootGrid final : sketch::Sketch {
     // and the item riding it
     grid.children(
         {box()
-             .width(Dimension(dw))
-             .height(Dimension(dh))
+             .width(dw)
+             .height(dh)
              .left(0)
              .top(0)
              .translateX(&dragX)
@@ -228,8 +228,8 @@ struct LootGrid final : sketch::Sketch {
                                     hexColor(0x8895A2))})});
 
     return stack()
-        .width(Dimension(430.0f))
-        .height(Dimension(690.0f))
+        .width(430.0f)
+        .height(690.0f)
         .left(30.0f)
         .top(96.0f)
         .children({text("HOARD").styleClass("heading").left(16.0f).top(492.0f),
@@ -297,8 +297,8 @@ struct LootGrid final : sketch::Sketch {
         if (candidate.slot == i) equipped = &candidate;
 
       Element socket = stack()
-                           .width(Dimension(w))
-                           .height(Dimension(h))
+                           .width(w)
+                           .height(h)
                            .left(pad + 17 + s.x)
                            .top(pad + 22 + s.y)
                            .children({lt::well(w, h).inset(0)});
@@ -358,12 +358,12 @@ struct LootGrid final : sketch::Sketch {
                        SkColor4f valueColor) {
       return box()
           .row()
-          .width(Dimension(166.0f))
+          .width(166.0f)
           .alignItems(Align::Center)
           .children({text(label).font({.size = 10.5f, .track = 1.1f}),
                      box()
                          .grow(1)
-                         .height(Dimension(1.0f))
+                         .height(1.0f)
                          .margin(6, 0, 6, 0)
                          .fill(Paint::solid({0.42f, 0.38f, 0.31f, 0.28f})),
                      text(value).styleClass("value").ink(valueColor)});
@@ -395,8 +395,8 @@ struct LootGrid final : sketch::Sketch {
                                                hexColor(0xD04040))})})});
 
     return stack()
-        .width(Dimension(pw))
-        .height(Dimension(ph))
+        .width(pw)
+        .height(ph)
         .left(30)
         .top(96)
         .children({loot::panel(pw, ph).inset(0), loot::rivets(pw, ph),
@@ -411,7 +411,7 @@ struct LootGrid final : sketch::Sketch {
     using namespace std::chrono_literals;
     const SkColor4f rc = lt::rarityColor(lt::Rarity::Unique);
     return box()
-        .width(Dimension(300.0f))
+        .width(300.0f)
         .left(500)
         .top(300)
         .column()
@@ -450,8 +450,8 @@ struct LootGrid final : sketch::Sketch {
              text("Adds 40-92 Fire Damage").styleClass("affix"),
              text("Ignores Target's Defence").styleClass("affix"),
              box()
-                 .width(Dimension(180.0f))
-                 .height(Dimension(1.0f))
+                 .width(180.0f)
+                 .height(1.0f)
                  .margin(0, 7, 0, 5)
                  .fill(Paint::linear({0, 0}, {180, 0},
                                      {{0.0f, {rc.fR, rc.fG, rc.fB, 0.0f}},
@@ -473,8 +473,8 @@ struct LootGrid final : sketch::Sketch {
                                      lt::Art::Potion, lt::Art::Ring};
     for (int i = 0; i < 4; ++i) {
       Element slot = stack()
-                         .width(Dimension(lt::kCell))
-                         .height(Dimension(lt::kCell))
+                         .width(lt::kCell)
+                         .height(lt::kCell)
                          .children({lt::well(lt::kCell, lt::kCell).inset(0)});
       slot.children({box()
                          .inset(0)
@@ -500,8 +500,8 @@ struct LootGrid final : sketch::Sketch {
   Element cubePanel() {
     namespace lt = loot;
     Element grid = stack()
-                       .width(Dimension(3 * lt::kCell + 2 * lt::kGap))
-                       .height(Dimension(4 * lt::kCell + 3 * lt::kGap));
+                       .width(3 * lt::kCell + 2 * lt::kGap)
+                       .height(4 * lt::kCell + 3 * lt::kGap);
     for (int r = 0; r < 4; ++r)
       for (int c = 0; c < 3; ++c)
         grid.children({lt::well(lt::kCell, lt::kCell)
@@ -512,8 +512,8 @@ struct LootGrid final : sketch::Sketch {
         {box()
              .left(lt::cellX(1))
              .top(lt::cellY(1))
-             .width(Dimension(lt::kCell))
-             .height(Dimension(lt::kCell))
+             .width(lt::kCell)
+             .height(lt::kCell)
              .row()
              .justify(Justify::Center)
              .alignItems(Align::Center)
@@ -641,8 +641,8 @@ struct LootGrid final : sketch::Sketch {
                                  {{0.0f, lt::kStoneHi}, {1.0f, lt::kStoneLo}}))
              .foreground(stroke(1.0f, Fill::color(lt::kBronzeDim)))
              .children({box()
-                            .width(Dimension(13.0f))
-                            .height(Dimension(13.0f))
+                            .width(13.0f)
+                            .height(13.0f)
                             .corners({6.5f})
                             .fill(Paint::radial({5, 4}, 9,
                                                 {{0.0f, hexColor(0xFFE9A8)},

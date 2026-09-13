@@ -236,8 +236,8 @@ struct GerstnerGrid final : sketch::Sketch {
     return stack()
         .left(g::kFieldX)
         .top(g::kFieldY)
-        .width(Dimension(g::kFieldW))
-        .height(Dimension(g::kFieldH))
+        .width(g::kFieldW)
+        .height(g::kFieldH)
         .children({box().inset(0).fill(unitRule.material()),
                    box().inset(0).fill(emphasisRule.material())});
   }
@@ -254,8 +254,8 @@ struct GerstnerGrid final : sketch::Sketch {
                         .key("bands")
                         .left(g::kFieldX)
                         .top(g::kFieldY)
-                        .width(Dimension(g::kFieldW))
-                        .height(Dimension(g::kFieldH))
+                        .width(g::kFieldW)
+                        .height(g::kFieldH)
                         .staggerChildren(52ms);
     for (int i = 0; i < c.columns; ++i) {
       const float x = g::columnUnit(c, i) * g::kUnit;
@@ -265,8 +265,8 @@ struct GerstnerGrid final : sketch::Sketch {
               .key("col" + std::to_string(i))
               .left(x)
               .top(0)
-              .width(Dimension(colW))
-              .height(Dimension(g::kFieldH))
+              .width(colW)
+              .height(g::kFieldH)
               .opacity(animate(motion::from(0.0f).to(1.0f),
                                {320ms, &ch::easeOutQuad}))
               .translateY(animate(motion::from(9.0f).to(0.0f),
@@ -288,14 +288,14 @@ struct GerstnerGrid final : sketch::Sketch {
       for (int b = 0; b < c.blocks; ++b)
         copy.children({text(g::kBody[(i + b) % g::kBodyCount])
                            .ink(b % 2 == 0 ? g::kInk : g::kInkSoft)
-                           .width(Dimension(colW))});
+                           .width(colW)});
       band.children({std::move(copy)});
       // a column rule at the head, the way Capital marked its columns
       band.children({box()
                          .left(0)
                          .top(g::kUnit * 3.4f)
-                         .width(Dimension(colW))
-                         .height(Dimension(1.4f))
+                         .width(colW)
+                         .height(1.4f)
                          .fill(Fill::currentInk())});
       const std::string label = kit::formatted("%02d", i + 1);
       band.children(
@@ -372,8 +372,8 @@ struct GerstnerGrid final : sketch::Sketch {
       const std::string n = kit::formatted("%d", g::kConfigs[i].columns);
       ladder.children(
           {box()
-               .width(Dimension(22.0f))
-               .height(Dimension(22.0f))
+               .width(22.0f)
+               .height(22.0f)
                .alignItems(Align::Center)
                .justify(Justify::Center)
                .fill(Fill::color(live ? g::kRed : SkColor4f{0, 0, 0, 0}))
@@ -423,8 +423,8 @@ struct GerstnerGrid final : sketch::Sketch {
     root.children(
         {box()
              .left(g::kFieldX - 22)
-             .width(Dimension(g::kFieldW + 44))
-             .height(Dimension(1.0f))
+             .width(g::kFieldW + 44)
+             .height(1.0f)
              .top(0)
              .translateY(&sweep)
              .fill(linearGradient({0, 0}, {g::kFieldW + 44, 0},

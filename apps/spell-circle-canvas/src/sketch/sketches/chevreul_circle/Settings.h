@@ -333,14 +333,14 @@ inline Element centred(const std::string& s, float x, float y, float w) {
       .height(1.7_em)
       .children({text(s)
                      .block({.alignment = weave::TextAlignment::kCenter})
-                     .width(Dimension(w))});
+                     .width(w)});
 }
 inline Element rightAt(const std::string& s, float x, float y, float w) {
   return at(x, y, w, 0)
       .height(1.7_em)
       .children({text(s)
                      .block({.alignment = weave::TextAlignment::kEnd})
-                     .width(Dimension(w))});
+                     .width(w)});
 }
 
 /** The rim baseline: a circle wound COUNTER-CLOCKWISE and starting at

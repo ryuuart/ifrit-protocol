@@ -313,12 +313,12 @@ TEST(ComposeGrid, ASchemeThatAsksIsToldHowNarrowItsTextChildrenCanGo) {
   host.composer.render(box().absolute().inset(0).children(
       {layout(recorder)
            .absolute()
-           .left(Dimension(0.0f))
-           .top(Dimension(0.0f))
-           .width(Dimension(200.0f))
+           .left(0.0f)
+           .top(0.0f)
+           .width(200.0f)
            .children(
                {text(u8"one two three four five six seven eight", styleAt(12))
-                    .width(Dimension(200.0f))})}));
+                    .width(200.0f)})}));
   host.frame();
   ASSERT_EQ(recorder.seen->childMinSizes.size(), 1u);
   // The narrowest the paragraph goes is one word, and it was measured at

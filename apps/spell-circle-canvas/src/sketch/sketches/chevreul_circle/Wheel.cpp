@@ -169,8 +169,8 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
       // sized parent silently collapses all 72 labels onto one point.
       g.children({text(s, st)
                       .key(key)
-                      .width(Dimension(2 * rMid))
-                      .height(Dimension(2 * rMid))
+                      .width(2 * rMid)
+                      .height(2 * rMid)
                       .centerAt(kC)
                       .onPath(TextPath{.path = rimBaseline(),
                                        .at = f,
@@ -197,10 +197,10 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
     const float bd = sectorStart(n) * 3.14159265f / 180.0f;
     g.children(
         {box()
-             .left(Dimension(kC.fX - kRLimbOut))
-             .top(Dimension(kC.fY - kRLimbOut))
-             .width(Dimension(2 * kRLimbOut))
-             .height(Dimension(2 * kRLimbOut))
+             .left(kC.fX - kRLimbOut)
+             .top(kC.fY - kRLimbOut)
+             .width(2 * kRLimbOut)
+             .height(2 * kRLimbOut)
              .key("div" + std::to_string(n))
              .fill(Fill::none())
              .shape(keyedShape(bd,
@@ -227,8 +227,8 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
     g.children({text(std::to_string(n))
                     .font({.size = 10, .color = kRed, .track = 0.3f})
                     .key("ix" + std::to_string(n))
-                    .width(Dimension(2 * (kRSweepOut + 11)))
-                    .height(Dimension(2 * (kRSweepOut + 11)))
+                    .width(2 * (kRSweepOut + 11))
+                    .height(2 * (kRSweepOut + 11))
                     .centerAt(kC)
                     .onPath(TextPath{.path = rimBaseline(),
                                      .at = (float)n / 72.0f,

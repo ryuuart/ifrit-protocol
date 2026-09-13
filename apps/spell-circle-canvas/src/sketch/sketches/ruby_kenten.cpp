@@ -118,8 +118,8 @@ struct RubyKenten final : sketch::Sketch {
   Element passage(std::u8string utf8, float height = furigana::kColumnH) {
     namespace f = furigana;
     return text(std::move(utf8), f::body(f::kBodySize, f::kSumi))
-        .width(Dimension(f::kColumnW))
-        .height(Dimension(height))
+        .width(f::kColumnW)
+        .height(height)
         .block({.writingMode = weave::WritingMode::kVerticalRL});
   }
 
@@ -168,7 +168,7 @@ struct RubyKenten final : sketch::Sketch {
             u8"に国語辞典"
             u8"が立つ。",
             f::kSplitHeight)
-            .width(Dimension(f::kColumnW * 2.2f))
+            .width(f::kColumnW * 2.2f)
             .annotate(kit::ruby(weave::selectors::text(u8"国語辞典"),
                                 weave::Unit::Word,
                                 {u8"こくごじ"
@@ -222,7 +222,7 @@ struct RubyKenten final : sketch::Sketch {
                                  "pitch opens once\nand the reading is "
                                  "placed on the result")
                                 .font({.size = 10.5f})
-                                .width(Dimension(430.0f))}),
+                                .width(430.0f)}),
              box()
                  .absolute()
                  .inset(0, 158, 46, 0)

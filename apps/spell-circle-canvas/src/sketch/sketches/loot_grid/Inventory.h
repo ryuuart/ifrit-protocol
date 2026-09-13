@@ -246,8 +246,8 @@ inline Element artwork(Art art, float w, float h, SkColor4f tint,
                          std::min(1.0f, tint.fB * 1.55f + 0.20f), 1};
   const SkColor4f lo{tint.fR * 0.32f, tint.fG * 0.32f, tint.fB * 0.32f, 1};
   return box()
-      .width(Dimension(w))
-      .height(Dimension(h))
+      .width(w)
+      .height(h)
       .shape(artPath(art))
       .fill(Paint::linear({0, 0}, {w * 0.35f, h},
                           {{0.0f, hi}, {0.55f, tint}, {1.0f, lo}}))
@@ -339,8 +339,8 @@ inline Element well(float w, float h, float alpha = 1.0f) {
 /** The bronze-framed stone panel every part of this UI sits in. */
 inline Element panel(float w, float h) {
   return box()
-      .width(Dimension(w))
-      .height(Dimension(h))
+      .width(w)
+      .height(h)
       .corners({4})
       .background(styles::dropShadow({0, 0, 0, 0.65f}, {0, 7}, 16))
       .fill(Paint::linear({0, 0}, {0, h}, {{0.0f, kStoneHi}, {1.0f, kStoneLo}}))
@@ -372,8 +372,8 @@ inline Element panel(float w, float h) {
 inline Element rivets(float w, float h, float inset = 11) {
   auto stud = [](float x, float y) {
     return box()
-        .width(Dimension(6.0f))
-        .height(Dimension(6.0f))
+        .width(6.0f)
+        .height(6.0f)
         .corners({3})
         .left(x - 3)
         .top(y - 3)

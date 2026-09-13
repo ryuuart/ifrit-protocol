@@ -330,7 +330,7 @@ auto ChevreulCircle::theVerification() -> Element {
   o.lineMetrics.height = 16.0f;
   if (lawPara)
     g.children({at(x0, y0, 380, 96)
-                    .children({text(lawPara, o).width(Dimension(380))})});
+                    .children({text(lawPara, o).width(380)})});
 
   // The words are the run's own — the label each claim was made under,
   // the figure it came to, and the verdict `measure::Check` computed from

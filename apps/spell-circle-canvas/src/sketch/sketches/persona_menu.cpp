@@ -658,8 +658,8 @@ struct PersonaMenu final : sketch::Sketch {
                    .children({box()
                                   .left(0)
                                   .top(0)
-                                  .width(Dimension(84 * frac))
-                                  .height(Dimension(6.0f))
+                                  .width(84 * frac)
+                                  .height(6.0f)
                                   .fill(Paint::linear(
                                       {0, 0}, {0, 6},
                                       {{0.0f,

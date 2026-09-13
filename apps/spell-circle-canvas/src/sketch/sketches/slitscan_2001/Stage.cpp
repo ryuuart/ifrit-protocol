@@ -9,7 +9,7 @@ auto SlitScan2001::header() -> Element {
   // the bold cut.
   return box()
       .column()
-      .height(Dimension(kHeaderH))
+      .height(kHeaderH)
       .gap(4)
       .font({.face = uiFace()})
       .children(
@@ -63,10 +63,10 @@ auto SlitScan2001::filmFrame() -> Element {
   // no core.
   Element vanishing =
       box()
-          .left(Dimension(-150.0f))
-          .top(Dimension(-150.0f))
-          .width(Dimension(300.0f))
-          .height(Dimension(300.0f))
+          .left(-150.0f)
+          .top(-150.0f)
+          .width(300.0f)
+          .height(300.0f)
           .translateX(&coreX)
           .translateY(&coreY)
           // The core's own picture never changes — only where it is —
@@ -94,10 +94,10 @@ auto SlitScan2001::filmFrame() -> Element {
   auto hud = [&](const std::string& str, float l, float tp, float r, float b,
                  SkColor4f col) {
     Element e = t(str, {.color = col}).absolute();
-    if (l >= 0) e.left(Dimension(l));
-    if (r >= 0) e.right(Dimension(r));
-    if (tp >= 0) e.top(Dimension(tp));
-    if (b >= 0) e.bottom(Dimension(b));
+    if (l >= 0) e.left(l);
+    if (r >= 0) e.right(r);
+    if (tp >= 0) e.top(tp);
+    if (b >= 0) e.bottom(b);
     return e;
   };
 
@@ -108,8 +108,8 @@ auto SlitScan2001::filmFrame() -> Element {
   // Every line on the frame — the HUD and the footer — is the mono face
   // at 8 px tracked 0.6, so a line names only its colour.
   return box()
-      .width(Dimension(kFilmW))
-      .height(Dimension(kFilmH))
+      .width(kFilmW)
+      .height(kFilmH)
       .shrink(0)
       .font({.face = monoFace(), .size = 8, .track = 0.6f})
       .fill(kBlack)
@@ -124,9 +124,9 @@ auto SlitScan2001::filmFrame() -> Element {
       // addFixed's interpolant, and the caption says why.
       .children(
           {box()
-               .left(Dimension(0))
-               .top(Dimension(0))
-               .width(Dimension(kFilmW))
+               .left(0)
+               .top(0)
+               .width(kFilmW)
                .height(2)
                .fill(al(kCold, 0.4f))
                .mask(by::edge(0.0f, bind(&frameAlpha))),
@@ -141,9 +141,9 @@ auto SlitScan2001::filmFrame() -> Element {
       .children(
           {box()
                .absolute()
-               .left(Dimension(10))
-               .right(Dimension(10))
-               .bottom(Dimension(6))
+               .left(10)
+               .right(10)
+               .bottom(6)
                .column()
                .gap(2)
                .children(
@@ -172,8 +172,8 @@ auto SlitScan2001::filmFrame() -> Element {
 auto SlitScan2001::rigStrip() -> Element {
   using namespace slit;
   return box()
-      .width(Dimension(kRigW))
-      .height(Dimension(kRigH))
+      .width(kRigW)
+      .height(kRigH)
       .shrink(0)
       .font({.face = monoFace()})  // the monitor's lines and the readouts
       .key("rig")
@@ -183,27 +183,27 @@ auto SlitScan2001::rigStrip() -> Element {
       // frame; a key would name one drawing and replay it.
       .children(
           {custom([this](SkCanvas& c, const PaintContext& p) { drawRig(c, p); })
-               .left(Dimension(0))
-               .top(Dimension(0))
-               .width(Dimension(kElevW))
-               .height(Dimension(kRigH))
+               .left(0)
+               .top(0)
+               .width(kElevW)
+               .height(kRigH)
                .clip()
                .cache(Cache::None),
            custom([this](SkCanvas& c, const PaintContext& p) {
              drawArtworkPanel(c, p);
            })
-               .left(Dimension(kRigW - kPanelStripW))
-               .top(Dimension(0))
-               .width(Dimension(kPanelStripW))
-               .height(Dimension(kRigH))
+               .left(kRigW - kPanelStripW)
+               .top(0)
+               .width(kPanelStripW)
+               .height(kRigH)
                .cache(Cache::None)})
       // The "THIS EXPOSURE" monitor, in the elevation's upper-left where
       // there is nothing but sky. The only place you see a frame BEING
       // MADE rather than made, so it gets the good corner.
       .children(
           {box()
-               .left(Dimension(18))
-               .top(Dimension(10))
+               .left(18)
+               .top(10)
                .width(264)
                .height(116)
                .corners({4})
@@ -222,14 +222,14 @@ auto SlitScan2001::rigStrip() -> Element {
                .children(
                    {t("THIS EXPOSURE",
                       {.size = 8, .color = al(kCold, 0.85f), .track = 1.4f})
-                        .left(Dimension(8))
-                        .top(Dimension(5))})
+                        .left(8)
+                        .top(5)})
                .children(
-                   {slot("expo").left(Dimension(8)).bottom(Dimension(19))})
+                   {slot("expo").left(8).bottom(19)})
                .children({t("ONE SWEEP / 3.0 s. THE MACHINE TOOK 45–60 s "
                             "[C85]. ×18.",
                             {.size = 7, .color = al(kTick, 0.95f)})
-                              .left(Dimension(8))
-                              .bottom(Dimension(6))}),
-           slot("readout").left(Dimension(20)).top(Dimension(130))});
+                              .left(8)
+                              .bottom(6)}),
+           slot("readout").left(20).top(130)});
 }

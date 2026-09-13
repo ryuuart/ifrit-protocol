@@ -315,10 +315,10 @@ struct Y2kChrome final : sketch::Sketch {
         box()
             .row()
             .alignItems(Align::Center)
-            .height(Dimension(yc::kStatusH))
+            .height(yc::kStatusH)
             .children({text(unit, yc::type(11, hexColor(0x39424C), 1.0f, 550))
                            .shrink(0)});
-    if (unitW > 0) content.width(Dimension(unitW)).shrink(0);
+    if (unitW > 0) content.width(unitW).shrink(0);
     return content;
   }
 

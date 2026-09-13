@@ -77,8 +77,8 @@ auto DunhuangStarChart::asterismLines() -> Element {
   auto g = box()
                .left(0)
                .top(0)
-               .width(Dimension(kW))
-               .height(Dimension(kH))
+               .width(kW)
+               .height(kH)
                .key("asterisms");
   for (size_t i = 0; i < astArt.size(); ++i) {
     const AstArt& A = astArt[i];
@@ -86,8 +86,8 @@ auto DunhuangStarChart::asterismLines() -> Element {
     g.children({box()
                     .left(A.box.left())
                     .top(A.box.top())
-                    .width(Dimension(A.box.width()))
-                    .height(Dimension(A.box.height()))
+                    .width(A.box.width())
+                    .height(A.box.height())
                     .shape(heldPath(A.local))
                     .stroke(spans::upTo(gate(A.t0, A.t0 + 0.9f)),
                             Brush{}
@@ -146,8 +146,8 @@ auto DunhuangStarChart::map5Labels() -> Element {
   auto g = box()
                .left(0)
                .top(0)
-               .width(Dimension(kW))
-               .height(Dimension(kH))
+               .width(kW)
+               .height(kH)
                .key("m5lab");
   for (int i = 0; i < 20; ++i) {
     const M5Row& r = conc.five(i);
@@ -167,8 +167,8 @@ auto DunhuangStarChart::map5Labels() -> Element {
     g.children({box()
                     .left(c.fX - 30)
                     .top(c.fY - 30)
-                    .width(Dimension(60))
-                    .height(Dimension(60))
+                    .width(60)
+                    .height(60)
                     .shape(shapes::circle())
                     .opacity(!r.defect.empty() ? gate(t, t + 0.3f)
                                                : flash(t, t + 0.3f, t + 3.0f))
@@ -198,21 +198,21 @@ auto DunhuangStarChart::map5Labels() -> Element {
                              .color = hexColor(0x241d15, 0.92f)})
                       .left(lx)
                       .top(ly)
-                      .width(Dimension(60))
+                      .width(60)
                       .opacity(gate(tLine1 - 0.6f, tLine1 + 0.5f))});
     else
       g.children({text("[no label]")
                       .font({.size = 8.2f, .color = hexColor(0xb4531f, 0.9f)})
                       .left(c.fX + 22)
                       .top(c.fY - 40)
-                      .width(Dimension(70))
+                      .width(70)
                       .opacity(gate(t, t + 0.3f))});
     if (cid == "21D")  // the leader from the misplaced label to its stars
       g.children({box()
                       .left(std::min(lx, c.fX))
                       .top(ly + 10)
-                      .width(Dimension(std::abs(lx - c.fX) + 4))
-                      .height(Dimension(c.fY - ly - 10))
+                      .width(std::abs(lx - c.fX) + 4)
+                      .height(c.fY - ly - 10)
                       .shape(keyedShape(std::string_view("label-leader"),
                                         [](SkSize sz) {
                                           SkPathBuilder b;
@@ -236,8 +236,8 @@ auto DunhuangStarChart::archer() -> Element {
   auto g = box()
                .left(x - w * 0.5f)
                .top(kBandMid - h * 0.52f - kSegTop)
-               .width(Dimension(w))
-               .height(Dimension(h))
+               .width(w)
+               .height(h)
                .key("archer")
                .opacity(gate(tArch, tArch + 1.1f));
 
@@ -292,8 +292,8 @@ auto DunhuangStarChart::archer() -> Element {
     g.children({box()
                     .left(0)
                     .top(0)
-                    .width(Dimension(w))
-                    .height(Dimension(h))
+                    .width(w)
+                    .height(h)
                     .shape(heldPath(p))
                     .stroke(spans::upTo(gate(tArch + 0.05f * (float)i,
                                              tArch + 0.05f * (float)i + 0.55f)),
@@ -303,8 +303,8 @@ auto DunhuangStarChart::archer() -> Element {
   g.children({box()
                   .left(0)
                   .top(0)
-                  .width(Dimension(w))
-                  .height(Dimension(h))
+                  .width(w)
+                  .height(h)
                   .shape(keyedShape(std::string_view("bow"),
                                     [](SkSize) {
                                       SkPathBuilder b;
@@ -323,8 +323,8 @@ auto DunhuangStarChart::archer() -> Element {
       {box()
            .left(0)
            .top(0)
-           .width(Dimension(w))
-           .height(Dimension(h))
+           .width(w)
+           .height(h)
            .shape(keyedShape(std::string_view("arrow"),
                              [](SkSize) {
                                SkPathBuilder b;
@@ -338,13 +338,13 @@ auto DunhuangStarChart::archer() -> Element {
                   .font({.size = 8.4f, .color = hexColor(0x4a3b28, 0.85f)})
                   .left(-18)
                   .top(h - 12)
-                  .width(Dimension(300))
+                  .width(300)
                   .opacity(gate(tArch + 1.0f, tArch + 1.6f))});
   g.children({text("LIGHTNING, over a title nobody can read convincingly")
                   .font({.size = 8.4f, .color = hexColor(0x4a3b28, 0.85f)})
                   .left(-18)
                   .top(h + 0)
-                  .width(Dimension(300))
+                  .width(300)
                   .opacity(gate(tArch + 1.0f, tArch + 1.6f))});
   return g;
 }
@@ -354,8 +354,8 @@ auto DunhuangStarChart::unreadTitle() -> Element {
   auto g = box()
                .left(x - 34)
                .top(kBandTop + 44 - kSegTop)
-               .width(Dimension(68))
-               .height(Dimension(kBandH - 88))
+               .width(68)
+               .height(kBandH - 88)
                .key("title")
                .opacity(gate(tArch + 0.9f, tArch + 1.8f));
   for (int i = 0; i < 6; ++i) {
@@ -385,8 +385,8 @@ auto DunhuangStarChart::unreadTitle() -> Element {
     g.children({box()
                     .left(0)
                     .top(0)
-                    .width(Dimension(68))
-                    .height(Dimension(kBandH - 88))
+                    .width(68)
+                    .height(kBandH - 88)
                     .shape(heldPath(pb.detach()))
                     .stroke(spans::upTo(gate(tArch + 0.9f + (float)i * 0.08f,
                                              tArch + 1.4f + (float)i * 0.08f)),

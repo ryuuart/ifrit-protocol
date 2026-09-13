@@ -10,8 +10,8 @@ auto DunhuangStarChart::describe(sketch::SketchContext&) -> Element {
   auto root = box()
                   .left(0)
                   .top(0)
-                  .width(Dimension(kW))
-                  .height(Dimension(kH))
+                  .width(kW)
+                  .height(kH)
                   .font({.face = faceMono})
                   .styleSheet(voices());
   root.children({ground()});
@@ -22,8 +22,8 @@ auto DunhuangStarChart::describe(sketch::SketchContext&) -> Element {
       {box()
            .left(108)
            .top(250)
-           .width(Dimension(2344))
-           .height(Dimension(764))
+           .width(2344)
+           .height(764)
            .key("grat")
            .opacity(gate(tSky - 0.6f, tSky + 0.6f))
            .zIndex(-1)
@@ -53,8 +53,8 @@ auto DunhuangStarChart::describe(sketch::SketchContext&) -> Element {
     auto sg = box()
                   .left(segLo(seg))
                   .top(kSegTop)
-                  .width(Dimension(segHi(seg) - segLo(seg)))
-                  .height(Dimension(kSegH))
+                  .width(segHi(seg) - segLo(seg))
+                  .height(kSegH)
                   .clip(true)
                   .key(seg ? "segR" : "segL");
     for (int k = 1; k <= 12; ++k) {
@@ -76,8 +76,8 @@ auto DunhuangStarChart::describe(sketch::SketchContext&) -> Element {
   root.children({box()
                      .left(0)
                      .top(0)
-                     .width(Dimension(kW))
-                     .height(Dimension(kH))
+                     .width(kW)
+                     .height(kH)
                      .key("stars")
                      .opacity(gate(tSky - 0.5f, tSky + 0.7f))
                      .children({instancing::instances(

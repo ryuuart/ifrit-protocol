@@ -82,7 +82,7 @@ Element cell(const char* call, const char* note, const char* key, Track track) {
       sketch::kit::well({.width = kCell, .height = kPicture})
           .children({text("DISPLACEMENT", specimen())
                          .key(key)
-                         .width(Dimension(kCell - 28))
+                         .width(kCell - 28)
                          .absolute()
                          .inset(14, 60, 14, 14)
                          .fx(std::move(track))}));

@@ -43,7 +43,7 @@ Element leaf() {
   return text(kLines)
       .font({.face = sigil::test::instrument::sans(), .size = 12})
       .ink({1, 1, 1, 1})
-      .width(Dimension(120.0f))
+      .width(120.0f)
       .key("t");
 }
 
@@ -109,7 +109,7 @@ TEST(ComposeBlockLane, AClassCarriesBothHalves) {
       {text(kLines)
            .font({.face = sigil::test::instrument::sans()})
            .ink({1, 1, 1, 1})
-           .width(Dimension(240.0f))
+           .width(240.0f)
            .key("t")
            .styleClass("body")}));
   const SkRect a = boxOf(plain, "t");

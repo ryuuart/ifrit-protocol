@@ -135,7 +135,7 @@ Element readout(const char* call, const std::string& note,
       sketch::kit::well({.width = kCell, .height = kPicture})
           .padding(12, 10)
           .children(
-              {text(body, mono(9.0f, colour)).width(Dimension(kCell - 24))}));
+              {text(body, mono(9.0f, colour)).width(kCell - 24)}));
 }
 
 }  // namespace

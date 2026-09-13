@@ -85,10 +85,10 @@ Element cell(const char* call, const char* note,
              const std::string& readout) {
   const sketch::kit::Theme& sheet = sketch::kit::theme();
   Element art = asset
-                    ? image(asset).width(Dimension(150)).height(Dimension(100))
+                    ? image(asset).width(150).height(100)
                     : box()
-                          .width(Dimension(150))
-                          .height(Dimension(100))
+                          .width(150)
+                          .height(100)
                           .fill(Fill::color({0.13f, 0.10f, 0.11f, 1}));
   return sketch::kit::caption(
       kCell, call, note,

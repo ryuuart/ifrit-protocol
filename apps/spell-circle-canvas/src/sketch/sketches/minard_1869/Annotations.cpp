@@ -383,9 +383,9 @@ auto Minard1869::cardFloor() -> Element {
                    "in the ink. At the floor both readings are 5.4 px. The "
                    "prettier finding does not exist.")
                   .font({.size = 10, .color = kClaimRed})
-                  .left(Dimension(px0 + 480))
-                  .top(Dimension(py0 + 10))
-                  .width(Dimension(kAuditW - px0 - 500))
+                  .left(px0 + 480)
+                  .top(py0 + 10)
+                  .width(kAuditW - px0 - 500)
                   .key("floorNeg")
                   .opacity(beat(tScale + 2.2f, tScale + 2.6f))});
   return g;
@@ -500,17 +500,17 @@ auto Minard1869::cardGeo() -> Element {
   g.children({text("median 5.35 km on an 871 km span — 0.6%. The "
                    "received account is wrong.")
                   .font({.face = faceUiBold, .size = 12, .color = kPass})
-                  .left(Dimension(hx))
-                  .top(Dimension(hy + hh + 10))
-                  .width(Dimension(330))
+                  .left(hx)
+                  .top(hy + hh + 10)
+                  .width(330)
                   .key("geoCap")
                   .opacity(beat(tGeo + 1.7f, tGeo + 2.0f))});
   g.children({text("residual is within 1.8× of what the 0.1° "
                    "digitisation grid alone produces")
                   .font({.size = 9})
-                  .left(Dimension(hx))
-                  .top(Dimension(hy + hh + 42))
-                  .width(Dimension(330))
+                  .left(hx)
+                  .top(hy + hh + 42)
+                  .width(330)
                   .key("geoCap2")
                   .opacity(beat(tGeo + 1.8f, tGeo + 2.1f))});
   return g;
@@ -561,12 +561,12 @@ auto Minard1869::cardLegs() -> Element {
             "Chjat and Mojaisk crowd into 130 px of lettering.  "
             "That the room was for the labels is an INFERENCE.")
            .font({.size = 10, .color = kCardInk})
-           .left(Dimension(60))
+           .left(60)
            // Two lines of 10 pt under ten rows of 12.2 is what the card's
            // 206 holds: set any lower and the second line's baseline
            // falls past the card edge and the sentence is cut in half.
-           .top(Dimension(by + rowH * 10 + 4))
-           .width(Dimension(900))
+           .top(by + rowH * 10 + 4)
+           .width(900)
            .key("legTotal")
            .opacity(beat(tDistort + 0.9f, tDistort + 1.3f))});
   return g;
@@ -620,9 +620,9 @@ auto Minard1869::cardReaumur() -> Element {
                    "still\nrelabel the axis Celsius while keeping his "
                    "numbers.")
                   .font({.size = 10, .color = kClaimRed})
-                  .left(Dimension(x0 + 560))
-                  .top(Dimension(y0 + 4))
-                  .width(Dimension(400))
+                  .left(x0 + 560)
+                  .top(y0 + 4)
+                  .width(400)
                   .key("reaWrong")
                   .opacity(beat(tReaumur + 0.9f, tReaumur + 1.3f))});
   // the two campaigns, the reason the panels share a sheet
@@ -630,9 +630,9 @@ auto Minard1869::cardReaumur() -> Element {
                    "27.08%\nNapoleon 1812     422,000 → 10,000    "
                    "survived  2.37%\nThis is why he printed them together.")
                   .font({.face = faceUiBold, .size = 12, .color = kCardInk})
-                  .left(Dimension(x0 + 560))
-                  .top(Dimension(y0 + 74))
-                  .width(Dimension(420))
+                  .left(x0 + 560)
+                  .top(y0 + 74)
+                  .width(420)
                   .key("twoCamp")
                   .opacity(beat(tTwo, tTwo + 0.5f))});
   return g;
@@ -674,9 +674,9 @@ auto Minard1869::titleStrip() -> Element {
                                        "CHECKS IT — AND THEN CHECKS ITSELF "
                                        "WITH THE SAME MEASUREMENT.",
                               .ink = Fill::color(hexColor(0xb5761e))}}})
-                  .left(Dimension(0))
-                  .top(Dimension(0))
-                  .width(Dimension(2464))});
+                  .left(0)
+                  .top(0)
+                  .width(2464)});
   return g;
 }
 

@@ -178,8 +178,8 @@ int tileAt(int chunk, int x, int y) {
 Element chunkElement(const std::shared_ptr<sigil::image::ImageAsset>& tileset,
                      const Chunk& chunk) {
   Element tiles = box()
-                      .width(Dimension(kChunkCols * kTile))
-                      .height(Dimension(kChunkRows * kTile));
+                      .width(kChunkCols * kTile)
+                      .height(kChunkRows * kTile);
   for (int y = 0; y < kChunkRows; ++y)
     for (int x = 0; x < kChunkCols; ++x) {
       const int cell = y * kChunkCols + x;
@@ -189,8 +189,8 @@ Element chunkElement(const std::shared_ptr<sigil::image::ImageAsset>& tileset,
       tiles.children({image(tileset)
                           .region(SkRect::MakeXYWH((float)id * 16, 0, 16, 16))
                           .inset(at.fLeft, at.fTop, 0, 0)
-                          .width(Dimension(kTile))
-                          .height(Dimension(kTile))});
+                          .width(kTile)
+                          .height(kTile)});
     }
   return tiles;
 }
@@ -254,12 +254,12 @@ struct TileMap final : sketch::Sketch {
 
   Element describe(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
-    Element grid = box().row().width(Dimension(kChunks * kChunkCols * kTile));
+    Element grid = box().row().width(kChunks * kChunkCols * kTile);
     for (int i = 0; i < kChunks; ++i) {
       Element chunk =
           stack()
-              .width(Dimension(kChunkCols * kTile))
-              .height(Dimension(kChunkRows * kTile))
+              .width(kChunkCols * kTile)
+              .height(kChunkRows * kTile)
               // Recorded, so a describe that runs is a recording
               // written and the footer's count is the work itself.
               .children({memo(Chunk{i, revisions[(size_t)i], edits[(size_t)i]},

@@ -131,8 +131,8 @@ Element droppedPassage() {
                          .top(29)});
   ornament.key("illuminated-h")
       .absolute()
-      .left(Dimension(0.0f))
-      .top(Dimension(0.0f));
+      .left(0.0f)
+      .top(0.0f);
 
   return box().width(430).height(350).children(
       {std::move(ornament),

@@ -245,8 +245,8 @@ struct Cosmati final : sketch::Sketch {
     // paint-only, so they still animate over a texture that was
     // rasterized once.
     Element el = stack()
-                     .width(Dimension(r * 2))
-                     .height(Dimension(r * 2))
+                     .width(r * 2)
+                     .height(r * 2)
                      .centerAt(at)
                      .cache(Cache::Texture)
                      .opacity(animate(motion::from(0.0f).to(1.0f),
@@ -289,8 +289,8 @@ struct Cosmati final : sketch::Sketch {
     const int periods = std::max(2, (int)std::round(w / (h * 1.5f)));
     const std::chrono::milliseconds delay{420 + 70 * seed};
     Element band = stack()
-                       .width(Dimension(w))
-                       .height(Dimension(h))
+                       .width(w)
+                       .height(h)
                        .centerAt({x, y})
                        .rotate(degrees)
                        .cache(Cache::Texture)
@@ -319,8 +319,8 @@ struct Cosmati final : sketch::Sketch {
       band.children({box()
                          .left(cx - h * 0.20f)
                          .top(h * 0.30f)
-                         .width(Dimension(h * 0.40f))
-                         .height(Dimension(h * 0.40f))
+                         .width(h * 0.40f)
+                         .height(h * 0.40f)
                          .corners({h * 0.20f})
                          .fill(cs::stone(cs::kPorphyry, cs::kPorphyryLo, 30))
                          .foreground(stroke(1.0f, Fill::color(cs::kMarble)))});
@@ -340,8 +340,8 @@ struct Cosmati final : sketch::Sketch {
     // alternative is re-evaluating that shader over the whole quarter on
     // every frame, which the CPU raster backend does literally.
     Element q = stack()
-                    .width(Dimension(side))
-                    .height(Dimension(side))
+                    .width(side)
+                    .height(side)
                     .left(x)
                     .top(y)
                     .cache(Cache::Texture)
@@ -399,8 +399,8 @@ struct Cosmati final : sketch::Sketch {
                              .key("floor")
                              .left(cs::kFieldX)
                              .top(cs::kFieldY)
-                             .width(Dimension(cs::kFieldSide))
-                             .height(Dimension(cs::kFieldSide))
+                             .width(cs::kFieldSide)
+                             .height(cs::kFieldSide)
                              .font({.size = 11, .track = 3.4f});
 
     // THE PURBECK FRAME IS A FRAME: a shell carrying the inscription
@@ -474,8 +474,8 @@ struct Cosmati final : sketch::Sketch {
                                     .color = cs::kGiallo,
                                     .track = 2.0f,
                                     .weight = 600})
-                             .width(Dimension(big * 1.50f))
-                             .height(Dimension(big * 1.50f))
+                             .width(big * 1.50f)
+                             .height(big * 1.50f)
                              .centerAt({c, c})
                              .onPath({.path = shapes::arc(-90.0f, 359.9f),
                                       .at = 0.0f,
@@ -488,8 +488,8 @@ struct Cosmati final : sketch::Sketch {
         {box()
              .left(-260)
              .top(-40)
-             .width(Dimension(210.0f))
-             .height(Dimension(cs::kFieldSide + 80))
+             .width(210.0f)
+             .height(cs::kFieldSide + 80)
              .rotate(14.0f)
              .translateX(motion::bind(&rake).target(-260, cosmati::kW + 260))
              .fill(Paint::linear({0, 0}, {210, 0},
@@ -516,8 +516,8 @@ struct Cosmati final : sketch::Sketch {
                                       .font({.size = 11, .track = 1.4f})
                                       .margin(0, 6, 0, 0)})
                        .children({box()
-                                      .width(Dimension(190.0f))
-                                      .height(Dimension(1.0f))
+                                      .width(190.0f)
+                                      .height(1.0f)
                                       .margin(0, 12, 0, 12)
                                       .fill(Paint::linear(
                                           {0, 0}, {190, 0},
@@ -534,7 +534,7 @@ struct Cosmati final : sketch::Sketch {
                                        "square, laid by a Roman crew under "
                                        "Odoricus.")
                                       .font({.size = 11.5f, .track = 0.2f})
-                                      .width(Dimension(210.0f))})});
+                                      .width(210.0f)})});
 
     // the quarry legend: every stone named, with a real sample of it
     struct Quarry {
@@ -560,8 +560,8 @@ struct Cosmati final : sketch::Sketch {
       quarries.push_back(
           {.label = q.label,
            .mark = box()
-                       .width(Dimension(20.0f))
-                       .height(Dimension(13.0f))
+                       .width(20.0f)
+                       .height(13.0f)
                        .fill(cs::stone(q.hi, q.lo, 34))
                        .foreground(stroke(
                            1.0f, Fill::color({cs::kMarble.fR, cs::kMarble.fG,

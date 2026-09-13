@@ -43,7 +43,7 @@ auto WinampBase::mainWindow() -> Element {
   // The display's lettering is TEXT.BMP's green: the marquee, the readouts
   // and STEREO inherit it; the captions beside them name dimmer colours.
   Element w =
-      box().width(Dimension(n(275))).height(Dimension(n(116))).ink(kDisplay);
+      box().width(n(275)).height(n(116)).ink(kDisplay);
   // The brushed body, on its own leaf so the bake is a texture and the
   // window's live children never drag the grain shader back per frame.
   w.children({box().inset(0).fill(steel).cache(Cache::Texture)});
@@ -164,10 +164,10 @@ auto WinampBase::mainWindow() -> Element {
 
   // ---- volume / balance / EQ+PL toggles -------------------------------
   w.children({box()
-                  .left(Dimension(n(107)))
-                  .top(Dimension(n(57)))
-                  .width(Dimension(n(108)))
-                  .height(Dimension(n(13)))
+                  .left(n(107))
+                  .top(n(57))
+                  .width(n(108))
+                  .height(n(13))
                   .children({slot("sliders")})});
 
   w.children({eqPlToggle()});
@@ -216,10 +216,10 @@ auto WinampBase::eqPlToggle() -> Element {
     Element e = key(x, 0, 23, 12, box());
     e.row().alignItems(Align::Center).padding(n(2), 0, 0, 0);
     e.children({box()
-                    .width(Dimension(n(3)))
-                    .height(Dimension(n(3)))
+                    .width(n(3))
+                    .height(n(3))
                     .fill(on ? wa::kGreen : hexColor(0x3C4A58))});
-    e.children({box().width(Dimension(n(1.5f)))});
+    e.children({box().width(n(1.5f))});
     e.children({t(lbl, pix(4.2f))});
     return e;
   };
@@ -269,18 +269,18 @@ auto WinampBase::transportRow() -> Element {
   Element shuf = key(164, 1, 47, 15, box());
   shuf.row().alignItems(Align::Center).padding(n(3), 0, 0, 0);
   shuf.children({box()
-                     .width(Dimension(n(3)))
-                     .height(Dimension(n(3)))
+                     .width(n(3))
+                     .height(n(3))
                      .fill(hexColor(0x3C4A58))});
-  shuf.children({box().width(Dimension(n(2)))});
+  shuf.children({box().width(n(2))});
   shuf.children({t("SHUFFLE", pix(4.6f))});
   r.children({shuf});
 
   Element rep = key(211, 1, 28, 15, box());
   rep.row().alignItems(Align::Center).padding(n(3), 0, 0, 0);
   rep.children(
-      {box().width(Dimension(n(3))).height(Dimension(n(3))).fill(wa::kGreen)});
-  rep.children({box().width(Dimension(n(2)))});
+      {box().width(n(3)).height(n(3)).fill(wa::kGreen)});
+  rep.children({box().width(n(2))});
   rep.children({t("REP", pix(4.6f))});
   r.children({rep});
 
@@ -359,10 +359,10 @@ auto WinampBase::lcdCells(const std::string& s, SkColor4f ink) const
   using namespace wa;
   const float pitch = n(54) / (s.empty() ? 1.0f : (float)s.size());
   Element row =
-      box().row().width(Dimension(n(54))).height(Dimension(n(13))).ink(ink);
+      box().row().width(n(54)).height(n(13)).ink(ink);
   for (char ch : s) {
     Element cell = box()
-                       .width(Dimension(pitch))
+                       .width(pitch)
                        .shrink(0)
                        .justify(Justify::Center)
                        .alignItems(Align::Center);

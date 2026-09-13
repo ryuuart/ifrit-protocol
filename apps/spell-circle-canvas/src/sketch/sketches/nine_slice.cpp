@@ -97,8 +97,8 @@ sketch::kit::Theme sheetTheme() {
  *  edge. */
 Element panel(Slice frame, std::u8string caption, SkColor4f ink) {
   return box()
-      .width(Dimension(kPanelW))
-      .height(Dimension(kPanelH))
+      .width(kPanelW)
+      .height(kPanelH)
       .background(std::move(frame))
       .padding(24)
       .alignItems(Align::Center)
@@ -113,8 +113,8 @@ Element panel(Slice frame, std::u8string caption, SkColor4f ink) {
  *  program of one's own reaches for, and it paints the same rects. */
 Element directLattice(std::shared_ptr<sigil::image::ImageAsset> asset) {
   return box()
-      .width(Dimension(kPanelW))
-      .height(Dimension(kPanelH))
+      .width(kPanelW)
+      .height(kPanelH)
       .alignItems(Align::Center)
       .justify(Justify::Center)
       // The asset is the only captured input to this keyed draw.
@@ -193,14 +193,14 @@ struct NineSlice final : sketch::Sketch {
         {.cells = {sketch::kit::caption(
                        kPanelW, u8"the source",
                        u8"drawn once, offscreen, at 2×",
-                       image(oak).width(Dimension(96)).height(Dimension(96))),
+                       image(oak).width(96).height(96)),
                    sketch::kit::caption(
                        kPanelW, u8"re-laid out every frame",
                        u8"the box changes, the corners do not",
                        panel(carvedFrameSlice(crimson, kFrameDensity),
                              u8"stretch me", kQuest)
-                           .width(Dimension(breathW))
-                           .height(Dimension(breathH)))},
+                           .width(breathW)
+                           .height(breathH))},
          .gap = 34,
          .divider = Fill::color(kRule),
          .align = Align::Center});

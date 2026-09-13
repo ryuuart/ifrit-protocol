@@ -7,17 +7,17 @@
 auto Fallout2CharSheet::describe() -> Element {
   using namespace fo;
   Element root = stack()
-                     .width(Dimension(kScreenW))
-                     .height(Dimension(kScreenH + kCaptionH));
+                     .width(kScreenW)
+                     .height(kScreenH + kCaptionH);
 
   // ---- the screen -----------------------------------------------------
   // THE ROOT OF THE SCREEN'S TYPE: font 101 in the terminal green, which
   // every row that names no style of its own is set in where it lands.
   Element screen = box()
-                       .left(Dimension(0))
-                       .top(Dimension(0))
-                       .width(Dimension(kScreenW))
-                       .height(Dimension(kScreenH))
+                       .left(0)
+                       .top(0)
+                       .width(kScreenW)
+                       .height(kScreenH)
                        .clip()
                        .fill(plateMat)
                        .font(bodyType())

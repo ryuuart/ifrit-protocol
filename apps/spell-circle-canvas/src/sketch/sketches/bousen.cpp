@@ -133,8 +133,8 @@ struct Bousen final : sketch::Sketch {
     return bs::specimen(
         caption, bs::labelType(9, bs::kUsu, 0.6f),
         text(u8"傍線例", style)
-            .width(Dimension(28.0f))
-            .height(Dimension(62.0f))
+            .width(28.0f)
+            .height(62.0f)
             .block({.writingMode = sigil::weave::WritingMode::kVerticalRL}),
         132.0f, 8.0f);
   }
@@ -146,8 +146,8 @@ struct Bousen final : sketch::Sketch {
     return bs::specimen(
         caption, bs::labelType(11, bs::kAi, 1.5f),
         text(u8"「あっ」、。", style)
-            .width(Dimension(42.0f))
-            .height(Dimension(150.0f))
+            .width(42.0f)
+            .height(150.0f)
             .block({.writingMode = sigil::weave::WritingMode::kVerticalRL}),
         96.0f, 10.0f);
   }
@@ -180,8 +180,8 @@ struct Bousen final : sketch::Sketch {
                  .absolute()
                  .inset(bs::kW - bs::kBlockRight - bs::kBlockW, 96,
                         bs::kBlockRight, 0)
-                 .width(Dimension(bs::kBlockW))
-                 .height(Dimension(bs::kBlockH))
+                 .width(bs::kBlockW)
+                 .height(bs::kBlockH)
                  .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
                  // The band the plate is named for: down the RIGHT of the
                  // column, the length of the phrase it dresses.
@@ -216,9 +216,9 @@ struct Bousen final : sketch::Sketch {
                          // across, so the callout says so.
                          .block({.writingMode =
                                      sigil::weave::WritingMode::kHorizontal})
-                         .left(Dimension(-168.0f))
+                         .left(-168.0f)
                          .top(pct(0))
-                         .width(Dimension(168.0f))
+                         .width(168.0f)
                          // THE LEADER. A note standing in the margin is a
                          // note about nothing until something joins it to
                          // the phrase; the rule runs from the text block
@@ -229,10 +229,10 @@ struct Bousen final : sketch::Sketch {
                          .children({box()
                                         .key("leader")
                                         .absolute()
-                                        .left(Dimension(0.0f))
-                                        .top(Dimension(42.0f))
-                                        .width(Dimension(168.0f))
-                                        .height(Dimension(1.0f))
+                                        .left(0.0f)
+                                        .top(42.0f)
+                                        .width(168.0f)
+                                        .height(1.0f)
                                         .fill(Fill::color(bs::kAka))})
                          .children({text(weave::rich()
                                              .add("mark() ",
@@ -242,7 +242,7 @@ struct Bousen final : sketch::Sketch {
                                              .add("— anchored to "
                                                   "the phrase,\nnot to a "
                                                   "coordinate"))
-                                        .width(Dimension(150.0f))}))})
+                                        .width(150.0f)}))})
         // The plate names itself in the other writing mode, so the two
         // stand side by side.
         .children(
@@ -253,8 +253,8 @@ struct Bousen final : sketch::Sketch {
                  .gap(10)
                  .children({text("傍線", bs::body(44, bs::kSumi))})
                  .children({box()
-                                .width(Dimension(120.0f))
-                                .height(Dimension(1.0f))
+                                .width(120.0f)
+                                .height(1.0f)
                                 .fill(Fill::color(bs::kAka))})
                  .children(
                      {text("THE COLUMN'S FURNITURE")
@@ -263,8 +263,8 @@ struct Bousen final : sketch::Sketch {
                      {text("a band beside the column, not beneath a\n"
                            "line · a mark on the phrase it names")
                           .font({.size = 13, .color = bs::kSumi, .track = 0.4f})
-                          .width(Dimension(260.0f))})
-                 .children({box().height(Dimension(20.0f))})
+                          .width(260.0f)})
+                 .children({box().height(20.0f)})
                  .children({box()
                                 .row()
                                 .gap(30)
@@ -273,12 +273,12 @@ struct Bousen final : sketch::Sketch {
                                 .children({specimen(
                                     "valt · vpal · vkna",
                                     bs::columnFitted(26, bs::kAka))})})
-                 .children({box().height(Dimension(14.0f))})
+                 .children({box().height(14.0f)})
                  .children({text("the pair is one string set twice: the "
                                  "second asks\nthe face for the metrics it "
                                  "keeps for a column")
                                 .font({.size = 11})
-                                .width(Dimension(300.0f))})})
+                                .width(300.0f)})})
         // The cascade lives on its own strip, and it wears a band. A track
         // draws its glyphs itself, in batched buckets that carry glyphs
         // alone, so the sideline is drawn beside them at the placement the
@@ -288,8 +288,8 @@ struct Bousen final : sketch::Sketch {
             {text(u8"列ごとに文字が現れる。右から左へ。", bs::body(21, bs::kAi))
                  .absolute()
                  .inset(352, 150, 0, 0)
-                 .width(Dimension(120.0f))
-                 .height(Dimension(300.0f))
+                 .width(120.0f)
+                 .height(300.0f)
                  .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
                  .spanPaint(
                      weave::selectors::text(u8"右から左へ"),
@@ -308,7 +308,7 @@ struct Bousen final : sketch::Sketch {
                   "and its band stands at rest")
                  .absolute()
                  .inset(300, 466, 0, 0)
-                 .width(Dimension(180.0f))})
+                 .width(180.0f)})
         // The three conventions, each on a column of its own, so the page
         // shows them side by side instead of naming them in a footer.
         .children(

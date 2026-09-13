@@ -107,7 +107,7 @@ Element slotted(SkSize size, float drop, SkColor4f fill) {
                   .slot("chip", size, drop)
                   .add(u8" and it keeps its whole advance however narrow "
                        u8"the measure gets."))
-      .width(Dimension(kCell - 24))
+      .width(kCell - 24)
       .children({box().key("chip").fill(Fill::color(fill))});
 }
 
@@ -115,7 +115,7 @@ Element slotted(SkSize size, float drop, SkColor4f fill) {
  *  line pitch is visible as a pitch. */
 Element banded(weave::ReservedBand band) {
   return text(kPassage)
-      .width(Dimension(kCell - 24))
+      .width(kCell - 24)
       .fill(Fill::color(kBandTint))
       .reserve(band);
 }

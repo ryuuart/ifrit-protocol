@@ -1,9 +1,9 @@
 #include "HitmanVerlet.h"
 
 auto HitmanVerlet::codeLine(const char* s, SkColor4f c, bool caret) -> Element {
-  auto row = box().row().gap(4).height(Dimension(12)).shrink(0);
+  auto row = box().row().gap(4).height(12).shrink(0);
   row.children({t(caret ? "◄" : " ", mono(7.0f, caret ? kRed : kInk))
-                    .width(Dimension(8))
+                    .width(8)
                     .shrink(0)});
   row.children({t(s, mono(9.5f, c, 0.1f))});
   return row;
@@ -18,7 +18,7 @@ auto HitmanVerlet::panelA1() -> Element {
       .children({t("x' = 2x − x* + a·Δt²      x* "
                    "= x",
                    monoB(12.0f, kBone, 0.2f))
-                     .height(Dimension(16))
+                     .height(16)
                      .shrink(0),
                  codeLine("temp    = x[i];", kBlue),
                  codeLine("x[i]   += DRAG*(x[i]-oldx[i]) + g;", kBlue),
@@ -41,7 +41,7 @@ auto HitmanVerlet::panelA2() -> Element {
            codeLine("diff = (deltalength-restlength)/deltalength;", kBlue),
            codeLine("x1 -= delta*0.5*diff;", kRed, true),
            codeLine("x2 += delta*0.5*diff;", kRed, true),
-           box().height(Dimension(2)).shrink(0),
+           box().height(2).shrink(0),
            t("r = 100, |x2−x1| = 120 → diff = 1/6, "
              "delta·0.5·diff = (10, 0)",
              mono(7.5f, kSteel, 0.1f)),
@@ -51,7 +51,7 @@ auto HitmanVerlet::panelA2() -> Element {
            t("CORRECTED  : x1 = ( 10,0)  x2 = (110,0)  "
              "→ d = 100  EXACT",
              mono(8.0f, hexColor(0x4FC79E), 0.1f)),
-           box().height(Dimension(2)).shrink(0),
+           box().height(2).shrink(0),
            t("FOUR OF THE FIVE STICK LISTINGS CARRY IT: (C2), "
              "STICK-IN-A-BOX, CLOTH, MASS-WEIGHTED.",
              ui(7.5f, kSteel, 0.4f)),
@@ -98,14 +98,14 @@ auto HitmanVerlet::panelA3() -> Element {
     return box()
         .column()
         .gap(2)
-        .width(Dimension(52))
+        .width(52)
         .shrink(0)
         .alignItems(Align::Center)
         .children(
             {box().grow(1),
              box()
-                 .width(Dimension(30))
-                 .height(Dimension(h))
+                 .width(30)
+                 .height(h)
                  .fill(i == 4 ? kBlue : hexColor(0x6FA8DC, 0.42f))
                  .scaleY(animate(from(0.0f).to(1.0f), {.duration = 220ms,
                                                        .ease = ease::outBack(),
@@ -117,31 +117,31 @@ auto HitmanVerlet::panelA3() -> Element {
       .children({codeLine("delta *= r*r/(delta*delta+r*r) - 0.5;", kBlue),
                  codeLine("x1 -= delta;   x2 += delta;", kBlue),
                  box()
-                     .height(Dimension(64))
+                     .height(64)
                      .shrink(0)
                      .children({box()  // s = 0
-                                    .left(Dimension(0))
-                                    .top(Dimension(39.1f))
-                                    .width(Dimension(324))
-                                    .height(Dimension(1))
+                                    .left(0)
+                                    .top(39.1f)
+                                    .width(324)
+                                    .height(1)
                                     .fill(hexColor(0x2A2E38))})
                      .children({box()  // u = 1
-                                    .left(Dimension(108))
-                                    .top(Dimension(0))
-                                    .width(Dimension(1))
-                                    .height(Dimension(64))
+                                    .left(108)
+                                    .top(0)
+                                    .width(1)
+                                    .height(64)
                                     .fill(hexColor(0x2A2E38))})
                      .children({plotCurve(false, kSteel, 1.4f)})
                      .children({plotCurve(true, kBlue, 1.8f)})
                      .children({t("s_exact", mono(7.0f, kSteel))
-                                    .left(Dimension(4))
-                                    .top(Dimension(2))})
+                                    .left(4)
+                                    .top(2)})
                      .children({t("s_approx", mono(7.0f, kBlue))
-                                    .left(Dimension(4))
-                                    .top(Dimension(13))})
+                                    .left(4)
+                                    .top(13)})
                      .children({t("u = d/r   0.5 → 2.0", mono(7.0f, kTick))
-                                    .left(Dimension(244))
-                                    .top(Dimension(52))}),
+                                    .left(244)
+                                    .top(52)}),
                  t("approx/exact:  0.60× at u=0.5 · 0.88 · "
                    "1.08 · 1.15 · 1.20× at u=2.0",
                    mono(7.5f, kSteel, 0.1f)),
@@ -153,7 +153,7 @@ auto HitmanVerlet::panelA3() -> Element {
                  box()
                      .row()
                      .gap(2)
-                     .height(Dimension(38))
+                     .height(38)
                      .shrink(0)
                      .staggerChildren(60ms)
                      .children({bar(0, "60", 12)})
@@ -169,7 +169,7 @@ auto HitmanVerlet::panelB1() -> Element {
   return panel(kPanelBH[0], "B1 · FIGURE 9: THE ANATOMY", 4)
       .gap(4)
       .children(
-          {box().height(Dimension(118)).shrink(0),
+          {box().height(118).shrink(0),
            t("16 PARTICLES · 24 STICKS · 1 INEQUALITY "
              "(KNEES, §6)",
              monoB(8.5f, kBone, 0.1f)),
@@ -228,8 +228,8 @@ auto HitmanVerlet::panelB2() -> Element {
                5)
       .gap(4)
       .children(
-          {box().height(Dimension(156)).shrink(0),
-           box().height(Dimension(34)).shrink(0),
+          {box().height(156).shrink(0),
+           box().height(34).shrink(0),
            t("\"ITERATIONS USED IN HITMAN VARY BETWEEN 1 AND 10 WITH THE "
              "KIND OF OBJECT SIMULATED.\" — §7. "
              "ORDER MATTERS AS MUCH AS COUNT: LISTED FROM THE PIN A CHAIN "
@@ -294,7 +294,7 @@ auto HitmanVerlet::panelB3() -> Element {
   auto restRow = [&](const char* name, const char* val, bool anchor) {
     return box()
         .row()
-        .height(Dimension(11))
+        .height(11)
         .shrink(0)
         .children({t(name, mono(8.0f, anchor ? kBlue : kSteel, 0.1f)).grow(1),
                    t(val, anchor ? monoB(8.0f, kBlue, 0.1f)
@@ -315,7 +315,7 @@ auto HitmanVerlet::panelB3() -> Element {
              "CROSS-CHECK IS DROPPED: NO PRIMARY SCAN, AND THE DIAGRAM "
              "WOULD HAVE FAILED IT.",
              ui(7.0f, kTick, 0.4f)),
-           box().height(Dimension(4)).shrink(0),
+           box().height(4).shrink(0),
            t("IO INTERACTIVE / EIDOS · 19 NOV 2000 · GLACIER "
              "· DirectX 7.0a · GDC 2001, SAN JOSE",
              ui(7.0f, kSteel, 0.3f)),
@@ -334,7 +334,7 @@ auto HitmanVerlet::header() -> Element {
                                                        .delay = 120ms})};
   return box()
       .column()
-      .height(Dimension(kHeaderH))
+      .height(kHeaderH)
       .shrink(0)
       .gap(3)
       .children(
@@ -354,7 +354,7 @@ auto HitmanVerlet::header() -> Element {
                                 {.duration = 240ms, .delay = 400ms})),
            box().grow(1),
            box()
-               .height(Dimension(1))
+               .height(1)
                .shrink(0)
                .fill(kKeyline)
                .opacity(animate(from(0.0f).to(1.0f),

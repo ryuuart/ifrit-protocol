@@ -100,8 +100,8 @@ struct Tategaki final : sketch::Sketch {
         caption, tg::labelType(12, tg::kAi, 2),
         text(std::move(run))
             .font(std::move(style))
-            .width(Dimension(46.0f))
-            .height(Dimension(140.0f))
+            .width(46.0f)
+            .height(140.0f)
             .block({.writingMode = sigil::weave::WritingMode::kVerticalRL}),
         0.0f, 12.0f);
   }
@@ -150,8 +150,8 @@ struct Tategaki final : sketch::Sketch {
                  .absolute()
                  .inset(tg::kW - tg::kColumnBlockRight - tg::kColumnBlockW, 92,
                         tg::kColumnBlockRight, 0)
-                 .width(Dimension(tg::kColumnBlockW))
-                 .height(Dimension(tg::kColumnBlockH))
+                 .width(tg::kColumnBlockW)
+                 .height(tg::kColumnBlockH)
                  .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
                  // The phrase the plate is about, in vermilion — paint only,
                  // so the glyphs are exactly the glyphs the passage shaped.
@@ -172,16 +172,16 @@ struct Tategaki final : sketch::Sketch {
                  .gap(10)
                  .children({text("縦組み").font(tg::bodyType(46))})
                  .children({box()
-                                .width(Dimension(120.0f))
-                                .height(Dimension(1.0f))
+                                .width(120.0f)
+                                .height(1.0f)
                                 .fill(Fill::color(tg::kAi))})
                  .children(
                      {text("VERTICAL-RL").font(tg::labelType(15, tg::kAi, 4))})
                  .children({text("UTR#50 orientation, 'vert' forms,\n"
                                  "tate-chu-yoko digits, rotated Latin")
                                 .font(tg::labelType(14, 0.5f))
-                                .width(Dimension(240.0f))})
-                 .children({box().height(Dimension(26.0f))})
+                                .width(240.0f)})
+                 .children({box().height(26.0f)})
                  .children(
                      {box()
                           .row()
@@ -206,12 +206,12 @@ struct Tategaki final : sketch::Sketch {
                                                VerticalForm::kTateChuYoko})
                                   .add(u8"年"),
                               tg::bodyType(28))})})
-                 .children({box().height(Dimension(22.0f))})
+                 .children({box().height(22.0f)})
                  .children(
                      {text("one paragraph · one writingMode "
                            "· three forms")
                           .font(tg::labelType(13, {0.55f, 0.53f, 0.50f, 1}))
-                          .width(Dimension(300.0f))}),
+                          .width(300.0f)}),
              text("cluster-unit entrance staggers DOWN the column, "
                   "columns advance right to left")
                  .font(tg::labelType(13, {0.48f, 0.46f, 0.44f, 1}))

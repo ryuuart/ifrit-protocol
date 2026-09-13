@@ -88,7 +88,7 @@ const char* kPassage =
 
 Element passage(weave::JustificationOptions options) {
   return text(kPassage, body())
-      .width(Dimension(kMeasure))
+      .width(kMeasure)
       .block({.alignment = weave::TextAlignment::kJustify})
       .block({.lineBreak = weave::LineBreakStrategy::kKnuthPlass})
       .block({.justification = options});

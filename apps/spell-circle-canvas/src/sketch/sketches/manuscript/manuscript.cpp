@@ -196,10 +196,10 @@ struct Manuscript final : sketch::Sketch {
     gilt.strokeFill = Fill::color(pal.gold);
     return box()
         .absolute()
-        .left(Dimension(px(kSpine)))
-        .top(Dimension(px(kHead)))
-        .width(Dimension(px(kMeasure)))
-        .height(Dimension(px(kPitch * (float)kIncipitLines)))
+        .left(px(kSpine))
+        .top(px(kHead))
+        .width(px(kMeasure))
+        .height(px(kPitch * (float)kIncipitLines))
         .zIndex(1)
         .fill(Fill::color(pal.stem))
         .foreground(gilt)
@@ -239,8 +239,8 @@ struct Manuscript final : sketch::Sketch {
                                  .color = pal.gold})
                           .key("versal")
                           .absolute()
-                          .left(Dimension(0.0f))
-                          .top(Dimension(0.0f));
+                          .left(0.0f)
+                          .top(0.0f);
     Element prose = text(rest)
                         .font(body(kBodySize, pal.ink))
                         .flowAround("versal", px(2.4f))
@@ -252,8 +252,8 @@ struct Manuscript final : sketch::Sketch {
     PathFormat fillet;
     fillet.width = px(0.7f);
     fillet.strokeFill = Fill::color(pal.gold);
-    initial.width(Dimension(px(kPitch * (float)kCapLines)))
-        .height(Dimension(px(kPitch * (float)kCapLines)))
+    initial.width(px(kPitch * (float)kCapLines))
+        .height(px(kPitch * (float)kCapLines))
         .fill(Fill::color(pal.stem))
         .foreground(fillet)
         .alignItems(Align::Center)
@@ -270,14 +270,14 @@ struct Manuscript final : sketch::Sketch {
     Element written =
         box()
             .absolute()
-            .left(Dimension(px(kSpine)))
-            .top(Dimension(px(blockTop)))
-            .width(Dimension(px(kMeasure)))
-            .height(Dimension(px(kDepth - kPitch * (float)kIncipitLines)))
+            .left(px(kSpine))
+            .top(px(blockTop))
+            .width(px(kMeasure))
+            .height(px(kDepth - kPitch * (float)kIncipitLines))
             .zIndex(1)
             .children({std::move(initial),
                        prose.key("block")
-                           .width(Dimension(px(kMeasure)))
+                           .width(px(kMeasure))
                            .paragraphs({block})
                            .block({.lineBreak =
                                        weave::LineBreakStrategy::kKnuthPlass})
@@ -293,10 +293,10 @@ struct Manuscript final : sketch::Sketch {
         illuminatedPanel(rubric)
             .key("note")
             .absolute()
-            .left(Dimension(px(kMeasure - kForeEdge * 0.30f)))
-            .top(Dimension(px(kPitch * 12.0f)))
-            .width(Dimension(px(kForeEdge * 0.78f)))
-            .height(Dimension(px(kPitch * 6.0f)))
+            .left(px(kMeasure - kForeEdge * 0.30f))
+            .top(px(kPitch * 12.0f))
+            .width(px(kForeEdge * 0.78f))
+            .height(px(kPitch * 6.0f))
             .zIndex(3)
             .padding(px(3.0f))
             .gap(px(1.6f))
@@ -312,10 +312,10 @@ struct Manuscript final : sketch::Sketch {
     written.children({box()
                           .key("sprig")
                           .absolute()
-                          .left(Dimension(px(-kSpine * 0.2f)))
-                          .top(Dimension(px(kPitch * 22.0f)))
-                          .width(Dimension(px(kSpine * 0.9f)))
-                          .height(Dimension(px(kPitch * 5.0f)))
+                          .left(px(-kSpine * 0.2f))
+                          .top(px(kPitch * 22.0f))
+                          .width(px(kSpine * 0.9f))
+                          .height(px(kPitch * 5.0f))
                           .zIndex(3)
                           .rotate(90.0f)
                           .children({custom("sprig", sprig(pal)).inset(0)})});
@@ -340,10 +340,10 @@ struct Manuscript final : sketch::Sketch {
         // way a scribe's frame ruling is.
         .children({box()
                        .absolute()
-                       .left(Dimension(px(kSpine)))
-                       .top(Dimension(px(kHead)))
-                       .width(Dimension(px(kMeasure)))
-                       .height(Dimension(px(kDepth)))
+                       .left(px(kSpine))
+                       .top(px(kHead))
+                       .width(px(kMeasure))
+                       .height(px(kDepth))
                        .foreground(rule),
                    frieze(pal), incipit(pal), std::move(written)});
   }

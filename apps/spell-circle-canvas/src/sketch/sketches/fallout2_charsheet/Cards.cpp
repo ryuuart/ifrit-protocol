@@ -66,9 +66,9 @@ auto Fallout2CharSheet::cardContent(int skill) -> Element {
   opts.hyphenation.enabled = false;
   opts.lineMetrics.height = n(kRowPitch11);  // the forced 11 px pitch, x2
   g.children({text(cardPara, opts)
-                  .left(Dimension(n(348 - 345)))
-                  .top(Dimension(n(315 - 267) - n(1.5f)))
-                  .width(Dimension(n(613 - 348)))
+                  .left(n(348 - 345))
+                  .top(n(315 - 267) - n(1.5f))
+                  .width(n(613 - 348))
                   .flowAround("card-ink", n(8))});
   return g;
 }
@@ -147,10 +147,10 @@ auto Fallout2CharSheet::failureCard() const -> Element {
   }
   sketch::kit::Provide bound(look);
   return box()
-      .left(Dimension(120))
-      .top(Dimension(160))
-      .width(Dimension(kScreenW - 240))
-      .height(Dimension(120.0f + 24.0f * (float)rows.size()))
+      .left(120)
+      .top(160)
+      .width(kScreenW - 240)
+      .height(120.0f + 24.0f * (float)rows.size())
       .fill(Fill::color(hexColor(0x0B0D08, 0.96f)))
       .foreground(stroke(3.0f, Fill::color(hexColor(0xE04020)),
                          PathFormat::Align::Inner))
@@ -168,10 +168,10 @@ auto Fallout2CharSheet::failureCard() const -> Element {
 auto Fallout2CharSheet::captionBand() -> Element {
   using namespace fo;
   Element band = box()
-                     .left(Dimension(0))
-                     .top(Dimension(kScreenH))
-                     .width(Dimension(kScreenW))
-                     .height(Dimension(kCaptionH))
+                     .left(0)
+                     .top(kScreenH)
+                     .width(kScreenW)
+                     .height(kCaptionH)
                      .fill(Paint::linearUnit({0, 0}, {0, 1},
                                              {{0.0f, hexColor(0x0B0D08)},
                                               {1.0f, hexColor(0x050604)}}))
@@ -186,13 +186,13 @@ auto Fallout2CharSheet::captionBand() -> Element {
       "corrections included",
       sheetAudit.checks() - sheetAudit.failures(), sheetAudit.checks());
   auto line = [](const char* s, float y) {
-    return text(s).left(Dimension(30)).top(Dimension(y));
+    return text(s).left(30).top(y);
   };
   band.children({t("FALLOUT 2 · CHARACTER SCREEN · BLACK ISLE "
                    "STUDIOS, 1998 · 640×480 8-BIT INDEXED, REBUILT AT 2×",
                    fo::sheetType(bodyBold(), 17.0f, kGold, 1.8f))
-                     .left(Dimension(30))
-                     .top(Dimension(14))});
+                     .left(30)
+                     .top(14)});
   band.children({line(audited.c_str(), 41)
                      .font({.size = 14.5f, .color = kGreen, .track = 0.2f})});
   band.children({line("_colorTable[992] REQUESTS #00FF00; the 256-colour VGA "

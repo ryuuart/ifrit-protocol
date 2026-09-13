@@ -110,12 +110,12 @@ Element chain(const std::string& tag, const weave::Story& story) {
   const auto plate = [&](const std::string& key, bool threaded) {
     Element leaf = frame(story)
                        .key(key)
-                       .width(Dimension(kFrame.width() - 20))
-                       .height(Dimension(kFrame.height() - 20));
+                       .width(kFrame.width() - 20)
+                       .height(kFrame.height() - 20);
     if (threaded) leaf.thread(tag + "-2");
     return box()
-        .width(Dimension(kFrame.width()))
-        .height(Dimension(kFrame.height()))
+        .width(kFrame.width())
+        .height(kFrame.height())
         .clip()
         .fill(Fill::color(sketch::kit::theme().palette.cellGround))
         .padding(10)
@@ -129,8 +129,8 @@ Element chain(const std::string& tag, const weave::Story& story) {
 
 Element optionPlate(Element body) {
   return box()
-      .width(Dimension(kOptionCell))
-      .height(Dimension(kOptionPicture))
+      .width(kOptionCell)
+      .height(kOptionPicture)
       .clip()
       .fill(Fill::color(sketch::kit::theme().palette.cellGround))
       .padding(12)
@@ -199,13 +199,13 @@ struct KeepsAndFrames final : sketch::Sketch {
         text(passage("Seated on the first line's own ascent, which is what "
                      "a leaf that says nothing gets."),
              serif(11.5f, kBody))
-            .width(Dimension(kOptionCell - 24))
+            .width(kOptionCell - 24)
             .firstBaseline(weave::FrameOptions::FirstBaseline::kAscent, kSeat);
     Element capped =
         text(passage("Seated on the first line's CAP HEIGHT, so two leaves "
                      "of different type start their text at one height."),
              serif(11.5f, kBody))
-            .width(Dimension(kOptionCell - 24))
+            .width(kOptionCell - 24)
             .firstBaseline(weave::FrameOptions::FirstBaseline::kCapHeight,
                            kSeat);
     Element stacked =
@@ -215,8 +215,8 @@ struct KeepsAndFrames final : sketch::Sketch {
                           "costs nothing to say."),
                   serif(11.5f, kBody)))
             .key("dist-start")
-            .width(Dimension(kOptionCell - 24))
-            .height(Dimension(kOptionPicture - 24))
+            .width(kOptionCell - 24)
+            .height(kOptionPicture - 24)
             .distribute(weave::FrameOptions::Distribute::kStart);
     Element justified =
         frame(
@@ -225,8 +225,8 @@ struct KeepsAndFrames final : sketch::Sketch {
                                  "magazine reaches its foot."),
                          serif(11.5f, kBody)))
             .key("dist-justify")
-            .width(Dimension(kOptionCell - 24))
-            .height(Dimension(kOptionPicture - 24))
+            .width(kOptionCell - 24)
+            .height(kOptionPicture - 24)
             .distribute(weave::FrameOptions::Distribute::kJustify);
 
     return kit::cells(

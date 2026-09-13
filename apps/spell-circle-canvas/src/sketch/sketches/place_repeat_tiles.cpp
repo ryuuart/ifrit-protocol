@@ -66,8 +66,8 @@ constexpr SkColor4f kWarm{0.86f, 0.52f, 0.34f, 1};
 /** The one motif every chain repeats and the strip is built from. */
 Element motif() {
   return box()
-      .width(Dimension(kMotif.width()))
-      .height(Dimension(kMotif.height()))
+      .width(kMotif.width())
+      .height(kMotif.height())
       .shape(shapes::star(6, 0.46f, 0.14f))
       .fill(Fill::color(sketch::kit::theme().palette.figure));
 }
@@ -112,7 +112,7 @@ struct PlaceRepeatTiles final : sketch::Sketch {
                       .column()
                       .gap(8)
                       .padding(5)
-                      .width(Dimension(kTile.width()))
+                      .width(kTile.width())
                       // Dark on one side and light on the other, so a
                       // mirrored tile is legible AS mirrored.
                       .fill(linearGradient({0, 0}, {(float)kTile.width(), 0},
@@ -121,8 +121,8 @@ struct PlaceRepeatTiles final : sketch::Sketch {
     const SkColor4f figure = sketch::kit::theme().palette.figure;
     for (int i = 0; i < kTiles * 3; ++i)
       run.children({box()
-                        .width(Dimension(kMotif.width()))
-                        .height(Dimension(kMotif.height()))
+                        .width(kMotif.width())
+                        .height(kMotif.height())
                         .shape(shapes::star(6, 0.46f, 0.14f))
                         .fill(Fill::color(i % 3 == 0 ? kWarm : figure))});
     // …and re-recorded behind a bounding-box hierarchy, so each tile's

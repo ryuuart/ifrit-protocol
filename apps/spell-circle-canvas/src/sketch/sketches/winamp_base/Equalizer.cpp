@@ -5,7 +5,7 @@ auto WinampBase::eqWindow() -> Element {
   // The window's captions — PREAMP and the band frequencies — are set in
   // the body's lavender-grey; a key and the title bar say their own.
   Element w =
-      box().width(Dimension(n(275))).height(Dimension(n(116))).ink(kCaption);
+      box().width(n(275)).height(n(116)).ink(kCaption);
   w.children({box().inset(0).fill(steel).cache(Cache::Texture)});
   raised(w, kWellHi, kWellLo);
   w.children({titleBar(275, "WINAMP EQUALIZER", false, false)});
@@ -14,18 +14,18 @@ auto WinampBase::eqWindow() -> Element {
   Element on = key(14, 18, 26, 12, box());
   on.row().alignItems(Align::Center).padding(n(2), 0, 0, 0);
   on.children(
-      {box().width(Dimension(n(3))).height(Dimension(n(3))).fill(wa::kGreen)});
-  on.children({box().width(Dimension(n(2)))});
+      {box().width(n(3)).height(n(3)).fill(wa::kGreen)});
+  on.children({box().width(n(2))});
   on.children({t("ON", pix(4.4f))});
   w.children({on});
 
   Element autoB = key(40, 18, 32, 12, box());
   autoB.row().alignItems(Align::Center).padding(n(2), 0, 0, 0);
   autoB.children({box()
-                      .width(Dimension(n(3)))
-                      .height(Dimension(n(3)))
+                      .width(n(3))
+                      .height(n(3))
                       .fill(hexColor(0x3C4A58))});
-  autoB.children({box().width(Dimension(n(2)))});
+  autoB.children({box().width(n(2))});
   autoB.children({t("AUTO", pix(4.4f))});
   w.children({autoB});
 

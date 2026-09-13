@@ -168,7 +168,7 @@ inline Element t(const char* s, weave::Type partial) {
 
 /** A node centred on a canvas point — the marker/gizmo idiom. */
 inline Element at(Element e, SkPoint c, float w, float h) {
-  e.width(Dimension(w)).height(Dimension(h)).centerAt(c);
+  e.width(w).height(h).centerAt(c);
   return e;
 }
 

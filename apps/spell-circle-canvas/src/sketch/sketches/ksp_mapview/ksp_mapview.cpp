@@ -31,8 +31,8 @@ auto KspMapView::describe(sketch::SketchContext& ctx) -> Element {
           .opacity(0.34f);
 
   return stack()
-      .width(Dimension(W))
-      .height(Dimension(H))
+      .width(W)
+      .height(H)
       .children({backdrop(ctx), std::move(map), std::move(bloom), burnCard(),
                  infoCard(), toolbar(), missionClock(), altimeter(),
                  crewPlate(), cluster()})

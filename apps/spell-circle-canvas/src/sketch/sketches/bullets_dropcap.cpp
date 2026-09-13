@@ -102,7 +102,7 @@ Element dropped(const char* key, std::optional<kit::NestedStyle> nested) {
       text(kPassage)
           .font(serifType(11.5f, kBody))
           .key(key)
-          .width(Dimension(kCell - 28))
+          .width(kCell - 28)
           .initialLetter(
               {.lines = kCapLines,
                .margin = kMargin,
@@ -126,10 +126,10 @@ Element illuminated(const char* key, std::optional<kit::NestedStyle> nested) {
                          .absolute()
                          .left(15)
                          .top(14)});
-  ornament.key(key).absolute().left(Dimension(0.0f)).top(Dimension(0.0f));
+  ornament.key(key).absolute().left(0.0f).top(0.0f);
   Element body = text(std::string_view(kPassage).substr(1))
                      .font(serifType(11.5f, kBody))
-                     .width(Dimension(kCell - 28))
+                     .width(kCell - 28)
                      .flowAround(key, kMargin);
   if (nested) body.spanStyle(kit::nestedRun(*nested), nested->style);
   return box().children({std::move(ornament), std::move(body)});

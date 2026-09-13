@@ -86,8 +86,8 @@ auto SlitScan2001::fitAtK(sigil::weave::FontContext& fonts, int K) -> Fit {
 
   Element accum =
       box()
-          .width(Dimension(kFilmW))
-          .height(Dimension(kFilmH))
+          .width(kFilmW)
+          .height(kFilmH)
           .children(
               {instancing::instances(flatAtlas, pa, instancing::Mode::Data,
                                      SkBlendMode::kPlus),
@@ -244,8 +244,8 @@ auto SlitScan2001::roundTrip(sigil::weave::FontContext& fonts) -> void {
     pool->commit();
 
     Element acc = box()
-                      .width(Dimension((float)boxW))
-                      .height(Dimension((float)boxH))
+                      .width((float)boxW)
+                      .height((float)boxH)
                       .children({instancing::instances(
                           one, pool, instancing::Mode::Data)});
     sk_sp<SkPicture> pic = snapshot(box().children({std::move(acc)}), fonts);

@@ -105,7 +105,7 @@ Element column(const std::u8string& prose, paint::Paint fill) {
              .size = kBodySize,
              .track = 0,
              .language = "en-US"})
-      .width(Dimension(kPanel - kInset * 2))
+      .width(kPanel - kInset * 2)
       .paragraphs({block()})
       .block({.alignment = weave::TextAlignment::kJustify})
       .block({.lineBreak = weave::LineBreakStrategy::kKnuthPlass})

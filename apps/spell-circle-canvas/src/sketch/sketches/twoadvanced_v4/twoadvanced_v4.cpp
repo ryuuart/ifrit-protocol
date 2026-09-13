@@ -33,10 +33,10 @@ auto TwoAdvancedV4::describe() -> Element {
                             "dock      dock      dock"},
                // clang-format on
                .gap = {8, 0}})
-          .left(Dimension(24))
-          .top(Dimension(0))
+          .left(24)
+          .top(0)
           .width(1892)
-          .height(Dimension(1530));
+          .height(1530);
   for (Element panel :
        {audioModule(), navBar(), masthead(), mainframe(), featureSystem(),
         auxiliary(), pressUpdates(), subSystem(), legalStrip(), footerDock()})
@@ -140,7 +140,7 @@ auto TwoAdvancedV4::setup(sketch::SketchContext& ctx) -> void {
   // auto-scroll walks the REAL overflow rather than a guessed one
   pressOverflow = std::max(
       0.0f,
-      ctx.measure(box().width(Dimension(kPressWellW)).children({pressList()}))
+      ctx.measure(box().width(kPressWellW).children({pressList()}))
               .height() -
           kPressWellH);
 

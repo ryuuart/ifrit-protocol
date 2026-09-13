@@ -225,11 +225,11 @@ struct TwoAdvancedEquipment : sketch::Sketch {
     auto it = art.find(name);
     if (it == art.end() || !it->second)
       return box()
-          .width(Dimension(w))
-          .height(Dimension(h))
+          .width(w)
+          .height(h)
           .shrink(0)
           .fill(fallback);
-    return image(it->second).width(Dimension(w)).height(Dimension(h)).shrink(0);
+    return image(it->second).width(w).height(h).shrink(0);
   }
 
   // ---- the three frames ---------------------------------------------------
@@ -335,7 +335,7 @@ struct TwoAdvancedEquipment : sketch::Sketch {
     // flex child left to its defaults would SHRINK to fit instead of
     // scrolling — rows visibly compressing into one another.
     Element list =
-        box().column().width(501).height(Dimension(kListH)).shrink(0);
+        box().column().width(501).height(kListH).shrink(0);
     list.children({box().height(1)});
     list.children({img("ecom-productselection.gif", 501, 16, kMaroon)});
     list.children({box().height(6)});
@@ -354,8 +354,8 @@ struct TwoAdvancedEquipment : sketch::Sketch {
     // thumb, in exactly the BODY's SCROLLBAR-* colours.
     auto sbButton = [&](bool up) {
       return box()
-          .width(Dimension(kSbW))
-          .height(Dimension(kSbW))
+          .width(kSbW)
+          .height(kSbW)
           .fill(kSbFace)
           .foreground(
               onEdges(path::Edge::Top | path::Edge::Left,
@@ -379,7 +379,7 @@ struct TwoAdvancedEquipment : sketch::Sketch {
              .scrolled = frame,
              .position = scrollEnvelope().target(0.0f, frame.thumb().travel),
              .track = Fill::color(kSbTrack)})
-            .width(Dimension(kSbW));
+            .width(kSbW);
 
     return at(box().fill(kWhite), kLeftW, kTopH, kPageW - kLeftW, kContentH)
         .clip()
@@ -403,8 +403,8 @@ struct TwoAdvancedEquipment : sketch::Sketch {
     // cell had no way to say otherwise.
     Element page =
         box()
-            .width(Dimension(kPageW))
-            .height(Dimension(kPageH))
+            .width(kPageW)
+            .height(kPageH)
             .font({.face = verdanaFace(false), .size = 10})
             .fill(kWhite)
             .children({topFrame(), leftFrame(), contentFrame(), bottomFrame()});

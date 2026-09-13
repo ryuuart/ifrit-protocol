@@ -31,7 +31,7 @@ constexpr SkColor4f kBarDim{0.30f, 0.83f, 0.78f, 0.45f};
  *  force. What is missing draws as a note in the ink. */
 Element bars(const data::Table* table, const char* names, const char* values,
              std::string_view missing) {
-  Element column = box().column().gap(4).width(Dimension(kCell - 28));
+  Element column = box().column().gap(4).width(kCell - 28);
   if (!table || !table->has(names) || !table->has(values))
     return column.children(
         {text(std::u8string(missing.begin(), missing.end()))});
@@ -46,10 +46,10 @@ Element bars(const data::Table* table, const char* names, const char* values,
              .row()
              .alignItems(Align::Center)
              .gap(8)
-             .children({text(label[row]).width(Dimension(96.0f))})
+             .children({text(label[row]).width(96.0f)})
              .children({box()
-                            .height(Dimension(11.0f))
-                            .width(Dimension((float)length(value[row])))
+                            .height(11.0f)
+                            .width((float)length(value[row]))
                             .fill(Fill::color(row == 0 ? kBar : kBarDim))})
              .children({text(std::to_string((long)value[row]))
                             .font({.size = 9.5f})})});

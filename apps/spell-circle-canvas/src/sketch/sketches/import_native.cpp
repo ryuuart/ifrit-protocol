@@ -109,7 +109,7 @@ Element dial(float edge) {
                                      "holds")
                                     .font({.size = 17, .track = 0.4f})
                                     .ink(SkColor4f{1, 1, 1, 0.45f})
-                                    .width(Dimension(edge - 68))})
+                                    .width(edge - 68)})
                      .children({std::move(ticks)})});
 }
 

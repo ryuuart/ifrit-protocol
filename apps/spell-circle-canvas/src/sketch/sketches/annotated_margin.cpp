@@ -148,9 +148,9 @@ struct AnnotatedMargin final : sketch::Sketch {
             .children({text(m::kPassage)
                            .key("passage")
                            .absolute()
-                           .left(Dimension(m::kTextLeft))
-                           .top(Dimension(m::kTextTop))
-                           .width(Dimension(m::kMeasure))
+                           .left(m::kTextLeft)
+                           .top(m::kTextTop)
+                           .width(m::kMeasure)
                            .paragraphs(
                                {{.leading = weave::Leading::multiple(1.55f)}})})
             // The same text again, lower, under a cascade — the playhead
@@ -160,9 +160,9 @@ struct AnnotatedMargin final : sketch::Sketch {
                            .font({.size = 17})
                            .key("cascade")
                            .absolute()
-                           .left(Dimension(m::kTextLeft))
-                           .top(Dimension(m::kH - 210))
-                           .width(Dimension(m::kMeasure))
+                           .left(m::kTextLeft)
+                           .top(m::kH - 210)
+                           .width(m::kMeasure)
                            .fx({.effect = fx::rise(14),
                                 .stagger = m::kRoll,
                                 .unit = weave::Unit::Word,
@@ -198,7 +198,7 @@ struct AnnotatedMargin final : sketch::Sketch {
               .measure = m::kNoteMeasure},
              [&](const TextUnit& unit) {
                return box()
-                   .width(Dimension(m::kNoteMeasure))
+                   .width(m::kNoteMeasure)
                    .justify(Justify::End)
                    .row()
                    .gap(8)
@@ -207,8 +207,8 @@ struct AnnotatedMargin final : sketch::Sketch {
                                        std::to_string((int)unit.axis),
                                    m::note())})
                    .children({box()
-                                  .width(Dimension(m::kGutter - 6))
-                                  .height(Dimension(1.0f))
+                                  .width(m::kGutter - 6)
+                                  .height(1.0f)
                                   .fill(Fill::color(m::kFaint))});
              })
              .absolute()

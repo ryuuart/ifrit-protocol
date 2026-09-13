@@ -351,7 +351,7 @@ struct BoundLane : sketch::Sketch {
                    "written.")
                   .font(
                       {.face = weave::defaultFace(), .size = 12, .color = kDim})
-                  .width(Dimension(420))},
+                  .width(420)},
          .gap = 24});
 
     Element tracks = kit::cells(

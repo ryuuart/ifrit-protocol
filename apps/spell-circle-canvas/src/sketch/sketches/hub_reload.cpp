@@ -230,7 +230,7 @@ struct HubReload final : sketch::Sketch {
                          .font(look.font({.size = 10, .mono = true}))
                          .ink(look.palette.figure);
     for (const std::string& row : rows)
-      column.children({text(row).width(Dimension(kCell - 20))});
+      column.children({text(row).width(kCell - 20)});
     return column;
   }
 
@@ -268,8 +268,8 @@ struct HubReload final : sketch::Sketch {
     Element column = box().column().gap(8);
     for (const std::shared_ptr<const img::ImageAsset>& asset : {before, after})
       column.children(
-          {asset ? image(asset).width(Dimension(120)).height(Dimension(80))
-                 : box().width(Dimension(120)).height(Dimension(80))});
+          {asset ? image(asset).width(120).height(80)
+                 : box().width(120).height(80)});
     return column;
   }
 };

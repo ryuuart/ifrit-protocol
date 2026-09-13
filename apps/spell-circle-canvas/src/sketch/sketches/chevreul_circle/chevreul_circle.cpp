@@ -11,8 +11,8 @@ auto ChevreulCircle::describe(sketch::SketchContext& ctx) -> Element {
   // classes every name under it resolves through.
   const sketch::kit::Provide look(sheet());
   Element root = stack()
-                     .width(Dimension(kW))
-                     .height(Dimension(kH))
+                     .width(kW)
+                     .height(kH)
                      .font({.face = mono()})
                      .ink(kInk2)
                      .styleSheet(classes());

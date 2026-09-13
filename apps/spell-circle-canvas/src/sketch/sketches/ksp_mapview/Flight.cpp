@@ -59,10 +59,10 @@ auto KspMapView::navball() -> Element {
           mid - (float)sign * kBallR * std::sin((float)deg * 0.0174532925f);
       const float halfW = (deg % 30 == 0) ? kBallR * 0.44f : kBallR * 0.26f;
       deck.children({box()
-                         .left(Dimension(mid - halfW))
-                         .top(Dimension(y - 0.9f))
-                         .width(Dimension(halfW * 2.0f))
-                         .height(Dimension(1.8f))
+                         .left(mid - halfW)
+                         .top(y - 0.9f)
+                         .width(halfW * 2.0f)
+                         .height(1.8f)
                          .fill(Paint::solid(
                              mskia::withAlpha(hexColor(0xEAF4F8), 0.88f)))});
       const std::string num = std::to_string(deg);
@@ -70,8 +70,8 @@ auto KspMapView::navball() -> Element {
         deck.children(
             {t(num.c_str(),
                bold(7.0f, mskia::withAlpha(hexColor(0xEAF4F8), 0.9f), 0.3f))
-                 .left(Dimension(e ? mid + halfW + 3.0f : mid - halfW - 13.0f))
-                 .top(Dimension(y - 5.0f))});
+                 .left(e ? mid + halfW + 3.0f : mid - halfW - 13.0f)
+                 .top(y - 5.0f)});
     };
     for (int r : kRungs) {
       rung(r, +1);
@@ -80,10 +80,10 @@ auto KspMapView::navball() -> Element {
     // The horizon: one bold white rule, which is the line every other
     // reading on the instrument is taken against.
     deck.children({box()
-                       .left(Dimension(mid - kBallR * 0.92f))
-                       .top(Dimension(mid - 1.4f))
-                       .width(Dimension(kBallR * 1.84f))
-                       .height(Dimension(2.8f))
+                       .left(mid - kBallR * 0.92f)
+                       .top(mid - 1.4f)
+                       .width(kBallR * 1.84f)
+                       .height(2.8f)
                        .fill(Paint::solid(hexColor(0xFFFFFF)))});
     g.children(
         {at(box().shape(shapes::circle()).clip().children({std::move(deck)}),
@@ -254,8 +254,8 @@ auto KspMapView::navball() -> Element {
           .gap(5)
           .children({t("164.9m/s", body(11, hexColor(0x14181A)))})
           .children({box()
-                         .width(Dimension(13))
-                         .height(Dimension(13))
+                         .width(13)
+                         .height(13)
                          .corners({2})
                          .alignItems(Align::Center)
                          .justify(Justify::Center)
@@ -317,8 +317,8 @@ auto KspMapView::staging() -> Element {
                            .justify(Justify::Center)
                            .children({t(badge, body(14, hexColor(0xE3E9EC)))}),
                        box()
-                           .right(Dimension(1))
-                           .bottom(Dimension(0))
+                           .right(1)
+                           .bottom(0)
                            .children({t(count, bold(8, hexColor(0xF6D488)))})}),
         x + 4, py, 27, 27);
   };
@@ -378,7 +378,7 @@ auto KspMapView::staging() -> Element {
                          .align = PathFormat::Align::Inner});
   stage.children(
       {box()
-           .height(Dimension(9))
+           .height(9)
            .fill(Paint::solid(hexColor(0xE0B720)))
            .foreground(lines::presets::hatch(
                Fill::color(hexColor(0x141414, 0.9f)), 8.0f, 4.0f, -45.0f))});
@@ -390,8 +390,8 @@ auto KspMapView::staging() -> Element {
            .padding(0, 6, 0, 6)
            .alignItems(Align::Center)
            .children({box()
-                          .width(Dimension(15))
-                          .height(Dimension(15))
+                          .width(15)
+                          .height(15)
                           .shape(shapes::circle())
                           .fill(Paint::radialUnit({0.38f, 0.30f}, 1.0f,
                                                   {{0.0f, hexColor(0xE6FDD1)},
@@ -431,16 +431,16 @@ auto KspMapView::staging() -> Element {
                                .tickSpacing = 6.0f,
                                .tickLength = 9.0f}),
                        box()
-                           .width(Dimension(9))
-                           .height(Dimension(8))
-                           .top(Dimension(0))
-                           .left(Dimension(48))
+                           .width(9)
+                           .height(8)
+                           .top(0)
+                           .left(48)
                            .shape(shapes::polygon(3, 180))
                            .fill(Paint::solid(kStageTab))
                            .translateX(bind(drive).target(-42, 42)),
                        box()
-                           .left(Dimension(4))
-                           .top(Dimension(1))
+                           .left(4)
+                           .top(1)
                            .children({t(label, bold(8, hexColor(0xC7D0D5)))})}),
         x + 154, py, 106, 16);
   };
@@ -452,8 +452,8 @@ auto KspMapView::staging() -> Element {
 auto KspMapView::digitCell(const char* d) -> Element {
   using namespace ksp;
   return box()
-      .width(Dimension(13))
-      .height(Dimension(17))
+      .width(13)
+      .height(17)
       .alignItems(Align::Center)
       .justify(Justify::Center)
       .fill(Paint::linearUnit({0, 0}, {0, 1},
@@ -537,15 +537,15 @@ auto KspMapView::altimeter() -> Element {
                              .tickSpacing = 5.0f,
                              .tickLength = 12.0f})})
           .children({box()
-                         .left(Dimension(6))
-                         .top(Dimension(1))
+                         .left(6)
+                         .top(1)
                          .children({t("ATMOSPHERE",
                                       bold(8, hexColor(0xEAF4FA), 1.4f))})})
           .children({box()
-                         .width(Dimension(9))
-                         .height(Dimension(8))
-                         .left(Dimension(30))
-                         .top(Dimension(0))
+                         .width(9)
+                         .height(8)
+                         .left(30)
+                         .top(0)
                          .shape(shapes::polygon(3, 180))
                          .fill(Paint::solid(hexColor(0xFFFFFF)))
                          .translateX(bind(&yawTape).target(0, 190))}),

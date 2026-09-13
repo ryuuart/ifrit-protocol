@@ -69,8 +69,8 @@ Element cell(const char* call, const char* note, SkSize boxSize,
           .justify(Justify::Center)
           .children(
               {box()
-                   .width(Dimension(boxSize.width()))
-                   .height(Dimension(boxSize.height()))
+                   .width(boxSize.width())
+                   .height(boxSize.height())
                    .stroke(stroke(1.0f, Fill::color(kBoxRule)))
                    .children({box()
                                   .grow(1)

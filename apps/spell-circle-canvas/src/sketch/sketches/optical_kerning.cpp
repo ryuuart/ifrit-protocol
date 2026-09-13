@@ -124,7 +124,7 @@ struct OpticalKerning final : sketch::Sketch {
 
   Element headline(SkColor4f colour, bool optical) {
     return text(kHeadline, display(kSize, colour, optical))
-        .width(Dimension(kCell - 24));
+        .width(kCell - 24);
   }
 
   Element plain() {

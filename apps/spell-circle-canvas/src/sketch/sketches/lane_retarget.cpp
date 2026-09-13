@@ -132,8 +132,8 @@ Element cell(const char* call, const char* note, Element body,
           .children({std::move(body),
                      text(readout, look.mono(10, look.palette.figure))
                          .absolute()
-                         .left(Dimension(8.0f))
-                         .top(Dimension(6.0f))
+                         .left(8.0f)
+                         .top(6.0f)
                          .padding(4, 2)
                          .fill(Fill::color(look.palette.cellGround))}));
 }

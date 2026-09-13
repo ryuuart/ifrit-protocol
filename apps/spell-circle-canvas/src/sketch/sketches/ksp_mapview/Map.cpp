@@ -142,7 +142,7 @@ auto KspMapView::orbits(sketch::SketchContext& ctx) -> Element {
 
   Element g = stack().inset(0);
   auto full = [&](Element e) {
-    e.inset(0).width(Dimension(W)).height(Dimension(H));
+    e.inset(0).width(W).height(H);
     return e;
   };
 
@@ -222,8 +222,8 @@ auto KspMapView::targetLabel(sketch::SketchContext& ctx) -> Element {
                        .offset = -9.0f,
                        .autoFlip = true})
       .inset(0)
-      .width(Dimension(ctx.size.width()))
-      .height(Dimension(ctx.size.height()));
+      .width(ctx.size.width())
+      .height(ctx.size.height());
 }
 
 auto KspMapView::marker(const char* label, SkPoint p, SkColor4f c, bool filled,
@@ -265,7 +265,7 @@ auto KspMapView::gizmo() -> Element {
   auto arm = [&](const char* k, float bearing, float len, SkColor4f c,
                  bool solid, bool jitter) {
     Element e =
-        box().width(Dimension(len)).height(Dimension(20)).shape(paddle(len));
+        box().width(len).height(20).shape(paddle(len));
     if (solid)
       e.fill(Paint::solid(c));
     else
@@ -284,8 +284,8 @@ auto KspMapView::gizmo() -> Element {
     const float rad2 = bearing * 0.017453293f;
     Element e =
         box()
-            .width(Dimension(18))
-            .height(Dimension(18))
+            .width(18)
+            .height(18)
             .shape(solid ? shapes::ring(2.6f, 3.0f) : shapes::ring(2.2f))
             .fill(Paint::solid(solid ? c : mskia::withAlpha(c, 0.62f)))
             .centerAt(arrange::onEllipse(hub, {40, 40}, rad2))
@@ -374,7 +374,7 @@ auto KspMapView::burnCard() -> Element {
                                       body(10, mskia::withAlpha(kLcd, 0.8f)))}),
                      slot("burn"),
                      box()
-                         .height(Dimension(1))
+                         .height(1)
                          .fill(Paint::solid(hexColor(0x2C3238)))
                          .margin(2)}),
       646, 566, 190, 88);

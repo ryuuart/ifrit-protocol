@@ -84,8 +84,8 @@ struct Mawarikomi final : sketch::Sketch {
         caption, mw::labelType(10, mw::kAi, 1.4f),
         text(text8)
             .font(style)
-            .width(Dimension(46.0f))
-            .height(Dimension(216.0f))
+            .width(46.0f)
+            .height(216.0f)
             .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
             .maxLines(1)
             .ellipsis(u8"…"),
@@ -111,16 +111,16 @@ struct Mawarikomi final : sketch::Sketch {
                        .key("hinomaru")
                        .absolute()
                        .inset(mw::kBlockLeft + 132, mw::kBlockTop + 96, 0, 0)
-                       .width(Dimension(mw::kDiscSize))
-                       .height(Dimension(mw::kDiscSize))
+                       .width(mw::kDiscSize)
+                       .height(mw::kDiscSize)
                        .shape(shapes::circle())
                        .fill(Fill::color(mw::kAka)),
                    box()
                        .key("in")
                        .absolute()
                        .inset(mw::kBlockLeft + 42, mw::kBlockTop + 316, 0, 0)
-                       .width(Dimension(mw::kSealSize))
-                       .height(Dimension(mw::kSealSize))
+                       .width(mw::kSealSize)
+                       .height(mw::kSealSize)
                        .shape(shapes::star(6))
                        .fill(Fill::color(mw::kAi))})
         // The passage itself. Two exclusions, one declaration each; the
@@ -136,8 +136,8 @@ struct Mawarikomi final : sketch::Sketch {
                  .font(mw::bodyType(21))
                  .absolute()
                  .inset(mw::kBlockLeft, mw::kBlockTop, 0, 0)
-                 .width(Dimension(mw::kBlockW))
-                 .height(Dimension(mw::kBlockH))
+                 .width(mw::kBlockW)
+                 .height(mw::kBlockH)
                  .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
                  .flowAround("hinomaru", 11)
                  .flowAround("in", 9)
@@ -151,17 +151,17 @@ struct Mawarikomi final : sketch::Sketch {
                  .gap(10)
                  .children({text("回り込み").font(mw::bodyType(42))})
                  .children({box()
-                                .width(Dimension(120.0f))
-                                .height(Dimension(1.0f))
+                                .width(120.0f)
+                                .height(1.0f)
                                 .fill(Fill::color(mw::kAka))})
                  .children({text("THE COLUMN PARTS, AND THE COLUMN STOPS")
                                 .font(mw::labelType(12, mw::kAi, 2.6f))
-                                .width(Dimension(268.0f))})
+                                .width(268.0f)})
                  .children({text("an exclusion cuts a column exactly as it\n"
                                  "cuts a line · a clamped column ends "
                                  "in\na marker at its foot")
                                 .font(mw::labelType(13, 0.4f))
-                                .width(Dimension(268.0f))})})
+                                .width(268.0f)})})
         // The pair: one clamp in each script, so the marker's two forms
         // are side by side. Both columns hold far more than one column of
         // room, so both are cut.
@@ -184,7 +184,7 @@ struct Mawarikomi final : sketch::Sketch {
                        .font(mw::labelType(11, mw::kUsu))
                        .absolute()
                        .inset(64, 520, 0, 0)
-                       .width(Dimension(300.0f)),
+                       .width(300.0f),
                    text("silhouette → subtracted as itself  "
                         "·  a crossed column splits into head and "
                         "foot  ·  the marker takes the form of the "

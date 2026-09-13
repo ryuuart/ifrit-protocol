@@ -91,7 +91,7 @@ Element passage(float measure, bool live, float budget) {
   Element leaf =
       text(kPassage, body())
           .key("para")
-          .width(Dimension(measure))
+          .width(measure)
           .block({.lineBreak = weave::LineBreakStrategy::kKnuthPlass});
   if (live) leaf.live(true, budget);
   return leaf;

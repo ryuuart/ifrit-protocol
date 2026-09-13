@@ -181,16 +181,16 @@ inline Element bar(float frameW, float frameH, float innerW, float innerH,
     e.children({box()
                     .left(padX + innerW * (1.0f - decay))
                     .top(padY)
-                    .width(Dimension(innerW * decay))
-                    .height(Dimension(innerH))
+                    .width(innerW * decay)
+                    .height(innerH)
                     .fill(Paint::solid({kQualityEpic.fR, kQualityEpic.fG,
                                         kQualityEpic.fB, 0.55f}))});
   e.children(
       {box()
            .left(padX)
            .top(padY)
-           .width(Dimension(innerW * fraction))
-           .height(Dimension(innerH))
+           .width(innerW * fraction)
+           .height(innerH)
            .fill(Paint::linear({0, 0}, {0, innerH},
                                {{0.0f,
                                  {std::min(1.0f, color.fR * 1.45f + 0.06f),

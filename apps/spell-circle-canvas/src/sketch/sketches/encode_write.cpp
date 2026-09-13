@@ -110,8 +110,8 @@ Element cell(const char* call, const char* note, sk_sp<SkImage> picture,
           .children({std::move(art).absolute().inset(0),
                      text(readout, sheet.mono(10, sheet.palette.figure))
                          .absolute()
-                         .left(Dimension(6.0f))
-                         .top(Dimension(6.0f))
+                         .left(6.0f)
+                         .top(6.0f)
                          .padding(4, 2)
                          .fill(Fill::color({0, 0, 0, 0.55f}))}));
 }

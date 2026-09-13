@@ -158,7 +158,7 @@ struct WarichuPlaceholder final : sketch::Sketch {
             // Track nought: the page's running text is tracked; a serif is not.
             .font({.face = serif(), .size = kBaseSize, .track = 0.0f})
             .ink(kBody)
-            .width(Dimension(kCell - 24))
+            .width(kCell - 24)
             // The band goes into the block's strut, so the base's own
             // pitch opens to hold the note; the slot sets the note's type.
             .children({box()
@@ -168,8 +168,8 @@ struct WarichuPlaceholder final : sketch::Sketch {
                            .children({std::move(child)})});
     if (vertical) {
       leaf.block({.writingMode = weave::WritingMode::kVerticalRL})
-          .width(Dimension(kCell - 24))
-          .height(Dimension(kPicture - 24));
+          .width(kCell - 24)
+          .height(kPicture - 24);
     }
     return leaf;
   }
@@ -214,15 +214,15 @@ struct WarichuPlaceholder final : sketch::Sketch {
       if (vertical) {
         // The band is ACROSS the column in a vertical setting, so the two
         // lines stand side by side and each runs down the note's advance.
-        leaf.left(Dimension(along))
-            .top(Dimension(0.0f))
-            .width(Dimension(half))
-            .height(Dimension(split.advance))
+        leaf.left(along)
+            .top(0.0f)
+            .width(half)
+            .height(split.advance)
             .block({.writingMode = weave::WritingMode::kVerticalRL});
       } else {
-        leaf.left(Dimension(0.0f))
-            .top(Dimension(along))
-            .width(Dimension(split.advance));
+        leaf.left(0.0f)
+            .top(along)
+            .width(split.advance);
       }
       return leaf;
     };
@@ -235,7 +235,7 @@ struct WarichuPlaceholder final : sketch::Sketch {
     Element column = box().column().gap(8);
     for (const std::string& row : report)
       column.children({text(row, sheet.mono(10, sheet.palette.figure))
-                           .width(Dimension(kCell - 24))});
+                           .width(kCell - 24)});
     return cell("WarichuSplit{advance, band, cutWord}",
                 "what the split answered for this note at this size "
                 "· the caller cuts its own text at that word's start",

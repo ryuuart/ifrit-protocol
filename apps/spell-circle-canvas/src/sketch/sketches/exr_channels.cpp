@@ -273,7 +273,7 @@ struct ExrChannels final : sketch::Sketch {
         .children({text("no float source here").font({.size = 20}),
                    text(why)
                        .font({.size = 12, .color = sheet.palette.ash})
-                       .width(Dimension(620.0f))});
+                       .width(620.0f)});
   }
 };
 

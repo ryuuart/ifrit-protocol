@@ -68,8 +68,8 @@ Element endpoint(const std::string& key, float x, float y) {
   return box()
       .key(key)
       .inset(Dimension(x), Dimension(y), Dimension(), Dimension())
-      .width(Dimension(kNode))
-      .height(Dimension(28))
+      .width(kNode)
+      .height(28)
       .fill(Fill::color(kNodeFill));
 }
 

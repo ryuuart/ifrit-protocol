@@ -18,7 +18,7 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
   const std::string key =
       kit::formatted("sec:%d:%d", sec, settle >= 1.0f ? 1 : (int)(settle * 14));
   Element art =
-      box().key(key).width(Dimension(kStageW)).height(Dimension(kArtH)).clip();
+      box().key(key).width(kStageW).height(kArtH).clip();
   const ImagePtr& bg = sec < 0 ? homeBg : sectionBg[(size_t)sec];
   if (bg)
     art.fill(stretchFill(bg, kStageW, kArtH));
@@ -106,7 +106,7 @@ Element TwoAdvancedV3::transitionArt(int fromSec, int toSec, int step) {
   const float f = (float)step / 14.0f;
   const std::string key = kit::formatted("trans:%d:%d", fromSec, toSec);
   Element out =
-      box().key(key).width(Dimension(kStageW)).height(Dimension(kArtH)).clip();
+      box().key(key).width(kStageW).height(kArtH).clip();
   out.children({box().inset(0).children({sectionArt(fromSec, 1.0f)})});
   out.children(
       {box().inset(0).children({sectionArt(toSec, f)}).mask(by::edge(0, f))});
@@ -123,7 +123,7 @@ Element TwoAdvancedV3::module(const char* glyph, const char* barLabel,
                               Element body, int order) {
   using namespace tv3;
   return box()
-      .width(Dimension(kPanelW))
+      .width(kPanelW)
       .column()
       .children(
           {moduleBar(glyph, barLabel, kPanelW),
@@ -313,7 +313,7 @@ Element TwoAdvancedV3::support2a() {
   auto half = [&](const char* head, const char* copy, const char* btn) {
     return box()
         .grow(1)
-        .basis(Dimension(0))
+        .basis(0)
         .column()
         .gap(4)
         .alignItems(Align::Center)
@@ -346,7 +346,7 @@ Element TwoAdvancedV3::follow2a() {
   if (socialSprite) {
     // The sprite is authored @2x (436×32); the layout shows it at 1×.
     const float iw = (float)socialSprite->width() * 0.5f;
-    icons.width(Dimension(iw)).fill(stretchFill(socialSprite, iw, 16));
+    icons.width(iw).fill(stretchFill(socialSprite, iw, 16));
   } else {
     icons.row().gap(12);
     for (int i = 0; i < 7; ++i)

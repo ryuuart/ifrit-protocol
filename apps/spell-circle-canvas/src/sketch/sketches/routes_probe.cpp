@@ -186,8 +186,8 @@ struct RoutesProbe final : sketch::Sketch {
     return box()
         .key(key)
         .inset(Dimension(x), Dimension(y), Dimension(), Dimension())
-        .width(Dimension(kNode))
-        .height(Dimension(34))
+        .width(kNode)
+        .height(34)
         .fill(Fill::color(sheet.palette.cellGround))
         .children(
             {text(key).styleClass("readout").absolute().inset(9, 9, 0, 0)});
@@ -203,8 +203,8 @@ struct RoutesProbe final : sketch::Sketch {
             .inset(0)
             // The hub every listed route is anchored on.
             .children({probe("hub", 128, 128)
-                           .width(Dimension(80))
-                           .height(Dimension(44))})
+                           .width(80)
+                           .height(44)})
             // Four probes, each wearing one promotion verdict.
             .children(
                 {probe("spun", 16, 24).rotate(-8),
@@ -269,10 +269,10 @@ struct RoutesProbe final : sketch::Sketch {
       column.children({text(empty)
                            .styleClass("readout")
                            .ink(sheet.palette.ash)
-                           .width(Dimension(measure))});
+                           .width(measure)});
     for (const std::string& row : rows)
       column.children(
-          {text(row).styleClass("readout").width(Dimension(measure))});
+          {text(row).styleClass("readout").width(measure)});
     return column;
   }
 

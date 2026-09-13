@@ -110,8 +110,8 @@ struct CutOuts {
 
 Element art(const CutOuts& cut, float alpha = 1.0f) {
   return image(alpha < 1.0f ? cut.faint : cut.solid)
-      .width(Dimension(kArt))
-      .height(Dimension(kArt));
+      .width(kArt)
+      .height(kArt);
 }
 
 Element cell(const char* call, const char* note, Element body) {
@@ -137,10 +137,10 @@ struct CoverageBoundary final : sketch::Sketch {
     const auto disc = [](float x, float y, float d) {
       return box()
           .absolute()
-          .left(Dimension(x))
-          .top(Dimension(y))
-          .width(Dimension(d))
-          .height(Dimension(d))
+          .left(x)
+          .top(y)
+          .width(d)
+          .height(d)
           .shape(shapes::circle())
           .fill(Fill::color(kFigure));
     };

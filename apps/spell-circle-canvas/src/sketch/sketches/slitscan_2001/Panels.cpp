@@ -4,7 +4,7 @@ auto SlitScan2001::panelShell(const char* heading, int order) -> Element {
   using namespace slit;
   return box()
       .column()
-      .width(Dimension(kSideW))
+      .width(kSideW)
       .shrink(0)
       .padding(11)
       .gap(4)
@@ -124,7 +124,7 @@ auto SlitScan2001::s3Law() -> Element {
                       })
                           .inset(4)
                           .cache(Cache::None)})});
-  p.children({slot("fit").height(Dimension(21)).shrink(0)});
+  p.children({slot("fit").height(21).shrink(0)});
   p.children(
       {pl("DWELL AT FILM RADIUS u IS f·w/(V·u), AND IRRADIANCE FROM AN "
           "EXTENDED SOURCE IS DISTANCE-INVARIANT AT FIXED APERTURE — SO "
@@ -189,7 +189,7 @@ auto SlitScan2001::s4Sampling() -> Element {
       {pl("LINEARISING THE LOGARITHM (4.7875 × 84) GIVES 402; AT K = 400 "
           "THE STAMPS NO LONGER QUITE TOUCH.",
           {.size = 6.5f, .color = kAmber})});
-  p.children({slot("ripple").height(Dimension(19)).shrink(0)});
+  p.children({slot("ripple").height(19).shrink(0)});
   p.children(
       {pl("X0/w IS THE ONLY NUMBER THAT SETS THIS, AND X0 = 49.2 in PUTS "
           "THE SLIT 4 ft OFF AXIS — OUTSIDE A 6 ft PLATE. THE WEAKEST "
@@ -206,8 +206,8 @@ auto SlitScan2001::sidebar() -> Element {
   using namespace slit;
   return box()
       .column()
-      .width(Dimension(kSideW))
-      .height(Dimension(kBodyH))
+      .width(kSideW)
+      .height(kBodyH)
       .shrink(0)
       .justify(Justify::SpaceBetween)
       .staggerChildren(85ms)
@@ -223,7 +223,7 @@ auto SlitScan2001::readoutEl() -> Element {
   return box()
       .column()
       .gap(2)
-      .width(Dimension(262))
+      .width(262)
       .children(
           {box()
                .row()

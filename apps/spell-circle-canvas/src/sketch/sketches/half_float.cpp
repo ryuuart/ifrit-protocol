@@ -186,7 +186,7 @@ struct HalfFloat final : sketch::Sketch {
                             "the question a caller asks first, the two buffer "
                             "sizes, and one hot texel read out of each",
                             text(readout, sheet.mono(10, sheet.palette.figure))
-                                .width(Dimension(kCell - 20)))},
+                                .width(kCell - 20))},
              .gap = 12})));
   }
 
@@ -210,8 +210,8 @@ struct HalfFloat final : sketch::Sketch {
     bitmap.setImmutable();
     return image(std::make_shared<const img::ImageAsset>(
                      img::ImageAsset::wrap(bitmap.asImage())))
-        .width(Dimension(kCell - 20))
-        .height(Dimension(kCell - 20));
+        .width(kCell - 20)
+        .height(kCell - 20);
   }
 };
 

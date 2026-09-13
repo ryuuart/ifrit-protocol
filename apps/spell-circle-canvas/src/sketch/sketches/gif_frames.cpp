@@ -236,7 +236,7 @@ struct GifFrames final : sketch::Sketch {
                         " did not decode: the hub reached neither the "
                         "network nor a cached copy of it")
                        .font({.size = 12, .color = sheet.palette.ash})
-                       .width(Dimension(620.0f))});
+                       .width(620.0f)});
   }
 };
 

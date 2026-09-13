@@ -461,7 +461,7 @@ inline Element centred(const std::string& s, float x, float y, float w) {
       .height(1.6_em)
       .children({text(s)
                      .block({.alignment = weave::TextAlignment::kCenter})
-                     .width(Dimension(w))});
+                     .width(w)});
 }
 inline Element rule(float x, float y, float w, float h, SkColor4f c) {
   return at(x, y, w, h).fill(c);

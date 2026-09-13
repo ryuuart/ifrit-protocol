@@ -57,8 +57,8 @@ auto ThunderFulu::sealBlock() -> Element {
       box()
           .left(x)
           .top(y)
-          .width(Dimension(S))
-          .height(Dimension(S))
+          .width(S)
+          .height(S)
           .rotate(-6.0f)
           .transformOrigin(0.5f, 0.5f)
           .opacity(bind(&scribe).window(tSeal, tSeal + 0.45f))
@@ -104,8 +104,8 @@ auto ThunderFulu::plate() -> Element {
   auto g = box()
                .left(kPL)
                .top(kPT)
-               .width(Dimension(kPW))
-               .height(Dimension(kPH))
+               .width(kPW)
+               .height(kPH)
                .opacity(bind(&scribe).window(tPlate, tPlateEnd))
                .key("plate");
   g.children({ironGround()});
@@ -142,7 +142,7 @@ auto ThunderFulu::plate() -> Element {
     g.children({box()
                     .left(18)
                     .top(regs[i].y)
-                    .width(Dimension(kPW - 36))
+                    .width(kPW - 36)
                     .height(1)
                     .shape(keyedShape(kPW - 36,
                                       [w = kPW - 36](SkSize) {
@@ -187,8 +187,8 @@ auto ThunderFulu::tread() -> Element {
   auto g = box()
                .left(x0)
                .top(y0)
-               .width(Dimension(W))
-               .height(Dimension(H + 130))
+               .width(W)
+               .height(H + 130)
                .key("tread");
 
   auto S = [&](int i) { return SkPoint{kDipper[i].x * W, kDipper[i].y * W}; };
@@ -299,8 +299,8 @@ auto ThunderFulu::tread() -> Element {
     auto mp = box()
                   .left(at.fX - pw * 0.5f)
                   .top(at.fY)
-                  .width(Dimension(pw))
-                  .height(Dimension(ph))
+                  .width(pw)
+                  .height(ph)
                   .rotate(((i * 37) % 11 - 5) * 0.62f)
                   .transformOrigin(0.5f, 0.0f)
                   .opacity(bind(&scribe).window(t, t + 0.5f))
@@ -419,7 +419,7 @@ auto ThunderFulu::furniture() -> Element {
                   .left(kPL - 26)
                   .top(kPT)
                   .width(20)
-                  .height(Dimension(kPH))
+                  .height(kPH)
                   .shape(keyedShape(std::string_view("tick-ladder"),
                                     [](SkSize s) {
                                       SkPathBuilder b;

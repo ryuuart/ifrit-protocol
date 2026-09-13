@@ -418,8 +418,8 @@ auto ChaucerAstrolabe::limb() -> Element {
                            .size = 0.026f * kR,
                            .color = hexColor(0x33240c, 0.92f),
                            .track = 0.6f})
-                    .width(Dimension(2 * rr))
-                    .height(Dimension(2 * rr))
+                    .width(2 * rr)
+                    .height(2 * rr)
                     .centerAt({kCx, kCy})
                     .key("degnum" + std::to_string(i))
                     .onPath(TextPath{.path = shapes::circle(),
@@ -448,8 +448,8 @@ auto ChaucerAstrolabe::limb() -> Element {
                     .size = 0.040f * kR,
                     .color = isX ? hexColor(0x33240c, 1.0f)
                                  : hexColor(0x33240c, 0.88f)})
-             .width(Dimension(2 * rr))
-             .height(Dimension(2 * rr))
+             .width(2 * rr)
+             .height(2 * rr)
              .centerAt({kCx, kCy})
              .key("hl" + std::to_string(n))
              .onPath(TextPath{.path = shapes::circle(),

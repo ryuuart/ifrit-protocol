@@ -152,13 +152,13 @@ auto ThunderFulu::tempoPanel() -> Element {
 
 auto ThunderFulu::marginColumn() -> Element {
   const float X = 718, Wc = 282;
-  auto g = box().left(X).top(0).width(Dimension(Wc)).key("margin");
+  auto g = box().left(X).top(0).width(Wc).key("margin");
 
   auto rule = [&](float y, float w) {
     return box()
         .left(0)
         .top(y)
-        .width(Dimension(w))
+        .width(w)
         .height(3)
         .shape(keyedShape(w,
                           [w](SkSize) {
@@ -182,7 +182,7 @@ auto ThunderFulu::marginColumn() -> Element {
                   .styleClass("heading")
                   .left(0)
                   .top(126)
-                  .width(Dimension(Wc))});
+                  .width(Wc)});
   g.children({rule(144, Wc)});
   for (int k = 0; k < 3; ++k) {
     const float t = tHead + (float)k * (tHeadEach + tHeadGap);
@@ -191,7 +191,7 @@ auto ThunderFulu::marginColumn() -> Element {
              .styleClass("chant")
              .left(0)
              .top(154 + (float)k * 26)
-             .width(Dimension(Wc))
+             .width(Wc)
              .opacity(bind(&scribe).window(t, t + 0.3f).target(0.14f, 0.98f))
              .key(kit::formatted("hc%d", k))});
   }
@@ -202,7 +202,7 @@ auto ThunderFulu::marginColumn() -> Element {
                   .styleClass("heading")
                   .left(0)
                   .top(py - 22)
-                  .width(Dimension(Wc))});
+                  .width(Wc)});
   g.children({rule(py - 5, Wc)});
   // STRIP 1 — the band the law actually paints, by the same Ribbon that
   // paints the plate. This is the specimen, not an illustration of one.
@@ -214,8 +214,8 @@ auto ThunderFulu::marginColumn() -> Element {
     g.children({box()
                     .left(0)
                     .top(py + 6)
-                    .width(Dimension(pw))
-                    .height(Dimension(bh))
+                    .width(pw)
+                    .height(bh)
                     .shape(heldPath(axis.detach()))
                     .fill(Fill::none())
                     .stroke(brush::Ribbon{
@@ -229,8 +229,8 @@ auto ThunderFulu::marginColumn() -> Element {
     g.children({box()
                     .left(0)
                     .top(cy)
-                    .width(Dimension(pw))
-                    .height(Dimension(chh))
+                    .width(pw)
+                    .height(chh)
                     .shape(keyedShape(std::tuple{pw, chh, sc},
                                       [pw, chh, sc](SkSize) {
                                         SkPathBuilder b;
@@ -249,8 +249,8 @@ auto ThunderFulu::marginColumn() -> Element {
     g.children({box()
                     .left(0)
                     .top(cy)
-                    .width(Dimension(pw))
-                    .height(Dimension(chh))
+                    .width(pw)
+                    .height(chh)
                     // shapes::parametric returns UNIT coordinates (+-1
                     // spans the box), so with the baseline at the box's
                     // bottom and the 1.0 reference at its middle the plot is
@@ -284,7 +284,7 @@ auto ThunderFulu::marginColumn() -> Element {
                     .font({.size = 8.5f, .color = hexColor(0x6f6047)})
                     .left(0)
                     .top(cy + chh + 4)
-                    .width(Dimension(pw))});
+                    .width(pw)});
   }
 
   // --- the six recovered classes, as specimens -------------------------
@@ -301,7 +301,7 @@ auto ThunderFulu::marginColumn() -> Element {
                   .styleClass("heading")
                   .left(0)
                   .top(ky)
-                  .width(Dimension(Wc))});
+                  .width(Wc)});
   g.children({rule(ky + 18, Wc)});
   // Each specimen runs in its OWN class's direction, at the class's own
   // w₀, so the key reads as the taxonomy and not as six copies of one
@@ -345,7 +345,7 @@ auto ThunderFulu::marginColumn() -> Element {
                   .styleClass("heading")
                   .left(0)
                   .top(gy)
-                  .width(Dimension(Wc))});
+                  .width(Wc)});
   g.children({rule(gy + 18, Wc)});
   for (int k = 0; k < 6; ++k) {
     // the chant must finish exactly as the tenth stroke lands
@@ -355,7 +355,7 @@ auto ThunderFulu::marginColumn() -> Element {
             .styleClass("chant")
             .left(0)
             .top(gy + 28 + (float)k * 18)
-            .width(Dimension(Wc))
+            .width(Wc)
             .opacity(bind(&scribe).window(t, t + 0.28f).target(0.14f, 0.98f))
             .key(kit::formatted("gc%d", k));
     if (k == 5) line.ink(hexColor(0xe07a52));  // the phrase that lands
@@ -365,6 +365,6 @@ auto ThunderFulu::marginColumn() -> Element {
                   .font({.size = 9.0f, .color = hexColor(0x6f6047)})
                   .left(0)
                   .top(gy + 132)
-                  .width(Dimension(Wc))});
+                  .width(Wc)});
   return g;
 }

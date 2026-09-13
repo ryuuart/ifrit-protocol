@@ -121,8 +121,8 @@ auto TwoAdvancedV4::statusBar() -> Element {
   // drop in one after the other: teal leads, maroon follows 80 ms later.
   Element teal =
       bevelPanel(box()
-                     .left(Dimension(0))
-                     .top(Dimension(0))
+                     .left(0)
+                     .top(0)
                      .width(560)
                      .height(40)
                      .shape(shapes::chamfered(40, shapes::Corner::BottomRight))
@@ -164,9 +164,9 @@ auto TwoAdvancedV4::statusBar() -> Element {
 
   Element maroon =
       bevelPanel(box()
-                     .left(Dimension(548))
-                     .top(Dimension(0))
-                     .width(Dimension(1892.0f - 548.0f))
+                     .left(548)
+                     .top(0)
+                     .width(1892.0f - 548.0f)
                      .height(40)
                      .shape(shapes::chamfered(40, shapes::Corner::TopLeft))
                      .row()
@@ -192,8 +192,8 @@ auto TwoAdvancedV4::statusBar() -> Element {
                          .children({t("V4.PROPHECY", heavy(14, kNear, 80))})});
 
   return box()
-      .left(Dimension(24))
-      .top(Dimension(0))
+      .left(24)
+      .top(0)
       .width(1892)
       .height(40)
       .children({maroon, teal});
@@ -260,13 +260,13 @@ auto TwoAdvancedV4::audioModule() -> Element {
   };
   auto meter = [&](float w, const ch::Output<float>* bind, SkColor4f c) {
     return box()
-        .width(Dimension(w))
+        .width(w)
         .height(6)
         .fill(hexColor(0x1B0708))
         .children({box()
-                       .left(Dimension(0))
-                       .top(Dimension(0))
-                       .width(Dimension(w))
+                       .left(0)
+                       .top(0)
+                       .width(w)
                        .height(6)
                        .fill(c)
                        .scaleX(bind)

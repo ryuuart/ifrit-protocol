@@ -186,7 +186,7 @@ inline Element artLunarTunes(sigil::weave::FontContext& f) {
                .zIndex(2)
                .children(
                    {ring({c.fX, -S(0)}, S(47), S(16), -20, 0.62f, ringMat())
-                        .top(Dimension(-c.fY))}),
+                        .top(-c.fY)}),
            navLabel(f, "LUNAR TUNES", S(19), S(0), S(57), S(9), kLabelWhite)});
 }
 
@@ -216,7 +216,7 @@ inline Element artLineup(sigil::weave::FontContext& f) {
            .clip(true)
            .zIndex(2)
            .children({ring({c.fX, 0}, S(29), S(15), -22, 0.60f, ringMat())
-                          .top(Dimension(c.fY - S(34) - S(15)))}),
+                          .top(c.fY - S(34) - S(15))}),
        navLabel(f, "THE LINEUP", S(8), S(-1), S(50), S(9))});
 }
 
@@ -399,9 +399,9 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
     const SkSize m =
         intrinsicSize(text(s).font(ty(display(), size, kLabel, 0)), fonts);
     const float sx = m.width() > 1 ? targetW / m.width() : 1.0f;
-    return t.left(Dimension(x))
-        .top(Dimension(capTopY - 0.20f * size))
-        .width(Dimension(m.width() + 4.0f))
+    return t.left(x)
+        .top(capTopY - 0.20f * size)
+        .width(m.width() + 4.0f)
         .scaleX(sx)
         .skewX(lean)
         .transformOrigin(0.0f, 0.5f);
@@ -453,13 +453,13 @@ inline Element wordmark(sigil::weave::FontContext& fonts, const char* s,
   if (m.width() > target && m.width() > 1) sx = target / m.width();
   Element t = text(s).font(styleAt(size));
   t.echo({kScale, kScale}, C5(0x8C0000));
-  t.left(Dimension(rightAlign ? w - target : 0))
-      .top(Dimension(-h * 0.22f))
-      .width(Dimension(m.width() + 4.0f));
+  t.left(rightAlign ? w - target : 0)
+      .top(-h * 0.22f)
+      .width(m.width() + 4.0f);
   if (sx < 0.999f) t.scaleX(sx).transformOrigin(0.0f, 0.5f);
   return stack()
-      .width(Dimension(w))
-      .height(Dimension(h))
+      .width(w)
+      .height(h)
       .clip(true)
       .children({std::move(t)});
 }

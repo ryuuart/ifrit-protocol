@@ -103,8 +103,8 @@ auto TwoAdvancedV4::featureSystem() -> Element {
                                   .height(6)
                                   .fill(mskia::withAlpha(kPanelSh, 0.7f))
                                   .children({box()
-                                                 .left(Dimension(0))
-                                                 .top(Dimension(0))
+                                                 .left(0)
+                                                 .top(0)
                                                  .width(112)
                                                  .height(6)
                                                  .fill(hexColor(0x0E3234))})})
@@ -160,8 +160,8 @@ auto TwoAdvancedV4::featureSystem() -> Element {
                             .opacity(0.45f),
                         0, 316 - 46, 150, 46)});
   bodyArea.children({box()
-                         .left(Dimension(694 - 11 - 116))
-                         .top(Dimension(316 - 11 - 34))
+                         .left(694 - 11 - 116)
+                         .top(316 - 11 - 34)
                          .children({cta("LAUNCH", 116, 34, kPanelSh)})});
 
   Element panel = bevelPanel(box().column().padding(3), kChrome, 3);
@@ -345,7 +345,7 @@ auto TwoAdvancedV4::auxiliary() -> Element {
   };
   Element supplementals = box()
                               .grow(1)
-                              .basis(Dimension(0))
+                              .basis(0)
                               .column()
                               .gap(3)
                               .children({auxBar("SUPPLEMENTALS & "
@@ -391,7 +391,7 @@ auto TwoAdvancedV4::auxiliary() -> Element {
   Element photoshop =
       box()
           .grow(1)
-          .basis(Dimension(0))
+          .basis(0)
           .column()
           .gap(4)
           .children(
@@ -427,7 +427,7 @@ auto TwoAdvancedV4::auxiliary() -> Element {
   Element press =
       box()
           .grow(1)
-          .basis(Dimension(0))
+          .basis(0)
           .column()
           .gap(4)
           .children(

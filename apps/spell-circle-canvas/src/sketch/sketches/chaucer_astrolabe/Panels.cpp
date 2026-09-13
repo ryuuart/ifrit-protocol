@@ -622,7 +622,7 @@ auto ChaucerAstrolabe::titleStrip() -> Element {
                    .ruled = true})
                   .left(64)
                   .top(44)
-                  .width(Dimension(kW - 128))});
+                  .width(kW - 128)});
   return g;
 }
 

@@ -134,7 +134,7 @@ Element panel(const char* title, const char* note, Element inner) {
                                 .ground = Fill::none(),
                                 .keyline = Fill::color(kFrame)})
                  .children({std::move(inner)}))
-      .width(Dimension(kPanel));
+      .width(kPanel);
 }
 
 /** The shared head of every chain: the column, spread, sized, and a
@@ -226,7 +226,7 @@ struct PopDeform final : sketch::Sketch {
 
     Element banded = kit::cells(
         {.cells = {box()
-                       .width(Dimension(kLead))
+                       .width(kLead)
                        .column()
                        .gap(6)
                        .children(
@@ -245,7 +245,7 @@ struct PopDeform final : sketch::Sketch {
                                 // the page's remark voice is tracked; a
                                 // body line is not
                                 .font({.size = 11, .color = kDim, .track = 0})
-                                .width(Dimension(kLead))}),
+                                .width(kLead)}),
                    panel("twist(…).masked(\"band\")", "only the band turns",
                          splat(twistedM)),
                    panel("taper(…).masked(\"band\")", "only the band narrows",

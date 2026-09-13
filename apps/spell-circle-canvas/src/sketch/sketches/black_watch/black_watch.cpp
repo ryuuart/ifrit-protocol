@@ -816,8 +816,8 @@ struct BlackWatch : sketch::Sketch {
     // classes every name under it resolves through.
     const sketch::kit::Provide look(sheet());
     Element root = stack()
-                       .width(Dimension(kCanvasW))
-                       .height(Dimension(kCanvasH))
+                       .width(kCanvasW)
+                       .height(kCanvasH)
                        .font({.face = mono()})
                        .ink(kInk2)
                        .styleSheet(classes());
@@ -878,7 +878,7 @@ struct BlackWatch : sketch::Sketch {
       o.knuthPlass.tolerance = 6000.0f;
       o.lineMetrics.height = 16.0f;
       root.children({at(kColX, 1246, 320, 150)
-                         .children({text(quote, o).width(Dimension(320))})});
+                         .children({text(quote, o).width(320)})});
     }
 
     root.children({rule(kClothX, 1408, kCanvasW - 2 * kClothX, 1, kRule)});

@@ -209,8 +209,8 @@ inline Element socket(const char* key, SkPoint at, float dia,
   Paint m = Paint::recipe(sdf::material(sdf::circle(), st));
   if (breathingGlow) m.uniform("uGlowR", breathingGlow);
   Element e = box()
-                  .width(Dimension(boxSize))
-                  .height(Dimension(boxSize))
+                  .width(boxSize)
+                  .height(boxSize)
                   .centerAt(at)
                   .fill(std::move(m))
                   .zIndex(z);
@@ -344,8 +344,8 @@ struct PassiveTree final : sketch::Sketch {
                                 nullptr, 4)});
     parent.children(
         {box()
-             .width(Dimension(dia + 10))
-             .height(Dimension(dia + 10))
+             .width(dia + 10)
+             .height(dia + 10)
              .centerAt(at)
              // THE NOTCH ROSETTE IS THE NOTABLE'S METALWORK. PoE carries
              // the node hierarchy in the frame art, not in the radius, and
@@ -358,8 +358,8 @@ struct PassiveTree final : sketch::Sketch {
              .zIndex(4)});
     // The well is never empty in the real thing — a cast sigil sits in it.
     parent.children({box()
-                         .width(Dimension(dia * 0.50f))
-                         .height(Dimension(dia * 0.50f))
+                         .width(dia * 0.50f)
+                         .height(dia * 0.50f)
                          .centerAt(at)
                          .shape(shapes::star(4, 0.34f))
                          .fill(Paint::solid(
@@ -375,8 +375,8 @@ struct PassiveTree final : sketch::Sketch {
     const SkColor4f ring = pt::ringColor(n.state);
     // A diamond, so a group's centre node never reads as one more socket.
     parent.children({box()
-                         .width(Dimension(dia))
-                         .height(Dimension(dia))
+                         .width(dia)
+                         .height(dia)
                          .centerAt(at)
                          .key(nodeKey(i))
                          .shape(shapes::polygon(4))
@@ -384,8 +384,8 @@ struct PassiveTree final : sketch::Sketch {
                          .stroke(stroke(1.8f, Fill::color(ring)))
                          .zIndex(3)});
     parent.children({box()
-                         .width(Dimension(dia * 0.42f))
-                         .height(Dimension(dia * 0.42f))
+                         .width(dia * 0.42f)
+                         .height(dia * 0.42f)
                          .centerAt(at)
                          .shape(shapes::polygon(4))
                          .fill(Paint::solid({ring.fR, ring.fG, ring.fB, 0.75f}))
@@ -410,8 +410,8 @@ struct PassiveTree final : sketch::Sketch {
                     nullptr, 2)});
     parent.children(
         {box()
-             .width(Dimension(dia))
-             .height(Dimension(dia))
+             .width(dia)
+             .height(dia)
              .centerAt(at)
              .key(nodeKey(i))
              .shape(shapes::polygon(8, 22.5f))
@@ -421,16 +421,16 @@ struct PassiveTree final : sketch::Sketch {
              .stroke(stroke(2.8f, Fill::color(ring)))
              .zIndex(3)});
     parent.children({box()
-                         .width(Dimension(dia - 11))
-                         .height(Dimension(dia - 11))
+                         .width(dia - 11)
+                         .height(dia - 11)
                          .centerAt(at)
                          .shape(shapes::polygon(8, 22.5f))
                          .stroke(stroke(1.2f, Fill::color({ring.fR, ring.fG,
                                                            ring.fB, 0.6f})))
                          .zIndex(4)});
     parent.children({box()
-                         .width(Dimension(dia + 16))
-                         .height(Dimension(dia + 16))
+                         .width(dia + 16)
+                         .height(dia + 16)
                          .centerAt(at)
                          .shape(pt::notchRing(16, 0.86f, 1.0f))
                          .stroke(stroke(1.3f, Fill::color({ring.fR, ring.fG,
@@ -439,8 +439,8 @@ struct PassiveTree final : sketch::Sketch {
     // A keystone's plate carries the heaviest sigil in the tree.
     parent.children(
         {box()
-             .width(Dimension(dia * 0.60f))
-             .height(Dimension(dia * 0.60f))
+             .width(dia * 0.60f)
+             .height(dia * 0.60f)
              .centerAt(at)
              .shape(shapes::star(6, 0.40f))
              .fill(Paint::radial(
@@ -459,8 +459,8 @@ struct PassiveTree final : sketch::Sketch {
     const float dia = pt::diameterOf(n.kind);
     const SkColor4f ring = pt::ringColor(n.state);
     parent.children({box()
-                         .width(Dimension(dia))
-                         .height(Dimension(dia))
+                         .width(dia)
+                         .height(dia)
                          .centerAt(at)
                          .key(nodeKey(i))
                          .shape(shapes::polygon(4))
@@ -481,8 +481,8 @@ struct PassiveTree final : sketch::Sketch {
       const float discR = widest + 26;
       root.children(
           {box()
-               .width(Dimension(discR * 2))
-               .height(Dimension(discR * 2))
+               .width(discR * 2)
+               .height(discR * 2)
                .centerAt({g.x, g.y})
                // THE GROUP DISC HAS TO BE SEEN. Path of Exile's
                // PSGroupBackground is a warm plate the rosette sits ON,
@@ -498,8 +498,8 @@ struct PassiveTree final : sketch::Sketch {
       // …and its rim, which is what turns a wash into a plate.
       root.children(
           {box()
-               .width(Dimension(discR * 2))
-               .height(Dimension(discR * 2))
+               .width(discR * 2)
+               .height(discR * 2)
                .centerAt({g.x, g.y})
                .shape(pt::circleOutline())
                .stroke(stroke(1.2f, Fill::color({0.44f, 0.36f, 0.26f, 0.30f})))
@@ -508,8 +508,8 @@ struct PassiveTree final : sketch::Sketch {
         if (r <= 0) continue;
         root.children(
             {box()
-                 .width(Dimension(r * 2))
-                 .height(Dimension(r * 2))
+                 .width(r * 2)
+                 .height(r * 2)
                  .centerAt({g.x, g.y})
                  .shape(pt::circleOutline())
                  .stroke(
@@ -540,8 +540,8 @@ struct PassiveTree final : sketch::Sketch {
     const treedata::Group& g = treedata::kGroups[best];
     root.children(
         {box()
-             .width(Dimension(bestR * 2))
-             .height(Dimension(bestR * 2))
+             .width(bestR * 2)
+             .height(bestR * 2)
              .centerAt({g.x, g.y})
              .shape(pt::circleOutline())
              .stroke(spans::wrap(0.92f, 1.06f).offset(&ringPhase),
@@ -658,8 +658,8 @@ struct PassiveTree final : sketch::Sketch {
       const float d = pt::diameterOf(n.kind) + 13;
       root.children(
           {box()
-               .width(Dimension(d))
-               .height(Dimension(d))
+               .width(d)
+               .height(d)
                .centerAt({n.x, n.y})
                .shape(pt::circleOutline())
                .opacity(&searchPulse)
@@ -671,8 +671,8 @@ struct PassiveTree final : sketch::Sketch {
     const float d = pt::diameterOf(sel.kind) + 30;
     root.children(
         {box()
-             .width(Dimension(d))
-             .height(Dimension(d))
+             .width(d)
+             .height(d)
              .centerAt({sel.x, sel.y})
              .rotate(&selectSpin)
              .shape(shapes::star(12, 0.82f))
@@ -699,7 +699,7 @@ struct PassiveTree final : sketch::Sketch {
     constexpr float kCardW = 268, kCardX = 34, kCardY = 428;
     Element card =
         box()
-            .width(Dimension(kCardW))
+            .width(kCardW)
             .left(kCardX)
             .top(kCardY)
             .column()
@@ -722,8 +722,8 @@ struct PassiveTree final : sketch::Sketch {
                      .font({.size = 9.5f, .track = 3.2f})
                      .margin(0, 3, 0, 0),
                  box()
-                     .width(Dimension(kCardW - 32))
-                     .height(Dimension(1.0f))
+                     .width(kCardW - 32)
+                     .height(1.0f)
                      .margin(0, 9, 0, 9)
                      .fill(Paint::linear(
                          {0, 0}, {kCardW - 32, 0},
@@ -741,8 +741,8 @@ struct PassiveTree final : sketch::Sketch {
                .margin(0, 0, 0, 5)
                .children(
                    {box()
-                        .width(Dimension(3.0f))
-                        .height(Dimension(3.0f))
+                        .width(3.0f)
+                        .height(3.0f)
                         .margin(0, 6, 0, 0)
                         .corners({1.5f})
                         .fill(Paint::solid({pt::kRimLit.fR, pt::kRimLit.fG,
@@ -841,8 +841,8 @@ struct PassiveTree final : sketch::Sketch {
           .alignItems(Align::Center)
           .gap(8)
           .children({box()
-                         .width(Dimension(44.0f))
-                         .height(Dimension(14.0f))
+                         .width(44.0f)
+                         .height(14.0f)
                          .shape(pt::hline())
                          .stroke(brush::presets::rope(state, 0.8f)),
                      text(label).font({.size = 11, .track = 0.8f})});

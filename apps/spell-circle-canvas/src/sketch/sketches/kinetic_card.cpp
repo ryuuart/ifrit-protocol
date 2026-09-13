@@ -188,13 +188,13 @@ struct KineticCard final : sketch::Sketch {
     track.stagger = kCascade;
     return sketch::kit::caption(kCell, row.call, row.note,
                                 box()
-                                    .width(Dimension(kCell))
-                                    .height(Dimension(kBodyH))
+                                    .width(kCell)
+                                    .height(kBodyH)
                                     .children({text(row.word)
                                                    .styleClass("specimen")
                                                    .font(std::move(over))
                                                    .key(row.key)
-                                                   .width(Dimension(kCell))
+                                                   .width(kCell)
                                                    .fx(std::move(track))}));
   }
 
