@@ -200,7 +200,7 @@ inline HeldPath heldPath(SkPath cooked) { return HeldPath(std::move(cooked)); }
  *  own type match, which is what makes a `std::tuple` of the closed-over
  *  numbers the natural spelling. */
 template <std::equality_comparable K, typename F>
-  requires core::PrefixCallable<F, SkPath(SkSize)>
+  requires core::PrefixCallable<const F&, SkPath(SkSize)>
 class KeyedShape {
  public:
   KeyedShape(K key, F fn) : m_key(std::move(key)), m_fn(std::move(fn)) {}
@@ -214,7 +214,7 @@ class KeyedShape {
 };
 
 template <std::equality_comparable K, typename F>
-  requires core::PrefixCallable<F, SkPath(SkSize)>
+  requires core::PrefixCallable<const F&, SkPath(SkSize)>
 KeyedShape<K, F> keyedShape(K key, F fn) {
   return KeyedShape<K, F>(std::move(key), std::move(fn));
 }

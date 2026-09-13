@@ -103,6 +103,22 @@ TEST(CoreCallable, AnEmptyHolderIsFalseAndAFilledOneIsTrue) {
   EXPECT_EQ(out, "!");
 }
 
+TEST(CoreCallable, ACallableMayCarryItsOwnState) {
+  // A holder calls what it holds as an lvalue, so a `mutable` callable — a
+  // steppable with its own accumulator, a counter behind a part — is as good
+  // a callable as a stateless one.
+  Callable<int(int)> counted = [total = 0](int add) mutable {
+    total += add;
+    return total;
+  };
+  EXPECT_EQ(counted(2), 2);
+  EXPECT_EQ(counted(3), 5);
+  // And a copy carries the state it was copied at, not a shared one.
+  Callable<int(int)> forked = counted;
+  EXPECT_EQ(forked(1), 6);
+  EXPECT_EQ(counted(1), 6);
+}
+
 TEST(CoreCallable, AResultIsCarriedBack) {
   Callable<int(int, int)> first = [](int a) { return a * 2; };
   EXPECT_EQ(first(21, 99), 42);

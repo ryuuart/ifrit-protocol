@@ -1332,10 +1332,12 @@ uses, which is how a caller's own label lands ON the curve rather than
 near it) — a component's own lines as parts in
 `kit/Part.h` — `kit::Part`, one such line as a function of what the
 component offers about it, the text and then the component, handed any
-callable whose parameters are a prefix of that offer (as a range's
-children take a function of the item or of the item and its index), so
-a sketch sets one line otherwise and nothing else under the component
-changes — the furniture of a specimen sheet in
+callable whose parameters are a prefix of that offer (`core::Callable`
+over an Element, the one prefix search in the tree — the same one a paint
+program and an outline are taken through, and the same rule a range's
+children follow in taking a function of the item or of the item and its
+index), so a sketch sets one line otherwise and nothing else under the
+component changes — the furniture of a specimen sheet in
 `kit/Specimen.h` — `kit::cell`, a body with a label and a note set
 beside it as a `kit::Caption` says (its `label` and `note` are parts
 that default to `captionLabel` and `captionNote`, leaves in the

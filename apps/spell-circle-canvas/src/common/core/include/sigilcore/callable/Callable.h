@@ -18,10 +18,12 @@ namespace detail {
 /** Whether @p Fn accepts the first `sizeof...(I)` of @p Offer's element
  *  types and answers something @p Result accepts. `void` as the result
  *  accepts any answer, which is what `std::is_invocable_r_v` already means
- *  by it. */
+ *  by it. The callable is asked as an LVALUE, so a `mutable` lambda — a
+ *  steppable carrying its own accumulator, say — is as good a callable as a
+ *  stateless one. */
 template <class Result, class Fn, class Offer, std::size_t... I>
 constexpr bool takesFirst(std::index_sequence<I...>) {
-  return std::is_invocable_r_v<Result, const Fn&,
+  return std::is_invocable_r_v<Result, std::remove_reference_t<Fn>&,
                                std::tuple_element_t<I, Offer>...>;
 }
 
@@ -41,7 +43,7 @@ constexpr std::ptrdiff_t prefixLength() {
  *  answering @p Result — which discards what the call answers where
  *  `Result` is `void`. */
 template <class Result, class Fn, class Offer, std::size_t... I>
-Result callWith(const Fn& fn, Offer& offered, std::index_sequence<I...>) {
+Result callWith(Fn& fn, Offer& offered, std::index_sequence<I...>) {
   if constexpr (std::is_void_v<Result>)
     fn(std::get<I>(offered)...);
   else
@@ -52,7 +54,7 @@ Result callWith(const Fn& fn, Offer& offered, std::index_sequence<I...>) {
  *  unevaluated `decltype` over the very expression `callWith` performs, so
  *  the answer type cannot drift from the call. */
 template <class Fn, class Offer, std::size_t... I>
-auto answerOf(const Fn& fn, Offer& offered, std::index_sequence<I...>)
+auto answerOf(Fn& fn, Offer& offered, std::index_sequence<I...>)
     -> decltype(fn(std::get<I>(offered)...));
 
 }  // namespace detail
@@ -66,7 +68,7 @@ constexpr std::ptrdiff_t namedParameters = -1;
 
 template <class Fn, class Result, class... Offered>
 constexpr std::ptrdiff_t namedParameters<Fn, Result(Offered...)> =
-    detail::prefixLength<Result, std::remove_cvref_t<Fn>,
+    detail::prefixLength<Result, std::remove_reference_t<Fn>,
                          std::tuple<Offered...>, sizeof...(Offered)>();
 
 /** @p Fn IS CALLABLE WITH A PREFIX of what @p Signature offers: given
@@ -84,7 +86,7 @@ concept PrefixCallable = namedParameters<Fn, Signature> >= 0;
  *  `std::function`) rather than holding a `Callable`. */
 template <class Fn, class... Offered>
   requires PrefixCallable<Fn, void(Offered...)>
-decltype(auto) callPrefix(const Fn& fn, Offered&&... offered) {
+decltype(auto) callPrefix(Fn&& fn, Offered&&... offered) {
   constexpr auto named = std::make_index_sequence<static_cast<std::size_t>(
       namedParameters<Fn, void(Offered...)>)>{};
   auto args = std::forward_as_tuple(std::forward<Offered>(offered)...);
@@ -117,7 +119,7 @@ class Callable<Result(Offered...)> {
     requires(!std::is_same_v<std::decay_t<Fn>, Callable> &&
              PrefixCallable<Fn, Result(Offered...)>)
   Callable(Fn fn)  // NOLINT: implicit by design (the verb takes the lambda)
-      : m_call([fn = std::move(fn)](Offered... offered) -> Result {
+      : m_call([fn = std::move(fn)](Offered... offered) mutable -> Result {
           auto args = std::forward_as_tuple(std::forward<Offered>(offered)...);
           return detail::callWith<Result>(
               fn, args,
