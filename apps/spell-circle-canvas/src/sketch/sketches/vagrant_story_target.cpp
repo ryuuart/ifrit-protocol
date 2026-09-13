@@ -554,20 +554,15 @@ struct VagrantStoryTarget final : sketch::Set {
   compose::Element hud() {
     using namespace vs;
     const Limb& L = kLimbs[kSelected];
-    const weave::TextStyle title =
-        weave::textStyle({.size = 13.0f,
-                          .color = SkColor4f{1, 1, 1, 1},
-                          .track = 0.0f,
-                          .condense = 0.92f,
-                          .aliased = true,
-                          .antiAlias = false});
-    const weave::TextStyle body =
-        weave::textStyle({.size = 9.0f,
-                          .color = SkColor4f{1, 1, 1, 1},
-                          .track = 0.0f,
-                          .condense = 0.95f,
-                          .aliased = true,
-                          .antiAlias = false});
+    // The overlay's pixel voice, stated once: white, hard-edged glyphs on
+    // an unsmoothed paint, in the font context's own face. The two
+    // registers differ in size and in how far they are condensed, and
+    // each bakes against the initial values, as a run of pixel type does.
+    const weave::Type pixel{
+        .color = SkColor4f{1, 1, 1, 1}, .aliased = true, .antiAlias = false};
+    weave::Type title = pixel, body = pixel;
+    weave::merge(title, {.size = 13.0f, .condense = 0.92f});
+    weave::merge(body, {.size = 9.0f, .condense = 0.95f});
 
     compose::Element root =
         compose::box().width((float)kHudW).height((float)kHudH);
