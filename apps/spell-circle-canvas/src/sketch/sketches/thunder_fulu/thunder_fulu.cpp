@@ -5,7 +5,18 @@
 #include "ThunderFulu.h"
 
 auto ThunderFulu::describe(sketch::SketchContext&) -> Element {
-  auto root = box().inset(0);
+  // The plate's type: the terminal face wherever a leaf names none, and
+  // three named voices — a section heading in the display face and
+  // gold, the italic gloss, and the chant a line is sung in.
+  weave::StyleSheet classes;
+  classes
+      .set("heading",
+           {.face = faceDisplay, .size = 11.5f, .color = kGold, .track = 1.1f})
+      .set("gloss",
+           {.face = faceItalic, .size = 10.5f, .color = hexColor(0x7d6f52)})
+      .set("chant", {.face = faceItalic, .size = 11.0f, .color = kChalk});
+  const sigil::core::environment::Provide<weave::StyleSheet> look(classes);
+  auto root = box().inset(0).font({.face = faceMono});
   root.child(plate());
   root.child(tread());
   root.child(marginColumn());

@@ -1,9 +1,18 @@
 #include "ThunderFulu.h"
 
 auto ThunderFulu::chantPanel() -> Element {
-  auto g = box().left(718).top(796).width(474).key("chant");
-  g.child(text(toUtf8("ZHAN HONG FU \xc2\xb7 SEVER THE RAINBOW"),
-               type(faceDisplay, 17.0f, kGold, 1.4f))
+  // the chant's lines are the terminal face in chalk; the head is the
+  // section heading, larger
+  auto g = box()
+               .left(718)
+               .top(796)
+               .width(474)
+               .key("chant")
+               .font({.size = 11.5f})
+               .ink(kChalk);
+  g.child(text(toUtf8("ZHAN HONG FU \xc2\xb7 SEVER THE RAINBOW"))
+              .styleClass("heading")
+              .font({.size = 17.0f, .track = 1.4f})
               .left(0)
               .top(0)
               .width(468));
@@ -38,7 +47,7 @@ auto ThunderFulu::chantPanel() -> Element {
   };
   for (int i = 0; i < 5; ++i) {
     const float t = tGall + (float)i * 0.7f;
-    g.child(text(toUtf8(lines_[i]), type(faceMono, 11.5f, kChalk))
+    g.child(text(toUtf8(lines_[i]))
                 .left(0)
                 .top(36 + (float)i * 19)
                 .width(468)
@@ -48,13 +57,13 @@ auto ThunderFulu::chantPanel() -> Element {
   g.child(
       text(toUtf8("\xe2\x80\x9c\xe6\x80\xa5\xe6\x80\xa5\xe5\xa6\x82\xe5\xbe"
                   "\x8b\xe4\xbb\xa4\xe2\x80\x9d is the Han imperial-document "
-                  "closing formula, borrowed whole. It ends"),
-           type(faceItalic, 10.5f, hexColor(0x7d6f52)))
+                  "closing formula, borrowed whole. It ends"))
+          .styleClass("gloss")
           .left(0)
           .top(136)
           .width(468));
-  g.child(text(toUtf8("almost every fu, and it goes at the FOOT."),
-               type(faceItalic, 10.5f, hexColor(0x7d6f52)))
+  g.child(text(toUtf8("almost every fu, and it goes at the FOOT."))
+              .styleClass("gloss")
               .left(0)
               .top(150)
               .width(468));
@@ -65,7 +74,9 @@ auto ThunderFulu::logStyle() -> feed::TextOptions {
   feed::TextOptions s;
   // One voice, and the levels are CLASSES over it: a colour each, the
   // face and the size the base's.
-  s.styles.base(type(faceMono, 9.6f, hexColor(0x9a8a68)))
+  s.styles
+      .base(weave::textStyle(
+          {.face = faceMono, .size = 9.6f, .color = hexColor(0x9a8a68)}))
       .set("dim", weave::Type{.color = hexColor(0x6d6249)})
       .set("heading", weave::Type{.color = kGold})
       .set("pass", weave::Type{.color = hexColor(0x5fae7f)})
@@ -93,9 +104,18 @@ auto ThunderFulu::consolePanel() -> Element {
 }
 
 auto ThunderFulu::tempoPanel() -> Element {
-  auto g = box().left(718).top(972).width(474).key("tempo");
-  g.child(text(toUtf8("YI QI LI DUAN \xc2\xb7 CUT OFF IN ONE BREATH"),
-               type(faceDisplay, 13.0f, kGold, 1.2f))
+  // the table is the terminal face in the dim gold; its last row, the
+  // foot, is cinnabar
+  auto g = box()
+               .left(718)
+               .top(972)
+               .width(474)
+               .key("tempo")
+               .font({.size = 10.5f})
+               .ink(hexColor(0x9a8a68));
+  g.child(text(toUtf8("YI QI LI DUAN \xc2\xb7 CUT OFF IN ONE BREATH"))
+              .styleClass("heading")
+              .font({.size = 13.0f, .track = 1.2f})
               .left(0)
               .top(0)
               .width(468));
@@ -106,28 +126,27 @@ auto ThunderFulu::tempoPanel() -> Element {
       "FU DAN   gall       10 str   0.360 s/stroke   chant lands on 10",
       "FU JIAO  foot       38 str   0.034 s/stroke   NO LIFT, FLYING WHITE",
   };
-  for (int i = 0; i < 5; ++i)
-    g.child(text(toUtf8(rows[i]),
-                 type(faceMono, 10.5f,
-                      i == 4 ? hexColor(0xcf6a4a) : hexColor(0x9a8a68)))
-                .left(0)
-                .top(20 + (float)i * 15)
-                .width(468));
+  for (int i = 0; i < 5; ++i) {
+    Element row =
+        text(toUtf8(rows[i])).left(0).top(20 + (float)i * 15).width(468);
+    if (i == 4) row.ink(hexColor(0xcf6a4a));
+    g.child(std::move(row));
+  }
   g.child(
       text(toUtf8("the foot is 7.1x the body \xe2\x80\x94 doctrine, measured: "
-                  "\"the foot is the last"),
-           type(faceItalic, 10.5f, hexColor(0x7d6f52)))
+                  "\"the foot is the last"))
+          .styleClass("gloss")
           .left(0)
           .top(100)
           .width(468));
   g.child(text(toUtf8("step; total concentration, cut off in a single breath, "
-                      "no slowing"),
-               type(faceItalic, 10.5f, hexColor(0x7d6f52)))
+                      "no slowing"))
+              .styleClass("gloss")
               .left(0)
               .top(114)
               .width(468));
-  g.child(text(toUtf8("or dragging.\"  A fu written at one tempo is not a fu."),
-               type(faceItalic, 10.5f, hexColor(0x7d6f52)))
+  g.child(text(toUtf8("or dragging.\"  A fu written at one tempo is not a fu."))
+              .styleClass("gloss")
               .left(0)
               .top(128)
               .width(468));
@@ -162,15 +181,16 @@ auto ThunderFulu::marginColumn() -> Element {
   };
 
   // --- 踏符頭: one chant line per hook, as the hook goes down -----------
-  g.child(text(toUtf8("TA FU TOU \xc2\xb7 TREADING THE HEAD"),
-               type(faceDisplay, 11.5f, kGold, 1.1f))
+  g.child(text(toUtf8("TA FU TOU \xc2\xb7 TREADING THE HEAD"))
+              .styleClass("heading")
               .left(0)
               .top(126)
               .width(Dimension(Wc)));
   g.child(rule(144, Wc));
   for (int k = 0; k < 3; ++k) {
     const float t = tHead + (float)k * (tHeadEach + tHeadGap);
-    g.child(text(toUtf8(kHeadChant[k]), type(faceItalic, 11.0f, kChalk))
+    g.child(text(toUtf8(kHeadChant[k]))
+                .styleClass("chant")
                 .left(0)
                 .top(154 + (float)k * 26)
                 .width(Dimension(Wc))
@@ -180,8 +200,8 @@ auto ThunderFulu::marginColumn() -> Element {
 
   // --- the width law, PLOTTED. 起 · 行 · 收 as one curve ---------------
   const float py = 260, ph = 126, pw = Wc;
-  g.child(text(toUtf8("QI / XING / SHOU \xc2\xb7 w(s) OVER ARC LENGTH"),
-               type(faceDisplay, 11.5f, kGold, 1.1f))
+  g.child(text(toUtf8("QI / XING / SHOU \xc2\xb7 w(s) OVER ARC LENGTH"))
+              .styleClass("heading")
               .left(0)
               .top(py - 22)
               .width(Dimension(Wc)));
@@ -256,13 +276,14 @@ auto ThunderFulu::marginColumn() -> Element {
     const float mx[3] = {0.0f, 0.28f, 0.88f};
     const float off[3] = {2, -18, -52};
     for (int i = 0; i < 3; ++i)
-      g.child(text(toUtf8(marks[i]), type(faceMono, 8.5f, hexColor(0xa89778)))
+      g.child(text(toUtf8(marks[i]))
+                  .font({.size = 8.5f, .color = hexColor(0xa89778)})
                   .left(mx[i] * pw + off[i])
                   .top(cy + chh - widthLaw(mx[i]) * sc + (i == 1 ? 4 : -13))
                   .width(120)
                   .key(kit::formatted("lawmk%d", i)));
-    g.child(text(toUtf8("s = distance / fullLength, NOT PathSample::fraction"),
-                 type(faceMono, 8.5f, hexColor(0x6f6047)))
+    g.child(text(toUtf8("s = distance / fullLength, NOT PathSample::fraction"))
+                .font({.size = 8.5f, .color = hexColor(0x6f6047)})
                 .left(0)
                 .top(cy + chh + 4)
                 .width(Dimension(pw)));
@@ -278,8 +299,8 @@ auto ThunderFulu::marginColumn() -> Element {
   // compressed to buy room — SHU's specimen starts at cell y = 2, already
   // under its own caption — so any change here has to move the heading.
   const float ky = 412;
-  g.child(text(toUtf8("SIX CLASSES \xc2\xb7 w0, RECOVERED"),
-               type(faceDisplay, 11.5f, kGold, 1.1f))
+  g.child(text(toUtf8("SIX CLASSES \xc2\xb7 w0, RECOVERED"))
+              .styleClass("heading")
               .left(0)
               .top(ky)
               .width(Dimension(Wc)));
@@ -312,8 +333,8 @@ auto ThunderFulu::marginColumn() -> Element {
                                       .width = LawBand{w0}})
                 .key(kit::formatted("spec%d", c)));
     g.child(text(toUtf8(kit::formatted("%s  %.3f em", kClsName[c],
-                                       (double)w0ForClass(c))),
-                 type(faceMono, 9.0f, hexColor(0xa48c5c)))
+                                       (double)w0ForClass(c))))
+                .font({.size = 9.0f, .color = hexColor(0xa48c5c)})
                 .left(cx)
                 .top(y + 56)
                 .width(140)
@@ -322,8 +343,8 @@ auto ThunderFulu::marginColumn() -> Element {
 
   // --- the six phrases sung while 罡 is drawn ---------------------------
   const float gy = 646;  // see the note above ky
-  g.child(text(toUtf8("SUNG WHILE GANG IS DRAWN"),
-               type(faceDisplay, 11.5f, kGold, 1.1f))
+  g.child(text(toUtf8("SUNG WHILE GANG IS DRAWN"))
+              .styleClass("heading")
               .left(0)
               .top(gy)
               .width(Dimension(Wc)));
@@ -331,17 +352,19 @@ auto ThunderFulu::marginColumn() -> Element {
   for (int k = 0; k < 6; ++k) {
     // the chant must finish exactly as the tenth stroke lands
     const float t = tGall + (float)k * (10.0f * tGallEach / 6.0f);
-    g.child(
-        text(toUtf8(kit::formatted("%d/6  %s", k + 1, kGallChant[k])),
-             type(faceItalic, 11.0f, k == 5 ? hexColor(0xe07a52) : kChalk))
+    Element line =
+        text(toUtf8(kit::formatted("%d/6  %s", k + 1, kGallChant[k])))
+            .styleClass("chant")
             .left(0)
             .top(gy + 28 + (float)k * 18)
             .width(Dimension(Wc))
             .opacity(bind(&scribe).window(t, t + 0.28f).target(0.14f, 0.98f))
-            .key(kit::formatted("gc%d", k)));
+            .key(kit::formatted("gc%d", k));
+    if (k == 5) line.ink(hexColor(0xe07a52));  // the phrase that lands
+    g.child(std::move(line));
   }
-  g.child(text(toUtf8("the sixth phrase lands on the tenth stroke"),
-               type(faceMono, 9.0f, hexColor(0x6f6047)))
+  g.child(text(toUtf8("the sixth phrase lands on the tenth stroke"))
+              .font({.size = 9.0f, .color = hexColor(0x6f6047)})
               .left(0)
               .top(gy + 132)
               .width(Dimension(Wc)));

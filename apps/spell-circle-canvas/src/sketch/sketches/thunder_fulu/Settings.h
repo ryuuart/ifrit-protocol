@@ -20,6 +20,7 @@
 #include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
+#include <sigilcore/reconcile/Environment.h>
 #include <sigildata/table/Table.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
@@ -36,6 +37,7 @@
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -454,12 +456,6 @@ constexpr float tFoot = 20.00f, tFootEach = 0.034f;  // 38 strokes → 1.292 s
 constexpr float tSeal = 21.45f;
 constexpr float tStars = 13.10f;
 constexpr float kLoop = 27.0f;
-
-inline weave::TextStyle type(sk_sp<SkTypeface> face, float size, SkColor4f c,
-                             float tracking = 0) {
-  return weave::textStyle(
-      {.face = std::move(face), .size = size, .color = c, .track = tracking});
-}
 
 // the 踏符頭 chant: one line said silently per hook, as the hook goes down
 inline const char* kHeadChant[3] = {
