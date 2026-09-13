@@ -125,8 +125,8 @@ struct UiParticles final : sketch::Sketch {
         .foreground(sigil::compose::stroke(2, Fill::color(t.edge)))
         .alignItems(Align::Center)
         .justify(Justify::Center)
-        .child(text(std::move(label),
-                    weave::textStyle({.size = 15, .color = t.ink})));
+        .ink(t.ink)
+        .child(text(std::move(label)).font({.size = 15}));
   }
   Element shout(const ChipTheme& t, std::u8string label, int spikes) {
     return box()
@@ -139,8 +139,8 @@ struct UiParticles final : sketch::Sketch {
         .foreground(sigil::compose::stroke(2, Fill::color(t.edge)))
         .alignItems(Align::Center)
         .justify(Justify::Center)
-        .child(text(std::move(label),
-                    weave::textStyle({.size = 13, .color = t.ink})));
+        .ink(t.ink)
+        .child(text(std::move(label)).font({.size = 13}));
   }
   Element seal(const ChipTheme& t, std::u8string label, float lobe) {
     return box()
@@ -151,8 +151,8 @@ struct UiParticles final : sketch::Sketch {
         .foreground(sigil::compose::stroke(2, Fill::color(t.edge)))
         .alignItems(Align::Center)
         .justify(Justify::Center)
-        .child(text(std::move(label),
-                    weave::textStyle({.size = 13, .color = t.ink})));
+        .ink(t.ink)
+        .child(text(std::move(label)).font({.size = 13}));
   }
   Element framed(const Palette& pal, std::u8string label) {
     return box()
@@ -162,8 +162,8 @@ struct UiParticles final : sketch::Sketch {
             sigil::image::ImageAsset::wrap(makeCarvedFrame(pal, 96)))))
         .alignItems(Align::Center)
         .justify(Justify::Center)
-        .child(text(std::move(label),
-                    weave::textStyle({.size = 15, .color = pal.ink})));
+        .ink(pal.ink)
+        .child(text(std::move(label)).font({.size = 15}));
   }
   Element note(const ChipTheme& t, std::u8string line1, std::u8string line2) {
     PathFormat dashed;
@@ -183,10 +183,9 @@ struct UiParticles final : sketch::Sketch {
         .column()
         .gap(2)
         .padding(6)
-        .child(text(std::move(line1),
-                    weave::textStyle({.size = 12, .color = t.ink})))
-        .child(text(std::move(line2),
-                    weave::textStyle({.size = 10, .color = t.edge})));
+        .ink(t.ink)
+        .child(text(std::move(line1)).font({.size = 12}))
+        .child(text(std::move(line2)).font({.size = 10}).ink(t.edge));
   }
 
   void buildChipAtlas() {
@@ -255,13 +254,11 @@ struct UiParticles final : sketch::Sketch {
   Element flourishPost(const PostConfig& cfg) {
     FlourishStyle s;  // gilt-on-parchment
     return flourishCard(s, kPostW - 6, kPostH - 6)
-        .child(text(cfg.title, weave::textStyle({.size = 15, .color = s.ink})))
-        .child(
-            text(cfg.body1, weave::textStyle({.size = 10.5f, .color = s.ink})))
-        .child(text(cfg.body2, weave::textStyle(
-                                   {.size = 10.5f,
-                                    .color = SkColor4f{s.bronze.fR, s.bronze.fG,
-                                                       s.bronze.fB, 1}})));
+        .font({.size = 10.5f})
+        .ink(s.ink)
+        .child(text(cfg.title).font({.size = 15}))
+        .child(text(cfg.body1))
+        .child(text(cfg.body2).ink({s.bronze.fR, s.bronze.fG, s.bronze.fB, 1}));
   }
   Element carvedPost(const PostConfig& cfg) {
     const Palette pals[4] = {oakPalette(), azurePalette(), crimsonPalette(),
@@ -275,12 +272,11 @@ struct UiParticles final : sketch::Sketch {
         .column()
         .padding(30, 26)
         .gap(5)
-        .child(
-            text(cfg.title, weave::textStyle({.size = 15, .color = pal.stem})))
-        .child(text(cfg.body1,
-                    weave::textStyle({.size = 10.5f, .color = pal.ink})))
-        .child(text(cfg.body2,
-                    weave::textStyle({.size = 10.5f, .color = pal.ink})));
+        .font({.size = 10.5f})
+        .ink(pal.ink)
+        .child(text(cfg.title).font({.size = 15}).ink(pal.stem))
+        .child(text(cfg.body1))
+        .child(text(cfg.body2));
   }
   Element plainPost(const PostConfig& cfg) {
     // A modern dark UI card — the counterpoint to the ornate borders.
@@ -296,14 +292,12 @@ struct UiParticles final : sketch::Sketch {
         .column()
         .padding(16, 14)
         .gap(6)
-        .child(text(cfg.title, weave::textStyle({.size = 15, .color = accent})))
+        .font({.size = 10.5f})
+        .child(text(cfg.title).font({.size = 15}).ink(accent))
         .child(box().width(pct(38)).height(2).corners({1}).fill(
             Fill::color(accent)))
-        .child(text(cfg.body1, weave::textStyle({.size = 10.5f,
-                                                 .color = hexColor(0xcdd3df)})))
-        .child(text(
-            cfg.body2,
-            weave::textStyle({.size = 10.5f, .color = hexColor(0x9aa3b4)})));
+        .child(text(cfg.body1).ink(hexColor(0xcdd3df)))
+        .child(text(cfg.body2).ink(hexColor(0x9aa3b4)));
   }
 
   Element postVariant(const PostConfig& cfg) {
