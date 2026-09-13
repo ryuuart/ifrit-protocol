@@ -67,8 +67,7 @@ TEST(SketchKitStage, TheGroundIsTheThemesUnlessTheStageSaysOtherwise) {
 TEST(SketchKitPage, DrawsTheHandSpelledSheet) {
   const kit::Theme& house = kit::houseTheme();
   const auto label = [&](float size, SkColor4f color, float track) {
-    return sigil::weave::textStyle(
-        {.size = size, .color = color, .track = track});
+    return sigil::weave::Type{.size = size, .color = color, .track = track};
   };
   Element byHand = compose::kit::sheet(
                        {.title = u8"THE RULE AND THE STRANDS",

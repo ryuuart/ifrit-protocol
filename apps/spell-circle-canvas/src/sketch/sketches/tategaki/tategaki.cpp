@@ -96,7 +96,7 @@ struct Tategaki final : sketch::Sketch {
   Element specimen(const char* caption, weave::RichText run) {
     namespace tg = tategaki;
     return tg::specimen(
-        caption, tg::label(12, tg::kAi, 2),
+        caption, tg::labelType(12, tg::kAi, 2),
         text(std::move(run))
             .width(Dimension(46.0f))
             .height(Dimension(140.0f))

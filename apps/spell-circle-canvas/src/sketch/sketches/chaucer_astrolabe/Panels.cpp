@@ -104,21 +104,22 @@ auto ChaucerAstrolabe::projRead() -> Element {
 auto ChaucerAstrolabe::panel(float x, float y, float w, float h,
                              const char* title, const char* sub) -> Element {
   auto g = box().rect(SkRect::MakeXYWH(0, 0, kW, kH));
-  g.child(kit::sheet({.title = toUtf8(title),
-                      .subtitle = sub && *sub ? toUtf8(sub) : std::u8string(),
-                      .titleStyle = type(faceLimb, 15, kRubric, 1.9f),
-                      .subtitleStyle = type(faceItalic, 14, hexColor(0x6b5a44)),
-                      .marginX = 16,
-                      .marginTop = 11,
-                      .marginBottom = 12,
-                      .subtitleGap = 5,
-                      .contentGap = 13,
-                      .ground = Fill::color(hexColor(0xe8dcc2, 0.62f)),
-                      .rule = Fill::color(hexColor(0x241c15, 0.28f))},
-                     box())
-              .rect(SkRect::MakeXYWH(x, y, w, h))
-              .stroke(stroke(1.0f, Fill::color(hexColor(0x241c15, 0.24f)),
-                             PathFormat::Align::Inner)));
+  g.child(
+      kit::sheet({.title = toUtf8(title),
+                  .subtitle = sub && *sub ? toUtf8(sub) : std::u8string(),
+                  .titleStyle = partial(faceLimb, 15, kRubric, 1.9f),
+                  .subtitleStyle = partial(faceItalic, 14, hexColor(0x6b5a44)),
+                  .marginX = 16,
+                  .marginTop = 11,
+                  .marginBottom = 12,
+                  .subtitleGap = 5,
+                  .contentGap = 13,
+                  .ground = Fill::color(hexColor(0xe8dcc2, 0.62f)),
+                  .rule = Fill::color(hexColor(0x241c15, 0.28f))},
+                 box())
+          .rect(SkRect::MakeXYWH(x, y, w, h))
+          .stroke(stroke(1.0f, Fill::color(hexColor(0x241c15, 0.24f)),
+                         PathFormat::Align::Inner)));
   return g;
 }
 

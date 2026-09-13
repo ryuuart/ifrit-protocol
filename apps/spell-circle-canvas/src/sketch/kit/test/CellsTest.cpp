@@ -32,10 +32,10 @@ TEST(SketchKitCells, CaptionDrawsTheHandSpelledCell) {
   const kit::Theme& house = kit::houseTheme();
   const compose::kit::Caption voice{
       .where = compose::kit::Caption::Where::Split,
-      .label = sigil::weave::textStyle(
-          {.face = house.type.mono, .size = 10.5f, .color = house.palette.ink}),
-      .note = sigil::weave::textStyle(
-          {.size = 10, .color = house.palette.ash, .track = 0.2f}),
+      .label = {.face = house.type.mono,
+                .size = 10.5f,
+                .color = house.palette.ink},
+      .note = {.size = 10, .color = house.palette.ash, .track = 0.2f},
       .gap = 7,
       .noteMeasure = 160};
   EXPECT_TRUE(sameDrawing(

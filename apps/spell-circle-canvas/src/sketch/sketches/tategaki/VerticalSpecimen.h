@@ -80,12 +80,29 @@ inline sigil::weave::TextStyle body(
   return s;
 }
 
+/** THE BODY REGISTER AS A PARTIAL — what a reading beside the body, or a
+ *  mark over it, is set in over the body's own style. */
+inline sigil::weave::Type bodyType(
+    float size, SkColor4f color,
+    sigil::weave::VerticalForm form = sigil::weave::VerticalForm::kAuto) {
+  sigil::weave::Type t{.face = mincho(), .size = size, .color = color};
+  t.language = "ja";
+  t.verticalForm = form;
+  return t;
+}
+
 /** THE CAPTION REGISTER: Latin, horizontal, tracked open, in whatever the
  *  default family is — a label is not part of the setting it names. */
 inline sigil::weave::TextStyle label(float size, SkColor4f color,
                                      float tracking = 0) {
   return sigil::weave::textStyle(
       {.size = size, .color = color, .track = tracking});
+}
+/** The same register as a partial, for a caption set over what its cell
+ *  inherits. */
+inline sigil::weave::Type labelType(float size, SkColor4f color,
+                                    float tracking = 0) {
+  return {.size = size, .color = color, .track = tracking};
 }
 
 /** A CAPTION OVER A SHORT VERTICAL COLUMN.
@@ -97,7 +114,7 @@ inline sigil::weave::TextStyle label(float size, SkColor4f color,
  *  caption above, the column below, and the measure the caption wraps to
  *  (@p captionWidth of 0 lets it take its own). */
 inline sigil::compose::Element specimen(std::string_view caption,
-                                        const sigil::weave::TextStyle& style,
+                                        const sigil::weave::Type& style,
                                         sigil::compose::Element column,
                                         float captionWidth = 0.0f,
                                         float gap = 8.0f) {

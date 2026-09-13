@@ -81,7 +81,7 @@ struct Mawarikomi final : sketch::Sketch {
   Element specimen(const char* caption, const char8_t* text8,
                    const sigil::weave::TextStyle& style) {
     namespace mw = mawari;
-    return mw::specimen(caption, mw::label(10, mw::kAi, 1.4f),
+    return mw::specimen(caption, mw::labelType(10, mw::kAi, 1.4f),
                         text(text8, style)
                             .width(Dimension(46.0f))
                             .height(Dimension(216.0f))

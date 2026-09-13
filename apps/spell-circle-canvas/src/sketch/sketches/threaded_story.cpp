@@ -89,9 +89,8 @@ sk_sp<SkTypeface> grotesque() {
 }
 
 /** A caption line: a whole style, which is what a kit::Caption takes. */
-weave::TextStyle label(float size, SkColor4f colour, float track) {
-  return weave::textStyle(
-      {.face = grotesque(), .size = size, .color = colour, .track = track});
+weave::Type label(float size, SkColor4f colour, float track) {
+  return {.face = grotesque(), .size = size, .color = colour, .track = track};
 }
 
 /** The one voice both chains are captioned in: the measure named over the

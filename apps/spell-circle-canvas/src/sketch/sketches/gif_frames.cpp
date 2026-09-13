@@ -86,6 +86,10 @@ sketch::kit::Theme sheetTheme() {
 weave::TextStyle label(float size, SkColor4f color, float track = 0) {
   return weave::textStyle({.size = size, .color = color, .track = track});
 }
+/** The caption register as a partial over what the cell inherits. */
+weave::Type labelType(float size, SkColor4f color, float track = 0) {
+  return {.size = size, .color = color, .track = track};
+}
 
 /** One frame, drawn at kScale with the texels kept hard: this file is
  *  forty pixels across and a smooth resample would invent everything the
@@ -206,8 +210,8 @@ struct GifFrames final : sketch::Sketch {
   static kit::Caption header() {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
     return {.where = kit::Caption::Where::Above,
-            .label = label(11.5f, sheet.palette.ink, 2.0f),
-            .note = label(10.5f, sheet.palette.ash, 0.2f),
+            .label = labelType(11.5f, sheet.palette.ink, 2.0f),
+            .note = labelType(10.5f, sheet.palette.ash, 0.2f),
             .gap = 12,
             .noteGap = 5};
   }

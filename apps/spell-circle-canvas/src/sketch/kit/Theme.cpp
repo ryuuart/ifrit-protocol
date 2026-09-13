@@ -10,6 +10,12 @@ weave::Type Theme::font(const Register& line) const {
           .track = line.track};
 }
 
+weave::Type Theme::font(const Register& line, SkColor4f color) const {
+  weave::Type type = font(line);
+  type.color = color;
+  return type;
+}
+
 weave::StyleSheet Theme::styleSheet() const {
   weave::StyleSheet classes;
   classes.set("title", font(type.title));
@@ -63,8 +69,8 @@ weave::TextStyle Theme::mono(float size, SkColor4f color, float track) const {
 
 compose::kit::Caption Theme::voice(float noteMeasure) const {
   return {.where = captionWhere,
-          .label = style(type.captionLabel, palette.ink),
-          .note = style(type.captionNote, palette.ash),
+          .label = font(type.captionLabel, palette.ink),
+          .note = font(type.captionNote, palette.ash),
           .gap = spacing.captionGap,
           .noteGap = spacing.captionNoteGap,
           .noteMeasure = noteMeasure};

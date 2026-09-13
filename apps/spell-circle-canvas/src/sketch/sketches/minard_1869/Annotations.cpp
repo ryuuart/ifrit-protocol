@@ -168,7 +168,7 @@ auto Minard1869::card(float y, float h, const char* title, const char* key,
                .opacity(beat(t0, t0 + 0.4f))
                .translateY(bind(&T).window(t0, t0 + 0.4f).invert().scale(14));
   c.child(kit::sheet({.title = toUtf8(title),
-                      .titleStyle = type(faceUiBold, 15, kCardInk, 1.6f),
+                      .titleStyle = partial(faceUiBold, 15, kCardInk, 1.6f),
                       .marginX = 18,
                       .marginTop = 12,
                       .marginBottom = 12,

@@ -177,6 +177,9 @@ struct Theme {
    *  set in another register says `.font(look.font(look.type.eyebrow))`,
    *  or names the register as a class. */
   [[nodiscard]] weave::Type font(const Register& line) const;
+  /** The same register with a colour named — what a caption's label or a
+   *  sheet's title is set in, as a partial over what the page inherits. */
+  [[nodiscard]] weave::Type font(const Register& line, SkColor4f color) const;
   /** THE SEVEN REGISTERS AS CLASSES, each under the name its field
    *  carries — "title", "subtitle", "footer", "captionLabel",
    *  "captionNote", "eyebrow", "section" — so a leaf under a bound theme

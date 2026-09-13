@@ -138,8 +138,8 @@ struct ChromeType final : sketch::Sketch {
     const sketch::kit::Theme& look = sketch::kit::theme();
     return kit::cell(
         {.where = kit::Caption::Where::Above,
-         .label = look.sans(9.5f, c::kPale, 2.6f),
-         .note = look.sans(8, c::kFaint, 0.3f),
+         .label = look.font(sketch::kit::Register{9.5f, 2.6f}, c::kPale),
+         .note = look.font(sketch::kit::Register{8, 0.3f}, c::kFaint),
          .gap = 10},
         toUtf8(name), u8"",
         kit::cells({.cells = {std::move(onBox), std::move(onGlyphs)},

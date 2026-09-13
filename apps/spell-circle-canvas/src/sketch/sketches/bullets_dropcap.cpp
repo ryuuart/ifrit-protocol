@@ -85,6 +85,14 @@ weave::TextStyle serif(float size, SkColor4f color, float track = 0) {
       {.face = face, .size = size, .color = color, .track = track});
 }
 
+/** The same register as a partial: what an initial, a nested run and a
+ *  list's items are set in over the text they belong to. */
+weave::Type serifType(float size, SkColor4f color, float track = 0) {
+  const sk_sp<SkTypeface> face = weave::ports::face(
+      {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
+  return {.face = face, .size = size, .color = color, .track = track};
+}
+
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
       kCell, toUtf8(call), toUtf8(note),
@@ -103,7 +111,7 @@ Element dropped(const char* key, std::optional<kit::NestedStyle> nested) {
           .initialLetter(
               {.lines = kCapLines,
                .margin = kMargin,
-               .style = serif(11.5f, sketch::kit::theme().palette.figure)});
+               .style = serifType(11.5f, sketch::kit::theme().palette.figure)});
   if (nested) block.spanStyle(kit::nestedRun(*nested), nested->style);
   return block;
 }
@@ -137,7 +145,7 @@ struct BulletsDropCap final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     const sketch::kit::Theme& look = sketch::kit::theme();
 
-    const weave::TextStyle smallCaps = serif(11.5f, look.palette.figure, 1.1f);
+    const weave::Type smallCaps = serifType(11.5f, look.palette.figure, 1.1f);
 
     // Two levels: two calls, the second inset by its own hang. A level is
     // not a mechanism here either.
@@ -152,15 +160,16 @@ struct BulletsDropCap final : sketch::Sketch {
     const std::vector<std::u8string> innerMarks = {u8"\xe2\x80\x94",
                                                    u8"\xe2\x80\x94"};
 
-    Element list = box()
-                       .column()
-                       .gap(9)
-                       .child(kit::bullets(outer, outerMarks, serif(11, kBody),
-                                           kHang, kCell - 28 - kHang))
-                       .child(kit::bullets(inner, innerMarks,
-                                           serif(10.5f, look.palette.ash),
-                                           kHang, kCell - 28 - kHang * 2)
-                                  .margin(kHang, 0, 0, 0));
+    Element list =
+        box()
+            .column()
+            .gap(9)
+            .child(kit::bullets(outer, outerMarks, serifType(11, kBody), kHang,
+                                kCell - 28 - kHang))
+            .child(kit::bullets(inner, innerMarks,
+                                serifType(10.5f, look.palette.ash), kHang,
+                                kCell - 28 - kHang * 2)
+                       .margin(kHang, 0, 0, 0));
 
     ctx.composer.render(sketch::kit::page(
         {.title = toUtf8("BULLETS AND THE INITIAL LETTER \xc2\xb7 "

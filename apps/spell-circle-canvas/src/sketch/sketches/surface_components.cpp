@@ -39,6 +39,10 @@ weave::TextStyle label(float size = 16) {
   return weave::textStyle(
       {.size = size, .color = SkColor4f{0.94f, 0.95f, 0.98f, 1}});
 }
+/** The same register as a partial, for the sheet's own lines. */
+weave::Type labelType(float size) {
+  return {.size = size, .color = SkColor4f{0.94f, 0.95f, 0.98f, 1}};
+}
 
 Element card(const Card& properties, Element content) {
   return kit::well({.height = 204, .ground = properties.ground},
@@ -78,9 +82,9 @@ struct SurfaceComponents : sketch::Sketch {
          .subtitle = u8"Props + children",
          .footer =
              u8"One card · three paints · responsive styles · a shared grid",
-         .titleStyle = label(30),
-         .subtitleStyle = label(17),
-         .footerStyle = label(14),
+         .titleStyle = labelType(30),
+         .subtitleStyle = labelType(17),
+         .footerStyle = labelType(14),
          .marginX = 28,
          .marginTop = 24,
          .ground = Fill::color({0.035f, 0.045f, 0.07f, 1})},

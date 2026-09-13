@@ -543,6 +543,12 @@ inline weave::TextStyle type(sk_sp<SkTypeface> face, float size, SkColor4f c,
   return weave::textStyle(
       {.face = std::move(face), .size = size, .color = c, .track = tracking});
 }
+/** The same four as a PARTIAL, for a line set over what its sheet
+ *  inherits — a panel's title. */
+inline weave::Type partial(sk_sp<SkTypeface> face, float size, SkColor4f c,
+                           float tracking = 0) {
+  return {.face = std::move(face), .size = size, .color = c, .track = tracking};
+}
 
 using motion::ramp;  // (startMs, durationMs) -> a Transition
 

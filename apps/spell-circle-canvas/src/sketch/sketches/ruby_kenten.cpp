@@ -84,8 +84,8 @@ constexpr float kSplitHeight = 120;
  *  in the same breath as showing it. */
 inline kit::Caption voice() {
   return {.where = kit::Caption::Where::Above,
-          .label = label(9.5f, kAka, 1.6f),
-          .note = label(8.5f, kUsu, 0.2f),
+          .label = labelType(9.5f, kAka, 1.6f),
+          .note = labelType(8.5f, kUsu, 0.2f),
           .gap = 13,
           .noteGap = 7,
           .noteMeasure = 112.0f,
@@ -116,14 +116,14 @@ struct RubyKenten final : sketch::Sketch {
         .writingMode(weave::WritingMode::kVerticalRL);
   }
 
-  weave::TextStyle rubyType() {
+  weave::Type rubyType() {
     namespace f = furigana;
-    return f::body(f::kRubySize, f::kSumi);
+    return f::bodyType(f::kRubySize, f::kSumi);
   }
 
   Element describe() {
     namespace f = furigana;
-    const weave::TextStyle marks = f::body(f::kKentenSize, f::kAka);
+    const weave::Type marks = f::bodyType(f::kKentenSize, f::kAka);
 
     // MONO — one reading per character.
     Element mono =
@@ -233,8 +233,8 @@ struct RubyKenten final : sketch::Sketch {
                                     "opens to hold it",
                                     std::move(mono))))
         .child(kit::cell({.where = kit::Caption::Where::Above,
-                          .label = f::label(9.5f, f::kAka, 1.6f),
-                          .note = f::label(9.0f, f::kUsu, 0.2f),
+                          .label = f::labelType(9.5f, f::kAka, 1.6f),
+                          .note = f::labelType(9.0f, f::kUsu, 0.2f),
                           .gap = 13,
                           .noteGap = 7,
                           .noteMeasure = 300.0f},

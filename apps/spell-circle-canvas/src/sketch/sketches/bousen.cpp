@@ -132,7 +132,7 @@ struct Bousen final : sketch::Sketch {
     sigil::weave::TextStyle style = bs::body(18, bs::kSumi);
     style.paint = bs::banded(bs::kSumi, kind, band, thickness);
     return bs::specimen(
-        caption, bs::label(9, bs::kUsu, 0.6f),
+        caption, bs::labelType(9, bs::kUsu, 0.6f),
         text(u8"\xe5\x82\x8d\xe7\xb7\x9a\xe4\xbe\x8b", style)
             .width(Dimension(28.0f))
             .height(Dimension(62.0f))
@@ -145,7 +145,7 @@ struct Bousen final : sketch::Sketch {
   Element specimen(const char* caption, const sigil::weave::TextStyle& style) {
     namespace bs = bousen;
     return bs::specimen(
-        caption, bs::label(11, bs::kAi, 1.5f),
+        caption, bs::labelType(11, bs::kAi, 1.5f),
         text(u8"「あっ」、。", style)
             .width(Dimension(42.0f))
             .height(Dimension(150.0f))

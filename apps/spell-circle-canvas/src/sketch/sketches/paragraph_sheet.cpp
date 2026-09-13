@@ -99,10 +99,9 @@ weave::TextStyle body(float size = 13.5f, SkColor4f colour = kInk) {
   style.shaping.languageTag = "en-US";
   return style;
 }
-weave::TextStyle label(float size = 9.0f, float track = 1.6f,
-                       SkColor4f colour = kFaint) {
-  return weave::textStyle(
-      {.face = grotesque(), .size = size, .color = colour, .track = track});
+weave::Type label(float size = 9.0f, float track = 1.6f,
+                  SkColor4f colour = kFaint) {
+  return {.face = grotesque(), .size = size, .color = colour, .track = track};
 }
 weave::TextStyle figures(float size = 12.0f) {
   return weave::textStyle({.face = mono(), .size = size, .color = kInk});

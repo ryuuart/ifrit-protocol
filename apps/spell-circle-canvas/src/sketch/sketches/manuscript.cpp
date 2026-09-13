@@ -102,7 +102,7 @@ constexpr double kTurnSecs = 7.0;
 constexpr float kMm = 3.0f;  ///< canvas pixels to the millimetre
 constexpr float kLeafW = 259.0f;
 constexpr float kLeafH = 360.0f;
-constexpr SkSize kSceneSize = {kLeafW * kMm, kLeafH* kMm};
+constexpr SkSize kSceneSize = {kLeafW * kMm, kLeafH * kMm};
 
 // ── The ninths canon, in millimetres ───────────────────────────────────
 constexpr float kSpine = kLeafW / 9.0f;                  // 28.78
@@ -232,9 +232,11 @@ struct Manuscript final : sketch::Sketch {
     // stated as a delimiter so an edit moves it.
     const std::u8string letter(1, pages[page][0]);
     const std::u8string rest = pages[page].substr(1);
-    weave::TextStyle capitals = body(kBodySize * 0.92f, rubric.stem);
-    capitals.shaping.fontFeatures = {weave::features::smallCaps,
-                                     weave::features::capitalsToSmallCaps};
+    weave::Type capitals{
+        .face = book, .size = px(kBodySize * 0.92f), .color = rubric.stem};
+    capitals.language = "la";
+    capitals.features = {weave::features::smallCaps,
+                         weave::features::capitalsToSmallCaps};
 
     const kit::NestedStyle opening{.until = kit::NestedStyle::Until::Delimiter,
                                    .delimiter = u8".",

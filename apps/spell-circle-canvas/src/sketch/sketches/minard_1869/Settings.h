@@ -514,6 +514,13 @@ inline weave::TextStyle type(sk_sp<SkTypeface> face, float size,
                            .color = color,
                            .track = tracking});
 }
+/** The same four as a PARTIAL, for a line set over what its card
+ *  inherits — a card's title. */
+inline weave::Type partial(sk_sp<SkTypeface> face, float size, SkColor4f color,
+                           float tracking = 0) {
+  return {
+      .face = std::move(face), .size = size, .color = color, .track = tracking};
+}
 
 /** The French thousands separator the plate actually engraves: 422.000,
  *  never 422,000. */
