@@ -24,7 +24,6 @@
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Style.h>
 #include <sigilweave/style/StyleSheet.h>
@@ -137,16 +136,14 @@ inline sigil::compose::Element specimen(std::string_view caption,
                                         float gap = 8.0f) {
   // A caption stacked over its body is the compose kit's cell in its
   // type-specimen reading. The cell sets its label in the class
-  // `captionLabel`, so the register this plate states IS that class for the
-  // length of the call; the column was built by the caller and keeps what
-  // it resolved where it was written.
-  const sigil::core::environment::Provide<sigil::weave::StyleSheet> classes(
-      sigil::weave::StyleSheet{{"captionLabel", style}});
+  // `captionLabel`, so the register this plate states IS that class on the
+  // cell that writes it.
   return sigil::compose::kit::cell(
-      {.where = sigil::compose::kit::Caption::Where::Above,
-       .gap = gap,
-       .labelMeasure = captionWidth},
-      caption, {}, std::move(column));
+             {.where = sigil::compose::kit::Caption::Where::Above,
+              .gap = gap,
+              .labelMeasure = captionWidth},
+             caption, {}, std::move(column))
+      .styleSheet(sigil::weave::StyleSheet{{"captionLabel", style}});
 }
 
 }  // namespace vertical

@@ -105,11 +105,8 @@ auto ChaucerAstrolabe::panel(float x, float y, float w, float h,
   // every line a panel holds is set in the plate's ink unless it says
   // otherwise, so a panel's own lines say only what differs
   auto g = box().rect(SkRect::MakeXYWH(0, 0, kW, kH)).ink(kInk);
-  // the sheet's two headed lines are the classes of their own names
-  const sigil::core::environment::Provide<weave::StyleSheet> classes(
-      weave::StyleSheet{
-          {"title", partial(faceLimb, 15, kRubric, 1.9f)},
-          {"subtitle", partial(faceItalic, 14, hexColor(0x6b5a44))}});
+  // the sheet's two headed lines are the classes of their own names,
+  // stated on the sheet that writes them
   g.child(kit::sheet({.title = title,
                       .subtitle = sub != nullptr && *sub != '\0' ? sub : "",
                       .marginX = 16,
@@ -121,6 +118,9 @@ auto ChaucerAstrolabe::panel(float x, float y, float w, float h,
                       .rule = Fill::color(hexColor(0x241c15, 0.28f))},
                      box())
               .rect(SkRect::MakeXYWH(x, y, w, h))
+              .styleSheet(weave::StyleSheet{
+                  {"title", partial(faceLimb, 15, kRubric, 1.9f)},
+                  {"subtitle", partial(faceItalic, 14, hexColor(0x6b5a44))}})
               .stroke(stroke(1.0f, Fill::color(hexColor(0x241c15, 0.24f)),
                              PathFormat::Align::Inner)));
   return g;

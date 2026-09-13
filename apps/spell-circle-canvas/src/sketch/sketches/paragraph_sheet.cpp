@@ -40,7 +40,6 @@
 
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/kit/Hyphenation.h>
@@ -165,9 +164,8 @@ weave::StyleSheet callClasses() {
 
 /// A panel: a name, what the control decides, and the specimen under it.
 Element panel(const char* name, const char* note, Element specimen) {
-  const sigil::core::environment::Provide<weave::StyleSheet> voice(
-      panelClasses());
-  return kit::cell(panelVoice(), name, note, std::move(specimen));
+  return kit::cell(panelVoice(), name, note, std::move(specimen))
+      .styleSheet(panelClasses());
 }
 
 constexpr const char8_t* kFourWays =
@@ -178,14 +176,13 @@ constexpr const char8_t* kFourWays =
 Element leadingSpecimen(const char* caption, weave::Leading leading) {
   weave::ParagraphStyle style;
   style.leading = leading;
-  const sigil::core::environment::Provide<weave::StyleSheet> voice(
-      callClasses());
   return kit::cell(callVoice(kMeasure * 0.48f), caption, "",
                    text(kFourWays)
                        .styleClass("body")
                        .font({.size = 11.5f})
                        .width(Dimension(kMeasure * 0.48f))
                        .paragraph(style))
+      .styleSheet(callClasses())
       .width(Dimension(kMeasure * 0.48f));
 }
 
@@ -193,7 +190,7 @@ Element leadingSpecimen(const char* caption, weave::Leading leading) {
 
 struct ParagraphSheet final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    const sketch::kit::Provide look(sheet::sheetTheme(), sheet::classes());
+    const sketch::kit::Provide look(sheet::sheetTheme());
     sketch::kit::stage(ctx, {.size = kSceneSize, .captureAt = 0.4});
     ctx.composer.render(describe());
   }
@@ -204,12 +201,10 @@ struct ParagraphSheet final : sketch::Sketch {
     namespace s = sheet;
     weave::ParagraphStyle grid;
     grid.leading = weave::Leading::grid(s::kGrid);
-    // The grid specimen is captioned as the three beside it are, so it is
-    // built under the same specimen voice.
+    // The grid specimen is captioned as the three beside it are, so it
+    // states the same specimen voice.
     Element gridCell;
     {
-      const sigil::core::environment::Provide<weave::StyleSheet> voice(
-          s::callClasses());
       gridCell =
           kit::cell(s::callVoice(s::kMeasure * 0.48f), "Leading::grid(21)", "",
                     // The grid, drawn: every rule is one step, so a
@@ -226,6 +221,7 @@ struct ParagraphSheet final : sketch::Sketch {
                                    .inset(0, 0, 0, 0)
                                    .width(Dimension(s::kMeasure * 0.48f))
                                    .paragraph(grid)))
+              .styleSheet(s::callClasses())
               .width(Dimension(s::kMeasure * 0.48f));
     }
     return s::panel(
@@ -349,8 +345,6 @@ struct ParagraphSheet final : sketch::Sketch {
 
     const auto column = [&](const char* caption,
                             const weave::JustificationOptions& spec) {
-      const sigil::core::environment::Provide<weave::StyleSheet> voice(
-          s::callClasses());
       return kit::cell(s::callVoice(s::kMeasure * 0.31f), caption, "",
                        text(passage)
                            .styleClass("body")
@@ -360,6 +354,7 @@ struct ParagraphSheet final : sketch::Sketch {
                            .lineBreak(weave::LineBreakStrategy::kKnuthPlass)
                            .hyphenation({.patterns = &s::hyphenator()})
                            .justification(spec))
+          .styleSheet(s::callClasses())
           .width(Dimension(s::kMeasure * 0.31f));
     };
 
@@ -451,16 +446,18 @@ struct ParagraphSheet final : sketch::Sketch {
     right.push_back(columnPanel());
 
     return sketch::kit::page(
-        {.title = u8"THE BLOCK CONTROLS",
-         .subtitle = u8"one text leaf per panel, and a list of "
-                     u8"ParagraphStyles beside it",
-         .footer = u8"a block with no style of its own is set by the leaf's "
-                   u8"own alignment, justification, hyphenation and tab "
-                   u8"stops \u2014 which is what every text that never "
-                   u8"mentions a block gets"},
-        kit::cells(
-            {.cells = {panels(std::move(left)), panels(std::move(right))},
-             .gap = 40}));
+               {.title = u8"THE BLOCK CONTROLS",
+                .subtitle = u8"one text leaf per panel, and a list of "
+                            u8"ParagraphStyles beside it",
+                .footer =
+                    u8"a block with no style of its own is set by the leaf's "
+                    u8"own alignment, justification, hyphenation and tab "
+                    u8"stops \u2014 which is what every text that never "
+                    u8"mentions a block gets"},
+               kit::cells({.cells = {panels(std::move(left)),
+                                     panels(std::move(right))},
+                           .gap = 40}))
+        .styleSheet(sheet::classes());
   }
 };
 

@@ -23,8 +23,11 @@ auto RotaConvocationis::fitToRing(sketch::SketchContext& ctx, Element probe,
     -> float {
   const float target = 2.0f * 3.14159265f * radius * fill;
   for (int pass = 0; pass < 2; ++pass) {
+    // A measure runs the cascade over the probe alone, so the sheet its
+    // classes resolve against stands on the probe itself.
     Element sized = probe;
-    const SkSize m = ctx.measure(sized.font({.size = size}));
+    const SkSize m =
+        ctx.measure(sized.font({.size = size}).styleSheet(classes));
     if (m.width() > 1.0f) size *= target / m.width();
   }
   return size;

@@ -790,15 +790,17 @@ struct BlackWatch : sketch::Sketch {
 
   Element describe(sketch::SketchContext& ctx) {
     (void)ctx;
-    // The card's sheet and its classes stand for everything described below
-    // it, so a kit component four levels down is set in the card's ink
-    // without being handed it; the root states the voice every line inherits.
-    const sketch::kit::Provide look(sheet(), classes());
+    // The card's theme stands for everything described below it, so a kit
+    // component four levels down is set in the card's ink without being
+    // handed it; the root states the voice every line inherits and the
+    // classes every name under it resolves through.
+    const sketch::kit::Provide look(sheet());
     Element root = stack()
                        .width(Dimension(kCanvasW))
                        .height(Dimension(kCanvasH))
                        .font({.face = mono()})
-                       .ink(kInk2);
+                       .ink(kInk2)
+                       .styleSheet(classes());
 
     // the board: one recipe, paint and tooth together
     root.child(

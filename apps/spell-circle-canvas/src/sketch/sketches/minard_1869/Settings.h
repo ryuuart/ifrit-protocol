@@ -22,7 +22,6 @@
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilcompose/typography/Typography.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigildata/table/Table.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Polyline.h>

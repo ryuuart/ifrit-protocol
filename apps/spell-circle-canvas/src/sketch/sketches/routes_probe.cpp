@@ -138,8 +138,7 @@ struct RoutesProbe final : sketch::Sketch {
   std::vector<std::string> verdicts;  // one line per probe, from profile()
 
   void setup(sketch::SketchContext& ctx) override {
-    const sketch::kit::Provide look(sketch::kit::houseTheme(),
-                                    sheetClasses(sketch::kit::houseTheme()));
+    const sketch::kit::Provide look(sketch::kit::houseTheme());
     // the readouts are taken before the sheet is built
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -250,9 +249,12 @@ struct RoutesProbe final : sketch::Sketch {
                        .inset(0)
                        .foreground(wire));
 
+    // The diagram is composed on a probe of its own before it stands on
+    // the sheet, so its classes are stated on the diagram itself.
     return sketch::kit::well({.width = kDiagram,
                               .height = kPicture,
                               .ground = Fill::color({0.085f, 0.09f, 0.10f, 1})})
+        .styleSheet(sheetClasses(sketch::kit::theme()))
         .child(nodes)
         .child(wires);
   }
@@ -276,48 +278,50 @@ struct RoutesProbe final : sketch::Sketch {
     constexpr float kList = 260;
     constexpr float kTable = 430;
     return sketch::kit::page(
-        {.title = "ROUTES AND COSTS · "
-                  "Composer::routesAt, Composer::profile",
-         .subtitle = "dials · the probed node (\"hub\") "
-                     "· which routes carry a key · "
-                     "the property each probe wears: rotate, "
-                     "opacity, Cache::None, Cache::Texture",
-         .footer = "a profile row's reason names a condition "
-                   "under which a bake would produce DIFFERENT "
-                   "pixels — which is the one thing "
-                   "promotion may never do, and the reason an "
-                   "expensive node stays live"},
-        kit::cells(
-            {.cells = {sketch::kit::caption(kDiagram,
-                                            "connector(from, to, router)"
-                                            ".key(…)",
-                                            "four routes on one hub · "
-                                            "three carry keys and the fourth "
-                                            "does not",
-                                            diagram()),
-                       sketch::kit::caption(kList, "composer.routesAt(\"hub\")",
-                                            "in tree order · the keyless "
-                                            "route is anchored and drawn, and "
-                                            "not in this list",
-                                            lines(routes, kList,
-                                                  "— nothing yet: the "
-                                                  "first describe has not been "
-                                                  "drawn")),
-                       sketch::kit::caption(
-                           kTable,
-                           "composer.profile() → "
-                           "label · cacheState · "
-                           "promotionReason",
-                           "each probe looked up by its own key "
-                           "· the milliseconds are on "
-                           "these same rows and are not printed, "
-                           "because a plate that carries a "
-                           "timing differs from itself",
-                           lines(verdicts, kTable,
-                                 "— empty until a frame "
-                                 "has been drawn with profiling "
-                                 "on"))},
-             .gap = 18}));
+               {.title = "ROUTES AND COSTS · "
+                         "Composer::routesAt, Composer::profile",
+                .subtitle = "dials · the probed node (\"hub\") "
+                            "· which routes carry a key · "
+                            "the property each probe wears: rotate, "
+                            "opacity, Cache::None, Cache::Texture",
+                .footer = "a profile row's reason names a condition "
+                          "under which a bake would produce DIFFERENT "
+                          "pixels — which is the one thing "
+                          "promotion may never do, and the reason an "
+                          "expensive node stays live"},
+               kit::cells({.cells = {sketch::kit::caption(
+                                         kDiagram,
+                                         "connector(from, to, router)"
+                                         ".key(…)",
+                                         "four routes on one hub · "
+                                         "three carry keys and the fourth "
+                                         "does not",
+                                         diagram()),
+                                     sketch::kit::caption(
+                                         kList, "composer.routesAt(\"hub\")",
+                                         "in tree order · the keyless "
+                                         "route is anchored and drawn, and "
+                                         "not in this list",
+                                         lines(routes, kList,
+                                               "— nothing yet: the "
+                                               "first describe has not been "
+                                               "drawn")),
+                                     sketch::kit::caption(
+                                         kTable,
+                                         "composer.profile() → "
+                                         "label · cacheState · "
+                                         "promotionReason",
+                                         "each probe looked up by its own key "
+                                         "· the milliseconds are on "
+                                         "these same rows and are not printed, "
+                                         "because a plate that carries a "
+                                         "timing differs from itself",
+                                         lines(verdicts, kTable,
+                                               "— empty until a frame "
+                                               "has been drawn with profiling "
+                                               "on"))},
+                           .gap = 18}))
+        .styleSheet(sheetClasses(sketch::kit::theme()));
   }
 };
 

@@ -42,7 +42,6 @@
 #include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -190,23 +189,20 @@ struct GifFrames final : sketch::Sketch {
                  ? std::string("repeating forever")
                  : std::to_string(gif.repetitionCount()) + " repetitions");
 
-    Element shelves;
-    {
-      const sigil::core::environment::Provide<weave::StyleSheet> classes(
-          headerClasses());
-      shelves = kit::cells(
-          {.cells = {kit::cell(header(), "DECODED",
-                               "every frame, composited at decode — "
-                               "drawing one never needs the one before it",
-                               decoded(gif)),
-                     kit::cell(header(), "PLAYED",
-                               "frameAt looks the moment up in the durations "
-                               "and loops past the last one",
-                               sampled(gif))},
-           .column = true,
-           .gap = 26,
-           .divider = Fill::color(sketch::kit::theme().palette.rule)});
-    }
+    Element shelves =
+        kit::cells(
+            {.cells = {kit::cell(header(), "DECODED",
+                                 "every frame, composited at decode — "
+                                 "drawing one never needs the one before it",
+                                 decoded(gif)),
+                       kit::cell(header(), "PLAYED",
+                                 "frameAt looks the moment up in the durations "
+                                 "and loops past the last one",
+                                 sampled(gif))},
+             .column = true,
+             .gap = 26,
+             .divider = Fill::color(sketch::kit::theme().palette.rule)})
+            .styleSheet(headerClasses());
     return sketch::kit::page(
         {.title = "ANIMATED FRAMES · ImageAsset::frames() "
                   "+ frameAt(ms)",

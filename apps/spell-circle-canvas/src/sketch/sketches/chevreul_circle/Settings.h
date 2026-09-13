@@ -298,8 +298,8 @@ inline const sketch::kit::Theme& sheet() {
 // into: the mono the machine-read lines run in, in the grey of the small
 // caps and numerals. A line set otherwise says only what differs — a size,
 // a tracking, the letterpress black, a serif cut — and the lines the plate
-// sets more than once are classes over the sheet's registers, bound with
-// the sheet wherever the plate is described. The italic cut names its own
+// sets more than once are classes over the sheet's registers, stated on
+// the root of the tree they are written into. The italic cut names its own
 // face because a sheet holds two.
 inline const weave::StyleSheet& classes() {
   static const weave::StyleSheet look =

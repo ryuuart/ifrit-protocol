@@ -13,7 +13,6 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>

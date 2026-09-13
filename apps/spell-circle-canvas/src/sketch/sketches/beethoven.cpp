@@ -41,7 +41,6 @@
 // TAGS: Typography/Lettering
 
 #include <sigilcompose/brush/LayerStyles.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
@@ -260,9 +259,8 @@ struct Beethoven final : sketch::Sketch {
 
   Element describe() {
     namespace bp = beethoven_plate;
-    const sigil::core::environment::Provide<weave::StyleSheet> registers(
-        bp::look());
     return stack()
+        .styleSheet(bp::look())
         .fill(Fill::color(bp::kWall))
         // Every line on the wall sends its colour to the paint through the
         // 8-bit ladder the poster's palette was read in.

@@ -20,7 +20,6 @@
 #include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigildata/table/Table.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>

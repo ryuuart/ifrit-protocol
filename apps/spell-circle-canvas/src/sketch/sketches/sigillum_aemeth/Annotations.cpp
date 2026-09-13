@@ -85,14 +85,14 @@ auto SigillumAemeth::margin() -> Element {
   // The panel's voice: the terminal face at the body size, in the note
   // ink. A heading is the rubric, tracked; every other line says only
   // what differs from the voice.
-  const sigil::core::environment::Provide<weaveNs::StyleSheet> classes(
-      weaveNs::StyleSheet{}.set("heading", {.color = kRubric, .track = 1.6f}));
   auto g = box()
                .rect(SkRect::MakeXYWH(1660 * kS, 56 * kS, w, 1588))
                .scale(kS)
                .transformOrigin(0.0f, 0.0f)
                .font({.face = faceMono, .size = 15})
-               .ink(hexColor(0x8d7a58));
+               .ink(hexColor(0x8d7a58))
+               .styleSheet(weaveNs::StyleSheet{}.set(
+                   "heading", {.color = kRubric, .track = 1.6f}));
 
   g.child(text("SIGILLVM DEI ÆMÆTH")
               .font({.face = faceDisplay,

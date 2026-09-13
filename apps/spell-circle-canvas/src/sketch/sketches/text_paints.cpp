@@ -112,72 +112,78 @@ Element field(const char* call, const char* note, material::Material m) {
 struct TextPaints final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     const sketch::kit::Theme sheet = sheetTheme();
-    const sketch::kit::Provide look(sheet, classes(sheet));
+    const sketch::kit::Provide look(sheet);
     // the fields are frozen at kMoment, not at the clock
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
-    ctx.composer.render(sketch::kit::page(
-        {.title = "TEXT PAINTS · Element::textFill over "
-                  "kit::water, meshGradient, sparkle, starNest, "
-                  "clouds, tunnel",
-         .subtitle = "dials · the paint · the type "
-                     "size (56 px — change it and the "
-                     "fills do not move) · the moment "
-                     "(6.4 s)",
-         .footer = "the material's unit square lands with x across "
-                   "the widest line and y from cap top to "
-                   "baseline, so a ramp authored once in [0, 1] "
-                   "crosses the capitals at any size"},
-        kit::cells(
-            {.cells =
-                 {kit::cells(
-                      {.cells =
-                           {field("kit::water(bounds, t)",
-                                  "rippling blue with fine caustic "
-                                  "highlights",
-                                  material::kit::water(run(), kMoment)),
-                            field("kit::meshGradient(bounds, t)",
-                                  "four corners with softly moving "
-                                  "control regions",
-                                  material::kit::meshGradient(run(), kMoment)),
-                            cell("kit::sparkle(bounds, t)",
-                                 "a TRANSPARENT field of twinkling "
-                                 "points, drawn here over a solid copy "
-                                 "of the word · on its own it "
-                                 "is an overlay",
-                                 paint::Paint::recipe(
-                                     material::kit::sparkle(run(), kMoment)),
-                                 paint::Paint::solid({0.14f, 0.18f, 0.30f, 1})),
-                            field("kit::starNest(bounds, t)",
-                                  "a volumetric raymarch · the "
-                                  "heaviest of the six, since it is a "
-                                  "nested loop",
-                                  material::kit::starNest(run(), kMoment))},
-                       .gap = 14}),
-                  kit::cells(
-                      {.cells = {field("kit::clouds(bounds, t)",
-                                       "layered ridged and fbm noise "
-                                       "drifting on the shared motion "
-                                       "vector",
-                                       material::kit::clouds(run(), kMoment)),
-                                 field("kit::tunnel(bounds, t)",
-                                       "an endless kaleidoscope falling "
-                                       "away · the same ABI, a very "
-                                       "different body",
-                                       material::kit::tunnel(run(), kMoment)),
-                                 cell("kit::sunsetChromeType()",
-                                      "not a field at all · a stop "
-                                      "list in UNIT space, so the hard "
-                                      "horizon lands at half cap height",
-                                      kit::sunsetChromeType()),
-                                 cell("kit::silverChromeType()",
-                                      "the same construction, colder "
-                                      "· one ramp, and the metrics do "
-                                      "the placing",
-                                      kit::silverChromeType())},
-                       .gap = 14})},
-             .column = true,
-             .gap = 18})));
+    ctx.composer.render(
+        sketch::kit::page(
+            {.title = "TEXT PAINTS · Element::textFill over "
+                      "kit::water, meshGradient, sparkle, starNest, "
+                      "clouds, tunnel",
+             .subtitle = "dials · the paint · the type "
+                         "size (56 px — change it and the "
+                         "fills do not move) · the moment "
+                         "(6.4 s)",
+             .footer = "the material's unit square lands with x across "
+                       "the widest line and y from cap top to "
+                       "baseline, so a ramp authored once in [0, 1] "
+                       "crosses the capitals at any size"},
+            kit::cells(
+                {.cells =
+                     {kit::cells(
+                          {.cells =
+                               {field("kit::water(bounds, t)",
+                                      "rippling blue with fine caustic "
+                                      "highlights",
+                                      material::kit::water(run(), kMoment)),
+                                field("kit::meshGradient(bounds, t)",
+                                      "four corners with softly moving "
+                                      "control regions",
+                                      material::kit::meshGradient(run(),
+                                                                  kMoment)),
+                                cell("kit::sparkle(bounds, t)",
+                                     "a TRANSPARENT field of twinkling "
+                                     "points, drawn here over a solid copy "
+                                     "of the word · on its own it "
+                                     "is an overlay",
+                                     paint::Paint::recipe(
+                                         material::kit::sparkle(run(),
+                                                                kMoment)),
+                                     paint::Paint::solid(
+                                         {0.14f, 0.18f, 0.30f, 1})),
+                                field("kit::starNest(bounds, t)",
+                                      "a volumetric raymarch · the "
+                                      "heaviest of the six, since it is a "
+                                      "nested loop",
+                                      material::kit::starNest(run(), kMoment))},
+                           .gap = 14}),
+                      kit::cells(
+                          {.cells =
+                               {field("kit::clouds(bounds, t)",
+                                      "layered ridged and fbm noise "
+                                      "drifting on the shared motion "
+                                      "vector",
+                                      material::kit::clouds(run(), kMoment)),
+                                field("kit::tunnel(bounds, t)",
+                                      "an endless kaleidoscope falling "
+                                      "away · the same ABI, a very "
+                                      "different body",
+                                      material::kit::tunnel(run(), kMoment)),
+                                cell("kit::sunsetChromeType()",
+                                     "not a field at all · a stop "
+                                     "list in UNIT space, so the hard "
+                                     "horizon lands at half cap height",
+                                     kit::sunsetChromeType()),
+                                cell("kit::silverChromeType()",
+                                     "the same construction, colder "
+                                     "· one ramp, and the metrics do "
+                                     "the placing",
+                                     kit::silverChromeType())},
+                           .gap = 14})},
+                 .column = true,
+                 .gap = 18}))
+            .styleSheet(classes(sheet)));
   }
 };
 

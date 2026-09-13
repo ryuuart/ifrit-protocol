@@ -8,8 +8,10 @@ struct StrokeAtlasSketch : sketch::Sketch {
   choreograph::Output<float> march{0};
 
   Element describe(sketch::SketchContext& ctx) {
-    const sigil::core::environment::Provide<weave::StyleSheet> look(voices());
-    Element plate = stack().fill(mskia::Paint::solid(kPaper));
+    // The plate's voices stand on its root, so every leaf under it
+    // resolves the class it names here.
+    Element plate =
+        stack().fill(mskia::Paint::solid(kPaper)).styleSheet(voices());
 
     // ---- masthead --------------------------------------------------------
     plate.child(romanBold("THE STROKE ATLAS", 26, kInk, 6.0f)

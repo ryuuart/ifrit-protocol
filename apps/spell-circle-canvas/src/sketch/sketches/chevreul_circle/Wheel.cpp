@@ -342,11 +342,11 @@ auto ChevreulCircle::theQuadrant() -> Element {
 
 auto ChevreulCircle::chordCounter() -> Element {
   // Described again from update(), outside the scope describe() opens, so
-  // the classes are bound here; the font and the ink reach the slot from
-  // where it stands in the plate.
-  const sketch::kit::Provide look(sheet(), classes());
+  // the classes stand on this element; the font and the ink reach the slot
+  // from where it stands in the plate.
+  const sketch::kit::Provide look(sheet());
   const float x0 = 852, y0 = 136, S = 380;
-  Element g = box();
+  Element g = box().styleSheet(classes());
   g.child(
       label(counterText, x0 + 10, y0 + S - 32, S - 20).styleClass("finding"));
   g.child(label(kit::formatted("centroid a* %.2f  b* %.2f   ·   mean C* %.1f",

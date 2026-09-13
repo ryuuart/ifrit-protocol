@@ -14,7 +14,6 @@
 #include <sigilcompose/kit/Kit.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilgeometry/kit/Divisions.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>

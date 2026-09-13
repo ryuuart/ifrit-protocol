@@ -477,15 +477,14 @@ auto DunhuangStarChart::projectionPanel() -> Element {
 }
 
 auto DunhuangStarChart::auditPanel() -> Element {
-  // described into its slot from the clock, outside the description's
-  // scope, so the voices are bound here as well
-  const sigil::core::environment::Provide<weave::StyleSheet> look(voices());
+  // described into its own slot, so the voices stand on this panel
   auto g = box()
                .left(840)
                .top(1046)
                .width(Dimension(880))
                .key("audit")
-               .opacity(gate(tAudit - 0.9f, tAudit - 0.2f));
+               .opacity(gate(tAudit - 0.9f, tAudit - 0.2f))
+               .styleSheet(voices());
   g.child(text("MAP 5 · THE ORION REGION · TABLE 4 OF "
                "BONNET-BIDAUD, PRADERIE & WHITFIELD 2009")
               .styleClass("heading")

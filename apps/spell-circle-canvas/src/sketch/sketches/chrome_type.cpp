@@ -40,7 +40,6 @@
 #include <sigilcompose/kit/Gel.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -139,14 +138,13 @@ struct ChromeType final : sketch::Sketch {
     weave::StyleSheet classes = look.styleSheet();
     classes.set("captionLabel",
                 look.font(sketch::kit::Register{9.5f, 2.6f}, c::kPale));
-    const sigil::core::environment::Provide<weave::StyleSheet> bound(
-        std::move(classes));
     return kit::cell(
-        {.where = kit::Caption::Where::Above, .gap = 10}, name, "",
-        kit::cells({.cells = {std::move(onBox), std::move(onGlyphs)},
-                    .gap = 26,
-                    .divider = Fill::color(c::kFaint),
-                    .align = Align::Center}));
+               {.where = kit::Caption::Where::Above, .gap = 10}, name, "",
+               kit::cells({.cells = {std::move(onBox), std::move(onGlyphs)},
+                           .gap = 26,
+                           .divider = Fill::color(c::kFaint),
+                           .align = Align::Center}))
+        .styleSheet(std::move(classes));
   }
 
   Element describe() {

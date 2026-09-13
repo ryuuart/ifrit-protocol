@@ -44,7 +44,6 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/texture/Texture.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
@@ -91,9 +90,10 @@ constexpr int kTapeWidth = 512;
 constexpr int kTapeHeight = 160;
 
 /** THE SCREENS' TYPE, as classes: a screen's title and the note under it,
- *  and the tape's display line and its caption. Bound where the room is
- *  described, so every screen's leaves name their register; that a
- *  screen's glyphs are aliased is each scene's own root's statement. */
+ *  and the tape's display line and its caption. A texture scene is a root
+ *  of its own, so each states this sheet and every leaf under it names its
+ *  register; that a screen's glyphs are aliased is that same root's
+ *  statement. */
 weave::StyleSheet screenType() {
   weave::StyleSheet sheet;
   sheet.set("title", {.size = 22.0f, .color = compose::hexColor(0xbfd4ef)});
@@ -113,7 +113,8 @@ compose::Element levels(float seconds, SkColor4f accent) {
                               .gap(8.0f)
                               .padding(16.0f)
                               .fill(compose::hexColor(0x12171f))
-                              .font({.antiAlias = false});
+                              .font({.antiAlias = false})
+                              .styleSheet(screenType());
   root.child(compose::text(u8"LEVELS").styleClass("title"));
   compose::Element row =
       compose::box().row().gap(7.0f).height(compose::pct(100));
@@ -141,7 +142,8 @@ compose::Element trace(float seconds, SkColor4f accent) {
                               .gap(10.0f)
                               .padding(16.0f)
                               .fill(compose::hexColor(0x0f141c))
-                              .font({.antiAlias = false});
+                              .font({.antiAlias = false})
+                              .styleSheet(screenType());
   root.child(compose::text(u8"TRACE").styleClass("title"));
   constexpr int kCells = 14;
   compose::Element row = compose::box().row().gap(5.0f).height(44.0f);
@@ -171,7 +173,8 @@ compose::Element dial(float seconds, SkColor4f accent) {
                               .gap(10.0f)
                               .padding(16.0f)
                               .fill(compose::hexColor(0x14121f))
-                              .font({.antiAlias = false});
+                              .font({.antiAlias = false})
+                              .styleSheet(screenType());
   root.child(compose::text(u8"DIAL").styleClass("title"));
   const float reading = 0.5f + 0.5f * std::sin(seconds * 1.15f);
   compose::Element track = compose::box()
@@ -226,7 +229,8 @@ compose::Element tape(float seconds) {
                               .gap(6.0f)
                               .padding(14.0f)
                               .fill(compose::hexColor(0x1f2430))
-                              .font({.antiAlias = false});
+                              .font({.antiAlias = false})
+                              .styleSheet(screenType());
   root.child(compose::text(u8"WOVEN").styleClass("display"));
   root.child(compose::text(u8"a scene, sampled").styleClass("caption"));
   compose::Element marks =
@@ -315,7 +319,6 @@ struct SceneSurfaces final : sketch::Set {
   }
 
   world::Frame describe(float seconds) override {
-    const environment::Provide<weave::StyleSheet> type(screenType());
     const std::array<SkColor4f, 3> accents = {
         SkColor4f{0.30f, 0.82f, 1.00f, 1.0f},
         SkColor4f{1.00f, 0.62f, 0.24f, 1.0f},

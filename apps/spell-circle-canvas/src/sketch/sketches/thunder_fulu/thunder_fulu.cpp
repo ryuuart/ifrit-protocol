@@ -15,8 +15,7 @@ auto ThunderFulu::describe(sketch::SketchContext&) -> Element {
       .set("gloss",
            {.face = faceItalic, .size = 10.5f, .color = hexColor(0x7d6f52)})
       .set("chant", {.face = faceItalic, .size = 11.0f, .color = kChalk});
-  const sigil::core::environment::Provide<weave::StyleSheet> look(classes);
-  auto root = box().inset(0).font({.face = faceMono});
+  auto root = box().inset(0).font({.face = faceMono}).styleSheet(classes);
   root.child(plate());
   root.child(tread());
   root.child(marginColumn());

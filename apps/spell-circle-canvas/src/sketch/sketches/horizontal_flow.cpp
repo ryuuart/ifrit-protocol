@@ -174,12 +174,14 @@ struct HorizontalFlow final : sketch::Sketch {
                         .captureAt = 0.05,
                         .background = sheet.palette.ground});
 
-    // The root: the book face at the passages' size, in the sheet's ink.
+    // The root: the book face at the passages' size, in the sheet's ink,
+    // with the theme's registers stated for the two lines that name one.
     ctx.composer.render(
         box()
             .fill(Fill::color(sheet.palette.ground))
             .font({.face = sheet.type.mono, .size = 15})
             .ink(sheet.palette.ink)
+            .styleSheet(sheet.styleSheet())
             .child(text(u8"HORIZONTAL TEXT FLOW")
                        .styleClass("title")
                        .absolute()

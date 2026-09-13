@@ -146,7 +146,6 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -909,12 +908,10 @@ struct ShippingForecast : sketch::Sketch {
   }
 
   [[nodiscard]] Element describe() {
-    // THE REGISTERS ARE IN SCOPE FOR EVERYTHING DESCRIBED HERE: a class is
-    // read where the element is written, so the sheet is bound around the
-    // whole description.
-    const sigil::core::environment::Provide<sigil::weave::StyleSheet> sheet(
-        registers());
+    // THE REGISTERS STAND ON THE ROOT: a class is resolved where the
+    // element lands, so the sheet reaches every leaf described under it.
     return stack()
+        .styleSheet(registers())
         .fill(linearGradient({0, 0}, {0, kH},
                              {kSea, kSeaLift, hexColor(0x05080C)},
                              {0.0f, 0.55f, 1.0f}))

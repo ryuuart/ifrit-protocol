@@ -42,7 +42,6 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilcompose/typography/Typography.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/paragraph/Unit.h>
@@ -101,9 +100,8 @@ inline weave::StyleSheet voiceClasses(float noteSize) {
 
 /** A captioned column: the caption over it, the specimen under it. */
 inline Element column(const char* caption, const char* note, Element specimen) {
-  const sigil::core::environment::Provide<weave::StyleSheet> classes(
-      voiceClasses(8.5f));
-  return kit::cell(voice(), caption, note, std::move(specimen));
+  return kit::cell(voice(), caption, note, std::move(specimen))
+      .styleSheet(voiceClasses(8.5f));
 }
 
 }  // namespace furigana
@@ -187,23 +185,20 @@ struct RubyKenten final : sketch::Sketch {
                                   u8"﹅", 1.0f));
 
     // The wide caption under the split setting states its remark a size
-    // larger than a column's, so it is built under a sheet of its own.
-    Element splitCell;
-    {
-      const sigil::core::environment::Provide<weave::StyleSheet> classes(
-          f::voiceClasses(9.0f));
-      splitCell = kit::cell({.where = kit::Caption::Where::Above,
-                             .gap = 13,
-                             .noteGap = 7,
-                             .noteMeasure = 300.0f},
-                            "SPLIT · ACROSS A COLUMN BREAK",
-                            "the base breaks inside the compound, so its "
-                            "reading breaks with it, in proportion to the "
-                            "base's advance either side",
-                            std::move(split))
-                      .absolute()
-                      .inset(52, 320, 0, 0);
-    }
+    // larger than a column's, so it carries a sheet of its own.
+    Element splitCell =
+        kit::cell({.where = kit::Caption::Where::Above,
+                   .gap = 13,
+                   .noteGap = 7,
+                   .noteMeasure = 300.0f},
+                  "SPLIT · ACROSS A COLUMN BREAK",
+                  "the base breaks inside the compound, so its "
+                  "reading breaks with it, in proportion to the "
+                  "base's advance either side",
+                  std::move(split))
+            .styleSheet(f::voiceClasses(9.0f))
+            .absolute()
+            .inset(52, 320, 0, 0);
 
     return box()
         .fill(linearGradient({0, 0}, {0, f::kH}, {f::kKinariLift, f::kKinari}))

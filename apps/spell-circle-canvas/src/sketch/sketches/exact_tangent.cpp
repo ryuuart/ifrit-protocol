@@ -126,60 +126,63 @@ struct ExactTangent final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
-    const sketch::kit::Provide look(sketch::kit::theme(), voices());
+    const sketch::kit::Provide look(sketch::kit::theme());
     const SkColor4f figure = sketch::kit::theme().palette.figure;
 
-    ctx.composer.render(sketch::kit::page(
-        {.title = "THE TANGENT LADDER · "
-                  "TextPath::exactTangent on a tight spiral",
-         .subtitle = "dials · the size (15 px, then 74, then 260) "
-                     "· the spiral's turns (3.2) · "
-                     "exactTangent · how far off the "
-                     "baseline the type rides",
-         .footer = "the ladder is sixteen steps per pixel of em, "
-                   "clamped between 64 and 2048 — so a "
-                   "step sweeps a glyph's far edge about a fifth "
-                   "of a pixel at every size until the ceiling "
-                   "binds, which is why the switch is for artwork "
-                   "set large and static"},
-        kit::cells(
-            {.cells = {cell("onPath({spiral(3.2), at = 0.42})",
-                            "the baseline every cell uses · one run "
-                            "shaped once and placed by arc length, at label "
-                            "size with the ladder ON",
-                            run("a tight spiral carries its whole run",
-                                kLabelSize, figure, false)),
-                       cell("…"
-                            ".exactTangent = true",
-                            "the same run with the ladder lifted · at "
-                            "this size the two are the same picture, which "
-                            "is what the default is for",
-                            run("a tight spiral carries its whole run",
-                                kLabelSize, figure, true)),
-                       cell("74 px · exactTangent = false",
-                            "display size on a circle · still on "
-                            "the sixteen-steps-per-pixel ladder, so a step "
-                            "sweeps about a fifth of a pixel here too",
-                            arcRun("Ravello", kDisplaySize, figure, false)),
-                       cell("74 px · exactTangent = true",
-                            "the same letters turned to their exact "
-                            "tangents · one strike per letter per "
-                            "distinct angle, which a static plate can afford",
-                            arcRun("Ravello", kDisplaySize, figure, true)),
-                       cell("260 px, both at once",
-                            "snapped in warm under exact in cool, cropped "
-                            "to a detail · no fringe: the two land "
-                            "within a fraction of a pixel, which is the "
-                            "ladder doing its job",
-                            box()
-                                .absolute()
-                                .inset(0)
-                                .clip()
-                                .child(arcRun("Ra", kDetailSize, kSnapped,
-                                              false, 0.26f, -86, 4))
-                                .child(arcRun("Ra", kDetailSize, kExact, true,
-                                              0.26f, -86, 4)))},
-             .gap = 12})));
+    ctx.composer.render(
+        sketch::kit::page(
+            {.title = "THE TANGENT LADDER · "
+                      "TextPath::exactTangent on a tight spiral",
+             .subtitle = "dials · the size (15 px, then 74, then 260) "
+                         "· the spiral's turns (3.2) · "
+                         "exactTangent · how far off the "
+                         "baseline the type rides",
+             .footer = "the ladder is sixteen steps per pixel of em, "
+                       "clamped between 64 and 2048 — so a "
+                       "step sweeps a glyph's far edge about a fifth "
+                       "of a pixel at every size until the ceiling "
+                       "binds, which is why the switch is for artwork "
+                       "set large and static"},
+            kit::cells(
+                {.cells =
+                     {cell("onPath({spiral(3.2), at = 0.42})",
+                           "the baseline every cell uses · one run "
+                           "shaped once and placed by arc length, at label "
+                           "size with the ladder ON",
+                           run("a tight spiral carries its whole run",
+                               kLabelSize, figure, false)),
+                      cell("…"
+                           ".exactTangent = true",
+                           "the same run with the ladder lifted · at "
+                           "this size the two are the same picture, which "
+                           "is what the default is for",
+                           run("a tight spiral carries its whole run",
+                               kLabelSize, figure, true)),
+                      cell("74 px · exactTangent = false",
+                           "display size on a circle · still on "
+                           "the sixteen-steps-per-pixel ladder, so a step "
+                           "sweeps about a fifth of a pixel here too",
+                           arcRun("Ravello", kDisplaySize, figure, false)),
+                      cell("74 px · exactTangent = true",
+                           "the same letters turned to their exact "
+                           "tangents · one strike per letter per "
+                           "distinct angle, which a static plate can afford",
+                           arcRun("Ravello", kDisplaySize, figure, true)),
+                      cell("260 px, both at once",
+                           "snapped in warm under exact in cool, cropped "
+                           "to a detail · no fringe: the two land "
+                           "within a fraction of a pixel, which is the "
+                           "ladder doing its job",
+                           box()
+                               .absolute()
+                               .inset(0)
+                               .clip()
+                               .child(arcRun("Ra", kDetailSize, kSnapped, false,
+                                             0.26f, -86, 4))
+                               .child(arcRun("Ra", kDetailSize, kExact, true,
+                                             0.26f, -86, 4)))},
+                 .gap = 12}))
+            .styleSheet(voices()));
   }
 };
 

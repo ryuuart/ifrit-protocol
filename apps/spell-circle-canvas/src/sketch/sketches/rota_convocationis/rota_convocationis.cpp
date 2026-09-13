@@ -5,13 +5,13 @@
 #include "RotaConvocationis.h"
 
 auto RotaConvocationis::describe() -> Element {
-  // The classes are read where a leaf is written, so the sheet is bound
-  // around the whole description; the ink is the bands' bone, and every
-  // leaf set in another colour says so.
-  const sigil::core::environment::Provide<weave::StyleSheet> look(classes);
+  // The sheet stands on the root, so a leaf anywhere under it resolves
+  // the class it names; the ink is the bands' bone, and every leaf set in
+  // another colour says so.
   return stack()
       .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 0.9f,
                                    {{0.0f, kNightLift}, {1.0f, kNight}}))
+      .styleSheet(classes)
       .ink(kBone)
       .child(box()
                  .absolute()
@@ -37,8 +37,6 @@ auto RotaConvocationis::setup(sketch::SketchContext& ctx) -> void {
   classes.set("ring", {.face = faceRingBold})
       .set("label", {.face = faceRing})
       .set("mono", {.face = faceMono});
-  // The fit probes below are leaves written under the same classes.
-  const sigil::core::environment::Provide<weave::StyleSheet> look(classes);
 
   // ---- content, fitted to its own bands --------------------------------
   voxText = "+ ";

@@ -66,16 +66,15 @@ void GenesisFire::setup(sketch::SketchContext& ctx) {
       },
       8, &simAlpha);
 
-  // The panel registers are classes, read where a panel is described.
-  const sigil::core::environment::Provide<weave::StyleSheet> classes(
-      registers());
-  headerEl = header();
-  belowEl = stageBelow();
-  aboveEl = stageAbove();
-  genEl = generationPanel();
-  rampEl = rampPanel();
-  benchEl = renderModelPanel();
-  prodEl = productionPanel();
+  // Each panel is its own guest tree under the pen, so the registers
+  // stand on each one's root.
+  headerEl = header().styleSheet(registers());
+  belowEl = stageBelow().styleSheet(registers());
+  aboveEl = stageAbove().styleSheet(registers());
+  genEl = generationPanel().styleSheet(registers());
+  rampEl = rampPanel().styleSheet(registers());
+  benchEl = renderModelPanel().styleSheet(registers());
+  prodEl = productionPanel().styleSheet(registers());
 
   deterministic = ctx.deterministic;
   ctx.composer.render(
@@ -156,11 +155,10 @@ void GenesisFire::draw(Pen& pen) {
 
   // --- the sidebar: five panels, each its own guest --------------------
   // The census panel is described again every frame, from inside the
-  // loop, so its registers are bound here as well as in setup.
-  const sigil::core::environment::Provide<weave::StyleSheet> classes(
-      registers());
+  // loop, so it carries its registers the way the panels built in setup
+  // carry theirs.
   pen.element(genEl, SkRect::MakeXYWH(kSideX, panelTop(0), kSideW, kPanelH[0]));
-  pen.element(censusPanel(),
+  pen.element(censusPanel().styleSheet(registers()),
               SkRect::MakeXYWH(kSideX, panelTop(1), kSideW, kPanelH[1]));
   pen.element(rampEl,
               SkRect::MakeXYWH(kSideX, panelTop(2), kSideW, kPanelH[2]));

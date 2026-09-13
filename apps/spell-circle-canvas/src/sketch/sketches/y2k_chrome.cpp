@@ -36,7 +36,6 @@
 #include <sigilcompose/kit/Gel.h>
 #include <sigilcompose/kit/Gloss.h>
 #include <sigilcompose/kit/Kinetic.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilmaterial/pattern/Patterns.h>
@@ -326,10 +325,6 @@ struct Y2kChrome final : sketch::Sketch {
     namespace yc = y2k_chrome;
     namespace ch = choreograph;
     using namespace std::chrono_literals;
-    // A class is read where the element is written, so the card's sheet is
-    // bound around the whole description, the pill helpers included.
-    const sigil::core::environment::Provide<weave::StyleSheet> sheet(
-        yc::classes());
 
     // ---- period page ground: gray + subtle woven checker -----------------
     Paint check =
@@ -557,7 +552,10 @@ struct Y2kChrome final : sketch::Sketch {
             .cache(Cache::Texture);
 
     // ---- assembly ---------------------------------------------------------
+    // The card's sheet stands on the root, so every class written under it
+    // — the pill helpers included — resolves here.
     return stack()
+        .styleSheet(yc::classes())
         .fill(Paint::linear(
             {0, 0}, {0, yc::kH},
             {{0.0f, hexColor(0xB9BFC7)}, {1.0f, hexColor(0xA2A8B1)}}))

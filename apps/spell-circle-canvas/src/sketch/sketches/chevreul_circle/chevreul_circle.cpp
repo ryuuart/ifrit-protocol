@@ -5,15 +5,17 @@
 #include "ChevreulCircle.h"
 
 auto ChevreulCircle::describe(sketch::SketchContext& ctx) -> Element {
-  // The plate's sheet and its classes stand for everything described below
-  // it, so a kit component four levels down is set in the plate's ink
-  // without being handed it; the root states the voice every line inherits.
-  const sketch::kit::Provide look(sheet(), classes());
+  // The plate's theme stands for everything described below it, so a kit
+  // component four levels down is set in the plate's ink without being
+  // handed it; the root states the voice every line inherits and the
+  // classes every name under it resolves through.
+  const sketch::kit::Provide look(sheet());
   Element root = stack()
                      .width(Dimension(kW))
                      .height(Dimension(kH))
                      .font({.face = mono()})
-                     .ink(kInk2);
+                     .ink(kInk2)
+                     .styleSheet(classes());
 
   // the leaf: measured paper, its tooth, and the platemark
   root.child(at(0, 0, kW, kH).fill(Fill::color(kPaper)));

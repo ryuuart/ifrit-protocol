@@ -199,7 +199,7 @@ struct KineticCard final : sketch::Sketch {
   }
 
   Element describe(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme(), sheetClasses());
+    const sketch::kit::Provide look(sheetTheme());
     const Composer& composer = ctx.composer;
 
     static const Row kRows[9] = {
@@ -276,7 +276,10 @@ struct KineticCard final : sketch::Sketch {
                    u8"and leave every pen position alone"},
         kit::cells({.cells = std::move(shelves), .column = true, .gap = 34}));
 
-    Element root = stack().fill(Fill::color(kGround)).child(std::move(sheet));
+    Element root = stack()
+                       .styleSheet(sheetClasses())
+                       .fill(Fill::color(kGround))
+                       .child(std::move(sheet));
     // One meter per cell, over the whole composition: the rects are in the
     // composer's space, so the bars land on the letters wherever the sheet
     // put them.

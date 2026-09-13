@@ -1,13 +1,13 @@
 /** @file
- * cascade — the three things that flow down the TREE, and the one thing
- * that deliberately does not.
+ * cascade — what flows down the TREE, and the one thing that deliberately
+ * does not.
  *
- * The font a passage is set in, its colour (the ink) and the custom
- * properties reach everything under a node, wherever the code that built
- * that child happened to run. Everything else a node says — its fill, its
- * stroke, its padding, its transform — stays on it. That is CSS's own
- * split, and the rule of thumb transfers whole: text properties inherit,
- * box properties do not.
+ * The font a passage is set in, its colour (the ink), the sheet its
+ * classes resolve against and the custom properties reach everything under
+ * a node, wherever the code that built that child happened to run.
+ * Everything else a node says — its fill, its stroke, its padding, its
+ * transform — stays on it. That is CSS's own split, and the rule of thumb
+ * transfers whole: text properties inherit, box properties do not.
  *
  * The one divergence is the lexical channel. `environment::Provide<T>` is
  * read by the CODE that builds an element, so a component built under one
@@ -159,15 +159,15 @@ Element adoption() {
       .child(std::move(lexical));
 }
 
-/** (5) A class is a named partial, looked up in the sheet bound around the
- *  code that WRITES the leaf. The third name is on no sheet here, which is
- *  the once-only warning exercised on purpose. */
+/** (5) A class is a named partial, resolved against the sheets in force
+ *  where the leaf LANDS. The third name is on no sheet here, which is the
+ *  once-only warning exercised on purpose. */
 Element classes() {
   weave::StyleSheet sheet;
   sheet.set("label", weave::Type{.size = 9.5f, .track = 1.8f});
   sheet.set("figure", weave::Type{.size = 30, .color = kTeal});
-  const environment::Provide<weave::StyleSheet> bound(sheet);
   return box()
+      .styleSheet(std::move(sheet))
       .column()
       .gap(7)
       .font({.size = 12})

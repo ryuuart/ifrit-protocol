@@ -5,14 +5,15 @@
 #include "DunhuangStarChart.h"
 
 auto DunhuangStarChart::describe(sketch::SketchContext&) -> Element {
-  const sigil::core::environment::Provide<weave::StyleSheet> look(voices());
-  // the plate's type is the terminal face wherever a leaf names none
+  // the plate's type is the terminal face wherever a leaf names none, and
+  // its voices stand here for every leaf under them
   auto root = box()
                   .left(0)
                   .top(0)
                   .width(Dimension(kW))
                   .height(Dimension(kH))
-                  .font({.face = faceMono});
+                  .font({.face = faceMono})
+                  .styleSheet(voices());
   root.child(ground());
   root.child(locator());
 

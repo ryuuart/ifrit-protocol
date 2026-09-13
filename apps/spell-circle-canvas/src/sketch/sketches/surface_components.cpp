@@ -16,7 +16,6 @@
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/kit/Gel.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/style/StyleSheet.h>
@@ -76,10 +75,6 @@ struct SurfaceComponents : sketch::Sketch {
         {{0, {0.28f, 0.10f, 0.38f, 1}}, {1, {0.07f, 0.28f, 0.35f, 1}}});
     // The sheet's three lines differ from a card's in size alone, so each
     // class is a size over the root's ink and face.
-    const sigil::core::environment::Provide<weave::StyleSheet> classes(
-        weave::StyleSheet{{"title", {.size = 30}},
-                          {"subtitle", {.size = 17}},
-                          {"footer", {.size = 14}}});
     return kit::sheet(
                {.title = "Components for VFX",
                 .subtitle = "Props + children",
@@ -100,6 +95,9 @@ struct SurfaceComponents : sketch::Sketch {
                     .columns = 3,
                     .gap = 18,
                     .rowGap = 18}))
+        .styleSheet(weave::StyleSheet{{"title", {.size = 30}},
+                                      {"subtitle", {.size = 17}},
+                                      {"footer", {.size = 14}}})
         .font({.size = 16})
         .ink(kInk);
   }

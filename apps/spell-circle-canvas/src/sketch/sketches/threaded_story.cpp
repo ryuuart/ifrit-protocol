@@ -42,7 +42,6 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilcompose/typography/Typography.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/layout/Story.h>
@@ -213,9 +212,8 @@ struct ThreadedStory final : sketch::Sketch {
 
     const auto captioned = [&](const char* name, const char* note,
                                Element built) {
-      const sigil::core::environment::Provide<weave::StyleSheet> voice(
-          s::voiceClasses());
-      return kit::cell(s::voice(), name, note, std::move(built));
+      return kit::cell(s::voice(), name, note, std::move(built))
+          .styleSheet(s::voiceClasses());
     };
 
     return box()

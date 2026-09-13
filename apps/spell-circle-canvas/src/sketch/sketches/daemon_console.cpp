@@ -621,7 +621,7 @@ struct DaemonConsole final : sketch::Sketch {
     namespace feed = sigil::compose::feed;
     // Bound where the tree is DESCRIBED: this sketch describes again on
     // every appended row, outside whatever scope setup opened.
-    const sketch::kit::Provide dress(look, classes());
+    const sketch::kit::Provide dress(look);
 
     // Panel chrome: one-pass SDF (fill + border + glow), cached between
     // layouts. The style reserves its glow's reach INSIDE the box, so the
@@ -777,6 +777,7 @@ struct DaemonConsole final : sketch::Sketch {
                        .styleClass("fine"));
 
     return stack()
+        .styleSheet(classes())
         .fill(Paint::linear({0, 0}, {0, dc::kH},
                             {{0.0f, dc::kGroundTop}, {1.0f, dc::kVoid}}))
         .child(

@@ -15,7 +15,6 @@
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Chance.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigildraw/Draw.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>

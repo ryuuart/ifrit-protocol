@@ -557,16 +557,18 @@ struct LootGrid final : sketch::Sketch {
   Element describe() {
     namespace lt = loot;
     const sketch::kit::Theme look = sheetTheme();
-    const sketch::kit::Provide bound(look, classes(look));
+    const sketch::kit::Provide bound(look);
     const std::string goldText = kit::formatted("%d", gold);
 
     // THE ROOT OF THE CASCADE: ash is the ink every line that names no
     // colour of its own is set in — the keys, the labels, the remarks.
-    auto root =
-        stack().ink(lt::kAsh).fill(Paint::linear({0, 0}, {0, lt::kH},
-                                                 {{0.0f, hexColor(0x0D0C0A)},
-                                                  {0.5f, hexColor(0x14120F)},
-                                                  {1.0f, hexColor(0x080706)}}));
+    auto root = stack()
+                    .styleSheet(classes(look))
+                    .ink(lt::kAsh)
+                    .fill(Paint::linear({0, 0}, {0, lt::kH},
+                                        {{0.0f, hexColor(0x0D0C0A)},
+                                         {0.5f, hexColor(0x14120F)},
+                                         {1.0f, hexColor(0x080706)}}));
 
     // THE GROUND IS TOOLED LEATHER, and it is tiled rather than painted:
     // two patterns over one dark ramp, each a repeating tile the

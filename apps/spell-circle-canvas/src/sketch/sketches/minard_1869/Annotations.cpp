@@ -181,9 +181,8 @@ auto Minard1869::card(float y, float h, const char* title, const char* key,
                .translateY(bind(&T).window(t0, t0 + 0.4f).invert().scale(14))
                .font({.face = faceUi})
                .ink(kGrey);
-  // the card's headed line is the class of its own name
-  const sigil::core::environment::Provide<weave::StyleSheet> classes(
-      weave::StyleSheet{{"title", partial(faceUiBold, 15, kCardInk, 1.6f)}});
+  // the card's headed line is the class of its own name, stated on the
+  // sheet that writes it
   c.child(kit::sheet({.title = title,
                       .marginX = 18,
                       .marginTop = 12,
@@ -193,6 +192,8 @@ auto Minard1869::card(float y, float h, const char* title, const char* key,
                       .rule = Fill::color(kCardInk)},
                      box())
               .inset(0)
+              .styleSheet(weave::StyleSheet{
+                  {"title", partial(faceUiBold, 15, kCardInk, 1.6f)}})
               .stroke(stroke(1.0f, Fill::color(hexColor(0xcfc6b4)))));
   c.child(std::move(body));
   return c;

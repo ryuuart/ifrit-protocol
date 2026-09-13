@@ -439,29 +439,34 @@ struct VolatilityCost final : sketch::Sketch {
     // runs: this sketch describes again on every reading, and a scope
     // that ended with setup would not be there.
     const sketch::kit::Theme look = sheetTheme();
-    const sketch::kit::Provide bound(look, sheetClasses(look));
+    const sketch::kit::Provide bound(look);
     // The map is a SIBLING of the sheet, not a child of it: it draws in
     // canvas coordinates, which is what `bounds()` answers in, and a
     // child of the padded page would be offset by the page's margins.
-    return stack().inset(0).child(tierMap()).child(sketch::kit::page(
-        {.title = "THE CACHING PROOF · what every node "
-                  "did to produce its pixels",
-         .subtitle = "volatility propagates upward, so one "
-                     "bound leaf decides what its whole subtree "
-                     "costs — every keyed node is "
-                     "outlined in the tier it took, read back "
-                     "from a probe of its own at " +
-                     ms(kSnapAt) + " s",
-         .footer = "a picture records the DRAW CALLS, so "
-                   "replaying one re-runs every shader over "
-                   "every pixel; only a bake replaces that with "
-                   "a blit · numbers the sheet measured "
-                   "about itself are pinned for a diff"},
-        box()
-            .column()
-            .gap(16)
-            .child(kit::cells({.cells = {field(), cells(&tint)}, .gap = 22}))
-            .child(readout(ctx))));
+    return stack()
+        .styleSheet(sheetClasses(look))
+        .inset(0)
+        .child(tierMap())
+        .child(sketch::kit::page(
+            {.title = "THE CACHING PROOF · what every node "
+                      "did to produce its pixels",
+             .subtitle = "volatility propagates upward, so one "
+                         "bound leaf decides what its whole subtree "
+                         "costs — every keyed node is "
+                         "outlined in the tier it took, read back "
+                         "from a probe of its own at " +
+                         ms(kSnapAt) + " s",
+             .footer = "a picture records the DRAW CALLS, so "
+                       "replaying one re-runs every shader over "
+                       "every pixel; only a bake replaces that with "
+                       "a blit · numbers the sheet measured "
+                       "about itself are pinned for a diff"},
+            box()
+                .column()
+                .gap(16)
+                .child(
+                    kit::cells({.cells = {field(), cells(&tint)}, .gap = 22}))
+                .child(readout(ctx))));
   }
 
   void setup(sketch::SketchContext& ctx) override {
