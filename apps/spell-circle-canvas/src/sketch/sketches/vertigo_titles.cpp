@@ -351,21 +351,20 @@ struct VertigoTitles : sketch::Sketch {
     const float R = c.amp * kFit;
     const std::string tag = c.tag;
 
-    into.children({figureBox(kEye, R)
-                       .key("curve" + tag)
-                       .shape(figure(c))
-                       .stroke(spans::upTo(&growth[i]),
-                               brush::presets::filament(
-                                   c.core, hexColor(0xFFE9CF), 0.48f))
-                       .rotate(turntable())
-                       .opacity(&cardA[i])});
-
-    // the nib: a short bright plus-blended window at the trailing edge
-    // The nib's trailing edge is `growth` MINUS a constant — a derived
-    // value, which is a shaped binding on the same Output rather than a
-    // second Output kept in step by hand.
     into.children(
         {figureBox(kEye, R)
+             .key("curve" + tag)
+             .shape(figure(c))
+             .stroke(
+                 spans::upTo(&growth[i]),
+                 brush::presets::filament(c.core, hexColor(0xFFE9CF), 0.48f))
+             .rotate(turntable())
+             .opacity(&cardA[i]),
+         // the nib: a short bright plus-blended window at the trailing edge
+         // The nib's trailing edge is `growth` MINUS a constant — a derived
+         // value, which is a shaped binding on the same Output rather than a
+         // second Output kept in step by hand.
+         figureBox(kEye, R)
              .key("nib" + tag)
              .shape(figure(c))
              .stroke(spans::range(bind(&growth[i]).offset(-kNib).clamp(0, 1),
@@ -399,22 +398,19 @@ struct VertigoTitles : sketch::Sketch {
     panel.children(
         {ring(61.0f, hexColor(0x090604, 0.85f), 3.0f)
              .key("pupil-edge")
-             .opacity(animate(from(0.0f).to(1.0f), ramp(300, 420)))});
-    panel.children(
-        {ring(146.0f, hexColor(0x2A1D10, 0.40f), 1.2f).key("iris-mid")});
-    panel.children(
-        {ring(262.0f, hexColor(0x120C07, 0.24f), 10.0f).key("limbus")});
-
-    // "the screen is suddenly stained red" — kColor keeps the iris's
-    // luminance and swaps its hue/saturation, so it TINTS rather than
-    // covers. Sudden onset: easeInQuad.
-    panel.children({box()
-                        .key("stain")
-                        .inset(0)
-                        .blend(SkBlendMode::kColor)
-                        .fill(animate(from(Fill::color(hexColor(0x3A2A1C)))
-                                          .to(Fill::color(hexColor(0xC81E2C))),
-                                      ramp(700, 500, ch::easeInQuad)))});
+             .opacity(animate(from(0.0f).to(1.0f), ramp(300, 420))),
+         ring(146.0f, hexColor(0x2A1D10, 0.40f), 1.2f).key("iris-mid"),
+         ring(262.0f, hexColor(0x120C07, 0.24f), 10.0f).key("limbus"),
+         // "the screen is suddenly stained red" — kColor keeps the iris's
+         // luminance and swaps its hue/saturation, so it TINTS rather than
+         // covers. Sudden onset: easeInQuad.
+         box()
+             .key("stain")
+             .inset(0)
+             .blend(SkBlendMode::kColor)
+             .fill(animate(from(Fill::color(hexColor(0x3A2A1C)))
+                               .to(Fill::color(hexColor(0xC81E2C))),
+                           ramp(700, 500, ch::easeInQuad)))});
 
     for (int i = 0; i < 4; ++i) spiralCard(panel, i);
 
@@ -487,9 +483,8 @@ struct VertigoTitles : sketch::Sketch {
                       .align = TextPath::Align::Center,
                       .offset = 3.0f,
                       .autoFlip = false})
-             .opacity(animate(from(0.0f).to(1.0f), ramp(1000, 500)))});
-    panel.children(
-        {text("PARAMOUNT 1958 · 1.85:1 · TECHNICOLOR")
+             .opacity(animate(from(0.0f).to(1.0f), ramp(1000, 500))),
+         text("PARAMOUNT 1958 · 1.85:1 · TECHNICOLOR")
              .font(legend)
              .key("ring-bottom")
              .width(544)
@@ -516,13 +511,14 @@ struct VertigoTitles : sketch::Sketch {
         "CARD D · a:b 5:3 · δ 60° · k 0.12 · R 167 px",
     };
     const weave::Type slug{.size = 10, .track = 1.8f};
-    for (int i = 0; i < 4; ++i)
-      panel.children({text(kSlug[i])
-                          .font(slug)
-                          .key(std::string("slug") + kCards[i].tag)
-                          .left(22)
-                          .top(20)
-                          .opacity(&cardA[i])});
+    panel.children({each(kSlug, [&](const char* words, size_t i) {
+      return text(words)
+          .font(slug)
+          .key(std::string("slug") + kCards[i].tag)
+          .left(22)
+          .top(20)
+          .opacity(&cardA[i]);
+    })});
     panel.children(
         {text("T = 6π · N = 1100 · TURNTABLE 18°/s · easeNone")
              .font(slug)
@@ -530,22 +526,19 @@ struct VertigoTitles : sketch::Sketch {
              .key("slug-rig")
              .left(22)
              .bottom(20)
-             .opacity(animate(from(0.0f).to(1.0f), ramp(1200, 400)))});
-
-    // Film gate: grain, and NO vignette. The one colour source located
-    // for this passage describes a flat saturated field — cool tones and
-    // warm tones, not a centre that falls off to black. A ramp to the
-    // corners is a modern device and it was reading as the subject.
-    panel.children({box()
-                        .inset(0)
-                        .fill(filmGrain)
-                        .blend(SkBlendMode::kOverlay)
-                        .opacity(0.42f)});
-
-    // the bezel is its OWN node: trim() on the panel would reveal the
-    // iris fill along with the keyline.
-    panel.children(
-        {box()
+             .opacity(animate(from(0.0f).to(1.0f), ramp(1200, 400))),
+         // Film gate: grain, and NO vignette. The one colour source located
+         // for this passage describes a flat saturated field — cool tones and
+         // warm tones, not a centre that falls off to black. A ramp to the
+         // corners is a modern device and it was reading as the subject.
+         box()
+             .inset(0)
+             .fill(filmGrain)
+             .blend(SkBlendMode::kOverlay)
+             .opacity(0.42f),
+         // the bezel is its OWN node: trim() on the panel would reveal the
+         // iris fill along with the keyline.
+         box()
              .key("bezel")
              .inset(0)
              .corners({10})
@@ -567,55 +560,49 @@ struct VertigoTitles : sketch::Sketch {
              .key("spec-bed")
              .shape(figure(kCards[2], 700))
              .stroke(stroke(0.8f, Fill::color(hexColor(0x2E5C9E, 0.55f))))
-             .rotate(turntable())});
-    p.children({text("VERTIGO", hollow(faceDisplay, 34, kBone, 1.1f, 4.0f))
-                    .key("spec-outline")});
-    p.children({text("SAUL BASS · JOHN WHITNEY")
-                    .font({.face = faceDisplay, .size = 14, .track = 2.0f})
-                    .key("spec-solid")});
-    p.children({text("OUTLINE DISPLAY OVER THE IMAGE / SOLID BODY BELOW IT "
-                     "— BOTH CLARENDON.")
-                    .font({.size = 10, .color = kSteel, .track = 0.6f})
-                    .key("spec-cap")});
+             .rotate(turntable()),
+         text("VERTIGO", hollow(faceDisplay, 34, kBone, 1.1f, 4.0f))
+             .key("spec-outline"),
+         text("SAUL BASS · JOHN WHITNEY")
+             .font({.face = faceDisplay, .size = 14, .track = 2.0f})
+             .key("spec-solid"),
+         text("OUTLINE DISPLAY OVER THE IMAGE / SOLID BODY BELOW IT "
+              "— BOTH CLARENDON.")
+             .font({.size = 10, .color = kSteel, .track = 0.6f})
+             .key("spec-cap")});
     return p;
   }
 
   Element spiralIndex() {
-    auto p = plate(240).gap(8);
-    for (int i = 0; i < 4; ++i) {
-      const Card& c = kCards[i];
-      auto row = box()
-                     .row()
-                     .height(46)
-                     .gap(12)
-                     .alignItems(Align::Center)
-                     .key(std::string("idx") + c.tag);
-      // the chip draws the card's OWN curve at 15px — same generator,
-      // same six constants, 1/12 the amplitude
-      row.children(
-          {box()
-               .width(38)
-               .height(38)
-               .shrink(0)
-               .corners({3})
-               .fill(Fill::color(hexColor(0x080605)))
-               .stroke(stroke(1.0f, Fill::color(kKeyline),
-                              PathFormat::Align::Inner))
-               .children({figureBox({19.0f, 19.0f}, 13.0f)
-                              .shape(figure(c, 360))
-                              .stroke(stroke(0.9f, Fill::color(c.core)))
-                              .rotate(turntable())})});
-      row.children(
-          {box()
-               .column()
-               .grow(1)
-               .gap(2)
-               .children({text(c.line1).font(
-                   {.face = faceGothicBold, .size = 11, .track = 0.7f})})
-               .children({text(c.line2).font({.size = 9, .color = kSteel})})});
-      p.children({std::move(row)});
-    }
-    return p;
+    // ONE ROW PER CARD: a chip drawing that card's OWN curve at 15 px —
+    // same generator, same six constants, a twelfth of the amplitude —
+    // and the two lines that name it.
+    const auto row = [this](const Card& c) {
+      return box()
+          .row()
+          .height(46)
+          .gap(12)
+          .alignItems(Align::Center)
+          .key(std::string("idx") + c.tag)
+          .children(
+              {box()
+                   .width(38)
+                   .height(38)
+                   .shrink(0)
+                   .corners({3})
+                   .fill(Fill::color(hexColor(0x080605)))
+                   .stroke(stroke(1.0f, Fill::color(kKeyline),
+                                  PathFormat::Align::Inner))
+                   .children({figureBox({19.0f, 19.0f}, 13.0f)
+                                  .shape(figure(c, 360))
+                                  .stroke(stroke(0.9f, Fill::color(c.core)))
+                                  .rotate(turntable())}),
+               box().column().grow(1).gap(2).children(
+                   {text(c.line1).font(
+                        {.face = faceGothicBold, .size = 11, .track = 0.7f}),
+                    text(c.line2).font({.size = 9, .color = kSteel})})});
+    };
+    return plate(240).gap(8).children({each(kCards, row)});
   }
 
   Element rigPlate() {
@@ -627,22 +614,23 @@ struct VertigoTitles : sketch::Sketch {
         "PENDULUM, PEN FED FROM A 24-FT PRESSURIZED INK RESERVOIR",
         "CURVES PLOT JULES LISSAJOUS'S PARAMETRIC EQUATIONS",
     };
-    auto p = plate(176).gap(5);
-    p.children({text("THE M-5 GUN DIRECTOR")
-                    .font({.face = faceGothicBold, .size = 13, .track = 1.6f})
-                    .key("rig-h")});
-    for (int i = 0; i < 4; ++i)
-      p.children({text(kFacts[i])
-                      .font({.size = 10.5f, .color = kSteel, .track = 0.3f})
-                      .key("rig" + std::to_string(i))
-                      .opacity(animate(from(0.0f).to(1.0f),
-                                       ramp(900.0f + (float)i * 90.0f, 300)))});
-    p.children({box().grow(1)});
-    p.children({text("hitchcocksvertigo.substack.com · rhizome.org "
-                     "· diyphotography.net")
-                    .font({.size = 9, .color = kSteelDim})
-                    .key("rig-cite")});
-    return p;
+    // ONE LINE PER FACT, each entering a beat after the one above it.
+    const auto fact = [](const char* words, size_t i) {
+      return text(words)
+          .font({.size = 10.5f, .color = kSteel, .track = 0.3f})
+          .key("rig" + std::to_string(i))
+          .opacity(animate(from(0.0f).to(1.0f),
+                           ramp(900.0f + (float)i * 90.0f, 300)));
+    };
+    return plate(176).gap(5).children(
+        {text("THE M-5 GUN DIRECTOR")
+             .font({.face = faceGothicBold, .size = 13, .track = 1.6f})
+             .key("rig-h"),
+         each(kFacts, fact), box().grow(1),
+         text("hitchcocksvertigo.substack.com · rhizome.org "
+              "· diyphotography.net")
+             .font({.size = 9, .color = kSteelDim})
+             .key("rig-cite")});
   }
 
   /** THE MASTHEAD'S OWN LOOK: the three registers its lines are set in,
@@ -715,40 +703,30 @@ struct VertigoTitles : sketch::Sketch {
     }
 
     // hairline under the header
-    root.children({box()
-                       .height(1)
-                       .fill(Fill::color(kKeyline))
-                       .transformOrigin(0.0f, 0.5f)
-                       .scale(animate(from(0.0f).to(1.0f),
-                                      ramp(200, 620, ch::easeOutCubic)))});
-
-    // ---- body -----------------------------------------------------
-    root.children({box()
-                       .row()
-                       .gap(32)
-                       .height(kPanelH)
-                       .children({screenPanel()})
-                       .children({box()
-                                      .width(kSideW)
-                                      .shrink(0)
-                                      .column()
-                                      .gap(20)
-                                      .children({typeSpecimen()})
-                                      .children({spiralIndex()})
-                                      .children({rigPlate()})})});
-
-    // ---- the whole sheet under one very faint tooth ---------------
-    // A full-canvas procedural grain shader. It never changes, but the
-    // opacity + overlay blend on this node keeps it from being auto-baked,
-    // so without the explicit Cache::Texture the shader is re-evaluated
-    // over every pixel of the canvas on every frame. Nothing here is
-    // animated, so the baked texture stays valid for the whole run.
-    root.children({box()
-                       .inset(0)
-                       .fill(paperGrain)
-                       .blend(SkBlendMode::kOverlay)
-                       .opacity(0.16f)
-                       .cache(Cache::Texture)});
+    root.children(
+        {box()
+             .height(1)
+             .fill(Fill::color(kKeyline))
+             .transformOrigin(0.0f, 0.5f)
+             .scale(animate(from(0.0f).to(1.0f),
+                            ramp(200, 620, ch::easeOutCubic))),
+         // ---- body -----------------------------------------------------
+         box().row().gap(32).height(kPanelH).children(
+             {screenPanel(),
+              box().width(kSideW).shrink(0).column().gap(20).children(
+                  {typeSpecimen(), spiralIndex(), rigPlate()})}),
+         // ---- the whole sheet under one very faint tooth ---------------
+         // A full-canvas procedural grain shader. It never changes, but the
+         // opacity + overlay blend on this node keeps it from being auto-baked,
+         // so without the explicit Cache::Texture the shader is re-evaluated
+         // over every pixel of the canvas on every frame. Nothing here is
+         // animated, so the baked texture stays valid for the whole run.
+         box()
+             .inset(0)
+             .fill(paperGrain)
+             .blend(SkBlendMode::kOverlay)
+             .opacity(0.16f)
+             .cache(Cache::Texture)});
     return root;
   }
 
