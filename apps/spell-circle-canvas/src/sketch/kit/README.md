@@ -111,10 +111,13 @@ Put the `Provide` at the top of whatever function builds the tree, and
 another in `setup` if `stage()` is to take its ground from the same
 theme.
 
-**One caveat.** A callable the kernel invokes later — a `custom()` paint
-program, a memo's deferred describe — runs with no scope. Capture the
-colours such a lambda needs by value at the call site, where the scope
-still stands.
+**One caveat.** A `custom()` paint program is a callable the kernel
+invokes later, and it runs with no scope. Capture the colours such a
+lambda needs by value at the call site, where the scope still stands. A
+memo's deferred describe is different: it captures the environment
+standing where the memo was described, restores it around its own call,
+and describes again when what it captured changes — so a memo reads its
+theme after the `Provide` that bound it has ended.
 
 ## The components
 

@@ -52,7 +52,7 @@ and the ones that name nothing say so.
 | OpenType features, small caps, figures, sets | exists | `kit/Features.h` | `ShapingStyle::fontFeatures` on the style a run carries |
 | Underline / strikethrough / overline / highlight options | exists | `Decoration` | `PaintStyle::decorations`; `Element::spanPaint` |
 | Frame: columns, gutter | done as compose kit — a Western column is a FRAME | `kit::columns` | `kit::columns` |
-| Frame: balance columns | **not started** | — | — |
+| Frame: balance columns | done — a run of chained frames fills to the shallowest depth that holds what the run was asked to hold, so every frame in the run resolves to one depth; the frames must declare a pixel depth, since that declared depth is the ceiling the halving searches under. A spanner breaks the chain, and every row of columns above it is balanced down to what it must carry | `Element::balanceChain`; `kit::columns` with `kit::Spanner` | the same |
 | Frame: inset | exists | compose padding | `Element::padding` |
 | Frame: vertical justification | done | `FrameOptions::distribute` | `Element::distribute` |
 | Frame: first-baseline offset | done | `FrameOptions::firstBaseline` | `Element::firstBaseline` |
