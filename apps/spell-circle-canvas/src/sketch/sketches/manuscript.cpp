@@ -140,11 +140,10 @@ struct Manuscript final : sketch::Sketch {
   // mid-hold on the first page, the one the incipit above the block and
   // the marginal note beside it both belong to.
 
-  weave::TextStyle body(float size, SkColor4f colour) {
-    weave::TextStyle style =
-        weave::textStyle({.face = book, .size = px(size), .color = colour});
-    style.shaping.languageTag = "la";
-    return style;
+  /** The book hand at a size, in a colour, shaped as Latin — over the
+   *  page's own face. */
+  weave::Type body(float size, SkColor4f colour) {
+    return {.size = px(size), .color = colour, .language = "la"};
   }
 
   /** The bianchi girari frieze: eight half-edge bands, each corner
@@ -214,11 +213,10 @@ struct Manuscript final : sketch::Sketch {
         // frame, drawn on the frame itself rather than mounted on it.
         .background(SwirlCorners{pal, px(kPitch * 1.4f), px(0.5f)})
         .child(text(u8"T \xc2\xb7 LIVII \xc2\xb7 PATAVINI \xc2\xb7 AB \xc2\xb7 "
-                    u8"VRBE \xc2\xb7 CONDITA \xc2\xb7 LIBER \xc2\xb7 PRIMVS",
-                    weave::textStyle({.face = book,
-                                      .size = px(kBodySize * 0.86f),
-                                      .color = pal.gold,
-                                      .track = px(0.5f)})));
+                    u8"VRBE \xc2\xb7 CONDITA \xc2\xb7 LIBER \xc2\xb7 PRIMVS")
+                   .font({.size = px(kBodySize * 0.86f),
+                          .color = pal.gold,
+                          .track = px(0.5f)}));
   }
 
   Element describe() {
@@ -232,8 +230,7 @@ struct Manuscript final : sketch::Sketch {
     // stated as a delimiter so an edit moves it.
     const std::u8string letter(1, pages[page][0]);
     const std::u8string rest = pages[page].substr(1);
-    weave::Type capitals{
-        .face = book, .size = px(kBodySize * 0.92f), .color = rubric.stem};
+    weave::Type capitals{.size = px(kBodySize * 0.92f), .color = rubric.stem};
     capitals.language = "la";
     capitals.features = {weave::features::smallCaps,
                          weave::features::capitalsToSmallCaps};
@@ -241,16 +238,15 @@ struct Manuscript final : sketch::Sketch {
     const kit::NestedStyle opening{.until = kit::NestedStyle::Until::Delimiter,
                                    .delimiter = u8".",
                                    .style = capitals};
-    Element initial =
-        text(letter,
-             weave::textStyle({.face = book,
-                               .size = px(kPitch * (float)kCapLines * 0.74f),
-                               .color = pal.gold}))
-            .key("versal")
-            .absolute()
-            .left(Dimension(0.0f))
-            .top(Dimension(0.0f));
-    Element prose = text(rest, body(kBodySize, pal.ink))
+    Element initial = text(letter)
+                          .font({.size = px(kPitch * (float)kCapLines * 0.74f),
+                                 .color = pal.gold})
+                          .key("versal")
+                          .absolute()
+                          .left(Dimension(0.0f))
+                          .top(Dimension(0.0f));
+    Element prose = text(rest)
+                        .font(body(kBodySize, pal.ink))
                         .flowAround("versal", px(2.4f))
                         .spanStyle(kit::nestedRun(opening), opening.style);
 
@@ -305,9 +301,10 @@ struct Manuscript final : sketch::Sketch {
             .zIndex(3)
             .padding(px(3.0f))
             .gap(px(1.6f))
-            .child(text(u8"nota bene", body(kBodySize * 0.82f, rubric.stem)))
-            .child(text(u8"the gate takes no coin but memory",
-                        body(kBodySize * 0.78f, rubric.ink)));
+            .child(
+                text(u8"nota bene").font(body(kBodySize * 0.82f, rubric.stem)))
+            .child(text(u8"the gate takes no coin but memory")
+                       .font(body(kBodySize * 0.78f, rubric.ink)));
     written.child(std::move(note));
 
     // One vine stem breaking out of the frieze into the block, which is
@@ -333,9 +330,12 @@ struct Manuscript final : sketch::Sketch {
     rule.width = px(0.4f);
     rule.strokeFill =
         Fill::color({pal.gold.fR, pal.gold.fG, pal.gold.fB, 0.45f});
+    // the whole leaf is written in the book hand; each line says its
+    // size, its colour and, where it is Latin, its language
     return stack()
         .inset(0)
         .cache(Cache::Texture)
+        .font({.face = book})
         .fill(parchmentFill(pal.parchment))
         // The pricking-and-ruling the block was written to, kept faint the
         // way a scribe's frame ruling is.
