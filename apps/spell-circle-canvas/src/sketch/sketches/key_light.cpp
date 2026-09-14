@@ -121,18 +121,17 @@ struct KeyLight final : sketch::Set {
     dials->green = 0.62f + 0.38f * swing;
     dials->blue = 0.35f + 0.65f * (1.0f - swing);
 
-    world::kit::Set set;
-    set.rig.extent = 150.0f;
-    set.rig.bearing = -50.0f;
-    set.rig.elevation = 26.0f;
-    set.rig.fill = 0.28f;
-    set.rig.back = 0.5f;
-    set.ground = 5.0f;
-    set.drop = 0.36f;
-    set.table.radius = 560.0f;
-    set.table.height = 250.0f;
-    set.table.period = 16.0f;
-    set.table.fovYDeg = 44.0f;
+    const world::kit::Set set{.rig = {.extent = 150.0f,
+                                      .bearing = -50.0f,
+                                      .elevation = 26.0f,
+                                      .fill = 0.28f,
+                                      .back = 0.5f},
+                              .table = {.radius = 560.0f,
+                                        .height = 250.0f,
+                                        .period = 16.0f,
+                                        .fovYDeg = 44.0f},
+                              .ground = 5.0f,
+                              .drop = 0.36f};
 
     const world::Element root = world::kit::litSet(subject(), set, seconds);
     world::Element dressed;
