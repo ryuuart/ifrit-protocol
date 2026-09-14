@@ -41,8 +41,10 @@
 
 #include <include/core/SkPoint.h>
 #include <include/core/SkSize.h>
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
+#include <sigilcompose/core/Stroke.h>
 #include <sigilcompose/core/Utf8.h>
 #include <sigilcompose/kit/Part.h>
 #include <sigilcore/callable/Callable.h>
@@ -250,7 +252,11 @@ struct Rules {
   std::vector<double> x;
   /** Domain values on the y scale: a line across the box at each. */
   std::vector<double> y;
-  float width = 1.0f;
+  /** THE PEN THE HAIRLINES ARE STROKED WITH, as a curve's is: a width, a
+   *  dash and a cap, with the ink in force for a fill. A ruled ladder is
+   *  dashed as often as it is solid, which is why this is a pen and not a
+   *  width. */
+  compose::PathFormat pen{.width = 1.0f};
   /** The class read instead of `rule`, for a second ladder of its own. */
   std::string styleClass;
 };
@@ -265,25 +271,35 @@ struct Rules {
  *  from its own state, r = f(θ) round a wheel — and pinning it to samples
  *  would be pinning the answer instead of asking the question. */
 struct Trace {
-  float width = 1.5f;
+  /** THE PEN THE CURVE IS STROKED WITH — its width, its dash intervals,
+   *  its cap and its join. A width, a dash and a cap are geometry; the
+   *  fill is the ink in force, which is what the class resolves to, and a
+   *  caller that names one is overruling the sheet on purpose. */
+  compose::PathFormat pen{.width = 1.5f};
   /** How finely the curve is walked. A staircase reads as a staircase
    *  only when the sampling is finer than its steps. */
   int samples = 240;
-  /** Domain values DOTTED on the curve — the published samples a
-   *  reference quotes, which is what turns a drawn curve into a check of
-   *  one. */
-  std::vector<double> marks;
-  float markRadius = 2.5f;
+  /** HOW MUCH OF THE CURVE IS DRAWN, as a gate along its own length:
+   *  `spans::upTo(animate(to(1.0f), …))` is the curve drawing itself on.
+   *  Unset draws the whole of it.
+   *
+   *  A span gate runs along a node's SHAPE, which is why the curve is a
+   *  shape and not a recording: the same key still prunes it. */
+  std::optional<compose::Spans> along;
   /** The class read instead of `trace`, for a second series. */
   std::string styleClass;
 };
 
 /** THE CURVE, in the class `plotTrace`: @p f walked across the x domain and
- *  stroked, with a dot at every marked sample.
+ *  stroked with `Trace::pen`.
  *
- *  It is ONE recording rather than a node per sample, and it prunes on the
- *  plot's key: a callable compares to nothing, so the key is the caller's
- *  statement that this is the same drawing. */
+ *  It is ONE node however many samples it is walked at, and it prunes on
+ *  the plot's key: a callable compares to nothing, so the key is the
+ *  caller's statement that this is the same drawing.
+ *
+ *  THE DOTS A REFERENCE QUOTES ARE `marks`. A curve and the published
+ *  samples on it are two readings — one path, N elements — and a run of
+ *  dots that is a layer of its own can be keyed, staggered and hit. */
 [[nodiscard]] Layer trace(sigil::core::Callable<double(double)> f,
                           const Trace& how = {});
 

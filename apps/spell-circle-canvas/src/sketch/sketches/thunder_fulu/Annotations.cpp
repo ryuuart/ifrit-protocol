@@ -131,9 +131,9 @@ auto ThunderFulu::widthLawPlot(float w) const -> Element {
   std::vector<sketch::kit::Layer> layers{
       sketch::kit::rules({.y = {0.0, 1.0}}),
       sketch::kit::trace([](double s) { return widthLaw((float)s); },
-                         {.width = 1.5f})};
+                         {.pen = {.width = 1.5f}})};
   for (const data::Json& m : said["marks"].items())
-    layers.push_back(sketch::kit::label(std::string(m["words"].text()),
+    layers.push_back(sketch::kit::label(m["words"],
                                         m["s"].number(),
                                         widthLaw((float)m["s"].number()),
                                         {.anchor = {.across = Align::Start,

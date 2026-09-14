@@ -4,6 +4,7 @@
 #include <include/core/SkRect.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilcompose/core/Shape.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Theme.h>
@@ -12,6 +13,7 @@
 #include <cmath>
 #include <numbers>
 #include <string>
+#include <tuple>
 #include <utility>
 
 namespace sigil::sketch::kit {
@@ -302,42 +304,51 @@ Layer axis(const Ruler& how) {
 
 Layer rules(const Rules& how) {
   return [how](const Plot& frame, std::string_view key, std::size_t index) {
-    return recorded(
-        named(key, "rule", index), detail::classOf(how.styleClass, "plotRule"),
-        [how, frame](SkCanvas& canvas, const PaintContext& pc) {
-          SkPaint pen = strokePen(pc, how.width);
-          if (frame.polar) {
-            const SkPoint hub = frame.centre(pc.size);
-            const float outer = frame.radius(pc.size);
-            const float inner = frame.polar->inner * outer;
-            const data::Interval sweep = frame.polar->sweep;
-            for (double value : how.y)
-              canvas.drawArc(
-                  ring(hub, (float)frame.radiusFraction(value) * outer),
-                  (float)sweep.low, (float)sweep.extent(), false, pen);
-            for (double value : how.x) {
-              const float theta = radians(frame.angle(value));
-              canvas.drawLine({hub.fX + inner * std::cos(theta),
-                               hub.fY + inner * std::sin(theta)},
-                              {hub.fX + outer * std::cos(theta),
-                               hub.fY + outer * std::sin(theta)},
-                              pen);
-            }
-            return;
-          }
-          const data::Scale across = frame.scale(Axis::X, pc.size);
-          const data::Scale up = frame.scale(Axis::Y, pc.size);
-          for (double value : how.x) {
-            const float at = (float)markOn(across, value);
-            canvas.drawLine({at, (float)up.range.low},
-                            {at, (float)up.range.high}, pen);
-          }
-          for (double value : how.y) {
-            const float at = (float)markOn(up, value);
-            canvas.drawLine({(float)across.range.low, at},
-                            {(float)across.range.high, at}, pen);
-          }
-        });
+    // One path holding every hairline of the ladder, stroked once with the
+    // caller's pen — so a ruled ladder dashes exactly as a curve does.
+    const std::string name = named(key, "rule", index);
+    return compose::box()
+        .key(name)
+        .styleClass(std::string(detail::classOf(how.styleClass, "plotRule")))
+        .absolute()
+        .inset(0)
+        .shape(compose::keyedShape(
+            std::tuple{name, frame, how.x, how.y},
+            [how, frame](SkSize size) {
+              SkPathBuilder path;
+              if (frame.polar) {
+                const SkPoint hub = frame.centre(size);
+                const float outer = frame.radius(size);
+                const float inner = frame.polar->inner * outer;
+                const data::Interval sweep = frame.polar->sweep;
+                for (double value : how.y)
+                  path.addArc(
+                      ring(hub, (float)frame.radiusFraction(value) * outer),
+                      (float)sweep.low, (float)sweep.extent());
+                for (double value : how.x) {
+                  const float theta = radians(frame.angle(value));
+                  path.moveTo(hub.fX + inner * std::cos(theta),
+                              hub.fY + inner * std::sin(theta));
+                  path.lineTo(hub.fX + outer * std::cos(theta),
+                              hub.fY + outer * std::sin(theta));
+                }
+                return path.detach();
+              }
+              const data::Scale across = frame.scale(Axis::X, size);
+              const data::Scale up = frame.scale(Axis::Y, size);
+              for (double value : how.x) {
+                const float at = (float)markOn(across, value);
+                path.moveTo(at, (float)up.range.low);
+                path.lineTo(at, (float)up.range.high);
+              }
+              for (double value : how.y) {
+                const float at = (float)markOn(up, value);
+                path.moveTo((float)across.range.low, at);
+                path.lineTo((float)across.range.high, at);
+              }
+              return path.detach();
+            }))
+        .stroke(how.pen);
   };
 }
 
@@ -368,19 +379,30 @@ SkPathBuilder walked(const Plot& frame,
 Layer trace(sigil::core::Callable<double(double)> f, const Trace& how) {
   return [f = std::move(f), how](const Plot& frame, std::string_view key,
                                  std::size_t index) {
-    return recorded(named(key, "trace", index),
-                    detail::classOf(how.styleClass, "plotTrace"),
-                    [f, how, frame](SkCanvas& canvas, const PaintContext& pc) {
-                      if (!f) return;
-                      SkPaint pen = strokePen(pc, how.width);
-                      canvas.drawPath(
-                          walked(frame, f, how.samples, pc.size).detach(), pen);
-                      if (!(how.markRadius > 0)) return;
-                      pen.setStyle(SkPaint::kFill_Style);
-                      for (double value : how.marks)
-                        canvas.drawCircle(frame.at(value, f(value), pc.size),
-                                          how.markRadius, pen);
-                    });
+    // THE CURVE IS A SHAPE AND NOT A RECORDING, because a span gate runs
+    // along a node's shape and a curve that draws itself on is what every
+    // plate with a reveal on it wants. The key is the caller's statement
+    // that this is the same drawing, exactly as a recording's is: the
+    // callable compares to nothing, so the plot's name, the frame and the
+    // sampling stand for it.
+    const std::string name = named(key, "trace", index);
+    Element curve =
+        compose::box()
+            .key(name)
+            .styleClass(
+                std::string(detail::classOf(how.styleClass, "plotTrace")))
+            .absolute()
+            .inset(0)
+            .shape(compose::keyedShape(
+                std::tuple{name, frame, how.samples},
+                [f, frame, samples = how.samples](SkSize box) {
+                  return f ? walked(frame, f, samples, box).detach() : SkPath();
+                }));
+    if (how.along)
+      curve.stroke(*how.along, how.pen);
+    else
+      curve.stroke(how.pen);
+    return curve;
   };
 }
 

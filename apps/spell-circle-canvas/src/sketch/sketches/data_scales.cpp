@@ -92,7 +92,7 @@ Element mapping(const Mapping& properties) {
         [scale = properties.scale](double value) {
           return scale.position(value);
         },
-        {.width = 2.5f, .samples = 256}));
+        {.pen = {.width = 2.5f}, .samples = 256}));
   }
   Element body = box()
                      .width(kWidth)

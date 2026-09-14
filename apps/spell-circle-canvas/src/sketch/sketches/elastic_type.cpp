@@ -248,20 +248,31 @@ Element graph(const char* key, TextEffect effect, Table table,
     if (tick.value != rest) ruled.push_back(tick.value);
   std::vector<double> published;
   for (const fx::Key& keyframe : table) published.push_back(keyframe.at);
+  // The curve is the effect's own law; the dots are the keyframes the
+  // reference publishes, which is a second reading of the same lane and
+  // therefore a run of marks rather than a property of the curve.
+  const auto curve = [effect, lane](double t) {
+    return (double)lane(at(effect, (float)t));
+  };
+  const auto dot = [](double, std::size_t) {
+    return box()
+        .width(5.2f)
+        .height(5.2f)
+        .corners(Corners{2.6f})
+        .fill(Fill::currentInk());
+  };
   return sketch::kit::plot(
              key, {.y = {.domain = {lo, hi}}},
              {sketch::kit::rules({.y = std::move(ruled)}),
               sketch::kit::trace(
                   [rest](double) { return rest; },
-                  {.width = 1.0f, .samples = 1, .styleClass = "rest"}),
+                  {.pen = {.width = 1.0f}, .samples = 1, .styleClass = "rest"}),
               sketch::kit::trace(
-                  [effect = std::move(effect), lane](double t) {
-                    return lane(at(effect, (float)t));
-                  },
-                  {.width = 1.6f,
-                   .marks = std::move(published),
-                   .markRadius = 2.6f,
-                   .styleClass = series})})
+                  curve, {.pen = {.width = 1.6f}, .styleClass = series}),
+              sketch::kit::marks(published, dot,
+                                 {.x = [](double at) { return at; },
+                                  .y = [curve](double at) { return curve(at); },
+                                  .styleClass = series})})
       .width(pct(100))
       .height(pct(100));
 }

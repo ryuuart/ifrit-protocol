@@ -79,7 +79,8 @@ auto ChevreulCircle::theLabPlot() -> Element {
        label(doc["lab.head"], x0 + 10, y0 + 6, S - 20).styleClass("heading"),
        sketch::kit::plot(
            "lab", field,
-           {sketch::kit::rules({.x = ladder, .y = ladder, .width = 0.5f}),
+           {sketch::kit::rules(
+                {.x = ladder, .y = ladder, .pen = {.width = 0.5f}}),
             sketch::kit::axis({.of = sketch::kit::Axis::X,
                                .at = 0.0,
                                .width = 1.2f,

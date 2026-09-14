@@ -254,11 +254,36 @@ TEST(SketchKitChart, ATracePrunesOnItsKey) {
   EXPECT_TRUE(drawn.composer.bounds("u-trace0").has_value());
 }
 
+TEST(SketchKitChart, ACurveDrawsItselfOnAlongItsOwnLength) {
+  const auto tree = [](std::optional<compose::Spans> gate) {
+    weave::StyleSheet dressed = kit::houseTheme().styleSheet();
+    dressed.set("plotTrace", weave::Type{.color = SkColor4f{0, 1, 0, 1}});
+    return compose::box().styleSheet(dressed).children(
+        {kit::plot("g", plane(),
+                   {kit::trace([](double x) { return x * 10.0; },
+                               {.pen = {.width = 3}, .along = gate})})
+             .width(kField)
+             .height(kFieldTall)});
+  };
+  // Nine tenths along the curve: drawn when the whole of it is, and not
+  // drawn when the gate has only reached a third.
+  const SkPoint late = plane().at(9, 90, kBox);
+  const auto green = [&late](Drawn& drawn) {
+    return drawn.pixels()
+        .getColor4f((int)std::round(late.fX), (int)std::round(late.fY))
+        .fG;
+  };
+  Drawn whole(tree(std::nullopt));
+  Drawn part(tree(compose::spans::upTo(0.33f)));
+  EXPECT_GT(green(whole), 0.5f);
+  EXPECT_LT(green(part), 0.2f);
+}
+
 TEST(SketchKitChart, ARecordingIsPaintedInTheInkItsClassResolvesTo) {
   weave::StyleSheet dressed = kit::houseTheme().styleSheet();
   dressed.set("plotRule", weave::Type{.color = SkColor4f{0, 1, 0, 1}});
   Drawn drawn(compose::box().styleSheet(dressed).children(
-      {kit::plot("r", plane(), {kit::rules({.y = {50}, .width = 3})})
+      {kit::plot("r", plane(), {kit::rules({.y = {50}, .pen = {.width = 3}})})
            .width(kField)
            .height(kFieldTall)}));
   const SkPoint on = plane().at(5, 50, kBox);

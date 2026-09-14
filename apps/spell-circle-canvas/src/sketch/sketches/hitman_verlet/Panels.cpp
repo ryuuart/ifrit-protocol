@@ -78,12 +78,26 @@ auto HitmanVerlet::panelA3() -> Element {
                "a3-s", factor,
                {sketch::kit::axis({.at = 0.0, .reach = 0, .numbers = false}),
                 sketch::kit::rules({.x = {1.0}}),
+                // The exact form is DASHED and the approximation solid, so
+                // the two are told apart by more than colour; both draw
+                // themselves on, which is what the span gate along the
+                // curve's own length is.
                 sketch::kit::trace(
                     [](double u) { return 0.5 - 1.0 / (2.0 * u); },
-                    {.width = 1.4f, .styleClass = "exact"}),
+                    {.pen = {.width = 1.4f, .dashIntervals = {3.5f, 3.0f}},
+                     .along = spans::upTo(
+                         animate(to(1.0f), {.duration = 520ms,
+                                            .ease = ch::easeOutCubic,
+                                            .delay = 1400ms})),
+                     .styleClass = "exact"}),
                 sketch::kit::trace(
                     [](double u) { return 0.5 - 1.0 / (1.0 + u * u); },
-                    {.width = 1.8f, .styleClass = "approx"}),
+                    {.pen = {.width = 1.8f},
+                     .along = spans::upTo(
+                         animate(to(1.0f), {.duration = 520ms,
+                                            .ease = ch::easeOutCubic,
+                                            .delay = 1400ms})),
+                     .styleClass = "approx"}),
                 sketch::kit::label("s_exact", 0.52, 0.33,
                                    {.anchor = fromLeft, .styleClass = "exact"}),
                 sketch::kit::label(

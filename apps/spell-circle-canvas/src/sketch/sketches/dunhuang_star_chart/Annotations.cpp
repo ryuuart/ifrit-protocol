@@ -141,7 +141,8 @@ auto DunhuangStarChart::poleDrift() -> Element {
   const std::array<sketch::kit::Datum, 1> mark700{
       {{at700.lonDeg, 90.0 - (double)at700.latDeg}}};
   std::vector<sketch::kit::Layer> layers{
-      sketch::kit::rules({.y = {10, 20, 30}, .width = 0.5f}),
+      sketch::kit::rules(
+          {.y = {10, 20, 30}, .pen = {.width = 0.5f, .dashIntervals = {2, 3}}}),
       [walk](const sketch::kit::Plot& f) {
         return box()
             .absolute()
@@ -310,15 +311,16 @@ auto DunhuangStarChart::projectionPanel() -> Element {
         {sketch::kit::plot(
              i ? "dep1" : "dep0",
              {.x = {.domain = {c.lo, c.hi}}, .y = {.domain = {-1.25, 1.25}}},
-             {sketch::kit::rules(
-                  {.y = {-hand, hand}, .width = 0.6f, .styleClass = "hand"}),
+             {sketch::kit::rules({.y = {-hand, hand},
+                                  .pen = {.width = 0.6f},
+                                  .styleClass = "hand"}),
               sketch::kit::trace(
                   [fit, mx, merc](double v) {
                     const float y =
                         (merc ? kMercator : kStereographic).radiusAt((float)v);
                     return (double)(fit.residual((float)v, y) / fit.slope / mx);
                   },
-                  {.width = 1.5f, .samples = 80})})
+                  {.pen = {.width = 1.5f}, .samples = 80})})
              .height(132)
              .shrink(0)
              .stroke(spans::edges(16.0f),

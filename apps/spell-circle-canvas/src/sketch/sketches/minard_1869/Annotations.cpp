@@ -108,7 +108,7 @@ auto Minard1869::cardScale(const data::Json& said) -> Element {
                 [slope, intercept](double men) {
                   return intercept + slope * men / 10000.0;
                 },
-                {.width = 1.6f, .styleClass = "measured"}),
+                {.pen = {.width = 1.6f}, .styleClass = "measured"}),
             sketch::kit::marks(plate.treads, tread,
                                {.x = &Measured::men,
                                 .y = &Measured::mm,
@@ -195,7 +195,7 @@ auto Minard1869::cardFloor(const data::Json& said) -> Element {
             sketch::kit::rules({.y = {3.83}, .styleClass = "grey"}),
             sketch::kit::trace(
                 laid,
-                {.width = 1.6f, .samples = 300, .styleClass = "measured"}),
+                {.pen = {.width = 1.6f}, .samples = 300, .styleClass = "measured"}),
             sketch::kit::marks(pts, dot,
                                {.x =
                                     [](const Measured& m) {
@@ -332,7 +332,7 @@ auto Minard1869::cardGeo(const data::Json& said) -> Element {
             .y = {.domain = {0, 9}}},
            {// the digitisation quantum, as a grey band behind the columns
             sketch::kit::rules({.x = {6.41 / 5.0 - 0.5},
-                                .width = 12.0f,
+                                .pen = {.width = 12.0f},
                                 .styleClass = "grey"}),
             sketch::kit::bands(
                 bins, {.y = [](double v) { return v; }, .part = column}),

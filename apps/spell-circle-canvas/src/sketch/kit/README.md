@@ -415,8 +415,8 @@ on a sheet is a bare bar.
 | --- | --- |
 | `plot(key, frame, layers)` | the frame, and the layers over it in the order they were written, each filling the plot's own box |
 | `axis(Ruler)` | one of the frame's two scales drawn: its line, its ticks, and the numbers under them |
-| `rules(Rules)` | hairlines across the field at the domain values a curve is read against |
-| `trace(f, Trace)` | a function of one variable walked across the x domain and stroked, with a dot at every sample it names |
+| `rules(Rules)` | hairlines across the field at the domain values a curve is read against, stroked with the same kind of pen |
+| `trace(f, Trace)` | a function of one variable walked across the x domain and stroked with `Trace::pen` — a width, a dash and a cap — and gated along its own length by `Trace::along`, which is the curve drawing itself on |
 | `area(f, Area)` | the band between that curve and a base, filled |
 | `marks(rows, mark, Marks)` | one element per row, placed where the frame maps its datum |
 | `bands(rows, Bands)` | the band each row owns drawn out to its value — a bar on a Cartesian frame, a wedge on a polar one; `along` says which scale hands out the bands and `base` where they grow from |
@@ -461,12 +461,17 @@ the label on the rim are the same layers reading the same two scales. That
 is why the coordinates are a property of the FRAME: a second component would
 be a second arithmetic, and the two would drift.
 
-**A LAYER EITHER RECORDS A PATH OR PLACES ELEMENTS**, and which one it is
-decides what it can do. `axis`, `rules`, `trace` and `area` are keyed
-recordings that map at paint through the box's own size — one node each,
-however many samples — and they prune on the plot's key, because a callable
-compares to nothing and the key is the caller's statement that this is the
-same drawing. `marks`, `bands` and `label` are containers whose LAYOUT
+**A LAYER EITHER DRAWS A PATH OR PLACES ELEMENTS**, and which one it is
+decides what it can do. `axis` and `area` are keyed recordings and `rules`
+and `trace` are keyed SHAPES — one node each, however many samples — and
+all four prune on the plot's key, because a callable compares to nothing
+and the key is the caller's statement that this is the same drawing. A
+SHAPE is what a curve that draws itself on has to be: a span gate runs
+along a node's outline, so `Trace::along` is `spans::upTo(…)` and the same
+key still prunes it. The dots a reference publishes on such a curve are a
+`marks` layer beside it — one path and N elements are two readings, and a
+run of dots that is a layer of its own can be keyed, staggered and hit.
+`marks`, `bands` and `label` are containers whose LAYOUT
 SCHEME places each child at its datum's position, so a mark is a real
 element: keyed, animatable, hit-testable, and free to be anything the sketch
 can build. A plot does not size itself — every layer is absolute against its
