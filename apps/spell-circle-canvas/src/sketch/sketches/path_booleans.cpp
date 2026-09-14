@@ -31,13 +31,16 @@
 // TAGS: Geometry/Paths
 
 #include <include/core/SkMatrix.h>
-#include <include/core/SkPaint.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Operations.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 
 namespace sketch = sigil::sketch;
+namespace draw = sigil::draw;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
@@ -53,27 +56,24 @@ SkPath at(const Shape& shape, float radius, SkPoint center) {
           SkMatrix::Translate(center.fX - radius, center.fY - radius));
 }
 
-void fillPath(SkCanvas& canvas, const SkPath& path, SkColor4f color) {
-  SkPaint paint;
-  paint.setAntiAlias(true);
-  paint.setColor4f(color);
-  canvas.drawPath(path, paint);
+void fillPath(draw::Pen& pen, const SkPath& path, SkColor4f color) {
+  pen.noStroke();
+  pen.fill(color);
+  pen.shape(path);
 }
 
-void outlinePath(SkCanvas& canvas, const SkPath& path, SkColor4f color,
+void outlinePath(draw::Pen& pen, const SkPath& path, SkColor4f color,
                  float width) {
-  SkPaint paint;
-  paint.setAntiAlias(true);
-  paint.setStyle(SkPaint::kStroke_Style);
-  paint.setStrokeWidth(width);
-  paint.setColor4f(color);
-  canvas.drawPath(path, paint);
+  pen.noFill();
+  pen.stroke(color);
+  pen.strokeWeight(width);
+  pen.shape(path);
 }
 
 }  // namespace
 
 struct PathBooleans final : sketch::Sketch {
-  void draw(SkCanvas& canvas) const {
+  void draw(draw::Pen& pen) const {
     // Row 1 — the four booleans on one pair of operands.
     {
       const float y = 140;
@@ -89,9 +89,9 @@ struct PathBooleans final : sketch::Sketch {
       for (const Case& c : cases) {
         const SkPath a = at(shapes::star(5, 34.0f / 78.0f), 78, {x - 18, y});
         const SkPath b = at(shapes::circle(), 52, {x + 34, y + 18});
-        outlinePath(canvas, a, {0.4f, 0.5f, 0.7f, 0.5f}, 1.5f);
-        outlinePath(canvas, b, {0.4f, 0.5f, 0.7f, 0.5f}, 1.5f);
-        fillPath(canvas, c.operation(a, b), ink);
+        outlinePath(pen, a, {0.4f, 0.5f, 0.7f, 0.5f}, 1.5f);
+        outlinePath(pen, b, {0.4f, 0.5f, 0.7f, 0.5f}, 1.5f);
+        fillPath(pen, c.operation(a, b), ink);
         x += 300;
       }
     }
@@ -100,7 +100,7 @@ struct PathBooleans final : sketch::Sketch {
       const SkPath base = at(shapes::squircle(3.0f), 70, {250, 400});
       for (int i = -2; i <= 3; ++i) {
         const SkPath ring = operations::offset(base, (float)i * 22.0f);
-        outlinePath(canvas, ring,
+        outlinePath(pen, ring,
                     {0.3f + 0.12f * (float)(i + 2),
                      0.75f - 0.09f * (float)(i + 2), 1.0f, 0.9f},
                     i == 0 ? 4.0f : 2.0f);
@@ -109,11 +109,11 @@ struct PathBooleans final : sketch::Sketch {
     // Row 2 right — one recipe value, applied to one outline.
     {
       const SkPath base = at(shapes::circle(), 80, {700, 400});
-      outlinePath(canvas, base, {0.4f, 0.5f, 0.7f, 0.6f}, 1.5f);
+      outlinePath(pen, base, {0.4f, 0.5f, 0.7f, 0.6f}, 1.5f);
       const operations::PathOperation recipe = operations::chain(
           {operations::offsetBy(18), operations::Zigzag{7, 30, true},
            operations::Roughen{2.5f, 6, 11}});
-      fillPath(canvas, recipe(base), {1.0f, 0.62f, 0.3f, 0.95f});
+      fillPath(pen, recipe(base), {1.0f, 0.62f, 0.3f, 0.95f});
     }
     // Row 3 — the distort menu over one base star.
     {
@@ -136,10 +136,10 @@ struct PathBooleans final : sketch::Sketch {
       };
       float x = 130;
       for (const Row& row : rows) {
-        canvas.save();
-        canvas.translate(x, y);
-        fillPath(canvas, row.path, row.color);
-        canvas.restore();
+        pen.push();
+        pen.translate(x, y);
+        fillPath(pen, row.path, row.color);
+        pen.pop();
         x += 200;
       }
     }
@@ -153,9 +153,7 @@ struct PathBooleans final : sketch::Sketch {
     // Keyed on the sink's own name: everything `draw` reads is cooked
     // above, in this setup, and nothing after it moves.
     ctx.composer.render(
-        custom("path.booleans", [this](SkCanvas& canvas) {
-          draw(canvas);
-        }).inset(0));
+        pen("path.booleans", [this](draw::Pen& pen) { draw(pen); }).inset(0));
   }
 };
 
