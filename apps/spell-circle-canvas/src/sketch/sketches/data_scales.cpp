@@ -1,6 +1,7 @@
 /** One Scale prop maps a value, draws its axis and sizes its marks. */
 // TAGS: Data/Scales
 
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildata/scale/Scale.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -44,6 +45,14 @@ sigil::weave::StyleSheet scaleSheet() {
   return dressed;
 }
 
+/** ONE DATUM PER CATEGORY at @p y — the height a band grows to, or the
+ *  position a widthless entry is drawn at. */
+std::vector<sketch::kit::Datum> entries(int steps, double y) {
+  std::vector<sketch::kit::Datum> run;
+  for (int i = 0; i < steps; ++i) run.push_back({(double)i, y});
+  return run;
+}
+
 /** The dot a category with no width of its own is drawn as. */
 Element dot(const sketch::kit::Datum&, std::size_t) {
   return box()
@@ -57,7 +66,6 @@ Element mapping(const Mapping& properties) {
   using enum data::Transform;
   const data::Transform kind = properties.scale.transform;
   const bool categories = kind == Ordinal || kind == Band || kind == Point;
-  const SkRect area = SkRect::MakeLTRB(24, 16, kWidth - 24, kHeight - 28);
   // THE FRAME. A continuous mapping puts its own INPUT across the box —
   // read on a linear abscissa, or on the clock's own ladder for a time
   // scale — and its normalised output up it. A discrete one has no input
@@ -74,18 +82,13 @@ Element mapping(const Mapping& properties) {
           {.of = sketch::kit::Axis::X, .count = 4, .line = false, .reach = 0})};
   if (kind == Band) {
     // A band owns space, so it is drawn as the space it owns.
-    std::vector<sketch::kit::Datum> entries;
-    for (int i = 0; i < properties.scale.steps; ++i)
-      entries.push_back({(double)i, 0.74});
-    layers.push_back(sketch::kit::bands(
-        entries, {.y = &sketch::kit::Datum::y, .base = 0.28}));
+    layers.push_back(
+        sketch::kit::bands(entries(properties.scale.steps, 0.74),
+                           {.y = &sketch::kit::Datum::y, .base = 0.28}));
   } else if (categories) {
     // A point and an ordinal entry own a position and no width.
-    std::vector<sketch::kit::Datum> entries;
-    for (int i = 0; i < properties.scale.steps; ++i)
-      entries.push_back({(double)i, 0.5});
     layers.push_back(sketch::kit::marks(
-        entries, dot,
+        entries(properties.scale.steps, 0.5), dot,
         {.x = &sketch::kit::Datum::x, .y = &sketch::kit::Datum::y}));
   } else {
     layers.push_back(sketch::kit::trace(
@@ -94,16 +97,14 @@ Element mapping(const Mapping& properties) {
         },
         {.pen = {.width = 2.5f}, .samples = 256}));
   }
-  Element body = box()
-                     .width(kWidth)
-                     .height(kHeight)
-                     .fill(Fill::color({0.07f, 0.09f, 0.12f, 1}))
-                     .children({sketch::kit::plot(properties.title, frame,
-                                                  std::move(layers))
-                                    .left(area.left())
-                                    .top(area.top())
-                                    .width(area.width())
-                                    .height(area.height())});
+  Element body =
+      box()
+          .width(kWidth)
+          .height(kHeight)
+          .fill(Fill::color({0.07f, 0.09f, 0.12f, 1}))
+          .children({kit::at(
+              sketch::kit::plot(properties.title, frame, std::move(layers)), 24,
+              16, kWidth - 48, kHeight - 44)});
   return sketch::kit::caption(kWidth, properties.title, properties.note,
                               std::move(body));
 }
@@ -148,8 +149,6 @@ struct DataScales final : sketch::Sketch {
          "Categories own positions, without width.",
          {.transform = Point, .steps = 5, .outerPadding = 0.5}},
     }};
-    std::vector<Element> cells;
-    for (const Mapping& example : examples) cells.push_back(mapping(example));
     sketch::kit::stage(ctx, {.size = {1100, 980}, .captureAt = 0.05});
     ctx.composer.render(
         sketch::kit::page(
@@ -159,7 +158,7 @@ struct DataScales final : sketch::Sketch {
              .footer = u8"Curves: input along the bottom, normalized output "
                        u8"upward. Category labels are indices."},
             kit::panelGrid(
-                {.cells = std::move(cells), .columns = 3, .gap = 16}))
+                {.cells = each(examples, mapping), .columns = 3, .gap = 16}))
             .styleSheet(scaleSheet()));
   }
 };
