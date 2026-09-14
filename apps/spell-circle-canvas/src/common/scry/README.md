@@ -153,10 +153,23 @@ On GPU engines the wrap handed out by `frame(recorder)` is cached per
 (version, recorder), so the `SkImage` identity is stable across draws of
 one frame and Skia's caches keyed on it stay warm.
 
-**One renderer per process.** Ultralight allows exactly one, for the
-program's lifetime. `WebEngine::create()` returns null on a second call
-— which is why the CPU-mode and GPU-mode engines are tested in separate
-processes and benchmarked in separate runs.
+**One renderer per process, and it is never released.** Ultralight
+allows exactly one, and its teardown cannot be run: destroying the
+renderer frees the JavaScript VM and deletes WebCore's resource-usage
+singleton while the thread that polls both is still running, and that
+thread has no exit a host can reach. So the runtime the first
+`WebEngine::create()` boots — the renderer, the platform handlers and the
+web thread — is the PROCESS's and outlives every engine over it.
+Releasing an engine ends that engine: its views go, its renderer gets the
+last pass its deferred destroys need, and the runtime parks. The next
+`WebEngine::create()` stands the same runtime up again, so a host may
+shut its web work down and start it again. Only one engine at a time —
+`create()` is null while another is held — and the first configuration
+fixes what bring-up built out of it: the resource roots, the session
+store, the threading and the device. A later configuration naming a
+different one is refused and logged, never quietly answered with the
+first. That is why the CPU-mode and GPU-mode engines are still tested in
+separate processes and benchmarked in separate runs.
 
 **Ownership is explicit by default.** A consumer chooses a
 `WebEngineConfig`, calls `WebEngine::create(config)` and owns the result.
@@ -178,11 +191,15 @@ resize allocate.
 **Teardown order is load-bearing, and the library handles it — do not
 rearrange it.** Platform bring-up touches the image source provider
 before the renderer is created so static destruction runs in the
-opposite order. The web thread's exit path clears views first, then runs
-one more update, render and memory purge plus a driver flush, so deferred
+opposite order. An engine's end clears its views first, then runs one
+more update, render and memory purge plus a driver flush, so deferred
 GPU destroys still reach a live driver and WebCore's thread-local font
-cache does not carry GPU glyph textures into thread-local cleanup. The
-driver must outlive the renderer it was given.
+cache does not carry GPU glyph textures into thread-local cleanup; only
+then does the web thread park. All of it happens ON the web thread, and
+a caller returning from the last engine handle's release knows nothing
+of that engine is still running. The device a GPU engine was given must
+stay alive for as long as the process may open another engine over it,
+because the driver built on it is the runtime's.
 
 **A page that is gone publishes nothing and calls nobody back.**
 Releasing the last `WebView` handle tears the page down on the web

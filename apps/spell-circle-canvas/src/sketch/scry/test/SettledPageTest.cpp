@@ -1,7 +1,9 @@
 /** @file
  * The still of a page is the frame the settle accepted, on a page that
- * never stops repainting. The engine allows one renderer per process, so
- * this is a case ctest runs in a process of its own.
+ * never stops repainting — and a page settles the same way on an engine
+ * booted after another was shut down, because the renderer under both is
+ * the process's. One engine at a time, so these are cases ctest runs in
+ * processes of their own.
  */
 
 #include <gtest/gtest.h>
@@ -12,6 +14,7 @@
 #include <sigilscry/engine/WebEngine.h>
 #include <sigilscry/engine/WebView.h>
 #include <sigilsketch/scry/SettledPage.h>
+#include <sigilsketch/scry/SharedEngine.h>
 
 #include <chrono>
 #include <memory>
@@ -54,6 +57,45 @@ SkColor corner(const sk_sp<SkImage>& image) {
 std::shared_ptr<WebEngine> engine() {
   static std::shared_ptr<WebEngine> held = WebEngine::create(WebEngineConfig{});
   return held;
+}
+
+TEST(SketchSettledPage, APageSettlesOnAnEngineBootedAfterOneWasShutDown) {
+  // A host may take its web work down and stand it up again: the engine
+  // ends, the process's renderer does not. Loading a page on the FIRST
+  // engine is what makes this about the defect — the page load starts
+  // WebCore's resource-usage thread, and releasing the renderer it reads
+  // through is what used to leave that thread on freed memory, killing
+  // whatever ran next in the process.
+  namespace shared = sigil::sketch::scry;
+  ASSERT_TRUE(shared::configureSharedEngine({}));
+  {
+    const std::shared_ptr<WebEngine> first = shared::sharedEngine();
+    if (!first) GTEST_SKIP() << "no web engine on this machine";
+    const std::shared_ptr<WebView> page = first->createView(160, 120);
+    ASSERT_NE(page, nullptr);
+    const shared::Events events(*page);
+    page->loadHTML(kRestless);
+    ASSERT_TRUE(events.awaitLoad());
+  }
+  shared::shutdownSharedEngine();
+
+  ASSERT_TRUE(shared::configureSharedEngine({}));
+  const std::shared_ptr<WebEngine> again = shared::sharedEngine();
+  ASSERT_NE(again, nullptr) << "the renderer was not handed back";
+  const std::shared_ptr<WebView> view = again->createView(160, 120);
+  ASSERT_NE(view, nullptr);
+
+  const shared::Events events(*view);
+  view->loadHTML(kRestless);
+  ASSERT_TRUE(events.awaitLoad());
+  ASSERT_TRUE(shared::awaitAnswer(
+      *view, events, "document.getElementById('head').textContent", "SETTLED"));
+  const WebView::Frame still = events.accepted();
+  ASSERT_TRUE(still.image) << "the second engine published no frame";
+  EXPECT_NE(corner(still.image), SK_ColorTRANSPARENT);
+  // The path lets go here; the engine itself ends with the handles below,
+  // which is what leaves the process free to boot the next one.
+  shared::shutdownSharedEngine();
 }
 
 TEST(SketchSettledPage, TheStillIsTheFrameTheSettleAcceptedAndNotALaterOne) {

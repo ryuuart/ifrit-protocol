@@ -4,7 +4,9 @@
  * The WebEngine: Ultralight booted once per process, the thread that
  * drives it, and the factory for the views and image slots it renders.
  * WebEngineConfig fixes the engine's resources, threading, GPU device
- * and logging at creation.
+ * and logging at creation — the first configuration fixes them for the
+ * process, since the renderer they bring up is the only one there will
+ * be.
  */
 
 #include <sigilscry/platform/LogLevel.h>
@@ -126,17 +128,27 @@ struct ViewOptions {
  *     composites the freshly rendered surface in the same frame, and
  *     WebView::peekPixels() exposes the live surface with zero copies.
  *
- * Ultralight allows exactly one renderer per process, so create() may
- * only be called once for the lifetime of the program; it returns null on
- * a second call and when renderer bring-up fails. Views keep the engine
- * alive: destruction order between WebView and WebEngine handles is free.
+ * Ultralight allows exactly one renderer per process and its teardown
+ * cannot be run, so the runtime the first create() boots — the renderer,
+ * the platform handlers and the web thread — is the process's and is
+ * never released. Releasing an engine ends that engine: its views go and
+ * its runtime parks, holding everything, and the next create() stands the
+ * same runtime up again. Only ONE engine at a time: create() returns null
+ * while another is still held, when a configuration names something
+ * bring-up fixed for the process (the resource roots, the session store,
+ * the threading, the device), and when bring-up itself fails. Views keep
+ * the engine alive: destruction order between WebView and WebEngine
+ * handles is free.
  */
 class WebEngine : public std::enable_shared_from_this<WebEngine> {
  public:
   ~WebEngine();
 
-  /** Boots Ultralight (platform handlers, renderer, web thread). Null on
-   *  failure or when an engine was already created in this process. */
+  /** Boots Ultralight (platform handlers, renderer, web thread) the
+   *  first time, and stands the process's runtime back up every time
+   *  after. Null while another engine is still held, when @p config
+   *  names something the first bring-up fixed, and when bring-up
+   *  fails. */
   static std::shared_ptr<WebEngine> create(WebEngineConfig config = {});
 
   /** Creates a view rendering a @p width x @p height page. Blocks briefly

@@ -18,24 +18,6 @@ identical sources with one unrelated object changed between the builds
 and require the same digest for this scene; the fix is in the sketch
 once the read is found.
 
-## sketch_test dies on WebCore's resource-usage thread after the shared engine shuts down
-
-`shutdownSharedEngine()` destroys the one Ultralight renderer the process
-booted, and `WebEngine::~WebEngine` releases it on the web thread once
-the last view is gone. WebCore's `ResourceUsageThread`, started when a
-page first loads, is not joined by that release: it keeps polling after
-the renderer is freed and reads freed state, so about one run in three
-of `sketch_test` dies with SIGSEGV or SIGBUS in whichever kit suite
-follows the web-engine suites, and the crash report names that thread
-rather than the test that was running. What the release evidently
-intends is a process left as it was before the engine booted — which
-the settled-page suite also assumes when it boots a second engine, and
-finds it cannot. A test should shut the shared engine down, then boot a
-view again and read a settled frame from it, with no thread of the
-first engine left running; the fix is scry's — keep the one renderer
-for the process's lifetime and hand it back to a later engine, or stop
-that thread before the renderer goes.
-
 ## web_script moves under a four-job sweep and holds when rendered alone
 
 In a sweep of the whole registry at four jobs, web_script's plate came

@@ -1,6 +1,7 @@
 /** @file
  * The opt-in web engine a sketch host shares: explicitly configured, lazy,
- * identical for every borrower and final once shut down.
+ * identical for every borrower, and gone once shut down — leaving the path
+ * ready to be configured again.
  */
 
 #include <gtest/gtest.h>
@@ -35,8 +36,17 @@ TEST(SketchSharedWebEngine, HostConfigurationIsLazyAndShared) {
   firstView.reset();
   first.reset();
   shutdownSharedEngine();
-  EXPECT_EQ(sharedEngine(), nullptr);
-  EXPECT_FALSE(configureSharedEngine({}));
+  EXPECT_EQ(sharedEngine(), nullptr) << "a shut-down path hands out nothing";
+
+  // …until a host configures it again. The engine that ended is gone and
+  // the renderer under it is the process's, so the second configuration
+  // is a question that can be answered.
+  ASSERT_TRUE(configureSharedEngine({}));
+  const std::shared_ptr<::sigil::scry::WebEngine> again = sharedEngine();
+  ASSERT_NE(again, nullptr) << "the renderer was not handed back";
+  EXPECT_NE(again, first);
+  EXPECT_NE(again->createView(32, 32), nullptr);
+  shutdownSharedEngine();
 }
 
 }  // namespace sigil::sketch::scry

@@ -1,11 +1,11 @@
 /** @file
- * WebEngine's public surface: the one create() per process, the views
- * and image slots it makes on the web thread, and the update() and
- * renderFrame() an unthreaded host pumps.
+ * WebEngine's public surface: the process's one runtime and the engines
+ * leased over it, the views and image slots they make on the web thread,
+ * and the update() and renderFrame() an unthreaded host pumps.
  */
 
-#include <atomic>
 #include <cstdio>
+#include <mutex>
 
 #include "EngineImpl.h"
 #include "ImageImpl.h"
@@ -15,27 +15,70 @@ namespace sigil::scry {
 
 namespace {
 
-// Ultralight permits one Renderer per process for the program's lifetime.
-std::atomic<bool> s_engineCreated{false};
+/** The lock over both of the values below. Never destroyed, for the same
+ *  reason the runtime is not: an engine held in a static outlives it
+ *  otherwise, and its release would lock a mutex that had been torn
+ *  down. */
+std::mutex& runtimeMutex() {
+  static auto* one = new std::mutex();
+  return *one;
+}
+
+/** THE PROCESS'S RUNTIME: the web thread, the platform handlers and the
+ *  one renderer Ultralight allows, booted by the first engine and handed
+ *  to every engine after it.
+ *
+ *  It is never released, and that is the point. The renderer's own
+ *  teardown frees the JavaScript VM and deletes WebCore's resource-usage
+ *  singleton while the thread that polls both is still running, and that
+ *  thread has no exit a host can reach: an engine that released its
+ *  renderer left a live thread reading freed memory, which the next
+ *  unrelated work in the process died on. Held through a pointer that is
+ *  never deleted so that static destruction does not release it either.
+ *
+ *  workaround: WebCore's resource-usage thread is started when a page
+ *  first loads and is never joined, so releasing the renderer it reads
+ *  through is a use-after-free with no API to prevent it. */
+std::shared_ptr<WebEngine::Impl>& runtime() {
+  static auto* one = new std::shared_ptr<WebEngine::Impl>();
+  return *one;
+}
+
+/** Whether an engine currently stands over that runtime. Two at once
+ *  would each end it under the other. */
+bool s_leased = false;
 
 }  // namespace
 
 WebEngine::WebEngine(std::shared_ptr<Impl> impl) : m_impl(std::move(impl)) {}
 
-WebEngine::~WebEngine() { m_impl->shutdown(); }
+WebEngine::~WebEngine() {
+  m_impl->close();
+  const std::lock_guard<std::mutex> lock(runtimeMutex());
+  s_leased = false;
+}
 
 std::shared_ptr<WebEngine> WebEngine::create(WebEngineConfig config) {
-  if (s_engineCreated.exchange(true)) {
+  const std::lock_guard<std::mutex> lock(runtimeMutex());
+  if (s_leased) {
     std::fprintf(stderr,
-                 "[SigilScry:error] only one WebEngine may be created "
-                 "per process\n");
+                 "[SigilScry:error] an engine already stands over this "
+                 "process's renderer; release it before creating another\n");
     return nullptr;
   }
-
-  auto impl = std::make_shared<Impl>();
-  impl->config = std::move(config);
-  if (!impl->start()) return nullptr;
-  return std::shared_ptr<WebEngine>(new WebEngine(std::move(impl)));
+  std::shared_ptr<Impl>& kept = runtime();
+  if (kept) {
+    if (!kept->reopen(std::move(config))) return nullptr;
+  } else {
+    auto impl = std::make_shared<Impl>();
+    impl->config = std::move(config);
+    // Bring-up that fails creates no renderer, so the next call may try
+    // again; one that succeeds is the process's from here on.
+    if (!impl->start()) return nullptr;
+    kept = std::move(impl);
+  }
+  s_leased = true;
+  return std::shared_ptr<WebEngine>(new WebEngine(kept));
 }
 
 std::shared_ptr<WebView> WebEngine::createView(int width, int height,

@@ -31,6 +31,13 @@ class CallbackLogger final : public ultralight::Logger {
   /** The library's own diagnostics take the same route. */
   void log(LogLevel level, const std::string& message);
 
+  /** Points the logger at a new callback. The engine standing over a
+   *  runtime owns where its messages go, and a runtime outlives the
+   *  engine that booted it; called while nothing is reading it. */
+  void setCallback(std::function<void(LogLevel, const std::string&)> callback) {
+    m_callback = std::move(callback);
+  }
+
  private:
   std::function<void(LogLevel, const std::string&)> m_callback;
 };

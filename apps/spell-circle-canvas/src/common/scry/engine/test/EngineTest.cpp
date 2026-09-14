@@ -3,7 +3,9 @@
  * rendered into published SkImage frames, drawing onto an SkCanvas,
  * script evaluation, image slots filled and painted, the warning for a
  * slot no page registered, and the frame callback. Ultralight allows
- * one Renderer per process, so every test shares one threaded engine.
+ * one Renderer per process, so every test shares one threaded engine —
+ * except the one about the renderer outliving an engine, which boots and
+ * ends its own.
  */
 
 #include <gtest/gtest.h>
@@ -80,6 +82,51 @@ std::shared_ptr<WebView> viewShowingSlot(const char* slot) {
 }
 
 }  // namespace
+
+TEST(WebEngineTest, TheRendererOutlivesItsEngineAndTheNextOneGetsIt) {
+  // The renderer is the process's, not the engine's: Ultralight creates
+  // exactly one and releasing it frees state WebCore's resource-usage
+  // thread is still reading. That thread is started by a page LOAD, so
+  // the first engine here loads one — without it the case would be about
+  // bring-up rather than about the defect.
+  //
+  // Nothing here may touch cpuEngine(): its static holds an engine for
+  // the whole process, and this case is about a process whose engine
+  // ends.
+  {
+    std::shared_ptr<WebEngine> first = WebEngine::create(WebEngineConfig{});
+    ASSERT_NE(first, nullptr) << "the first engine did not boot";
+    std::shared_ptr<WebView> page =
+        first->createView(64, 64, {.transparent = false});
+    ASSERT_NE(page, nullptr);
+    page->loadHTML(
+        "<html><body style='background:#00ff00;margin:0'></body></html>");
+    ASSERT_TRUE(waitForCentre(*page, SK_ColorGREEN));
+    // Two engines over one renderer would each end it under the other.
+    EXPECT_EQ(WebEngine::create(WebEngineConfig{}), nullptr)
+        << "a second engine was handed out while the first was still held";
+  }
+
+  // The runtime the first engine parked is what the next one stands up.
+  std::shared_ptr<WebEngine> second = WebEngine::create(WebEngineConfig{});
+  ASSERT_NE(second, nullptr) << "the renderer was not handed back";
+  std::shared_ptr<WebView> page =
+      second->createView(64, 64, {.transparent = false});
+  ASSERT_NE(page, nullptr);
+  page->loadHTML(
+      "<html><body style='background:#0000ff;margin:0'></body></html>");
+  EXPECT_TRUE(waitForCentre(*page, SK_ColorBLUE));
+
+  // …and what bring-up built out of the first configuration is the
+  // process's: a later one naming something else is refused, not
+  // silently answered with the first.
+  page.reset();
+  second.reset();
+  WebEngineConfig elsewhere;
+  elsewhere.fileSystemDirectory = "somewhere/else";
+  EXPECT_EQ(WebEngine::create(elsewhere), nullptr)
+      << "a configuration this process cannot honour was accepted";
+}
 
 TEST(WebViewTest, PublishesTheColourTheDocumentDeclares) {
   auto view = cpuEngine().createView(160, 120, {.transparent = false});

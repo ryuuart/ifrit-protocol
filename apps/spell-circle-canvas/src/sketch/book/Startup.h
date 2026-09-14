@@ -32,7 +32,8 @@ class FontContext;
  * WebEngine::create(config). Sketchbook is the exceptional host whose live
  * and resident sketches must borrow one renderer across selection and reload,
  * so it chooses that renderer's configuration before any sketch can ask for
- * it and releases it after every session is gone. */
+ * it and releases it after every session is gone — which ends the engine and
+ * leaves the process's renderer standing. */
 class SharedWebEngineScope {
  public:
   SharedWebEngineScope() {

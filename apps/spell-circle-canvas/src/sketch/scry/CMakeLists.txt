@@ -2,10 +2,10 @@
 # what a HOST taking a deterministic still of a view needs, saying
 # nothing about what any page looks like.
 #
-# The engine allows one renderer per process, and the shared-engine case
-# ends by shutting its one down for good, so these two cases must not meet
-# in one process. ctest runs every discovered case in a process of its own,
-# which is what keeps them apart, since the library has one binary.
+# One engine at a time stands over the process's renderer, and each case
+# here boots its own, so they must not meet in one process. ctest runs
+# every discovered case in a process of its own, which is what keeps them
+# apart, since the library has one binary.
 sigil_test(sketch_test
   SOURCES test/SharedEngineTest.cpp test/SettledPageTest.cpp
   LIBRARIES SigilSketch

@@ -221,9 +221,10 @@ as the reason.
 
 ### The shared web engine is a host option
 
-An Ultralight process may create one renderer in its lifetime, while
-Sketchbook keeps several sketches resident and loads a fresh dylib on every
-edit. A web sketch therefore borrows the engine its host configured:
+An Ultralight process creates one renderer in its lifetime and never
+releases it, while Sketchbook keeps several sketches resident and loads a
+fresh dylib on every edit. A web sketch therefore borrows the engine its
+host configured:
 
 ```cpp
 #include <sigilsketch/scry/SharedEngine.h>
@@ -237,12 +238,15 @@ installed, not SigilScry's ordinary ownership model. A standalone SigilScry cons
 `WebEngine::create(config)` and owns that explicitly configured value. A
 sketch host opts into sharing by calling `configureSharedEngine(config)`
 before it opens any sketches; the first borrower boots exactly that
-configuration, and `shutdownSharedEngine()` is final for the process.
+configuration, and `shutdownSharedEngine()` ends that engine and leaves the
+path unconfigured, so a host may take its web work down and stand it up
+again over the renderer the process keeps.
 
 The configuration belongs to the host rather than to whichever sketch was
-selected first. Differences that must coexist belong on a view or web
-session; engine-wide differences require separate processes because they
-would require separate Ultralight renderers.
+selected first, and what the first bring-up built out of it — the resource
+roots, the session store, the threading, the device — belongs to the
+PROCESS: SigilScry refuses a later configuration naming a different one.
+Differences that must coexist belong on a view or web session.
 
 A 3D sketch is the same shape with a different body:
 

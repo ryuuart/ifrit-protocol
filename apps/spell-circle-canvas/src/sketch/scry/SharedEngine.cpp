@@ -1,6 +1,7 @@
 /** @file
  * The SigilSketch host's optional shared web engine: one configuration chosen
- * before use, one lazy bring-up, and one final shutdown.
+ * before use, one lazy bring-up, and a shutdown that leaves the path ready to
+ * be configured again.
  */
 
 #include "sigilsketch/scry/SharedEngine.h"
@@ -14,7 +15,7 @@ namespace sigil::sketch::scry {
 
 namespace {
 
-enum class Phase { Empty, Configured, Starting, Started, Closed };
+enum class Phase { Empty, Configured, Starting, Started };
 
 struct SharedState {
   std::mutex mutex;
@@ -68,10 +69,13 @@ void shutdownSharedEngine() {
   std::unique_lock<std::mutex> lock(shared.mutex);
   shared.changed.wait(lock,
                       [&shared] { return shared.phase != Phase::Starting; });
-  if (shared.phase == Phase::Closed) return;
+  if (shared.phase == Phase::Empty) return;
   std::shared_ptr<::sigil::scry::WebEngine> engine = std::move(shared.engine);
   shared.config.reset();
-  shared.phase = Phase::Closed;
+  // Back to unconfigured rather than to a closed state of its own: the
+  // engine ends here, and the process's renderer does not, so a host that
+  // configures again is asking for something that can be given.
+  shared.phase = Phase::Empty;
   lock.unlock();
   engine.reset();
 }
