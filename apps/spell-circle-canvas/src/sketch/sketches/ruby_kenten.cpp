@@ -68,7 +68,6 @@ namespace furigana {
 using namespace vertical;
 using namespace vertical::paper;
 
-constexpr float kW = kSceneSize.fWidth;
 constexpr float kH = kSceneSize.fHeight;
 constexpr float kBodySize = 26;
 constexpr float kRubySize = 11;
@@ -115,7 +114,7 @@ struct RubyKenten final : sketch::Sketch {
   }
 
   /** A vertical column of the body type, at the plate's own measure. */
-  Element passage(std::u8string utf8, float height = furigana::kColumnH) {
+  Element passage(Utf8 utf8, float height = furigana::kColumnH) {
     namespace f = furigana;
     return text(std::move(utf8), f::body(f::kBodySize, f::kSumi))
         .width(f::kColumnW)
@@ -197,50 +196,45 @@ struct RubyKenten final : sketch::Sketch {
                   "base's advance either side",
                   std::move(split))
             .styleSheet(f::voiceClasses(9.0f))
-            .absolute()
-            .inset(52, 320, 0, 0);
+            .left(52)
+            .top(320);
 
     return box()
         .fill(linearGradient({0, 0}, {0, f::kH}, {f::kKinariLift, f::kKinari}))
         .font({.size = 10, .track = 0.2f})
         .ink(f::kUsu)
         .children(
-            {box()
-                 .absolute()
-                 .inset(52, 44, 0, 0)
-                 .column()
-                 .gap(4)
-                 .children({text("ルビと"
-                                 "傍点",
-                                 f::body(30, f::kSumi))})
-                 .children({box().height(6)})
-                 .children(
-                     {text("A READING IS PART OF THE TEXT")
-                          .font({.size = 11, .color = f::kAi, .track = 3.0f})})
-                 .children({text("the band it needs is in the base's strut "
-                                 "before the base is broken, so the column "
-                                 "pitch opens once\nand the reading is "
-                                 "placed on the result")
-                                .font({.size = 10.5f})
-                                .width(430.0f)}),
+            {box().left(52).top(44).column().gap(4).children(
+                 {text("ルビと"
+                       "傍点",
+                       f::body(30, f::kSumi)),
+                  box().height(6),
+                  text("A READING IS PART OF THE TEXT")
+                      .font({.size = 11, .color = f::kAi, .track = 3.0f}),
+                  text("the band it needs is in the base's strut "
+                       "before the base is broken, so the column "
+                       "pitch opens once\nand the reading is "
+                       "placed on the result")
+                      .font({.size = 10.5f})
+                      .width(430.0f)}),
              box()
-                 .absolute()
-                 .inset(0, 158, 46, 0)
+                 .right(46)
+                 .top(158)
                  .row()
                  .gap(20)
                  .justify(Justify::End)
                  .children({f::column("KENTEN · CLUSTER",
                                       "one sesame a character, reserving "
                                       "nothing",
-                                      std::move(kenten))})
-                 .children({f::column("JUKUGO · CLUSTER",
+                                      std::move(kenten)),
+                            f::column("JUKUGO · CLUSTER",
                                       "the compound per character, each its "
                                       "own reading",
-                                      std::move(jukugo))})
-                 .children({f::column("GROUP · WORD",
+                                      std::move(jukugo)),
+                            f::column("GROUP · WORD",
                                       "one reading over the whole compound",
-                                      std::move(group))})
-                 .children({f::column("MONO · CLUSTER",
+                                      std::move(group)),
+                            f::column("MONO · CLUSTER",
                                       "one reading a character; the pitch "
                                       "opens to hold it",
                                       std::move(mono))}),
@@ -248,8 +242,8 @@ struct RubyKenten final : sketch::Sketch {
              text("mono · group · jukugo are the UNIT "
                   "and nothing else — the reading's size is "
                   "its own type's, never a fraction of the base's")
-                 .absolute()
-                 .inset(52, f::kH - 34, 0, 0)});
+                 .left(52)
+                 .bottom(34)});
   }
 };
 
