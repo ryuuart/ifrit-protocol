@@ -41,9 +41,6 @@
 // TAGS: Motion/Clocks
 
 #include <choreograph/Choreograph.h>
-#include <include/core/SkCanvas.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmotion/bind/Bind.h>
@@ -52,12 +49,14 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
+#include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace sketch = sigil::sketch;
 namespace motion = sigil::motion;
+namespace weave = sigil::weave;
 namespace ch = choreograph;
 
 using namespace sigil::compose;
@@ -77,66 +76,64 @@ constexpr float kRamp = 1.4f;         // the timeline motion's duration
 constexpr SkColor4f kSecond{0.46f, 0.72f, 0.92f, 1};
 
 /** One recorded lane: a value per tick, plotted left to right. */
-using Trace = std::vector<float>;
+using Lane = std::vector<float>;
 
-Element plot(const char* key, std::vector<std::pair<Trace, SkColor4f>> lanes) {
-  // A paint program runs after the describe scope has closed, so the
-  // baseline's colour is read here and carried in by value.
-  const SkColor4f rule = sketch::kit::theme().palette.rule;
-  return custom(key,
-                [lanes = std::move(lanes), rule](SkCanvas& canvas,
-                                                 const PaintContext& pc) {
-                  constexpr float kPad = 10;
-                  const float w = pc.size.width() - 2 * kPad;
-                  const float h = pc.size.height() - 2 * kPad;
-                  SkPaint paint;
-                  paint.setAntiAlias(true);
-                  paint.setColor4f(rule);
-                  canvas.drawRect({kPad, kPad + h, kPad + w, kPad + h + 1},
-                                  paint);
-                  paint.setStyle(SkPaint::kStroke_Style);
-                  paint.setStrokeWidth(1.6f);
-                  for (const auto& [trace, colour] : lanes) {
-                    if (trace.size() < 2) continue;
-                    SkPathBuilder path;
-                    for (size_t i = 0; i < trace.size(); ++i) {
-                      const float x =
-                          kPad + w * (float)i / (float)(trace.size() - 1);
-                      const float y = kPad + h * (1.0f - trace[i]);
-                      if (i == 0)
-                        path.moveTo(x, y);
-                      else
-                        path.lineTo(x, y);
-                    }
-                    paint.setColor4f(colour);
-                    canvas.drawPath(path.detach(), paint);
-                  }
-                })
-      .absolute()
-      .inset(0);
+constexpr int kSteps = (int)(kSpan / kDt);
+
+/** THE FRAME EVERY LANE IS PLOTTED IN: the tick index across, the value
+ *  up, with room at every edge for the stroke. Nothing below turns a
+ *  sample into a pixel. */
+const sketch::kit::Plot kField{
+    .x = {.domain = {0, kSteps - 1}}, .y = {.domain = {0, 1}}, .pad = 10};
+
+/** ONE LANE AS A LAYER. The record IS the x domain, so the frame walks
+ *  the ticker's own answers rather than an expression fitted to them;
+ *  @p styleClass is empty for the lane a plot is about and names the
+ *  sheet's own entry for a second one beside it. */
+sketch::kit::Layer lane(const Lane& recorded, std::string styleClass = {}) {
+  return sketch::kit::trace(
+      [recorded](double tick) {
+        if (recorded.empty()) return 0.0;
+        const size_t i = (size_t)std::clamp(tick, 0.0, (double)kSteps - 1);
+        return (double)recorded[std::min(i, recorded.size() - 1)];
+      },
+      {.pen = {.width = 1.6f},
+       .samples = kSteps,
+       .styleClass = std::move(styleClass)});
 }
 
-Element cell(const char* call, const char* note, Element body,
-             const std::string& readout) {
+/** A PLOT OF RECORDED LANES, over the baseline they are read against. */
+Element plot(const char* key, std::vector<sketch::kit::Layer> lanes) {
+  lanes.insert(lanes.begin(), sketch::kit::rules({.y = {0.0}}));
+  return sketch::kit::plot(key, kField, std::move(lanes)).absolute().inset(0);
+}
+
+Element cell(const char* call, const char* note, Element body, Utf8 readout) {
   const sketch::kit::Theme& look = sketch::kit::theme();
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture})
-          .children({std::move(body)})
-          // The readout stands on a scrim of the cell's own ground: a
-          // trace runs the whole plate and would otherwise cross it.
-          .children({text(readout, look.mono(10, look.palette.figure))
-                         .absolute()
-                         .left(8.0f)
-                         .top(6.0f)
-                         .padding(4, 2)
-                         .fill(Fill::color(look.palette.cellGround))}));
+  // The readout stands on a scrim of the cell's own ground: a trace runs
+  // the whole plate and would otherwise cross it.
+  kit::Caption how = look.voice(kCell);
+  how.reading = std::move(readout);
+  how.body = {.width = Dimension(kCell),
+              .height = Dimension(kPicture),
+              .ground = Fill::color(look.palette.cellGround)};
+  return kit::cell(how, call, note, std::move(body));
+}
+
+/** The sheet's two classes past the registers and the chart's: the second
+ *  lane of a plot that carries two, and the source a derivation is read
+ *  against. */
+weave::StyleSheet sheetClasses(const sketch::kit::Theme& look) {
+  weave::StyleSheet classes = look.styleSheet();
+  classes.set("second", {.color = kSecond});
+  classes.set("source", {.color = look.palette.ash});
+  return classes;
 }
 
 }  // namespace
 
 struct TickerLanes final : sketch::Sketch {
-  Trace freeLane, fixedLane, alphaLane, sourceLane, derivedLane, timelineLane;
+  Lane freeLane, fixedLane, alphaLane, sourceLane, derivedLane, timelineLane;
   std::string readouts[4];
 
   void setup(sketch::SketchContext& ctx) override {
@@ -169,8 +166,7 @@ struct TickerLanes final : sketch::Sketch {
         ticker.derive(&derived, motion::bind(&source).quantize(kLevels));
     ticker.timeline().apply(&ramped).then<ch::RampTo>(1.0f, kRamp);
 
-    const int steps = (int)(kSpan / kDt);
-    for (int i = 0; i < steps; ++i) {
+    for (int i = 0; i < kSteps; ++i) {
       stillActive = ticker.tick(kDt);
       freeLane.push_back(source);
       fixedLane.push_back((float)fixedSteps / (float)(kSpan * kFixedHz));
@@ -180,7 +176,7 @@ struct TickerLanes final : sketch::Sketch {
       timelineLane.push_back(ramped);
     }
 
-    readouts[0] = kit::formatted("add · %d ticks · active %s", steps,
+    readouts[0] = kit::formatted("add · %d ticks · active %s", kSteps,
                                  stillActive ? "true" : "false");
     readouts[1] = kit::formatted("addFixed %.0f Hz · %d steps in %.0f s",
                                  kFixedHz, fixedSteps, kSpan);
@@ -188,48 +184,49 @@ struct TickerLanes final : sketch::Sketch {
                                  kLevels, derived_ok ? "true" : "false");
     readouts[3] = kit::formatted("timeline · RampTo over %.1f s", kRamp);
 
-    ctx.composer.render(sketch::kit::page(
-        {.title = "THE TICKER'S LANES · Ticker::add, "
-                  "addFixed, derive, timeline",
-         .subtitle = "dials · three seconds at a 120 Hz delta "
-                     "· the fixed rate (5 Hz) · the "
-                     "derivation's levels (6) · the "
-                     "timeline motion's duration (1.4 s)",
-         .footer = "a derivation runs in a SECOND PHASE, after the "
-                   "timeline and after every steppable, so it "
-                   "never reads a stale source and registration "
-                   "order does not matter — which is "
-                   "exactly what a hand-rolled shadow copy cannot "
-                   "promise"},
-        kit::cells(
-            {.cells =
-                 {cell("ticker.add([] { …})",
-                       "the free steppable, handed the frame's delta "
-                       "· it answers true forever here, which is "
-                       "what keeps active() true forever",
-                       plot("free", {{freeLane, look.palette.figure}}),
-                       readouts[0]),
-                  cell("ticker.addFixed(5, fn, 8, &alpha)",
-                       "the count of fixed steps against the render "
-                       "interpolant · the count comes from total "
-                       "elapsed time, so it is exact at any draw rate",
-                       plot("fixed", {{fixedLane, look.palette.figure},
-                                      {alphaLane, kSecond}}),
-                       readouts[1]),
-                  cell("derive(&d, bind(&source).quantize(6))",
-                       "the source under the derivation · the "
-                       "bind() vocabulary reaching an Output instead of "
-                       "a property slot",
-                       plot("derive", {{sourceLane, look.palette.ash},
-                                       {derivedLane, look.palette.figure}}),
-                       readouts[2]),
-                  cell("timeline().apply(&v).then<RampTo>(1, 1.4)",
-                       "the master timeline · a finished motion "
-                       "is removed, which is what would let active() "
-                       "settle if the steppable above ever retired",
-                       plot("timeline", {{timelineLane, look.palette.figure}}),
-                       readouts[3])},
-             .gap = 14})));
+    ctx.composer.render(
+        sketch::kit::page(
+            {.title = "THE TICKER'S LANES · Ticker::add, "
+                      "addFixed, derive, timeline",
+             .subtitle = "dials · three seconds at a 120 Hz delta "
+                         "· the fixed rate (5 Hz) · the "
+                         "derivation's levels (6) · the "
+                         "timeline motion's duration (1.4 s)",
+             .footer = "a derivation runs in a SECOND PHASE, after the "
+                       "timeline and after every steppable, so it "
+                       "never reads a stale source and registration "
+                       "order does not matter — which is "
+                       "exactly what a hand-rolled shadow copy cannot "
+                       "promise"},
+            kit::cells(
+                {.cells =
+                     {cell("ticker.add([] { …})",
+                           "the free steppable, handed the frame's delta "
+                           "· it answers true forever here, which is "
+                           "what keeps active() true forever",
+                           plot("free", {lane(freeLane)}), readouts[0]),
+                      cell("ticker.addFixed(5, fn, 8, &alpha)",
+                           "the count of fixed steps against the render "
+                           "interpolant · the count comes from total "
+                           "elapsed time, so it is exact at any draw rate",
+                           plot("fixed",
+                                {lane(fixedLane), lane(alphaLane, "second")}),
+                           readouts[1]),
+                      cell("derive(&d, bind(&source).quantize(6))",
+                           "the source under the derivation · the "
+                           "bind() vocabulary reaching an Output instead of "
+                           "a property slot",
+                           plot("derive", {lane(sourceLane, "source"),
+                                           lane(derivedLane)}),
+                           readouts[2]),
+                      cell("timeline().apply(&v).then<RampTo>(1, 1.4)",
+                           "the master timeline · a finished motion "
+                           "is removed, which is what would let active() "
+                           "settle if the steppable above ever retired",
+                           plot("timeline", {lane(timelineLane)}),
+                           readouts[3])},
+                 .gap = 14}))
+            .styleSheet(sheetClasses(look)));
   }
 };
 
