@@ -14,6 +14,7 @@
 #include <fstream>
 #include <numbers>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -252,6 +253,44 @@ TEST(SketchKitChart, ATracePrunesOnItsKey) {
   drawn.composer.render(tree("u"));
   drawn.composer.draw(*drawn.surface->getCanvas());
   EXPECT_TRUE(drawn.composer.bounds("u-trace0").has_value());
+}
+
+TEST(SketchKitChart, ARecordedSeriesIsWalkedAtItsOwnIndex) {
+  // The samples as they are: the first at the domain's low end, the last
+  // at its high one, and the curve prunes on the run's own values.
+  const std::vector<double> series{0.0, 50.0, 100.0, 50.0, 0.0};
+  const auto tree = [](std::span<const double> run) {
+    return sheet(kit::plot("s", plane(), {kit::trace(run)})
+                     .width(kField)
+                     .height(kFieldTall));
+  };
+  Drawn drawn(tree(series));
+  const std::optional<SkRect> curve = drawn.composer.bounds("s-trace0");
+  ASSERT_TRUE(curve.has_value());
+  EXPECT_EQ(*curve, SkRect::MakeWH(kField, kFieldTall));
+  // A run that did not change is not walked again.
+  drawn.composer.render(tree(series));
+  EXPECT_EQ(drawn.composer.stats().patchedNodes, 0u);
+  // One that did is.
+  const std::vector<double> moved{0.0, 60.0, 100.0, 50.0, 0.0};
+  drawn.composer.render(tree(moved));
+  drawn.composer.draw(*drawn.surface->getCanvas());
+  EXPECT_GT(drawn.composer.stats().patchedNodes, 0u);
+}
+
+TEST(SketchKitChart, APathWalksOneParameterIntoBothCoordinates) {
+  // A locus is what no trace can be: t carries into x AND y, and the
+  // curve stands in the whole field as a trace does.
+  Drawn drawn(sheet(
+      kit::plot(
+          "p", plane(),
+          {kit::path([](double t) { return kit::Datum{t * 10.0, t * 100.0}; },
+                     {.samples = 32, .over = {0.0, 1.0}})})
+          .width(kField)
+          .height(kFieldTall)));
+  const std::optional<SkRect> curve = drawn.composer.bounds("p-path0");
+  ASSERT_TRUE(curve.has_value());
+  EXPECT_EQ(*curve, SkRect::MakeWH(kField, kFieldTall));
 }
 
 TEST(SketchKitChart, ASegmentStandsInTheBoundsOfItsOwnTwoEnds) {

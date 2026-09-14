@@ -436,6 +436,8 @@ on a sheet is a bare bar.
 | `axis(Ruler)` | one of the frame's two scales drawn: its line, its ticks, and the numbers under them |
 | `rules(Rules)` | hairlines across the field at the domain values a curve is read against, stroked with the same kind of pen |
 | `trace(f, Trace)` | a function of one variable walked across the x domain and stroked with `Trace::pen` — a width, a dash and a cap — and gated along its own length by `Trace::along`, which is the curve drawing itself on |
+| `trace(series, Trace)` | the same curve over a run that was MEASURED rather than one that can be evaluated: the samples as they are, spread across the frame's whole x domain, pruning on the run's own values |
+| `path(at, Path)` | a curve walked over a PARAMETER into both coordinates — `(x(t), y(t))` over `Path::over` — which is what a locus, a mirrored sweep and a pole's track are and what no trace can be |
 | `area(f, Area)` | the band between that curve and a base, filled |
 | `marks(rows, mark, Marks)` | one element per row, placed where the frame maps its datum |
 | `segments(rows, mark, Segments)` | one element per row at the bounds of its OWN TWO ENDS, shaped as the line between them — a chord, a residual vector, a whisker, a link |

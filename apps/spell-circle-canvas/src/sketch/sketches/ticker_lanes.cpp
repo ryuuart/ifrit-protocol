@@ -50,6 +50,7 @@
 #include <sigilsketch/kit/Kit.h>
 
 #include <algorithm>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -76,7 +77,7 @@ constexpr float kRamp = 1.4f;         // the timeline motion's duration
 constexpr SkColor4f kSecond{0.46f, 0.72f, 0.92f, 1};
 
 /** One recorded lane: a value per tick, plotted left to right. */
-using Lane = std::vector<float>;
+using Lane = std::vector<double>;
 
 constexpr int kSteps = (int)(kSpan / kDt);
 
@@ -92,14 +93,8 @@ const sketch::kit::Plot kField{
  *  sheet's own entry for a second one beside it. */
 sketch::kit::Layer lane(const Lane& recorded, std::string styleClass = {}) {
   return sketch::kit::trace(
-      [recorded](double tick) {
-        if (recorded.empty()) return 0.0;
-        const size_t i = (size_t)std::clamp(tick, 0.0, (double)kSteps - 1);
-        return (double)recorded[std::min(i, recorded.size() - 1)];
-      },
-      {.pen = {.width = 1.6f},
-       .samples = kSteps,
-       .styleClass = std::move(styleClass)});
+      std::span<const double>(recorded),
+      {.pen = {.width = 1.6f}, .styleClass = std::move(styleClass)});
 }
 
 /** A PLOT OF RECORDED LANES, over the baseline they are read against. */

@@ -12,9 +12,11 @@
 #include <algorithm>
 #include <cmath>
 #include <numbers>
+#include <span>
 #include <string>
 #include <tuple>
 #include <utility>
+#include <vector>
 
 namespace sigil::sketch::kit {
 
@@ -397,6 +399,81 @@ Layer trace(sigil::core::Callable<double(double)> f, const Trace& how) {
                 std::tuple{name, frame, how.samples},
                 [f, frame, samples = how.samples](SkSize box) {
                   return f ? walked(frame, f, samples, box).detach() : SkPath();
+                }));
+    if (how.along)
+      curve.stroke(*how.along, how.pen);
+    else
+      curve.stroke(how.pen);
+    return curve;
+  };
+}
+
+Layer trace(std::span<const double> series, const Trace& how) {
+  // The run is COPIED into the layer and the shape is keyed on its
+  // values, so a recording that did not change this frame is not walked
+  // again and one that did is.
+  std::vector<double> held(series.begin(), series.end());
+  return [held = std::move(held), how](const Plot& frame, std::string_view key,
+                                       std::size_t index) {
+    const std::string name = named(key, "trace", index);
+    Element curve =
+        compose::box()
+            .key(name)
+            .styleClass(
+                std::string(detail::classOf(how.styleClass, "plotTrace")))
+            .cover()
+            .shape(compose::keyedShape(
+                std::tuple{name, frame, held}, [held, frame](SkSize box) {
+                  SkPathBuilder path;
+                  if (held.empty()) return SkPath();
+                  const data::Interval domain = frame.x.domain;
+                  const double last = (double)held.size() - 1.0;
+                  for (std::size_t i = 0; i < held.size(); ++i) {
+                    const double at =
+                        last > 0.0
+                            ? domain.low + domain.extent() * ((double)i / last)
+                            : domain.low;
+                    const SkPoint point = frame.at(at, held[i], box);
+                    i == 0 ? path.moveTo(point) : path.lineTo(point);
+                  }
+                  return path.detach();
+                }));
+    if (how.along)
+      curve.stroke(*how.along, how.pen);
+    else
+      curve.stroke(how.pen);
+    return curve;
+  };
+}
+
+Layer path(sigil::core::Callable<Datum(double)> at, const Path& how) {
+  return [at = std::move(at), how](const Plot& frame, std::string_view key,
+                                   std::size_t index) {
+    // A LOCUS IS A SHAPE for the reason a trace is: the same key prunes
+    // it and a span gate runs along its own length.
+    const std::string name = named(key, "path", index);
+    Element curve =
+        compose::box()
+            .key(name)
+            .styleClass(
+                std::string(detail::classOf(how.styleClass, "plotTrace")))
+            .cover()
+            .shape(compose::keyedShape(
+                std::tuple{name, frame, how.samples, how.over.low,
+                           how.over.high},
+                [at, frame, how](SkSize box) {
+                  SkPathBuilder path;
+                  if (!at) return SkPath();
+                  const int steps = std::max(how.samples, 1);
+                  for (int i = 0; i <= steps; ++i) {
+                    const double t =
+                        how.over.low +
+                        how.over.extent() * ((double)i / (double)steps);
+                    const Datum point = at(t);
+                    const SkPoint on = frame.at(point.x, point.y, box);
+                    i == 0 ? path.moveTo(on) : path.lineTo(on);
+                  }
+                  return path.detach();
                 }));
     if (how.along)
       curve.stroke(*how.along, how.pen);

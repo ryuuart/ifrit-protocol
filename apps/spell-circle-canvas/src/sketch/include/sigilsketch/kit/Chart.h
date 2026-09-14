@@ -55,6 +55,7 @@
 #include <functional>
 #include <optional>
 #include <ranges>
+#include <span>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -303,6 +304,21 @@ struct Trace {
 [[nodiscard]] Layer trace(sigil::core::Callable<double(double)> f,
                           const Trace& how = {});
 
+/** THE SAME CURVE OVER A SERIES THAT WAS MEASURED rather than one that
+ *  can be evaluated: @p series read at its own index, spread across the
+ *  frame's whole x domain — the first sample at the domain's low end and
+ *  the last at its high one.
+ *
+ *  A plate that RECORDS something — a ticker stepped by the sketch, a
+ *  frame time, a queue depth — has the answers already, and a callable
+ *  that clamps an index into a vector is that fact spelled backwards.
+ *  The run is copied into the layer, and the curve prunes on the run's
+ *  own values, so a series that did not change this frame is not
+ *  re-walked. `Trace::samples` is not read: a recording is walked at the
+ *  sampling it was taken at. */
+[[nodiscard]] Layer trace(std::span<const double> series,
+                          const Trace& how = {});
+
 /** THE BAND BETWEEN A CURVE AND A BASE. */
 struct Area {
   /** The y the band is closed back along. */
@@ -315,6 +331,35 @@ struct Area {
 /** THE AREA, filled in the class `plotArea`. */
 [[nodiscard]] Layer area(sigil::core::Callable<double(double)> f,
                          const Area& how = {});
+
+/** A CURVE WALKED OVER A PARAMETER, in BOTH coordinates.
+ *
+ *  A trace is a function of the frame's abscissa and cannot be a locus: a
+ *  two-axis shake, a mirrored scrollwork sweep and a pole's track through
+ *  the centuries each carry the parameter into x AND y, so the curve is
+ *  `(x(t), y(t))` over an interval of t. */
+struct Path {
+  /** THE PEN THE CURVE IS STROKED WITH — the same value a trace takes, so
+   *  a dotted locus and a dotted trace are one spelling. */
+  compose::PathFormat pen{.width = 1.5f};
+  /** How finely the parameter is walked. */
+  int samples = 240;
+  /** THE PARAMETER INTERVAL. It is the curve's own, and never the
+   *  frame's: what the axes mean is the plot's business and what t runs
+   *  over is the curve's. */
+  data::Interval over{0.0, 1.0};
+  /** HOW MUCH OF THE CURVE IS DRAWN, as a gate along its own length, as
+   *  a trace's is. */
+  std::optional<compose::Spans> along;
+  /** The class read instead of `plotTrace`, for a second curve. */
+  std::string styleClass;
+};
+
+/** THE PARAMETRIC CURVE, in the class `plotTrace`: @p at walked over
+ *  `Path::over` and stroked with `Path::pen`. One node, keyed on the
+ *  plot's own name, exactly as `trace` is. */
+[[nodiscard]] Layer path(sigil::core::Callable<Datum(double)> at,
+                         const Path& how = {});
 
 // ---------------------------------------------------------------------------
 // The layers that place elements: containers whose scheme puts each child

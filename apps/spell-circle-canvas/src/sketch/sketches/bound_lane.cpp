@@ -119,6 +119,10 @@ const SkColor4f kCurve{0.32f, 0.46f, 0.62f, 1};
 weave::StyleSheet sheetClasses(const sketch::kit::Theme& look) {
   weave::StyleSheet classes = look.styleSheet();
   classes.set("rail", {.color = kRail});
+  // The two loci are the same curve in two inks: the split-seed shake and
+  // the shared-seed slide, told apart by the class each names.
+  classes.set("locus", {.color = kTrace});
+  classes.set("locusShared", {.color = kTraceB});
   return classes;
 }
 
@@ -164,25 +168,24 @@ Element wiggleStage(const char* key, const BoundFloat& lane) {
  *  put x == y, so the locus IS the line y = x — the layer slides on a
  *  diagonal and never shakes. */
 Element locus(const char* key, const BoundFloat& wx, const BoundFloat& wy,
-              SkColor4f color) {
-  return pen(key, [wx, wy, color](draw::Pen& pen) {
-    const float cx = pen.width * 0.5f, cy = pen.height * 0.5f;
-    const float r = std::min(pen.width, pen.height) * 0.5f / 1.15f;
-    pen.noFill();
-    pen.strokeWeight(1);
-    // The ±amount box: the locus can touch it, never leave it.
-    pen.stroke(kRail);
-    pen.rect(cx - r, cy - r, r * 2, r * 2);
-    pen.stroke(color);
-    pen.strokeWeight(1.3f);
-    pen.beginShape();
-    for (int i = 0; i <= 900; ++i) {
-      const float p = kWindow * (float)i / 900.0f;
-      pen.vertex(cx + wx.apply(p) * r / kAmount,
-                 cy + wy.apply(p) * r / kAmount);
-    }
-    pen.endShape();
-  });
+              const char* ink) {
+  // Both axes read the SAME parameter, which is what no trace can be and
+  // what `path` is: the ±amount box is two rules across and two down, and
+  // the locus can touch it and never leave it.
+  constexpr double kRoom = kAmount * 1.15;
+  return sketch::kit::plot(
+      key, {.x = {.domain = {-kRoom, kRoom}}, .y = {.domain = {-kRoom, kRoom}}},
+      {sketch::kit::rules({.x = {-kAmount, kAmount},
+                           .y = {-kAmount, kAmount},
+                           .styleClass = "rail"}),
+       sketch::kit::path(
+           [wx, wy](double p) {
+             return sketch::kit::Datum{wx.apply((float)p), wy.apply((float)p)};
+           },
+           {.pen = {.width = 1.3f},
+            .samples = 900,
+            .over = {0.0, kWindow},
+            .styleClass = ink})});
 }
 
 /** ONE PANEL, captioned in the one voice every panel here is: the
@@ -301,27 +304,28 @@ struct BoundLane : sketch::Sketch {
          .gap = 12});
 
     Element locusRow = kit::cells(
-        {.cells =
-             {panel(230, 230, "SHARED SEED · broken",
-                    "x and y both seed 1 → y = x",
-                    locus("locus.shared", shakeX.value(), sameY.value(),
-                          kTraceB)),
-              panel(
-                  230, 230, "SEEDS 1 / 2 · a shake", "two independent lanes",
-                  locus("locus.split", shakeX.value(), shakeY.value(), kTrace)),
-              panel(230, 230, "the same lanes, LIVE",
-                    "amber = shared seed, teal = 1 / 2",
-                    stack().children({chip(shakeX, sameY, kTraceB, 62),
-                                      chip(shakeX, shakeY, kTrace, 142)})),
-              text("THE ORDER IS THE POINT. wrap folds the affine "
-                   "value, so a wrapped phase still wiggles across "
-                   "the seam; wiggle adds in the property's own "
-                   "units, so its amount is pixels here and laps "
-                   "below; clamp is always last, whenever it was "
-                   "written.")
-                  .font(
-                      {.face = weave::defaultFace(), .size = 12, .color = kDim})
-                  .width(420)},
+        {.cells = {panel(230, 230, "SHARED SEED · broken",
+                         "x and y both seed 1 → y = x",
+                         locus("locus.shared", shakeX.value(), sameY.value(),
+                               "locusShared")),
+                   panel(230, 230, "SEEDS 1 / 2 · a shake",
+                         "two independent lanes",
+                         locus("locus.split", shakeX.value(), shakeY.value(),
+                               "locus")),
+                   panel(230, 230, "the same lanes, LIVE",
+                         "amber = shared seed, teal = 1 / 2",
+                         stack().children({chip(shakeX, sameY, kTraceB, 62),
+                                           chip(shakeX, shakeY, kTrace, 142)})),
+                   text("THE ORDER IS THE POINT. wrap folds the affine "
+                        "value, so a wrapped phase still wiggles across "
+                        "the seam; wiggle adds in the property's own "
+                        "units, so its amount is pixels here and laps "
+                        "below; clamp is always last, whenever it was "
+                        "written.")
+                       .font({.face = weave::defaultFace(),
+                              .size = 12,
+                              .color = kDim})
+                       .width(420)},
          .gap = 24});
 
     Element tracks = kit::cells(
