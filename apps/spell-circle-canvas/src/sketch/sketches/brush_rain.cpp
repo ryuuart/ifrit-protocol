@@ -40,15 +40,33 @@ constexpr std::array<SkColor4f, 6> kPigments{{
     {0.16f, 0.19f, 0.28f, 1},
 }};
 
+/** THE CYCLE: one tool per place in it, with the width it is asked for
+ *  and the bristle count a tool that wants its own states. The
+ *  watercolour stands in two of the seven, so it falls twice as often as
+ *  the rest. */
+struct Mark {
+  brush::Tool (*make)(SkColor4f, float);
+  float low, high;
+  int bristles = 0;  // 0: the tool's own
+};
+const std::array<Mark, 7> kCycle{{
+    {brush::spray, 18, 34},
+    {brush::watercolor, 10, 23, 22},
+    {brush::watercolor, 10, 23, 22},
+    {brush::charcoal, 5, 11},
+    {brush::marker, 4, 9},
+    {brush::pencil, 1.1f, 2.7f},
+    {brush::pencil, 1.1f, 2.7f},
+}};
+
 struct BrushRain final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(840, 840);
     ctx.captureAt(0.25);
 
-    ctx.composer.render(
-        compose::graphics("brush_rain.sheet", [this](Pen& pen) { draw(pen); })
-            .absolute()
-            .inset(0));
+    ctx.composer.render(compose::graphics("brush_rain.sheet", [this](Pen& pen) {
+                          draw(pen);
+                        }).inset(0));
   }
 
   void draw(Pen& pen) {
@@ -58,26 +76,9 @@ struct BrushRain final : sketch::Sketch {
 
     for (int stroke = 0; stroke < 112; ++stroke) {
       const SkColor4f color = kPigments[(size_t)pen.random(kPigments.size())];
-      brush::Tool tool;
-      switch (stroke % 7) {
-        case 0:
-          tool = brush::spray(color, pen.random(18, 34));
-          break;
-        case 1:
-        case 2:
-          tool = brush::watercolor(color, pen.random(10, 23));
-          tool.bristles = 22;
-          break;
-        case 3:
-          tool = brush::charcoal(color, pen.random(5, 11));
-          break;
-        case 4:
-          tool = brush::marker(color, pen.random(4, 9));
-          break;
-        default:
-          tool = brush::pencil(color, pen.random(1.1f, 2.7f));
-          break;
-      }
+      const Mark& mark = kCycle[(size_t)(stroke % (int)kCycle.size())];
+      brush::Tool tool = mark.make(color, pen.random(mark.low, mark.high));
+      if (mark.bristles != 0) tool.bristles = mark.bristles;
       tool.opacity *= pen.random(0.7f, 1.1f);
       tool.pressure = {pen.random(0.08f, 0.45f), pen.random(0.78f, 1.25f),
                        pen.random(0.05f, 0.38f)};
