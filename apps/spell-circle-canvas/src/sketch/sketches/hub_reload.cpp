@@ -38,7 +38,9 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigildraw/Draw.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/hub/Hub.h>
@@ -46,6 +48,7 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
+#include <array>
 #include <filesystem>
 #include <memory>
 #include <optional>
@@ -224,14 +227,14 @@ struct HubReload final : sketch::Sketch {
    *  font and one ink on the column that every row under it inherits. */
   Element lines(std::vector<std::string> rows) {
     const sketch::kit::Theme& look = sketch::kit::theme();
-    Element column = box()
-                         .column()
-                         .gap(8)
-                         .font(look.font({.size = 10, .mono = true}))
-                         .ink(look.palette.figure);
-    for (const std::string& row : rows)
-      column.children({text(row).width(kCell - 20)});
-    return column;
+    return box()
+        .column()
+        .gap(8)
+        .font(look.font({.size = 10, .mono = true}))
+        .ink(look.palette.figure)
+        .children(each(rows, [](const std::string& row) {
+          return text(row).width(kCell - 20);
+        }));
   }
 
   /** Both readings of the point file, the first in ash and the second in
@@ -246,31 +249,28 @@ struct HubReload final : sketch::Sketch {
     // inks are read here and carried in by value.
     const SkColor4f ash = sketch::kit::theme().palette.ash;
     const SkColor4f figure = sketch::kit::theme().palette.figure;
-    return custom("hub.clouds",
-                  [a, b, ash, figure](SkCanvas& canvas) {
-                    SkPaint paint;
-                    paint.setAntiAlias(true);
-                    const auto draw = [&](const std::vector<SkPoint>& points,
-                                          SkColor4f colour, float radius) {
-                      paint.setColor4f(colour);
-                      for (const SkPoint& p : points)
-                        canvas.drawCircle(p.fX, p.fY, radius, paint);
-                    };
-                    draw(a, ash, 7);
-                    draw(b, figure, 4);
-                  })
-        .absolute()
+    return pen("hub.clouds",
+               [a, b, ash, figure](sigil::draw::Pen& pen) {
+                 pen.noStroke();
+                 const auto dots = [&](const std::vector<SkPoint>& points,
+                                       SkColor4f colour, float diameter) {
+                   pen.fill(colour);
+                   for (const SkPoint& point : points)
+                     pen.circle(point.fX, point.fY, diameter);
+                 };
+                 dots(a, ash, 14);
+                 dots(b, figure, 8);
+               })
         .inset(0);
   }
 
   Element charts(const std::shared_ptr<const img::ImageAsset>& before,
                  const std::shared_ptr<const img::ImageAsset>& after) {
-    Element column = box().column().gap(8);
-    for (const std::shared_ptr<const img::ImageAsset>& asset : {before, after})
-      column.children(
-          {asset ? image(asset).width(120).height(80)
-                 : box().width(120).height(80)});
-    return column;
+    return box().column().gap(8).children(
+        each(std::array{before, after},
+             [](const std::shared_ptr<const img::ImageAsset>& asset) {
+               return (asset ? image(asset) : box()).width(120).height(80);
+             }));
   }
 };
 
