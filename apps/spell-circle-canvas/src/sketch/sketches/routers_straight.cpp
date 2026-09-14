@@ -36,6 +36,7 @@
 
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Routers.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -65,28 +66,22 @@ constexpr SkColor4f kNodeFill{0.17f, 0.18f, 0.21f, 1};
 /** The two nodes every cell routes between, at the same two places in
  *  every cell, so the ROUTER is the only thing that differs. */
 Element endpoint(const std::string& key, float x, float y) {
-  return box()
-      .key(key)
-      .inset(Dimension(x), Dimension(y), Dimension(), Dimension())
-      .width(kNode)
-      .height(28)
-      .fill(Fill::color(kNodeFill));
+  return kit::at(box().key(key).fill(Fill::color(kNodeFill)), x, y, kNode, 28);
 }
 
 Element plate(const std::string& tag, Element route) {
-  PathFormat wire;
-  wire.width = 1.6f;
-  wire.strokeFill = Fill::color(sketch::kit::theme().palette.figure);
+  const PathFormat wire{
+      .width = 1.6f,
+      .strokeFill = Fill::color(sketch::kit::theme().palette.figure)};
   return sketch::kit::well({.width = kCell, .height = kPicture})
-      .children({stack()
-                     .inset(0)
-                     .children({endpoint(tag + "-a", 16, 26)})
-                     // The two are deliberately NOT on a 45 degree chord:
-                     // an octilinear leg would otherwise consume the whole
-                     // run and read as a straight line.
-                     .children({endpoint(tag + "-b", kCell - kNode - 16,
-                                         kPicture - 28 - 62)}),
-                 std::move(route).inset(0).foreground(wire)});
+      .children(
+          {stack().inset(0).children(
+               {endpoint(tag + "-a", 16, 26),
+                // The two are deliberately NOT on a 45 degree chord:
+                // an octilinear leg would otherwise consume the whole
+                // run and read as a straight line.
+                endpoint(tag + "-b", kCell - kNode - 16, kPicture - 28 - 62)}),
+           std::move(route).inset(0).foreground(wire)});
 }
 
 Element cell(const char* call, const char* note, const std::string& tag,
