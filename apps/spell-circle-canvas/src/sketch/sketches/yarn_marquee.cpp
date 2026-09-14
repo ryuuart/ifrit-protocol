@@ -142,23 +142,24 @@ Element banner(float length) {
       {box()
            .absolute()
            .inset(3, 0, (float)kAcrossPx - 6, 0)
-           .fill(Fill::color({kAccent.fR, kAccent.fG, kAccent.fB, 0.9f}))});
-  column.children(
-      {box()
+           .fill(Fill::color({kAccent.fR, kAccent.fG, kAccent.fB, 0.9f})),
+       box()
            .absolute()
            .inset((float)kAcrossPx - 5, 0, 3, 0)
-           .fill(Fill::color({kAccent.fR, kAccent.fG, kAccent.fB, 0.5f}))});
-  column.children({text(u8"THE HUNG RAIL").font({.size = 60}).ink(kAccent)});
-  for (int s = 0; s < kSectors; ++s) {
-    column.children({box().grow()});
-    const std::string numeral = kit::formatted("- %02d -", s + 1);
-    column.children({text(numeral).font({.size = 34}).ink(kNumeral)});
-    column.children({text(pool[(size_t)s % 4]).font({.size = 40})});
-  }
-  column.children({box().grow()});
-  column.children({text(u8"and back to its own beginning")
-                       .font({.size = 46})
-                       .ink(kAccent)});
+           .fill(Fill::color({kAccent.fR, kAccent.fG, kAccent.fB, 0.5f})),
+       text(u8"THE HUNG RAIL").font({.size = 60}).ink(kAccent)});
+  // One sector: the slack before it, its numeral, and the phrase it
+  // carries. The spacers are grow boxes, so the column distributes
+  // whatever length it was told it is.
+  for (int s = 0; s < kSectors; ++s)
+    column.children({box().grow(),
+                     text(kit::formatted("- %02d -", s + 1))
+                         .font({.size = 34})
+                         .ink(kNumeral),
+                     text(pool[(size_t)s % 4]).font({.size = 40})});
+  column.children({box().grow(), text(u8"and back to its own beginning")
+                                     .font({.size = 46})
+                                     .ink(kAccent)});
   return column;
 }
 
@@ -169,11 +170,7 @@ curve::Spline3 loop() {
 }
 
 camera::Camera view() {
-  camera::Camera c;
-  c.eye = {40, 190, 900};
-  c.target = {0, 0, 0};
-  c.fovYDeg = 44;
-  return c;
+  return {.eye = {40, 190, 900}, .target = {0, 0, 0}, .fovYDeg = 44};
 }
 
 /** One panel: the cloth on its rail, then the across-vector at every
@@ -186,14 +183,15 @@ void paintRail(SkCanvas& canvas, const std::vector<curve::Frame3>& rail,
   const mesh::Mesh cloth = mesh::pop::sweep(
       rail, sections::line(),
       {.scale = kWidth, .normals = mesh::pop::SweepOptions::Normals::Frame});
-  render::MeshStyle style;
-  style.texture = art;
-  style.baseColor = {1, 1, 1, 1};
-  style.ambient = {1, 1, 1, 1};
-  style.lights = {};
-  style.specular = 0;
-  style.backfaceCull = false;
-  render::drawMesh(canvas, cloth, glm::mat4(1.0f), camera, viewport, style);
+  // The cloth is its own light: the banner is what it shows, so nothing
+  // shades it and both of its faces draw.
+  render::drawMesh(canvas, cloth, glm::mat4(1.0f), camera, viewport,
+                   {.baseColor = {1, 1, 1, 1},
+                    .lights = {},
+                    .ambient = {1, 1, 1, 1},
+                    .specular = 0,
+                    .texture = art,
+                    .backfaceCull = false});
 
   // The ticks. Projected exactly as the painter projects a vertex:
   // clip = viewProjection * p, then the perspective divide.
@@ -228,15 +226,14 @@ struct YarnMarquee final : sketch::Sketch {
 
   Element panel(const char* call, const char* note, std::string key,
                 const std::vector<curve::Frame3>* rail) const {
-    return sketch::kit::caption(
-        kPanel, call, note,
-        custom(std::move(key),
-               [this, rail](SkCanvas& canvas) {
-                 paintRail(canvas, *rail, art);
-               })
-            .width(kPanel)
-            .height(kPanelH)
-            .fill(Fill::color(kCellGround)));
+    return sketch::kit::caption(kPanel, call, note,
+                                custom(std::move(key),
+                                       [this, rail](SkCanvas& canvas) {
+                                         paintRail(canvas, *rail, art);
+                                       })
+                                    .width(kPanel)
+                                    .height(kPanelH)
+                                    .fill(Fill::color(kCellGround)));
   }
 
   void setup(sketch::SketchContext& ctx) override {
