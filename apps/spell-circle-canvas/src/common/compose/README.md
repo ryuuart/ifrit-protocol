@@ -1411,7 +1411,10 @@ box, because a plate that is not the width it was given is the one thing a
 fixed surface may not be — `kit::formatted`, the dynamically sized
 printf-style reading those
 captions use, `kit::panelGrid`, equal-width panels that wrap at the stated
-column count and keep a short last row aligned, and `kit::cells`, a run of
+column count and keep a short last row aligned (`PanelGrid::measure` is
+the width the shares are cut from, unset being the parent's — a grid in a
+column that sizes itself from its content has none to divide, and its
+cells would be dealt nothing and drawn over each other), and `kit::cells`, a run of
 them along one axis with a hairline between neighbours, and
 `kit::sheet`, the titled and footed page that rules its header and
 footer off from the content between them, its three lines the parts

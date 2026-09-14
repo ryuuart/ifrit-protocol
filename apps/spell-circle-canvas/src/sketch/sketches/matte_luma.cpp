@@ -176,16 +176,16 @@ Element cell(float w, float h, Element inner) {
 /** Which band is which, in the same order the run declares them: equal
  *  shares of the strip, one per band, so the words cannot drift off it. */
 Element bandLabels(float stripW) {
-  return kit::panelGrid({.cells = each(kBands,
-                                       [](const Band& band) {
-                                         return kit::centred(
-                                             text(band.label)
-                                                 .font({.size = 10, .track = 0})
-                                                 .ink(kDim));
-                                       }),
-                         .columns = (int)kBands.size(),
-                         .gap = 0})
-      .width(stripW);
+  return kit::panelGrid(
+      {.cells = each(
+           kBands,
+           [](const Band& band) {
+             return kit::centred(
+                 text(band.label).font({.size = 10, .track = 0}).ink(kDim));
+           }),
+       .columns = (int)kBands.size(),
+       .gap = 0,
+       .measure = stripW});
 }
 
 }  // namespace

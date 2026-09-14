@@ -100,7 +100,8 @@ compose::Element panelGrid(PanelGrid grid) {
        .rowGap = grid.rowGap,
        .divider = grid.ruled ? compose::Fill::color(theme().palette.rule)
                              : compose::Fill{},
-       .align = grid.align});
+       .align = grid.align,
+       .measure = grid.measure});
 }
 
 }  // namespace sigil::sketch::kit

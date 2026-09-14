@@ -226,18 +226,21 @@ struct ParagraphSheet final : sketch::Sketch {
         "LEADING",
         "face · multiple · absolute · grid. The rules "
         "under the fourth are the grid it lands on.",
-        box().column().gap(14).children(
-            {kit::cells(
-                 {.cells = {s::leadingSpecimen("Leading::face()",
-                                               weave::Leading::face()),
-                            s::leadingSpecimen("Leading::multiple(1.7)",
-                                               weave::Leading::multiple(1.7f))},
-                  .gap = 18}),
-             kit::cells(
-                 {.cells = {s::leadingSpecimen("Leading::absolute(22)",
-                                               weave::Leading::absolute(22)),
-                            std::move(gridCell)},
-                  .gap = 18})}));
+        kit::panelGrid(
+            {.cells = {s::leadingSpecimen("Leading::face()",
+                                          weave::Leading::face()),
+                       s::leadingSpecimen("Leading::multiple(1.7)",
+                                          weave::Leading::multiple(1.7f)),
+                       s::leadingSpecimen("Leading::absolute(22)",
+                                          weave::Leading::absolute(22)),
+                       std::move(gridCell)},
+             .columns = 2,
+             .gap = 18,
+             .rowGap = 14,
+             .align = Align::Start,
+             // The panel this grid stands in sizes itself from its
+             // CONTENT, so the shares are cut from a width stated here.
+             .measure = s::kMeasure}));
   }
 
   /// Four rules one grid step apart, behind the grid specimen: the grid

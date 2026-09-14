@@ -116,6 +116,11 @@ Element cells(Cells run) {
 
 Element panelGrid(PanelGrid grid) {
   const float gap = grid.gap;
+  const Dimension measure = grid.measure;
+  const auto measured = [measure](Element built) {
+    if (measure.unit != Dimension::Unit::Auto) built.width(measure);
+    return built;
+  };
   // Every cell takes one share, and a share has no floor of its own: that
   // is what makes three panels of very different content three equal
   // columns, where a run of content tracks would give each its own width.
@@ -126,9 +131,9 @@ Element panelGrid(PanelGrid grid) {
     std::vector<layouts::Track> tracks =
         interleave(grid.cells, grid.divider, grid.dividerWidth,
                    std::max<size_t>(grid.cells.size(), 1));
-    return arrangement(std::move(grid.cells), std::move(tracks),
-                       {crossTrack(grid.align)}, {gap, 0}, grid.align,
-                       grid.align);
+    return measured(arrangement(std::move(grid.cells), std::move(tracks),
+                                {crossTrack(grid.align)}, {gap, 0}, grid.align,
+                                grid.align));
   }
   const size_t across = (size_t)grid.columns;
   // The wrap is the grid's own flow: the cells fill a row of equal shares
@@ -140,9 +145,9 @@ Element panelGrid(PanelGrid grid) {
   // The panels are ranged at their own height while they are measured, so
   // a row is as deep as the deepest panel in it and not as deep as the
   // grid; the grid then stretches them to the row it resolved.
-  return arrangement(std::move(grid.cells), std::move(tracks), {},
-                     {gap, grid.rowGap.value_or(gap)}, Align::Stretch,
-                     Align::Start);
+  return measured(arrangement(std::move(grid.cells), std::move(tracks), {},
+                              {gap, grid.rowGap.value_or(gap)}, Align::Stretch,
+                              Align::Start));
 }
 
 }  // namespace sigil::compose::kit

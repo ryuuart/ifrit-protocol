@@ -400,6 +400,12 @@ struct PanelGrid {
   /** Cross-axis alignment for a single row. Wrapped rows stretch panels
    *  to the height of the tallest panel in that row. */
   Align align = Align::Stretch;
+  /** THE WIDTH THE SHARES ARE CUT FROM. Unset (Auto) is the parent's,
+   *  which is what a grid across a page wants; a grid standing in a
+   *  column whose own width comes from its CONTENT has no width to
+   *  divide, and its cells would be dealt nothing and drawn over each
+   *  other — so a grid inside one says here how wide it is. */
+  Dimension measure;
 };
 
 [[nodiscard]] Element panelGrid(PanelGrid grid);

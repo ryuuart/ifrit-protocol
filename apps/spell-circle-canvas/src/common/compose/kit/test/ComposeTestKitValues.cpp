@@ -904,6 +904,30 @@ TEST(KitSpecimen, PanelsShareWidthAndKeepTheLastRowAligned) {
   EXPECT_FLOAT_EQ(d->top(), 42);
 }
 
+TEST(KitSpecimen, AGridToldItsMeasureCutsTheSharesFromThatWidth) {
+  // A grid whose parent sizes from its CONTENT has no width to divide,
+  // and its cells would be dealt nothing and drawn over each other.
+  Host host(400, 200);
+  const auto shares = [&](Dimension measure) {
+    host.composer.render(
+        box().width(400).height(200).row().children({kit::panelGrid(
+            {.cells = {box().key("a").height(10), box().key("b").height(10)},
+             .columns = 2,
+             .gap = 20,
+             .measure = measure})}));
+    host.frame();
+    return std::pair{require(host.composer.bounds("a")),
+                     require(host.composer.bounds("b"))};
+  };
+  const auto [none, alongside] = shares({});
+  EXPECT_FLOAT_EQ(none.width(), 0);
+  EXPECT_FLOAT_EQ(alongside.width(), 0);
+  const auto [left, right] = shares(Dimension(220));
+  EXPECT_FLOAT_EQ(left.width(), 100);
+  EXPECT_FLOAT_EQ(right.width(), 100);
+  EXPECT_FLOAT_EQ(right.left(), 120);
+}
+
 TEST(KitSpecimen, PanelDividersKeepTheirWidthAcrossWrappedRows) {
   Host host(300, 200);
   host.composer.render(box().children({kit::panelGrid(

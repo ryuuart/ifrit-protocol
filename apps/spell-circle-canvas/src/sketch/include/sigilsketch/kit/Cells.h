@@ -217,6 +217,10 @@ struct PanelGrid {
    *  band of grounded panels wants. A wrapped grid ranges its rows for
    *  itself. */
   compose::Align align = compose::Align::Stretch;
+  /** THE WIDTH THE SHARES ARE CUT FROM. Unset is the parent's; a grid
+   *  standing in a column that sizes itself from its content has none to
+   *  divide, and says here how wide it is. */
+  compose::Dimension measure;
 };
 
 /** THE GRID.
