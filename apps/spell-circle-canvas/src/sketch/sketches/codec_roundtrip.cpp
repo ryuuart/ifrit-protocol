@@ -47,6 +47,7 @@
 #include <glm/vec4.hpp>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -184,94 +185,73 @@ struct CodecRoundtrip final : sketch::Sketch {
         (double)lo.x, (double)lo.y, (double)lo.z, (double)hi.x, (double)hi.y,
         (double)hi.z);
 
+    // The mesh through two formats, then the cloud, the fit and the
+    // header the encoder wrote — two named shelves, so a cell reads as
+    // the call it makes.
+    Element meshes = kit::cells(
+        {.cells = {meshCell("shapes::torus · never written",
+                            count(source.positions.size(), "vertices") + " · " +
+                                count(source.indices.size() / 3, "triangles"),
+                            source),
+                   meshCell(
+                       "encode::ply(mesh)",
+                       kib(ascii.size()) + " ascii · " +
+                           count(fromAscii ? fromAscii->vertexCount() : 0,
+                                 "vertices") +
+                           " · " +
+                           count(fromAscii ? fromAscii->triangleCount() : 0,
+                                 "triangles") +
+                           " back",
+                       fromAscii ? fromAscii->merged() : gm::Mesh{}),
+                   meshCell(
+                       "encode::ply(mesh, {.binary = true})",
+                       kib(binary.size()) + " · " +
+                           count(fromBinary ? fromBinary->vertexCount() : 0,
+                                 "vertices") +
+                           " · floats exact, not decimal",
+                       fromBinary ? fromBinary->merged() : gm::Mesh{})},
+         .gap = 14});
+
+    const std::string header = cloudPly.substr(
+        0, cloudPly.find("end_header") +
+               (cloudPly.find("end_header") == std::string::npos ? 0 : 10));
+    Element lanes = kit::cells(
+        {.cells =
+             {cell("encode::ply(cloud) · faceless",
+                   count(read.size(), "points") + " · " +
+                       std::to_string(read.colors.size()) + " colour, " +
+                       std::to_string(read.scalars.size()) + " scalar, " +
+                       std::to_string(read.vectors.size()) +
+                       " vector lanes read back",
+                   custom("cloud",
+                          [read](SkCanvas& canvas, const PaintContext& pc) {
+                            gm::points::BillboardStyle splat;
+                            splat.size = 3.4f;
+                            splat.sizeLane = "size";
+                            splat.tintLane = "tint";
+                            splat.additive = false;
+                            gm::points::drawBillboards(
+                                canvas, read, stageCamera(), pc.size, splat);
+                          })),
+              meshCell("Model::bounds + Model::fitTransform", boundsLine,
+                       fitted),
+              cell("the header encode::ply wrote",
+                   "positions, then a property per lane — nx/ny/nz, "
+                   "uchar rgba, and each scalar under its own name",
+                   box().padding(12, 10).children(
+                       {text(header, mono(9.5f, kFigure)).width(kCell - 24)}))},
+         .gap = 14});
+
     ctx.composer.render(sketch::kit::page(
-        {.title = "CODEC ROUND TRIP · encode::ply "
-                  "→ decode::model",
-         .subtitle = "dials · the format (ascii, binary, "
-                     "faceless cloud) · the generator "
-                     "(torus R 62 r 23, 48 by 24)",
-         .footer = "one decode::model call reads all of them "
-                   "— the reader is picked off the "
-                   "path hint, and OBJ, glTF, STL, Alembic and "
-                   ".geo come through the same door"},
-        kit::cells(
-            {.cells =
-                 {kit::cells(
-                      {.cells =
-                           {meshCell(
-                                "shapes::torus · never "
-                                "written",
-                                count(source.positions.size(), "vertices") +
-                                    " · " +
-                                    count(source.indices.size() / 3,
-                                          "triangles"),
-                                source),
-                            meshCell(
-                                "encode::ply(mesh)",
-                                kib(ascii.size()) +
-                                    " ascii · " +
-                                    count(fromAscii ? fromAscii->vertexCount()
-                                                    : 0,
-                                          "vertices") +
-                                    " · " +
-                                    count(fromAscii ? fromAscii->triangleCount()
-                                                    : 0,
-                                          "triangles") +
-                                    " back",
-                                fromAscii ? fromAscii->merged() : gm::Mesh{}),
-                            meshCell(
-                                "encode::ply(mesh, {.binary = true})",
-                                kib(binary.size()) + " · " +
-                                    count(fromBinary ? fromBinary->vertexCount()
-                                                     : 0,
-                                          "vertices") +
-                                    " · floats exact, not "
-                                    "decimal",
-                                fromBinary ? fromBinary->merged()
-                                           : gm::Mesh{})},
-                       .gap = 14}),
-                  kit::cells(
-                      {.cells =
-                           {cell("encode::ply(cloud) · faceless",
-                                 count(read.size(), "points") + " · " +
-                                     std::to_string(read.colors.size()) +
-                                     " colour, " +
-                                     std::to_string(read.scalars.size()) +
-                                     " scalar, " +
-                                     std::to_string(read.vectors.size()) +
-                                     " vector lanes read back",
-                                 custom("cloud",
-                                        [read](SkCanvas& canvas,
-                                               const PaintContext& pc) {
-                                          gm::points::BillboardStyle splat;
-                                          splat.size = 3.4f;
-                                          splat.sizeLane = "size";
-                                          splat.tintLane = "tint";
-                                          splat.additive = false;
-                                          gm::points::drawBillboards(
-                                              canvas, read, stageCamera(),
-                                              pc.size, splat);
-                                        })),
-                            meshCell(
-                                "Model::bounds + Model::fitTransform",
-                                boundsLine, fitted),
-                            cell("the header encode::ply wrote",
-                                 "positions, then a property per lane "
-                                 "— nx/ny/nz, uchar rgba, and "
-                                 "each scalar under its own name",
-                                 box().padding(12, 10).children(
-                                     {text(cloudPly.substr(
-                                               0, cloudPly.find("end_header") +
-                                                      (cloudPly.find(
-                                                           "end_header") ==
-                                                               std::string::npos
-                                                           ? 0
-                                                           : 10)),
-                                           mono(9.5f, kFigure))
-                                          .width(kCell - 24)}))},
-                       .gap = 14})},
-             .column = true,
-             .gap = 18})));
+        {.title = "CODEC ROUND TRIP · encode::ply → decode::model",
+         .subtitle = "dials · the format (ascii, binary, faceless cloud) · "
+                     "the generator (torus R 62 r 23, 48 by 24)",
+         .footer = "one decode::model call reads all of them — the reader is "
+                   "picked off the path hint, and OBJ, glTF, STL, Alembic "
+                   "and .geo come through the same door"},
+        kit::cells({.cells = {std::move(meshes), std::move(lanes)},
+                    .column = true,
+                    .gap = 18})));
   }
 };
 
