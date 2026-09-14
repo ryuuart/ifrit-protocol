@@ -36,6 +36,7 @@
 
 // TAGS: Typography/CJK
 
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -63,7 +64,7 @@ namespace tategaki {
 using namespace vertical;
 using namespace vertical::ink;
 
-constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
+constexpr float kH = kSceneSize.fHeight;
 constexpr float kBodySize = 30;
 constexpr float kColumnBlockW = 420;
 constexpr float kColumnBlockH = 436;
@@ -85,8 +86,7 @@ struct Tategaki final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 2.4,
                              .background = SkColor4f{0, 0, 0, 1}});
-    Composer& composer = ctx.composer;
-    composer.render(describe());
+    ctx.composer.render(describe());
   }
 
   /** One form, named and shown: a Latin caption over a short column set
@@ -147,9 +147,8 @@ struct Tategaki final : sketch::Sketch {
         .children(
             {text(std::move(passage))
                  .font(tg::bodyType(tg::kBodySize))
-                 .absolute()
-                 .inset(tg::kW - tg::kColumnBlockRight - tg::kColumnBlockW, 92,
-                        tg::kColumnBlockRight, 0)
+                 .right(tg::kColumnBlockRight)
+                 .top(92)
                  .width(tg::kColumnBlockW)
                  .height(tg::kColumnBlockH)
                  .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
@@ -170,53 +169,47 @@ struct Tategaki final : sketch::Sketch {
                  .inset(64, 88, 0, 0)
                  .column()
                  .gap(10)
-                 .children({text("縦組み").font(tg::bodyType(46))})
-                 .children({box()
-                                .width(120.0f)
-                                .height(1.0f)
-                                .fill(Fill::color(tg::kAi))})
                  .children(
-                     {text("VERTICAL-RL").font(tg::labelType(15, tg::kAi, 4))})
-                 .children({text("UTR#50 orientation, 'vert' forms,\n"
-                                 "tate-chu-yoko digits, rotated Latin")
-                                .font(tg::labelType(14, 0.5f))
-                                .width(240.0f)})
-                 .children({box().height(26.0f)})
-                 .children(
-                     {box()
-                          .row()
-                          .gap(34)
-                          .children({specimen(
-                              "UPRIGHT", weave::rich().add(u8"字は立つ"),
-                              tg::bodyType(
-                                  28, sigil::weave::VerticalForm::kUpright))})
-                          .children({specimen(
-                              "ROTATED", weave::rich().add(u8"Latin lies"),
-                              tg::bodyType(
-                                  24, tg::kAi,
-                                  sigil::weave::VerticalForm::kRotated))})
-                          .children({specimen(
-                              "TATE-CHU-YOKO",
-                              weave::rich()
-                                  .add(u8"令和")
-                                  .add(u8"07",
-                                       weave::Type{
-                                           .color = tg::kAka,
-                                           .verticalForm = sigil::weave::
-                                               VerticalForm::kTateChuYoko})
-                                  .add(u8"年"),
-                              tg::bodyType(28))})})
-                 .children({box().height(22.0f)})
-                 .children(
-                     {text("one paragraph · one writingMode "
+                     {text("縦組み").font(tg::bodyType(46)),
+                      kit::line({.length = Dimension(120),
+                                 .fill = Fill::color(tg::kAi)}),
+                      text("VERTICAL-RL").font(tg::labelType(15, tg::kAi, 4)),
+                      text("UTR#50 orientation, 'vert' forms,\n"
+                           "tate-chu-yoko digits, rotated Latin")
+                          .font(tg::labelType(14, 0.5f))
+                          .width(240.0f),
+                      box().height(26.0f),
+                      box().row().gap(34).children(
+                          {specimen(
+                               "UPRIGHT", weave::rich().add(u8"字は立つ"),
+                               tg::bodyType(
+                                   28, sigil::weave::VerticalForm::kUpright)),
+                           specimen("ROTATED",
+                                    weave::rich().add(u8"Latin lies"),
+                                    tg::bodyType(
+                                        24, tg::kAi,
+                                        sigil::weave::VerticalForm::kRotated)),
+                           specimen(
+                               "TATE-CHU-YOKO",
+                               weave::rich()
+                                   .add(u8"令和")
+                                   .add(u8"07",
+                                        weave::Type{
+                                            .color = tg::kAka,
+                                            .verticalForm = sigil::weave::
+                                                VerticalForm::kTateChuYoko})
+                                   .add(u8"年"),
+                               tg::bodyType(28))}),
+                      box().height(22.0f),
+                      text("one paragraph · one writingMode "
                            "· three forms")
                           .font(tg::labelType(13, {0.55f, 0.53f, 0.50f, 1}))
                           .width(300.0f)}),
              text("cluster-unit entrance staggers DOWN the column, "
                   "columns advance right to left")
                  .font(tg::labelType(13, {0.48f, 0.46f, 0.44f, 1}))
-                 .absolute()
-                 .inset(64, tg::kH - 46, 0, 0)});
+                 .left(64)
+                 .bottom(46)});
   }
 };
 
