@@ -337,28 +337,26 @@ struct MaterialLab final : sketch::Set {
   }
 
   world::Frame describe(float seconds) override {
-    world::kit::Set set;
-    set.rig.extent = 140.0f;
-    // The key stands just off the eye's own bearing and above it, so
-    // every card is lit face on and the highlight lands where a reader
-    // is already looking; the fill opens the shadowed side and the back
-    // light separates the row from the floor behind it.
-    set.rig.bearing = 78.0f;
-    set.rig.elevation = 30.0f;
-    set.rig.fill = 0.4f;
-    set.rig.back = 0.5f;
-    set.ground = 5.0f;
-    set.drop = 0.5f;
-    set.surface = floorSurface;
-
-    set.table.radius = 760.0f;
-    set.table.height = 420.0f;
-    // PARKED. A lab is read, not watched: the row faces the eye and
-    // stays there, so the live picture and the plate are the same
-    // picture and a reader comparing two surfaces is not comparing them
-    // at two bearings.
-    set.table.period = 0.0f;
-    set.table.fovYDeg = 46.0f;
+    // The room, as one value. The key stands just off the eye's own
+    // bearing and above it, so every card is lit face on and the
+    // highlight lands where a reader is already looking; the fill opens
+    // the shadowed side and the back light separates the row from the
+    // floor behind it. The turntable is PARKED — a lab is read, not
+    // watched, so the live picture and the plate are the same picture and
+    // a reader comparing two surfaces is not comparing them at two
+    // bearings.
+    const world::kit::Set set{.rig = {.extent = 140.0f,
+                                      .bearing = 78.0f,
+                                      .elevation = 30.0f,
+                                      .fill = 0.4f,
+                                      .back = 0.5f},
+                              .table = {.radius = 760.0f,
+                                        .height = 420.0f,
+                                        .period = 0.0f,
+                                        .fovYDeg = 46.0f},
+                              .ground = 5.0f,
+                              .drop = 0.5f,
+                              .surface = floorSurface};
     return world::Frame(world::kit::litSet(row, set, seconds));
   }
 };
