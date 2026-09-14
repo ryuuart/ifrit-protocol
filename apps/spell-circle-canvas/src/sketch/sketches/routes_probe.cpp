@@ -33,24 +33,26 @@
 
 // TAGS: Geometry/Diagrams
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Routers.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigildraw/Pen.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
-#include <cstdio>
+#include <iterator>
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace draw = sigil::draw;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
@@ -78,58 +80,16 @@ weave::StyleSheet sheetClasses(const sketch::kit::Theme& look) {
   return classes;
 }
 
-/** A promotion outcome as the one word the enum names — for the refusal
- *  MASK, where the sentence a reason spells would not fit. */
-const char* promotionWord(Composer::Promotion p) {
-  switch (p) {
-    case Composer::Promotion::Cheap:
-      return "Cheap";
-    case Composer::Promotion::Warming:
-      return "Warming";
-    case Composer::Promotion::Promoted:
-      return "Promoted";
-    case Composer::Promotion::AskedFor:
-      return "AskedFor";
-    case Composer::Promotion::OptedOut:
-      return "OptedOut";
-    case Composer::Promotion::Volatile:
-      return "Volatile";
-    case Composer::Promotion::Composited:
-      return "Composited";
-    case Composer::Promotion::Transformed:
-      return "Transformed";
-    case Composer::Promotion::Filtered:
-      return "Filtered";
-    case Composer::Promotion::ReadsBackdrop:
-      return "ReadsBackdrop";
-    case Composer::Promotion::TooBig:
-      return "TooBig";
-    case Composer::Promotion::SplitBaked:
-      return "SplitBaked";
-    case Composer::Promotion::HostsSpace:
-      return "HostsSpace";
-  }
-  return "";
-}
-
-/** How a node produced its pixels, as the one word the enum names. */
-const char* stateWord(Composer::CacheState state) {
-  switch (state) {
-    case Composer::CacheState::Live:
-      return "Live";
-    case Composer::CacheState::Picture:
-      return "Picture";
-    case Composer::CacheState::Texture:
-      return "Texture";
-    case Composer::CacheState::Promoted:
-      return "Promoted";
-    case Composer::CacheState::SplitOwn:
-      return "SplitOwn";
-    case Composer::CacheState::Group:
-      return "Group";
-  }
-  return "";
-}
+/** THE WORDS THE TWO ENUMS NAME, each run in its enum's own order, so a
+ *  refusal mask's bit and a cache state index straight into them. The
+ *  refusal MASK is where a word is wanted rather than the sentence a
+ *  reason spells, because thirteen sentences would not fit. */
+constexpr const char* kPromotionWords[] = {
+    "Cheap",    "Warming",    "Promoted",    "AskedFor", "OptedOut",
+    "Volatile", "Composited", "Transformed", "Filtered", "ReadsBackdrop",
+    "TooBig",   "SplitBaked", "HostsSpace"};
+constexpr const char* kStateWords[] = {"Live",     "Picture",  "Texture",
+                                       "Promoted", "SplitOwn", "Group"};
 
 }  // namespace
 
@@ -164,16 +124,16 @@ struct RoutesProbe final : sketch::Sketch {
           // however many other conditions also refuse it; the mask carries
           // every one of them, which is the line under the reason.
           std::string refused;
-          for (int bit = 0; bit < 13; ++bit) {
-            const auto p = (Composer::Promotion)bit;
-            if (!row.refused(p)) continue;
+          for (size_t bit = 0; bit < std::size(kPromotionWords); ++bit) {
+            if (!row.refused((Composer::Promotion)bit)) continue;
             if (!refused.empty()) refused += ", ";
-            refused += promotionWord(p);
+            refused += kPromotionWords[bit];
           }
-          verdicts.push_back(
-              row.label + "  ·  " + stateWord(row.cacheState) + "\n      " +
-              Composer::promotionReason(row.promotion) + "\n      refusals · " +
-              (refused.empty() ? std::string("none") : refused));
+          verdicts.push_back(row.label + "  ·  " +
+                             kStateWords[(size_t)row.cacheState] + "\n      " +
+                             Composer::promotionReason(row.promotion) +
+                             "\n      refusals · " +
+                             (refused.empty() ? std::string("none") : refused));
           break;
         }
 
@@ -183,11 +143,8 @@ struct RoutesProbe final : sketch::Sketch {
   /** One probe node: a small plate whose only job is to earn a verdict. */
   Element probe(const char* key, float x, float y) const {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
-    return box()
+    return kit::at(x, y, kNode, 34)
         .key(key)
-        .inset(Dimension(x), Dimension(y), Dimension(), Dimension())
-        .width(kNode)
-        .height(34)
         .fill(Fill::color(sheet.palette.cellGround))
         .children(
             {text(key).styleClass("readout").absolute().inset(9, 9, 0, 0)});
@@ -202,54 +159,53 @@ struct RoutesProbe final : sketch::Sketch {
         stack()
             .inset(0)
             // The hub every listed route is anchored on.
-            .children({probe("hub", 128, 128)
-                           .width(80)
-                           .height(44)})
-            // Four probes, each wearing one promotion verdict.
             .children(
-                {probe("spun", 16, 24).rotate(-8),
+                {probe("hub", 128, 128).width(80).height(44),
+                 // Four probes, each wearing one promotion verdict.
+                 probe("spun", 16, 24).rotate(-8),
                  probe("glass", 220, 24).opacity(0.55f),
                  probe("baked", 16, 232).cache(Cache::Texture),
                  probe("live", 220, 232)
                      .cache(Cache::None)
-                     .children(
-                         {custom("routes.live",
-                                 [](SkCanvas& canvas, const PaintContext& pc) {
-                                   SkPaint paint;
-                                   paint.setColor4f(kWire);
-                                   canvas.drawRect(
-                                       {0, 0,
-                                        pc.size.width() *
-                                            (float)(0.3 +
-                                                    0.5 * pc.elapsedSeconds),
-                                        3},
-                                       paint);
-                                 })
-                              .absolute()
-                              .inset(0, 26, 0, 0)})});
+                     .children({pen("routes.live",
+                                    [](draw::Pen& pen) {
+                                      pen.noStroke();
+                                      pen.fill(kWire);
+                                      pen.rect(
+                                          0, 0,
+                                          pen.width *
+                                              (float)(0.3 +
+                                                      0.0005 * pen.millis()),
+                                          3);
+                                    })
+                                    .absolute()
+                                    .inset(0, 26, 0, 0)})});
 
-    // Keyed routes: only a keyed route is addressable, and routesAt lists
-    // exactly these.
-    Element wires =
-        stack()
-            .inset(0)
-            .children({connector("spun", kProbe,
-                                 routers::orthogonal(routers::Bend::VFirst, 8))
-                           .key("wire-spun")
-                           .inset(0)
-                           .foreground(wire),
-                       connector("glass", kProbe, routers::arc(0.18f))
-                           .key("wire-glass")
-                           .inset(0)
-                           .foreground(wire),
-                       connector(kProbe, "baked", routers::straight())
-                           .key("wire-baked")
-                           .inset(0)
-                           .foreground(wire)})
-            // …and one with no key at all: anchored, drawn, unlistable.
-            .children({connector(kProbe, "live", routers::arc(-0.18f))
-                           .inset(0)
-                           .foreground(wire)});
+    // KEYED ROUTES: only a keyed route is addressable, and routesAt lists
+    // exactly these three.
+    struct Keyed {
+      const char* from;
+      const char* to;
+      Router router;
+      const char* key;
+    };
+    const Keyed keyed[] = {
+        {"spun", kProbe, routers::orthogonal(routers::Bend::VFirst, 8),
+         "wire-spun"},
+        {"glass", kProbe, routers::arc(0.18f), "wire-glass"},
+        {kProbe, "baked", routers::straight(), "wire-baked"}};
+    Element wires = stack().inset(0).children(
+        {each(keyed,
+              [&wire](const Keyed& one) {
+                return connector(one.from, one.to, one.router)
+                    .key(one.key)
+                    .inset(0)
+                    .foreground(wire);
+              }),
+         // …and one with no key at all: anchored, drawn, unlistable.
+         connector(kProbe, "live", routers::arc(-0.18f))
+             .inset(0)
+             .foreground(wire)});
 
     // The diagram is composed on a probe of its own before it stands on
     // the sheet, so its classes are stated on the diagram itself.
@@ -263,17 +219,15 @@ struct RoutesProbe final : sketch::Sketch {
   /** A readout: one line per string, in the sheet's own mono. */
   Element lines(const std::vector<std::string>& rows, float measure,
                 const char* empty) const {
-    const sketch::kit::Theme& sheet = sketch::kit::theme();
-    Element column = box().column().gap(7);
     if (rows.empty())
-      column.children({text(empty)
-                           .styleClass("readout")
-                           .ink(sheet.palette.ash)
-                           .width(measure)});
-    for (const std::string& row : rows)
-      column.children(
-          {text(row).styleClass("readout").width(measure)});
-    return column;
+      return text(empty)
+          .styleClass("readout")
+          .ink(sketch::kit::theme().palette.ash)
+          .width(measure);
+    return box().column().gap(7).children(
+        {each(rows, [measure](const std::string& row) {
+          return text(row).styleClass("readout").width(measure);
+        })});
   }
 
   Element sheetFor() const {
