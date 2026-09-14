@@ -253,24 +253,25 @@ struct P5RefractiveMetaballs final : sketch::Sketch {
         std::pair{1, 7}, std::pair{2, 6}, std::pair{4, 6}, std::pair{3, 7},
         std::pair{5, 7}};
 
+    // THE WHOLE WEAVE, at one standoff from the line between two centres:
+    // the halo is one pass down the middle and the filament is three.
+    const auto weave = [&](float offset) {
+      for (int index = 0; index < (int)links.size(); ++index) {
+        const auto [from, to] = links[index];
+        drawTendril(pen, balls[from].centre, balls[to].centre, index, clock,
+                    offset);
+      }
+    };
+
     pen.noFill();
     pen.blendMode(ADD);
     pen.stroke(30, 205, 255, 30);
     pen.strokeWeight(5.0f);
-    for (int index = 0; index < static_cast<int>(links.size()); ++index) {
-      const auto [from, to] = links[index];
-      drawTendril(pen, balls[from].centre, balls[to].centre, index, clock,
-                  0.0f);
-    }
+    weave(0.0f);
 
     pen.stroke(filament, CANVAS);
     pen.strokeWeight(1.35f);
-    for (int index = 0; index < static_cast<int>(links.size()); ++index) {
-      const auto [from, to] = links[index];
-      for (float offset : {-7.0f, 0.0f, 7.0f})
-        drawTendril(pen, balls[from].centre, balls[to].centre, index, clock,
-                    offset);
-    }
+    for (float offset : {-7.0f, 0.0f, 7.0f}) weave(offset);
   }
 
   void draw(Pen& pen) {
