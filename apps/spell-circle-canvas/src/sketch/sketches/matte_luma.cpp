@@ -48,6 +48,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/skia/Ramp.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/style/Type.h>
@@ -129,28 +130,20 @@ mskia::Paint bandStrip(float width) {
  *  Left of kSplit: OPAQUE greys (alpha 1, luma ramps). Right: white whose
  *  ALPHA ramps — premultiplied, so its luma ramps identically. */
 sk_sp<SkImage> matte() {
-  return [] {
-    const int n = (int)kPanel;
-    sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(n, n));
-    SkCanvas* c = s->getCanvas();
-    c->clear(SK_ColorTRANSPARENT);
-    const float mid = kPanel * kSplit;
-    SkPaint p;
-    for (int y = 0; y < n; ++y) {
-      const float f = (float)y / (float)(n - 1);  // 0 at top, 1 at bottom
-      p.setColor4f({1 - f, 1 - f, 1 - f, 1}, nullptr);
-      c->drawRect(SkRect::MakeXYWH(0, (float)y, mid, 1), p);
-      p.setColor4f({1, 1, 1, 1 - f}, nullptr);
-      c->drawRect(SkRect::MakeXYWH(mid, (float)y, kPanel - mid, 1), p);
-    }
-    return s->makeImageSnapshot();
-  }();
-}
-
-mskia::Paint atPanelSize(const sk_sp<SkImage>& image, float w, float h) {
-  return mskia::Paint::image(
-      image, SkTileMode::kClamp, SkTileMode::kClamp,
-      SkMatrix::Scale(w / (float)image->width(), h / (float)image->height()));
+  const int n = (int)kPanel;
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(n, n));
+  SkCanvas* canvas = surface->getCanvas();
+  canvas->clear(SK_ColorTRANSPARENT);
+  const float mid = kPanel * kSplit;
+  SkPaint pen;
+  pen.setShader(
+      mskia::verticalRamp(0, kPanel, {{0, {1, 1, 1, 1}}, {1, {0, 0, 0, 1}}}));
+  canvas->drawRect(SkRect::MakeWH(mid, kPanel), pen);
+  pen.setShader(
+      mskia::verticalRamp(0, kPanel, {{0, {1, 1, 1, 1}}, {1, {1, 1, 1, 0}}}));
+  canvas->drawRect(SkRect::MakeXYWH(mid, 0, kPanel - mid, kPanel), pen);
+  return surface->makeImageSnapshot();
 }
 
 /** THE CONTENT — one node, drawn six times. Saturated and structured, so
@@ -164,32 +157,35 @@ Element content(float w, float h) {
                                      {{0.0f, {1.0f, 0.85f, 0.20f, 1}},
                                       {0.5f, {0.95f, 0.32f, 0.42f, 1}},
                                       {1.0f, {0.35f, 0.40f, 0.98f, 1}}}))
-
       .children({text(u8"MATTE")
                      .font({.size = 30, .track = 0})
                      .ink(SkColor4f{1, 1, 1, 0.92f})});
 }
 
-/** A panel: checkerboard, then the content, then the gate. */
+/** A panel: the checkerboard as its ground, the content on it, the gate on
+ *  that, and one hairline round the lot. */
 Element cell(float w, float h, Element inner) {
-  return stack()
-      .width(w)
-      .height(h)
-      .stroke(stroke(1.0f, Fill::color(kFrame)))
-      .children({box().inset(0).fill(checker()), std::move(inner)});
+  return kit::well({.width = Dimension(w),
+                    .height = Dimension(h),
+                    .ground = checker(),
+                    .placed = true,
+                    .keyline = Fill::color(kFrame)})
+      .children({std::move(inner)});
 }
 
-/** Which band is which, in the same order the run declares them. */
+/** Which band is which, in the same order the run declares them: equal
+ *  shares of the strip, one per band, so the words cannot drift off it. */
 Element bandLabels(float stripW) {
-  Element row = box().row().width(stripW);
-  for (const Band& band : kBands)
-    row.children(
-        {box()
-             .width(stripW / (float)kBands.size())
-             .justify(Justify::Center)
-             .children(
-                 {text(band.label).font({.size = 10, .track = 0}).ink(kDim)})});
-  return row;
+  return kit::panelGrid({.cells = each(kBands,
+                                       [](const Band& band) {
+                                         return kit::centred(
+                                             text(band.label)
+                                                 .font({.size = 10, .track = 0})
+                                                 .ink(kDim));
+                                       }),
+                         .columns = (int)kBands.size(),
+                         .gap = 0})
+      .width(stripW);
 }
 
 }  // namespace
@@ -202,7 +198,7 @@ struct MatteLuma final : sketch::Sketch {
     ctx.captureAt(0.05);
 
     // ONE coverage paint, handed to all four gates.
-    const mskia::Paint coverage = atPanelSize(matte(), kPanel, kPanel);
+    const mskia::Paint coverage = mskia::Paint::image(matte());
 
     const auto gated = [&](Gate gate) {
       Element inner = content(kPanel, kPanel);
