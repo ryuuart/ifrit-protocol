@@ -171,6 +171,16 @@ struct KeyState {
   std::vector<int> down;
 };
 
+/** WHAT DECIDES A TEXTURE PROMOTION in a composer — never what a
+ *  promotion is allowed to do. A paint context carries the policy the
+ *  composer painting it runs under, so a program that keeps a composer of
+ *  its own runs it under the same rule. */
+enum class PromotionPolicy : uint8_t {
+  Off,     ///< nothing is promoted, and standing bakes are dropped
+  ByCost,  ///< baked after several consecutive expensive frames
+  Eager,   ///< every eligible node, from its first frame
+};
+
 /** The one paint-program context: custom leaves (and, in extensions,
  *  decorations and contour walks) all receive this. `elapsedSeconds` is
  *  the Ticker's FrameClock time — pause/time-scale affect it. `fonts`
@@ -272,6 +282,12 @@ struct PaintContext {
    *  zero where none was declared — what a kept canvas is formed no
    *  coarser than. */
   float bakeDensity = 0.0f;
+  /** THE PROMOTION POLICY THE PAINTING COMPOSER RUNS UNDER, as it stands
+   *  after the host's pin and the backend's default. A program that keeps
+   *  a composer of its own — a pen's retained guest — gives it this, so a
+   *  deterministic capture reaches every measured decision made under it,
+   *  and a run that means to test promotion reaches them too. */
+  PromotionPolicy promotion = PromotionPolicy::ByCost;
 };
 
 /** A PAINT PROGRAM — a drawing on a canvas, in the frame the context

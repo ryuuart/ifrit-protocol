@@ -73,6 +73,25 @@ TEST(DrawNode, RunsThePenOverTheNodesBoxEveryFrame) {
   EXPECT_EQ(runs, 2);  // Cache::None: the program runs each frame
 }
 
+/** A program reads the policy its composer runs under, and a pen keeps
+ *  it for the guest a program holds — so a session pinned deterministic
+ *  pins every composer built inside its paint, and a run meaning to test
+ *  promotion reaches them too. */
+TEST(DrawNode, AProgramReadsThePromotionPolicyItsComposerRunsUnder) {
+  Host host;
+  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
+  PromotionPolicy seen = PromotionPolicy::ByCost;
+  host.composer.render(stack().children(
+      {custom("probe", [&](SkCanvas&, const PaintContext& ctx) {
+         seen = ctx.promotion;
+       }).cache(Cache::None)}));
+  host.frame();
+  EXPECT_EQ(seen, PromotionPolicy::Off);
+  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Eager);
+  host.frame();
+  EXPECT_EQ(seen, PromotionPolicy::Eager);
+}
+
 TEST(DrawNode, ACanvasFillsTheBoxItStandsIn) {
   // `cover()` is `absolute().inset(0)` said once, and a pen comes back
   // wearing it — a p5 canvas fills its box by nature.

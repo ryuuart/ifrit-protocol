@@ -514,7 +514,8 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       .vars = inst.vars.get(),
       .pointer = pointerHere,
       .keys = &keys,
-      .bakeDensity = bakeDensity};
+      .bakeDensity = bakeDensity,
+      .promotion = autoPromoteEffective};
 
   // The node's own layer effect wraps everything painted here, so it is
   // captured by picture recordings and BAKED by texture snapshots. A LIVE
@@ -726,7 +727,8 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           .vars = paintCtx.vars,
           .pointer = paintCtx.pointer,
           .keys = paintCtx.keys,
-          .bakeDensity = paintCtx.bakeDensity};
+          .bakeDensity = paintCtx.bakeDensity,
+          .promotion = paintCtx.promotion};
       passes[i].what.paint(canvas, passCtx);
       if (granularPlane) leaveGates(saves, cover);
     }
@@ -774,7 +776,8 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           .vars = paintCtx.vars,
           .pointer = paintCtx.pointer,
           .keys = paintCtx.keys,
-          .bakeDensity = paintCtx.bakeDensity};
+          .bakeDensity = paintCtx.bakeDensity,
+          .promotion = paintCtx.promotion};
       d.paint(canvas, markCtx);
     } else {
       d.paint(canvas, paintCtx);

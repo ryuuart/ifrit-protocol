@@ -14,11 +14,27 @@
 #include <algorithm>
 #include <memory>
 #include <optional>
+#include <source_location>
 #include <utility>
 
 namespace sigil::compose {
 
 namespace {
+
+/** THE POLICY THE COMPOSER PAINTING A PEN RUNS UNDER, kept on the pen
+ *  for the guest a program keeps: a retained element's composer is built
+ *  below the paint program, where no context reaches, and takes it from
+ *  here. */
+struct HostPolicy {
+  PromotionPolicy promotion = PromotionPolicy::ByCost;
+};
+
+HostPolicy& hostPolicy(draw::Pen& pen) {
+  static const draw::Slot slot =
+      draw::Slot::at(std::source_location::current());
+  return pen.retained().get<HostPolicy>(
+      slot, [] { return std::make_shared<HostPolicy>(); });
+}
 
 /** The pen a node draws with, and what the paint context does not
  *  carry: the step since the last frame and the count of frames. */
@@ -58,6 +74,7 @@ PaintProgram over(PenProgram program) {
                                               const PaintContext& ctx) {
     held->pen.begin(canvas, held->frameIn(ctx));
     held->pen.inherit(ctx.ink, ctx.font);
+    hostPolicy(held->pen).promotion = ctx.promotion;
     program(held->pen, ctx);
     held->pen.end();
   };
@@ -104,6 +121,7 @@ PaintProgram onto(PenProgram program) {
     held->sinceDraw += frame.deltaSeconds;
     held->host.pen.begin(canvas, frame);
     held->host.pen.inherit(ctx.ink, ctx.font);
+    hostPolicy(held->host.pen).promotion = ctx.promotion;
     // The buffer is the node's box. It is formed on its first `begin`, at
     // the host pen's own density, and a box that has changed resizes it
     // with what it holds carried over rather than cleared.
@@ -184,6 +202,11 @@ void paintRetained(draw::Pen& pen, const Element& element, const SkRect& box,
   // the guest is kept across frames and the reference it holds is not
   // this pen's to assume.
   if (guest.fonts != fonts) guest.adopt(*fonts);
+  // THE SAME RULE AS THE HOST'S: a capture that pinned the session's
+  // promoter off reaches this composer too, and a run testing promotion
+  // reaches it as well — the guest is the same runtime making the same
+  // measured decision on the same capture.
+  guest.composer->setAutoTexturePromotion(hostPolicy(pen).promotion);
   const double step = guest.clock.advance(pen.deltaTime / 1000.0);
   guest.ticker.tick(step);
   guest.composer->setSize({box.width(), box.height()});

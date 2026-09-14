@@ -527,11 +527,7 @@ class Composer {
    *  the scene, identical on every machine, and it is the whole
    *  promotable set rather than the few nodes that happened to be slow.
    *  It is not a performance mode: a bake nobody needed costs the bake. */
-  enum class PromotionPolicy : uint8_t {
-    Off,     ///< nothing is promoted, and standing bakes are dropped
-    ByCost,  ///< baked after several consecutive expensive frames
-    Eager,   ///< every eligible node, from its first frame
-  };
+  using PromotionPolicy = compose::PromotionPolicy;
   /** AUTOMATIC TEXTURE PROMOTION. On by default on CPU raster; OFF by
    *  default on a Graphite/GPU surface, because the cost model driving it
    *  measures op-RECORDING time, which describes raster work and not GPU
