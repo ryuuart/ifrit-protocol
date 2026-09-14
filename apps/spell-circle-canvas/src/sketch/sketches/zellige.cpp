@@ -40,7 +40,7 @@
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/style/Type.h>
 
-#include <cstdio>
+#include <array>
 #include <string>
 
 namespace sketch = sigil::sketch;
@@ -106,13 +106,17 @@ inline Pattern girih(float edge, const mkit::GirihPalette& palette,
 
 inline std::string caption(const char* palette, float edge, float contactDeg,
                            bool rotated) {
-  const std::string buf =
-      kit::formatted(rotated ? "θ = %.0f° · %s · a=%.0f "
-                               "· rotated"
-                             : "θ = %.0f° · %s · a=%.0f",
-                     (double)contactDeg, palette, (double)edge);
-  return buf;
+  return kit::formatted(
+      rotated ? "θ = %.0f° · %s · a=%.0f · rotated" : "θ = %.0f° · %s · a=%.0f",
+      (double)contactDeg, palette, (double)edge);
 }
+
+/** ONE PANEL OF THE WALL: the tile a re-tiling handed it, and the line
+ *  under it saying what that recipe was. */
+struct Panel {
+  sigil::compose::Pattern tile;
+  std::string caption;
+};
 
 }  // namespace zellige_wall
 
@@ -120,49 +124,57 @@ struct Zellige final : sketch::Sketch {
   // Three panels from one generator at different parameters. Held as members
   // rather than built in describe(): a Pattern bakes once per recipe, so a
   // fresh one each render would re-bake every frame.
-  Pattern left = zellige_wall::girih(12, zellige_wall::fesCobalt(),
-                                     zellige_wall::kContact[0]);
-  Pattern middle = zellige_wall::girih(34, zellige_wall::fesTurquoise(),
-                                       zellige_wall::kContact[1]);
-  Pattern right = zellige_wall::girih(22, zellige_wall::fesOchre(),
-                                      zellige_wall::kContact[2]);
+  std::array<zellige_wall::Panel, 3> panels;
   Pattern grain =
       mpattern::speckle(96, 60, 0.4f, 1.1f, {{0.35f, 0.30f, 0.24f, 0.25f}});
-  std::string captions[3];
   double nextSwap = 0.0;
   int phase = 0;
 
   // The wall re-rolls all three recipes every kSwapPeriod seconds, so the
   // still has to name its moment or it can land a frame either side of a
-  // re-roll. This is the midpoint of the first hold, which shows the authored
-  // setup recipes — the ones the captions describe.
+  // re-roll. This is the midpoint of the first hold.
+
+  /** THE WALL, RE-TILED: new edges and swapped palettes, each panel
+   *  keeping its OWN contact angle — the sweep is what the wall is for,
+   *  and only the edge and the palette are re-rolled under it. Three
+   *  scales side by side as a wall carries them: a fine band, a coarse
+   *  field, and a middle course between them. */
+  void retile() {
+    namespace zw = zellige_wall;
+    const float edges[3] = {11.0f + 3 * (float)(phase % 3),
+                            30.0f + 6 * (float)((phase + 1) % 2),
+                            20.0f + 3 * (float)(phase % 4)};
+    const bool swapped = (phase % 2) != 0;
+    const char* names[3] = {swapped ? "turquoise" : "cobalt",
+                            swapped ? "cobalt" : "turquoise", "ochre"};
+    const mkit::GirihPalette palettes[3] = {
+        swapped ? zw::fesTurquoise() : zw::fesCobalt(),
+        swapped ? zw::fesCobalt() : zw::fesTurquoise(), zw::fesOchre()};
+    const bool rotated = (phase % 8) != 0;
+    for (size_t i = 0; i < panels.size(); ++i)
+      panels[i] = {
+          zw::girih(edges[i], palettes[i], zw::kContact[i]),
+          zw::caption(names[i], edges[i], zw::kContact[i], i == 2 && rotated)};
+    panels[2].tile.rotate((float)(phase % 8) * 22.5f);
+  }
 
   void setup(sketch::SketchContext& ctx) override {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 1.5,
                              .background = SkColor4f{0, 0, 0, 1}});
-    Composer& composer = ctx.composer;
-    namespace zw = zellige_wall;
-    nextSwap = zw::kSwapPeriod;
+    nextSwap = zellige_wall::kSwapPeriod;
     phase = 0;
-    // THREE SCALES, side by side, as a wall carries them: a fine band, a
-    // coarse field, and a middle course between them.
-    left = zw::girih(12, zw::fesCobalt(), zw::kContact[0]);
-    middle = zw::girih(34, zw::fesTurquoise(), zw::kContact[1]);
-    right = zw::girih(22, zw::fesOchre(), zw::kContact[2]);
-    captions[0] = zw::caption("cobalt", 12, zw::kContact[0], false);
-    captions[1] = zw::caption("turquoise", 34, zw::kContact[1], false);
-    captions[2] = zw::caption("ochre", 22, zw::kContact[2], false);
-    composer.render(describe());
+    retile();
+    ctx.composer.render(describe());
   }
 
-  Element panel(const Pattern& p, const std::string& label) {
+  Element panel(const zellige_wall::Panel& one) {
     namespace zw = zellige_wall;
     return box().column().grow(1).gap(8).children(
         {box()
              .grow(1)
              .corners({3})
-             .fill(p.material())
+             .fill(one.tile.material())
              // GLAZED, not carved. An inner shadow with an inner glow
              // is a bevel cut into plaster; a glazed tile is a hard
              // gloss with a sheen running off the light and a thin
@@ -175,7 +187,7 @@ struct Zellige final : sketch::Sketch {
                                 {0.42f, {1, 1, 1, 0.05f}},
                                 {0.58f, {0, 0, 0, 0.03f}},
                                 {1.00f, {0, 0, 0, 0.10f}}}))}),
-         text(label).font({.size = 13, .track = 1.2f})});
+         text(one.caption).font({.size = 13, .track = 1.2f})});
   }
 
   Element describe() {
@@ -189,7 +201,7 @@ struct Zellige final : sketch::Sketch {
         // Speckled plaster grain over the ground — its own full-bleed
         // layer (the root fill and the pattern can't share one slot).
         .children(
-            {box().inset(0, 0, 0, 0).fill(grain.material()),
+            {box().inset(0).fill(grain.material()),
              box()
                  .column()
                  .inset(50, 44, 50, 44)
@@ -199,51 +211,26 @@ struct Zellige final : sketch::Sketch {
                                 .alignItems(Align::Baseline)
                                 .gap(14)
                                 .children({text("ZELLIJE").font(
-                                    {.size = 34, .track = 3})})
-                                .children({text("Hankin PIC · 4.8.8 · "
+                                               {.size = 34, .track = 3}),
+                                           text("Hankin PIC · 4.8.8 · "
                                                 "θ swept 30–60°")
                                                .font({.size = 14,
                                                       .color = zw::kSub,
-                                                      .track = 1})})})
-                 .children({box()
-                                .row()
-                                .grow(1)
-                                .gap(22)
-                                .children({panel(left, captions[0])})
-                                .children({panel(middle, captions[1])})
-                                .children({panel(right, captions[2])})})});
+                                                      .track = 1})}),
+                            box().row().grow(1).gap(22).children({each(
+                                panels, [this](const zellige_wall::Panel& one) {
+                                  return panel(one);
+                                })})})});
   }
 
   void update(double elapsed, sketch::SketchContext& ctx) override {
-    Composer& composer = ctx.composer;
-    namespace zw = zellige_wall;
     if (elapsed < nextSwap) return;
-    nextSwap = elapsed + zw::kSwapPeriod;
+    nextSwap = elapsed + zellige_wall::kSwapPeriod;
     ++phase;
     // Runtime regeneration: new parameters → new recipes → each panel
     // re-bakes exactly once and the reconciler sees one changed fill.
-    const float edges[3] = {11.0f + 3 * (float)(phase % 3),
-                            30.0f + 6 * (float)((phase + 1) % 2),
-                            20.0f + 3 * (float)(phase % 4)};
-    const bool swapPalettes = (phase % 2) != 0;
-    // Each panel keeps its own contact angle across every re-roll: the
-    // sweep is what the wall is FOR, and only the edge and the palette
-    // are re-rolled under it.
-    left =
-        zw::girih(edges[0], swapPalettes ? zw::fesTurquoise() : zw::fesCobalt(),
-                  zw::kContact[0]);
-    middle =
-        zw::girih(edges[1], swapPalettes ? zw::fesCobalt() : zw::fesTurquoise(),
-                  zw::kContact[1]);
-    right = zw::girih(edges[2], zw::fesOchre(), zw::kContact[2]);
-    const bool rotated = (phase % 8) != 0;
-    right.rotate((float)(phase % 8) * 22.5f);
-    captions[0] = zw::caption(swapPalettes ? "turquoise" : "cobalt", edges[0],
-                              zw::kContact[0], false);
-    captions[1] = zw::caption(swapPalettes ? "cobalt" : "turquoise", edges[1],
-                              zw::kContact[1], false);
-    captions[2] = zw::caption("ochre", edges[2], zw::kContact[2], rotated);
-    composer.render(describe());
+    retile();
+    ctx.composer.render(describe());
   }
 };
 
