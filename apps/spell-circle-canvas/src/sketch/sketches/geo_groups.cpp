@@ -138,8 +138,8 @@ Element panel(const char* title, const char* note, Element inner) {
       sketch::kit::well({.width = Dimension(kPanel),
                          .height = Dimension(kPanel * 0.8f),
                          .ground = Fill::none(),
-                         .keyline = Fill::color(kFrame)},
-                        std::move(inner)));
+                         .keyline = Fill::color(kFrame)})
+          .children({std::move(inner)}));
 }
 
 // a literal table; only allocation could throw

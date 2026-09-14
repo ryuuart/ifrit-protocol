@@ -91,8 +91,8 @@ weave::Type serifType(float size, SkColor4f color, float track = 0) {
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
       kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture, .padding = 14},
-                        std::move(body)));
+      sketch::kit::well({.width = kCell, .height = kPicture, .padding = 14})
+          .children({std::move(body)}));
 }
 
 /** One initial letter over the passage; `nested`, when given, sets the
