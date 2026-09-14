@@ -56,6 +56,7 @@
 #include <sigilimage/encode/Encode.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -68,6 +69,7 @@
 namespace sketch = sigil::sketch;
 namespace image = sigil::image;
 namespace material = sigil::material;
+namespace mskia = sigil::material::skia;
 
 using namespace sigil::compose;
 
@@ -135,21 +137,21 @@ sk_sp<SkData> writeExr() {
   return image::encodeImage(map, image::Format::Exr);
 }
 
-Element cell(std::string key, sk_sp<SkImage> picture, const char* call,
+/** One plane, drawn at the cell's own size. The picture is the plate's
+ *  GROUND — a comparable image paint, which prunes on the image it names,
+ *  where a canvas call can be compared to nothing. */
+Element cell(const sk_sp<SkImage>& picture, const char* call,
              std::string note) {
+  const SurfacePaint ground =
+      picture ? SurfacePaint(mskia::Paint::image(
+                    picture, SkTileMode::kClamp, SkTileMode::kClamp,
+                    SkMatrix::Scale(kCell / kSize, kCell / kSize),
+                    SkSamplingOptions(SkFilterMode::kLinear)))
+              : SurfacePaint(Fill::color(kCellGround));
   return sketch::kit::caption(
       kCell, call, note,
-      custom(std::move(key),
-             [picture](SkCanvas& canvas) {
-               if (!picture) return;
-               SkPaint paint;
-               canvas.drawImageRect(picture, SkRect::MakeWH(kCell, kCell),
-                                    SkSamplingOptions(SkFilterMode::kLinear),
-                                    &paint);
-             })
-          .width(kCell)
-          .height(kCell)
-          .fill(Fill::color(kCellGround)));
+      sketch::kit::well(
+          {.width = kCell, .height = kCell, .ground = ground, .padding = 0}));
 }
 
 }  // namespace
@@ -206,27 +208,30 @@ struct ExrChannels final : sketch::Sketch {
   Element sheet(const image::ChannelData& planes,
                 const std::optional<image::ImageProbe>& probed,
                 size_t byteSize) const {
-    kit::Cells shelf{.gap = 14};
-    for (size_t i = 0; i < planes.names.size(); ++i) {
-      const int c = (int)i;
-      float peak = 0.0f;
-      for (int y = 0; y < planes.height; ++y)
-        for (int x = 0; x < planes.width; ++x)
-          peak = std::max(peak, planes.at(x, y, c));
-      shelf.cells.push_back(
-          cell("plane" + planes.names[i], planes.makeImage(c, c, c, -1),
-               "makeImage(i, i, i, -1)",
-               "index(\"" + planes.names[i] + "\") = " + std::to_string(c) +
-                   "   peak " + kit::formatted("%.2f", (double)peak)));
-    }
-    shelf.cells.push_back(cell("layer", planes.makeImage(), "makeImage()",
+    // One cell per plane, each named by the index it came back at and by
+    // the peak that plane actually carries.
+    kit::Cells shelf{
+        .cells =
+            each(planes.names,
+                 [&](const std::string& name, size_t i) {
+                   const int c = (int)i;
+                   float peak = 0.0f;
+                   for (int y = 0; y < planes.height; ++y)
+                     for (int x = 0; x < planes.width; ++x)
+                       peak = std::max(peak, planes.at(x, y, c));
+                   return cell(
+                       planes.makeImage(c, c, c, -1), "makeImage(i, i, i, -1)",
+                       "index(\"" + name + "\") = " + std::to_string(c) +
+                           "   peak " + kit::formatted("%.2f", (double)peak));
+                 }),
+        .gap = 14};
+    shelf.cells.push_back(cell(planes.makeImage(), "makeImage()",
                                "the default layer — R, G and B "
                                "composited, alpha filled where absent"));
-    shelf.cells.push_back(
-        cell("slot", throughRoughnessSlot(planes),
-             "child(kRoughnessSlot, Texture::of(…))",
-             "the green plane where a surface reads its roughness, read "
-             "back with kit::map"));
+    shelf.cells.push_back(cell(
+        throughRoughnessSlot(planes), "child(kRoughnessSlot, Texture::of(…))",
+        "the green plane where a surface reads its roughness, read "
+        "back with kit::map"));
 
     std::string foot = "probeImage — ";
     if (probed) {
