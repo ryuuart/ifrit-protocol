@@ -106,9 +106,6 @@ sketch::kit::Theme sheetTheme() {
   return look;
 }
 
-/** The caption voice, measured to the cell it sits under: a note wider
- *  than its own picture would widen the cell and push its neighbour off
- *  the sheet. */
 /** A generator's outline at a diameter, centred on a point. The shape
  *  kit inscribes its figures in a box at the origin; every figure on
  *  this sheet is placed by its centre instead. */
@@ -150,8 +147,7 @@ Element band(std::string key, float width, float height, const char* call,
              const char* note, Painter paint) {
   return sketch::kit::caption(
       width, call, note,
-      custom(std::move(key),
-             [paint](SkCanvas& canvas) { paint(canvas); })
+      custom(std::move(key), [paint](SkCanvas& canvas) { paint(canvas); })
           .width(width)
           .height(height)
           .fill(Fill::color(kCellGround)));
@@ -163,9 +159,7 @@ void statedCount(SkCanvas& canvas) {
                   {1.0f, 0.42f, 0.30f, 1}};
   blend::Key to{at(shapes::circle(), 56, {kBand - 80, kRun / 2}),
                 {0.30f, 0.62f, 1.0f, 1}};
-  blend::Options options;
-  options.steps = 8;
-  blend::draw(canvas, blend::make(from, to, options));
+  blend::draw(canvas, blend::make(from, to, {.steps = 8}));
 }
 
 // 2 — a waypoint between the ends.
@@ -177,25 +171,22 @@ void waypoint(SkCanvas& canvas) {
        {0.35f, 1.0f, 0.65f, 1}},
       {at(shapes::star(12, 52.0f / 66.0f), 58, {kBand - 80, kRun / 2}),
        {0.75f, 0.4f, 1.0f, 1}}};
-  blend::Options options;
-  options.steps = 5;
-  options.smoothOutlines = true;
-  blend::draw(canvas, blend::make(keys, options));
+  blend::draw(canvas, blend::make(keys, {.steps = 5, .smoothOutlines = true}));
 }
 
 // 3 — stroke width and stroke colour interpolate as well.
 void strokes(SkCanvas& canvas) {
-  blend::Key from{at(shapes::star(6, 40.0f / 72.0f), 62, {80, kRun / 2}),
-                  {0, 0, 0, 0}};
-  from.stroke = SkColor4f{0.2f, 0.9f, 1.0f, 1};
-  from.strokeWidth = 6;
-  blend::Key to{at(shapes::circle(), 56, {kBand - 80, kRun / 2}), {0, 0, 0, 0}};
-  to.stroke = SkColor4f{1.0f, 0.35f, 0.75f, 1};
-  to.strokeWidth = 1;
-  blend::Options options;
-  options.steps = 14;
-  options.smoothOutlines = true;
-  blend::draw(canvas, blend::make(from, to, options));
+  const blend::Key from{
+      .path = at(shapes::star(6, 40.0f / 72.0f), 62, {80, kRun / 2}),
+      .fill = {0, 0, 0, 0},
+      .stroke = SkColor4f{0.2f, 0.9f, 1.0f, 1},
+      .strokeWidth = 6};
+  const blend::Key to{.path = at(shapes::circle(), 56, {kBand - 80, kRun / 2}),
+                      .fill = {0, 0, 0, 0},
+                      .stroke = SkColor4f{1.0f, 0.35f, 0.75f, 1},
+                      .strokeWidth = 1};
+  blend::draw(canvas,
+              blend::make(from, to, {.steps = 14, .smoothOutlines = true}));
 }
 
 // 4 — the count is a consequence of the colours, not an input; and the
@@ -206,22 +197,21 @@ void derivedCount(SkCanvas& canvas) {
                     {0.08f, 0.10f, 0.35f, 1}};
     blend::Key to{at(shapes::circle(), 16, {222, kWide / 2 - 18}),
                   {1.0f, 0.95f, 0.55f, 1}};
-    blend::Options options;
-    options.spacing = blend::Spacing::SmoothColor;
-    options.smoothOutlines = true;
-    blend::draw(canvas, blend::make(from, to, options));
+    blend::draw(canvas, blend::make(from, to,
+                                    {.spacing = blend::Spacing::SmoothColor,
+                                     .smoothOutlines = true}));
   }
   {
-    blend::Key from{wave({470, 40}, {kBand - 40, 52}, 24, 3), {0, 0, 0, 0}};
-    from.stroke = SkColor4f{0.15f, 0.85f, 1.0f, 0.9f};
-    from.strokeWidth = 2.5f;
-    blend::Key to{wave({450, kWide - 40}, {kBand - 60, kWide - 30}, 38, 2),
-                  {0, 0, 0, 0}};
-    to.stroke = SkColor4f{1.0f, 0.3f, 0.75f, 0.9f};
-    to.strokeWidth = 2.5f;
-    blend::Options options;
-    options.steps = 42;
-    blend::draw(canvas, blend::make(from, to, options));
+    const blend::Key from{.path = wave({470, 40}, {kBand - 40, 52}, 24, 3),
+                          .fill = {0, 0, 0, 0},
+                          .stroke = SkColor4f{0.15f, 0.85f, 1.0f, 0.9f},
+                          .strokeWidth = 2.5f};
+    const blend::Key to{
+        .path = wave({450, kWide - 40}, {kBand - 60, kWide - 30}, 38, 2),
+        .fill = {0, 0, 0, 0},
+        .stroke = SkColor4f{1.0f, 0.3f, 0.75f, 0.9f},
+        .strokeWidth = 2.5f};
+    blend::draw(canvas, blend::make(from, to, {.steps = 42}));
   }
 }
 
@@ -232,19 +222,19 @@ void spined(SkCanvas& canvas, blend::Orientation orientation) {
                   {1.0f, 0.9f, 0.3f, 0.95f}};
   blend::Key to{centred(shapes::star(7, 12.0f / 30.0f), 26),
                 {0.4f, 0.5f, 1.0f, 0.95f}};
-  blend::Options options;
-  options.spacing = blend::Spacing::Distance;
-  options.distance = 30;
   // The spiral is inscribed in a square inside the cell, so both cells
   // walk one spine and only the orientation differs.
   const float side = kSpine - 40;
-  options.spine =
-      shapes::spiral(2.2f)
-          .path({side, side})
-          .makeTransform(SkMatrix::Translate((kSpineCell - side) / 2, 20));
-  options.orientation = orientation;
-  options.smoothOutlines = true;
-  blend::draw(canvas, blend::make(from, to, options));
+  blend::draw(canvas,
+              blend::make(from, to,
+                          {.spacing = blend::Spacing::Distance,
+                           .distance = 30,
+                           .spine = shapes::spiral(2.2f)
+                                        .path({side, side})
+                                        .makeTransform(SkMatrix::Translate(
+                                            (kSpineCell - side) / 2, 20)),
+                           .orientation = orientation,
+                           .smoothOutlines = true}));
 }
 
 void spineUpright(SkCanvas& canvas) {
@@ -259,35 +249,9 @@ void spineTurned(SkCanvas& canvas) {
 struct BlendOptions final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     const sketch::kit::Provide look(sheetTheme());
-    sketch::kit::stage(ctx, {.size = {1200, 1330}});
     // Every step is computed from the keys and the options; nothing here
     // reads the clock.
-    ctx.captureAt(0.05);
-
-    std::vector<Element> bands;
-    bands.push_back(band("steps", kBand, kRun, "Options{.steps = 8}",
-                         "a count the author picks — the arms "
-                         "shorten and the hub swells, because the contours "
-                         "are aligned before anything is interpolated",
-                         statedCount));
-    bands.push_back(band("waypoint", kBand, kRun,
-                         "make({a, b, c}, {.steps = 5, .smoothOutlines})",
-                         "a third key splits the spine into one span per "
-                         "PAIR: the run bends without its spacing changing",
-                         waypoint));
-    bands.push_back(band("stroke", kBand, kRun,
-                         "Key{.stroke, .strokeWidth} · steps = 14",
-                         "a key with no fill carries its stroke WIDTH "
-                         "across too, so the run thins from 6 px to 1",
-                         strokes));
-    bands.push_back(
-        band("derived", kBand, kWide,
-             "Spacing::SmoothColor · and two OPEN keys at steps = 42",
-             "left: no count is named — the blend picks one so "
-             "adjacent steps differ by less than the eye resolves. right: "
-             "an open path has no inside, so the count decides between a "
-             "ribbon and rails",
-             derivedCount));
+    sketch::kit::stage(ctx, {.size = {1200, 1330}, .captureAt = 0.05});
 
     Element spineRow = kit::cells(
         {.cells = {band("spine.page", kSpineCell, kSpine,
@@ -303,7 +267,6 @@ struct BlendOptions final : sketch::Sketch {
                         "on a wire, against confetti on a line beside it",
                         spineTurned)},
          .gap = 18});
-    bands.push_back(std::move(spineRow));
 
     ctx.composer.render(sketch::kit::page(
         {.title = "BLEND OPTIONS · how many steps, "
@@ -311,7 +274,33 @@ struct BlendOptions final : sketch::Sketch {
          .subtitle = "path::blend interpolates OUTLINES: "
                      "every intermediate is a real path",
          .footer = "Sketchbook · blend_options"},
-        kit::cells({.cells = std::move(bands), .column = true, .gap = 18})));
+        kit::cells(
+            {.cells = {band("steps", kBand, kRun, "Options{.steps = 8}",
+                            "a count the author picks — the arms shorten and "
+                            "the hub swells, because the contours are aligned "
+                            "before anything is interpolated",
+                            statedCount),
+                       band("waypoint", kBand, kRun,
+                            "make({a, b, c}, {.steps = 5, .smoothOutlines})",
+                            "a third key splits the spine into one span per "
+                            "PAIR: the run bends without its spacing changing",
+                            waypoint),
+                       band("stroke", kBand, kRun,
+                            "Key{.stroke, .strokeWidth} · steps = 14",
+                            "a key with no fill carries its stroke WIDTH "
+                            "across too, so the run thins from 6 px to 1",
+                            strokes),
+                       band("derived", kBand, kWide,
+                            "Spacing::SmoothColor · and two OPEN keys at "
+                            "steps = 42",
+                            "left: no count is named — the blend picks one so "
+                            "adjacent steps differ by less than the eye "
+                            "resolves. right: an open path has no inside, so "
+                            "the count decides between a ribbon and rails",
+                            derivedCount),
+                       std::move(spineRow)},
+             .column = true,
+             .gap = 18})));
   }
 };
 
