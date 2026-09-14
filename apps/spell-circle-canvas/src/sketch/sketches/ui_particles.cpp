@@ -35,8 +35,8 @@
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilweave/style/Type.h>
 
+#include <array>
 #include <cmath>
 #include <entt/entt.hpp>
 #include <memory>
@@ -44,7 +44,6 @@
 
 namespace sketch = sigil::sketch;
 namespace material = sigil::material;
-namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;
@@ -55,6 +54,21 @@ namespace {
 /** The canvas this piece was drawn against, which is also the default a
  *  sketch gets when it declares none. */
 constexpr SkSize kSceneSize = {900, 640};
+
+/** THE FOUR CARVED PALETTES the ornament kit ships, resolved once: a
+ *  palette is compared by value and two resolutions are two values. */
+const std::array<Palette, 4>& carvedPalettes() {
+  static const std::array<Palette, 4> four{oakPalette(), azurePalette(),
+                                           crimsonPalette(), emeraldPalette()};
+  return four;
+}
+
+/** The nine-slice a carved frame is drawn from, at the pixels per layout
+ *  unit the cell it fills was baked at. */
+Slice carved(const Palette& pal, int side) {
+  return carvedFrameSlice(std::make_shared<sigil::image::ImageAsset>(
+      sigil::image::ImageAsset::wrap(makeCarvedFrame(pal, side))));
+}
 
 struct UiParticles final : sketch::Sketch {
   // ---- chips (the confetti tier) ------------------------------------------
@@ -116,60 +130,49 @@ struct UiParticles final : sketch::Sketch {
             darkInk ? tone(0.85f, 0.22f) : SkColor4f{1, 1, 1, 1}};
   }
 
-  Element pill(const ChipTheme& t, std::u8string label) {
+  /** THE SHELL EVERY STAMPED CHIP SHARES: a label standing in the middle
+   *  of the chip's own extent, inside the chip's edge, set in its ink. The
+   *  ground and the silhouette are the skin's, below. */
+  Element chip(const ChipTheme& t, SkSize extent, std::u8string label,
+               float type) {
     return kit::centred()
-        .width(kSprite - 10)
-        .height(kSprite - 26)
-        .corners({14})
-        .fill(Fill::color(t.fill))
+        .width(extent.width())
+        .height(extent.height())
         .foreground(sigil::compose::stroke(2, Fill::color(t.edge)))
-
         .ink(t.ink)
-        .children({text(std::move(label)).font({.size = 15})});
+        .children({text(std::move(label)).font({.size = type})});
+  }
+  Element pill(const ChipTheme& t, std::u8string label) {
+    return chip(t, {kSprite - 10, kSprite - 26}, std::move(label), 15)
+        .corners({14})
+        .fill(Fill::color(t.fill));
   }
   Element shout(const ChipTheme& t, std::u8string label, int spikes) {
-    return kit::centred()
-        .width(kSprite - 4)
-        .height(kSprite - 4)
+    return chip(t, {kSprite - 4, kSprite - 4}, std::move(label), 13)
         .shape(starburstOutline(spikes, 0.32f))
-        .fill(sigil::compose::radialGradient({kSprite / 2 - 2, kSprite / 2 - 2},
-                                             kSprite / 2,
-                                             {{1.0f, 0.92f, 0.55f, 1}, t.fill}))
-        .foreground(sigil::compose::stroke(2, Fill::color(t.edge)))
-
-        .ink(t.ink)
-        .children({text(std::move(label)).font({.size = 13})});
+        .fill(sigil::compose::radialGradient(
+            {kSprite / 2 - 2, kSprite / 2 - 2}, kSprite / 2,
+            {{1.0f, 0.92f, 0.55f, 1}, t.fill}));
   }
   Element seal(const ChipTheme& t, std::u8string label, float lobe) {
-    return kit::centred()
-        .width(kSprite - 8)
-        .height(kSprite - 8)
+    return chip(t, {kSprite - 8, kSprite - 8}, std::move(label), 13)
         .shape(scallopOutline(lobe))
-        .fill(Fill::color(t.fill))
-        .foreground(sigil::compose::stroke(2, Fill::color(t.edge)))
-
-        .ink(t.ink)
-        .children({text(std::move(label)).font({.size = 13})});
+        .fill(Fill::color(t.fill));
   }
   Element framed(const Palette& pal, std::u8string label) {
-    return kit::centred()
+    return kit::centred(text(std::move(label)).font({.size = 15}))
         .width(kSprite - 8)
         .height(kSprite - 12)
-        .background(carvedFrameSlice(std::make_shared<sigil::image::ImageAsset>(
-            sigil::image::ImageAsset::wrap(makeCarvedFrame(pal, 96)))))
-
-        .ink(pal.ink)
-        .children({text(std::move(label)).font({.size = 15})});
+        .background(carved(pal, 96))
+        .ink(pal.ink);
   }
   Element note(const ChipTheme& t, std::u8string line1, std::u8string line2) {
-    PathFormat dashed;
-    dashed.width = 1.6f;
-    dashed.strokeFill = Fill::color(t.edge);
-    dashed.dashIntervals = {5, 4};
-    SkColor4f paper = t.fill;
-    paper.fR = 0.75f + paper.fR * 0.25f;
-    paper.fG = 0.75f + paper.fG * 0.25f;
-    paper.fB = 0.75f + paper.fB * 0.25f;
+    const PathFormat dashed{.width = 1.6f,
+                            .strokeFill = Fill::color(t.edge),
+                            .dashIntervals = {5, 4}};
+    // The paper is the chip's own fill taken most of the way to white.
+    const auto pale = [](float c) { return 0.75f + c * 0.25f; };
+    const SkColor4f paper{pale(t.fill.fR), pale(t.fill.fG), pale(t.fill.fB), 1};
     return box()
         .width(kSprite - 10)
         .height(kSprite - 18)
@@ -201,9 +204,6 @@ struct UiParticles final : sketch::Sketch {
                                                        {u8"hide!", u8"east"},
                                                        {u8"loot!", u8"cave"},
                                                        {u8"rest", u8"camp"}};
-    const Palette framePals[4] = {oakPalette(), azurePalette(),
-                                  crimsonPalette(), emeraldPalette()};
-
     // a fixed seed; the scene must render the same on every run
     // NOLINTNEXTLINE(bugprone-random-generator-seed)
     std::mt19937 rng{23};
@@ -221,15 +221,14 @@ struct UiParticles final : sketch::Sketch {
             return seal(theme, kSealLabels[rng() % 4],
                         7.0f + (float)(rng() % 4));
           case 3:
-            return framed(framePals[rng() % 4], kFrameLabels[rng() % 4]);
+            return framed(carvedPalettes()[rng() % 4], kFrameLabels[rng() % 4]);
           default: {
             const auto& lines = kNoteLines[rng() % 4];
             return note(theme, lines[0], lines[1]);
           }
         }
       }();
-      chipAtlas->cell(kit::centred().children({std::move(content)}),
-                      {kSprite, kSprite});
+      chipAtlas->cell(kit::centred(std::move(content)), {kSprite, kSprite});
     }
   }
 
@@ -254,14 +253,11 @@ struct UiParticles final : sketch::Sketch {
              text(cfg.body2).ink({s.bronze.fR, s.bronze.fG, s.bronze.fB, 1})});
   }
   Element carvedPost(const PostConfig& cfg) {
-    const Palette pals[4] = {oakPalette(), azurePalette(), crimsonPalette(),
-                             emeraldPalette()};
-    const Palette& pal = pals[(unsigned)cfg.paletteIndex & 3u];
+    const Palette& pal = carvedPalettes()[(unsigned)cfg.paletteIndex & 3u];
     return box()
         .width(kPostW - 6)
         .height(kPostH - 6)
-        .background(carvedFrameSlice(std::make_shared<sigil::image::ImageAsset>(
-            sigil::image::ImageAsset::wrap(makeCarvedFrame(pal, 128)))))
+        .background(carved(pal, 128))
         .column()
         .padding(30, 26)
         .gap(5)
@@ -286,8 +282,9 @@ struct UiParticles final : sketch::Sketch {
         .gap(6)
         .font({.size = 10.5f})
         .children({text(cfg.title).font({.size = 15}).ink(accent),
-                   box().width(pct(38)).height(2).corners({1}).fill(
-                       Fill::color(accent)),
+                   kit::line({.length = pct(38),
+                              .thickness = 2,
+                              .fill = Fill::color(accent)}),
                    text(cfg.body1).ink(hexColor(0xcdd3df)),
                    text(cfg.body2).ink(hexColor(0x9aa3b4))});
   }
@@ -364,8 +361,7 @@ struct UiParticles final : sketch::Sketch {
 
     postAtlas = std::make_shared<instancing::Atlas>();  // 2x: crisp paragraphs
     for (const auto& post : kPosts)
-      postAtlas->cell(kit::centred().children({postVariant(post)}),
-                      {kPostW, kPostH});
+      postAtlas->cell(kit::centred(postVariant(post)), {kPostW, kPostH});
   }
 
   // ---- seeding + stepping -------------------------------------------------
@@ -473,34 +469,38 @@ struct UiParticles final : sketch::Sketch {
         },
         8, &stepAlpha);
 
-    // instances() fills its parent; each tier gets a full-canvas box so
-    // pool positions are canvas pixels. Chips behind, posts in front.
+    // A TIER IS AN ATLAS AND THE POOL THAT STAMPS IT. instances() fills
+    // its parent, so each tier gets a full-canvas box and the pool's
+    // positions are canvas pixels. Chips behind, posts in front.
+    const std::array tiers{std::pair{chipAtlas, chipPool},
+                           std::pair{postAtlas, postPool}};
     composer.render(
         stack()
             .fill(sigil::compose::linearGradient(
-                {0, 0}, {0, 640},
+                {0, 0}, {0, kSceneSize.height()},
                 {{0.05f, 0.04f, 0.12f, 1}, {0.12f, 0.05f, 0.14f, 1}}))
-            .children({box().inset(0).children({instancing::instances(
-                           chipAtlas, chipPool, instancing::Mode::Live)}),
-                       box().inset(0).children({instancing::instances(
-                           postAtlas, postPool, instancing::Mode::Live)})})
-            // THE TITLE, ON A SILL. The ground here is not merely crossed
-            // by the type, it is the densest thing in the registry: a
-            // knockout works against linework and disappears against a
-            // field of stamps, so the line stands on an opaque plate of
-            // its own.
-            .children({kit::scrim(
-                           text(u8"UI as particles \u2014 820 chips over "
-                                u8"30 posts, one instances() stamp a tier",
-                                weave::textStyle(
-                                    {.size = 17, .color = hexColor(0xf2f5fb)})),
-                           {.fill = Fill::color({0.03f, 0.025f, 0.06f, 0.92f}),
-                            .paddingX = 14,
-                            .paddingY = 9})
-                           .absolute()
-                           .left(24)
-                           .top(22)
-                           .zIndex(2)}));
+            .children(
+                {each(tiers,
+                      [](const auto& tier) {
+                        return box().inset(0).children({instancing::instances(
+                            tier.first, tier.second, instancing::Mode::Live)});
+                      }),
+                 // THE TITLE, ON A SILL. The ground here is not merely
+                 // crossed by the type, it is the densest thing in the
+                 // registry: a knockout works against linework and
+                 // disappears against a field of stamps, so the line stands
+                 // on an opaque plate of its own.
+                 kit::scrim(text(u8"UI as particles \u2014 820 chips over "
+                                 u8"30 posts, one instances() stamp a tier")
+                                .font({.size = 17})
+                                .ink(hexColor(0xf2f5fb)),
+                            {.fill = Fill::color({0.03f, 0.025f, 0.06f, 0.92f}),
+                             .paddingX = 14,
+                             .paddingY = 9})
+                     .absolute()
+                     .left(24)
+                     .top(22)
+                     .zIndex(2)}));
   }
 };
 
