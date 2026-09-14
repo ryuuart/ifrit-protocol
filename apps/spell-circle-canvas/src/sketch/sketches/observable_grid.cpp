@@ -30,6 +30,9 @@ struct ObservableGrid final : sketch::Sketch {
     if (pen.frameCount == 1) {
       pen.rectMode(CENTER);
       pen.noFill();
+      // The control below is written in degrees, so the pen is told to
+      // read it in degrees.
+      pen.angleMode(DEGREES);
     }
     constexpr int kCells = 10;
     constexpr float kCell = 80.0f;
