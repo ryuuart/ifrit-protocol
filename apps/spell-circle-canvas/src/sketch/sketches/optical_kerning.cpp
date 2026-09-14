@@ -119,27 +119,23 @@ struct OpticalKerning final : sketch::Sketch {
                    "is the face's own even "
                    "pair, so a loose face stays loose"},
         kit::cells(
-            {.cells = {plain(), optical(), both(), table()}, .gap = 14})));
+            {.cells = {cell("opticalKerning = false",
+                            "the face's own kerning table · a "
+                            "designer's pairs, and the setting every other "
+                            "cell is read against",
+                            headline(figure, false)),
+                       cell("opticalKerning = true",
+                            "every pair measured instead · the "
+                            "outlines are read for the narrowest distance "
+                            "between them and closed to the face's own even "
+                            "pair",
+                            headline(figure, true)),
+                       both(), table()},
+             .gap = 14})));
   }
 
   Element headline(SkColor4f colour, bool optical) {
-    return text(kHeadline, display(kSize, colour, optical))
-        .width(kCell - 24);
-  }
-
-  Element plain() {
-    return cell("opticalKerning = false",
-                "the face's own kerning table · a designer's pairs, "
-                "and the setting every other cell is read against",
-                headline(sketch::kit::theme().palette.figure, false));
-  }
-
-  Element optical() {
-    return cell("opticalKerning = true",
-                "every pair measured instead · the outlines are read "
-                "for the narrowest distance between them and closed to the "
-                "face's own even pair",
-                headline(sketch::kit::theme().palette.figure, true));
+    return text(kHeadline, display(kSize, colour, optical)).width(kCell - 24);
   }
 
   /** The two settings over one another: where they disagree is where the
@@ -149,21 +145,26 @@ struct OpticalKerning final : sketch::Sketch {
                 "the table in warm under the measured answer in cool "
                 "· the letters drift apart along the line, because "
                 "every pair's delta accumulates into the next",
-                box().absolute().inset(0).children(
-                    {headline(kTable, false).absolute().inset(0),
-                     headline(kOptical, true).absolute().inset(0)}));
+                box().inset(0).children({headline(kTable, false).inset(0),
+                                         headline(kOptical, true).inset(0)}));
   }
 
   Element table() {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
-    Element column = box().column().gap(7);
-    for (const std::string& row : rows)
-      column.children({text(row, sheet.mono(11, sheet.palette.figure))});
     return cell("measured pair deltas",
                 "each pair set twice and the two advances subtracted "
                 "· negative closes the pair up, and the last row is "
                 "the whole line",
-                std::move(column));
+                // The rows are one voice, stated on the column they stand
+                // in; a row says only its own words.
+                box()
+                    .column()
+                    .gap(7)
+                    .font(sheet.font({.size = 11, .mono = true}))
+                    .ink(sheet.palette.figure)
+                    .children(each(rows, [](const std::string& row) {
+                      return text(row);
+                    })));
   }
 };
 
