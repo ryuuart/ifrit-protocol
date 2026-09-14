@@ -12,6 +12,12 @@ namespace sigil::compose::kit {
 // The specimen well
 
 Element well(const Well& spec, Element surface) {
+  // THE WELL THAT HOLDS: the plate is a surface of its own and what it
+  // was handed stands inside it at its own measure. Nothing of the spec
+  // reaches that element, which is the whole difference from the reading
+  // below — a picture smaller than its plate keeps the size it was drawn
+  // at.
+  if (spec.content) return well(spec).children({std::move(surface)});
   if (spec.width.unit != Dimension::Unit::Auto) surface.width(spec.width);
   if (spec.height.unit != Dimension::Unit::Auto) surface.height(spec.height);
   if (!spec.ground.none()) surface.fill(spec.ground);
@@ -33,7 +39,12 @@ Element well(const Well& spec, Element surface) {
 }
 
 Element well(const Well& spec) {
-  return well(spec, spec.placed ? stack() : box());
+  Well plate = spec;
+  plate.content.reset();
+  Element surface = well(plate, spec.placed ? stack() : box());
+  if (spec.content)
+    surface.alignItems(spec.content->across).justify(spec.content->down);
+  return surface;
 }
 
 namespace {

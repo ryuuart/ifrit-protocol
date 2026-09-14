@@ -90,8 +90,9 @@ SkRect run() { return SkRect::MakeWH(1, 1); }
  *  UNDER the first — which is what a transparent field is drawn over. */
 Element cell(const char* call, const char* note, paint::Paint fill,
              paint::Paint beneath = {}) {
-  Element plate =
-      sketch::kit::well({.width = kCell, .height = kPicture}, kit::centred());
+  Element plate = sketch::kit::well({.width = kCell,
+                                     .height = kPicture,
+                                     .content = sketch::kit::Well::Content{}});
   Element word = text(kWord).styleClass("display").textFill(std::move(fill));
   if (beneath.isSolid() || beneath.asShader())
     plate.children({kit::centred(text(kWord).styleClass("display").textFill(

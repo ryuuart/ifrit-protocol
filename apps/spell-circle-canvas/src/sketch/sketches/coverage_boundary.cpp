@@ -112,13 +112,14 @@ Element art(const CutOuts& cut, float alpha = 1.0f) {
 }
 
 Element cell(const char* call, const char* note, Element body) {
-  // The picture stands in the middle of its well at its own size, which
-  // is what a centring container says and what halving the difference
-  // between the two was computing.
+  // The well HOLDS the picture: it stands in the middle at its own size,
+  // which is what halving the difference between the two was computing.
   return sketch::kit::caption(
       kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture},
-                        kit::centred(std::move(body))));
+      sketch::kit::well({.width = kCell,
+                         .height = kPicture,
+                         .content = sketch::kit::Well::Content{}},
+                        std::move(body)));
 }
 
 }  // namespace

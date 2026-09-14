@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcore/reconcile/Environment.h>
@@ -72,6 +73,23 @@ TEST(SketchKitCells, WellTakesTheThemesCellGround) {
       kit::well(
           {.width = compose::Dimension(163), .height = compose::Dimension(176)},
           compose::box().children({subject()}))));
+}
+
+/** THE WELL THAT HOLDS: a plate of the theme's ground with the picture
+ *  standing in the middle of it at its own measure, against the centring
+ *  container a sheet of pictures writes by hand. */
+TEST(SketchKitCells, AWellHoldsItsPictureAtItsOwnMeasure) {
+  const kit::Theme& house = kit::houseTheme();
+  EXPECT_TRUE(
+      sameDrawing(compose::kit::well(
+                      {.width = compose::Dimension(200),
+                       .height = compose::Dimension(200),
+                       .ground = Fill::color(house.palette.cellGround)},
+                      compose::kit::centred(subject().width(132).height(132))),
+                  kit::well({.width = compose::Dimension(200),
+                             .height = compose::Dimension(200),
+                             .content = kit::Well::Content{}},
+                            subject().width(132).height(132))));
 }
 
 /** THE PLATE: a grounded well with rounded corners and one hairline round
@@ -209,14 +227,10 @@ TEST(SketchKitCells, ARunIsTheHandSpelledRunAtTheThemesGutter) {
  *  come out the same width, which is what a run of fixed widths cannot
  *  do because it does not know how wide the page is. */
 TEST(SketchKitCells, ColumnsTakeEqualShares) {
-  Element wide = compose::box()
-                     .width(300)
-                     .height(20)
-                     .fill(Fill::color({0.9f, 0.3f, 0.4f, 1}));
-  Element narrow = compose::box()
-                       .width(10)
-                       .height(20)
-                       .fill(Fill::color({0.9f, 0.3f, 0.4f, 1}));
+  Element wide = compose::box().width(300).height(20).fill(
+      Fill::color({0.9f, 0.3f, 0.4f, 1}));
+  Element narrow = compose::box().width(10).height(20).fill(
+      Fill::color({0.9f, 0.3f, 0.4f, 1}));
   SkBitmap shared =
       Drawn(kit::panelGrid({.cells = {wide, narrow}, .columns = 0})).pixels();
   const int gutter = (int)kit::houseTheme().spacing.cellGap;

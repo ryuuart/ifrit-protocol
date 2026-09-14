@@ -49,6 +49,18 @@ struct Well {
    *  rather than a box, for the plate whose children carry their own
    *  rects. It says what the surface-less spelling builds. */
   bool placed = false;
+  /** HOW WHAT THE WELL HOLDS RANGES INSIDE IT. */
+  struct Content {
+    compose::Align across = compose::Align::Center;
+    compose::Justify down = compose::Justify::Center;
+  };
+  /** THE WELL THAT HOLDS, rather than the well that IS. Unset (default),
+   *  the element `well(Well, surface)` is handed BECOMES the plate — the
+   *  spec is written onto it. Stated, the plate is a surface of its own
+   *  and that element stands INSIDE it at its own measure, ranged as
+   *  this says, which is the specimen smaller than the plate it is shown
+   *  on; centred is what it says where it says nothing else. */
+  std::optional<Content> content;
   /** THE RECESS: what makes a well read as a HOLE PUNCHED in what holds
    *  it rather than as a patch of ground on it — a shadow cast inside the
    *  well's own edge, and the lip round that edge. Unset is flush, which
@@ -96,10 +108,17 @@ struct Well {
  *      sketch::kit::well({.width = kCell, .height = kPicture})
  *          .children({subject()})
  *
- *  The second argument is the surface itself rather than a child wrapped
- *  in a new box: hand it `custom(key, draw)` where the drawing wants the
- *  well's resolved size, and `box().children({body})` where the well holds a
- *  laid-out body. Omitted, it is an empty box ready for children. */
+ *  THE SECOND ARGUMENT IS THE SURFACE ITSELF rather than a child wrapped
+ *  in a new box — the spec is written onto it, so it BECOMES the plate:
+ *  hand it `custom(key, draw)` where the drawing wants the well's
+ *  resolved size, and `box().children({body})` where the well holds a
+ *  laid-out body. Omitted, it is an empty box ready for children.
+ *
+ *  `Well::content` is the other reading, the well that HOLDS what it is
+ *  handed at that element's own measure:
+ *
+ *      sketch::kit::well({.width = kCell, .height = kPicture,
+ *                         .content = Well::Content{}}, picture()) */
 [[nodiscard]] compose::Element well(const Well& specification,
                                     compose::Element surface);
 [[nodiscard]] compose::Element well(const Well& specification);

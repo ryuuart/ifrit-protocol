@@ -66,11 +66,19 @@ namespace sigil::compose::kit {
  *                 .ground = Fill::color(kGround), .padding = 12},
  *                box().children({subject()}))
  *
- *  The second argument is the surface itself, not a child wrapped in a new
- *  box. Hand it `custom(key, draw)` when the drawing should receive the
- *  well's resolved size directly; hand it `box().children({body})` when the
- *  well contains a laid-out body. An open width or height leaves that
- *  dimension to the surface alone. */
+ *  THE SECOND ARGUMENT IS THE SURFACE ITSELF: the size, ground, padding,
+ *  corners and keyline are written onto that element, so it BECOMES the
+ *  well rather than standing in one. Hand it `custom(key, draw)` when the
+ *  drawing should receive the well's resolved size directly; hand it
+ *  `box().children({body})` when the well contains a laid-out body. An
+ *  open width or height leaves that dimension to the surface alone.
+ *
+ *  `Well::content` is the other reading — the well that HOLDS what it is
+ *  handed, at that element's own measure, ranged inside the plate:
+ *
+ *      kit::well({.width = 200, .height = 200, .content = Well::Content{}},
+ *                picture())      // a 132 px picture, centred on its plate
+ */
 struct Well {
   Dimension width;
   Dimension height;
@@ -101,6 +109,25 @@ struct Well {
    *  those sites. It says what the EMPTY overload builds; a caller who
    *  hands over a surface has already said which it is. */
   bool placed = false;
+
+  /** HOW WHAT THE WELL HOLDS RANGES INSIDE IT. */
+  struct Content {
+    Align across = Align::Center;
+    Justify down = Justify::Center;
+  };
+  /** THE WELL THAT HOLDS, rather than the well that IS.
+   *
+   *  Unset (default), `well(spec, surface)` writes this spec ONTO the
+   *  element it is handed: the surface IS the well, which is what a
+   *  drawing sized to its plate wants and what makes a material a
+   *  well's own ground.
+   *
+   *  Stated, the well is a surface of its own and the element stands
+   *  INSIDE it, keeping its own measure, ranged both ways as this says —
+   *  the specimen SMALLER than the plate it is shown on, which is the
+   *  common reading of a sheet of pictures. Centred is what it says
+   *  where it says nothing else. */
+  std::optional<Content> content;
 };
 
 /** @p surface, sized, grounded, padded, rounded and ruled as @p spec
@@ -153,10 +180,15 @@ struct Caption {
    *  ranges everything left, `Center` stands a caption over the middle of
    *  its body. */
   Align align = Align::Start;
-  /** How the body's own content ranges INSIDE its cell. `Auto` (default)
-   *  says nothing, and the body lies as the caller built it; `Center`
-   *  centres it in the cell both ways, which is what a word or a figure
-   *  standing in the middle of its well asks for. */
+  /** HOW THE BODY RANGES INSIDE ITS CELL. `Auto` (default) says nothing,
+   *  and the body lies as the caller built it; anything else ranges it
+   *  both ways, which is what a word, a figure or a picture standing in
+   *  the middle of its well asks for.
+   *
+   *  WITH `body` STATED IT IS THAT WELL'S `content`: the body is HELD in
+   *  the plate at its own measure rather than being stretched to it, so
+   *  a picture smaller than its well keeps the size it was drawn at. A
+   *  body that IS its plate leaves this alone. */
   Align justify = Align::Auto;
   /** THE BODY'S OWN CELL — the well the specimen is shown in. Unset
    *  leaves the body exactly as it arrives, for a caller that built its
@@ -195,7 +227,9 @@ struct Caption {
  *  A CELL STATES ITS BODY'S CELL: with `Caption::body` the specimen is
  *  shown in that well, so the cell and the well are one call, and
  *  `Caption::reading` writes a figure over the body's corner on a scrim
- *  of the well's own ground, in the class `readout`. */
+ *  of the well's own ground, in the class `readout`. `Caption::justify`
+ *  makes that well HOLD the body rather than write itself onto it, so a
+ *  picture smaller than its plate stands where the alignment puts it. */
 [[nodiscard]] inline Element cell(const Caption& caption, Utf8 label, Utf8 note,
                                   Element body) {
   if (!caption.reading.empty()) {
@@ -217,12 +251,20 @@ struct Caption {
       scrim.fill(caption.body->ground);
     body = box().children({std::move(body), std::move(scrim)});
   }
-  if (caption.body) body = well(*caption.body, std::move(body));
-  if (caption.justify != Align::Auto) {
+  const Justify down = caption.justify == Align::Center ? Justify::Center
+                       : caption.justify == Align::End  ? Justify::End
+                                                        : Justify::Start;
+  if (caption.body) {
+    Well plate = *caption.body;
+    // The caption's own alignment is the plate's: a body ranged inside
+    // its well is HELD by it, which is the reading that leaves a picture
+    // at the measure it was drawn at.
+    if (caption.justify != Align::Auto && !plate.content)
+      plate.content = Well::Content{.across = caption.justify, .down = down};
+    body = well(plate, std::move(body));
+  } else if (caption.justify != Align::Auto) {
     body.alignItems(caption.justify);
-    body.justify(caption.justify == Align::Center ? Justify::Center
-                 : caption.justify == Align::End  ? Justify::End
-                                                  : Justify::Start);
+    body.justify(down);
   }
   Element column = box().column().alignItems(caption.align);
   // The space above each part is that part's own margin rather than the

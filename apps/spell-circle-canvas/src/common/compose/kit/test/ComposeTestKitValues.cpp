@@ -9,6 +9,7 @@
 #include <sigilweave/layout/StyleSheet.h>
 
 #include <cmath>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -639,8 +640,9 @@ TEST(KitSpecimen, AWellRoundsItsCornersAndRulesInsideItsOwnBox) {
 }
 
 TEST(KitSpecimen, ACellStatesItsBodysOwnWell) {
-  // A cell that states its body's cell is one call rather than two, and
-  // `justify` ranges what the body holds inside that cell.
+  // A cell that states its body's cell is one call rather than two. With
+  // no alignment the body IS the well; with one it is HELD by it, at the
+  // measure it was built with.
   const auto placed = [](Align justify) {
     kit::Caption voice = specimenVoice(kit::Caption::Where::Split);
     voice.body = kit::Well{.width = 100, .height = 80, .ground = red()};
@@ -651,23 +653,45 @@ TEST(KitSpecimen, ACellStatesItsBodysOwnWell) {
             .width(200)
             .height(200)
             .styleSheet(captionClasses())
-            .children(
-                {kit::cell(voice, "", "",
-                           box().key("body").children(
-                               {box().key("inner").width(20).height(16).fill(
-                                   green())}))}));
+            .children({kit::cell(
+                voice, "", "",
+                box().key("body").width(20).height(16).fill(green()))}));
     host.frame();
-    return std::pair{require(host.composer.bounds("body")),
-                     require(host.composer.bounds("inner"))};
+    return require(host.composer.bounds("body"));
   };
-  const auto [asBuilt, lying] = placed(Align::Auto);
-  EXPECT_EQ(asBuilt, SkRect::MakeWH(100, 80));
-  EXPECT_FLOAT_EQ(lying.left(), 0);
-  EXPECT_FLOAT_EQ(lying.top(), 0);
-  const auto [centred, middle] = placed(Align::Center);
-  EXPECT_EQ(centred, SkRect::MakeWH(100, 80));
-  EXPECT_FLOAT_EQ(middle.left(), 40);
-  EXPECT_FLOAT_EQ(middle.top(), 32);
+  // The spec is written onto the body: its own 20 x 16 is overruled.
+  EXPECT_EQ(placed(Align::Auto), SkRect::MakeWH(100, 80));
+  // Held: the body keeps its measure and stands in the middle of the
+  // plate both ways.
+  EXPECT_EQ(placed(Align::Center), SkRect::MakeXYWH(40, 32, 20, 16));
+  EXPECT_EQ(placed(Align::Start), SkRect::MakeXYWH(0, 0, 20, 16));
+}
+
+TEST(KitSpecimen, AWellHoldsWhatItIsHandedWhereItsContentSaysTo) {
+  // The two readings of one call: with no content the picture BECOMES the
+  // plate, with content the plate holds it at its own measure.
+  const auto shown = [](std::optional<kit::Well::Content> content) {
+    Host host(200, 200);
+    host.composer.render(box().width(200).height(200).children({kit::well(
+        {.width = 100, .height = 80, .ground = red(), .content = content},
+        box().key("picture").width(30).height(20).fill(green()))}));
+    host.frame();
+    return require(host.composer.bounds("picture"));
+  };
+  EXPECT_EQ(shown(std::nullopt), SkRect::MakeWH(100, 80));
+  EXPECT_EQ(shown(kit::Well::Content{}), SkRect::MakeXYWH(35, 30, 30, 20));
+  EXPECT_EQ(
+      shown(kit::Well::Content{.across = Align::End, .down = Justify::End}),
+      SkRect::MakeXYWH(70, 60, 30, 20));
+  // The empty spelling is ranged too, so a plate whose children are added
+  // fluently holds them in the middle.
+  Host host(200, 200);
+  host.composer.render(box().width(200).height(200).children(
+      {kit::well({.width = 100, .height = 80, .content = kit::Well::Content{}})
+           .children({box().key("late").width(30).height(20)})}));
+  host.frame();
+  EXPECT_EQ(require(host.composer.bounds("late")),
+            SkRect::MakeXYWH(35, 30, 30, 20));
 }
 
 TEST(KitSpecimen, AReadingStandsOverTheBodyOnAScrimOfItsGround) {

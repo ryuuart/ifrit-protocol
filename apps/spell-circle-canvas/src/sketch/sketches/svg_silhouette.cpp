@@ -65,17 +65,20 @@ Element cell(const char* call, const char* note, SkSize boxSize,
              bool preserveAspect) {
   return sketch::kit::caption(
       kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture, .clip = false})
-          .children({kit::centred(
-              box()
-                  .width(boxSize.width())
-                  .height(boxSize.height())
-                  .stroke(stroke(1.0f, Fill::color(kBoxRule)))
-                  .children({box()
-                                 .grow(1)
-                                 .alignSelf(Align::Stretch)
-                                 .shape(shapes::svg(kBolt, preserveAspect))
-                                 .fill(Fill::color(kFigure))}))}));
+      sketch::kit::well(
+          {.width = kCell,
+           .height = kPicture,
+           .clip = false,
+           .content = sketch::kit::Well::Content{}},
+          box()
+              .width(boxSize.width())
+              .height(boxSize.height())
+              .stroke(stroke(1.0f, Fill::color(kBoxRule)))
+              .children({box()
+                             .grow(1)
+                             .alignSelf(Align::Stretch)
+                             .shape(shapes::svg(kBolt, preserveAspect))
+                             .fill(Fill::color(kFigure))})));
 }
 
 }  // namespace

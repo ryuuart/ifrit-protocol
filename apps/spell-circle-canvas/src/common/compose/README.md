@@ -1387,12 +1387,17 @@ register's class; `Caption::Where` puts the note under
 the body, or both lines above it, or both below, and `labelMeasure` and
 `noteMeasure` wrap either line at a stated width so a long one does not
 widen the cell it captions; `Caption::body` states the body's own well, so
-a cell and its well are one call, `Caption::justify` ranges what the body
-holds inside it, and `Caption::reading` writes a figure over the body's
-corner on a scrim of that well's ground, in the class `readout`, through
-the part `readingLine`), `kit::well`, the fixed, clipped surface a
-specimen is drawn into with every size, fill, padding, corner radius and
-keyline supplied by the caller — `Well::placed` making it a `stack` rather
+a cell and its well are one call, `Caption::justify` makes that well HOLD
+the body rather than write itself onto it, so a picture smaller than its
+plate keeps the measure it was drawn at, and `Caption::reading` writes a
+figure over the body's corner on a scrim of that well's ground, in the
+class `readout`, through the part `readingLine`), `kit::well`, the fixed,
+clipped surface a specimen is drawn into with every size, fill, padding,
+corner radius and keyline supplied by the caller — the element it is
+handed IS the well, the spec written onto it, unless `Well::content`
+states the other reading, where the plate is a surface of its own and
+holds that element at its own measure, ranged both ways and centred where
+it says nothing else — `Well::placed` making it a `stack` rather
 than a box, for the plate whose children carry their own rects — `Well::paddingY` where a plate is set
 tighter down than across, and `Well::keyline` drawn INSIDE the well's own
 box, because a plate that is not the width it was given is the one thing a

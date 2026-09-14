@@ -6,6 +6,7 @@
 #include <sigilsketch/kit/Cells.h>
 #include <sigilweave/layout/StyleSheet.h>
 
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -18,6 +19,10 @@ compose::Element well(const Well& specification, compose::Element surface) {
   // library's own.
   const compose::SurfacePaint bed = specification.ground.value_or(
       compose::Fill::color(look.palette.cellGround));
+  std::optional<compose::kit::Well::Content> held;
+  if (specification.content)
+    held = compose::kit::Well::Content{.across = specification.content->across,
+                                       .down = specification.content->down};
   compose::Element plate = compose::kit::well(
       {.width = specification.width,
        .height = specification.height,
@@ -27,7 +32,8 @@ compose::Element well(const Well& specification, compose::Element surface) {
        .clip = specification.clip,
        .corners = specification.corners.value_or(0.0f),
        .keyline = specification.keyline,
-       .keylineWidth = specification.keylineWidth},
+       .keylineWidth = specification.keylineWidth,
+       .content = held},
       std::move(surface));
   if (specification.relief) {
     const Well::Relief& lift = *specification.relief;
