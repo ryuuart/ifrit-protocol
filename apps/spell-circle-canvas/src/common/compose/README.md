@@ -1442,7 +1442,10 @@ may answer any element and not only a line, and `Reading::ink` is the colour a r
 its lines' classes name, because WHICH rows are lit is the data's business
 and a sheet cannot say it — and `kit::bars`,
 one row per value against an extent DERIVED from the values
-(`Bars::largest` states it instead), each bar in `Bars::bar` on the track
+(`Bars::largest` states it instead; `Bars::inks` is one colour per row,
+over the bar's paint and over the two lines' classes, because WHICH row
+is lit is the data's business — the same door `Reading::ink` and
+`Row::ink` gave readouts and tables), each bar in `Bars::bar` on the track
 `Bars::rest` holds, with the figure after it as a function of the VALUE
 because how a number reads is the data's business; a readout and a table
 are different readings and neither is the other with a field set, and

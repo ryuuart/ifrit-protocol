@@ -8,6 +8,7 @@
 #include <sigilcore/reconcile/Environment.h>
 #include <sigilweave/layout/StyleSheet.h>
 
+#include <array>
 #include <cmath>
 #include <optional>
 #include <utility>
@@ -1470,6 +1471,32 @@ TEST(KitRows, ATableHeadsItsColumnsInTheSectionClassAndRulesUnderThem) {
   EXPECT_NEAR(head.height(), lineHeight(11), 1.0f);
   // The rule under the head is a row of its own, in the divider's fill.
   EXPECT_EQ(host.pixel(50, (int)(head.height() + 5) + 1), SK_ColorRED);
+}
+
+TEST(KitRows, ABarsOwnInkStandsOverTheRowsPaintAndItsLines) {
+  // WHICH row is lit is the data's business, so the inks are a run beside
+  // the values; a short run leaves the rows past its end as the props
+  // say.
+  const std::vector<sigil::compose::Utf8> labels = {u8"a", u8"b"};
+  const std::vector<double> values = {40.0, 40.0};
+  const std::array<SkColor4f, 1> lit{{{0, 1, 0, 1}}};
+  Host host(400, 200);
+  host.composer.render(
+      box()
+          .width(400)
+          .height(200)
+          .styleSheet(rowClasses())
+          .children({kit::bars(labels, values,
+                               {.length = 100,
+                                .labelMeasure = 0,
+                                .barHeight = 10,
+                                .bar = Fill::color({1, 0, 0, 1}),
+                                .inks = lit})}));
+  host.frame();
+  // The first row's bar is its own ink; the second keeps the paint the
+  // props named.
+  EXPECT_EQ(host.pixel(60, 5), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(60, 19), SK_ColorRED);
 }
 
 TEST(KitRows, ABarRunsInProportionToTheLargestValue) {

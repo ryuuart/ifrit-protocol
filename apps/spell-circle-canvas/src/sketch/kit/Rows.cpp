@@ -146,7 +146,8 @@ compose::Element bars(std::span<const compose::Utf8> labels,
       .rowGap = how.rowGap.value_or(look.spacing.rowGap),
       .bar = how.bar.value_or(Fill::color(look.palette.figure)),
       .rest = how.rest.value_or(
-          Fill::color(material::skia::withAlpha(look.palette.figure, 0.25f)))};
+          Fill::color(material::skia::withAlpha(look.palette.figure, 0.25f))),
+      .inks = how.inks};
   const Registers set = registers(look);
   specification.labelLine = [quiet = set.quiet](const Utf8& words) {
     return compose::text(words, quiet);

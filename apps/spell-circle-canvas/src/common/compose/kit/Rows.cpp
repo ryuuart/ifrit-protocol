@@ -3,6 +3,7 @@
 #include <sigilcompose/kit/Rows.h>
 
 #include <algorithm>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -138,9 +139,18 @@ Element bars(std::span<const Utf8> labels, std::span<const double> values,
   Element column = box().column().gap(Dimension(how.rowGap));
   for (size_t index = 0; index < values.size(); ++index) {
     Element row = box().row().alignItems(Align::Center).gap(Dimension(how.gap));
+    // A row's own ink stands over the bar's paint and over whatever its
+    // two lines' classes name, so a lit row keeps the registers it was
+    // set in.
+    const std::optional<SkColor4f> ink =
+        index < how.inks.size() ? std::optional(how.inks[index]) : std::nullopt;
+    const auto lit = [&ink](Element line) {
+      if (ink) line.font({.color = *ink});
+      return line;
+    };
     if (index < labels.size()) {
-      Element label = how.labelLine ? how.labelLine(labels[index], how)
-                                    : captionNote(labels[index]);
+      Element label = lit(how.labelLine ? how.labelLine(labels[index], how)
+                                        : captionNote(labels[index]));
       if (how.labelMeasure > 0.0f) label.width(Dimension(how.labelMeasure));
       row.children({std::move(label)});
     }
@@ -148,7 +158,10 @@ Element bars(std::span<const Utf8> labels, std::span<const double> values,
         largest > 0.0 ? (float)((double)how.length * values[index] / largest)
                       : 0.0f;
     Element bar = box().width(Dimension(run)).height(Dimension(how.barHeight));
-    (how.bar.none() ? SurfacePaint(Fill::currentInk()) : how.bar).apply(bar);
+    if (ink)
+      bar.fill(Fill::color(*ink));
+    else
+      (how.bar.none() ? SurfacePaint(Fill::currentInk()) : how.bar).apply(bar);
     if (how.rest.none()) {
       row.children({std::move(bar)});
     } else {
@@ -157,8 +170,9 @@ Element bars(std::span<const Utf8> labels, std::span<const double> values,
       how.rest.apply(track);
       row.children({std::move(track.children({std::move(bar)}))});
     }
-    row.children({how.figureLine ? how.figureLine(values[index], how)
-                                 : figure(formatted("%.0f", values[index]))});
+    row.children(
+        {lit(how.figureLine ? how.figureLine(values[index], how)
+                            : figure(formatted("%.0f", values[index])))});
     column.children({std::move(row)});
   }
   return column;

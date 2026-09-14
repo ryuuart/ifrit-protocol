@@ -330,7 +330,7 @@ sketch::kit::titleCard(
 | `labelRow(Reading, Readout)` | the name at the left in the quiet register, the figure at the right in the figure colour and the face a call is set in, with a swatch before the name where the row is also a key |
 | `readout(rows, Readout)` | a stack of those, at the theme's row gap, optionally ruled between |
 | `table(rows, Table)` | N columns each at its own width, the ones that carry a number in the figure register, with a mark before the first and the word each column carries over it — the reading a pair cannot hold |
-| `bars(labels, values, Bars)` | one row per value against the largest of them: the label at the left, the bar in the theme's figure colour on a track of the same dimmed, and the figure after it — with the overload that reads the two columns off a table |
+| `bars(labels, values, Bars)` | one row per value against the largest of them: the label at the left, the bar in the theme's figure colour on a track of the same dimmed, and the figure after it — with the overload that reads the two columns off a table; `Bars::inks` is one colour per row, over the bar's paint and the row's two lines, for the sheet where WHICH row is lit is the data's business |
 
 ```cpp
 sketch::kit::readout({{u8"nodes", nodes}, {u8"instances", live}},

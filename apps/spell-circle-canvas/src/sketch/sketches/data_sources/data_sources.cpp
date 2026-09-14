@@ -6,10 +6,12 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildata/query/Database.h>
 #include <sigildata/table/Table.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/style/Type.h>
 
+#include <array>
 #include <memory>
 #include <optional>
 #include <string>
@@ -30,7 +32,15 @@ Element answer(const data::Table* table, const char* names, const char* values,
                std::string_view missing) {
   if (!table || !table->has(names) || !table->has(values))
     return box().width(kCell - 28).children({text(missing)});
-  return sketch::kit::bars(*table, names, values, {.length = kBars})
+  // The FIRST row is the reading each cell is about — the country the
+  // query ordered to the top — so it is lit and the rest stand quiet.
+  const SkColor4f figure = sketch::kit::theme().palette.figure;
+  const std::array<SkColor4f, 1> lit{figure};
+  return sketch::kit::bars(*table, names, values,
+                           {.length = kBars,
+                            .bar = Fill::color(
+                                sigil::material::skia::withAlpha(figure, 0.5f)),
+                            .inks = lit})
       .width(kCell - 28);
 }
 

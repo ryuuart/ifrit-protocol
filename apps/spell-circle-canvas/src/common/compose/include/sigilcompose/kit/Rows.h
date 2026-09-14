@@ -215,6 +215,13 @@ struct Bars {
   /** THE LABEL, as a function of its words and then of this value. Empty
    *  is `captionNote`. */
   Part<Utf8, Bars> labelLine = captionNote;
+  /** ONE INK PER ROW, in the values' own order, standing over the bar's
+   *  paint and over whatever the row's two lines were set in — the row
+   *  that IS the reading lit, the rest quiet. WHICH rows are lit is the
+   *  data's business and a sheet cannot say it, which is why this is a
+   *  run beside the values rather than a look. A short run leaves the
+   *  rows past its end as the props say. */
+  std::span<const SkColor4f> inks;
   /** THE FIGURE AFTER THE BAR, as a function of the VALUE, because how a
    *  number reads is the data's business and not the kit's. Empty is the
    *  value to the nearest whole number, in the class `readout`. */

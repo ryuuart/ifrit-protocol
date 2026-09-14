@@ -172,6 +172,10 @@ struct Bars {
    *  reads against the extent. Unset is the theme's figure dimmed;
    *  `Fill::none()` draws no track. */
   std::optional<compose::SurfacePaint> rest;
+  /** ONE INK PER ROW, in the values' own order, over the bar's paint and
+   *  the row's two lines — the row that IS the reading lit, the rest
+   *  quiet. Empty leaves every row as the props say. */
+  std::span<const SkColor4f> inks;
 };
 
 /** THE BARS — one row per value, @p labels read in the same order.
