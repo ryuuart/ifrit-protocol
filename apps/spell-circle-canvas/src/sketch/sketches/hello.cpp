@@ -10,8 +10,9 @@
 
 // TAGS: Runtime/Starter
 
-#include <include/core/SkPathBuilder.h>
+#include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigildraw/Pen.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/style/Type.h>
@@ -19,6 +20,7 @@
 #include <cmath>
 
 namespace sketch = sigil::sketch;
+namespace draw = sigil::draw;
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;
@@ -28,8 +30,8 @@ using namespace std::chrono_literals;
 //  1. setup() DECLARES the scene once — including its motion: bound
 //     Outputs, transitions, ticker steppables. The runtime animates
 //     them every frame without re-describing anything.
-//  2. custom() leaves with Cache::None are the immediate-mode floor —
-//     their paint program runs per frame (see the wave below).
+//  2. a pen() leaf is the immediate-mode floor — its program runs every
+//     frame, in p5's own verbs (see the wave below).
 //  3. update(elapsed, ctx) is for DATA changes: mutate state, call
 //     composer.render(describe()) again, and the reconciler diffs it
 //     (see the score counter below).
@@ -39,7 +41,7 @@ struct HelloSketch : sketch::Sketch {
   double nextScoreAt = 0.0;
 
   Element describe(sketch::SketchContext& ctx) {
-    auto card = [&](std::u8string label, SkColor4f color) {
+    auto card = [](Utf8 label, SkColor4f color) {
       return kit::centred()
           .width(150)
           .height(90)
@@ -63,54 +65,46 @@ struct HelloSketch : sketch::Sketch {
                  .row()
                  .gap(24)
                  .inset(90, 120, 90, 330)
-                 .children({card(u8"edit", {0.86f, 0.30f, 0.40f, 1})})
-                 .children({card(u8"save", {0.30f, 0.56f, 0.95f, 1})})
-                 .children({card(u8"reloads", {0.35f, 0.72f, 0.45f, 1})})})
-
-        // An image from the assets directory (magenta checker
-        // until you drop a real file in).
-        .children({image(ctx.assets.image("logo.png"))
-                       .width(120)
-                       .height(120)
-                       .corners({20})
-                       .clip()
-                       .inset(90, 280, 690, 240)})
-        // A custom leaf riding the bound Output.
-        // KEYLESS: the wave reads the paint's clock and a bound Output.
-        .children({custom([this](SkCanvas& canvas, const PaintContext& paint) {
-                     SkPaint brush;
-                     brush.setAntiAlias(true);
-                     const float w = paint.size.width();
-                     const float h = paint.size.height();
-                     SkPathBuilder path;
-                     path.moveTo(0, h / 2);
-                     // the loop walks a distance; the accumulated float is the
-                     // position
-                     // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
-                     for (float x = 0; x <= w; x += 6)
-                       path.lineTo(
-                           x, h / 2 +
-                                  std::sin(x * 0.03f +
-                                           (float)paint.elapsedSeconds * 2.0f) *
-                                      h * 0.32f * wave.value());
-                     brush.setStyle(SkPaint::kStroke_Style);
-                     brush.setStrokeWidth(3);
-                     brush.setColor(SK_ColorCYAN);
-                     canvas.drawPath(path.detach(), brush);
-                   })
-                       .inset(240, 300, 90, 180)
-                       .cache(Cache::None)})
-        // Re-rendered by update() whenever the score changes —
-        // the keyed text keeps its identity across renders.
-        .children({text("score " + std::to_string(score))
-                       .font({.size = 24})
-                       .ink(hexColor(0xffd9a0))
-                       .key("score")
-                       .inset(650, 120, 90, 480),
-                   text(u8"Sketchbook — edit hello.cpp and save")
-                       .font({.size = 17})
-                       .ink(hexColor(0x9aa4bb))
-                       .inset(90, 560, 90, 40)});
+                 .children({card("edit", {0.86f, 0.30f, 0.40f, 1}),
+                            card("save", {0.30f, 0.56f, 0.95f, 1}),
+                            card("reloads", {0.35f, 0.72f, 0.45f, 1})}),
+             // An image from the assets directory (magenta checker
+             // until you drop a real file in).
+             image(ctx.assets.image("logo.png"))
+                 .width(120)
+                 .height(120)
+                 .corners({20})
+                 .clip()
+                 .inset(90, 280, 690, 240),
+             // A PEN LEAF riding the bound Output: p5's verbs inside a
+             // node of the tree, run every frame.
+             // KEYLESS: the wave reads the pen's clock and a bound Output.
+             pen([this](draw::Pen& pen) {
+               pen.noFill();
+               pen.stroke(0, 255, 255);
+               pen.strokeWeight(3);
+               pen.beginShape();
+               // the loop walks a distance; the accumulated float is the
+               // position
+               // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
+               for (float x = 0; x <= pen.width; x += 6)
+                 pen.vertex(
+                     x, pen.height / 2 +
+                            std::sin(x * 0.03f + (float)pen.millis() * 0.002f) *
+                                pen.height * 0.32f * wave.value());
+               pen.endShape();
+             }).inset(240, 300, 90, 180),
+             // Re-rendered by update() whenever the score changes —
+             // the keyed text keeps its identity across renders.
+             text("score " + std::to_string(score))
+                 .font({.size = 24})
+                 .ink(hexColor(0xffd9a0))
+                 .key("score")
+                 .inset(650, 120, 90, 480),
+             text(u8"Sketchbook — edit hello.cpp and save")
+                 .font({.size = 17})
+                 .ink(hexColor(0x9aa4bb))
+                 .inset(90, 560, 90, 40)});
   }
 
   void setup(sketch::SketchContext& ctx) override {
