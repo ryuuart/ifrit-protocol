@@ -33,12 +33,12 @@
 
 // TAGS: Patterns/Noise
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkPaint.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcore/compute/Hash.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -48,6 +48,7 @@
 #include <utility>
 
 namespace arrange = sigil::geometry::arrange;
+namespace draw = sigil::draw;
 namespace sketch = sigil::sketch;
 namespace noise = sigil::core::noise;
 namespace core = sigil::core;
@@ -80,26 +81,33 @@ sketch::kit::Theme sheetTheme() {
 using Field = std::function<float(int, int)>;
 
 Element field(const char* key, Field sample) {
-  // A paint program runs after the describe scope has closed, so the
+  // A pen program runs after the describe scope has closed, so the
   // field's ink is read here and carried in by value.
   const SkColor4f ink = sketch::kit::theme().palette.figure;
-  return custom(key,
-                [sample = std::move(sample), ink](SkCanvas& canvas,
-                                                  const PaintContext& pc) {
-                  SkPaint paint;
-                  paint.setAntiAlias(false);
-                  const int columns = (int)(pc.size.width() / kBlock);
-                  const int rows = (int)(pc.size.height() / kBlock);
-                  for (int y = 0; y < rows; ++y)
-                    for (int x = 0; x < columns; ++x) {
-                      const float v = sample(x, y);
-                      paint.setColor4f({ink.fR * v, ink.fG * v, ink.fB * v, 1});
-                      canvas.drawRect(
-                          arrange::cellRect({x, y}, {kBlock, kBlock}), paint);
-                    }
-                })
+  return pen(key,
+             [sample = std::move(sample), ink](draw::Pen& pen) {
+               pen.noStroke();
+               pen.noSmooth();
+               const int columns = (int)(pen.width / kBlock);
+               const int rows = (int)(pen.height / kBlock);
+               for (int y = 0; y < rows; ++y)
+                 for (int x = 0; x < columns; ++x) {
+                   const float v = sample(x, y);
+                   const SkRect at =
+                       arrange::cellRect({x, y}, {kBlock, kBlock});
+                   pen.fill(SkColor4f{ink.fR * v, ink.fG * v, ink.fB * v, 1});
+                   pen.rect(at.fLeft, at.fTop, kBlock, kBlock);
+                 }
+             })
       .absolute()
       .inset(0);
+}
+
+/** One line of the key column, in the theme's own terminal voice: what a
+ *  fold answers is a word of hex and reads as one. */
+Element line(const std::string& row) {
+  const sketch::kit::Theme& sheet = sketch::kit::theme();
+  return text(row, sheet.mono(9.5f, sheet.palette.figure));
 }
 
 Element cell(const char* call, const char* note, Element body) {
@@ -197,26 +205,24 @@ struct NoiseShelf final : sketch::Sketch {
         core::hash::fnv1a(core::hash::kFnvOffset, std::string_view("stamp"));
     const uint64_t both = core::hash::fnv1a(text, uint64_t{7});
     const size_t mixed = core::hash::combine(0, 7u);
-    Element column = box().column().gap(8);
-    for (const std::string& row :
-         {kit::formatted("fnv1a(offset, 7)"),
-          kit::formatted("  %016llx", (unsigned long long)a),
-          kit::formatted("fnv1a(offset, \"stamp\")"),
-          kit::formatted("  %016llx", (unsigned long long)text),
-          kit::formatted("fnv1a(that, 7)"),
-          kit::formatted("  %016llx", (unsigned long long)both),
-          kit::formatted("combine(0, 7)"),
-          kit::formatted("  %016llx", (unsigned long long)mixed)})
-      column.children({text_(row)});
+    const std::string rows[] = {
+        "fnv1a(offset, 7)",
+        kit::formatted("  %016llx", (unsigned long long)a),
+        "fnv1a(offset, \"stamp\")",
+        kit::formatted("  %016llx", (unsigned long long)text),
+        "fnv1a(that, 7)",
+        kit::formatted("  %016llx", (unsigned long long)both),
+        "combine(0, 7)",
+        kit::formatted("  %016llx", (unsigned long long)mixed)};
     return cell("fnv1a · combine",
                 "one-way folds over a word and over text · an address "
                 "and not a field, which is why nothing here is drawn",
-                std::move(column).absolute().inset(10));
-  }
-
-  Element text_(const std::string& row) {
-    const sketch::kit::Theme& sheet = sketch::kit::theme();
-    return text(row, sheet.mono(9.5f, sheet.palette.figure));
+                box()
+                    .column()
+                    .gap(8)
+                    .children({each(rows, line)})
+                    .absolute()
+                    .inset(10));
   }
 };
 
