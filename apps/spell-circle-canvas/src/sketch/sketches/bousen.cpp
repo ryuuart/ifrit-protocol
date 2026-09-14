@@ -39,6 +39,7 @@
 
 // TAGS: Typography/CJK
 
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -70,33 +71,39 @@ namespace bousen {
 using namespace vertical;
 using namespace vertical::paper;
 
-constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
+constexpr float kH = kSceneSize.fHeight;
 constexpr float kBodySize = 27;
 constexpr float kBlockW = 300;
 constexpr float kBlockH = 430;
 constexpr float kBlockRight = 60;
 
+/** A COLUMN: the one block every vertical leaf on this plate is set in. */
+const weave::Block kColumn{.writingMode = weave::WritingMode::kVerticalRL};
+
 /** The same body style asking the face for the metrics and forms it keeps
  *  for a column: punctuation pulled onto the column axis, full-width marks
  *  set to the space their ink needs, small kana cut for a column. What the
  *  installed face answers is what the plate shows. */
-inline sigil::weave::TextStyle columnFitted(float size, SkColor4f color) {
-  sigil::weave::TextStyle s = body(size, color);
-  s.shaping.fontFeatures = {sigil::weave::features::verticalAlternates,
-                            sigil::weave::features::proportionalVerticalMetrics,
-                            sigil::weave::features::verticalKana};
+inline weave::TextStyle columnFitted(float size, SkColor4f color) {
+  weave::TextStyle s = body(size, color);
+  s.shaping.fontFeatures = {weave::features::verticalAlternates,
+                            weave::features::proportionalVerticalMetrics,
+                            weave::features::verticalKana};
   return s;
 }
+
+/** The wash a highlight covers a column's pitch with: the left-hand
+ *  band's own indigo, thin enough to read the letters through. */
+const SkColor4f kAiWash{kAi.fR, kAi.fG, kAi.fB, 0.13f};
 
 /** A paint that draws its glyphs in @p ink and carries one band beside
  *  the column: `kUnderline` runs down the RIGHT of the column, `kOverline`
  *  down the left, `kHighlight` across the whole pitch. */
-inline sigil::weave::PaintStyle banded(SkColor4f ink,
-                                       sigil::weave::Decoration::Kind kind,
-                                       SkColor4f band, float thickness) {
-  sigil::weave::PaintStyle p(ink.toSkColor());
+inline weave::PaintStyle banded(SkColor4f ink, weave::Decoration::Kind kind,
+                                SkColor4f band, float thickness) {
+  weave::PaintStyle p(ink.toSkColor());
   p.foreground.setAntiAlias(true);
-  sigil::weave::Decoration decoration;
+  weave::Decoration decoration;
   decoration.kind = kind;
   decoration.color = band.toSkColor();
   decoration.thickness = thickness;
@@ -106,7 +113,7 @@ inline sigil::weave::PaintStyle banded(SkColor4f ink,
 
 /** The strip's entrance, and the ms its master must span to run at those
  *  numbers: one beat a COLUMN, and the strip sets four of them. */
-const sigil::motion::Spread kColumnEntrance{.eachMs = 210, .durationMs = 520};
+const motion::Spread kColumnEntrance{.eachMs = 210, .durationMs = 520};
 const float kColumnEntranceSpan = kColumnEntrance.spanMs(4);
 
 }  // namespace bousen
@@ -125,31 +132,27 @@ struct Bousen final : sketch::Sketch {
    *  decoration, captioned with the side it stands on. The footer used to
    *  say the three in words; a specimen says them in the same terms the
    *  page above uses. */
-  Element bandSpecimen(const char* caption, sigil::weave::Decoration::Kind kind,
+  Element bandSpecimen(const char* caption, weave::Decoration::Kind kind,
                        SkColor4f band, float thickness) {
     namespace bs = bousen;
-    sigil::weave::TextStyle style = bs::body(18, bs::kSumi);
+    weave::TextStyle style = bs::body(18, bs::kSumi);
     style.paint = bs::banded(bs::kSumi, kind, band, thickness);
     return bs::specimen(
         caption, bs::labelType(9, bs::kUsu, 0.6f),
-        text(u8"傍線例", style)
-            .width(28.0f)
-            .height(62.0f)
-            .block({.writingMode = sigil::weave::WritingMode::kVerticalRL}),
+        text(u8"傍線例", style).width(28.0f).height(62.0f).block(bs::kColumn),
         132.0f, 8.0f);
   }
 
   /** One punctuation column, captioned: the same characters set twice,
    *  once as the face gives them and once as it gives them when asked. */
-  Element specimen(const char* caption, const sigil::weave::TextStyle& style) {
+  Element specimen(const char* caption, const weave::TextStyle& style) {
     namespace bs = bousen;
-    return bs::specimen(
-        caption, bs::labelType(11, bs::kAi, 1.5f),
-        text(u8"「あっ」、。", style)
-            .width(42.0f)
-            .height(150.0f)
-            .block({.writingMode = sigil::weave::WritingMode::kVerticalRL}),
-        96.0f, 10.0f);
+    return bs::specimen(caption, bs::labelType(11, bs::kAi, 1.5f),
+                        text(u8"「あっ」、。", style)
+                            .width(42.0f)
+                            .height(150.0f)
+                            .block(bs::kColumn),
+                        96.0f, 10.0f);
   }
 
   Element describe() {
@@ -178,31 +181,28 @@ struct Bousen final : sketch::Sketch {
         .children(
             {text(std::move(passage))
                  .absolute()
-                 .inset(bs::kW - bs::kBlockRight - bs::kBlockW, 96,
-                        bs::kBlockRight, 0)
+                 .right(bs::kBlockRight)
+                 .top(96)
                  .width(bs::kBlockW)
                  .height(bs::kBlockH)
-                 .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+                 .block(bs::kColumn)
                  // The band the plate is named for: down the RIGHT of the
                  // column, the length of the phrase it dresses.
                  .spanPaint(
                      weave::selectors::text(u8"傍線"),
-                     bs::banded(bs::kSumi,
-                                sigil::weave::Decoration::Kind::kUnderline,
+                     bs::banded(bs::kSumi, weave::Decoration::Kind::kUnderline,
                                 bs::kAka, 2.5f))
                  // Its opposite, down the left.
                  .spanPaint(
                      weave::selectors::text(u8"約物"),
-                     bs::banded(bs::kSumi,
-                                sigil::weave::Decoration::Kind::kOverline,
+                     bs::banded(bs::kSumi, weave::Decoration::Kind::kOverline,
                                 bs::kAi, 2.0f))
                  // A highlight covers the column PITCH — there is no cap
                  // band across a column to hang one on.
                  .spanPaint(
                      weave::selectors::text(u8"小書きの仮名"),
-                     bs::banded(bs::kSumi,
-                                sigil::weave::Decoration::Kind::kHighlight,
-                                {bs::kAi.fR, bs::kAi.fG, bs::kAi.fB, 0.13f}, 0))
+                     bs::banded(bs::kSumi, weave::Decoration::Kind::kHighlight,
+                                bs::kAiWash, 0))
                  // A mark stands in the margin BESIDE the phrase it names:
                  // the rect it anchors to is the union of that phrase's
                  // advance boxes, and in a column those stack downward, so
@@ -214,8 +214,8 @@ struct Bousen final : sketch::Sketch {
                          // A mark is a child of the column and inherits
                          // its writing mode; the note is Latin and reads
                          // across, so the callout says so.
-                         .block({.writingMode =
-                                     sigil::weave::WritingMode::kHorizontal})
+                         .block(
+                             {.writingMode = weave::WritingMode::kHorizontal})
                          .left(-168.0f)
                          .top(pct(0))
                          .width(168.0f)
@@ -226,15 +226,10 @@ struct Bousen final : sketch::Sketch {
                          // phrase's edge, so it lands where the anchor is
                          // rather than where a coordinate would have put
                          // it.
-                         .children({box()
-                                        .key("leader")
-                                        .absolute()
-                                        .left(0.0f)
-                                        .top(42.0f)
-                                        .width(168.0f)
-                                        .height(1.0f)
-                                        .fill(Fill::color(bs::kAka))})
-                         .children({text(weave::rich()
+                         .children({kit::at(box().key("leader").absolute().fill(
+                                                Fill::color(bs::kAka)),
+                                            0.0f, 42.0f, 168.0f, 1.0f),
+                                    text(weave::rich()
                                              .add("mark() ",
                                                   weave::Type{.size = 11,
                                                               .color = bs::kAka,
@@ -242,59 +237,50 @@ struct Bousen final : sketch::Sketch {
                                              .add("— anchored to "
                                                   "the phrase,\nnot to a "
                                                   "coordinate"))
-                                        .width(150.0f)}))})
-        // The plate names itself in the other writing mode, so the two
-        // stand side by side.
-        .children(
-            {box()
+                                        .width(150.0f)})),
+             // The plate names itself in the other writing mode, so the two
+             // stand side by side.
+             box()
                  .absolute()
                  .inset(64, 92, 0, 0)
                  .column()
                  .gap(10)
-                 .children({text("傍線", bs::body(44, bs::kSumi))})
-                 .children({box()
-                                .width(120.0f)
-                                .height(1.0f)
-                                .fill(Fill::color(bs::kAka))})
                  .children(
-                     {text("THE COLUMN'S FURNITURE")
-                          .font({.size = 13, .color = bs::kAi, .track = 3})})
-                 .children(
-                     {text("a band beside the column, not beneath a\n"
+                     {text("傍線", bs::body(44, bs::kSumi)),
+                      kit::line({.length = Dimension(120),
+                                 .fill = Fill::color(bs::kAka)}),
+                      text("THE COLUMN'S FURNITURE")
+                          .font({.size = 13, .color = bs::kAi, .track = 3}),
+                      text("a band beside the column, not beneath a\n"
                            "line · a mark on the phrase it names")
                           .font({.size = 13, .color = bs::kSumi, .track = 0.4f})
-                          .width(260.0f)})
-                 .children({box().height(20.0f)})
-                 .children({box()
-                                .row()
-                                .gap(30)
-                                .children({specimen("AS THE FACE GIVES IT",
-                                                    bs::body(26, bs::kSumi))})
-                                .children({specimen(
-                                    "valt · vpal · vkna",
-                                    bs::columnFitted(26, bs::kAka))})})
-                 .children({box().height(14.0f)})
-                 .children({text("the pair is one string set twice: the "
-                                 "second asks\nthe face for the metrics it "
-                                 "keeps for a column")
-                                .font({.size = 11})
-                                .width(300.0f)})})
-        // The cascade lives on its own strip, and it wears a band. A track
-        // draws its glyphs itself, in batched buckets that carry glyphs
-        // alone, so the sideline is drawn beside them at the placement the
-        // layout left it: it stands still down the whole column while the
-        // letters travel into it.
-        .children(
-            {text(u8"列ごとに文字が現れる。右から左へ。", bs::body(21, bs::kAi))
+                          .width(260.0f),
+                      box().height(20.0f),
+                      box().row().gap(30).children(
+                          {specimen("AS THE FACE GIVES IT",
+                                    bs::body(26, bs::kSumi)),
+                           specimen("valt · vpal · vkna",
+                                    bs::columnFitted(26, bs::kAka))}),
+                      box().height(14.0f),
+                      text("the pair is one string set twice: the "
+                           "second asks\nthe face for the metrics it "
+                           "keeps for a column")
+                          .font({.size = 11})
+                          .width(300.0f)}),
+             // The cascade lives on its own strip, and it wears a band. A track
+             // draws its glyphs itself, in batched buckets that carry glyphs
+             // alone, so the sideline is drawn beside them at the placement the
+             // layout left it: it stands still down the whole column while the
+             // letters travel into it.
+             text(u8"列ごとに文字が現れる。右から左へ。", bs::body(21, bs::kAi))
                  .absolute()
                  .inset(352, 150, 0, 0)
                  .width(120.0f)
                  .height(300.0f)
-                 .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+                 .block(bs::kColumn)
                  .spanPaint(
                      weave::selectors::text(u8"右から左へ"),
-                     bs::banded(bs::kAi,
-                                sigil::weave::Decoration::Kind::kUnderline,
+                     bs::banded(bs::kAi, weave::Decoration::Kind::kUnderline,
                                 bs::kAka, 2.0f))
                  .fx({.effect = fx::rise(18),
                       .stagger = bs::kColumnEntrance,
@@ -308,26 +294,23 @@ struct Bousen final : sketch::Sketch {
                   "and its band stands at rest")
                  .absolute()
                  .inset(300, 466, 0, 0)
-                 .width(180.0f)})
-        // The three conventions, each on a column of its own, so the page
-        // shows them side by side instead of naming them in a footer.
-        .children(
-            {box()
+                 .width(180.0f),
+             // The three conventions, each on a column of its own, so the page
+             // shows them side by side instead of naming them in a footer.
+             box()
                  .absolute()
                  .inset(64, 512, 0, 0)
                  .row()
                  .gap(26)
-                 .children(
-                     {bandSpecimen("UNDERLINE · RIGHT",
-                                   sigil::weave::Decoration::Kind::kUnderline,
-                                   bs::kAka, 2.5f)})
-                 .children({bandSpecimen(
-                     "OVERLINE · LEFT",
-                     sigil::weave::Decoration::Kind::kOverline, bs::kAi, 2.0f)})
-                 .children({bandSpecimen(
-                     "HIGHLIGHT · PITCH",
-                     sigil::weave::Decoration::Kind::kHighlight,
-                     {bs::kAi.fR, bs::kAi.fG, bs::kAi.fB, 0.13f}, 0)}),
+                 .children({bandSpecimen("UNDERLINE · RIGHT",
+                                         weave::Decoration::Kind::kUnderline,
+                                         bs::kAka, 2.5f),
+                            bandSpecimen("OVERLINE · LEFT",
+                                         weave::Decoration::Kind::kOverline,
+                                         bs::kAi, 2.0f),
+                            bandSpecimen("HIGHLIGHT · PITCH",
+                                         weave::Decoration::Kind::kHighlight,
+                                         bs::kAiWash, 0)}),
              text("the entrance beats over COLUMNS · a band is "
                   "beside the column, never beneath a line")
                  .font({.size = 12})
