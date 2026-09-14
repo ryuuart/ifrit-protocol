@@ -27,15 +27,15 @@
 
 // TAGS: Geometry/Layout
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkPaint.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Grid.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
+#include <ranges>
 #include <string>
 #include <vector>
 
@@ -73,40 +73,34 @@ sketch::kit::Theme sheetTheme() {
 std::vector<Element> cards() {
   static constexpr float kSizes[3] = {11, 14, 18};
   const sketch::kit::Theme& look = sketch::kit::theme();
-  std::vector<Element> made;
-  made.reserve(12);
-  for (int i = 0; i < 12; ++i) {
-    const std::string digits = (i < 9 ? "0" : "") + std::to_string(i + 1);
-    made.push_back(text(digits, look.mono(kSizes[i % 3], look.palette.figure))
-                       .padding(8, 4, 8, 4)
-                       .fill(Fill::color(kCard)));
-  }
-  return made;
+  return each(std::views::iota(0, 12), [&look](int i) {
+    return text((i < 9 ? "0" : "") + std::to_string(i + 1),
+                look.mono(kSizes[i % 3], look.palette.figure))
+        .padding(8, 4, 8, 4)
+        .fill(Fill::color(kCard));
+  });
 }
 
 /** The rhythm the third cell snaps to, drawn so the reader can see which
  *  line each card's letters landed on. */
 Element rhythmLines() {
-  // A paint program runs after the describe scope has closed, so the
-  // rule colour is read here and carried in by value.
-  const SkColor4f rule = sketch::kit::theme().palette.rule;
-  return custom("grid_layouts.rhythm",
-                [rule](SkCanvas& canvas, const PaintContext& pc) {
-                  SkPaint paint;
-                  paint.setColor4f(rule);
-                  for (float y = kRhythm; y < pc.size.height(); y += kRhythm)
-                    canvas.drawRect({0, y, pc.size.width(), y + 1}, paint);
-                })
-      .absolute()
-      .inset(0);
+  const Fill rule = Fill::color(sketch::kit::theme().palette.rule);
+  return box()
+      .inset(0)
+      .column()
+      .padding(0, kRhythm - 1, 0, 0)
+      .gap(kRhythm - 1)
+      .children(each(std::views::iota(0, (int)(kPicture / kRhythm)),
+                     [rule](int) { return kit::line({.fill = rule}); }));
 }
 
 Element cell(const char* call, const char* note, Element placed,
              bool ruled = false) {
-  Element plate = sketch::kit::well({.width = kCell, .height = kPicture});
-  if (ruled) plate.children({rhythmLines()});
-  plate.children({placed.absolute().inset(kInset).children(cards())});
-  return sketch::kit::caption(kCell, call, note, std::move(plate));
+  return sketch::kit::caption(
+      kCell, call, note,
+      sketch::kit::well({.width = kCell, .height = kPicture})
+          .children({ruled ? rhythmLines() : box(),
+                     placed.inset(kInset).children(cards())}));
 }
 
 }  // namespace
