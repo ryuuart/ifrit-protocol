@@ -49,6 +49,7 @@
 #include <sigilworld/kit/Kit.h>
 
 #include <chrono>
+#include <ranges>
 #include <string>
 
 namespace sketch = sigil::sketch;
@@ -80,26 +81,25 @@ material::Material coolSlab() {
 /** One row of children under its own key, cascaded by its own spread. */
 world::Element row(const std::string& key, float z, motion::Spread spread,
                    const material::Material& skin) {
-  world::Element parent;
-  parent.key(key).staggerChildren(spread);
-  for (int i = 0; i < kCount; ++i) {
-    const float x = ((float)i - (float)(kCount - 1) * 0.5f) * kPitch;
-    parent.children({world::Element()
-                         .key(key + std::to_string(i))
-                         .at({x, 30, z})
-                         .mesh(gm::superellipsoid({22, 30, 22}, 3.0f, 18, 12))
-                         .fill(skin)
-                         .tag("body")
-                         // THE ENTRANCE, and the only thing the cascade delays:
-                         // the path plays once, when the node first appears.
-                         .translateY(motion::animate(
-                             motion::from(kRise).to(0.0f),
-                             {std::chrono::milliseconds((int)kDuration)}))
-                         .scale(motion::animate(
-                             motion::from(0.35f).to(1.0f),
-                             {std::chrono::milliseconds((int)kDuration)}))});
-  }
-  return parent;
+  return world::Element().key(key).staggerChildren(spread).children(
+      std::views::iota(0, kCount) | std::views::transform([&](int i) {
+        const float x = ((float)i - (float)(kCount - 1) * 0.5f) * kPitch;
+        return world::Element()
+            .key(key + std::to_string(i))
+            .at({x, 30, z})
+            .mesh(gm::superellipsoid({22, 30, 22}, 3.0f, 18, 12))
+            .fill(skin)
+            .tag("body")
+            // THE ENTRANCE, and the only thing the cascade
+            // delays: the path plays once, when the node first
+            // appears.
+            .translateY(
+                motion::animate(motion::from(kRise).to(0.0f),
+                                {std::chrono::milliseconds((int)kDuration)}))
+            .scale(
+                motion::animate(motion::from(0.35f).to(1.0f),
+                                {std::chrono::milliseconds((int)kDuration)}));
+      }));
 }
 
 }  // namespace
@@ -123,26 +123,11 @@ struct SetStagger final : sketch::Set {
   }
 
   world::Frame describe(float seconds) override {
-    world::Element subject;
-    subject.key("rows").children({row("near", 60,
-                                      {.eachMs = kEach,
-                                       .durationMs = kDuration,
-                                       .from = motion::Spread::From::Start},
-                                      coolSlab()),
-                                  row("far", -80,
-                                      {.eachMs = kEach,
-                                       .durationMs = kDuration,
-                                       .from = motion::Spread::From::Edges},
-                                      litSlab())});
-
     // The tree declares NO camera, so the viewpoint the setup wrote is
     // the one the frame is seen from — a still eye, because what moves
     // here is the cascade and not the lens.
-    world::kit::Rig rig;
-    rig.extent = 190.0f;
-    rig.bearing = -34.0f;
-    rig.elevation = 34.0f;
-
+    const world::kit::Rig rig{
+        .extent = 190.0f, .bearing = -34.0f, .elevation = 34.0f};
     world::Element root;
     root.key("set").children(
         {world::Element()
@@ -151,7 +136,18 @@ struct SetStagger final : sketch::Set {
              .mesh(gm::superellipsoid({420, 10, 300}, 8.0f, 12, 8))
              .fill(material::kit::surface(
                  {.baseColor = {0.20f, 0.21f, 0.24f, 1}, .roughness = 0.7f})),
-         world::kit::threePoint(rig), std::move(subject)});
+         world::kit::threePoint(rig),
+         world::Element().key("rows").children(
+             {row("near", 60,
+                  {.eachMs = kEach,
+                   .durationMs = kDuration,
+                   .from = motion::Spread::From::Start},
+                  coolSlab()),
+              row("far", -80,
+                  {.eachMs = kEach,
+                   .durationMs = kDuration,
+                   .from = motion::Spread::From::Edges},
+                  litSlab())})});
 
     world::Frame frame(std::move(root));
     // THE SELECTION, made visible where the frame paints everything: the
