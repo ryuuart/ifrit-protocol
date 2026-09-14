@@ -72,7 +72,6 @@ Element cell(const char* call, const char* note, Shape cut) {
       kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture, .clip = false})
           .children({box()
-                         .absolute()
                          .inset(30, 22, 30, 22)
                          .shape(std::move(cut))
                          .fill(Fill::color(kPlate))

@@ -43,7 +43,6 @@ struct ObservableLSystemTree final : sketch::Sketch {
 
     context.composer.render(compose::graphics("observable_l_system_tree.loop",
                                               [this](Pen& pen) { draw(pen); })
-                                .absolute()
                                 .inset(0));
   }
 

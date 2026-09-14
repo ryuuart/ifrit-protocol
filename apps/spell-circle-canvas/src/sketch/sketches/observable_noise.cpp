@@ -31,7 +31,6 @@ struct ObservableNoise final : sketch::Sketch {
 
     context.composer.render(compose::graphics("observable_noise.loop",
                                               [this](Pen& pen) { draw(pen); })
-                                .absolute()
                                 .inset(0));
   }
 
