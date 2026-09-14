@@ -153,11 +153,10 @@ struct Manuscript final : sketch::Sketch {
   Element frieze(const Palette& pal) {
     const auto band = [&](int quadrant, bool vertical, float l, float t,
                           float w, float h) {
-      return box()
-          .width(px(w))
-          .height(px(h))
-          .inset(px(l), px(t), kSceneSize.width() - px(l + w),
-                 kSceneSize.height() - px(t + h))
+      // A band is pinned by the millimetres it was measured at; every child
+      // of a stack is absolute, so nothing here subtracts a band from the
+      // leaf to reach its far edges.
+      return kit::at(px(l), px(t), px(w), px(h))
           .zIndex(2)
           // Keyed on the two numbers that tell the eight bands apart; the
           // palette is the leaf's one palette and does not vary.
@@ -195,12 +194,8 @@ struct Manuscript final : sketch::Sketch {
     PathFormat gilt;
     gilt.width = px(0.55f);
     gilt.strokeFill = Fill::color(pal.gold);
-    return kit::centred()
-        .absolute()
-        .left(px(kSpine))
-        .top(px(kHead))
-        .width(px(kMeasure))
-        .height(px(kPitch * (float)kIncipitLines))
+    return kit::at(kit::centred(), px(kSpine), px(kHead), px(kMeasure),
+                   px(kPitch * (float)kIncipitLines))
         .zIndex(1)
         .fill(Fill::color(pal.stem))
         .foreground(gilt)
@@ -234,31 +229,25 @@ struct Manuscript final : sketch::Sketch {
     const kit::NestedStyle opening{.until = kit::NestedStyle::Until::Delimiter,
                                    .delimiter = u8".",
                                    .style = capitals};
-    Element initial = text(letter)
-                          .font({.size = px(kPitch * (float)kCapLines * 0.74f),
-                                 .color = pal.gold})
-                          .key("versal")
-                          .absolute()
-                          .left(0.0f)
-                          .top(0.0f);
     Element prose = text(rest)
                         .font(body(kBodySize, pal.ink))
                         .flowAround("versal", px(2.4f))
                         .spanStyle(kit::nestedRun(opening), opening.style);
 
     // The versal is a PANEL: a square field of cobalt with the letter
-    // reserved in gold and a gold fillet round it. Six lines deep by
-    // construction — the box is six times the pitch.
+    // reserved in gold in the middle of it and a gold fillet round it. Six
+    // lines deep by construction — the panel is six times the pitch.
     PathFormat fillet;
     fillet.width = px(0.7f);
     fillet.strokeFill = Fill::color(pal.gold);
-    initial.width(px(kPitch * (float)kCapLines))
-        .height(px(kPitch * (float)kCapLines))
-        .fill(Fill::color(pal.stem))
-        .foreground(fillet)
-        .alignItems(Align::Center)
-        .justify(Justify::Center)
-        .zIndex(3);
+    const float versal = px(kPitch * (float)kCapLines);
+    Element initial = kit::at(kit::centred(text(letter).font(
+                                  {.size = versal * 0.74f, .color = pal.gold})),
+                              0.0f, 0.0f, versal, versal)
+                          .key("versal")
+                          .fill(Fill::color(pal.stem))
+                          .foreground(fillet)
+                          .zIndex(3);
 
     weave::ParagraphStyle block;
     block.leading = weave::Leading::absolute(px(kPitch));
@@ -267,58 +256,45 @@ struct Manuscript final : sketch::Sketch {
     // The block: the written space the canon ruled, less the incipit's own
     // band at its head.
     const float blockTop = kHead + kPitch * (float)kIncipitLines;
-    Element written =
-        box()
-            .absolute()
-            .left(px(kSpine))
-            .top(px(blockTop))
-            .width(px(kMeasure))
-            .height(px(kDepth - kPitch * (float)kIncipitLines))
-            .zIndex(1)
-            .children({std::move(initial),
-                       prose.key("block")
-                           .width(px(kMeasure))
-                           .paragraphs({block})
-                           .block({.lineBreak =
-                                       weave::LineBreakStrategy::kKnuthPlass})
-                           .block({.hyphenation =
-                                       sigil::weave::HyphenationOptions{
-                                           .patterns = &hyphenator()}})
-                           .flowAround("note", px(3.0f))
-                           .flowAround("sprig", px(2.4f))});
-
     // The marginal note the fore-edge margin is for, reaching a little
-    // into the block so the text parts around it.
-    Element note =
-        illuminatedPanel(rubric)
-            .key("note")
-            .absolute()
-            .left(px(kMeasure - kForeEdge * 0.30f))
-            .top(px(kPitch * 12.0f))
-            .width(px(kForeEdge * 0.78f))
-            .height(px(kPitch * 6.0f))
-            .zIndex(3)
-            .padding(px(3.0f))
-            .gap(px(1.6f))
+    // into the block so the text parts around it; and one vine stem
+    // breaking out of the frieze into the block, which is what a bianchi
+    // girari border does when it will not stay in the margin. The text
+    // parts around both like any other exclusion.
+    Element written =
+        kit::at(px(kSpine), px(blockTop), px(kMeasure),
+                px(kDepth - kPitch * (float)kIncipitLines))
+            .zIndex(1)
             .children(
-                {text(u8"nota bene").font(body(kBodySize * 0.82f, rubric.stem)),
-                 text(u8"the gate takes no coin but memory")
-                     .font(body(kBodySize * 0.78f, rubric.ink))});
-    written.children({std::move(note)});
-
-    // One vine stem breaking out of the frieze into the block, which is
-    // what a bianchi girari border does when it will not stay in the
-    // margin. The text parts around it like any other exclusion.
-    written.children({box()
-                          .key("sprig")
-                          .absolute()
-                          .left(px(-kSpine * 0.2f))
-                          .top(px(kPitch * 22.0f))
-                          .width(px(kSpine * 0.9f))
-                          .height(px(kPitch * 5.0f))
-                          .zIndex(3)
-                          .rotate(90.0f)
-                          .children({custom("sprig", sprig(pal)).inset(0)})});
+                {std::move(initial),
+                 prose.key("block")
+                     .width(px(kMeasure))
+                     .paragraphs({block})
+                     .block(
+                         {.lineBreak = weave::LineBreakStrategy::kKnuthPlass})
+                     .block({.hyphenation =
+                                 sigil::weave::HyphenationOptions{
+                                     .patterns = &hyphenator()}})
+                     .flowAround("note", px(3.0f))
+                     .flowAround("sprig", px(2.4f)),
+                 kit::at(illuminatedPanel(rubric),
+                         px(kMeasure - kForeEdge * 0.30f), px(kPitch * 12.0f),
+                         px(kForeEdge * 0.78f), px(kPitch * 6.0f))
+                     .key("note")
+                     .zIndex(3)
+                     .padding(px(3.0f))
+                     .gap(px(1.6f))
+                     .children(
+                         {text(u8"nota bene")
+                              .font(body(kBodySize * 0.82f, rubric.stem)),
+                          text(u8"the gate takes no coin but memory")
+                              .font(body(kBodySize * 0.78f, rubric.ink))}),
+                 kit::at(px(-kSpine * 0.2f), px(kPitch * 22.0f),
+                         px(kSpine * 0.9f), px(kPitch * 5.0f))
+                     .key("sprig")
+                     .zIndex(3)
+                     .rotate(90.0f)
+                     .children({custom("sprig", sprig(pal)).inset(0)})});
 
     // Everything static lives in one texture-baked stack: the page is
     // dense — a noise ground, hundreds of vine stamps, prose flowed around
@@ -338,12 +314,7 @@ struct Manuscript final : sketch::Sketch {
         .fill(parchmentFill(pal.parchment))
         // The pricking-and-ruling the block was written to, kept faint the
         // way a scribe's frame ruling is.
-        .children({box()
-                       .absolute()
-                       .left(px(kSpine))
-                       .top(px(kHead))
-                       .width(px(kMeasure))
-                       .height(px(kDepth))
+        .children({kit::at(px(kSpine), px(kHead), px(kMeasure), px(kDepth))
                        .foreground(rule),
                    frieze(pal), incipit(pal), std::move(written)});
   }
