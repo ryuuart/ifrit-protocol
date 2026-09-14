@@ -32,10 +32,10 @@ struct ObservableFlowfield2 final : sketch::Sketch {
     context.canvas(720, 720);
     context.captureAt(0.05);
 
-    context.composer.render(compose::graphics("observable_flowfield_2.loop",
-                                              [this](Pen& pen) { draw(pen); })
-                                .absolute()
-                                .inset(0));
+    context.composer.render(
+        compose::graphics("observable_flowfield_2.loop", [this](Pen& pen) {
+          draw(pen);
+        }).inset(0));
   }
 
   void draw(Pen& pen) {
@@ -60,6 +60,8 @@ struct ObservableFlowfield2 final : sketch::Sketch {
       lines.push_back(
           {x + std::cos(angle) * kStep, y + std::sin(angle) * kStep});
     }
+    // Eight thousand segments in one draw: the run goes down through the
+    // canvas the pen lends, since a `line` per pair is a draw per pair.
     if (const SkPaint* stroke = pen.strokePaint())
       pen.canvas()->drawPoints(
           SkCanvas::kLines_PointMode,
