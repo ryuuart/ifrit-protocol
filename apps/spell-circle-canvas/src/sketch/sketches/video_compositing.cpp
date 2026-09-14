@@ -74,10 +74,8 @@ constexpr std::string_view kAlphaVideo =
 std::shared_ptr<video::Video> loadVideo(io::Hub& hub, std::string_view uri) {
   const std::shared_ptr<const io::Bytes> encoded = hub.blob(uri);
   if (!encoded || encoded->bytes.empty()) return nullptr;
-  video::DecodeOptions options;
-  options.cachedFrames = 8;
   return video::decodeVideo(encoded->bytes.data(), encoded->bytes.size(),
-                            options, std::filesystem::path(uri));
+                            {.cachedFrames = 8}, std::filesystem::path(uri));
 }
 
 double loopTime(const video::Video& clip, double seconds) {
@@ -161,17 +159,12 @@ struct VideoCompositing final : sketch::Sketch {
       if (playback) result.handle = playback->add(result.clip);
       return result;
     };
-    Source day = source(kDaySky);
-    Source night = source(kNightSky);
-    Source dust = source(kDust);
-    Source colorBurst = source(kColorBurst);
-    Source alpha = source(kAlphaVideo);
-    const Clips clips{.playback = std::move(playback),
-                      .day = std::move(day),
-                      .night = std::move(night),
-                      .dust = std::move(dust),
-                      .colorBurst = std::move(colorBurst),
-                      .alpha = std::move(alpha)};
+    Clips clips{.day = source(kDaySky),
+                .night = source(kNightSky),
+                .dust = source(kDust),
+                .colorBurst = source(kColorBurst),
+                .alpha = source(kAlphaVideo)};
+    clips.playback = std::move(playback);
 
     Element stage =
         custom(
