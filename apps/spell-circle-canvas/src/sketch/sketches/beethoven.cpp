@@ -41,6 +41,7 @@
 // TAGS: Typography/Lettering
 
 #include <sigilcompose/brush/LayerStyles.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
@@ -151,18 +152,10 @@ struct Beethoven final : sketch::Sketch {
     const float sweep = run.endDeg - run.startDeg;
     const float span = std::min(sweep / 360.0f, 0.9995f);
 
-    PathFormat inkStroke;
-    inkStroke.width = width;
-    inkStroke.strokeFill = Fill::color(bp::kInk);
-
-    Element e =
-        box()
-            .width(2 * rMid)
-            .height(2 * rMid)
-            .inset(C.x() - rMid, C.y() - rMid, bp::kPlateW - C.x() - rMid,
-                   bp::kPlateH - C.y() - rMid)
-            .shape(shapes::arc(canvasStart))
-            .stroke(inkStroke);
+    Element e = kit::disc(C, rMid)
+                    .shape(shapes::arc(canvasStart))
+                    .stroke(PathFormat{.width = width,
+                                       .strokeFill = Fill::color(bp::kInk)});
     // The poster's own progression: reveal duration doubles per ring
     // outward, and each sweep runs linearly. The mount delay is what used
     // to be a first-frame re-describe — a transition that starts from
