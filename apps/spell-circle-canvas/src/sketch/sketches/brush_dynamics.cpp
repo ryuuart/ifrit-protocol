@@ -30,7 +30,10 @@ constexpr std::array<SkColor4f, 4> kInk{{
     {0.55f, 0.31f, 0.12f, 1},
 }};
 
-std::vector<brush::Input> lane(float y, int count = 80) {
+/** THE STROKE EVERY LANE IS SAMPLED ALONG: one gentle wave across the
+ *  sheet at @p y, so what differs between lanes is the observation and
+ *  never the geometry. */
+std::vector<brush::Input> along(float y, int count = 80) {
   std::vector<brush::Input> input;
   input.reserve((size_t)count);
   for (int index = 0; index < count; ++index) {
@@ -50,6 +53,22 @@ void label(Pen& pen, const char* text, float y) {
   pen.text(text, 145, y);
 }
 
+/** ONE LANE: the stroke at @p y with @p sense written into every sample
+ *  along it, laid down by @p tool at @p spacing and named at the left.
+ *  The tool's own pressure is held flat whatever the lane is studying, so
+ *  a reader compares one observation and not two. */
+template <class Sense>
+void lane(Pen& pen, float y, const char* name, brush::Tool tool, float spacing,
+          Sense sense) {
+  std::vector<brush::Input> input = along(y);
+  for (size_t index = 0; index < input.size(); ++index)
+    sense(input[index], (float)index / (float)(input.size() - 1));
+  tool.pressure = {1, 1, 1};
+  tool.pressure.variation.reset();
+  brush::deposit(pen, tool, brush::dabs(input, spacing));
+  label(pen, name, y);
+}
+
 struct BrushDynamics final : sketch::Sketch {
   void setup(sketch::SketchContext& context) override {
     context.canvas(1000, 760);
@@ -66,26 +85,15 @@ struct BrushDynamics final : sketch::Sketch {
     pen.noiseSeed(0xD1A6A1C5u);
     pen.background(248, 241, 224);
 
-    std::vector<brush::Input> pressure = lane(170);
-    for (size_t index = 0; index < pressure.size(); ++index) {
-      const float t = (float)index / (float)(pressure.size() - 1);
-      pressure[index].pressure = 0.12f + std::sin(t * PI) * 0.98f;
-    }
     brush::Tool pressureTool = brush::marker(kInk[0], 28.0f);
     pressureTool.opacity = 0.58f;
     pressureTool.scatter = 0.4f;
     pressureTool.markerTip = false;
-    pressureTool.pressure = {1, 1, 1};
-    pressureTool.pressure.variation.reset();
-    brush::deposit(pen, pressureTool, brush::dabs(pressure, 2.0f));
-    label(pen, "PRESSURE", 170);
+    lane(pen, 170, "PRESSURE", pressureTool, 2.0f,
+         [](brush::Input& at, float t) {
+           at.pressure = 0.12f + std::sin(t * PI) * 0.98f;
+         });
 
-    std::vector<brush::Input> tilt = lane(320);
-    for (size_t index = 0; index < tilt.size(); ++index) {
-      const float t = (float)index / (float)(tilt.size() - 1);
-      tilt[index].tilt = 0.15f + 0.85f * std::sin(t * PI);
-      tilt[index].tiltDirection = -HALF_PI + t * PI;
-    }
     brush::Tool tiltTool = brush::marker(kInk[1], 24.0f);
     tiltTool.opacity = 0.5f;
     tiltTool.scatter = 0.0f;
@@ -94,43 +102,34 @@ struct BrushDynamics final : sketch::Sketch {
     tiltTool.tiltAspect = 1.8f;
     tiltTool.tiltOffset = 0.65f;
     tiltTool.markerTip = false;
-    tiltTool.pressure = {1, 1, 1};
-    tiltTool.pressure.variation.reset();
-    brush::deposit(pen, tiltTool, brush::dabs(tilt, 5.0f));
-    label(pen, "TILT", 320);
+    lane(pen, 320, "TILT", tiltTool, 5.0f, [](brush::Input& at, float t) {
+      at.tilt = 0.15f + 0.85f * std::sin(t * PI);
+      at.tiltDirection = -HALF_PI + t * PI;
+    });
 
-    std::vector<brush::Input> barrel = lane(470);
-    for (size_t index = 0; index < barrel.size(); ++index) {
-      const float t = (float)index / (float)(barrel.size() - 1);
-      barrel[index].barrelRotation = t * TWO_PI * 2.0f;
-    }
     brush::Tool barrelTool = brush::marker(kInk[2], 25.0f);
     barrelTool.opacity = 0.52f;
     barrelTool.scatter = 0.0f;
     barrelTool.aspect = 0.12f;
     barrelTool.rotation = brush::Rotation::Fixed;
     barrelTool.markerTip = false;
-    barrelTool.pressure = {1, 1, 1};
-    barrelTool.pressure.variation.reset();
-    brush::deposit(pen, barrelTool, brush::dabs(barrel, 6.0f));
-    label(pen, "BARREL", 470);
+    lane(pen, 470, "BARREL", barrelTool, 6.0f, [](brush::Input& at, float t) {
+      at.barrelRotation = t * TWO_PI * 2.0f;
+    });
 
-    std::vector<brush::Input> speed = lane(620);
-    double seconds = 0.0;
-    for (size_t index = 0; index < speed.size(); ++index) {
-      const float t = (float)index / (float)(speed.size() - 1);
-      seconds += 0.003 + 0.045 * std::pow(std::sin(t * PI), 2.0f);
-      speed[index].seconds = seconds;
-    }
+    // The speed lane is the one whose sensor is CUMULATIVE: a dab's speed
+    // is the distance over the time since the one before it.
     brush::Tool speedTool = brush::spray(kInk[3], 25.0f);
     speedTool.opacity = 0.32f;
     speedTool.speedReference = 520.0f;
     speedTool.speedSize = 0.82f;
     speedTool.speedOpacity = 0.74f;
-    speedTool.pressure = {1, 1, 1};
-    speedTool.pressure.variation.reset();
-    brush::deposit(pen, speedTool, brush::dabs(speed, 3.0f));
-    label(pen, "SPEED", 620);
+    double seconds = 0.0;
+    lane(pen, 620, "SPEED", speedTool, 3.0f,
+         [&seconds](brush::Input& at, float t) {
+           seconds += 0.003 + 0.045 * std::pow(std::sin(t * PI), 2.0f);
+           at.seconds = seconds;
+         });
 
     pen.noStroke();
     pen.fill(37, 34, 30, 225);
