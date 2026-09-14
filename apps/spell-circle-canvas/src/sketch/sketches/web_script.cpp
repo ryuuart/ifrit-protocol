@@ -327,9 +327,14 @@ struct WebScript {
                std::string note) const {
     const SkRect where = SkRect::MakeWH((float)kViewW, (float)kViewH);
     scry::WebView::Frame still = pages[at]->still();
+    // The view's own latest, once a repaint carries the loaded document:
+    // the blank a view paints the moment it exists is the engine's page,
+    // not this one's.
     Element picture = custom(name + " · arriving",
-                             [view = views[at], where](SkCanvas& canvas) {
-                               if (view) view->draw(canvas, where);
+                             [view = views[at], settling = pages[at].get(),
+                              where](SkCanvas& canvas) {
+                               if (view && settling->painted())
+                                 view->draw(canvas, where);
                              });
     picture.cache(Cache::None);
     if (still.image) {

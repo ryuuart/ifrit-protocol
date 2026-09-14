@@ -223,10 +223,16 @@ struct WebPanelSketch {
 
   /** THE PAGE ARRIVES RATHER THAN BEING WAITED FOR: the settle is
    *  advanced here, on the thread that draws, and the scene is described
-   *  again on the frame it finishes. A capture has already finished it
-   *  and this moves nothing. */
+   *  again on the frame the loaded document is first painted — when the
+   *  leaf starts showing the page rather than the blank a view paints the
+   *  moment it exists — and on the frame the settle finishes. A capture
+   *  has already finished it and this moves nothing. */
   void update(double, sketch::SketchContext& ctx) {
-    if (!m_page || !m_page->advance()) return;
+    if (!m_page) return;
+    const bool finished = m_page->advance();
+    const bool painted = m_page->painted();
+    if (!finished && painted == m_shownPage) return;
+    m_shownPage = painted;
     if (!m_page->broken()) {
       ctx.composer.render(scene());
       return;
@@ -255,7 +261,10 @@ struct WebPanelSketch {
                  .corners({16})
                  .clip()
                  .background(shadow(hexColor(0x000000, 0.55f), {0, 10}, 26))
-                 .children({web(m_view).width(kPageWidth).height(kPageHeight)}),
+                 .children(
+                     {m_page && m_page->painted()
+                          ? web(m_view).width(kPageWidth).height(kPageHeight)
+                          : box().width(kPageWidth).height(kPageHeight)}),
              box().left(704).top(96).column().gap(14).children(
                  {note(u8"HTML → canvas",
                        u8"The engine publishes each repaint as a "
@@ -308,6 +317,10 @@ struct WebPanelSketch {
   /** After the view it settles, so the events it latched are released
    *  while that view is still standing. */
   std::unique_ptr<sketch::scry::Settling> m_page;
+  /** Whether the scene last described showed the page rather than its
+   *  well: the frame that first paints the loaded document is described
+   *  again. */
+  bool m_shownPage = false;
 };
 
 SIGIL_SKETCH(WebPanelSketch, "Start & fixtures",

@@ -188,10 +188,11 @@ struct ImportNative {
   /** WHAT THE PAGE SCREEN WEARS. Once the settle is behind it, the still —
    *  taken once, because it is the frame the settle stopped on and not
    *  whatever the view holds later. Until then, in a window, the view's
-   *  own latest frame, taken as its version moves, so the screen shows
-   *  the page from its first paint rather than nothing while the settle
-   *  runs. A capture wears the still alone: its every frame is a function
-   *  of the scene time, and a page still arriving is not. */
+   *  own latest frame, taken as its version moves — but only once a
+   *  repaint carries the loaded document: a view paints its empty page
+   *  the moment it exists, and that blank is the engine's, not the
+   *  page's. A capture wears the still alone: its every frame is a
+   *  function of the scene time, and a page still arriving is not. */
   void wearPage() {
     if (!settling) return;
     if (settling->arrived()) {
@@ -201,7 +202,7 @@ struct ImportNative {
       }
       return;
     }
-    if (deterministic || !view) return;
+    if (deterministic || !view || !settling->painted()) return;
     const uint64_t version = view->frameVersion();
     if (version == wornVersion) return;
     wornVersion = version;
