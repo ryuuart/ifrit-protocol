@@ -36,9 +36,9 @@ std::string rewrite(std::string_view source) {
   return result;
 }
 
-/** The leaf radius at @p index — 6 to 20 px, keyed on the index alone so
- *  a leaf keeps its size for the whole growth. */
-float radiusFor(size_t index) {
+/** The leaf's size at @p index — 6 to 20 px across, keyed on the index
+ *  alone so a leaf keeps its size for the whole growth. */
+float leafSize(size_t index) {
   return chance::Stream::mix64(index).range(6.0f, 20.0f);
 }
 
@@ -58,9 +58,6 @@ struct ObservableLSystem final : sketch::Sketch {
   }
 
   void draw(Pen& pen) {
-    if (pen.frameCount == 1) {
-      pen.stroke(255);
-    }
     const float clock = static_cast<float>(pen.millis() * 0.001);
     const float cycle = 0.5f - 0.5f * std::cos(clock * 0.42f);
     const size_t visible = std::max<size_t>(
@@ -89,7 +86,7 @@ struct ObservableLSystem final : sketch::Sketch {
       } else {
         pen.noStroke();
         pen.fill(255);
-        pen.circle(x, y, radiusFor(index));
+        pen.circle(x, y, leafSize(index));
         pen.stroke(255);
       }
     }
