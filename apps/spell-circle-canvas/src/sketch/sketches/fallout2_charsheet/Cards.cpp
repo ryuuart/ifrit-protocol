@@ -153,12 +153,14 @@ auto Fallout2CharSheet::failureCard() const -> Element {
       .column()
       .padding(28)
       .gap(14)
-      .children({t("THE ARITHMETIC DOES NOT MATCH THE SHIPPED PREMADES",
-                   sheetType(bodyBold(), 22.0f, hexColor(0xE04020), 1.2f)),
-                 sketch::kit::table(std::move(rows),
-                                    {.columns = {{420}, {90, true}, {}},
-                                     .gap = 16,
-                                     .swatchSide = 11})});
+      .children(
+          {t("THE ARITHMETIC DOES NOT MATCH THE SHIPPED PREMADES",
+             sheetType(bodyBold(), 22.0f, hexColor(0xE04020), 1.2f)),
+           sketch::kit::table(
+               std::move(rows),
+               {.columns = {{.width = 420}, {.width = 90, .figure = true}, {}},
+                .gap = 16,
+                .swatchSide = 11})});
 }
 
 auto Fallout2CharSheet::captionBand() -> Element {

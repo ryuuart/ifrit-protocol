@@ -421,7 +421,9 @@ struct EvaMagiDefense : sketch::Sketch {
                  .font(eva::type(40, 0.95f))
                  .ink({0, 0, 0, 1}),
              sketch::kit::table(std::move(rows),
-                                {.columns = {{820}, {180, true}, {}},
+                                {.columns = {{.width = 820},
+                                             {.width = 180, .figure = true},
+                                             {}},
                                  .gap = 18,
                                  .swatchSide = 15})});
   }

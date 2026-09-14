@@ -336,11 +336,14 @@ auto ChevreulCircle::theVerification() -> Element {
          .key = "vr" + std::to_string(i)});
   }
   const float lo = 0.30f, hi = 0.30f + 0.034f * (float)(rows - 1) + 0.012f;
-  g.children({at(x0, ty0, W - 20, (float)rows * lh)
-                  .opacity(bind(&demo).window(lo, hi))
-                  .children({sketch::kit::table(
-                      std::move(lines), {.columns = {{222}, {66, true}, {}}})}),
-              label(doc["contrast.quote"], x0, ty0 + (float)rows * lh + 12, W)
-                  .styleClass("quote")});
+  g.children(
+      {at(x0, ty0, W - 20, (float)rows * lh)
+           .opacity(bind(&demo).window(lo, hi))
+           .children({sketch::kit::table(
+               std::move(lines), {.columns = {{.width = 222},
+                                              {.width = 66, .figure = true},
+                                              {}}})}),
+       label(doc["contrast.quote"], x0, ty0 + (float)rows * lh + 12, W)
+           .styleClass("quote")});
   return g;
 }

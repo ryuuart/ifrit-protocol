@@ -298,11 +298,14 @@ struct PenrosePaving : sketch::Sketch {
             .column()
             .padding(14)
             .gap(9)
-            .children({text(summary),
-                       sketch::kit::table(std::move(rows),
-                                          {.columns = {{202}, {92, true}, {}},
-                                           .gap = 8,
-                                           .swatchSide = 7})}),
+            .children(
+                {text(summary),
+                 sketch::kit::table(std::move(rows),
+                                    {.columns = {{.width = 202},
+                                                 {.width = 92, .figure = true},
+                                                 {}},
+                                     .gap = 8,
+                                     .swatchSide = 7})}),
         1096, 944, 448, 236);
   }
 

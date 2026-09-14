@@ -38,6 +38,12 @@ struct Reading {
    *  a tier, a channel, a series on a chart beside it. Empty (default)
    *  draws none and spends no room. */
   compose::SurfacePaint swatch;
+  /** THE COLOUR THIS ROW IS SET IN, over the theme's own: a foot row in
+   *  cinnabar, a reading in the colour of the thing it reads. Unset is
+   *  the theme's, which is the common case. WHICH rows are lit is the
+   *  data's business, which is why this is a colour on the row and not a
+   *  register on the theme. */
+  std::optional<SkColor4f> ink;
 };
 
 /** HOW A ROW IS SET — the widths and the mark, with none of the words. */
@@ -89,10 +95,17 @@ struct Row {
   /** Names the row, so a query can read it back and a reveal can address
    *  it one row at a time. Empty keys nothing. */
   std::string key;
+  /** THE COLOUR THIS ROW IS SET IN, over the theme's own — the foot a
+   *  table's own reading is, the row a verdict lights. Unset is the
+   *  theme's. */
+  std::optional<SkColor4f> ink;
 };
 
 /** ONE COLUMN OF A TABLE. */
 struct Column {
+  /** The word over it, in the theme's section register. Empty in every
+   *  column heads the table with nothing and spends no room. */
+  compose::Utf8 head;
   /** The width it takes. 0 lets it size itself, which is what the LAST
    *  column usually wants, since nothing ranges after it. */
   float width = 0;
@@ -114,11 +127,14 @@ struct Table {
   float swatchCorners = 0;
   /** A hairline between neighbouring rows. */
   bool ruled = false;
+  /** A hairline under the HEAD, where the columns are headed. */
+  bool headRuled = false;
 };
 
 /** THE TABLE — @p rows in @p how's columns, at the theme's row gap.
  *
- *      sketch::kit::table(rows, {.columns = {{126}, {46, true}, {66}, {}}})
+ *      sketch::kit::table(rows, {.columns = {{.width = 126}, {.width = 46,
+ * .figure = true}, {.width = 66}, {}}})
  *
  *  A READOUT and a TABLE are different readings. A readout is a PAIR
  *  ranged to opposite edges of one measure, which is what makes a stack

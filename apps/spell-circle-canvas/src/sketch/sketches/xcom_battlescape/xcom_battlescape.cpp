@@ -729,10 +729,12 @@ struct XcomBattlescape : sketch::Sketch {
         .column()
         .padding(n(6))
         .gap(n(4))
-        .children({sketch::kit::table(std::move(rows),
-                                      {.columns = {{n(150)}, {n(24), true}, {}},
-                                       .gap = n(4),
-                                       .swatchSide = n(3)})});
+        .children({sketch::kit::table(
+            std::move(rows), {.columns = {{.width = n(150)},
+                                          {.width = n(24), .figure = true},
+                                          {}},
+                              .gap = n(4),
+                              .swatchSide = n(3)})});
   }
 
   // =========================================================================

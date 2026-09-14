@@ -113,13 +113,16 @@ struct EvaMagiInterior : sketch::Sketch {
         .column()
         .padding(30)
         .gap(14)
-        .children({text(u8"MODULE RULE VIOLATED")
-                       .font({.face = magi::latin(), .size = 52.0f})
-                       .ink({0, 0, 0, 1}),
-                   sketch::kit::table(std::move(rows),
-                                      {.columns = {{560}, {150, true}, {}},
-                                       .gap = 16,
-                                       .swatchSide = 13})});
+        .children(
+            {text(u8"MODULE RULE VIOLATED")
+                 .font({.face = magi::latin(), .size = 52.0f})
+                 .ink({0, 0, 0, 1}),
+             sketch::kit::table(std::move(rows),
+                                {.columns = {{.width = 560},
+                                             {.width = 150, .figure = true},
+                                             {}},
+                                 .gap = 16,
+                                 .swatchSide = 13})});
   }
 
   // ==========================================================================

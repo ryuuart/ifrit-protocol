@@ -128,7 +128,10 @@ TEST(SketchKitRows, ATableDrawsTheHandSpelledColumns) {
   Element byKit = kit::table(
       {{{u8"cellPanel", u8"0.00", u8"Promoted", u8"baked by the library"},
         tier}},
-      {.columns = {{126, true}, {46, true}, {66}, {}},
+      {.columns = {{.width = 126, .figure = true},
+                   {.width = 46, .figure = true},
+                   {.width = 66},
+                   {}},
        .gap = 8,
        .swatchSide = 9});
   EXPECT_TRUE(sameDrawing(std::move(byHand), std::move(byKit)));
@@ -158,9 +161,67 @@ TEST(SketchKitRows, ASurplusWordTakesTheLastColumnsRegister) {
                    .children({compose::text(
                        u8"12", house.style(house.type.captionLabel,
                                            house.palette.figure))})});
-  EXPECT_TRUE(sameDrawing(std::move(byHand),
-                          kit::table({{{u8"key", u8"0.00", u8"12"}}},
-                                     {.columns = {{60}, {0, true}}})));
+  EXPECT_TRUE(sameDrawing(
+      std::move(byHand),
+      kit::table({{{u8"key", u8"0.00", u8"12"}}},
+                 {.columns = {{.width = 60}, {.width = 0, .figure = true}}})));
+}
+
+/** A row that names an ink is set in that colour and keeps the registers
+ *  its columns decide — which row is lit is what the reading says. */
+TEST(SketchKitRows, ARowsOwnInkStandsOverTheThemesAndKeepsTheRegister) {
+  const kit::Theme& house = kit::houseTheme();
+  const SkColor4f lit{0.81f, 0.19f, 0.09f, 1};
+  Element byHand =
+      compose::box()
+          .column()
+          .gap(house.spacing.rowGap)
+          .children(
+              {compose::box()
+                   .row()
+                   .alignItems(compose::Align::Center)
+                   .gap(house.spacing.labelGap)
+                   .children(
+                       {compose::text(u8"foot",
+                                      house.style(house.type.captionNote, lit))
+                            .width(60)})
+                   .children({compose::text(
+                       u8"0.034",
+                       house.style(house.type.captionLabel, lit))})});
+  EXPECT_TRUE(sameDrawing(
+      std::move(byHand),
+      kit::table({{.cells = {u8"foot", u8"0.034"}, .ink = lit}},
+                 {.columns = {{.width = 60}, {.width = 0, .figure = true}}})));
+}
+
+/** A headed table sets one word per column in the theme's section
+ *  register, over the reading it names. */
+TEST(SketchKitRows, AColumnCarriesTheWordOverIt) {
+  const kit::Theme& house = kit::houseTheme();
+  Element byHand =
+      compose::box()
+          .column()
+          .gap(house.spacing.rowGap)
+          .children({compose::box()
+                         .row()
+                         .alignItems(compose::Align::Center)
+                         .gap(house.spacing.labelGap)
+                         .children({compose::text(
+                                        u8"KEY", house.style(house.type.section,
+                                                             house.palette.ink))
+                                        .width(60)})})
+          .children(
+              {compose::box()
+                   .row()
+                   .alignItems(compose::Align::Center)
+                   .gap(house.spacing.labelGap)
+                   .children({compose::text(u8"one",
+                                            house.style(house.type.captionNote,
+                                                        house.palette.ash))
+                                  .width(60)})});
+  EXPECT_TRUE(sameDrawing(
+      std::move(byHand),
+      kit::table({{.cells = {u8"one"}}}, {.columns = {{u8"KEY", 60}}})));
 }
 
 // The bars a column of values is drawn as

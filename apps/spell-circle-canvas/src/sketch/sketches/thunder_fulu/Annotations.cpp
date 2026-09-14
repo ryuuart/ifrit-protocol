@@ -101,9 +101,16 @@ auto ThunderFulu::tempoPanel() -> Element {
   // columns — the component, what it is, how many strokes, the tempo, and
   // what happens there. The last row is the foot, and its tempo is the
   // whole point: 0.034 s a stroke against the body's 0.240.
+  // The LAST row is the foot, and it is set in cinnabar because its tempo
+  // is the panel's whole point: which row is lit is what the reading says,
+  // so it is an ink on the row and not a register on the sheet.
   std::vector<sketch::kit::Row> rows;
-  for (const data::Json& r : said["rows"].items())
-    rows.push_back({.cells = wordsOf(r)});
+  const std::span<const data::Json> read = said["rows"].items();
+  for (std::size_t i = 0; i < read.size(); ++i)
+    rows.push_back({.cells = wordsOf(read[i]),
+                    .ink = i + 1 == read.size()
+                               ? std::optional<SkColor4f>(kCinnabar)
+                               : std::nullopt});
   return box()
       .column()
       .at({718, 972})
@@ -112,14 +119,18 @@ auto ThunderFulu::tempoPanel() -> Element {
       .key("tempo")
       .font({.size = 10.5f})
       .ink(hexColor(0x9a8a68))
-      .children({text(said["heading"])
-                     .styleClass("heading")
-                     .font({.size = 13.0f, .track = 1.2f}),
-                 sketch::kit::table(std::move(rows),
-                                    {.columns = {{62}, {72}, {50}, {112}, {}}})
-                     .width(468)
-                     .key("tempoRows"),
-                 text(said["gloss"]).styleClass("gloss").width(468)});
+      .children(
+          {text(said["heading"])
+               .styleClass("heading")
+               .font({.size = 13.0f, .track = 1.2f}),
+           sketch::kit::table(std::move(rows), {.columns = {{.width = 62},
+                                                            {.width = 72},
+                                                            {.width = 50},
+                                                            {.width = 112},
+                                                            {}}})
+               .width(468)
+               .key("tempoRows"),
+           text(said["gloss"]).styleClass("gloss").width(468)});
 }
 
 auto ThunderFulu::widthLawPlot(float w) const -> Element {
@@ -133,8 +144,7 @@ auto ThunderFulu::widthLawPlot(float w) const -> Element {
       sketch::kit::trace([](double s) { return widthLaw((float)s); },
                          {.pen = {.width = 1.5f}})};
   for (const data::Json& m : said["marks"].items())
-    layers.push_back(sketch::kit::label(m["words"],
-                                        m["s"].number(),
+    layers.push_back(sketch::kit::label(m["words"], m["s"].number(),
                                         widthLaw((float)m["s"].number()),
                                         {.anchor = {.across = Align::Start,
                                                     .down = Align::End,

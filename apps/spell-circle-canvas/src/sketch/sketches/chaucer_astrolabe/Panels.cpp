@@ -324,7 +324,7 @@ auto ChaucerAstrolabe::specCard() -> Element {
                            [](const data::Json& row) -> sketch::kit::Row {
                              return {{row["key"], row["value"]}};
                            }),
-                       {.columns = {{96}, {}}}),
+                       {.columns = {{.width = 96}, {}}}),
                    kit::line({.fill = Fill::color(hexColor(0x241c15, 0.22f))}),
                    box().styleClass("figure").children(
                        {each(page["obliquity"].items(),
@@ -345,33 +345,37 @@ auto ChaucerAstrolabe::starPanel() -> Element {
         .shape(shapes::circle())
         .fill(Fill::color(i == 3 ? kRubric : kInk));
   };
+  // The head each column carries, so the reading and the words over it
+  // are ranged by one arrangement rather than by a hand-spaced line.
+  const std::vector<sketch::kit::Document::Line> heads = doc.run(page["heads"]);
   return card(
-      page,
-      box().gap(6).children(
-          {text(page["head"]).styleClass("captionNote"),
-           box().row().gap(14).grow(1).children(
-               {sketch::kit::table(
-                    listOf<sketch::kit::Row>(
-                        kStars,
-                        [&](const Star& s) -> sketch::kit::Row {
-                          return {{s.name, s.modern,
-                                   kit::formatted("%8.3f", s.ra1326),
-                                   kit::formatted("%+8.3f", s.dec1326),
-                                   kit::formatted("%.5f", radius(s))}};
-                        }),
-                    {.columns =
-                         {{116}, {88}, {56, true}, {58, true}, {52, true}}}),
-                // the strip: Cancer, the equator and Capricorn ruled across
-                // it, and one star per row against them
-                sketch::kit::plot(
-                    "stars",
-                    {.x = {.domain = {0.18, 1.0}},
-                     .y = {.domain = {(double)kStars.size() - 0.4, -0.6}},
-                     .pad = 6},
-                    {sketch::kit::rules({.x = {kRcan, kReq, 1.0}}),
-                     sketch::kit::marks(kStars, pointer, {.x = radius})})
-                    .grow(1)}),
-           text(page["note"]).styleClass("gloss")}));
+      page, box().gap(6).children(
+                {box().row().gap(14).grow(1).children(
+                     {sketch::kit::table(
+                          listOf<sketch::kit::Row>(
+                              kStars,
+                              [&](const Star& s) -> sketch::kit::Row {
+                                return {{s.name, s.modern,
+                                         kit::formatted("%8.3f", s.ra1326),
+                                         kit::formatted("%+8.3f", s.dec1326),
+                                         kit::formatted("%.5f", radius(s))}};
+                              }),
+                          {.columns = {{heads[0].words, 116},
+                                       {heads[1].words, 88},
+                                       {heads[2].words, 56, true},
+                                       {heads[3].words, 58, true},
+                                       {heads[4].words, 52, true}}}),
+                      // the strip: Cancer, the equator and Capricorn ruled
+                      // across it, and one star per row against them
+                      sketch::kit::plot(
+                          "stars",
+                          {.x = {.domain = {0.18, 1.0}},
+                           .y = {.domain = {(double)kStars.size() - 0.4, -0.6}},
+                           .pad = 6},
+                          {sketch::kit::rules({.x = {kRcan, kReq, 1.0}}),
+                           sketch::kit::marks(kStars, pointer, {.x = radius})})
+                          .grow(1)}),
+                 text(page["note"]).styleClass("gloss")}));
 }
 
 auto ChaucerAstrolabe::chaucerPanel() -> Element {

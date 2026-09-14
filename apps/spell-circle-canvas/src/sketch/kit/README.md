@@ -327,7 +327,7 @@ sketch::kit::titleCard(
 | --- | --- |
 | `labelRow(Reading, Readout)` | the name at the left in the quiet register, the figure at the right in the figure colour and the face a call is set in, with a swatch before the name where the row is also a key |
 | `readout(rows, Readout)` | a stack of those, at the theme's row gap, optionally ruled between |
-| `table(rows, Table)` | N columns each at its own width, the ones that carry a number in the figure register, with a mark before the first — the reading a pair cannot hold |
+| `table(rows, Table)` | N columns each at its own width, the ones that carry a number in the figure register, with a mark before the first and the word each column carries over it — the reading a pair cannot hold |
 | `bars(labels, values, Bars)` | one row per value against the largest of them: the label at the left, the bar in the theme's figure colour on a track of the same dimmed, and the figure after it — with the overload that reads the two columns off a table |
 
 ```cpp
@@ -346,9 +346,17 @@ reading of more than a name and a figure needs — a key, a cost, the tier
 it took and the condition that refused it.
 
 ```cpp
-sketch::kit::table(rows, {.columns = {{126, true}, {46, true}, {66}, {}},
+sketch::kit::table(rows, {.columns = {{.width = 126, .figure = true}, {.width = 46, .figure = true}, {.width = 66}, {}},
                           .swatch = 9});
 ```
+
+A ROW STATES THE COLOUR IT IS SET IN, and a column the word over it.
+`Reading::ink` and `Row::ink` stand over the theme's own and keep the
+registers the row was set in — the foot a table's own reading is, a
+reading in the colour of the thing it reads — because WHICH rows are lit
+is what the data says and a theme cannot. `Column::head` is the word over
+one column, in the theme's section register, so a headed table is one call
+and the head and the reading under it are ranged by one arrangement.
 
 A figure a sketch measured about its own execution goes through
 `ctx.measured` **before** it reaches here. These components arrange a

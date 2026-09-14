@@ -22,6 +22,12 @@ Element mark(const SurfacePaint& paint, float side, float corners) {
 }  // namespace
 
 Element reading(const Reading& one, const Rows& how) {
+  // A row's own ink stands over whatever its lines' classes name, field
+  // by field, so a lit row keeps the register it was set in.
+  const auto lit = [&one](Element line) {
+    if (one.ink) line.font({.color = *one.ink});
+    return line;
+  };
   Element row =
       box().row().alignItems(Align::Center).gap(Dimension(how.labelGap));
   if (how.measure > 0.0f) row.width(Dimension(how.measure));
@@ -29,7 +35,7 @@ Element reading(const Reading& one, const Rows& how) {
     row.children({mark(one.swatch, how.swatchSide, how.swatchCorners)});
   if (!one.name.empty()) {
     Element name =
-        how.nameLine ? how.nameLine(one.name, how) : captionNote(one.name);
+        lit(how.nameLine ? how.nameLine(one.name, how) : captionNote(one.name));
     if (how.nameMeasure > 0.0f) name.width(Dimension(how.nameMeasure));
     row.children({std::move(name)});
   }
@@ -37,11 +43,11 @@ Element reading(const Reading& one, const Rows& how) {
   // every figure on one edge however long the names are.
   if (how.measure > 0.0f) row.children({box().grow(1)});
   if (!one.value.empty())
-    row.children(
-        {how.valueLine ? how.valueLine(one.value, how) : figure(one.value)});
+    row.children({lit(how.valueLine ? how.valueLine(one.value, how)
+                                    : figure(one.value))});
   if (!one.note.empty())
-    row.children(
-        {how.noteLine ? how.noteLine(one.note, how) : captionNote(one.note)});
+    row.children({lit(how.noteLine ? how.noteLine(one.note, how)
+                                   : captionNote(one.note))});
   return row;
 }
 
@@ -106,7 +112,7 @@ Element table(std::span<const std::span<const Utf8>> rows, const Table& how) {
     const std::span<const Utf8> cells = rows[index];
     for (size_t at = 0; at < cells.size(); ++at) {
       Element cell = how.cellLine
-                         ? how.cellLine(cells[at], how, at)
+                         ? how.cellLine(cells[at], how, at, index)
                          : (specification(at).figure ? figure(cells[at])
                                                      : captionNote(cells[at]));
       row.children({sized(std::move(cell), at)});

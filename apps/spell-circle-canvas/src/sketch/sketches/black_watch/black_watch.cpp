@@ -772,7 +772,9 @@ struct BlackWatch : sketch::Sketch {
                                   kWeaveEnd + (float)rows * 0.0092f + 0.011f)
                           .clamp(0.0f, 1.0f))
              .children({sketch::kit::table(
-                 std::move(lines), {.columns = {{322}, {58, true}, {}}})})});
+                 std::move(lines),
+                 {.columns = {
+                      {.width = 322}, {.width = 58, .figure = true}, {}}})})});
     return g;
   }
 

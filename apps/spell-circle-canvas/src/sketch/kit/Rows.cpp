@@ -5,6 +5,7 @@
 #include <sigilsketch/kit/Rows.h>
 
 #include <cstddef>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -28,6 +29,14 @@ struct Registers {
 Registers registers(const Theme& look) {
   return {look.style(look.type.captionNote, look.palette.ash),
           look.style(look.type.captionLabel, look.palette.figure)};
+}
+
+/** The two registers a READING is set in, in its own ink where it names
+ *  one: a row a verdict lights keeps the registers and changes colour. */
+Registers registers(const Theme& look, const std::optional<SkColor4f>& ink) {
+  if (!ink) return registers(look);
+  return {look.style(look.type.captionNote, *ink),
+          look.style(look.type.captionLabel, *ink)};
 }
 
 compose::kit::Rows arrangement(const Readout& how, const Theme& look) {
@@ -56,7 +65,8 @@ compose::Element labelRow(const Reading& reading, const Readout& how) {
   return compose::kit::reading({.name = reading.name,
                                 .value = reading.value,
                                 .note = reading.note,
-                                .swatch = reading.swatch},
+                                .swatch = reading.swatch,
+                                .ink = reading.ink},
                                arrangement(how, theme()));
 }
 
@@ -67,7 +77,8 @@ compose::Element readout(std::vector<Reading> rows, const Readout& how) {
     readings.push_back({.name = std::move(one.name),
                         .value = std::move(one.value),
                         .note = std::move(one.note),
-                        .swatch = std::move(one.swatch)});
+                        .swatch = std::move(one.swatch),
+                        .ink = one.ink});
   return compose::kit::readout(readings, arrangement(how, theme()));
 }
 
@@ -76,19 +87,23 @@ compose::Element table(std::vector<Row> rows, const Table& how) {
   std::vector<compose::kit::Column> columns;
   columns.reserve(how.columns.size());
   for (const Column& one : how.columns)
-    columns.push_back({.width = one.width, .figure = one.figure});
+    columns.push_back(
+        {.head = one.head, .width = one.width, .figure = one.figure});
   // The rows are held by value for the length of this call, so the spans
   // the arrangement reads stand on them.
   std::vector<std::span<const Utf8>> cells;
   std::vector<compose::SurfacePaint> swatches;
   std::vector<std::string> keys;
+  std::vector<std::optional<SkColor4f>> inks;
   cells.reserve(rows.size());
   swatches.reserve(rows.size());
   keys.reserve(rows.size());
+  inks.reserve(rows.size());
   for (const Row& row : rows) {
     cells.emplace_back(row.cells);
     swatches.push_back(row.swatch);
     keys.push_back(row.key);
+    inks.push_back(row.ink);
   }
   compose::kit::Table specification{
       .columns = std::move(columns),
@@ -98,14 +113,22 @@ compose::Element table(std::vector<Row> rows, const Table& how) {
       .swatches = swatches,
       .swatchSide = how.swatchSide.value_or(look.spacing.swatchSide),
       .swatchCorners = how.swatchCorners,
-      .keys = keys};
-  const Registers set = registers(look);
-  specification.cellLine = [set](const Utf8& words,
-                                 const compose::kit::Table& shape,
-                                 std::size_t column) {
+      .keys = keys,
+      .headRuled = how.headRuled};
+  specification.headLine = [look](const Utf8& words) {
+    return compose::text(words,
+                         look.style(look.type.section, look.palette.ink));
+  };
+  // The cell names four parameters, so a row that states an ink is set in
+  // that colour and keeps the register its column decides.
+  specification.cellLine = [look, inks](const Utf8& words,
+                                        const compose::kit::Table& shape,
+                                        std::size_t column, std::size_t row) {
     const bool figure =
         !shape.columns.empty() &&
         shape.columns[std::min(column, shape.columns.size() - 1)].figure;
+    const Registers set =
+        registers(look, row < inks.size() ? inks[row] : std::nullopt);
     return compose::text(words, figure ? set.number : set.quiet);
   };
   return compose::kit::table(cells, specification);

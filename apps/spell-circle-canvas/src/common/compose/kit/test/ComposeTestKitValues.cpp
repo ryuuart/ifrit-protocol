@@ -1204,6 +1204,25 @@ weave::StyleSheet rowClasses() {
 
 }  // namespace
 
+TEST(KitRows, ACellNamesTheRowItStandsInAsWellAsItsColumn) {
+  Host host(220, 90);
+  // A part takes the parameters it names: four of them here, so the
+  // second row's cells are the ones lit.
+  kit::Table how{.columns = {{u8"KEY", 60}, {u8"VALUE", 60}}};
+  how.cellLine = [](const Utf8& words, const kit::Table&, size_t column,
+                    size_t row) {
+    return text(words).key("r" + std::to_string(row) + "c" +
+                           std::to_string(column));
+  };
+  const Utf8 cells[4] = {u8"a", u8"b", u8"c", u8"d"};
+  host.composer.render(box().width(220).height(90).children(
+      {kit::table(std::span<const Utf8>(cells), how)}));
+  host.frame();
+  EXPECT_TRUE(host.composer.bounds("r0c0").has_value());
+  EXPECT_TRUE(host.composer.bounds("r1c1").has_value());
+  EXPECT_FALSE(host.composer.bounds("r2c0").has_value());
+}
+
 TEST(KitRows, ANameIsSetInCaptionNoteAndAFigureInReadout) {
   const auto height = [](const kit::Reading& one) {
     return intrinsicSize(

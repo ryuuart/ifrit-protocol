@@ -415,7 +415,10 @@ struct VolatilityCost final : sketch::Sketch {
     // and the cost are what a reader is looking for, so those two carry
     // the figure register.
     column.children({sketch::kit::table(
-        std::move(rows), {.columns = {{126, true}, {46, true}, {66}, {}},
+        std::move(rows), {.columns = {{.width = 126, .figure = true},
+                                      {.width = 46, .figure = true},
+                                      {.width = 66},
+                                      {}},
                           .gap = 8,
                           .swatchSide = 9})});
     return column;

@@ -322,15 +322,17 @@ struct SpaceJam1996 : sketch::Sketch {
             .column()
             .padding(S(12))
             .gap(S(8))
-            .children(
-                {text("THE TABLE DOES NOT RESOLVE THE BROWSER'S GRID")
-                     .font({.face = display(),
-                            .size = S(11),
-                            .color = C5(0xFFFF00)}),
-                 sketch::kit::table(std::move(rows),
-                                    {.columns = {{S(230)}, {S(46), true}, {}},
-                                     .gap = S(6),
-                                     .swatchSide = S(5)})}),
+            .children({text("THE TABLE DOES NOT RESOLVE THE BROWSER'S GRID")
+                           .font({.face = display(),
+                                  .size = S(11),
+                                  .color = C5(0xFFFF00)}),
+                       sketch::kit::table(
+                           std::move(rows),
+                           {.columns = {{.width = S(230)},
+                                        {.width = S(46), .figure = true},
+                                        {}},
+                            .gap = S(6),
+                            .swatchSide = S(5)})}),
         S(40), S(120), S(560), S(30) + S(13) * (float)rows.size());
   }
 

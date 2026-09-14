@@ -87,7 +87,7 @@
     "title": "THE RETE · XII STERRES",
     "subtitle": "precessed J2000 → 1326.0, IAU 1976 ζ/z/θ — the sky has slid 8.6° in RA",
     "note": "ALHABOR / Sirius at 0.868 R is the outermost by a long way — the only southern star here, which is why it gets the biggest pointer on every rete ever made.",
-    "head": "name on the rete        modern         RA 1326   dec 1326    r / R"
+    "heads": ["name on the rete", "modern", "RA 1326", "dec 1326", "r / R"]
   },
   "chaucer": {
     "title": "CHAVCER'S OWNE ENSAMPLE",

@@ -28,6 +28,7 @@
 #include <sigilcompose/kit/Specimen.h>
 
 #include <cstddef>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -55,6 +56,12 @@ struct Reading {
    *  tier, a channel, a series on a chart beside it. None (default) draws
    *  none and spends no room. */
   SurfacePaint swatch;
+  /** THE COLOUR THIS ROW IS SET IN, over whatever its lines' classes name:
+   *  a foot row in cinnabar, a reading in the colour of the thing it
+   *  reads. Unset leaves each line in its own class's colour, which is
+   *  the common case. It is a colour and not a class because WHICH rows
+   *  are lit is the data's business and a sheet cannot say it. */
+  std::optional<SkColor4f> ink;
 };
 
 /** HOW A ROW IS SET — the widths, the mark and the air, with none of the
@@ -152,11 +159,13 @@ struct Table {
   /** THE HEAD CELL, as a function of its words and then of this table.
    *  Empty is `section`. */
   Part<Utf8, Table> headLine = section;
-  /** ONE BODY CELL, as a function of its words, this table and the index
-   *  of the column it stands in. Empty sets each cell in its own
-   *  column's class — `readout` for a figure column, `captionNote` for
-   *  the rest. */
-  Part<Utf8, Table, std::size_t> cellLine;
+  /** ONE BODY CELL, as a function of its words, this table, the index of
+   *  the column it stands in and the index of its ROW — a part takes the
+   *  parameters it names, so a table that dresses a column names three
+   *  and one that lights a row names four. Empty sets each cell in its
+   *  own column's class — `readout` for a figure column, `captionNote`
+   *  for the rest. */
+  Part<Utf8, Table, std::size_t, std::size_t> cellLine;
 };
 
 /** THE TABLE — @p rows in @p how's columns, each row its own run of

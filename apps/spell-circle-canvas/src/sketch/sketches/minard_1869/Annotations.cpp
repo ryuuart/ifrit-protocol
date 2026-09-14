@@ -193,9 +193,9 @@ auto Minard1869::cardFloor(const data::Json& said) -> Element {
                      }}),
             // the crayon floor: the width below which no line was laid
             sketch::kit::rules({.y = {3.83}, .styleClass = "grey"}),
-            sketch::kit::trace(
-                laid,
-                {.pen = {.width = 1.6f}, .samples = 300, .styleClass = "measured"}),
+            sketch::kit::trace(laid, {.pen = {.width = 1.6f},
+                                      .samples = 300,
+                                      .styleClass = "measured"}),
             sketch::kit::marks(pts, dot,
                                {.x =
                                     [](const Measured& m) {
@@ -404,9 +404,12 @@ auto Minard1869::cardReaumur(const data::Json& said) -> Element {
          .key = "rc" + std::to_string(i)});
   }
   return box().inset(0).children(
-      {sketch::kit::table(
-           std::move(rows),
-           {.columns = {{250}, {80, true}, {80, true}, {90, true}, {}}})
+      {sketch::kit::table(std::move(rows),
+                          {.columns = {{.width = 250},
+                                       {.width = 80, .figure = true},
+                                       {.width = 80, .figure = true},
+                                       {.width = 90, .figure = true},
+                                       {}}})
            .at({40, 34})
            .width(540)
            .key("reaumurTable")

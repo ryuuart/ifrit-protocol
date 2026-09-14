@@ -1404,7 +1404,11 @@ where `Rows::divider` names a fill, `kit::table`, N `kit::Column`s each at
 its own width — one head cell per column in the class `section`, a figure
 column's cells in `readout` and the rest in `captionNote`, one swatch and
 one key per row, and every row its own run of cells, so a short row stays
-short and a surplus word takes the last column's class — and `kit::bars`,
+short and a surplus word takes the last column's class; its `cellLine`
+names the ROW as well as the column, which is what lets a table light one
+of them, and `Reading::ink` is the colour a row is set in over whatever
+its lines' classes name, because WHICH rows are lit is the data's business
+and a sheet cannot say it — and `kit::bars`,
 one row per value against an extent DERIVED from the values
 (`Bars::largest` states it instead), each bar in `Bars::bar` on the track
 `Bars::rest` holds, with the figure after it as a function of the VALUE
