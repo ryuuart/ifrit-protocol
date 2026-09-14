@@ -57,6 +57,7 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
+#include <array>
 #include <string>
 #include <utility>
 #include <vector>
@@ -169,15 +170,16 @@ sk_sp<SkImage> indexChart() {
   return bm.asImage();
 }
 
+/** The palettes, in the order the live panel cycles them. */
+enum Table : size_t { Grey, Fire, Ice, TableCount };
+
 /** EVERY TABLE THIS SHEET DRAWS WITH, held together for the sketch's
  *  life: the index chart, the three palettes and the one effect that
  *  reads them. One value, so nothing below has to be handed five. */
 struct Tables {
   sk_sp<SkImage> index = indexChart();
-  sk_sp<SkImage> greyTable = greyLut();
-  sk_sp<SkImage> fireTable = fireLut();
-  sk_sp<SkImage> iceTable = iceLut();
-  sk_sp<SkRuntimeEffect> palette = paletteEffect();
+  std::array<sk_sp<SkImage>, TableCount> luts{greyLut(), fireLut(), iceLut()};
+  sk_sp<SkRuntimeEffect> effect = paletteEffect();
 };
 
 mskia::Paint indexSource(const Tables& tables) {
@@ -197,7 +199,7 @@ mskia::Paint lutSource(const sk_sp<SkImage>& table) {
  *  Everything compiles to ONE shader — no saveLayer, no second node. */
 mskia::Paint paletted(const Tables& tables, const sk_sp<SkImage>& table,
                       float shade) {
-  return mskia::Paint::sksl(tables.palette)
+  return mskia::Paint::sksl(tables.effect)
       .uniform("uShade", shade)
       .slot("uIndex", indexSource(tables))
       .slot("uPalette", lutSource(table));
@@ -274,17 +276,6 @@ struct MaterialChild final : sketch::Sketch {
   int live = 0;
   const Tables tables;
 
-  const sk_sp<SkImage>& liveLut() const {
-    switch (live % 3) {
-      case 0:
-        return tables.greyTable;
-      case 1:
-        return tables.fireTable;
-      default:
-        return tables.iceTable;
-    }
-  }
-
   Element describe() {
     // The theme is bound where the tree is DESCRIBED, not where setup
     // runs: this sketch describes again when the live panel changes
@@ -293,20 +284,20 @@ struct MaterialChild final : sketch::Sketch {
     Element slots = kit::cells(
         {.cells = {panel(tables, "child(\"uPalette\", grey)",
                          "the indices themselves: a 0..15 staircase",
-                         tables.greyTable, 0.0f, "grey"),
+                         tables.luts[Grey], 0.0f, "grey"),
                    panel(tables, "child(\"uPalette\", fire)",
                          "the SAME index texture, another table",
-                         tables.fireTable, 0.0f, "fire"),
+                         tables.luts[Fire], 0.0f, "fire"),
                    panel(tables, "child(\"uPalette\", ice)", "…and another",
-                         tables.iceTable, 0.0f, "ice"),
+                         tables.luts[Ice], 0.0f, "ice"),
                    panel(tables, "uniform(\"uShade\", 6)",
                          "min(i + 6, 15): the top cells flatten onto the "
                          "last entry — index arithmetic, drawn",
-                         tables.iceTable, kShade, "shade"),
+                         tables.luts[Ice], kShade, "shade"),
                    panel(tables, "the LUT swapped by update()",
                          "door 3: data changes, the tree is described again, "
                          "one node patches",
-                         liveLut(), 0.0f, "live")},
+                         tables.luts[(size_t)live % TableCount], 0.0f, "live")},
          .gap = 20});
 
     Element stack = kit::cells(
