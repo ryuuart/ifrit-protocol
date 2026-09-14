@@ -42,6 +42,7 @@
 // TAGS: Typography/Paragraph
 
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilgeometry/kit/Silhouettes.h>
@@ -90,8 +91,8 @@ weave::Type serifType(float size, SkColor4f color, float track = 0) {
 Element cell(const char* call, const char* note, Element body) {
   return sketch::kit::caption(
       kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture, .padding = 14})
-          .children({std::move(body)}));
+      sketch::kit::well({.width = kCell, .height = kPicture, .padding = 14},
+                        std::move(body)));
 }
 
 /** One initial letter over the passage; `nested`, when given, sets the
@@ -115,24 +116,24 @@ Element dropped(const char* key, std::optional<kit::NestedStyle> nested) {
  *  the silhouette the opening lines subtract. */
 Element illuminated(const char* key, std::optional<kit::NestedStyle> nested) {
   const sketch::kit::Theme& look = sketch::kit::theme();
-  Element ornament =
-      box()
-          .width(58)
-          .height(64)
-          .shape(sigil::geometry::shapes::star(8, 0.48f, 0.12f))
-          .fill(Fill::color(look.palette.figure))
-          .children({text(u8"W")
-                         .font(serifType(27, look.palette.ground))
-                         .absolute()
-                         .left(15)
-                         .top(14)});
-  ornament.key(key).absolute().left(0.0f).top(0.0f);
+  const Element ornament =
+      kit::at(box()
+                  .key(key)
+                  .absolute()
+                  .shape(sigil::geometry::shapes::star(8, 0.48f, 0.12f))
+                  .fill(Fill::color(look.palette.figure))
+                  .children({text(u8"W")
+                                 .font(serifType(27, look.palette.ground))
+                                 .absolute()
+                                 .left(15)
+                                 .top(14)}),
+              0, 0, 58, 64);
   Element body = text(std::string_view(kPassage).substr(1))
                      .font(serifType(11.5f, kBody))
                      .width(kCell - 28)
                      .flowAround(key, kMargin);
   if (nested) body.spanStyle(kit::nestedRun(*nested), nested->style);
-  return box().children({std::move(ornament), std::move(body)});
+  return box().children({ornament, std::move(body)});
 }
 
 }  // namespace
