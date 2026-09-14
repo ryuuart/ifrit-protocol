@@ -214,7 +214,6 @@ struct ParagraphSheet final : sketch::Sketch {
                      text(s::kFourWays)
                          .styleClass("body")
                          .font({.size = 11.5f})
-                         .absolute()
                          .inset(0)
                          .width(s::kMeasure * 0.48f)
                          .paragraphs({weave::ParagraphStyle{
@@ -241,7 +240,6 @@ struct ParagraphSheet final : sketch::Sketch {
   /// itself, so the panel's claim is checkable.
   static Element gridRules() {
     return box()
-        .absolute()
         .inset(0)
         .column()
         .padding(0, s::kGrid - 1, 0, 0)

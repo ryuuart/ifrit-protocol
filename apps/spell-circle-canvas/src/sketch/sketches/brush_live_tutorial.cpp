@@ -144,7 +144,6 @@ struct BrushLiveTutorial final : sketch::Sketch {
 
     context.composer.render(compose::graphics("brush_live_tutorial.loop",
                                               [this](Pen& pen) { draw(pen); })
-                                .absolute()
                                 .inset(0));
   }
 
