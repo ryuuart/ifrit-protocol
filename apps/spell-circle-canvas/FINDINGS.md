@@ -66,25 +66,3 @@ which positions the paragraph at the node's box rather than at its
 content box. Until it lands, a component that wants air around a
 reading puts the padding on a box AROUND the line — which is what
 `compose::kit::cell` does for `Caption::reading`.
-
-## cde_motif's Front Panel is drawn in a colour set nothing bound
-
-Every piece of chrome on the desktop reads the ambient `cde::ColorSet`
-through `cde::ambient()`, and the four `environment::Provide<ColorSet>`
-scopes in the sketch cover the File Manager, its client area, its
-scrollbar and its path field. Nothing covers the Front Panel: `frontPanel`,
-`control`, `handle`, `panelSeparator`, `clockIcon`, `dateIcon`,
-`workspaceSwitch`, `helpSubpanel` and `iconifiedWindow` are described
-outside all four, so `ambient()` answers a default-constructed set whose
-five colours are transparent black. `frontPanel` fills from `theme[2]`
-explicitly and every icon carries its own `kIconColor`, which is why the
-panel is visible at all — but its bevels, its handle texture, the date
-page's month band and that band's word are painted in a transparent
-colour and do not appear, and the panel does not change with the palette
-the way the rest of the desktop does. The intent is stated in the header:
-"the set this piece of chrome is being drawn in" is meant to be bound at
-the scope that owns it, and dtsession's primary set is the one the panel
-names in its own comment. A test should describe `frontPanel()` under a
-bound set and require that its bevel's top-shadow pixel equals that set's
-`ts`; the fix is one `Provide` at the top of `frontPanel()`, which will
-move the plate.

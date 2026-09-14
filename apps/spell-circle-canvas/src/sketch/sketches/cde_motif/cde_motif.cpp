@@ -631,6 +631,10 @@ struct CdeMotifSketch : sketch::Sketch {
 
   Element frontPanel() {
     const Set& s = theme[2];  // dtsession: the primary colour set
+    // The panel's chrome — its bevels, the handle's texture, the date
+    // page's month band — reads the ambient set, so the set is bound here,
+    // at the scope that owns the panel.
+    environment::Provide<cde::ColorSet> panel(s);
 
     Element rowEl = box().row().alignItems(Align::Center).height(74);
     rowEl.children({handle(),
