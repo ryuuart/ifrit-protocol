@@ -41,6 +41,7 @@
 
 #include <cmath>
 #include <memory>
+#include <ranges>
 #include <string>
 #include <utility>
 
@@ -63,13 +64,15 @@ constexpr SkISize kTile = {44, 128};
 
 constexpr SkColor4f kWarm{0.86f, 0.52f, 0.34f, 1};
 
-/** The one motif every chain repeats and the strip is built from. */
-Element motif() {
+/** THE ONE MOTIF every chain repeats and the strip is built from, in the
+ *  ink it is stamped in — the theme's figure for a chain's cell, and the
+ *  strip's own warm for every third star of the run. */
+Element motif(SkColor4f ink) {
   return box()
       .width(kMotif.width())
       .height(kMotif.height())
       .shape(shapes::star(6, 0.46f, 0.14f))
-      .fill(Fill::color(sketch::kit::theme().palette.figure));
+      .fill(Fill::color(ink));
 }
 
 Element cell(const char* call, const char* note, Element body) {
@@ -91,7 +94,7 @@ struct PlaceRepeatTiles final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     atlas = std::make_shared<instancing::Atlas>();
-    atlas->cell(motif(), kMotif);
+    atlas->cell(motif(sketch::kit::theme().palette.figure), kMotif);
 
     plain = std::make_shared<instancing::Pool>();
     instancing::place::repeat(*plain, kCopies, {28, 100}, {kStep, 0});
@@ -119,12 +122,9 @@ struct PlaceRepeatTiles final : sketch::Sketch {
                                            {{0.09f, 0.10f, 0.12f, 1},
                                             {0.30f, 0.32f, 0.36f, 1}}));
     const SkColor4f figure = sketch::kit::theme().palette.figure;
-    for (int i = 0; i < kTiles * 3; ++i)
-      run.children({box()
-                        .width(kMotif.width())
-                        .height(kMotif.height())
-                        .shape(shapes::star(6, 0.46f, 0.14f))
-                        .fill(Fill::color(i % 3 == 0 ? kWarm : figure))});
+    run.children({each(std::views::iota(0, kTiles * 3), [&](int i) {
+      return motif(i % 3 == 0 ? kWarm : figure);
+    })});
     // …and re-recorded behind a bounding-box hierarchy, so each tile's
     // replay visits only the ops that meet it. Slicing without that is
     // quadratic: every tile would walk every tile's ops.
