@@ -711,7 +711,11 @@ sound model; nothing below them changes kernel semantics.
   `cover` is the one that says a node FILLS the box it stands in,
   which `absolute` and `inset` said between them at 74 sites.
 - `core/Factories.h` — the functions that start one: `box`, `stack`,
-  `positioned`, `text`, `frame`, `image`, `picture` (a recorded
+  `positioned`, `text`, `frame`, `image` (an `image::ImageAsset`, or a
+  raw `SkImage` with a `Fit` — `Stretch`, `Contain` or `Cover` — which is
+  the wrap written once and the fit said as LAYOUT rather than as a
+  matrix the caller builds, so the node itself carries the picture's
+  proportions), `picture` (a recorded
   `SkPicture` as a leaf, sized at what it was recorded at — the door out
   of a `snapshot()` that keeps the pruning and the caching the bake was
   taken for), `pathFigure` (a path already in canvas coordinates,

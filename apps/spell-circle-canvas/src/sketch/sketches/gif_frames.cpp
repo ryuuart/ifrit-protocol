@@ -95,16 +95,15 @@ weave::Type labelType(float size, SkColor4f color, float track = 0) {
  *  be compared to anything. */
 Element cell(const sk_sp<SkImage>& frame, float w, float h, const char* call,
              std::string note) {
-  const SurfacePaint ground =
-      frame ? SurfacePaint(mskia::Paint::image(
-                  frame, SkTileMode::kClamp, SkTileMode::kClamp,
-                  SkMatrix::Scale(kScale, kScale),
-                  SkSamplingOptions(SkFilterMode::kNearest)))
-            : SurfacePaint(Fill::color(kCellGround));
-  return sketch::kit::caption(
-      0, call, note,
-      sketch::kit::well(
-          {.width = w, .height = h, .ground = ground, .padding = 0}));
+  return sketch::kit::cell(
+      {.plate = {.width = w,
+                 .height = h,
+                 .ground = Fill::color(kCellGround),
+                 .padding = 0},
+       .measure = 0},
+      call, note,
+      sigil::compose::image(frame, Fit::Cover)
+          .sampling(SkSamplingOptions(SkFilterMode::kNearest)));
 }
 
 }  // namespace

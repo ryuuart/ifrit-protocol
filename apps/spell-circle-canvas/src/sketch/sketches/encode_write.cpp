@@ -97,9 +97,7 @@ sk_sp<SkImage> source() {
 
 Element cell(const char* call, const char* note, sk_sp<SkImage> picture,
              const std::string& readout) {
-  Element art = picture ? image(std::make_shared<const img::ImageAsset>(
-                              img::ImageAsset::wrap(std::move(picture))))
-                        : box();
+  Element art = image(std::move(picture), Fit::Stretch);
   const sketch::kit::Theme& sheet = sketch::kit::theme();
   return sketch::kit::caption(
       kCell, call, note,

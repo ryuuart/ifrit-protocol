@@ -8,6 +8,7 @@
  */
 
 #include <include/core/SkColor.h>
+#include <include/core/SkImage.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkRect.h>
 #include <sigilcompose/core/Element.h>
@@ -18,6 +19,7 @@
 #include <sigilweave/style/Style.h>
 
 #include <any>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <ranges>
@@ -172,6 +174,33 @@ Element frame(sigil::weave::Story story);
 Element text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
              sigil::weave::ParagraphLayoutOptions options = {});
 Element image(std::shared_ptr<const sigil::image::ImageAsset> asset);
+
+/** HOW A PICTURE MEETS THE BOX IT IS GIVEN, CSS's own three. */
+enum class Fit : std::uint8_t {
+  /** Both axes independently — the picture's proportions are the box's,
+   *  which is what an image leaf sized to its parent does. */
+  Stretch,
+  /** As large as fits with the picture's own proportions kept, so the
+   *  slack goes to the long axis and never to the figure. */
+  Contain,
+  /** Large enough to leave no slack, so the overflow is cropped by
+   *  whatever clips it. */
+  Cover,
+};
+
+/** A PLATE WEARING A PICTURE THAT IS ALREADY RENDERED: a bake taken on an
+ *  intermediate surface, a frame decoded out of a file, a texture a
+ *  device handed back.
+ *
+ *      well({.width = kCell, .height = kCell}, image(frame, Fit::Cover))
+ *
+ *  It is the `ImageAsset` leaf with the wrap written once and the FIT
+ *  said where the picture is, so a cell showing a bake states no matrix
+ *  of its own. THE LEAF TAKES THE BOX IT STANDS IN under every fit, and
+ *  under `Contain` and `Cover` the node itself carries the picture's
+ *  proportions, so what is painted is the whole of the node. A null
+ *  picture is an empty box. */
+[[nodiscard]] Element image(sk_sp<SkImage> picture, Fit fit = Fit::Contain);
 /** A box whose content is one paint program (≡ box().background(p)).
  *
  *  TWO COSTS AN AUTHOR MUST KNOW. First, it is cached like any static

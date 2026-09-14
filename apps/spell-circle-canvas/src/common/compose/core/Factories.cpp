@@ -9,6 +9,7 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPicture.h>
 #include <sigilcore/reconcile/Environment.h>
+#include <sigilimage/asset/ImageAsset.h>
 
 #include <any>
 #include <functional>
@@ -104,6 +105,26 @@ Element image(std::shared_ptr<const sigil::image::ImageAsset> asset) {
   e.node()->kind = Kind::Image;
   e.node()->imageData.ensure().asset = std::move(asset);
   return e;
+}
+
+Element image(sk_sp<SkImage> picture, Fit fit) {
+  if (!picture) return box();
+  const float w = (float)picture->width();
+  const float h = (float)picture->height();
+  Element leaf = image(std::make_shared<const sigil::image::ImageAsset>(
+      sigil::image::ImageAsset::wrap(std::move(picture))));
+  // THE FIT IS LAYOUT AND NOT A MATRIX: the leaf takes the box it stands
+  // in, and where its proportions are kept the node itself is the right
+  // shape — so what is painted is the whole of the node and a caller
+  // computes nothing.
+  if (fit == Fit::Stretch || w <= 0.0f || h <= 0.0f)
+    return leaf.width(pct(100)).height(pct(100));
+  leaf.aspect(w / h);
+  if (fit == Fit::Contain)
+    leaf.width(pct(100)).maxWidth(pct(100)).maxHeight(pct(100));
+  else
+    leaf.height(pct(100)).minWidth(pct(100));
+  return leaf;
 }
 
 Element custom(PaintProgram program) {

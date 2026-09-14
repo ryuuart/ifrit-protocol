@@ -8,6 +8,7 @@
 #include <sigilcompose/core/Feed.h>
 
 #include <numeric>
+#include <optional>
 #include <variant>
 
 #include "support/CoreTestSupport.h"
@@ -125,8 +126,7 @@ TEST(ComposeFeed, TheWindowNeverMountsTheRowsOutsideIt) {
   // Options::visible are never built, so they have no instance, no bounds
   // and no layout cost, and a ring that keeps growing does not.
   feed::TextRing ring{600};
-  for (int i = 0; i < 300; ++i)
-    ring.append({"line " + std::to_string(i)});
+  for (int i = 0; i < 300; ++i) ring.append({"line " + std::to_string(i)});
   const feed::TextOptions options = feedOptions(8);
   Host host(200, 200);
   host.composer.render(box().children({feed::feed(ring, options)}));
@@ -140,8 +140,7 @@ TEST(ComposeFeed, TheWindowNeverMountsTheRowsOutsideIt) {
   EXPECT_TRUE(host.composer.bounds(feed::rowKey(300)).has_value());
 
   const size_t live = host.composer.stats().instances;
-  for (int i = 0; i < 200; ++i)
-    ring.append({"more " + std::to_string(i)});
+  for (int i = 0; i < 200; ++i) ring.append({"more " + std::to_string(i)});
   host.composer.render(box().children({feed::feed(ring, options)}));
   host.frame();
   EXPECT_EQ(host.composer.stats().instances, live)
@@ -641,6 +640,45 @@ TEST(ComposeLayout, DimLiteralsResolvePercent) {
   ASSERT_TRUE(rect.has_value());
   EXPECT_FLOAT_EQ(rect->width(), 100.0f);  // 50% of the 200px host
   EXPECT_FLOAT_EQ(rect->height(), 50.0f);  // 25% of 200px
+}
+
+TEST(ComposeContent, APictureMeetsItsBoxTheWayTheFitSays) {
+  // A raw picture is a leaf with the wrap written once, and the FIT is
+  // said where the picture is rather than as a matrix the caller builds.
+  SkBitmap wide;
+  wide.allocN32Pixels(40, 10);
+  wide.eraseColor(SK_ColorRED);
+  const sk_sp<SkImage> picture = wide.asImage();
+  const auto shown = [&](Fit fit) {
+    Host host;
+    host.composer.render(
+        box().children({box()
+                            .width(100)
+                            .height(100)
+                            .alignItems(Align::Center)
+                            .justify(Justify::Center)
+                            .children({image(picture, fit).key("fig")})}));
+    host.frame();
+    const std::optional<SkRect> fig = host.composer.bounds("fig");
+    return fig.value_or(SkRect::MakeEmpty());
+  };
+  // Both axes independently: the picture's proportions are the box's.
+  EXPECT_EQ(shown(Fit::Stretch), SkRect::MakeWH(100, 100));
+  // As large as fits, the slack on the long axis: 4:1 in a square box.
+  const SkRect held = shown(Fit::Contain);
+  EXPECT_FLOAT_EQ(held.width(), 100);
+  EXPECT_FLOAT_EQ(held.height(), 25);
+  // No slack at all: the short axis fills and the long one overflows.
+  const SkRect filled = shown(Fit::Cover);
+  EXPECT_FLOAT_EQ(filled.height(), 100);
+  EXPECT_FLOAT_EQ(filled.width(), 400);
+  // A picture that is not there draws nothing and takes no room.
+  Host bare;
+  bare.composer.render(box().children({image(sk_sp<SkImage>()).key("none")}));
+  bare.frame();
+  const std::optional<SkRect> empty = bare.composer.bounds("none");
+  ASSERT_TRUE(empty.has_value());
+  EXPECT_FLOAT_EQ(empty->height(), 0);
 }
 
 TEST(ComposeContent, ImageRegionDrawsAtlasCell) {

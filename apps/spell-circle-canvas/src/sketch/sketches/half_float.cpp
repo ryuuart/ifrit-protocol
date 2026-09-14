@@ -209,8 +209,7 @@ struct HalfFloat final : sketch::Sketch {
             0xff000000u | (channel(2) << 16) | (channel(1) << 8) | channel(0);
       }
     bitmap.setImmutable();
-    return image(std::make_shared<const img::ImageAsset>(
-                     img::ImageAsset::wrap(bitmap.asImage())))
+    return image(bitmap.asImage(), Fit::Stretch)
         .width(kCell - 20)
         .height(kCell - 20);
   }

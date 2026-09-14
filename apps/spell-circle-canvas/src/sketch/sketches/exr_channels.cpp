@@ -142,16 +142,12 @@ sk_sp<SkData> writeExr() {
  *  where a canvas call can be compared to nothing. */
 Element cell(const sk_sp<SkImage>& picture, const char* call,
              std::string note) {
-  const SurfacePaint ground =
-      picture ? SurfacePaint(mskia::Paint::image(
-                    picture, SkTileMode::kClamp, SkTileMode::kClamp,
-                    SkMatrix::Scale(kCell / kSize, kCell / kSize),
-                    SkSamplingOptions(SkFilterMode::kLinear)))
-              : SurfacePaint(Fill::color(kCellGround));
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well(
-          {.width = kCell, .height = kCell, .ground = ground, .padding = 0}));
+  return sketch::kit::cell({.plate = {.width = kCell,
+                                      .height = kCell,
+                                      .ground = Fill::color(kCellGround),
+                                      .padding = 0}},
+                           call, note,
+                           sigil::compose::image(picture, Fit::Cover));
 }
 
 }  // namespace
