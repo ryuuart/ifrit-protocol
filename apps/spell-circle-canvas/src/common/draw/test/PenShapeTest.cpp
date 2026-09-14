@@ -24,6 +24,41 @@ using sigil::draw::testing::Paper;
 
 // ---- p5's semantics ---------------------------------------------------------
 
+TEST(Pen, OnDrawsOneFrameOverACanvasSomebodyElseHolds) {
+  // The bake into an offscreen surface, without the Frame ceremony: the
+  // pen lives for the call, the box is the size it was given, and the
+  // canvas is left as it was found.
+  Paper paper;
+  paper.surface->getCanvas()->save();
+  on(*paper.surface->getCanvas(), {100, 100}, [](Pen& pen) {
+    EXPECT_FLOAT_EQ(pen.width, 100.0f);
+    EXPECT_FLOAT_EQ(pen.height, 100.0f);
+    pen.noStroke();
+    pen.fill(255, 0, 0);
+    pen.rect(10, 10, 20, 20);
+  });
+  EXPECT_EQ(paper.surface->getCanvas()->getSaveCount(), 2);
+  paper.surface->getCanvas()->restore();
+  EXPECT_EQ(paper.pixel(15, 15), SK_ColorRED);
+  EXPECT_NE(paper.pixel(50, 50), SK_ColorRED);
+}
+
+TEST(Pen, AMarkTakesAPointWhereEveryOtherVerbDoes) {
+  // The same two marks in the values this repository's geometry answers
+  // in, rather than unpacked into four floats.
+  Paper paper;
+  paper.begin();
+  paper.pen.stroke(0, 0, 255);
+  paper.pen.strokeWeight(4);
+  paper.pen.line(SkPoint{10, 50}, SkPoint{90, 50});
+  paper.pen.noStroke();
+  paper.pen.fill(255, 0, 0);
+  paper.pen.circle(SkPoint{30, 80}, 20);
+  paper.end();
+  EXPECT_EQ(paper.pixel(50, 50), SK_ColorBLUE);
+  EXPECT_EQ(paper.pixel(30, 80), SK_ColorRED);
+}
+
 TEST(Pen, RectModeCenterLandsWhereP5Says) {
   Paper paper;
   paper.begin();

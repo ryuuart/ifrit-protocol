@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <initializer_list>
 #include <string>
 #include <string_view>
@@ -431,6 +432,20 @@ float Pen::randomGaussian(float mean, float sd) {
   m_gaussianNext = r * std::sin(TWO_PI * u2);
   m_gaussianHeld = true;
   return mean + r * std::cos(TWO_PI * u2) * sd;
+}
+
+void on(SkCanvas& canvas, SkSize size, const std::function<void(Pen&)>& program,
+        weave::FontContext* fonts) {
+  if (!program) return;
+  Pen pen;
+  Frame frame;
+  frame.width = size.width();
+  frame.height = size.height();
+  frame.frameCount = 1;
+  frame.fonts = fonts;
+  pen.begin(canvas, frame);
+  program(pen);
+  pen.end();
 }
 
 }  // namespace sigil::draw

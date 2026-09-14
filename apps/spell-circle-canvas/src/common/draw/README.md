@@ -121,6 +121,21 @@ reads into `mouseX`, `mouseY`, `pmouseX`, `pmouseY`, `mouseIsPressed`,
 `keyIsPressed`, `key` and `keyCode`, and answers `keyIsDown(code)`
 from. A pen begun with no fonts draws no text.
 
+**A picture baked ONCE is `on`.** `draw::on(canvas, size, program)` is
+those five lines for a drawing that has no clock — an offscreen surface
+filled and handed on as bytes, a texture a scene will wear:
+
+```cpp
+on(*surface->getCanvas(), {120, 80}, [&](Pen& pen) {
+  pen.background(20);
+  pen.rect(8, 8, 40, 40);
+});
+```
+
+The pen lives for the call and nothing is kept between bakes, which is
+what separates it from `Graphics`; `millis()`, `frameCount` and
+`deltaTime` read zero, because a picture drawn once has no time in it.
+
 ## p5's semantics, kept
 
 Every verb below takes what p5's takes, in p5's order, with p5's
@@ -133,7 +148,7 @@ default.
 | the stroke | `strokeWeight`, `strokeCap(ROUND \| SQUARE \| PROJECT)`, `strokeJoin(MITER \| BEVEL \| ROUND)`, `smooth`, `noSmooth` |
 | blending | `blendMode(BLEND \| ADD \| DARKEST \| LIGHTEST \| DIFFERENCE \| EXCLUSION \| MULTIPLY \| SCREEN \| REPLACE \| REMOVE \| OVERLAY \| HARD_LIGHT \| SOFT_LIGHT \| DODGE \| BURN \| SUBTRACT)` |
 | modes | `rectMode`, `ellipseMode`, `imageMode` over `CORNER \| CORNERS \| CENTER \| RADIUS` with p5's defaults (rect and image at the corner, ellipse at the centre); `angleMode(RADIANS \| DEGREES)`, radians by default |
-| shapes | `point`, `line`, `rect(x, y, w, h[, r \| tl, tr, br, bl])`, `square`, `ellipse(x, y, w[, h])`, `circle(x, y, d)`, `arc(x, y, w, h, start, stop[, OPEN \| CHORD \| PIE])`, `triangle`, `quad`, `bezier`, `curve`, `curveTightness` |
+| shapes | `point`, `line`, `rect(x, y, w, h[, r \| tl, tr, br, bl])`, `square`, `ellipse(x, y, w[, h])`, `circle(x, y, d)`, `arc(x, y, w, h, start, stop[, OPEN \| CHORD \| PIE])`, `triangle`, `quad`, `bezier`, `curve`, `curveTightness`; `point`, `line` and `circle` also take `SkPoint`s, since a point here is a value and every verb beside them takes one |
 | vertices | `beginShape([POINTS \| LINES \| TRIANGLES \| TRIANGLE_FAN \| TRIANGLE_STRIP \| QUADS \| QUAD_STRIP])`, `vertex`, `curveVertex`, `bezierVertex`, `quadraticVertex`, `beginContour`, `endContour`, `endShape([CLOSE])`; `fill` between two `vertex` calls colours the corners either side of it |
 | the clip | `clip(shape)`, `clip(shape, {.invert = true})` |
 | text | `text(str, x, y[, w, h])`, `text(number, x, y)`, `textSize`, `textFont(family[, size])`, `textAlign(LEFT \| CENTER \| RIGHT[, TOP \| CENTER \| BOTTOM \| BASELINE])`, `textLeading`, `textStyle(NORMAL \| BOLD \| ITALIC \| BOLDITALIC)`, `textWidth`, `textAscent`, `textDescent` |

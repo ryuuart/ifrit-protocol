@@ -144,26 +144,18 @@ void drawSigil(SkCanvas& canvas, float size) {
                            {radius, radius}, 0.0f, 2.0f * (float)M_PI,
                            arrange::Turn::Closed);
   };
-  sigil::draw::Pen pen;
-  sigil::draw::Frame frame;
-  frame.width = size;
-  frame.height = size;
-  frame.frameCount = 1;
-  pen.begin(canvas, frame);
-  pen.clear();
-  pen.noFill();
-  for (int i = 0; i < 3; ++i) {
-    pen.strokeWeight(3.0f - (float)i);
-    pen.stroke(i % 2 ? hexColor(0xb18cff) : hexColor(0x7ee8ff));
-    pen.circle(centre, centre, 2.0f * centre * (0.92f - 0.22f * (float)i));
-  }
-  pen.strokeWeight(1.4f);
-  pen.stroke(hexColor(0x7ee8ff, 0.7f));
-  for (int i = 0; i < 6; ++i) {
-    const SkPoint from = corner(i), to = corner(i + 2);
-    pen.line(from.fX, from.fY, to.fX, to.fY);
-  }
-  pen.end();
+  sigil::draw::on(canvas, {size, size}, [&](sigil::draw::Pen& pen) {
+    pen.clear();
+    pen.noFill();
+    for (int i = 0; i < 3; ++i) {
+      pen.strokeWeight(3.0f - (float)i);
+      pen.stroke(i % 2 ? hexColor(0xb18cff) : hexColor(0x7ee8ff));
+      pen.circle({centre, centre}, 2.0f * centre * (0.92f - 0.22f * (float)i));
+    }
+    pen.strokeWeight(1.4f);
+    pen.stroke(hexColor(0x7ee8ff, 0.7f));
+    for (int i = 0; i < 6; ++i) pen.line(corner(i), corner(i + 2));
+  });
 }
 
 Element note(std::u8string heading, std::u8string body) {

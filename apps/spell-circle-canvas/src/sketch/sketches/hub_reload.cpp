@@ -59,6 +59,7 @@
 namespace sketch = sigil::sketch;
 namespace img = sigil::image;
 namespace io = sigil::io;
+namespace draw = sigil::draw;
 
 using namespace sigil::compose;
 
@@ -100,14 +101,14 @@ std::optional<Cloud> parseCloud(const io::Bytes& bytes, std::string_view) {
 sk_sp<SkData> chart(int bars, SkColor4f ink) {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(120, 80));
-  SkCanvas* canvas = surface->getCanvas();
-  canvas->clear(SkColor4f{0.10f, 0.11f, 0.13f, 1}.toSkColor());
-  SkPaint paint;
-  paint.setColor4f(ink);
-  for (int i = 0; i < bars; ++i)
-    canvas->drawRect({8.0f + (float)i * 14.0f, 70.0f - (float)(i + 1) * 7.0f,
-                      18.0f + (float)i * 14.0f, 72.0f},
-                     paint);
+  draw::on(*surface->getCanvas(), {120, 80}, [bars, ink](draw::Pen& pen) {
+    pen.background(SkColor4f{0.10f, 0.11f, 0.13f, 1});
+    pen.noStroke();
+    pen.fill(ink);
+    for (int i = 0; i < bars; ++i)
+      pen.rect(8.0f + (float)i * 14.0f, 70.0f - (float)(i + 1) * 7.0f, 10.0f,
+               (float)(i + 1) * 7.0f + 2.0f);
+  });
   return img::encodeImage(*surface->makeImageSnapshot(), img::Format::Png);
 }
 

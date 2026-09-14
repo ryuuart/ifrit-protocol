@@ -76,24 +76,22 @@ const char* kMount = "out://";
 sk_sp<SkImage> source() {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kSide, kSide));
-  sigil::draw::Pen pen;
-  sigil::draw::Frame frame;
-  frame.width = kSide;
-  frame.height = kSide;
-  frame.frameCount = 1;
-  pen.begin(*surface->getCanvas(), frame);
-  pen.background(mskia::Paint::linearUnit(
-      {0, 0}, {1, 1},
-      {{0.0f, {0.10f, 0.16f, 0.30f, 1}}, {1.0f, {0.92f, 0.62f, 0.30f, 1}}}));
-  pen.noStroke();
-  pen.fill(SkColor4f{0.98f, 0.97f, 0.94f, 1});
-  for (int i = 0; i < 9; ++i)
-    pen.rect(14, 18.0f + (float)i * 8.0f, (float)(i * 15 % 120), 2.5f);
-  pen.fill(SkColor4f{0.05f, 0.05f, 0.08f, 1});
-  pen.circle(kSide * 0.62f, kSide * 0.64f, kSide * 0.44f);
-  pen.fill(SkColor4f{0.98f, 0.97f, 0.94f, 1});
-  pen.circle(kSide * 0.62f, kSide * 0.64f, kSide * 0.22f);
-  pen.end();
+  sigil::draw::on(
+      *surface->getCanvas(), {kSide, kSide}, [](sigil::draw::Pen& pen) {
+        pen.background(
+            mskia::Paint::linearUnit({0, 0}, {1, 1},
+                                     {{0.0f, {0.10f, 0.16f, 0.30f, 1}},
+                                      {1.0f, {0.92f, 0.62f, 0.30f, 1}}}));
+        pen.noStroke();
+        pen.fill(SkColor4f{0.98f, 0.97f, 0.94f, 1});
+        for (int i = 0; i < 9; ++i)
+          pen.rect(14, 18.0f + (float)i * 8.0f, (float)(i * 15 % 120), 2.5f);
+        const SkPoint eye{kSide * 0.62f, kSide * 0.64f};
+        pen.fill(SkColor4f{0.05f, 0.05f, 0.08f, 1});
+        pen.circle(eye, kSide * 0.44f);
+        pen.fill(SkColor4f{0.98f, 0.97f, 0.94f, 1});
+        pen.circle(eye, kSide * 0.22f);
+      });
   return surface->makeImageSnapshot();
 }
 
@@ -107,7 +105,8 @@ Element cell(const char* call, const char* note, sk_sp<SkImage> picture,
       kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture})
           .children({std::move(art).inset(0),
-                     text(readout).styleClass("readout")
+                     text(readout)
+                         .styleClass("readout")
                          .left(6.0f)
                          .top(6.0f)
                          .padding(4, 2)

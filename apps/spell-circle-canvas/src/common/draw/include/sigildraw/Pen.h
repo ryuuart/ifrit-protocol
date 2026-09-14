@@ -33,6 +33,7 @@
 
 #include <concepts>
 #include <cstdint>
+#include <functional>
 #include <initializer_list>
 #include <source_location>
 #include <span>
@@ -298,6 +299,12 @@ class Pen {
   // ---- shapes --------------------------------------------------------------
   void point(float x, float y);
   void line(float x1, float y1, float x2, float y2);
+  /** THE SAME MARKS TAKING POINTS. p5 has no such overload because p5 has
+   *  no point value; this repository's points ARE values, and every verb
+   *  beside these takes one — so a curve read off a contour or a chord
+   *  found on a ring is drawn without being unpacked into four floats. */
+  void line(SkPoint from, SkPoint to) { line(from.fX, from.fY, to.fX, to.fY); }
+  void point(SkPoint at) { point(at.fX, at.fY); }
   void rect(float x, float y, float w, float h);
   void rect(float x, float y, float w, float h, float radius);
   void rect(float x, float y, float w, float h, float tl, float tr, float br,
@@ -309,6 +316,7 @@ class Pen {
   void ellipse(float x, float y, float w);
   void ellipse(float x, float y, float w, float h);
   void circle(float x, float y, float d);
+  void circle(SkPoint centre, float d) { circle(centre.fX, centre.fY, d); }
   /** p5's arc: from @p start to @p stop clockwise, in the current angle
    *  mode; the fill is the pie unless the mode is CHORD, and the stroke
    *  is the arc alone under OPEN, closed by its chord under CHORD, and
@@ -654,5 +662,25 @@ class Pen {
   NoiseField m_noise;
   Retained m_retained;
 };
+
+/** ONE DRAWING ON A CANVAS SOMEBODY ELSE HOLDS: a pen begun over @p
+ *  canvas at @p size, @p program run with it, and the frame ended — the
+ *  five lines of `Frame` ceremony every bake into an offscreen surface
+ *  otherwise writes, which is what made raw Skia the cheaper spelling
+ *  there.
+ *
+ *      draw::on(*surface->getCanvas(), {120, 80}, [&](draw::Pen& pen) {
+ *        pen.background(kPaper);
+ *        pen.rect(8, 8, 40, 40);
+ *      });
+ *
+ *  The pen lives for the call and no longer: nothing is kept between
+ *  bakes, which is what separates this from `Graphics`. It has no clock —
+ *  a picture drawn once has no time in it — so `millis()`, `frameCount`
+ *  and `deltaTime` read zero; a drawing that moves is a node's program
+ *  and not a bake. @p fonts is what text is shaped with; a bake with none
+ *  sets none. */
+void on(SkCanvas& canvas, SkSize size, const std::function<void(Pen&)>& program,
+        weave::FontContext* fonts = nullptr);
 
 }  // namespace sigil::draw
