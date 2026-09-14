@@ -158,14 +158,12 @@ Element panorama(const char* call, const std::string& note,
 Element reflector(const char* call, const std::string& note,
                   const material::EnvironmentMap& environment,
                   float roughness = 0) {
-  material::kit::ChromeParameters parameters;
-  parameters.roughness = roughness;
-  parameters.contrast = 1.5f;
   // The face is captured BY VALUE: this program is invoked at paint time,
   // long after the frame that described it.
   return cell(
       call, note,
-      [paint = material::kit::chrome(shoulder(), environment, parameters),
+      [paint = material::kit::chrome(
+           shoulder(), environment, {.roughness = roughness, .contrast = 1.5f}),
        face = disc()](SkCanvas& canvas, const material::FrameData& frame) {
         material::skia::fill(canvas, face, paint, frame);
       });
