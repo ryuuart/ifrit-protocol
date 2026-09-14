@@ -13,6 +13,7 @@
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <array>
+#include <utility>
 
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
@@ -95,9 +96,12 @@ struct BrushEngineAtlas final : sketch::Sketch {
     pen.textSize(26);
     pen.text("PIGMENT / PRESSURE / PAPER", 48, 40);
     pen.textSize(13);
-    pen.text("ONE PASS", 72, 78);
-    pen.text("SIX PASSES", 250, 78);
-    pen.text("FIELD-WARPED WASH", 610, 78);
+    // The three columns' heads, each over the run it names.
+    for (const auto& [x, head] : std::array<std::pair<float, const char*>, 3>{
+             {{72, "ONE PASS"},
+              {250, "SIX PASSES"},
+              {610, "FIELD-WARPED WASH"}}})
+      pen.text(head, x, 78);
 
     const std::array<const char*, 14> names{{
         "2B",
