@@ -109,12 +109,10 @@ Element arcRun(const char* word, float size, SkColor4f colour, bool exact,
                .exactTangent = exact});
 }
 
-Element cell(const char* call, const char* note, Element body) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture})
-          .children({std::move(body)}));
-}
+/** The plate every specimen on this sheet stands on, and the
+ *  measure its caption is set to. */
+const sketch::kit::Cell kSpecimen{
+    .plate = {.width = kCell, .height = kPicture}};
 
 }  // namespace
 
@@ -141,39 +139,45 @@ struct ExactTangent final : sketch::Sketch {
                        "set large and static"},
             kit::cells(
                 {.cells =
-                     {cell("onPath({spiral(3.2), at = 0.42})",
-                           "the baseline every cell uses · one run "
-                           "shaped once and placed by arc length, at label "
-                           "size with the ladder ON",
-                           run("a tight spiral carries its whole run",
-                               kLabelSize, figure, false)),
-                      cell("…"
-                           ".exactTangent = true",
-                           "the same run with the ladder lifted · at "
-                           "this size the two are the same picture, which "
-                           "is what the default is for",
-                           run("a tight spiral carries its whole run",
-                               kLabelSize, figure, true)),
-                      cell("74 px · exactTangent = false",
-                           "display size on a circle · still on "
-                           "the sixteen-steps-per-pixel ladder, so a step "
-                           "sweeps about a fifth of a pixel here too",
-                           arcRun("Ravello", kDisplaySize, figure, false)),
-                      cell("74 px · exactTangent = true",
-                           "the same letters turned to their exact "
-                           "tangents · one strike per letter per "
-                           "distinct angle, which a static plate can afford",
-                           arcRun("Ravello", kDisplaySize, figure, true)),
-                      cell("260 px, both at once",
-                           "snapped in warm under exact in cool, cropped "
-                           "to a detail · no fringe: the two land "
-                           "within a fraction of a pixel, which is the "
-                           "ladder doing its job",
-                           box().inset(0).clip().children(
-                               {arcRun("Ra", kDetailSize, kSnapped, false,
-                                       0.26f, -86, 4),
-                                arcRun("Ra", kDetailSize, kExact, true, 0.26f,
-                                       -86, 4)}))},
+                     {sketch::kit::cell(
+                          kSpecimen, "onPath({spiral(3.2), at = 0.42})",
+                          "the baseline every cell uses · one run "
+                          "shaped once and placed by arc length, at label "
+                          "size with the ladder ON",
+                          run("a tight spiral carries its whole run",
+                              kLabelSize, figure, false)),
+                      sketch::kit::cell(
+                          kSpecimen,
+                          "…"
+                          ".exactTangent = true",
+                          "the same run with the ladder lifted · at "
+                          "this size the two are the same picture, which "
+                          "is what the default is for",
+                          run("a tight spiral carries its whole run",
+                              kLabelSize, figure, true)),
+                      sketch::kit::cell(
+                          kSpecimen, "74 px · exactTangent = false",
+                          "display size on a circle · still on "
+                          "the sixteen-steps-per-pixel ladder, so a step "
+                          "sweeps about a fifth of a pixel here too",
+                          arcRun("Ravello", kDisplaySize, figure, false)),
+                      sketch::kit::cell(
+                          kSpecimen, "74 px · exactTangent = true",
+                          "the same letters turned to their exact "
+                          "tangents · one strike per letter per "
+                          "distinct angle, which a static plate can afford",
+                          arcRun("Ravello", kDisplaySize, figure, true)),
+                      sketch::kit::cell(
+                          kSpecimen, "260 px, both at once",
+                          "snapped in warm under exact in cool, cropped "
+                          "to a detail · no fringe: the two land "
+                          "within a fraction of a pixel, which is the "
+                          "ladder doing its job",
+                          box().inset(0).clip().children(
+                              {arcRun("Ra", kDetailSize, kSnapped, false, 0.26f,
+                                      -86, 4),
+                               arcRun("Ra", kDetailSize, kExact, true, 0.26f,
+                                      -86, 4)}))},
                  .gap = 12}))
             .styleSheet(voices()));
   }

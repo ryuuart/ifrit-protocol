@@ -106,12 +106,10 @@ sk_sp<SkImage> hdrSource() {
   return surface->makeImageSnapshot();
 }
 
-Element cell(const char* call, const char* note, Element body) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture, .padding = 10})
-          .children({std::move(body)}));
-}
+/** The plate every specimen on this sheet stands on, and the
+ *  measure its caption is set to. */
+const sketch::kit::Cell kSpecimen{
+    .plate = {.width = kCell, .height = kPicture, .padding = 10}};
 
 }  // namespace
 
@@ -161,31 +159,35 @@ struct HalfFloat final : sketch::Sketch {
                    "them on the way out, so no exposure brings them "
                    "back"},
         kit::cells(
-            {.cells = {cell("halfFloatPixels · exposure 1.0",
-                            "the half readback shown straight · "
-                            "everything past one is off the top of the "
-                            "display, which is what a display is",
-                            fromHalves(kStops[0])),
-                       cell("halfFloatPixels · exposure 0.18",
-                            "the same words brought down · the "
-                            "highlights are still there to bring, because a "
-                            "half held them",
-                            fromHalves(kStops[1])),
-                       cell("bytePixels · exposure 1.0",
-                            "the ordinary readback · the same picture, "
-                            "and the top band and the ramp above one are now "
-                            "one colour",
-                            fromBytes(kStops[0])),
-                       cell("bytePixels · exposure 0.18",
-                            "brought down by the same amount · nothing "
-                            "comes back: the clip happened in the readback "
-                            "and not in the display",
-                            fromBytes(kStops[1])),
-                       cell("what each readback answered",
-                            "the question a caller asks first, the two buffer "
-                            "sizes, and one hot texel read out of each",
-                            text(readout).styleClass("readout").width(kCell -
-                                                                      20))},
+            {.cells =
+                 {sketch::kit::cell(kSpecimen, "halfFloatPixels · exposure 1.0",
+                                    "the half readback shown straight · "
+                                    "everything past one is off the top of the "
+                                    "display, which is what a display is",
+                                    fromHalves(kStops[0])),
+                  sketch::kit::cell(
+                      kSpecimen, "halfFloatPixels · exposure 0.18",
+                      "the same words brought down · the "
+                      "highlights are still there to bring, because a "
+                      "half held them",
+                      fromHalves(kStops[1])),
+                  sketch::kit::cell(
+                      kSpecimen, "bytePixels · exposure 1.0",
+                      "the ordinary readback · the same picture, "
+                      "and the top band and the ramp above one are now "
+                      "one colour",
+                      fromBytes(kStops[0])),
+                  sketch::kit::cell(
+                      kSpecimen, "bytePixels · exposure 0.18",
+                      "brought down by the same amount · nothing "
+                      "comes back: the clip happened in the readback "
+                      "and not in the display",
+                      fromBytes(kStops[1])),
+                  sketch::kit::cell(
+                      kSpecimen, "what each readback answered",
+                      "the question a caller asks first, the two buffer "
+                      "sizes, and one hot texel read out of each",
+                      text(readout).styleClass("readout").width(kCell - 20))},
              .gap = 12})));
   }
 

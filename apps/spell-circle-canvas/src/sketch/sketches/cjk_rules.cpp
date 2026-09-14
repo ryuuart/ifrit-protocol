@@ -114,12 +114,10 @@ Element column() {
       .block({.writingMode = weave::WritingMode::kVerticalRL});
 }
 
-Element cell(const char* call, const char* note, Element body) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
-          .children({std::move(body)}));
-}
+/** The plate every specimen on this sheet stands on, and the
+ *  measure its caption is set to. */
+const sketch::kit::Cell kSpecimen{
+    .plate = {.width = kCell, .height = kPicture, .padding = 12}};
 
 }  // namespace
 
@@ -142,42 +140,46 @@ struct CjkRules final : sketch::Sketch {
                    "of the stock one"},
         kit::cells(
             {.cells =
-                 {cell("writingMode(kVerticalRL)",
-                       "the passage with no table at all · the "
-                       "reference every other cell is read against",
-                       column()),
-                  cell(
-                      "kinsoku(kit::kinsoku::japanese())",
+                 {sketch::kit::cell(
+                      kSpecimen, "writingMode(kVerticalRL)",
+                      "the passage with no table at all · the "
+                      "reference every other cell is read against",
+                      column()),
+                  sketch::kit::cell(
+                      kSpecimen, "kinsoku(kit::kinsoku::japanese())",
                       "the closing marks and non-starters may not "
                       "OPEN a column · identical to the "
                       "reference, because the segmentation had already "
                       "refused those boundaries",
                       column().block(
                           {.kinsoku = sigil::weave::kit::kinsoku::japanese()})),
-                  cell(
-                      "hanging(kit::hanging::japanese())",
+                  sketch::kit::cell(
+                      kSpecimen, "hanging(kit::hanging::japanese())",
                       "burasagari · the sentence marks alone, "
                       "at a column's END · no column of this "
                       "setting closes on one, so nothing hangs",
                       column().block(
                           {.hanging = sigil::weave::kit::hanging::japanese()})),
-                  cell("mojikumi(brackets(-0.5))",
-                       "half an em taken out of the gap between a "
-                       "closing mark and an opening one · two "
-                       "half-air cells set closer",
-                       column().block({.mojikumi = brackets(kBracketRoom)})),
-                  cell("mojikumi({}, tsume = -0.12)",
-                       "every full-width gap the table gives no class "
-                       "closed up on top of that · the whole "
-                       "column shortens",
-                       column().block({.mojikumi = brackets(kBracketRoom),
-                                       .tsume = kTsume})),
-                  cell("lineBreakLocale(\"ja\")",
-                       "the tailoring the segmentation runs under "
-                       "· the default already breaks this "
-                       "passage the same way, which is the point of "
-                       "the two cells before it",
-                       column().block({.lineBreakLocale = "ja"}))},
+                  sketch::kit::cell(
+                      kSpecimen, "mojikumi(brackets(-0.5))",
+                      "half an em taken out of the gap between a "
+                      "closing mark and an opening one · two "
+                      "half-air cells set closer",
+                      column().block({.mojikumi = brackets(kBracketRoom)})),
+                  sketch::kit::cell(
+                      kSpecimen, "mojikumi({}, tsume = -0.12)",
+                      "every full-width gap the table gives no class "
+                      "closed up on top of that · the whole "
+                      "column shortens",
+                      column().block({.mojikumi = brackets(kBracketRoom),
+                                      .tsume = kTsume})),
+                  sketch::kit::cell(
+                      kSpecimen, "lineBreakLocale(\"ja\")",
+                      "the tailoring the segmentation runs under "
+                      "· the default already breaks this "
+                      "passage the same way, which is the point of "
+                      "the two cells before it",
+                      column().block({.lineBreakLocale = "ja"}))},
              .gap = 10})));
   }
 };

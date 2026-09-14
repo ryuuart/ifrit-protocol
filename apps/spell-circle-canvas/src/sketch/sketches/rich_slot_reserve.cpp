@@ -92,12 +92,10 @@ const char* kPassage =
     "Room beside a line is a layout input: it stands in the strut before "
     "the passage is broken, so nothing chases anything afterwards.";
 
-Element cell(const char* call, const char* note, Element body) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
-          .children({std::move(body)}));
-}
+/** The plate every specimen on this sheet stands on, and the
+ *  measure its caption is set to. */
+const sketch::kit::Cell kSpecimen{
+    .plate = {.width = kCell, .height = kPicture, .padding = 12}};
 
 /** One passage with an inline slot in the middle of it. */
 Element slotted(SkSize size, float drop, SkColor4f fill) {
@@ -140,35 +138,41 @@ struct RichSlotReserve final : sketch::Sketch {
                    "captions may both reserve an \"icon\" and "
                    "neither is reachable by renderSlot"},
         kit::cells(
-            {.cells = {cell("weave::rich(…).slot(\"chip\", {34, 16})",
-                            "the box stands ON the baseline, like an inline "
-                            "image · the child is keyed \"chip\" and "
-                            "lands wherever the placeholder does",
-                            slotted(kChip, 0, kChipFill)),
-                       cell("…, baselineDrop = 4",
-                            "the box's BOTTOM dropped below the baseline by "
-                            "about the face's descent · a pill centred "
-                            "on the x-height",
-                            slotted(kChip, kDrop, kChipFill)),
-                       cell("slot(\"chip\", {40, 26})",
-                            "taller than the type · the strut takes "
-                            "how far it reaches either side of the baseline, "
-                            "so every line of the BLOCK opens by that much",
-                            slotted(kTall, kDrop, kChipFill)),
-                       cell("no reserve",
-                            "the reference pitch · the plate is filled "
-                            "so the block's own height is legible",
-                            banded({})),
-                       cell("reserve({.before = 14})",
-                            "room ABOVE every line, and the baseline moved "
-                            "down inside the band · where a reading "
-                            "goes",
-                            banded({.before = kBand})),
-                       cell("reserve({.after = 14})",
-                            "room BELOW every line · the pitch opens "
-                            "by the same amount and the type does not move "
-                            "inside it",
-                            banded({.after = kBand}))},
+            {.cells = {sketch::kit::cell(
+                           kSpecimen, "weave::rich(…).slot(\"chip\", {34, 16})",
+                           "the box stands ON the baseline, like an inline "
+                           "image · the child is keyed \"chip\" and "
+                           "lands wherever the placeholder does",
+                           slotted(kChip, 0, kChipFill)),
+                       sketch::kit::cell(
+                           kSpecimen, "…, baselineDrop = 4",
+                           "the box's BOTTOM dropped below the baseline by "
+                           "about the face's descent · a pill centred "
+                           "on the x-height",
+                           slotted(kChip, kDrop, kChipFill)),
+                       sketch::kit::cell(
+                           kSpecimen, "slot(\"chip\", {40, 26})",
+                           "taller than the type · the strut takes "
+                           "how far it reaches either side of the baseline, "
+                           "so every line of the BLOCK opens by that much",
+                           slotted(kTall, kDrop, kChipFill)),
+                       sketch::kit::cell(
+                           kSpecimen, "no reserve",
+                           "the reference pitch · the plate is filled "
+                           "so the block's own height is legible",
+                           banded({})),
+                       sketch::kit::cell(
+                           kSpecimen, "reserve({.before = 14})",
+                           "room ABOVE every line, and the baseline moved "
+                           "down inside the band · where a reading "
+                           "goes",
+                           banded({.before = kBand})),
+                       sketch::kit::cell(
+                           kSpecimen, "reserve({.after = 14})",
+                           "room BELOW every line · the pitch opens "
+                           "by the same amount and the type does not move "
+                           "inside it",
+                           banded({.after = kBand}))},
              .gap = 10})
             .font(bodyVoice())));
   }

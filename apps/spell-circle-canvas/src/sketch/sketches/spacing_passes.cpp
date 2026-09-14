@@ -94,12 +94,10 @@ Element passage(weave::JustificationOptions options) {
       .block({.justification = options});
 }
 
-Element cell(const char* call, const char* note, Element body) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
-          .children({std::move(body)}));
-}
+/** The plate every specimen on this sheet stands on, and the
+ *  measure its caption is set to. */
+const sketch::kit::Cell kSpecimen{
+    .plate = {.width = kCell, .height = kPicture, .padding = 12}};
 
 }  // namespace
 
@@ -137,36 +135,41 @@ struct SpacingPasses final : sketch::Sketch {
                    "nothing — which is why a caller who "
                    "sets none of them gets word spacing alone"},
         kit::cells(
-            {.cells = {cell("justification({})",
-                            "the word gaps alone · the two later "
-                            "passes have limits equal to their desired "
-                            "values and do not run, so nothing bounds the "
-                            "gaps and they take the whole fit",
-                            passage(gaps)),
-                       cell("wordSpacing = 2.0",
-                            "the FIRST pass aimed at twice the shaped space "
-                            "· the elasticity is measured from this, "
-                            "not from the space the face cut",
-                            passage(wider)),
-                       cell("letterSpacing = 0.05",
-                            "the SECOND pass, in em fractions, applied to "
-                            "every justified line whatever its fit · "
-                            "a pass past the gaps is open, so the gaps hold "
-                            "at their stretch limit and the letters carry "
-                            "the rest",
-                            passage(letters)),
-                       cell("glyphScale = 0.92",
-                            "the THIRD pass, which scales the letters "
-                            "themselves across · the last thing a page "
-                            "should do: every justified line is set at 92 "
-                            "per cent of its shaped width",
-                            passage(glyphs)),
-                       cell("singleWord = kJustify",
-                            "a line holding ONE word has no gaps to "
-                            "spend · stretched across the measure by "
-                            "letter spacing alone, with justifyLastLine "
-                            "setting the closing line too",
-                            passage(lastWord))},
+            {.cells = {sketch::kit::cell(
+                           kSpecimen, "justification({})",
+                           "the word gaps alone · the two later "
+                           "passes have limits equal to their desired "
+                           "values and do not run, so nothing bounds the "
+                           "gaps and they take the whole fit",
+                           passage(gaps)),
+                       sketch::kit::cell(
+                           kSpecimen, "wordSpacing = 2.0",
+                           "the FIRST pass aimed at twice the shaped space "
+                           "· the elasticity is measured from this, "
+                           "not from the space the face cut",
+                           passage(wider)),
+                       sketch::kit::cell(
+                           kSpecimen, "letterSpacing = 0.05",
+                           "the SECOND pass, in em fractions, applied to "
+                           "every justified line whatever its fit · "
+                           "a pass past the gaps is open, so the gaps hold "
+                           "at their stretch limit and the letters carry "
+                           "the rest",
+                           passage(letters)),
+                       sketch::kit::cell(
+                           kSpecimen, "glyphScale = 0.92",
+                           "the THIRD pass, which scales the letters "
+                           "themselves across · the last thing a page "
+                           "should do: every justified line is set at 92 "
+                           "per cent of its shaped width",
+                           passage(glyphs)),
+                       sketch::kit::cell(
+                           kSpecimen, "singleWord = kJustify",
+                           "a line holding ONE word has no gaps to "
+                           "spend · stretched across the measure by "
+                           "letter spacing alone, with justifyLastLine "
+                           "setting the closing line too",
+                           passage(lastWord))},
              .gap = 12})));
   }
 };

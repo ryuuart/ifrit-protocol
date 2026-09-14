@@ -88,12 +88,10 @@ weave::Type serifType(float size, SkColor4f color, float track = 0) {
   return {.face = face, .size = size, .color = color, .track = track};
 }
 
-Element cell(const char* call, const char* note, Element body) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture, .padding = 14})
-          .children({std::move(body)}));
-}
+/** The plate every specimen on this sheet stands on, and the
+ *  measure its caption is set to. */
+const sketch::kit::Cell kSpecimen{
+    .plate = {.width = kCell, .height = kPicture, .padding = 14}};
 
 /** One initial letter over the passage; `nested`, when given, sets the
  *  opening of the block in a style of its own. Both are properties of the
@@ -182,37 +180,43 @@ struct BulletsDropCap final : sketch::Sketch {
                    "it opened"},
         kit::cells(
             {.cells =
-                 {cell("text(passage).initialLetter({.lines = 3})",
-                       "the size is derived from the block's pitch and "
-                       "the face's cap height · one property, no "
-                       "second element",
-                       dropped("cap-plain", {})),
-                  cell("ornament.key(k) + text.flowAround(k)",
-                       "the star is the painted initial AND the "
-                       "silhouette subtracted from each horizontal "
-                       "line · type enters its notches",
-                       illuminated("cap-ornament",
-                                   kit::NestedStyle{
-                                       .until = kit::NestedStyle::Until::Words,
-                                       .count = 6,
-                                       .style = smallCaps})),
-                  cell("…"
-                       ", NestedStyle{Delimiter, \"once.\"}",
-                       "from the start THROUGH the first occurrence, "
-                       "inclusive · an anchored non-greedy regex "
-                       "with the mark literal-quoted",
-                       dropped("cap-delim",
-                               kit::NestedStyle{
-                                   .until = kit::NestedStyle::Until::Delimiter,
-                                   .delimiter = u8"once.",
-                                   .style = smallCaps})),
-                  cell("kit::bullets(items, markers, style, hang, "
-                       "measure)",
-                       "two levels, two calls · every line of an "
-                       "item stands one hang in, the first included, "
-                       "and the marker keeps the room the indent "
-                       "opened",
-                       std::move(list))},
+                 {sketch::kit::cell(
+                      kSpecimen, "text(passage).initialLetter({.lines = 3})",
+                      "the size is derived from the block's pitch and "
+                      "the face's cap height · one property, no "
+                      "second element",
+                      dropped("cap-plain", {})),
+                  sketch::kit::cell(
+                      kSpecimen, "ornament.key(k) + text.flowAround(k)",
+                      "the star is the painted initial AND the "
+                      "silhouette subtracted from each horizontal "
+                      "line · type enters its notches",
+                      illuminated("cap-ornament",
+                                  kit::NestedStyle{
+                                      .until = kit::NestedStyle::Until::Words,
+                                      .count = 6,
+                                      .style = smallCaps})),
+                  sketch::kit::cell(
+                      kSpecimen,
+                      "…"
+                      ", NestedStyle{Delimiter, \"once.\"}",
+                      "from the start THROUGH the first occurrence, "
+                      "inclusive · an anchored non-greedy regex "
+                      "with the mark literal-quoted",
+                      dropped("cap-delim",
+                              kit::NestedStyle{
+                                  .until = kit::NestedStyle::Until::Delimiter,
+                                  .delimiter = u8"once.",
+                                  .style = smallCaps})),
+                  sketch::kit::cell(
+                      kSpecimen,
+                      "kit::bullets(items, markers, style, hang, "
+                      "measure)",
+                      "two levels, two calls · every line of an "
+                      "item stands one hang in, the first included, "
+                      "and the marker keeps the room the indent "
+                      "opened",
+                      std::move(list))},
              .gap = 14})));
   }
 };

@@ -5,9 +5,9 @@
 
 #include <gtest/gtest.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/PixelStyles.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcore/reconcile/Environment.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -73,6 +73,37 @@ TEST(SketchKitCells, WellTakesTheThemesCellGround) {
       kit::well(
           {.width = compose::Dimension(163), .height = compose::Dimension(176)},
           compose::box().children({subject()}))));
+}
+
+/** THE SHEET'S OWN CELL: the plate and the measure stated once, against
+ *  the caption-over-a-well every sheet of pictures writes by hand. */
+TEST(SketchKitCells, ACellIsTheSheetsPlateAndMeasureStatedOnce) {
+  const kit::Cell sheet{.plate = {.width = compose::Dimension(200),
+                                  .height = compose::Dimension(140),
+                                  .padding = 12}};
+  EXPECT_TRUE(sameDrawing(
+      kit::caption(200, "shapes::chamfer(9)", "the corner taken off square",
+                   kit::well({.width = compose::Dimension(200),
+                              .height = compose::Dimension(140),
+                              .padding = 12})
+                       .children({subject()})),
+      kit::cell(sheet, "shapes::chamfer(9)", "the corner taken off square",
+                subject())));
+}
+
+/** A plate that RANGES its picture holds it where `Well::content` says,
+ *  which is the middle where it says nothing else. */
+TEST(SketchKitCells, ACellsPlateRangesThePictureWhereItsContentSays) {
+  const kit::Cell sheet{.plate = {.width = compose::Dimension(200),
+                                  .height = compose::Dimension(140),
+                                  .content = kit::Well::Content{}}};
+  EXPECT_TRUE(
+      sameDrawing(kit::caption(200, "call", "note",
+                               kit::well({.width = compose::Dimension(200),
+                                          .height = compose::Dimension(140),
+                                          .content = kit::Well::Content{}},
+                                         subject())),
+                  kit::cell(sheet, "call", "note", subject())));
 }
 
 /** THE WELL THAT HOLDS: a plate of the theme's ground with the picture

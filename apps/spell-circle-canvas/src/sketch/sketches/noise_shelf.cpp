@@ -110,12 +110,10 @@ Element line(const std::string& row) {
   return text(row, sheet.mono(9.5f, sheet.palette.figure));
 }
 
-Element cell(const char* call, const char* note, Element body) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture})
-          .children({std::move(body)}));
-}
+/** The plate every specimen on this sheet stands on, and the
+ *  measure its caption is set to. */
+const sketch::kit::Cell kSpecimen{
+    .plate = {.width = kCell, .height = kPicture}};
 
 }  // namespace
 
@@ -141,58 +139,62 @@ struct NoiseShelf final : sketch::Sketch {
                    "— and why the constants and the "
                    "shift schedules are not tuning knobs"},
         kit::cells(
-            {.cells = {cell("noise::hash(seed, i)",
-                            "the 64-bit avalanche squeezed to a unit float "
-                            "· indexed by a counter, here the sample's "
-                            "own number",
-                            field("hash",
-                                  [columns](int x, int y) {
-                                    return noise::hash(
-                                        kSeed, (uint32_t)(y * columns + x));
-                                  })),
-                       cell("Mix64Stream(seed).unit()",
-                            "the same avalanche as a STREAM · one "
-                            "state stepped by the gamma, so successive draws "
-                            "are uncorrelated rather than merely different",
-                            field("mix64",
-                                  [columns](int x, int y) {
-                                    noise::Mix64Stream stream(
-                                        kSeed + (uint64_t)(y * columns + x));
-                                    return stream.unit();
-                                  })),
-                       cell("noise::pcgUnit(x)",
-                            "the PCG word, which the point-operator compute "
-                            "kernel reproduces word for word · what "
-                            "new code takes",
-                            field("pcg",
-                                  [columns](int x, int y) {
-                                    return noise::pcgUnit(
-                                        kSeed + (uint32_t)(y * columns + x));
-                                  })),
-                       cell("xorshiftUnitNext(state)",
-                            "the xorshift step, walked from one state down "
-                            "the field · a different mixer with a "
-                            "different output, kept for the renders seeded "
-                            "by it",
-                            field("xorshift",
-                                  [columns](int x, int y) {
-                                    uint32_t state =
-                                        kSeed +
-                                        (uint32_t)(y * columns + x) * 7u;
-                                    noise::xorshiftUnitNext(state);
-                                    return noise::xorshiftUnitNext(state);
-                                  })),
-                       cell("lattice(seed, x, y, 0)",
-                            "indexed by a grid POSITION rather than a counter "
-                            "· what value noise asks at each corner of "
-                            "a cell, drawn here one draw per cell",
-                            field("lattice",
-                                  [](int x, int y) {
-                                    const uint32_t h = noise::lattice(
-                                        kSeed, x / kCells, y / kCells, 0);
-                                    return (float)(h >> 8u) *
-                                           (1.0f / 16777216.0f);
-                                  })),
+            {.cells = {sketch::kit::cell(
+                           kSpecimen, "noise::hash(seed, i)",
+                           "the 64-bit avalanche squeezed to a unit float "
+                           "· indexed by a counter, here the sample's "
+                           "own number",
+                           field("hash",
+                                 [columns](int x, int y) {
+                                   return noise::hash(
+                                       kSeed, (uint32_t)(y * columns + x));
+                                 })),
+                       sketch::kit::cell(
+                           kSpecimen, "Mix64Stream(seed).unit()",
+                           "the same avalanche as a STREAM · one "
+                           "state stepped by the gamma, so successive draws "
+                           "are uncorrelated rather than merely different",
+                           field("mix64",
+                                 [columns](int x, int y) {
+                                   noise::Mix64Stream stream(
+                                       kSeed + (uint64_t)(y * columns + x));
+                                   return stream.unit();
+                                 })),
+                       sketch::kit::cell(
+                           kSpecimen, "noise::pcgUnit(x)",
+                           "the PCG word, which the point-operator compute "
+                           "kernel reproduces word for word · what "
+                           "new code takes",
+                           field("pcg",
+                                 [columns](int x, int y) {
+                                   return noise::pcgUnit(
+                                       kSeed + (uint32_t)(y * columns + x));
+                                 })),
+                       sketch::kit::cell(
+                           kSpecimen, "xorshiftUnitNext(state)",
+                           "the xorshift step, walked from one state down "
+                           "the field · a different mixer with a "
+                           "different output, kept for the renders seeded "
+                           "by it",
+                           field("xorshift",
+                                 [columns](int x, int y) {
+                                   uint32_t state =
+                                       kSeed + (uint32_t)(y * columns + x) * 7u;
+                                   noise::xorshiftUnitNext(state);
+                                   return noise::xorshiftUnitNext(state);
+                                 })),
+                       sketch::kit::cell(
+                           kSpecimen, "lattice(seed, x, y, 0)",
+                           "indexed by a grid POSITION rather than a counter "
+                           "· what value noise asks at each corner of "
+                           "a cell, drawn here one draw per cell",
+                           field("lattice",
+                                 [](int x, int y) {
+                                   const uint32_t h = noise::lattice(
+                                       kSeed, x / kCells, y / kCells, 0);
+                                   return (float)(h >> 8u) *
+                                          (1.0f / 16777216.0f);
+                                 })),
                        keys()},
              .gap = 10})));
   }
@@ -214,15 +216,16 @@ struct NoiseShelf final : sketch::Sketch {
         kit::formatted("  %016llx", (unsigned long long)both),
         "combine(0, 7)",
         kit::formatted("  %016llx", (unsigned long long)mixed)};
-    return cell("fnv1a · combine",
-                "one-way folds over a word and over text · an address "
-                "and not a field, which is why nothing here is drawn",
-                box()
-                    .column()
-                    .gap(8)
-                    .children({each(rows, line)})
-                    .absolute()
-                    .inset(10));
+    return sketch::kit::cell(
+        kSpecimen, "fnv1a · combine",
+        "one-way folds over a word and over text · an address "
+        "and not a field, which is why nothing here is drawn",
+        box()
+            .column()
+            .gap(8)
+            .children({each(rows, line)})
+            .absolute()
+            .inset(10));
   }
 };
 

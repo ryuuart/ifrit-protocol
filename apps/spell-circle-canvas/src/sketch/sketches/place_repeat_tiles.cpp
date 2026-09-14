@@ -75,12 +75,10 @@ Element motif(SkColor4f ink) {
       .fill(Fill::color(ink));
 }
 
-Element cell(const char* call, const char* note, Element body) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture})
-          .children({std::move(body)}));
-}
+/** The plate every specimen on this sheet stands on, and the
+ *  measure its caption is set to. */
+const sketch::kit::Cell kSpecimen{
+    .plate = {.width = kCell, .height = kPicture}};
 
 }  // namespace
 
@@ -154,14 +152,16 @@ struct PlaceRepeatTiles final : sketch::Sketch {
   }
 
   Element chain() const {
-    return cell("place::repeat(pool, 9, start, {19, 0})",
-                "the plainest chain · position is start + translate "
-                "× i, and every other lane is left alone",
-                pooled(plain));
+    return sketch::kit::cell(
+        kSpecimen, "place::repeat(pool, 9, start, {19, 0})",
+        "the plainest chain · position is start + translate "
+        "× i, and every other lane is left alone",
+        pooled(plain));
   }
 
   Element turned() const {
-    return cell(
+    return sketch::kit::cell(
+        kSpecimen,
         "…"
         ", rotateStep = 0.18, scaleStep = 0.90",
         "rotation LINEAR in the index, scale EXPONENTIAL · "
@@ -170,7 +170,8 @@ struct PlaceRepeatTiles final : sketch::Sketch {
   }
 
   Element ramped() const {
-    return cell(
+    return sketch::kit::cell(
+        kSpecimen,
         "…"
         ", opacityFrom = 1, opacityTo = 0.12",
         "the ramp writes the alphas() lane, composing with the "
@@ -185,36 +186,38 @@ struct PlaceRepeatTiles final : sketch::Sketch {
     sk_sp<SkPicture> art = strip;
     const auto facing =
         mirrored ? tiles::Facing::Mirrored : tiles::Facing::Forward;
-    return cell(mirrored ? "tiles::window(tile, k, Down, Mirrored)"
-                         : "tiles::window(tile, k, Flow::Down)",
-                mirrored ? "pre-flipped ACROSS the strip for a consumer "
-                           "whose u runs backwards · legible in a PNG "
-                           "either way, which is the trap"
-                         : "four tiles of one baked picture, drawn apart "
-                           "· sliceable() first, so each replay "
-                           "visits only its own ops",
-                custom(mirrored ? "tiles.mirrored" : "tiles.forward",
-                       [art, facing](SkCanvas& canvas) {
-                         constexpr float kAir = 4;
-                         const float scale = 0.62f;
-                         canvas.save();
-                         canvas.translate(10, 8);
-                         canvas.scale(scale, scale);
-                         for (int k = 0; k < kTiles; ++k) {
-                           canvas.save();
-                           canvas.translate(
-                               k * ((float)kTile.width() + kAir / scale), 0);
-                           canvas.clipRect(SkRect::MakeWH(
-                               (float)kTile.width(), (float)kTile.height()));
-                           canvas.concat(tiles::window(
-                               kTile, k, tiles::Flow::Down, facing));
-                           canvas.drawPicture(art);
-                           canvas.restore();
-                         }
-                         canvas.restore();
-                       })
-                    .absolute()
-                    .inset(0));
+    return sketch::kit::cell(
+        kSpecimen,
+        mirrored ? "tiles::window(tile, k, Down, Mirrored)"
+                 : "tiles::window(tile, k, Flow::Down)",
+        mirrored ? "pre-flipped ACROSS the strip for a consumer "
+                   "whose u runs backwards · legible in a PNG "
+                   "either way, which is the trap"
+                 : "four tiles of one baked picture, drawn apart "
+                   "· sliceable() first, so each replay "
+                   "visits only its own ops",
+        custom(mirrored ? "tiles.mirrored" : "tiles.forward",
+               [art, facing](SkCanvas& canvas) {
+                 constexpr float kAir = 4;
+                 const float scale = 0.62f;
+                 canvas.save();
+                 canvas.translate(10, 8);
+                 canvas.scale(scale, scale);
+                 for (int k = 0; k < kTiles; ++k) {
+                   canvas.save();
+                   canvas.translate(k * ((float)kTile.width() + kAir / scale),
+                                    0);
+                   canvas.clipRect(SkRect::MakeWH((float)kTile.width(),
+                                                  (float)kTile.height()));
+                   canvas.concat(
+                       tiles::window(kTile, k, tiles::Flow::Down, facing));
+                   canvas.drawPicture(art);
+                   canvas.restore();
+                 }
+                 canvas.restore();
+               })
+            .absolute()
+            .inset(0));
   }
 };
 

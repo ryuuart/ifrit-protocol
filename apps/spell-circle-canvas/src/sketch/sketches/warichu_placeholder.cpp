@@ -90,12 +90,10 @@ std::u8string narrow(std::u16string_view utf16) {
   return out;
 }
 
-Element cell(const char* call, const char* note, Element body) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
-          .children({std::move(body)}));
-}
+/** The plate every specimen on this sheet stands on, and the
+ *  measure its caption is set to. */
+const sketch::kit::Cell kSpecimen{
+    .plate = {.width = kCell, .height = kPicture, .padding = 12}};
 
 }  // namespace
 
@@ -178,26 +176,29 @@ struct WarichuPlaceholder final : sketch::Sketch {
   /** The note set as ONE line, which is what the slot holds when nothing
    *  splits it — and why a long aside interrupts so badly. */
   Element oneLineCell() {
-    return cell("slot(\"note\", {one line, band})",
-                "the aside set as a single line · it takes the base's "
-                "whole measure and the line it interrupts has nowhere to go",
-                based({oneLine, kNoteSize * 1.4f}, text(kNote)));
+    return sketch::kit::cell(
+        kSpecimen, "slot(\"note\", {one line, band})",
+        "the aside set as a single line · it takes the base's "
+        "whole measure and the line it interrupts has nowhere to go",
+        based({oneLine, kNoteSize * 1.4f}, text(kNote)));
   }
 
   /** The two lines, cut where the split said, stacked across the band it
    *  asked for. */
   Element splitCell() {
-    return cell("warichuSplit(fonts, note)",
-                "the same note in two lines of one length, in a slot the "
-                "split sized · the band opens the base's own pitch, "
-                "with no leading set by hand",
-                based({split.advance, split.band}, stackedNote()));
+    return sketch::kit::cell(
+        kSpecimen, "warichuSplit(fonts, note)",
+        "the same note in two lines of one length, in a slot the "
+        "split sized · the band opens the base's own pitch, "
+        "with no leading set by hand",
+        based({split.advance, split.band}, stackedNote()));
   }
 
   /** The same slot in a vertical base: the two lines stack ACROSS the
    *  column, which is the setting the form comes from. */
   Element verticalCell() {
-    return cell(
+    return sketch::kit::cell(
+        kSpecimen,
         "…"
         " in a vertical base",
         "the two lines stack across the column · the slot is "
@@ -226,19 +227,20 @@ struct WarichuPlaceholder final : sketch::Sketch {
   /** What the split answered, printed. */
   Element readoutCell() {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
-    return cell("WarichuSplit{advance, band, cutWord}",
-                "what the split answered for this note at this size "
-                "· the caller cuts its own text at that word's start",
-                // The three numbers are set in one voice, on the column:
-                // the face a call is set in, at the figure colour.
-                box()
-                    .column()
-                    .gap(8)
-                    .font({.face = sheet.type.mono, .size = 10})
-                    .ink(sheet.palette.figure)
-                    .children({each(report, [](const std::string& row) {
-                      return text(row).width(kCell - 24);
-                    })}));
+    return sketch::kit::cell(
+        kSpecimen, "WarichuSplit{advance, band, cutWord}",
+        "what the split answered for this note at this size "
+        "· the caller cuts its own text at that word's start",
+        // The three numbers are set in one voice, on the column:
+        // the face a call is set in, at the figure colour.
+        box()
+            .column()
+            .gap(8)
+            .font({.face = sheet.type.mono, .size = 10})
+            .ink(sheet.palette.figure)
+            .children({each(report, [](const std::string& row) {
+              return text(row).width(kCell - 24);
+            })}));
   }
 };
 

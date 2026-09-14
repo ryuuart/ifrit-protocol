@@ -142,6 +142,39 @@ struct Well {
                                        compose::Utf8 note,
                                        compose::Element body);
 
+/** THE CELL A SHEET IS MADE OF, stated ONCE: the plate every specimen on
+ *  it stands on, and the measure its caption is set to.
+ *
+ *      const sketch::kit::Cell kSpecimen{
+ *          .plate = {.width = kCell, .height = kPicture, .padding = 12}};
+ *      …
+ *      sketch::kit::cell(kSpecimen, "shapes::chamfer(9)",
+ *                        "the corner taken off square", plaque())
+ *
+ *  It is the four-line private helper every sheet of captioned pictures
+ *  otherwise defines for itself. */
+struct Cell {
+  /** THE PLATE, which HOLDS the picture. Unset, `Well::content` holds it
+   *  as a box holds a child; stated, it ranges the picture inside the
+   *  plate — centred where it says nothing else, which is what a
+   *  specimen smaller than its plate asks for. A picture that IS its
+   *  plate — a drawing handed the plate's own resolved size, a well
+   *  grounded in a material — is `caption(measure, label, note,
+   *  well(plate, surface))`, which says that in one call already. */
+  Well plate;
+  /** The caption's measure, px — the width the remark wraps at. Unset is
+   *  the plate's own width, which is the cell's width wherever the plate
+   *  is stated in pixels. */
+  std::optional<float> measure;
+};
+
+/** ONE CAPTIONED SPECIMEN on @p sheet's plate: @p picture held by that
+ *  plate, with @p label over it and @p note under it in the theme's
+ *  voice. */
+[[nodiscard]] compose::Element cell(const Cell& sheet, compose::Utf8 label,
+                                    compose::Utf8 note,
+                                    compose::Element picture);
+
 /** A RUN OF CELLS along one axis, at the theme's gutter. */
 struct Run {
   /** In order along the axis. */

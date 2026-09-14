@@ -72,12 +72,10 @@ weave::TextStyle display(float size, SkColor4f color, bool optical) {
   return style;
 }
 
-Element cell(const char* call, const char* note, Element body) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
-          .children({std::move(body)}));
-}
+/** The plate every specimen on this sheet stands on, and the
+ *  measure its caption is set to. */
+const sketch::kit::Cell kSpecimen{
+    .plate = {.width = kCell, .height = kPicture, .padding = 12}};
 
 }  // namespace
 
@@ -119,17 +117,19 @@ struct OpticalKerning final : sketch::Sketch {
                    "is the face's own even "
                    "pair, so a loose face stays loose"},
         kit::cells(
-            {.cells = {cell("opticalKerning = false",
-                            "the face's own kerning table · a "
-                            "designer's pairs, and the setting every other "
-                            "cell is read against",
-                            headline(figure, false)),
-                       cell("opticalKerning = true",
-                            "every pair measured instead · the "
-                            "outlines are read for the narrowest distance "
-                            "between them and closed to the face's own even "
-                            "pair",
-                            headline(figure, true)),
+            {.cells = {sketch::kit::cell(
+                           kSpecimen, "opticalKerning = false",
+                           "the face's own kerning table · a "
+                           "designer's pairs, and the setting every other "
+                           "cell is read against",
+                           headline(figure, false)),
+                       sketch::kit::cell(
+                           kSpecimen, "opticalKerning = true",
+                           "every pair measured instead · the "
+                           "outlines are read for the narrowest distance "
+                           "between them and closed to the face's own even "
+                           "pair",
+                           headline(figure, true)),
                        both(), table()},
              .gap = 14})));
   }
@@ -141,30 +141,31 @@ struct OpticalKerning final : sketch::Sketch {
   /** The two settings over one another: where they disagree is where the
    *  measured answer and the designer's differ. */
   Element both() {
-    return cell("both, superimposed",
-                "the table in warm under the measured answer in cool "
-                "· the letters drift apart along the line, because "
-                "every pair's delta accumulates into the next",
-                box().inset(0).children({headline(kTable, false).inset(0),
-                                         headline(kOptical, true).inset(0)}));
+    return sketch::kit::cell(
+        kSpecimen, "both, superimposed",
+        "the table in warm under the measured answer in cool "
+        "· the letters drift apart along the line, because "
+        "every pair's delta accumulates into the next",
+        box().inset(0).children({headline(kTable, false).inset(0),
+                                 headline(kOptical, true).inset(0)}));
   }
 
   Element table() {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
-    return cell("measured pair deltas",
-                "each pair set twice and the two advances subtracted "
-                "· negative closes the pair up, and the last row is "
-                "the whole line",
-                // The rows are one voice, stated on the column they stand
-                // in; a row says only its own words.
-                box()
-                    .column()
-                    .gap(7)
-                    .font(sheet.font({.size = 11, .mono = true}))
-                    .ink(sheet.palette.figure)
-                    .children(each(rows, [](const std::string& row) {
-                      return text(row);
-                    })));
+    return sketch::kit::cell(
+        kSpecimen, "measured pair deltas",
+        "each pair set twice and the two advances subtracted "
+        "· negative closes the pair up, and the last row is "
+        "the whole line",
+        // The rows are one voice, stated on the column they stand
+        // in; a row says only its own words.
+        box()
+            .column()
+            .gap(7)
+            .font(sheet.font({.size = 11, .mono = true}))
+            .ink(sheet.palette.figure)
+            .children(
+                each(rows, [](const std::string& row) { return text(row); })));
   }
 };
 

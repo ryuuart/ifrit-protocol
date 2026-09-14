@@ -111,12 +111,10 @@ sk_sp<SkData> chart(int bars, SkColor4f ink) {
   return img::encodeImage(*surface->makeImageSnapshot(), img::Format::Png);
 }
 
-Element cell(const char* call, const char* note, Element body) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture, .padding = 10})
-          .children({std::move(body)}));
-}
+/** The plate every specimen on this sheet stands on, and the
+ *  measure its caption is set to. */
+const sketch::kit::Cell kSpecimen{
+    .plate = {.width = kCell, .height = kPicture, .padding = 10}};
 
 }  // namespace
 
@@ -178,48 +176,51 @@ struct HubReload final : sketch::Sketch {
                    "consumer of it"},
         kit::cells(
             {.cells =
-                 {cell("hub.text(\"res://notes.txt\")",
-                       "the UTF-8 convenience over blob() · read "
-                       "once before the file changed and once after, "
-                       "with poll() between them",
-                       lines({kit::formatted(
-                                  "first  · %s",
-                                  firstText ? firstText->c_str() : "-"),
-                              kit::formatted("poll() · %s",
-                                             moved ? "true" : "false"),
-                              kit::formatted(
-                                  "second · %s",
-                                  secondText ? secondText->c_str() : "-")})),
-                  cell("hub.load<Cloud>(\"res://cloud.pts\")",
-                       "a type the hub has no opinion about, decoded by "
-                       "a function this file registered · both "
-                       "readings drawn over one another",
-                       clouds(firstCloud, secondCloud)),
-                  cell("hub.image(\"res://chart.png\")",
-                       "the decoder the constructor registered · "
-                       "image(uri) IS load<ImageAsset>(uri) and shares "
-                       "one view of the entry",
-                       charts(firstChart, secondChart)),
-                  cell("what a reload costs a holder",
-                       "nothing: a view already handed out keeps its "
-                       "value, so the first reading is still the first "
-                       "reading and the new one arrives by asking again",
-                       lines({kit::formatted(
-                                  "first  cloud · %zu points",
-                                  firstCloud ? firstCloud->points.size() : 0),
-                              kit::formatted(
-                                  "second cloud · %zu points",
-                                  secondCloud ? secondCloud->points.size() : 0),
-                              kit::formatted(
-                                  "first  chart · "
-                                  "%d×%d",
-                                  firstChart ? firstChart->width() : 0,
-                                  firstChart ? firstChart->height() : 0),
-                              kit::formatted("mount  · %s",
-                                             hub.resolve(notesUri)
-                                                 .filename()
-                                                 .string()
-                                                 .c_str())}))},
+                 {sketch::kit::cell(
+                      kSpecimen, "hub.text(\"res://notes.txt\")",
+                      "the UTF-8 convenience over blob() · read "
+                      "once before the file changed and once after, "
+                      "with poll() between them",
+                      lines(
+                          {kit::formatted("first  · %s",
+                                          firstText ? firstText->c_str() : "-"),
+                           kit::formatted("poll() · %s",
+                                          moved ? "true" : "false"),
+                           kit::formatted(
+                               "second · %s",
+                               secondText ? secondText->c_str() : "-")})),
+                  sketch::kit::cell(
+                      kSpecimen, "hub.load<Cloud>(\"res://cloud.pts\")",
+                      "a type the hub has no opinion about, decoded by "
+                      "a function this file registered · both "
+                      "readings drawn over one another",
+                      clouds(firstCloud, secondCloud)),
+                  sketch::kit::cell(
+                      kSpecimen, "hub.image(\"res://chart.png\")",
+                      "the decoder the constructor registered · "
+                      "image(uri) IS load<ImageAsset>(uri) and shares "
+                      "one view of the entry",
+                      charts(firstChart, secondChart)),
+                  sketch::kit::cell(
+                      kSpecimen, "what a reload costs a holder",
+                      "nothing: a view already handed out keeps its "
+                      "value, so the first reading is still the first "
+                      "reading and the new one arrives by asking again",
+                      lines({kit::formatted(
+                                 "first  cloud · %zu points",
+                                 firstCloud ? firstCloud->points.size() : 0),
+                             kit::formatted(
+                                 "second cloud · %zu points",
+                                 secondCloud ? secondCloud->points.size() : 0),
+                             kit::formatted(
+                                 "first  chart · "
+                                 "%d×%d",
+                                 firstChart ? firstChart->width() : 0,
+                                 firstChart ? firstChart->height() : 0),
+                             kit::formatted("mount  · %s", hub.resolve(notesUri)
+                                                               .filename()
+                                                               .string()
+                                                               .c_str())}))},
              .gap = 14})));
   }
 

@@ -66,6 +66,22 @@ compose::Element caption(float measure, compose::Utf8 label, compose::Utf8 note,
                             std::move(note), std::move(body));
 }
 
+compose::Element cell(const Cell& sheet, compose::Utf8 label,
+                      compose::Utf8 note, compose::Element picture) {
+  const float measure = sheet.measure.value_or(
+      sheet.plate.width.unit == compose::Dimension::Unit::Px
+          ? sheet.plate.width.value
+          : 0.0f);
+  // THE PLATE HOLDS THE PICTURE. Unset, it holds it as a box holds a
+  // child; `Well::content` ranges it inside the plate instead, centred
+  // where it says nothing, which is what a specimen smaller than its
+  // plate asks for.
+  compose::Element plate =
+      sheet.plate.content ? well(sheet.plate, std::move(picture))
+                          : well(sheet.plate).children({std::move(picture)});
+  return caption(measure, std::move(label), std::move(note), std::move(plate));
+}
+
 compose::Element cells(Run run) {
   return compose::kit::cells(
       {.cells = std::move(run.cells),

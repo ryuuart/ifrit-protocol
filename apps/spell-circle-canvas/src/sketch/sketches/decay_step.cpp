@@ -115,12 +115,10 @@ Element plot(const char* key, std::vector<sketch::kit::Layer> curves,
       .inset(0);
 }
 
-Element cell(const char* call, const char* note, Element body) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture})
-          .children({std::move(body)}));
-}
+/** The plate every specimen on this sheet stands on, and the
+ *  measure its caption is set to. */
+const sketch::kit::Cell kSpecimen{
+    .plate = {.width = kCell, .height = kPicture}};
 
 }  // namespace
 
@@ -157,17 +155,18 @@ struct DecayStep final : sketch::Sketch {
                        "the target moves, where a spring carries the "
                        "motion it already has into the new one"},
             kit::cells(
-                {.cells = {cell("motion::decay(age, 0.6)",
-                                "exp(-age/tau) · 1 at the instant it "
-                                "happened, and never quite 0 · the grid is "
-                                "one tau apart, so the curve crosses each line "
-                                "lower by the same fraction",
-                                plot("decay", {curve([](double t) {
-                                       return motion::decay((float)t, kTau);
-                                     })},
-                                     (int)(kSpan / kTau))),
-                           cell(
-                               "quantizeTime(t, 4) / 3",
+                {.cells = {sketch::kit::cell(
+                               kSpecimen, "motion::decay(age, 0.6)",
+                               "exp(-age/tau) · 1 at the instant it "
+                               "happened, and never quite 0 · the grid is "
+                               "one tau apart, so the curve crosses each line "
+                               "lower by the same fraction",
+                               plot("decay", {curve([](double t) {
+                                      return motion::decay((float)t, kTau);
+                                    })},
+                                    (int)(kSpan / kTau))),
+                           sketch::kit::cell(
+                               kSpecimen, "quantizeTime(t, 4) / 3",
                                "SECONDS posterised at a rate and held still "
                                "between steps · twelve steps across "
                                "three seconds, against the ramp they came from",
@@ -180,39 +179,42 @@ struct DecayStep final : sketch::Sketch {
                                               kSpan;
                                      })},
                                     (int)(kSpan * kHz))),
-                           cell("stepIndex(t, 4) / 12",
-                                "the same clock as an INTEGER COUNT · the "
-                                "same staircase, and the number a cursor or a "
-                                "frame table indexes with",
-                                plot("step",
-                                     {curve(
-                                         [](double t) {
-                                           return (double)motion::stepIndex(
-                                                      (float)t, kHz) /
-                                                  (kSpan * kHz);
-                                         },
-                                         "second")},
-                                     (int)(kSpan * kHz))),
-                           cell("motion::phase(t, 0.8)",
-                                "seconds folded into a wrapping [0, 1) "
-                                "· the marching ants, the marquee, the "
-                                "scanline creep · three and three quarter "
-                                "turns in three seconds",
-                                plot("phase", {curve([](double t) {
-                                       return motion::phase((float)t, kPeriod);
-                                     })})),
-                           cell("spring(s, 1, dt, {0.8, damping})",
-                                "damping 0.25, 0.6 and 1.2 · below one it "
-                                "overshoots and rings, at one it arrives as "
-                                "fast "
-                                "as it can without crossing, above one it "
-                                "crawls "
-                                "in from one side",
-                                plot("spring",
-                                     {curve(springWalk(0.25f), "third"),
-                                      curve(springWalk(0.6f)),
-                                      curve(springWalk(1.2f), "second")},
-                                     0, 1.4f))},
+                           sketch::kit::cell(
+                               kSpecimen, "stepIndex(t, 4) / 12",
+                               "the same clock as an INTEGER COUNT · the "
+                               "same staircase, and the number a cursor or a "
+                               "frame table indexes with",
+                               plot("step",
+                                    {curve(
+                                        [](double t) {
+                                          return (double)motion::stepIndex(
+                                                     (float)t, kHz) /
+                                                 (kSpan * kHz);
+                                        },
+                                        "second")},
+                                    (int)(kSpan * kHz))),
+                           sketch::kit::cell(
+                               kSpecimen, "motion::phase(t, 0.8)",
+                               "seconds folded into a wrapping [0, 1) "
+                               "· the marching ants, the marquee, the "
+                               "scanline creep · three and three quarter "
+                               "turns in three seconds",
+                               plot("phase", {curve([](double t) {
+                                      return motion::phase((float)t, kPeriod);
+                                    })})),
+                           sketch::kit::cell(
+                               kSpecimen, "spring(s, 1, dt, {0.8, damping})",
+                               "damping 0.25, 0.6 and 1.2 · below one it "
+                               "overshoots and rings, at one it arrives as "
+                               "fast "
+                               "as it can without crossing, above one it "
+                               "crawls "
+                               "in from one side",
+                               plot("spring",
+                                    {curve(springWalk(0.25f), "third"),
+                                     curve(springWalk(0.6f)),
+                                     curve(springWalk(1.2f), "second")},
+                                    0, 1.4f))},
                  .gap = 12}))
             .styleSheet(plotSheet(look)));
   }
