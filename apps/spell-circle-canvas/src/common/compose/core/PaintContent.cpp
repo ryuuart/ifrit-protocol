@@ -935,22 +935,30 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
               node.textData && inst.block.alignment.value_or(
                                    node.textData->layoutOptions.alignment) !=
                                    sigil::weave::TextAlignment::kStart;
+          // The ROOM INSIDE the box, which is what the measure callback is
+          // handed and therefore what a cached layout is held valid for: a
+          // padded leaf compared against its outer box matches nothing and
+          // is set again every frame.
+          const detail::Insets pad = paddingOf(inst);
+          const float roomAcross =
+              std::max(bounds.width() - pad.across(), 0.0f);
+          const float roomDown = std::max(bounds.height() - pad.down(), 0.0f);
           if (inst.measuredRev != inst.contentRev ||
               (!onPathRun && node.textData &&
                (verticalRun || distributesRoom || aligned) &&
-               (inst.measuredForWidth != bounds.width() ||
+               (inst.measuredForWidth != roomAcross ||
                 ((verticalRun || distributesRoom) &&
-                 inst.measuredForHeight != bounds.height()))))
+                 inst.measuredForHeight != roomDown))))
             // A FRAME is bounded by its own depth either way round: its
             // remainder is what the next frame of its chain begins at, and
             // a re-layout here at an unbounded depth would place the whole
             // story and leave the next frame nothing.
-            layoutText(
+            layoutTextInBox(
                 inst, bounds.width(),
                 verticalRun || distributesRoom ||
                         (node.textData && !node.textData->threadTo.empty())
                     ? bounds.height()
-                    : 1.0e6f);
+                    : Composer::Impl::kUnbounded);
           // Misprint echoes of the TEXT, under the real pass (fx() text
           // draws its own buckets — echoes skip it by contract).
           if (!echoesOf(node).empty() && !hasTextFx(inst)) {

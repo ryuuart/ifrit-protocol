@@ -45,6 +45,18 @@ struct EdgeDims {
   bool operator==(const EdgeDims&) const = default;
 };
 
+/** THE SAME FOUR EDGES ONCE THEY ARE PIXELS — what a percent, an em or a
+ *  custom property came to for one node, which is the form the layout and
+ *  the paint read them in. */
+struct Insets {
+  float left = 0, top = 0, right = 0, bottom = 0;
+  float across() const { return left + right; }
+  float down() const { return top + bottom; }
+  bool any() const {
+    return left != 0 || top != 0 || right != 0 || bottom != 0;
+  }
+};
+
 struct LayoutProps {
   bool row = false;
   bool wrap = false;

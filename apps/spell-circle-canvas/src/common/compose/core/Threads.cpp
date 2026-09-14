@@ -90,7 +90,8 @@ bool Composer::Impl::resolveThreads() {
       // compares what will be STORED and not the raw answer — comparing
       // the raw one is never equal, and the chain would report movement
       // every round until the convergence budget ran out.
-      const float rawMeasure = next ? instanceRect(*next).width() : 0.0f;
+      const float rawMeasure =
+          next ? instanceRect(*next).width() - paddingOf(*next).across() : 0.0f;
       const float nextMeasure =
           std::isfinite(rawMeasure) && rawMeasure > 0 ? rawMeasure : 0.0f;
       if (frame->threadCursor != cursor ||
@@ -109,7 +110,7 @@ bool Composer::Impl::resolveThreads() {
       // answer of the layout that just ran.
       const SkRect box = instanceRect(*frame);
       if (box.isFinite() && box.width() > 0)
-        layoutText(*frame, box.width(), box.height());
+        layoutTextInBox(*frame, box.width(), box.height());
       cursor =
           frame->textLayout.overflowed()
               ? frame->textLayout.firstUnplacedWord
@@ -153,7 +154,10 @@ Composer::Impl::ChainFill Composer::Impl::fillRun(
     }
     skippedTail = false;
     frame->threadCursor = cursor;
-    layoutText(*frame, box.width(), depth);
+    // The DEPTH is a box depth — the ceiling the halving started from is the
+    // frame's declared height, and what it settles on is written back as
+    // one — so each frame spends its own padding out of it.
+    layoutTextInBox(*frame, box.width(), depth);
     filled.lines += (uint32_t)std::max(frame->textLayout.lineCount, 0);
     filled.overflowed = frame->textLayout.overflowed();
     cursor =

@@ -25,12 +25,15 @@ YGSize detail::measureTextNode(YGNodeConstRef node, float width,
                                YGMeasureMode heightMode) {
   auto* inst =
       static_cast<Instance*>(YGNodeGetContext(const_cast<YGNodeRef>(node)));
-  const float constraint = widthMode == YGMeasureModeUndefined ? 1.0e6f : width;
+  const float constraint =
+      widthMode == YGMeasureModeUndefined ? Composer::Impl::kUnbounded : width;
   // The HEIGHT is a measure too once the text runs down the page: it is what
   // a column may fill before the next one starts, the job the width does for
   // a horizontal line. A horizontal leaf ignores it, exactly as it always
   // has.
-  const float down = heightMode == YGMeasureModeUndefined ? 1.0e6f : height;
+  const float down = heightMode == YGMeasureModeUndefined
+                         ? Composer::Impl::kUnbounded
+                         : height;
   inst->owner->layoutText(*inst, constraint, down);
   return inst->measuredSize;
 }
@@ -91,6 +94,17 @@ bool isFrameOfAChain(const Instance& inst) {
 
 }  // namespace
 
+void Composer::Impl::layoutTextInBox(Instance& inst, float boxWidth,
+                                     float boxHeight) {
+  const detail::Insets pad = paddingOf(inst);
+  // AN UNBOUNDED DEPTH STAYS EXACTLY UNBOUNDED. It is the key a layout is
+  // held valid for, so a depth one padding short of it would miss the
+  // cache and the passage would be set again every frame.
+  layoutText(inst, std::max(boxWidth - pad.across(), 0.0f),
+             boxHeight >= kUnbounded ? boxHeight
+                                     : std::max(boxHeight - pad.down(), 0.0f));
+}
+
 void Composer::Impl::layoutText(Instance& inst, float constraint,
                                 float downConstraint) {
   // onPath: the PATH is the measure, not the box. Laying the run out to
@@ -98,13 +112,26 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   // then be placed along the path from the start again — the glyphs pile
   // up on each other. The box still sizes the path; it does not bound the
   // run.
-  if (inst.description && inst.description->textData &&
-      inst.description->textData->onPath)
-    constraint = 1.0e6f;
+  const bool onPath = inst.description && inst.description->textData &&
+                      inst.description->textData->onPath;
+  if (onPath) constraint = kUnbounded;
   if (constraint == inst.measuredForWidth &&
       downConstraint == inst.measuredForHeight &&
       inst.measuredRev == inst.contentRev)
     return;  // layout is already valid for this content and measure
+  // WHERE THE PARAGRAPH STANDS IN THE NODE: one padding in from its box on
+  // both axes, exactly as a padded box lays its children out — the measure
+  // this was called at is already the room INSIDE that padding, so the
+  // geometry is the content box and every rect read off the finished
+  // layout is in the node's own space with the padding in it.
+  //
+  // A RUN ON A CURVE STANDS ON THE CURVE and takes no origin from here: its
+  // glyphs are placed along a baseline resolved against the node's box at
+  // paint, and the flow underneath it only measures.
+  const detail::Insets pad = onPath ? detail::Insets{} : paddingOf(inst);
+  const auto flowRect = [&](float across, float down) {
+    return SkRect::MakeXYWH(pad.left, pad.top, across, down);
+  };
   sigil::weave::ParagraphLayoutOptions options = textLayoutOptions(inst);
   // HOW DEEP THE FRAME IS is a fact only this side knows: weave is handed a
   // geometry, not a box, and its vertical distribution and first-baseline
@@ -113,7 +140,7 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   // reports here.
   if (options.frame.distribute !=
       sigil::weave::FrameOptions::Distribute::kStart)
-    options.frame.extent = downConstraint < 1.0e6f ? downConstraint : 0.0f;
+    options.frame.extent = downConstraint < kUnbounded ? downConstraint : 0.0f;
   // Vertical-RL: the geometry is columns, not bands, and they hang off the
   // RIGHT edge of the measure — so the constraint is not just a wrap width
   // here, it is where the first column stands. That is why a vertical leaf
@@ -148,20 +175,19 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   };
   const auto layOut = [&] {
     if (vertical && !inst.exclusionsLocal.empty()) {
-      sigil::weave::ExclusionFlow flow(
-          SkRect::MakeWH(constraint, downConstraint),
-          sigil::weave::FlowAxis::kColumns);
+      sigil::weave::ExclusionFlow flow(flowRect(constraint, downConstraint),
+                                       sigil::weave::FlowAxis::kColumns);
       addExclusions(flow);
       inst.textLayout = sigil::weave::layoutParagraph(
           fonts, *inst.paragraph, flow, options, inst.threadCursor);
     } else if (vertical) {
       sigil::weave::VerticalBlockFlow flow(
-          SkRect::MakeWH(constraint, downConstraint));
+          flowRect(constraint, downConstraint));
       inst.textLayout = sigil::weave::layoutParagraph(
           fonts, *inst.paragraph, flow, options, inst.threadCursor);
     } else if (!inst.exclusionsLocal.empty()) {
-      const float depth = isFrameOfAChain(inst) ? downConstraint : 1.0e6f;
-      sigil::weave::ExclusionFlow flow(SkRect::MakeWH(constraint, depth));
+      const float depth = isFrameOfAChain(inst) ? downConstraint : kUnbounded;
+      sigil::weave::ExclusionFlow flow(flowRect(constraint, depth));
       addExclusions(flow);
       inst.textLayout = sigil::weave::layoutParagraph(
           fonts, *inst.paragraph, flow, options, inst.threadCursor);
@@ -172,8 +198,8 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
       // frame a frame: a leaf that threads into another is bounded by its
       // own depth, so it runs out of room and the remainder is what the
       // next frame begins at.
-      const float depth = isFrameOfAChain(inst) ? downConstraint : 1.0e6f;
-      sigil::weave::BlockFlow flow(SkRect::MakeWH(constraint, depth));
+      const float depth = isFrameOfAChain(inst) ? downConstraint : kUnbounded;
+      sigil::weave::BlockFlow flow(flowRect(constraint, depth));
       inst.textLayout = sigil::weave::layoutParagraph(
           fonts, *inst.paragraph, flow, options, inst.threadCursor);
     }
@@ -232,8 +258,7 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   // run's marks are the one exception: their curve resolves against the
   // node's final box, which this measure does not know, so they resolve in
   // ensureLayout's post-layout pass instead.
-  if (!inst.description->textData || !inst.description->textData->onPath)
-    resolveTextMarks(inst);
+  if (!onPath) resolveTextMarks(inst);
   // The readings, laid out on the placement the base just reached. Their
   // band was already in the base's strut, so nothing here moves the base.
   resolveTextAnnotations(inst);
@@ -263,7 +288,11 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   // vertical one grows along y and stacks on x, so the same union answers
   // both — one column of type measures tall and one pitch wide.
   inst.measuredSize = {std::ceil(bounds.width()), std::ceil(bounds.height())};
-  inst.measuredBaseline = textBaseline(inst, bounds);
+  // The baseline is read as an offset from the node's TOP EDGE, and the
+  // padding stands between that edge and the first line — so a padded leaf
+  // aligned on its baseline hangs one padding lower than an unpadded one,
+  // which is what its letters do.
+  inst.measuredBaseline = textBaseline(inst, bounds) + pad.top;
   inst.measuredRev = inst.contentRev;
   // WHERE THE GLYPHS REACH, which is not where the lines do. The union
   // above is the band of every line — its tallest ascent over its deepest

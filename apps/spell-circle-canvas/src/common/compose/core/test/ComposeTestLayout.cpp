@@ -26,12 +26,8 @@ TEST(ComposeLayout, ACanvasRelativeLengthIsTheRootsBoxHoweverDeepItIsWritten) {
     // not how the flex line fitted it afterwards.
     return box().padding(50).children({box().width(100).height(100).children(
         {box().key("canvas").width(50_pw).height(50_ph).shrink(0).fill(red()),
-         box()
-             .key("parent")
-             .width(50_pct)
-             .height(50_pct)
-             .shrink(0)
-             .fill(green())})});
+         box().key("parent").width(50_pct).height(50_pct).shrink(0).fill(
+             green())})});
   };
   host.composer.render(tree());
   host.frame();
@@ -221,4 +217,64 @@ TEST(ComposePaintBounds, PerAxisScaleReachesTheParentsChildBoundsUnion) {
       << "the scaled-out part of the bar was clipped away — recordBounds() "
          "did not see scaleX on the child";
   EXPECT_EQ(host.pixel(150, 40), SK_ColorBLACK) << "…and it over-reached";
+}
+
+namespace {
+
+/** The smallest box holding every inked pixel inside @p region — where the
+ *  ink STARTS on both axes, which is the only reading of "the words stand
+ *  here" that does not depend on which glyph the face put first. White type
+ *  on black, so any red channel above the antialiasing floor is ink. */
+SkIRect inkBoundsIn(Host& host, const SkRect& region) {
+  const SkIRect bounds = region.roundOut();
+  SkIRect ink = SkIRect::MakeEmpty();
+  for (int y = bounds.top(); y < bounds.bottom(); ++y)
+    for (int x = bounds.left(); x < bounds.right(); ++x)
+      if (SkColorGetR(host.pixel(x, y)) > 32)
+        ink.join(SkIRect::MakeXYWH(x, y, 1, 1));
+  return ink;
+}
+
+}  // namespace
+
+TEST(ComposeLayout, APaddedTextLeafSetsItsWordsInsideItsPadding) {
+  // padding() on a text leaf means what it means on a box and in CSS: the
+  // content box inset by it. The node grows by the padding on both axes AND
+  // the paragraph is laid out in what is left, so a fill on the leaf is the
+  // scrim the words stand ON rather than a panel hanging off their corner.
+  //
+  // Read against a BARE leaf of the same words rather than against the
+  // face's own metrics: what is claimed is the padding's effect, and the
+  // difference between the two leaves is the whole of it.
+  const float pad = 12.0f;
+  Host host(240, 240);
+  host.composer.render(
+      box().gap(20).children({text(u8"Hi", whiteStyle(32)).key("bare"),
+                              text(u8"Hi", whiteStyle(32))
+                                  .key("pad")
+                                  .padding(pad)
+                                  .fill(Fill::color({0, 0, 0.5f, 1}))}));
+  host.frame();
+  const SkRect bare = require(host.composer.bounds("bare"));
+  const SkRect padded = require(host.composer.bounds("pad"));
+
+  EXPECT_FLOAT_EQ(padded.width(), bare.width() + 2 * pad);
+  EXPECT_FLOAT_EQ(padded.height(), bare.height() + 2 * pad);
+
+  const SkIRect bareInk = inkBoundsIn(host, bare);
+  const SkIRect paddedInk = inkBoundsIn(host, padded);
+  ASSERT_FALSE(bareInk.isEmpty());
+  ASSERT_FALSE(paddedInk.isEmpty());
+  EXPECT_NEAR((float)paddedInk.left() - padded.left(),
+              (float)bareInk.left() - bare.left() + pad, 1.0f)
+      << "the words did not move one padding in from the left edge";
+  EXPECT_NEAR((float)paddedInk.top() - padded.top(),
+              (float)bareInk.top() - bare.top() + pad, 1.0f)
+      << "the words did not move one padding down from the top edge";
+  // …and the far edges are one padding clear too, which is what makes the
+  // scrim surround the reading instead of hanging off one side of it.
+  EXPECT_NEAR(padded.right() - (float)paddedInk.right(),
+              bare.right() - (float)bareInk.right() + pad, 1.0f);
+  EXPECT_NEAR(padded.bottom() - (float)paddedInk.bottom(),
+              bare.bottom() - (float)bareInk.bottom() + pad, 1.0f);
 }

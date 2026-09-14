@@ -1,7 +1,7 @@
 /** @file
  * What a node's rect READS as, once layout has run: the box Yoga or a
- * positioned description gives it, and the same box in canvas
- * coordinates.
+ * positioned description gives it, the padding that insets that box to the
+ * content box inside it, and the same box in canvas coordinates.
  */
 
 #include <algorithm>
@@ -24,6 +24,36 @@ SkRect Composer::Impl::instanceRect(const Instance& inst) const {
         YGNodeLayoutGetLeft(inst.yoga), YGNodeLayoutGetTop(inst.yoga),
         YGNodeLayoutGetWidth(inst.yoga), YGNodeLayoutGetHeight(inst.yoga));
   return positionedRect(inst);
+}
+
+detail::Insets Composer::Impl::paddingOf(const Instance& inst) const {
+  if (inst.yoga)
+    return {YGNodeLayoutGetPadding(inst.yoga, YGEdgeLeft),
+            YGNodeLayoutGetPadding(inst.yoga, YGEdgeTop),
+            YGNodeLayoutGetPadding(inst.yoga, YGEdgeRight),
+            YGNodeLayoutGetPadding(inst.yoga, YGEdgeBottom)};
+  const EdgeDims& pad = inst.description->layout.padding;
+  // A PERCENT PADDING MEASURES ACROSS on all four edges, the top and the
+  // bottom included — the rule that keeps a percentage-padded box's own
+  // aspect from depending on its height, and the rule the flex world
+  // resolves these by, so a positioned subtree answers the same.
+  const float parentW = inst.parent ? instanceRect(*inst.parent).width() : 0.0f;
+  const auto edge = [&](const Dimension& raw) {
+    Dimension d = raw;
+    if (d.unit == Dimension::Unit::Var) {
+      const VarValue* value =
+          inst.vars ? inst.vars->find(d.reference()) : nullptr;
+      const Dimension* length = value ? std::get_if<Dimension>(value) : nullptr;
+      if (!length || length->unit == Dimension::Unit::Var) return 0.0f;
+      d = *length;
+    }
+    if (d.unit == Dimension::Unit::Auto) return 0.0f;
+    bool relative = false;
+    const float px = resolveLength(inst, d, relative);
+    if (!std::isfinite(px)) return 0.0f;
+    return d.unit == Dimension::Unit::Pct ? parentW * px * 0.01f : px;
+  };
+  return {edge(pad.left), edge(pad.top), edge(pad.right), edge(pad.bottom)};
 }
 
 namespace {
@@ -143,14 +173,17 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
       height = std::max(parentH - top - *bottom, 0.0f);
   // Text with an open extent: measure now, against the width we have.
   // The measure caches are logically mutable (measuredForWidth guards),
-  // hence the casts.
+  // hence the casts. What comes back is the PARAGRAPH's extent, so a leaf
+  // that sizes to its own words is its words plus its padding — the same
+  // box the flex world gives it.
   if (inst.description->kind == Kind::Text && inst.paragraph &&
       (!width || !height)) {
-    const_cast<Composer::Impl*>(this)->layoutText(const_cast<Instance&>(inst),
-                                                  width ? *width : parentW,
-                                                  height ? *height : 1.0e6f);
-    if (!width) width = inst.measuredSize.width;
-    if (!height) height = inst.measuredSize.height;
+    const detail::Insets pad = paddingOf(inst);
+    const_cast<Composer::Impl*>(this)->layoutTextInBox(
+        const_cast<Instance&>(inst), width ? *width : parentW,
+        height ? *height : kUnbounded);
+    if (!width) width = inst.measuredSize.width + pad.across();
+    if (!height) height = inst.measuredSize.height + pad.down();
   }
   if (anchor) {
     // An unstated extent on a mark is the ANCHOR's, which is what makes a

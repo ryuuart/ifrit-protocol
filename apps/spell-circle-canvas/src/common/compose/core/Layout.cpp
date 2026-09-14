@@ -197,8 +197,10 @@ SkSize Composer::Impl::minimumSizeOf(Instance& child) {
   if (!child.paragraph) return least;
   const float wasWidth = child.measuredForWidth;
   const float wasHeight = child.measuredForHeight;
-  layoutText(child, 0.0f, 1.0e6f);
-  least.fWidth = child.measuredSize.width;
+  layoutText(child, 0.0f, kUnbounded);
+  // The answer is a BOX, as every other minimum here is: the widest run the
+  // paragraph cannot break, standing inside the leaf's own padding.
+  least.fWidth = child.measuredSize.width + paddingOf(child).across();
   // THE PROBE IS PUT BACK WHATEVER IT ANSWERED. A child that carries no
   // previous measure — the first pass, or a layout that degraded — is
   // laid out at the box it resolved to, because the alternative is
@@ -206,7 +208,7 @@ SkSize Composer::Impl::minimumSizeOf(Instance& child) {
   if (wasWidth >= 0)
     layoutText(child, wasWidth, wasHeight);
   else
-    layoutText(child, box.width(), box.height());
+    layoutTextInBox(child, box.width(), box.height());
   return least;
 }
 

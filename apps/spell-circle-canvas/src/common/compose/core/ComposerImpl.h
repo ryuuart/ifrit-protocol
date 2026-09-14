@@ -565,13 +565,32 @@ struct Composer::Impl {
    *  matrix moved with the ancestor even though this node's
    *  parent-relative rect did not. */
   void syncLayoutRects(detail::Instance& inst, bool movedAbove = false);
+  /** AN EXTENT THAT DOES NOT BOUND: the depth a leaf that grows down the
+   *  page is laid out in, and the measure an unconstrained one is measured
+   *  at. One value rather than a large number spelled per call site,
+   *  because it is also the cache key a layout is held valid for — a
+   *  second spelling a hair away from this one re-lays the passage out
+   *  every frame and nothing says so. */
+  static constexpr float kUnbounded = 1.0e6f;
   /** Lays the node's text out inside @p constraint px across and
-   *  @p downConstraint px down. A horizontal passage reads the first as its
-   *  measure and ignores the second; a vertical one reads the first as
+   *  @p downConstraint px down — the CONTENT box, which is what Yoga's
+   *  measure callback is handed. A horizontal passage reads the first as
+   *  its measure and ignores the second; a vertical one reads the first as
    *  where its rightmost column stands and the second as how far a column
    *  may run before the next one starts. */
   void layoutText(detail::Instance& inst, float constraint,
-                  float downConstraint = 1.0e6f);
+                  float downConstraint = kUnbounded);
+  /** The same, for a caller holding the node's BOX rather than the room
+   *  inside it — every caller outside the measure callback. The node's own
+   *  padding is the difference. */
+  void layoutTextInBox(detail::Instance& inst, float boxWidth,
+                       float boxHeight = kUnbounded);
+  /** THE NODE'S OWN PADDING IN PIXELS — the inset from its box to the
+   *  content box its children, and its own paragraph, are laid out in.
+   *  Yoga resolves it for a node in the flex world, percents against the
+   *  container included; a node in a positioned subtree carries no Yoga
+   *  node and its lengths are resolved the way its rect is. */
+  detail::Insets paddingOf(const detail::Instance& inst) const;
   SkRect instanceRect(const detail::Instance& inst) const;
   SkRect positionedRect(const detail::Instance& inst) const;
   SkRect absoluteRect(const detail::Instance& inst) const;

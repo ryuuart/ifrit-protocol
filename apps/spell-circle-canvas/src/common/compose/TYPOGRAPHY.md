@@ -32,6 +32,17 @@ placed it — and the two selector forms whose subject is a description of
 this library: `selectors::style`, a run written under a name, and
 `selectors::inFrame`, one frame of a chain named by its `Element::key`.
 
+**A leaf is a box, and `Element::padding` insets it.** The paragraph is
+laid out in the content box — the leaf's box less its padding — and drawn
+there, so the measure the lines break at is the room inside the padding
+and the node comes out one padding larger than its lines on both axes. A
+fill on the leaf is then the scrim the reading stands ON, which is why a
+run needing air around it takes padding directly rather than a box around
+it. The first baseline the leaf reports to `Align::Baseline` stands below
+the padding with the letters. A run riding a curve is the exception: its
+glyphs stand on the baseline `Element::onPath` resolves against the
+node's box, and nothing insets that.
+
 ### Text fx
 
 Motion inside a text leaf is a list of **tracks**. One `Track` is five
