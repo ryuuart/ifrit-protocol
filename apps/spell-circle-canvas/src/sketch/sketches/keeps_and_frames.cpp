@@ -189,69 +189,61 @@ struct KeepsAndFrames final : sketch::Sketch {
          .gap = 16});
   }
 
+  /** ONE FRAME OPTION: the same passage in the same box, seated on the
+   *  rule the cell names and spending its leftover room as it says. */
+  struct Option {
+    const char* key;
+    const char* call;
+    const char* note;
+    const char* words;
+    weave::FrameOptions::FirstBaseline seat =
+        weave::FrameOptions::FirstBaseline::kAscent;
+    weave::FrameOptions::Distribute spend =
+        weave::FrameOptions::Distribute::kStart;
+  };
+
   /** The four frame options: two seatings and two distributions, each on
    *  the same short passage in the same box. */
   Element options() {
-    // `weave::Story` takes its bytes as a `std::u8string`, which a plain
-    // literal is not, so the four passages are widened once here.
-    const auto passage = [](const char* words) { return words; };
-    Element seated =
-        text(passage("Seated on the first line's own ascent, which is what "
-                     "a leaf that says nothing gets."),
-             serif(11.5f, kBody))
-            .width(kOptionCell - 24)
-            .firstBaseline(weave::FrameOptions::FirstBaseline::kAscent, kSeat);
-    Element capped =
-        text(passage("Seated on the first line's CAP HEIGHT, so two leaves "
-                     "of different type start their text at one height."),
-             serif(11.5f, kBody))
-            .width(kOptionCell - 24)
-            .firstBaseline(weave::FrameOptions::FirstBaseline::kCapHeight,
-                           kSeat);
-    Element stacked =
-        frame(weave::Story(
-                  passage("The lines stack from the top and the remainder "
-                          "is air underneath, which is the default and "
-                          "costs nothing to say."),
-                  serif(11.5f, kBody)))
-            .key("dist-start")
-            .width(kOptionCell - 24)
-            .height(kOptionPicture - 24)
-            .distribute(weave::FrameOptions::Distribute::kStart);
-    Element justified =
-        frame(
-            weave::Story(passage("The remainder is spread BETWEEN the lines as "
-                                 "extra leading, which is how a column of a "
-                                 "magazine reaches its foot."),
-                         serif(11.5f, kBody)))
-            .key("dist-justify")
-            .width(kOptionCell - 24)
-            .height(kOptionPicture - 24)
-            .distribute(weave::FrameOptions::Distribute::kJustify);
-
+    static constexpr Option kOptions[] = {
+        {"seat-ascent", "firstBaseline(kAscent)",
+         "the first line's own ascent · what a leaf that says nothing "
+         "gets, and the reference for the cell beside it",
+         "Seated on the first line's own ascent, which is what a leaf "
+         "that says nothing gets."},
+        {"seat-cap", "firstBaseline(kCapHeight)",
+         "the cap top lands on the box's own top · every later baseline "
+         "follows at its block's pitch, so the passage moves as one",
+         "Seated on the first line's CAP HEIGHT, so two leaves of "
+         "different type start their text at one height.",
+         weave::FrameOptions::FirstBaseline::kCapHeight},
+        {"dist-start", "distribute(kStart)",
+         "the leftover room stays past the last line · the frame carries "
+         "a stated height, so there IS room left over here",
+         "The lines stack from the top and the remainder is air "
+         "underneath, which is the default and costs nothing to say."},
+        {"dist-justify", "distribute(kJustify)",
+         "the same room spread between the lines as extra leading · the "
+         "gaps open evenly and the last line lands on the frame's foot",
+         "The remainder is spread BETWEEN the lines as extra leading, "
+         "which is how a column of a magazine reaches its foot.",
+         weave::FrameOptions::FirstBaseline::kAscent,
+         weave::FrameOptions::Distribute::kJustify},
+    };
     return kit::cells(
         {.cells =
-             {sketch::kit::caption(kOptionCell, "firstBaseline(kAscent)",
-                                   "the first line's own ascent · what a "
-                                   "leaf that says nothing gets, and the "
-                                   "reference for the cell beside it",
-                                   optionPlate(std::move(seated))),
-              sketch::kit::caption(kOptionCell, "firstBaseline(kCapHeight)",
-                                   "the cap top lands on the box's own top "
-                                   "· every later baseline follows at its "
-                                   "block's pitch, so the passage moves as one",
-                                   optionPlate(std::move(capped))),
-              sketch::kit::caption(kOptionCell, "distribute(kStart)",
-                                   "the leftover room stays past the last line "
-                                   "· the frame carries a stated height, "
-                                   "so there IS room left over here",
-                                   optionPlate(std::move(stacked))),
-              sketch::kit::caption(kOptionCell, "distribute(kJustify)",
-                                   "the same room spread between the lines as "
-                                   "extra leading · the gaps open evenly "
-                                   "and the last line lands on the frame's "
-                                   "foot",
-                                   optionPlate(std::move(justified)))},
+             each(kOptions,
+                  [](const Option& one) {
+                    return sketch::kit::caption(
+                        kOptionCell, one.call, one.note,
+                        optionPlate(
+                            frame(weave::Story(one.words, serif(11.5f, kBody)))
+                                .key(one.key)
+                                .width(kOptionCell - 24)
+                                .height(kOptionPicture - 24)
+                                .firstBaseline(one.seat, kSeat)
+                                .distribute(one.spend)));
+                  }),
          .gap = 14});
   }
 };
