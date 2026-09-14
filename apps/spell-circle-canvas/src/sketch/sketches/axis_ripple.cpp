@@ -75,11 +75,14 @@
 
 // TAGS: Typography/Effects, Motion/Transitions
 
-#include <include/core/SkCanvas.h>
 #include <include/core/SkTypeface.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigildraw/Draw.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>
@@ -209,59 +212,54 @@ struct AxisRipple : sketch::Sketch {
     const int n = glyphs;
     const float rad = radPerGlyph;
     const choreograph::Output<float>* clock = &phase;
-    return custom("axis-meter",
-                  [localPens = std::move(localPens), n, rad, clock](
-                      SkCanvas& canvas, const PaintContext& ctx) {
-                    const float t = clock->value();
-                    const float h = ctx.size.height();
-                    SkPaint bed, bar;
-                    bed.setColor4f(kFaint, nullptr);
-                    bar.setColor4f(kAxis, nullptr);
-                    for (int i = 0; i < n; ++i) {
-                      const float x = (*localPens)[(size_t)i];
-                      const float w = (*localPens)[(size_t)i + 1] - x - 3.0f;
-                      if (w <= 0) continue;
-                      const float s = 0.5f + 0.5f * std::sin(t * 6.2831853f -
-                                                             (float)i * rad);
-                      canvas.drawRect(SkRect::MakeXYWH(x, h - 1, w, 1), bed);
-                      canvas.drawRect(SkRect::MakeXYWH(x, h - 1 - s * (h - 1),
-                                                       w, s * (h - 1) + 1),
-                                      bar);
-                    }
-                  })
+    return pen("axis-meter",
+               [localPens = std::move(localPens), n, rad, clock](
+                   sigil::draw::Pen& pen, const PaintContext& ctx) {
+                 const float t = clock->value();
+                 const float h = ctx.size.height();
+                 pen.noStroke();
+                 for (int i = 0; i < n; ++i) {
+                   const float x = (*localPens)[(size_t)i];
+                   const float w = (*localPens)[(size_t)i + 1] - x - 3.0f;
+                   if (w <= 0) continue;
+                   const float s =
+                       0.5f + 0.5f * std::sin(t * 6.2831853f - (float)i * rad);
+                   pen.fill(kFaint);
+                   pen.rect(x, h - 1, w, 1);
+                   pen.fill(kAxis);
+                   pen.rect(x, h - 1 - s * (h - 1), w, s * (h - 1) + 1);
+                 }
+               })
         .width(width)
-        .height(34)
-        .cache(Cache::None);
+        .height(34);
   }
 
   /** The ripple itself, plus the coordinate range the face declares. */
   [[nodiscard]] Element ripplePanel() {
     const float width = pens.back();
     Element panel = box().column().gap(10).width(width);
-    panel.children(
-        {text("GRAD — DRIVEN AT DRAW TIME, "
-              "ONE SHAPING, LETTERS FIXED")});
-    panel.children({text(kProof, proof)
+    panel.children({text("GRAD — DRIVEN AT DRAW TIME, "
+                         "ONE SHAPING, LETTERS FIXED"),
+                    text(kProof, proof)
                         .key("ripple")
                         .fx({.effect = gradWave(kGradLo, kGradHi, radPerGlyph),
                              .stagger = {.eachMs = 0, .durationMs = 400},
-                             .progress = &phase})});
-    panel.children({meter(width)});
-    char line[160];
+                             .progress = &phase}),
+                    meter(width)});
     // One line, deliberately: the panel is the run's own width, so a
     // caption that wraps changes the sheet's height between frames.
-    std::snprintf(line, sizeof(line),
-                  "GRAD %.0f–%.0f · %.0f WAVE ACROSS "
-                  "THE WORD · %.1f S PER PASS · RUN WIDTH "
-                  "Δ %.2f PX ACROSS THE RAMP",
-                  axisMin, axisMax, kWavesAcross, kPeriod,
-                  gradWidthHi - gradWidthLo);
-    panel.children({text(hasGrad ? line
-                                 : "THIS FACE DECLARES NO GRAD AXIS · "
-                                   "THE DRIVE IS REFUSED AND THE LINE DRAWS "
-                                   "AT ITS SHAPED COORDINATES")
-                        .font({.size = 11.0f, .track = 0.6f})
-                        .ink(hasGrad ? kFaint : kMark)});
+    panel.children(
+        {text(hasGrad ? kit::formatted(
+                            "GRAD %.0f–%.0f · %.0f WAVE ACROSS THE WORD · "
+                            "%.1f S PER PASS · RUN WIDTH Δ %.2f PX ACROSS "
+                            "THE RAMP",
+                            axisMin, axisMax, kWavesAcross, kPeriod,
+                            gradWidthHi - gradWidthLo)
+                      : std::string("THIS FACE DECLARES NO GRAD AXIS · "
+                                    "THE DRIVE IS REFUSED AND THE LINE "
+                                    "DRAWS AT ITS SHAPED COORDINATES"))
+             .font({.size = 11.0f, .track = 0.6f})
+             .ink(hasGrad ? kFaint : kMark)});
     return panel;
   }
 
@@ -282,9 +280,12 @@ struct AxisRipple : sketch::Sketch {
     // label column, the gap and the tracking, none of which the mark has
     // to be told about.
     if (marked)
-      run.mark(weave::Selector{},
-               box().key("rule").left(pct(100)).top(0).width(1).height(96).fill(
-                   Fill::color(kMark)));
+      run.mark(weave::Selector{}, kit::line({.length = Dimension(96),
+                                             .column = true,
+                                             .fill = Fill::color(kMark)})
+                                      .key("rule")
+                                      .left(pct(100))
+                                      .top(0));
     return box()
         .row()
         .alignItems(Align::Baseline)
@@ -298,17 +299,14 @@ struct AxisRipple : sketch::Sketch {
    *  panels below are the same construction over the two axes, so the
    *  reader compares one picture against another rather than a picture
    *  against a sentence. */
-  [[nodiscard]] Element axisPanel(const char* heading, const char (&tag)[5],
+  [[nodiscard]] Element axisPanel(const Utf8& heading, const char (&tag)[5],
                                   float lo, float hi, const char* loLabel,
-                                  const char* hiLabel, const char* verdict,
+                                  const char* hiLabel, const Utf8& verdict,
                                   SkColor4f verdictInk) {
     return box().column().gap(12).grow(1).children(
         {text(heading),
-         box()
-             .column()
-             .gap(6)
-             .children({proofRow(tag, lo, loLabel, true)})
-             .children({proofRow(tag, hi, hiLabel, false)}),
+         box().column().gap(6).children({proofRow(tag, lo, loLabel, true),
+                                         proofRow(tag, hi, hiLabel, false)}),
          text(verdict).font({.size = 11.0f, .track = 0.6f}).ink(verdictInk)});
   }
 
@@ -321,29 +319,29 @@ struct AxisRipple : sketch::Sketch {
    *  one — weight without width, which is what makes the ripple above
    *  lawful at one shaping. */
   [[nodiscard]] Element proofPanels() {
-    char wght[200];
-    std::snprintf(wght, sizeof(wght),
-                  "WIDENS THE RUN BY %.2f PX (%.1f%%) · EVERY LETTER "
-                  "AFTER THE FIRST MOVES, SO THE DRIVE IS REFUSED",
-                  widthHi - widthLo,
-                  widthLo > 0 ? 100.0f * (widthHi - widthLo) / widthLo : 0.0f);
-    char grad[200];
-    std::snprintf(
-        grad, sizeof(grad),
-        "MOVES THE RUN BY %.2f PX (%.1f%%) · THE HEAVY RUN "
-        "STOPS ON THE LIGHT ONE'S RULE, SO THE DRIVE IS HONOURED",
-        gradRowHi - gradRowLo,
-        gradRowLo > 0 ? 100.0f * (gradRowHi - gradRowLo) / gradRowLo : 0.0f);
-    char wghtHead[120], gradHead[120];
-    std::snprintf(wghtHead, sizeof(wghtHead),
-                  "wght %.0f → %.0f — A SHAPING AXIS", kWghtLo, kWghtHi);
-    std::snprintf(gradHead, sizeof(gradHead), "GRAD %.0f → %.0f — A DRAWN AXIS",
-                  kGradLo, kGradHi);
     return box().row().gap(44).children(
-        {axisPanel(wghtHead, "wght", kWghtLo, kWghtHi, "300", "900", wght,
-                   kMark),
-         axisPanel(gradHead, "GRAD", kGradLo, kGradHi, "400", "1000", grad,
-                   kAxis)});
+        {axisPanel(
+             kit::formatted("wght %.0f → %.0f — A SHAPING AXIS", kWghtLo,
+                            kWghtHi),
+             "wght", kWghtLo, kWghtHi, "300", "900",
+             kit::formatted(
+                 "WIDENS THE RUN BY %.2f PX (%.1f%%) · EVERY LETTER "
+                 "AFTER THE FIRST MOVES, SO THE DRIVE IS REFUSED",
+                 widthHi - widthLo,
+                 widthLo > 0 ? 100.0f * (widthHi - widthLo) / widthLo : 0.0f),
+             kMark),
+         axisPanel(
+             kit::formatted("GRAD %.0f → %.0f — A DRAWN AXIS", kGradLo,
+                            kGradHi),
+             "GRAD", kGradLo, kGradHi, "400", "1000",
+             kit::formatted("MOVES THE RUN BY %.2f PX (%.1f%%) · THE HEAVY RUN "
+                            "STOPS ON THE LIGHT ONE'S RULE, SO THE DRIVE IS "
+                            "HONOURED",
+                            gradRowHi - gradRowLo,
+                            gradRowLo > 0
+                                ? 100.0f * (gradRowHi - gradRowLo) / gradRowLo
+                                : 0.0f),
+             kAxis)});
   }
 
   /** The label type is stated once on the root; a caption restates only what
@@ -362,14 +360,14 @@ struct AxisRipple : sketch::Sketch {
             {box()
                  .row()
                  .alignItems(Align::End)
-                 .children({text("THE AXIS RIPPLE")
-                                .font({.size = 12.5f, .track = 3.4f})
-                                .ink(kInk)
-                                .grow(1)})
                  .children(
-                     {text("OPENTYPE FONT VARIATIONS · 2016").ink(kFaint)}),
-             box().height(1).fill(Fill::color(kFaint)), ripplePanel(),
-             box().height(6), proofPanels(), box().grow(1),
+                     {text("THE AXIS RIPPLE")
+                          .font({.size = 12.5f, .track = 3.4f})
+                          .ink(kInk)
+                          .grow(1),
+                      text("OPENTYPE FONT VARIATIONS · 2016").ink(kFaint)}),
+             kit::line({.fill = Fill::color(kFaint)}), ripplePanel(),
+             proofPanels(), box().grow(1),
              text("A GRADE IS WEIGHT WITHOUT WIDTH · IT IS THE "
                   "ONE AXIS A DRAW-TIME DRIVE CAN HONOUR, AND THE "
                   "REASON THE RIPPLE COSTS ONE SHAPING RATHER THAN "
@@ -392,18 +390,21 @@ struct AxisRipple : sketch::Sketch {
     face = sketch::kit::houseFace(sketch::kit::Voice::Interface, 700);
     faceLabel = sketch::kit::houseFace(sketch::kit::Voice::Interface, 500);
     const float measure = kW - 2.0f * kPadX;
-    const auto runAt = [&](float size) {
-      return runPens(kProof,
-                     weave::textStyle({.face = face,
-                                       .size = size,
-                                       .color = kInk,
-                                       .track = kProofTrack}),
-                     *ctx.fonts)
-          .back();
+    // EVERY MEASUREMENT GOES THROUGH THE SHAPING PATH A TEXT LEAF TAKES,
+    // at the size and the track the page sets the run in.
+    const auto sized = [&](float size, float track) {
+      return weave::textStyle(
+          {.face = face, .size = size, .color = kInk, .track = track});
     };
-    proofSize = kRefSize * measure / runAt(kRefSize);
-    proof = weave::textStyle(
-        {.face = face, .size = proofSize, .color = kInk, .track = kProofTrack});
+    const auto runWidth = [&](const weave::TextStyle& style) {
+      return runPens(kProof, style, *ctx.fonts).back();
+    };
+    const auto axisWidth = [&](const char (&tag)[5], float value, float size,
+                               float track) {
+      return runWidth(sized(size, track).variation(tag, value));
+    };
+    proofSize = kRefSize * measure / runWidth(sized(kRefSize, kProofTrack));
+    proof = sized(proofSize, kProofTrack);
     pens = runPens(kProof, proof, *ctx.fonts);
     glyphs = (int)pens.size() - 1;
     // ONE WAVE MEANS ONE WAVE. A radians-per-glyph constant is a wavelength
@@ -427,24 +428,14 @@ struct AxisRipple : sketch::Sketch {
       }
     }
 
-    // The measurements, taken through the same shaping path a text leaf
-    // takes. Both pairs are shaped at the ROW size, so the printed px are
-    // the px on the page.
-    const auto widthAt = [&](const char (&tag)[5], float value, float size) {
-      sigil::weave::TextStyle s = weave::textStyle(
-          {.face = face,
-           .size = size,
-           .color = kInk,
-           .track = kProofTrack * (size == proofSize ? 1.0f : 0.6f)});
-      s.variation(tag, value);
-      return runPens(kProof, s, *ctx.fonts).back();
-    };
-    widthLo = widthAt("wght", kWghtLo, kProofRowSize);
-    widthHi = widthAt("wght", kWghtHi, kProofRowSize);
-    gradWidthLo = widthAt("GRAD", kGradLo, proofSize);
-    gradWidthHi = widthAt("GRAD", kGradHi, proofSize);
-    gradRowLo = widthAt("GRAD", kGradLo, kProofRowSize);
-    gradRowHi = widthAt("GRAD", kGradHi, kProofRowSize);
+    // Both pairs are shaped at the ROW size, so the printed px are the px
+    // on the page.
+    widthLo = axisWidth("wght", kWghtLo, kProofRowSize, kProofTrack * 0.6f);
+    widthHi = axisWidth("wght", kWghtHi, kProofRowSize, kProofTrack * 0.6f);
+    gradWidthLo = axisWidth("GRAD", kGradLo, proofSize, kProofTrack);
+    gradWidthHi = axisWidth("GRAD", kGradHi, proofSize, kProofTrack);
+    gradRowLo = axisWidth("GRAD", kGradLo, kProofRowSize, kProofTrack * 0.6f);
+    gradRowHi = axisWidth("GRAD", kGradHi, kProofRowSize, kProofTrack * 0.6f);
 
     ctx.ticker.add([this, &ticker = ctx.ticker] {
       const double t = ticker.elapsed();
