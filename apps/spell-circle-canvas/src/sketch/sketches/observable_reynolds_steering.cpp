@@ -48,6 +48,16 @@ struct Boid {
   Vec velocity;
 };
 
+/** EDIT THESE FIRST: how fast a boid may fly, how much of that one frame
+ *  may change, and how far it looks for a neighbour to avoid and for one
+ *  to keep step with. */
+constexpr float kSpeed = 8.0f;
+constexpr float kForce = 0.05f;
+constexpr float kTooClose = 25.0f;
+constexpr float kNeighbour = 50.0f;
+constexpr int kBoids = 50;
+constexpr float kMargin = 20.0f;  // how far past the edge a boid wraps
+
 struct ObservableReynoldsSteering final : sketch::Sketch {
   std::vector<Boid> boids;
 
@@ -63,12 +73,15 @@ struct ObservableReynoldsSteering final : sketch::Sketch {
             .inset(0));
   }
 
-  Vec seek(const Boid& boid, Vec target) const {
-    return ((target - boid.position).normalized() * 8.0f - boid.velocity)
-        .limited(0.05f);
+  /** REYNOLDS' STEERING TERM: where the boid WANTS to go, at full speed,
+   *  less what it is already doing, truncated to what one frame may
+   *  change. Separation, alignment and cohesion are all this term — they
+   *  differ only in what they desire. */
+  static Vec steer(Vec desired, Vec velocity) {
+    return (desired.normalized() * kSpeed - velocity).limited(kForce);
   }
 
-  void update() {
+  void update(float width, float height) {
     std::vector<Vec> forces(boids.size());
     for (size_t index = 0; index < boids.size(); ++index) {
       const Boid& boid = boids[index];
@@ -81,35 +94,34 @@ struct ObservableReynoldsSteering final : sketch::Sketch {
         if (index == other) continue;
         const Vec delta = boid.position - boids[other].position;
         const float distance = delta.length();
-        if (distance < 25.0f && distance > 0.0f) {
+        if (distance < kTooClose && distance > 0.0f) {
           separation += delta.normalized() / distance;
           ++close;
         }
-        if (distance < 50.0f) {
+        if (distance < kNeighbour) {
           alignment += boids[other].velocity;
           centre += boids[other].position;
           ++nearby;
         }
       }
       Vec force;
-      if (close > 0)
-        force += ((separation / close).normalized() * 8.0f - boid.velocity)
-                     .limited(0.05f);
+      if (close > 0) force += steer(separation / close, boid.velocity);
       if (nearby > 0) {
-        force += ((alignment / nearby).normalized() * 8.0f - boid.velocity)
-                     .limited(0.05f);
-        force += seek(boid, centre / nearby);
+        force += steer(alignment / nearby, boid.velocity);
+        force += steer(centre / nearby - boid.position, boid.velocity);
       }
       forces[index] = force;
     }
     for (size_t index = 0; index < boids.size(); ++index) {
       Boid& boid = boids[index];
-      boid.velocity = (boid.velocity + forces[index]).limited(8.0f);
+      boid.velocity = (boid.velocity + forces[index]).limited(kSpeed);
       boid.position += boid.velocity;
-      if (boid.position.x < -20) boid.position.x = 920;
-      if (boid.position.x > 920) boid.position.x = -20;
-      if (boid.position.y < -20) boid.position.y = 740;
-      if (boid.position.y > 740) boid.position.y = -20;
+      // The field wraps a margin outside the canvas, so a boid leaves and
+      // returns rather than appearing on the edge it left from.
+      if (boid.position.x < -kMargin) boid.position.x = width + kMargin;
+      if (boid.position.x > width + kMargin) boid.position.x = -kMargin;
+      if (boid.position.y < -kMargin) boid.position.y = height + kMargin;
+      if (boid.position.y > height + kMargin) boid.position.y = -kMargin;
     }
   }
 
@@ -117,9 +129,9 @@ struct ObservableReynoldsSteering final : sketch::Sketch {
     if (pen.frameCount == 1) {
       pen.randomSeed(0xC2A16u);
       pen.colorMode(HSB, 360, 100, 100, 255);
-      for (int index = 0; index < 50; ++index)
-        boids.push_back(
-            {{450.0f, 360.0f}, {pen.random(-1, 1), pen.random(-1, 1)}});
+      for (int index = 0; index < kBoids; ++index)
+        boids.push_back({{pen.width * 0.5f, pen.height * 0.5f},
+                         {pen.random(-1, 1), pen.random(-1, 1)}});
       // THE GROUND, laid once. The canvas this loop keeps opens with
       // nothing on it, and the wash below is one alpha step: over a
       // transparent surface it never builds up, so the trails would
@@ -128,7 +140,7 @@ struct ObservableReynoldsSteering final : sketch::Sketch {
     }
     const float clock = static_cast<float>(pen.millis() * 0.001);
     pen.background(0, 1);
-    update();
+    update(pen.width, pen.height);
     pen.noFill();
     pen.stroke(
         std::fmod(180.0f + std::cos(clock * 0.06f) * 180.0f + 360.0f, 360.0f),
