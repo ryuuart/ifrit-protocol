@@ -23,12 +23,21 @@
  * A PROCESS BOOTS EXACTLY ONE ENGINE, so it is held beside the sketch
  * rather than inside it; the four views are that engine's.
  *
- * The waiting is the awkward part and is stated rather than hidden: every
- * call above is asynchronous across the web thread, so each stage ends by
- * waiting on the ENGINE'S OWN EVENTS — the load callback for the document
- * and the frame callback for the repaint a call caused — and never on a
- * stretch of clock. A machine that runs the engine slowly reaches those
- * events later and draws this same sheet. See <sigilsketch/scry/SettledPage.h>.
+ * The settling is the awkward part and is stated rather than hidden:
+ * every call above is asynchronous across the web thread, so each cell is
+ * a SEQUENCE the page is put through — load, the call, the page's own
+ * answer that it landed, the view going quiet, a whole painting — and
+ * every step of it turns on the ENGINE'S OWN EVENTS, never on a stretch
+ * of clock. A machine that runs the engine slowly reaches those events
+ * later and draws this same sheet.
+ *
+ * A CAPTURE IS HELD ON THAT SEQUENCE AND A WINDOW IS NOT. setup() runs on
+ * the thread that presents, so the four sequences are started there and
+ * advanced from update(): each cell draws its own view live until its
+ * sequence stops on a frame, the footer says the pages are still
+ * arriving, and the sheet is described again as each one lands. One
+ * declaration, two ways of driving it, decided by ctx.deterministic. See
+ * <sigilsketch/scry/Settling.h>.
  *
  * AND EVERY STILL HERE IS THE FRAME THE PAGE WENT QUIET ON. The page's
  * own answer says the call landed; it does not say the picture has caught
@@ -57,13 +66,15 @@
 #include <sigilscry/platform/Runtime.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
-#include <sigilsketch/scry/SettledPage.h>
+#include <sigilsketch/scry/Settling.h>
 #include <sigilsketch/scry/SharedEngine.h>
 #include <sigilweave/style/Type.h>
 
-#include <future>
+#include <algorithm>
+#include <cstddef>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -144,11 +155,13 @@ struct WebScript {
   static bool available(std::string* why) { return scry::available(why); }
 
   /** One view per cell, held for the sketch's life because a view owns
-   *  the frame drawn from it. THE PICTURE IS NOT "whatever the view holds
-   *  now": a page goes on repainting after it has settled, so each cell
-   *  draws the frame its own settle accepted. */
+   *  the frame drawn from it, and one settle per view beside it. THE
+   *  PICTURE IS NOT "whatever the view holds now": a page goes on
+   *  repainting after it has settled, so each cell draws the frame its
+   *  own settle stopped on — and the view itself only until there is
+   *  one. */
   std::vector<std::shared_ptr<scry::WebView>> views;
-  std::vector<scry::WebView::Frame> stills;
+  std::vector<std::unique_ptr<sketch::scry::Settling>> pages;
 
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
@@ -161,85 +174,92 @@ struct WebScript {
       return;
     }
 
-    // Every stage latches the view's events BEFORE the call it is about
-    // to make, so nothing the engine says can land in the gap between
-    // asking and listening.
+    // THE FOUR VIEWS ARE MADE BEFORE ANY OF THEM IS LOADED, because
+    // creating a view is a call the engine answers on its own thread and
+    // a page already loading holds that thread: a view asked for in
+    // between waits for a document that is nothing to do with it.
+    views.clear();
+    pages.clear();
+    for (int cell = 0; cell < 4; ++cell) views.push_back(open(*web));
+
+    // One document, four views, one call apart. Each settle owns its
+    // view's load, so nothing the engine says can land in the gap
+    // between asking and listening, and each is driven the way this
+    // session asks for: a capture is held here until the page is there,
+    // a window comes straight back and advances them from update().
+    const auto put = [&](sketch::scry::Sequence sequence) {
+      pages.push_back(sketch::scry::settle(
+          *views[pages.size()], std::move(sequence), ctx.deterministic));
+    };
 
     // ---- the load callback, on a view that is only loaded ------------
-    std::shared_ptr<scry::WebView> plain = open(*web);
-    const sketch::scry::Events plainEvents(*plain);
-    plain->loadHTML(page());
-    const bool painted = plainEvents.awaitLoad();
-    const bool fired = plainEvents.loaded();
     // The load says the document is here; the page going quiet says its
     // picture is finished.
-    bool settled =
-        sketch::scry::awaitQuiet(*plain, plainEvents,
-                                 "String(document.readyState)", "complete") &&
-        sketch::scry::repaintWhole(*plain, plainEvents);
+    put({.html = page(),
+         .question = "String(document.readyState)",
+         .expected = "complete",
+         .quiet = true,
+         .whole = true});
 
     // ---- the script, and what it evaluated to ------------------------
-    std::shared_ptr<scry::WebView> scripted = open(*web);
-    const sketch::scry::Events scriptedEvents(*scripted);
-    scripted->loadHTML(page());
-    settled = scriptedEvents.awaitLoad() && settled;
-
-    auto answered = std::make_shared<std::promise<std::string>>();
-    std::future<std::string> reply = answered->get_future();
-    scripted->evaluateScript(kScript, [answered](std::string result) {
-      answered->set_value(std::move(result));
-    });
     // The heading the script rewrites is the page's own statement that
     // the rewrite has landed AND been painted.
-    settled = sketch::scry::awaitQuiet(*scripted, scriptedEvents,
-                                       "document.getElementById('head')"
-                                       ".textContent",
-                                       "EVALUATED") &&
-              sketch::scry::repaintWhole(*scripted, scriptedEvents) && settled;
-    const std::string returned =
-        reply.wait_for(sketch::scry::kUnresponsive) == std::future_status::ready
-            ? reply.get()
-            : std::string();
+    put({.html = page(),
+         .run = kScript,
+         .question = "document.getElementById('head').textContent",
+         .expected = "EVALUATED",
+         .quiet = true,
+         .whole = true});
 
     // ---- the wheel ---------------------------------------------------
-    std::shared_ptr<scry::WebView> scrolled = open(*web);
-    const sketch::scry::Events scrolledEvents(*scrolled);
-    scrolled->loadHTML(page());
-    settled = scrolledEvents.awaitLoad() && settled;
     // A wheel's delta is what the CONTENT moves by, so moving DOWN the
-    // page is a negative dy.
-    scrolled->scroll(0, -kScrollBy);
-    // THE ENGINE WALKS A WHEEL SMOOTHLY, so the frame after the call is
-    // the page part of the way down. The page's own scroll offset says
-    // where the walk is HEADING — it is reported as a whole number, so it
-    // reads 220 while the rows are still a fraction of a pixel short of
-    // it, which is a row edge antialiased two ways. What says the walk is
-    // OVER is the view going quiet.
-    settled = sketch::scry::awaitQuiet(*scrolled, scrolledEvents,
-                                       "String(window.scrollY)",
-                                       std::to_string(kScrollBy)) &&
-              sketch::scry::repaintWhole(*scrolled, scrolledEvents) && settled;
+    // page is a negative dy. THE ENGINE WALKS A WHEEL SMOOTHLY, so the
+    // frame after the call is the page part of the way down. The page's
+    // own scroll offset says where the walk is HEADING — it is reported
+    // as a whole number, so it reads 220 while the rows are still a
+    // fraction of a pixel short of it, which is a row edge antialiased
+    // two ways. What says the walk is OVER is the view going quiet.
+    put({.html = page(),
+         .wheel = {0, -kScrollBy},
+         .question = "String(window.scrollY)",
+         .expected = std::to_string(kScrollBy),
+         .quiet = true,
+         .whole = true});
 
     // ---- the press ---------------------------------------------------
-    std::shared_ptr<scry::WebView> pressed = open(*web);
-    const sketch::scry::Events pressedEvents(*pressed);
-    pressed->loadHTML(page());
-    settled = pressedEvents.awaitLoad() && settled;
-    const int atX = kClickAt.x(), atY = kClickAt.y();
-    pressed->mouseMove(atX, atY);
-    pressed->mouseDown(atX, atY);
-    pressed->mouseUp(atX, atY);
     // The class the page's own handler adds is its statement that the
     // click arrived and the button has been repainted in it.
-    settled = sketch::scry::awaitQuiet(
-                  *pressed, pressedEvents,
-                  "document.getElementById('btn').className", "hit") &&
-              sketch::scry::repaintWhole(*pressed, pressedEvents) && settled;
+    put({.html = page(),
+         .press = kClickAt,
+         .question = "document.getElementById('btn').className",
+         .expected = "hit",
+         .quiet = true,
+         .whole = true});
 
-    views = {plain, scripted, scrolled, pressed};
-    stills = {plainEvents.accepted(), scriptedEvents.accepted(),
-              scrolledEvents.accepted(), pressedEvents.accepted()};
+    describe(ctx);
+  }
 
+  /** THE PAGES ARRIVE RATHER THAN BEING WAITED FOR: every settle is
+   *  advanced here, on the thread that draws, and the sheet is described
+   *  again on the frame any of them finishes. A capture has finished all
+   *  four already and this moves nothing. */
+  void update(double, sketch::SketchContext& ctx) {
+    bool landed = false;
+    for (const std::unique_ptr<sketch::scry::Settling>& settling : pages)
+      landed = settling->advance() || landed;
+    if (landed) describe(ctx);
+  }
+
+  /** The sheet as the four pages stand now. */
+  void describe(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide look(sheetTheme());
+    const bool arrived =
+        std::all_of(pages.begin(), pages.end(),
+                    [](const auto& page) { return page->arrived(); });
+    const bool expired =
+        std::any_of(pages.begin(), pages.end(),
+                    [](const auto& page) { return page->broken(); });
+    const int atX = kClickAt.x(), atY = kClickAt.y();
     const std::string press = kit::formatted(
         "three events for one click — the page's own "
         "handler stamped (%d, %d)",
@@ -263,21 +283,22 @@ struct WebScript {
                  "for has landed, and the view going quiet — and then "
                  "painted whole, so no still carries the seams of how its "
                  "driving was broken up") +
-             (settled ? "" : "; one of those waits expired")},
+             (expired   ? "; one of those waits expired"
+              : arrived ? ""
+                        : "; the pages are still arriving")},
         kit::cells(
             {.cells =
-                 {cell("plain", plain, stills[0], "loadHTML + setLoadCallback",
+                 {cell("plain", 0, "loadHTML + setLoadCallback",
                        std::string("the load callback ") +
-                           (fired ? "fired" : "never fired") + ", and " +
-                           (painted ? "a frame was published"
-                                    : "nothing was published")),
-                  cell("scripted", scripted, stills[1],
-                       "evaluateScript(js, onResult)",
-                       std::string("the page answered “") + returned + "”"),
-                  cell("scrolled", scrolled, stills[2], "scroll(0, -dy)",
-                       wheel),
-                  cell("pressed", pressed, stills[3],
-                       "mouseMove / mouseDown / mouseUp", press)},
+                           (pages[0]->loaded() ? "fired" : "never fired") +
+                           ", and " +
+                           (pages[0]->painted() ? "a frame was published"
+                                                : "nothing was published")),
+                  cell("scripted", 1, "evaluateScript(js, onResult)",
+                       std::string("the page answered “") + pages[1]->reply() +
+                           "”"),
+                  cell("scrolled", 2, "scroll(0, -dy)", wheel),
+                  cell("pressed", 3, "mouseMove / mouseDown / mouseUp", press)},
              .gap = 18,
              .divider = Fill::color(sketch::kit::theme().palette.rule)})));
   }
@@ -286,32 +307,45 @@ struct WebScript {
     return web.createView(kViewW, kViewH);
   }
 
-  /** One cell: THE FRAME THIS CELL'S SETTLE ACCEPTED, at its own pixel
-   *  size so nothing resamples.
+  /** One cell: THE FRAME THIS CELL'S SETTLE STOPPED ON, at its own pixel
+   *  size so nothing resamples — and the view itself while that frame is
+   *  still coming.
+   *
+   *  TWO DRAWINGS UNDER TWO KEYS, because a key IS a program's identity
+   *  and one key must name one picture: a page still arriving is the
+   *  view's own latest, which changes without anything being described
+   *  again and is therefore declared volatile, and a still is ONE frame
+   *  of the engine's, named by which one, and cached like any static
+   *  leaf.
    *
    *  A CPU engine hands the frame over as an immutable image, and that
    *  image is the still however long the page goes on repainting. A GPU
    *  engine publishes a texture it reuses, so there is no image to keep
    *  and the view draws its latest — which is what a device rendering of
    *  a live page is either way. */
-  static Element cell(std::string key, std::shared_ptr<scry::WebView> view,
-                      scry::WebView::Frame still, const char* call,
-                      std::string note) {
+  Element cell(const std::string& name, size_t at, const char* call,
+               std::string note) const {
     const SkRect where = SkRect::MakeWH((float)kViewW, (float)kViewH);
-    return sketch::kit::caption(
-        (float)kViewW, call, note,
-        custom(std::move(key),
-               [view, still = std::move(still), where](SkCanvas& canvas) {
-                 if (still.image)
-                   canvas.drawImageRect(
-                       still.image, where,
-                       SkSamplingOptions(SkFilterMode::kLinear));
-                 else if (view)
-                   view->draw(canvas, where);
-               })
-            .width((float)kViewW)
-            .height((float)kViewH)
-            .fill(Fill::color(kCellGround)));
+    scry::WebView::Frame still = pages[at]->still();
+    Element picture = custom(name + " · arriving",
+                             [view = views[at], where](SkCanvas& canvas) {
+                               if (view) view->draw(canvas, where);
+                             });
+    picture.cache(Cache::None);
+    if (still.image) {
+      const std::string key =
+          name + " · frame " + std::to_string(still.version);
+      picture =
+          custom(key, [still = std::move(still), where](SkCanvas& canvas) {
+            canvas.drawImageRect(still.image, where,
+                                 SkSamplingOptions(SkFilterMode::kLinear));
+          });
+    }
+    return sketch::kit::caption((float)kViewW, call, note,
+                                std::move(picture)
+                                    .width((float)kViewW)
+                                    .height((float)kViewH)
+                                    .fill(Fill::color(kCellGround)));
   }
 
   /** What stands here when the engine has nothing to lay out with. A

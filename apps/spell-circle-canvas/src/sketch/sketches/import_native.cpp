@@ -49,6 +49,7 @@
 #include <sigilscry/engine/WebView.h>
 #include <sigilscry/platform/Runtime.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scry/Settling.h>
 #include <sigilsketch/scry/SharedEngine.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilweave/style/Type.h>
@@ -56,12 +57,10 @@
 #include <sigilworld/frame/Frame.h>
 #include <sigilworld/light/Light.h>
 
-#include <chrono>
 #include <cmath>
 #include <memory>
 #include <stdexcept>
 #include <string>
-#include <thread>
 
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
@@ -137,33 +136,21 @@ and worn by a body</p>
 <div class="box"></div></div></div>)HTML";
 }
 
-/** How many CONSECUTIVE unchanged frame versions count as settled, and
- *  how many observations the wait is allowed to make before it gives up.
+/** WHAT THE PAGE IS PUT THROUGH before a body may wear it: the document,
+ *  its own word that it is complete, and the view going still.
  *
- *  The wait is counted in OBSERVATIONS, never against a clock. A
- *  wall-clock deadline hands back whatever the machine had finished when
- *  it expired, so the picture becomes a function of the load rather than
- *  of the declaration — the same set photographed twice on one machine
- *  wears two pages. A budget of polls either sees the page stop changing
- *  or does not, and a page that has not stopped is one this set cannot
+ *  Nothing here is counted against a clock. A wall-clock settle hands
+ *  back whatever the machine had finished when it expired, so the
+ *  picture becomes a function of the load rather than of the declaration
+ *  — the same set photographed twice on one machine wears two pages. The
+ *  page's own answer and the engine's own repaints either arrive or do
+ *  not, and a page that never stopped changing is one this set cannot
  *  photograph. */
-constexpr int kSettledVersions = 8;
-constexpr int kPollBudget = 900;
-
-/** Waits until the view has published a frame and stopped changing it.
- *  False means it never did, within the budget. */
-bool settled(scry::WebView& view) {
-  using namespace std::chrono_literals;
-  uint64_t published = 0;
-  int unchanged = 0;
-  for (int poll = 0; poll < kPollBudget && unchanged < kSettledVersions;
-       ++poll) {
-    const uint64_t version = view.frameVersion();
-    unchanged = (version > 0 && version == published) ? unchanged + 1 : 0;
-    published = version;
-    std::this_thread::sleep_for(16ms);
-  }
-  return unchanged >= kSettledVersions;
+sketch::scry::Sequence arriving() {
+  return {.html = page(),
+          .question = "String(document.readyState)",
+          .expected = "complete",
+          .quiet = true};
 }
 
 /** A screen: a quad wearing @p dressed, tilted @p yawDeg about the
@@ -190,7 +177,18 @@ struct ImportNative {
 
   std::shared_ptr<TextureScene> composed;
   std::shared_ptr<scry::WebView> view;
+  /** After the view it settles, so the events it latched are released
+   *  while that view is still standing. */
+  std::unique_ptr<sketch::scry::Settling> settling;
   sk_sp<SkImage> pageFrame;
+
+  /** The settled frame, once there is one. It is taken rather than
+   *  re-read every frame because the still is the frame the settle
+   *  stopped on and not whatever the view holds later. */
+  void wearPage() {
+    if (settling && !pageFrame && settling->arrived())
+      pageFrame = settling->still().image;
+  }
 
   void setup(sketch::SetContext& ctx) {
     sketch::kit::stage(ctx,
@@ -214,17 +212,24 @@ struct ImportNative {
         sketch::scry::sharedEngine();
     if (engine) {
       view = engine->createView(kPageW, kPageH);
-      view->loadHTML(page());
-      // An unsettled page is not a picture this set may wear: the frame
-      // it would photograph is one the engine is still laying out.
-      if (!settled(*view))
+      settling = sketch::scry::settle(*view, arriving(), ctx.deterministic);
+      // A CAPTURE HAS THE PAGE BY NOW, and an unsettled one is not a
+      // picture it may wear: the frame it would photograph is one the
+      // engine is still laying out. A window has nothing yet and wears
+      // nothing on that screen until the page arrives, because the
+      // thread this runs on is the thread that draws.
+      if (ctx.deterministic && !settling->arrived())
         throw std::runtime_error(
             "the page never stopped changing, so there is no frame to wear");
-      pageFrame = view->frame().image;
+      wearPage();
     }
   }
 
   world::Frame describe(float seconds) {
+    // The page arrives on the engine's thread, and a set describes itself
+    // every frame, so this is where it is asked for rather than waited on.
+    if (settling) settling->advance();
+    wearPage();
     if (composed) composed->render(dial((float)kBake.width()), (double)seconds);
 
     material::Material screenSurface =

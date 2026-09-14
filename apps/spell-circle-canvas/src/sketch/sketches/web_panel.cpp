@@ -18,17 +18,23 @@
 //
 // WHY THE PLATE IS REPRODUCIBLE. The engine repaints on its own thread
 // on its own cadence, which is a race a fixed-step capture would lose.
-// So the page is loaded and awaited to a settled frame while the sketch
-// is being declared: a static document publishes one picture and then
-// stops, and every frame after that draws the same published frame no
-// matter when it is asked for.
+// So a capture holds its own thread until the page is settled: a static
+// document publishes one picture and then stops, and every frame after
+// that draws the same published frame no matter when it is asked for.
 //
 // AND WHAT SETTLED MEANS — the engine's own two events, never a stretch
 // of clock: the load callback says the document and everything it pulled
 // in are here, and the frame callback says a repaint carrying that
 // document has been handed over. A machine that runs the engine slowly
-// reaches both later and draws this same picture. See
-// <sigilsketch/scry/SettledPage.h>.
+// reaches both later and draws this same picture.
+//
+// A WINDOW WAITS FOR NONE OF IT. setup() runs on the thread that
+// presents, so the same settle is started there and advanced from
+// update(): the page's leaf draws whatever the view has published so
+// far — nothing, at first — the caption says the page is still arriving,
+// and the scene is described again when it is there. One sequence, two
+// ways of driving it, decided by ctx.deterministic. See
+// <sigilsketch/scry/Settling.h>.
 //
 // EDIT THESE FIRST
 //   kPage                     — the document. It is the subject.
@@ -47,7 +53,7 @@
 #include <sigilscry/platform/Runtime.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilsketch/scry/SettledPage.h>
+#include <sigilsketch/scry/Settling.h>
 #include <sigilsketch/scry/SharedEngine.h>
 
 #include <cmath>
@@ -201,16 +207,33 @@ struct WebPanelSketch {
             [](SkCanvas& canvas) { drawSigil(canvas, (float)kSlotSize); });
 
       m_view = engine->createView(kPageWidth, kPageHeight);
-      // The events are latched before the load, so nothing about the
-      // document can happen between asking for it and listening.
-      const sketch::scry::Events events(*m_view);
-      m_view->loadHTML(pageFor(m_slotName));
-      if (!events.awaitLoad()) {
+      // The settle owns the load, so nothing about the document can
+      // happen between asking for it and listening. A capture comes back
+      // from here with the page there; a window comes back at once.
+      m_page = sketch::scry::settle(*m_view, {.html = pageFor(m_slotName)},
+                                    ctx.deterministic);
+      if (m_page->broken()) {
         why = "the page never loaded and painted";
         m_view.reset();
+        m_page.reset();
       }
     }
     ctx.composer.render(m_view ? scene() : unavailable(why));
+  }
+
+  /** THE PAGE ARRIVES RATHER THAN BEING WAITED FOR: the settle is
+   *  advanced here, on the thread that draws, and the scene is described
+   *  again on the frame it finishes. A capture has already finished it
+   *  and this moves nothing. */
+  void update(double, sketch::SketchContext& ctx) {
+    if (!m_page || !m_page->advance()) return;
+    if (!m_page->broken()) {
+      ctx.composer.render(scene());
+      return;
+    }
+    m_view.reset();
+    m_page.reset();
+    ctx.composer.render(unavailable("the page never loaded and painted"));
   }
 
   [[nodiscard]] Element scene() const {
@@ -246,8 +269,11 @@ struct WebPanelSketch {
                        u8"A process boots exactly one engine, so it "
                        u8"is held beside the sketch rather than "
                        u8"inside it.")}),
-             text(u8"the page background is transparent — the scene's "
-                  u8"gradient is what shows between its cards")
+             text(m_page && !m_page->arrived()
+                      ? u8"the page is still arriving — the window draws "
+                        u8"the view's own latest and never waits"
+                      : u8"the page background is transparent — the scene's "
+                        u8"gradient is what shows between its cards")
                  .font({.size = 12, .color = kDim})
                  .left(40)
                  .top(590)});
@@ -279,6 +305,9 @@ struct WebPanelSketch {
   std::string m_slotName;
   std::shared_ptr<scry::WebImage> m_sigil;
   std::shared_ptr<scry::WebView> m_view;
+  /** After the view it settles, so the events it latched are released
+   *  while that view is still standing. */
+  std::unique_ptr<sketch::scry::Settling> m_page;
 };
 
 SIGIL_SKETCH(WebPanelSketch, "Start & fixtures",
