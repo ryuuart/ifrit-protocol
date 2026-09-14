@@ -48,14 +48,13 @@ Element card(const Card& properties, Element content) {
 }
 
 Element gel(float height) {
-  return kit::centred().children(
-      {box()
-           .key("gel")
-           .width(112)
-           .height(height)
-           .corners({height / 2})
-           .style(kit::aquaGel({0.10f, 0.64f, 0.96f, 1}))
-           .cache(Cache::Texture)});
+  return kit::centred(box()
+                          .key("gel")
+                          .width(112)
+                          .height(height)
+                          .corners({height / 2})
+                          .style(kit::aquaGel({0.10f, 0.64f, 0.96f, 1}))
+                          .cache(Cache::Texture));
 }
 
 struct SurfaceComponents : sketch::Sketch {
