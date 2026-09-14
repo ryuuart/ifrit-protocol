@@ -29,8 +29,8 @@
 # mixer a layout scatters with. The arrow points one way: this tier links
 # Brush, and Brush links nothing here.
 sigil_library(SigilComposeKit
-  SOURCES Bevels.cpp Board.cpp Eras.cpp Routers.cpp Rows.cpp Specimen.cpp
-          Sprites.cpp
+  SOURCES Bevels.cpp Board.cpp Eras.cpp Frame.cpp Routers.cpp Rows.cpp
+          Specimen.cpp Sprites.cpp
   HEADERS Board.h Chrome.h Frame.h Gel.h Gloss.h Ground.h Annotations.h
           Typeset.h Instruments.h Kinetic.h Kit.h Layouts.h Marquee.h
           PixelType.h Placers.h Routers.h Rows.h Specimen.h Sprites.h

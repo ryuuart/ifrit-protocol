@@ -1318,7 +1318,10 @@ coordinates, for the plate that has no layout at all), `kit::dotSprite`
 stretched across the flow it stands in where no length is given; a
 hairline is its default thickness and a tick is the same call at another,
 which is why a separator, a rule, a tick, a caret and a whisker are one
-name) and `kit/Frame.h`'s nine-slice frame,
+name — with `Line::pair`, the second rail a masthead, a colophon and a
+specimen sheet's row are ruled with, drawn as ONE node whose two rails
+share one route, so a dotted companion's dashes register against the
+heavy rule instead of drifting off it) and `kit/Frame.h`'s nine-slice frame,
 `kit::centred` (a container whose content stands in the middle both ways,
 since `alignItems(Center)` and `justify(Center)` always travel together
 and say one thing between them, with an overload round the one child most

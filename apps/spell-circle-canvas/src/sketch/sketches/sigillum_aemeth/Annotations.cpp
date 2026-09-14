@@ -279,25 +279,13 @@ auto SigillumAemeth::margin() -> Element {
                 text(doc.phrase("provenance")).styleClass("serif")}),
            // the double rule under the masthead: heavy, with a dotted
            // companion held off it
-           box()
-               .width(w)
-               .height(2)
-               .fill(Fill::none())
-               .shape(keyedShape(w,
-                                 [w] {
-                                   SkPathBuilder b;
-                                   b.moveTo(0, 1);
-                                   b.lineTo(w, 1);
-                                   return b.detach();
-                                 }))
-               .stroke(lines::rails(
-                   {{.across = 0.0f,
-                     .width = 2.4f,
-                     .fill = Fill::color(hexColor(0xc7ab74, 0.75f))},
-                    {.across = -5.0f,
-                     .width = 0.8f,
-                     .fill = Fill::color(hexColor(0xc7ab74, 0.40f)),
-                     .dash = {2.0f, 5.0f}}})),
+           kit::line({.length = Dimension(w),
+                      .thickness = 2.4f,
+                      .fill = Fill::color(hexColor(0xc7ab74, 0.75f)),
+                      .pair = {{.thickness = 0.8f,
+                                .gap = 3.4f,
+                                .fill = Fill::color(hexColor(0xc7ab74, 0.40f)),
+                                .dash = {2.0f, 5.0f}}}}),
            text(doc.phrase("namesHeading")).styleClass("heading"), nameRows(),
            // the leftovers
            box().column().gap(4).children(
@@ -377,32 +365,21 @@ auto SigillumAemeth::colophon() -> Element {
       .column()
       .gap(16)
       .styleSheet(voices())
-      .children({box()
-                     .width(690)
-                     .height(2)
-                     .shape(keyedShape(std::string_view("colophon-rule"),
-                                       [] {
-                                         SkPathBuilder b;
-                                         b.moveTo(0, 1);
-                                         b.lineTo(690, 1);
-                                         return b.detach();
-                                       }))
-                     .fill(Fill::none())
-                     .stroke(lines::rails(
-                         {{.across = 0.0f,
-                           .width = 1.8f,
-                           .fill = Fill::color(hexColor(0xc7ab74, 0.55f))},
-                          {.across = -4.0f,
-                           .width = 0.7f,
-                           .fill = Fill::color(hexColor(0xc7ab74, 0.30f)),
-                           .dash = {1.6f, 4.4f}}})),
-                 text(doc.phrase("seal"))
-                     .font({.face = faceItalic,
-                            .size = 17,
-                            .color = hexColor(0xb59a6c)})
-                     .width(690),
-                 text(doc.phrase("imprint"))
-                     .font({.face = faceMono,
-                            .size = 12,
-                            .color = hexColor(0x6f5f45)})});
+      .children(
+          {kit::line({.length = Dimension(690),
+                      .thickness = 1.8f,
+                      .fill = Fill::color(hexColor(0xc7ab74, 0.55f)),
+                      .pair = {{.thickness = 0.7f,
+                                .gap = 2.7f,
+                                .fill = Fill::color(hexColor(0xc7ab74, 0.30f)),
+                                .dash = {1.6f, 4.4f}}}}),
+           text(doc.phrase("seal"))
+               .font({.face = faceItalic,
+                      .size = 17,
+                      .color = hexColor(0xb59a6c)})
+               .width(690),
+           text(doc.phrase("imprint"))
+               .font({.face = faceMono,
+                      .size = 12,
+                      .color = hexColor(0x6f5f45)})});
 }

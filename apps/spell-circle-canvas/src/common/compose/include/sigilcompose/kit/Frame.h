@@ -24,8 +24,10 @@
 #include <sigilgeometry/path/Frame.h>
 
 #include <concepts>
+#include <optional>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace sigil::compose::kit {
 
@@ -173,24 +175,29 @@ struct Line {
   /** Held off at BOTH ends, px — the separator that stops short of the
    *  edges it runs between. */
   float inset = 0.0f;
+
+  /** A SECOND RAIL HELD OFF THIS ONE — the double rule a masthead, a
+   *  colophon and a specimen sheet's row are ruled with, which is one
+   *  heavy line with a hairline or a dotted companion beside it rather
+   *  than two lines a caller places.
+   *
+   *  Unset (default) is the single rule. A pair is drawn as ONE node
+   *  whose two rails share one route, so the companion's dashes register
+   *  against the first rail rather than drifting off it. */
+  struct Companion {
+    float thickness = 0.7f;
+    /** Between the two rails, px, on the side the pair reads from — the
+     *  side a masthead's hairline stands on is under the heavy rule. */
+    float gap = 4.0f;
+    /** Fill::none() (default) is the first rail's own. */
+    Fill fill;
+    /** Dash on/off intervals, px; empty is solid. */
+    std::vector<SkScalar> dash;
+  };
+  std::optional<Companion> pair;
 };
 
-[[nodiscard]] inline Element line(const Line& mark) {
-  Element rule = box();
-  const bool open = mark.length.unit == Dimension::Unit::Auto;
-  if (mark.column) {
-    rule.width(Dimension(mark.thickness));
-    if (!open) rule.height(mark.length);
-    if (mark.inset != 0.0f) rule.margin(Dimension(0), Dimension(mark.inset));
-  } else {
-    rule.height(Dimension(mark.thickness));
-    if (!open) rule.width(mark.length);
-    if (mark.inset != 0.0f) rule.margin(Dimension(mark.inset), Dimension(0));
-  }
-  if (open) rule.alignSelf(Align::Stretch);
-  rule.fill(mark.fill.kind == Fill::Kind::None ? Fill::currentInk()
-                                               : mark.fill);
-  return rule;
-}
+/** THE LINE, or the pair of rails `Line::pair` asks for. */
+[[nodiscard]] Element line(const Line& mark);
 
 }  // namespace sigil::compose::kit

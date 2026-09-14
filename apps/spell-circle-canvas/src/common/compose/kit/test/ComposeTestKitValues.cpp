@@ -1176,6 +1176,24 @@ TEST(KitFrame, ARingIsStrokedAndADotIsFilledAtTheirOwnRadius) {
   EXPECT_EQ(host.pixel(60, 60), SK_ColorRED);
 }
 
+TEST(KitLine, APairIsOneNodeAsDeepAsBothItsRails) {
+  Host host(120, 60);
+  host.composer.render(box().width(120).height(60).column().children(
+      {kit::line({.length = Dimension(100),
+                  .thickness = 4,
+                  .fill = green(),
+                  .pair = {{.thickness = 2, .gap = 6, .fill = red()}}})
+           .key("rule")}));
+  host.frame();
+  // The node is the heavy rail, the gap and the companion together, and
+  // its route runs along the first: the heavy rail is at the top.
+  const SkRect rule = require(host.composer.bounds("rule"));
+  EXPECT_EQ(rule, SkRect::MakeXYWH(0, 0, 100, 12));
+  EXPECT_EQ(host.pixel(50, 1), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(50, 11), SK_ColorRED);
+  EXPECT_EQ(host.pixel(50, 6), SK_ColorBLACK);
+}
+
 TEST(KitLine, TakesAStatedFillOverTheInk) {
   Host host(60, 40);
   host.composer.render(
