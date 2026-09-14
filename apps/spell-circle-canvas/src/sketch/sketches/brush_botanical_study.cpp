@@ -113,6 +113,17 @@ void paper(Pen& pen) {
   }
 }
 
+/** A POINT ON THE LEAF'S OWN SPINE: @p t of the way along the axis, with
+ *  the bend carried across it at @p lean of its full deviation. The
+ *  midrib's control points and every vein's origin are readings of this
+ *  one curve, so they cannot drift apart. */
+SkPoint spine(const Leaf& leaf, float t, float lean) {
+  const float across = leaf.bend * leaf.length * lean;
+  return {
+      leaf.base.fX + leaf.axis.fX * leaf.length * t + leaf.normal.fX * across,
+      leaf.base.fY + leaf.axis.fY * leaf.length * t + leaf.normal.fY * across};
+}
+
 void vein(Pen& pen, const Leaf& leaf, SkColor4f color) {
   brush::Tool lead = brush::pencil(color, 1.25f);
   lead.opacity = 0.62f;
@@ -120,16 +131,8 @@ void vein(Pen& pen, const Leaf& leaf, SkColor4f color) {
 
   const std::array<brush::Sample, 4> midrib{{
       {leaf.base, 0.18f},
-      {{leaf.base.fX + leaf.axis.fX * leaf.length * 0.34f +
-            leaf.normal.fX * leaf.bend * leaf.length * 0.75f,
-        leaf.base.fY + leaf.axis.fY * leaf.length * 0.34f +
-            leaf.normal.fY * leaf.bend * leaf.length * 0.75f},
-       0.95f},
-      {{leaf.base.fX + leaf.axis.fX * leaf.length * 0.72f +
-            leaf.normal.fX * leaf.bend * leaf.length * 0.55f,
-        leaf.base.fY + leaf.axis.fY * leaf.length * 0.72f +
-            leaf.normal.fY * leaf.bend * leaf.length * 0.55f},
-       0.58f},
+      {spine(leaf, 0.34f, 0.75f), 0.95f},
+      {spine(leaf, 0.72f, 0.55f), 0.58f},
       {leaf.tip, 0.08f},
   }};
   brush::spline(pen, lead, midrib, 0.72f);
@@ -139,12 +142,7 @@ void vein(Pen& pen, const Leaf& leaf, SkColor4f color) {
   for (int index = 1; index <= 5; ++index) {
     const float t = 0.14f + (float)index * 0.12f;
     const float envelope = std::pow(std::max(0.0f, std::sin(PI * t)), 0.72f);
-    const SkPoint center{
-        leaf.base.fX + leaf.axis.fX * leaf.length * t +
-            leaf.normal.fX * std::sin(PI * t) * leaf.bend * leaf.length,
-        leaf.base.fY + leaf.axis.fY * leaf.length * t +
-            leaf.normal.fY * std::sin(PI * t) * leaf.bend * leaf.length,
-    };
+    const SkPoint center = spine(leaf, t, std::sin(PI * t));
     for (float side : {-1.0f, 1.0f}) {
       const float reach = leaf.width * envelope * 0.83f;
       const SkPoint edge{
