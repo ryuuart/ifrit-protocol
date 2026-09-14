@@ -38,6 +38,7 @@
 
 // TAGS: Typography/Paragraph
 
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -47,6 +48,7 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
+#include <ranges>
 #include <string>
 #include <utility>
 #include <vector>
@@ -182,15 +184,16 @@ Element leadingSpecimen(const char* caption, weave::Leading leading) {
                        .font({.size = 11.5f})
                        .width(kMeasure * 0.48f)
                        .paragraphs({style}))
-      .styleSheet(callClasses())
-      .width(kMeasure * 0.48f);
+      .styleSheet(callClasses());
 }
 
 }  // namespace sheet
 
+namespace s = sheet;
+
 struct ParagraphSheet final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    const sketch::kit::Provide look(sheet::sheetTheme());
+    const sketch::kit::Provide look(s::sheetTheme());
     sketch::kit::stage(ctx, {.size = kSceneSize, .captureAt = 0.4});
     ctx.composer.render(describe());
   }
@@ -198,79 +201,62 @@ struct ParagraphSheet final : sketch::Sketch {
   // ── The panels ─────────────────────────────────────────────────────────
 
   Element leadingPanel() {
-    namespace s = sheet;
-    weave::ParagraphStyle grid;
-    grid.leading = weave::Leading::grid(s::kGrid);
     // The grid specimen is captioned as the three beside it are, so it
-    // states the same specimen voice.
-    Element gridCell;
-    {
-      gridCell =
-          kit::cell(s::callVoice(s::kMeasure * 0.48f), "Leading::grid(21)", "",
-                    // The grid, drawn: every rule is one step, so a
-                    // baseline off the rhythm is a thing to see rather
-                    // than to argue about.
-                    box()
-                        .height(s::kGrid * 4)
-                        .width(s::kMeasure * 0.48f)
-                        .children({gridRules(),
-                                   text(s::kFourWays)
-                                       .styleClass("body")
-                                       .font({.size = 11.5f})
-                                       .absolute()
-                                       .inset(0, 0, 0, 0)
-                                       .width(s::kMeasure * 0.48f)
-                                       .paragraphs({grid})}))
-              .styleSheet(s::callClasses())
-              .width(s::kMeasure * 0.48f);
-    }
+    // states the same specimen voice; the grid behind it is drawn, so a
+    // baseline off the rhythm is a thing to see rather than to argue about.
+    Element gridCell =
+        kit::cell(
+            s::callVoice(s::kMeasure * 0.48f), "Leading::grid(21)", "",
+            box()
+                .height(s::kGrid * 4)
+                .children(
+                    {gridRules(),
+                     text(s::kFourWays)
+                         .styleClass("body")
+                         .font({.size = 11.5f})
+                         .absolute()
+                         .inset(0)
+                         .width(s::kMeasure * 0.48f)
+                         .paragraphs({weave::ParagraphStyle{
+                             .leading = weave::Leading::grid(s::kGrid)}})}))
+            .styleSheet(s::callClasses());
     return s::panel(
         "LEADING",
         "face · multiple · absolute · grid. The rules "
         "under the fourth are the grid it lands on.",
-        box().column().gap(14).children(
-            {box()
-                 .row()
-                 .gap(18)
-                 .children({s::leadingSpecimen("Leading::face()",
-                                               weave::Leading::face())})
-                 .children(
-                     {s::leadingSpecimen("Leading::multiple(1.7)",
-                                         weave::Leading::multiple(1.7f))}),
-             box()
-                 .row()
-                 .gap(18)
-                 .children({s::leadingSpecimen("Leading::absolute(22)",
-                                               weave::Leading::absolute(22))})
-                 .children({std::move(gridCell)})}));
+        kit::panelGrid(
+            {.cells = {s::leadingSpecimen("Leading::face()",
+                                          weave::Leading::face()),
+                       s::leadingSpecimen("Leading::multiple(1.7)",
+                                          weave::Leading::multiple(1.7f)),
+                       s::leadingSpecimen("Leading::absolute(22)",
+                                          weave::Leading::absolute(22)),
+                       std::move(gridCell)},
+             .columns = 2,
+             .gap = 18,
+             .rowGap = 14}));
   }
 
-  /// Four rules one grid step apart, behind the grid specimen.
-  Element gridRules() {
-    namespace s = sheet;
-    Element stackOfRules = box().absolute().inset(0, 0, 0, 0);
-    for (int line = 0; line < 4; ++line)
-      stackOfRules.children(
-          {box()
-               .absolute()
-               .left(0.0f)
-               .top(s::kGrid * static_cast<float>(line + 1))
-               .width(s::kMeasure * 0.48f)
-               .height(1.0f)
-               .fill(Fill::color(s::kRule))});
-    return stackOfRules;
+  /// Four rules one grid step apart, behind the grid specimen: the grid
+  /// itself, so the panel's claim is checkable.
+  static Element gridRules() {
+    return box()
+        .absolute()
+        .inset(0)
+        .column()
+        .padding(0, s::kGrid - 1, 0, 0)
+        .gap(s::kGrid - 1)
+        .children(each(std::views::iota(0, 4), [](int) {
+          return kit::line({.fill = Fill::color(s::kRule)});
+        }));
   }
 
   Element spacingPanel() {
-    namespace s = sheet;
-    weave::ParagraphStyle first;
-    first.spaceBefore = 14;  // not suppressed at the head of the flow
-    first.spaceAfter = 26;
-    weave::ParagraphStyle second;
-    second.spaceBefore = 10;  // 26 wins: the gap is the larger, not the sum
-    second.spaceAfter = 6;
-    weave::ParagraphStyle third;
-    third.spaceBefore = 24;  // 24 wins here, over the 6 before it
+    // 14 is not suppressed at the head of the flow; then 26 wins over the
+    // 10 under it, and 24 over the 6 under that — the larger, not the sum.
+    const weave::ParagraphStyle first{.spaceBefore = 14, .spaceAfter = 26};
+    const weave::ParagraphStyle second{.spaceBefore = 10, .spaceAfter = 6};
+    const weave::ParagraphStyle third{.spaceBefore = 24};
 
     return s::panel(
         "SPACING",
@@ -289,20 +275,13 @@ struct ParagraphSheet final : sketch::Sketch {
   }
 
   Element indentPanel() {
-    namespace s = sheet;
-    weave::ParagraphStyle firstLine;
-    firstLine.indent.firstLine = 22;
-    firstLine.spaceAfter = 10;
-    weave::ParagraphStyle hanging;
-    hanging.indent.start = 22;
-    hanging.indent.firstLine = -22;
-    hanging.spaceAfter = 10;
-    weave::ParagraphStyle bothEnds;
-    bothEnds.indent.start = 20;
-    bothEnds.indent.end = 20;
-    bothEnds.spaceAfter = 10;
-    weave::ParagraphStyle lastLine;
-    lastLine.indent.lastLine = 40;
+    const weave::ParagraphStyle firstLine{.spaceAfter = 10,
+                                          .indent = {.firstLine = 22}};
+    const weave::ParagraphStyle hanging{
+        .spaceAfter = 10, .indent = {.start = 22, .firstLine = -22}};
+    const weave::ParagraphStyle bothEnds{.spaceAfter = 10,
+                                         .indent = {.start = 20, .end = 20}};
+    const weave::ParagraphStyle lastLine{.indent = {.lastLine = 40}};
 
     return s::panel(
         "INDENTS",
@@ -326,7 +305,6 @@ struct ParagraphSheet final : sketch::Sketch {
   }
 
   Element justifiedPanel() {
-    namespace s = sheet;
     const char8_t* passage =
         u8"Justification spends in three passes, each on what the one "
         u8"before it could not: the word gaps first, then the space "
@@ -348,13 +326,13 @@ struct ParagraphSheet final : sketch::Sketch {
                            .styleClass("body")
                            .font({.size = 11.0f})
                            .width(s::kMeasure * 0.31f)
-                           .block({.alignment = weave::TextAlignment::kJustify})
-                           .block({.lineBreak =
-                                       weave::LineBreakStrategy::kKnuthPlass})
-                           .block({.hyphenation =
-                                       sigil::weave::HyphenationOptions{
-                                           .patterns = &s::hyphenator()}})
-                           .block({.justification = spec}))
+                           .block({.alignment = weave::TextAlignment::kJustify,
+                                   .justification = spec,
+                                   .hyphenation =
+                                       weave::HyphenationOptions{
+                                           .patterns = &s::hyphenator()},
+                                   .lineBreak =
+                                       weave::LineBreakStrategy::kKnuthPlass}))
           .styleSheet(s::callClasses())
           .width(s::kMeasure * 0.31f);
     };
@@ -370,7 +348,6 @@ struct ParagraphSheet final : sketch::Sketch {
   }
 
   Element tabPanel() {
-    namespace s = sheet;
     weave::TabStopOptions stops;
     stops.stops = {
         weave::TabStop{130, weave::TabStop::Align::kStart},
@@ -395,13 +372,11 @@ struct ParagraphSheet final : sketch::Sketch {
   }
 
   Element columnPanel() {
-    namespace s = sheet;
-    weave::ParagraphStyle heading;
-    heading.leading = weave::Leading::multiple(1.35f);
-    heading.spaceAfter = 18;
-    weave::ParagraphStyle verse;
-    verse.leading = weave::Leading::multiple(1.05f);
-    verse.indent.firstLine = 26;
+    const weave::ParagraphStyle heading{
+        .leading = weave::Leading::multiple(1.35f), .spaceAfter = 18};
+    const weave::ParagraphStyle verse{
+        .leading = weave::Leading::multiple(1.05f),
+        .indent = {.firstLine = 26}};
 
     return s::panel(
         "COLUMNS",
@@ -429,20 +404,10 @@ struct ParagraphSheet final : sketch::Sketch {
     return kit::cells({.cells = std::move(run),
                        .column = true,
                        .gap = 22,
-                       .divider = Fill::color(sheet::kFaint)});
+                       .divider = Fill::color(s::kFaint)});
   }
 
   Element describe() {
-    namespace s = sheet;
-    std::vector<Element> left;
-    left.push_back(leadingPanel());
-    left.push_back(spacingPanel());
-    left.push_back(indentPanel());
-    std::vector<Element> right;
-    right.push_back(justifiedPanel());
-    right.push_back(tabPanel());
-    right.push_back(columnPanel());
-
     return sketch::kit::page(
                {.title = u8"THE BLOCK CONTROLS",
                 .subtitle = u8"one text leaf per panel, and a list of "
@@ -452,10 +417,12 @@ struct ParagraphSheet final : sketch::Sketch {
                     u8"own alignment, justification, hyphenation and tab "
                     u8"stops \u2014 which is what every text that never "
                     u8"mentions a block gets"},
-               kit::cells({.cells = {panels(std::move(left)),
-                                     panels(std::move(right))},
+               kit::cells({.cells = {panels({leadingPanel(), spacingPanel(),
+                                             indentPanel()}),
+                                     panels({justifiedPanel(), tabPanel(),
+                                             columnPanel()})},
                            .gap = 40}))
-        .styleSheet(sheet::classes());
+        .styleSheet(s::classes());
   }
 };
 
