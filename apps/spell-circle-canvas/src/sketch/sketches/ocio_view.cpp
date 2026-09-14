@@ -30,13 +30,12 @@
 
 // TAGS: Materials/Color
 
-#include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
 #include <include/effects/SkGradient.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/ocio/Ocio.h>
-#include <sigilmaterial/skia/Draw.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -59,10 +58,6 @@ constexpr float kPicture = 200;
 constexpr float kGamma = 2.2f;  // the exponent the plumbing test applies
 constexpr int kLutSize = 33;    // the 3D LUT's side
 constexpr const char* kConfig = "ocio://default";
-
-SkPath whole() {
-  return SkPathBuilder().addRect(SkRect::MakeWH(kCell, kPicture)).detach();
-}
 
 /** THE SUBJECT every cell transforms: a linear step wedge over three
  *  primary ramps, baked once. A step wedge is what a transform is read
@@ -111,16 +106,15 @@ material::Material through(material::Material transform) {
 
 Element cell(const char* call, const std::string& note,
              material::Material paint) {
+  // THE TRANSFORM IS THE CELL'S GROUND: a well grounded in something
+  // generated per pixel is what the ground slot is for, so nothing here
+  // records a path or a paint.
   return sketch::kit::caption(
       kCell, call, note,
       sketch::kit::well(
-          {.width = kCell, .height = kPicture},
-          custom(call, [paint = std::move(paint), face = whole()](
-                           SkCanvas& canvas, const PaintContext& pc) {
-            material::skia::fill(
-                canvas, face, paint,
-                {.resolution = {pc.size.width(), pc.size.height()}});
-          })));
+          {.width = kCell,
+           .height = kPicture,
+           .ground = material::skia::Paint::recipe(std::move(paint))}));
 }
 
 /** The house sheet, in this one's own look. */
