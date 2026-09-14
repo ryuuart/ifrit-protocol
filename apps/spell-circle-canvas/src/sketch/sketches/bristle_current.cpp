@@ -20,6 +20,7 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcore/compute/Chance.h>
 #include <sigildraw/Draw.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
@@ -49,11 +50,6 @@ constexpr std::array<SkColor4f, 5> kPigments = {{
     {0.84f, 0.48f, 0.10f, 1.0f},
     {0.36f, 0.16f, 0.29f, 1.0f},
 }};
-
-SkColor4f withAlpha(SkColor4f color, float alpha) {
-  color.fA = alpha;
-  return color;
-}
 
 struct Bristle {
   float x = 0.0f;
@@ -193,11 +189,12 @@ struct BristleCurrent final : sketch::Sketch {
     pen.strokeCap(ROUND);
     for (const Mark& mark : pending) {
       const SkColor4f pigment = kPigments[(size_t)mark.pigment];
-      pen.stroke(withAlpha(pigment, mark.opacity * 0.11f));
+      pen.stroke(
+          sigil::material::skia::withAlpha(pigment, mark.opacity * 0.11f));
       pen.strokeWeight(mark.weight * 4.6f);
       pen.line(mark.x0, mark.y0, mark.x1, mark.y1);
 
-      pen.stroke(withAlpha(pigment, mark.opacity));
+      pen.stroke(sigil::material::skia::withAlpha(pigment, mark.opacity));
       pen.strokeWeight(mark.weight);
       pen.line(mark.x0, mark.y0, mark.x1, mark.y1);
     }
