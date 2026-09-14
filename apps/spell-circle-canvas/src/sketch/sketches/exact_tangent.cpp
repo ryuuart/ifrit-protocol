@@ -87,7 +87,6 @@ Element run(const char* word, float size, SkColor4f colour, bool exact,
   return text(word)
       .styleClass("inscription")
       .font({.size = size, .color = colour})
-      .absolute()
       .inset(inset)
       .onPath({.path = shapes::spiral(kTurns),
                .at = 0.42f,
@@ -102,7 +101,6 @@ Element arcRun(const char* word, float size, SkColor4f colour, bool exact,
   return text(word)
       .styleClass("inscription")
       .font({.size = size, .color = colour})
-      .absolute()
       .inset(inset)
       .onPath({.path = shapes::circle(),
                .at = at,
@@ -111,13 +109,11 @@ Element arcRun(const char* word, float size, SkColor4f colour, bool exact,
                .exactTangent = exact});
 }
 
-Element plate(Element body) {
-  return sketch::kit::well({.width = kCell, .height = kPicture})
-      .children({std::move(body)});
-}
-
 Element cell(const char* call, const char* note, Element body) {
-  return sketch::kit::caption(kCell, call, note, plate(std::move(body)));
+  return sketch::kit::caption(
+      kCell, call, note,
+      sketch::kit::well({.width = kCell, .height = kPicture})
+          .children({std::move(body)}));
 }
 
 }  // namespace
@@ -173,7 +169,7 @@ struct ExactTangent final : sketch::Sketch {
                            "to a detail · no fringe: the two land "
                            "within a fraction of a pixel, which is the "
                            "ladder doing its job",
-                           box().absolute().inset(0).clip().children(
+                           box().inset(0).clip().children(
                                {arcRun("Ra", kDetailSize, kSnapped, false,
                                        0.26f, -86, 4),
                                 arcRun("Ra", kDetailSize, kExact, true, 0.26f,
