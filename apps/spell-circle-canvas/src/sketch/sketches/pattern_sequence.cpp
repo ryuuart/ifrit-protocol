@@ -26,15 +26,14 @@
 
 // TAGS: Patterns/Tiling
 
-#include <include/core/SkCanvas.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/pattern/Tile.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
-#include <functional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -42,6 +41,7 @@
 namespace sketch = sigil::sketch;
 namespace material = sigil::material;
 namespace pattern = sigil::material::pattern;
+namespace mskia = sigil::material::skia;
 
 using namespace sigil::compose;
 using material::Color;
@@ -89,29 +89,18 @@ pattern::Tile squaresTile() {
                           {0.80f, 0.72f, 0.46f, 1});
 }
 
-void paintTile(SkCanvas& canvas, const pattern::Tile& tile, SkSize size) {
-  SkPaint paint;
-  paint.setShader(tile.texture().shader());
-  canvas.drawRect(SkRect::MakeWH(size.width(), size.height()), paint);
+/** A tile as a paint: what a node is grounded in. */
+mskia::Paint painted(const pattern::Tile& tile) {
+  return mskia::Paint::shader(tile.texture().shader());
 }
 
-Element cell(const char* call, const std::string& note,
-             std::function<void(SkCanvas&, SkSize)> draw) {
+/** One cell: the tile as the ground of the well the specimen stands in. */
+Element swatch(const char* call, const std::string& note,
+               const pattern::Tile& tile) {
   return sketch::kit::caption(
       kCell, call, note,
       sketch::kit::well(
-          {.width = kCell, .height = kPicture},
-          custom(call, [draw = std::move(draw)](SkCanvas& canvas,
-                                                const PaintContext& pc) {
-            draw(canvas, pc.size);
-          })));
-}
-
-Element swatch(const char* call, const std::string& note, pattern::Tile tile) {
-  return cell(call, note,
-              [tile = std::move(tile)](SkCanvas& canvas, SkSize size) {
-                paintTile(canvas, tile, size);
-              });
+          {.width = kCell, .height = kPicture, .ground = painted(tile)}));
 }
 
 }  // namespace
@@ -180,46 +169,42 @@ struct PatternSequence final : sketch::Sketch {
                                 "seamless because the bake never "
                                 "turned",
                                 pattern::Tile(banked).rotate(90).scale(1.4f)),
-                            cell("one bake, drawn crossed",
-                                 "the sett along +x and the same bake "
-                                 "turned a right angle over it · "
-                                 "which is what a tartan is",
-                                 [banked = banked](
-                                     SkCanvas& canvas,
-                                     SkSize size) {
-                                   paintTile(canvas, banked, size);
-                                   canvas.saveLayerAlphaf(nullptr, 0.55f);
-                                   paintTile(canvas,
-                                             pattern::Tile(banked).rotate(90),
-                                             size);
-                                   canvas.restore();
-                                 }),
-                            cell("filter(kNearest) | filter(kLinear)",
-                                 "linear is the default and is right "
-                                 "for an organic tile · on a "
-                                 "pixel grid it is wrong, which the "
-                                 "seam down the middle says",
-                                 [squares = squares](SkCanvas& canvas, SkSize size) {
-                                   canvas.save();
-                                   canvas.clipRect(SkRect::MakeWH(
-                                       size.width() * 0.5f, size.height()));
-                                   paintTile(
-                                       canvas,
-                                       pattern::Tile(squares).scale(5).filter(
-                                           SkFilterMode::kNearest),
-                                       size);
-                                   canvas.restore();
-                                   canvas.save();
-                                   canvas.clipRect(SkRect::MakeLTRB(
-                                       size.width() * 0.5f, 0, size.width(),
-                                       size.height()));
-                                   paintTile(
-                                       canvas,
-                                       pattern::Tile(squares).scale(5).filter(
-                                           SkFilterMode::kLinear),
-                                       size);
-                                   canvas.restore();
-                                 })},
+                            sketch::kit::caption(
+                                kCell, "one bake, drawn crossed",
+                                "the sett along +x and the same bake "
+                                "turned a right angle over it · "
+                                "which is what a tartan is",
+                                sketch::kit::well({.width = kCell,
+                                                   .height = kPicture,
+                                                   .ground = painted(banked)})
+                                    .children(
+                                        {box()
+                                             .inset(0)
+                                             .fill(painted(
+                                                 pattern::Tile(banked).rotate(
+                                                     90)))
+                                             .opacity(0.55f)})),
+                            sketch::kit::caption(
+                                kCell, "filter(kNearest) | filter(kLinear)",
+                                "linear is the default and is right "
+                                "for an organic tile · on a "
+                                "pixel grid it is wrong, which the "
+                                "seam down the middle says",
+                                sketch::kit::well(
+                                    {.width = kCell, .height = kPicture})
+                                    .row()
+                                    .children(
+                                        {box().grow(1).fill(painted(pattern::Tile(
+                                                                        squares)
+                                                                        .scale(
+                                                                            5)
+                                                                        .filter(SkFilterMode::
+                                                                                    kNearest))),
+                                         box().grow(1).fill(painted(pattern::Tile(
+                                                                        squares)
+                                                                        .scale(
+                                                                            5)
+                                                                        .filter(SkFilterMode::kLinear)))}))},
                        .gap = 14})},
              .column = true,
              .gap = 18})));
