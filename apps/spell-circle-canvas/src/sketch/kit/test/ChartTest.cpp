@@ -254,6 +254,39 @@ TEST(SketchKitChart, ATracePrunesOnItsKey) {
   EXPECT_TRUE(drawn.composer.bounds("u-trace0").has_value());
 }
 
+TEST(SketchKitChart, ASegmentStandsInTheBoundsOfItsOwnTwoEnds) {
+  struct Chord {
+    double a0, b0, a1, b1;
+  };
+  const std::vector<Chord> pairs{{1, 10, 9, 90}, {2, 80, 8, 20}};
+  Drawn drawn(sheet(kit::plot("c", plane(),
+                              {kit::segments(pairs,
+                                             [](const Chord&, std::size_t) {
+                                               return compose::box();
+                                             },
+                                             {.x = &Chord::a0,
+                                              .y = &Chord::b0,
+                                              .toX = &Chord::a1,
+                                              .toY = &Chord::b1})})
+                        .width(kField)
+                        .height(kFieldTall)));
+  // Each child's box is the rectangle its two mapped ends bound, and no
+  // more — a run of chords costs its own pixels rather than a field each.
+  // The tolerance is a pixel because layout rounds a placed rect onto the
+  // pixel grid, which is what every other placed child is rounded by.
+  for (std::size_t i = 0; i < pairs.size(); ++i) {
+    const std::optional<SkRect> box =
+        drawn.composer.bounds("c-segment0-" + std::to_string(i));
+    ASSERT_TRUE(box.has_value());
+    const SkPoint from = plane().at(pairs[i].a0, pairs[i].b0, kBox);
+    const SkPoint to = plane().at(pairs[i].a1, pairs[i].b1, kBox);
+    EXPECT_NEAR(box->left(), std::min(from.fX, to.fX), 1.01f);
+    EXPECT_NEAR(box->top(), std::min(from.fY, to.fY), 1.01f);
+    EXPECT_NEAR(box->width(), std::abs(to.fX - from.fX), 1.01f);
+    EXPECT_LT(box->width(), kField);
+  }
+}
+
 TEST(SketchKitChart, ACurveDrawsItselfOnAlongItsOwnLength) {
   const auto tree = [](std::optional<compose::Spans> gate) {
     weave::StyleSheet dressed = kit::houseTheme().styleSheet();

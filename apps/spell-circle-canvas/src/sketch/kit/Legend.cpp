@@ -99,19 +99,27 @@ compose::Element swatchStrip(const SwatchStrip& strip) {
     if (strip.corners > 0) patch.corners(Corners{strip.corners});
     const bool named = i < strip.labels.size() && !strip.labels[i].empty();
     if (!named) {
+      if (strip.appear) patch.appear(*strip.appear);
       run.children({std::move(patch)});
       continue;
     }
     // The word stands under its own swatch and takes the swatch's width,
-    // so a strip that names only its ends keeps its steps butted.
-    run.children(
-        {box()
-             .column()
-             .alignItems(Align::Center)
-             .children({std::move(patch)})
-             .children({text(strip.labels[i],
-                             look.style(look.type.eyebrow, look.palette.ash))
-                            .margin(0, look.spacing.captionNoteGap, 0, 0)})});
+    // so a strip that names only its ends keeps its steps butted; a step
+    // whose number is the measurement says so with its own ink.
+    const Fill ink = i < strip.inks.size() ? strip.inks[i] : Fill{};
+    Element step =
+        box()
+            .column()
+            .alignItems(Align::Center)
+            .children({std::move(patch)})
+            .children({text(strip.labels[i],
+                            look.style(look.type.eyebrow,
+                                       ink.kind == Fill::Kind::None
+                                           ? Fill::color(look.palette.ash)
+                                           : ink))
+                           .margin(0, look.spacing.captionNoteGap, 0, 0)});
+    if (strip.appear) step.appear(*strip.appear);
+    run.children({std::move(step)});
   }
   return run;
 }
@@ -121,10 +129,9 @@ compose::Element chip(const Chip& tag) {
   Element plate =
       box().padding(look.spacing.chipPaddingX, look.spacing.chipPaddingY);
   tag.ground.value_or(Fill::color(look.palette.figure)).apply(plate);
-  plate.children(
-      {text(tag.label,
-            look.style(look.type.eyebrow,
-                       tag.ink.value_or(Fill::color(look.palette.ground))))});
+  plate.children({text(
+      tag.label, look.style(look.type.eyebrow, tag.ink.value_or(Fill::color(
+                                                   look.palette.ground))))});
   if (const float round = tag.corners.value_or(look.spacing.chipCorners);
       round > 0)
     plate.corners(Corners{round});

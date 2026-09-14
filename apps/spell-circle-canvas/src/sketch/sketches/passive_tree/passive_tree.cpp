@@ -842,8 +842,13 @@ struct PassiveTree final : sketch::Sketch {
                                  .height(14.0f)
                                  .shape(pt::hline())
                                  .stroke(brush::presets::rope((int)i, 0.8f))});
-    root.children({sketch::kit::legend(
-                       {.entries = std::move(key), .column = false, .gap = 20})
+    // A 44 px rope reads tighter against its word than the theme's
+    // caption gap, which is set for a 14 px swatch: the key states its
+    // own, which is what that distance is the caller's for.
+    root.children({sketch::kit::legend({.entries = std::move(key),
+                                        .column = false,
+                                        .gap = 20,
+                                        .labelGap = 8})
                        .bottom(28)
                        .right(36)
                        .zIndex(8)});

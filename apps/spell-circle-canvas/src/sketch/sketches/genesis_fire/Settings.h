@@ -26,6 +26,7 @@
 #include <sigilmotion/Animation.h>
 #include <sigilmotion/physics/Physics.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Legend.h>
 #include <sigilsketch/kit/Meter.h>
 #include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/ports/SystemFontManager.h>

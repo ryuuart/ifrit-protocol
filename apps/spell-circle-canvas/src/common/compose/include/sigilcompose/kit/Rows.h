@@ -160,12 +160,17 @@ struct Table {
    *  Empty is `section`. */
   Part<Utf8, Table> headLine = section;
   /** ONE BODY CELL, as a function of its words, this table, the index of
-   *  the column it stands in and the index of its ROW — a part takes the
-   *  parameters it names, so a table that dresses a column names three
-   *  and one that lights a row names four. Empty sets each cell in its
-   *  own column's class — `readout` for a figure column, `captionNote`
-   *  for the rest. */
-  Part<Utf8, Table, std::size_t, std::size_t> cellLine;
+   *  the column it stands in, the index of its ROW and THAT ROW'S OWN
+   *  CELLS — a part takes the parameters it names, so a table that
+   *  dresses a column names three, one that lights a row names four, and
+   *  one whose last column is a METER READ OFF THE ROW names five. Empty
+   *  sets each cell in its own column's class — `readout` for a figure
+   *  column, `captionNote` for the rest.
+   *
+   *  A PART MAY ANSWER ANY ELEMENT, not only a line: a cell that is a
+   *  drawing — a bar, a swatch ramp, a sparkline — is what the row it
+   *  stands in says it is, which is why the row is offered. */
+  Part<Utf8, Table, std::size_t, std::size_t, std::span<const Utf8>> cellLine;
 };
 
 /** THE TABLE — @p rows in @p how's columns, each row its own run of

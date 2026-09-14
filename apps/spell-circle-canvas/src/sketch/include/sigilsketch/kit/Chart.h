@@ -412,6 +412,38 @@ template <std::ranges::input_range R, class Row = std::ranges::range_value_t<R>>
 [[nodiscard]] Layer bands(R&& rows,
                           const std::type_identity_t<Bands<Row>>& how = {});
 
+/** HOW A SEGMENT'S TWO ENDS ARE READ — one datum, two points, and the
+ *  line between them. Readers are as `Marks`'s: an unset one answers the
+ *  row's index. */
+template <class Row>
+struct Segments {
+  std::function<double(const Row&)> x;
+  std::function<double(const Row&)> y;
+  /** The OTHER end. */
+  std::function<double(const Row&)> toX;
+  std::function<double(const Row&)> toY;
+  /** The class read instead of `mark`, for a second run. */
+  std::string styleClass;
+};
+
+/** THE SEGMENTS — one child per row, each standing at the BOUNDS OF ITS
+ *  OWN TWO ENDS and shaped as the line between them, in the class
+ *  `plotMark`.
+ *
+ *  A segment is not a mark: a mark is a point's own element and a segment
+ *  is the line between two. The layer gives each child the diagonal of its
+ *  own box, so a chord, a residual vector, a whisker and a link state only
+ *  the pen they are stroked with — and a run of them costs its own pixels
+ *  rather than a full field's each.
+ *
+ *      kit::segments(pairs, chord, {.x = &Pair::a0, .y = &Pair::b0,
+ *                                   .toX = &Pair::a1, .toY = &Pair::b1})
+ */
+template <std::ranges::input_range R, class Row = std::ranges::range_value_t<R>>
+[[nodiscard]] Layer segments(
+    R&& rows, std::type_identity_t<compose::kit::Part<Row, std::size_t>> mark,
+    const std::type_identity_t<Segments<Row>>& how = {});
+
 /** HOW A WORD PLACED IN THE FIELD STANDS. */
 struct Label {
   Anchor anchor;
@@ -448,6 +480,13 @@ namespace detail {
   return stated.empty() ? own : std::string_view(stated);
 }
 
+/** The layer that places @p children, one per PAIR of data — the run
+ *  holds each segment's two ends in order — at the bounds of its own two
+ *  points, each shaped as the line between them. */
+[[nodiscard]] Layer between(std::vector<Datum> ends,
+                            std::vector<compose::Element> children,
+                            std::string_view word, std::string_view styleClass);
+
 /** The layer that draws @p data's bands out from @p base along @p along;
  *  @p word names the part in each band's key, @p styleClass dresses it. */
 [[nodiscard]] Layer banded(std::vector<Datum> data, double base, float corners,
@@ -479,6 +518,25 @@ Layer marks(R&& rows,
   }
   return detail::anchored(std::move(data), std::move(children), how.anchor,
                           "mark", detail::classOf(how.styleClass, "plotMark"));
+}
+
+template <std::ranges::input_range R, class Row>
+Layer segments(R&& rows,
+               std::type_identity_t<compose::kit::Part<Row, std::size_t>> mark,
+               const std::type_identity_t<Segments<Row>>& how) {
+  std::vector<Datum> ends;
+  std::vector<compose::Element> children;
+  std::size_t index = 0;
+  for (const Row& row : rows) {
+    ends.push_back(
+        {detail::number(how.x, row, index), detail::number(how.y, row, index)});
+    ends.push_back({detail::number(how.toX, row, index),
+                    detail::number(how.toY, row, index)});
+    children.push_back(mark ? mark(row, index) : compose::box());
+    ++index;
+  }
+  return detail::between(std::move(ends), std::move(children), "segment",
+                         detail::classOf(how.styleClass, "plotMark"));
 }
 
 template <std::ranges::input_range R, class Row>

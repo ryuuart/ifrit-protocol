@@ -21,28 +21,16 @@ auto ChevreulCircle::theLabPlot() -> Element {
   // or centroid below turns a colour measurement into a pixel.
   const sketch::kit::Plot field{
       .x = {.domain = {-60, 60}}, .y = {.domain = {-60, 60}}, .pad = 48};
-  // THE 36 DIAMETERS: each a line between two of the measurements, so it
-  // is a layer of this plate's own — a segment is not one of the chart
-  // family's marks — and it reads both ends off the frame. They draw
-  // themselves on one at a time.
-  const auto chords = [this](const sketch::kit::Plot& f) {
-    const auto chord = [this, f](std::size_t n) {
-      const float lo = 0.19f + 0.0026f * (float)n;
-      return box()
-          .absolute()
-          .inset(0)
-          .key("chord" + std::to_string(n))
-          .shape([this, f, n](SkSize box) {
-            SkPathBuilder path;
-            path.moveTo(f.at(lab[n].a, lab[n].b, box));
-            path.lineTo(f.at(lab[n + 36].a, lab[n + 36].b, box));
-            return path.detach();
-          })
-          .stroke(spans::upTo(bind(&demo).window(lo, lo + 0.012f)),
-                  stroke(0.8f, Fill::currentInk()));
-    };
-    return box().absolute().inset(0).styleClass("chord").children(
-        {each(std::views::iota(std::size_t{0}, std::size_t{36}), chord)});
+  // THE 36 DIAMETERS: each a line between two of the measurements, drawn
+  // on one at a time. Every chord stands in the bounds of its own two ends
+  // and is shaped by the layer, so it states only the pen it is stroked
+  // with and nothing here turns a colour measurement into a pixel.
+  const auto chord = [this](std::size_t n, std::size_t) {
+    const float lo = 0.19f + 0.0026f * (float)n;
+    return box()
+        .key("chord" + std::to_string(n))
+        .stroke(spans::upTo(bind(&demo).window(lo, lo + 0.012f)),
+                stroke(0.8f, Fill::currentInk()));
   };
   // THE 72 MEASUREMENTS, each a dot in its own measured colour, dealt in
   // one at a time; and the centroid that is the piece's whole argument.
@@ -91,7 +79,13 @@ auto ChevreulCircle::theLabPlot() -> Element {
                                .width = 1.2f,
                                .reach = 0,
                                .numbers = false}),
-            chords,
+            sketch::kit::segments(
+                std::views::iota(std::size_t{0}, std::size_t{36}), chord,
+                {.x = [this](const std::size_t& n) { return lab[n].a; },
+                 .y = [this](const std::size_t& n) { return lab[n].b; },
+                 .toX = [this](const std::size_t& n) { return lab[n + 36].a; },
+                 .toY = [this](const std::size_t& n) { return lab[n + 36].b; },
+                 .styleClass = "chord"}),
             sketch::kit::marks(lab, measured, {.x = &Lab::a, .y = &Lab::b}),
             sketch::kit::marks(centre, centroid,
                                {.x = &sketch::kit::Datum::x,

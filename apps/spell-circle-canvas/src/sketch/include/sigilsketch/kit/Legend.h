@@ -102,12 +102,23 @@ struct SwatchStrip {
   /** Parallel to the swatches, and shorter is allowed: a strip that names
    *  only its ends labels only its ends. An empty label names nothing. */
   std::vector<compose::Utf8> labels;
+  /** THE INK EACH LABEL IS SET IN, parallel to the labels and shorter
+   *  allowed: the steps a ramp's reading is TAKEN AT are lit and the rest
+   *  stand in the quiet ash, which is how a strip says which numbers are
+   *  the measurement. `Fill::none()` and a label past the end are the
+   *  theme's own. */
+  std::vector<compose::Fill> inks;
   compose::Dimension width;
   compose::Dimension height;
   /** Between neighbours; unset is the theme's row gap. 0 butts the
    *  swatches, which is what a continuous ramp wants. */
   std::optional<float> gap;
   float corners = 0;
+  /** THE BEAT EACH STEP RIDES IN ON — the strip that is DEALT rather than
+   *  printed. Unset leaves every step at rest. What tells one step from
+   *  the next is the run's own `staggerChildren`, chained onto what
+   *  `swatchStrip` returns, as a legend's entries are. */
+  std::optional<motion::Transition> appear;
 };
 
 /** THE STRIP.

@@ -44,20 +44,18 @@ TEST(SketchKitLegend, AnEntryIsASwatchAndItsWords) {
           .column()
           .gap(house.spacing.rowGap)
           .alignItems(compose::Align::Start)
-          .children(
-              {compose::box()
-                   .row()
-                   .alignItems(compose::Align::Center)
-                   .gap(house.spacing.captionNoteGap)
-                   .children(
-                       {compose::box()
-                            .width(house.spacing.swatchSide)
-                            .height(house.spacing.swatchSide)
-                            .fill(warm)
-                            .shrink(0)})
-                   .children({compose::text(u8"lit",
-                                            house.style(house.type.captionNote,
-                                                        house.palette.ink))})});
+          .children({compose::box()
+                         .row()
+                         .alignItems(compose::Align::Center)
+                         .gap(house.spacing.captionNoteGap)
+                         .children({compose::box()
+                                        .width(house.spacing.swatchSide)
+                                        .height(house.spacing.swatchSide)
+                                        .fill(warm)
+                                        .shrink(0)})
+                         .children({compose::text(
+                             u8"lit", house.style(house.type.captionNote,
+                                                  house.palette.ink))})});
   EXPECT_TRUE(sameDrawing(std::move(byHand),
                           kit::legend({.entries = {{warm, u8"lit"}}})));
 }
@@ -159,6 +157,44 @@ TEST(SketchKitLegend, AStripNamesTheStepsItHasWordsFor) {
                                              .width = compose::Dimension(28),
                                              .height = compose::Dimension(14),
                                              .gap = 0})));
+}
+
+TEST(SketchKitLegend, AStripLightsTheStepsItsReadingIsTakenAt) {
+  const kit::Theme& house = kit::houseTheme();
+  const std::vector<compose::SurfacePaint> steps{Fill::color({1, 0, 0, 1}),
+                                                 Fill::color({0, 1, 0, 1})};
+  const SkColor4f lit{0.2f, 0.4f, 1.0f, 1};
+  Element byHand =
+      compose::box()
+          .row()
+          .gap(house.spacing.rowGap)
+          .alignItems(compose::Align::Start)
+          .children(
+              {compose::box()
+                   .column()
+                   .alignItems(compose::Align::Center)
+                   .children({compose::box().width(20).height(10).fill(
+                       Fill::color({1, 0, 0, 1}))})
+                   .children(
+                       {compose::text(u8"0",
+                                      house.style(house.type.eyebrow, lit))
+                            .margin(0, house.spacing.captionNoteGap, 0, 0)})})
+          .children(
+              {compose::box()
+                   .column()
+                   .alignItems(compose::Align::Center)
+                   .children({compose::box().width(20).height(10).fill(
+                       Fill::color({0, 1, 0, 1}))})
+                   .children(
+                       {compose::text(u8"1", house.style(house.type.eyebrow,
+                                                         house.palette.ash))
+                            .margin(0, house.spacing.captionNoteGap, 0, 0)})});
+  EXPECT_TRUE(sameDrawing(
+      std::move(byHand), kit::swatchStrip({.swatches = steps,
+                                           .labels = {u8"0", u8"1"},
+                                           .inks = {Fill::color(lit)},
+                                           .width = compose::Dimension(20),
+                                           .height = compose::Dimension(10)})));
 }
 
 TEST(SketchKitLegend, AChipIsItsWordOnTheThemesFigureGround) {

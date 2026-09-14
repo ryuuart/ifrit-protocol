@@ -1,4 +1,5 @@
 #include <include/core/SkMatrix.h>
+#include <include/core/SkPathBuilder.h>
 #include <include/core/SkRect.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
@@ -188,6 +189,45 @@ struct Spanned {
   }
 };
 
+/** THE LINE ACROSS A BOX, corner to corner — the shape a segment placed
+ *  at the bounds of its own two ends is drawn as. Which diagonal it is
+ *  falls out of the two points' order, which is why the scheme below
+ *  hands it over rather than leaving the caller to work it out. */
+struct Chord {
+  bool rising = false;
+  bool operator==(const Chord&) const = default;
+
+  SkPath path(SkSize box) const {
+    SkPathBuilder line;
+    line.moveTo(0, rising ? box.height() : 0);
+    line.lineTo(box.width(), rising ? 0 : box.height());
+    return line.detach();
+  }
+};
+
+/** ONE CHILD PER PAIR OF ENDS, each at the bounds of its own segment. A
+ *  run of chords costs its own pixels rather than a full field's each,
+ *  which is what a plate of thirty-six of them is paying for. */
+struct Between {
+  Plot frame;
+  std::vector<Datum> ends;  ///< two per child, in order
+
+  std::vector<SkRect> place(const LayoutInput& in) const {
+    std::vector<SkRect> rects(in.childSizes.size());
+    for (std::size_t i = 0; i < rects.size() && 2 * i + 1 < ends.size(); ++i) {
+      const SkPoint from = frame.at(ends[2 * i].x, ends[2 * i].y, in.container);
+      const SkPoint to =
+          frame.at(ends[2 * i + 1].x, ends[2 * i + 1].y, in.container);
+      // A segment along an axis still needs a box to be stroked in, so
+      // neither side is allowed to close to nothing.
+      rects[i] = SkRect::MakeLTRB(
+          std::min(from.fX, to.fX), std::min(from.fY, to.fY),
+          std::max(from.fX, to.fX) + 0.01f, std::max(from.fY, to.fY) + 0.01f);
+    }
+    return rects;
+  }
+};
+
 /** The container's own name: the plot's key, the word for the part it
  *  is, and where in the run the layer stood. */
 std::string named(std::string_view key, std::string_view word,
@@ -209,6 +249,38 @@ Layer anchored(std::vector<Datum> data, std::vector<Element> children,
                         .inset(0);
     if (!key.empty()) field.key(named(key, word, index));
     if (!children.empty()) field.children({children});
+    return field;
+  };
+}
+
+Layer between(std::vector<Datum> ends, std::vector<Element> children,
+              std::string_view word, std::string_view styleClass) {
+  return [ends = std::move(ends), children = std::move(children),
+          word = std::string(word), cls = std::string(styleClass)](
+             const Plot& frame, std::string_view key, std::size_t index) {
+    const std::string stem = named(key, word, index);
+    std::vector<Element> shaped;
+    shaped.reserve(children.size());
+    for (std::size_t i = 0; i < children.size(); ++i) {
+      Element one = children[i];
+      // Which diagonal of its own box the line is: the two ends' order
+      // decides it, and the frame's y runs UP, so a segment whose second
+      // end is higher in the domain rises across its box.
+      const bool rising =
+          2 * i + 1 < ends.size() &&
+          ((ends[2 * i].x <= ends[2 * i + 1].x) !=
+           (frame.at(ends[2 * i].x, ends[2 * i].y, SkSize{100, 100}).fY <=
+            frame.at(ends[2 * i + 1].x, ends[2 * i + 1].y, SkSize{100, 100})
+                .fY));
+      shaped.push_back(std::move(
+          one.shape(Chord{rising}).key(stem + "-" + std::to_string(i))));
+    }
+    Element field = compose::layout(Between{frame, ends})
+                        .styleClass(cls)
+                        .absolute()
+                        .inset(0)
+                        .key(stem);
+    if (!shaped.empty()) field.children({std::move(shaped)});
     return field;
   };
 }

@@ -112,7 +112,7 @@ Element table(std::span<const std::span<const Utf8>> rows, const Table& how) {
     const std::span<const Utf8> cells = rows[index];
     for (size_t at = 0; at < cells.size(); ++at) {
       Element cell = how.cellLine
-                         ? how.cellLine(cells[at], how, at, index)
+                         ? how.cellLine(cells[at], how, at, index, cells)
                          : (specification(at).figure ? figure(cells[at])
                                                      : captionNote(cells[at]));
       row.children({sized(std::move(cell), at)});

@@ -1420,8 +1420,10 @@ its own width — one head cell per column in the class `section`, a figure
 column's cells in `readout` and the rest in `captionNote`, one swatch and
 one key per row, and every row its own run of cells, so a short row stays
 short and a surplus word takes the last column's class; its `cellLine`
-names the ROW as well as the column, which is what lets a table light one
-of them, and `Reading::ink` is the colour a row is set in over whatever
+names the ROW and that row's own CELLS as well as the column, which is
+what lets a table light one row and what lets a cell be a DRAWING read off
+the row it stands in — a bar, a swatch ramp, a sparkline — since a part
+may answer any element and not only a line, and `Reading::ink` is the colour a row is set in over whatever
 its lines' classes name, because WHICH rows are lit is the data's business
 and a sheet cannot say it — and `kit::bars`,
 one row per value against an extent DERIVED from the values

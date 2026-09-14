@@ -85,34 +85,32 @@ Element GenesisFire::censusPanel() {
 }
 
 Element GenesisFire::rampPanel() {
-  // ONE SWATCH AND ONE NUMBER PER OVERLAP COUNT, the number lit where the
-  // count is one of the three a channel saturates at.
-  const auto swatch = [](int n) {
-    return box()
-        .width(28)
-        .height(26)
-        .shrink(0)
-        .fill(Paint::solid(overlap(n)))
-        .transformOrigin(0.5f, 1.0f)
-        .scaleY(animate(
-            from(0.0f).to(1.0f),
-            {.duration = 220ms, .ease = ease::outBack(), .delay = 1500ms}));
-  };
-  const auto count = [](int n) {
-    return text(std::to_string(n))
-        .styleClass("label")
-        .ink(n == 5 || n == 20 || n == 111 ? kBone : kSteelDim)
-        .width(28)
-        .shrink(0)
-        .block({.alignment = sigil::weave::TextAlignment::kCenter});
-  };
+  // ONE SWATCH AND ONE NUMBER PER OVERLAP COUNT, dealt in one step at a
+  // time, with the number LIT where the count is one of the three a
+  // channel saturates at — which is what the strip's own inks say.
+  std::vector<SurfacePaint> steps;
+  std::vector<Utf8> counts;
+  std::vector<Fill> lit;
+  for (const int n : kRampN) {
+    steps.push_back(Paint::solid(overlap(n)));
+    counts.push_back(std::to_string(n));
+    lit.push_back(
+        Fill::color(n == 5 || n == 20 || n == 111 ? kBone : kSteelDim));
+  }
   const sigil::data::Json& ramp = doc()["ramp"];
   return panel(kPanelH[2], 3)
       .gap(3)
       .children({panelHead(ramp["head"]),
-                 box().row().gap(2).shrink(0).staggerChildren(26ms).children(
-                     {each(kRampN, swatch)}),
-                 box().row().gap(2).shrink(0).children({each(kRampN, count)}),
+                 sketch::kit::swatchStrip(
+                     {.swatches = std::move(steps),
+                      .labels = std::move(counts),
+                      .inks = std::move(lit),
+                      .width = Dimension(28),
+                      .height = Dimension(26),
+                      .gap = 2,
+                      .appear = {{.duration = 220ms, .ease = ease::outBack()}}})
+                     .shrink(0)
+                     .staggerChildren(26ms),
                  box().grow(1), note(ramp["note"])});
 }
 

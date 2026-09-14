@@ -378,7 +378,7 @@ sketch::kit::bars(*cities, "city", "population", {.length = 150})
 | | |
 | --- | --- |
 | `legend(Legend)` | swatch-and-label rows, stacked or run along a line |
-| `swatchStrip(SwatchStrip)` | a ramp's steps in order at one size, with words under the ones that have them |
+| `swatchStrip(SwatchStrip)` | a ramp's steps in order at one size, with words under the ones that have them, each in the ink the strip names for it and each riding the entrance the strip carries |
 | `chip(Chip)` | one word on its own ground, in the theme's eyebrow register |
 
 ```cpp
@@ -392,6 +392,12 @@ a dim body inside a bright edge, and its word is set in the colour it
 names — which is how the reader tells the key from a caption. The
 entry's `note` stays in the quiet ash either way, because a gloss is
 not part of the naming.
+
+`SwatchStrip::inks` is what says which numbers under a ramp are the
+MEASUREMENT — the steps a reading is taken at are lit and the rest stand
+in the quiet ash — and `SwatchStrip::appear` is the beat each step rides
+in on, so a strip that is DEALT rather than printed says
+`.staggerChildren(26ms)` on what comes back, exactly as a legend does.
 
 `LegendEntry::mark` is the other half: where a patch of colour is not
 what the key shows — a quarried sample at its own two dimensions, a live
@@ -430,6 +436,7 @@ on a sheet is a bare bar.
 | `trace(f, Trace)` | a function of one variable walked across the x domain and stroked with `Trace::pen` — a width, a dash and a cap — and gated along its own length by `Trace::along`, which is the curve drawing itself on |
 | `area(f, Area)` | the band between that curve and a base, filled |
 | `marks(rows, mark, Marks)` | one element per row, placed where the frame maps its datum |
+| `segments(rows, mark, Segments)` | one element per row at the bounds of its OWN TWO ENDS, shaped as the line between them — a chord, a residual vector, a whisker, a link |
 | `bands(rows, Bands)` | the band each row owns drawn out to its value — a bar on a Cartesian frame, a wedge on a polar one; `along` says which scale hands out the bands and `base` where they grow from |
 | `label(words, x, y, Anchor)` | a word at a point of the field |
 
