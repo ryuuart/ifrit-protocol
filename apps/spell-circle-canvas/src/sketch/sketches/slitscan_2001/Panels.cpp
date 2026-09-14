@@ -34,7 +34,7 @@ auto SlitScan2001::panelShell(const data::Json& said, int order) -> Element {
       .stroke(stroke(1.0f, Fill::color(kRule)))
       .clip()
       .key(kit::formatted("panel%d", order))
-      .opacity(animate(from(0.0f).to(1.0f), {300ms, ch::easeOutQuad}))
+      .appear({300ms, ch::easeOutQuad})
       .translateX(animate(from(14.0f).to(0.0f), {300ms, ch::easeOutQuad}))
       .children({t(std::string(said["heading"].text()),
                    {.face = uiFace(), .size = 9.5f, .track = 2.2f}),

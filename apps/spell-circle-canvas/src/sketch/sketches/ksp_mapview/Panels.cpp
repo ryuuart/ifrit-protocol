@@ -34,7 +34,7 @@ auto KspMapView::infoCard() -> Element {
           .clip()
           .padding(0, 0, 0, 8)
           .translateX(animate(from(46.0f).to(0.0f), {380ms, ch::easeOutQuad}))
-          .opacity(animate(from(0.0f).to(1.0f), {380ms}))
+          .appear({380ms})
           .children(
               {box()
                    .height(26)
@@ -93,7 +93,7 @@ auto KspMapView::toolbar() -> Element {
                                .align = PathFormat::Align::Inner})
                 .alignItems(Align::Center)
                 .justify(Justify::Center)
-                .opacity(animate(from(0.0f).to(1.0f), {260ms}))
+                .appear({260ms})
                 .scale(animate(from(0.7f).to(1.0f), {320ms, ease::outBack()}))
                 .children({text(glyph, body(13, hexColor(0xD3DBE0)))}),
             1156, 34.0f + (float)i * 46.0f, 38, 38);

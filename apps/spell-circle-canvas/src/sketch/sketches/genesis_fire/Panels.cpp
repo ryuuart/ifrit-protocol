@@ -186,7 +186,7 @@ Element GenesisFire::header() {
       .children(
           {text(head["eyebrow"])
                .font({.size = 11.5f, .track = 2.7f})
-               .opacity(animate(from(0.0f).to(1.0f), {.duration = 260ms}))
+               .appear({.duration = 260ms})
                .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms})),
            text(head["title"])
                .font({.face = heavyFace(), .size = 46, .track = -0.4f})
@@ -195,11 +195,9 @@ Element GenesisFire::header() {
                .fx(std::move(rise)),
            text(head["credit"])
                .font({.size = 11.0f, .track = 0.1f})
-               .opacity(animate(from(0.0f).to(1.0f),
-                                {.duration = 240ms, .delay = 420ms})),
+               .appear({.duration = 240ms, .delay = 420ms}),
            box().grow(1),
            kit::line({.fill = Fill::color(kKeyline)})
                .shrink(0)
-               .opacity(animate(from(0.0f).to(1.0f),
-                                {.duration = 400ms, .delay = 320ms}))});
+               .appear({.duration = 400ms, .delay = 320ms})});
 }

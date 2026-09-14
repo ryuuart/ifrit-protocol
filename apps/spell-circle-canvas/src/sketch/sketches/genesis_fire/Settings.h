@@ -243,8 +243,7 @@ inline Element panel(float height, int order) {
       .ink(kSteel)
       .fill(kPanel)
       .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner))
-      .opacity(
-          animate(from(0.0f).to(1.0f), {.duration = 300ms, .delay = delay}))
+      .appear({.duration = 300ms, .delay = delay})
       .translateX(
           animate(from(14.0f).to(0.0f), {.duration = 300ms, .delay = delay}))
       .key(std::string("panel") + std::to_string(order));

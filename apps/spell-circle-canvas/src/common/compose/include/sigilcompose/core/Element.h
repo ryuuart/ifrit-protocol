@@ -631,6 +631,17 @@ class Element {
    *  such nodes fall back to picture caching. */
   Element& backdrop(material::skia::Effect e);
   Element& opacity(motion::Animatable<float> o);
+  /** THE NODE FADES IN WHEN IT MOUNTS, over @p how — `opacity(animate(
+   *  from(0).to(1), how))` written once, because that sentence is what
+   *  every card, panel, strip and pass on a plate says as it arrives and
+   *  the three values in it never vary.
+   *
+   *  It is the mount entrance and nothing else: after the entrance the
+   *  node is opaque and behaves as an unstated opacity does, so a node
+   *  that also FADES on some later condition states that with `opacity`
+   *  instead. A node under a staggered container takes its share of the
+   *  cascade's delay here as it would on any other entrance. */
+  Element& appear(motion::Transition how);
   Element& blend(SkBlendMode mode);
   Element& translateX(motion::Animatable<float> v);
   Element& translateY(motion::Animatable<float> v);

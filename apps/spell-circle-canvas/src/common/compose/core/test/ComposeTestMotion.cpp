@@ -30,6 +30,35 @@ TEST(ComposeTransitions, RampsAndRetargetsFromCurrent) {
   EXPECT_FALSE(host.ticker.active());  // motion removed on finish
 }
 
+TEST(ComposeTransitions, AppearIsTheMountEntranceWrittenOnce) {
+  // The one sentence a card, a panel and a pass all say as they arrive,
+  // and the longhand it stands for: the two draw the same frames.
+  const auto plate = [](bool longhand) {
+    Element node = box().key("card").width(50).height(50).fill(red());
+    if (longhand)
+      node.opacity(animate(sigil::motion::from(0.0f).to(1.0f),
+                           {400ms, &choreograph::easeNone}));
+    else
+      node.appear({400ms, &choreograph::easeNone});
+    return box().children({std::move(node)});
+  };
+  Host writ;
+  Host said;
+  writ.composer.render(plate(true));
+  said.composer.render(plate(false));
+  writ.frame(0.2);
+  said.frame(0.2);
+  // Half way through a linear entrance, and the same half way.
+  const SkColor half = said.pixel(25, 25);
+  EXPECT_EQ(half, writ.pixel(25, 25));
+  EXPECT_NE(half, SK_ColorRED);
+  EXPECT_NE(half, SK_ColorBLACK);
+  writ.frame(1.0);
+  said.frame(1.0);
+  EXPECT_EQ(said.pixel(25, 25), SK_ColorRED);
+  EXPECT_EQ(writ.pixel(25, 25), SK_ColorRED);
+}
+
 TEST(ComposeTransitions, UnmountCancelsMotions) {
   Host host;
   host.composer.render(
@@ -220,9 +249,8 @@ TEST(ComposeTravel, TIsAFractionOfTotalArcLengthAcrossEveryContour) {
 
 TEST(ComposeTravel, APathWithNoMeasurableLengthLeavesTheLanesStanding) {
   Host host(200, 200);
-  host.composer.render(
-      travelFrame(rider({.path = [] { return SkPath(); }, .t = 0.5f})
-                      .translateX(40)));
+  host.composer.render(travelFrame(
+      rider({.path = [] { return SkPath(); }, .t = 0.5f}).translateX(40)));
   host.frame();
   const SkPoint ink = inkCentroid(host, SK_ColorRED, 200, 200);
   EXPECT_NEAR(ink.x(), 63.5f, 1.5f)

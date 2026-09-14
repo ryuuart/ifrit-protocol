@@ -345,7 +345,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
                          .align = TextPath::Align::Center,
                          .autoFlip = false,
                          .orient = TextPath::Orient::Tangent})
-        .opacity(animate(from(0.0f).to(1.0f), ramp(delayMs, 260.0f)));
+        .appear(ramp(delayMs, 260.0f));
   }
 
   /** A CAMPAIGN ANNOTATION, set along its spoke: the same one-leaf run on
@@ -367,7 +367,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
                      .align = TextPath::Align::Center,
                      .autoFlip = false,
                      .orient = TextPath::Orient::Tangent})
-        .opacity(animate(from(0.0f).to(1.0f), ramp(delayMs, 260.0f)));
+        .appear(ramp(delayMs, 260.0f));
   }
 
   // ------------------------------------------------------------------
@@ -624,14 +624,12 @@ struct NightingaleCoxcomb : sketch::Sketch {
                .font({.face = faceGrotesque, .size = 24})
                .key(std::string(key) + "n")
                .centerAt({numX, 40})
-               .opacity(
-                   animate(from(0.0f).to(1.0f), ramp(startSec * 1000, 320))),
+               .appear(ramp(startSec * 1000, 320)),
            text(label)
                .font({.face = faceGrotesque, .size = 21, .track = 0.4f})
                .key(std::string(key) + "t")
                .centerAt({cx, 78})
-               .opacity(animate(from(0.0f).to(1.0f),
-                                ramp(startSec * 1000 + 90, 320))),
+               .appear(ramp(startSec * 1000 + 90, 320)),
            box()
                .rect(SkRect::MakeXYWH(cx - 140, 94, 280, 1))
                .fill(Fill::color(kInkSoft))
@@ -753,8 +751,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
              .ink(kInkSoft)
              .key("imprint")
              .centerAt({1712, 1004})
-             .opacity(animate(from(0.0f).to(1.0f),
-                              ramp(tLegend * 1000 + 2500, 600))),
+             .appear(ramp(tLegend * 1000 + 2500, 600)),
          // ---- the index needles ------------------------------------------
          needle(kC1, kR1, &needle1Deg, &needle1A, "needle1"),
          needle(kC2, kR2, &needle2Deg, &needle2A, "needle2")});

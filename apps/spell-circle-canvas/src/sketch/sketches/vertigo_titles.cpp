@@ -398,7 +398,7 @@ struct VertigoTitles : sketch::Sketch {
     panel.children(
         {ring(61.0f, hexColor(0x090604, 0.85f), 3.0f)
              .key("pupil-edge")
-             .opacity(animate(from(0.0f).to(1.0f), ramp(300, 420))),
+             .appear(ramp(300, 420)),
          ring(146.0f, hexColor(0x2A1D10, 0.40f), 1.2f).key("iris-mid"),
          ring(262.0f, hexColor(0x120C07, 0.24f), 10.0f).key("limbus"),
          // "the screen is suddenly stained red" — kColor keeps the iris's
@@ -463,7 +463,7 @@ struct VertigoTitles : sketch::Sketch {
              .ink(kSolidInk)
              .key("credit")
              .centerAt({kEye.x(), kEye.y() + 152.0f})
-             .opacity(animate(from(0.0f).to(1.0f), ramp(1550, 300)))
+             .appear(ramp(1550, 300))
              .translateY(animate(from(10.0f).to(0.0f), ramp(1550, 300)))});
 
     // the instrument-dial legend, set on the limbus itself with
@@ -483,7 +483,7 @@ struct VertigoTitles : sketch::Sketch {
                       .align = TextPath::Align::Center,
                       .offset = 3.0f,
                       .autoFlip = false})
-             .opacity(animate(from(0.0f).to(1.0f), ramp(1000, 500))),
+             .appear(ramp(1000, 500)),
          text("PARAMOUNT 1958 · 1.85:1 · TECHNICOLOR")
              .font(legend)
              .key("ring-bottom")
@@ -499,7 +499,7 @@ struct VertigoTitles : sketch::Sketch {
                       .align = TextPath::Align::Center,
                       .offset = 3.0f,
                       .autoFlip = true})
-             .opacity(animate(from(0.0f).to(1.0f), ramp(1120, 500)))});
+             .appear(ramp(1120, 500))});
 
     // the card slug: four of them stacked in the same corner, each riding
     // its own card's opacity — so the caption cross-dissolves with the
@@ -526,7 +526,7 @@ struct VertigoTitles : sketch::Sketch {
              .key("slug-rig")
              .left(22)
              .bottom(20)
-             .opacity(animate(from(0.0f).to(1.0f), ramp(1200, 400))),
+             .appear(ramp(1200, 400)),
          // Film gate: grain, and NO vignette. The one colour source located
          // for this passage describes a flat saturated field — cool tones and
          // warm tones, not a centre that falls off to black. A ramp to the
@@ -619,8 +619,7 @@ struct VertigoTitles : sketch::Sketch {
       return text(words)
           .font({.size = 10.5f, .color = kSteel, .track = 0.3f})
           .key("rig" + std::to_string(i))
-          .opacity(animate(from(0.0f).to(1.0f),
-                           ramp(900.0f + (float)i * 90.0f, 300)));
+          .appear(ramp(900.0f + (float)i * 90.0f, 300));
     };
     return plate(176).gap(5).children(
         {text("THE M-5 GUN DIRECTOR")

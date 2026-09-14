@@ -647,22 +647,21 @@ struct ChladniTab1 : sketch::Sketch {
     bow.trimStart = 0.0f;
     bow.trimEnd = 0.065f;
     bow.trimPhase = &bowPhase[fi];
-    root.children({kit::disc(c, kR)
-                       .key(tag + "bow")
-                       .shape(shapes::circle())
-                       .fill(Fill::none())
-                       .stroke(bow)
-                       .opacity(&bowAlpha[fi])
-                       .cache(Cache::None),
-                   // ---- the numeral, upper left of its circle (measured at
-                   // -0.80R, -1.04R from the centre, baseline-left) ----
-                   text(std::to_string(f.num) + ".")
-                       .font({.face = faceNumeral, .size = 37, .track = 0.5f})
-                       .key(tag + "num")
-                       .centerAt({c.fX - 0.82f * kR, c.fY - 1.15f * kR})
-                       .opacity(animate(
-                           from(0.0f).to(1.0f),
-                           ramp(tNumeral * 1000 + (float)fi * 22.0f, 360)))});
+    root.children(
+        {kit::disc(c, kR)
+             .key(tag + "bow")
+             .shape(shapes::circle())
+             .fill(Fill::none())
+             .stroke(bow)
+             .opacity(&bowAlpha[fi])
+             .cache(Cache::None),
+         // ---- the numeral, upper left of its circle (measured at
+         // -0.80R, -1.04R from the centre, baseline-left) ----
+         text(std::to_string(f.num) + ".")
+             .font({.face = faceNumeral, .size = 37, .track = 0.5f})
+             .key(tag + "num")
+             .centerAt({c.fX - 0.82f * kR, c.fY - 1.15f * kR})
+             .appear(ramp(tNumeral * 1000 + (float)fi * 22.0f, 360))});
 
     // ---- reference letters: upright, never rotated ----
     // ONE REFERENCE LETTER PER LABEL, upright wherever on the rim it
@@ -766,8 +765,7 @@ struct ChladniTab1 : sketch::Sketch {
              .ink(kInkSoft)
              .key("credit")
              .centerAt({1402 * kScale, 1917 * kScale})
-             .opacity(
-                 animate(from(0.0f).to(1.0f), ramp(tCredit * 1000, 700)))});
+             .appear(ramp(tCredit * 1000, 700))});
 
     return root;
   }

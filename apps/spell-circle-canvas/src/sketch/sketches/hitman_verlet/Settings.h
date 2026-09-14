@@ -237,8 +237,7 @@ inline Element panel(float height, std::string_view heading, int order) {
       .fill(kPanel)
       .clip(true)
       .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner))
-      .opacity(
-          animate(from(0.0f).to(1.0f), {.duration = 300ms, .delay = delay}))
+      .appear({.duration = 300ms, .delay = delay})
       .translateX(
           animate(from(14.0f).to(0.0f), {.duration = 300ms, .delay = delay}))
       .key(std::string("panel") + std::to_string(order))

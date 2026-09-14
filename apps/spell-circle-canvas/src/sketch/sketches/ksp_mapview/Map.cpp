@@ -270,7 +270,7 @@ auto KspMapView::gizmo() -> Element {
         .rotate(bearing)
         .key(k)
         .scale(&armPulse)
-        .opacity(animate(from(0.0f).to(1.0f), {380ms, ease::outBack()}));
+        .appear({380ms, ease::outBack()});
     if (jitter) e.translateX(&jitterX).translateY(&jitterY);
     return e;
   };
@@ -285,7 +285,7 @@ auto KspMapView::gizmo() -> Element {
             .centerAt(arrange::onEllipse(hub, {40, 40}, rad2))
             .key(k)
             .scale(&armPulse)
-            .opacity(animate(from(0.0f).to(1.0f), {380ms, ease::outBack()}));
+            .appear({380ms, ease::outBack()});
     return e;
   };
   // the two out-of-plane glyphs ride a short spoke, so the fan reads as

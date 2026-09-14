@@ -831,6 +831,15 @@ moving": `motion::isLive`, declared in
 in this library asks, and what it can and cannot say is stated in that
 library's README.
 
+**ONE ENTRANCE HAS A VERB OF ITS OWN.** `Element::appear` is
+`opacity(animate(from(0).to(1), how))` — the sentence every card, panel,
+strip and pass on a plate says as it arrives, whose three values never
+vary. It is the mount entrance and nothing else: after it the node is
+opaque and behaves as an unstated opacity does, and a node that also fades
+on some later condition says that with `opacity`. Every other entrance —
+a scale out of a base, a slide, a spin — is `animate(from(a).to(b))` at
+the property it moves, because those DO vary.
+
 What compose OWNS is resolution, not the value. An `Animatable` is
 resolved against a `PaintContext`, taking node transitions, stagger,
 mount entrances and the per-frame composer state into account; SigilMotion

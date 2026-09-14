@@ -390,7 +390,7 @@ struct Ds2Bench : sketch::Sketch {
                .height(boxSize)
                .centerAt(at)
                .fill(std::move(m))
-               .opacity(animate(from(0.0f).to(1.0f), {260ms}))
+               .appear({260ms})
                .scale(animate(from(0.72f).to(1.0f),
                               Transition{.duration = 260ms,
                                          .ease =
@@ -411,7 +411,7 @@ struct Ds2Bench : sketch::Sketch {
                .shape(burst(24, 0.72f))
                .stroke(
                    stroke(0.9f, Fill::color(mskia::withAlpha(kCyan, 0.20f))))
-               .opacity(animate(from(0.0f).to(1.0f), {320ms}))
+               .appear({320ms})
                .zIndex(4),
            box()
                .width(dia * 0.42f)
@@ -425,7 +425,7 @@ struct Ds2Bench : sketch::Sketch {
                .styleClass("node")
                .font({.size = c.labelSize, .track = 0.11f * c.labelSize})
                .centerAt({at.fX + dia * 0.88f, at.fY + c.labelDy})
-               .opacity(animate(from(0.0f).to(1.0f), {320ms}))
+               .appear({320ms})
                .zIndex(5)});
     }
     root.children({std::move(layer)});
@@ -492,7 +492,7 @@ struct Ds2Bench : sketch::Sketch {
              box()
                  .width(barW)
                  .height(kPipH)
-                 .opacity(animate(from(0.0f).to(1.0f), {320ms}))
+                 .appear({320ms})
                  .translateX(animate(from(-16.0f).to(0.0f), {380ms}))
                  .children({instancing::instances(pips, pipPools[(size_t)r])}),
              box().grow(1),

@@ -578,9 +578,9 @@ inline PathFormat groove(float rad, float w, float darkA, float liteA) {
       SkColor4f{kGrooveLite.fR, kGrooveLite.fG, kGrooveLite.fB, liteA});
 }
 
-/** THE ENTRANCE every pass, family and mark on this plate is brought in
- *  by: from nothing to whole over @p spec, which `ramp` states as a moment
- *  of the loop and a duration. Forty nodes say it. */
+/** FROM NOTHING TO WHOLE over @p spec, for the one property that is not
+ *  opacity: the zodiac's bars grow out of their own base. Everything on
+ *  this plate that FADES in says `Element::appear` instead. */
 inline Transitioned<float> rise(Transition spec) {
   return animate(from(0.0f).to(1.0f), std::move(spec));
 }

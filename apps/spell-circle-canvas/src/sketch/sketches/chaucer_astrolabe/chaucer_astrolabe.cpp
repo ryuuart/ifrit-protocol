@@ -36,7 +36,7 @@ auto ChaucerAstrolabe::describe(sketch::SketchContext&) -> Element {
                .key("case")
                .corners({3})
                .fill(Fill::color(kCase))
-               .opacity(rise(ramp(tGround * 1000, 700))),
+               .appear(ramp(tGround * 1000, 700)),
            kit::at(56, 140, 1132, 1258)
                .key("vignette")
                .corners({3})
@@ -45,7 +45,7 @@ auto ChaucerAstrolabe::describe(sketch::SketchContext&) -> Element {
                                      {{0.0f, hexColor(0x33405a, 0.55f)},
                                       {0.62f, hexColor(0x1d222d, 0.0f)},
                                       {1.0f, hexColor(0x080a10, 0.75f)}}))
-               .opacity(rise(ramp(tGround * 1000, 900))),
+               .appear(ramp(tGround * 1000, 900)),
            // the contact shadow
            kit::at(kCx - kMaterR * 1.02f, kCy + kMaterR * 0.86f,
                    kMaterR * 2.04f, kMaterR * 0.30f)
@@ -55,7 +55,7 @@ auto ChaucerAstrolabe::describe(sketch::SketchContext&) -> Element {
                .fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
                                      {{0.0f, hexColor(0x05070c, 0.75f)},
                                       {1.0f, hexColor(0x05070c, 0.0f)}}))
-               .opacity(rise(ramp(tMater * 1000, 900))),
+               .appear(ramp(tMater * 1000, 900)),
            titleStrip(), limb(), plate(),
            // the rete is a physically raised sheet: it casts onto the plate
            box().inset(0).key("retewrap").children({reteShadow(), reteGroup()}),

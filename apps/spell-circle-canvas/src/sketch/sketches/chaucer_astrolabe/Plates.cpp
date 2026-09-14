@@ -69,7 +69,7 @@ auto ChaucerAstrolabe::plate() -> Element {
                   .shape(shapes::circle())
                   .cache(Cache::Texture)
                   .fill(verdigris.material())
-                  .opacity(rise(ramp(tTropics * 1000, 900))),
+                  .appear(ramp(tTropics * 1000, 900)),
               // the recess: the plate sits one millimetre below the limb. A
               // filter over the whole disc with nothing behind it that changes
               // — baked, on the same rule as the mater's four passes.
@@ -89,8 +89,7 @@ auto ChaucerAstrolabe::plate() -> Element {
                       .dashIntervals = {3.0f, 5.0f}};
     g.children({ring(PL(0, almCy(-18.0f)), almR(-18.0f) * kR, dotted)
                     .key("twilight")
-                    .opacity(animate(from(0.0f).to(1.0f),
-                                     ramp(tHorizon * 1000 + 700, 700)))});
+                    .appear(ramp(tHorizon * 1000 + 700, 700))});
   }
 
   // --- 45 almucantars, "compowned by two and two" (I.18) ----------------
@@ -106,9 +105,8 @@ auto ChaucerAstrolabe::plate() -> Element {
     g.children(
         {cut({0, almCy(h)}, almR(h), five ? 1.9f : 1.5f, five ? 0.86f : 0.70f,
              five ? 0.46f : 0.34f, "alm" + std::to_string(i))
-             .opacity(animate(from(0.0f).to(1.0f),
-                              ramp(tAlmu * 1000 + (float)(44 - i) * 38.0f, 520,
-                                   ch::easeOutQuint)))});
+             .appear(ramp(tAlmu * 1000 + (float)(44 - i) * 38.0f, 520,
+                          ch::easeOutQuint))});
   }
 
   // --- 12 azimuth curves, clipped to the visible sky --------------------
@@ -139,7 +137,7 @@ auto ChaucerAstrolabe::plate() -> Element {
         sky.children({ring(local(az.centre.x, az.centre.y), rad,
                            groove(rad, 1.3f, 0.42f, 0.20f))
                           .key("az" + std::to_string(i * s))
-                          .opacity(rise(ramp(delay, 460)))});
+                          .appear(ramp(delay, 460))});
       }
     }
     // the prime vertical (A = 90/270): a circle centred on the axis, and it
@@ -151,8 +149,7 @@ auto ChaucerAstrolabe::plate() -> Element {
       sky.children({ring(local(pv.centre.x, pv.centre.y), rad,
                          groove(rad, 1.7f, 0.55f, 0.26f))
                         .key("azPV")
-                        .opacity(animate(from(0.0f).to(1.0f),
-                                         ramp(tAzim * 1000, 460)))});
+                        .appear(ramp(tAzim * 1000, 460))});
     }
     g.children({std::move(sky)});
   }
@@ -200,14 +197,14 @@ auto ChaucerAstrolabe::plate() -> Element {
       night.children({ring(PL(c->centre.x, c->centre.y), rad,
                            groove(rad, 1.5f, 0.50f, 0.24f))
                           .key("hr" + std::to_string(k))
-                          .opacity(rise(ramp(delay, 480)))});
+                          .appear(ramp(delay, 480))});
     }
     // k = 6, the straight one
     night.children({box()
                         .rect(SkRect::MakeXYWH(kR - 0.8f, kR, 1.6f, kR))
                         .key("hr6")
                         .fill(Fill::color(hexColor(0x3a2a10, 0.5f)))
-                        .opacity(rise(ramp(tHours * 1000, 480)))});
+                        .appear(ramp(tHours * 1000, 480))});
     g.children({std::move(night)});
   }
 
@@ -238,7 +235,7 @@ auto ChaucerAstrolabe::plate() -> Element {
   // --- the zenith ------------------------------------------------------
   g.children({dot(PL(0, kYzen), 3.6f, Fill::color(hexColor(0x3a2a10, 0.85f)))
                   .key("zenith")
-                  .opacity(rise(ramp(tAlmu * 1000, 400)))});
+                  .appear(ramp(tAlmu * 1000, 400))});
 
   return g;
 }
@@ -309,7 +306,7 @@ auto ChaucerAstrolabe::limb() -> Element {
                                    .angleDeg = 125,
                                    .highlight = hexColor(0xfff0c4, 0.5f),
                                    .shadow = hexColor(0x2a1d08, 0.6f)})
-           .opacity(rise(ramp(tMater * 1000, 700))),
+           .appear(ramp(tMater * 1000, 700)),
        // the polished dome: a sheen centred slightly above the pin. glowUnit,
        // because it must FILL its box — radialUnit's radius is a fraction of
        // the HALF-DIAGONAL, so it reaches the corners and stops short of the
@@ -322,7 +319,7 @@ auto ChaucerAstrolabe::limb() -> Element {
            .key("sheen")
            .cache(Cache::Texture)
            .blend(SkBlendMode::kSoftLight)
-           .opacity(rise(ramp(tMater * 1000 + 200, 700))),
+           .appear(ramp(tMater * 1000 + 200, 700)),
        // brass is TOOLED, and the tool marks are fine concentric turning —
        // 120 stroked circles, which a picture would REPLAY by re-stroking
        // all 120. An image blits.
@@ -332,7 +329,7 @@ auto ChaucerAstrolabe::limb() -> Element {
            .cache(Cache::Texture)
            .background(lines::presets::concentric(
                Fill::color(hexColor(0x6b4d18, 0.055f)), 120, 0.9f))
-           .opacity(rise(ramp(tMater * 1000 + 300, 600))),
+           .appear(ramp(tMater * 1000 + 300, 600)),
        // …and the tooling's own tooth, over the whole mater
        dot(SkPoint{kCx, kCy}, kMaterR, brassGrain)
            .key("brassgrain")
@@ -364,7 +361,7 @@ auto ChaucerAstrolabe::limb() -> Element {
   g.children({box()
                   .rect(SkRect::MakeXYWH(0, 0, kW, kH))
                   .key("ticks")
-                  .opacity(rise(ramp(tTicks * 1000, 700)))
+                  .appear(ramp(tTicks * 1000, 700))
                   .children({instancing::instances(tickAtlas, tickPool,
                                                    instancing::Mode::Data)})});
 
@@ -390,9 +387,7 @@ auto ChaucerAstrolabe::limb() -> Element {
                                      .offset = 0.0f,
                                      .autoFlip = false,
                                      .orient = TextPath::Orient::Radial})
-                    .opacity(animate(
-                        from(0.0f).to(1.0f),
-                        ramp(tTicks * 1000 + 300 + (float)i * 25, 400)))});
+                    .appear(ramp(tTicks * 1000 + 300 + (float)i * 25, 400))});
   }
 
   // the 24 hour letters, RADIAL. A at the first hour after noon, running
@@ -404,24 +399,22 @@ auto ChaucerAstrolabe::limb() -> Element {
     const float f = kPlateAngles.fraction(psi);
     const float rr = 1.044f * kR;
     const bool isX = (n == 21);
-    g.children(
-        {text(kLetters[n - 1])
-             .font({.face = faceLimb,
-                    .size = 0.040f * kR,
-                    .color = isX ? hexColor(0x33240c, 1.0f)
-                                 : hexColor(0x33240c, 0.88f)})
-             .width(2 * rr)
-             .height(2 * rr)
-             .centerAt({kCx, kCy})
-             .key("hl" + std::to_string(n))
-             .onPath(TextPath{.path = shapes::circle(),
-                              .at = f,
-                              .align = TextPath::Align::Center,
-                              .offset = 0.0f,
-                              .autoFlip = false,
-                              .orient = TextPath::Orient::Radial})
-             .opacity(animate(from(0.0f).to(1.0f),
-                              ramp(tLetters * 1000 + (float)n * 12, 380)))});
+    g.children({text(kLetters[n - 1])
+                    .font({.face = faceLimb,
+                           .size = 0.040f * kR,
+                           .color = isX ? hexColor(0x33240c, 1.0f)
+                                        : hexColor(0x33240c, 0.88f)})
+                    .width(2 * rr)
+                    .height(2 * rr)
+                    .centerAt({kCx, kCy})
+                    .key("hl" + std::to_string(n))
+                    .onPath(TextPath{.path = shapes::circle(),
+                                     .at = f,
+                                     .align = TextPath::Align::Center,
+                                     .offset = 0.0f,
+                                     .autoFlip = false,
+                                     .orient = TextPath::Orient::Radial})
+                    .appear(ramp(tLetters * 1000 + (float)n * 12, 380))});
     // the letter under the label lights as it passes
     const SkPoint glow = arrange::onEllipse({0, 0}, {1.044f, 1.044f}, psi * kD);
     g.children({dot(MC(glow.fX, glow.fY), 0.052f * kR,
@@ -453,7 +446,7 @@ auto ChaucerAstrolabe::limb() -> Element {
              .translateY(
                  animate(from(-26.0f).to(0.0f),
                          ramp(tMater * 1000 + 200, 900, ease::outBack())))
-             .opacity(rise(ramp(tMater * 1000 + 200, 600))),
+             .appear(ramp(tMater * 1000 + 200, 600)),
          kit::disc(SkPoint{top.fX, top.fY - th - 0.055f * kR}, 0.075f * kR)
              .key("shackle")
              .shape(shapes::annulus(0.62f))
@@ -461,8 +454,7 @@ auto ChaucerAstrolabe::limb() -> Element {
              .translateY(
                  animate(from(-26.0f).to(0.0f),
                          ramp(tMater * 1000 + 260, 900, ease::outBack())))
-             .opacity(animate(from(0.0f).to(1.0f),
-                              ramp(tMater * 1000 + 260, 600)))});
+             .appear(ramp(tMater * 1000 + 260, 600))});
   }
   return g;
 }
@@ -484,7 +476,7 @@ auto ChaucerAstrolabe::rule() -> Element {
                           .strokeFill = Fill::color(hexColor(0x3a2a10, 0.85f)),
                           .dashIntervals = {2.0f, 6.0f}})
            .background(shadow(hexColor(0x2a1d08, 0.5f), {4, 5}, 7))
-           .opacity(rise(ramp(tPin * 1000 + 200, 600))),
+           .appear(ramp(tPin * 1000 + 200, 600)),
        // the pin and its horse
        dot(SkPoint{kCx, kCy}, 0.040f * kR, brass(0.82f))
            .key("pin")
@@ -495,7 +487,7 @@ auto ChaucerAstrolabe::rule() -> Element {
                                    .highlight = hexColor(0xfff0c4, 0.7f),
                                    .shadow = hexColor(0x2a1d08, 0.6f)})
            .background(shadow(hexColor(0x2a1d08, 0.5f), {2, 3}, 5))
-           .opacity(rise(ramp(tPin * 1000, 420)))});
+           .appear(ramp(tPin * 1000, 420))});
   return g;
 }
 

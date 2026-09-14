@@ -35,6 +35,10 @@ Element& Element::opacity(motion::Animatable<float> o) {
   return *this;
 }
 
+Element& Element::appear(motion::Transition how) {
+  return opacity(motion::animate(motion::from(0.0f).to(1.0f), std::move(how)));
+}
+
 Element& Element::blend(SkBlendMode mode) {
   m_node->paint.blendMode = mode;
   return *this;
