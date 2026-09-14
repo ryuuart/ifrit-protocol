@@ -116,10 +116,8 @@ struct MeshNormalBridge final : sketch::Sketch {
     sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
         (int)kCanvas.width(), (int)kCanvas.height()));
     surface->getCanvas()->clear(SkColorSetARGB(255, 128, 128, 255));
-    render::MeshStyle normals;
-    normals.mode = render::MeshStyle::Mode::Normals;
     render::drawMesh(*surface->getCanvas(), body, model, view, kCanvas,
-                     normals);
+                     {.mode = render::MeshStyle::Mode::Normals});
     return surface->makeImageSnapshot();
   }
 
@@ -128,9 +126,8 @@ struct MeshNormalBridge final : sketch::Sketch {
                                    const camera::Camera& view,
                                    const sk_sp<SkShader>& shader) {
     canvas.saveLayer(nullptr, nullptr);
-    render::MeshStyle mask;
-    mask.mode = render::MeshStyle::Mode::Uv;
-    render::drawMesh(canvas, body, model, view, kCanvas, mask);
+    render::drawMesh(canvas, body, model, view, kCanvas,
+                     {.mode = render::MeshStyle::Mode::Uv});
     SkPaint shade;
     shade.setShader(shader);
     shade.setBlendMode(SkBlendMode::kSrcIn);
@@ -139,32 +136,26 @@ struct MeshNormalBridge final : sketch::Sketch {
   }
 
   void draw(SkCanvas& canvas) const {
-    camera::Camera view;
-    view.eye = {0, 90, 820};
-    view.target = {0, 0, 0};
+    const camera::Camera view{.eye = {0, 90, 820}, .target = {0, 0, 0}};
 
     {
       const glm::mat4 model = camera::place({kStations[0], 0, 0}, 24, -10, -8);
-      material::kit::ChromeParameters parameters;
-      parameters.contrast = 1.35f;
       shadeThroughCoverage(
           canvas, blob, model, view,
           material::skia::shader(
               material::kit::chrome(
                   material::Texture::of(normalPass(blob, model, view)), sunset,
-                  parameters),
+                  {.contrast = 1.35f}),
               {}));
     }
     {
       const glm::mat4 model = camera::place({kStations[1], 0, -40}, 0, -30, 18);
-      material::kit::GoldParameters parameters;
-      parameters.crinkle = 0.12f;
       shadeThroughCoverage(
           canvas, ring, model, view,
           material::skia::shader(
               material::kit::gold(
                   material::Texture::of(normalPass(ring, model, view)), studio,
-                  parameters),
+                  {.crinkle = 0.12f}),
               {}));
     }
     // THE OTHER SOURCE. No mesh, no G-buffer, no coverage pass: the map
@@ -172,13 +163,11 @@ struct MeshNormalBridge final : sketch::Sketch {
     // stencil, so one drawPath is the whole panel.
     {
       const SkPath outline = squircle();
-      material::kit::ChromeParameters parameters;
-      parameters.contrast = 1.35f;
       SkPaint shade;
       shade.setAntiAlias(true);
       shade.setShader(material::skia::shader(
           material::kit::chrome(material::bevelNormals(outline, kBevelPx),
-                                sunset, parameters),
+                                sunset, {.contrast = 1.35f}),
           {}));
       canvas.drawPath(outline, shade);
     }
@@ -201,10 +190,7 @@ struct MeshNormalBridge final : sketch::Sketch {
           .absolute()
           .inset(kCanvas.width() * 0.5f + x - 150, kCanvas.height() - 92, 0, 0)
           .children({text(call).font({.size = 12.5f, .track = 0.4f}),
-                     text(note)
-                         .font({.size = 10.5f})
-                         .ink(kDim)
-                         .width(300)});
+                     text(note).font({.size = 10.5f}).ink(kDim).width(300)});
     };
     ctx.composer.render(
         // Every line is set in the bright ink unless it says otherwise;
@@ -215,9 +201,7 @@ struct MeshNormalBridge final : sketch::Sketch {
             // cooked above, in this setup, and nothing after it moves.
             .children(
                 {custom("mesh.normal.bridge",
-                        [this](SkCanvas& canvas) {
-                          draw(canvas);
-                        })
+                        [this](SkCanvas& canvas) { draw(canvas); })
                      .inset(0),
                  text("NORMAL MAPS · two sources, one recipe")
                      .font({.size = 15, .track = 2.0f})
