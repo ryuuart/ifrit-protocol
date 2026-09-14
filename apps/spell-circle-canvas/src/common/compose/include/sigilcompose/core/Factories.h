@@ -86,6 +86,41 @@ template <std::ranges::input_range R, class Fn>
   }
   return out;
 }
+/** THE SAME, WITH @p between INTERLEAVED — one of it before every item but
+ *  the first, which is what a nav bar's hairlines, a legal strip's dots and
+ *  a breadcrumb's arrows are:
+ *
+ *      row().children({each(names, link, kit::line({.column = true}))})
+ *
+ *  @p between is an ELEMENT, copied between the items, or a function of
+ *  the item that FOLLOWS it and that item's index, called with the
+ *  parameters it names. A run of one item has no separator in it, and an
+ *  empty one has nothing at all — which is what keeps a strip from ending
+ *  on a dot. */
+template <std::ranges::input_range R, class Fn, class Between>
+[[nodiscard]] std::vector<Element> each(R&& range, Fn&& make,
+                                        Between&& between) {
+  std::vector<Element> out;
+  size_t index = 0;
+  for (auto&& item : range) {
+    if (index > 0) {
+      if constexpr (std::is_convertible_v<Between&, Element>)
+        out.push_back(between);
+      else if constexpr (std::is_invocable_v<Between&, decltype(item), size_t>)
+        out.push_back(between(item, index));
+      else if constexpr (std::is_invocable_v<Between&, decltype(item)>)
+        out.push_back(between(item));
+      else
+        out.push_back(between());
+    }
+    if constexpr (std::is_invocable_v<Fn&, decltype(item), size_t>)
+      out.push_back(make(item, index));
+    else
+      out.push_back(make(item));
+    ++index;
+  }
+  return out;
+}
 /** A text leaf SET IN THE FONT AND INK IN FORCE where it lands in the
  *  tree — the nearest ancestor's `Element::font` and `Element::ink`, or the
  *  root's — with its own `font()` overriding field by field. Built before

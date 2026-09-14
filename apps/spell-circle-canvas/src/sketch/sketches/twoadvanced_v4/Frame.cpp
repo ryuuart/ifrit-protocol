@@ -69,27 +69,24 @@ auto TwoAdvancedV4::navBar() -> Element {
                            kChrome);
   bar.key("nav").area("nav").fill(stripesLive).staggerChildren(40ms);
   // ONE ITEM PER NAME IN THE DOCUMENT'S TAXONOMY, with the hairline that
-  // stands each off the one before it. The two kinds of child alternate,
-  // so the run is written as a loop rather than as one range.
-  const std::span<const sigil::data::Json> names = doc()["nav"].items();
-  for (size_t i = 0; i < names.size(); ++i) {
-    if (i)
-      bar.children({kit::line(
+  // stands each off the one before it interleaved by the run itself.
+  bar.children({each(
+      doc()["nav"].items(),
+      [](const sigil::data::Json& name) {
+        return kit::centred()
+            .column()
+            .gap(3)
+            .translateY(animate(motion::from(16.0f).to(0.0f),
+                                {240ms, &ch::easeOutQuint, 2250ms}))
+            .appear({240ms, &ch::easeOutQuad, 2250ms})
+            .children(
+                {t(name, label(13, kNear, 80)),
+                 box().width(8).height(2).fill(mskia::withAlpha(kDust, 0.6f))});
+      },
+      kit::line(
           {.length = Dimension(20),
            .column = true,
-           .fill = Fill::color(mskia::withAlpha(hexColor(0x2A0A0C), 0.9f))})});
-    bar.children({box()
-                      .column()
-                      .alignItems(Align::Center)
-                      .gap(3)
-                      .translateY(animate(motion::from(16.0f).to(0.0f),
-                                          {240ms, &ch::easeOutQuint, 2250ms}))
-                      .opacity(animate(motion::from(0.0f).to(1.0f),
-                                       {240ms, &ch::easeOutQuad, 2250ms}))
-                      .children({t(names[i], label(13, kNear, 80)),
-                                 box().width(8).height(2).fill(
-                                     mskia::withAlpha(kDust, 0.6f))})});
-  }
+           .fill = Fill::color(mskia::withAlpha(hexColor(0x2A0A0C), 0.9f))}))});
   // The GLOBAL NAVIGATOR's live selection mark: one cyan bar whose X is
   // a single bound value, gliding between items as the section cycle
   // walks the taxonomy.
@@ -201,16 +198,14 @@ auto TwoAdvancedV4::toggle(const char* lbl, bool on) -> Element {
 auto TwoAdvancedV4::linkRun(const sigil::data::Json& names, float size,
                             float rule) -> std::vector<Element> {
   using namespace tav;
-  std::vector<Element> out;
-  for (const sigil::data::Json& name : names.items()) {
-    if (!out.empty())
-      out.push_back(
-          kit::line({.length = Dimension(rule),
-                     .column = true,
-                     .fill = Fill::color(mskia::withAlpha(kDust, 0.32f))}));
-    out.push_back(t(name, micro(size, kDustDim, 200)));
-  }
-  return out;
+  return each(
+      names.items(),
+      [size](const sigil::data::Json& name) {
+        return t(name, micro(size, kDustDim, 200));
+      },
+      kit::line({.length = Dimension(rule),
+                 .column = true,
+                 .fill = Fill::color(mskia::withAlpha(kDust, 0.32f))}));
 }
 
 auto TwoAdvancedV4::legalStrip() -> Element {

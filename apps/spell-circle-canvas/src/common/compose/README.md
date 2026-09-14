@@ -716,7 +716,14 @@ sound model; nothing below them changes kernel semantics.
   re-based into its own bounds), `custom`, `slot`, `layout`, `memo`.
   `text` takes `Utf8`, so `text("…")`, `text(u8"…")`, `text(std::string)`
   and `text(std::u8string)` are one factory and nothing widens a string to
-  reach it; `Element::ellipsis` takes the same value.
+  reach it; `Element::ellipsis` takes the same value. `each(range, make)`
+  is the children a range describes, and `each(range, make, between)`
+  interleaves a separator — one before every item but the first, which is
+  what a nav bar's hairlines and a legal strip's dots are. The separator
+  is an Element copied between the items or a function of the item that
+  FOLLOWS it, called with the parameters it names; a run of one has
+  nothing between it and an empty one nothing at all, which is what keeps
+  a strip from ending on a dot.
 - `core/Utf8.h` — `Utf8`, the value a prop or a parameter that takes TEXT
   is declared as: it accepts `"…"` and `u8"…"`, a `std::string` and a
   `std::u8string` alike, holds the bytes as a `std::u8string`, and

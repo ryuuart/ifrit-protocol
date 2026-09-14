@@ -100,3 +100,34 @@ TEST(ComposeValues, AValueThatReadsItselfOutAsTextIsText) {
   EXPECT_TRUE(Utf8("THE RULE AND THE STRANDS") == read);
   EXPECT_TRUE(Utf8().empty());
 }
+
+TEST(ComposeValues, ARunInterleavesTheSeparatorItIsGiven) {
+  // One separator before every item but the first, so a strip never ends
+  // on a dot: three names make five children.
+  const std::vector<std::string> names{"one", "two", "three"};
+  const std::vector<Element> ruled = each(
+      names, [](const std::string& n) { return text(n); },
+      box().key("rule").width(1));
+  EXPECT_EQ(ruled.size(), 5u);
+  // A separator that is a function of what FOLLOWS it takes the
+  // parameters it names, as every other run does.
+  std::vector<std::string> before;
+  const std::vector<Element> counted = each(
+      names, [](const std::string& n) { return text(n); },
+      [&before](const std::string& next, size_t at) {
+        before.push_back(next + std::to_string(at));
+        return box();
+      });
+  EXPECT_EQ(counted.size(), 5u);
+  EXPECT_EQ(before, (std::vector<std::string>{"two1", "three2"}));
+  // A run of one has nothing between, and an empty one nothing at all.
+  EXPECT_EQ(each(
+                std::vector<std::string>{"only"},
+                [](const std::string& n) { return text(n); }, box())
+                .size(),
+            1u);
+  EXPECT_TRUE(each(
+                  std::vector<std::string>{},
+                  [](const std::string& n) { return text(n); }, box())
+                  .empty());
+}
