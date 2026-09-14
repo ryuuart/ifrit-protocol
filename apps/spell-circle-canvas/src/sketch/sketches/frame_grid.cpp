@@ -29,9 +29,10 @@
 
 // TAGS: Geometry/Layout
 
-#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigildraw/Draw.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Frame.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -44,6 +45,7 @@
 namespace sketch = sigil::sketch;
 namespace path = sigil::geometry::path;
 namespace arrange = sigil::geometry::arrange;
+namespace draw = sigil::draw;
 
 using namespace sigil::compose;
 
@@ -70,54 +72,60 @@ sketch::kit::Theme sheetTheme() {
   return look;
 }
 
-SkPaint strokePaint(SkColor4f color, float width) {
-  SkPaint p;
-  p.setAntiAlias(true);
-  p.setStyle(SkPaint::kStroke_Style);
-  p.setStrokeWidth(width);
-  p.setColor4f(color);
-  return p;
-}
-
-SkPaint fillPaint(SkColor4f color) {
-  SkPaint p;
-  p.setAntiAlias(true);
-  p.setColor4f(color);
-  return p;
-}
-
 SkPoint middle() { return {kCell * 0.5f, kPicture * 0.5f}; }
+
+/** THE PEN A LINE OF THIS SHEET IS DRAWN WITH: a colour, a width, and no
+ *  fill under it — every mark on these plates is a stroke except the discs
+ *  a reading stands on. */
+void pen(draw::Pen& p, SkColor4f colour, float width) {
+  p.noFill();
+  p.stroke(colour);
+  p.strokeWeight(width);
+}
 
 /** The dial every frame cell is read against: the r = 1 circle and a
  *  hub, so a reading in normalised radius has something to be normal
  *  to. */
-void dial(SkCanvas& canvas, const path::Frame& frame) {
-  canvas.drawCircle(frame.centre, frame.radius, strokePaint(kFaint, 1.0f));
-  canvas.drawCircle(frame.centre, 2.0f, fillPaint(kFaint));
+void dial(draw::Pen& p, const path::Frame& frame) {
+  pen(p, kFaint, 1.0f);
+  p.circle(frame.centre.fX, frame.centre.fY, frame.radius * 2.0f);
+  p.noStroke();
+  p.fill(kFaint);
+  p.circle(frame.centre.fX, frame.centre.fY, 4.0f);
 }
 
 /** A reading at (deg, rNorm): a spoke out to it, a disc on it, and the
  *  unit direction the frame says runs outward there. */
-void reading(SkCanvas& canvas, const path::Frame& frame, float deg,
+void reading(draw::Pen& p, const path::Frame& frame, float deg,
              SkColor4f colour) {
   const SkPoint at = frame.at(deg, 0.78f);
-  canvas.drawLine(frame.centre, at, strokePaint(colour, 1.3f));
-  canvas.drawCircle(at, 4.0f, fillPaint(colour));
+  const SkPoint out = frame.at(deg, 0.90f);
   const SkVector dir = frame.dir(deg);
-  canvas.drawLine(frame.at(deg, 0.90f),
-                  {frame.at(deg, 0.90f).fX + dir.fX * 20,
-                   frame.at(deg, 0.90f).fY + dir.fY * 20},
-                  strokePaint(colour, 1.3f));
+  pen(p, colour, 1.3f);
+  p.line(frame.centre.fX, frame.centre.fY, at.fX, at.fY);
+  p.line(out.fX, out.fY, out.fX + dir.fX * 20, out.fY + dir.fY * 20);
+  p.noStroke();
+  p.fill(colour);
+  p.circle(at.fX, at.fY, 8.0f);
+}
+
+/** The rim's twelve ticks, from 0.90 of the radius out to the rim. */
+void ticks(draw::Pen& p, const path::Frame& frame) {
+  pen(p, kFaint, 1.0f);
+  for (float d = 0; d < 360; d += 30)
+    p.line(frame.at(d, 0.90f).fX, frame.at(d, 0.90f).fY, frame.at(d, 1.0f).fX,
+           frame.at(d, 1.0f).fY);
 }
 
 Element cell(const char* call, const std::string& note,
-             std::function<void(SkCanvas&)> draw) {
+             std::function<void(draw::Pen&)> drawing) {
   return sketch::kit::caption(
       kCell, call, note,
       sketch::kit::well(
           {.width = kCell, .height = kPicture},
-          custom(call, [draw = std::move(draw)](SkCanvas& canvas) {
-            draw(canvas);
+          graphics(call, [drawing = std::move(drawing)](draw::Pen& p) {
+            p.angleMode(draw::DEGREES);
+            drawing(p);
           })));
 }
 
@@ -163,16 +171,13 @@ struct FrameGrid final : sketch::Sketch {
                                  "at(deg, rNorm) and dir(deg) read in "
                                  "the plate's own units, 0° at "
                                  "twelve o'clock",
-                                 [](SkCanvas& canvas) {
+                                 [](draw::Pen& p) {
                                    const path::Frame frame{.centre = middle(),
                                                            .radius = kRadius};
-                                   dial(canvas, frame);
-                                   for (float d = 0; d < 360; d += 30)
-                                     canvas.drawLine(frame.at(d, 0.90f),
-                                                     frame.at(d, 1.0f),
-                                                     strokePaint(kFaint, 1.0f));
-                                   reading(canvas, frame, 0, kFigure);
-                                   reading(canvas, frame, 126, kWarm);
+                                   dial(p, frame);
+                                   ticks(p, frame);
+                                   reading(p, frame, 0, kFigure);
+                                   reading(p, frame, 126, kWarm);
                                  }),
                             cell("…"
                                  ".zero = East, "
@@ -181,19 +186,16 @@ struct FrameGrid final : sketch::Sketch {
                                  "126°, in Skia's convention "
                                  "running the other way · the "
                                  "value carries it, not the call site",
-                                 [](SkCanvas& canvas) {
+                                 [](draw::Pen& p) {
                                    const path::Frame frame{
                                        .centre = middle(),
                                        .radius = kRadius,
                                        .zero = path::Zero::East,
                                        .sense = path::Sense::CCW};
-                                   dial(canvas, frame);
-                                   for (float d = 0; d < 360; d += 30)
-                                     canvas.drawLine(frame.at(d, 0.90f),
-                                                     frame.at(d, 1.0f),
-                                                     strokePaint(kFaint, 1.0f));
-                                   reading(canvas, frame, 0, kFigure);
-                                   reading(canvas, frame, 126, kWarm);
+                                   dial(p, frame);
+                                   ticks(p, frame);
+                                   reading(p, frame, 0, kFigure);
+                                   reading(p, frame, 126, kWarm);
                                  }),
                             cell("scaled(0.62) · turned(15) "
                                  "· about(c)",
@@ -201,23 +203,23 @@ struct FrameGrid final : sketch::Sketch {
                                  "convention, which is where it "
                                  "otherwise gets silently dropped "
                                  "· turned composes and inverts",
-                                 [](SkCanvas& canvas) {
+                                 [](draw::Pen& p) {
                                    const path::Frame frame{.centre = middle(),
                                                            .radius = kRadius};
-                                   dial(canvas, frame);
+                                   dial(p, frame);
                                    const path::Frame inner =
                                        frame.scaled(0.62f);
-                                   dial(canvas, inner);
-                                   reading(canvas, inner, 126, kFigure);
-                                   reading(canvas, frame.turned(15), 126,
-                                           kWarm);
+                                   dial(p, inner);
+                                   reading(p, inner, 126, kFigure);
+                                   reading(p, frame.turned(15), 126, kWarm);
                                    const path::Frame satellite =
                                        frame.scaled(0.3f).about(
                                            frame.at(30, 0.66f));
-                                   dial(canvas, satellite);
-                                   reading(canvas, satellite, 126, kCool);
+                                   dial(p, satellite);
+                                   reading(p, satellite, 126, kCool);
                                  })},
-                       .gap = 14}),
+                       .gap =
+                           14}),
                   kit::cells(
                       {.cells =
                            {cell("arrange::onRing(i, n, …"
@@ -234,7 +236,7 @@ struct FrameGrid final : sketch::Sketch {
                                      (
                                          double)arrange::
                                          step(270, 7, arrange::Turn::Closed)),
-                                 [](SkCanvas& canvas) {
+                                 [](draw::Pen& p) {
                                    const SkPoint c = middle();
                                    constexpr float kStart =
                                        -2.3561945f;  // 135 deg from +x
@@ -242,19 +244,17 @@ struct FrameGrid final : sketch::Sketch {
                                    const auto ring = [&](float r,
                                                          arrange::Turn turn,
                                                          SkColor4f colour) {
-                                     SkPathBuilder arc;
-                                     arc.addArc(
-                                         SkRect::MakeXYWH(c.fX - r, c.fY - r,
-                                                          2 * r, 2 * r),
-                                         -135, 270);
-                                     canvas.drawPath(arc.detach(),
-                                                     strokePaint(kFaint, 1.0f));
-                                     for (size_t i = 0; i < 7; ++i)
-                                       canvas.drawCircle(
-                                           arrange::onRing(i, 7, c, {r, r},
-                                                           kStart, kSweep,
-                                                           turn),
-                                           5, fillPaint(colour));
+                                     pen(p, kFaint, 1.0f);
+                                     p.arc(c.fX, c.fY, 2 * r, 2 * r, -135, 135,
+                                           draw::OPEN);
+                                     p.noStroke();
+                                     p.fill(colour);
+                                     for (size_t i = 0; i < 7; ++i) {
+                                       const SkPoint at = arrange::onRing(
+                                           i, 7, c, {r, r}, kStart, kSweep,
+                                           turn);
+                                       p.circle(at.fX, at.fY, 10.0f);
+                                     }
                                    };
                                    ring(94, arrange::Turn::Open, kWarm);
                                    ring(56, arrange::Turn::Closed, kCool);
@@ -264,43 +264,41 @@ struct FrameGrid final : sketch::Sketch {
                                  "plus the gaps EXACTLY into the "
                                  "container · a block spans and "
                                  "swallows the gaps it crosses",
-                                 [](SkCanvas& canvas) {
+                                 [](draw::Pen& p) {
                                    const SkSize container{kCell - 40,
                                                           kPicture - 40};
                                    const SkSize gap{10, 10};
                                    const SkSize module = arrange::moduleSize(
                                        container, 4, 3, gap);
                                    const SkPoint origin{20, 20};
+                                   const auto cellBox = [&](SkRect r) {
+                                     p.rect(r.x(), r.y(), r.width(),
+                                            r.height());
+                                   };
+                                   pen(p, kFaint, 1.0f);
                                    for (size_t i = 0; i < 12; ++i)
-                                     canvas.drawRect(arrange::cellRect(
-                                                         arrange::cellAt(i, 4),
-                                                         module, gap, origin),
-                                                     strokePaint(kFaint, 1.0f));
-                                   canvas.drawRect(
-                                       arrange::cellRect({1, 1}, module, gap,
-                                                         origin, 2, 2),
-                                       strokePaint(kWarm, 1.8f));
+                                     cellBox(arrange::cellRect(
+                                         arrange::cellAt(i, 4), module, gap,
+                                         origin));
+                                   pen(p, kWarm, 1.8f);
+                                   cellBox(arrange::cellRect(
+                                       {1, 1}, module, gap, origin, 2, 2));
                                  }),
                             cell("Grid{.scale = 7, .snap = 0 | 7}",
                                  "one drawing in artefact units through "
                                  "two grids · s() is a LENGTH "
                                  "and takes no origin; x() and y() are "
                                  "positions and do",
-                                 [unit, snapped, figure](SkCanvas& canvas) {
+                                 [unit, snapped, figure](draw::Pen& p) {
                                    const auto trace =
                                        [&](const path::Grid& grid,
                                            SkColor4f colour, float dy) {
-                                         SkPathBuilder b;
-                                         bool first = true;
-                                         for (const SkPoint& p :
-                                              grid.map(figure)) {
-                                           const SkPoint q{p.fX, p.fY + dy};
-                                           first ? b.moveTo(q) : b.lineTo(q);
-                                           first = false;
-                                         }
-                                         canvas.drawPath(
-                                             b.detach(),
-                                             strokePaint(colour, 1.8f));
+                                         pen(p, colour, 1.8f);
+                                         p.beginShape();
+                                         for (const SkPoint& at :
+                                              grid.map(figure))
+                                           p.vertex(at.fX, at.fY + dy);
+                                         p.endShape();
                                        };
                                    trace(unit, kCool, 0);
                                    trace(snapped, kWarm, 88);
