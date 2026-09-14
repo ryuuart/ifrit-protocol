@@ -100,11 +100,7 @@ std::vector<glm::vec3> crown(float radius, float rise, int knots) {
 }
 
 mesh::camera::Camera lookAtCrown() {
-  mesh::camera::Camera camera;
-  camera.eye = {0, 150, 980};
-  camera.target = {0, 0, 0};
-  camera.fovYDeg = 34;
-  return camera;
+  return {.eye = {0, 150, 980}, .target = {0, 0, 0}, .fovYDeg = 34};
 }
 
 /** A HARD-EDGED sprite, and it is load-bearing: a soft dot's rim is
@@ -140,15 +136,14 @@ Element splat(mesh::Cloud cloud, float spriteSize) {
   // which at `Cache::None` is every frame.
   return custom([cloud = std::move(cloud), spriteSize, sprite = disc()](
                     SkCanvas& canvas, const PaintContext& paint) {
-           mesh::points::BillboardStyle style;
-           style.sprite = sprite;
-           style.size = spriteSize;
-           style.sizeLane = "size";
-           style.tintLane = "tint";
-           style.additive = false;   // kSrcOver: order decides the picture
-           style.depthSort = false;  // the sink's own sort would mask it
-           mesh::points::drawBillboards(canvas, cloud, lookAtCrown(),
-                                        paint.size, style);
+           mesh::points::drawBillboards(
+               canvas, cloud, lookAtCrown(), paint.size,
+               {.sprite = sprite,
+                .size = spriteSize,
+                .sizeLane = "size",
+                .tintLane = "tint",
+                .additive = false,     // kSrcOver: order decides the picture
+                .depthSort = false});  // the sink's own sort would mask it
          })
       .inset(0)
       .cache(Cache::None);
@@ -172,9 +167,8 @@ struct PopOrder : sketch::Sketch {
 
   void setup(sketch::SketchContext& ctx) override {
     const sketch::kit::Provide look(sheetTheme());
-    sketch::kit::stage(ctx, {.size = {760, 500}});
     // Both clouds are cooked in setup; nothing reads the clock.
-    ctx.captureAt(0.05);
+    sketch::kit::stage(ctx, {.size = {760, 500}, .captureAt = 0.05});
 
     const std::vector<glm::vec3> loop = crown(215, 190, 72);
 
