@@ -133,24 +133,23 @@ struct PixFontDotSprite final : sketch::Sketch {
    *  presented at one scale, so the only difference on screen is which
    *  pixel centres the outline happened to contain. */
   Element sizeSweep() {
-    Element column = box().column().gap(12);
-    for (int i = 0; i < 3; ++i)
-      column.children(
-          {box()
-               .row()
-               .gap(10)
-               .alignItems(Align::Center)
-               .children({text(kit::formatted("%2.0f", kBakeSizes[i]))
-                              .font({.face = sketch::kit::theme().type.mono,
-                                     .size = 9,
-                                     .track = 0})
-                              .ink(sketch::kit::theme().palette.ash)})
-               .children(
-                   {kit::masked(sweep[i], {.colour = kOn, .scale = 2})})});
+    // One row per bake: the size it was baked at, and the run.
+    const auto row = [this](float size, std::size_t i) {
+      return box()
+          .row()
+          .gap(10)
+          .alignItems(Align::Center)
+          .children({text(kit::formatted("%2.0f", size))
+                         .font({.face = sketch::kit::theme().type.mono,
+                                .size = 9,
+                                .track = 0})
+                         .ink(sketch::kit::theme().palette.ash),
+                     kit::masked(sweep[i], {.colour = kOn, .scale = 2})});
+    };
     return cell("bakeRun(\"3.eg\", fonts, aliased(size))",
                 "one run, three bake sizes, one present scale · at the "
                 "smallest the counters hold no pixel centre and close",
-                std::move(column));
+                box().column().gap(12).children({each(kBakeSizes, row)}));
   }
 
   /** Trap 4: an integer scale with nearest sampling, beside the 1×
