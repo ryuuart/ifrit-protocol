@@ -12,28 +12,27 @@
 #include <sigilmotion/clock/Ticker.h>
 
 #include <algorithm>
+#include <any>
 #include <memory>
 #include <optional>
-#include <source_location>
 #include <utility>
 
 namespace sigil::compose {
 
 namespace {
 
-/** THE POLICY THE COMPOSER PAINTING A PEN RUNS UNDER, kept on the pen
- *  for the guest a program keeps: a retained element's composer is built
- *  below the paint program, where no context reaches, and takes it from
- *  here. */
+/** THE POLICY THE COMPOSER PAINTING A PEN RUNS UNDER, kept with the
+ *  pen's guests as what their host keeps for itself: a retained element's
+ *  composer is built below the paint program, where no context reaches,
+ *  and takes it from here. */
 struct HostPolicy {
   PromotionPolicy promotion = PromotionPolicy::ByCost;
 };
 
 HostPolicy& hostPolicy(draw::Pen& pen) {
-  static const draw::Slot slot =
-      draw::Slot::at(std::source_location::current());
-  return pen.retained().get<HostPolicy>(
-      slot, [] { return std::make_shared<HostPolicy>(); });
+  std::any& kept = pen.retained().host();
+  if (!kept.has_value()) kept = HostPolicy{};
+  return *std::any_cast<HostPolicy>(&kept);
 }
 
 /** The pen a node draws with, and what the paint context does not
