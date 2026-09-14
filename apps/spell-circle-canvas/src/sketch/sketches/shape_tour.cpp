@@ -41,8 +41,8 @@
 
 // TAGS: Drawing/Primitives
 
-#include <include/core/SkPaint.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -91,38 +91,25 @@ sketch::kit::Theme sheetTheme() {
  *  call that made it and what it is. `closed` decides whether the figure
  *  is filled — an open path has no inside, and filling one closes it
  *  across the chord. */
-template <class Shape>
-Element cell(Shape shape, const char* call, const char* note,
+template <class Outline>
+Element cell(Outline outline, const char* call, const char* note,
              bool closed = true) {
+  // Both copies stand on ONE baseline, so the small one is a construction
+  // in a smaller box rather than a scaled picture of the large one.
+  const auto figure = [outline, closed](float side, float left) {
+    return kit::at(box()
+                       .shape(outline)
+                       .fill(closed ? Fill::color(kBody) : Fill::none())
+                       .stroke(stroke(1.4f, Fill::color(kLine))),
+                   left, kBed - 8 - side, side, side);
+  };
   return sketch::kit::caption(
       kCell, call, note,
-      // The call IS the identity: it spells the generator and every number
-      // handed to it, which is the whole of what the program closes over.
-      custom(call,
-             [shape, closed](SkCanvas& canvas, const PaintContext& paint) {
-               SkPaint fill;
-               fill.setAntiAlias(true);
-               fill.setColor4f(closed ? kBody : SkColor4f{0, 0, 0, 0});
-               SkPaint line;
-               line.setAntiAlias(true);
-               line.setStyle(SkPaint::kStroke_Style);
-               line.setStrokeWidth(1.4f);
-               line.setColor4f(kLine);
-
-               const float baseline = paint.size.height() - 8;
-               const auto draw = [&](float side, float left) {
-                 const SkPath path = shape.path({side, side})
-                                         .makeTransform(SkMatrix::Translate(
-                                             left, baseline - side));
-                 if (closed) canvas.drawPath(path, fill);
-                 canvas.drawPath(path, line);
-               };
-               draw(kLarge, 8);
-               draw(kSmall, kLarge + 22);
-             })
+      box()
           .width(kCell)
           .height(kBed)
-          .fill(Fill::color(kBedTone)));
+          .fill(Fill::color(kBedTone))
+          .children({figure(kLarge, 8), figure(kSmall, kLarge + 22)}));
 }
 
 Element row(std::vector<Element> cells) {
@@ -141,9 +128,8 @@ const char* kHeartD =
 struct ShapeShelf final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     const sketch::kit::Provide look(sheetTheme());
-    sketch::kit::stage(ctx, {.size = {1120, 840}});
     // A generator is a pure function of its parameters and the box.
-    ctx.captureAt(0.05);
+    sketch::kit::stage(ctx, {.size = {1120, 840}, .captureAt = 0.05});
 
     Element generators = kit::cells(
         {.cells =
