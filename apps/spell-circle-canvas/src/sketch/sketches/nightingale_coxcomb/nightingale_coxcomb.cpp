@@ -473,8 +473,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
              {sketch::kit::bands(wedges, {.x = &sketch::kit::Datum::x,
                                           .y = &sketch::kit::Datum::y,
                                           .part = wedgeOf})})
-             .absolute()
-             .inset(0)});
+             .cover()});
 
     for (int m = 0; m < 12; ++m) {
       const Month& mo = data[m];

@@ -98,9 +98,7 @@ Element field(const char* key, Field sample) {
                    pen.fill(SkColor4f{ink.fR * v, ink.fG * v, ink.fB * v, 1});
                    pen.rect(at.fLeft, at.fTop, kBlock, kBlock);
                  }
-             })
-      .absolute()
-      .inset(0);
+             });
 }
 
 /** One line of the key column, in the theme's own terminal voice: what a

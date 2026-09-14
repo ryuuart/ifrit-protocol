@@ -285,8 +285,7 @@ struct TileMap final : sketch::Sketch {
                        // recording stands.
                        box()
                            .key("flash" + std::to_string(i))
-                           .absolute()
-                           .inset(0)
+                           .cover()
                            .fill(Fill::color(kFlash))
                            .opacity(&flash[(size_t)i])});
             })});

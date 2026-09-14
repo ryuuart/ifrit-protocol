@@ -95,7 +95,7 @@ Element cell(const char* call, const char* note, Element body) {
 Element swatch(const char* call, const char* note, paint::Paint fill) {
   return cell(
       call, note,
-      box().children({box().absolute().inset(0).fill(std::move(fill))}));
+      box().children({box().cover().fill(std::move(fill))}));
 }
 
 }  // namespace

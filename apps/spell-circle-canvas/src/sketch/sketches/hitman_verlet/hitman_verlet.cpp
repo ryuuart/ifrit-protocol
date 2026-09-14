@@ -70,9 +70,7 @@ auto HitmanVerlet::setup(sketch::SketchContext& ctx) -> void {
   colBEl = {panelB1(), panelB2(), panelB3()};
 
   ctx.composer.render(
-      graphics("hitman_verlet.loop", [this](Pen& pen) { draw(pen); })
-          .absolute()
-          .inset(0));
+      graphics("hitman_verlet.loop", [this](Pen& pen) { draw(pen); }));
 }
 
 auto HitmanVerlet::draw(Pen& pen) -> void {

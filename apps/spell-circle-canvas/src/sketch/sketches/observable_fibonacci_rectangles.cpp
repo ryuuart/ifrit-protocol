@@ -31,9 +31,7 @@ struct ObservableFibonacciRectangles final : sketch::Sketch {
 
     context.composer.render(
         compose::graphics("observable_fibonacci_rectangles.loop",
-                          [this](Pen& pen) { draw(pen); })
-            .absolute()
-            .inset(0));
+                          [this](Pen& pen) { draw(pen); }));
   }
 
   void draw(Pen& pen) {

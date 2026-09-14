@@ -23,9 +23,7 @@ struct ObservableGrid final : sketch::Sketch {
     context.captureAt(0.05);
 
     context.composer.render(compose::graphics("observable_grid.loop",
-                                              [this](Pen& pen) { draw(pen); })
-                                .absolute()
-                                .inset(0));
+                                              [this](Pen& pen) { draw(pen); }));
   }
 
   void draw(Pen& pen) {

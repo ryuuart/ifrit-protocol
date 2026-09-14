@@ -43,8 +43,7 @@ auto DunhuangStarChart::graticule() -> Element {
 
 auto DunhuangStarChart::starField() -> Element {
   return box()
-      .absolute()
-      .inset(0)
+      .cover()
       .key("stars")
       .opacity(gate(tSky - 0.5f, tSky + 0.7f))
       .children({instancing::instances(atlas, pool, instancing::Mode::Live)});

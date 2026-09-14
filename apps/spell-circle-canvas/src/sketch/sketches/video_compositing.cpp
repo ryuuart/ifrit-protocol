@@ -201,8 +201,7 @@ struct VideoCompositing final : sketch::Sketch {
               drawFrame(canvas, dancer, SkRect::MakeXYWH(650, 1395, 300, 225),
                         0.88f, SkBlendMode::kPlus, false);
             })
-            .absolute()
-            .inset(0)
+            .cover()
             .cache(Cache::None);
 
     const weave::TextStyle title = weave::textStyle(

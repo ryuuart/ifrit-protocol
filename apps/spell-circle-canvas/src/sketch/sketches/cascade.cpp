@@ -268,43 +268,41 @@ Element crossFade(bool cooled) {
  *  and hands the ink back at the end of it. */
 Element penCell() {
   return box()
-      .padding(kPad)
+      .width(kCell - 2 * kPad)
+      .height(kBody - 2 * kPad)
+      .margin(kPad, kPad, kPad, kPad)
       .font({.size = 13})
       .ink(kTeal)
-      .children({compose::pen("cascade.pen",
-                              [](Pen& pen) {
-                                pen.noStroke();
-                                pen.circle(30, 32, 44);
-                                pen.text("no fill, no textFont", 70, 38);
-                                pen.push();
-                                pen.fill(kWarm);
-                                pen.circle(30, 104, 44);
-                                pen.text("pen.fill in a push", 70, 100);
-                                pen.pop();
-                                pen.circle(216, 104, 26);
-                              })
-                     .width(kCell - 2 * kPad)
-                     .height(kBody - 2 * kPad)});
+      .children({compose::pen("cascade.pen", [](Pen& pen) {
+        pen.noStroke();
+        pen.circle(30, 32, 44);
+        pen.text("no fill, no textFont", 70, 38);
+        pen.push();
+        pen.fill(kWarm);
+        pen.circle(30, 104, 44);
+        pen.text("pen.fill in a push", 70, 100);
+        pen.pop();
+        pen.circle(216, 104, 26);
+      })});
 }
 
 /** (11) The kept canvas: the same door, onto pixels that stand between
  *  frames. A translucent ground each frame is p5's trail, which the
  *  repainting pen above cannot do at all. */
 Element trailCell() {
-  return box().padding(kPad).ink(kTeal).children(
-      {compose::graphics("cascade.trail",
-                         [](Pen& pen) {
-                           pen.background(kPanel.fR * 255, kPanel.fG * 255,
-                                          kPanel.fB * 255, kTrail);
-                           const float t =
-                               (float)pen.millis() / 1000.0f * kSpin;
-                           pen.noStroke();
-                           pen.circle(pen.width * 0.5f + std::cos(t) * kOrbit,
-                                      pen.height * 0.5f + std::sin(t) * kOrbit,
-                                      16);
-                         })
-           .width(kCell - 2 * kPad)
-           .height(kBody - 2 * kPad)});
+  return box()
+      .width(kCell - 2 * kPad)
+      .height(kBody - 2 * kPad)
+      .margin(kPad, kPad, kPad, kPad)
+      .ink(kTeal)
+      .children({compose::graphics("cascade.trail", [](Pen& pen) {
+        pen.background(kPanel.fR * 255, kPanel.fG * 255, kPanel.fB * 255,
+                       kTrail);
+        const float t = (float)pen.millis() / 1000.0f * kSpin;
+        pen.noStroke();
+        pen.circle(pen.width * 0.5f + std::cos(t) * kOrbit,
+                   pen.height * 0.5f + std::sin(t) * kOrbit, 16);
+      })});
 }
 
 // ------------------------------------------------- the lexical channel

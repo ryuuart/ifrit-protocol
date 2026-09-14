@@ -49,9 +49,7 @@ struct BrushworkCurrents final : sketch::Sketch {
         ctx, {.size = {1080, 760}, .captureAt = 0.25, .background = kPaper});
 
     ctx.composer.render(compose::graphics("brushwork_currents.sheet",
-                                          [this](Pen& pen) { draw(pen); })
-                            .absolute()
-                            .inset(0));
+                                          [this](Pen& pen) { draw(pen); }));
   }
 
   void draw(Pen& pen) {

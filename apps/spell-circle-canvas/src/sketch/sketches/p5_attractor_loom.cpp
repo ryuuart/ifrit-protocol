@@ -86,9 +86,7 @@ struct P5AttractorLoom final : sketch::Sketch {
                                                          14 / 255.0f, 1}});
 
     context.composer.render(compose::graphics("p5_attractor_loom.loop",
-                                              [this](Pen& pen) { draw(pen); })
-                                .absolute()
-                                .inset(0));
+                                              [this](Pen& pen) { draw(pen); }));
   }
 
   void trace(Pen& pen, int thread, float clock) {

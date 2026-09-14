@@ -78,8 +78,7 @@ auto DunhuangStarChart::buildAsterismArt() -> void {
 auto DunhuangStarChart::asterismLines() -> Element {
   // each node's box is the ASTERISM's box, never the plate's
   return box()
-      .absolute()
-      .inset(0)
+      .cover()
       .key("asterisms")
       .children(each(astArt, [this](const AstArt& A, size_t i) {
         return box()
@@ -205,7 +204,7 @@ auto DunhuangStarChart::map5Labels() -> Element {
                                   .startCap = lines::Cap::Dot,
                                   .capSize = 4.0f}));
   }
-  return box().absolute().inset(0).key("m5lab").children(labels);
+  return box().cover().key("m5lab").children(labels);
 }
 
 auto DunhuangStarChart::archer() -> Element {

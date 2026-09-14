@@ -21,9 +21,7 @@ struct ObservableNoiseMap final : sketch::Sketch {
     context.captureAt(0.05);
 
     context.composer.render(compose::graphics("observable_noise_map.loop",
-                                              [this](Pen& pen) { draw(pen); })
-                                .absolute()
-                                .inset(0));
+                                              [this](Pen& pen) { draw(pen); }));
   }
 
   void draw(Pen& pen) {

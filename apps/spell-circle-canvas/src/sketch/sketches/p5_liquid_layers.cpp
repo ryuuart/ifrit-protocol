@@ -76,9 +76,7 @@ struct P5LiquidLayers final : sketch::Sketch {
     context.captureAt(0.05);  // the painting is a direct function of the clock
 
     context.composer.render(compose::graphics("p5_liquid_layers.loop",
-                                              [this](Pen& pen) { draw(pen); })
-                                .absolute()
-                                .inset(0));
+                                              [this](Pen& pen) { draw(pen); }));
   }
 
   std::array<brush::Sample, 6> controls(int ribbon, float clock, float width,

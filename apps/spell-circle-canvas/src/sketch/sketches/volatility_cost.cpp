@@ -324,8 +324,6 @@ struct VolatilityCost final : sketch::Sketch {
                         m.rect.width() + 3.0f, m.rect.height() + 3.0f);
              }
            })
-        .absolute()
-        .inset(0)
         .zIndex(8)
         .hitTestable(false);
   }

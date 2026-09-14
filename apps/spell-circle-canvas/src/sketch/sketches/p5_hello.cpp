@@ -54,9 +54,7 @@ struct P5Hello final : sketch::Sketch {
                                               vy = -vy;
                                             pen.fill(255, 120, 80);
                                             pen.circle(x, y, 40);
-                                          })
-                            .absolute()
-                            .inset(0));
+                                          }));
   }
 };
 

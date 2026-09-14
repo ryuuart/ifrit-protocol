@@ -136,6 +136,16 @@ class Element {
   Element& alignSelf(Align a);
   Element& justify(Justify j);
   Element& absolute();
+  /** THIS NODE FILLS THE BOX IT STANDS IN — `absolute()` and `inset(0)`,
+   *  which is one sentence and was written as two. CSS's own word: the
+   *  node is taken out of the flow and stretched to its parent's box, so
+   *  a drawing, an overlay, a scrim, a rail and a hit surface each say
+   *  what they are rather than how they are pinned.
+   *
+   *  A node that must fill only part of the box states that part with
+   *  `inset()` instead; a node that must stand in the flow states its
+   *  size and says nothing here. */
+  Element& cover();
   Element& inset(float all);
   Element& inset(float left, float top, float right, float bottom);
   /** Dimension-valued insets: px, pct(), or autoDimension() per side —

@@ -75,9 +75,7 @@ struct BrushDynamics final : sketch::Sketch {
     context.captureAt(0.25);
 
     context.composer.render(compose::graphics("brush_dynamics.sheet",
-                                              [this](Pen& pen) { draw(pen); })
-                                .absolute()
-                                .inset(0));
+                                              [this](Pen& pen) { draw(pen); }));
   }
 
   void draw(Pen& pen) {

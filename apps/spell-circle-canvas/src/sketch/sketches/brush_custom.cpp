@@ -90,9 +90,7 @@ struct BrushCustom final : sketch::Sketch {
     grain = paperGrain();
 
     context.composer.render(
-        compose::graphics("brush_custom.sheet", [this](Pen& pen) { draw(pen); })
-            .absolute()
-            .inset(0));
+        compose::graphics("brush_custom.sheet", [this](Pen& pen) { draw(pen); }));
   }
 
   /** One arc of the same centreline, so every row differs only by what

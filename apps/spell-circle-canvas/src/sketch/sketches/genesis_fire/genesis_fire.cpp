@@ -80,9 +80,7 @@ void GenesisFire::setup(sketch::SketchContext& ctx) {
 
   deterministic = ctx.deterministic;
   ctx.composer.render(
-      graphics("genesis_fire.loop", [this](Pen& pen) { draw(pen); })
-          .absolute()
-          .inset(0));
+      graphics("genesis_fire.loop", [this](Pen& pen) { draw(pen); }));
 }
 
 void GenesisFire::draw(Pen& pen) {

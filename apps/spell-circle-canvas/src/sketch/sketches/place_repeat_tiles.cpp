@@ -147,7 +147,7 @@ struct PlaceRepeatTiles final : sketch::Sketch {
   }
 
   Element pooled(const std::shared_ptr<instancing::Pool>& pool) const {
-    return box().absolute().inset(0).children(
+    return box().cover().children(
         {instancing::instances(atlas, pool, instancing::Mode::Data)});
   }
 
@@ -216,8 +216,7 @@ struct PlaceRepeatTiles final : sketch::Sketch {
                  }
                  canvas.restore();
                })
-            .absolute()
-            .inset(0));
+            .cover());
   }
 };
 

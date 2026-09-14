@@ -225,8 +225,7 @@ auto Minard1869::cardGeo(const data::Json& said) -> Element {
     const std::vector<Station>* legs[] = {&plate.advTrunk, &plate.retEast,
                                           &plate.retWest};
     return box()
-        .absolute()
-        .inset(0)
+        .cover()
         .styleClass("route")
         .shape([this, f, legs](SkSize field) {
           SkPathBuilder rt;
@@ -245,8 +244,7 @@ auto Minard1869::cardGeo(const data::Json& said) -> Element {
   const auto residuals = [this](bool crosses) {
     return [this, crosses](const sketch::kit::Plot& f) {
       return box()
-          .absolute()
-          .inset(0)
+          .cover()
           .styleClass(crosses ? "cross" : "vector")
           .shape([this, f, crosses](SkSize field) {
             SkPathBuilder p;

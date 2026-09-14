@@ -499,8 +499,7 @@ struct MatrixRain : sketch::Sketch {
     if (kMeter)
       root.children({kit::trackMeter(ctx.composer, "rain-near", 0,
                                      {0.2f, 0.9f, 0.4f, 0.5f})
-                         .absolute()
-                         .inset(0)
+                         .cover()
                          .hitTestable(false)});
     return root;
   }

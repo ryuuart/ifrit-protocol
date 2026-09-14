@@ -30,9 +30,7 @@ struct ObservableRandomWalker final : sketch::Sketch {
     context.captureAt(0.05);
 
     context.composer.render(compose::graphics("observable_random_walker.loop",
-                                              [this](Pen& pen) { draw(pen); })
-                                .absolute()
-                                .inset(0));
+                                              [this](Pen& pen) { draw(pen); }));
   }
 
   void draw(Pen& pen) {

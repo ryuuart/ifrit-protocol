@@ -68,9 +68,7 @@ struct ObservableReynoldsSteering final : sketch::Sketch {
 
     context.composer.render(
         compose::graphics("observable_reynolds_steering.loop",
-                          [this](Pen& pen) { draw(pen); })
-            .absolute()
-            .inset(0));
+                          [this](Pen& pen) { draw(pen); }));
   }
 
   /** REYNOLDS' STEERING TERM: where the boid WANTS to go, at full speed,

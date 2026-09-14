@@ -212,26 +212,24 @@ struct AxisRipple : sketch::Sketch {
     const int n = glyphs;
     const float rad = radPerGlyph;
     const choreograph::Output<float>* clock = &phase;
-    return pen("axis-meter",
-               [localPens = std::move(localPens), n, rad, clock](
-                   sigil::draw::Pen& pen, const PaintContext& ctx) {
-                 const float t = clock->value();
-                 const float h = ctx.size.height();
-                 pen.noStroke();
-                 for (int i = 0; i < n; ++i) {
-                   const float x = (*localPens)[(size_t)i];
-                   const float w = (*localPens)[(size_t)i + 1] - x - 3.0f;
-                   if (w <= 0) continue;
-                   const float s =
-                       0.5f + 0.5f * std::sin(t * 6.2831853f - (float)i * rad);
-                   pen.fill(kFaint);
-                   pen.rect(x, h - 1, w, 1);
-                   pen.fill(kAxis);
-                   pen.rect(x, h - 1 - s * (h - 1), w, s * (h - 1) + 1);
-                 }
-               })
-        .width(width)
-        .height(34);
+    return box().width(width).height(34).children(
+        {pen("axis-meter", [localPens = std::move(localPens), n, rad, clock](
+                               sigil::draw::Pen& pen, const PaintContext& ctx) {
+          const float t = clock->value();
+          const float h = ctx.size.height();
+          pen.noStroke();
+          for (int i = 0; i < n; ++i) {
+            const float x = (*localPens)[(size_t)i];
+            const float w = (*localPens)[(size_t)i + 1] - x - 3.0f;
+            if (w <= 0) continue;
+            const float s =
+                0.5f + 0.5f * std::sin(t * 6.2831853f - (float)i * rad);
+            pen.fill(kFaint);
+            pen.rect(x, h - 1, w, 1);
+            pen.fill(kAxis);
+            pen.rect(x, h - 1 - s * (h - 1), w, s * (h - 1) + 1);
+          }
+        })});
   }
 
   /** The ripple itself, plus the coordinate range the face declares. */

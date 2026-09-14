@@ -114,8 +114,7 @@ Element plot(const char* key,
              key,
              {.x = {.domain = {0, kSpan}}, .y = {.domain = {0, 1}}, .pad = 10},
              std::move(layers))
-      .absolute()
-      .inset(0);
+      .cover();
 }
 
 Element cell(const char* call, const char* note, Element body,

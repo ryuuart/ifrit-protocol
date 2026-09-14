@@ -83,9 +83,7 @@ struct P5FlowField final : sketch::Sketch {
     context.captureAt(0.05);  // the field is a direct function of the clock
 
     context.composer.render(
-        compose::graphics("p5_flow_field.loop", [this](Pen& pen) { draw(pen); })
-            .absolute()
-            .inset(0));
+        compose::graphics("p5_flow_field.loop", [this](Pen& pen) { draw(pen); }));
   }
 
   void draw(Pen& pen) {

@@ -52,9 +52,7 @@ struct ObservableLSystem final : sketch::Sketch {
       sentence = rewrite(sentence);
 
     context.composer.render(compose::graphics("observable_l_system.loop",
-                                              [this](Pen& pen) { draw(pen); })
-                                .absolute()
-                                .inset(0));
+                                              [this](Pen& pen) { draw(pen); }));
   }
 
   void draw(Pen& pen) {

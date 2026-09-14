@@ -112,7 +112,7 @@ Element headline(SkColor4f color) {
  *  and corner falloff, in black, so both panels are seen through one
  *  glass. */
 Element tube() {
-  return box().absolute().inset(0).zIndex(9).fill(
+  return box().cover().zIndex(9).fill(
       mskia::Paint::recipe(field::crtOverlay(kPitch, 0.10f)));
 }
 
@@ -171,8 +171,7 @@ struct CrtBloom final : sketch::Sketch {
                   .alignItems(Align::Center)
                   .justify(Justify::Center)
                   .children({kit::centred(headline(kHalo))
-                                 .absolute()
-                                 .inset(0)
+                                 .cover()
                                  .zIndex(1)
                                  .effect(mskia::Effect::directionalBlur(
                                      kSigma, 0.0f, kSigma))

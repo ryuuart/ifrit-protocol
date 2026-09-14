@@ -97,8 +97,7 @@ Element cell(const char* call, const char* note, paint::Paint fill,
   if (beneath.isSolid() || beneath.asShader())
     plate.children({kit::centred(text(kWord).styleClass("display").textFill(
                                      std::move(beneath)))
-                        .absolute()
-                        .inset(0)});
+                        .cover()});
   return sketch::kit::caption(kCell, call, note,
                               std::move(plate).children({std::move(word)}));
 }

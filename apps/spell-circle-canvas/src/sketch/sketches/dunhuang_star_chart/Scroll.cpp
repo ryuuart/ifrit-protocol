@@ -15,8 +15,7 @@ Element ring(SkPoint centre, float diameter) {
 
 auto DunhuangStarChart::ground() -> Element {
   return box()
-      .absolute()
-      .inset(0)
+      .cover()
       .key("ground")
       .fill(Paint::linear({0, 0}, {kW, kH},
                           {{0.0f, hexColor(0x171410)},
@@ -51,8 +50,7 @@ auto DunhuangStarChart::scrollBand(float x0, float x1, const char* keyName,
       .children(
           {// the sheet itself, with the fibre running along the roll
            box()
-               .absolute()
-               .inset(0)
+               .cover()
                .fill(Paint::linear({0, 0}, {0, kBandH},
                                    {{0.00f, kKraft},
                                     {0.055f, kPaperDeep},
@@ -64,15 +62,13 @@ auto DunhuangStarChart::scrollBand(float x0, float x1, const char* keyName,
                .cache(Cache::Texture),
            // the fibre — anisotropic grain, luminance not hue, under a bake
            box()
-               .absolute()
-               .inset(0)
+               .cover()
                .fill(paperGrain)
                .opacity(0.20f)
                .blend(SkBlendMode::kSoftLight)
                .cache(Cache::Texture),
            box()
-               .absolute()
-               .inset(0)
+               .cover()
                .foreground(Wash{.material = paperSpeck.material(),
                                 .blend = SkBlendMode::kMultiply,
                                 .amount = 0.55f})
@@ -87,8 +83,7 @@ auto DunhuangStarChart::scrollBand(float x0, float x1, const char* keyName,
                 }),
            // top and bottom rules — unequal, per lines::Rails
            box()
-               .absolute()
-               .inset(0)
+               .cover()
                .shape(keyedShape(std::string_view("band-rules"),
                                  [](SkSize s) {
                                    SkPathBuilder b;
@@ -131,8 +126,7 @@ auto DunhuangStarChart::mapFrame(int k, int seg) -> Element {
   const float yEq = (mapGcDec(k) + 45.0f) / kDecPerMm * kPxMm;
   std::vector<Element> marks{
       box()
-          .absolute()
-          .inset(0)
+          .cover()
           .stroke(Brush{}
                       .shaped(shapers::Jitter{.segmentLength = 30,
                                               .deviation = 1.1f,
@@ -275,8 +269,7 @@ auto DunhuangStarChart::discPlate(int seg) -> Element {
   // the limb: a heavy outer rule and a hairline inner one
   std::vector<Element> parts{
       box()
-          .absolute()
-          .inset(0)
+          .cover()
           .shape(shapes::circle())
           .stroke(Brush{}
                       .shaped(shapers::Jitter{
@@ -301,8 +294,7 @@ auto DunhuangStarChart::discPlate(int seg) -> Element {
     const float ang = kAzGain * wrap180(xiuRa[(size_t)m] - 278.0f);
     parts.push_back(
         box()
-            .absolute()
-            .inset(0)
+            .cover()
             .shape(keyedShape(
                 std::tuple(ang, rOut),
                 [ang, rOut] {
@@ -433,7 +425,7 @@ auto DunhuangStarChart::breakMark() -> Element {
       .rect(SkRect::MakeXYWH(kBreakL - 8, kBandTop - 16, w, h))
       .key("break")
       .opacity(gate(tPaper + 0.4f, tPaper + 1.4f))
-      .children({box().absolute().inset(0).fill(
+      .children({box().cover().fill(
                      Fill::color(hexColor(0x171410, 0.96f))),
                  each(std::views::iota(0, 2),
                       [w, h](int i) {

@@ -77,16 +77,13 @@ struct P5MixedForms final : sketch::Sketch {
                         .background = SkColor4f{0.047f, 0.055f, 0.094f, 1}});
     ctx.composer.render(
         compose::box()
-            .absolute()
-            .inset(0)
+            .cover()
             // What the pen and its guest are set in. Nothing below names a
             // face, a size or a colour except where it means to change one.
             .font({.size = kDisplay, .track = 1.5f})
             .ink({1, 1, 1, 1})
             .children({compose::graphics("p5_mixed_forms.loop",
-                                         [this](Pen& pen) { loop(pen); })
-                           .absolute()
-                           .inset(0)}));
+                                         [this](Pen& pen) { loop(pen); })}));
   }
 
   void loop(Pen& pen) {

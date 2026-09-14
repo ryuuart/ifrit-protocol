@@ -132,8 +132,7 @@ Element directLattice(std::shared_ptr<sigil::image::ImageAsset> asset) {
                         SkRect::MakeWH(ctx.size.width(), ctx.size.height()),
                         SkFilterMode::kLinear);
                   })
-               .absolute()
-               .inset(0),
+               .cover(),
            text(u8"DIRECT").font({.size = 17, .track = 0}).ink(kQuest)});
 }
 

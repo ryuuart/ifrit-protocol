@@ -165,9 +165,7 @@ struct BrushBotanicalStudy final : sketch::Sketch {
     brushes.scaleBrushes(1.15f);
 
     context.composer.render(compose::graphics("brush_botanical_study.sheet",
-                                              [this](Pen& pen) { draw(pen); })
-                                .absolute()
-                                .inset(0));
+                                              [this](Pen& pen) { draw(pen); }));
   }
 
   void draw(Pen& pen) {

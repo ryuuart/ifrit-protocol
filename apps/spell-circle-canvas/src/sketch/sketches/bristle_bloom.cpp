@@ -55,9 +55,7 @@ struct BristleBloom final : sketch::Sketch {
     sketch::kit::stage(
         ctx, {.size = {900, 900}, .captureAt = 0.25, .background = kPaper});
     ctx.composer.render(compose::graphics("bristle_bloom.bloom",
-                                          [this](Pen& pen) { draw(pen); })
-                            .absolute()
-                            .inset(0));
+                                          [this](Pen& pen) { draw(pen); }));
   }
 
   /** ONE HAIR of the loaded brush: it leaves the heel @p lane off the

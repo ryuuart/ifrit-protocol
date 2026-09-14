@@ -348,8 +348,7 @@ auto TwoAdvancedV4::mainframe() -> Element {
   // half-widths anywhere.
   Element accessing =
       kit::centred()
-          .absolute()
-          .inset(0)
+          .cover()
 
           .opacity(&shutterInfo)
           .children(

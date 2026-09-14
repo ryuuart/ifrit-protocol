@@ -5,6 +5,8 @@
 
 #include <sigilcompose/draw/Draw.h>
 
+#include <optional>
+
 #include "support/Host.h"
 
 namespace {
@@ -69,6 +71,30 @@ TEST(DrawNode, RunsThePenOverTheNodesBoxEveryFrame) {
   EXPECT_EQ(host.pixel(15, 15), SK_ColorBLACK);
   host.frame(1.0 / 60.0);
   EXPECT_EQ(runs, 2);  // Cache::None: the program runs each frame
+}
+
+TEST(DrawNode, ACanvasFillsTheBoxItStandsIn) {
+  // `cover()` is `absolute().inset(0)` said once, and a pen comes back
+  // wearing it — a p5 canvas fills its box by nature.
+  Host host;
+  float width = 0;
+  float height = 0;
+  host.composer.render(
+      box().children({box().width(80).height(60).children({pen([&](Pen& pen) {
+        width = pen.width;
+        height = pen.height;
+      })})}));
+  host.frame();
+  EXPECT_FLOAT_EQ(width, 80.0f);
+  EXPECT_FLOAT_EQ(height, 60.0f);
+  // The verb says what the two said between them: the node is taken out
+  // of the flow and stretched to the box it stands in.
+  host.composer.render(box().children({box().width(80).height(60).children(
+      {box().height(12), box().cover().key("over")})}));
+  host.frame();
+  const std::optional<SkRect> over = host.composer.bounds("over");
+  ASSERT_TRUE(over.has_value());
+  EXPECT_EQ(*over, SkRect::MakeWH(80, 60));
 }
 
 TEST(DrawNode, AProgramNamesTheParametersItReadsAndTheVerbTakesTheCache) {

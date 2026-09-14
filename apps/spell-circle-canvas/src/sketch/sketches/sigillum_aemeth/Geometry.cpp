@@ -21,8 +21,7 @@ Element onCircle(Utf8 words, SkPoint centre, float r, float thDeg,
  *  that side — seven sides addressed as one continuous arc-length. */
 Element onSide(Utf8 words, int k, float r) {
   return text(std::move(words))
-      .absolute()
-      .inset(0)
+      .cover()
       .onPath(TextPath{.path = heptChords(r, 0.0f),
                        .at = ((float)k + 0.5f) / 7.0f,
                        .align = TextPath::Align::Center,

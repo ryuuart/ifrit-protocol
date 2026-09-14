@@ -764,9 +764,7 @@ struct PsxDoomFire final : sketch::Sketch {
         6, &alpha);
 
     ctx.composer.render(
-        compose::graphics("psx_doom_fire.loop", [this](Pen& pen) { draw(pen); })
-            .absolute()
-            .inset(0));
+        compose::graphics("psx_doom_fire.loop", [this](Pen& pen) { draw(pen); }));
   }
 
   void draw(Pen& pen) {

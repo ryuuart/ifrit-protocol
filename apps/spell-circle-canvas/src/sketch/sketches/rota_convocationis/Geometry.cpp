@@ -85,8 +85,7 @@ auto RotaConvocationis::limina() -> Element {
       .children(each(std::views::iota(0, kLimens), [this, chordPath](int k) {
         return text(kLimina[k])
             .key("limen" + std::to_string(k))
-            .absolute()
-            .inset(0)
+            .cover()
             .hitTestable(false)
             .onPath({.path = chordPath,
                      .at = ((float)(k * 2) + 0.5f) / (float)kStations,
@@ -235,8 +234,7 @@ auto RotaConvocationis::emblema() -> Element {
                  text(hubRuneText)
                      .font({.size = 13.0f, .color = kAsh})
                      .key("hub-ring")
-                     .absolute()
-                     .inset(0)
+                     .cover()
                      .hitTestable(false)
                      .onPath({.path = shapes::chords(
                                   {.sides = 6,

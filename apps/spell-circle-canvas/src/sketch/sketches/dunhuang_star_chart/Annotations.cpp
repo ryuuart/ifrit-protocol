@@ -34,8 +34,7 @@ auto DunhuangStarChart::locator() -> Element {
       .opacity(gate(0.3f, 1.2f))
       .children(
           {box()
-               .absolute()
-               .inset(0)
+               .cover()
                .fill(Paint::linear({0, 0}, {0, lh},
                                    {{0.0f, hexColor(0xa2865c)},
                                     {0.5f, hexColor(0xd6bf95)},
@@ -145,8 +144,7 @@ auto DunhuangStarChart::poleDrift() -> Element {
           {.y = {10, 20, 30}, .pen = {.width = 0.5f, .dashIntervals = {2, 3}}}),
       [walk](const sketch::kit::Plot& f) {
         return box()
-            .absolute()
-            .inset(0)
+            .cover()
             .styleClass("ghost")
             .shape(walk(f, -24000, 4000, 250))
             .stroke(PathFormat{.width = 0.7f,
@@ -155,8 +153,7 @@ auto DunhuangStarChart::poleDrift() -> Element {
       },
       [this, walk](const sketch::kit::Plot& f) {
         return box()
-            .absolute()
-            .inset(0)
+            .cover()
             .styleClass("plotTrace")
             .shape(walk(f, 2000, 500, -25))
             .stroke(spans::upTo(gate(tPrec0, tPrec1)),
@@ -467,7 +464,7 @@ auto DunhuangStarChart::ruleNote() -> Element {
 auto DunhuangStarChart::headings() -> Element {
   // the scale bar, in cm of real paper
   const float barMm = 100.0f;
-  return box().absolute().inset(0).key("head").children(
+  return box().cover().key("head").children(
       {box().at({96, 16}).width(1500).column().gap(4).children(
            {text(doc.phrase("title"))
                 .font({.face = faceDisplay,

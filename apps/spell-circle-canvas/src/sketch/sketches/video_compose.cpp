@@ -165,8 +165,7 @@ struct VideoCompose final : sketch::Sketch {
          // The cover the scene waits behind until every source has
          // a frame.
          kit::centred(text(u8"BUFFERING / 005 SOURCES", title))
-             .absolute()
-             .inset(0)
+             .cover()
              .fill(Fill::color({0, 0, 0, 1}))
              .opacity(&loading)}));
   }

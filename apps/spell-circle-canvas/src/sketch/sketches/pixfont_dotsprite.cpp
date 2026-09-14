@@ -208,8 +208,7 @@ struct PixFontDotSprite final : sketch::Sketch {
                            {.track = 5, .tabularDigits = true, .snap = 1});
                  canvas.restore();
                })
-            .absolute()
-            .inset(0)
+            .cover()
             .cache(Cache::None));
   }
 
@@ -247,8 +246,7 @@ struct PixFontDotSprite final : sketch::Sketch {
                        image, SkRect::MakeXYWH(i * 16.0f, side + 26, 14, 14),
                        SkSamplingOptions(SkFilterMode::kLinear), &paint);
                })
-            .absolute()
-            .inset(0));
+            .cover());
   }
 };
 

@@ -644,31 +644,32 @@ struct Ds2Bench : sketch::Sketch {
                           {// KEYLESS, and it has to be: the inner disc
                            // breathes off the pen's own clock, which no key
                            // can name.
-                           pen([](Pen& q) {
-                             const float r = q.width * 0.5f;
-                             q.noFill();
-                             q.stroke(mskia::withAlpha(kCyan, 0.82f));
-                             q.strokeWeight(1.3f);
-                             q.circle(r, r, 2.0f * (r - 1.1f));
-                             for (int i = 0; i < 4; ++i) {
-                               const SkPoint in = arrange::onRing(
-                                   (size_t)i, 4, {r, r}, {r * 0.6f, r * 0.6f},
-                                   0.0f, 6.2831853f, arrange::Turn::Closed);
-                               const SkPoint out = arrange::onRing(
-                                   (size_t)i, 4, {r, r}, {r * 0.9f, r * 0.9f},
-                                   0.0f, 6.2831853f, arrange::Turn::Closed);
-                               q.line(in.fX, in.fY, out.fX, out.fY);
-                             }
-                             q.noStroke();
-                             q.fill(mskia::withAlpha(
-                                 kCyan,
-                                 0.3f +
-                                     0.5f * (0.5f + 0.5f * std::sin(q.millis() *
+                           box().width(15.0f).height(15.0f).children(
+                               {pen([](Pen& q) {
+                                 const float r = q.width * 0.5f;
+                                 q.noFill();
+                                 q.stroke(mskia::withAlpha(kCyan, 0.82f));
+                                 q.strokeWeight(1.3f);
+                                 q.circle(r, r, 2.0f * (r - 1.1f));
+                                 for (int i = 0; i < 4; ++i) {
+                                   const SkPoint in = arrange::onRing(
+                                       (size_t)i, 4, {r, r},
+                                       {r * 0.6f, r * 0.6f}, 0.0f, 6.2831853f,
+                                       arrange::Turn::Closed);
+                                   const SkPoint out = arrange::onRing(
+                                       (size_t)i, 4, {r, r},
+                                       {r * 0.9f, r * 0.9f}, 0.0f, 6.2831853f,
+                                       arrange::Turn::Closed);
+                                   q.line(in.fX, in.fY, out.fX, out.fY);
+                                 }
+                                 q.noStroke();
+                                 q.fill(mskia::withAlpha(
+                                     kCyan,
+                                     0.3f + 0.5f * (0.5f +
+                                                    0.5f * std::sin(q.millis() *
                                                                     0.0034f))));
-                             q.circle(r, r, r * 0.8f);
-                           })
-                               .width(15.0f)
-                               .height(15.0f),
+                                 q.circle(r, r, r * 0.8f);
+                               })}),
                            text("Navigate")}),
                   text("[Enter] Select"), text("[Esc] Exit")})});
 

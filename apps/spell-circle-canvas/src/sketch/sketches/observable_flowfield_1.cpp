@@ -23,9 +23,7 @@ struct ObservableFlowfield1 final : sketch::Sketch {
     sketch::kit::stage(context, {.size = {720, 720}, .captureAt = 0.05});
 
     context.composer.render(compose::graphics("observable_flowfield_1.loop",
-                                              [this](Pen& pen) { draw(pen); })
-                                .absolute()
-                                .inset(0));
+                                              [this](Pen& pen) { draw(pen); }));
   }
 
   void draw(Pen& pen) {

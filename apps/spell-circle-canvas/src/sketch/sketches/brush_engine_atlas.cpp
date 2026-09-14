@@ -82,9 +82,7 @@ struct BrushEngineAtlas final : sketch::Sketch {
     brushes.add("paper-tip", std::move(paperTip));
 
     context.composer.render(compose::graphics("brush_engine_atlas.sheet",
-                                              [this](Pen& pen) { draw(pen); })
-                                .absolute()
-                                .inset(0));
+                                              [this](Pen& pen) { draw(pen); }));
   }
 
   void draw(Pen& pen) {

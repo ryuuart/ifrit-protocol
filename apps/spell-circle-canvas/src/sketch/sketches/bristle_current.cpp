@@ -164,9 +164,7 @@ struct BristleCurrent final : sketch::Sketch {
     });
 
     ctx.composer.render(compose::graphics("bristle_current.field",
-                                          [this](Pen& pen) { draw(pen); })
-                            .absolute()
-                            .inset(0));
+                                          [this](Pen& pen) { draw(pen); }));
   }
 
   /** THE PAPER, laid once. The marks are deposited on it over the whole

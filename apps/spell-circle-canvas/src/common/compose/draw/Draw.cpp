@@ -154,20 +154,23 @@ struct Guest {
 
 }  // namespace
 
+// A CANVAS FILLS THE BOX IT STANDS IN, which is what p5's own does: the
+// node comes back covering, and a pen given a box of its own states that
+// box — an inset, a rect, or a size in a flow the node is put back into.
 Element pen(PenProgram program, Cache caching) {
-  return custom(over(std::move(program))).cache(caching);
+  return custom(over(std::move(program))).cache(caching).cover();
 }
 
 Element pen(std::string_view key, PenProgram program, Cache caching) {
-  return custom(key, over(std::move(program))).cache(caching);
+  return custom(key, over(std::move(program))).cache(caching).cover();
 }
 
 Element graphics(PenProgram program, Cache caching) {
-  return custom(onto(std::move(program))).cache(caching);
+  return custom(onto(std::move(program))).cache(caching).cover();
 }
 
 Element graphics(std::string_view key, PenProgram program, Cache caching) {
-  return custom(key, onto(std::move(program))).cache(caching);
+  return custom(key, onto(std::move(program))).cache(caching).cover();
 }
 
 void paintRetained(draw::Pen& pen, const Element& element, const SkRect& box,

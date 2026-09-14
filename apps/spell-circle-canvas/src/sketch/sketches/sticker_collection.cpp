@@ -185,9 +185,7 @@ struct StickerCollection final : sketch::Sketch {
                     pen.canvas()->recorder());
                 drawContained(pen, frame.image, boxes.back(), 5.0f);
               }
-            })
-            .absolute()
-            .inset(0);
+            });
 
     const weave::TextStyle title = weave::textStyle(
         {.size = 29, .color = SkColor4f{1, 1, 1, 1}, .track = 3.4f});

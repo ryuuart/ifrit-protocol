@@ -268,8 +268,7 @@ struct ExrChannels final : sketch::Sketch {
   static Element missing(const std::string& why) {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
     return box()
-        .absolute()
-        .inset(0)
+        .cover()
         .fill(Fill::color(sheet.palette.ground))
         .column()
         .gap(10)

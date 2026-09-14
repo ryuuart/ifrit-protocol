@@ -158,8 +158,7 @@ auto SigillumAemeth::basketFan() -> Element {
     const SkPoint a1 = fanPt(6, c, -fanDR * 0.55f);
     const SkPoint nameAt{452.0f, 52.0f + (float)c * 33.0f};
     rays.push_back(box()
-                       .absolute()
-                       .inset(0)
+                       .cover()
                        .shape(keyedShape(std::tuple{a0.fX, a0.fY, a1.fX, a1.fY},
                                          [a0, a1] {
                                            SkPathBuilder b;
@@ -178,8 +177,7 @@ auto SigillumAemeth::basketFan() -> Element {
                        .opacity(lit(delay, 360)));
     rays.push_back(
         box()
-            .absolute()
-            .inset(0)
+            .cover()
             .shape(keyedShape(std::tuple{a1.fX, a1.fY, nameAt.fX, nameAt.fY},
                               [a1, nameAt] {
                                 SkPathBuilder b;

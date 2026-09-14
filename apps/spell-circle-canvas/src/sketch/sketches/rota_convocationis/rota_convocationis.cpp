@@ -14,8 +14,7 @@ auto RotaConvocationis::describe() -> Element {
       .styleSheet(classes)
       .ink(kBone)
       .children({box()
-                     .absolute()
-                     .inset(0)
+                     .cover()
                      .opacity(envelope())
                      // The charged circle breathes: under a percent of
                      // scale, which is not a size change so much as the

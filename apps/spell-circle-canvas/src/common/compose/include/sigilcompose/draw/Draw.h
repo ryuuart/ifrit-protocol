@@ -42,8 +42,9 @@ using PenProgram = sigil::core::Callable<void(draw::Pen&, const PaintContext&)>;
  * frame holds in the next and a guest painted from it is retained. A
  * program that is drawn ONCE says `Cache::Texture` HERE rather than
  * chaining it after, because what the drawing IS is not a correction to
- * the verb. Like `custom()`, it sizes as an empty box does —
- * give it dims, or make it `absolute().inset(0)`. */
+ * the verb. IT COMES BACK COVERING — `Element::cover()`, the box it
+ * stands in — because a canvas fills its box by nature; a pen given a box
+ * of its own says so with `inset()`, `rect()` or a size. */
 Element pen(PenProgram program, Cache caching = Cache::None);
 /** The PRUNABLE spelling: @p key is the program's identity, on the same
  *  contract as the keyed `custom()`. */
@@ -66,8 +67,8 @@ Element pen(std::string_view key, PenProgram program,
  *  surface goes on being put down, `redraw()` runs it once more, and
  *  `frameRate(fps)` runs it at most that often. The node is `custom()` at
  *  @p caching like `pen()`, `Cache::None` by default, so the blit happens
- *  every frame whatever the program is doing; and like `pen()` it sizes as an
- * empty box does, so give it dims or make it `absolute().inset(0)`.
+ *  every frame whatever the program is doing; and like `pen()` it comes
+ *  back covering the box it stands in.
  *
  *  The pen's clock, fonts, ink, font and input are the node's, exactly
  *  as in `pen()` — except that `frameCount` counts the program's RUNS and

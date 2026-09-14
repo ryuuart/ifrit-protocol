@@ -36,9 +36,7 @@ struct ObservableCirclePacking final : sketch::Sketch {
     sketch::kit::stage(context, {.size = kCanvas, .captureAt = 4.0});
 
     context.composer.render(compose::graphics("observable_circle_packing.loop",
-                                              [this](Pen& pen) { draw(pen); })
-                                .absolute()
-                                .inset(0));
+                                              [this](Pen& pen) { draw(pen); }));
   }
 
   bool overlaps(const Circle& candidate, float padding = 2.0f) const {

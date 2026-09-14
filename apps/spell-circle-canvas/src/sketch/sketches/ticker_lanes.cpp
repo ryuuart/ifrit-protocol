@@ -105,7 +105,7 @@ sketch::kit::Layer lane(const Lane& recorded, std::string styleClass = {}) {
 /** A PLOT OF RECORDED LANES, over the baseline they are read against. */
 Element plot(const char* key, std::vector<sketch::kit::Layer> lanes) {
   lanes.insert(lanes.begin(), sketch::kit::rules({.y = {0.0}}));
-  return sketch::kit::plot(key, kField, std::move(lanes)).absolute().inset(0);
+  return sketch::kit::plot(key, kField, std::move(lanes)).cover();
 }
 
 Element cell(const char* call, const char* note, Element body, Utf8 readout) {

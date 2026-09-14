@@ -131,6 +131,8 @@ Element& Element::absolute() {
   return *this;
 }
 
+Element& Element::cover() { return inset(0.0f); }
+
 Element& Element::inset(float all) { return inset(all, all, all, all); }
 
 Element& Element::inset(float l, float t, float r, float b) {
