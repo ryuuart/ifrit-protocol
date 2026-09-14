@@ -40,6 +40,7 @@
 #include <sigilsketch/kit/Kit.h>
 
 #include <memory>
+#include <ranges>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -135,10 +136,13 @@ struct PaintShelf final : sketch::Sketch {
                                     {1.0f, {0.96f, 0.72f, 0.34f, 1}}});
       return p.worldSpace(world);
     };
+    // TWO NODES, ONE DESCRIPTION — which is the whole of what worldSpace
+    // is read by.
     const auto pair = [&](bool world) {
       return box().row().padding(18, 34).gap(16).children(
-          {box().grow(1).alignSelf(Align::Stretch).fill(field(world)),
-           box().grow(1).alignSelf(Align::Stretch).fill(field(world))});
+          {each(std::views::iota(0, 2), [&](int) {
+            return box().grow(1).alignSelf(Align::Stretch).fill(field(world));
+          })});
     };
 
     ctx.composer.render(sketch::kit::page(
