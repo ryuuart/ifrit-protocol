@@ -36,7 +36,6 @@ struct ObservableCirclePackingContained final : sketch::Sketch {
     context.composer.render(
         compose::graphics("observable_circle_packing_contained.loop",
                           [this](Pen& pen) { draw(pen); })
-            .absolute()
             .inset(0));
   }
 
@@ -46,12 +45,13 @@ struct ObservableCirclePackingContained final : sketch::Sketch {
            kBoundary;
   }
 
-  bool overlaps(const Circle& candidate, float padding = 2.0f) const {
-    for (const Circle& circle : circles) {
-      if ((candidate.centre - circle.centre).length() <
-          candidate.radius + circle.radius + padding)
+  /** Whether @p candidate touches any circle but the one at @p ignore. */
+  bool overlaps(const Circle& candidate, float padding = 2.0f,
+                size_t ignore = (size_t)-1) const {
+    for (size_t i = 0; i < circles.size(); ++i)
+      if (i != ignore && (candidate.centre - circles[i].centre).length() <
+                             candidate.radius + circles[i].radius + padding)
         return true;
-    }
     return false;
   }
 
@@ -75,12 +75,7 @@ struct ObservableCirclePackingContained final : sketch::Sketch {
       if (!circle.growing) continue;
       Circle next = circle;
       next.radius += 1.0f;
-      bool blocked = outside(next);
-      for (size_t other = 0; other < circles.size() && !blocked; ++other)
-        if (index != other && (next.centre - circles[other].centre).length() <
-                                  next.radius + circles[other].radius + 1.0f)
-          blocked = true;
-      if (blocked)
+      if (outside(next) || overlaps(next, 1.0f, index))
         circle.growing = false;
       else
         circle.radius = next.radius;
@@ -98,8 +93,7 @@ struct ObservableCirclePackingContained final : sketch::Sketch {
     pen.circle(400.0f, 400.0f, kBoundary * 2.0f);
     pen.stroke(0, 110);
     for (const Circle& circle : circles) {
-      pen.fill(circle.colour.fR * 255.0f, circle.colour.fG * 255.0f,
-               circle.colour.fB * 255.0f);
+      pen.fill(circle.colour);
       pen.circle(circle.centre.x(), circle.centre.y(), circle.radius * 2.0f);
     }
     addCircle(pen);
