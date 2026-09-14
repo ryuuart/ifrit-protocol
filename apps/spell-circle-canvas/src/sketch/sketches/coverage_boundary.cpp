@@ -35,6 +35,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilimage/asset/ImageAsset.h>
@@ -92,10 +93,8 @@ std::shared_ptr<const sigil::image::ImageAsset> cutOut(float alpha) {
  *  outline and a recessed band inside it. Neither knows what outline it
  *  will be handed. */
 LayerStyle halo() {
-  LayerStyle style;
-  style.under.push_back(styles::OuterGlow{kHalo, kGlow, 1.0f});
-  style.over.push_back(styles::InnerShadow{{0, 0, 0, 0.55f}, {0, 2}, 5});
-  return style;
+  return {.under = {styles::OuterGlow{kHalo, kGlow, 1.0f}},
+          .over = {styles::InnerShadow{{0, 0, 0, 0.55f}, {0, 2}, 5}}};
 }
 
 /** THE TWO CUT-OUTS THIS SHEET SHOWS, baked once and held together for
@@ -109,18 +108,17 @@ struct CutOuts {
 };
 
 Element art(const CutOuts& cut, float alpha = 1.0f) {
-  return image(alpha < 1.0f ? cut.faint : cut.solid)
-      .width(kArt)
-      .height(kArt);
+  return image(alpha < 1.0f ? cut.faint : cut.solid).width(kArt).height(kArt);
 }
 
 Element cell(const char* call, const char* note, Element body) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture})
-          .children({std::move(body).absolute().inset(
-              (kCell - kArt) / 2, (kPicture - kArt) / 2, (kCell - kArt) / 2,
-              (kPicture - kArt) / 2)}));
+  const sketch::kit::Theme& look = sketch::kit::theme();
+  kit::Caption how = look.voice(kCell);
+  how.justify = Align::Center;  // the picture stands in the middle of its well
+  how.body = {.width = Dimension(kCell),
+              .height = Dimension(kPicture),
+              .ground = Fill::color(look.palette.cellGround)};
+  return kit::cell(how, call, note, std::move(body));
 }
 
 }  // namespace
@@ -134,15 +132,8 @@ struct CoverageBoundary final : sketch::Sketch {
 
     // The union of three discs: a silhouette that exists only once the
     // children have been drawn, so no shape() could have named it.
-    const auto disc = [](float x, float y, float d) {
-      return box()
-          .absolute()
-          .left(x)
-          .top(y)
-          .width(d)
-          .height(d)
-          .shape(shapes::circle())
-          .fill(Fill::color(kFigure));
+    const auto disc = [](SkPoint centre, float radius) {
+      return kit::dot(centre, radius, Fill::color(kFigure));
     };
 
     ctx.composer.render(sketch::kit::page(
@@ -159,40 +150,40 @@ struct CoverageBoundary final : sketch::Sketch {
                    "— a mark that dressed itself would "
                    "have no fixed point"},
         kit::cells(
-            {.cells = {cell("image(cutOut)",
-                            "the source · an opaque star with a hole "
-                            "punched through it, and a rectangle of nothing "
-                            "around both",
-                            art(cut)),
-                       cell("…"
-                            ".style(halo)",
-                            "Boundary::Auto is the node's own shape · "
-                            "the halo hugs the BOX, which is what the "
-                            "picture is not",
-                            art(cut).style(halo())),
-                       cell(
-                           "…"
-                           ".boundary(Coverage).style(halo)",
-                           "the same style on the traced silhouette · "
-                           "a staircase of whole pixels, which is what "
-                           "reading a raster gives",
-                           art(cut).boundary(Boundary::Coverage).style(halo())),
-                       cell("the same cut-out at 30% alpha",
-                            "under half a pixel covered is not a silhouette "
-                            "· the trace comes back EMPTY, and an "
-                            "empty trace keeps the node's own shape",
-                            art(cut, kWash)
-                                .boundary(Boundary::Coverage)
-                                .style(halo())),
-                       cell("children only · boundary(Coverage)",
-                            "the content and the CHILDREN are in the trace "
-                            "· three discs, one outline, and no "
-                            "shape() that could have said it",
-                            box()
-                                .boundary(Boundary::Coverage)
-                                .style(halo())
-                                .children({disc(6, 22, 62), disc(44, 4, 70),
-                                           disc(30, 60, 76)}))},
+            {.cells =
+                 {cell("image(cutOut)",
+                       "the source · an opaque star with a hole "
+                       "punched through it, and a rectangle of nothing "
+                       "around both",
+                       art(cut)),
+                  cell("…"
+                       ".style(halo)",
+                       "Boundary::Auto is the node's own shape · "
+                       "the halo hugs the BOX, which is what the "
+                       "picture is not",
+                       art(cut).style(halo())),
+                  cell("…"
+                       ".boundary(Coverage).style(halo)",
+                       "the same style on the traced silhouette · "
+                       "a staircase of whole pixels, which is what "
+                       "reading a raster gives",
+                       art(cut).boundary(Boundary::Coverage).style(halo())),
+                  cell("the same cut-out at 30% alpha",
+                       "under half a pixel covered is not a silhouette "
+                       "· the trace comes back EMPTY, and an "
+                       "empty trace keeps the node's own shape",
+                       art(cut, kWash)
+                           .boundary(Boundary::Coverage)
+                           .style(halo())),
+                  cell("children only · boundary(Coverage)",
+                       "the content and the CHILDREN are in the trace "
+                       "· three discs, one outline, and no "
+                       "shape() that could have said it",
+                       box()
+                           .boundary(Boundary::Coverage)
+                           .style(halo())
+                           .children({disc({37, 53}, 31), disc({79, 39}, 35),
+                                      disc({68, 98}, 38)}))},
              .gap = 12})));
   }
 };
