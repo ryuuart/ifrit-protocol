@@ -36,6 +36,7 @@
 #include <cmath>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
+#include <ranges>
 #include <string>
 #include <vector>
 
@@ -108,46 +109,48 @@ struct DartFlight final : sketch::Set {
     const material::Material brass = material::kit::surface(
         {.baseColor = {0.86f, 0.62f, 0.28f, 1.0f}, .roughness = 0.35f});
 
-    world::Element subject = world::Element().key("flight");
-    subject.children(
-        {world::Element().key("rail").mesh(rail).fill(wire).tag("rail")});
-
     // The gates: one node per station, each standing at a constant
     // distance along the loop and ROLLED about the rail inside the frame
     // the curve put it in — which is `along()` composing with the
     // rotation lanes rather than replacing them.
-    for (int i = 0; i < kGates; ++i) {
-      const float where = lap * ((float)i / (float)kGates);
-      subject.children({world::Element()
-                            .key("gate" + std::to_string(i))
-                            .along(loop, where)
-                            .rotateY((float)i * 11.0f)
-                            .mesh(gate())
-                            .fill(brass)
-                            .tag("gate")});
-    }
+    const auto gateAt = [&](int i) {
+      return world::Element()
+          .key("gate" + std::to_string(i))
+          .along(loop, lap * ((float)i / (float)kGates))
+          .rotateY((float)i * 11.0f)
+          .mesh(gate())
+          .fill(brass)
+          .tag("gate");
+    };
 
-    // …and the dart, on the same curve, at a distance that is a function
-    // of the moment and of nothing else.
-    subject.children(
-        {world::Element()
-             .key("dart")
-             .along(loop, motion::phase(seconds, 1.0 / kLapsPerSecond) * lap)
-             .mesh(dart())
-             .fill(chrome)
-             .tag("dart")});
+    world::Element subject =
+        world::Element()
+            .key("flight")
+            .children({world::Element().key("rail").mesh(rail).fill(wire).tag(
+                "rail")})
+            .children(std::views::iota(0, kGates) |
+                      std::views::transform(gateAt))
+            // …and the dart, on the same curve, at a distance that is a
+            // function of the moment and of nothing else.
+            .children(
+                {world::Element()
+                     .key("dart")
+                     .along(loop,
+                            motion::phase(seconds, 1.0 / kLapsPerSecond) * lap)
+                     .mesh(dart())
+                     .fill(chrome)
+                     .tag("dart")});
 
-    world::kit::Set set;
-    set.rig.extent = 220.0f;
-    set.rig.bearing = -30.0f;
-    set.rig.elevation = 32.0f;
-    set.rig.intensity = 1.1f;
-    set.ground = 4.0f;
-    set.drop = 0.85f;
-    set.table.radius = 700.0f;
-    set.table.height = 300.0f;
-    set.table.period = 18.0f;
-    set.table.fovYDeg = 42.0f;
+    const world::kit::Set set{.rig = {.extent = 220.0f,
+                                      .bearing = -30.0f,
+                                      .elevation = 32.0f,
+                                      .intensity = 1.1f},
+                              .table = {.radius = 700.0f,
+                                        .height = 300.0f,
+                                        .period = 18.0f,
+                                        .fovYDeg = 42.0f},
+                              .ground = 4.0f,
+                              .drop = 0.85f};
     return world::Frame(world::kit::litSet(std::move(subject), set, seconds));
   }
 };
