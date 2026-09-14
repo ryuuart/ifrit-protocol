@@ -120,31 +120,34 @@ struct MeshGenerators final : sketch::Sketch {
     steel.specular = 0.9f;
     steel.shininess = 64;
 
-    render::MeshStyle slate = steel;
-    slate.baseColor = {0.3f, 0.32f, 0.4f, 1};
-    slate.specular = 0.4f;
+    // Every body is that steel with its own colour, and two of them with
+    // one more dial moved — so the row is read by its tints rather than by
+    // five copies of one style.
+    const auto tinted = [&steel](SkColor4f colour, float specular = 0.9f,
+                                 float shininess = 64) {
+      render::MeshStyle style = steel;
+      style.baseColor = colour;
+      style.specular = specular;
+      style.shininess = shininess;
+      return style;
+    };
+
     render::drawMesh(canvas, pedestal, camera::place({kLineupAt, -150, 0}),
-                     view, kCanvas, slate);
+                     view, kCanvas, tinted({0.3f, 0.32f, 0.4f, 1}, 0.4f));
 
     render::drawMesh(canvas, star,
                      camera::place({kLineupAt - 290, 60, 0}, 38, -18, 8), view,
                      kCanvas, steel);
 
-    render::MeshStyle bronze = steel;
-    bronze.baseColor = {0.85f, 0.55f, 0.3f, 1};
     render::drawMesh(canvas, ring,
                      camera::place({kLineupAt + 20, 40, -60}, 0, -32, 14), view,
-                     kCanvas, bronze);
+                     kCanvas, tinted({0.85f, 0.55f, 0.3f, 1}));
 
-    render::MeshStyle jade = steel;
-    jade.baseColor = {0.35f, 0.8f, 0.6f, 1};
     render::drawMesh(canvas, vase, camera::place({kLineupAt + 310, 30, -30}),
-                     view, kCanvas, jade);
+                     view, kCanvas, tinted({0.35f, 0.8f, 0.6f, 1}));
 
-    render::MeshStyle rail_steel = steel;
-    rail_steel.baseColor = {0.6f, 0.68f, 0.8f, 1};
-    rail_steel.shininess = 48;
-    render::drawMesh(canvas, tube, glm::mat4(1.0f), view, kCanvas, rail_steel);
+    render::drawMesh(canvas, tube, glm::mat4(1.0f), view, kCanvas,
+                     tinted({0.6f, 0.68f, 0.8f, 1}, 0.9f, 48));
 
     // The panels are their own light, so the tint lane graded along `t`
     // reads as the lane rather than as the key's falloff across it.
