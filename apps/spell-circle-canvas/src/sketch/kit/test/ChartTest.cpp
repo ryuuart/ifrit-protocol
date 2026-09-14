@@ -147,26 +147,90 @@ TEST(SketchKitChart, APolarFrameCarriesXOntoTheSweepAndYOntoTheRadius) {
   EXPECT_NEAR(point.fY, 80.0f + 80.0f * std::sin(radians(-75.0)), 1e-3f);
 }
 
-TEST(SketchKitChart, APolarWedgeStandsInTheSquareOfItsOwnRadius) {
+TEST(SketchKitChart, APolarWedgeStandsInTheBoundsOfItsOwnSector) {
   const std::vector<kit::Datum> rows{{0, 25}, {1, 100}, {2, 49}};
   const kit::Plot frame = wheel();
+  constexpr SkSize kWheel{200, 160};
   Drawn drawn(
       sheet(kit::plot("w", frame, {kit::bands(rows, {.y = &kit::Datum::y})})
-                .width(200)
-                .height(160)));
+                .width(kWheel.width())
+                .height(kWheel.height())));
   const std::optional<SkRect> box = drawn.composer.bounds("w-bar0-1");
   ASSERT_TRUE(box.has_value());
-  const float reach =
-      (float)frame.radiusFraction(100) * frame.radius({200, 160});
-  const SkPoint hub = frame.centre({200, 160});
-  EXPECT_NEAR(box->centerX(), hub.fX, 0.51f);
-  EXPECT_NEAR(box->centerY(), hub.fY, 0.51f);
-  EXPECT_NEAR(box->width(), 2 * reach, 0.51f);
-  // The shortest wedge is inscribed in the smallest square, so a wedge's
-  // box is its own radius and not the wheel's.
+
+  // The wedge occupies a twelfth of the wheel, and its box is the room
+  // that wedge actually takes: its two rim ends stand on it, and the
+  // whole of it is inside the disc's own square.
+  const data::Scale angles = frame.scale(kit::Axis::X, SkSize::MakeEmpty());
+  const double from = angles.apply(1);
+  const double to = from + angles.bandwidth();
+  const SkPoint hub = frame.centre(kWheel);
+  const float outer = (float)frame.radiusFraction(100) * frame.radius(kWheel);
+  const float inner = (float)frame.radiusFraction(0) * frame.radius(kWheel);
+  for (const double end : {from, to})
+    for (const float r : {inner, outer}) {
+      const SkPoint on{hub.fX + r * std::cos(radians(end)),
+                       hub.fY + r * std::sin(radians(end))};
+      EXPECT_NEAR(std::clamp(on.fX, box->left(), box->right()), on.fX, 0.51f);
+      EXPECT_NEAR(std::clamp(on.fY, box->top(), box->bottom()), on.fY, 0.51f);
+    }
+  EXPECT_GT(box->left(), hub.fX - outer - 0.51f);
+  EXPECT_LT(box->right(), hub.fX + outer + 0.51f);
+  // A 30° wedge inscribed in its whole disc would be a bake nine parts
+  // transparent; its own bounds are a fraction of that square.
+  EXPECT_LT(box->width() * box->height(), 0.5f * 4 * outer * outer);
+
+  // The shortest wedge still gets the smaller box, because its bounds are
+  // its own radius and not the wheel's.
   const std::optional<SkRect> shortest = drawn.composer.bounds("w-bar0-0");
   ASSERT_TRUE(shortest.has_value());
-  EXPECT_LT(shortest->width(), box->width());
+  EXPECT_LT(shortest->width() * shortest->height(),
+            box->width() * box->height());
+}
+
+TEST(SketchKitChart, BandsAlongTheYScaleAreARowReading) {
+  const std::vector<kit::Datum> rows{{25, 0}, {50, 1}, {100, 2}, {75, 3}};
+  const kit::Plot frame{.x = {.domain = {0, 100}},
+                        .y = {.transform = data::Transform::Band, .steps = 4}};
+  Drawn drawn(sheet(kit::plot("r", frame,
+                              {kit::bands(rows, {.x = &kit::Datum::x,
+                                                 .y = &kit::Datum::y,
+                                                 .along = kit::Axis::Y})})
+                        .width(kField)
+                        .height(kFieldTall)));
+  const data::Scale across = frame.scale(kit::Axis::X, kBox);
+  const data::Scale down = frame.scale(kit::Axis::Y, kBox);
+  const std::optional<SkRect> box = drawn.composer.bounds("r-bar0-2");
+  ASSERT_TRUE(box.has_value());
+  // The band is handed out DOWN and the bar grows ACROSS, from the base.
+  EXPECT_NEAR(box->left(), (float)across.apply(0), 0.51f);
+  EXPECT_NEAR(box->right(), (float)across.apply(100), 0.51f);
+  EXPECT_NEAR(
+      std::min(box->top(), box->bottom()),
+      std::min((float)down.apply(2), (float)(down.apply(2) + down.bandwidth())),
+      0.51f);
+  EXPECT_NEAR(box->height(), std::abs((float)down.bandwidth()), 0.51f);
+}
+
+TEST(SketchKitChart, ABaseOffZeroPutsAShortfallOnOneSideOfTheRule) {
+  const std::vector<kit::Datum> rows{{0, 0.8}, {1, 1.3}};
+  const kit::Plot frame{.x = {.transform = data::Transform::Band, .steps = 2},
+                        .y = {.domain = {0.5, 1.5}}};
+  Drawn drawn(
+      sheet(kit::plot("d", frame,
+                      {kit::bands(rows, {.y = &kit::Datum::y, .base = 1.0})})
+                .width(kField)
+                .height(kFieldTall)));
+  const data::Scale up = frame.scale(kit::Axis::Y, kBox);
+  const float rule = (float)up.apply(1.0);
+  const std::optional<SkRect> under = drawn.composer.bounds("d-bar0-0");
+  const std::optional<SkRect> over = drawn.composer.bounds("d-bar0-1");
+  ASSERT_TRUE(under.has_value());
+  ASSERT_TRUE(over.has_value());
+  EXPECT_NEAR(under->top(), rule, 0.51f);
+  EXPECT_NEAR(under->bottom(), (float)up.apply(0.8), 0.51f);
+  EXPECT_NEAR(over->bottom(), rule, 0.51f);
+  EXPECT_NEAR(over->top(), (float)up.apply(1.3), 0.51f);
 }
 
 // The recordings

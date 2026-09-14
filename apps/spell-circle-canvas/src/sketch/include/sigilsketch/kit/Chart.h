@@ -352,18 +352,32 @@ template <std::ranges::input_range R, class Row = std::ranges::range_value_t<R>>
 /** HOW THE BAND A DATUM OWNS IS DRAWN OUT to that datum's value: a bar on
  *  a Cartesian frame, a wedge on a polar one.
  *
- *  It is the band the x scale hands each entry, filled from `base` to the
- *  value the y scale places — so a band x scale with a square-root y scale
- *  is the polar-area diagram, and the same two props in a Cartesian frame
- *  are a column chart. Readers are as `Marks`'s: unset x is the row's
- *  index. */
+ *  It is the band one scale hands each entry, filled from `base` to the
+ *  value the other scale places — so a band angle scale with a square-root
+ *  radius scale is the polar-area diagram, and the same two props in a
+ *  Cartesian frame are a column chart. Readers are as `Marks`'s: unset x
+ *  is the row's index. */
 template <class Row>
 struct Bands {
   std::function<double(const Row&)> x;
   std::function<double(const Row&)> y;
-  /** The y the band grows FROM. */
+  /** WHERE THE BAND GROWS FROM, on the scale it grows ALONG — 0 for a
+   *  column standing on its axis, a centre value for a reading of
+   *  DEVIATIONS, which draws each band from that rule to its own value and
+   *  so puts a shortfall on one side of it and a surplus on the other. */
   double base = 0.0;
   float corners = 0.0f;
+  /** WHICH SCALE HANDS OUT THE BANDS. `X` (default) gives each datum a
+   *  band ACROSS and grows it UP to the y its reader answers, which is the
+   *  column chart; `Y` gives it a band DOWN and grows it ACROSS to the x
+   *  its reader answers, which is the row reading — a name at the left
+   *  from the y axis's own ticks, the bar across, and the figure after it
+   *  as a mark.
+   *
+   *  A POLAR FRAME READS ITS BANDS ALONG THE ANGLE whichever this says: a
+   *  wedge is a band of the sweep grown out to its own radius, and the
+   *  radius is what the reading is. */
+  Axis along = Axis::X;
   /** THE ELEMENT ONE DATUM IS DRAWN AS, as a function of its index and
    *  then of its value; a part takes the parameters it names. Empty is a
    *  box filled in the ink in force. On a polar frame the layer puts the
@@ -418,9 +432,10 @@ namespace detail {
   return stated.empty() ? own : std::string_view(stated);
 }
 
-/** The layer that draws @p data's bands out from @p base; @p word names
- *  the part in each band's key, @p styleClass dresses it. */
+/** The layer that draws @p data's bands out from @p base along @p along;
+ *  @p word names the part in each band's key, @p styleClass dresses it. */
 [[nodiscard]] Layer banded(std::vector<Datum> data, double base, float corners,
+                           Axis along,
                            compose::kit::Part<std::size_t, double> part,
                            std::string_view word, std::string_view styleClass);
 
@@ -459,7 +474,8 @@ Layer bands(R&& rows, const std::type_identity_t<Bands<Row>>& how) {
         {detail::number(how.x, row, index), detail::number(how.y, row, index)});
     ++index;
   }
-  return detail::banded(std::move(data), how.base, how.corners, how.part, "bar",
+  return detail::banded(std::move(data), how.base, how.corners, how.along,
+                        how.part, "bar",
                         detail::classOf(how.styleClass, "plotBar"));
 }
 

@@ -93,6 +93,7 @@
 #include <sigilmotion/Animation.h>
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -162,6 +163,15 @@ const data::Scale kRadius{
 
 /** A death rate as a radius in px. */
 float radiusOf(float rate) { return (float)kRadius(rate); }
+
+/** THE RATE THAT REACHES A WHEEL'S OWN RIM — the inverse of the one
+ *  scale, so a wheel states the radius it was drawn at and the domain
+ *  follows. Both wheels read against the same rule, which is the plate's
+ *  whole argument. */
+float rimRate(float rMax) {
+  const float unit = (float)kRadius(1.0);
+  return (rMax / unit) * (rMax / unit);
+}
 // The paper sliver between two blue wedges, in degrees of the 30 deg pitch.
 constexpr float kBlueGapDeg = 0.9f;
 // How far a radial runs, as a fraction of the wheel's own rim. On the
@@ -263,56 +273,6 @@ inline shapes::TicksShape spokeBaseline(float bearing, float inner,
  *  the frame every shapes::sector / shapes::arc wedge is inscribed in. */
 Element discBox(SkPoint c, float r) {
   return box().rect(path::Frame{.centre = c, .radius = r}.box());
-}
-
-/** THE BOX A SECTOR NEEDS, not the box its disc needs. A wedge on its own
- *  bake costs its box's pixels every frame its entrance scales it — the
- *  blit is resampled through the transform — and a 30 degree sector
- *  inscribed in its whole disc is a bake that is nine parts transparent.
- *  So a wedge stands in the sector's own bounds: the centre, the arc's two
- *  ends and whichever axis extremes the arc crosses, grown by a pixel for
- *  the outline. Angles are Skia's canvas angles, 0 = +x, clockwise. */
-SkRect sectorBounds(SkPoint c, float r, float startDeg, float sweepDeg) {
-  const auto at = [&](float deg) {
-    const float a = deg * (float)std::numbers::pi / 180.0f;
-    return arrange::onEllipse(c, {r, r}, a);
-  };
-  SkRect b = SkRect::MakeXYWH(c.fX, c.fY, 0, 0);
-  const auto grow = [&](SkPoint p) {
-    b.fLeft = std::min(b.fLeft, p.fX);
-    b.fTop = std::min(b.fTop, p.fY);
-    b.fRight = std::max(b.fRight, p.fX);
-    b.fBottom = std::max(b.fBottom, p.fY);
-  };
-  grow(at(startDeg));
-  grow(at(startDeg + sweepDeg));
-  const float lo = std::min(startDeg, startDeg + sweepDeg);
-  const float hi = std::max(startDeg, startDeg + sweepDeg);
-  for (float axis = std::ceil(lo / 90.0f) * 90.0f; axis <= hi; axis += 90.0f)
-    grow(at(axis));
-  b.outset(1.0f, 1.0f);
-  return b;
-}
-
-/** The sector itself, drawn in a box that is its bounds rather than its
- *  disc: the same arc `shapes::sector` draws, about a centre that lies
- *  outside the box. */
-Element sectorBox(SkPoint c, float r, float startDeg, float sweepDeg) {
-  const SkRect bounds = sectorBounds(c, r, startDeg, sweepDeg);
-  const SkPoint centre{c.fX - bounds.left(), c.fY - bounds.top()};
-  return box()
-      .rect(bounds)
-      .shape(keyedShape(std::tuple{centre.fX, centre.fY, r, startDeg, sweepDeg},
-                        [centre, r, startDeg, sweepDeg] {
-                          SkPathBuilder b;
-                          b.moveTo(centre);
-                          b.arcTo(SkRect::MakeXYWH(centre.fX - r, centre.fY - r,
-                                                   2 * r, 2 * r),
-                                  startDeg, sweepDeg, false);
-                          b.close();
-                          return b.detach();
-                        }))
-      .transformOriginPx(centre);
 }
 
 /** A straight spoke from the box centre out to radiusFraction. One tick of
@@ -442,64 +402,84 @@ struct NightingaleCoxcomb : sketch::Sketch {
                    stroke(0.7f, Fill::color(kInkSoft)))});
     }
 
+    // THE 36 WEDGES AS ONE BAND LAYER. A month owns a band of the sweep
+    // and a wedge is that band grown out to the radius its rate stands at,
+    // so nothing here turns a rate into a pixel. They are ONE run and not
+    // three because the three causes are painted per month BIGGEST FIRST —
+    // every band shows its own colour with no stacking arithmetic — and
+    // declaration order is that painter's order.
+    struct Band {
+      float rate;
+      const Paint* mat;
+      int month;
+    };
+    std::vector<Band> painted;
+    std::vector<sketch::kit::Datum> wedges;
     for (int m = 0; m < 12; ++m) {
       const Month& mo = data[m];
-      // bearing (0 = 12 o'clock, clockwise) -> Skia canvas angle (0 = +x)
-      const float skia0 = (float)m * 30.0f - 90.0f;
-      // Painter's algorithm by magnitude: biggest first, so every band
-      // shows its own colour with no stacking arithmetic anywhere.
-      struct Band {
-        float rate;
-        const Paint* mat;
-        const char* name;
-      };
-      std::array<Band, 3> bands = {{{mo.disease, &blueMat, "b"},
-                                    {mo.wounds, &roseMat, "r"},
-                                    {mo.other, &greyMat, "k"}}};
-      std::sort(bands.begin(), bands.end(),
+      std::array<Band, 3> three = {{{mo.disease, &blueMat, m},
+                                    {mo.wounds, &roseMat, m},
+                                    {mo.other, &greyMat, m}}};
+      std::sort(three.begin(), three.end(),
                 [](const Band& a, const Band& b) { return a.rate > b.rate; });
-
-      const float delay = (startSec + stepSec * (float)m) * 1000.0f;
-      for (const Band& band : bands) {
+      for (const Band& band : three) {
         if (band.rate <= 0.0f) continue;
-        const float r = radiusOf(band.rate);
-        // THE BLUE WEDGES CARRY NO BORDER. On the stone the tint simply
-        // stops, and adjacent blue wedges are parted by a sliver of paper
-        // at their outer ends — an ANGULAR gap, so it opens toward the
-        // rim. Only the inner black and pink wedges are outlined, and a
-        // hairline round every wedge is the one decision that makes the
-        // sheet read as a modern vector chart.
-        const bool outer = band.mat == &blueMat;
-        const float gap = outer ? kBlueGapDeg : 0.0f;
-        Element wedge =
-            sectorBox(local, r, skia0 + gap * 0.5f, 30.0f - gap)
-                .key(std::string(tag) + band.name + std::to_string(m))
-                .fill(*band.mat);
-        if (!outer) wedge.stroke(stroke(1.0f));
-        // The entrance scales the wedge about the WHEEL's centre, which
-        // sectorBox set as the pivot: the sector grows out of the hub.
-        wheelBox.children(
-            {std::move(wedge)
-                 .scale(animate(from(0.002f).to(1.0f),
-                                ramp(delay, 620.0f, ch::easeOutExpo)))
-                 // Each band's litho fill is a Paint::blend of four
-                 // shaders (wash + speckle + blot + grain) over an area that
-                 // never changes. Uncached, every one of those shaders re-runs
-                 // on every frame for all ~24 bands. The content is static —
-                 // only the entrance SCALE animates — and the cache captures
-                 // NODE-LOCAL content, so the transform rides the blit and the
-                 // texture is baked once.
-                 //
-                 // The trade is resampling: the scale transform now samples a
-                 // baked texture rather than re-rasterising, so sector edges
-                 // are texture-filtered and the stipple (noise generated in
-                 // node-local space) shifts by a fraction of a pixel. On a
-                 // data plate that is invisible; if pixel-exact sector edges
-                 // matter more than the shader cost, drop this cache.
-                 .cache(Cache::Texture)});
+        painted.push_back(band);
+        wedges.push_back({(double)m, (double)band.rate});
       }
+    }
+    // THE BLUE WEDGES CARRY NO BORDER. On the stone the tint simply stops,
+    // and adjacent blue wedges are parted by a sliver of paper at their
+    // outer ends — an ANGULAR gap, so it opens toward the rim, which is
+    // what the band scale's own padding is. Only the inner black and pink
+    // wedges are outlined, and a hairline round every wedge is the one
+    // decision that makes the sheet read as a modern vector chart.
+    const Paint* tint = &blueMat;
+    const auto wedgeOf = [painted, startSec, stepSec, tint](std::size_t i) {
+      const Band& band = painted[i];
+      Element wedge = box().fill(*band.mat);
+      if (band.mat != tint) wedge.stroke(stroke(1.0f));
+      const float delay = (startSec + stepSec * (float)band.month) * 1000.0f;
+      // The entrance scales the wedge about the WHEEL'S CENTRE, which the
+      // band layer sets as the pivot: the sector grows out of the hub.
+      //
+      // Each band's litho fill is a Paint::blend of four shaders (wash +
+      // speckle + blot + grain) over an area that never changes. Uncached,
+      // every one of those shaders re-runs on every frame for all ~24
+      // bands. The content is static — only the entrance SCALE animates —
+      // and the cache captures NODE-LOCAL content, so the transform rides
+      // the blit and the texture is baked once.
+      //
+      // The trade is resampling: the scale transform now samples a baked
+      // texture rather than re-rasterising, so sector edges are
+      // texture-filtered and the stipple (noise generated in node-local
+      // space) shifts by a fraction of a pixel. On a data plate that is
+      // invisible; if pixel-exact sector edges matter more than the shader
+      // cost, drop this cache.
+      return std::move(wedge)
+          .scale(animate(from(0.002f).to(1.0f),
+                         ramp(delay, 620.0f, ch::easeOutExpo)))
+          .cache(Cache::Texture);
+    };
+    wheelBox.children(
+        {sketch::kit::plot(
+             std::string(tag) + "wheel",
+             {.x = {.transform = data::Transform::Band,
+                    .steps = 12,
+                    .padding = kBlueGapDeg / 30.0f},
+              .y = {.domain = {0, rimRate(rMax)},
+                    .transform = data::Transform::Sqrt},
+              .polar = sketch::kit::Polar{.sweep = {-90, 270}}},
+             {sketch::kit::bands(wedges, {.x = &sketch::kit::Datum::x,
+                                          .y = &sketch::kit::Datum::y,
+                                          .part = wedgeOf})})
+             .absolute()
+             .inset(0)});
 
+    for (int m = 0; m < 12; ++m) {
+      const Month& mo = data[m];
       // the flash the index needle rings out of each month's rim
+      const float skia0 = (float)m * 30.0f - 90.0f;
       const float rim =
           radiusOf(std::max({mo.disease, mo.wounds, mo.other, 1.0f})) + 10.0f;
       wheelBox.children(

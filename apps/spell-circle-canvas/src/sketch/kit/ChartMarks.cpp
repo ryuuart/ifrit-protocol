@@ -1,3 +1,4 @@
+#include <include/core/SkMatrix.h>
 #include <include/core/SkRect.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
@@ -81,15 +82,73 @@ struct Anchored {
   }
 };
 
+/** THE BOUNDS OF A SECTOR of outer radius 1 about its own hub at the
+ *  origin: the two arcs' ends, the inner corner, and ±1 on whichever axes
+ *  the sweep crosses. Exact rather than measured off a path, because it is
+ *  read at describe time to shape the wedge and at layout to place it, and
+ *  the two must agree. */
+SkRect sectorBounds(double startDeg, double sweepDeg, double innerRatio) {
+  const double from = sweepDeg >= 0 ? startDeg : startDeg + sweepDeg;
+  const double to = from + std::abs(sweepDeg);
+  const auto at = [](double deg, double r) {
+    return SkPoint{(float)(r * std::cos(radians(deg))),
+                   (float)(r * std::sin(radians(deg)))};
+  };
+  const SkPoint corners[4] = {at(from, 1.0), at(to, 1.0), at(from, innerRatio),
+                              at(to, innerRatio)};
+  SkRect bounds = SkRect::MakeEmpty();
+  bounds.setBounds(corners);
+  // A sweep that crosses a cardinal direction reaches the rim on that axis
+  // whatever its ends do, and one that does not is bounded by its ends.
+  for (int quarter = -4; quarter <= 8; ++quarter) {
+    const double cardinal = quarter * 90.0;
+    if (cardinal < from || cardinal > to) continue;
+    bounds.join(
+        SkRect::MakeXYWH(at(cardinal, 1.0).fX, at(cardinal, 1.0).fY, 0, 0));
+  }
+  return bounds;
+}
+
+/** THE WEDGE A DATUM OWNS, DRAWN IN ITS OWN BOUNDS — the sector re-based
+ *  so that the box it is laid out in is the box it fills, with the hub
+ *  wherever outside that box it falls.
+ *
+ *  A wedge inscribed in the whole disc is a bake nine parts transparent,
+ *  and a wheel of seventy-two of them pays that per wedge per entrance
+ *  frame. It is a comparable value and not a callable, because a shaped
+ *  node prunes only while the reconciler can prove the shape is the same
+ *  one. */
+struct Wedge {
+  geometry::shapes::Sector sector;
+  /** The sector's own bounds in units of the outer radius, about the hub —
+   *  which is what says where the hub stands in the box below. */
+  SkRect unit{0, 0, 0, 0};
+  bool operator==(const Wedge&) const = default;
+
+  SkPath path(SkSize box) const {
+    const float span = std::max(unit.width(), unit.height());
+    if (!(span > 0)) return SkPath();
+    const float outer =
+        unit.width() >= unit.height()
+            ? (unit.width() > 0 ? box.width() / unit.width() : 0.0f)
+            : (unit.height() > 0 ? box.height() / unit.height() : 0.0f);
+    // The generator strikes the sector from the middle of the box it is
+    // given; this box's own middle is not the hub.
+    return sector.path(SkSize{2 * outer, 2 * outer})
+        .makeTransform(SkMatrix::Translate(-unit.fLeft * outer - outer,
+                                           -unit.fTop * outer - outer));
+  }
+};
+
 /** THE BAND EACH DATUM OWNS, DRAWN OUT TO ITS VALUE: on a Cartesian frame
- *  the box from the base to the value across the x scale's own band; on a
- *  polar one the square the wedge of that radius is inscribed in, which is
- *  what makes the wedge's own shape a describe-time value and leaves only
- *  its extent to layout. */
+ *  the box from the base to the value across the band scale's own band; on
+ *  a polar one the bounds of the wedge itself, struck from the hub. */
 struct Spanned {
   Plot frame;
   std::vector<Datum> data;
+  std::vector<SkRect> units;  ///< one per polar datum, in units of the radius
   double base = 0.0;
+  Axis along = Axis::X;
 
   std::vector<SkRect> place(const LayoutInput& in) const {
     std::vector<SkRect> rects(in.childSizes.size());
@@ -98,21 +157,32 @@ struct Spanned {
       const float outer = frame.radius(in.container);
       for (std::size_t i = 0; i < rects.size() && i < data.size(); ++i) {
         const float r = (float)frame.radiusFraction(data[i].y) * outer;
-        rects[i] =
-            SkRect::MakeLTRB(hub.fX - r, hub.fY - r, hub.fX + r, hub.fY + r);
+        const SkRect unit = i < units.size() ? units[i] : SkRect::MakeEmpty();
+        rects[i] = SkRect::MakeLTRB(
+            hub.fX + unit.fLeft * r, hub.fY + unit.fTop * r,
+            hub.fX + unit.fRight * r, hub.fY + unit.fBottom * r);
       }
       return rects;
     }
-    const data::Scale across = frame.scale(Axis::X, in.container);
-    const data::Scale up = frame.scale(Axis::Y, in.container);
-    const float width = (float)bandOf(across);
-    const float from = (float)up.apply(base);
+    // The scale the bands run along hands out the band; the other one
+    // carries the value, and the base is a value on THAT one.
+    const data::Scale banding = frame.scale(along, in.container);
+    const data::Scale valued =
+        frame.scale(along == Axis::X ? Axis::Y : Axis::X, in.container);
+    const float width = (float)bandOf(banding);
+    const float from = (float)valued.apply(base);
     for (std::size_t i = 0; i < rects.size() && i < data.size(); ++i) {
-      const float left = (float)across.apply(data[i].x);
-      const float to = (float)up.apply(data[i].y);
-      rects[i] =
-          SkRect::MakeLTRB(std::min(left, left + width), std::min(from, to),
-                           std::max(left, left + width), std::max(from, to));
+      const float start =
+          (float)banding.apply(along == Axis::X ? data[i].x : data[i].y);
+      const float to =
+          (float)valued.apply(along == Axis::X ? data[i].y : data[i].x);
+      rects[i] = along == Axis::X
+                     ? SkRect::MakeLTRB(
+                           std::min(start, start + width), std::min(from, to),
+                           std::max(start, start + width), std::max(from, to))
+                     : SkRect::MakeLTRB(
+                           std::min(from, to), std::min(start, start + width),
+                           std::max(from, to), std::max(start, start + width));
     }
     return rects;
   }
@@ -143,20 +213,24 @@ Layer anchored(std::vector<Datum> data, std::vector<Element> children,
   };
 }
 
-Layer banded(std::vector<Datum> data, double base, float corners,
+Layer banded(std::vector<Datum> data, double base, float corners, Axis along,
              compose::kit::Part<std::size_t, double> part,
              std::string_view word, std::string_view styleClass) {
-  return [data = std::move(data), base, corners, part, word = std::string(word),
-          cls = std::string(styleClass)](
+  return [data = std::move(data), base, corners, along, part,
+          word = std::string(word), cls = std::string(styleClass)](
              const Plot& frame, std::string_view key, std::size_t index) {
     const std::string stem = named(key, word, index);
     // A polar band's own shape needs no box: its two angles come from the
     // angle scale, whose range is the stated sweep, and its two radii are
-    // fractions of whatever the outer radius turns out to be.
+    // fractions of whatever the outer radius turns out to be. Its BOUNDS
+    // are the same value, which is what lets the scheme below place the
+    // wedge in the room it actually occupies.
     const data::Scale angles = frame.scale(Axis::X, SkSize::MakeEmpty());
     const double sweep = frame.polar ? bandOf(angles) : 0.0;
     std::vector<Element> children;
+    std::vector<SkRect> units;
     children.reserve(data.size());
+    units.reserve(frame.polar ? data.size() : 0);
     for (std::size_t i = 0; i < data.size(); ++i) {
       Element one = part ? part(i, data[i].y)
                          : compose::box().fill(compose::Fill::currentInk());
@@ -167,16 +241,27 @@ Layer banded(std::vector<Datum> data, double base, float corners,
             reach != 0.0 ? (float)std::clamp(frame.radiusFraction(base) / reach,
                                              0.0, 0.999)
                          : 0.0f;
-        one.shape(geometry::shapes::sector((float)angles.apply(data[i].x),
-                                           (float)sweep, inner));
+        const double start = angles.apply(data[i].x);
+        const Wedge wedge{
+            geometry::shapes::sector((float)start, (float)sweep, inner),
+            sectorBounds(start, sweep, inner)};
+        units.push_back(wedge.unit);
+        // THE PIVOT STAYS AT THE HUB, wherever in or out of its own box
+        // that falls, so a wedge that grows in grows out of the centre of
+        // the wheel and not out of the middle of itself.
+        const SkRect unit = wedge.unit;
+        one.shape(wedge).transformOrigin(
+            unit.width() > 0 ? -unit.fLeft / unit.width() : 0.0f,
+            unit.height() > 0 ? -unit.fTop / unit.height() : 0.0f);
       }
       children.push_back(std::move(one.key(stem + "-" + std::to_string(i))));
     }
-    Element field = compose::layout(Spanned{frame, data, base})
-                        .styleClass(cls)
-                        .absolute()
-                        .inset(0)
-                        .key(stem);
+    Element field =
+        compose::layout(Spanned{frame, data, std::move(units), base, along})
+            .styleClass(cls)
+            .absolute()
+            .inset(0)
+            .key(stem);
     if (!children.empty()) field.children({std::move(children)});
     return field;
   };

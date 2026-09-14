@@ -419,7 +419,7 @@ on a sheet is a bare bar.
 | `trace(f, Trace)` | a function of one variable walked across the x domain and stroked, with a dot at every sample it names |
 | `area(f, Area)` | the band between that curve and a base, filled |
 | `marks(rows, mark, Marks)` | one element per row, placed where the frame maps its datum |
-| `bands(rows, Bands)` | the band each row owns drawn out to its value — a bar on a Cartesian frame, a wedge on a polar one |
+| `bands(rows, Bands)` | the band each row owns drawn out to its value — a bar on a Cartesian frame, a wedge on a polar one; `along` says which scale hands out the bands and `base` where they grow from |
 | `label(words, x, y, Anchor)` | a word at a point of the field |
 
 ```cpp
@@ -472,6 +472,24 @@ element: keyed, animatable, hit-testable, and free to be anything the sketch
 can build. A plot does not size itself — every layer is absolute against its
 box — so the width and the height are the caller's, as a console's placement
 is.
+
+**A BAND IS HANDED OUT BY ONE SCALE AND GROWN BY THE OTHER.** The band
+layer's `along` is `Axis::X` for the column chart — a band across, grown up to the y its
+reader answers — and `Axis::Y` for the row reading, where the band runs down
+and the bar across and the name at the left is the y axis's own tick.
+Its `base` is the value on the growing scale that a band starts from: 0
+for a column standing on its axis, a centre value for a reading of
+DEVIATIONS, which puts a shortfall on one side of that rule and a surplus on
+the other. A polar frame reads its bands along the ANGLE whichever `along`
+says, because a wedge is a band of the sweep and the radius is the reading.
+
+**A WEDGE STANDS IN THE BOUNDS OF ITS OWN SECTOR**, not in the square of its
+disc: a 30° wedge inscribed in its whole disc is a bake nine parts
+transparent, and a wheel of seventy-two of them pays that per wedge per
+entrance frame. Its PIVOT is still the hub, wherever in or out of its own
+box that falls, so a wedge that grows in grows out of the centre of the
+wheel. Both are the layer's, so a part that states a shape or a transform
+origin of its own is overruled on a polar frame.
 
 #### The classes a chart draws
 
