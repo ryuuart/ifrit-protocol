@@ -15,6 +15,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 
+#include <array>
 #include <string>
 
 #include "eva_magi_interior/EvangelionUi.h"
@@ -81,39 +82,36 @@ struct EvaMagiDeliberation : sketch::Sketch {
     return style;
   }
 
-  Element rules(float left, float top, float width) const {
-    Element group = box().inset(0);
-    for (int line = 0; line < 3; ++line)
-      group.children({box()
-                          .left(left)
-                          .top(top + (float)line * 7.0f)
-                          .width(width)
-                          .height(line == 1 ? 3.0f : 2.0f)
-                          .fill(mskia::Paint::solid(line == 1 ? kMintRuleHi
-                                                              : kMintRule))});
-    return group;
+  /** Three rails at one pitch, the middle one heavier and lit. */
+  static Element rules(SkPoint corner, float width) {
+    static constexpr std::array<float, 3> kRails{{2.0f, 3.0f, 2.0f}};
+    return kit::at(corner.fX, corner.fY, width, 17.0f)
+        .column()
+        .gap(5)
+        .children(each(kRails, [width](float weight) {
+          return kit::line(
+              {.length = Dimension(width),
+               .thickness = weight,
+               .fill = Fill::color(weight > 2.0f ? kMintRuleHi : kMintRule)});
+        }));
   }
 
   Element backplane() const {
     const SkRect frame = layout.frame();
-    Element group = box().inset(0);
-    group.children(
-        {box()
-             .left(frame.left())
-             .top(frame.top())
-             .width(frame.width())
-             .height(frame.height())
+    return box().inset(0).children(
+        {kit::at(
+             box()
+                 .fill(Fill::none())
+                 .foreground(decorations::border(7.0f, Fill::color(kOrange))),
+             frame.left(), frame.top(), frame.width(), frame.height()),
+         // The bus is deliberately earlier in the display list. Every module is
+         // an opaque mask over it, so the route disappears cleanly at module
+         // edges.
+         kit::disc(layout.busCentre, layout.busRadius)
+             .shape(sigil::geometry::shapes::circle())
              .fill(Fill::none())
-             .foreground(decorations::border(7.0f, Fill::color(kOrange)))});
-
-    // The bus is deliberately earlier in the display list. Every module is an
-    // opaque mask over it, so the route disappears cleanly at module edges.
-    group.children({kit::disc(layout.busCentre, layout.busRadius)
-                        .shape(sigil::geometry::shapes::circle())
-                        .fill(Fill::none())
-                        .foreground(decorations::border(
-                            5.0f, Fill::color(kOrangeDim), 0.0f))});
-    return group;
+             .foreground(
+                 decorations::border(5.0f, Fill::color(kOrangeDim), 0.0f))});
   }
 
   Element module(int number, const char* name) const {
@@ -121,14 +119,11 @@ struct EvaMagiDeliberation : sketch::Sketch {
     const float side = layout.moduleSide;
     const std::u8string numeral =
         number == 1 ? u8"1" : (number == 2 ? u8"2" : u8"3");
-    return box()
-        .left(rect.left())
-        .top(rect.top())
-        .width(side)
-        .height(side)
-        .rotate(layout.rotationFor(number))
-        .transformOrigin(0.5f, 0.5f)
-        .fill(mskia::Paint::solid(kMint))
+    return kit::at(box()
+                       .rotate(layout.rotationFor(number))
+                       .transformOrigin(0.5f, 0.5f)
+                       .fill(mskia::Paint::solid(kMint)),
+                   rect.left(), rect.top(), side, side)
         // The module's ink is its label colour; the inner rule is drawn in it.
         .ink(kInk)
         .clip(true)
@@ -149,76 +144,57 @@ struct EvaMagiDeliberation : sketch::Sketch {
   /** The layer's Latin is orange, stated once; the whole-style Han names its
    * own. */
   Element information() const {
-    Element group = box().inset(0).ink(kOrange);
-    group.children({rules(145.0f, 106.0f, 375.0f)});
-    group.children({rules(145.0f, 241.0f, 375.0f)});
-    group.children({rules(920.0f, 106.0f, 375.0f)});
-    group.children({rules(920.0f, 241.0f, 375.0f)});
-
-    group.children({text(u8"提訴", han(u8"提訴", 83.0f, 300.0f, kOrange))
-                        .centerAt({332.5f, 184.0f})});
-    group.children({text(u8"決議", han(u8"決議", 83.0f, 300.0f, kOrange))
-                        .centerAt({1107.5f, 184.0f})});
-
-    group.children({text(u8"CODE : 132")
-                        .font(fit(evangelion::condensedBold(), u8"CODE : 132",
-                                  45.0f, 270.0f))
-                        .left(151.0f)
-                        .top(275.0f)});
-
-    static const char* kData[] = {"FILE:MAGI_SYS", "EXTENTION:2048",
-                                  "EX_MODE:ON", "PRIORITY:A__"};
-    for (int line = 0; line < 4; ++line) {
-      const char* run = kData[line];
-      group.children(
-          {text(run)
-               .font(fit(evangelion::condensedBold(), run, 22.0f, 286.0f))
-               .left(151.0f)
-               .top(334.0f + (float)line * 32.0f)});
-    }
-
-    group.children(
-        {text(u8"MAGI")
+    // The four blocks of ruling, by the corner each starts at.
+    static constexpr std::array<SkPoint, 4> kRuled{
+        {{145, 106}, {145, 241}, {920, 106}, {920, 241}}};
+    static constexpr const char8_t* kReadout =
+        u8"FILE:MAGI_SYS\nEXTENTION:2048\nEX_MODE:ON\nPRIORITY:A__";
+    return box().inset(0).ink(kOrange).children(
+        {each(kRuled, [](SkPoint corner) { return rules(corner, 375.0f); }),
+         text(u8"提訴", han(u8"提訴", 83.0f, 300.0f, kOrange))
+             .centerAt({332.5f, 184.0f}),
+         text(u8"決議", han(u8"決議", 83.0f, 300.0f, kOrange))
+             .centerAt({1107.5f, 184.0f}),
+         text(u8"CODE : 132")
+             .font(fit(evangelion::condensedBold(), u8"CODE : 132", 45.0f,
+                       270.0f))
+             .left(151.0f)
+             .top(275.0f),
+         // The four data lines are one passage on a 32 px pitch.
+         text(kReadout)
+             .font(fit(evangelion::condensedBold(), kReadout, 22.0f, 286.0f))
+             .block({.leading = weave::Leading::absolute(32.0f)})
+             .left(151.0f)
+             .top(334.0f),
+         text(u8"MAGI")
              .font(fit(evangelion::magiWordmark(), u8"MAGI", 54.0f, 230.0f))
-             .centerAt({720.0f, 535.0f})});
-
-    group.children(
-        {box()
-             .left(995.0f)
-             .top(295.0f)
-             .width(275.0f)
-             .height(130.0f)
-             .fill(mskia::Paint::solid(hexColor(0x150103)))
-             .style(decorations::doubleBorder(
-                 decorations::border(7.0f, Fill::color(kRed), 0.0f),
-                 decorations::border(3.0f, Fill::color(kRedHot), 14.0f)))
-             .children(
-                 {text(u8"審議中", han(u8"審議中", 49.0f, 205.0f, kRedHot))
-                      .centerAt({137.5f, 65.0f})})});
-    return group;
-  }
-
-  Element picture() const {
-    Element scene = box().inset(0);
-    scene.children({backplane()});
-    scene.children({module(2, "BALTHASAR")});
-    scene.children({module(3, "CASPER")});
-    scene.children({module(1, "MELCHIOR")});
-    scene.children({information()});
-    return scene;
+             .centerAt({720.0f, 535.0f}),
+         kit::at(
+             box()
+                 .fill(mskia::Paint::solid(hexColor(0x150103)))
+                 .style(decorations::doubleBorder(
+                     decorations::border(7.0f, Fill::color(kRed), 0.0f),
+                     decorations::border(3.0f, Fill::color(kRedHot), 14.0f)))
+                 .children(
+                     {text(u8"審議中", han(u8"審議中", 49.0f, 205.0f, kRedHot))
+                          .centerAt({137.5f, 65.0f})}),
+             995.0f, 295.0f, 275.0f, 130.0f)});
   }
 
   Element describe() const {
-    Element root = box().inset(0);
-    root.children({picture()
-                       .effect(evangelion::phosphor())
-                       .cache(Cache::Texture)
-                       .key("phosphor")});
-    root.children({box()
-                       .inset(0)
-                       .fill(mskia::Paint::recipe(evangelion::tube()))
-                       .cache(Cache::Texture)});
-    return root;
+    return box().inset(0).children(
+        {box()
+             .inset(0)
+             .effect(evangelion::phosphor())
+             .cache(Cache::Texture)
+             .key("phosphor")
+             .children({backplane(), module(2, "BALTHASAR"),
+                        module(3, "CASPER"), module(1, "MELCHIOR"),
+                        information()}),
+         box()
+             .inset(0)
+             .fill(mskia::Paint::recipe(evangelion::tube()))
+             .cache(Cache::Texture)});
   }
 
   void setup(sketch::SketchContext& context) override {
