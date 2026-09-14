@@ -235,6 +235,22 @@ struct PsxDoomFire final : sketch::Sketch {
       heat[(size_t)target] = (uint8_t)(pixel - ((unsigned)r & 1u));
   }
 
+  /** WHAT MAKES THE SAME SIX SECONDS THE SAME BUFFER, which is the whole
+   *  of what a plate of this scene rests on: a single bit that entered
+   *  the heat anywhere would compound through every step after it.
+   *
+   *  NOTHING HERE IS INEXACT. The stream is an integer xorshift, and its
+   *  unit form is a 24-bit integer scaled by a power of two — so
+   *  `rand01() * 3` is exact, and the rounding of it is the same
+   *  arithmetic on any machine and under any inlining. Everything else
+   *  the step does is integers.
+   *
+   *  AND EVERY READ IS OF SOMETHING WRITTEN. `seed()` assigns the whole
+   *  buffer before the first step, so no cell is ever read before it
+   *  holds a value, and the writes a step makes into the row above it
+   *  land on cells the SAME step will read later — which is why the
+   *  order below decides the flame's shape, and why nothing but the
+   *  order decides it. */
   void doFire() {
     // x OUTER, y ASCENDING 1→167, single shared buffer. Ordering is
     // load-bearing: each step writes row y-1 while later steps at the same x
@@ -763,8 +779,8 @@ struct PsxDoomFire final : sketch::Sketch {
         },
         6, &alpha);
 
-    ctx.composer.render(
-        compose::graphics("psx_doom_fire.loop", [this](Pen& pen) { draw(pen); }));
+    ctx.composer.render(compose::graphics("psx_doom_fire.loop",
+                                          [this](Pen& pen) { draw(pen); }));
   }
 
   void draw(Pen& pen) {
