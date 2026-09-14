@@ -134,8 +134,7 @@ Element readout(const char* call, const std::string& note,
       kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture})
           .padding(12, 10)
-          .children(
-              {text(body, mono(9.0f, colour)).width(kCell - 24)}));
+          .children({text(body, mono(9.0f, colour)).width(kCell - 24)}));
 }
 
 }  // namespace
@@ -219,15 +218,16 @@ struct SlangPortable final : sketch::Sketch {
           surface.uniforms.size(), made ? "compiled" : "FAILED");
     }
 
-    slang::Compiled missing;
-    std::string missingWhy;
-    slang::compileModule(kModule, "vsCover", "fsNoSuchStage", kLit, &missing,
-                         &missingWhy);
-
-    slang::Compiled garbage;
-    std::string garbageWhy;
-    slang::compileModule("this is not Slang", "vsCover", "fsCover", kLit,
-                         &garbage, &garbageWhy);
+    // THE TWO WAYS A COMPILE SAYS NO, asked the same way: what came back
+    // is the compiler's own diagnostic and nothing of ours.
+    const auto whyNot = [](const char* source, const char* fragment) {
+      slang::Compiled refused;
+      std::string why;
+      slang::compileModule(source, "vsCover", fragment, kLit, &refused, &why);
+      return why.empty() ? std::string("(no message)") : why;
+    };
+    const std::string missingWhy = whyNot(kModule, "fsNoSuchStage");
+    const std::string garbageWhy = whyNot("this is not Slang", "fsCover");
 
     ctx.composer.render(sketch::kit::page(
         {.title = "SLANG PORTABLE · compileModule, the "
@@ -290,10 +290,7 @@ struct SlangPortable final : sketch::Sketch {
                                                 "typo a diagnostic rather than "
                                                 "an "
                                                 "empty program",
-                                                missingWhy.empty()
-                                                    ? "(no message)"
-                                                    : missingWhy,
-                                                kFault),
+                                                missingWhy, kFault),
                                         readout("source that is not Slang",
                                                 "false, an empty Compiled, and "
                                                 "the "
@@ -301,10 +298,7 @@ struct SlangPortable final : sketch::Sketch {
                                                 "· a body that cannot "
                                                 "compile "
                                                 "must say why",
-                                                garbageWhy.empty()
-                                                    ? "(no message)"
-                                                    : garbageWhy,
-                                                kFault)},
+                                                garbageWhy, kFault)},
                               .gap = 14})},
              .column = true,
              .gap = 18})));
