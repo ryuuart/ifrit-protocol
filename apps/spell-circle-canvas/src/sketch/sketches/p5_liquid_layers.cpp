@@ -106,6 +106,7 @@ struct P5LiquidLayers final : sketch::Sketch {
       pen.noFill();
     }
     const float clock = static_cast<float>(pen.millis() * 0.001);
+    const SkPoint centre{pen.width * 0.5f, pen.height * 0.5f};
     pen.randomSeed(0x11A71Du);
     pen.background(ground);
 
@@ -114,14 +115,14 @@ struct P5LiquidLayers final : sketch::Sketch {
     pen.strokeWeight(2.0f);
     for (int ring = 0; ring < 7; ++ring) {
       const float diameter = 76.0f + ring * 61.0f;
-      pen.circle(pen.width * 0.5f, pen.height * 0.5f, diameter);
+      pen.circle(centre.fX, centre.fY, diameter);
     }
     pen.beginShape();
     for (int point = 0; point < 12; ++point) {
       const float radius = point % 2 == 0 ? 234.0f : 82.0f;
-      const SkPoint at = arrange::onRing(
-          (size_t)point, 12, {pen.width * 0.5f, pen.height * 0.5f},
-          {radius, radius}, clock * 0.08f, TAU, arrange::Turn::Closed);
+      const SkPoint at =
+          arrange::onRing((size_t)point, 12, centre, {radius, radius},
+                          clock * 0.08f, TAU, arrange::Turn::Closed);
       pen.vertex(at.fX, at.fY);
     }
     pen.endShape(CLOSE);
@@ -152,8 +153,7 @@ struct P5LiquidLayers final : sketch::Sketch {
       // wanted as well as the point it starts from.
       const float angle = arrange::along(clock * 0.12f, TAU, (size_t)mark, 14,
                                          arrange::Turn::Closed);
-      const SkPoint at = arrange::onEllipse(
-          {pen.width * 0.5f, pen.height * 0.5f}, {168.0f, 130.0f}, angle);
+      const SkPoint at = arrange::onEllipse(centre, {168.0f, 130.0f}, angle);
       brush::line(pen, bloom, at, arrange::onEllipse(at, {8.0f, 8.0f}, angle));
     }
   }
