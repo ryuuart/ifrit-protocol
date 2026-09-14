@@ -45,6 +45,7 @@
 
 #include <cmath>
 #include <memory>
+#include <ranges>
 #include <string>
 #include <utility>
 
@@ -72,32 +73,26 @@ sketch::kit::Theme sheetTheme() {
   return look;
 }
 
-/** The one voice both cells are captioned in: the call over the picture,
- *  what that executor did under it. */
 /** What a card carries: a header pill, a stack of rules and a bar row.
  *  An element tree like any other — the only thing 3D about it is where
  *  it ends up. */
 Element card(float w, float h, SkColor4f accent) {
   const SkColor4f faint{1, 1, 1, 0.22f};
-  auto rules = box().column().gap(9);
-  for (int i = 0; i < 3; ++i)
-    rules.children({box()
-                        .width(w - 44 - (float)i * 26)
-                        .height(6)
-                        .corners({3})
-                        .fill(Fill::color(faint))});
-
-  auto bars = box().row().gap(5).alignItems(Align::End);
-  for (int i = 0; i < 10; ++i) {
+  const auto rule = [w, faint](int i) {
+    return box()
+        .width(w - 44 - (float)i * 26)
+        .height(6)
+        .corners({3})
+        .fill(Fill::color(faint));
+  };
+  const auto bar = [accent](int i) {
     const float t = (float)i / 9.0f;
-    bars.children(
-        {box()
-             .width(8)
-             .height(8 + 26.0f * (0.5f + 0.5f * std::sin(t * 8.0f + 1.1f)))
-             .corners({2})
-             .fill(Fill::color({accent.fR, accent.fG, accent.fB, 0.85f}))});
-  }
-
+    return box()
+        .width(8)
+        .height(8 + 26.0f * (0.5f + 0.5f * std::sin(t * 8.0f + 1.1f)))
+        .corners({2})
+        .fill(Fill::color({accent.fR, accent.fG, accent.fB, 0.85f}));
+  };
   return box()
       .width(w)
       .height(h)
@@ -105,9 +100,15 @@ Element card(float w, float h, SkColor4f accent) {
       .column()
       .gap(12)
       .padding(12)
-      .children({box().width(w - 24).height(11).corners({5}).fill(
-                     Fill::color({accent.fR, accent.fG, accent.fB, 0.92f})),
-                 std::move(rules), std::move(bars)});
+      .children(
+          {box().width(w - 24).height(11).corners({5}).fill(
+               Fill::color({accent.fR, accent.fG, accent.fB, 0.92f})),
+           box().column().gap(9).children({each(std::views::iota(0, 3), rule)}),
+           box()
+               .row()
+               .gap(5)
+               .alignItems(Align::End)
+               .children({each(std::views::iota(0, 10), bar)})});
 }
 
 }  // namespace
@@ -129,19 +130,16 @@ struct PainterGpu final : sketch::Sketch {
   /** One cell's cockpit, drawn through @p runtime and nothing else. Every
    *  mesh, style and camera below is the same in both cells. */
   void draw(SkCanvas& canvas, const render::Runtime& runtime) const {
-    camera::Camera view;
-    view.eye = {0, 70, 720};
-    view.target = {0, -10, 0};
-    view.fovYDeg = 40;
+    const camera::Camera view{
+        .eye = {0, 70, 720}, .target = {0, -10, 0}, .fovYDeg = 40};
 
-    render::MeshStyle ground;
-    ground.baseColor = {0.16f, 0.3f, 0.5f, 0.55f};
-    ground.ambient = {0.45f, 0.5f, 0.62f, 1};
-    ground.specular = 0;
     // A sheet has one facing, and this one is seen from the side its
     // winding calls the back; culling it would leave no ground at all.
-    ground.backfaceCull = false;
-    ground.runtime = runtime;
+    const render::MeshStyle ground{.baseColor = {0.16f, 0.3f, 0.5f, 0.55f},
+                                   .ambient = {0.45f, 0.5f, 0.62f, 1},
+                                   .specular = 0,
+                                   .backfaceCull = false,
+                                   .runtime = runtime};
     render::drawMesh(canvas, floor, glm::mat4(1.0f), view, kCell, ground);
 
     for (int i = 0; i < kPanels; ++i) {
@@ -154,25 +152,21 @@ struct PainterGpu final : sketch::Sketch {
 
     // The curved sheet: the same kind of picture, mapped per triangle,
     // and a surface that is its own light so the curve reads as a screen.
-    render::MeshStyle emissive;
-    emissive.texture = screen;
-    emissive.baseColor = {1, 1, 1, 1};
-    emissive.ambient = {0.9f, 0.9f, 0.9f, 1};
-    emissive.lights = {};
-    emissive.specular = 0;
-    emissive.runtime = runtime;
+    const render::MeshStyle emissive{.baseColor = {1, 1, 1, 1},
+                                     .lights = {},
+                                     .ambient = {0.9f, 0.9f, 0.9f, 1},
+                                     .specular = 0,
+                                     .texture = screen,
+                                     .runtime = runtime};
     render::drawMesh(canvas, curved, camera::place({0, -96, 40}, 0, 8), view,
                      kCell, emissive);
   }
 
-  Element cell(const char* call, std::u8string note,
-               const render::Runtime& runtime) {
+  Element cell(const char* call, Utf8 note, const render::Runtime& runtime) {
     return sketch::kit::caption(
         kCell.width(), call, std::move(note),
         custom(std::string("cell.") + call,
-               [this, runtime](SkCanvas& canvas) {
-                 draw(canvas, runtime);
-               })
+               [this, runtime](SkCanvas& canvas) { draw(canvas, runtime); })
             .width(kCell.width())
             .height(kCell.height())
             // The viewport a mesh is projected onto is the
