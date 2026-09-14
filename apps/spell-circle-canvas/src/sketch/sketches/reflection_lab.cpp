@@ -49,6 +49,7 @@
 #include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>
 
@@ -124,12 +125,13 @@ struct ReflectionLab final : sketch::Set {
   material::EnvironmentMap sunset;
 
   void setup(sketch::SetContext& ctx) override {
-    ctx.canvas(880, 520);
-    ctx.background({0.02f, 0.024f, 0.035f, 1.0f});
     // Far enough into the turn that the sky has moved off its start and
     // the crossfade is under way, so the plate is a picture of the
     // study rather than of its first frame.
-    ctx.captureAt(1.6);
+    sketch::kit::stage(ctx,
+                       {.size = {880, 520},
+                        .captureAt = 1.6,
+                        .background = SkColor4f{0.02f, 0.024f, 0.035f, 1.0f}});
     row = balls();
     // The lower half of a bake is a floor, and a sphere reflects it
     // straight down where nothing interesting is; a flat ground colour

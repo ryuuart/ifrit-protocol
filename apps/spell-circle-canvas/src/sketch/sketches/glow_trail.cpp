@@ -24,6 +24,7 @@
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilmotion/values/Time.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>
 
@@ -125,9 +126,10 @@ namespace {
 
 struct GlowTrail final : sketch::Set {
   void setup(sketch::SetContext& ctx) override {
-    ctx.canvas(640, 440);
-    ctx.background({0.03f, 0.035f, 0.05f, 1.0f});
-    ctx.captureAt(1.3);
+    sketch::kit::stage(ctx,
+                       {.size = {640, 440},
+                        .captureAt = 1.3,
+                        .background = SkColor4f{0.03f, 0.035f, 0.05f, 1.0f}});
     ctx.camera({.eye = kEye, .target = {0.0f, -30.0f, 0.0f}, .fovYDeg = 42.0f});
   }
 

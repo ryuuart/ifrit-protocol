@@ -22,6 +22,9 @@ namespace sigil::sketch {
  *  include: the kit's headers reach one signature's worth of the canvas
  *  runtime, not the whole compose surface behind it. */
 struct SketchContext;
+/** The same for a SET — a world Frame, lit and photographed — whose own
+ *  words are `<sigilsketch/set/Set.h>`. */
+struct SetContext;
 }  // namespace sigil::sketch
 
 namespace sigil::sketch::kit {
@@ -62,6 +65,18 @@ struct Stage {
  *  It writes the whole `CanvasSpecification`, defaults included, so what a host
  *  reads back afterwards is exactly what this says. */
 void stage(SketchContext& ctx, const Stage& surface);
+
+/** THE SAME DECLARATION FOR A SET, which says the same three things
+ *  through three calls of its own.
+ *
+ *      sketch::kit::stage(ctx, {.size = {640, 440}, .captureAt = 1.3,
+ *                               .background = {0.03f, 0.035f, 0.05f, 1}});
+ *
+ *  The VIEWPOINT is not here: a camera is a fact about the scene rather
+ *  than about the plate, and a set that puts one on a rail states it in
+ *  its description. `SetContext::camera` is the fallback for the set
+ *  that does not. */
+void stage(SetContext& ctx, const Stage& surface);
 
 /** THE PROSE A SHEET CARRIES. Only the prose: every face, size, colour,
  *  margin and rule the page is set in is the theme's, which is the whole

@@ -48,6 +48,7 @@
 #include <sigilscry/engine/WebEngine.h>
 #include <sigilscry/engine/WebView.h>
 #include <sigilscry/platform/Runtime.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilsketch/scry/SharedEngine.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilweave/style/Type.h>
@@ -193,9 +194,10 @@ struct ImportNative final : sketch::Set {
   sk_sp<SkImage> pageFrame;
 
   void setup(sketch::SetContext& ctx) override {
-    ctx.canvas(880, 480);
-    ctx.background({0.02f, 0.024f, 0.036f, 1.0f});
-    ctx.captureAt(0.4);
+    sketch::kit::stage(ctx,
+                       {.size = {880, 480},
+                        .captureAt = 0.4,
+                        .background = SkColor4f{0.02f, 0.024f, 0.036f, 1.0f}});
     gm::camera::Camera lens;
     lens.eye = kEye;
     lens.target = {0.0f, 0.0f, 0.0f};

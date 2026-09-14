@@ -41,6 +41,7 @@
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Keyframes.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/element/Element.h>
 #include <sigilworld/element/Selector.h>
@@ -106,12 +107,13 @@ world::Element row(const std::string& key, float z, motion::Spread spread,
 
 struct SetStagger final : sketch::Set {
   void setup(sketch::SetContext& ctx) override {
-    ctx.canvas(900, 460);
-    ctx.background({0.045f, 0.05f, 0.062f, 1});
     // MID-CASCADE: far enough in that the head of each row has landed and
     // its tail is still on the way, which is the whole of what a ladder
     // looks like.
-    ctx.captureAt(0.62);
+    sketch::kit::stage(ctx,
+                       {.size = {900, 460},
+                        .captureAt = 0.62,
+                        .background = SkColor4f{0.045f, 0.05f, 0.062f, 1}});
     gm::camera::Camera lens;
     lens.eye = {0, 190, 430};
     lens.target = {0, 26, -10};

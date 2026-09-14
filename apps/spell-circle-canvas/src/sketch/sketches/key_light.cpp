@@ -22,6 +22,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/kit/Pbr.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/element/Node.h>
 #include <sigilworld/kit/Kit.h>
@@ -107,9 +108,10 @@ struct KeyLight final : sketch::Set {
   const std::shared_ptr<Dials> dials = std::make_shared<Dials>();
 
   void setup(sketch::SetContext& ctx) override {
-    ctx.canvas(760, 500);
-    ctx.background({0.028f, 0.032f, 0.042f, 1.0f});
-    ctx.captureAt(1.6);
+    sketch::kit::stage(ctx,
+                       {.size = {760, 500},
+                        .captureAt = 1.6,
+                        .background = SkColor4f{0.028f, 0.032f, 0.042f, 1.0f}});
   }
 
   world::Frame describe(float seconds) override {

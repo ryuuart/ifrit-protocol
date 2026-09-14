@@ -1,6 +1,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/set/Set.h>
 #include <sigilweave/layout/StyleSheet.h>
 
 #include <utility>
@@ -16,6 +17,18 @@ void stage(SketchContext& ctx, const Stage& surface) {
   declared.plateOnly = surface.plateOnly;
   declared.nonlinearPicture = surface.nonlinearPicture;
   ctx.canvas(declared);
+}
+
+void stage(SetContext& ctx, const Stage& surface) {
+  if (ctx.specification == nullptr) return;
+  CanvasSpecification declared;
+  declared.size = surface.size;
+  declared.background = surface.background.value_or(theme().palette.ground);
+  declared.captureSeconds = surface.captureAt;
+  declared.oversample = surface.oversample;
+  declared.plateOnly = surface.plateOnly;
+  declared.nonlinearPicture = surface.nonlinearPicture;
+  *ctx.specification = declared;
 }
 
 compose::Element page(const Page& sheet, compose::Element content) {

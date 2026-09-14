@@ -38,6 +38,7 @@
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilio/IO.h>
 #include <sigilmaterial/kit/Pbr.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>
 
@@ -118,9 +119,10 @@ struct ScatteredModel final : sketch::Set {
   gm::pop::Chain dust;
 
   void setup(sketch::SetContext& ctx) override {
-    ctx.canvas(860, 580);
-    ctx.background({0.028f, 0.031f, 0.042f, 1.0f});
-    ctx.captureAt(1.7);
+    sketch::kit::stage(ctx,
+                       {.size = {860, 580},
+                        .captureAt = 1.7,
+                        .background = SkColor4f{0.028f, 0.031f, 0.042f, 1.0f}});
     std::optional<gm::Mesh> model = imported(ctx.assets);
     subject = model ? std::move(*model) : generated();
     dust = dustOver(subject);

@@ -30,6 +30,7 @@
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilmotion/values/Time.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>
 
@@ -87,9 +88,10 @@ namespace {
 
 struct DartFlight final : sketch::Set {
   void setup(sketch::SetContext& ctx) override {
-    ctx.canvas(880, 600);
-    ctx.background({0.028f, 0.032f, 0.046f, 1.0f});
-    ctx.captureAt(1.5);
+    sketch::kit::stage(ctx,
+                       {.size = {880, 600},
+                        .captureAt = 1.5,
+                        .background = SkColor4f{0.028f, 0.032f, 0.046f, 1.0f}});
   }
 
   world::Frame describe(float seconds) override {

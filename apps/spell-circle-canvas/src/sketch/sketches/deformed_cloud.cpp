@@ -32,6 +32,7 @@
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilmaterial/kit/Pbr.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>
 
@@ -91,9 +92,10 @@ struct DeformedCloud final : sketch::Set {
   float high = 0.0f;
 
   void setup(sketch::SetContext& ctx) override {
-    ctx.canvas(880, 580);
-    ctx.background({0.026f, 0.029f, 0.040f, 1.0f});
-    ctx.captureAt(1.45);
+    sketch::kit::stage(ctx,
+                       {.size = {880, 580},
+                        .captureAt = 1.45,
+                        .background = SkColor4f{0.026f, 0.029f, 0.040f, 1.0f}});
     // Seeded, and taken once: the scatter is a property of the body and
     // not of the moment, so every frame describes the same seed and only
     // what the chain does to it changes.

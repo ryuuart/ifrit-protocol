@@ -50,6 +50,7 @@
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/kit/Pbr.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/style/Type.h>
@@ -288,9 +289,10 @@ struct SceneSurfaces final : sketch::Set {
   gm::Mesh rail;
 
   void setup(sketch::SetContext& ctx) override {
-    ctx.canvas(960, 620);
-    ctx.background({0.025f, 0.028f, 0.038f, 1.0f});
-    ctx.captureAt(1.35);
+    sketch::kit::stage(ctx,
+                       {.size = {960, 620},
+                        .captureAt = 1.35,
+                        .background = SkColor4f{0.025f, 0.028f, 0.038f, 1.0f}});
     for (Screen& card : cards) card.scene = ctx.textureScene({320, 214});
     strip.scene = ctx.textureScene({1024, 128});
     loop.scene = ctx.textureScene({kTapeWidth, kTapeHeight});

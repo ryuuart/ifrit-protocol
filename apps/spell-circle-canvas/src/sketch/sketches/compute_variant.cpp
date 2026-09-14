@@ -44,6 +44,7 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilmaterial/kit/Pbr.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/element/Element.h>
 #include <sigilworld/element/Selector.h>
@@ -119,9 +120,10 @@ struct ComputeVariant final : sketch::Set {
   int cookedPoints = 0;
 
   void setup(sketch::SetContext& ctx) override {
-    ctx.canvas(880, 560);
-    ctx.background({0.028f, 0.032f, 0.05f, 1.0f});
-    ctx.captureAt(1.4);
+    sketch::kit::stage(ctx,
+                       {.size = {880, 560},
+                        .captureAt = 1.4,
+                        .background = SkColor4f{0.028f, 0.032f, 0.05f, 1.0f}});
     gm::camera::Camera lens;
     lens.eye = kEye;
     lens.target = {0.0f, -30.0f, 0.0f};

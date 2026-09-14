@@ -56,6 +56,7 @@
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/pattern/Tile.h>
 #include <sigilmaterial/texture/TextureSet.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>
 
@@ -314,9 +315,10 @@ struct MaterialLab final : sketch::Set {
   std::optional<material::Material> floorSurface;
 
   void setup(sketch::SetContext& ctx) override {
-    ctx.canvas(880, 520);
-    ctx.background({0.035f, 0.038f, 0.05f, 1.0f});
-    ctx.captureAt(1.1);
+    sketch::kit::stage(ctx,
+                       {.size = {880, 520},
+                        .captureAt = 1.1,
+                        .background = SkColor4f{0.035f, 0.038f, 0.05f, 1.0f}});
     row = cards();
     // The floor wears the set: a texture that repeats is what says how
     // large the room is.
