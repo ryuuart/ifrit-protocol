@@ -107,7 +107,7 @@ Element slotted(SkSize size, float drop, SkColor4f fill) {
                   .slot("chip", size, drop)
                   .add(u8" and it keeps its whole advance however narrow "
                        u8"the measure gets."))
-      .width(kCell - 24)
+      .width(pct(100))
       .children({box().key("chip").fill(Fill::color(fill))});
 }
 
@@ -115,7 +115,7 @@ Element slotted(SkSize size, float drop, SkColor4f fill) {
  *  line pitch is visible as a pitch. */
 Element banded(weave::ReservedBand band) {
   return text(kPassage)
-      .width(kCell - 24)
+      .width(pct(100))
       .fill(Fill::color(kBandTint))
       .reserve(band);
 }
@@ -145,8 +145,7 @@ struct RichSlotReserve final : sketch::Sketch {
                             "image · the child is keyed \"chip\" and "
                             "lands wherever the placeholder does",
                             slotted(kChip, 0, kChipFill)),
-                       cell("…"
-                            ", baselineDrop = 4",
+                       cell("…, baselineDrop = 4",
                             "the box's BOTTOM dropped below the baseline by "
                             "about the face's descent · a pill centred "
                             "on the x-height",
