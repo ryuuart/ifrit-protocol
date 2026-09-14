@@ -37,13 +37,12 @@
 
 // TAGS: Media/Images
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkPaint.h>
 #include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/layout/StyleSheet.h>
@@ -57,6 +56,7 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace image = sigil::image;
 namespace io = sigil::io;
+namespace mskia = sigil::material::skia;
 
 using namespace sigil::compose;
 
@@ -88,24 +88,23 @@ weave::Type labelType(float size, SkColor4f color, float track = 0) {
   return {.size = size, .color = color, .track = track};
 }
 
-/** One frame, drawn at kScale with the texels kept hard: this file is
- *  forty pixels across and a smooth resample would invent everything the
- *  sheet is about. */
-Element cell(std::string key, sk_sp<SkImage> frame, float w, float h,
-             const char* call, std::string note) {
+/** One frame, at kScale with the texels kept hard: this file is forty
+ *  pixels across and a smooth resample would invent everything the sheet
+ *  is about. The frame is the plate's own GROUND — a comparable image
+ *  paint, which prunes on the image it names, where a canvas call cannot
+ *  be compared to anything. */
+Element cell(const sk_sp<SkImage>& frame, float w, float h, const char* call,
+             std::string note) {
+  const SurfacePaint ground =
+      frame ? SurfacePaint(mskia::Paint::image(
+                  frame, SkTileMode::kClamp, SkTileMode::kClamp,
+                  SkMatrix::Scale(kScale, kScale),
+                  SkSamplingOptions(SkFilterMode::kNearest)))
+            : SurfacePaint(Fill::color(kCellGround));
   return sketch::kit::caption(
       0, call, note,
-      custom(std::move(key),
-             [frame, w, h](SkCanvas& canvas) {
-               if (!frame) return;
-               SkPaint paint;
-               canvas.drawImageRect(frame, SkRect::MakeWH(w, h),
-                                    SkSamplingOptions(SkFilterMode::kNearest),
-                                    &paint);
-             })
-          .width(w)
-          .height(h)
-          .fill(Fill::color(kCellGround)));
+      sketch::kit::well(
+          {.width = w, .height = h, .ground = ground, .padding = 0}));
 }
 
 }  // namespace
@@ -136,12 +135,14 @@ struct GifFrames final : sketch::Sketch {
   Element decoded(const image::ImageAsset& gif) const {
     const float w = (float)gif.width() * kScale;
     const float h = (float)gif.height() * kScale;
-    kit::Cells shelf{.gap = 12};
-    for (size_t i = 0; i < gif.frames().size(); ++i)
-      shelf.cells.push_back(cell(
-          "frame" + std::to_string(i), gif.frames()[i].image, w, h, "frames()",
-          kit::formatted("%.0f ms", (double)gif.frames()[i].durationMs)));
-    return kit::cells(std::move(shelf));
+    return kit::cells(
+        {.cells = each(gif.frames(),
+                       [&](const auto& frame) {
+                         return cell(frame.image, w, h, "frames()",
+                                     kit::formatted("%.0f ms",
+                                                    (double)frame.durationMs));
+                       }),
+         .gap = 12});
   }
 
   /** The shelf of PLAYBACK: one moment per cell, read back through the
@@ -149,12 +150,13 @@ struct GifFrames final : sketch::Sketch {
   Element sampled(const image::ImageAsset& gif) const {
     const float w = (float)gif.width() * kScale;
     const float h = (float)gif.height() * kScale;
-    kit::Cells shelf{.gap = 12};
-    for (double at : kSamples)
-      shelf.cells.push_back(cell("at" + std::to_string((int)at),
-                                 gif.frameAt(at).image, w, h, "frameAt(ms)",
-                                 kit::formatted("%.0f ms", at)));
-    return kit::cells(std::move(shelf));
+    return kit::cells(
+        {.cells = each(kSamples,
+                       [&](double at) {
+                         return cell(gif.frameAt(at).image, w, h, "frameAt(ms)",
+                                     kit::formatted("%.0f ms", at));
+                       }),
+         .gap = 12});
   }
 
   Element sheet(const image::ImageAsset& gif,
