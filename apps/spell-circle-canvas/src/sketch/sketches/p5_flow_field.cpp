@@ -130,14 +130,14 @@ struct P5FlowField final : sketch::Sketch {
         }
         pen.endShape();
 
+        // Every eleventh streamline ends in a spark. push/pop carries the
+        // line's own pen across it, so nothing is restated after.
         if (id % 11 == 0) {
           pen.push();
           pen.noStroke();
           pen.fill(sparks, SHAPE);
           pen.circle(x, y, 15.0f + 4.0f * std::sin(clock * 1.6f + id));
           pen.pop();
-          pen.stroke(ink, CANVAS);
-          pen.noFill();
         }
       }
     }
