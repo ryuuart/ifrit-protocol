@@ -49,18 +49,21 @@
 
 // TAGS: Motion/Clocks
 
-#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/style/Type.h>
 
+#include <algorithm>
 #include <cmath>
 
 namespace sketch = sigil::sketch;
+namespace draw = sigil::draw;
 namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
 
@@ -98,18 +101,26 @@ sketch::kit::Theme sheetTheme() {
   look.spacing.marginTop = 22;
   look.spacing.captionGap = 8;
   look.spacing.captionNoteGap = 3;
+  // A TRACE IS A MEASURED FIGURE, so the curve every plot draws is the
+  // palette's figure colour and no plot names one.
+  look.palette.figure = {0.36f, 0.82f, 0.72f, 1};
   return look;
 }
 
-const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
 const SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
 const SkColor4f kFrame{0.20f, 0.24f, 0.32f, 1};
 const SkColor4f kRail{0.85f, 0.30f, 0.36f, 0.75f};
 const SkColor4f kTrace{0.36f, 0.82f, 0.72f, 1};
 const SkColor4f kTraceB{1.00f, 0.72f, 0.28f, 1};
 const SkColor4f kCurve{0.32f, 0.46f, 0.62f, 1};
-const SkColor4f kGround{0.055f, 0.06f, 0.085f, 1};
-const SkColor4f kRule{0.19f, 0.20f, 0.26f, 1};
+
+/** The sheet's one class past the registers and the chart's: the ±amount
+ *  rails, which are the bound worth seeing and not a hairline. */
+weave::StyleSheet sheetClasses(const sketch::kit::Theme& look) {
+  weave::StyleSheet classes = look.styleSheet();
+  classes.set("rail", {.color = kRail});
+  return classes;
+}
 
 void strokePath(SkCanvas& canvas, const SkPath& path, SkColor4f color,
                 float width) {
@@ -121,94 +132,57 @@ void strokePath(SkCanvas& canvas, const SkPath& path, SkColor4f color,
   canvas.drawPath(path, paint);
 }
 
-/** ONE STAGE, GRAPHED: the lane's input on x, `apply()` on y, with @p lo
- *  and @p hi as the plot's own range so a stage that overshoots shows
+/** ONE STAGE, GRAPHED: the lane's input across, `apply()` up, with @p lo
+ *  and @p hi as the frame's own y domain so a stage that overshoots shows
  *  the overshoot instead of clipping it. This is exactly the value the
  *  runtime hands a bound property. */
 Element stage(const char* key, const BoundFloat& lane, float lo, float hi) {
-  // Keyed on the panel's own name for the lane, which is what the plotted
-  // chain, the range and nothing else are a function of.
-  return custom(key,
-                [lane, lo, hi](SkCanvas& canvas, const PaintContext& paint) {
-                  const float pw = paint.size.width(), ph = paint.size.height();
-                  const auto y = [&](float v) {
-                    return ph - 6.0f - (v - lo) / (hi - lo) * (ph - 12.0f);
-                  };
-                  SkPaint rule;
-                  rule.setStyle(SkPaint::kStroke_Style);
-                  rule.setStrokeWidth(1);
-                  rule.setColor4f(kFrame, nullptr);
-                  canvas.drawLine(0, y(0.0f), pw, y(0.0f), rule);
-                  canvas.drawLine(0, y(1.0f), pw, y(1.0f), rule);
-                  SkPathBuilder trace;
-                  for (int i = 0; i <= 600; ++i) {
-                    const float p = (float)i / 600.0f;
-                    const SkPoint at{pw * p, y(lane.apply(p))};
-                    i == 0 ? (void)trace.moveTo(at) : (void)trace.lineTo(at);
-                  }
-                  strokePath(canvas, trace.detach(), kTrace, 1.4f);
-                })
-      .cache(Cache::None);
+  return sketch::kit::plot(
+      key, {.x = {.domain = {0, 1}}, .y = {.domain = {lo, hi}}, .pad = 6},
+      {sketch::kit::rules({.y = {0.0, 1.0}}),
+       sketch::kit::trace([lane](double p) { return lane.apply((float)p); },
+                          {.pen = {.width = 1.4f}, .samples = 600})});
 }
 
-/** THE WIGGLE STAGE, on its own axes: the ±amount rails drawn in red,
- *  because the bound is the claim worth seeing. */
+/** THE WIGGLE STAGE, on its own axes: the ±amount rails in the rail
+ *  class, because the bound is the claim worth seeing. */
 Element wiggleStage(const char* key, const BoundFloat& lane) {
-  return custom(
-             key,
-             [lane](SkCanvas& canvas, const PaintContext& paint) {
-               const float pw = paint.size.width(), ph = paint.size.height();
-               const float cy = ph * 0.5f;
-               const float k = (ph * 0.5f - 6.0f) / kAmount;
-               SkPaint rule;
-               rule.setStyle(SkPaint::kStroke_Style);
-               rule.setStrokeWidth(1);
-               rule.setColor4f(kRail, nullptr);
-               canvas.drawLine(0, cy - kAmount * k, pw, cy - kAmount * k, rule);
-               canvas.drawLine(0, cy + kAmount * k, pw, cy + kAmount * k, rule);
-               rule.setColor4f(kFrame, nullptr);
-               canvas.drawLine(0, cy, pw, cy, rule);
-               SkPathBuilder trace;
-               for (int i = 0; i <= 1200; ++i) {
-                 const float p = kWindow * (float)i / 1200.0f;
-                 const SkPoint at{pw * (float)i / 1200.0f,
-                                  cy - lane.apply(p) * k};
-                 i == 0 ? (void)trace.moveTo(at) : (void)trace.lineTo(at);
-               }
-               strokePath(canvas, trace.detach(), kTrace, 1.4f);
-             })
-      .cache(Cache::None);
+  return sketch::kit::plot(
+      key,
+      {.x = {.domain = {0, kWindow}},
+       .y = {.domain = {-kAmount, kAmount}},
+       .pad = 6},
+      {sketch::kit::rules({.y = {-kAmount, kAmount}, .styleClass = "rail"}),
+       sketch::kit::rules({.y = {0.0}}),
+       sketch::kit::trace([lane](double p) { return lane.apply((float)p); },
+                          {.pen = {.width = 1.4f}, .samples = 1200})});
 }
 
 /** THE 2-D LOCUS: (x(p), y(p)) traced over the window, which is the path
- *  a two-axis shake actually walks. Shared seeds put x == y, so the locus
- *  IS the line y = x — the layer slides on a diagonal and never shakes. */
+ *  a two-axis shake actually walks. A trace walks one domain and this
+ *  walks a parameter into both, so it is drawn with the pen. Shared seeds
+ *  put x == y, so the locus IS the line y = x — the layer slides on a
+ *  diagonal and never shakes. */
 Element locus(const char* key, const BoundFloat& wx, const BoundFloat& wy,
               SkColor4f color) {
-  return custom(key,
-                [wx, wy, color](SkCanvas& canvas, const PaintContext& paint) {
-                  const float w = paint.size.width(), h = paint.size.height();
-                  const float cx = w * 0.5f, cy = h * 0.5f;
-                  const float k = std::min(w, h) * 0.5f / (kAmount * 1.15f);
-                  // The ±amount box: the locus can touch it, never leave it.
-                  SkPaint box;
-                  box.setStyle(SkPaint::kStroke_Style);
-                  box.setStrokeWidth(1);
-                  box.setColor4f(kRail, nullptr);
-                  canvas.drawRect(
-                      SkRect::MakeLTRB(cx - kAmount * k, cy - kAmount * k,
-                                       cx + kAmount * k, cy + kAmount * k),
-                      box);
-                  SkPathBuilder trace;
-                  for (int i = 0; i <= 900; ++i) {
-                    const float p = kWindow * (float)i / 900.0f;
-                    const SkPoint at{cx + wx.apply(p) * k,
-                                     cy + wy.apply(p) * k};
-                    i == 0 ? (void)trace.moveTo(at) : (void)trace.lineTo(at);
-                  }
-                  strokePath(canvas, trace.detach(), color, 1.3f);
-                })
-      .cache(Cache::None);
+  return pen(key, [wx, wy, color](draw::Pen& pen) {
+    const float cx = pen.width * 0.5f, cy = pen.height * 0.5f;
+    const float r = std::min(pen.width, pen.height) * 0.5f / 1.15f;
+    pen.noFill();
+    pen.strokeWeight(1);
+    // The ±amount box: the locus can touch it, never leave it.
+    pen.stroke(kRail);
+    pen.rect(cx - r, cy - r, r * 2, r * 2);
+    pen.stroke(color);
+    pen.strokeWeight(1.3f);
+    pen.beginShape();
+    for (int i = 0; i <= 900; ++i) {
+      const float p = kWindow * (float)i / 900.0f;
+      pen.vertex(cx + wx.apply(p) * r / kAmount,
+                 cy + wy.apply(p) * r / kAmount);
+    }
+    pen.endShape();
+  });
 }
 
 /** ONE PANEL, captioned in the one voice every panel here is: the
@@ -386,21 +360,23 @@ struct BoundLane : sketch::Sketch {
                     ".target(-0.3, 1.3) clamps")},
          .gap = 8});
 
-    ctx.composer.render(sketch::kit::page(
-        {.title = "THE BOUND LANE · bind(&output)",
-         .subtitle = "normalise → envelope "
-                     "→ curve → quantize "
-                     "→ affine → wrap "
-                     "→ wiggle → clamp, "
-                     "in that order whatever order they were "
-                     "written in",
-         .footer = "outline and motion path are one Shape value "
-                   "· translateX/Y are IGNORED while a path "
-                   "is engaged"},
-        kit::cells({.cells = {std::move(chain), std::move(locusRow),
-                              std::move(tracks)},
-                    .column = true,
-                    .gap = 26})));
+    ctx.composer.render(
+        sketch::kit::page(
+            {.title = "THE BOUND LANE · bind(&output)",
+             .subtitle = "normalise → envelope "
+                         "→ curve → quantize "
+                         "→ affine → wrap "
+                         "→ wiggle → clamp, "
+                         "in that order whatever order they were "
+                         "written in",
+             .footer = "outline and motion path are one Shape value "
+                       "· translateX/Y are IGNORED while a path "
+                       "is engaged"},
+            kit::cells({.cells = {std::move(chain), std::move(locusRow),
+                                  std::move(tracks)},
+                        .column = true,
+                        .gap = 26}))
+            .styleSheet(sheetClasses(sketch::kit::theme())));
   }
 };
 
