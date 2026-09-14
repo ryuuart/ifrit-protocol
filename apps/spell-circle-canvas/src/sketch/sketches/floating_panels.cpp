@@ -104,7 +104,7 @@ Element card(float w, float h, SkColor4f accent) {
                         Fill::color({accent.fR, accent.fG, accent.fB, 0.9f})),
                     // the tick rows, each shorter than the one above it
                     box().column().gap(14).children(
-                        {each(std::views::iota(0, 4),
+                        {each(4,
                               [w, ink](int i) {
                                 return box()
                                     .width(w - 60 - (float)i * 40)

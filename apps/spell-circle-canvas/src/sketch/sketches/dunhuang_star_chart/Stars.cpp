@@ -308,7 +308,7 @@ auto DunhuangStarChart::unreadTitle() -> Element {
                              kBandTop + 44 - kSegTop, 68, h))
       .key("title")
       .opacity(gate(tArch + 0.9f, tArch + 1.8f))
-      .children(each(std::views::iota(0, 6), [this, h](int i) {
+      .children(each(6, [this, h](int i) {
         const float y = 8.0f + (float)i * 46.0f;
         const uint32_t seed = (uint32_t)(3326 + i * 17);
         SkPathBuilder pb;

@@ -29,7 +29,9 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace sigil::world {
 
@@ -325,6 +327,42 @@ Element memo(P properties, F fn) {
       [fn = std::move(fn)](const std::any& p) -> Element {
         return fn(std::any_cast<const P&>(p));
       });
+}
+
+/** THE CHILDREN A RANGE DESCRIBES, one per item in the range's order, for
+ *  a `children({…})` block — the spelling a compose tree uses, on this
+ *  side of the seam. @p make takes the item, or the item and its index.
+ *
+ *      rig.children({each(posts, post), each(4, lantern)})
+ */
+template <std::ranges::input_range R, class Fn>
+[[nodiscard]] std::vector<Element> each(R&& range, Fn&& make) {
+  std::vector<Element> out;
+  size_t index = 0;
+  for (auto&& item : range) {
+    if constexpr (std::is_invocable_v<Fn&, decltype(item), size_t>)
+      out.push_back(make(item, index));
+    else
+      out.push_back(make(item));
+    ++index;
+  }
+  return out;
+}
+
+/** THE CHILDREN A COUNT DESCRIBES, one per index from 0 to @p count — the
+ *  ring of N posts whose only difference is where it stands. */
+template <class Fn>
+  requires std::is_invocable_v<Fn&, std::size_t> || std::is_invocable_v<Fn&>
+[[nodiscard]] std::vector<Element> each(std::size_t count, Fn&& make) {
+  std::vector<Element> out;
+  out.reserve(count);
+  for (size_t index = 0; index < count; ++index) {
+    if constexpr (std::is_invocable_v<Fn&, size_t>)
+      out.push_back(make(index));
+    else
+      out.push_back(make());
+  }
+  return out;
 }
 
 }  // namespace sigil::world

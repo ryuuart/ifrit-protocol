@@ -135,7 +135,7 @@ auto RotaConvocationis::wheel() -> Element {
        // which is at the rim and does not travel — the seals pass behind it.
        layer("ferrum")
            .rotate(motion::bind(&sealOrbit).target(0.0f, 360.0f))
-           .children(each(std::views::iota(0, kSeals),
+           .children(each(kSeals,
                           [this](int k) { return sigillum(k); })),
        spur(),
        // the embers: a live pool stamped as one draw, rising off the rim at

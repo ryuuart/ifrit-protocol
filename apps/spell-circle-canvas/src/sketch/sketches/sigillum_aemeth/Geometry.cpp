@@ -285,7 +285,7 @@ auto SigillumAemeth::angles() -> Element {
            // hold. The birds' later arrival is therefore marked by a separate
            // cheap rule on each plate rather than by holding this run's
            // opacity.
-           each(std::views::iota(0, 7),
+           each(7,
                 [](int k) {
                   std::string row;
                   for (int c = 0; c < 7; ++c) row += kAngles[k][c];
@@ -293,7 +293,7 @@ auto SigillumAemeth::angles() -> Element {
                       .key("ang" + std::to_string(k));
                 }),
            // the bird lands: its angle-plate takes a rule it did not have
-           each(std::views::iota(0, 7), [&plate](int k) {
+           each(7, [&plate](int k) {
              return plate(k)
                  .fill(Fill::none())
                  .stroke(stroke(2.2f, Fill::color(hexColor(0x402c10, 0.85f)),
@@ -344,7 +344,7 @@ auto SigillumAemeth::heptagonNames() -> Element {
                      .fill = Fill::color(hexColor(0x4a3418, 0.45f)),
                      .dash = {1.4f, 4.6f}}}))
                .key("heptrule2"),
-           each(std::views::iota(0, 7),
+           each(7,
                 [](int k) {
                   std::string row;
                   for (auto gl : kGodNames[(size_t)k].glyphs)
@@ -352,7 +352,7 @@ auto SigillumAemeth::heptagonNames() -> Element {
                   return onSide(row, k, rNameHept)
                       .key("god" + std::to_string(k));
                 }),
-           each(std::views::iota(0, 7), [](int k) {
+           each(7, [](int k) {
              return onSide(kGodNames[(size_t)k].gloss, k, rNameHept - 0.056f)
                  .styleClass("gloss")
                  .key("gloss" + std::to_string(k));
@@ -458,7 +458,7 @@ auto SigillumAemeth::innerRings() -> Element {
                Fill::color(hexColor(0x5a4218, 0.16f)), 8.0f, 0.8f, 22.0f))
            .key("recess"),
        // the concentric rules that cut the points into cells
-       each(std::views::iota(0, 5), [](int i) {
+       each(5, [](int i) {
          const float rr = kCellRings[i];
          const float width = i == 4 ? 2.4f : 1.5f;
          return kit::disc(SkPoint{kRR, kRR}, rr * kR)
@@ -549,7 +549,7 @@ auto SigillumAemeth::inner() -> Element {
                            .width = 0.7f,
                            .fill = Fill::color(hexColor(0xfbf0d0, 0.40f))}}))
                      .key("zabhept"),
-                 each(std::views::iota(0, 7), [](int k) {
+                 each(7, [](int k) {
                    const std::string s = kZabathiel[k];
                    return onSide(s == "I*" ? "Iɛ" : s, k, rInnerHept - 0.028f)
                        .font({.size = 0.030f * kR})
@@ -593,7 +593,7 @@ auto SigillumAemeth::pentagram() -> Element {
                      by::spans(spans::upTo(animate(
                          from(0.0f).to(1.0f), ramp(tInner * 1000 + 500, 800)))))
                .key("penta"),
-           each(std::views::iota(0, 5),
+           each(5,
                 [hub, lit](int k) {
                   return onCircle(kPentaNames[(size_t)k].initial, hub,
                                   rPentaInit * kR, (float)k * 72.0f,
@@ -603,7 +603,7 @@ auto SigillumAemeth::pentagram() -> Element {
                 }),
            // the rest of the name runs circularly outward into the exterior
            // angle
-           each(std::views::iota(0, 5), [hub, lit](int k) {
+           each(5, [hub, lit](int k) {
              return onCircle(kPentaNames[(size_t)k].tail, hub, rPentaTail * kR,
                              (float)k * 72.0f + 38.0f,
                              TextPath::Orient::Tangent)

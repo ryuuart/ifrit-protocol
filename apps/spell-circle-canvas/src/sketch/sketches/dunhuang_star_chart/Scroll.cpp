@@ -427,7 +427,7 @@ auto DunhuangStarChart::breakMark() -> Element {
       .opacity(gate(tPaper + 0.4f, tPaper + 1.4f))
       .children({box().cover().fill(
                      Fill::color(hexColor(0x171410, 0.96f))),
-                 each(std::views::iota(0, 2),
+                 each(2,
                       [w, h](int i) {
                         return box()
                             .rect(SkRect::MakeXYWH(

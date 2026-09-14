@@ -101,6 +101,20 @@ TEST(ComposeValues, AValueThatReadsItselfOutAsTextIsText) {
   EXPECT_TRUE(Utf8().empty());
 }
 
+TEST(ComposeValues, ARunOverACountIsOnePerIndex) {
+  // The run whose items are their own place in it says the count and
+  // nothing else; the make takes the index, or nothing at all.
+  std::vector<size_t> seen;
+  const std::vector<Element> indexed = each(4, [&seen](size_t i) {
+    seen.push_back(i);
+    return text(std::to_string(i));
+  });
+  EXPECT_EQ(indexed.size(), 4u);
+  EXPECT_EQ(seen, (std::vector<size_t>{0, 1, 2, 3}));
+  EXPECT_EQ(each(3, [] { return box(); }).size(), 3u);
+  EXPECT_TRUE(each(0, [] { return box(); }).empty());
+}
+
 TEST(ComposeValues, ARunInterleavesTheSeparatorItIsGiven) {
   // One separator before every item but the first, so a strip never ends
   // on a dot: three names make five children.

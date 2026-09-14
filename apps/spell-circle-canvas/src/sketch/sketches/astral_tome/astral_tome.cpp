@@ -325,7 +325,7 @@ struct AstralTome : sketch::Sketch {
    *  rather than printing the name as a clipped fragment. */
   Element bookmarkRail() const {
     return box().inset(0).key("bm").zIndex(12).children(
-        {each(std::views::iota(0, 4), [](int i) -> Element {
+        {each(4, [](int i) -> Element {
           const bool sel = i == 1;  // bookmarkIndex 20 = Constellations
           return box()
               .rect(SkRect::MakeXYWH(

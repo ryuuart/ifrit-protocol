@@ -82,7 +82,7 @@ auto RotaConvocationis::limina() -> Element {
       .hitTestable(false)
       .styleClass("label")
       .font({.size = 11.0f, .color = kAsh, .track = 2.0f})
-      .children(each(std::views::iota(0, kLimens), [this, chordPath](int k) {
+      .children(each(kLimens, [this, chordPath](int k) {
         return text(kLimina[k])
             .key("limen" + std::to_string(k))
             .cover()

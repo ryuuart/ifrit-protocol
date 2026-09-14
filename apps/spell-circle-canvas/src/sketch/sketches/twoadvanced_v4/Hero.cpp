@@ -364,7 +364,7 @@ auto TwoAdvancedV4::mainframe() -> Element {
 
                    .children({slot("mfload")})});
   Element body = box().grow(1).clip().children(
-      {hero(1178, 316), each(std::views::iota(0, 6), slat),
+      {hero(1178, 316), each(6, slat),
        std::move(accessing)});
 
   Element panel = bevelPanel(box().column().padding(3), kChrome, 3);

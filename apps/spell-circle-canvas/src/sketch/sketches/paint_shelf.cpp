@@ -40,7 +40,6 @@
 #include <sigilsketch/kit/Kit.h>
 
 #include <memory>
-#include <ranges>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -140,7 +139,7 @@ struct PaintShelf final : sketch::Sketch {
     // is read by.
     const auto pair = [&](bool world) {
       return box().row().padding(18, 34).gap(16).children(
-          {each(std::views::iota(0, 2), [&](int) {
+          {each(2, [&](int) {
             return box().grow(1).alignSelf(Align::Stretch).fill(field(world));
           })});
     };

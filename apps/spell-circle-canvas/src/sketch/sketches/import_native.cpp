@@ -59,7 +59,6 @@
 #include <chrono>
 #include <cmath>
 #include <memory>
-#include <ranges>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -113,7 +112,7 @@ Element dial(float edge) {
                .row()
                .gap(7)
                .alignItems(Align::End)
-               .children({each(std::views::iota(0, 18), tick)})})});
+               .children({each(18, tick)})})});
 }
 
 /** WHAT THE PAGE SCREEN CARRIES. Laid out by the web engine, published as

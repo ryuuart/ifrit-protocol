@@ -31,7 +31,7 @@ struct LainNavi : sketch::Sketch {
     // Skia caches blurred glyph masks per (font, sigma) and both passes
     // hit the same cache.
     return box().inset(0).children(
-        {each(std::views::iota(0, kLines), [this](int i) -> Element {
+        {each(kLines, [this](int i) -> Element {
           const float y = kFirstBase + kPitch * (float)i;
           const int src =
               ((scrollLine + i + kScrollPhase) % kListingN + kListingN) %

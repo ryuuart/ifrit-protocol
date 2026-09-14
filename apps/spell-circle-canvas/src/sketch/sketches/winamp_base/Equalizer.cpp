@@ -55,7 +55,7 @@ auto WinampBase::eqWindow() -> Element {
                         hexColor(0x08080E))
                      .children({box().inset(0).fill(graphGrid.material()),
                                 eqCurve().inset(0).cache(Cache::None)}),
-                 each(std::views::iota(0, 11), fader),
+                 each(11, fader),
                  each(kScale,
                       [this](const Mark& m) {
                         return at(box(), 38, m.y, 38, 7)

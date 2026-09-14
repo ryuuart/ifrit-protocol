@@ -45,7 +45,6 @@
 
 #include <cmath>
 #include <memory>
-#include <ranges>
 #include <string>
 #include <utility>
 
@@ -103,12 +102,12 @@ Element card(float w, float h, SkColor4f accent) {
       .children(
           {box().width(w - 24).height(11).corners({5}).fill(
                Fill::color({accent.fR, accent.fG, accent.fB, 0.92f})),
-           box().column().gap(9).children({each(std::views::iota(0, 3), rule)}),
+           box().column().gap(9).children({each(3, rule)}),
            box()
                .row()
                .gap(5)
                .alignItems(Align::End)
-               .children({each(std::views::iota(0, 10), bar)})});
+               .children({each(10, bar)})});
 }
 
 }  // namespace

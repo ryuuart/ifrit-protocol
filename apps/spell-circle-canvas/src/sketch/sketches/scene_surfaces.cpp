@@ -60,7 +60,6 @@
 #include <cmath>
 #include <glm/vec3.hpp>
 #include <memory>
-#include <ranges>
 #include <string>
 #include <utility>
 
@@ -138,7 +137,7 @@ compose::Element levels(float seconds, SkColor4f accent) {
                      .row()
                      .gap(7.0f)
                      .height(compose::pct(100))
-                     .children({compose::each(std::views::iota(0, 9), bar)})});
+                     .children({compose::each(9, bar)})});
 }
 
 /** A TRACE SCREEN: one line of blocks whose brightness travels, which is
@@ -159,7 +158,7 @@ compose::Element trace(float seconds, SkColor4f accent) {
       .children(
           {compose::text(u8"TRACE").styleClass("title"),
            compose::box().row().gap(5.0f).height(44.0f).children(
-               {compose::each(std::views::iota(0, kCells), cell)}),
+               {compose::each(kCells, cell)}),
            compose::text(u8"one wave, fourteen cells").styleClass("note")});
 }
 
@@ -203,7 +202,7 @@ compose::Element band(float seconds) {
   };
   return screen(6.0f, compose::hexColor(0x0d121a), 12.0f)
       .row()
-      .children({compose::each(std::views::iota(0, kCells), cell)});
+      .children({compose::each(kCells, cell)});
 }
 
 /** THE CARD ON THE TAPE: type over a plate, with three marks swinging
@@ -226,7 +225,7 @@ compose::Element tape(float seconds) {
                      .height(18.0f)
                      .left(16.0f)
                      .bottom(14.0f)
-                     .children({compose::each(std::views::iota(0, 3), mark)})});
+                     .children({compose::each(3, mark)})});
 }
 
 /** THE TILING, written as the texture's own placement.

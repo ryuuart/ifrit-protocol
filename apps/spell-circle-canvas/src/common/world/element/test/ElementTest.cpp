@@ -8,6 +8,7 @@
 #include <sigilworld/element/Lanes.h>
 #include <sigilworld/element/Node.h>
 
+#include <array>
 #include <glm/vec4.hpp>
 #include <memory>
 #include <string>
@@ -33,6 +34,25 @@ geometry::mesh::Mesh triangle(float size) {
 }
 
 }  // namespace
+
+TEST(WorldElement, EachDescribesTheChildrenARangeOrACountNames) {
+  // A ring of N posts is one `children` block and not a loop of appends,
+  // which is what the plane's own spelling says.
+  const std::array<float, 3> lanes{{1.0f, 2.0f, 3.0f}};
+  Element rig;
+  rig.key("rig").children(each(lanes, [](float x, size_t i) {
+    return Element().key("lane" + std::to_string(i)).translateX(x);
+  }));
+  ASSERT_EQ(rig.node()->children.size(), 3u);
+  EXPECT_EQ(rig.node()->children[2].node()->key, "lane2");
+
+  Element ring;
+  ring.children(each(
+      4, [](size_t i) { return Element().key("post" + std::to_string(i)); }));
+  ASSERT_EQ(ring.node()->children.size(), 4u);
+  EXPECT_EQ(ring.node()->children[3].node()->key, "post3");
+  EXPECT_TRUE(each(0, [] { return Element(); }).empty());
+}
 
 TEST(WorldElement, CopyOnWriteLeavesTheOriginalAlone) {
   Element base;

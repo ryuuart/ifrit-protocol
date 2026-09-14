@@ -41,7 +41,6 @@
 
 #include <cmath>
 #include <memory>
-#include <ranges>
 #include <string>
 #include <utility>
 
@@ -120,7 +119,7 @@ struct PlaceRepeatTiles final : sketch::Sketch {
                                            {{0.09f, 0.10f, 0.12f, 1},
                                             {0.30f, 0.32f, 0.36f, 1}}));
     const SkColor4f figure = sketch::kit::theme().palette.figure;
-    run.children({each(std::views::iota(0, kTiles * 3), [&](int i) {
+    run.children({each(kTiles * 3, [&](int i) {
       return motif(i % 3 == 0 ? kWarm : figure);
     })});
     // …and re-recorded behind a bounding-box hierarchy, so each tile's

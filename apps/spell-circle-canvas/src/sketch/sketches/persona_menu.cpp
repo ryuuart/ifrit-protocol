@@ -69,7 +69,6 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
-#include <ranges>
 #include <string_view>
 #include <vector>
 
@@ -743,7 +742,7 @@ struct PersonaMenu final : sketch::Sketch {
                  // paint order it does not have.
                  // The bottom row enters first, and the selected one falls
                  // out of the ladder rather than being placed by hand.
-                 .children({each(std::views::iota(0, nn::kRowCount),
+                 .children({each(nn::kRowCount,
                                  [this](int n) {
                                    const int i = nn::kRowCount - 1 - n;
                                    return i == nn::kSelected ? selectedRow()

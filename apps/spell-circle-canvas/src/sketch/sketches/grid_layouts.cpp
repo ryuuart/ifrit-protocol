@@ -35,7 +35,6 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
-#include <ranges>
 #include <string>
 #include <vector>
 
@@ -73,7 +72,7 @@ sketch::kit::Theme sheetTheme() {
 std::vector<Element> cards() {
   static constexpr float kSizes[3] = {11, 14, 18};
   const sketch::kit::Theme& look = sketch::kit::theme();
-  return each(std::views::iota(0, 12), [&look](int i) {
+  return each(12, [&look](int i) {
     return text((i < 9 ? "0" : "") + std::to_string(i + 1),
                 look.mono(kSizes[i % 3], look.palette.figure))
         .padding(8, 4, 8, 4)

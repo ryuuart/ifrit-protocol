@@ -86,6 +86,27 @@ template <std::ranges::input_range R, class Fn>
   }
   return out;
 }
+/** THE CHILDREN A COUNT DESCRIBES, one per index from 0 to @p count, for
+ *  the run whose items ARE their own place in it — a ladder of ticks, a
+ *  strip of N slats, a field of N cards read out of a table by index.
+ *  @p make takes the index, or nothing at all where the copies differ in
+ *  nothing.
+ *
+ *      row().children({each(12, card)})
+ */
+template <class Fn>
+  requires std::is_invocable_v<Fn&, std::size_t> || std::is_invocable_v<Fn&>
+[[nodiscard]] std::vector<Element> each(std::size_t count, Fn&& make) {
+  std::vector<Element> out;
+  out.reserve(count);
+  for (size_t index = 0; index < count; ++index) {
+    if constexpr (std::is_invocable_v<Fn&, size_t>)
+      out.push_back(make(index));
+    else
+      out.push_back(make());
+  }
+  return out;
+}
 /** THE SAME, WITH @p between INTERLEAVED — one of it before every item but
  *  the first, which is what a nav bar's hairlines, a legal strip's dots and
  *  a breadcrumb's arrows are:

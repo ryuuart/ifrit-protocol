@@ -502,7 +502,7 @@ struct LootGrid final : sketch::Sketch {
                  .width(3 * lt::kCell + 2 * lt::kGap)
                  .height(4 * lt::kCell + 3 * lt::kGap)
                  .children(
-                     {each(std::views::iota(0, 12),
+                     {each(12,
                            [](int i) -> Element {
                              return lt::well(lt::kCell, lt::kCell)
                                  .key("cube" + std::to_string(i))

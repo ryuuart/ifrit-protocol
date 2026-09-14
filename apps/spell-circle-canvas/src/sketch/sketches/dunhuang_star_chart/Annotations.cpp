@@ -44,7 +44,7 @@ auto DunhuangStarChart::locator() -> Element {
                    .strokeFill = Fill::color(hexColor(0x2a2118, 0.75f))}),
            // the 26 clouds and the 80 columns of the divination section, at
            // the RIGHT end of the roll
-           each(std::views::iota(0, 26),
+           each(26,
                 [lw](int c) {
                   return box()
                       .rect(SkRect::MakeXYWH(lw - 31.0f - (float)c * 24.0f, 6,
@@ -52,7 +52,7 @@ auto DunhuangStarChart::locator() -> Element {
                       .shape(shapes::blob((uint32_t)(700 + c), 0.34f, 6))
                       .fill(Fill::color(hexColor(0x33291c, 0.85f)));
                 }),
-           each(std::views::iota(0, 80),
+           each(80,
                 [lw, lh](int c) {
                   return box()
                       .rect(SkRect::MakeXYWH(lw - 20.0f - (float)c * 7.6f, 19,
@@ -406,7 +406,7 @@ auto DunhuangStarChart::auditPanel() -> Element {
                       return i + 1 < std::size(kHeads) ? cell.width(kHeads[i])
                                                        : cell.grow(1);
                     })),
-           each(std::views::iota(0, 20), [this](int i) { return auditRow(i); }),
+           each(20, [this](int i) { return auditRow(i); }),
            hairline(0.5f).opacity(gate(tAudit + 5.4f, tAudit + 5.9f)),
            noteStack("auditFoot")
                .font({.size = 9.4f})

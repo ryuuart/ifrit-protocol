@@ -64,21 +64,21 @@ world::Element subject() {
            .fill(material::kit::surface(
                {.baseColor = {0.72f, 0.70f, 0.66f, 1.0f}, .roughness = 0.45f}))
            .tag("lit")});
-  for (int i = 0; i < kPosts; ++i) {
+  set.children(world::each(kPosts, [](std::size_t i) {
     // The angle is wanted too, to turn each post onto its own spoke, so
     // the ring is taken as the two halves rather than as onRing.
     const float angle =
-        arrange::along(0.0f, kTwoPi, (size_t)i, kPosts, arrange::Turn::Closed);
+        arrange::along(0.0f, kTwoPi, i, kPosts, arrange::Turn::Closed);
     const SkPoint on = arrange::onEllipse({0, 0}, {kRing, kRing}, angle);
-    set.children({world::Element()
-                      .key("post" + std::to_string(i))
-                      .at({on.fX, 0.0f, on.fY})
-                      .rotateY(angle * 57.2957795f)
-                      .mesh(gm::superellipsoid({11, 52, 11}, 5.0f, 12, 8))
-                      .fill(material::kit::surface(
-                          {.baseColor = {0.36f, 0.38f, 0.44f, 1.0f}}))
-                      .tag("lit")});
-  }
+    return world::Element()
+        .key("post" + std::to_string(i))
+        .at({on.fX, 0.0f, on.fY})
+        .rotateY(angle * 57.2957795f)
+        .mesh(gm::superellipsoid({11, 52, 11}, 5.0f, 12, 8))
+        .fill(
+            material::kit::surface({.baseColor = {0.36f, 0.38f, 0.44f, 1.0f}}))
+        .tag("lit");
+  }));
   return set;
 }
 

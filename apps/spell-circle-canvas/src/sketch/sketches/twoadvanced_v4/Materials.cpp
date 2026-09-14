@@ -105,7 +105,7 @@ auto TwoAdvancedV4::tickDots(int cluster, SkColor4f c) -> Element {
       .row()
       .gap(4)
       .alignItems(Align::Center)
-      .children({each(std::views::iota(0, 3), dotAt)});
+      .children({each(3, dotAt)});
 }
 
 auto TwoAdvancedV4::radarSweep(int i, SkColor4f tint, float inner) -> Element {

@@ -101,7 +101,7 @@ auto SigillumAemeth::nameRows() -> Element {
       .fill(Fill::none())
       .stroke(PathFormat{.width = 0.8f,
                          .strokeFill = Fill::color(hexColor(0xc7ab74, 0.14f))})
-      .children(each(std::views::iota(0, 7), [this](int n) {
+      .children(each(7, [this](int n) {
         const Solved& s = solved[(size_t)n];
         const float at = (tSolve + (float)n * tSolveEach) * 1000;
         std::string chain;

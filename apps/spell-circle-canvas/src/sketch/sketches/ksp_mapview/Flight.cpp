@@ -536,7 +536,7 @@ auto KspMapView::altimeter() -> Element {
           .stroke(PathFormat{.width = 1.4f,
                              .strokeFill = Fill::color(hexColor(0x33393E))}),
       dc, 74, 74)});
-  dial.children({each(std::views::iota(0, 13), [dc](int i) {
+  dial.children({each(13, [dc](int i) {
     return at(box()
                   .shape(shapes::sector(-1.1f, 2.2f, i % 3 ? 0.82f : 0.72f))
                   .fill(hexColor(0x3A4046))

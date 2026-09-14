@@ -48,7 +48,6 @@
 #include <array>
 #include <cstdio>
 #include <memory>
-#include <ranges>
 #include <string>
 #include <utility>
 #include <vector>
@@ -192,7 +191,7 @@ Element chunkElement(const std::shared_ptr<sigil::image::ImageAsset>& tileset,
   return box()
       .width(kChunkCols * kTile)
       .height(kChunkRows * kTile)
-      .children({each(std::views::iota(0, kCellsPerChunk), [&](int cell) {
+      .children({each(kCellsPerChunk, [&](int cell) {
         const arrange::Cell at = arrange::cellAt((size_t)cell, kChunkCols);
         const int id = cell == chunk.edit.cell
                            ? chunk.edit.id
@@ -267,7 +266,7 @@ struct TileMap final : sketch::Sketch {
         box()
             .row()
             .width(kChunks * kChunkCols * kTile)
-            .children({each(std::views::iota(0, kChunks), [this](int i) {
+            .children({each(kChunks, [this](int i) {
               return stack()
                   .width(kChunkCols * kTile)
                   .height(kChunkRows * kTile)

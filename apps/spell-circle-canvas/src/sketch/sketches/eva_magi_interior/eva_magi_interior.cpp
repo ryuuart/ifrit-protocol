@@ -416,7 +416,7 @@ struct EvaMagiInterior : sketch::Sketch {
     // labels live inside their rotated local coordinate systems.
     picture.children(
         {plateFurniture().cache(Cache::Texture).key("furniture"),
-         each(std::views::iota(0, 3), [this](int i) { return panelNode(i); }),
+         each(3, [this](int i) { return panelNode(i); }),
          // Headings and state cards occupy the frontmost UI layer.
          plateType().cache(Cache::Texture).key("ptype"), verdictBox(),
          slot("hud")});

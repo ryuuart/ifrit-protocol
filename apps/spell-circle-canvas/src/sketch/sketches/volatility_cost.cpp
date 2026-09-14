@@ -88,7 +88,6 @@
 #include <cmath>
 #include <memory>
 #include <random>
-#include <ranges>
 #include <string>
 #include <utility>
 #include <vector>
@@ -214,7 +213,7 @@ Element cells(const choreograph::Output<Fill>* tint) {
       .width(kCellsWidth)
       .height(kFieldHeight)
       .children({box().key("cells").row().wrapLines().gap(2).children(
-          {each(std::views::iota(0, kCells), cell),
+          {each(kCells, cell),
            box()
                .key("accent")
                .width(26)
@@ -303,8 +302,8 @@ struct VolatilityCost final : sketch::Sketch {
         .width(kFieldWidth)
         .height(kFieldHeight)
         .fill(Fill::color({0.04f, 0.04f, 0.08f, 1}))
-        .children({each(std::views::iota(0, kCards), card),
-                   each(std::views::iota(0, kMovers), mover)});
+        .children({each(kCards, card),
+                   each(kMovers, mover)});
   }
 
   /** THE MAP: every keyed node the profile named, outlined in the colour

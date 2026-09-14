@@ -48,7 +48,6 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
-#include <ranges>
 #include <string>
 #include <utility>
 #include <vector>
@@ -446,7 +445,7 @@ struct Cosmati final : sketch::Sketch {
     }
 
     // the roundels: four around one
-    floorPlate.children({each(std::views::iota(0, 4), [&](int i) {
+    floorPlate.children({each(4, [&](int i) {
       return roundel(
           arrange::onRing((size_t)i, 4, {c, c}, {arm * 1.414f, arm * 1.414f},
                           0.7853982f, 6.2831853f, arrange::Turn::Closed),
