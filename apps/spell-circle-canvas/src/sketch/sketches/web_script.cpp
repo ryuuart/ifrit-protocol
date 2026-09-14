@@ -207,9 +207,10 @@ struct WebScript final : sketch::Sketch {
     const sketch::scry::Events pressedEvents(*pressed);
     pressed->loadHTML(page());
     settled = pressedEvents.awaitLoad() && settled;
-    pressed->mouseMove(kClickAt.x(), kClickAt.y());
-    pressed->mouseDown(kClickAt.x(), kClickAt.y());
-    pressed->mouseUp(kClickAt.x(), kClickAt.y());
+    const int atX = kClickAt.x(), atY = kClickAt.y();
+    pressed->mouseMove(atX, atY);
+    pressed->mouseDown(atX, atY);
+    pressed->mouseUp(atX, atY);
     // The class the page's own handler adds is its statement that the
     // click arrived and the button has been repainted in it.
     settled = sketch::scry::awaitAnswer(
@@ -224,7 +225,7 @@ struct WebScript final : sketch::Sketch {
     const std::string press = kit::formatted(
         "three events for one click — the page's own "
         "handler stamped (%d, %d)",
-        kClickAt.x(), kClickAt.y());
+        atX, atY);
     const std::string wheel = kit::formatted(
         "%d px down the page — a delta is what the "
         "CONTENT moves by, so down is negative",
@@ -300,7 +301,6 @@ struct WebScript final : sketch::Sketch {
   static Element missing(const std::string& why) {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
     return box()
-        .absolute()
         .inset(0)
         .fill(Fill::color(sheet.palette.ground))
         .column()
