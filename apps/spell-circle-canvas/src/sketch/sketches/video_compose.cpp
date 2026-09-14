@@ -28,6 +28,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <memory>
+#include <ranges>
 #include <string>
 #include <string_view>
 
@@ -137,10 +138,9 @@ struct VideoCompose final : sketch::Sketch {
       });
     }
 
-    Element stage = stack().width(kWidth).height(kHeight);
     const SkSize module =
         arrange::moduleSize({kWidth, kHeight}, kColumns, kRows, {0, 0});
-    const auto addLeaf = [&](int source, int cell, bool overlay) {
+    const auto leafAt = [&](int source, int cell, bool overlay) {
       const VideoOptions options = optionsFor(source, cell, overlay);
       Element leaf =
           playback ? video(clips[source], playback, handles[source], options)
@@ -149,29 +149,26 @@ struct VideoCompose final : sketch::Sketch {
       // leaves never leave a seam between them.
       const SkRect at =
           arrange::cellRect(arrange::cellAt((size_t)cell, kColumns), module);
-      leaf.rect(SkRect::MakeXYWH(at.fLeft, at.fTop, at.width() + 0.5f,
-                                 at.height() + 0.5f));
-      stage.children({std::move(leaf)});
+      return leaf.rect(SkRect::MakeXYWH(at.fLeft, at.fTop, at.width() + 0.5f,
+                                        at.height() + 0.5f));
     };
-
-    for (int cell = 0; cell < kCells; ++cell) {
-      addLeaf(cell & 1, cell, false);
-      addLeaf(2 + cell % 3, cell, true);
-    }
+    const auto cells = std::views::iota(0, kCells);
 
     const weave::TextStyle title = weave::textStyle(
         {.size = 27, .color = SkColor4f{1, 1, 1, 0.96f}, .track = 5.5f});
-    stage.children({text(u8"100 / COMPOSE VIDEO", title)
-                        .absolute()
-                        .inset(42, 42, 42, kHeight - 96)});
-    stage.children({kit::centred()
-                        .absolute()
-                        .inset(0)
-                        .fill(Fill::color({0, 0, 0, 1}))
-                        .opacity(&loading)
-
-                        .children({text(u8"BUFFERING / 005 SOURCES", title)})});
-    ctx.composer.render(std::move(stage));
+    ctx.composer.render(stack().width(kWidth).height(kHeight).children(
+        {// A sky under every cell, and an effect source over it.
+         each(cells, [&](int cell) { return leafAt(cell & 1, cell, false); }),
+         each(cells,
+              [&](int cell) { return leafAt(2 + cell % 3, cell, true); }),
+         text(u8"100 / COMPOSE VIDEO", title).at({42, 42}),
+         // The cover the scene waits behind until every source has
+         // a frame.
+         kit::centred(text(u8"BUFFERING / 005 SOURCES", title))
+             .absolute()
+             .inset(0)
+             .fill(Fill::color({0, 0, 0, 1}))
+             .opacity(&loading)}));
   }
 };
 
