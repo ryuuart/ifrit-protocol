@@ -59,6 +59,7 @@
 
 #include <cmath>
 #include <memory>
+#include <ranges>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -86,25 +87,6 @@ render::Runtime painter() { return sketch::painterRuntime(); }
  *  window. */
 Element card(float w, float h, SkColor4f accent) {
   const SkColor4f ink = {1, 1, 1, 0.25f};
-  auto rows = box().column().gap(14);
-  for (int i = 0; i < 4; ++i)
-    rows.children({box()
-                       .width(w - 60 - (float)i * 40)
-                       .height(8)
-                       .corners({4})
-                       .fill(Fill::color(ink))});
-
-  auto bars = box().row().gap(6).alignItems(Align::End);
-  for (int i = 0; i < 14; ++i) {
-    const float t = (float)i / 13.0f;
-    bars.children(
-        {box()
-             .width(10)
-             .height(10 + 34.0f * (0.5f + 0.5f * std::sin(t * 9.0f + 1.7f)))
-             .corners({2})
-             .fill(Fill::color({accent.fR, accent.fG, accent.fB, 0.85f}))});
-  }
-
   const float gauge = 108;
   return stack()
       .width(w)
@@ -116,10 +98,39 @@ Element card(float w, float h, SkColor4f accent) {
                .gap(18)
                .absolute()
                .inset(16, 16, 16, 16)
-               .children({box().width(w - 32).height(14).corners({7}).fill(
-                   Fill::color({accent.fR, accent.fG, accent.fB, 0.9f}))})
-               .children({std::move(rows)})
-               .children({std::move(bars)}),
+               .children(
+                   {// the header pill
+                    box().width(w - 32).height(14).corners({7}).fill(
+                        Fill::color({accent.fR, accent.fG, accent.fB, 0.9f})),
+                    // the tick rows, each shorter than the one above it
+                    box().column().gap(14).children(
+                        {each(std::views::iota(0, 4),
+                              [w, ink](int i) {
+                                return box()
+                                    .width(w - 60 - (float)i * 40)
+                                    .height(8)
+                                    .corners({4})
+                                    .fill(Fill::color(ink));
+                              })}),
+                    // the bar row, standing on its own foot
+                    box()
+                        .row()
+                        .gap(6)
+                        .alignItems(Align::End)
+                        .children({each(
+                            std::views::iota(0, 14),
+                            [accent](int i) {
+                              const float t = (float)i / 13.0f;
+                              return box()
+                                  .width(10)
+                                  .height(10 +
+                                          34.0f *
+                                              (0.5f + 0.5f * std::sin(t * 9.0f +
+                                                                      1.7f)))
+                                  .corners({2})
+                                  .fill(Fill::color({accent.fR, accent.fG,
+                                                     accent.fB, 0.85f}));
+                            })})}),
            sketch::kit::gauge({.fraction = 200.0f / 280.0f,
                                .diameter = gauge,
                                .thickness = gauge * 0.5f * (1 - 0.72f),
@@ -148,21 +159,18 @@ struct FloatingPanels final : sketch::Sketch {
   }
 
   void draw(SkCanvas& canvas) const {
-    camera::Camera view;
-    view.eye = {0, 80, 900};
-    view.target = {0, 0, 0};
-    view.fovYDeg = 38;
+    const camera::Camera view{
+        .eye = {0, 80, 900}, .target = {0, 0, 0}, .fovYDeg = 38};
 
-    render::MeshStyle ground;
-    ground.baseColor = {0.16f, 0.3f, 0.5f, 0.5f};
-    ground.ambient = {0.45f, 0.5f, 0.62f, 1};
-    ground.specular = 0;
     // A sheet has one facing, and this one is being looked at from the
     // side the winding calls the back. Culling it would leave the frame
     // with no ground at all.
-    ground.backfaceCull = false;
-    ground.runtime = painter();
-    render::drawMesh(canvas, floor, glm::mat4(1.0f), view, kCanvas, ground);
+    render::drawMesh(canvas, floor, glm::mat4(1.0f), view, kCanvas,
+                     {.baseColor = {0.16f, 0.3f, 0.5f, 0.5f},
+                      .ambient = {0.45f, 0.5f, 0.62f, 1},
+                      .specular = 0,
+                      .backfaceCull = false,
+                      .runtime = painter()});
 
     render::drawImagePanel(canvas, cardA, 360, 240,
                            camera::place({-350, 120, -80}, 34), view, kCanvas,
@@ -177,15 +185,14 @@ struct FloatingPanels final : sketch::Sketch {
     // The curved sheet: the same kind of picture, mapped per triangle.
     // Unlit on purpose — a screen emits, and a light term on it would
     // read as a smear across the curve.
-    render::MeshStyle emissive;
-    emissive.texture = screen;
-    emissive.baseColor = {1, 1, 1, 1};
-    emissive.ambient = {0.9f, 0.9f, 0.9f, 1};
-    emissive.lights = {};
-    emissive.specular = 0;
-    emissive.runtime = painter();
     render::drawMesh(canvas, curved, camera::place({0, -160, 60}, 0, 10), view,
-                     kCanvas, emissive);
+                     kCanvas,
+                     {.baseColor = {1, 1, 1, 1},
+                      .lights = {},
+                      .ambient = {0.9f, 0.9f, 0.9f, 1},
+                      .specular = 0,
+                      .texture = screen,
+                      .runtime = painter()});
   }
 
   void setup(sketch::SketchContext& ctx) override {
