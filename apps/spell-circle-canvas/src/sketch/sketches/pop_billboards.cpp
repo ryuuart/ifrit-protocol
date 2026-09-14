@@ -112,12 +112,7 @@ pop::Builder motes() {
 /** How the second row splats: opaque, small and depth-sorted, so what
  *  the eye reads is where the points ARE rather than how many of them
  *  piled up on one pixel. */
-points::BillboardStyle strandStyle() {
-  points::BillboardStyle style;
-  style.size = 3.2f;
-  style.additive = false;
-  return style;
-}
+const points::BillboardStyle kStrand{.size = 3.2f, .additive = false};
 
 /** The other subject: a ring of points pushed off their loop by Noise,
  *  which is the kink Relax exists to take out. */
@@ -132,6 +127,16 @@ pop::Builder kinked() {
       .seed(4)
       .noise(kNoise, 0.075f)
       .rampBy({{0.98f, 0.84f, 0.42f, 1}, {0.42f, 0.86f, 0.72f, 1}});
+}
+
+/** One splat of @p chain in @p style, into the cell's own box: the sink
+ *  forms no geometry, so a cell is the chain, the style and nothing. */
+std::function<void(SkCanvas&, SkSize)> splat(pop::Builder chain,
+                                             points::BillboardStyle style) {
+  return [chain = std::move(chain), style = std::move(style)](SkCanvas& canvas,
+                                                              SkSize size) {
+    chain.billboards(canvas, stage(), size, style);
+  };
 }
 
 Element cell(const char* call, const std::string& note,
@@ -159,175 +164,67 @@ struct PopBillboards final : sketch::Sketch {
     const gm::Cloud tagged = motes().atlas(4, 4).cloud();
     const std::vector<glm::vec4>* tex = tagged.colorIf("Tex");
 
-    ctx.composer.render(sketch::kit::
-                            page({.title = "POP BILLBOARDS · cookBillboards + "
-                                           "BillboardStyle + Relax",
-                                  .subtitle =
-                                      "dials · the relax iterations (0, 3, "
-                                      "12) · the sprite · the atlas "
-                                      "cell (4 by 4)",
-                                  .footer = "the splatting sink forms no "
-                                            "geometry: it "
-                                            "projects, sorts back to front and "
-                                            "draws one "
-                                            "sprite per point, which is why it "
-                                            "is the sink "
-                                            "a camera-facing mark belongs to"},
-                                 kit::cells({.cells = {kit::cells({.cells = {cell("pop::Builder::billboards(canvas, "
-                                                                                  "camera, viewport)",
-                                                                                  kit::formatted(
-                                                                                      "%d points · size and tint "
-                                                                                      "lanes picked up unnamed · "
-                                                                                      "the default soft dot, additive",
-                                                                                      kMotes),
-                                                                                  [](SkCanvas&
-                                                                                         canvas,
-                                                                                     SkSize size) {
-                                                                                    points::BillboardStyle
-                                                                                        style;
-                                                                                    style
-                                                                                        .size =
-                                                                                        2.6f;
-                                                                                    motes()
-                                                                                        .billboards(
-                                                                                            canvas,
-                                                                                            stage(),
-                                                                                            size,
-                                                                                            style);
-                                                                                  }),
-                                                                             cell(
-                                                                                 "BillboardStyle{.sprite = ring}",
-                                                                                 kit::formatted("one sprite for the whole splat "
-                                                                                                "· pop::Atlas wrote Tex "
-                                                                                                "cell (%.2f, %.2f) on point 0 for "
-                                                                                                "the STAMPING sink, which this "
-                                                                                                "one does not read",
-                                                                                                tex &&
-                                                                                                        !tex
-                                                                                                             ->empty()
-                                                                                                    ? (double)(*tex)[0]
-                                                                                                          .x
-                                                                                                    : 0.0,
-                                                                                                tex &&
-                                                                                                        !tex
-                                                                                                             ->empty()
-                                                                                                    ? (double)(*tex)[0]
-                                                                                                          .y
-                                                                                                    : 0.0),
-                                                                                 [](
-                                                                                     SkCanvas&
-                                                                                         canvas,
-                                                                                     SkSize size) {
-                                                                                   points::BillboardStyle
-                                                                                       style;
-                                                                                   style
-                                                                                       .sprite =
-                                                                                       ringSprite();
-                                                                                   style
-                                                                                       .size =
-                                                                                       7;
-                                                                                   style
-                                                                                       .additive =
-                                                                                       false;
-                                                                                   motes()
-                                                                                       .billboards(
-                                                                                           canvas,
-                                                                                           stage(),
-                                                                                           size,
-                                                                                           style);
-                                                                                 }),
-                                                                             cell(
-                                                                                 "BillboardStyle{.perspective = false}",
-                                                                                 "constant pixel size · near and "
-                                                                                 "far points splat the same, so the "
-                                                                                 "depth sort is the only thing left "
-                                                                                 "saying which is in front",
-                                                                                 [](SkCanvas& canvas, SkSize size) {
-                                                                                   points::BillboardStyle
-                                                                                       style;
-                                                                                   style
-                                                                                       .size =
-                                                                                       4;
-                                                                                   style
-                                                                                       .perspective =
-                                                                                       false;
-                                                                                   style
-                                                                                       .additive =
-                                                                                       false;
-                                                                                   motes()
-                                                                                       .billboards(
-                                                                                           canvas,
-                                                                                           stage(),
-                                                                                           size,
-                                                                                           style);
-                                                                                 })},
-                                                                   .gap = 14}),
-                                                       kit::cells({.cells =
-                                                                       {
-                                                                           cell("no Relax",
-                                                                                kit::formatted("noise(%.0f, 0.075) straight off "
-                                                                                               "the loop scatter · "
-                                                                                               "consecutive points jump, so a "
-                                                                                               "frame threaded through them "
-                                                                                               "tears",
-                                                                                               (double)kNoise),
-                                                                                [](
-                                                                                    SkCanvas&
-                                                                                        canvas,
-                                                                                    SkSize
-                                                                                        size) {
-                                                                                  kinked()
-                                                                                      .billboards(
-                                                                                          canvas,
-                                                                                          stage(),
-                                                                                          size,
-                                                                                          strandStyle());
-                                                                                }),
-                                                                           cell(
-                                                                               "smooth(0.5, 3)",
-                                                                               "Relax{.strength = 0.5, .iterations = "
-                                                                               "3} · each point eases toward "
-                                                                               "its chain-order neighbours' midpoint",
-                                                                               [](SkCanvas&
-                                                                                      canvas,
-                                                                                  SkSize
-                                                                                      size) {
-                                                                                 kinked()
-                                                                                     .smooth(
-                                                                                         0.5f,
-                                                                                         3)
-                                                                                     .billboards(
-                                                                                         canvas,
-                                                                                         stage(),
-                                                                                         size,
-                                                                                         strandStyle());
-                                                                               }),
-                                                                           cell(
-                                                                               "smooth(0.9, 12)",
-                                                                               kit::formatted(
-                                                                                   "strength 0.9 over %d passes "
-                                                                                   "· the run is continuous "
-                                                                                   "again — the "
-                                                                                   "amplitude survives, only the "
-                                                                                   "kinks go",
-                                                                                   kIterations),
-                                                                               [](SkCanvas&
-                                                                                      canvas,
-                                                                                  SkSize
-                                                                                      size) {
-                                                                                 kinked()
-                                                                                     .smooth(
-                                                                                         0.9f,
-                                                                                         kIterations)
-                                                                                     .billboards(
-                                                                                         canvas,
-                                                                                         stage(),
-                                                                                         size,
-                                                                                         strandStyle());
-                                                                               })},
-                                                                   .gap = 14})},
-                                             .column = true,
-                                             .gap = 18})));
+    const auto texCell = [tex](int axis) {
+      return tex && !tex->empty()
+                 ? (double)((axis == 0) ? (*tex)[0].x : (*tex)[0].y)
+                 : 0.0;
+    };
+    Element sink = kit::cells(
+        {.cells = {cell("pop::Builder::billboards(canvas, camera, viewport)",
+                        kit::formatted("%d points · size and tint lanes "
+                                       "picked up unnamed · the default soft "
+                                       "dot, additive",
+                                       kMotes),
+                        splat(motes(), {.size = 2.6f})),
+                   cell("BillboardStyle{.sprite = ring}",
+                        kit::formatted(
+                            "one sprite for the whole splat · "
+                            "pop::Atlas wrote Tex cell (%.2f, %.2f) on "
+                            "point 0 for the STAMPING sink, which this "
+                            "one does not read",
+                            texCell(0), texCell(1)),
+                        splat(motes(), {.sprite = ringSprite(),
+                                        .size = 7,
+                                        .additive = false})),
+                   cell("BillboardStyle{.perspective = false}",
+                        "constant pixel size · near and far points splat "
+                        "the same, so the depth sort is the only thing left "
+                        "saying which is in front",
+                        splat(motes(), {.size = 4,
+                                        .additive = false,
+                                        .perspective = false}))},
+         .gap = 14});
+    Element relax = kit::cells(
+        {.cells =
+             {cell("no Relax",
+                   kit::formatted("noise(%.0f, 0.075) straight off the loop "
+                                  "scatter · consecutive points jump, so "
+                                  "a frame threaded through them tears",
+                                  (double)kNoise),
+                   splat(kinked(), kStrand)),
+              cell("smooth(0.5, 3)",
+                   "Relax{.strength = 0.5, .iterations = 3} · each "
+                   "point eases toward its chain-order neighbours' midpoint",
+                   splat(kinked().smooth(0.5f, 3), kStrand)),
+              cell("smooth(0.9, 12)",
+                   kit::formatted("strength 0.9 over %d passes · the run "
+                                  "is continuous again — the amplitude "
+                                  "survives, only the kinks go",
+                                  kIterations),
+                   splat(kinked().smooth(0.9f, kIterations), kStrand))},
+         .gap = 14});
+
+    ctx.composer.render(sketch::kit::page(
+        {.title = "POP BILLBOARDS · cookBillboards + BillboardStyle + Relax",
+         .subtitle = "dials · the relax iterations (0, 3, 12) · "
+                     "the sprite · the atlas cell (4 by 4)",
+         .footer = "the splatting sink forms no geometry: it projects, "
+                   "sorts back to front and draws one sprite per point, "
+                   "which is why it is the sink a camera-facing mark "
+                   "belongs to"},
+        kit::cells({.cells = {std::move(sink), std::move(relax)},
+                    .column = true,
+                    .gap = 18})));
   }
 };
 
