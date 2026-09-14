@@ -5,7 +5,6 @@
 
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildata/query/Database.h>
-#include <sigildata/scale/Scale.h>
 #include <sigildata/table/Table.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -23,38 +22,16 @@ namespace {
 
 constexpr float kCell = 330;
 constexpr float kBars = 150;
-constexpr SkColor4f kBar{0.30f, 0.83f, 0.78f, 1};
-constexpr SkColor4f kBarDim{0.30f, 0.83f, 0.78f, 0.45f};
 
-/** A column of horizontal bars, one per row: the label from @p names and
- *  the length from @p values against the largest, drawn in the ink in
- *  force. What is missing draws as a note in the ink. */
-Element bars(const data::Table* table, const char* names, const char* values,
-             std::string_view missing) {
-  Element column = box().column().gap(4).width(kCell - 28);
+/** THE ANSWER, drawn: one bar a row against the largest of them, read
+ *  straight off @p table's two columns. A table that has not loaded draws
+ *  @p missing instead, which is the sketch's own note about why. */
+Element answer(const data::Table* table, const char* names, const char* values,
+               std::string_view missing) {
   if (!table || !table->has(names) || !table->has(values))
-    return column.children(
-        {text(missing)});
-  const std::span<const std::string> label = table->column<std::string>(names);
-  const std::span<const double> value = table->column<double>(values);
-  double largest = 0;
-  for (const double v : value) largest = std::max(largest, v);
-  const data::Scale length{.domain = {0, largest}, .range = {0, kBars}};
-  for (size_t row = 0; row < table->size(); ++row) {
-    column.children(
-        {box()
-             .row()
-             .alignItems(Align::Center)
-             .gap(8)
-             .children({text(label[row]).width(96.0f)})
-             .children({box()
-                            .height(11.0f)
-                            .width((float)length(value[row]))
-                            .fill(Fill::color(row == 0 ? kBar : kBarDim))})
-             .children({text(std::to_string((long)value[row]))
-                            .font({.size = 9.5f})})});
-  }
-  return column;
+    return box().width(kCell - 28).children({text(missing)});
+  return sketch::kit::bars(*table, names, values, {.length = kBars})
+      .width(kCell - 28);
 }
 
 }  // namespace
@@ -110,20 +87,20 @@ struct DataSources final : sketch::Sketch {
                       kCell, u8"assets.table(local(\"data/cities.csv\"))",
                       u8"the decoder types the columns: text, number, flag, "
                       u8"instant",
-                      bars(csv.get(), "city", "population",
-                           "the CSV has not loaded")),
+                      answer(csv.get(), "city", "population",
+                             "the CSV has not loaded")),
                   sketch::kit::caption(
                       kCell, u8"assets.database(local(\"data/cities.sqlite\"))",
                       u8"SUM(population) GROUP BY country · the store "
                       u8"is opened in place and reopened when it changes",
-                      bars(fromSqlite ? &*fromSqlite : nullptr, "country",
-                           "population", sqliteNote)),
+                      answer(fromSqlite ? &*fromSqlite : nullptr, "country",
+                             "population", sqliteNote)),
                   sketch::kit::caption(
                       kCell, u8"Database::memory(Engine::Duck)",
                       u8"read_csv('cities.csv') WHERE coastal · the "
                       u8"engine reads the file the hub resolved",
-                      bars(fromDuck ? &*fromDuck : nullptr, "city",
-                           "population", duckNote))},
+                      answer(fromDuck ? &*fromDuck : nullptr, "city",
+                             "population", duckNote))},
              .gap = 14}));
   }
 };
