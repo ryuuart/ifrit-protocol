@@ -65,12 +65,13 @@ void throughPasses(world::Frame& frame, const SkColor4f& background) {
 class SetSession final : public Session {
  public:
   SetSession(SetBody* set, weave::FontContext& fonts, Assets& assets,
-             world::Runtime runtime)
+             bool deterministic, world::Runtime runtime)
       : m_set(set), m_scene(m_ticker), m_runtime(std::move(runtime)) {
     m_specification.size = {900, 640};
     m_specification.background = {0.04f, 0.045f, 0.06f, 1.0f};
     m_specification.captureSeconds = 1.0;
-    SetContext ctx{assets, fonts, &m_specification, &m_camera, &m_scenes};
+    SetContext ctx{assets,    fonts,     &m_specification,
+                   &m_camera, &m_scenes, deterministic};
     m_set->setup(ctx);
     m_declared = m_camera;
     m_extent = {(int)m_specification.size.width(),
@@ -250,10 +251,10 @@ class SetSession final : public Session {
 std::unique_ptr<Session> SetKind::open(weave::FontContext& fonts,
                                        Assets& assets, bool deterministic,
                                        std::string_view key) const {
-  (void)deterministic;
   (void)key;
   return std::make_unique<SetSession>(
-      m_factory(), fonts, assets, m_runtime ? *m_runtime : processRuntime());
+      m_factory(), fonts, assets, deterministic,
+      m_runtime ? *m_runtime : processRuntime());
 }
 
 Kind onRuntime(const Kind& kind, const world::Runtime& runtime) {

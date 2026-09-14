@@ -91,8 +91,9 @@ set(SIGIL_SKETCH_PRIVATE
 # Where the SDK is not installed there is no engine to share and no
 # header to spell.
 if(TARGET SigilScry)
-  list(APPEND SIGIL_SKETCH_SOURCES scry/SharedEngine.cpp)
-  list(APPEND SIGIL_SKETCH_HEADERS scry/SettledPage.h scry/SharedEngine.h)
+  list(APPEND SIGIL_SKETCH_SOURCES scry/SharedEngine.cpp scry/Settling.cpp)
+  list(APPEND SIGIL_SKETCH_HEADERS scry/SettledPage.h scry/SharedEngine.h
+       scry/Settling.h)
   list(APPEND SIGIL_SKETCH_PUBLIC SigilScry)
 endif()
 sigil_library(SigilSketch

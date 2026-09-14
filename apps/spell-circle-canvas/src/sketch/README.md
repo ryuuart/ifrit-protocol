@@ -262,6 +262,63 @@ roots, the session store, the threading, the device — belongs to the
 PROCESS: SigilScry refuses a later configuration naming a different one.
 Differences that must coexist belong on a view or web session.
 
+### A page arrives: a capture waits, a window never does
+
+A page is not there when the sketch showing it is declared. The engine
+loads it on its own thread and hands over one frame per painting, and
+what says the page is THERE is the engine's own events — the load
+callback and the frame callback — never a stretch of clock.
+`<sigilsketch/scry/SettledPage.h>` is that door, and it states every
+one of them twice: as a WAIT, and as a READING that answers what the
+engine has said so far and returns at once.
+
+Which of the two a sketch drives is `ctx.deterministic`:
+
+* **A capture waits.** Its picture is diffed against the last one, so
+  the page has to be there before the frame is. The sequence is blocked
+  through inside `setup()`, on the thread taking the still.
+* **A window never waits.** `setup()` runs on the thread that presents,
+  so a body waiting there is an application frozen for as long as its
+  pages take. It starts the sequence and returns; the scene draws
+  through the view itself meanwhile, and the sketch's per-frame call
+  advances the sequence and describes the scene again when it finishes.
+
+One declaration drives both — a `sketch::scry::Sequence`: the document,
+an optional script, an optional wheel or press, the page's own answer
+that the driving landed, whether the view must go still, and whether the
+still is a whole painting.
+
+```cpp
+#include <sigilsketch/scry/Settling.h>
+
+void setup(sketch::SketchContext& ctx) {
+  m_view = engine->createView(300, 236);
+  m_page = sketch::scry::settle(
+      *m_view,
+      sketch::scry::Sequence{.html = document(),
+                             .question = "String(document.readyState)",
+                             .expected = "complete",
+                             .quiet = true,
+                             .whole = true},
+      ctx.deterministic);
+  ctx.composer.render(scene());
+}
+
+void update(double, sketch::SketchContext& ctx) {
+  if (m_page->advance()) ctx.composer.render(scene());
+}
+```
+
+`settle()` comes back arrived or broken in a capture and at its first
+step in a window. `advance()` is true exactly on the call the sequence
+finishes on, which is when the sketch describes itself again; `still()`
+is the frame the settle stopped on, and a scene draws the view's own
+latest until there is one — a caption in the meantime says the page is
+still arriving. A set reads the same answer off `SetContext` and
+advances from `describe`, which is a set's per-frame call. web_script
+drives one document four ways, web_panel stands a page in a compose
+scene, and import_native wears one on a body in a lit set.
+
 A 3D sketch is the same shape with a different body:
 
 ```cpp

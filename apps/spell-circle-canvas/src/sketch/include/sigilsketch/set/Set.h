@@ -83,6 +83,16 @@ struct SetContext {
   void camera(const geometry::mesh::camera::Camera& lens) {
     if (eye) *eye = lens;
   }
+
+  /** The host is taking a capture that will be DIFFED, so the set has
+   *  to stand complete before the frame does: a body that fetches
+   *  something for a body to wear waits for it here, on this thread,
+   *  and hands the same picture to every run. False is a window, where
+   *  nothing may hold the thread that draws, and such a body starts
+   *  what it needs and describes what has arrived. A set's own
+   *  description is a function of the scene time either way — this
+   *  decides when what it describes is THERE, not what it is. */
+  bool deterministic = false;
 };
 
 /** A SKETCH THAT DRESSES A SET: any type that can describe a world
@@ -172,8 +182,9 @@ class SetKind final : public KindOperations {
   [[nodiscard]] bool needsDevice() const override { return true; }
 
   /** A set's every frame is a pure function of the scene time, so there
-   *  is nothing a set could have measured about its own execution and
-   *  the determinism answer has nothing to pin. */
+   *  is nothing a set could have measured about its own execution to
+   *  pin; what @p deterministic reaches is the set's own setup, which a
+   *  capture may hold and a window may not. */
   [[nodiscard]] std::unique_ptr<Session> open(
       weave::FontContext& fonts, Assets& assets, bool deterministic,
       std::string_view key) const override;

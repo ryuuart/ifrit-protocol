@@ -5,6 +5,13 @@
  * stretch of clock — what a deterministic still of a `scry::WebView`
  * needs, and a host concern rather than anything about a look.
  *
+ * A CAPTURE WAITS AND A WINDOW NEVER DOES. Everything here is stated
+ * twice: as a wait, which a capture drives on the thread taking the
+ * still, and as a READING, which answers what the engine has said so far
+ * and returns at once. A window holds no thread for a page — it asks the
+ * readings once a frame and re-describes as the page arrives — and the
+ * sequence both drives is `<sigilsketch/scry/Settling.h>`.
+ *
  * A view paints on the engine's thread at the engine's cadence, so a
  * still of a page is a race unless something says when the page is
  * there. TWO ENGINE EVENTS SAY IT. The load callback fires when the main
@@ -43,7 +50,6 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
-#include <future>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -90,6 +96,7 @@ class Events {
         const std::lock_guard<std::mutex> lock(state->mutex);
         ++state->repaints;
         state->latest = frame;
+        state->painted = std::chrono::steady_clock::now();
       }
       state->changed.notify_all();
     });
@@ -142,6 +149,38 @@ class Events {
     return m_state->loaded;
   }
 
+  /** THE READING `awaitLoad` WAITS FOR: the document is here and a
+   *  repaint carrying it has been handed over. It answers with whatever
+   *  the engine has said by now and never waits, so a window asks it
+   *  once a frame; unlike the wait, it accepts no frame — a caller that
+   *  stops here calls `accept()`. */
+  [[nodiscard]] bool painted() const {
+    const std::lock_guard<std::mutex> lock(m_state->mutex);
+    return m_state->loaded && m_state->repaints > m_state->repaintsAtLoad;
+  }
+
+  /** How many repaints have been handed over since @p mark — none when
+   *  the page has not painted since. */
+  [[nodiscard]] uint64_t repaintsSince(uint64_t mark) const {
+    const std::lock_guard<std::mutex> lock(m_state->mutex);
+    return m_state->repaints > mark ? m_state->repaints - mark : 0;
+  }
+
+  /** THE READING THE TAIL OF `awaitQuiet` WAITS FOR: a frame has been
+   *  handed over and the newest one is older than @p window, so the
+   *  view has stopped painting. False before any frame at all, a page
+   *  that has published nothing being one that has not finished rather
+   *  than one at rest.
+   *
+   *  This is the one reading here decided by a clock, exactly as the
+   *  wait it answers for is: what is quiet is a stretch with no event in
+   *  it, and there is no event that says one has begun. */
+  [[nodiscard]] bool quietFor(std::chrono::milliseconds window) const {
+    const std::lock_guard<std::mutex> lock(m_state->mutex);
+    return m_state->repaints > 0 &&
+           std::chrono::steady_clock::now() - m_state->painted >= window;
+  }
+
   /** KEEPS THE FRAME STANDING NOW as the one the still is of. Called by
    *  every settle that succeeded, so the accepted frame is the one whose
    *  state the settle rule just read. */
@@ -172,9 +211,78 @@ class Events {
     uint64_t repaintsAtLoad = 0;         // the count when the document arrived
     sigil::scry::WebView::Frame latest;  // the newest handed over
     sigil::scry::WebView::Frame accepted;  // the one a settle stopped on
+    std::chrono::steady_clock::time_point painted;  // when the newest landed
   };
 
   sigil::scry::WebView* m_view;
+  std::shared_ptr<State> m_state;
+};
+
+/**
+ * A QUESTION PUT TO THE PAGE, and what it answered — read either way.
+ *
+ * The engine replies on its own thread, so the reply lands in a state
+ * block held by shared_ptr and a question whose asker has gone still has
+ * somewhere valid to write. `ready()` says whether it is there without
+ * waiting; `await()` is the same answer for a caller that may hold its
+ * thread.
+ */
+class Answer {
+ public:
+  /** Nothing asked: never ready, and empty. */
+  Answer() = default;
+
+  /** Asks @p view for @p expression. */
+  Answer(sigil::scry::WebView& view, const std::string& expression)
+      : m_state(std::make_shared<State>()) {
+    auto state = m_state;
+    view.evaluateScript(expression, [state](std::string result) {
+      {
+        const std::lock_guard<std::mutex> lock(state->mutex);
+        state->text = std::move(result);
+        state->ready = true;
+      }
+      state->changed.notify_all();
+    });
+  }
+
+  /** Whether a question was asked at all. */
+  explicit operator bool() const { return m_state != nullptr; }
+
+  /** Whether the engine has replied, WITHOUT WAITING for it. */
+  [[nodiscard]] bool ready() const {
+    if (!m_state) return false;
+    const std::lock_guard<std::mutex> lock(m_state->mutex);
+    return m_state->ready;
+  }
+
+  /** What the page answered, stringified as `evaluateScript` hands it
+   *  back — the exception text where it threw. Empty until ready. */
+  [[nodiscard]] std::string text() const {
+    if (!m_state) return {};
+    const std::lock_guard<std::mutex> lock(m_state->mutex);
+    return m_state->text;
+  }
+
+  /** Returns once the engine has replied. False only when it never
+   *  did, or when nothing was asked. */
+  [[nodiscard]] bool await(
+      std::chrono::milliseconds within = kUnresponsive) const {
+    if (!m_state) return false;
+    const std::shared_ptr<State> state = m_state;
+    std::unique_lock<std::mutex> lock(state->mutex);
+    return state->changed.wait_for(lock, within,
+                                   [&state] { return state->ready; });
+  }
+
+ private:
+  struct State {
+    std::mutex mutex;
+    std::condition_variable changed;
+    bool ready = false;
+    std::string text;
+  };
+
   std::shared_ptr<State> m_state;
 };
 
@@ -183,13 +291,8 @@ class Events {
  *  answered. */
 inline std::string answer(sigil::scry::WebView& view,
                           const std::string& expression) {
-  auto answered = std::make_shared<std::promise<std::string>>();
-  std::future<std::string> reply = answered->get_future();
-  view.evaluateScript(expression, [answered](std::string result) {
-    answered->set_value(std::move(result));
-  });
-  if (reply.wait_for(kUnresponsive) != std::future_status::ready) return {};
-  return reply.get();
+  const Answer asked(view, expression);
+  return asked.await() ? asked.text() : std::string();
 }
 
 /**
