@@ -192,6 +192,9 @@ struct MaterialAtlas final : sketch::Sketch {
     const std::optional<material::Atlas> tagged =
         material::Atlas::fromAseprite(sheet, kAsepriteJson);
 
+    // What a cell whose JSON did not parse draws.
+    const std::function<void(SkCanvas&)> nothing;
+
     const auto strip = [](const material::Atlas& atlas, const char* sequence,
                           size_t count,
                           size_t from) -> std::function<void(SkCanvas&)> {
@@ -205,195 +208,71 @@ struct MaterialAtlas final : sketch::Sketch {
       };
     };
 
-    ctx.composer.render(sketch::kit::
-                            page({.title = "MATERIAL ATLAS · Atlas "
-                                           "grid, "
-                                           "fromTexturePacker, "
-                                           "fromAseprite, region, frame",
-                                  .subtitle = kit::formatted(
-                                      "d"
-                                      "i"
-                                      "a"
-                                      "l"
-                                      "s"
-                                      " "
-                                      "· the grid (%d by %d of "
-                                      "%d px) · the "
-                                      "s"
-                                      "o"
-                                      "u"
-                                      "r"
-                                      "c"
-                                      "e"
-                                      " "
-                                      "J"
-                                      "S"
-                                      "O"
-                                      "N"
-                                      " "
-                                      "· the sequence · "
-                                      "the playhead "
-                                      "("
-                                      "%"
-                                      "z"
-                                      "u"
-                                      ","
-                                      " "
-                                      "p"
-                                      "a"
-                                      "s"
-                                      "t"
-                                      " "
-                                      "t"
-                                      "h"
-                                      "e"
-                                      " "
-                                      "e"
-                                      "n"
-                                      "d"
-                                      " "
-                                      "o"
-                                      "f"
-                                      " "
-                                      "a"
-                                      " "
-                                      "f"
-                                      "o"
-                                      "u"
-                                      "r"
-                                      "-"
-                                      "f"
-                                      "r"
-                                      "a"
-                                      "m"
-                                      "e"
-                                      " "
-                                      "r"
-                                      "u"
-                                      "n"
-                                      ")",
-                                      kCols, kRows, kCellSide, kPlayhead),
-                                  .footer = "a region is an ordinary "
-                                            "texture cut from the "
-                                            "sheet, so a sprite "
-                                            "needs no "
-                                            "second sampling "
-                                            "path — and "
-                                            "frame() "
-                                            "wraps, so a "
-                                            "playhead is a counter "
-                                            "and not "
-                                            "a modulus at "
-                                            "every call site"},
-                                 kit::cells({.cells = {kit::cells({.cells = {cell("the sheet, whole",
-                                                                                  kit::formatted(
-                                                                                      "%d by %d cells of %d px · "
-                                                                                      "each wedge sweeps 45° "
-                                                                                      "further than the last, so a run "
-                                                                                      "read out of order shows it",
-                                                                                      kCols,
-                                                                                      kRows,
-                                                                                      kCellSide),
-                                                                                  [sheet =
-                                                                                       sheet](
-                                                                                      SkCanvas&
-                                                                                          canvas) {
-                                                                                    put(canvas,
-                                                                                        sheet,
-                                                                                        SkRect::MakeXYWH(
-                                                                                            10,
-                                                                                            (kPicture -
-                                                                                             160) *
-                                                                                                0.5f,
-                                                                                            320,
-                                                                                            160),
-                                                                                        {kCols *
-                                                                                             kCellSide,
-                                                                                         kRows *
-                                                                                             kCellSide});
-                                                                                  }),
-                                                                             cell(
-                                                                                 "Atlas::grid(sheet, 4, 2)",
-                                                                                 kit::formatted(
-                                                                                     "equal cells, row-major, named by "
-                                                                                     "index · sequences: %s",
-                                                                                     sequenceNames(
-                                                                                         grid)
-                                                                                         .c_str()),
-                                                                                 strip(
-                                                                                     grid,
-                                                                                     "all",
-                                                                                     4,
-                                                                                     0)),
-                                                                             cell(
-                                                                                 "…"
-                                                                                 " the second row of it",
-                                                                                 "the same sequence read from index 4 "
-                                                                                 "· one list of indices, and the "
-                                                                                 "caller says where in it to start",
-                                                                                 strip(
-                                                                                     grid,
-                                                                                     "all",
-                                                                                     4,
-                                                                                     4))},
-                                                                   .gap = 14}),
-                                                       kit::cells({.cells = {cell("Atlas::fromTexturePacker(sheet, json)",
-                                                                                  packed ? kit::formatted(
-                                                                                               "a sequence per NAME STEM "
-                                                                                               "· %s · "
-                                                                                               "walk_01…"
-                                                                                               "walk_04 in numeric order",
-                                                                                               sequenceNames(
-                                                                                                   *packed)
-                                                                                                   .c_str())
-                                                                                         : "not that JSON",
-                                                                                  packed
-                                                                                      ? strip(
-                                                                                            *packed,
-                                                                                            "walk",
-                                                                                            4,
-                                                                                            0)
-                                                                                      : std::function<void(
-                                                                                            SkCanvas&)>{}),
-                                                                             cell(
-                                                                                 "Atlas::fromAseprite(sheet, json)",
-                                                                                 tagged
-                                                                                     ? kit::formatted(
-                                                                                           "a sequence per frame TAG "
-                                                                                           "· %s · the "
-                                                                                           "names carry nothing here",
-                                                                                           sequenceNames(
-                                                                                               *tagged)
-                                                                                               .c_str())
-                                                                                     : "not that JSON",
-                                                                                 tagged
-                                                                                     ? strip(
-                                                                                           *tagged,
-                                                                                           "shut",
-                                                                                           4,
-                                                                                           0)
-                                                                                     : std::function<void(
-                                                                                           SkCanvas&)>{}),
-                                                                             cell(
-                                                                                 "frame(\"walk\", 6) · wrapping",
-                                                                                 packed ? kit::
-                                                                                              formatted("index %zu of a four-frame run "
-                                                                                                        "· past the end "
-                                                                                                        "wraps, so the strip reads "
-                                                                                                        "2, 3, 0, 1",
-                                                                                                        kPlayhead)
-                                                                                        : "not that JSON",
-                                                                                 packed
-                                                                                     ? strip(
-                                                                                           *packed,
-                                                                                           "walk",
-                                                                                           4,
-                                                                                           kPlayhead)
-                                                                                     : std::function<void(
-                                                                                           SkCanvas&)>{})},
-                                                                   .gap = 14})},
-                                             .column = true,
-                                             .gap = 18})));
+    // The three cells cut straight from the sheet: the whole bake, the
+    // grid's own sequence, and the same sequence read from further along
+    // it — one list of indices, and the caller says where to start.
+    Element cutByGrid = kit::cells(
+        {.cells = {cell("the sheet, whole",
+                        kit::formatted("%d by %d cells of %d px · each wedge "
+                                       "sweeps 45° further than the last, so "
+                                       "a run read out of order shows it",
+                                       kCols, kRows, kCellSide),
+                        [sheet = sheet](SkCanvas& canvas) {
+                          put(canvas, sheet,
+                              SkRect::MakeXYWH(10, (kPicture - 160) * 0.5f, 320,
+                                               160),
+                              {kCols * kCellSide, kRows * kCellSide});
+                        }),
+                   cell("Atlas::grid(sheet, 4, 2)",
+                        kit::formatted("equal cells, row-major, named by "
+                                       "index · sequences: %s",
+                                       sequenceNames(grid).c_str()),
+                        strip(grid, "all", 4, 0)),
+                   cell("… the second row of it",
+                        "the same sequence read from index 4 · one list of "
+                        "indices, and the caller says where in it to start",
+                        strip(grid, "all", 4, 4))},
+         .gap = 14});
+
+    // …and the three the two tools' JSON cuts: a sequence per name stem,
+    // a sequence per frame tag, and a playhead past the end of one.
+    Element cutByTool = kit::cells(
+        {.cells =
+             {cell("Atlas::fromTexturePacker(sheet, json)",
+                   packed ? kit::formatted("a sequence per NAME STEM · %s · "
+                                           "walk_01…walk_04 in numeric order",
+                                           sequenceNames(*packed).c_str())
+                          : std::string("not that JSON"),
+                   packed ? strip(*packed, "walk", 4, 0) : nothing),
+              cell("Atlas::fromAseprite(sheet, json)",
+                   tagged ? kit::formatted("a sequence per frame TAG · %s · "
+                                           "the names carry nothing here",
+                                           sequenceNames(*tagged).c_str())
+                          : std::string("not that JSON"),
+                   tagged ? strip(*tagged, "shut", 4, 0) : nothing),
+              cell("frame(\"walk\", 6) · wrapping",
+                   packed ? kit::formatted("index %zu of a four-frame run · "
+                                           "past the end wraps, so the strip "
+                                           "reads 2, 3, 0, 1",
+                                           kPlayhead)
+                          : std::string("not that JSON"),
+                   packed ? strip(*packed, "walk", 4, kPlayhead) : nothing)},
+         .gap = 14});
+
+    ctx.composer.render(sketch::kit::page(
+        {.title = "MATERIAL ATLAS · Atlas grid, fromTexturePacker, "
+                  "fromAseprite, region, frame",
+         .subtitle = kit::formatted(
+             "dials · the grid (%d by %d of %d px) · the source JSON · the "
+             "sequence · the playhead (%zu, past the end of a four-frame run)",
+             kCols, kRows, kCellSide, kPlayhead),
+         .footer = "a region is an ordinary texture cut from the sheet, so a "
+                   "sprite needs no second sampling path — and frame() wraps, "
+                   "so a playhead is a counter and not a modulus at every "
+                   "call site"},
+        kit::cells({.cells = {std::move(cutByGrid), std::move(cutByTool)},
+                    .column = true,
+                    .gap = 18})));
   }
 };
 
