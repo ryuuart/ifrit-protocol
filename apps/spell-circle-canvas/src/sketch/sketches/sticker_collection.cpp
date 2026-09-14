@@ -16,10 +16,10 @@
 // TAGS: Media/Images
 
 #include <include/core/SkCanvas.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
 #include <include/core/SkRect.h>
-#include <include/core/SkSamplingOptions.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Pen.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilio/IO.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -36,6 +36,7 @@
 #include <string_view>
 
 namespace sketch = sigil::sketch;
+namespace draw = sigil::draw;
 namespace image = sigil::image;
 namespace io = sigil::io;
 namespace video = sigil::video;
@@ -87,53 +88,46 @@ double loopTime(const video::Video& clip, double seconds) {
   return result < 0.0 ? result + duration : result;
 }
 
-void drawContained(SkCanvas& canvas, const sk_sp<SkImage>& image,
+/** ONE STICKER, fitted inside @p box without distorting it and turned by
+ *  @p rotation about the box's middle — which is where a sticker is
+ *  stuck. */
+void drawContained(draw::Pen& pen, const sk_sp<SkImage>& image,
                    const SkRect& box, float rotation = 0.0f) {
   if (!image) return;
   const float scale =
       std::min(box.width() / image->width(), box.height() / image->height());
-  const float width = image->width() * scale;
-  const float height = image->height() * scale;
-  const SkRect destination =
-      SkRect::MakeXYWH(-width * 0.5f, -height * 0.5f, width, height);
-  canvas.save();
-  canvas.translate(box.centerX(), box.centerY());
-  canvas.rotate(rotation);
-  SkPaint paint;
-  canvas.drawImageRect(image, destination,
-                       SkSamplingOptions(SkFilterMode::kLinear), &paint);
-  canvas.restore();
+  pen.push();
+  pen.translate(box.centerX(), box.centerY());
+  pen.rotate(rotation);
+  pen.image(image, 0, 0, image->width() * scale, image->height() * scale);
+  pen.pop();
 }
 
-void drawGround(SkCanvas& canvas, SkSize size) {
-  canvas.clear(SkColorSetRGB(248, 248, 244));
-  SkPaint tile;
-  tile.setColor(SkColorSetRGB(23, 23, 26));
+/** THE GROUND PARTIAL TRANSPARENCY IS READ AGAINST: a hard checker under
+ *  four heavy strands, both fixed, so an alpha plane shows as alpha
+ *  rather than as a sticker box moving. */
+void drawGround(draw::Pen& pen) {
+  pen.background(248, 248, 244);
+  pen.noStroke();
+  pen.fill(23, 23, 26);
   constexpr float kTile = 90.0f;
-  for (int row = 0; row * kTile < size.height(); ++row)
-    for (int column = 0; column * kTile < size.width(); ++column)
+  for (int row = 0; row * kTile < pen.height; ++row)
+    for (int column = 0; column * kTile < pen.width; ++column)
       if ((row + column) % 2 == 0)
-        canvas.drawRect(
-            SkRect::MakeXYWH(column * kTile, row * kTile, kTile, kTile), tile);
+        pen.rect(column * kTile, row * kTile, kTile, kTile);
 
-  SkPaint wave;
-  wave.setAntiAlias(true);
-  wave.setColor(SkColorSetRGB(255, 52, 167));
-  wave.setStyle(SkPaint::kStroke_Style);
-  wave.setStrokeCap(SkPaint::kRound_Cap);
-  wave.setStrokeWidth(24.0f);
+  pen.noFill();
+  pen.stroke(255, 52, 167);
+  pen.strokeCap(draw::ROUND);
+  pen.strokeWeight(24.0f);
   for (int strand = 0; strand < 4; ++strand) {
-    SkPathBuilder path;
-    for (int point = 0; point <= 90; ++point) {
-      const float x = size.width() * point / 90.0f;
-      const float y = 290.0f + strand * 265.0f +
-                      std::sin(point * 0.31f + strand * 1.4f) * 58.0f;
-      if (point == 0)
-        path.moveTo(x, y);
-      else
-        path.lineTo(x, y);
-    }
-    canvas.drawPath(path.detach(), wave);
+    pen.beginShape();
+    for (int point = 0; point <= 90; ++point)
+      pen.vertex(
+          pen.width * (float)point / 90.0f,
+          290.0f + (float)strand * 265.0f +
+              std::sin((float)point * 0.31f + (float)strand * 1.4f) * 58.0f);
+    pen.endShape();
   }
 }
 
@@ -162,37 +156,38 @@ struct StickerCollection final : sketch::Sketch {
         .webm = loadVideo(hub, kWebm)};
 
     Element stage =
-        custom("stickers.live",
-               [shelf](SkCanvas& canvas, const PaintContext& paint) {
-                 drawGround(canvas, paint.size);
-                 const std::array<SkRect, 6> boxes = {
-                     SkRect::MakeXYWH(70, 190, 280, 300),
-                     SkRect::MakeXYWH(400, 170, 290, 320),
-                     SkRect::MakeXYWH(735, 190, 270, 300),
-                     SkRect::MakeXYWH(65, 665, 300, 330),
-                     SkRect::MakeXYWH(405, 650, 275, 350),
-                     SkRect::MakeXYWH(725, 670, 290, 320)};
-                 constexpr std::array<float, 5> turns = {-8, 7, -4, 9, -6};
-                 constexpr std::array<double, 5> offsets = {0.0, 270.0, 510.0,
-                                                            760.0, 1030.0};
-                 for (size_t i = 0; i < shelf.images.size(); ++i) {
-                   const auto& asset = shelf.images[i];
-                   if (!asset) continue;
-                   const image::Frame& frame = asset->frameAt(
-                       paint.elapsedSeconds * 1000.0 + offsets[i]);
-                   drawContained(canvas, frame.image, boxes[i], turns[i]);
-                 }
+        pen("stickers.live",
+            [shelf](draw::Pen& pen) {
+              pen.angleMode(draw::DEGREES);
+              pen.imageMode(draw::CENTER);
+              drawGround(pen);
+              const std::array<SkRect, 6> boxes = {
+                  SkRect::MakeXYWH(70, 190, 280, 300),
+                  SkRect::MakeXYWH(400, 170, 290, 320),
+                  SkRect::MakeXYWH(735, 190, 270, 300),
+                  SkRect::MakeXYWH(65, 665, 300, 330),
+                  SkRect::MakeXYWH(405, 650, 275, 350),
+                  SkRect::MakeXYWH(725, 670, 290, 320)};
+              constexpr std::array<float, 5> turns = {-8, 7, -4, 9, -6};
+              constexpr std::array<double, 5> offsets = {0.0, 270.0, 510.0,
+                                                         760.0, 1030.0};
+              for (size_t i = 0; i < shelf.images.size(); ++i) {
+                const auto& asset = shelf.images[i];
+                if (!asset) continue;
+                const image::Frame& frame =
+                    asset->frameAt(pen.millis() + offsets[i]);
+                drawContained(pen, frame.image, boxes[i], turns[i]);
+              }
 
-                 if (shelf.webm) {
-                   const video::VideoFrame frame = shelf.webm->frameAt(
-                       loopTime(*shelf.webm, paint.elapsedSeconds + 0.42),
-                       canvas.recorder());
-                   drawContained(canvas, frame.image, boxes.back(), 5.0f);
-                 }
-               })
+              if (shelf.webm) {
+                const video::VideoFrame frame = shelf.webm->frameAt(
+                    loopTime(*shelf.webm, pen.millis() * 0.001 + 0.42),
+                    pen.canvas()->recorder());
+                drawContained(pen, frame.image, boxes.back(), 5.0f);
+              }
+            })
             .absolute()
-            .inset(0)
-            .cache(Cache::None);
+            .inset(0);
 
     const weave::TextStyle title = weave::textStyle(
         {.size = 29, .color = SkColor4f{1, 1, 1, 1}, .track = 3.4f});
