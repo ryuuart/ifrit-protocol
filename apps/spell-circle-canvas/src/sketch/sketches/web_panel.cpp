@@ -38,9 +38,9 @@
 // TAGS: Interfaces/Web
 
 #include <include/core/SkCanvas.h>
-#include <include/core/SkPaint.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcompose/web/Web.h>
+#include <sigildraw/Draw.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilscry/engine/WebEngine.h>
 #include <sigilscry/engine/WebImage.h>
@@ -134,35 +134,36 @@ std::string pageFor(const std::string& slot) {
   return page;
 }
 
-/** The disc the page displays: rings and chords, drawn with Skia into
- *  the slot's own canvas. */
+/** The disc the page displays: three rings and six chords, drawn with the
+ *  pen into the slot's own canvas. */
 void drawSigil(SkCanvas& canvas, float size) {
-  canvas.clear(SkColors::kTransparent);
   const float centre = size / 2;
-  SkPaint ring;
-  ring.setAntiAlias(true);
-  ring.setStyle(SkPaint::kStroke_Style);
-  for (int i = 0; i < 3; ++i) {
-    ring.setStrokeWidth(3.0f - (float)i);
-    ring.setColor4f(i % 2 ? hexColor(0xb18cff) : hexColor(0x7ee8ff), nullptr);
-    canvas.drawCircle(centre, centre, centre * (0.92f - 0.22f * (float)i),
-                      ring);
-  }
-  SkPaint chord;
-  chord.setAntiAlias(true);
-  chord.setStyle(SkPaint::kStroke_Style);
-  chord.setStrokeWidth(1.4f);
-  chord.setColor4f(hexColor(0x7ee8ff, 0.7f), nullptr);
   const float radius = centre * 0.92f;
-  for (int i = 0; i < 6; ++i) {
-    const SkPoint from =
-        arrange::onRing((size_t)i, 6, {centre, centre}, {radius, radius}, 0.0f,
-                        2.0f * (float)M_PI, arrange::Turn::Closed);
-    const SkPoint to = arrange::onRing(
-        (size_t)((i + 2) % 6), 6, {centre, centre}, {radius, radius}, 0.0f,
-        2.0f * (float)M_PI, arrange::Turn::Closed);
-    canvas.drawLine(from.fX, from.fY, to.fX, to.fY, chord);
+  const auto corner = [&](int i) {
+    return arrange::onRing((size_t)(i % 6), 6, {centre, centre},
+                           {radius, radius}, 0.0f, 2.0f * (float)M_PI,
+                           arrange::Turn::Closed);
+  };
+  sigil::draw::Pen pen;
+  sigil::draw::Frame frame;
+  frame.width = size;
+  frame.height = size;
+  frame.frameCount = 1;
+  pen.begin(canvas, frame);
+  pen.clear();
+  pen.noFill();
+  for (int i = 0; i < 3; ++i) {
+    pen.strokeWeight(3.0f - (float)i);
+    pen.stroke(i % 2 ? hexColor(0xb18cff) : hexColor(0x7ee8ff));
+    pen.circle(centre, centre, 2.0f * centre * (0.92f - 0.22f * (float)i));
   }
+  pen.strokeWeight(1.4f);
+  pen.stroke(hexColor(0x7ee8ff, 0.7f));
+  for (int i = 0; i < 6; ++i) {
+    const SkPoint from = corner(i), to = corner(i + 2);
+    pen.line(from.fX, from.fY, to.fX, to.fY);
+  }
+  pen.end();
 }
 
 Element note(std::u8string heading, std::u8string body) {
@@ -227,36 +228,32 @@ struct WebPanelSketch final : sketch::Sketch {
             {hexColor(0x140e26), hexColor(0x241033), hexColor(0x0d1424)}))
         // The scene's one ink, stated once; the dim lines say so.
         .ink(kInk)
-        .children({text(u8"A PAGE AS A LEAF")
-                       .font({.size = 15, .track = 2.4f})
-                       .left(40)
-                       .top(32)})
-        // The page at its own pixel size: the view is created at exactly
-        // the box it is laid into, so nothing resamples.
         .children(
-            {box()
+            {text(u8"A PAGE AS A LEAF")
+                 .font({.size = 15, .track = 2.4f})
+                 .left(40)
+                 .top(32),
+             // The page at its own pixel size: the view is created at exactly
+             // the box it is laid into, so nothing resamples.
+             box()
                  .inset(40, 96, 300, 94)
                  .corners({16})
                  .clip()
                  .background(shadow(hexColor(0x000000, 0.55f), {0, 10}, 26))
                  .children({web(m_view).width(kPageWidth).height(kPageHeight)}),
-             box()
-                 .left(704)
-                 .top(96)
-                 .column()
-                 .gap(14)
-                 .children({note(u8"HTML → canvas",
-                                 u8"The engine publishes each repaint as a "
-                                 u8"frame; the leaf draws the newest one into "
-                                 u8"the bounds the layout gave it.")})
-                 .children({note(u8"canvas → HTML",
-                                 u8"A slot the page names by URL, filled by "
-                                 u8"drawing into the canvas the engine hands "
-                                 u8"back — no adapter either way.")})
-                 .children({note(u8"one renderer",
-                                 u8"A process boots exactly one engine, so it "
-                                 u8"is held beside the sketch rather than "
-                                 u8"inside it.")}),
+             box().left(704).top(96).column().gap(14).children(
+                 {note(u8"HTML → canvas",
+                       u8"The engine publishes each repaint as a "
+                       u8"frame; the leaf draws the newest one into "
+                       u8"the bounds the layout gave it."),
+                  note(u8"canvas → HTML",
+                       u8"A slot the page names by URL, filled by "
+                       u8"drawing into the canvas the engine hands "
+                       u8"back — no adapter either way."),
+                  note(u8"one renderer",
+                       u8"A process boots exactly one engine, so it "
+                       u8"is held beside the sketch rather than "
+                       u8"inside it.")}),
              text(u8"the page background is transparent — the scene's "
                   u8"gradient is what shows between its cards")
                  .font({.size = 12, .color = kDim})
@@ -282,8 +279,8 @@ struct WebPanelSketch final : sketch::Sketch {
                      stroke(1.0f, Fill::color(hexColor(0x7ee8ff, 0.2f))))
                  .column()
                  .gap(10)
-                 .children({text(u8"no web engine here").font({.size = 22})})
-                 .children({text(why).font({.size = 13, .color = kDim})})});
+                 .children({text(u8"no web engine here").font({.size = 22}),
+                            text(why).font({.size = 13, .color = kDim})})});
   }
 
  private:
