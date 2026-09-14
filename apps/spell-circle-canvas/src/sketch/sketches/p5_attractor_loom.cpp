@@ -20,6 +20,7 @@
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 
 #include <cmath>
 
@@ -77,9 +78,12 @@ struct P5AttractorLoom final : sketch::Sketch {
   const mskia::Paint background = ground();
 
   void setup(sketch::SketchContext& context) override {
-    context.canvas(900, 720);
-    context.background({4 / 255.0f, 6 / 255.0f, 14 / 255.0f, 1});
-    context.captureAt(0.05);  // the loom is a direct function of the clock
+    // The loom is a direct function of the clock, so the plate is the
+    // first moment.
+    sketch::kit::stage(context, {.size = {900, 720},
+                                 .captureAt = 0.05,
+                                 .background = SkColor4f{4 / 255.0f, 6 / 255.0f,
+                                                         14 / 255.0f, 1}});
 
     context.composer.render(compose::graphics("p5_attractor_loom.loop",
                                               [this](Pen& pen) { draw(pen); })
