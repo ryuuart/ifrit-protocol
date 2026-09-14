@@ -35,6 +35,7 @@
 
 // TAGS: Typography/Paragraph, Typography/CJK
 
+#include <sigilcompose/kit/Frame.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
@@ -107,91 +108,69 @@ struct Mawarikomi final : sketch::Sketch {
         // columns subtract is the shape itself and not the box around it:
         // the type reaches into the disc's corners and into the seal's
         // notches.
-        .children({box()
-                       .key("hinomaru")
-                       .absolute()
-                       .inset(mw::kBlockLeft + 132, mw::kBlockTop + 96, 0, 0)
-                       .width(mw::kDiscSize)
-                       .height(mw::kDiscSize)
-                       .shape(shapes::circle())
-                       .fill(Fill::color(mw::kAka)),
-                   box()
-                       .key("in")
-                       .absolute()
-                       .inset(mw::kBlockLeft + 42, mw::kBlockTop + 316, 0, 0)
-                       .width(mw::kSealSize)
-                       .height(mw::kSealSize)
-                       .shape(shapes::star(6))
-                       .fill(Fill::color(mw::kAi))})
-        // The passage itself. Two exclusions, one declaration each; the
-        // margin is the same standoff from either silhouette.
         .children(
-            {text(u8"縦組みの文章が障害物に出会うと、その列は頭と足に分かれ"
-                  u8"る。文字は列の心に沿って落ちてゆき、形に触れる手前で止"
-                  u8"まり、形を過ぎたところからまた続いてゆく。除かれるのは"
-                  u8"箱ではなく形そのものだから、丸の四隅にも星の切れ込みに"
-                  u8"も字は入り込む。列は右から左へ進み、上と下に分かれたま"
-                  u8"ま、次の列へと組み上がってゆく。行に対して働くものは、"
-                  u8"四分の一だけ回した列に対しても同じように働く。")
-                 .font(mw::bodyType(21))
-                 .absolute()
-                 .inset(mw::kBlockLeft, mw::kBlockTop, 0, 0)
-                 .width(mw::kBlockW)
-                 .height(mw::kBlockH)
+            {kit::at(mw::kBlockLeft + 132, mw::kBlockTop + 96, mw::kDiscSize,
+                     mw::kDiscSize)
+                 .key("hinomaru")
+                 .shape(shapes::circle())
+                 .fill(Fill::color(mw::kAka)),
+             kit::at(mw::kBlockLeft + 42, mw::kBlockTop + 316, mw::kSealSize,
+                     mw::kSealSize)
+                 .key("in")
+                 .shape(shapes::star(6))
+                 .fill(Fill::color(mw::kAi)),
+             // The passage itself. Two exclusions, one declaration each; the
+             // margin is the same standoff from either silhouette.
+             kit::at(
+                 text(u8"縦組みの文章が障害物に出会うと、その列は頭と足に分かれ"
+                      u8"る。文字は列の心に沿って落ちてゆき、形に触れる手前で止"
+                      u8"まり、形を過ぎたところからまた続いてゆく。除かれるのは"
+                      u8"箱ではなく形そのものだから、丸の四隅にも星の切れ込みに"
+                      u8"も字は入り込む。列は右から左へ進み、上と下に分かれたま"
+                      u8"ま、次の列へと組み上がってゆく。行に対して働くものは、"
+                      u8"四分の一だけ回した列に対しても同じように働く。")
+                     .font(mw::bodyType(21)),
+                 mw::kBlockLeft, mw::kBlockTop, mw::kBlockW, mw::kBlockH)
                  .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
                  .flowAround("hinomaru", 11)
                  .flowAround("in", 9)
-                 .zIndex(1)})
-        // The plate names itself in the other writing mode.
-        .children(
-            {box()
-                 .absolute()
-                 .inset(64, 84, 0, 0)
-                 .column()
-                 .gap(10)
-                 .children({text("回り込み").font(mw::bodyType(42))})
-                 .children({box()
-                                .width(120.0f)
-                                .height(1.0f)
-                                .fill(Fill::color(mw::kAka))})
-                 .children({text("THE COLUMN PARTS, AND THE COLUMN STOPS")
-                                .font(mw::labelType(12, mw::kAi, 2.6f))
-                                .width(268.0f)})
-                 .children({text("an exclusion cuts a column exactly as it\n"
-                                 "cuts a line · a clamped column ends "
-                                 "in\na marker at its foot")
-                                .font(mw::labelType(13, 0.4f))
-                                .width(268.0f)})})
-        // The pair: one clamp in each script, so the marker's two forms
-        // are side by side. Both columns hold far more than one column of
-        // room, so both are cut.
-        .children({box()
-                       .absolute()
-                       .inset(64, 268, 0, 0)
-                       .row()
-                       .gap(28)
-                       .children({specimen("UPRIGHT · THE FACE'S VERT FORM",
-                                           u8"一行に収まらぬときは末に印を置く",
-                                           mw::bodyType(20))})
-                       .children({specimen(
-                           "ROTATED · TURNED WITH THE COLUMN",
+                 .zIndex(1),
+             // The plate names itself in the other writing mode.
+             box().at({64, 84}).column().gap(10).children(
+                 {text("回り込み").font(mw::bodyType(42)),
+                  kit::line({.length = Dimension(120),
+                             .fill = Fill::color(mw::kAka)}),
+                  text("THE COLUMN PARTS, AND THE COLUMN STOPS")
+                      .font(mw::labelType(12, mw::kAi, 2.6f))
+                      .width(268.0f),
+                  text("an exclusion cuts a column exactly as it\n"
+                       "cuts a line · a clamped column ends "
+                       "in\na marker at its foot")
+                      .font(mw::labelType(13, 0.4f))
+                      .width(268.0f)}),
+             // The pair: one clamp in each script, so the marker's two forms
+             // are side by side. Both columns hold far more than one column of
+             // room, so both are cut.
+             box().at({64, 268}).row().gap(28).children(
+                 {specimen("UPRIGHT · THE FACE'S VERT FORM",
+                           u8"一行に収まらぬときは末に印を置く",
+                           mw::bodyType(20)),
+                  specimen("ROTATED · TURNED WITH THE COLUMN",
                            u8"a Latin column turns a quarter turn and "
                            u8"so does the marker that cuts it",
                            mw::labelType(17, 0.2f))}),
-                   text("both columns are clamped to ONE column and both "
-                        "overflow;\nthe cut moved up the column to make room "
-                        "for the marker")
-                       .font(mw::labelType(11, mw::kUsu))
-                       .absolute()
-                       .inset(64, 520, 0, 0)
-                       .width(300.0f),
-                   text("silhouette → subtracted as itself  "
-                        "·  a crossed column splits into head and "
-                        "foot  ·  the marker takes the form of the "
-                        "text it cut")
-                       .font(mw::labelType(12, mw::kUsu))
-                       .absolute()
-                       .inset(64, mw::kH - 44, 0, 0)});
+             text("both columns are clamped to ONE column and both "
+                  "overflow;\nthe cut moved up the column to make room "
+                  "for the marker")
+                 .font(mw::labelType(11, mw::kUsu))
+                 .at({64, 520})
+                 .width(300.0f),
+             text("silhouette → subtracted as itself  "
+                  "·  a crossed column splits into head and "
+                  "foot  ·  the marker takes the form of the "
+                  "text it cut")
+                 .font(mw::labelType(12, mw::kUsu))
+                 .at({64, mw::kH - 44})});
   }
 };
 
