@@ -88,16 +88,14 @@ struct PopPrims final : sketch::Sketch {
   mesh::Mesh facets, baked, pieces;
 
   void draw(SkCanvas& canvas) const {
-    camera::Camera view;
-    view.eye = {0, 210, 900};
-    view.target = {0, 0, 0};
-    view.fovYDeg = 42;
+    const camera::Camera view{
+        .eye = {0, 210, 900}, .target = {0, 0, 0}, .fovYDeg = 42};
 
-    render::MeshStyle flat;
-    flat.baseColor = {1, 1, 1, 1};
-    flat.ambient = {0.34f, 0.34f, 0.38f, 1};
-    flat.specular = 0;  // no view-dependent term: 1 and 2 must be comparable
-    flat.rim = 0;
+    // No view-dependent term at all: 1 and 2 must be comparable.
+    const render::MeshStyle flat{.baseColor = {1, 1, 1, 1},
+                                 .ambient = {0.34f, 0.34f, 0.38f, 1},
+                                 .specular = 0,
+                                 .rim = 0};
 
     render::MeshStyle lane = flat;
     lane.primitiveColorLane = "Color";
@@ -161,10 +159,9 @@ struct PopPrims final : sketch::Sketch {
 
     // Keyed on the sink's own name: everything `draw` reads is cooked
     // above, in this setup, and nothing after it moves.
-    ctx.composer.render(
-        custom("pop.primitives", [this](SkCanvas& canvas) {
-          draw(canvas);
-        }).inset(0));
+    ctx.composer.render(custom("pop.primitives", [this](SkCanvas& canvas) {
+                          draw(canvas);
+                        }).inset(0));
   }
 };
 
