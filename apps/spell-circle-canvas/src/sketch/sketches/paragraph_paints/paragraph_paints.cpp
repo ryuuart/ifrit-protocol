@@ -107,10 +107,10 @@ Element column(const std::u8string& prose, paint::Paint fill) {
              .language = "en-US"})
       .width(kPanel - kInset * 2)
       .paragraphs({block()})
-      .block({.alignment = weave::TextAlignment::kJustify})
-      .block({.lineBreak = weave::LineBreakStrategy::kKnuthPlass})
-      .block({.hyphenation =
-                  sigil::weave::HyphenationOptions{.patterns = &hyphenator()}})
+      .block(
+          {.alignment = weave::TextAlignment::kJustify,
+           .hyphenation = weave::HyphenationOptions{.patterns = &hyphenator()},
+           .lineBreak = weave::LineBreakStrategy::kKnuthPlass})
       .textFill(std::move(fill));
 }
 
@@ -118,16 +118,17 @@ Element column(const std::u8string& prose, paint::Paint fill) {
  *  the first — which is what a transparent field is drawn over. */
 Element panel(const std::u8string& prose, const char* call, const char* note,
               paint::Paint fill, paint::Paint beneath = {}) {
-  Element plate = sketch::kit::well({.width = Dimension(kPanel),
-                                     .height = Dimension(kColumn),
-                                     .padding = kInset})
-                      .column();
-  if (beneath.isSolid() || beneath.asShader())
-    plate.children({box().absolute().inset(0).children(
-        {column(prose, std::move(beneath))})});
+  const bool layered = beneath.isSolid() || beneath.asShader();
   return sketch::kit::caption(
       kPanel, call, note,
-      std::move(plate).children({column(prose, std::move(fill))}));
+      sketch::kit::well({.width = Dimension(kPanel),
+                         .height = Dimension(kColumn),
+                         .padding = kInset})
+          .column()
+          .children({layered ? box().inset(0).children(
+                                   {column(prose, std::move(beneath))})
+                             : box(),
+                     column(prose, std::move(fill))}));
 }
 
 Element field(const std::u8string& prose, const char* call, const char* note,
