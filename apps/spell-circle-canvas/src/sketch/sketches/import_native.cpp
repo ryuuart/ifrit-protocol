@@ -181,13 +181,31 @@ struct ImportNative {
    *  while that view is still standing. */
   std::unique_ptr<sketch::scry::Settling> settling;
   sk_sp<SkImage> pageFrame;
+  bool deterministic = false;
+  bool wornStill = false;
+  uint64_t wornVersion = 0;
 
-  /** The settled frame, once there is one. It is taken rather than
-   *  re-read every frame because the still is the frame the settle
-   *  stopped on and not whatever the view holds later. */
+  /** WHAT THE PAGE SCREEN WEARS. Once the settle is behind it, the still —
+   *  taken once, because it is the frame the settle stopped on and not
+   *  whatever the view holds later. Until then, in a window, the view's
+   *  own latest frame, taken as its version moves, so the screen shows
+   *  the page from its first paint rather than nothing while the settle
+   *  runs. A capture wears the still alone: its every frame is a function
+   *  of the scene time, and a page still arriving is not. */
   void wearPage() {
-    if (settling && !pageFrame && settling->arrived())
-      pageFrame = settling->still().image;
+    if (!settling) return;
+    if (settling->arrived()) {
+      if (!wornStill) {
+        pageFrame = settling->still().image;
+        wornStill = true;
+      }
+      return;
+    }
+    if (deterministic || !view) return;
+    const uint64_t version = view->frameVersion();
+    if (version == wornVersion) return;
+    wornVersion = version;
+    pageFrame = view->frame().image;
   }
 
   void setup(sketch::SetContext& ctx) {
@@ -210,14 +228,14 @@ struct ImportNative {
     // function of the scene time and a live page is not.
     const std::shared_ptr<scry::WebEngine> engine =
         sketch::scry::sharedEngine();
+    deterministic = ctx.deterministic;
     if (engine) {
       view = engine->createView(kPageW, kPageH);
       settling = sketch::scry::settle(*view, arriving(), ctx.deterministic);
       // A CAPTURE HAS THE PAGE BY NOW, and an unsettled one is not a
       // picture it may wear: the frame it would photograph is one the
-      // engine is still laying out. A window has nothing yet and wears
-      // nothing on that screen until the page arrives, because the
-      // thread this runs on is the thread that draws.
+      // engine is still laying out. A window comes straight back and
+      // wears the page as it comes, from describe().
       if (ctx.deterministic && !settling->arrived())
         throw std::runtime_error(
             "the page never stopped changing, so there is no frame to wear");
