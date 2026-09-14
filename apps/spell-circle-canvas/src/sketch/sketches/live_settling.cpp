@@ -97,11 +97,41 @@ Element passage(float measure, bool live, float budget) {
   return leaf;
 }
 
+/** THE FOUR RUNS: what each swell declares and where it ends — which is
+ *  also the measure the cell beside it is set at, so the reading and the
+ *  setting under it cannot drift apart. */
+struct Run {
+  const char* call;
+  const char* note;
+  float measure;
+  bool live;
+  float budget;
+};
+
+constexpr Run kRuns[] = {
+    {"live(true, 4000) · at the narrow end",
+     "the swell has crossed this measure before · the block comes back out "
+     "of the store, so this frame costs no break decision at all",
+     kNarrow, true, kBudget},
+    {"live(true, 4000) · at the wide end",
+     "the other end of the range, reached from the narrow one · the "
+     "decisions are keyed on the words and on the measure taken to the "
+     "whole pixel below it",
+     kWide, true, kBudget},
+    {"no live() at all",
+     "the same swell run on a passage that never said its input moves · it "
+     "decides its breaks again every frame and stores nothing",
+     kWide, false, 0},
+    {"live(true, 1)",
+     "a floor no optimizing break can meet · the block is filled greedily "
+     "for this frame and counted, and the setting comes back the frame the "
+     "budget is met",
+     kWide, true, kStarved},
+};
+
 }  // namespace
 
 struct LiveSettling final : sketch::Sketch {
-  std::string reports[4];
-
   void setup(sketch::SketchContext& ctx) override {
     // the swell has already been run, on its own composer
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
@@ -129,10 +159,12 @@ struct LiveSettling final : sketch::Sketch {
                             settled.degraded);
     };
 
-    reports[0] = sweep(true, kBudget, kNarrow);
-    reports[1] = sweep(true, kBudget, kWide);
-    reports[2] = sweep(false, 0, kWide);
-    reports[3] = sweep(true, kStarved, kWide);
+    // Each run's swell is made where its cell is, so a run states its
+    // declaration once and the report under it is that run's own.
+    const auto study = [&](const Run& run) {
+      return cell(run.call, run.note, run.measure, run.live, run.budget,
+                  sweep(run.live, run.budget, run.measure));
+    };
 
     ctx.composer.render(sketch::kit::page(
         {.title = "A MOVING MEASURE · Element::live, "
@@ -145,30 +177,7 @@ struct LiveSettling final : sketch::Sketch {
                    "reused 0 — it decided its breaks "
                    "once and no later frame asks it again, which "
                    "is why live is DECLARED and never inferred"},
-        kit::cells(
-            {.cells = {cell("live(true, 4000) · at the narrow end",
-                            "the swell has crossed this measure before "
-                            "· the block comes back out of the store, "
-                            "so this frame costs no break decision at all",
-                            kNarrow, true, kBudget, reports[0]),
-                       cell("live(true, 4000) · at the wide end",
-                            "the other end of the range, reached from "
-                            "the narrow one · the decisions are keyed "
-                            "on the words and on the measure taken to the "
-                            "whole pixel below it",
-                            kWide, true, kBudget, reports[1]),
-                       cell("no live() at all",
-                            "the same swell run on a passage that never said "
-                            "its input moves · it decides its breaks "
-                            "again every frame and stores nothing",
-                            kWide, false, 0, reports[2]),
-                       cell("live(true, 1)",
-                            "a floor no optimizing break can meet "
-                            "· the block is filled greedily for this "
-                            "frame and counted, and the setting comes back "
-                            "the frame the budget is met",
-                            kWide, true, kStarved, reports[3])},
-             .gap = 14})));
+        kit::cells({.cells = each(kRuns, study), .gap = 14})));
   }
 
   /** One cell: the passage set at its own measure, with the report the
