@@ -21,6 +21,7 @@
 namespace sketch = sigil::sketch;
 
 std::filesystem::path SketchbookView::assetsDirectory;
+std::filesystem::path SketchbookView::sketchesDirectory;
 std::filesystem::path SketchbookView::flagsFile;
 std::string SketchbookView::publishName;
 bool SketchbookView::publishAtStart = false;

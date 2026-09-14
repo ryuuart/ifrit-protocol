@@ -117,6 +117,7 @@ class SketchbookView : public QQuickRhiItem {
    *  `assets/` beside whichever file is open, which is what makes a
    *  directory of sketches outside this repository a place to work. */
   static std::filesystem::path assetsDirectory;
+  static std::filesystem::path sketchesDirectory;
   static std::filesystem::path flagsFile;
   /** WHAT THIS WINDOW'S FRAMES ARE OFFERED UNDER, and whether they are
    *  offered from the moment it opens — the command line's answer,

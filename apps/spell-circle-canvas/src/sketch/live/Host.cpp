@@ -37,7 +37,9 @@ namespace sigil::sketch {
 namespace {
 
 Host::Options withDefaults(Host::Options options) {
-  if (options.assetsDirectory.empty()) {
+  // A sketch this binary carries takes the root the process stated; only
+  // a file opened by path defaults to the assets beside it.
+  if (options.assetsDirectory.empty() && !options.compiledIn) {
     // A SKETCH THAT IS A DIRECTORY keeps its other units beside its
     // entry, so the assets are NOT beside the entry: they are one level
     // further up, in the directory every sketch shares. The entry's stem
@@ -136,7 +138,7 @@ constexpr CanvasSpecification kUnloaded{};
 Host::Host(Options options, weave::FontContext& fonts)
     : m_options(withDefaults(std::move(options))),
       m_fonts(fonts),
-      m_assets(m_options.assetsDirectory) {
+      m_assets(m_options.assetsDirectory, m_options.sketchesDirectory) {
   // Before this process claims its own: the directories of runs that were
   // killed or that faulted are the ones nothing else will ever clear. An
   // owner that swept while its window was coming up claimed the walk

@@ -244,12 +244,16 @@ int main(int argc, char* argv[]) {
   // live host keeps its real numbers, which is where they are wanted.
   options.deterministic = args.deterministic.value_or(
       !args.capture.outputPath.empty() && !args.capture.bench);
-  // ASSETS STAND BESIDE THE SKETCH unless `--assets` says otherwise.
-  // Leaving this empty is what asks the host for that default, and it is
-  // the same answer for a sketch in this repository — whose assets stand
-  // beside it too — as for a file anywhere else on disk, which is what
-  // makes a directory outside this checkout a place to work.
+  // WHAT MOUNTS AT res:// unless `--assets` says otherwise: for a sketch
+  // of this repository the demo assets root, and for a file anywhere else
+  // on disk the assets beside it, which the host defaults to when this is
+  // left empty — what makes a directory outside this checkout a place to
+  // work. The sketches folder mounts at sketch:// either way, so a sketch
+  // this binary carries reaches its own files.
   options.assetsDirectory = args.assetsOverride;
+  if (options.assetsDirectory.empty() && !fileGiven)
+    options.assetsDirectory = SIGIL_SKETCH_ASSET_DIR;
+  options.sketchesDirectory = sketchDirectory;
   options.flagsFile = flagsFileNear(executableDirectory(argv[0]));
 
   if (!args.capture.outputPath.empty() || args.capture.bench) {
@@ -342,6 +346,7 @@ int main(int argc, char* argv[]) {
   SketchCatalog::thumbnailAssets = &assets();
   SketchbookView::fonts = &fonts();
   SketchbookView::assetsDirectory = options.assetsDirectory;
+  SketchbookView::sketchesDirectory = options.sketchesDirectory;
   SketchbookView::flagsFile = options.flagsFile;
   // WHAT A SUBSCRIBER BINDS TO is the run's name and not the sketch on
   // screen: a name that followed the selection would drop every client

@@ -209,6 +209,7 @@ std::unique_ptr<sketch::Host> SketchbookRenderer::openSketch(int index) {
   }
   if (!SketchbookView::fonts) return nullptr;  // nothing shapes text yet
   options.assetsDirectory = SketchbookView::assetsDirectory;
+  options.sketchesDirectory = SketchbookView::sketchesDirectory;
   options.flagsFile = SketchbookView::flagsFile;
   // The file is the session's name: it is what distinguishes a registry
   // entry from every other, and a file opened by path from every other.

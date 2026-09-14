@@ -75,9 +75,15 @@ class Host {
      *  and every other `.cpp` in that directory is a unit of it; any
      *  other file is a sketch of one unit. */
     std::filesystem::path sketchPath;
-    /** Where the sketch looks for what it did not generate. Defaults to
-     *  `assets` beside the sketch file. */
+    /** What mounts at `res://`. For a file opened by path it defaults to
+     *  `assets` beside that file; for a sketch this binary carries the
+     *  process states its root, and empty mounts nothing. */
     std::filesystem::path assetsDirectory;
+    /** THE DIRECTORY THE COMPILED-IN SKETCHES STAND IN, mounted at
+     *  `sketch://` so a sketch this binary carries reaches its own files
+     *  through `local()`; a file opened by path has its own directory
+     *  mounted under its key instead. Empty mounts nothing. */
+    std::filesystem::path sketchesDirectory;
     /** The compiler line the build captured, beside the executable. */
     std::filesystem::path flagsFile;
     std::string compiler = "clang++";
