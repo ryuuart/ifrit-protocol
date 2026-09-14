@@ -71,6 +71,42 @@ TEST(DrawNode, RunsThePenOverTheNodesBoxEveryFrame) {
   EXPECT_EQ(runs, 2);  // Cache::None: the program runs each frame
 }
 
+TEST(DrawNode, AProgramNamesTheParametersItReadsAndTheVerbTakesTheCache) {
+  Host host;
+  int runs = 0;
+  SkSize box{0, 0};
+  // The pen and the paint context are both offered; this program names
+  // both, and the one below names neither.
+  host.composer.render(
+      stack().children({pen(
+                            "once",
+                            [&](Pen& pen, const PaintContext& ctx) {
+                              ++runs;
+                              box = ctx.size;
+                              pen.noStroke();
+                              pen.fill(255, 0, 0);
+                              pen.rect(0, 0, 10, 10);
+                            },
+                            Cache::Texture)
+                            .width(50)
+                            .height(40)}));
+  host.frame();
+  EXPECT_EQ(runs, 1);
+  EXPECT_FLOAT_EQ(box.width(), 50.0f);
+  EXPECT_EQ(host.pixel(5, 5), SK_ColorRED);
+  // A drawing the verb was told is drawn ONCE is not run again: the bake
+  // is put down instead.
+  host.frame(1.0 / 60.0);
+  EXPECT_EQ(runs, 1);
+  EXPECT_EQ(host.pixel(5, 5), SK_ColorRED);
+
+  int bare = 0;
+  host.composer.render(stack().children(
+      {pen("none", [&bare] { ++bare; }).width(10).height(10)}));
+  host.frame();
+  EXPECT_EQ(bare, 1);
+}
+
 TEST(DrawNode, ThePenHoldsItsStyleFromFrameToFrame) {
   Host host;
   host.composer.render(stack().children({pen([](Pen& pen) {

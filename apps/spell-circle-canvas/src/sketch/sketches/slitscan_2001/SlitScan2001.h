@@ -127,8 +127,11 @@ struct SlitScan2001 : sketch::Sketch {
    *  carriage and every dimension over them. The two decorations it wears
    *  — the bench's hatch and the haloed erratum — reach the pen's own
    *  canvas, which is the door this library keeps open. */
-  void drawRig(Pen& pen);
-  void drawArtworkPanel(Pen& pen);
+  // The three pen programs name the paint context as well as the pen: a
+  // decoration is dressed against the node's own box, which the pen alone
+  // cannot answer.
+  void drawRig(Pen& pen, const PaintContext& ctx);
+  void drawArtworkPanel(Pen& pen, const PaintContext& ctx);
   void drawMeasuredPoints(Pen& pen);
 
   Element rigStrip();

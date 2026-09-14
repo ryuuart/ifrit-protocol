@@ -29,16 +29,17 @@ auto SlitScan2001::describe(sketch::SketchContext& ctx) -> Element {
 // hand-built geometry.
 
 /** A COMPOSE DECORATION ON A PATH THE PEN DREW: the pen's canvas is the
- *  door out of p5's vocabulary, and a paint context over its own box is
- *  what the decoration needs to know where it stands. */
-static void dressed(Pen& pen, SkPath outline, const Decoration& dress) {
-  const PaintContext ctx{.size = {pen.width, pen.height},
-                         .outline = outline,
-                         .contentScale = pen.contentScale()};
+ *  door out of p5's vocabulary, and the node's own paint context — which
+ *  a pen program names when it reads it — is what the decoration needs to
+ *  know where it stands. */
+static void dressed(Pen& pen, const PaintContext& node, SkPath outline,
+                    const Decoration& dress) {
+  PaintContext ctx = node;
+  ctx.outline = outline;
   decorations::paintOn(*pen.canvas(), ctx, std::move(outline), dress);
 }
 
-void SlitScan2001::drawRig(Pen& pen) {
+void SlitScan2001::drawRig(Pen& pen, const PaintContext& ctx) {
   using namespace slit;
   const float S = kRigPxPerIn;
   const float plateX = 548.0f;  // the slit; z = 0 for focus
@@ -60,7 +61,7 @@ void SlitScan2001::drawRig(Pen& pen) {
   SkPathBuilder hatched;
   hatched.addRect(bench);
   dressed(
-      pen, hatched.detach(),
+      pen, ctx, hatched.detach(),
       lines::presets::hatch(Fill::color(al(kAmber, 0.20f)), 6.0f, 1.0f, 45.0f));
 
   // THE TRACK: 14 ft = 168 in = 504 px [C85], from z = 180 in down to
@@ -265,7 +266,7 @@ void SlitScan2001::drawRig(Pen& pen) {
 }
 
 // The artwork panel, face on, at the same 3.0 px = 1 inch.
-void SlitScan2001::drawArtworkPanel(Pen& pen) {
+void SlitScan2001::drawArtworkPanel(Pen& pen, const PaintContext& ctx) {
   using namespace slit;
   const Shot& s = shotAt(shot);
   const Strip& S = strips[(size_t)s.cell];
@@ -302,7 +303,7 @@ void SlitScan2001::drawArtworkPanel(Pen& pen) {
   lb.moveTo(sx, top + ph + 8);
   lb.lineTo(sx, top + ph + 16);
   lb.lineTo(-38, top + ph + 16);
-  dressed(pen, lb.detach(),
+  dressed(pen, ctx, lb.detach(),
           lines::presets::cased(1.2f, Fill::color(al(kCold, 0.5f)), 3.0f));
 
   pen.noStroke();

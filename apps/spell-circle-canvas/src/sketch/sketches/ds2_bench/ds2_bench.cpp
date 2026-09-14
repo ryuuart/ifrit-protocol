@@ -285,21 +285,23 @@ struct Ds2Bench : sketch::Sketch {
       // A pure function of the node's size: it closes over nothing, so its
       // own name is the whole of its identity.
       root.children(
-          {pen("socket.arrow",
+          {pen(
+               "socket.arrow",
                [](Pen& q) {
                  const float w = q.width, h = q.height;
                  q.noStroke();
                  q.fill(mskia::withAlpha(kCyan, 0.8f));
                  q.triangle(0, h * 0.16f, w * 0.8f, h * 0.5f, 0, h * 0.84f);
-               })
+               },
+               Cache::Texture)
                .rect(SkRect::MakeXYWH(at.fX - 24, at.fY - 9, 16.0f, 18.0f))
-               .cache(Cache::Texture)
                .opacity(&socketPulse)
                .zIndex(8)});
       return;
     }
     root.children(
-        {pen("socket.housing",
+        {pen(
+             "socket.housing",
              [](Pen& q) {
                const float w = q.width, h = q.height;
                q.noFill();
@@ -327,9 +329,9 @@ struct Ds2Bench : sketch::Sketch {
                q.fill(mskia::withAlpha(kCyan, 0.78f));
                q.triangle(w * 0.02f, h * 0.31f, w * 0.24f, h * 0.50f, w * 0.02f,
                           h * 0.69f);
-             })
+             },
+             Cache::Texture)
              .rect(SkRect::MakeXYWH(at.fX - 100, at.fY - 46, 108.0f, 92.0f))
-             .cache(Cache::Texture)
              .opacity(&socketPulse)
              .zIndex(8)});
   }

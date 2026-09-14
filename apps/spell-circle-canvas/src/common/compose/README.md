@@ -1230,10 +1230,15 @@ a surface and handed over as a SigilMaterial texture value, in its own
 target `SigilComposeTexture`, which links the Graphite context and the
 hardware device its GPU path stands on. `draw/Draw.h` is the door
 to the imperative pen, both ways, in its own target `SigilComposeDraw`:
-`compose::pen` takes a `PenProgram` — a function of a `draw::Pen` — and
-makes the node `custom()` would, at `Cache::None`, with the pen's width
-and height the node's box and its transform starting at the box's
-corner, so a declarative scene drops into p5's verbs for one node, and
+`compose::pen` takes a `PenProgram` — a callable that NAMES ONLY THE
+PARAMETERS IT READS out of a `draw::Pen` and the node's `PaintContext`,
+exactly as a paint program does, so a program that hands a path to the
+decoration grammar reads the context instead of rebuilding one — and
+makes the node `custom()` would, at the CACHE THE VERB WAS GIVEN
+(`Cache::None` by default, so a drawing that is made once says
+`Cache::Texture` there rather than chaining a correction after), with the
+pen's width and height the node's box and its transform starting at the
+box's corner, so a declarative scene drops into p5's verbs for one node, and
 the pen begins in the node's own ink and resolved type, so an unset
 `fill` or `textSize` is what the cascade says rather than p5's white and
 twelve. The pen's `mouseX`, `mouseY`, `mouseIsPressed` and keys are what the host

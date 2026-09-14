@@ -216,7 +216,8 @@ auto Minard1869::hannibalSea() -> Element {
   // geometry::path::parallel called once per ring, so the pen only has to
   // clip to the water and walk them.
   return box().inset(0).children(
-      {pen("seahatch",
+      {pen(
+           "seahatch",
            [sea, rings](Pen& p) {
              p.noFill();
              p.strokeWeight(0.5f);
@@ -225,9 +226,9 @@ auto Minard1869::hannibalSea() -> Element {
                p.stroke(hexColor(0x4e4436, 0.55f - 0.062f * (float)i));
                p.shape(rings[i]);
              }
-           })
+           },
+           Cache::Texture)
            .inset(0)
-           .cache(Cache::Texture)
            .key("seahatch")
            .opacity(beat(tHann + 0.25f, tHann + 1.0f)),
        // the shore itself, engraved on top
@@ -250,7 +251,8 @@ auto Minard1869::lehmann(const std::vector<std::array<float, 4>>& ridges,
   // ridge table and the four bounds the program closes over.
   // copying the captures can fail only on allocation
   // NOLINTNEXTLINE(bugprone-exception-escape)
-  return pen(key,
+  return pen(
+             key,
              [ridges, x0, y0, x1, y1](Pen& p) {
                auto height = [&](float x, float y) {
                  float h = 0;
@@ -290,9 +292,9 @@ auto Minard1869::lehmann(const std::vector<std::array<float, 4>>& ridges,
                           x + ux * len * 0.5f, y + uy * len * 0.5f);
                  }
                }
-             })
+             },
+             Cache::Texture)
       .inset(0)
-      .cache(Cache::Texture)
       .key(key)
       .opacity(beat(t0, t0 + 0.55f));
 }
@@ -777,7 +779,8 @@ auto Minard1869::temperaturePanel() -> Element {
                   // right to left, the way the retreat runs
                   .mask(by::edge(180.0f, beat(tTemp + 0.4f, tTemp + 1.1f)))
                   .key("tcurve"),
-              pen("thatch",
+              pen(
+                  "thatch",
                   [curvePath](Pen& p) {
                     p.noFill();
                     p.stroke(hexColor(0x38301f, 0.9f));
@@ -795,9 +798,9 @@ auto Minard1869::temperaturePanel() -> Element {
                         p.line(q.x(), q.y(), q.x() - 1.4f, q.y() + 5.0f);
                       }
                     }
-                  })
+                  },
+                  Cache::Texture)
                   .inset(0)
-                  .cache(Cache::Texture)
                   .key("thatch")
                   .opacity(beat(tTemp + 0.6f, tTemp + 1.2f)),
               each(plate.temps, [this](const Temp& t, size_t i) {

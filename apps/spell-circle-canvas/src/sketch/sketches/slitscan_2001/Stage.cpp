@@ -174,12 +174,15 @@ auto SlitScan2001::rigStrip() -> Element {
       // carriage's live position and the artwork's live offset as they
       // paint, at Cache::None, so their picture is different every
       // frame; a key would name one drawing and replay it.
-      .children({pen([this](Pen& p) { drawRig(p); })
-                     .rect(SkRect::MakeXYWH(0, 0, kElevW, kRigH))
-                     .clip(),
-                 pen([this](Pen& p) { drawArtworkPanel(p); })
-                     .rect(SkRect::MakeXYWH(kRigW - kPanelStripW, 0,
-                                            kPanelStripW, kRigH))})
+      .children(
+          {pen([this](Pen& p, const PaintContext& ctx) { drawRig(p, ctx); })
+               .rect(SkRect::MakeXYWH(0, 0, kElevW, kRigH))
+               .clip(),
+           pen([this](Pen& p, const PaintContext& ctx) {
+             drawArtworkPanel(p, ctx);
+           })
+               .rect(SkRect::MakeXYWH(kRigW - kPanelStripW, 0, kPanelStripW,
+                                      kRigH))})
       // The "THIS EXPOSURE" monitor, in the elevation's upper-left where
       // there is nothing but sky. The only place you see a frame BEING
       // MADE rather than made, so it gets the good corner.

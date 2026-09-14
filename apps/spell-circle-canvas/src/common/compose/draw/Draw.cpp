@@ -58,7 +58,7 @@ PaintProgram over(PenProgram program) {
                                               const PaintContext& ctx) {
     held->pen.begin(canvas, held->frameIn(ctx));
     held->pen.inherit(ctx.ink, ctx.font);
-    program(held->pen);
+    program(held->pen, ctx);
     held->pen.end();
   };
 }
@@ -124,7 +124,7 @@ PaintProgram onto(PenProgram program) {
       // thirtieth and not by the node's sixtieth.
       g.frameCount = ++held->runs;
       g.deltaTime = held->sinceDraw * 1000.0;
-      program(g);
+      program(g, ctx);
       held->sinceDraw = 0.0;
     }
     held->surface->end();
@@ -154,20 +154,20 @@ struct Guest {
 
 }  // namespace
 
-Element pen(PenProgram program) {
-  return custom(over(std::move(program))).cache(Cache::None);
+Element pen(PenProgram program, Cache caching) {
+  return custom(over(std::move(program))).cache(caching);
 }
 
-Element pen(std::string_view key, PenProgram program) {
-  return custom(key, over(std::move(program))).cache(Cache::None);
+Element pen(std::string_view key, PenProgram program, Cache caching) {
+  return custom(key, over(std::move(program))).cache(caching);
 }
 
-Element graphics(PenProgram program) {
-  return custom(onto(std::move(program))).cache(Cache::None);
+Element graphics(PenProgram program, Cache caching) {
+  return custom(onto(std::move(program))).cache(caching);
 }
 
-Element graphics(std::string_view key, PenProgram program) {
-  return custom(key, onto(std::move(program))).cache(Cache::None);
+Element graphics(std::string_view key, PenProgram program, Cache caching) {
+  return custom(key, onto(std::move(program))).cache(caching);
 }
 
 void paintRetained(draw::Pen& pen, const Element& element, const SkRect& box,
