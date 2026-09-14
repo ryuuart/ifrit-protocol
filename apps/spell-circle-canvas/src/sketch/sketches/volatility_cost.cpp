@@ -71,11 +71,13 @@
 
 // TAGS: Runtime/Caching
 
-#include <include/core/SkPaint.h>
 #include <include/utils/SkNoDrawCanvas.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -84,14 +86,15 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdio>
 #include <memory>
 #include <random>
+#include <ranges>
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace draw = sigil::draw;
 namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
 
@@ -138,42 +141,44 @@ sketch::kit::Theme sheetTheme() {
   return look;
 }
 
-/** ONE COLOUR PER TIER, used by the outlines and by the legend, so the
- *  map and its key cannot disagree. */
-SkColor4f tierColor(Composer::CacheState state) {
-  switch (state) {
-    case Composer::CacheState::Live:
-      return {0.98f, 0.35f, 0.30f, 1};
-    case Composer::CacheState::Picture:
-      return {0.98f, 0.76f, 0.28f, 1};
-    case Composer::CacheState::Texture:
-      return {0.36f, 0.72f, 1.00f, 1};
-    case Composer::CacheState::Promoted:
-      return {0.40f, 0.90f, 0.55f, 1};
-    case Composer::CacheState::SplitOwn:
-      return {0.75f, 0.55f, 1.00f, 1};
-    case Composer::CacheState::Group:
-      return {0.30f, 0.88f, 0.82f, 1};
-  }
-  return kDim;
-}
+/** ONE ROW PER TIER: the colour the map and the key are both drawn in,
+ *  the name `Composer::profile()` reports and what the node actually did.
+ *  The map and its key cannot disagree when they read one table. */
+struct Tier {
+  Composer::CacheState state;
+  SkColor4f color;
+  const char* name;
+  const char* what;
+};
+constexpr Tier kTiers[] = {{Composer::CacheState::Live,
+                            {0.98f, 0.35f, 0.30f, 1},
+                            "Live",
+                            "painted from scratch"},
+                           {Composer::CacheState::Picture,
+                            {0.98f, 0.76f, 0.28f, 1},
+                            "Picture",
+                            "replayed a recording"},
+                           {Composer::CacheState::Texture,
+                            {0.36f, 0.72f, 1.00f, 1},
+                            "Texture",
+                            "blitted the author's bake"},
+                           {Composer::CacheState::Promoted,
+                            {0.40f, 0.90f, 0.55f, 1},
+                            "Promoted",
+                            "blitted the library's bake"},
+                           {Composer::CacheState::SplitOwn,
+                            {0.75f, 0.55f, 1.00f, 1},
+                            "SplitOwn",
+                            "own paint blitted, children live"},
+                           {Composer::CacheState::Group,
+                            {0.30f, 0.88f, 0.82f, 1},
+                            "Group",
+                            "whole subtree blitted, held still"}};
 
-const char* tierName(Composer::CacheState state) {
-  switch (state) {
-    case Composer::CacheState::Live:
-      return "Live";
-    case Composer::CacheState::Picture:
-      return "Picture";
-    case Composer::CacheState::Texture:
-      return "Texture";
-    case Composer::CacheState::Promoted:
-      return "Promoted";
-    case Composer::CacheState::SplitOwn:
-      return "SplitOwn";
-    case Composer::CacheState::Group:
-      return "Group";
-  }
-  return "?";
+const Tier& tierOf(Composer::CacheState state) {
+  for (const Tier& tier : kTiers)
+    if (tier.state == state) return tier;
+  return kTiers[0];
 }
 
 /** The sheet's one class past the registers: the heading over each block
@@ -184,36 +189,23 @@ weave::StyleSheet sheetClasses(const sketch::kit::Theme& look) {
   return classes;
 }
 
-std::string ms(double v) {
-  const std::string buf = kit::formatted("%.2f", v);
-  return buf;
-}
+std::string ms(double v) { return kit::formatted("%.2f", v); }
 
 /** `kCells` stroked, shaped cells — each recording its own picture — plus
  *  ONE accent cell in the same row whose fill is BOUND rather than a plain
  *  value. Everything above that accent shares its volatility, which is why
  *  a single leaf decides the cost of the whole panel. */
 Element cells(const choreograph::Output<Fill>* tint) {
-  auto row = box().key("cells").width(kCellsWidth).row().wrapLines().gap(2);
-  for (int id = 0; id < kCells; ++id) {
+  const auto cell = [](int id) {
     const float t = 0.20f + 0.04f * (float)(id % 6);
-    row.children({box()
-                      .key("c" + std::to_string(id))
-                      .width(26)
-                      .height(26)
-                      .shape(shapes::star(5 + id % 3, 0.45f, 0.08f))
-                      .fill(Fill::color({t, 0.45f, 0.68f, 1.0f}))
-                      .stroke(brush::solid(
-                          1.5f, Fill::color({0.95f, 0.86f, 0.55f, 1.0f})))});
-  }
-  row.children({box()
-                    .key("accent")
-                    .width(26)
-                    .height(26)
-                    .shape(shapes::star(7, 0.45f, 0.08f))
-                    .fill(Animatable<Fill>(tint))
-                    .stroke(brush::solid(
-                        1.5f, Fill::color({0.10f, 0.10f, 0.12f, 1.0f})))});
+    return box()
+        .key("c" + std::to_string(id))
+        .width(26)
+        .height(26)
+        .shape(shapes::star(5 + id % 3, 0.45f, 0.08f))
+        .fill(Fill::color({t, 0.45f, 0.68f, 1.0f}))
+        .stroke(brush::solid(1.5f, Fill::color({0.95f, 0.86f, 0.55f, 1.0f})));
+  };
   // The panel is held to the field's box so the two stand the same
   // height and the readout below them starts on one line.
   return box()
@@ -221,7 +213,16 @@ Element cells(const choreograph::Output<Fill>* tint) {
       .column()
       .width(kCellsWidth)
       .height(kFieldHeight)
-      .children({std::move(row)});
+      .children({box().key("cells").row().wrapLines().gap(2).children(
+          {each(std::views::iota(0, kCells), cell),
+           box()
+               .key("accent")
+               .width(26)
+               .height(26)
+               .shape(shapes::star(7, 0.45f, 0.08f))
+               .fill(Animatable<Fill>(tint))
+               .stroke(brush::solid(
+                   1.5f, Fill::color({0.10f, 0.10f, 0.12f, 1.0f})))})});
 }
 
 }  // namespace
@@ -280,35 +281,30 @@ struct VolatilityCost final : sketch::Sketch {
    *  do. The cards are laid from a fixed seed, so the field is the same
    *  picture on every run. */
   Element field() {
-    auto root = box()
-                    .key("field")
-                    .width(kFieldWidth)
-                    .height(kFieldHeight)
-                    .fill(Fill::color({0.04f, 0.04f, 0.08f, 1}));
     // NOLINTNEXTLINE(bugprone-random-generator-seed)
     std::mt19937 rng{3};
-    for (int i = 0; i < kCards; ++i) {
-      const float x = (float)(rng() % 570), y = (float)(rng() % 532);
-      root.children({box()
+    const auto card = [&rng](int i) {
+      return kit::at(box()
                          .key("k" + std::to_string(i))
-                         .width(34)
-                         .height(22)
                          .corners({4})
-                         .inset(x, y, 0, 0)
-                         .fill(Fill::color({0.09f, 0.10f, 0.16f, 1}))});
-    }
-    for (int i = 0; i < kMovers; ++i) {
-      const float y = 12.0f + 22.0f * (float)i;
-      root.children({box()
+                         .fill(Fill::color({0.09f, 0.10f, 0.16f, 1})),
+                     (float)(rng() % 570), (float)(rng() % 532), 34, 22);
+    };
+    const auto mover = [this](int i) {
+      return kit::at(box()
                          .key("m" + std::to_string(i))
-                         .width(46)
-                         .height(18)
                          .corners({4})
-                         .inset(0, y, 0, 0)
                          .translateX(movers[(size_t)i].get())
-                         .fill(Fill::color({0.49f, 0.91f, 1.0f, 0.8f}))});
-    }
-    return root;
+                         .fill(Fill::color({0.49f, 0.91f, 1.0f, 0.8f})),
+                     0, 12.0f + 22.0f * (float)i, 46, 18);
+    };
+    return box()
+        .key("field")
+        .width(kFieldWidth)
+        .height(kFieldHeight)
+        .fill(Fill::color({0.04f, 0.04f, 0.08f, 1}))
+        .children({each(std::views::iota(0, kCards), card),
+                   each(std::views::iota(0, kMovers), mover)});
   }
 
   /** THE MAP: every keyed node the profile named, outlined in the colour
@@ -319,36 +315,27 @@ struct VolatilityCost final : sketch::Sketch {
     // KEYLESS, and it has to be: the marks ARE the reading, and they change
     // with the tree this measures — a key naming them would spell the
     // picture twice.
-    return custom([marks = marks](SkCanvas& canvas) {
-             SkPaint edge;
-             edge.setAntiAlias(true);
-             edge.setStyle(SkPaint::kStroke_Style);
-             edge.setStrokeWidth(1.4f);
+    return pen([marks = marks](draw::Pen& pen) {
+             pen.noFill();
+             pen.strokeWeight(1.4f);
              for (const Marked& m : marks) {
-               edge.setColor4f(tierColor(m.state));
-               canvas.drawRect(m.rect.makeOutset(1.5f, 1.5f), edge);
+               pen.stroke(tierOf(m.state).color);
+               pen.rect(m.rect.left() - 1.5f, m.rect.top() - 1.5f,
+                        m.rect.width() + 3.0f, m.rect.height() + 3.0f);
              }
            })
         .absolute()
         .inset(0)
         .zIndex(8)
-        .hitTestable(false)
-        .cache(Cache::None);
+        .hitTestable(false);
   }
 
   Element legend() const {
-    const std::pair<Composer::CacheState, const char*> tiers[] = {
-        {Composer::CacheState::Live, "painted from scratch"},
-        {Composer::CacheState::Picture, "replayed a recording"},
-        {Composer::CacheState::Texture, "blitted the author's bake"},
-        {Composer::CacheState::Promoted, "blitted the library's bake"},
-        {Composer::CacheState::SplitOwn, "own paint blitted, children live"},
-        {Composer::CacheState::Group, "whole subtree blitted, held still"}};
     // The key is OUTLINED because the map it keys is: every node on the
     // sheet is outlined in its tier's colour, not filled with it.
     std::vector<sketch::kit::LegendEntry> entries;
-    for (const auto& [state, what] : tiers)
-      entries.push_back({Fill::color(tierColor(state)), tierName(state), what});
+    for (const Tier& tier : kTiers)
+      entries.push_back({Fill::color(tier.color), tier.name, tier.what});
     return sketch::kit::legend({.entries = std::move(entries),
                                 .column = false,
                                 .swatchSide = 11,
@@ -368,7 +355,7 @@ struct VolatilityCost final : sketch::Sketch {
     const auto count = [](size_t v) { return std::to_string(v); };
     const sketch::kit::Readout how{.nameMeasure = 168};
     return box().column().gap(3).children(
-        {text("Composer::stats()").styleClass("heading").margin(0, 0, 0, 4),
+        {text("Composer::stats()").styleClass("heading"),
          sketch::kit::readout(
              {{u8"instances", count(frame.instances)},
               {u8"describedNodes", count(frame.describedNodes)},
@@ -384,8 +371,7 @@ struct VolatilityCost final : sketch::Sketch {
               {u8"volatile ms", ms(ctx.measured(frame.volatileMs))},
               {u8"paint ms", ms(ctx.measured(frame.paintMs))}},
              how),
-         box().height(8),
-         text("the split").styleClass("heading").margin(0, 0, 0, 4),
+         box().height(8), text("the split").styleClass("heading"),
          sketch::kit::readout(
              {{u8"refused: Volatile", count((size_t)volatileNodes)},
               {u8"reached a bake", count((size_t)bakedNodes)},
@@ -397,31 +383,27 @@ struct VolatilityCost final : sketch::Sketch {
    *  condition that refused it a bake. `selfMs` excludes children, so the
    *  number lands on the node that actually costs. */
   Element costTable(const sketch::SketchContext& ctx) const {
-    Element column = box().column().gap(3);
-    column.children(
-        {text(ctx.deterministic ? "Composer::profile() · self ms, by key"
-                                : "Composer::profile() · self ms, "
-                                  "worst first")
-             .styleClass("heading")
-             .margin(0, 0, 0, 4)});
     std::vector<sketch::kit::Row> rows;
     rows.reserve(worst.size());
     for (const Composer::NodeCost& row : worst)
-      rows.push_back(
-          {{row.label, ms(ctx.measured(row.selfMs)), tierName(row.cacheState),
-            Composer::promotionReason(row.promotion)},
-           Fill::color(tierColor(row.cacheState))});
+      rows.push_back({{row.label, ms(ctx.measured(row.selfMs)),
+                       tierOf(row.cacheState).name,
+                       Composer::promotionReason(row.promotion)},
+                      Fill::color(tierOf(row.cacheState).color)});
     // The tier and the reason are the row's own quiet columns; the key
     // and the cost are what a reader is looking for, so those two carry
     // the figure register.
-    column.children({sketch::kit::table(
-        std::move(rows), {.columns = {{.width = 126, .figure = true},
-                                      {.width = 46, .figure = true},
-                                      {.width = 66},
-                                      {}},
-                          .gap = 8,
-                          .swatchSide = 9})});
-    return column;
+    return box().column().gap(3).children(
+        {text(ctx.deterministic ? "Composer::profile() · self ms, by key"
+                                : "Composer::profile() · self ms, worst first")
+             .styleClass("heading"),
+         sketch::kit::table(std::move(rows),
+                            {.columns = {{.width = 126, .figure = true},
+                                         {.width = 46, .figure = true},
+                                         {.width = 66},
+                                         {}},
+                             .gap = 8,
+                             .swatchSide = 9})});
   }
 
   Element readout(const sketch::SketchContext& ctx) const {
@@ -430,11 +412,8 @@ struct VolatilityCost final : sketch::Sketch {
                                  .font({.size = 12})
                                  .ink(kDim)});
     return box().column().gap(12).children(
-        {legend(), box()
-                       .row()
-                       .gap(34)
-                       .children({statsBlock(ctx)})
-                       .children({costTable(ctx)})});
+        {legend(),
+         box().row().gap(34).children({statsBlock(ctx), costTable(ctx)})});
   }
 
   Element describe(sketch::SketchContext& ctx) {
@@ -449,27 +428,25 @@ struct VolatilityCost final : sketch::Sketch {
     return stack()
         .styleSheet(sheetClasses(look))
         .inset(0)
-        .children({tierMap(),
-                   sketch::kit::page(
-                       {.title = "THE CACHING PROOF · what every node "
-                                 "did to produce its pixels",
-                        .subtitle = "volatility propagates upward, so one "
-                                    "bound leaf decides what its whole subtree "
-                                    "costs — every keyed node is "
-                                    "outlined in the tier it took, read back "
-                                    "from a probe of its own at " +
-                                    ms(kSnapAt) + " s",
-                        .footer = "a picture records the DRAW CALLS, so "
-                                  "replaying one re-runs every shader over "
-                                  "every pixel; only a bake replaces that with "
-                                  "a blit · numbers the sheet measured "
-                                  "about itself are pinned for a diff"},
-                       box()
-                           .column()
-                           .gap(16)
-                           .children({kit::cells(
-                               {.cells = {field(), cells(&tint)}, .gap = 22})})
-                           .children({readout(ctx)}))});
+        .children(
+            {tierMap(),
+             sketch::kit::page(
+                 {.title = "THE CACHING PROOF · what every node "
+                           "did to produce its pixels",
+                  .subtitle = "volatility propagates upward, so one "
+                              "bound leaf decides what its whole subtree "
+                              "costs — every keyed node is "
+                              "outlined in the tier it took, read back "
+                              "from a probe of its own at " +
+                              ms(kSnapAt) + " s",
+                  .footer = "a picture records the DRAW CALLS, so "
+                            "replaying one re-runs every shader over "
+                            "every pixel; only a bake replaces that with "
+                            "a blit · numbers the sheet measured "
+                            "about itself are pinned for a diff"},
+                 box().column().gap(16).children(
+                     {kit::cells({.cells = {field(), cells(&tint)}, .gap = 22}),
+                      readout(ctx)}))});
   }
 
   void setup(sketch::SketchContext& ctx) override {
