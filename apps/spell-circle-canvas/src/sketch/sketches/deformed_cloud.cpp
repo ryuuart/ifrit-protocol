@@ -132,16 +132,17 @@ struct DeformedCloud final : sketch::Set {
             .masked("band")
             .vary(0.45f, 1.0f);
 
-    world::kit::Set set;
-    set.rig.extent = kExtent * 1.4f;
-    set.rig.bearing = -38.0f;
-    set.rig.elevation = 30.0f;
-    set.ground = 4.0f;
-    set.drop = 1.0f;
-    set.table.radius = 640.0f;
-    set.table.height = 230.0f;
-    set.table.period = 20.0f;
-    set.table.fovYDeg = 42.0f;
+    // The room, as one value: the rig the body is lit by, the turntable
+    // the camera rides, and how far under it the floor lies.
+    const world::kit::Set set{.rig = {.extent = kExtent * 1.4f,
+                                      .bearing = -38.0f,
+                                      .elevation = 30.0f},
+                              .table = {.radius = 640.0f,
+                                        .height = 230.0f,
+                                        .period = 20.0f,
+                                        .fovYDeg = 42.0f},
+                              .ground = 4.0f,
+                              .drop = 1.0f};
 
     return world::Frame(world::kit::litSet(
         world::Element()
