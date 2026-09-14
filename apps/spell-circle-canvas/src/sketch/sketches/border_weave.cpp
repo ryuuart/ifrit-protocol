@@ -82,13 +82,16 @@ Element plaque(bool round = false) {
   return node;
 }
 
+/** The plate every specimen on this sheet stands on. */
+const sketch::kit::Cell kSpecimen{
+    .plate = {.width = kCell, .height = kPicture}};
+
 Element cell(const char* call, const char* note, Element body) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture})
-          .children({std::move(body).absolute().inset(
-              (kCell - kPlaque) / 2, (kPicture - kPlaque) / 2,
-              (kCell - kPlaque) / 2, (kPicture - kPlaque) / 2)}));
+  return sketch::kit::cell(
+      kSpecimen, call, note,
+      std::move(body).absolute().inset(
+          (kCell - kPlaque) / 2, (kPicture - kPlaque) / 2,
+          (kCell - kPlaque) / 2, (kPicture - kPlaque) / 2));
 }
 
 }  // namespace

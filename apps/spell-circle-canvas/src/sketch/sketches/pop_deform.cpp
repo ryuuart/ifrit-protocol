@@ -39,8 +39,8 @@
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/style/Type.h>
 
-#include <cmath>
 #include <array>
+#include <cmath>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -128,13 +128,11 @@ Element panel(const char* title, const char* note, Element inner) {
   // The cell is held to the picture's width: a call longer than its own
   // panel would otherwise widen the cell and the two rows would stop
   // lining up column for column.
-  return sketch::kit::caption(
-             kPanel, title, note,
-             sketch::kit::well({.width = Dimension(kPanel),
-                                .height = Dimension(kPanel * 1.6f),
-                                .ground = Fill::none(),
-                                .keyline = Fill::color(kFrame)})
-                 .children({std::move(inner)}))
+  return sketch::kit::cell({.plate = {.width = Dimension(kPanel),
+                                      .height = Dimension(kPanel * 1.6f),
+                                      .ground = Fill::none(),
+                                      .keyline = Fill::color(kFrame)}},
+                           title, note, std::move(inner))
       .width(kPanel);
 }
 

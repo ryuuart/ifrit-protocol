@@ -130,11 +130,10 @@ weave::TextStyle mono(float size, SkColor4f color) {
  *  what a layout and a diagnostic ARE. */
 Element readout(const char* call, const std::string& note,
                 const std::string& body, SkColor4f colour = kFigure) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture})
-          .padding(12, 10)
-          .children({text(body, mono(9.0f, colour)).width(kCell - 24)}));
+  return sketch::kit::cell(
+      {.plate =
+           {.width = kCell, .height = kPicture, .padding = 12, .paddingY = 10}},
+      call, note, text(body, mono(9.0f, colour)).width(kCell - 24));
 }
 
 }  // namespace

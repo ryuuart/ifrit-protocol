@@ -68,14 +68,14 @@ sketch::kit::Theme sheetTheme() {
 /** One specimen: the cut plate filled and keylined inside a cell, so the
  *  treatment reads both as a silhouette and as an edge. */
 Element cell(const char* call, const char* note, Shape cut) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture, .clip = false})
-          .children({box()
-                         .inset(30, 22, 30, 22)
-                         .shape(std::move(cut))
-                         .fill(Fill::color(kPlate))
-                         .stroke(stroke(1.6f, Fill::color(kEdge)))}));
+  return sketch::kit::cell(
+      {.plate = {.width = kCell, .height = kPicture, .clip = false}}, call,
+      note,
+      box()
+          .inset(30, 22, 30, 22)
+          .shape(std::move(cut))
+          .fill(Fill::color(kPlate))
+          .stroke(stroke(1.6f, Fill::color(kEdge))));
 }
 
 }  // namespace

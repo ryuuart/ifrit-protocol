@@ -67,17 +67,14 @@ sketch::kit::Theme sheetTheme() {
 /** One specimen: the curve stroked inside a bordered plate, its call
  *  spelled under it and the rule it illustrates under that. */
 Element cell(const char* call, const char* note, Shape curve) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture})
-          .children(
-              {box()
-                   .absolute()
-                   .inset(12)
-                   .shape(std::move(curve))
-                   .stroke(stroke(
-                       kWeight,
-                       Fill::color(sketch::kit::theme().palette.figure)))}));
+  return sketch::kit::cell(
+      {.plate = {.width = kCell, .height = kPicture}}, call, note,
+      box()
+          .absolute()
+          .inset(12)
+          .shape(std::move(curve))
+          .stroke(stroke(kWeight,
+                         Fill::color(sketch::kit::theme().palette.figure))));
 }
 
 }  // namespace

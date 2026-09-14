@@ -355,10 +355,9 @@ Element lexicalChannel() {
  *  padding would shrink it off its own measure. */
 Element cell(const char* call, const char* note, Element body,
              float padding = kPad) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kBody, .padding = padding})
-          .children({std::move(body)}));
+  return sketch::kit::cell(
+      {.plate = {.width = kCell, .height = kBody, .padding = padding}}, call,
+      note, std::move(body));
 }
 
 Element row(std::vector<Element> four) {

@@ -86,13 +86,13 @@ weave::TextStyle bakeFace(float size, bool proportional = false) {
                            .aliased = true});
 }
 
-Element plate(Element body) {
-  return sketch::kit::well({.width = kCell, .height = kPicture})
-      .children({std::move(body).absolute().inset(14)});
-}
+/** The plate every specimen on this sheet stands on. */
+const sketch::kit::Cell kSpecimen{
+    .plate = {.width = kCell, .height = kPicture}};
 
 Element cell(const char* call, const char* note, Element body) {
-  return sketch::kit::caption(kCell, call, note, plate(std::move(body)));
+  return sketch::kit::cell(kSpecimen, call, note,
+                           std::move(body).absolute().inset(14));
 }
 
 }  // namespace

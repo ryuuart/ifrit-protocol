@@ -151,13 +151,11 @@ Element splat(mesh::Cloud cloud, float spriteSize) {
 
 Element panel(const char* title, const char* note, Element inner) {
   // The well clips: the projection is wider than the frame.
-  return sketch::kit::caption(
-      kPanel, title, note,
-      sketch::kit::well({.width = Dimension(kPanel),
-                         .height = Dimension(kPanel),
-                         .ground = Fill::none(),
-                         .keyline = Fill::color(kFrame)})
-          .children({std::move(inner)}));
+  return sketch::kit::cell({.plate = {.width = Dimension(kPanel),
+                                      .height = Dimension(kPanel),
+                                      .ground = Fill::none(),
+                                      .keyline = Fill::color(kFrame)}},
+                           title, note, std::move(inner));
 }
 
 }  // namespace

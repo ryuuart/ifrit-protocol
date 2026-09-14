@@ -132,14 +132,14 @@ Element splat(geometry::mesh::Cloud cloud) {
       .cache(Cache::None);
 }
 
+/** The plate every panel on this sheet stands on. */
+const sketch::kit::Cell kPanelCell{.plate = {.width = Dimension(kPanel),
+                                             .height = Dimension(kPanel * 0.8f),
+                                             .ground = Fill::none(),
+                                             .keyline = Fill::color(kFrame)}};
+
 Element panel(const char* title, const char* note, Element inner) {
-  return sketch::kit::caption(
-      kPanel, title, note,
-      sketch::kit::well({.width = Dimension(kPanel),
-                         .height = Dimension(kPanel * 0.8f),
-                         .ground = Fill::none(),
-                         .keyline = Fill::color(kFrame)})
-          .children({std::move(inner)}));
+  return sketch::kit::cell(kPanelCell, title, note, std::move(inner));
 }
 
 // a literal table; only allocation could throw

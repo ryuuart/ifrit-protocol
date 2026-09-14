@@ -77,15 +77,14 @@ weave::TextStyle specimen() {
 
 Element cell(const char* call, const char* note, const char* key, Track track) {
   track.progress = kProgress;
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture})
-          .children({text("DISPLACEMENT", specimen())
-                         .key(key)
-                         .width(kCell - 28)
-                         .absolute()
-                         .inset(14, 60, 14, 14)
-                         .fx(std::move(track))}));
+  return sketch::kit::cell({.plate = {.width = kCell, .height = kPicture}},
+                           call, note,
+                           text("DISPLACEMENT", specimen())
+                               .key(key)
+                               .width(kCell - 28)
+                               .absolute()
+                               .inset(14, 60, 14, 14)
+                               .fx(std::move(track)));
 }
 
 /** The one spread every cell starts from — the origin and the
