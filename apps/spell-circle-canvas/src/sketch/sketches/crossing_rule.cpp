@@ -34,6 +34,7 @@
 #include <sigilsketch/kit/Kit.h>
 
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -151,10 +152,10 @@ Element cell(std::string key, std::vector<SkPath> strands,
              const char* note) {
   return sketch::kit::caption(
       kCell, call, note,
-      custom(std::move(key),
-             [strands = std::move(strands), rule = std::move(rule), pinned](SkCanvas& canvas) {
-               paintWeave(canvas, strands, rule, pinned);
-             })
+      custom(
+          std::move(key),
+          [strands = std::move(strands), rule = std::move(rule), pinned](
+              SkCanvas& canvas) { paintWeave(canvas, strands, rule, pinned); })
           .width(kCell)
           .height(kCell)
           .fill(Fill::color(sketch::kit::theme().palette.cellGround)));
@@ -174,401 +175,66 @@ struct CrossingRuleSheet final : sketch::Sketch {
       return path::crossing::pairs(d);
     };
 
-    ctx.composer.render(sketch::kit::
-                            page({.title = "CROSSING RULE · "
-                                           "discoverCrossings + "
-                                           "CrossingRule + crossingPatch",
-                                  .subtitle = "dials · the rule (named "
-                                              "on each "
-                                              "cell) "
-                                              "· the patch width (reach "
-                                              "15 px, cap "
-                                              "30 px)",
-                                  .footer =
-                                      "a knot is decided, never drawn in order "
-                                      "— the cyclic dominance in "
-                                      "the "
-                                      "third ring cell has no draw order at "
-                                      "all"},
-                                 kit::cells({.cells = {kit::cells({.cells = {cell("hept.alternate",
-                                                                                  heptagram(), path::crossing::alternate(), -1,
-                                                                                  "crossing::alternate()",
-                                                                                  "{7/2} heptagram — seven "
-                                                                                  "knots, so the over-under run cannot "
-                                                                                  "close and one seam doubles"),
-                                                                             cell(
-                                                                                 "hept.sequence",
-                                                                                 heptagram(),
-                                                                                 path::crossing::
-                                                                                     sequence(
-                                                                                         {path::Order::
-                                                                                              Over,
-                                                                                          path::
-                                                                                              Order::
-                                                                                                  Over,
-                                                                                          path::Order::Under}),
-                                                                                 -1,
-                                                                                 "crossing::sequence({Over, Over, "
-                                                                                 "Under})",
-                                                                                 "any repeating pattern, read off the "
-                                                                                 "knot's ordinal"),
-                                                                             cell("hept.pairs",
-                                                                                  heptagram(),
-                                                                                  sevenCycle(),
-                                                                                  -1,
-                                                                                  "crossing::pairs({{i, i+1}})",
-                                                                                  "strand dominance round a "
-                                                                                  "seven-cycle, "
-                                                                                  "which no draw order can spell"),
-                                                                             cell(
-                                                                                 "hept.except",
-                                                                                 heptagram(),
-                                                                                 path::crossing::alternate()
-                                                                                     .except(
-                                                                                         0,
-                                                                                         path::Order::
-                                                                                             Under),
-                                                                                 0,
-                                                                                 "alternate().except(0, Under)",
-                                                                                 "one positional pin, ringed; pins "
-                                                                                 "move "
-                                                                                 "when the geometry does")},
-                                                                   .gap = 14}),
-                                                       kit::cells(
-                                                           {.cells = {cell(
-                                                                          "r"
-                                                                          "i"
-                                                                          "n"
-                                                                          "g"
-                                                                          "."
-                                                                          "a"
-                                                                          "l"
-                                                                          "t"
-                                                                          "e"
-                                                                          "r"
-                                                                          "n"
-                                                                          "a"
-                                                                          "t"
-                                                                          "e",
-                                                                          rings(),
-                                                                          path::crossing::alternate(), -1,
-                                                                          "c"
-                                                                          "r"
-                                                                          "o"
-                                                                          "s"
-                                                                          "s"
-                                                                          "i"
-                                                                          "n"
-                                                                          "g"
-                                                                          ":"
-                                                                          ":"
-                                                                          "a"
-                                                                          "l"
-                                                                          "t"
-                                                                          "e"
-                                                                          "r"
-                                                                          "n"
-                                                                          "a"
-                                                                          "t"
-                                                                          "e"
-                                                                          "("
-                                                                          ")",
-                                                                          "t"
-                                                                          "h"
-                                                                          "r"
-                                                                          "e"
-                                                                          "e"
-                                                                          " "
-                                                                          "r"
-                                                                          "i"
-                                                                          "n"
-                                                                          "g"
-                                                                          "s"
-                                                                          " "
-                                                                          "—"
-                                                                          " "
-                                                                          "s"
-                                                                          "i"
-                                                                          "x"
-                                                                          " "
-                                                                          "k"
-                                                                          "n"
-                                                                          "o"
-                                                                          "t"
-                                                                          "s"
-                                                                          " "
-                                                                          "a"
-                                                                          "l"
-                                                                          "t"
-                                                                          "e"
-                                                                          "r"
-                                                                          "n"
-                                                                          "a"
-                                                                          "t"
-                                                                          "i"
-                                                                          "n"
-                                                                          "g"
-                                                                          " "
-                                                                          "b"
-                                                                          "y"
-                                                                          " "
-                                                                          "o"
-                                                                          "r"
-                                                                          "d"
-                                                                          "i"
-                                                                          "n"
-                                                                          "a"
-                                                                          "l"
-                                                                          ","
-                                                                          " "
-                                                                          "w"
-                                                                          "h"
-                                                                          "i"
-                                                                          "c"
-                                                                          "h"
-                                                                          " "
-                                                                          "i"
-                                                                          "s"
-                                                                          " "
-                                                                          "n"
-                                                                          "o"
-                                                                          "t"
-                                                                          " "
-                                                                          "a"
-                                                                          " "
-                                                                          "w"
-                                                                          "e"
-                                                                          "a"
-                                                                          "v"
-                                                                          "e"
-                                                                          " "
-                                                                          "h"
-                                                                          "e"
-                                                                          "r"
-                                                                          "e"),
-                                                                      cell(
-                                                                          "ri"
-                                                                          "ng"
-                                                                          ".s"
-                                                                          "eq"
-                                                                          "ue"
-                                                                          "nc"
-                                                                          "e",
-                                                                          rings(),
-                                                                          path::crossing::
-                                                                              sequence(
-                                                                                  {path::Order::
-                                                                                       Over,
-                                                                                   path::Order::Under, path::Order::Under}),
-                                                                          -1,
-                                                                          "cr"
-                                                                          "os"
-                                                                          "si"
-                                                                          "ng"
-                                                                          "::"
-                                                                          "se"
-                                                                          "qu"
-                                                                          "en"
-                                                                          "ce"
-                                                                          "({"
-                                                                          "Ov"
-                                                                          "er"
-                                                                          ", "
-                                                                          "Un"
-                                                                          "de"
-                                                                          "r,"
-                                                                          " U"
-                                                                          "nd"
-                                                                          "er"
-                                                                          "}"
-                                                                          ")",
-                                                                          "th"
-                                                                          "e "
-                                                                          "sa"
-                                                                          "me"
-                                                                          " s"
-                                                                          "ix"
-                                                                          " k"
-                                                                          "no"
-                                                                          "ts"
-                                                                          " o"
-                                                                          "n "
-                                                                          "a "
-                                                                          "th"
-                                                                          "re"
-                                                                          "e-"
-                                                                          "lo"
-                                                                          "ng"
-                                                                          " "
-                                                                          "pa"
-                                                                          "tt"
-                                                                          "er"
-                                                                          "n"),
-                                                                      cell(
-                                                                          "ri"
-                                                                          "ng"
-                                                                          ".p"
-                                                                          "ai"
-                                                                          "r"
-                                                                          "s",
-                                                                          rings(),
-                                                                          path::crossing::pairs(
-                                                                              {{0,
-                                                                                1},
-                                                                               {1,
-                                                                                2},
-                                                                               {2,
-                                                                                0}}),
-                                                                          -1,
-                                                                          "cr"
-                                                                          "os"
-                                                                          "si"
-                                                                          "ng"
-                                                                          "::"
-                                                                          "pa"
-                                                                          "ir"
-                                                                          "s("
-                                                                          "{{"
-                                                                          "0,"
-                                                                          "1}"
-                                                                          ",{"
-                                                                          "1,"
-                                                                          "2}"
-                                                                          ","
-                                                                          "{2"
-                                                                          ",0"
-                                                                          "}}"
-                                                                          ")",
-                                                                          "th"
-                                                                          "e "
-                                                                          "cy"
-                                                                          "cl"
-                                                                          "ic"
-                                                                          " d"
-                                                                          "om"
-                                                                          "in"
-                                                                          "an"
-                                                                          "ce"
-                                                                          ": "
-                                                                          "ev"
-                                                                          "er"
-                                                                          "y "
-                                                                          "ri"
-                                                                          "ng"
-                                                                          " o"
-                                                                          "ve"
-                                                                          "r "
-                                                                          "on"
-                                                                          "e "
-                                                                          "an"
-                                                                          "d "
-                                                                          "un"
-                                                                          "de"
-                                                                          "r "
-                                                                          "an"
-                                                                          "ot"
-                                                                          "he"
-                                                                          "r"),
-                                                                      cell(
-                                                                          "r"
-                                                                          "i"
-                                                                          "n"
-                                                                          "g"
-                                                                          "."
-                                                                          "e"
-                                                                          "x"
-                                                                          "c"
-                                                                          "e"
-                                                                          "p"
-                                                                          "t",
-                                                                          rings(),
-                                                                          path::crossing::
-                                                                              pairs({{0,
-                                                                                      1},
-                                                                                     {1,
-                                                                                      2},
-                                                                                     {2,
-                                                                                      0}})
-                                                                                  .except(3, path::
-                                                                                                 Order::Under),
-                                                                          3,
-                                                                          "p"
-                                                                          "a"
-                                                                          "i"
-                                                                          "r"
-                                                                          "s"
-                                                                          "("
-                                                                          "."
-                                                                          "."
-                                                                          "."
-                                                                          ")"
-                                                                          "."
-                                                                          "e"
-                                                                          "x"
-                                                                          "c"
-                                                                          "e"
-                                                                          "p"
-                                                                          "t"
-                                                                          "("
-                                                                          "3"
-                                                                          ","
-                                                                          " "
-                                                                          "U"
-                                                                          "n"
-                                                                          "d"
-                                                                          "e"
-                                                                          "r"
-                                                                          ")",
-                                                                          "t"
-                                                                          "h"
-                                                                          "e"
-                                                                          " "
-                                                                          "c"
-                                                                          "y"
-                                                                          "c"
-                                                                          "l"
-                                                                          "e"
-                                                                          " "
-                                                                          "w"
-                                                                          "i"
-                                                                          "t"
-                                                                          "h"
-                                                                          " "
-                                                                          "k"
-                                                                          "n"
-                                                                          "o"
-                                                                          "t"
-                                                                          " "
-                                                                          "3"
-                                                                          " "
-                                                                          "c"
-                                                                          "o"
-                                                                          "r"
-                                                                          "r"
-                                                                          "e"
-                                                                          "c"
-                                                                          "t"
-                                                                          "e"
-                                                                          "d"
-                                                                          " "
-                                                                          "b"
-                                                                          "y"
-                                                                          " "
-                                                                          "h"
-                                                                          "a"
-                                                                          "n"
-                                                                          "d"
-                                                                          ","
-                                                                          " "
-                                                                          "r"
-                                                                          "i"
-                                                                          "n"
-                                                                          "g"
-                                                                          "e"
-                                                                          "d")},
-                                                            .gap = 14})},
-                                             .column = true,
-                                             .gap = 18})));
+    // A shelf per subject, named before the page so the four calls on it
+    // read as four rules rather than as one nested literal.
+    Element stars = kit::cells(
+        {.cells =
+             {cell("hept.alternate", heptagram(), path::crossing::alternate(),
+                   -1, "crossing::alternate()",
+                   "{7/2} heptagram — seven knots, so the over-under run "
+                   "cannot close and one seam doubles"),
+              cell("hept.sequence", heptagram(),
+                   path::crossing::sequence({path::Order::Over,
+                                             path::Order::Over,
+                                             path::Order::Under}),
+                   -1, "crossing::sequence({Over, Over, Under})",
+                   "any repeating pattern, read off the knot's ordinal"),
+              cell("hept.pairs", heptagram(), sevenCycle(), -1,
+                   "crossing::pairs({{i, i+1}})",
+                   "strand dominance round a seven-cycle, which no draw "
+                   "order can spell"),
+              cell("hept.except", heptagram(),
+                   path::crossing::alternate().except(0, path::Order::Under), 0,
+                   "alternate().except(0, Under)",
+                   "one positional pin, ringed; pins move when the geometry "
+                   "does")},
+         .gap = 14});
+
+    Element loops = kit::cells(
+        {.cells =
+             {cell("ring.alternate", rings(), path::crossing::alternate(), -1,
+                   "crossing::alternate()",
+                   "three rings — six knots alternating by ordinal, which is "
+                   "not a weave here"),
+              cell("ring.sequence", rings(),
+                   path::crossing::sequence({path::Order::Over,
+                                             path::Order::Under,
+                                             path::Order::Under}),
+                   -1, "crossing::sequence({Over, Under, Under})",
+                   "the same six knots on a three-long pattern"),
+              cell("ring.pairs", rings(),
+                   path::crossing::pairs({{0, 1}, {1, 2}, {2, 0}}), -1,
+                   "crossing::pairs({{0,1},{1,2},{2,0}})",
+                   "the cyclic dominance: every ring over one and under "
+                   "another"),
+              cell("ring.except", rings(),
+                   path::crossing::pairs({{0, 1}, {1, 2}, {2, 0}})
+                       .except(3, path::Order::Under),
+                   3, "pairs(...).except(3, Under)",
+                   "the cycle with knot 3 corrected by hand, ringed")},
+         .gap = 14});
+
+    ctx.composer.render(sketch::kit::page(
+        {.title = "CROSSING RULE · discoverCrossings + CrossingRule + "
+                  "crossingPatch",
+         .subtitle = "dials · the rule (named on each cell) · the patch "
+                     "width (reach 15 px, cap 30 px)",
+         .footer = "a knot is decided, never drawn in order — the cyclic "
+                   "dominance in the third ring cell has no draw order at "
+                   "all"},
+        kit::cells({.cells = {std::move(stars), std::move(loops)},
+                    .column = true,
+                    .gap = 18})));
   }
 };
 
