@@ -34,6 +34,7 @@
 // TAGS: Geometry/Points
 
 #include <include/core/SkMatrix.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/kit/Silhouettes.h>
@@ -46,8 +47,10 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 
+#include <array>
 #include <cmath>
 #include <memory>
+#include <utility>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -65,22 +68,23 @@ namespace {
 constexpr SkSize kCanvas = {1240, 720};
 
 /** A 2 x 2 sprite sheet, described rather than painted: four motifs in
- *  four cells, which is exactly what `.atlas(2, 2)` indexes. */
+ *  four cells, which is exactly what `.atlas(2, 2)` indexes — the cell a
+ *  motif lands in is its own place in the run. */
 Element atlasSheet(float cell) {
-  const auto motif = [&](float col, float row, auto shape, SkColor4f color) {
-    return box()
-        .width(cell)
-        .height(cell)
-        .absolute()
-        .inset(col * cell, row * cell, cell - col * cell, cell - row * cell)
-        .padding(cell * 0.12f)
-        .children({box().grow().shape(shape).fill(Fill::color(color))});
-  };
-  return stack().width(cell * 2).height(cell * 2).children(
-      {motif(0, 0, shapes::circle(), {0.4f, 0.85f, 1.0f, 1}),
-       motif(1, 0, shapes::annulus(0.62f), {1.0f, 0.6f, 0.3f, 1}),
-       motif(0, 1, shapes::polygon(4), {0.6f, 1.0f, 0.6f, 1}),
-       motif(1, 1, shapes::star(4, 0.35f), {1.0f, 0.8f, 0.3f, 1})});
+  const std::array<std::pair<Shape, SkColor4f>, 4> motifs{
+      {{shapes::circle(), {0.4f, 0.85f, 1.0f, 1}},
+       {shapes::annulus(0.62f), {1.0f, 0.6f, 0.3f, 1}},
+       {shapes::polygon(4), {0.6f, 1.0f, 0.6f, 1}},
+       {shapes::star(4, 0.35f), {1.0f, 0.8f, 0.3f, 1}}}};
+  return stack().width(cell * 2).height(cell * 2).children(each(
+      motifs, [cell](const std::pair<Shape, SkColor4f>& motif, std::size_t i) {
+        return kit::at((float)(i % 2) * cell, (float)(i / 2) * cell, cell, cell)
+            .padding(cell * 0.12f)
+            .children({box()
+                           .grow()
+                           .shape(motif.first)
+                           .fill(Fill::color(motif.second))});
+      }));
 }
 
 std::vector<glm::vec3> ringPoints() {
@@ -202,10 +206,9 @@ struct PopStamps final : sketch::Sketch {
 
     // Keyed on the sink's own name: everything `draw` reads is cooked
     // above, in this setup, and nothing after it moves.
-    ctx.composer.render(
-        custom("pop.stamps", [this](SkCanvas& canvas) {
-          draw(canvas);
-        }).inset(0));
+    ctx.composer.render(custom("pop.stamps", [this](SkCanvas& canvas) {
+                          draw(canvas);
+                        }).inset(0));
   }
 };
 
