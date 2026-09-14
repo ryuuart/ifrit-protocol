@@ -37,16 +37,15 @@
 
 // TAGS: Media/Images
 
-#include <include/core/SkCanvas.h>
 #include <include/core/SkData.h>
-#include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>
-#include <include/effects/SkGradient.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigildraw/Draw.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -58,6 +57,7 @@
 namespace sketch = sigil::sketch;
 namespace img = sigil::image;
 namespace io = sigil::io;
+namespace mskia = sigil::material::skia;
 
 using namespace sigil::compose;
 
@@ -76,25 +76,24 @@ const char* kMount = "out://";
 sk_sp<SkImage> source() {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kSide, kSide));
-  SkCanvas* canvas = surface->getCanvas();
-  const SkPoint ends[2] = {{0, 0}, {kSide, kSide}};
-  const SkColor4f stops[2] = {{0.10f, 0.16f, 0.30f, 1},
-                              {0.92f, 0.62f, 0.30f, 1}};
-  SkPaint paint;
-  paint.setShader(SkShaders::LinearGradient(
-      ends, SkGradient({{stops, 2}, {}, SkTileMode::kClamp}, {})));
-  canvas->drawPaint(paint);
-  paint.setShader(nullptr);
-  paint.setAntiAlias(true);
-  paint.setColor4f({0.98f, 0.97f, 0.94f, 1});
-  for (int i = 0; i < 9; ++i) {
-    const float y = 18.0f + (float)i * 8.0f;
-    canvas->drawRect({14, y, 14 + (float)(i * 15 % 120), y + 2.5f}, paint);
-  }
-  paint.setColor4f({0.05f, 0.05f, 0.08f, 1});
-  canvas->drawCircle(kSide * 0.62f, kSide * 0.64f, kSide * 0.22f, paint);
-  paint.setColor4f({0.98f, 0.97f, 0.94f, 1});
-  canvas->drawCircle(kSide * 0.62f, kSide * 0.64f, kSide * 0.11f, paint);
+  sigil::draw::Pen pen;
+  sigil::draw::Frame frame;
+  frame.width = kSide;
+  frame.height = kSide;
+  frame.frameCount = 1;
+  pen.begin(*surface->getCanvas(), frame);
+  pen.background(mskia::Paint::linearUnit(
+      {0, 0}, {1, 1},
+      {{0.0f, {0.10f, 0.16f, 0.30f, 1}}, {1.0f, {0.92f, 0.62f, 0.30f, 1}}}));
+  pen.noStroke();
+  pen.fill(SkColor4f{0.98f, 0.97f, 0.94f, 1});
+  for (int i = 0; i < 9; ++i)
+    pen.rect(14, 18.0f + (float)i * 8.0f, (float)(i * 15 % 120), 2.5f);
+  pen.fill(SkColor4f{0.05f, 0.05f, 0.08f, 1});
+  pen.circle(kSide * 0.62f, kSide * 0.64f, kSide * 0.44f);
+  pen.fill(SkColor4f{0.98f, 0.97f, 0.94f, 1});
+  pen.circle(kSide * 0.62f, kSide * 0.64f, kSide * 0.22f);
+  pen.end();
   return surface->makeImageSnapshot();
 }
 
@@ -107,9 +106,8 @@ Element cell(const char* call, const char* note, sk_sp<SkImage> picture,
   return sketch::kit::caption(
       kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture})
-          .children({std::move(art).absolute().inset(0),
+          .children({std::move(art).inset(0),
                      text(readout, sheet.mono(10, sheet.palette.figure))
-                         .absolute()
                          .left(6.0f)
                          .top(6.0f)
                          .padding(4, 2)
