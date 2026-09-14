@@ -27,6 +27,7 @@
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 
 #include <string>
 
@@ -70,9 +71,10 @@ struct P5MixedForms final : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(720, 480);
-    ctx.background({0.047f, 0.055f, 0.094f, 1});
-    ctx.captureAt(2.5);
+    sketch::kit::stage(ctx,
+                       {.size = {720, 480},
+                        .captureAt = 2.5,
+                        .background = SkColor4f{0.047f, 0.055f, 0.094f, 1}});
     ctx.composer.render(
         compose::box()
             .absolute()
