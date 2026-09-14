@@ -119,7 +119,6 @@ struct HalfFloat final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     // both readbacks have already been taken
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
-    const sketch::kit::Theme& sheet = sketch::kit::theme();
 
     const sk_sp<SkImage> source = hdrSource();
     const bool isFloat = skia::isFloatImage(source);
@@ -185,8 +184,8 @@ struct HalfFloat final : sketch::Sketch {
                        cell("what each readback answered",
                             "the question a caller asks first, the two buffer "
                             "sizes, and one hot texel read out of each",
-                            text(readout, sheet.mono(10, sheet.palette.figure))
-                                .width(kCell - 20))},
+                            text(readout).styleClass("readout").width(kCell -
+                                                                      20))},
              .gap = 12})));
   }
 
