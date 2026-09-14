@@ -40,6 +40,7 @@
 
 #include <include/effects/SkImageFilters.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/pattern/Patterns.h>
@@ -96,21 +97,12 @@ mskia::Paint rules() {
           .shader());
 }
 
-Element disc(float size, float left, float top, SkColor4f color) {
-  return box()
-      .width(size)
-      .height(size)
-      .left(left)
-      .top(top)
-      .corners({size * 0.5f})
-      .fill(mskia::Paint::solid(color));
-}
-
 Element subject() {
   return stack().width(kPanel).height(kPanel).fill(rules()).children(
-      {disc(76, 26, 30, {0.98f, 0.44f, 0.34f, 1}),
-       disc(52, 96, 96, {0.42f, 0.86f, 0.72f, 1}),
-       disc(96, 118, 132, {0.96f, 0.82f, 0.36f, 1})});
+      {kit::dot({64, 68}, 38, mskia::Paint::solid({0.98f, 0.44f, 0.34f, 1})),
+       kit::dot({122, 122}, 26, mskia::Paint::solid({0.42f, 0.86f, 0.72f, 1})),
+       kit::dot({166, 180}, 48,
+                mskia::Paint::solid({0.96f, 0.82f, 0.36f, 1}))});
 }
 
 /** DEPTH OF FIELD: three stops down the unit square — max sigma at the
