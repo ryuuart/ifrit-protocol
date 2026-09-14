@@ -1200,6 +1200,32 @@ TEST(KitFrame, ARingIsStrokedAndADotIsFilledAtTheirOwnRadius) {
   EXPECT_EQ(host.pixel(60, 60), SK_ColorRED);
 }
 
+TEST(KitLine, ALadderPutsEveryRuleOnItsOwnLineOfTheRhythm) {
+  // The pitch is the RHYTHM, not the gap: a rule SITS ON each line of it,
+  // so a caller states no `pitch - thickness` of its own.
+  Host host(160, 120);
+  host.composer.render(box().width(160).height(120).children({kit::ladder(
+      {.count = 3, .pitch = 20, .fill = Fill::color({1, 0, 0, 1})})}));
+  host.frame();
+  for (int i = 1; i <= 3; ++i) {
+    EXPECT_EQ(host.pixel(80, i * 20 - 1), SK_ColorRED) << "rule " << i;
+    EXPECT_EQ(host.pixel(80, i * 20 + 4), SK_ColorBLACK) << "under " << i;
+  }
+  // Three rules and no fourth: the ladder is as deep as its count says.
+  EXPECT_EQ(host.pixel(80, 79), SK_ColorBLACK);
+  // The column rhythm is the same ladder turned: rules DOWN, ranged
+  // across at the pitch.
+  host.composer.render(box().width(160).height(120).children(
+      {kit::ladder({.count = 2,
+                    .pitch = 30,
+                    .column = true,
+                    .fill = Fill::color({0, 1, 0, 1})})}));
+  host.frame();
+  EXPECT_EQ(host.pixel(29, 60), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(59, 60), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(89, 60), SK_ColorBLACK);
+}
+
 TEST(KitLine, APairIsOneNodeAsDeepAsBothItsRails) {
   Host host(120, 60);
   host.composer.render(box().width(120).height(60).column().children(

@@ -84,14 +84,9 @@ std::vector<Element> cards() {
 /** The rhythm the third cell snaps to, drawn so the reader can see which
  *  line each card's letters landed on. */
 Element rhythmLines() {
-  const Fill rule = Fill::color(sketch::kit::theme().palette.rule);
-  return box()
-      .inset(0)
-      .column()
-      .padding(0, kRhythm - 1, 0, 0)
-      .gap(kRhythm - 1)
-      .children(each(std::views::iota(0, (int)(kPicture / kRhythm)),
-                     [rule](int) { return kit::line({.fill = rule}); }));
+  return kit::ladder({.count = (int)(kPicture / kRhythm),
+                      .pitch = kRhythm,
+                      .fill = Fill::color(sketch::kit::theme().palette.rule)});
 }
 
 Element cell(const char* call, const char* note, Element placed,

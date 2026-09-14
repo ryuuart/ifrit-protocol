@@ -3,6 +3,7 @@
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/kit/Frame.h>
 
+#include <algorithm>
 #include <string_view>
 #include <utility>
 
@@ -59,6 +60,31 @@ Element line(const Line& mark) {
                    .fill =
                        second.fill.kind == Fill::Kind::None ? ink : second.fill,
                    .dash = second.dash}}}));
+}
+
+Element ladder(const Ladder& rungs) {
+  // A rule SITS ON its line of the rhythm, so the distance between two
+  // rules is the pitch LESS a rule — the one subtraction a ruled bed
+  // otherwise spells at the call, twice, and gets wrong once.
+  const float between = std::max(0.0f, rungs.pitch - rungs.thickness);
+  Element rails = box().cover();
+  // The air is before each rule and not after the last: a ladder is as
+  // deep as its count says, and a rung that had to share a shortfall
+  // with the box would be shrunk out of existence.
+  if (rungs.column)
+    rails.row()
+        .padding(Dimension(between), Dimension(0), Dimension(0), Dimension(0))
+        .gap(between);
+  else
+    rails.column()
+        .padding(Dimension(0), Dimension(between), Dimension(0), Dimension(0))
+        .gap(between);
+  for (int i = 0; i < rungs.count; ++i)
+    rails.children({line({.thickness = rungs.thickness,
+                          .column = rungs.column,
+                          .fill = rungs.fill})
+                        .shrink(0)});
+  return rails;
 }
 
 }  // namespace sigil::compose::kit

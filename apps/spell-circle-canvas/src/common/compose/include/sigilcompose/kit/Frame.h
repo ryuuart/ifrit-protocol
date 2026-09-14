@@ -200,4 +200,33 @@ struct Line {
 /** THE LINE, or the pair of rails `Line::pair` asks for. */
 [[nodiscard]] Element line(const Line& mark);
 
+/** A LADDER OF RULES AT ONE PITCH — the baseline rhythm a page is set to,
+ *  drawn so a reader can see which line each word landed on; the ruled
+ *  bed behind a grid specimen; the rails of a block.
+ *
+ *      kit::ladder({.count = 4, .pitch = kGrid, .fill = Fill::color(kRule)})
+ *
+ *  EACH RULE SITS ON ITS OWN LINE OF THE RHYTHM: rule i's far edge lands
+ *  on `(i + 1) · pitch`, which is where a baseline grid puts it and what
+ *  makes the pitch the rhythm itself. That is the one distance a caller
+ *  otherwise spells twice and a rule's thickness short — the ladder is a
+ *  run of lines at a GAP, and a gap is between rules where a pitch is
+ *  between the lines they sit on. */
+struct Ladder {
+  /** How many rules. */
+  int count = 0;
+  /** Between one line of the rhythm and the next, px. */
+  float pitch = 0.0f;
+  /** Across each rule, px. */
+  float thickness = 1.0f;
+  /** false (default) runs the rules ACROSS and stacks them DOWN; true
+   *  runs them down and ranges them across, which is the column rhythm. */
+  bool column = false;
+  /** Fill::none() (default) is `Fill::currentInk()`, as a line's is. */
+  Fill fill;
+};
+
+/** THE LADDER, as deep as `count · pitch`. */
+[[nodiscard]] Element ladder(const Ladder& rungs);
+
 }  // namespace sigil::compose::kit

@@ -243,14 +243,8 @@ struct ParagraphSheet final : sketch::Sketch {
   /// Four rules one grid step apart, behind the grid specimen: the grid
   /// itself, so the panel's claim is checkable.
   static Element gridRules() {
-    return box()
-        .inset(0)
-        .column()
-        .padding(0, s::kGrid - 1, 0, 0)
-        .gap(s::kGrid - 1)
-        .children(each(std::views::iota(0, 4), [](int) {
-          return kit::line({.fill = Fill::color(s::kRule)});
-        }));
+    return kit::ladder(
+        {.count = 4, .pitch = s::kGrid, .fill = Fill::color(s::kRule)});
   }
 
   Element spacingPanel() {

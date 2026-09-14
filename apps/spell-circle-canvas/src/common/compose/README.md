@@ -1328,7 +1328,12 @@ which is why a separator, a rule, a tick, a caret and a whisker are one
 name — with `Line::pair`, the second rail a masthead, a colophon and a
 specimen sheet's row are ruled with, drawn as ONE node whose two rails
 share one route, so a dotted companion's dashes register against the
-heavy rule instead of drifting off it) and `kit/Frame.h`'s nine-slice frame,
+heavy rule instead of drifting off it), `kit::ladder` (the same header:
+N rules at one PITCH, each sitting on its own line of the rhythm — the
+ruled bed behind a grid specimen and the baseline rhythm a page is set
+to, which a caller otherwise writes as a padded column at a gap of
+`pitch - thickness`, the one subtraction a ruled bed spells twice and
+gets wrong once) and `kit/Frame.h`'s nine-slice frame,
 `kit::centred` (a container whose content stands in the middle both ways,
 since `alignItems(Center)` and `justify(Center)` always travel together
 and say one thing between them, with an overload round the one child most
