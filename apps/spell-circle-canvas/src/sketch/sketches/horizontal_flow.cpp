@@ -19,6 +19,7 @@
 // TAGS: Typography/Paragraph
 
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Cells.h>
@@ -83,21 +84,12 @@ sketch::kit::Theme sheetTheme() {
 
 Element shapePassage() {
   Element medallion =
-      box()
+      kit::at(kit::centred(), 139, 74, kShapeSize, kShapeSize)
           .key("central-star")
-          .absolute()
-          .left(139)
-          .top(74)
-          .width(kShapeSize)
-          .height(kShapeSize)
           .shape(shapes::star(10, 0.62f, 0.08f))
           .fill(Fill::color(kGold))
-          .children(
-              {text(u8"FLOW")
-                   .font(sketch::kit::theme().font({.size = 14, .track = 1.2f}))
-                   .absolute()
-                   .left(49)
-                   .top(66)});
+          .children({text(u8"FLOW").font(
+              sketch::kit::theme().font({.size = 14, .track = 1.2f}))});
 
   Element passage =
       text(
@@ -109,32 +101,23 @@ Element shapePassage() {
           u8"shape has passed, the paragraph recovers its full measure and "
           u8"continues without a special text mode.")
           .key("shape-passage")
-          .width(430)
+          .width(kMeasure)
           .flowAround("central-star", kWrapMargin)
           .zIndex(1);
 
-  return box().width(430).height(350).children(
+  return box().width(kMeasure).height(350).children(
       {std::move(medallion), std::move(passage)});
 }
 
 Element droppedPassage() {
   Element ornament =
-      box()
-          .width(kDropWidth)
-          .height(kDropHeight)
+      kit::at(kit::centred(), 0.0f, 0.0f, kDropWidth, kDropHeight)
+          .key("illuminated-h")
           .shape(shapes::rounded(shapes::star(8, 0.58f, 0.12f), 5))
           .fill(Fill::color(kCinnabar))
-          .children({text(u8"H")
-                         .font({.size = 50, .color = kPaper})
-                         .absolute()
-                         .left(29)
-                         .top(29)});
-  ornament.key("illuminated-h")
-      .absolute()
-      .left(0.0f)
-      .top(0.0f);
+          .children({text(u8"H").font({.size = 50, .color = kPaper})});
 
-  return box().width(430).height(350).children(
+  return box().width(kMeasure).height(350).children(
       {std::move(ornament),
        text(u8"orizontal setting needs no drop-cap mechanism when the "
             u8"initial is an ornament. The ornament is an element with "
@@ -145,7 +128,7 @@ Element droppedPassage() {
             u8"seal, flourish, or illustrated letter uses exactly the "
             u8"same relationship.")
            .key("drop-passage")
-           .width(430)
+           .width(kMeasure)
            .flowAround("illuminated-h", kWrapMargin)});
 }
 
@@ -153,9 +136,7 @@ Element panel(float left, const char* title, const char* note, Element body) {
   return sketch::kit::well(
              {.width = Dimension(476), .height = Dimension(438)},
              sketch::kit::caption(kMeasure, title, note, std::move(body)))
-      .absolute()
-      .left(left)
-      .top(126);
+      .at({left, 126});
 }
 
 }  // namespace
@@ -173,23 +154,17 @@ struct HorizontalFlow final : sketch::Sketch {
     // with the theme's registers stated for the two lines that name one.
     ctx.composer.render(
         box()
-            .fill(Fill::color(sheet.palette.ground))
             .font({.face = sheet.type.mono, .size = 15})
             .ink(sheet.palette.ink)
             .styleSheet(sheet.styleSheet())
             .children(
                 {text(u8"HORIZONTAL TEXT FLOW")
                      .styleClass("title")
-                     .absolute()
-                     .left(42)
-                     .top(34),
+                     .at({42, 34}),
                  text(u8"one exclusion rule · a shape in the measure · an "
                       u8"ornament at the opening")
                      .styleClass("subtitle")
-                     .ink(sheet.palette.ash)
-                     .absolute()
-                     .left(43)
-                     .top(76),
+                     .at({43, 76}),
                  panel(42, "FLOW AROUND A SHAPE",
                        "the line divides left and right, then becomes whole",
                        shapePassage()),
