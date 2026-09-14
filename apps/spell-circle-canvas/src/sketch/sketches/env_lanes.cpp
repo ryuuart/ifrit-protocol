@@ -107,6 +107,8 @@ gm::camera::Camera lens() {
   return camera;
 }
 
+/** One cell: the bake IS the well's surface, sized and grounded by the
+ *  well itself, so nothing here places a picture inside a plate. */
 Element cell(const char* call, const char* note, sk_sp<SkImage> baked) {
   Element picture =
       baked ? image(std::make_shared<const sigil::image::ImageAsset>(
@@ -114,8 +116,8 @@ Element cell(const char* call, const char* note, sk_sp<SkImage> baked) {
             : box();
   return sketch::kit::caption(
       kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture})
-          .children({std::move(picture).absolute().inset(0)}));
+      sketch::kit::well({.width = kCell, .height = kPicture},
+                        std::move(picture)));
 }
 
 }  // namespace
