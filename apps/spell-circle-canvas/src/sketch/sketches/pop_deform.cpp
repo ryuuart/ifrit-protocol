@@ -40,6 +40,7 @@
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
+#include <array>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -159,10 +160,6 @@ geometry::mesh::pop::Builder base() {
 }  // namespace
 
 struct PopDeform final : sketch::Sketch {
-  geometry::mesh::Cloud selected, moved;
-  geometry::mesh::Cloud twisted, tapered, bent, peaked;
-  geometry::mesh::Cloud twistedM, taperedM, bentM, peakedM;
-
   void setup(sketch::SketchContext& ctx) override {
     const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(ctx, {.size = {1240, 860}});
@@ -170,91 +167,72 @@ struct PopDeform final : sketch::Sketch {
     ctx.captureAt(0.05);
 
     using Builder = geometry::mesh::pop::Builder;
-    // The four chains, written once and cooked twice: the second call
-    // adds `.masked("band")` and nothing else.
-    const auto twist = [](Builder b) {
-      // Twist about an axis standing BESIDE the column, so a symmetric
-      // column has something to show: it becomes a helix.
-      return b.twist(kTwistDeg, {0, 1, 0}, -kHeight / 2, kHeight / 2,
-                     {-55, 0, 0});
+    // ONE ROW PER DEFORMER, cooked twice: the second cooking adds
+    // `.masked("band")` to the same chain and nothing else.
+    struct Deform {
+      const char* call;
+      const char* note;
+      const char* maskedCall;
+      const char* maskedNote;
+      Builder (*link)(Builder);
     };
-    const auto taper = [](Builder b) {
-      return b.taper(kTaper, {0, 1, 0}, -kHeight / 2, kHeight / 2);
-    };
-    const auto bend = [](Builder b) {
-      return b.bend(kBendDeg, {0, 1, 0}, {1, 0, 0}, -kHeight / 4, kHeight / 2);
-    };
-    // Peak pushes along Dir — the loop tangent, i.e. straight up the
-    // column — after orient() has tipped Dir over by 60 degrees, so the
-    // push leans out instead of lengthening the column.
-    const auto peak = [](Builder b) {
-      return b.orient(geometry::mesh::camera::place({}, 0, 0, 60)).peak(kPeak);
-    };
+    static const std::array<Deform, 4> kDeforms{{
+        // Twist about an axis standing BESIDE the column, so a symmetric
+        // column has something to show: it becomes a helix.
+        {"twist(150°, +Y, origin -55x)", "a helix: more turn with height",
+         "twist(…).masked(\"band\")", "only the band turns",
+         [](Builder b) {
+           return b.twist(kTwistDeg, {0, 1, 0}, -kHeight / 2, kHeight / 2,
+                          {-55, 0, 0});
+         }},
+        {"taper(0.25, +Y)", "toward the axis at the top",
+         "taper(…).masked(\"band\")", "only the band narrows",
+         [](Builder b) {
+           return b.taper(kTaper, {0, 1, 0}, -kHeight / 2, kHeight / 2);
+         }},
+        {"bend(80°, +Y, +X)", "the band arcs; past it, rigid",
+         "bend(…).masked(\"band\")", "only the band arcs",
+         [](Builder b) {
+           return b.bend(kBendDeg, {0, 1, 0}, {1, 0, 0}, -kHeight / 4,
+                         kHeight / 2);
+         }},
+        // Peak pushes along Dir — the loop tangent, i.e. straight up the
+        // column — after orient() has tipped Dir over by 60 degrees, so the
+        // push leans out instead of lengthening the column.
+        {"orient(60°) . peak(70)", "push along a re-aimed Dir",
+         "peak(…).masked(\"band\")", "only the band is pushed",
+         [](Builder b) {
+           return b.orient(geometry::mesh::camera::place({}, 0, 0, 60))
+               .peak(kPeak);
+         }},
+    }};
 
-    selected = base().cloud();
-    // The mask at work: everyone gets the same Math, taken by "band".
-    moved = base().move({90, 0, 0}).masked("band").cloud();
-
-    twisted = twist(base()).cloud();
-    tapered = taper(base()).cloud();
-    bent = bend(base()).cloud();
-    peaked = peak(base()).cloud();
-
-    twistedM = twist(base()).masked("band").cloud();
-    taperedM = taper(base()).masked("band").cloud();
-    bentM = bend(base()).masked("band").cloud();
-    peakedM = peak(base()).masked("band").cloud();
-
-    Element whole = kit::cells(
-        {.cells = {panel("select(\"band\", Box, feather 0.35)",
-                         "the mask lane itself — the colour ramp "
-                         "reads it, so the feather is visible",
-                         splat(selected)),
-                   panel("move({90,0,0}).masked(\"band\")",
-                         "one Math, taken by the mask: the band slides out "
-                         "and the rest stands",
-                         splat(moved)),
-                   panel("twist(150°, +Y, origin -55x)",
-                         "a helix: more turn with height", splat(twisted)),
-                   panel("taper(0.25, +Y)", "toward the axis at the top",
-                         splat(tapered)),
-                   panel("bend(80°, +Y, +X)", "the band arcs; past it, rigid",
-                         splat(bent)),
-                   panel("orient(60°) . peak(70)", "push along a re-aimed Dir",
-                         splat(peaked))},
-         .gap = 14});
-
-    Element banded = kit::cells(
-        {.cells = {box()
-                       .width(kLead)
-                       .column()
-                       .gap(6)
-                       .children(
-                           {text("…and the same four, "
-                                 ".masked(\"band\")")
-                                .font(
-                                    {.size = 13, .color = kInk, .track = 0.6f}),
-                            text("a mask is one more lane on the "
-                                 "cloud, so a masked deformer is the "
-                                 "same chain reading one more "
-                                 "channel. The four calls below are "
-                                 "the four above with one more link "
-                                 "in each; the amounts are shared "
-                                 "constants, so the two rows are "
-                                 "comparable by construction.")
-                                // the page's remark voice is tracked; a
-                                // body line is not
-                                .font({.size = 11, .color = kDim, .track = 0})
-                                .width(kLead)}),
-                   panel("twist(…).masked(\"band\")", "only the band turns",
-                         splat(twistedM)),
-                   panel("taper(…).masked(\"band\")", "only the band narrows",
-                         splat(taperedM)),
-                   panel("bend(…).masked(\"band\")", "only the band arcs",
-                         splat(bentM)),
-                   panel("peak(…).masked(\"band\")", "only the band is pushed",
-                         splat(peakedM))},
-         .gap = 14});
+    std::vector<Element> top{
+        panel("select(\"band\", Box, feather 0.35)",
+              "the mask lane itself — the colour ramp reads it, so the "
+              "feather is visible",
+              splat(base().cloud())),
+        // The mask at work: everyone gets the same Math, taken by "band".
+        panel("move({90,0,0}).masked(\"band\")",
+              "one Math, taken by the mask: the band slides out and the "
+              "rest stands",
+              splat(base().move({90, 0, 0}).masked("band").cloud()))};
+    std::vector<Element> below{box().width(kLead).column().gap(6).children(
+        {text("…and the same four, .masked(\"band\")")
+             .font({.size = 13, .color = kInk, .track = 0.6f}),
+         text("a mask is one more lane on the cloud, so a masked "
+              "deformer is the same chain reading one more channel. "
+              "The four calls below are the four above with one more "
+              "link in each; the amounts are shared constants, so the "
+              "two rows are comparable by construction.")
+             // the page's remark voice is tracked; a body line is not
+             .font({.size = 11, .color = kDim, .track = 0})
+             .width(kLead)})};
+    for (const Deform& how : kDeforms) {
+      top.push_back(panel(how.call, how.note, splat(how.link(base()).cloud())));
+      below.push_back(panel(how.maskedCall, how.maskedNote,
+                            splat(how.link(base()).masked("band").cloud())));
+    }
 
     ctx.composer.render(sketch::kit::page(
         {.title = "POP DEFORM · select() writes a lane, "
@@ -266,9 +244,11 @@ struct PopDeform final : sketch::Sketch {
                    "reference executor and splatted by "
                    "points::drawBillboards · all ten are "
                    "GPU-executable unchanged"},
-        kit::cells({.cells = {std::move(whole), std::move(banded)},
-                    .column = true,
-                    .gap = 22})));
+        kit::cells(
+            {.cells = {kit::cells({.cells = std::move(top), .gap = 14}),
+                       kit::cells({.cells = std::move(below), .gap = 14})},
+             .column = true,
+             .gap = 22})));
   }
 };
 
