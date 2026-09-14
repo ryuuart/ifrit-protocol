@@ -123,19 +123,17 @@ struct LanternRoom final : sketch::Set {
              .mesh(plinth())
              .fill(material::kit::surface(
                  {.baseColor = {0.13f, 0.13f, 0.16f, 1.0f}, .roughness = 0.8f}))
-             .tag("ground")});
-
-    // A sun so faint it is an outline rather than a light: what keeps
-    // the far side of every body from being nothing at all.
-    room.children({world::Element().key("sun").light(world::light::sun(
-        {-0.35f, -0.85f, -0.4f}, {0.52f, 0.60f, 0.86f, 1.0f}, 0.22f))});
-
-    // The spot: opening downward onto the middle of the cluster, so the
-    // tallest body is picked out from above while the lanterns reach it
-    // from the sides.
-    room.children({world::Element().key("spot").light(
-        world::light::spot({0.0f, 520.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 22.0f,
-                           8.0f, {1.0f, 0.96f, 0.88f, 1.0f}, 0.9f, 900.0f))});
+             .tag("ground"),
+         // A sun so faint it is an outline rather than a light: what keeps
+         // the far side of every body from being nothing at all.
+         world::Element().key("sun").light(world::light::sun(
+             {-0.35f, -0.85f, -0.4f}, {0.52f, 0.60f, 0.86f, 1.0f}, 0.22f)),
+         // The spot: opening downward onto the middle of the cluster, so the
+         // tallest body is picked out from above while the lanterns reach it
+         // from the sides.
+         world::Element().key("spot").light(world::light::spot(
+             {0.0f, 520.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 22.0f, 8.0f,
+             {1.0f, 0.96f, 0.88f, 1.0f}, 0.9f, 900.0f))});
 
     for (const Lantern& lantern : kLanterns) {
       // Each lantern rides a slow bob of its own, so what it reaches
@@ -153,16 +151,16 @@ struct LanternRoom final : sketch::Set {
                .at(at)
                .mesh(gm::superellipsoid({19.0f, 26.0f, 19.0f}, 1.4f, 24, 16))
                .fill(glow(lantern.color))
-               .tag("lantern")});
-      // …and the emitter at the same place, a sibling rather than a
-      // child: a node that is only an emitter carries no geometry, and
-      // nothing about a light is welded to a body.
-      room.children({world::Element()
-                         .key(std::string(lantern.key) + "-lamp")
-                         .at(at)
-                         .light(world::light::point({0, 0, 0}, lantern.color,
-                                                    1.25f, kReach))
-                         .tag("lamp")});
+               .tag("lantern"),
+           // …and the emitter at the same place, a sibling rather than a
+           // child: a node that is only an emitter carries no geometry, and
+           // nothing about a light is welded to a body.
+           world::Element()
+               .key(std::string(lantern.key) + "-lamp")
+               .at(at)
+               .light(
+                   world::light::point({0, 0, 0}, lantern.color, 1.25f, kReach))
+               .tag("lamp")});
     }
 
     for (size_t i = 0; i < kBodies.size(); ++i) {
