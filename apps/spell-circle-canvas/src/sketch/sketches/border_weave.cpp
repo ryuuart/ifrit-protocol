@@ -74,10 +74,7 @@ constexpr SkColor4f kCool{0.46f, 0.70f, 0.86f, 1};
  *  real tangent break the corner scan can find — except in the last cell,
  *  which is the inscribed circle, a silhouette with no break anywhere. */
 Element plaque(bool round = false) {
-  Element node = box()
-                     .width(kPlaque)
-                     .height(kPlaque)
-                     .fill(Fill::color(kPlate));
+  Element node = box().width(kPlaque).height(kPlaque).fill(Fill::color(kPlate));
   if (round)
     node.shape(shapes::circle());
   else
