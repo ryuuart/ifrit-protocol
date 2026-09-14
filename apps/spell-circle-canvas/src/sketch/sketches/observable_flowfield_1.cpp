@@ -8,6 +8,7 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Draw.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 
 #include <cmath>
 
@@ -19,8 +20,7 @@ namespace {
 
 struct ObservableFlowfield1 final : sketch::Sketch {
   void setup(sketch::SketchContext& context) override {
-    context.canvas(720, 720);
-    context.captureAt(0.05);
+    sketch::kit::stage(context, {.size = {720, 720}, .captureAt = 0.05});
 
     context.composer.render(compose::graphics("observable_flowfield_1.loop",
                                               [this](Pen& pen) { draw(pen); })

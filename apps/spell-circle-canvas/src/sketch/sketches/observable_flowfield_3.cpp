@@ -11,6 +11,7 @@
 #include <sigilcore/compute/Chance.h>
 #include <sigildraw/Draw.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 
 #include <cmath>
 #include <cstdint>
@@ -29,8 +30,7 @@ float sample(uint32_t value) { return chance::Stream::mix64(value).unit(); }
 
 struct ObservableFlowfield3 final : sketch::Sketch {
   void setup(sketch::SketchContext& context) override {
-    context.canvas(720, 720);
-    context.captureAt(0.05);
+    sketch::kit::stage(context, {.size = {720, 720}, .captureAt = 0.05});
 
     context.composer.render(compose::graphics("observable_flowfield_3.loop",
                                               [this](Pen& pen) { draw(pen); })

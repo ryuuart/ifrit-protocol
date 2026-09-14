@@ -8,6 +8,7 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Draw.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 
 #include <cmath>
 #include <vector>
@@ -17,6 +18,9 @@ namespace compose = sigil::compose;
 using namespace sigil::draw;
 
 namespace {
+
+/** The canvas, which is also the wall every circle stops growing at. */
+constexpr SkSize kCanvas = {900, 720};
 
 struct Circle {
   SkPoint centre;
@@ -29,8 +33,7 @@ struct ObservableCirclePacking final : sketch::Sketch {
   std::vector<Circle> circles;
 
   void setup(sketch::SketchContext& context) override {
-    context.canvas(900, 720);
-    context.captureAt(4.0);
+    sketch::kit::stage(context, {.size = kCanvas, .captureAt = 4.0});
 
     context.composer.render(compose::graphics("observable_circle_packing.loop",
                                               [this](Pen& pen) { draw(pen); })
@@ -49,10 +52,9 @@ struct ObservableCirclePacking final : sketch::Sketch {
 
   void addCircle(Pen& pen) {
     for (int attempt = 0; attempt < 8; ++attempt) {
-      Circle candidate{{pen.random(pen.width), pen.random(pen.height)},
-                       5.0f,
-                       true,
-                       {pen.random(), pen.random(), pen.random(), 1.0f}};
+      const Circle candidate{
+          .centre = {pen.random(pen.width), pen.random(pen.height)},
+          .colour = {pen.random(), pen.random(), pen.random(), 1.0f}};
       if (!overlaps(candidate)) {
         circles.push_back(candidate);
         return;
@@ -67,9 +69,9 @@ struct ObservableCirclePacking final : sketch::Sketch {
       Circle next = circle;
       next.radius += 1.0f;
       bool blocked = next.centre.x() - next.radius < 0 ||
-                     next.centre.x() + next.radius > 900 ||
+                     next.centre.x() + next.radius > kCanvas.width() ||
                      next.centre.y() - next.radius < 0 ||
-                     next.centre.y() + next.radius > 720;
+                     next.centre.y() + next.radius > kCanvas.height();
       for (size_t other = 0; other < circles.size() && !blocked; ++other)
         if (index != other && (next.centre - circles[other].centre).length() <
                                   next.radius + circles[other].radius + 1.0f)
