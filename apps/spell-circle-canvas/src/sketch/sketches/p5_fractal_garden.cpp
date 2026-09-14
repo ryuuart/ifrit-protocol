@@ -95,10 +95,10 @@ struct P5FractalGarden final : sketch::Sketch {
     context.background({6 / 255.0f, 8 / 255.0f, 16 / 255.0f, 1});
     context.captureAt(0.05);  // the tree is a direct function of the clock
 
-    context.composer.render(compose::graphics("p5_fractal_garden.loop",
-                                              [this](Pen& pen) { draw(pen); })
-                                .absolute()
-                                .inset(0));
+    context.composer.render(
+        compose::graphics("p5_fractal_garden.loop", [this](Pen& pen) {
+          draw(pen);
+        }).inset(0));
   }
 
   void branch(std::array<std::vector<Segment>, kDepth + 1>& levels,
@@ -142,7 +142,6 @@ struct P5FractalGarden final : sketch::Sketch {
     }
 
     pen.stroke(branches, CANVAS);
-    pen.noFill();
     for (int depth = kDepth; depth >= 0; --depth) {
       pen.strokeWeight(1.35f + 0.52f * depth);
       SkPathBuilder path;
@@ -155,7 +154,6 @@ struct P5FractalGarden final : sketch::Sketch {
     }
 
     pen.blendMode(ADD);
-    pen.stroke(branches, CANVAS);
     pen.strokeWeight(7.0f + 2.0f * (0.5f + 0.5f * std::sin(clock * 2.1f)));
     if (const SkPaint* stroke = pen.strokePaint())
       pen.canvas()->drawPoints(SkCanvas::kPoints_PointMode,
