@@ -58,6 +58,7 @@
 #include <chrono>
 #include <cmath>
 #include <memory>
+#include <ranges>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -83,34 +84,35 @@ constexpr glm::vec3 kEye{0.0f, 90.0f, 470.0f};
  *  in pixels because it is painted to a picture of a stated size rather
  *  than laid out in a window. */
 Element dial(float edge) {
-  auto ticks = box().row().gap(7).alignItems(Align::End);
-  for (int i = 0; i < 18; ++i) {
+  // One bar per step of the read-out, the height a reading of the step
+  // itself — the picture the compose producer paints.
+  const auto tick = [](int i) {
     const float t = (float)i / 17.0f;
-    ticks.children({box()
-                        .width(10)
-                        .height(14 + 74.0f * (0.5f + 0.5f * std::sin(t * 8.4f)))
-                        .corners({3})
-                        .fill(Fill::color({0.30f, 0.86f, 1.0f, 0.9f}))});
-  }
+    return box()
+        .width(10)
+        .height(14 + 74.0f * (0.5f + 0.5f * std::sin(t * 8.4f)))
+        .corners({3})
+        .fill(Fill::color({0.30f, 0.86f, 1.0f, 0.9f}));
+  };
   return stack()
       .width(edge)
       .height(edge)
       .fill(Fill::color({0.043f, 0.055f, 0.094f, 1}))
-      .children({box()
-                     .absolute()
-                     .inset(34, 34, 34, 34)
-                     .column()
-                     .gap(22)
-                     .children({text("COMPOSE")
-                                    .font({.size = 30, .track = 6})
-                                    .ink(SkColor4f{1, 1, 1, 0.92f})})
-                     .children({text("a composer painting into a surface of "
-                                     "its own; texture() is the value a slot "
-                                     "holds")
-                                    .font({.size = 17, .track = 0.4f})
-                                    .ink(SkColor4f{1, 1, 1, 0.45f})
-                                    .width(edge - 68)})
-                     .children({std::move(ticks)})});
+      .children({box().inset(34).column().gap(22).children(
+          {text("COMPOSE")
+               .font({.size = 30, .track = 6})
+               .ink(SkColor4f{1, 1, 1, 0.92f}),
+           text("a composer painting into a surface of "
+                "its own; texture() is the value a slot "
+                "holds")
+               .font({.size = 17, .track = 0.4f})
+               .ink(SkColor4f{1, 1, 1, 0.45f})
+               .width(edge - 68),
+           box()
+               .row()
+               .gap(7)
+               .alignItems(Align::End)
+               .children({each(std::views::iota(0, 18), tick)})})});
 }
 
 /** WHAT THE PAGE SCREEN CARRIES. Laid out by the web engine, published as
