@@ -95,6 +95,7 @@
 
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/PixelType.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Solids.h>
@@ -466,29 +467,22 @@ constexpr SkVector kShadow{kHudScale, kHudScale};
 /** A run of the baked face, placed at the text grid's own step: 2.5 px
  *  horizontally, 4 px vertically. */
 compose::Element run(const ck::Mask& mask, float x, float y, SkColor4f colour) {
-  compose::Element e = ck::masked(mask, {.colour = colour,
-                                         .scale = kHudScale,
-                                         .shadowOffset = kShadow,
-                                         .shadowMultiplier = 0.0f});
-  e.absolute()
-      .left(std::round(x / 2.5f) * 2.5f)
-      .top(std::round(y / 4.0f) * 4.0f);
-  return e;
+  return ck::masked(mask, {.colour = colour,
+                           .scale = kHudScale,
+                           .shadowOffset = kShadow,
+                           .shadowMultiplier = 0.0f})
+      .at({std::round(x / 2.5f) * 2.5f, std::round(y / 4.0f) * 4.0f});
 }
 
 /** A plate the overlay's type sits on: translucent slate with one pale
  *  hairline round it, which is what every Vagrant Story panel is. */
 compose::Element plate(float x, float y, float w, float h, float alpha) {
-  compose::Element e =
-      compose::box()
-          .width(w)
-          .height(h)
-          .fill(SkColor4f{0.043f, 0.055f, 0.098f, alpha})
-          .stroke(compose::decorations::border(
-              2.0f,
-              compose::Fill::color({kBone.fR, kBone.fG, kBone.fB, 0.55f})));
-  e.absolute().left(x).top(y);
-  return e;
+  return ck::at(compose::box()
+                    .fill(SkColor4f{0.043f, 0.055f, 0.098f, alpha})
+                    .stroke(compose::decorations::border(
+                        2.0f, compose::Fill::color(
+                                  {kBone.fR, kBone.fG, kBone.fB, 0.55f}))),
+                x, y, w, h);
 }
 
 /** A gauge: a bezel, a filled bar and nothing else. The reference's are
@@ -506,9 +500,7 @@ compose::Element gauge(float x, float y, float w, float h, float fraction,
                   compose::Fill::color({kBone.fR, kBone.fG, kBone.fB, 0.72f}),
               .keylineWidth = 2.0f,
               .inset = 4.0f})
-      .absolute()
-      .left(x)
-      .top(y);
+      .at({x, y});
 }
 
 }  // namespace vs
@@ -549,9 +541,9 @@ struct VagrantStoryTarget final : sketch::Set {
     retained = hud();
   }
 
-  /** The overlay's own tree, described fresh each frame — it is a few
-   *  dozen absolute nodes and the scene behind it reconciles them, so a
-   *  frame in which nothing moved costs a comparison. */
+  /** The overlay's own tree: the gauges in the corner, the target card
+   *  beside the enemy and the six limbs along the bottom, each placed at
+   *  the coordinates the screen was measured in. */
   compose::Element hud() {
     using namespace vs;
     const Limb& L = kLimbs[kSelected];
@@ -564,82 +556,91 @@ struct VagrantStoryTarget final : sketch::Set {
     weave::Type title = pixel, body = pixel;
     weave::merge(title, {.size = 13.0f, .condense = 0.92f});
     weave::merge(body, {.size = 9.0f, .condense = 0.95f});
-
-    compose::Element root =
-        compose::box().width((float)kHudW).height((float)kHudH);
-
-    auto label = [&](std::string_view s, float x, float y, SkColor4f c,
-                     bool large) {
-      const std::u8string u8(reinterpret_cast<const char8_t*>(s.data()),
-                             s.size());
-      root.children(
-          {run(ck::bakeRun(u8, *fonts, large ? title : body), x, y, c)});
+    const auto label = [&](compose::Utf8 words, float x, float y, SkColor4f c,
+                           bool large) {
+      return run(ck::bakeRun(words.bytes(), *fonts, large ? title : body), x, y,
+                 c);
     };
 
     // THE GAUGES, hard in the bottom-left corner, which is where Vagrant
-    // Story puts them and is the composition's own anchor. Three rows of
-    // one pitch, so the block reads as one instrument.
-    constexpr float kRow = 68.0f, kRow0 = 716.0f;
-    root.children({plate(34.0f, 698.0f, 452.0f, 226.0f, 0.72f)});
-    label("HP", 56.0f, kRow0, kBone, false);
-    root.children({gauge(156.0f, kRow0 - 4.0f, 276.0f, 28.0f,
-                         (float)kAshleyHp / (float)kAshleyMaxHp,
-                         {0.42f, 0.78f, 0.45f, 1.0f})});
-    label(std::to_string(kAshleyHp) + "/" + std::to_string(kAshleyMaxHp),
-          156.0f, kRow0 + 32.0f, kBone, false);
-    label("MP", 56.0f, kRow0 + kRow, kBone, false);
-    root.children({gauge(156.0f, kRow0 + kRow - 4.0f, 276.0f, 28.0f,
-                         (float)kAshleyMp / (float)kAshleyMaxMp,
-                         {0.36f, 0.58f, 0.92f, 1.0f})});
-    label(std::to_string(kAshleyMp) + "/" + std::to_string(kAshleyMaxMp),
-          156.0f, kRow0 + kRow + 32.0f, kBone, false);
-    label("RISK", 56.0f, kRow0 + 2.0f * kRow, kAmber, false);
-    root.children({gauge(156.0f, kRow0 + 2.0f * kRow - 4.0f, 276.0f, 28.0f,
-                         kRisk / 100.0f, kRisk >= 50.0f ? kBlood : kAmber)});
-    label("RATE " + std::to_string(riskRate(kRisk)), 156.0f,
-          kRow0 + 2.0f * kRow + 32.0f, kAmber, false);
-
-    // THE TARGET CARD, beside the enemy: the selected limb, its armour,
-    // its condition, its chain evasion, and the two hit numbers — the
-    // printed one and the one that actually rolls.
-    root.children({plate(800.0f, 160.0f, 452.0f, 384.0f, 0.78f)});
-    label(std::string("TARGET  ") + L.name, 822.0f, 180.0f, kCyan, true);
-    label(std::string("DULLAHAN  ") + kClassNames[kEnemyClass], 822.0f, 216.0f,
-          kBone, false);
-    label(L.armour, 822.0f, 242.0f, kBone, false);
-    label("HP " + std::to_string(L.hp) + "/" + std::to_string(L.maxHp) + "  " +
-              conditionOf(L.hp, L.maxHp),
-          822.0f, 268.0f, kBone, false);
-    label("PHYS " + std::to_string(L.physical) + "  EVA " +
-              std::to_string(chainEvasionRate(kSelected)) + "%  BYTE " +
-              std::to_string((int)L.chainEvasion),
-          822.0f, 294.0f, kBone, false);
-    label("PRINTED", 822.0f, 330.0f, kBone, false);
-    label(std::to_string(printedHit(kSelected, kRisk)) + "%", 822.0f, 352.0f,
-          kBone, true);
-    label("TRUE", 1032.0f, 330.0f, kAmber, false);
-    label(std::to_string(trueHit(kSelected, kRisk)) + "%", 1032.0f, 352.0f,
-          kAmber, true);
-    label("ACTOR 0 TAKES +10", 822.0f, 396.0f, kAmber, false);
-    label("AFTER THE CLAMP", 822.0f, 420.0f, kAmber, false);
-    label(std::string("WEAPON ") + kWeaponName, 822.0f, 456.0f, kBone, false);
-    label("REACH " + std::to_string(kReach) + "   ANGLE " +
-              std::to_string(kAttackShapeAngle),
-          822.0f, 480.0f, kBone, false);
-    label("32 DIVISIONS, 11.25 DEG", 822.0f, 504.0f, kBone, false);
-
+    // Story puts them and is the composition's own anchor. WHAT A RAIL
+    // READS is data — the name, the fraction, the figure under it and the
+    // colour it is lit in — so the three rows are one band placed three
+    // times at one pitch and the block reads as one instrument.
+    struct Rail {
+      compose::Utf8 name, reading;
+      float fraction;
+      SkColor4f bar, ink;
+    };
+    const std::array<Rail, 3> rails{
+        Rail{"HP",
+             std::to_string(kAshleyHp) + "/" + std::to_string(kAshleyMaxHp),
+             (float)kAshleyHp / (float)kAshleyMaxHp,
+             {0.42f, 0.78f, 0.45f, 1.0f},
+             kBone},
+        Rail{"MP",
+             std::to_string(kAshleyMp) + "/" + std::to_string(kAshleyMaxMp),
+             (float)kAshleyMp / (float)kAshleyMaxMp,
+             {0.36f, 0.58f, 0.92f, 1.0f},
+             kBone},
+        Rail{"RISK", "RATE " + std::to_string(riskRate(kRisk)), kRisk / 100.0f,
+             kRisk >= 50.0f ? kBlood : kAmber, kAmber}};
+    const auto rail = [&](const Rail& r, std::size_t i) {
+      return ck::at(34.0f, 712.0f + (float)i * 68.0f, 452.0f, 64.0f)
+          .children({label(r.name, 22.0f, 4.0f, r.ink, false),
+                     gauge(122.0f, 0.0f, 276.0f, 28.0f, r.fraction, r.bar),
+                     label(r.reading, 122.0f, 36.0f, r.ink, false)});
+    };
     // THE SIX LIMBS as one strip along the bottom — the struct's own
     // order, with the selected one picked out.
-    root.children({plate(514.0f, 806.0f, 730.0f, 94.0f, 0.66f)});
-    for (int i = 0; i < 6; ++i) {
-      const float x = 534.0f + (float)i * 119.0f;
-      const bool sel = i == kSelected;
-      label(kLimbs[i].name, x, 824.0f, sel ? kCyan : kBone, false);
-      label(
-          std::to_string(kLimbs[i].hp) + "/" + std::to_string(kLimbs[i].maxHp),
-          x, 856.0f, sel ? kCyan : kBone, false);
-    }
-    return root;
+    const auto limbCard = [&](const Limb& limb, std::size_t i) {
+      const SkColor4f c = (int)i == kSelected ? kCyan : kBone;
+      return ck::at(534.0f + (float)i * 119.0f, 824.0f, 110.0f, 64.0f)
+          .children(
+              {label(limb.name, 0.0f, 0.0f, c, false),
+               label(std::to_string(limb.hp) + "/" + std::to_string(limb.maxHp),
+                     0.0f, 32.0f, c, false)});
+    };
+
+    return compose::box()
+        .width((float)kHudW)
+        .height((float)kHudH)
+        .children(
+            {plate(34.0f, 698.0f, 452.0f, 226.0f, 0.72f),
+             compose::each(rails, rail),
+             // THE TARGET CARD, beside the enemy: the selected limb, its
+             // armour, its condition, its chain evasion, and the two hit
+             // numbers — the printed one and the one that actually rolls.
+             plate(800.0f, 160.0f, 452.0f, 384.0f, 0.78f),
+             label(std::string("TARGET  ") + L.name, 822.0f, 180.0f, kCyan,
+                   true),
+             label(std::string("DULLAHAN  ") + kClassNames[kEnemyClass], 822.0f,
+                   216.0f, kBone, false),
+             label(L.armour, 822.0f, 242.0f, kBone, false),
+             label("HP " + std::to_string(L.hp) + "/" +
+                       std::to_string(L.maxHp) + "  " +
+                       conditionOf(L.hp, L.maxHp),
+                   822.0f, 268.0f, kBone, false),
+             label("PHYS " + std::to_string(L.physical) + "  EVA " +
+                       std::to_string(chainEvasionRate(kSelected)) +
+                       "%  BYTE " + std::to_string((int)L.chainEvasion),
+                   822.0f, 294.0f, kBone, false),
+             label("PRINTED", 822.0f, 330.0f, kBone, false),
+             label(std::to_string(printedHit(kSelected, kRisk)) + "%", 822.0f,
+                   352.0f, kBone, true),
+             label("TRUE", 1032.0f, 330.0f, kAmber, false),
+             label(std::to_string(trueHit(kSelected, kRisk)) + "%", 1032.0f,
+                   352.0f, kAmber, true),
+             label("ACTOR 0 TAKES +10", 822.0f, 396.0f, kAmber, false),
+             label("AFTER THE CLAMP", 822.0f, 420.0f, kAmber, false),
+             label(std::string("WEAPON ") + kWeaponName, 822.0f, 456.0f, kBone,
+                   false),
+             label("REACH " + std::to_string(kReach) + "   ANGLE " +
+                       std::to_string(kAttackShapeAngle),
+                   822.0f, 480.0f, kBone, false),
+             label("32 DIVISIONS, 11.25 DEG", 822.0f, 504.0f, kBone, false),
+             plate(514.0f, 806.0f, 730.0f, 94.0f, 0.66f),
+             compose::each(kLimbs, limbCard)});
   }
 
   /** The overlay's quad: it stands one metre in front of the eye and is
@@ -665,58 +666,52 @@ struct VagrantStoryTarget final : sketch::Set {
 
   world::Frame describe(float seconds) override {
     using namespace vs;
-    Element scene = Element().key("battle");
-
-    // The floor of the Iron Maiden: one dark flag, lit, so the figures
-    // and the sphere have something to stand on and cast their values
-    // against.
-    scene.children({Element()
-                        .key("floor")
-                        .at({0.0f, 0.0f, 0.0f})
-                        .rotateX(-90.0f)
-                        .mesh(gm::quad(1800.0f, 1800.0f))
-                        .fill(material::kit::surface(
-                            {.baseColor = {0.112f, 0.104f, 0.116f, 1.0f},
-                             .roughness = 0.9f}))
-                        .tag("ground")});
-
-    // The chamber's far wall. Without it the upper half of the frame is
-    // the clear colour, and a wireframe read against nothing is a
-    // wireframe with no depth in it.
-    scene.children({Element()
-                        .key("wall")
-                        .at({0.0f, 300.0f, -900.0f})
-                        .mesh(gm::quad(2400.0f, 1200.0f))
-                        .fill(material::kit::surface(
-                            {.baseColor = {0.088f, 0.086f, 0.104f, 1.0f},
-                             .roughness = 0.95f}))
-                        .tag("ground")});
-
-    // A cold key from behind the enemy and a warm fill at Ashley's back:
-    // the dungeon's own two-source reading, which is what separates the
-    // two figures without a rim pass.
-    scene.children({Element().key("key").light(light::sun(
-        {-0.42f, -0.74f, -0.52f}, {0.62f, 0.72f, 1.00f, 1.0f}, 0.92f))});
-    scene.children({Element().key("torch").light(
-        light::point({-330.0f, 240.0f, 300.0f}, {1.00f, 0.58f, 0.26f, 1.0f},
-                     1.60f, 1100.0f))});
-    scene.children({Element().key("bounce").light(light::sun(
-        {0.34f, -0.42f, 0.84f}, {0.44f, 0.50f, 0.66f, 1.0f}, 0.34f))});
-
-    scene.children({figure(
-        "ashley", kAshleyAt, 72.0f, 1.0f,
-        material::kit::surface(
-            {.baseColor = {0.62f, 0.60f, 0.55f, 1.0f}, .roughness = 0.44f}),
-        0.0f, -1)});
     const float pulse = 0.5f + 0.5f * std::sin(seconds * 4.2f);
-    scene.children({figure(
-        "dullahan", kEnemyAt, -104.0f, 1.34f,
-        material::kit::surface(
-            {.baseColor = {0.22f, 0.24f, 0.30f, 1.0f}, .roughness = 0.28f}),
-        pulse, kSelected)});
-
-    scene.children({reachSphere(seconds)});
-    scene.children({attackLadder()});
+    Element scene = Element().key("battle");
+    scene.children(
+        // The floor of the Iron Maiden: one dark flag, lit, so the figures
+        // and the sphere have something to stand on and cast their values
+        // against.
+        {Element()
+             .key("floor")
+             .rotateX(-90.0f)
+             .mesh(gm::quad(1800.0f, 1800.0f))
+             .fill(material::kit::surface(
+                 {.baseColor = {0.112f, 0.104f, 0.116f, 1.0f},
+                  .roughness = 0.9f}))
+             .tag("ground"),
+         // The chamber's far wall. Without it the upper half of the frame
+         // is the clear colour, and a wireframe read against nothing is a
+         // wireframe with no depth in it.
+         Element()
+             .key("wall")
+             .at({0.0f, 300.0f, -900.0f})
+             .mesh(gm::quad(2400.0f, 1200.0f))
+             .fill(material::kit::surface(
+                 {.baseColor = {0.088f, 0.086f, 0.104f, 1.0f},
+                  .roughness = 0.95f}))
+             .tag("ground"),
+         // A cold key from behind the enemy and a warm fill at Ashley's
+         // back: the dungeon's own two-source reading, which is what
+         // separates the two figures without a rim pass.
+         Element().key("key").light(light::sun(
+             {-0.42f, -0.74f, -0.52f}, {0.62f, 0.72f, 1.00f, 1.0f}, 0.92f)),
+         Element().key("torch").light(light::point({-330.0f, 240.0f, 300.0f},
+                                                   {1.00f, 0.58f, 0.26f, 1.0f},
+                                                   1.60f, 1100.0f)),
+         Element().key("bounce").light(light::sun(
+             {0.34f, -0.42f, 0.84f}, {0.44f, 0.50f, 0.66f, 1.0f}, 0.34f)),
+         figure(
+             "ashley", kAshleyAt, 72.0f, 1.0f,
+             material::kit::surface({.baseColor = {0.62f, 0.60f, 0.55f, 1.0f},
+                                     .roughness = 0.44f}),
+             0.0f, -1),
+         figure(
+             "dullahan", kEnemyAt, -104.0f, 1.34f,
+             material::kit::surface({.baseColor = {0.22f, 0.24f, 0.30f, 1.0f},
+                                     .roughness = 0.28f}),
+             pulse, kSelected),
+         reachSphere(seconds), attackLadder()});
 
     overlay->render(retained, (double)seconds);
     scene.children({overlayQuad(overlay->texture())});
