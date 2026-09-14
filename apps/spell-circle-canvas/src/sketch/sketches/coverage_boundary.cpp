@@ -112,13 +112,13 @@ Element art(const CutOuts& cut, float alpha = 1.0f) {
 }
 
 Element cell(const char* call, const char* note, Element body) {
-  const sketch::kit::Theme& look = sketch::kit::theme();
-  kit::Caption how = look.voice(kCell);
-  how.justify = Align::Center;  // the picture stands in the middle of its well
-  how.body = {.width = Dimension(kCell),
-              .height = Dimension(kPicture),
-              .ground = Fill::color(look.palette.cellGround)};
-  return kit::cell(how, call, note, std::move(body));
+  // The picture stands in the middle of its well at its own size, which
+  // is what a centring container says and what halving the difference
+  // between the two was computing.
+  return sketch::kit::caption(
+      kCell, call, note,
+      sketch::kit::well({.width = kCell, .height = kPicture},
+                        kit::centred(std::move(body))));
 }
 
 }  // namespace
@@ -180,6 +180,8 @@ struct CoverageBoundary final : sketch::Sketch {
                        "· three discs, one outline, and no "
                        "shape() that could have said it",
                        box()
+                           .width(kArt)
+                           .height(kArt)
                            .boundary(Boundary::Coverage)
                            .style(halo())
                            .children({disc({37, 53}, 31), disc({79, 39}, 35),
