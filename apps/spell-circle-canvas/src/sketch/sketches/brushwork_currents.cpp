@@ -17,6 +17,7 @@
 #include <sigildraw/Draw.h>
 #include <sigildraw/brush/Brush.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 
 #include <array>
 #include <vector>
@@ -27,6 +28,10 @@ namespace brush = sigil::draw::brush;
 using namespace sigil::draw;
 
 namespace {
+
+/** THE PAPER. The canvas is cleared to it and the pen lays it again as
+ *  the sheet the marks are made on, so one colour says both. */
+constexpr SkColor4f kPaper{241 / 255.0f, 234 / 255.0f, 215 / 255.0f, 1};
 
 constexpr int kStreams = 34;
 constexpr int kOrbitMarks = 13;
@@ -40,9 +45,8 @@ constexpr std::array<SkColor4f, 5> kPalette{{
 
 struct BrushworkCurrents final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(1080, 760);
-    ctx.background({241 / 255.0f, 234 / 255.0f, 215 / 255.0f, 1});
-    ctx.captureAt(0.25);
+    sketch::kit::stage(
+        ctx, {.size = {1080, 760}, .captureAt = 0.25, .background = kPaper});
 
     ctx.composer.render(compose::graphics("brushwork_currents.sheet",
                                           [this](Pen& pen) { draw(pen); })
@@ -53,7 +57,7 @@ struct BrushworkCurrents final : sketch::Sketch {
   void draw(Pen& pen) {
     pen.randomSeed(0xB405u);
     pen.noFill();
-    pen.background(241, 234, 215);
+    pen.background(kPaper);
 
     pen.stroke(72, 56, 43, 16);
     for (int fleck = 0; fleck < 2600; ++fleck) {
