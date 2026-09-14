@@ -43,6 +43,7 @@
 
 #include <functional>
 #include <string>
+#include <utility>
 
 namespace sketch = sigil::sketch;
 namespace material = sigil::material;
@@ -144,103 +145,72 @@ struct FieldShelf final : sketch::Sketch {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
+    // A shelf of the five at stock, and under it the same five with the
+    // one dial that changes what each means — named before the page, so a
+    // cell reads as the call it makes.
+    Element stock = kit::cells(
+        {.cells = {plain("halftoneRamp(9, 0.5, 4, ink)",
+                         "the dot radius swells from rMin at the top of the "
+                         "box to rMax at its bottom, in one pass",
+                         field::halftoneRamp(kSpacing, 0.5f, 4.0f,
+                                             {0.94f, 0.90f, 0.80f, 1})),
+                   plain("noise(0.035, 4, 4)",
+                         "Skia's Perlin, passed through a recipe · three "
+                         "INDEPENDENT channels, which is a displacement "
+                         "source",
+                         field::noise(kNoiseHz, 4, kSeed)),
+                   plain("grain(0.035, 4, 4, 1)",
+                         "value-noise fBm collapsed to ONE channel · "
+                         "luminance, so a blend over colour reads as light",
+                         field::grain(kNoiseHz, 4, kSeed)),
+                   plain("ripple(7, 96) over a ruled grid",
+                         "y shifted by a sine of x · the content slot is the "
+                         "caller's, and here it is a grid",
+                         rippled(7, 96, false)),
+                   aged("crtOverlay()",
+                        "black with the alpha carrying hard scanlines and a "
+                        "corner falloff · it ages what is under it",
+                        field::crtOverlay())},
+         .gap = 12});
+
+    Element turned = kit::cells(
+        {.cells = {plain("halftoneRamp(…, 30, 0.25, 0.75)",
+                         "angleDeg turns the LATTICE and the ramp stays "
+                         "vertical · the swell band remapped to the middle "
+                         "half",
+                         field::halftoneRamp(kSpacing, 0.5f, 4.0f,
+                                             {0.94f, 0.90f, 0.80f, 1}, 30,
+                                             0.25f, 0.75f)),
+                   plain("noise(0.035, 4, 4, true)",
+                         "the turbulence variant — the abs-value fold, which "
+                         "is sharper and veiny",
+                         field::noise(kNoiseHz, 4, kSeed, true)),
+                   plain("grain(0.02, 4, 4, 1.6, 7)",
+                         "stretch divides the x frequency and multiplies the "
+                         "y one, so the fibre runs lengthwise",
+                         field::grain(0.02f, 4, kSeed, 1.6f, 7)),
+                   plain("ripple(9, 70, vertical)",
+                         "…and with the flag, x shifted by a sine of y · the "
+                         "same field turned a quarter",
+                         rippled(9, 70, true)),
+                   aged("crtOverlay(8, 0.16, 1.1, 1.9, 0.7)",
+                        "a coarser pitch, a harder line and a falloff that "
+                        "reaches most of the way in",
+                        field::crtOverlay(8, 0.16f, 1.1f, 1.9f, 0.7f))},
+         .gap = 12});
+
     ctx.composer.render(sketch::kit::page(
-        {.title = "FIELD SHELF · field:: halftoneRamp, noise, "
-                  "grain, ripple, crtOverlay",
-         .subtitle = "dials · the pitch (9 px) · the "
-                     "frequency (0.035 features per px) · "
-                     "the seed (4) · and, in the bottom row, "
-                     "the one dial that changes what each means",
-         .footer = "every parameter is a uniform, so a field is "
-                   "shaded per pixel and never baked — "
-                   "which is what lets halftoneRamp's drift be a "
-                   "binding rather than a re-bake"},
-        kit::cells(
-            {.cells = {kit::cells(
-                           {.cells = {plain(
-                                          "halftoneRamp(9, 0.5, 4, ink)",
-                                          "the dot radius swells from rMin at "
-                                          "the top of the box to rMax at its "
-                                          "bottom, in one pass",
-                                          field::halftoneRamp(
-                                              kSpacing, 0.5f, 4.0f,
-                                              {0.94f, 0.90f, 0.80f, 1})),
-                                      plain("noise(0.035, 4, 4)",
-                                            "Skia's Perlin, passed through a "
-                                            "recipe · three INDEPENDENT "
-                                            "channels, which is a displacement "
-                                            "source",
-                                            field::noise(kNoiseHz, 4, kSeed)),
-                                      plain("grain(0.035, 4, 4, 1)",
-                                            "value-noise fBm collapsed to ONE "
-                                            "channel · luminance, so a "
-                                            "blend over colour reads as light",
-                                            field::grain(kNoiseHz, 4, kSeed)),
-                                      plain("ripple(7, 96) over a ruled grid",
-                                            "y shifted by a sine of x · the "
-                                            "content slot is the caller's, and "
-                                            "here it is a grid",
-                                            rippled(7, 96, false)),
-                                      aged("crtOverlay()",
-                                           "black with the alpha carrying hard "
-                                           "scanlines and a corner falloff "
-                                           "· it ages what is under it",
-                                           field::crtOverlay())},
-                            .gap = 12}),
-                       kit::
-                           cells({.cells = {plain("halftoneRamp(…, 30, "
-                                                  "0.25, "
-                                                  "0.75)",
-                                                  "angleDeg turns the LATTICE "
-                                                  "and "
-                                                  "the "
-                                                  "ramp stays vertical · "
-                                                  "the "
-                                                  "swell band remapped to the "
-                                                  "middle "
-                                                  "half",
-                                                  field::halftoneRamp(kSpacing,
-                                                                      0.5f, 4.0f, {0.94f, 0.90f, 0.80f, 1}, 30, 0.25f, 0.75f)),
-                                            plain("noise(0.035, 4, 4, true)",
-                                                  "the turbulence variant "
-                                                  "— "
-                                                  "the abs-value fold, which "
-                                                  "is "
-                                                  "sharper "
-                                                  "and veiny",
-                                                  field::noise(kNoiseHz, 4, kSeed, true)),
-                                            plain("grain(0.02, 4, 4, 1.6, 7)",
-                                                  "stretch divides the x "
-                                                  "frequency "
-                                                  "and "
-                                                  "multiplies the y one, so "
-                                                  "the "
-                                                  "fibre "
-                                                  "runs lengthwise",
-                                                  field::grain(0.02f,
-                                                               4, kSeed, 1.6f, 7)),
-                                            plain("ripple(9, 70, vertical)",
-                                                  "…and with the flag, x "
-                                                  "shifted by a sine of y · "
-                                                  "the "
-                                                  "same field turned a quarter",
-                                                  rippled(9, 70, true)),
-                                            aged("crtOverlay(8, 0.16, 1.1, "
-                                                 "1.9, "
-                                                 "0.7)",
-                                                 "a coarser pitch, a harder "
-                                                 "line "
-                                                 "and a "
-                                                 "falloff that reaches most of "
-                                                 "the "
-                                                 "way "
-                                                 "in",
-                                                 field::
-                                                     crtOverlay(8,
-                                                                0.16f, 1.1f, 1.9f, 0.7f))},
-                                  .gap = 12})},
-             .column = true,
-             .gap = 16})));
+        {.title = "FIELD SHELF · field:: halftoneRamp, noise, grain, ripple, "
+                  "crtOverlay",
+         .subtitle = "dials · the pitch (9 px) · the frequency (0.035 "
+                     "features per px) · the seed (4) · and, in the bottom "
+                     "row, the one dial that changes what each means",
+         .footer = "every parameter is a uniform, so a field is shaded per "
+                   "pixel and never baked — which is what lets "
+                   "halftoneRamp's drift be a binding rather than a re-bake"},
+        kit::cells({.cells = {std::move(stock), std::move(turned)},
+                    .column = true,
+                    .gap = 16})));
   }
 };
 
