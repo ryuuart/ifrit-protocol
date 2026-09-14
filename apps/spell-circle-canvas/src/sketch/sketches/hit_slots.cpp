@@ -54,19 +54,21 @@
 
 // TAGS: Runtime/Interaction
 
-#include <include/core/SkPaint.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Routers.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Rows.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
 #include <optional>
+#include <ranges>
 #include <string>
 #include <utility>
 #include <vector>
@@ -127,134 +129,117 @@ struct HitSlots final : sketch::Sketch {
    *  keyed wires threading them, plus the two slots the churn happens
    *  in. Described once. */
   Element describe() const {
-    auto targets = stack().inset(0).zIndex(0);
-    for (int i = 0; i < kTargets; ++i) {
+    // ONE TARGET PER STATION, standing where the probe will be at that
+    // station: a hit test only says something when there is something
+    // under the point, so every crossing is placed rather than hoped for.
+    const auto target = [](int i) {
       const float hue = (float)i / (float)kTargets;
       const SkPoint at = walk(stationTime(i));
       const float w = 108.0f + (float)(i % 3) * 24.0f;
       const float h = 100.0f + (float)(i % 4) * 20.0f;
-      Shape outline = shapes::blob((uint32_t)(60 + i), 0.32f, 6);
-      if (i % 2 == 1) outline = shapes::star(5 + i % 3, 0.5f);
-      targets.children(
-          {box()
-               .key(targetKey(i))
-               .width(w)
-               .height(h)
-               .inset(at.x() - w * 0.5f, at.y() - h * 0.5f, 0, 0)
-               .shape(std::move(outline))
-               .fill(Fill::color(
-                   {0.22f + 0.45f * hue, 0.30f + 0.22f * hue, 0.62f, 0.85f}))
-               .foreground(
-                   stroke(1.6f, Fill::color({0.85f, 0.95f, 1, 0.45f})))});
-    }
-
-    // The wires: keyed, so `routesAt` can name them. A keyless route is
-    // anchored but unaddressable, and the back-index omits it.
-    auto wires = stack().inset(0).zIndex(1).hitTestable(false);
-    for (int i = 0; i + 1 < kTargets; ++i)
-      wires.children({connector(targetKey(i), targetKey(i + 1),
-                                routers::arc(i % 2 == 0 ? 0.22f : -0.22f), 6)
-                          .key(wireKey(i))
-                          .hitTestable(false)
-                          .stroke(stroke(1.6f, Fill::color(kWire)))});
+      return box()
+          .key(targetKey(i))
+          .width(w)
+          .height(h)
+          .inset(at.x() - w * 0.5f, at.y() - h * 0.5f, 0, 0)
+          .shape(i % 2 == 1 ? Shape(shapes::star(5 + i % 3, 0.5f))
+                            : Shape(shapes::blob((uint32_t)(60 + i), 0.32f, 6)))
+          .fill(Fill::color(
+              {0.22f + 0.45f * hue, 0.30f + 0.22f * hue, 0.62f, 0.85f}))
+          .foreground(stroke(1.6f, Fill::color({0.85f, 0.95f, 1, 0.45f})));
+    };
+    const auto stations = std::views::iota(0, kTargets);
 
     return stack()
         .fill(linearGradient(
             {0, 0}, {0, kCanvas.height()},
             {{0.07f, 0.06f, 0.13f, 1}, {0.16f, 0.09f, 0.20f, 1}}, {0.0f, 1.0f}))
-        .children({std::move(targets), std::move(wires)})
-        // Both slots opt OUT of the hit test. A slot's name is its key,
-        // and a full-canvas marker slot would otherwise be the topmost
-        // keyed node under every point the probe visits — the readout
-        // would answer with the probe's own name, for ever.
-        .children({slot("probe").inset(0).zIndex(6).hitTestable(false),
-                   slot("answer").inset(0).zIndex(5).hitTestable(false)});
+        .children(
+            {stack().inset(0).zIndex(0).children({each(stations, target)}),
+             // The wires: keyed, so `routesAt` can name them. A keyless
+             // route is anchored but unaddressable, and the back-index
+             // omits it.
+             stack().inset(0).zIndex(1).hitTestable(false).children(
+                 {each(stations | std::views::take(kTargets - 1),
+                       [this](int i) {
+                         return wire(i, 1.6f, kWire).key(wireKey(i));
+                       })}),
+             // Both slots opt OUT of the hit test. A slot's name is its
+             // key, and a full-canvas marker slot would otherwise be the
+             // topmost keyed node under every point the probe visits — the
+             // readout would answer with the probe's own name, for ever.
+             slot("probe").inset(0).zIndex(6).hitTestable(false),
+             slot("answer").inset(0).zIndex(5).hitTestable(false)});
+  }
+
+  /** ONE WIRE between two neighbouring stations, arcing to whichever side
+   *  the parity of its index gives it. The LIT copy in the answer slot is
+   *  described exactly like the dim one, which is what lands it on top of
+   *  it: a route is a derivation of the two nodes' resolved bounds. */
+  Element wire(int i, float width, SkColor4f ink) const {
+    return connector(targetKey(i), targetKey(i + 1),
+                     routers::arc(i % 2 == 0 ? 0.22f : -0.22f), 6)
+        .hitTestable(false)
+        .stroke(stroke(width, Fill::color(ink)));
   }
 
   /** The probe marker: new content on every frame, which is why its
    *  slot is re-rendered on every frame. */
   Element probeDot() const {
-    const SkPoint p = probe;
-    // The probe MOVES, so the point it closes over is folded into the key:
-    // a constant one would name two marks in two places.
-    return custom(kit::formatted("probe %.2f %.2f", p.x(), p.y()),
-                  [p](SkCanvas& c) {
-                    SkPaint paint;
-                    paint.setAntiAlias(true);
-                    paint.setColor(0xffffffff);
-                    c.drawCircle(p.x(), p.y(), 5, paint);
-                    paint.setStyle(SkPaint::kStroke_Style);
-                    paint.setStrokeWidth(1.5f);
-                    c.drawCircle(p.x(), p.y(), 10, paint);
-                  })
-        .inset(0)
-        .hitTestable(false)
-        .cache(Cache::None);
+    return stack().inset(0).hitTestable(false).children(
+        {kit::dot(probe, 5, Fill::color(SkColors::kWhite)),
+         kit::ring(probe, 10, stroke(1.5f, Fill::color(SkColors::kWhite)))});
   }
 
   /** THE ANSWER: the ring placed from `bounds`, the wires `routesAt`
    *  named drawn again lit, and the three answers printed. Re-described
    *  only when `hitTest` returns something new. */
-  Element answer(sketch::SketchContext& ctx) const {
+  Element answer() const {
     Element root = stack().inset(0).hitTestable(false);
 
-    if (hitBounds) {
-      const SkRect rect = *hitBounds;
-      root.children(
-          {custom(kit::formatted("hit %.2f %.2f %.2f %.2f", rect.fLeft,
-                                 rect.fTop, rect.fRight, rect.fBottom),
-                  [rect](SkCanvas& canvas) {
-                    SkPaint ring;
-                    ring.setAntiAlias(true);
-                    ring.setStyle(SkPaint::kStroke_Style);
-                    ring.setStrokeWidth(2.5f);
-                    ring.setColor4f(kLit);
-                    canvas.drawRoundRect(rect.makeOutset(10, 10), 16, 16, ring);
-                  })
-               .inset(0)
-               .hitTestable(false)});
-    }
-    // The named routes, drawn again over their own dim selves. A route
-    // element is a derivation of the two nodes' resolved bounds, so the
-    // lit copy is described exactly like the dim one and lands on it.
-    for (const std::string& route : hitRoutes) {
+    // THE RING IS PLACED FROM `bounds`, never from the numbers that
+    // described the target: a second copy of the arithmetic is a second
+    // thing to keep in step.
+    if (hitBounds)
+      root.children({box()
+                         .rect(hitBounds->makeOutset(10, 10))
+                         .corners({16})
+                         .foreground(stroke(2.5f, Fill::color(kLit)))
+                         .hitTestable(false)});
+    // The named routes, drawn again over their own dim selves.
+    root.children({each(hitRoutes, [this](const std::string& route) {
       const size_t dash = route.rfind('-');
-      if (dash == std::string::npos) continue;
-      const int i = std::stoi(route.substr(dash + 1));
-      root.children({connector(targetKey(i), targetKey(i + 1),
-                               routers::arc(i % 2 == 0 ? 0.22f : -0.22f), 6)
-                         .hitTestable(false)
-                         .stroke(stroke(2.6f, Fill::color(kLit)))});
-    }
+      return dash == std::string::npos
+                 ? box()
+                 : wire(std::stoi(route.substr(dash + 1)), 2.6f, kLit);
+    })});
 
     std::string routes;
     for (const std::string& route : hitRoutes)
       routes += (routes.empty() ? "" : ", ") + route;
     if (routes.empty()) routes = "—";
 
-    std::string rect = "—";
-    if (hitBounds)
-      rect = std::to_string((int)hitBounds->x()) + ", " +
-             std::to_string((int)hitBounds->y()) + ", " +
-             std::to_string((int)hitBounds->width()) + " × " +
-             std::to_string((int)hitBounds->height());
+    const std::string rect =
+        hitBounds ? kit::formatted("%d, %d, %d × %d", (int)hitBounds->x(),
+                                   (int)hitBounds->y(), (int)hitBounds->width(),
+                                   (int)hitBounds->height())
+                  : "—";
 
-    // The readout is set in ash, and the answer's own line in the ink a
-    // size up: one font on the column, one partial on that leaf.
-    const sketch::kit::Theme& look = sketch::kit::theme();
+    // The three answers as a reading each: the name at the left in the
+    // theme's quiet register, what the query came back with beside it in
+    // the figure register, and the hit itself lit in the sheet's own ink.
     return root.children(
-        {box()
-             .column()
-             .gap(4)
+        {sketch::kit::readout(
+             {{.name = "hitTest(probe)",
+               .value = hitLabel,
+               .ink = sketch::kit::theme().palette.ink},
+              {.name = "bounds(\"" + hitLabel + "\")", .value = rect},
+              {.name = "routesAt(\"" + hitLabel + "\")", .value = routes}},
+             {.nameMeasure = 196})
              .absolute()
-             .inset(20, ctx.size.height() - 78, 20, 14)
-             .hitTestable(false)
-             .font({.size = 12.5f})
-             .ink(look.palette.ash)
-             .children({text("hitTest(probe) → " + hitLabel)
-                            .font({.size = 16, .color = look.palette.ink})})
-             .children({text("bounds(\"" + hitLabel + "\") → " + rect)})
-             .children({text("routesAt(\"" + hitLabel + "\") → " + routes)})});
+             .left(20)
+             .bottom(14)
+             .hitTestable(false)});
   }
 
   void setup(sketch::SketchContext& ctx) override {
@@ -269,7 +254,7 @@ struct HitSlots final : sketch::Sketch {
     probe = walk(0.0);
     ctx.composer.render(describe());
     ctx.composer.renderSlot("probe", probeDot());
-    ctx.composer.renderSlot("answer", answer(ctx));
+    ctx.composer.renderSlot("answer", answer());
   }
 
   void update(double elapsed, sketch::SketchContext& ctx) override {
@@ -288,7 +273,7 @@ struct HitSlots final : sketch::Sketch {
     hitLabel = std::move(found);
     hitBounds = composer.bounds(hitLabel);
     hitRoutes = composer.routesAt(hitLabel);
-    composer.renderSlot("answer", answer(ctx));
+    composer.renderSlot("answer", answer());
   }
 };
 
