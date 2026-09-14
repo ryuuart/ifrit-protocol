@@ -96,12 +96,16 @@ constexpr SkColor4f kPale{0.180f, 0.090f, 0.060f, 1};
 const motion::Spread kCascade{.eachMs = 110, .durationMs = 620};
 
 /** The nine cells, in the order the header reads them. `key` is what the
- *  meter under the cell resolves the schedule from. */
+ *  meter under the cell resolves the schedule from; `over` is what this
+ *  cell's specimen changes about the register — a face, a colour — and
+ *  nothing for most. */
 struct Row {
   const char* key;
   const char* call;
   const char* note;
   const char* word;
+  TextEffect effect;
+  weave::Type over;
 };
 
 sk_sp<SkTypeface> display() {
@@ -177,24 +181,21 @@ struct KineticCard final : sketch::Sketch {
     ctx.composer.render(describe(ctx));
   }
 
-  /** One cell: the specimen wearing one track, captioned with the call
-   *  that made it. @p over is what this cell's specimen changes about the
-   *  register — a face, a colour — and nothing for most. The meter is not
-   *  here — it is drawn over the whole composition, because `beatsOf`
-   *  answers in the composer's space. */
-  Element cell(const Row& row, Track track, weave::Type over = {}) {
-    track.progress = &phase;
-    track.stagger = kCascade;
+  /** One cell: the specimen wearing its own effect on the shared
+   *  cascade, captioned with the call that made it. The meter is not here
+   *  — it is drawn over the whole composition, because `beatsOf` answers
+   *  in the composer's space. */
+  Element cell(const Row& row) {
     return sketch::kit::caption(kCell, row.call, row.note,
-                                box()
-                                    .width(kCell)
-                                    .height(kBodyH)
-                                    .children({text(row.word)
-                                                   .styleClass("specimen")
-                                                   .font(std::move(over))
-                                                   .key(row.key)
-                                                   .width(kCell)
-                                                   .fx(std::move(track))}));
+                                box().width(kCell).height(kBodyH).children(
+                                    {text(row.word)
+                                         .styleClass("specimen")
+                                         .font(row.over)
+                                         .key(row.key)
+                                         .width(kCell)
+                                         .fx({.effect = row.effect,
+                                              .stagger = kCascade,
+                                              .progress = &phase})}));
   }
 
   Element describe(sketch::SketchContext& ctx) {
@@ -205,61 +206,54 @@ struct KineticCard final : sketch::Sketch {
         {"rise", "fx::rise(26)",
          "up from below, fading in over the first "
          "third of its beat",
-         "RISE"},
+         "RISE", fx::rise(26)},
         {"slide", "fx::slide(-32)",
          "in from the side; negative is from the "
          "left",
-         "SLIDE"},
+         "SLIDE", fx::slide(-32)},
         {"pop", "fx::pop(0.35, 1.70158)",
          "scale overshoot — "
          "back.out(1.7)",
-         "POP"},
+         "POP", fx::pop(0.35f, 1.70158f)},
         {"spin", "fx::spinIn(70, 14)",
          "a tumble: rotation and a rise, "
          "eased out together",
-         "SPIN IN"},
+         "SPIN IN", fx::spinIn(70, 14)},
         {"scatter", "fx::scatter(40, 24)",
          "each glyph from its own seeded "
          "offset and lean",
-         "SCATTER"},
+         "SCATTER", fx::scatter(40, 24)},
         {"typeon", "fx::typeOn()",
          "absent, then simply there — "
          "coverage only, no displacement",
-         "TYPE ON"},
-        {"axis", "fx::variableAxisSweep(\"GRAD\", 400, 1000)",
+         "TYPE ON", fx::typeOn()},
+        {"axis",
+         "fx::variableAxisSweep(\"GRAD\", 400, 1000)",
          "a grade swept at draw time; advance-invariant, so nothing moves",
-         "AXIS SWEEP"},
-        {"tint", "fx::tint(pale, accent)",
+         "AXIS SWEEP",
+         fx::variableAxisSweep("GRAD", 400, 1000),
+         {.face = graded()}},
+        {"tint",
+         "fx::tint(pale, accent)",
          "the element is set in the destination and the effect multiplies "
          "down to the origin",
-         "TINT"},
+         "TINT",
+         fx::tint(kPale, kAccent),
+         {.color = kAccent}},
         {"wave", "fx::waveLoop(0.10, 0.5)",
          "the one that never lands: a loop on the same wrapping phase, so "
          "its meter never fills",
-         "WAVE LOOP"},
+         // The loop reads the master as a phase rather than as an
+         // entrance, so every glyph takes the SAME master and the
+         // travelling wave comes from the glyph's own index inside the
+         // effect.
+         "WAVE LOOP", fx::waveLoop(0.10f, 0.5f)},
     };
-
-    std::vector<Element> cells;
-    cells.push_back(cell(kRows[0], {.effect = fx::rise(26)}));
-    cells.push_back(cell(kRows[1], {.effect = fx::slide(-32)}));
-    cells.push_back(cell(kRows[2], {.effect = fx::pop(0.35f, 1.70158f)}));
-    cells.push_back(cell(kRows[3], {.effect = fx::spinIn(70, 14)}));
-    cells.push_back(cell(kRows[4], {.effect = fx::scatter(40, 24)}));
-    cells.push_back(cell(kRows[5], {.effect = fx::typeOn()}));
-    cells.push_back(cell(kRows[6],
-                         {.effect = fx::variableAxisSweep("GRAD", 400, 1000)},
-                         {.face = graded()}));
-    cells.push_back(cell(kRows[7], {.effect = fx::tint(kPale, kAccent)},
-                         {.color = kAccent}));
-    // The loop reads the master as a phase rather than as an entrance, so
-    // every glyph takes the SAME master and the travelling wave comes from
-    // the glyph's own index inside the effect.
-    cells.push_back(cell(kRows[8], {.effect = fx::waveLoop(0.10f, 0.5f)}));
 
     std::vector<Element> shelves;
     for (int r = 0; r < 3; ++r) {
       std::vector<Element> run;
-      for (int c = 0; c < 3; ++c) run.push_back(cells[(size_t)(r * 3 + c)]);
+      for (int c = 0; c < 3; ++c) run.push_back(cell(kRows[r * 3 + c]));
       shelves.push_back(kit::cells({.cells = std::move(run), .gap = kGutter}));
     }
 
@@ -290,7 +284,6 @@ struct KineticCard final : sketch::Sketch {
                             .thickness = 3.0f,
                             .gap = 7.0f,
                             .trim = 1.5f})
-               .absolute()
                .inset(0)});
     return root;
   }
