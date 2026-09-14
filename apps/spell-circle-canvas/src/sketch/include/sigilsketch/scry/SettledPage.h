@@ -57,6 +57,12 @@ namespace sigil::sketch::scry {
  *  and a machine that reaches it has drawn no page at all. */
 inline constexpr std::chrono::seconds kUnresponsive{60};
 
+/** How long a view is watched for one more repaint before its page is
+ *  called STILL — see `awaitQuiet`, which is the only thing that reads
+ *  it. Long enough that no machine which gets a page at all reaches it
+ *  while the page is still painting. */
+inline constexpr std::chrono::milliseconds kQuiet{1000};
+
 /**
  * The engine's events for one view, latched.
  *
@@ -118,13 +124,16 @@ class Events {
   }
 
   /** Returns once more than @p since repaints have been handed over —
-   *  the picture a script, a wheel or a press asked for. */
-  [[nodiscard]] bool awaitRepaint(uint64_t since) const {
+   *  the picture a script, a wheel or a press asked for. @p within is
+   *  how long that is waited for; the default is the deadline that says
+   *  a page is broken, and a SHORTER one is how a caller asks whether
+   *  the view has stopped painting at all. */
+  [[nodiscard]] bool awaitRepaint(
+      uint64_t since, std::chrono::milliseconds within = kUnresponsive) const {
     const std::shared_ptr<State> state = m_state;
     std::unique_lock<std::mutex> lock(state->mutex);
-    return state->changed.wait_for(lock, kUnresponsive, [&state, since] {
-      return state->repaints > since;
-    });
+    return state->changed.wait_for(
+        lock, within, [&state, since] { return state->repaints > since; });
   }
 
   /** Whether the engine ever said the document arrived. */
@@ -213,6 +222,99 @@ inline std::string answer(sigil::scry::WebView& view,
     }
   }
   return false;
+}
+
+/**
+ * The settle for a page that GOES STILL: it waits for @p expected as
+ * above, and then for the view to stop painting. The LAST frame it
+ * published is the still.
+ *
+ * A wheel is the case this exists for. The engine walks a wheel
+ * smoothly and the page reports `window.scrollY` as a whole number, so
+ * it answers with the position it is heading for while the picture is
+ * still a fraction of a pixel short of it — and which frame that answer
+ * lands on is decided by how loaded the machine was. The same shape
+ * catches a document that has loaded and is still being painted. What
+ * ends either is the view going quiet, and the frame it went quiet on
+ * is the one to photograph.
+ *
+ * It asks BEFORE it waits, because a page that has already reached the
+ * state being asked about will not repaint again to announce it, and a
+ * settle that looked only after the next repaint would wait for
+ * something that is not coming. Asking early is harmless here in a way
+ * it is not for `awaitAnswer`: whatever frame stood at that moment, the
+ * still is the last one of the tail.
+ *
+ * THE QUIET WINDOW IS A BOUND, AND IT IS THE ONE PLACE IN THIS HEADER
+ * WHERE A CLOCK CAN DECIDE A DRAWING: a machine so loaded that the
+ * engine cannot publish the tail of a walk inside `kQuiet` photographs
+ * that walk one frame early. Everything else here is decided by the
+ * engine's own events.
+ *
+ * A page that never goes still — a caret, a transition, a loop — wants
+ * `awaitAnswer` instead, which stops on the frame its answer describes.
+ */
+[[nodiscard]] inline bool awaitQuiet(sigil::scry::WebView& view,
+                                     const Events& events,
+                                     const std::string& expression,
+                                     std::string_view expected,
+                                     int repaints = 600) {
+  bool arrived = false;
+  for (int tick = 0; tick <= repaints && !arrived; ++tick) {
+    // The mark is taken BEFORE the question, so a repaint that lands
+    // while the page is answering is one this loop has already seen.
+    const uint64_t mark = events.repaints();
+    if (answer(view, expression) == expected) {
+      arrived = true;
+      break;
+    }
+    if (!events.awaitRepaint(mark)) return false;
+  }
+  if (!arrived) return false;
+  // The tail: every frame that still arrives is a later picture of the
+  // same document, until a whole quiet window passes without one.
+  for (int tick = 0; tick <= repaints; ++tick) {
+    const uint64_t mark = events.repaints();
+    if (!events.awaitRepaint(mark, kQuiet)) break;
+  }
+  events.accept();
+  // …and the document the still is of is still the one that was asked
+  // for. A page that moved on during the tail never went still.
+  return answer(view, expression) == expected;
+}
+
+/**
+ * Makes @p view hand over a WHOLE fresh painting of the page as it
+ * stands, and accepts that as the still.
+ *
+ * The engine paints what a change damaged and copies the rest, so the
+ * picture of a page that has been DRIVEN carries the seams of however
+ * the driving happened to be broken into steps: a wheel is walked in
+ * several copies and repaints, and where each one's edge fell is a fact
+ * about how loaded the machine was, not about the document. It shows up
+ * as a curve antialiased two ways along one of those edges — a plate
+ * that moves under a busy sweep and holds when its scene is rendered
+ * alone. A whole painting has no seams to carry, so a still taken from
+ * one is a picture of the document.
+ *
+ * workaround: the engine's own "paint this again" flag marks a view
+ * without damaging anything in it, so nothing is repainted and no frame
+ * is published. A round trip through a layout viewport one pixel taller
+ * damages the whole page twice, and the second painting is at the size
+ * and the place the page was already standing.
+ */
+[[nodiscard]] inline bool repaintWhole(sigil::scry::WebView& view,
+                                       const Events& events) {
+  const int width = view.width();
+  const int height = view.height();
+  const uint64_t taller = events.repaints();
+  view.resize(width, height + 1);
+  if (!events.awaitRepaint(taller)) return false;
+  const uint64_t back = events.repaints();
+  view.resize(width, height);
+  if (!events.awaitRepaint(back)) return false;
+  events.accept();
+  return true;
 }
 
 }  // namespace sigil::sketch::scry

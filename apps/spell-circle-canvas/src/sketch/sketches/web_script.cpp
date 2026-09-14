@@ -30,6 +30,16 @@
  * stretch of clock. A machine that runs the engine slowly reaches those
  * events later and draws this same sheet. See <sigilsketch/scry/SettledPage.h>.
  *
+ * AND EVERY STILL HERE IS THE FRAME THE PAGE WENT QUIET ON. The page's
+ * own answer says the call landed; it does not say the picture has caught
+ * up with it. A wheel is walked smoothly and `window.scrollY` is reported
+ * as a whole number, so the page says 220 while the rows are still a
+ * fraction of a pixel short of it, and which repaint that answer falls on
+ * is decided by how loaded the machine was — a row edge antialiased two
+ * ways, and a plate that moves under a busy sweep and holds when this
+ * scene is rendered alone. So each stage waits for the answer AND for the
+ * view to stop painting, and the last frame is the one drawn.
+ *
  * EDIT THESE FIRST
  *   kScrollBy  — how far down the page the third cell walks, px.
  *   kClickAt   — where the fourth cell presses, in view pixels.
@@ -161,12 +171,18 @@ struct WebScript final : sketch::Sketch {
     plain->loadHTML(page());
     const bool painted = plainEvents.awaitLoad();
     const bool fired = plainEvents.loaded();
+    // The load says the document is here; the page going quiet says its
+    // picture is finished.
+    bool settled =
+        sketch::scry::awaitQuiet(*plain, plainEvents,
+                                 "String(document.readyState)", "complete") &&
+        sketch::scry::repaintWhole(*plain, plainEvents);
 
     // ---- the script, and what it evaluated to ------------------------
     std::shared_ptr<scry::WebView> scripted = open(*web);
     const sketch::scry::Events scriptedEvents(*scripted);
     scripted->loadHTML(page());
-    bool settled = scriptedEvents.awaitLoad();
+    settled = scriptedEvents.awaitLoad() && settled;
 
     auto answered = std::make_shared<std::promise<std::string>>();
     std::future<std::string> reply = answered->get_future();
@@ -175,11 +191,11 @@ struct WebScript final : sketch::Sketch {
     });
     // The heading the script rewrites is the page's own statement that
     // the rewrite has landed AND been painted.
-    settled = sketch::scry::awaitAnswer(*scripted, scriptedEvents,
-                                        "document.getElementById('head')"
-                                        ".textContent",
-                                        "EVALUATED") &&
-              settled;
+    settled = sketch::scry::awaitQuiet(*scripted, scriptedEvents,
+                                       "document.getElementById('head')"
+                                       ".textContent",
+                                       "EVALUATED") &&
+              sketch::scry::repaintWhole(*scripted, scriptedEvents) && settled;
     const std::string returned =
         reply.wait_for(sketch::scry::kUnresponsive) == std::future_status::ready
             ? reply.get()
@@ -195,12 +211,14 @@ struct WebScript final : sketch::Sketch {
     scrolled->scroll(0, -kScrollBy);
     // THE ENGINE WALKS A WHEEL SMOOTHLY, so the frame after the call is
     // the page part of the way down. The page's own scroll offset says
-    // when the walk is over — read EXACTLY, because the last fraction of
-    // a pixel of that walk is a row edge antialiased two ways.
-    settled = sketch::scry::awaitAnswer(*scrolled, scrolledEvents,
-                                        "String(window.scrollY)",
-                                        std::to_string(kScrollBy)) &&
-              settled;
+    // where the walk is HEADING — it is reported as a whole number, so it
+    // reads 220 while the rows are still a fraction of a pixel short of
+    // it, which is a row edge antialiased two ways. What says the walk is
+    // OVER is the view going quiet.
+    settled = sketch::scry::awaitQuiet(*scrolled, scrolledEvents,
+                                       "String(window.scrollY)",
+                                       std::to_string(kScrollBy)) &&
+              sketch::scry::repaintWhole(*scrolled, scrolledEvents) && settled;
 
     // ---- the press ---------------------------------------------------
     std::shared_ptr<scry::WebView> pressed = open(*web);
@@ -213,10 +231,10 @@ struct WebScript final : sketch::Sketch {
     pressed->mouseUp(atX, atY);
     // The class the page's own handler adds is its statement that the
     // click arrived and the button has been repainted in it.
-    settled = sketch::scry::awaitAnswer(
+    settled = sketch::scry::awaitQuiet(
                   *pressed, pressedEvents,
                   "document.getElementById('btn').className", "hit") &&
-              settled;
+              sketch::scry::repaintWhole(*pressed, pressedEvents) && settled;
 
     views = {plain, scripted, scrolled, pressed};
     stills = {plainEvents.accepted(), scriptedEvents.accepted(),
@@ -240,9 +258,11 @@ struct WebScript final : sketch::Sketch {
          .footer =
              std::string(
                  "every call crosses to the web thread, so each cell was "
-                 "driven and then waited on for the engine's own events "
-                 "— the load, then the page's own answer that "
-                 "what the call asked for is what the latest frame shows") +
+                 "driven and then waited on for the engine's own events — "
+                 "the load, the page's own answer that what the call asked "
+                 "for has landed, and the view going quiet — and then "
+                 "painted whole, so no still carries the seams of how its "
+                 "driving was broken up") +
              (settled ? "" : "; one of those waits expired")},
         kit::cells(
             {.cells =

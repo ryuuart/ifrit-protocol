@@ -98,6 +98,40 @@ TEST(SketchSettledPage, APageSettlesOnAnEngineBootedAfterOneWasShutDown) {
   shared::shutdownSharedEngine();
 }
 
+TEST(SketchSettledPage,
+     AStillPageSettlesWithNoFurtherRepaintAndIsPaintedWhole) {
+  // The two doors a page that goes QUIET needs, and neither is what a
+  // page that keeps moving wants. A document with nothing animating
+  // stops handing frames over the moment it is there, so a settle that
+  // waited for the next repaint before it looked would wait for
+  // something that is not coming. And the still has to be a painting of
+  // the WHOLE page: the engine paints what a change damaged and copies
+  // the rest, so a page that was driven otherwise carries the seams of
+  // however that driving was broken into steps.
+  const std::shared_ptr<WebEngine> web = WebEngine::create(WebEngineConfig{});
+  if (!web) GTEST_SKIP() << "no web engine on this machine";
+  const std::shared_ptr<WebView> view = web->createView(120, 90);
+  ASSERT_NE(view, nullptr);
+
+  const sigil::sketch::scry::Events events(*view);
+  view->loadHTML(
+      "<html><body style='margin:0;background:#0000ff'></body></html>");
+  ASSERT_TRUE(events.awaitLoad());
+  ASSERT_TRUE(sigil::sketch::scry::awaitQuiet(
+      *view, events, "String(document.readyState)", "complete"))
+      << "the settle waited for a repaint this page was never going to make";
+  const WebView::Frame arrived = events.accepted();
+  ASSERT_TRUE(arrived.image);
+
+  ASSERT_TRUE(sigil::sketch::scry::repaintWhole(*view, events))
+      << "nothing was painted when the whole page was asked for";
+  const WebView::Frame whole = events.accepted();
+  ASSERT_TRUE(whole.image);
+  EXPECT_GT(whole.version, arrived.version)
+      << "the still is the frame the page arrived on, not a fresh painting";
+  EXPECT_EQ(corner(whole.image), SK_ColorBLUE);
+}
+
 TEST(SketchSettledPage, TheStillIsTheFrameTheSettleAcceptedAndNotALaterOne) {
   const std::shared_ptr<WebEngine> web = engine();
   if (!web) GTEST_SKIP() << "no web engine on this machine";
