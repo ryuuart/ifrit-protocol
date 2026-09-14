@@ -250,7 +250,16 @@ struct ImportNative {
     if (composed)
       fromCompose.slot(material::kit::kBaseColorSlot, composed->texture());
 
-    material::Material fromPage = screenSurface;
+    // THE PAGE SCREEN'S GROUND until a frame carries the page: the page's
+    // own, so a page arriving in a window is a picture appearing on a
+    // dark screen and not a screen changing colour — a slot with no map
+    // in it is shaded as the base colour alone, and white is a flash. A
+    // capture never shows the ground: its settle is behind it before its
+    // first frame.
+    material::Material fromPage =
+        pageFrame ? screenSurface
+                  : material::kit::unlit(
+                        {.baseColor = {0.043f, 0.063f, 0.094f, 1.0f}});
     if (pageFrame)
       fromPage.slot(material::kit::kBaseColorSlot,
                     material::Texture::of(pageFrame));
