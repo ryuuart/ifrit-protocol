@@ -19,6 +19,11 @@ std::shared_ptr<compose::TextureScene> SketchContext::textureScene(
   if (!fonts) return nullptr;
   std::shared_ptr<compose::TextureScene> scene =
       compose::TextureScene::make(size, *fonts, background);
+  // A CAPTURE THAT WILL BE DIFFED pins the scene's promoter off, as the
+  // session pinned its own composer's: the scene is the same runtime
+  // making the same measured decision on the same capture.
+  if (deterministic)
+    scene->setAutoTexturePromotion(compose::PromotionPolicy::Off);
   // Kept by the session, not by this context: the context is a per-frame
   // value and the scene outlives every one of them.
   if (scenes) scenes->push_back(scene);

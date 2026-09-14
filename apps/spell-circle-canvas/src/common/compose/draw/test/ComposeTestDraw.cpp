@@ -92,6 +92,39 @@ TEST(DrawNode, AProgramReadsThePromotionPolicyItsComposerRunsUnder) {
   EXPECT_EQ(seen, PromotionPolicy::Eager);
 }
 
+/** A RETAINED GUEST RUNS UNDER ITS HOST'S POLICY, whichever pen paints
+ *  it: the pen a pen program draws with, and the buffer's own pen a
+ *  graphics program draws with. A guest's composer paints its leaves
+ *  under the policy it runs under, so a leaf inside the guest reads what
+ *  the host pinned — and reads the next pin too, since a guest is told
+ *  again when the host's policy moves. */
+TEST(DrawNode, ARetainedGuestRunsUnderItsHostsPromotionPolicy) {
+  Host host;
+  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
+  PromotionPolicy byPen = PromotionPolicy::ByCost;
+  PromotionPolicy byGraphics = PromotionPolicy::ByCost;
+  const auto probe = [](PromotionPolicy& seen) {
+    return custom("probe", [&seen](SkCanvas&, const PaintContext& ctx) {
+             seen = ctx.promotion;
+           }).cache(Cache::None);
+  };
+  const Element penGuest = probe(byPen);
+  const Element graphicsGuest = probe(byGraphics);
+  const SkRect box = SkRect::MakeWH(40, 40);
+  host.composer.render(stack().children(
+      {pen([&](Pen& p) { p.element(penGuest, box); }).width(50).height(50),
+       graphics([&](Pen& g) { g.element(graphicsGuest, box); })
+           .width(50)
+           .height(50)}));
+  host.frame();
+  EXPECT_EQ(byPen, PromotionPolicy::Off);
+  EXPECT_EQ(byGraphics, PromotionPolicy::Off);
+  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Eager);
+  host.frame();
+  EXPECT_EQ(byPen, PromotionPolicy::Eager);
+  EXPECT_EQ(byGraphics, PromotionPolicy::Eager);
+}
+
 TEST(DrawNode, ACanvasFillsTheBoxItStandsIn) {
   // `cover()` is `absolute().inset(0)` said once, and a pen comes back
   // wearing it — a p5 canvas fills its box by nature.

@@ -113,10 +113,15 @@ class SketchbookView : public QQuickRhiItem {
   [[nodiscard]] qreal orbitPitch() const { return m_orbit.pitchDeg; }
   [[nodiscard]] qreal orbitDistance() const { return m_orbit.distance; }
 
-  /** Where a sketch looks for what it did not generate. Empty means
-   *  `assets/` beside whichever file is open, which is what makes a
-   *  directory of sketches outside this repository a place to work. */
+  /** WHAT MOUNTS AT res:// FOR THE SESSIONS THIS WINDOW OPENS: the
+   *  command line's `--assets`, else the demo root for a launch on the
+   *  registry, else empty for a launch on a file — whose own sessions
+   *  default to the `assets/` beside it, which is what makes a directory
+   *  of sketches outside this repository a place to work, and whose
+   *  registry sketches take the demo root. */
   static std::filesystem::path assetsDirectory;
+  /** The directory the compiled-in sketches stand in, mounted at
+   *  `sketch://` so a sketch this binary carries reaches its own files. */
   static std::filesystem::path sketchesDirectory;
   static std::filesystem::path flagsFile;
   /** WHAT THIS WINDOW'S FRAMES ARE OFFERED UNDER, and whether they are

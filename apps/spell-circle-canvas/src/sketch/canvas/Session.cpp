@@ -226,10 +226,15 @@ class CanvasSession final : public Session {
     // gain the scene chose and nothing here can see. So the declaration
     // outranks the request: such a scene is drawn from live paint.
     if (m_specification.nonlinearPicture) policy = Promotion::Off;
-    m_composer->setAutoTexturePromotion(policy == Promotion::Off ? Policy::Off
-                                        : policy == Promotion::Eager
-                                            ? Policy::Eager
-                                            : Policy::ByCost);
+    const Policy resolved = policy == Promotion::Off     ? Policy::Off
+                            : policy == Promotion::Eager ? Policy::Eager
+                                                         : Policy::ByCost;
+    m_composer->setAutoTexturePromotion(resolved);
+    // …and every scene the sketch keeps as a texture runs under the same
+    // rule: a run testing promotion reaches them, and one pinning it off
+    // reaches them too.
+    for (const std::shared_ptr<compose::TextureScene>& scene : m_scenes)
+      scene->setAutoTexturePromotion(resolved);
   }
 
   void setProfiling(bool on) override { m_composer->setProfiling(on); }

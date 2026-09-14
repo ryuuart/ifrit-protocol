@@ -139,13 +139,13 @@ and worn by a body</p>
 /** WHAT THE PAGE IS PUT THROUGH before a body may wear it: the document,
  *  its own word that it is complete, and the view going still.
  *
- *  Nothing here is counted against a clock. A wall-clock settle hands
- *  back whatever the machine had finished when it expired, so the
- *  picture becomes a function of the load rather than of the declaration
- *  — the same set photographed twice on one machine wears two pages. The
- *  page's own answer and the engine's own repaints either arrive or do
- *  not, and a page that never stopped changing is one this set cannot
- *  photograph. */
+ *  The page's own answer and the engine's own repaints either arrive or
+ *  do not, so the picture is a function of the declaration and not of
+ *  the load: the same set photographed twice on one machine wears one
+ *  page. The one clock in it is the quiet window, which says the view
+ *  has stopped publishing — a stretch with no event in it, which no
+ *  event can announce — and a page that never stops changing is one this
+ *  set cannot photograph. */
 sketch::scry::Sequence arriving() {
   return {.html = page(),
           .question = "String(document.readyState)",
@@ -181,32 +181,22 @@ struct ImportNative {
    *  while that view is still standing. */
   std::unique_ptr<sketch::scry::Settling> settling;
   sk_sp<SkImage> pageFrame;
-  bool deterministic = false;
-  bool wornStill = false;
-  uint64_t wornVersion = 0;
 
-  /** WHAT THE PAGE SCREEN WEARS. Once the settle is behind it, the still —
-   *  taken once, because it is the frame the settle stopped on and not
-   *  whatever the view holds later. Until then, in a window, the view's
-   *  own latest frame, taken as its version moves — but only once a
-   *  repaint carries the loaded document: a view paints its empty page
-   *  the moment it exists, and that blank is the engine's, not the
-   *  page's. A capture wears the still alone: its every frame is a
-   *  function of the scene time, and a page still arriving is not. */
+  /** WHAT THE PAGE SCREEN WEARS. Once the page has arrived, the still —
+   *  the frame the settle stopped on, not whatever the view holds later.
+   *  Until then, in a window, the view's own latest frame — but only
+   *  once a repaint carries the loaded document: a view paints its empty
+   *  page the moment it exists, and that blank is the engine's, not the
+   *  page's. A capture never wears the latest: its settle is behind it
+   *  before its first frame, so its every frame is a function of the
+   *  scene time. The material compares the frame it wears by identity,
+   *  so a frame re-read every frame is uploaded once. */
   void wearPage() {
     if (!settling) return;
-    if (settling->arrived()) {
-      if (!wornStill) {
-        pageFrame = settling->still().image;
-        wornStill = true;
-      }
-      return;
-    }
-    if (deterministic || !view || !settling->painted()) return;
-    const uint64_t version = view->frameVersion();
-    if (version == wornVersion) return;
-    wornVersion = version;
-    pageFrame = view->frame().image;
+    if (settling->arrived())
+      pageFrame = settling->still().image;
+    else if (view && settling->painted())
+      pageFrame = view->frame().image;
   }
 
   void setup(sketch::SetContext& ctx) {
@@ -229,8 +219,10 @@ struct ImportNative {
     // function of the scene time and a live page is not.
     const std::shared_ptr<scry::WebEngine> engine =
         sketch::scry::sharedEngine();
-    deterministic = ctx.deterministic;
     if (engine) {
+      // A settle standing from an earlier declaration goes before the
+      // view it latched, which the new view replaces.
+      settling.reset();
       view = engine->createView(kPageW, kPageH);
       settling = sketch::scry::settle(*view, arriving(), ctx.deterministic);
       // A CAPTURE HAS THE PAGE BY NOW, and an unsettled one is not a

@@ -710,25 +710,10 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       const size_t cover = coverStack.size();
       const int saves =
           granularPlane ? enterGates(false, Parts::kMarks, passes[i].name) : -1;
-      const PaintContext passCtx{
-          .size = paintCtx.size,
-          .outline = arith ? arith->spanPath(fullOutline, run) : fullOutline,
-          .silhouette = gateSilhouette(fullOutline, run),
-          .elapsedSeconds = paintCtx.elapsedSeconds,
-          .contentScale = paintCtx.contentScale,
-          .animating = paintCtx.animating,
-          .fonts = paintCtx.fonts,
-          .borrowed = paintCtx.borrowed,
-          .stamps = nullptr,  // deliberately not shared with a span pass
-          .toRoot = paintCtx.toRoot,
-          .rootSize = paintCtx.rootSize,
-          .ink = paintCtx.ink,
-          .font = paintCtx.font,
-          .vars = paintCtx.vars,
-          .pointer = paintCtx.pointer,
-          .keys = paintCtx.keys,
-          .bakeDensity = paintCtx.bakeDensity,
-          .promotion = paintCtx.promotion};
+      PaintContext passCtx = paintCtx;
+      passCtx.outline = arith ? arith->spanPath(fullOutline, run) : fullOutline;
+      passCtx.silhouette = gateSilhouette(fullOutline, run);
+      passCtx.stamps = nullptr;  // deliberately not shared with a span pass
       passes[i].what.paint(canvas, passCtx);
       if (granularPlane) leaveGates(saves, cover);
     }
@@ -759,25 +744,10 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     if (refine) {
       std::vector<Span> run = *refine;
       if (marksShow) run = intersect(run, *marksShow);
-      const PaintContext markCtx{
-          .size = paintCtx.size,
-          .outline = gateOutline(arith, fullOutline, run),
-          .silhouette = gateSilhouette(fullOutline, run),
-          .elapsedSeconds = paintCtx.elapsedSeconds,
-          .contentScale = paintCtx.contentScale,
-          .animating = paintCtx.animating,
-          .fonts = paintCtx.fonts,
-          .borrowed = paintCtx.borrowed,
-          .stamps = nullptr,  // not shared with a mark
-          .toRoot = paintCtx.toRoot,
-          .rootSize = paintCtx.rootSize,
-          .ink = paintCtx.ink,
-          .font = paintCtx.font,
-          .vars = paintCtx.vars,
-          .pointer = paintCtx.pointer,
-          .keys = paintCtx.keys,
-          .bakeDensity = paintCtx.bakeDensity,
-          .promotion = paintCtx.promotion};
+      PaintContext markCtx = paintCtx;
+      markCtx.outline = gateOutline(arith, fullOutline, run);
+      markCtx.silhouette = gateSilhouette(fullOutline, run);
+      markCtx.stamps = nullptr;  // not shared with a mark
       d.paint(canvas, markCtx);
     } else {
       d.paint(canvas, paintCtx);

@@ -209,6 +209,11 @@ std::unique_ptr<sketch::Host> SketchbookRenderer::openSketch(int index) {
   }
   if (!SketchbookView::fonts) return nullptr;  // nothing shapes text yet
   options.assetsDirectory = SketchbookView::assetsDirectory;
+  // A SKETCH THIS BINARY CARRIES reads the demo root whatever the window
+  // was opened on: a file on the command line names no root for the
+  // registry, only the assets beside itself.
+  if (options.assetsDirectory.empty() && options.compiledIn)
+    options.assetsDirectory = SIGIL_SKETCH_ASSET_DIR;
   options.sketchesDirectory = SketchbookView::sketchesDirectory;
   options.flagsFile = SketchbookView::flagsFile;
   // The file is the session's name: it is what distinguishes a registry

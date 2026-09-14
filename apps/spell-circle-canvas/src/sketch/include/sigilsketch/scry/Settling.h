@@ -7,11 +7,13 @@
  *
  * The steps are the ones a still of a driven page needs — load, an
  * optional script, an optional wheel or press, the page's own answer
- * that the driving landed, the view going quiet, and a whole repaint —
- * and they are the same steps whichever way they are driven, so the two
- * drives are one declaration seen twice. `<sigilsketch/scry/SettledPage.h>`
- * is the door underneath: every wait this blocks on and every reading it
- * asks belongs to the engine's own events.
+ * that the driving landed, the view going quiet, a whole repaint, and
+ * the script's own answer — and they are one machine whichever way it is
+ * driven: a window takes one look per frame, and a capture holds its
+ * thread on the event the current step waits for between looks.
+ * `<sigilsketch/scry/SettledPage.h>` is the door underneath: every
+ * reading a look asks and every wait a capture is held on belongs to the
+ * engine's own events.
  *
  * WHICH THREAD DOES WHAT. The engine paints and answers on its own
  * thread and writes what it did into the latched events. Everything
@@ -102,11 +104,10 @@ class Settling {
   Settling(const Settling&) = delete;
   Settling& operator=(const Settling&) = delete;
 
-  /** DRIVES THE WHOLE SEQUENCE HERE AND NOW, from its first step,
+  /** DRIVES THE WHOLE SEQUENCE HERE AND NOW, from wherever it stands,
    *  holding this thread on the engine's events until the page is
-   *  there. What a capture calls, and what nothing on a render thread
-   *  may. A settle is driven one way or the other, never both. True
-   *  when the page arrived. */
+   *  there or given up. What a capture calls, and what nothing on a
+   *  render thread may. True when the page arrived. */
   bool complete();
 
   /** ONE LOOK AT WHAT THE ENGINE HAS SAID, and the next step where the
@@ -136,10 +137,13 @@ class Settling {
   [[nodiscard]] std::string reply() const;
 
   /** THE FRAME THE SETTLE STOPPED ON — what a still of this page is a
-   *  picture of. Falsy until the whole sequence is behind it, because a
-   *  frame accepted part of the way through is a picture of the page
-   *  before the call it is being driven with landed; a sketch draws the
-   *  view's own latest until there is one. */
+   *  picture of. Falsy until the sequence is behind it, because a frame
+   *  accepted part of the way through is a picture of the page before
+   *  the call it is being driven with landed; a sketch draws the view's
+   *  own latest until there is one. A settle that gave up stopped on the
+   *  last frame a step accepted — the page as far as it got — so a
+   *  picture of a failed page is one picture too, and falsy only where
+   *  no step accepted any. */
   [[nodiscard]] sigil::scry::WebView::Frame still() const;
 
  private:
@@ -152,6 +156,7 @@ class Settling {
     Confirming,   // …and the document is still the one that was asked for
     PaintTaller,  // a whole painting: one pixel taller…
     PaintBack,    // …and back at the size the page was standing at
+    Answering,    // the script's own answer, where one was asked for
     Arrived,
     Broken,
   };
@@ -159,25 +164,33 @@ class Settling {
   /** The script, the wheel and the press, dispatched once the document
    *  is here. */
   void drive();
-  /** One transition, or none. True when the stage moved. */
+  /** ONE LOOK: the stage now standing is met and the sequence moves on,
+   *  or it is not, and a stage that has stood longer than a page that
+   *  is coming at all gives the page up. True when the stage moved. */
   bool step();
   /** The stage a met @p from leads to, given what the sequence has. */
   [[nodiscard]] Stage next(Stage from) const;
+  /** Moves the sequence on to @p to, entering it. Always true, so a
+   *  look that moved says so in one word. */
+  bool reach(Stage to);
   /** Ends the sequence. The frame a still is of was accepted by the
-   *  step that stopped on it, so nothing is latched here. */
-  bool stop(bool there);
+   *  step that stopped on it, so nothing is latched here; a view left
+   *  taller by a whole painting cut short is put back. */
+  void stop(bool there);
   /** What entering the stage now standing does: the mark its readings
-   *  are measured from, and the resize a whole painting is made by. */
+   *  are measured from, the first question of a settle that ends on the
+   *  view going still, and the resize a whole painting is made by. */
   void enter();
-  /** Blocks until the view stops publishing — the tail of a settle
-   *  with no question in it. */
-  bool awaitStill();
+  /** Puts the view back at its own size where a whole painting was cut
+   *  short between its two paintings. */
+  void restore();
   [[nodiscard]] static bool finished(Stage stage) {
     return stage == Stage::Arrived || stage == Stage::Broken;
   }
-  /** Whether the page has taken longer than a page that is coming at
-   *  all. Read only while advancing: a blocking drive is bounded by the
-   *  waits themselves. */
+  /** Whether the stage now standing has stood longer than a page that
+   *  is coming at all takes to meet it. Counted from the last move, so
+   *  a page that arrived while nobody was looking is not late for
+   *  being looked at late. */
   [[nodiscard]] bool unresponsive() const;
   /** Asks the sequence's question, marking the repaint count first, so
    *  a frame that lands while the page is answering is one the next
@@ -191,11 +204,10 @@ class Settling {
   Answer m_asked;  // the question outstanding, where one is
   uint64_t m_mark =
       0;  // the repaint count the outstanding question was asked at
-  std::chrono::steady_clock::time_point m_began;
+  std::chrono::steady_clock::time_point m_moved;  // when the stage last did
   std::chrono::steady_clock::time_point m_entered;  // when a quiet watch began
   SkISize m_size{0, 0};  // the view's own pixels, while it paints whole
   Stage m_stage = Stage::Loading;
-  bool m_everAsked = false;
 };
 
 /**

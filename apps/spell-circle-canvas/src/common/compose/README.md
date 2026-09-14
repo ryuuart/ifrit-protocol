@@ -663,7 +663,11 @@ sound model; nothing below them changes kernel semantics.
   wells and sheets accept this same value as their ground.
 - `core/Paint.h` — the paint values: `Fill`, `Corners`, `Backface`,
   `PaintContext`, `KeyState` — the keys a host fed, as a paint program
-  reads them beside `PaintContext::pointer` — `PaintProgram`, a drawing on
+  reads them beside `PaintContext::pointer` — `PromotionPolicy`, what
+  decides a texture promotion, which `PaintContext::promotion` carries as
+  the policy the painting composer runs under, so a program keeping a
+  composer of its own runs it under the same rule — `PaintProgram`, a
+  drawing on
   a canvas that NAMES ONLY THE PARAMETERS IT READS: the canvas and the
   context are both offered, so `[](SkCanvas& c) {…}`,
   `[](SkCanvas& c, const PaintContext& ctx) {…}` and `[] {…}` are all paint
@@ -1793,7 +1797,12 @@ over what it covers asks for the bake with `.cache(Cache::Texture)`.
 
 **WHAT DECIDES A PROMOTION IS A POLICY, AND ONE OF ITS VALUES HAS NO
 STOPWATCH IN IT.** `Composer::setAutoTexturePromotion` takes
-`PromotionPolicy::Off`, `ByCost` or `Eager`. `ByCost` is the default and
+`PromotionPolicy::Off`, `ByCost` or `Eager`, and the policy a composer
+runs under reaches every program it paints as `PaintContext::promotion`,
+so a program that keeps a composer of its own — a pen's retained guest,
+a `TextureScene` — runs it under the same rule, and a capture that
+pinned the session's promoter off pins every composer built inside its
+paint. `ByCost` is the default and
 the library's own judgement: a node is baked once its paint has measured
 over the threshold for several consecutive frames, which means the set of
 nodes promoted is a fact about how busy the machine was — on an idle one

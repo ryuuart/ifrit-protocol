@@ -176,8 +176,7 @@ Host::~Host() {
 void Host::openSession(const Kind& kind) {
   m_session.reset();
   if (!kind) return;
-  const std::chrono::steady_clock::time_point opened =
-      std::chrono::steady_clock::now();
+  const measure::Stopwatch opened;
   {
     PhaseMark mark(Phase::Setup);
     // A compiled-in sketch is keyed by its entry; a workspace sketch by
@@ -195,10 +194,7 @@ void Host::openSession(const Kind& kind) {
   // call runs the body's setup on the caller's thread, which in a window
   // is the thread that presents, so a setup that waits for anything is a
   // window that does not draw until it is over.
-  std::fprintf(stderr, "[sketch] set up in %.0f ms\n",
-               std::chrono::duration<double, std::milli>(
-                   std::chrono::steady_clock::now() - opened)
-                   .count());
+  std::fprintf(stderr, "[sketch] set up in %.0f ms\n", opened.elapsedMs());
   m_workMs.clear();  // fresh sketch, fresh numbers
   m_drawMs.clear();
   m_presentedFrames = 0;

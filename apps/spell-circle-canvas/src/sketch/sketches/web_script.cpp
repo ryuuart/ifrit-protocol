@@ -36,8 +36,7 @@
  * advanced from update(): each cell draws its own view live until its
  * sequence stops on a frame, the footer says the pages are still
  * arriving, and the sheet is described again as each one lands. One
- * declaration, two ways of driving it, decided by ctx.deterministic. See
- * <sigilsketch/scry/Settling.h>.
+ * declaration, two ways of driving it, decided by ctx.deterministic.
  *
  * AND EVERY STILL HERE IS THE FRAME THE PAGE WENT QUIET ON. The page's
  * own answer says the call landed; it does not say the picture has caught
@@ -162,6 +161,9 @@ struct WebScript {
    *  one. */
   std::vector<std::shared_ptr<scry::WebView>> views;
   std::vector<std::unique_ptr<sketch::scry::Settling>> pages;
+  /** How many times the sheet has been declared: what names a still
+   *  apart from an earlier declaration's under the same cell. */
+  int declared = 0;
 
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
@@ -178,8 +180,11 @@ struct WebScript {
     // creating a view is a call the engine answers on its own thread and
     // a page already loading holds that thread: a view asked for in
     // between waits for a document that is nothing to do with it.
-    views.clear();
+    // The settles go before the views they latched, and a declaration
+    // later than the first names its stills apart from the first's.
     pages.clear();
+    views.clear();
+    ++declared;
     for (int cell = 0; cell < 4; ++cell) views.push_back(open(*web));
 
     // One document, four views, one call apart. Each settle owns its
@@ -311,12 +316,12 @@ struct WebScript {
    *  size so nothing resamples — and the view itself while that frame is
    *  still coming.
    *
-   *  TWO DRAWINGS UNDER TWO KEYS, because a key IS a program's identity
-   *  and one key must name one picture: a page still arriving is the
-   *  view's own latest, which changes without anything being described
-   *  again and is therefore declared volatile, and a still is ONE frame
-   *  of the engine's, named by which one, and cached like any static
-   *  leaf.
+   *  ONE DRAWING UNDER ONE OF TWO KEYS, because a key IS a program's
+   *  identity and one key must name one picture: a page still arriving
+   *  is the view's own latest, which changes without anything being
+   *  described again and is therefore declared volatile, and a still is
+   *  ONE frame of the engine's, named by the declaration that took it,
+   *  and cached like any static leaf.
    *
    *  A CPU engine hands the frame over as an immutable image, and that
    *  image is the still however long the page goes on repainting. A GPU
@@ -327,25 +332,22 @@ struct WebScript {
                std::string note) const {
     const SkRect where = SkRect::MakeWH((float)kViewW, (float)kViewH);
     scry::WebView::Frame still = pages[at]->still();
-    // The view's own latest, once a repaint carries the loaded document:
-    // the blank a view paints the moment it exists is the engine's page,
-    // not this one's.
-    Element picture = custom(name + " · arriving",
-                             [view = views[at], settling = pages[at].get(),
-                              where](SkCanvas& canvas) {
-                               if (view && settling->painted())
-                                 view->draw(canvas, where);
-                             });
-    picture.cache(Cache::None);
-    if (still.image) {
-      const std::string key =
-          name + " · frame " + std::to_string(still.version);
-      picture =
-          custom(key, [still = std::move(still), where](SkCanvas& canvas) {
+    const std::string key = still.image
+                                ? name + " · still " + std::to_string(declared)
+                                : name + " · arriving";
+    // The view's own latest only once a repaint carries the loaded
+    // document: the blank a view paints the moment it exists is the
+    // engine's page, not this one's.
+    Element picture =
+        custom(key, [view = views[at], settling = pages[at].get(),
+                     still = std::move(still), where](SkCanvas& canvas) {
+          if (still.image)
             canvas.drawImageRect(still.image, where,
                                  SkSamplingOptions(SkFilterMode::kLinear));
-          });
-    }
+          else if (view && settling->painted())
+            view->draw(canvas, where);
+        });
+    if (!still.image) picture.cache(Cache::None);
     return sketch::kit::caption((float)kViewW, call, note,
                                 std::move(picture)
                                     .width((float)kViewW)

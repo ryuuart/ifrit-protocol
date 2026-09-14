@@ -21,18 +21,22 @@ namespace sigil::compose {
 
 namespace {
 
-/** THE POLICY THE COMPOSER PAINTING A PEN RUNS UNDER, kept with the
- *  pen's guests as what their host keeps for itself: a retained element's
- *  composer is built below the paint program, where no context reaches,
- *  and takes it from here. */
-struct HostPolicy {
-  PromotionPolicy promotion = PromotionPolicy::ByCost;
-};
+/** THE POLICY THE COMPOSER PAINTING A PEN RUNS UNDER, lent to the pen as
+ *  what a host keeps for its guests: a retained element's composer is
+ *  built below the paint program, where no context reaches, and takes it
+ *  from here. It is lent to the pen a program draws with — for a
+ *  graphics program the buffer's own pen, not the one the buffer is put
+ *  down with. */
+void lendPolicy(draw::Pen& pen, PromotionPolicy promotion) {
+  pen.retained().host() = promotion;
+}
 
-HostPolicy& hostPolicy(draw::Pen& pen) {
-  std::any& kept = pen.retained().host();
-  if (!kept.has_value()) kept = HostPolicy{};
-  return *std::any_cast<HostPolicy>(&kept);
+/** What was lent, or the default a composer starts under where nothing
+ *  was — a pen no program holds, or a slot another host keeps. */
+PromotionPolicy hostPolicy(draw::Pen& pen) {
+  const PromotionPolicy* lent =
+      std::any_cast<PromotionPolicy>(&pen.retained().host());
+  return lent ? *lent : PromotionPolicy::ByCost;
 }
 
 /** The pen a node draws with, and what the paint context does not
@@ -73,7 +77,7 @@ PaintProgram over(PenProgram program) {
                                               const PaintContext& ctx) {
     held->pen.begin(canvas, held->frameIn(ctx));
     held->pen.inherit(ctx.ink, ctx.font);
-    hostPolicy(held->pen).promotion = ctx.promotion;
+    lendPolicy(held->pen, ctx.promotion);
     program(held->pen, ctx);
     held->pen.end();
   };
@@ -120,7 +124,6 @@ PaintProgram onto(PenProgram program) {
     held->sinceDraw += frame.deltaSeconds;
     held->host.pen.begin(canvas, frame);
     held->host.pen.inherit(ctx.ink, ctx.font);
-    hostPolicy(held->host.pen).promotion = ctx.promotion;
     // The buffer is the node's box. It is formed on its first `begin`, at
     // the host pen's own density, and a box that has changed resizes it
     // with what it holds carried over rather than cleared.
@@ -134,6 +137,7 @@ PaintProgram onto(PenProgram program) {
     held->surface->setDensityFloor(ctx.bakeDensity);
     draw::Pen& g = held->surface->begin(held->host.pen);
     g.inherit(ctx.ink, ctx.font);
+    lendPolicy(g, ctx.promotion);
     if (shouldRun(g, *held)) {
       // The program's own clock, as p5 keeps it: the count counts runs,
       // and the step is the time since the last one, so a program under
@@ -161,11 +165,17 @@ struct Guest {
    *  nobody holds any more. */
   weave::FontContext* fonts = nullptr;
   std::unique_ptr<Composer> composer;
+  /** The policy the composer was last told to run under, so it is told
+   *  again only when the host's moves: the composer's setter drops what
+   *  a policy turned off by walking the tree it holds, and would walk it
+   *  every frame otherwise. Empty for a composer nothing has told. */
+  std::optional<PromotionPolicy> promotion;
   explicit Guest(weave::FontContext& context) { adopt(context); }
   void adopt(weave::FontContext& context) {
     fonts = &context;
     composer = std::make_unique<Composer>(ticker, context);
     composer->setClock(&clock);
+    promotion.reset();
   }
 };
 
@@ -205,7 +215,11 @@ void paintRetained(draw::Pen& pen, const Element& element, const SkRect& box,
   // promoter off reaches this composer too, and a run testing promotion
   // reaches it as well — the guest is the same runtime making the same
   // measured decision on the same capture.
-  guest.composer->setAutoTexturePromotion(hostPolicy(pen).promotion);
+  if (const PromotionPolicy policy = hostPolicy(pen);
+      guest.promotion != policy) {
+    guest.composer->setAutoTexturePromotion(policy);
+    guest.promotion = policy;
+  }
   const double step = guest.clock.advance(pen.deltaTime / 1000.0);
   guest.ticker.tick(step);
   guest.composer->setSize({box.width(), box.height()});

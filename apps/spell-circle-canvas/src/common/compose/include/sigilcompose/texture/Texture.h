@@ -24,6 +24,7 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSize.h>
 #include <sigilcompose/core/Element.h>
+#include <sigilcompose/core/Paint.h>
 #include <sigilmaterial/texture/Texture.h>
 
 #include <cstdint>
@@ -119,6 +120,11 @@ class TextureScene : public std::enable_shared_from_this<TextureScene> {
   /** The composer behind the scene — its stats and its queries, for a
    *  caller verifying what a frame cost. */
   const Composer& composer() const;
+  /** WHAT DECIDES A TEXTURE PROMOTION in that composer. A host taking a
+   *  capture that will be diffed pins it off, as it pins its own: a
+   *  promotion is a measured decision, and a measured decision is not a
+   *  function of the scene. */
+  void setAutoTexturePromotion(PromotionPolicy policy);
 
  private:
   TextureScene();

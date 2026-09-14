@@ -176,6 +176,10 @@ bool TextureScene::active() const { return m_impl->composer->active(); }
 
 const Composer& TextureScene::composer() const { return *m_impl->composer; }
 
+void TextureScene::setAutoTexturePromotion(PromotionPolicy policy) {
+  m_impl->composer->setAutoTexturePromotion(policy);
+}
+
 material::Texture texture(const Element& root, SkISize size,
                           weave::FontContext& fonts, SkColor4f background) {
   const std::shared_ptr<TextureScene> scene =

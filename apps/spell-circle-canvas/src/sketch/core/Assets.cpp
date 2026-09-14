@@ -41,7 +41,9 @@ std::string uriFor(std::string_view name) {
 
 Assets::Assets(std::filesystem::path root, std::filesystem::path sketches)
     : m_root(std::move(root)), m_sketches(std::move(sketches)) {
-  m_hub.mount("res://", m_root);
+  // An empty root mounts nothing: a name under it is a placeholder, not
+  // a file found wherever the process happened to be started.
+  if (!m_root.empty()) m_hub.mount("res://", m_root);
   // A sketch's own files stand beside it: `sketch://<key>/name` is the
   // file `name` in the directory the sketch's entry stands in, which for
   // a directory sketch is its own and for a bare file is the folder the

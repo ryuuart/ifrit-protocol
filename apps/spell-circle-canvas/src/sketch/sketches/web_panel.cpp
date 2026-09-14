@@ -33,8 +33,7 @@
 // update(): the page's leaf draws whatever the view has published so
 // far — nothing, at first — the caption says the page is still arriving,
 // and the scene is described again when it is there. One sequence, two
-// ways of driving it, decided by ctx.deterministic. See
-// <sigilsketch/scry/Settling.h>.
+// ways of driving it, decided by ctx.deterministic.
 //
 // EDIT THESE FIRST
 //   kPage                     — the document. It is the subject.
@@ -191,11 +190,11 @@ struct WebPanelSketch {
                              .captureAt = 1.0,
                              .background = hexColor(0x0b0a16)});
 
-    std::string why;
+    m_why.clear();
     const std::shared_ptr<scry::WebEngine> engine =
         sketch::scry::sharedEngine();
     if (!engine) {
-      why = "this sketch host has no shared web engine";
+      m_why = "this sketch host has no shared web engine";
     } else {
       m_slotName =
           "sigil-" + std::to_string(reinterpret_cast<std::uintptr_t>(this));
@@ -206,19 +205,17 @@ struct WebPanelSketch {
         m_sigil->paint(
             [](SkCanvas& canvas) { drawSigil(canvas, (float)kSlotSize); });
 
+      // A settle standing from an earlier declaration goes before the
+      // view it latched, which the new view replaces.
+      m_page.reset();
       m_view = engine->createView(kPageWidth, kPageHeight);
       // The settle owns the load, so nothing about the document can
       // happen between asking for it and listening. A capture comes back
       // from here with the page there; a window comes back at once.
       m_page = sketch::scry::settle(*m_view, {.html = pageFor(m_slotName)},
                                     ctx.deterministic);
-      if (m_page->broken()) {
-        why = "the page never loaded and painted";
-        m_view.reset();
-        m_page.reset();
-      }
     }
-    ctx.composer.render(m_view ? scene() : unavailable(why));
+    describe(ctx);
   }
 
   /** THE PAGE ARRIVES RATHER THAN BEING WAITED FOR: the settle is
@@ -230,16 +227,22 @@ struct WebPanelSketch {
   void update(double, sketch::SketchContext& ctx) {
     if (!m_page) return;
     const bool finished = m_page->advance();
-    const bool painted = m_page->painted();
-    if (!finished && painted == m_shownPage) return;
-    m_shownPage = painted;
-    if (!m_page->broken()) {
-      ctx.composer.render(scene());
-      return;
+    if (!finished && m_page->painted() == m_shownPage) return;
+    describe(ctx);
+  }
+
+  /** THE SCENE AS THE PAGE STANDS: the page once a repaint carries the
+   *  loaded document and its well until then — or, once the settle has
+   *  given the page up, the card that says why there is none. The settle
+   *  goes before the view it latched. */
+  void describe(sketch::SketchContext& ctx) {
+    if (m_page && m_page->broken()) {
+      m_why = "the page never loaded and painted";
+      m_page.reset();
+      m_view.reset();
     }
-    m_view.reset();
-    m_page.reset();
-    ctx.composer.render(unavailable("the page never loaded and painted"));
+    m_shownPage = m_page && m_page->painted();
+    ctx.composer.render(m_view ? scene() : unavailable(m_why));
   }
 
   [[nodiscard]] Element scene() const {
@@ -312,6 +315,8 @@ struct WebPanelSketch {
 
  private:
   std::string m_slotName;
+  /** Why there is no page, where there is none. */
+  std::string m_why;
   std::shared_ptr<scry::WebImage> m_sigil;
   std::shared_ptr<scry::WebView> m_view;
   /** After the view it settles, so the events it latched are released

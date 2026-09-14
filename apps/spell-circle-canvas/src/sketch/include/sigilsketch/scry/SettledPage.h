@@ -412,7 +412,12 @@ inline std::string answer(sigil::scry::WebView& view,
   const int height = view.height();
   const uint64_t taller = events.repaints();
   view.resize(width, height + 1);
-  if (!events.awaitRepaint(taller)) return false;
+  if (!events.awaitRepaint(taller)) {
+    // Put back at its size even so: a view left a pixel taller draws
+    // every later frame resampled into the box it stood in.
+    view.resize(width, height);
+    return false;
+  }
   const uint64_t back = events.repaints();
   view.resize(width, height);
   if (!events.awaitRepaint(back)) return false;
