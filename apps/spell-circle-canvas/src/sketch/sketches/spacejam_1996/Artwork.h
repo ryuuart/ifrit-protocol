@@ -39,10 +39,9 @@ inline Element artJump(sigil::weave::FontContext& f) {
 inline Element artBball(sigil::weave::FontContext& f) {
   const float W = S(62), H = S(62);
   return artBox(W, H).children(
-      {kit::disc(SkPoint{S(31), S(37.5f)}, S(25.5f))
-           .shape(shapes::circle())
-           .fill(ballMaterial(false, C5(0xFF9C10), C5(0xC66300), C5(0x843900),
-                              0.055f))
+      {kit::dot(SkPoint{S(31), S(37.5f)}, S(25.5f),
+                ballMaterial(false, C5(0xFF9C10), C5(0xC66300), C5(0x843900),
+                             0.055f))
            .stroke(stroke(S(1.2f), Fill::color(C5(0x632900)),
                           PathFormat::Align::Inner)),
        navLabel(f, "PLANET B-BALL", 0, S(0), W, S(10))});

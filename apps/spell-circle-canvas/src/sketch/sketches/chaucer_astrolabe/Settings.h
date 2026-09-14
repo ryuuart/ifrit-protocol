@@ -585,21 +585,8 @@ inline Transitioned<float> rise(Transition spec) {
   return animate(from(0.0f).to(1.0f), std::move(spec));
 }
 
-/** ONE CIRCLE STROKED AND NOT FILLED, of radius @p r about @p c: the ring
- *  this instrument is made of — a rule of the limb, a member of a family,
- *  a declination circle. */
-inline Element ring(SkPoint c, float r, PathFormat pen) {
-  return kit::disc(c, r)
-      .shape(shapes::circle())
-      .fill(Fill::none())
-      .stroke(std::move(pen));
-}
-
-/** ONE FILLED CIRCLE of radius @p r about @p c: a pole, a star, a
- *  crossing, a point of the construction. */
-inline Element dot(SkPoint c, float r, SurfacePaint paint) {
-  return kit::disc(c, r).shape(shapes::circle()).fill(std::move(paint));
-}
+using kit::dot;
+using kit::ring;
 
 /** One engraved circle: centre and radius in R units of the math frame,
  *  positioned in the plate box. This function is called ~73 times, and each

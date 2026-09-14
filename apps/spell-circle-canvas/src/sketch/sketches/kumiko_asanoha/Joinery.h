@@ -42,19 +42,8 @@ using namespace std::chrono_literals;
 
 namespace {
 
-/** ONE CIRCLE STROKED AND NOT FILLED, of radius @p r about @p c — the
- *  struck construction circle this drawing is derived from. */
-inline Element ring(SkPoint c, float r, PathFormat pen) {
-  return kit::disc(c, r)
-      .shape(shapes::circle())
-      .fill(Fill::none())
-      .stroke(std::move(pen));
-}
-
-/** ONE FILLED CIRCLE of radius @p r about @p c: a marked point. */
-inline Element dot(SkPoint c, float r, SurfacePaint paint) {
-  return kit::disc(c, r).shape(shapes::circle()).fill(std::move(paint));
-}
+using kit::dot;
+using kit::ring;
 
 // ---------------------------------------------------------------------------
 // Palette — wood-tone matches by eye, not a colorimeter reading

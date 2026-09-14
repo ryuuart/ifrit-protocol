@@ -1130,6 +1130,25 @@ TEST(KitLine, RunsDownWhereItIsAskedToAndTakesTheLengthItIsGiven) {
   EXPECT_FLOAT_EQ(shortRun.height(), 30);
 }
 
+TEST(KitFrame, ARingIsStrokedAndADotIsFilledAtTheirOwnRadius) {
+  Host host(120, 120);
+  host.composer.render(box().width(120).height(120).children(
+      {kit::ring({60, 60}, 40, stroke(4, green())).key("ring"),
+       kit::dot({60, 60}, 10, red()).key("dot")}));
+  host.frame();
+  // Each stands in the box its own radius names, about the point it was
+  // given — which is what `disc` decides and these two draw.
+  EXPECT_EQ(require(host.composer.bounds("ring")),
+            SkRect::MakeXYWH(20, 20, 80, 80));
+  EXPECT_EQ(require(host.composer.bounds("dot")),
+            SkRect::MakeXYWH(50, 50, 20, 20));
+  // The ring is a line and not a disc: its rim is inked and its middle is
+  // whatever stands there, which here is the dot.
+  EXPECT_EQ(host.pixel(60, 21), SK_ColorGREEN);
+  EXPECT_NE(host.pixel(60, 40), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(60, 60), SK_ColorRED);
+}
+
 TEST(KitLine, TakesAStatedFillOverTheInk) {
   Host host(60, 40);
   host.composer.render(

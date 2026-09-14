@@ -132,7 +132,7 @@ inline Element rect(float x, float y, float w, float h) {
 /** A shaded sphere: a circle-outlined box of 2r centred on c. Every planet
  *  here is flat-shaded with a hard limb — two stops and a dark edge. */
 inline Element sphere(SkPoint c, float r, mskia::Paint m) {
-  return kit::disc(c, r).shape(shapes::circle()).fill(std::move(m));
+  return kit::dot(c, r, std::move(m));
 }
 
 // ---------------------------------------------------------------------------

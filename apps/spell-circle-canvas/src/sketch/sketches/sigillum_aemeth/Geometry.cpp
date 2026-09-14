@@ -47,16 +47,15 @@ auto SigillumAemeth::waxGround() -> Element {
            .translateX(5)
            .translateY(11)
            .key("waxshadow"),
-       kit::disc(hub, kWaxEdge * kR)
-           .shape(shapes::circle())
-           .fill(Paint::blend({{Paint::radialUnit({0.42f, 0.36f}, 1.05f,
-                                                  {{0.0f, kWaxPale},
-                                                   {0.45f, kWaxLit},
-                                                   {0.82f, kWaxMid},
-                                                   {1.0f, kWaxDeep}}),
-                                SkBlendMode::kSrcOver},
-                               {waxGrain, SkBlendMode::kOverlay},
-                               {waxSpeck.material(), SkBlendMode::kMultiply}}))
+       kit::dot(hub, kWaxEdge * kR,
+                Paint::blend({{Paint::radialUnit({0.42f, 0.36f}, 1.05f,
+                                                 {{0.0f, kWaxPale},
+                                                  {0.45f, kWaxLit},
+                                                  {0.82f, kWaxMid},
+                                                  {1.0f, kWaxDeep}}),
+                               SkBlendMode::kSrcOver},
+                              {waxGrain, SkBlendMode::kOverlay},
+                              {waxSpeck.material(), SkBlendMode::kMultiply}}))
            .foreground(lines::presets::hatch(
                Fill::color(hexColor(0x6d5228, 0.10f)), 11.0f, 0.9f, -24.0f))
            .foreground(PathFormat{
@@ -67,18 +66,15 @@ auto SigillumAemeth::waxGround() -> Element {
            .key("wax"),
        // the burnish left by the shew-stone. A ball of quartz stood on the
        // middle of this figure for its whole working life.
-       kit::disc(hub, 0.33f * kR)
-           .shape(shapes::circle())
-           .fill(Paint::radialUnit({0.42f, 0.38f}, 1.0f,
-                                   {{0.0f, hexColor(0xfff6dd, 0.34f)},
-                                    {0.55f, hexColor(0xffeec6, 0.14f)},
-                                    {1.0f, hexColor(0x000000, 0.0f)}}))
+       kit::dot(hub, 0.33f * kR,
+                Paint::radialUnit({0.42f, 0.38f}, 1.0f,
+                                  {{0.0f, hexColor(0xfff6dd, 0.34f)},
+                                   {0.55f, hexColor(0xffeec6, 0.14f)},
+                                   {1.0f, hexColor(0x000000, 0.0f)}}))
            .blend(SkBlendMode::kScreen)
            .key("shew"),
-       kit::disc(hub, 0.335f * kR)
-           .shape(shapes::circle())
-           .fill(Fill::none())
-           .stroke(stroke(2.0f, Fill::color(hexColor(0x7d5f2c, 0.20f))))
+       kit::ring(hub, 0.335f * kR,
+                 stroke(2.0f, Fill::color(hexColor(0x7d5f2c, 0.20f))))
            .key("shewring")});
 }
 
@@ -126,18 +122,16 @@ auto SigillumAemeth::circumferenceRules() -> Element {
            .key("bandhatch"),
        rule(rGreat, 5.6f, 1.2f, 11.0f, "great", false),
        rule(rBandIn, 3.4f, 0.9f, -8.0f, "second", true),
-       kit::disc(SkPoint{kRR, kRR}, rBandIn * kR)
-           .shape(shapes::circle())
-           .fill(Fill::none())
-           .stroke(brush::Scatter{
-               .art = box()
-                          .width(5)
-                          .height(5)
-                          .shape(shapes::polygon(4))
-                          .fill(Fill::color(hexColor(0x2c1c06, 0.85f))),
-               .spacing = step,
-               .alignToPath = true,
-               .bleedPx = 8.0f})
+       kit::ring(SkPoint{kRR, kRR}, rBandIn * kR,
+                 brush::Scatter{
+                     .art = box()
+                                .width(5)
+                                .height(5)
+                                .shape(shapes::polygon(4))
+                                .fill(Fill::color(hexColor(0x2c1c06, 0.85f))),
+                     .spacing = step,
+                     .alignToPath = true,
+                     .bleedPx = 8.0f})
            .key("pricks")});
 }
 

@@ -78,9 +78,7 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
   // plate tone: real intaglio leaves the whole printed area faintly
   // toned. Clipped to the wheel, cached as a texture.
   if (kPlateTone)
-    g.children({kit::disc(kC, kRColour)
-                    .shape(shapes::circle())
-                    .fill(Fill::none())
+    g.children({kit::dot(kC, kRColour, Fill::none())
                     .foreground(decorations::wash(
                         plateTone, SkBlendMode::kMultiply, 0.055f))
                     .cache(Cache::Texture)});
@@ -98,15 +96,12 @@ auto ChevreulCircle::theWheel(sketch::SketchContext& ctx) -> Element {
 
   // ---- the medallion ----------------------------------------------
   const float rMed = kRColour * kInner;
-  g.children({kit::disc(kC, rMed + 3)
-                  .shape(shapes::circle())
-                  .fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                        {{0.0f, hexColor(0x8C8578, 0.0f)},
-                                         {0.72f, hexColor(0x8C8578, 0.0f)},
-                                         {1.0f, hexColor(0x8C8578, 0.22f)}})),
-              kit::disc(kC, rMed)
-                  .shape(shapes::circle())
-                  .fill(Fill::color(kPaper))
+  g.children({kit::dot(kC, rMed + 3,
+                       Paint::glowUnit({0.5f, 0.5f}, 1.0f,
+                                       {{0.0f, hexColor(0x8C8578, 0.0f)},
+                                        {0.72f, hexColor(0x8C8578, 0.0f)},
+                                        {1.0f, hexColor(0x8C8578, 0.22f)}})),
+              kit::dot(kC, rMed, Fill::color(kPaper))
                   .stroke(stroke(1.0f, Fill::color(kRule)))});
   {
     // the plate's own engraved caption, five lines, its own line breaks

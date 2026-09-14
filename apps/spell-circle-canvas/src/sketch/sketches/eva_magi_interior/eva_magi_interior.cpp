@@ -303,9 +303,7 @@ struct EvaMagiInterior : sketch::Sketch {
              .rect(frame)
              .fill(Fill::none())
              .foreground(decorations::border(7.0f, Fill::color(magi::kOrange))),
-         kit::disc(layout.busCentre, layout.busRadius)
-             .shape(shapes::circle())
-             .fill(Fill::none())
+         kit::dot(layout.busCentre, layout.busRadius, Fill::none())
              .foreground(decorations::border(
                  5.0f, Fill::color(magi::kOrangeDim), 0.0f)),
          greenBand(145.0f, 520.0f, 116.0f), greenBand(145.0f, 520.0f, 251.0f),

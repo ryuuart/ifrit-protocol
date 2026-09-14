@@ -6,10 +6,11 @@
  *
  * The coordinate systems themselves are SigilGeometry's
  * (`geometry::path::Frame`, the polar one; `geometry::path::Grid`, the
- * unit map). What is here is the three ways a NODE is placed by them — a
- * disc about a centre, a pinned box at absolute coordinates, and the disc
- * a frame's own radius names — and the line: a separator, a tick, a
- * caret, a whisker, which are one component at four thicknesses.
+ * unit map). What is here is the ways a NODE is placed by them — a disc
+ * about a centre, a pinned box at absolute coordinates, the disc a
+ * frame's own radius names, and the two circles that disc is drawn as,
+ * stroked and filled — and the line: a separator, a tick, a caret, a
+ * whisker, which are one component at four thicknesses.
  */
 
 #include <include/core/SkPoint.h>
@@ -17,6 +18,9 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilcompose/core/Shape.h>
+#include <sigilcompose/core/SurfacePaint.h>
+#include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Frame.h>
 
 #include <concepts>
@@ -95,6 +99,30 @@ template <class FrameLike>
   requires std::same_as<std::remove_cvref_t<FrameLike>, geometry::path::Frame>
 inline Element disc(const FrameLike& frame, float rNorm = 1.0f) {
   return disc(frame.centre, rNorm * frame.radius);
+}
+
+/** ONE CIRCLE STROKED AND NOT FILLED, of @p radius about @p centre: a
+ *  rule of a limb, a struck construction circle, a declination circle, an
+ *  orbit.
+ *
+ *      kit::ring(centre, r, stroke(1.2f, Fill::color(kInk)))
+ *
+ *  It is `disc` with the three verbs of pure ceremony that always follow
+ *  it written once — the circle's own silhouette, a fill of none and the
+ *  pen — because a box of radius r about a point is not yet a circle. */
+inline Element ring(SkPoint centre, float radius, Decoration pen) {
+  return disc(centre, radius)
+      .shape(geometry::shapes::circle())
+      .fill(Fill::none())
+      .stroke(std::move(pen));
+}
+
+/** ONE FILLED CIRCLE of @p radius about @p centre: a pole, a star, a
+ *  crossing, a marked point of a construction. */
+inline Element dot(SkPoint centre, float radius, SurfacePaint fill) {
+  return disc(centre, radius)
+      .shape(geometry::shapes::circle())
+      .fill(std::move(fill));
 }
 
 // ---------------------------------------------------------------------------
