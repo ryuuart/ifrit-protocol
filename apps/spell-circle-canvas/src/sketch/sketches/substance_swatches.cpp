@@ -56,6 +56,10 @@ constexpr float kMargin = 40;
 constexpr float kHeaderHeight = 104;
 constexpr float kCaptionHeight = 46;
 constexpr int kPerRow = 4;
+/** The grid is as wide as its own cards, so a share IS a card — which is
+ *  what lets the canvas be sized from the count rather than the other way
+ *  round. */
+constexpr float kGridWidth = kPerRow * kCard + (kPerRow - 1) * kGap;
 
 constexpr SkColor4f kInk = hexColor(0xf0ece4);
 constexpr SkColor4f kDim = hexColor(0xb4a894);
@@ -106,9 +110,9 @@ Element card(const Swatch& swatch) {
       .width(kCard);
 }
 
-Element notice(std::u8string heading, const std::string& detail) {
+Element notice(Utf8 heading, Utf8 detail) {
   return box()
-      .inset(kMargin, kMargin, kMargin, kMargin)
+      .inset(kMargin)
       .corners({16})
       .padding(28)
       .fill(Fill::color(hexColor(0x241c14, 0.9f)))
@@ -117,7 +121,8 @@ Element notice(std::u8string heading, const std::string& detail) {
       .gap(10)
       .children({text(std::move(heading),
                       weave::textStyle({.size = 22, .color = kInk})),
-                 text(detail, weave::textStyle({.size = 13, .color = kDim}))});
+                 text(std::move(detail),
+                      weave::textStyle({.size = 13, .color = kDim}))});
 }
 
 }  // namespace
@@ -136,6 +141,16 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
     return false;
   }
 
+  /** A PIECE THIS MACHINE CANNOT SHOW: the plate is the reason, on a
+   *  canvas sized for one notice rather than for cards that never came. */
+  void refuse(sketch::SketchContext& ctx, Utf8 heading, Utf8 detail) {
+    ctx.canvas(940, 320);
+    ctx.composer.render(
+        stack()
+            .fill(Fill::color(hexColor(0x140f0a)))
+            .children({notice(std::move(heading), std::move(detail))}));
+  }
+
   void setup(sketch::SketchContext& ctx) override {
     ctx.background(hexColor(0x140f0a));
     ctx.captureAt(0.5);
@@ -144,23 +159,15 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
     std::unique_ptr<substance::Package> package =
         substance::Package::load(archive(), &error);
     if (!package || package->graphCount() == 0) {
-      ctx.canvas(940, 320);
-      ctx.composer.render(
-          stack()
-              .fill(Fill::color(hexColor(0x140f0a)))
-              .children({notice(u8"the archive did not load",
-                                error.empty() ? archive().string() : error)}));
+      refuse(ctx, u8"the archive did not load",
+             error.empty() ? archive().string() : error);
       return;
     }
 
     substance::Graph& graph = package->graph(0);
     graph.setResolution(kCookLog2, kCookLog2);
     if (!graph.render()) {
-      ctx.canvas(940, 320);
-      ctx.composer.render(stack()
-                              .fill(Fill::color(hexColor(0x140f0a)))
-                              .children({notice(u8"the graph did not cook",
-                                                archive().string())}));
+      refuse(ctx, u8"the graph did not cook", archive().string());
       return;
     }
 
@@ -180,7 +187,7 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
     // fixed module and its gaps, which is that function run backwards.
     const int rows = ((int)swatches.size() + kPerRow - 1) / kPerRow;
     const float cardHeight = kCard + 7 + 18 + 7 + 16;
-    ctx.canvas(kMargin * 2 + kPerRow * kCard + (kPerRow - 1) * kGap,
+    ctx.canvas(kMargin * 2 + kGridWidth,
                kHeaderHeight + (float)rows * cardHeight +
                    (float)(rows - 1) * kGap + kCaptionHeight);
 
@@ -196,17 +203,13 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
         "%s · %zu parameters · %zu channels", graph.label().c_str(),
         graph.parameters().size(), swatches.size());
 
-    std::vector<Element> cards;
-    cards.reserve(swatches.size());
-    for (const Swatch& swatch : swatches) cards.push_back(card(swatch));
-    // The grid is as wide as its own cards, so a share IS a card: the
-    // canvas above was sized from the same arithmetic.
-    Element grid = box()
-                       .left(kMargin)
-                       .top(kHeaderHeight)
-                       .width(kPerRow * kCard + (kPerRow - 1) * kGap)
-                       .children({sketch::kit::panelGrid(
-                           {.cells = std::move(cards), .columns = kPerRow})});
+    Element grid =
+        box()
+            .left(kMargin)
+            .top(kHeaderHeight)
+            .width(kGridWidth)
+            .children({sketch::kit::panelGrid(
+                {.cells = each(swatches, card), .columns = kPerRow})});
 
     // No page stands here, so the root states the theme's registers.
     ctx.composer.render(
