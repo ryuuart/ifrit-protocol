@@ -191,7 +191,7 @@ struct LiveSettling final : sketch::Sketch {
             .column()
             .gap(10)
             .children({passage(measure, live, budget),
-                       text(report, sheet.mono(10, sheet.palette.figure))}));
+                       text(report).styleClass("readout")}));
   }
 };
 

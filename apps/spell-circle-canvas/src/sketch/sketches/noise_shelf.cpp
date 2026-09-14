@@ -104,8 +104,7 @@ Element field(const char* key, Field sample) {
 /** One line of the key column, in the theme's own terminal voice: what a
  *  fold answers is a word of hex and reads as one. */
 Element line(const std::string& row) {
-  const sketch::kit::Theme& sheet = sketch::kit::theme();
-  return text(row, sheet.mono(9.5f, sheet.palette.figure));
+  return text(row).styleClass("readout");
 }
 
 /** The plate every specimen on this sheet stands on, and the

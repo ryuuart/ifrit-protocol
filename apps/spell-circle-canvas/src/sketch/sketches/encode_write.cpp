@@ -107,7 +107,7 @@ Element cell(const char* call, const char* note, sk_sp<SkImage> picture,
       kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture})
           .children({std::move(art).inset(0),
-                     text(readout, sheet.mono(10, sheet.palette.figure))
+                     text(readout).styleClass("readout")
                          .left(6.0f)
                          .top(6.0f)
                          .padding(4, 2)

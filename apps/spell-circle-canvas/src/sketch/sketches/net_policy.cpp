@@ -96,7 +96,7 @@ Element cell(const char* call, const char* note,
           .column()
           .gap(10)
           .children({std::move(art),
-                     text(readout, sheet.mono(10, sheet.palette.figure))}));
+                     text(readout).styleClass("readout")}));
 }
 
 }  // namespace

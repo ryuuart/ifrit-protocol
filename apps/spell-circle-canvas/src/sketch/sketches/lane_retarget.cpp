@@ -124,7 +124,7 @@ Element cell(const char* call, const char* note, Element body,
       kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture})
           .children({std::move(body),
-                     text(readout, look.mono(10, look.palette.figure))
+                     text(readout).styleClass("readout")
                          .absolute()
                          .left(8.0f)
                          .top(6.0f)

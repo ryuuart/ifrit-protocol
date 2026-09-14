@@ -68,16 +68,11 @@ constexpr const char* kProbe = "hub";  // whose routes are listed
 
 constexpr SkColor4f kWire{0.42f, 0.62f, 0.78f, 1};
 
-/** The sheet's one class past the registers: the readout, in the mono
- *  face and the figure ink, which the probe plates and the answer lines
- *  share. */
+/** The sheet's classes are the theme's: the probe plates and the answer
+ *  lines are both set in `readout`, which is already the call register in
+ *  the figure ink. */
 weave::StyleSheet sheetClasses(const sketch::kit::Theme& look) {
-  weave::StyleSheet classes = look.styleSheet();
-  classes.set("readout", {.face = look.type.mono,
-                          .size = 10,
-                          .color = look.palette.figure,
-                          .track = 0});
-  return classes;
+  return look.styleSheet();
 }
 
 /** THE WORDS THE TWO ENUMS NAME, each run in its enum's own order, so a
