@@ -54,13 +54,13 @@ constexpr int kWholeWalk = (int)(kLateMoment * kRate);
 
 /** A sketch that counts the frames it is walked for and stops itself
  *  partway. */
-struct Counting : Sketch {
-  void setup(SketchContext& ctx) override {
+struct Counting {
+  void setup(SketchContext& ctx) {
     ctx.canvas(48, 32);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(kLateMoment);
   }
-  void update(double /*elapsed*/, SketchContext& ctx) override {
+  void update(double /*elapsed*/, SketchContext& ctx) {
     if (g_frames.fetch_add(1) + 1 >= kStopAfter) g_stop.store(true);
     ctx.composer.render(
         box().width(16).height(16).fill(Fill::color({1, 0, 0, 1})));
@@ -69,13 +69,13 @@ struct Counting : Sketch {
 
 /** The same walk, counted, with nothing that stops it — what a budget
  *  and a plate declaration are read against. */
-struct Long : Sketch {
-  void setup(SketchContext& ctx) override {
+struct Long {
+  void setup(SketchContext& ctx) {
     ctx.canvas(48, 32);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(kLateMoment);
   }
-  void update(double /*elapsed*/, SketchContext& ctx) override {
+  void update(double /*elapsed*/, SketchContext& ctx) {
     g_frames.fetch_add(1);
     ctx.composer.render(
         box().width(16).height(16).fill(Fill::color({0, 1, 0, 1})));
@@ -85,14 +85,14 @@ struct Long : Sketch {
 /** A sketch that declares itself a plate: judged on the cost of its
  *  still rather than on holding a frame rate, which is the declaration
  *  a fill stands down on. */
-struct Plate : Sketch {
-  void setup(SketchContext& ctx) override {
+struct Plate {
+  void setup(SketchContext& ctx) {
     ctx.canvas(48, 32);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(0.1);
     ctx.plate();
   }
-  void update(double /*elapsed*/, SketchContext& ctx) override {
+  void update(double /*elapsed*/, SketchContext& ctx) {
     g_frames.fetch_add(1);
     ctx.composer.render(
         box().width(16).height(16).fill(Fill::color({0, 0, 1, 1})));
@@ -141,13 +141,13 @@ struct PainterReached : render::Executor {
 /** A 2D sketch that stands one mesh up in space through whichever
  *  painter it was opened on — the shape `floating_panels` and
  *  `painter_gpu` are, with nothing else on the sheet. */
-struct Standing : Sketch {
-  void setup(SketchContext& ctx) override {
+struct Standing {
+  void setup(SketchContext& ctx) {
     ctx.canvas(48, 32);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(0.05);
   }
-  void update(double /*elapsed*/, SketchContext& ctx) override {
+  void update(double /*elapsed*/, SketchContext& ctx) {
     // The painter is read where a sketch reads it: from inside the body,
     // as it declares.
     ctx.composer.render(box().width(32).height(24).children(
@@ -162,13 +162,13 @@ struct Standing : Sketch {
 
 /** A set with nothing in it: what is being asserted is which runtime the
  *  session opened on, which needs no subject. */
-struct Lit : Set {
-  void setup(SetContext& ctx) override {
+struct Lit {
+  void setup(SetContext& ctx) {
     ctx.canvas(48, 32);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(0.05);
   }
-  world::Frame describe(float /*seconds*/) override {
+  world::Frame describe(float /*seconds*/) {
     return world::Element().key("empty");
   }
 };

@@ -20,8 +20,8 @@ at all.
 namespace sketch = sigil::sketch;
 using namespace sigil::compose;
 
-struct BorderWeave final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct BorderWeave {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = {1100, 424}, .captureAt = 0.05});
     ctx.composer.render(sketch::kit::page(
         {.title = "THE RULE AND THE STRANDS",

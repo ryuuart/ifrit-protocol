@@ -33,14 +33,14 @@ Assets& assets() {
 
 /** A ring of bodies, all turning: the description changes every frame,
  *  so what is measured is reconcile plus draw rather than a still tree. */
-struct Ring : Set {
-  void setup(SetContext& ctx) override {
+struct Ring {
+  void setup(SetContext& ctx) {
     ctx.canvas(480, 320);
     sigil::geometry::mesh::camera::Camera lens;
     lens.eye = {0, 200, 520};
     ctx.camera(lens);
   }
-  world::Frame describe(float seconds) override {
+  world::Frame describe(float seconds) {
     world::Element root =
         world::Element().key("set").children({world::Element().key("sun").light(
             world::light::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f))});

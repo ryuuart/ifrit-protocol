@@ -47,7 +47,7 @@ using namespace sigil::compose;
 
 namespace {
 
-struct @NAME@ final : sketch::Sketch {
+struct @NAME@ {
   /** Anything the sketch did not generate itself arrives through the
    *  asset store. A file that is not there yet answers with the
    *  placeholder and heals the moment one appears, so this draws before
@@ -72,7 +72,7 @@ struct @NAME@ final : sketch::Sketch {
                        .inset(64, 150, 64, 0)});
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     // The canvas this sketch wants, and the moment a still of it is
     // worth taking. The ground is the theme's unless this says another.
     sketch::kit::stage(ctx, {.size = {960, 600}, .captureAt = 0.4});

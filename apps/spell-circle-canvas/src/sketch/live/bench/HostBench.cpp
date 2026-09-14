@@ -26,8 +26,8 @@ sigil::weave::FontContext& fonts() {
   return *context;
 }
 
-struct Square : Sketch {
-  void setup(SketchContext& ctx) override {
+struct Square {
+  void setup(SketchContext& ctx) {
     ctx.canvas(320, 240);
     ctx.composer.render(
         box().width(80).height(80).fill(Fill::color({0, 1, 0, 1})));

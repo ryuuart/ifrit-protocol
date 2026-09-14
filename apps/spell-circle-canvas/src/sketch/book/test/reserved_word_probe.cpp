@@ -30,8 +30,8 @@ using namespace sigil::compose;
 
 namespace {
 
-struct ReservedWordProbe final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct ReservedWordProbe {
+  void setup(sketch::SketchContext& ctx) {
     ctx.canvas(640, 400);
     ctx.background({0.02f, 0.02f, 0.04f, 1});
     ctx.captureAt(0.1);

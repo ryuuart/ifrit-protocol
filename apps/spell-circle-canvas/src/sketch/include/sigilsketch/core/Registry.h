@@ -74,6 +74,34 @@ template <class SketchType>
     return true;
 }
 
+namespace detail {
+/** False, and dependent on the type, so the assertion below is read only
+ *  where this overload of `kindOf` is the one that answered. */
+template <class>
+inline constexpr bool kNoSurface = false;
+}  // namespace detail
+
+/** THE KIND A REGISTERED TYPE DRAWS THROUGH, answered by the surface
+ *  header the sketch file included: each declares an overload of this
+ *  constrained to the bodies it recognises, so which runtime a sketch
+ *  draws through is read off the members the type spells rather than
+ *  chosen anywhere.
+ *
+ *  THIS ONE ANSWERS FOR A TYPE NO SURFACE RECOGNISES, which is a member
+ *  spelled some other way, and names what a body has to spell — rather
+ *  than leaving the registration to fail in the words of the prefix
+ *  search behind it. */
+template <class SketchType>
+[[nodiscard]] Kind kindOf() {
+  static_assert(detail::kNoSurface<SketchType>,
+                "SIGIL_SKETCH takes a sketch. A canvas sketch (the "
+                "sketch::CanvasSketch concept) names setup(SketchContext&) "
+                "or setup(); a set (sketch::SetSketch) names "
+                "describe(float seconds) or describe(), answering a "
+                "world::Frame. This type names none of them.");
+  return {};
+}
+
 /** Every sketch linked into this binary, ordered by category and then by
  *  name.
  *
@@ -129,10 +157,12 @@ bool add(const char* key, const char* name, const char* category,
 [[nodiscard]] std::string title(std::string_view name);
 
 /** The ABI a sketch dylib must have been built against, bumped whenever
- *  anything crossing the host/dylib line changes shape. A host refuses a
- *  dylib built against another version rather than letting a stale
- *  binary corrupt it. */
-inline constexpr unsigned kAbiVersion = 8;
+ *  anything crossing the host/dylib line changes shape — the Entry a
+ *  dylib hands back, the Kind its factory answers with, and the body
+ *  pointer that kind opens a session on. A host refuses a dylib built
+ *  against another version rather than letting a stale binary corrupt
+ *  it. */
+inline constexpr unsigned kAbiVersion = 9;
 
 }  // namespace sigil::sketch
 

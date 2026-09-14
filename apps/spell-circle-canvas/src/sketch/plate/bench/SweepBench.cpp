@@ -33,8 +33,8 @@ Assets& assets() {
   return *store;
 }
 
-struct Probe : Sketch {
-  void setup(SketchContext& ctx) override {
+struct Probe {
+  void setup(SketchContext& ctx) {
     ctx.canvas(64, 48);
     ctx.captureAt(0.1);  // six steps: the harness, not the scene
     ctx.composer.render(

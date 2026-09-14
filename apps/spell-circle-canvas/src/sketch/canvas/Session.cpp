@@ -69,7 +69,7 @@ class PainterScope {
  *  questions: what the BODY did, and what the runtime did with it. */
 class CanvasSession final : public Session {
  public:
-  CanvasSession(Sketch* sketch, weave::FontContext& fonts, Assets& assets,
+  CanvasSession(CanvasBody* sketch, weave::FontContext& fonts, Assets& assets,
                 bool deterministic,
                 const geometry::mesh::render::Runtime& painter,
                 std::string_view key = {})
@@ -334,7 +334,7 @@ class CanvasSession final : public Session {
    *  and a texture a retained tree holds are still standing when their
    *  owners go. */
   std::vector<std::shared_ptr<compose::TextureScene>> m_scenes;
-  std::unique_ptr<Sketch> m_sketch;
+  std::unique_ptr<CanvasBody> m_sketch;
   // After the sketch: reverse destruction releases retained descriptions
   // (which may point at sketch-owned Outputs) before their owner.
   std::unique_ptr<compose::Composer> m_composer;

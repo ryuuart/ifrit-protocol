@@ -6,8 +6,8 @@
 #include <cstdlib>
 
 namespace {
-struct CaptureViewport final : sigil::sketch::Sketch {
-  void setup(sigil::sketch::SketchContext& ctx) override {
+struct CaptureViewport {
+  void setup(sigil::sketch::SketchContext& ctx) {
     using namespace sigil::compose;
     ctx.canvas(640, 400);
     ctx.composer.render(

@@ -14,11 +14,11 @@
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/CanvasSpecification.h>
 #include <sigilsketch/core/Device.h>
+#include <sigilsketch/core/Members.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
 
 #include <algorithm>
-#include <concepts>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -260,7 +260,19 @@ struct SketchContext {
   }
 };
 
-/** A SKETCH THAT DRAWS A COMPOSE ELEMENT TREE.
+/** A SKETCH THAT DRAWS A COMPOSE ELEMENT TREE: any type that can be
+ *  asked to set itself up. There is no base class and nothing to
+ *  inherit — a struct spelling `setup(SketchContext&)` is a sketch, and
+ *  `setup()` is accepted too, from a body that reads nothing off the
+ *  context. `setup` is called once per (re)load and again when an asset
+ *  file changes; declare the scene there, animation wiring included.
+ *
+ *  A sketch may also spell `update`, which is called every frame with
+ *  the clock's elapsed seconds and the context — or with the seconds
+ *  alone, or with neither, since a body names the prefix of that offer
+ *  it reads. React to DATA changes there by rendering a fresh
+ *  description; leave per-frame motion to bindings and Cache::None paint
+ *  programs.
  *
  *  Retained-mode, not p5's redraw loop — three paths for motion:
  *   1. setup() DECLARES the scene once, wiring in its animation (bound
@@ -275,26 +287,46 @@ struct SketchContext {
  *  Keep state in members: every reload constructs a fresh instance,
  *  while the shared clock keeps running, so elapsed time is continuous
  *  across an edit. */
-class Sketch {
+template <class SketchType>
+concept CanvasSketch =
+    core::PrefixCallable<detail::SetupCall<SketchType>, void(SketchContext&)>;
+
+/** WHAT A SESSION DRIVES: one canvas sketch, behind the two calls a host
+ *  makes of it. The sketch itself derives from nothing and declares no
+ *  virtual of its own; this is the vtable, built out of the members the
+ *  type spells, and the only thing that holds a sketch by pointer. */
+class CanvasBody {
  public:
-  virtual ~Sketch() = default;
-  /** Called once per (re)load and again when an asset file changes.
-   *  Declare the scene here, animation wiring included. */
+  virtual ~CanvasBody() = default;
   virtual void setup(SketchContext& ctx) = 0;
-  /** Called every frame with the clock's elapsed seconds — react to DATA
-   *  changes here by re-rendering a fresh description; leave per-frame
-   *  motion to bindings and Cache::None paint programs. */
-  virtual void update(double elapsed, SketchContext& ctx) {
-    (void)elapsed;
-    (void)ctx;
+  virtual void update(double elapsed, SketchContext& ctx) = 0;
+};
+
+/** ONE SKETCH OF TYPE @p SketchType, OWNED, answering those calls with
+ *  the parameters it named — so a body spelling `setup()` is set up with
+ *  nothing, and one spelling no `update` at all is stepped by doing
+ *  nothing. */
+template <CanvasSketch SketchType>
+class CanvasBodyOf final : public CanvasBody {
+ public:
+  void setup(SketchContext& ctx) override {
+    core::callPrefix(detail::SetupCall<SketchType>{m_sketch}, ctx);
   }
+  void update(double elapsed, SketchContext& ctx) override {
+    if constexpr (core::PrefixCallable<detail::UpdateCall<SketchType>,
+                                       void(double, SketchContext&)>)
+      core::callPrefix(detail::UpdateCall<SketchType>{m_sketch}, elapsed, ctx);
+  }
+
+ private:
+  SketchType m_sketch;
 };
 
 /** THE 2D KIND: a compose Element tree, reconciled by a Composer and
  *  painted onto a canvas, driven by a clock the host owns. */
 class CanvasKind final : public KindOperations {
  public:
-  using Factory = Sketch* (*)();
+  using Factory = CanvasBody* (*)();
   explicit CanvasKind(Factory factory) : m_factory(factory) {}
   /** Written out rather than defaulted: the operations a kind answers
    *  are an abstract base, and a defaulted comparison would try to
@@ -382,17 +414,17 @@ void usePainterRuntime(const geometry::mesh::render::Runtime& runtime);
  *  which is what keeps a registration initializer non-throwing whatever
  *  the sketch's constructor does. */
 template <class SketchType>
-[[nodiscard]] Sketch* makeCanvasSketch() {
-  return new SketchType();
+[[nodiscard]] CanvasBody* makeCanvasBody() {
+  return new CanvasBodyOf<SketchType>();
 }
 
 /** The kind a 2D sketch draws through. SIGIL_SKETCH resolves this from
  *  the type it is handed, so a file that includes this header registers
  *  for the compose runtime and cannot register for another. */
 template <class SketchType>
-  requires std::derived_from<SketchType, Sketch>
+  requires CanvasSketch<SketchType>
 [[nodiscard]] Kind kindOf() {
-  return CanvasKind{&makeCanvasSketch<SketchType>};
+  return CanvasKind{&makeCanvasBody<SketchType>};
 }
 
 }  // namespace sigil::sketch

@@ -75,10 +75,9 @@ sigil_doc_probes(draw
            "<sigilweave/paragraph/Paragraph.h>"
   EXCLUDE "sigil::sketch=SigilSketch stands on this library, so its names are named and not probed"
           "sigil::compose=SigilCompose stands on this library, so its names are named and not probed"
-          "sketch::Sketch=SigilSketch stands on this library, so its names are named and not probed"
+          "sketch::SetSketch=SigilSketch stands on this library, so its names are named and not probed"
           "sketch::SketchContext=SigilSketch stands on this library, so its names are named and not probed"
-          "sketch::Set=SigilSketch stands on this library, so its names are named and not probed"
-          "compose::pen=SigilCompose stands on this library, so its names are named and not probed"
+                    "compose::pen=SigilCompose stands on this library, so its names are named and not probed"
           "compose::graphics=SigilCompose stands on this library, so its names are named and not probed"
   FLOORS 20,3,1,0,5
   LIBRARIES SigilDraw SigilDrawBrush SigilIOSource SigilWeavePorts)

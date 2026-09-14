@@ -41,13 +41,13 @@ using sigil::test::ScratchDir;
 
 /** A moving scene with a declared moment, so what the sweep captures
  *  depends on the declaration and could differ if it did not. */
-struct Probe : Sketch {
-  void setup(SketchContext& ctx) override {
+struct Probe {
+  void setup(SketchContext& ctx) {
     ctx.canvas(64, 48);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(0.5);
   }
-  void update(double elapsed, SketchContext& ctx) override {
+  void update(double elapsed, SketchContext& ctx) {
     ctx.composer.render(box()
                             .width(10)
                             .height(10)
@@ -59,13 +59,13 @@ struct Probe : Sketch {
 /** Red until a deliberately late capture moment, then green and still. The
  *  Story tests can distinguish an honest pre-roll from an early loading cut,
  *  and can measure whether editorial motion shifted its frame. */
-struct StoryMomentProbe : Sketch {
-  void setup(SketchContext& ctx) override {
+struct StoryMomentProbe {
+  void setup(SketchContext& ctx) {
     ctx.canvas(64, 48);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(2.0);
   }
-  void update(double elapsed, SketchContext& ctx) override {
+  void update(double elapsed, SketchContext& ctx) {
     ctx.composer.render(box().width(64).height(48).fill(Fill::color(
         elapsed > 1.9 ? SkColor4f{0, 1, 0, 1} : SkColor4f{1, 0, 0, 1})));
   }
@@ -76,9 +76,9 @@ struct StoryMomentProbe : Sketch {
  *  montage's pre-roll: the picture IS the frames already drawn, and the
  *  canvas belongs to the node rather than to the surface the host steps
  *  on, so the march has to survive a pre-roll taken somewhere else. */
-struct DrawnTrail : Sketch {
+struct DrawnTrail {
   int drawn = 0;
-  void setup(SketchContext& ctx) override {
+  void setup(SketchContext& ctx) {
     ctx.canvas(64, 48);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(0.5);
@@ -101,8 +101,8 @@ struct DrawnTrail : Sketch {
 constexpr float kWideW = 1600;
 constexpr float kWideH = 100;
 
-struct WidePlate : Sketch {
-  void setup(SketchContext& ctx) override {
+struct WidePlate {
+  void setup(SketchContext& ctx) {
     ctx.canvas(kWideW, kWideH);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(0.1);
@@ -111,8 +111,8 @@ struct WidePlate : Sketch {
   }
 };
 
-struct WidePlateAtTwo : Sketch {
-  void setup(SketchContext& ctx) override {
+struct WidePlateAtTwo {
+  void setup(SketchContext& ctx) {
     ctx.canvas(kWideW, kWideH);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(0.1);
@@ -124,12 +124,12 @@ struct WidePlateAtTwo : Sketch {
 
 /** A sketch over something this machine does not have. The probe is a
  *  static member, which is how a sketch states its own requirement. */
-struct Ungrounded : Sketch {
+struct Ungrounded {
   static bool available(std::string* why) {
     if (why) *why = "the thing it draws is not installed";
     return false;
   }
-  void setup(SketchContext& ctx) override {
+  void setup(SketchContext& ctx) {
     ctx.canvas(64, 48);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(0.1);

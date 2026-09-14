@@ -28,8 +28,8 @@ Assets& assets() {
 
 /** A grid of filled boxes, described once. Nothing re-describes, so what
  *  is measured is the session's own per-frame cost. */
-struct Grid : Sketch {
-  void setup(SketchContext& ctx) override {
+struct Grid {
+  void setup(SketchContext& ctx) {
     ctx.canvas(640, 480);
     Element root = stack();
     for (int i = 0; i < 64; ++i) {

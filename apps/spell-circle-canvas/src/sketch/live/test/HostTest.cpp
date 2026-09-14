@@ -32,10 +32,10 @@ using sigil::sketch::test::kSquare;
 using sigil::sketch::test::Watched;
 
 /** A body whose setup count makes a runtime-session restart observable. */
-struct Restarted : Sketch {
+struct Restarted {
   static inline int setups = 0;
 
-  void setup(SketchContext& ctx) override {
+  void setup(SketchContext& ctx) {
     ++setups;
     ctx.canvas(120, 90);
     ctx.composer.render(sigil::compose::box().width(20).height(20));

@@ -33,10 +33,10 @@ using namespace sigil::compose;
 
 namespace {
 
-struct DeviceImportProbe : sketch::Sketch {
+struct DeviceImportProbe {
   bool imported = false;
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     ctx.canvas(360, 120);
     ctx.background({0.06f, 0.07f, 0.10f, 1});
 

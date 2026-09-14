@@ -19,8 +19,8 @@ namespace sigil::sketch::test {
 /** One green square, and nothing else: the body under every host here.
  *  It declares a moment so a host can be asked what the running sketch
  *  wants a still taken at. */
-struct Square : Sketch {
-  void setup(SketchContext& ctx) override {
+struct Square {
+  void setup(SketchContext& ctx) {
     ctx.canvas(120, 90);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(kMoment);
@@ -40,8 +40,8 @@ inline const Entry kSquare{"square", "square", "Test", "", &squareKind};
  *  hosts in one process each open one of these, so a case can ask
  *  whether a host still answers with the sketch IT opened after another
  *  host beside it has built. */
-struct Wide : Sketch {
-  void setup(SketchContext& ctx) override {
+struct Wide {
+  void setup(SketchContext& ctx) {
     ctx.canvas(200, 100);
     ctx.background({0, 0, 0, 1});
     ctx.composer.render(compose::box().width(60).height(20).fill(

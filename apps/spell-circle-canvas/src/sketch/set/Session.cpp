@@ -64,7 +64,7 @@ void throughPasses(world::Frame& frame, const SkColor4f& background) {
 /** ONE 3D SKETCH, RUNNING. */
 class SetSession final : public Session {
  public:
-  SetSession(Set* set, weave::FontContext& fonts, Assets& assets,
+  SetSession(SetBody* set, weave::FontContext& fonts, Assets& assets,
              world::Runtime runtime)
       : m_set(set), m_scene(m_ticker), m_runtime(std::move(runtime)) {
     m_specification.size = {900, 640};
@@ -221,7 +221,7 @@ class SetSession final : public Session {
    *  retained scene, so they outlive both: a texture a body wears is
    *  still standing when its wearer goes. */
   std::vector<std::shared_ptr<compose::TextureScene>> m_scenes;
-  std::unique_ptr<Set> m_set;
+  std::unique_ptr<SetBody> m_set;
   /** Taken once, when this session opened: every frame it draws goes
    *  through this one, whatever the process installed after. */
   world::Runtime m_runtime;

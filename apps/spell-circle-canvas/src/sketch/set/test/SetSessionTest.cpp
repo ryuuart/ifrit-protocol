@@ -42,9 +42,9 @@ using sigil::sketch::test::samePicture;
 /** One box on a turntable, and nothing else. It counts the times its
  *  body was asked to describe, which is the observable behind the
  *  difference between stepping and repainting. */
-struct Spun : Set {
+struct Spun {
   static inline int describes = 0;
-  void setup(SetContext& ctx) override {
+  void setup(SetContext& ctx) {
     ctx.canvas(160, 120);
     ctx.background({0.05f, 0.05f, 0.08f, 1});
     ctx.captureAt(0.5);
@@ -53,7 +53,7 @@ struct Spun : Set {
     lens.target = {0, 0, 0};
     ctx.camera(lens);
   }
-  world::Frame describe(float seconds) override {
+  world::Frame describe(float seconds) {
     ++describes;
     return world::Element().key("set").children(
         {world::Element().key("sun").light(
@@ -68,9 +68,9 @@ struct Spun : Set {
 
 /** A set that paints a compose sheet into a texture the session keeps,
  *  and wears it on one unlit card facing the camera. */
-struct Screened : Set {
+struct Screened {
   std::shared_ptr<sigil::compose::TextureScene> screen;
-  void setup(SetContext& ctx) override {
+  void setup(SetContext& ctx) {
     ctx.canvas(160, 120);
     ctx.background({0, 0, 0, 1});
     sigil::geometry::mesh::camera::Camera lens;
@@ -79,7 +79,7 @@ struct Screened : Set {
     ctx.camera(lens);
     screen = ctx.textureScene({64, 64});
   }
-  world::Frame describe(float seconds) override {
+  world::Frame describe(float seconds) {
     using namespace sigil::compose;
     screen->render(box().width(64).height(64).fill(Fill::color({0, 1, 0, 1})),
                    seconds);
@@ -104,15 +104,15 @@ sigil::geometry::mesh::camera::Camera framedLens() {
 }
 
 /** One box seen from a camera the TREE carries. */
-struct Framed : Set {
-  void setup(SetContext& ctx) override {
+struct Framed {
+  void setup(SetContext& ctx) {
     ctx.canvas(160, 120);
     ctx.background({0.05f, 0.05f, 0.08f, 1});
     sigil::geometry::mesh::camera::Camera fallback;
     fallback.eye = {0, 0, 900};
     ctx.camera(fallback);
   }
-  world::Frame describe(float) override {
+  world::Frame describe(float) {
     return world::Element().key("set").children(
         {world::Element().key("sun").light(
              world::light::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f)),
@@ -296,6 +296,53 @@ TEST(SetDoors, PaintsATextureSceneOntoABody) {
   EXPECT_GT(SkColorGetG(centre), 200u);
   EXPECT_LT(SkColorGetR(centre), 40u);
   EXPECT_LT(SkColorGetB(centre), 40u);
+}
+
+/** A SET THAT SPELLS NOTHING BUT ITS FRAME: no `setup`, and therefore no
+ *  plate, no ground and no viewpoint of its own. */
+struct Bare {
+  static inline int describes = 0;
+  world::Frame describe(float seconds) {
+    ++describes;
+    return world::Element().key("set").children(
+        {world::Element().key("sun").light(
+             world::light::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f)),
+         world::Element()
+             .key("body")
+             .rotateY(seconds * 90.0f)
+             .mesh(gm::superellipsoid({40, 40, 40}, 0.2f, 24, 16))
+             .fill(sigil::material::kit::surface())});
+  }
+};
+
+/** …and one that spelled the frame some other way, which is what the
+ *  registration has to refuse. */
+struct Misspelled {
+  void describeIt(float) {}
+};
+
+TEST(SetBodies, ASetIsAnyTypeThatNamesDescribe) {
+  // The concept is what `kindOf` asserts on, so a member spelled some
+  // other way is a compile error naming the signatures a set may have.
+  // Nothing in this tree compiles a translation unit that must NOT build
+  // — the documentation probes are the one generated compile check and
+  // they assert that a name EXISTS — so what a case can hold is the
+  // answer the assertion reads.
+  static_assert(SetSketch<Spun>);
+  static_assert(SetSketch<Bare>);
+  static_assert(!SetSketch<Misspelled>);
+
+  Bare::describes = 0;
+  std::unique_ptr<Session> session = kindOf<Bare>()->open(fonts(), assets());
+  ASSERT_NE(session, nullptr);
+  // A set that declared no plate is opened onto the one every set
+  // session starts with, and describing is all it is asked for.
+  EXPECT_EQ(session->canvas().size, SkSize::Make(900, 640));
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(90, 64));
+  SkCanvas canvas(bitmap);
+  session->frame(canvas, 1.0 / 60.0);
+  EXPECT_EQ(Bare::describes, 1);
 }
 
 /** The 3D session's answers to what every session promises. */

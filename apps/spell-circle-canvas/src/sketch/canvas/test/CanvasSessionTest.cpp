@@ -92,10 +92,10 @@ SkIRect silhouetteOf(const SkBitmap& pixels) {
  *  one red sheet into it, and then LETS GO of it — keeping the image it
  *  took and a weak look at the scene, so that what stands afterwards is
  *  what the session is holding and nothing the sketch is. */
-struct Screening : Sketch {
+struct Screening {
   static inline sk_sp<SkImage> sheet;
   static inline std::weak_ptr<TextureScene> scene;
-  void setup(SketchContext& ctx) override {
+  void setup(SketchContext& ctx) {
     ctx.canvas(200, 120);
     const std::shared_ptr<TextureScene> kept = ctx.textureScene({32, 32});
     kept->render(box().width(32).height(32).fill(Fill::color({1, 0, 0, 1})));
@@ -108,16 +108,16 @@ struct Screening : Sketch {
 /** A sketch that declares a canvas, draws one box, and counts the times
  *  its body was run. The count is the observable behind the difference
  *  between repainting and stepping. */
-struct Declaring : Sketch {
+struct Declaring {
   static inline int updates = 0;
-  void setup(SketchContext& ctx) override {
+  void setup(SketchContext& ctx) {
     ctx.canvas(320, 200);
     ctx.background({0.1f, 0.2f, 0.3f, 1});
     ctx.captureAt(2.5);
     ctx.composer.render(
         box().width(100).height(50).fill(Fill::color({1, 0, 0, 1})));
   }
-  void update(double, SketchContext&) override { ++updates; }
+  void update(double, SketchContext&) { ++updates; }
 };
 
 /** A sketch that PROBES something while declaring itself and keeps the
@@ -131,12 +131,12 @@ struct Declaring : Sketch {
  *  which is the property the case below is about: a probe parked in a
  *  function-local static would be one value the two sessions share, and
  *  the second to open would redraw the first. */
-struct Probing : Sketch {
+struct Probing {
   /** What the next session opened will probe. */
   static inline float nextInk = 40.0f;
   /** This instance's own answer, taken once in setup(). */
   float ink = 0;
-  void setup(SketchContext& ctx) override {
+  void setup(SketchContext& ctx) {
     ctx.canvas(320, 200);
     ctx.background({0, 0, 0, 1});
     ink = nextInk;
@@ -146,9 +146,7 @@ struct Probing : Sketch {
    *  home observable: a sketch whose answer sat in a shared static would
    *  redraw itself from ANOTHER session's answer the moment that session
    *  opened, and only a description taken after that shows it. */
-  void update(double, SketchContext& ctx) override {
-    ctx.composer.render(art());
-  }
+  void update(double, SketchContext& ctx) { ctx.composer.render(art()); }
   /** The root fills the canvas whatever it asks for, so the probed width
    *  goes on a CHILD of it, held at the start of its row: the probe has
    *  to reach the pixels for a comparison of them to say anything. */
@@ -261,10 +259,10 @@ TEST(CanvasDoors, DrawsTwoSessionsOfOneSketchFromTheirOwnProbes) {
 
 /** A sketch that bakes the card twice while declaring itself: once from
  *  the stated distance, once from twice it. */
-struct Baking : Sketch {
+struct Baking {
   static inline sk_sp<SkImage> near;
   static inline sk_sp<SkImage> far;
-  void setup(SketchContext& ctx) override {
+  void setup(SketchContext& ctx) {
     ctx.canvas(200, 120);
     near = ctx.bakeSet(cardFrame(), cardCamera(kEyeZ), kBakeSize, kGround);
     far = ctx.bakeSet(cardFrame(), cardCamera(kEyeZ * 2), kBakeSize, kGround);
@@ -295,11 +293,11 @@ world::Frame enteringFrame() {
 
 /** A sketch that bakes the entering card at three moments: before it
  *  starts, part way through, and after the whole cascade has landed. */
-struct Entering : Sketch {
+struct Entering {
   static inline sk_sp<SkImage> atMount;
   static inline sk_sp<SkImage> partWay;
   static inline sk_sp<SkImage> landed;
-  void setup(SketchContext& ctx) override {
+  void setup(SketchContext& ctx) {
     ctx.canvas(200, 120);
     const auto bake = [&](double seconds) {
       return ctx.bakeSet(enteringFrame(), cardCamera(kEyeZ), kBakeSize, kGround,
@@ -412,6 +410,84 @@ TEST(CanvasDoors, PaintsMeshOnTheCpuUntilAProcessInstallsADevice) {
   EXPECT_EQ(painterRuntime(), render::Runtime::cpu());
   usePainterRuntime({});
   EXPECT_EQ(painterRuntime(), render::Runtime::cpu());
+}
+
+/** THE THREE SHAPES A CANVAS SKETCH IS WRITTEN IN, side by side: the
+ *  whole offer, a `setup` that named none of it, and a body stepped
+ *  through an `update` that named the seconds and not the context. None
+ *  of them derives from anything. */
+struct Whole {
+  static inline int setups = 0;
+  void setup(SketchContext& ctx) {
+    ++setups;
+    ctx.canvas(64, 48);
+    ctx.composer.render(box().width(10).height(10));
+  }
+};
+
+struct Bare {
+  static inline int setups = 0;
+  void setup() { ++setups; }
+};
+
+struct Stepped {
+  static inline double last = -1.0;
+  void setup(SketchContext& ctx) { ctx.canvas(64, 48); }
+  void update(double elapsed) { last = elapsed; }
+};
+
+/** …and a type that spelled the member some other way, which is what the
+ *  registration has to refuse. */
+struct Misspelled {
+  void setUp(SketchContext&) {}
+};
+
+TEST(CanvasBodies, ASketchIsAnyTypeThatNamesSetup) {
+  // The concept is what `kindOf` asserts on, so a member spelled some
+  // other way is a compile error naming the signatures a body may have.
+  // Nothing in this tree compiles a translation unit that must NOT build
+  // — the documentation probes are the one generated compile check and
+  // they assert that a name EXISTS — so what a case can hold is the
+  // answer the assertion reads.
+  static_assert(CanvasSketch<Whole>);
+  static_assert(CanvasSketch<Bare>);
+  static_assert(CanvasSketch<Stepped>);
+  static_assert(!CanvasSketch<Misspelled>);
+
+  Whole::setups = 0;
+  const std::unique_ptr<Session> session =
+      kindOf<Whole>()->open(fonts(), assets());
+  ASSERT_NE(session, nullptr);
+  EXPECT_EQ(Whole::setups, 1);
+  EXPECT_EQ(session->canvas().size, SkSize::Make(64, 48));
+}
+
+TEST(CanvasBodies, OpensABodyThatNamedNothingItWasOffered) {
+  Bare::setups = 0;
+  const std::unique_ptr<Session> session =
+      kindOf<Bare>()->open(fonts(), assets());
+  ASSERT_NE(session, nullptr);
+  EXPECT_EQ(Bare::setups, 1);
+  // A body that declared no canvas is opened onto the one every session
+  // starts with, and one that spells no `update` is stepped by doing
+  // nothing at all.
+  EXPECT_EQ(session->canvas().size, CanvasSpecification{}.size);
+  const sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(16, 16));
+  session->frame(*surface->getCanvas(), 1.0 / 60.0);
+}
+
+TEST(CanvasBodies, StepsABodyThatNamedTheSecondsAndNotTheContext) {
+  Stepped::last = -1.0;
+  const std::unique_ptr<Session> session =
+      kindOf<Stepped>()->open(fonts(), assets());
+  const sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 48));
+  session->frame(*surface->getCanvas(), 1.0 / 60.0);
+  session->frame(*surface->getCanvas(), 1.0 / 60.0);
+  // The clock the session steps is the one the body is handed, so two
+  // frames of a sixtieth put it two sixtieths in.
+  EXPECT_NEAR(Stepped::last, 2.0 / 60.0, 1e-9);
 }
 
 }  // namespace

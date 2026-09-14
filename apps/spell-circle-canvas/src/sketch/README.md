@@ -50,8 +50,22 @@ registration macro reads the rest off the type:
 
 | include | body | draws |
 | --- | --- | --- |
-| `<sigilsketch/canvas/Sketch.h>` | `sketch::Sketch` | a compose Element tree, onto a canvas |
-| `<sigilsketch/set/Set.h>` | `sketch::Set` | a world Frame, on a lit set |
+| `<sigilsketch/canvas/Sketch.h>` | `sketch::CanvasSketch` | a compose Element tree, onto a canvas |
+| `<sigilsketch/set/Set.h>` | `sketch::SetSketch` | a world Frame, on a lit set |
+
+**A sketch derives from nothing.** A struct that spells `setup(ctx)` is a
+canvas sketch and one that spells `describe(seconds)` is a set — there is
+no base class to inherit, no `override` to write, and no vtable of the
+sketch's own. Those two names are CONCEPTS: the registration reads the
+members off the type, and builds the body a session drives out of them.
+A member spelled some other way is a compile error naming what a body has
+to spell, rather than a sketch that registers and never runs.
+
+A body NAMES THE PARAMETERS IT READS and may name fewer than it is
+offered — `setup()` beside `setup(ctx)`, `update(elapsed)` and `update()`
+beside `update(elapsed, ctx)`, `describe()` beside `describe(seconds)` —
+which is the same rule a paint program and a kit part are called under.
+A canvas sketch's `update` and a set's `setup` are optional outright.
 
 A pen is not a third: `compose::graphics(program)` is a node whose pen
 paints onto a canvas KEPT between frames, so a p5 loop is a canvas sketch
@@ -80,8 +94,8 @@ using namespace sigil::compose;
 
 namespace {
 
-struct Hello final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct Hello {
+  void setup(sketch::SketchContext& ctx) {
     ctx.canvas(1000, 700);                    // the logical canvas
     ctx.background({0.05f, 0.04f, 0.10f, 1});  // what is behind it
     ctx.captureAt(2.4);                        // when a still is worth taking
@@ -181,7 +195,7 @@ The sketch itself declares a static `available(std::string* why)`, which
 the registration macro reads off the type:
 
 ```cpp
-struct WebPanelSketch final : sketch::Sketch {
+struct WebPanelSketch {
   static bool available(std::string* why) {
     return scry::available(why);
   }
@@ -253,12 +267,12 @@ A 3D sketch is the same shape with a different body:
 ```cpp
 #include <sigilsketch/set/Set.h>
 
-struct FirstLight final : sketch::Set {
-  void setup(sketch::SetContext& ctx) override {
+struct FirstLight {
+  void setup(sketch::SetContext& ctx) {
     ctx.canvas(900, 640);
     ctx.captureAt(1.4);
   }
-  world::Frame describe(float seconds) override { … }
+  world::Frame describe(float seconds) { … }
 };
 
 SIGIL_SKETCH(FirstLight, "Set", "A lit set …")
@@ -281,8 +295,8 @@ canvas that keeps what earlier frames drew:
 namespace compose = sigil::compose;
 using namespace sigil::draw;
 
-struct Orbit final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct Orbit {
+  void setup(sketch::SketchContext& ctx) {
     ctx.canvas(400, 300);
     ctx.background({0.078f, 0.078f, 0.078f, 1});
     ctx.composer.render(
@@ -336,9 +350,9 @@ longer than the call is read by nobody. A fresh setup gets a fresh
 ticker, so a sketch set up twice is stepped once.
 
 ```cpp
-struct Cloth final : sketch::Sketch {
+struct Cloth {
   ch::Output<float> alpha{0.0f};
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     ctx.canvas(640, 480);
     ctx.oversample(2);
     ctx.ticker.addFixed(60.0, [this] { solve(); return true; }, 8, &alpha);
@@ -1161,9 +1175,9 @@ embedding a scripting language — so a sketch never leaves the real API.
 * **The guest compiles hidden**, with `-fvisibility=hidden
   -fvisibility-inlines-hidden` on top of the flags the build captured,
   and that is what makes the file on disk the thing that runs. A sketch
-  reaches its host through weak definitions — the class's vtable and
-  typeinfo when every virtual is inline, `kindOf<T>` and the other
-  function templates the registration macro takes the address of — and
+  reaches its host through weak definitions — the vtable and typeinfo
+  of the body the registration instantiates for it, `kindOf<T>` and the
+  other function templates the macro takes the address of — and
   weak definitions COALESCE. Every image exporting one names the same
   symbol, and the dynamic loader binds them all to whichever came first. The
   executable is always first and carries its own copy of every sketch in

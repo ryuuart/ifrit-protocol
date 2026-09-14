@@ -42,7 +42,8 @@ find_package(EnTT CONFIG REQUIRED)
 # appears.
 #
 # PUBLIC is what the headers spell: the resource hub, the comparable
-# erasure the kind seam is built on, the instruments every runtime times
+# erasure the kind seam is built on, the one prefix search a sketch's own
+# members are called through, the instruments every runtime times
 # itself with, the camera the viewpoint seam is spelled in, and the two
 # runtimes' own vocabularies — compose for a canvas, world for a set,
 # with the pen among compose's because a pen program is a node. The two
@@ -61,14 +62,15 @@ set(SIGIL_SKETCH_SOURCES
   plate/ThumbnailQueue.cpp plate/Thumbnails.cpp)
 set(SIGIL_SKETCH_HEADERS
   core/Assets.h core/CanvasSpecification.h core/Crash.h core/Device.h core/Fit.h
-  core/Kind.h core/Registry.h core/Session.h core/Sources.h
+  core/Kind.h core/Members.h core/Registry.h core/Session.h core/Sources.h
   canvas/Sketch.h
   set/Set.h
   live/Host.h live/Residency.h
   plate/Compare.h plate/FrameStats.h plate/Graphite.h plate/Story.h
   plate/Sweep.h plate/ThumbnailQueue.h plate/Thumbnails.h)
 set(SIGIL_SKETCH_PUBLIC
-  SigilCoreComparable SigilGeometryMeshCamera SigilImageAsset SigilIO
+  SigilCoreCallable SigilCoreComparable
+  SigilGeometryMeshCamera SigilImageAsset SigilIO
   SigilVideoDecode SigilVideoCore SigilImageEncode SigilMeasure
   SigilMotionClock
   SigilComposeCore SigilComposeKit SigilComposeBrush SigilComposeTypography

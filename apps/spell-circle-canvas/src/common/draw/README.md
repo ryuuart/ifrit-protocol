@@ -45,10 +45,10 @@ namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 using namespace sigil::draw;
 
-struct Bounce final : sketch::Sketch {
+struct Bounce {
   float x = 200, y = 100, vx = 3, vy = 2;
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     ctx.canvas(400, 300);
     ctx.composer.render(
         compose::graphics("bounce.loop", [this](Pen& pen) { draw(pen); })
@@ -73,7 +73,7 @@ SIGIL_SKETCH(Bounce, "Draw", "The bouncing ball, pasted from p5.")
 
 `createCanvas`, `loadImage` and the moment a plate is taken belong to
 whoever steps the pen — here a `compose::graphics` node filling the
-canvas of a `sketch::Sketch`, whose canvas is KEPT between frames, which
+canvas of a canvas sketch, whose canvas is KEPT between frames, which
 is what makes the translucent ground a trail. The program is the p5
 `draw`, run once per frame with the node's own pen, and it honours
 `noLoop`, `redraw` and `frameRate` as p5 does. What a p5 `setup` would
@@ -357,7 +357,7 @@ vectors), `tint`, `filter`, `erase`/`noErase`, `beginClip`/`endClip`
 `loadFont`/`loadJSON`/`loadStrings`/`loadSound`, the DOM
 (`createButton`, `createSlider`, `select`), and WEBGL with everything
 under it (`box`, `sphere`, `rotateX`, `camera`, `lights`) — a lit set is
-`sketch::Set`.
+a `sketch::SetSketch`.
 
 ## The other way through the door: a retained guest
 

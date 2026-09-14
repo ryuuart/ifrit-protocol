@@ -9,13 +9,13 @@
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/CanvasSpecification.h>
 #include <sigilsketch/core/Device.h>
+#include <sigilsketch/core/Members.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
 #include <sigilworld/element/Element.h>
 #include <sigilworld/frame/Frame.h>
 #include <sigilworld/frame/Runtime.h>
 
-#include <concepts>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -85,7 +85,12 @@ struct SetContext {
   }
 };
 
-/** A SKETCH THAT DRESSES A SET: a world Frame, lit and photographed.
+/** A SKETCH THAT DRESSES A SET: any type that can describe a world
+ *  Frame at a scene time. There is no base class and nothing to inherit
+ *  — a struct spelling `describe(seconds)` is a set, and `describe()` is
+ *  accepted too, from a set that does not move. `setup(SetContext&)` is
+ *  optional beside it: declare the plate and the viewpoint there, once
+ *  per (re)load.
  *
  *  `describe` is a PURE FUNCTION of the scene time and nothing else,
  *  which is what makes a plate reproducible: a host steps from zero at a
@@ -97,20 +102,46 @@ struct SetContext {
  *  set about the passes returns the Frame itself. The host writes the
  *  plate's size and the viewpoint into whichever it was handed, so a set
  *  states its subject and nothing about where it lands. */
-class Set {
+template <class SetType>
+concept SetSketch =
+    core::PrefixCallable<detail::DescribeCall<SetType>, world::Frame(float)>;
+
+/** WHAT A SESSION DRIVES: one set, behind the two calls a host makes of
+ *  it. The set itself derives from nothing and declares no virtual of
+ *  its own; this is the vtable, built out of the members the type
+ *  spells, and the only thing that holds a set by pointer. */
+class SetBody {
  public:
-  virtual ~Set() = default;
-  /** Declare the plate and the viewpoint. Called once per (re)load. */
-  virtual void setup(SetContext& ctx) { (void)ctx; }
-  /** THE FRAME at scene time @p seconds. */
+  virtual ~SetBody() = default;
+  virtual void setup(SetContext& ctx) = 0;
   virtual world::Frame describe(float seconds) = 0;
+};
+
+/** ONE SET OF TYPE @p SetType, OWNED, answering those calls with the
+ *  parameters it named — so a set spelling no `setup` at all takes the
+ *  plate and the viewpoint it was opened with, and one spelling
+ *  `describe()` is photographed at every moment the same. */
+template <SetSketch SetType>
+class SetBodyOf final : public SetBody {
+ public:
+  void setup(SetContext& ctx) override {
+    if constexpr (core::PrefixCallable<detail::SetupCall<SetType>,
+                                       void(SetContext&)>)
+      core::callPrefix(detail::SetupCall<SetType>{m_set}, ctx);
+  }
+  world::Frame describe(float seconds) override {
+    return core::callPrefix(detail::DescribeCall<SetType>{m_set}, seconds);
+  }
+
+ private:
+  SetType m_set;
 };
 
 /** THE 3D KIND: a world Frame, reconciled onto a retained Scene and
  *  drawn through whichever runtime the process brought up. */
 class SetKind final : public KindOperations {
  public:
-  using Factory = Set* (*)();
+  using Factory = SetBody* (*)();
   explicit SetKind(Factory factory) : m_factory(factory) {}
   /** What identifies a kind is the body it opens and where it opens it;
    *  see the 2D kind for the first half. */
@@ -165,15 +196,15 @@ class SetKind final : public KindOperations {
 /** The factory SIGIL_SKETCH takes the ADDRESS of; see the 2D one for why
  *  it is a named template rather than a lambda. */
 template <class SetType>
-[[nodiscard]] Set* makeSet() {
-  return new SetType();
+[[nodiscard]] SetBody* makeSetBody() {
+  return new SetBodyOf<SetType>();
 }
 
 /** The kind a 3D sketch draws through. */
 template <class SetType>
-  requires std::derived_from<SetType, Set>
+  requires SetSketch<SetType>
 [[nodiscard]] Kind kindOf() {
-  return SetKind{&makeSet<SetType>};
+  return SetKind{&makeSetBody<SetType>};
 }
 
 /** THE RUNTIME A SET SESSION DRAWS THROUGH UNLESS ITS KIND STATED ONE,
