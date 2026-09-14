@@ -127,16 +127,14 @@ struct ScatteredModel final : sketch::Set {
   }
 
   world::Frame describe(float seconds) override {
-    world::kit::Set set;
-    set.rig.extent = kExtent;
-    set.rig.bearing = -34.0f;
-    set.rig.elevation = 30.0f;
-    set.ground = 3.4f;
-    set.drop = 0.92f;
-    set.table.radius = 470.0f;
-    set.table.height = 175.0f;
-    set.table.period = 16.0f;
-    set.table.fovYDeg = 44.0f;
+    const world::kit::Set set{
+        .rig = {.extent = kExtent, .bearing = -34.0f, .elevation = 30.0f},
+        .table = {.radius = 470.0f,
+                  .height = 175.0f,
+                  .period = 16.0f,
+                  .fovYDeg = 44.0f},
+        .ground = 3.4f,
+        .drop = 0.92f};
 
     // The body under its own dust: dim and unlit, so what reads is the
     // silhouette the scatter was taken from rather than a second lit
