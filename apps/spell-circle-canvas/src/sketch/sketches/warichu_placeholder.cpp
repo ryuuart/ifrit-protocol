@@ -33,6 +33,7 @@
 // TAGS: Typography/Paragraph, Typography/CJK
 
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -209,22 +210,15 @@ struct WarichuPlaceholder final : sketch::Sketch {
    *  their own rects rather than stacking in a column. */
   Element stackedNote(bool vertical = false) {
     const float half = split.band * 0.5f;
-    const auto row = [&](const std::u8string& text8, float along) {
-      Element leaf = text(text8).absolute();
-      if (vertical) {
-        // The band is ACROSS the column in a vertical setting, so the two
-        // lines stand side by side and each runs down the note's advance.
-        leaf.left(along)
-            .top(0.0f)
-            .width(half)
-            .height(split.advance)
-            .block({.writingMode = weave::WritingMode::kVerticalRL});
-      } else {
-        leaf.left(0.0f)
-            .top(along)
-            .width(split.advance);
-      }
-      return leaf;
+    const auto row = [&](const std::u8string& words, float along) {
+      Element leaf = text(words).absolute();
+      // The band is ACROSS the column in a vertical setting, so the two
+      // lines stand side by side and each runs down the note's advance;
+      // in a horizontal base they stack across it.
+      return vertical
+                 ? kit::at(std::move(leaf), along, 0, half, split.advance)
+                       .block({.writingMode = weave::WritingMode::kVerticalRL})
+                 : std::move(leaf.left(0.0f).top(along).width(split.advance));
     };
     return box().children({row(first, 0), row(second, half)});
   }
@@ -232,14 +226,19 @@ struct WarichuPlaceholder final : sketch::Sketch {
   /** What the split answered, printed. */
   Element readoutCell() {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
-    Element column = box().column().gap(8);
-    for (const std::string& row : report)
-      column.children({text(row, sheet.mono(10, sheet.palette.figure))
-                           .width(kCell - 24)});
     return cell("WarichuSplit{advance, band, cutWord}",
                 "what the split answered for this note at this size "
                 "· the caller cuts its own text at that word's start",
-                std::move(column));
+                // The three numbers are set in one voice, on the column:
+                // the face a call is set in, at the figure colour.
+                box()
+                    .column()
+                    .gap(8)
+                    .font({.face = sheet.type.mono, .size = 10})
+                    .ink(sheet.palette.figure)
+                    .children({each(report, [](const std::string& row) {
+                      return text(row).width(kCell - 24);
+                    })}));
   }
 };
 
