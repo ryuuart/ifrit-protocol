@@ -415,7 +415,7 @@ constexpr float tIdle = 7.30f;
 
 // ===========================================================================
 
-struct ChladniTab1 : sketch::Sketch {
+struct ChladniTab1 {
   // One settle phase per figure, shaped three different ways at three
   // different call sites by bind() — ink opacity, label opacity, label
   // rise — instead of three Outputs kept in sync in the tick loop.
@@ -771,7 +771,7 @@ struct ChladniTab1 : sketch::Sketch {
   }
 
   // ------------------------------------------------------------------
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     // The still has to name its moment: the settled plate, with all twelve
     // figures inked (6.47 s), the credit in (8.3 s) and the idle bow at
     // maximum on figure 8's rim. An undeclared capture catches figure 12's
@@ -893,7 +893,7 @@ struct ChladniTab1 : sketch::Sketch {
     ctx.composer.render(describe(ctx));
   }
 
-  void update(double, sketch::SketchContext&) override {}
+  void update(double, sketch::SketchContext&) {}
 };
 
 SIGIL_SKETCH(ChladniTab1, "Study · Science",

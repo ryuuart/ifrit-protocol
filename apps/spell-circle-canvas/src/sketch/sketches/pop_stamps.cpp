@@ -99,7 +99,7 @@ std::vector<glm::vec3> ringPoints() {
 
 }  // namespace
 
-struct PopStamps final : sketch::Sketch {
+struct PopStamps {
   sk_sp<SkImage> atlas;
   mesh::Mesh tube, plates, crown, glints, ribbon;
   glm::mat4 crownPlace{1.0f};
@@ -154,7 +154,7 @@ struct PopStamps final : sketch::Sketch {
                      kCanvas, jade);
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx,
                        {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
                         .captureAt = 1.0,

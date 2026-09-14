@@ -149,11 +149,11 @@ const geometry::mesh::pop::Math kRingLarger{
 
 }  // namespace
 
-struct GeoGroups : sketch::Sketch {
+struct GeoGroups {
   geometry::mesh::Cloud saved, peaked, twisted;
   std::string caption;
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // Every cloud is cooked in setup; nothing reads the clock.
     sketch::kit::stage(ctx, {.size = {1200, 440}, .captureAt = 0.05});

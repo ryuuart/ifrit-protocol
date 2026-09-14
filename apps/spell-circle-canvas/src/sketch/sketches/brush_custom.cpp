@@ -78,11 +78,11 @@ brush::Tool imported(sk_sp<SkImage> shape, SkColor4f color, float width) {
   return tool;
 }
 
-struct BrushCustom final : sketch::Sketch {
+struct BrushCustom {
   sk_sp<SkImage> shape;
   sk_sp<SkImage> grain;
 
-  void setup(sketch::SketchContext& context) override {
+  void setup(sketch::SketchContext& context) {
     context.canvas(1000, 760);
     // The sheet is complete once every row has been laid.
     context.captureAt(0.25);

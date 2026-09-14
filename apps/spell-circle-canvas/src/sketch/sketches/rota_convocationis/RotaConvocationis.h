@@ -2,7 +2,7 @@
 
 #include "Settings.h"
 
-struct RotaConvocationis : sketch::Sketch {
+struct RotaConvocationis {
   // The two hand-stepped scalars, plus the drifts and spins that are pure
   // shapes of them. Everything scheduled is a window on `cycle`.
   ch::Output<float> cycle{0};  // seconds within one loop, wrapping
@@ -345,7 +345,7 @@ struct RotaConvocationis : sketch::Sketch {
 
   // ------------------------------------------------------------------
 
-  void setup(sketch::SketchContext& ctx) override;
+  void setup(sketch::SketchContext& ctx);
 
   // ------------------------------------------------------------------
   /** Everything the figure draws that is a PATH rather than a box, cooked
@@ -382,5 +382,5 @@ struct RotaConvocationis : sketch::Sketch {
    *  no per-frame state and the loop's wrap re-deals it exactly. */
   void stepEmbers(double tc);
 
-  void update(double elapsed, sketch::SketchContext& ctx) override;
+  void update(double elapsed, sketch::SketchContext& ctx);
 };

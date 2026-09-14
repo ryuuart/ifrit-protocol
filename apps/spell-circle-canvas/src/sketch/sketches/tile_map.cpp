@@ -206,7 +206,7 @@ Element chunkElement(const std::shared_ptr<sigil::image::ImageAsset>& tileset,
 
 namespace {
 
-struct TileMap final : sketch::Sketch {
+struct TileMap {
   std::shared_ptr<sigil::image::ImageAsset> tileset = atlas();
   std::array<int, kChunks> revisions{};
   std::array<Edit, kChunks> edits{};
@@ -233,7 +233,7 @@ struct TileMap final : sketch::Sketch {
   std::unique_ptr<Composer> probe;
   Composer::Stats worked;
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = {kCanvasW, kCanvasH}, .captureAt = 6.0});
     revisions.fill(0);
     edits.fill(Edit{});
@@ -319,7 +319,7 @@ struct TileMap final : sketch::Sketch {
    *  chunk is given a different region, that chunk's properties stop being
    *  equal, and the tree is described again. Between edits nothing is
    *  described at all — the wash fades on its lane. */
-  void update(double elapsed, sketch::SketchContext& ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) {
     // The probe is stepped every frame the sheet is, because a recording
     // is counted by the draw that writes it.
     if (probe) {

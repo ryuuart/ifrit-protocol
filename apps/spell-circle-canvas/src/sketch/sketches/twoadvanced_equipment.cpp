@@ -148,7 +148,7 @@ constexpr Product kProducts[7] = {
 
 // ===========================================================================
 
-struct TwoAdvancedEquipment : sketch::Sketch {
+struct TwoAdvancedEquipment {
   /** THE STORE'S BITMAPS ARE RUNTIME DATA, and a sketch over runtime data
    *  a machine may not have says so rather than drawing a second picture
    *  under the same name. Every GIF and JPEG on this frameset comes off
@@ -398,7 +398,7 @@ struct TwoAdvancedEquipment : sketch::Sketch {
                                  .transformOrigin(0, 0)});
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     using namespace teq;
     // The plate at exactly 2x. One page pixel is two canvas px and four
     // device px, so the 10 px Verdana and every GIF edge land whole.

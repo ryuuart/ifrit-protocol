@@ -192,8 +192,8 @@ Element leadingSpecimen(const char* caption, weave::Leading leading) {
 
 namespace s = sheet;
 
-struct ParagraphSheet final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct ParagraphSheet {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(s::sheetTheme());
     sketch::kit::stage(ctx, {.size = kSceneSize, .captureAt = 0.4});
     ctx.composer.render(describe());

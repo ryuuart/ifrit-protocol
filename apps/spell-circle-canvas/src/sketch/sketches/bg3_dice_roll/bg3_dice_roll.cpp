@@ -4,7 +4,7 @@
 
 #include "AbilityCheck.h"
 
-struct Bg3DiceRoll : sketch::Sketch {
+struct Bg3DiceRoll {
   // ---- bound Outputs (all paint-only) -------------------------------------
   choreograph::Output<float> bezelSpin{0};
   choreograph::Output<float> rosetteSpin{0};
@@ -801,7 +801,7 @@ struct Bg3DiceRoll : sketch::Sketch {
   }
 
   // ------------------------------------------------------------------- setup
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = SkSize::Make(bg3::kW, bg3::kCanvasH),
                              .captureAt = 6.0,
                              .background = bg3::kVellum});
@@ -847,7 +847,7 @@ struct Bg3DiceRoll : sketch::Sketch {
 
   /** Content changes — the digits, and the rows' MOUNT, which is what makes
    *  the column a dependency chain instead of a stagger. */
-  void update(double elapsed, sketch::SketchContext& ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) {
     (void)elapsed;
     bool dirty = false;
     const int rounded = (int)std::lround(totalAnim);

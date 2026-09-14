@@ -70,7 +70,7 @@ Slice carved(const Palette& pal, int side) {
       sigil::image::ImageAsset::wrap(makeCarvedFrame(pal, side))));
 }
 
-struct UiParticles final : sketch::Sketch {
+struct UiParticles {
   // ---- chips (the confetti tier) ------------------------------------------
   static constexpr size_t kChipCount = 820;
   static constexpr float kSprite = 64.0f;
@@ -431,12 +431,12 @@ struct UiParticles final : sketch::Sketch {
         });
   }
 
-  void update(double t, sketch::SketchContext& ctx) override {
+  void update(double t, sketch::SketchContext& ctx) {
     syncPool(chips, *chipPool, t, stepAlpha);
     syncPool(posts, *postPool, t, stepAlpha);
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
                              .background = SkColor4f{0, 0, 0, 1}});

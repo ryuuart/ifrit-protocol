@@ -103,7 +103,7 @@ curve::Spline3 knot() {
 
 }  // namespace
 
-struct MeshGenerators final : sketch::Sketch {
+struct MeshGenerators {
   mesh::Mesh star, ring, vase, pedestal, tube, stations;
   curve::Spline3 rail;
 
@@ -164,7 +164,7 @@ struct MeshGenerators final : sketch::Sketch {
     canvas.drawPath(curve::project(rail, view, kCanvas, 400), wire);
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx,
                        {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
                         .captureAt = 1.0,

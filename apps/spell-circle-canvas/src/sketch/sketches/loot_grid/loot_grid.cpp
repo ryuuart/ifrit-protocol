@@ -8,7 +8,7 @@
 
 #include "Inventory.h"
 
-struct LootGrid final : sketch::Sketch {
+struct LootGrid {
   // The held item's travel, the validity flip, the unique shimmer, and the
   // gold counter's tick.
   choreograph::Output<float> dragX{0}, dragY{0};
@@ -33,7 +33,7 @@ struct LootGrid final : sketch::Sketch {
   /** The counter ticks, so the tree re-renders — but only on the frames
    *  where the integer actually changed. That is the reconciler's job and
    *  this is the cheapest honest way to exercise it. */
-  void update(double, sketch::SketchContext& ctx) override {
+  void update(double, sketch::SketchContext& ctx) {
     Composer& composer = ctx.composer;
     if (gold != shownGold) {
       shownGold = gold;
@@ -54,7 +54,7 @@ struct LootGrid final : sketch::Sketch {
    *  the rest of the sheet is set in is never reached. */
   sk_sp<SkTypeface> displayFace;
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 5.1,
                              .background = SkColor4f{0, 0, 0, 1}});

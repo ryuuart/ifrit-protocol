@@ -72,7 +72,7 @@ void outlinePath(draw::Pen& pen, const SkPath& path, SkColor4f color,
 
 }  // namespace
 
-struct PathBooleans final : sketch::Sketch {
+struct PathBooleans {
   void draw(draw::Pen& pen) const {
     // Row 1 — the four booleans on one pair of operands.
     {
@@ -145,7 +145,7 @@ struct PathBooleans final : sketch::Sketch {
     }
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx,
                        {.size = {1240, 720},
                         .captureAt = 1.0,

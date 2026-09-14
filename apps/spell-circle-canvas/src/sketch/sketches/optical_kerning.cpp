@@ -79,10 +79,10 @@ const sketch::kit::Cell kSpecimen{
 
 }  // namespace
 
-struct OpticalKerning final : sketch::Sketch {
+struct OpticalKerning {
   std::string rows[7];
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 

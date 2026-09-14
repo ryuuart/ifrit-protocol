@@ -68,8 +68,8 @@ constexpr float kDiscSize = 168, kSealSize = 104;
 
 }  // namespace mawari
 
-struct Mawarikomi final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct Mawarikomi {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 1.0,
                              .background = SkColor4f{1, 1, 1, 1}});

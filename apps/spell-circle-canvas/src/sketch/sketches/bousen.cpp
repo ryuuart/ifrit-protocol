@@ -118,10 +118,10 @@ const float kColumnEntranceSpan = kColumnEntrance.spanMs(4);
 
 }  // namespace bousen
 
-struct Bousen final : sketch::Sketch {
+struct Bousen {
   /// After the columns have assembled: the plate is the finished page.
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 2.6,
                              .background = SkColor4f{1, 1, 1, 1}});

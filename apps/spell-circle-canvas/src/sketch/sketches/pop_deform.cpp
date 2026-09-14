@@ -157,8 +157,8 @@ geometry::mesh::pop::Builder base() {
 
 }  // namespace
 
-struct PopDeform final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct PopDeform {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(ctx, {.size = {1240, 860}});
     // Every cloud is cooked once in setup; nothing here reads the clock.

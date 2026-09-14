@@ -107,15 +107,15 @@ material::Material glow(glm::vec4 color) {
 
 namespace {
 
-struct LanternRoom final : sketch::Set {
-  void setup(sketch::SetContext& ctx) override {
+struct LanternRoom {
+  void setup(sketch::SetContext& ctx) {
     sketch::kit::stage(ctx,
                        {.size = {900, 600},
                         .captureAt = 1.6,
                         .background = SkColor4f{0.010f, 0.012f, 0.020f, 1.0f}});
   }
 
-  world::Frame describe(float seconds) override {
+  world::Frame describe(float seconds) {
     world::Element room = world::Element().key("room");
 
     room.children(

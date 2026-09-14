@@ -112,7 +112,7 @@ Element card(float w, float h, SkColor4f accent) {
 
 }  // namespace
 
-struct PainterGpu final : sketch::Sketch {
+struct PainterGpu {
   sk_sp<SkImage> cards[kPanels];
   sk_sp<SkImage> screen;
   mesh::Mesh floor, curved;
@@ -176,7 +176,7 @@ struct PainterGpu final : sketch::Sketch {
             .fill(Fill::color(kCellGround)));
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

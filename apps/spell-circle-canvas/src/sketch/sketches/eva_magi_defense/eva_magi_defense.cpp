@@ -13,9 +13,7 @@
 
 #include "DefenseLayout.h"
 
-struct EvaMagiDefense : sketch::Sketch {
-  using Sketch::Sketch;
-
+struct EvaMagiDefense {
   ch::Output<float> creep{0.0f};    // scanline creep
   ch::Output<float> flicker{0.0f};  // phosphor dip (alpha of a black plane)
   ch::Output<float> blink{1.0f};    // COLLAPSING, hard on/off
@@ -429,7 +427,7 @@ struct EvaMagiDefense : sketch::Sketch {
   }
 
   // --- host ------------------------------------------------------------------
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     using namespace eva;
     // The plate at exactly 2x. The canvas is the reference frame's own
     // 1920x1080, so halving the capture puts it on the frame directly.
@@ -504,7 +502,7 @@ struct EvaMagiDefense : sketch::Sketch {
     ctx.composer.renderSlot("funnel", funnelLayer());
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) {
     // The front is a bound pan and never re-describes: derived from
     // `elapsed`, in whole pixels, negative as the field climbs the plate.
     const double sweep = (elapsed - 3.0) / 14.0;

@@ -105,11 +105,11 @@ Element swatch(const char* call, const std::string& note,
 
 }  // namespace
 
-struct PatternSequence final : sketch::Sketch {
+struct PatternSequence {
   pattern::Tile banked = bankedTile();
   pattern::Tile squares = squaresTile();
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

@@ -101,8 +101,8 @@ Element cell(const char* call, const char* note,
 
 }  // namespace
 
-struct NetPolicy final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct NetPolicy {
+  void setup(sketch::SketchContext& ctx) {
     // every ask has already been answered
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 

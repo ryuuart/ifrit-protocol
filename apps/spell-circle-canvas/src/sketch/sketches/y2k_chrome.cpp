@@ -277,12 +277,12 @@ inline Element glint(float size, float rotationDeg, float alpha = 0.95f) {
 
 }  // namespace y2k_chrome
 
-struct Y2kChrome final : sketch::Sketch {
+struct Y2kChrome {
   choreograph::Output<float> tickX{0};
   float unitW = 0;  // strip content's intrinsic width (compose::intrinsicSize)
   float wrapLen = 1;  // marquee wrap length = unitW + gap
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
                              .background = SkColor4f{0, 0, 0, 1}});

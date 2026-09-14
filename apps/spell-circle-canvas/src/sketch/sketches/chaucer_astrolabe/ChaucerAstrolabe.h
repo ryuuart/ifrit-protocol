@@ -2,7 +2,7 @@
 
 #include "Settings.h"
 
-struct ChaucerAstrolabe : sketch::Sketch {
+struct ChaucerAstrolabe {
   // ONE Output for the rete's rotation, remapped at every call site with
   // bind(): the rete's rotate(), the label's angle, the sun mark's position,
   // the readouts and the highlighted letter are all the same number in
@@ -206,7 +206,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
 
   // =========================================================================
 
-  void setup(sketch::SketchContext& ctx) override;
+  void setup(sketch::SketchContext& ctx);
 
-  void update(double, sketch::SketchContext& ctx) override;
+  void update(double, sketch::SketchContext& ctx);
 };

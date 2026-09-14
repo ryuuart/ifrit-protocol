@@ -119,8 +119,8 @@ const sketch::kit::Cell kSpecimen{
 
 }  // namespace
 
-struct HubReload final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct HubReload {
+  void setup(sketch::SketchContext& ctx) {
     // both readings have already been taken
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     const sketch::kit::Theme& look = sketch::kit::theme();

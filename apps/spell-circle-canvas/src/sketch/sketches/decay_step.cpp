@@ -122,8 +122,8 @@ const sketch::kit::Cell kSpecimen{
 
 }  // namespace
 
-struct DecayStep final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct DecayStep {
+  void setup(sketch::SketchContext& ctx) {
     // the plots are functions of time, not of the clock
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     const sketch::kit::Theme& look = sketch::kit::theme();

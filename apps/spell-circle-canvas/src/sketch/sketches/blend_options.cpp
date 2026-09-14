@@ -246,8 +246,8 @@ void spineTurned(SkCanvas& canvas) {
 
 }  // namespace
 
-struct BlendOptions final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct BlendOptions {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // Every step is computed from the keys and the options; nothing here
     // reads the clock.

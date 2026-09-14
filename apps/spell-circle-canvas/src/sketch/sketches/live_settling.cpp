@@ -131,8 +131,8 @@ constexpr Run kRuns[] = {
 
 }  // namespace
 
-struct LiveSettling final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct LiveSettling {
+  void setup(sketch::SketchContext& ctx) {
     // the swell has already been run, on its own composer
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 

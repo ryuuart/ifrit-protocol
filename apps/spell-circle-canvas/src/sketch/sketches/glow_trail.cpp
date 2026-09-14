@@ -122,8 +122,8 @@ world::Element set(float seconds) {
 
 namespace {
 
-struct GlowTrail final : sketch::Set {
-  void setup(sketch::SetContext& ctx) override {
+struct GlowTrail {
+  void setup(sketch::SetContext& ctx) {
     sketch::kit::stage(ctx,
                        {.size = {640, 440},
                         .captureAt = 1.3,
@@ -131,7 +131,7 @@ struct GlowTrail final : sketch::Set {
     ctx.camera({.eye = kEye, .target = {0.0f, -30.0f, 0.0f}, .fovYDeg = 42.0f});
   }
 
-  world::Frame describe(float seconds) override {
+  world::Frame describe(float seconds) {
     world::Frame frame(set(seconds));
     frame
         // The whole set, and — because a narrowed post pass follows it —

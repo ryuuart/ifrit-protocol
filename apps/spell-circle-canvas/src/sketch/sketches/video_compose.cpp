@@ -96,7 +96,7 @@ VideoOptions optionsFor(int source, int cell, bool overlay) {
 
 }  // namespace
 
-struct VideoCompose final : sketch::Sketch {
+struct VideoCompose {
   choreograph::Output<float> loading{0.0f};
 
   static bool available(std::string* why) {
@@ -104,7 +104,7 @@ struct VideoCompose final : sketch::Sketch {
         {kDaySky, kNightSky, kDust, kColorBurst, kAlphaVideo}, why);
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = SkSize::Make(kWidth, kHeight),
                              .captureAt = 4.25,
                              .background = SkColor4f{0, 0, 0, 1}});

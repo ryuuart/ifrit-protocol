@@ -265,7 +265,7 @@ constexpr int kCommandCount = 5;
 
 }  // namespace daemon_console
 
-struct DaemonConsole final : sketch::Sketch {
+struct DaemonConsole {
   sigil::compose::feed::Ring<daemon_console::LogRow> ring{256};
   daemon_console::LogGen gen;
 
@@ -369,7 +369,7 @@ struct DaemonConsole final : sketch::Sketch {
     return s;
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 9.0,
                              .background = SkColor4f{0, 0, 0, 1}});

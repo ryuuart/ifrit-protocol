@@ -81,12 +81,12 @@ const sketch::kit::Cell kSpecimen{
 
 }  // namespace
 
-struct PlaceRepeatTiles final : sketch::Sketch {
+struct PlaceRepeatTiles {
   std::shared_ptr<instancing::Atlas> atlas;
   std::shared_ptr<instancing::Pool> plain, spun, faded;
   sk_sp<SkPicture> strip;
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 

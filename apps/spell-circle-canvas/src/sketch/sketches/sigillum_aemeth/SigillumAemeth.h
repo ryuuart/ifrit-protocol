@@ -2,7 +2,7 @@
 
 #include "Settings.h"
 
-struct SigillumAemeth : sketch::Sketch {
+struct SigillumAemeth {
   sk_sp<SkTypeface> faceSeal, faceRing, faceQuill, faceSerif, faceItalic,
       faceMono, faceDisplay;
 
@@ -174,7 +174,7 @@ struct SigillumAemeth : sketch::Sketch {
 
   // =========================================================================
 
-  void setup(sketch::SketchContext& ctx) override;
+  void setup(sketch::SketchContext& ctx);
 
   /** The one discrete state this sketch has: which Name the solver is
    *  currently walking. Everything else on the plate is continuous and rides
@@ -185,5 +185,5 @@ struct SigillumAemeth : sketch::Sketch {
    *  `renderSlot` rebuilds ONLY the solver overlay, a handful of nodes, and
    *  leaves the rest of the tree (and its baked layers) untouched. A full
    *  render() to advance one hop would rebuild the whole seal. */
-  void update(double, sketch::SketchContext& ctx) override;
+  void update(double, sketch::SketchContext& ctx);
 };

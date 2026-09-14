@@ -223,14 +223,14 @@ inline Element socket(const char* key, SkPoint at, float dia,
 
 namespace treedata = skill_tree_data;
 
-struct PassiveTree final : sketch::Sketch {
+struct PassiveTree {
   choreograph::Output<float> pulseS{0}, pulseE{0};
   choreograph::Output<float> ringPhase{0};
   choreograph::Output<float> breath{5.5f};
   choreograph::Output<float> searchPulse{0};
   choreograph::Output<float> selectSpin{0};
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
                              .background = SkColor4f{0, 0, 0, 1}});

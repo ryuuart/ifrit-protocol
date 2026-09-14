@@ -127,7 +127,7 @@ Element notice(Utf8 heading, Utf8 detail) {
 
 }  // namespace
 
-struct SubstanceSwatchesSketch final : sketch::Sketch {
+struct SubstanceSwatchesSketch {
   /** WHAT THIS MACHINE MUST HAVE. The library is only built where the
    *  SDK is, and the SDK's sample archives are a separate part of that
    *  install — an SDK without them renders nothing, which is a piece
@@ -151,7 +151,7 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
             .children({notice(std::move(heading), std::move(detail))}));
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     ctx.background(hexColor(0x140f0a));
     ctx.captureAt(0.5);
 

@@ -144,7 +144,7 @@ Element card(float w, float h, SkColor4f accent) {
 
 }  // namespace
 
-struct FloatingPanels final : sketch::Sketch {
+struct FloatingPanels {
   sk_sp<SkImage> cardA, cardB, cardC, screen;
   mesh::Mesh floor, curved;
 
@@ -195,7 +195,7 @@ struct FloatingPanels final : sketch::Sketch {
                       .runtime = painter()});
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx,
                        {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
                         .captureAt = 1.0,

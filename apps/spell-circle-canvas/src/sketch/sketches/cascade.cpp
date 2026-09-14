@@ -364,21 +364,21 @@ Element row(std::vector<Element> four) {
 
 }  // namespace
 
-struct Cascade final : sketch::Sketch {
+struct Cascade {
   /** The kept canvas is built ONCE and described by value afterwards: a
    *  rebuilt program would be a new surface, and the trail would start
    *  over on the frame the fading panel is re-described. */
   Element trail;
   bool cooled = false;
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = kCapture});
     trail = trailCell();
     ctx.composer.render(sheet());
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) {
     // ONE re-describe, on a timer. The ink on the keyed panel is the other
     // colour this time, and the transition on that node eases it; nothing
     // under it is described differently at all.

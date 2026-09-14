@@ -80,7 +80,7 @@ mskia::Paint budLight() {
                                  {1.00f, {0.03f, 0.05f, 0.16f, 0.12f}}});
 }
 
-struct P5FractalGarden final : sketch::Sketch {
+struct P5FractalGarden {
   struct Segment {
     SkPoint from;
     SkPoint to;
@@ -90,7 +90,7 @@ struct P5FractalGarden final : sketch::Sketch {
   const mskia::Paint background = ground();
   const mskia::Paint buds = budLight();
 
-  void setup(sketch::SketchContext& context) override {
+  void setup(sketch::SketchContext& context) {
     context.canvas(900, 900);
     context.background({6 / 255.0f, 8 / 255.0f, 16 / 255.0f, 1});
     context.captureAt(0.05);  // the tree is a direct function of the clock

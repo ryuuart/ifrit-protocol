@@ -250,7 +250,7 @@ inline std::vector<Area> areaRing(const sketch::kit::Document& doc) {
 
 // ===========================================================================
 
-struct ShippingForecast : sketch::Sketch {
+struct ShippingForecast {
   // The two hand-stepped scalars. Everything else is a SHAPE of one of
   // them — a window, a swell, an envelope — which is why there are two
   // rather than a dozen.
@@ -943,7 +943,7 @@ struct ShippingForecast : sketch::Sketch {
   }
 
   // ------------------------------------------------------------------
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     // EVERY SCRAMBLE HAS RESOLVED. The barometer's readout runs an
     // `fx::hold(fx::scramble(...))` to 4.10 s and the forecast paragraph's
     // initials converge on their bodies after that, so a still taken

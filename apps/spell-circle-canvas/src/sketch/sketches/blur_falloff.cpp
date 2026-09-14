@@ -129,10 +129,10 @@ Element panel(const char* call, const char* note, mskia::Effect e,
 
 }  // namespace
 
-struct BlurFalloff final : sketch::Sketch {
+struct BlurFalloff {
   choreograph::Output<float> rack{0.0f};  // panel 4's bound maxSigma
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // the top of panel 4's breath: 1 / (2 kRackHz)
     sketch::kit::stage(ctx, {.size = {1080, 430}, .captureAt = 2.78});
@@ -171,7 +171,7 @@ struct BlurFalloff final : sketch::Sketch {
              .gap = 20})));
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) {
     (void)ctx;
     // Derived from `elapsed`, not accumulated: a still at a declared time
     // is then the same still every run. No re-describe — the bound

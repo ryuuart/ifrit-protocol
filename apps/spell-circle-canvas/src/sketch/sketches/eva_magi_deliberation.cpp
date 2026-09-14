@@ -38,7 +38,7 @@ const SkColor4f kInk = hexColor(0x071615);
 const SkColor4f kRed = hexColor(0xA20915);
 const SkColor4f kRedHot = hexColor(0xE1262E);
 
-struct EvaMagiDeliberation : sketch::Sketch {
+struct EvaMagiDeliberation {
   evangelion::MagiVoteLayout layout;
   weave::FontContext* fonts = nullptr;
 
@@ -197,7 +197,7 @@ struct EvaMagiDeliberation : sketch::Sketch {
              .cache(Cache::Texture)});
   }
 
-  void setup(sketch::SketchContext& context) override {
+  void setup(sketch::SketchContext& context) {
     context.canvas(layout.canvasWidth, layout.canvasHeight);
     context.background(kGround);
     fonts = context.fonts;

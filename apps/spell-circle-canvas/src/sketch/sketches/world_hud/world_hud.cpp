@@ -6,7 +6,7 @@
 
 namespace {
 
-struct WorldHud final : sketch::Set {
+struct WorldHud {
   // Plain fractions in [0,1], not pixel widths. Every bar here is a
   // full-size fill whose growing edge is pinned with transformOrigin() and
   // whose extent is carried by scaleX, so these Outputs feed the transform
@@ -35,7 +35,7 @@ struct WorldHud final : sketch::Set {
    *  filled it. */
   worldhud::gm::Mesh valley = worldhud::valley();
 
-  void setup(sketch::SetContext& ctx) override {
+  void setup(sketch::SetContext& ctx) {
     namespace wh = worldhud;
     ctx.canvas((int)kSceneSize.fWidth, (int)kSceneSize.fHeight);
     ctx.captureAt(6.0);
@@ -128,7 +128,7 @@ struct WorldHud final : sketch::Set {
         .tag("overlay");
   }
 
-  world::Frame describe(float seconds) override {
+  world::Frame describe(float seconds) {
     namespace wh = worldhud;
     driveTo((double)seconds);
 

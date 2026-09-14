@@ -140,8 +140,8 @@ Element meshCell(const char* heading, const std::string& reading,
 
 }  // namespace
 
-struct CodecRoundtrip final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct CodecRoundtrip {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

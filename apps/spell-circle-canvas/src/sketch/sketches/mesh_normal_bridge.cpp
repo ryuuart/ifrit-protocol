@@ -103,7 +103,7 @@ SkPath squircle() {
 
 }  // namespace
 
-struct MeshNormalBridge final : sketch::Sketch {
+struct MeshNormalBridge {
   material::EnvironmentMap studio, sunset;
   mesh::Mesh blob, ring;
 
@@ -173,7 +173,7 @@ struct MeshNormalBridge final : sketch::Sketch {
     }
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx,
                        {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
                         .captureAt = 1.0,

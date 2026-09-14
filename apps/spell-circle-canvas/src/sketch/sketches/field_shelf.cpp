@@ -139,8 +139,8 @@ Element aged(const char* call, const char* note, material::Material paint) {
 
 }  // namespace
 
-struct FieldShelf final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct FieldShelf {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

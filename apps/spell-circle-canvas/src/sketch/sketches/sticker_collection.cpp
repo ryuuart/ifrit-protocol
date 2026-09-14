@@ -138,13 +138,13 @@ struct Shelf {
 
 }  // namespace
 
-struct StickerCollection final : sketch::Sketch {
+struct StickerCollection {
   static bool available(std::string* why) {
     return sketch::requireCached(
         {kGif, kAvif, kSparkle, kDiamond, kHeart, kWebm}, why);
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = SkSize::Make(kWidth, kHeight),
                              .captureAt = 2.35,
                              .background = SkColor4f{0.97f, 0.97f, 0.95f, 1}});

@@ -97,12 +97,12 @@ Element cell(const char* call, const char* note, Element body) {
 
 }  // namespace
 
-struct PixFontDotSprite final : sketch::Sketch {
+struct PixFontDotSprite {
   kit::PixFont font;
   kit::Mask sweep[3];
   sk_sp<SkImage> dot;
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(ctx, {.size = kCanvas});
     // The readout is live, so the sheet is complete only once the number

@@ -50,8 +50,8 @@ constexpr std::array<Pigment, 5> kPigments{{
     {105, 112, 191},
 }};
 
-struct BristleBloom final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct BristleBloom {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(
         ctx, {.size = {900, 900}, .captureAt = 0.25, .background = kPaper});
     ctx.composer.render(compose::graphics("bristle_bloom.bloom",

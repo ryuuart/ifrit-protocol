@@ -2,7 +2,7 @@
 
 #include "Settings.h"
 
-struct GenesisFire final : sketch::Sketch {
+struct GenesisFire {
   /** The host is capturing for a diff, so a figure this study took off
    *  its own execution is pinned. Read from the context while declaring
    *  and kept, because the caption is drawn by a pen program and a pen
@@ -306,7 +306,7 @@ struct GenesisFire final : sketch::Sketch {
 
   // =========================================================================
 
-  void setup(sketch::SketchContext& ctx) override;
+  void setup(sketch::SketchContext& ctx);
 
   /** THE LOOP, run by the pen of the node the study stands in: one frame
    *  of the canvas that node keeps. */

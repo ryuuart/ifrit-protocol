@@ -123,10 +123,10 @@ Element panel(const char* caption, Element content) {
 
 }  // namespace
 
-struct CardFlip final : sketch::Sketch {
+struct CardFlip {
   choreograph::Output<float> flip{0}, spinX{0}, spinY{0}, sway{0};
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // MID-TURN. At 2.2 s the card is past its quarter turn and the back
     // has just taken over, the cube shows three faces at an oblique, and

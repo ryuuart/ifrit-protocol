@@ -163,8 +163,8 @@ Element cell(std::string key, std::vector<SkPath> strands,
 
 }  // namespace
 
-struct CrossingRuleSheet final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct CrossingRuleSheet {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

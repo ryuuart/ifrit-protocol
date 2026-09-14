@@ -67,10 +67,10 @@ brush::Tool liquidNib(SkColor4f colour, float width) {
   return tool;
 }
 
-struct P5LiquidLayers final : sketch::Sketch {
+struct P5LiquidLayers {
   const mskia::Paint ground = graphPaper();
 
-  void setup(sketch::SketchContext& context) override {
+  void setup(sketch::SketchContext& context) {
     context.canvas(720, 560);
     context.background({4 / 255.0f, 9 / 255.0f, 18 / 255.0f, 1});
     context.captureAt(0.05);  // the painting is a direct function of the clock

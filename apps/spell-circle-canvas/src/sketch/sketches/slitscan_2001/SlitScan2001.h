@@ -2,7 +2,7 @@
 
 #include "Settings.h"
 
-struct SlitScan2001 : sketch::Sketch {
+struct SlitScan2001 {
   // ---- the film clock: 24 Hz because the film runs at 24 fps -------------
   ch::Output<float> frameAlpha{0};
   sigil::motion::Ticker::FixedStatus fixedStatus;
@@ -172,6 +172,6 @@ struct SlitScan2001 : sketch::Sketch {
   // ---------------------------------------------------------------- describe
   Element describe(sketch::SketchContext& ctx);
 
-  void setup(sketch::SketchContext& ctx) override;
-  void update(double e, sketch::SketchContext& ctx) override;
+  void setup(sketch::SketchContext& ctx);
+  void update(double e, sketch::SketchContext& ctx);
 };

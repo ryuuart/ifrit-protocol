@@ -131,8 +131,8 @@ Element cell(const char* call, const std::string& note,
 
 }  // namespace
 
-struct FrameGrid final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct FrameGrid {
+  void setup(sketch::SketchContext& ctx) {
     // nothing moves; the sheet is complete at once
     const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

@@ -10,7 +10,7 @@
 
 #include "VotingPlate.h"
 
-struct EvaMagiInterior : sketch::Sketch {
+struct EvaMagiInterior {
   sk_sp<SkRuntimeEffect> infectionFx = magi::infectionEffect();
   std::vector<magi::Panel> panels = magi::panels();
   std::vector<magi::Arrivals> arrivals;  // per panel, sorted by arrival
@@ -459,7 +459,7 @@ struct EvaMagiInterior : sketch::Sketch {
     return magi::frontFor(arrivals[(size_t)i], (float)frac);
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     // At the capture moment MELCHIOR is taken and BALTHASAR is about 30.2%
     // infected. By 6.0 s both panels are filled, hiding the ragged front.
     sketch::kit::stage(ctx, {.size = SkSize::Make(magi::kW, magi::kH),
@@ -530,7 +530,7 @@ struct EvaMagiInterior : sketch::Sketch {
     ctx.composer.renderSlot("hud", hud());
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) {
     // The DATA path, and the ONLY re-describe: a panel is taken (3x a loop),
     // the verdict card steps (6x), the countdown ticks (13x). The infection
     // itself never re-describes — it is one uniform.

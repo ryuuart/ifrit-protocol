@@ -4,7 +4,7 @@
 
 #include "Motif.h"
 
-struct CdeMotifSketch : sketch::Sketch {
+struct CdeMotifSketch {
   using Set = cde::ColorSet;
 
   /** The one 2x2 tile every insensitive label on the desktop is painted
@@ -768,7 +768,7 @@ struct CdeMotifSketch : sketch::Sketch {
 
   // -------------------------------------------------------------------------
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     // The still has to name its moment: palettes snap every 3 s over
     // {Default, Crimson, Black, Summer}, and an undeclared capture can land
     // on a snap or on Black, the all-black degenerate palette. Default —
@@ -823,7 +823,7 @@ struct CdeMotifSketch : sketch::Sketch {
 
   int lastSweepByte = -1;
 
-  void update(double elapsed, sketch::SketchContext& ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) {
     // Beat one: the palette cycles every 3 s. SNAP, do not crossfade —
     // CDE's colour server re-allocates the cells and every window
     // repaints on the next expose; a 300 ms lerp across a desktop would

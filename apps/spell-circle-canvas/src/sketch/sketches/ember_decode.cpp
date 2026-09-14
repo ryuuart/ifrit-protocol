@@ -207,7 +207,7 @@ float masterAt(double t, double startAt, float totalMs) {
 
 // ===========================================================================
 
-struct EmberDecode : sketch::Sketch {
+struct EmberDecode {
   std::shared_ptr<const sigil::material::Recipe> recipe = burnRecipe();
   choreograph::Output<float> display{0.0f}, words{0.0f};
   float displayTotalMs = 1;  // the cascades' spans, read back from beatsOf
@@ -284,7 +284,7 @@ struct EmberDecode : sketch::Sketch {
                  {each(beats, readBack)})});
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(
         ctx, {.size = SkSize::Make(kW, kH),
               .captureAt = 2.4,
@@ -293,7 +293,7 @@ struct EmberDecode : sketch::Sketch {
     ctx.composer.render(describe(ctx));
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) {
     // The cascades' real spans, read off the schedule rather than
     // restated: the last beat's start plus one beat's length is the whole
     // ramp. beatsOf answers after the first draw has laid the text out,

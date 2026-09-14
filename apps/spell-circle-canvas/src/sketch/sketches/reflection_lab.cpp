@@ -115,7 +115,7 @@ world::Element balls() {
 
 namespace {
 
-struct ReflectionLab final : sketch::Set {
+struct ReflectionLab {
   /** The row and the two panoramas, made once. A panorama is baked
    *  texel by texel and prefiltered into nine levels the first time it
    *  is asked for; building one per frame would bake the same sky sixty
@@ -124,7 +124,7 @@ struct ReflectionLab final : sketch::Set {
   material::EnvironmentMap studio;
   material::EnvironmentMap sunset;
 
-  void setup(sketch::SetContext& ctx) override {
+  void setup(sketch::SetContext& ctx) {
     // Far enough into the turn that the sky has moved off its start and
     // the crossfade is under way, so the plate is a picture of the
     // study rather than of its first frame.
@@ -142,7 +142,7 @@ struct ReflectionLab final : sketch::Set {
         {0.05f, 0.03f, 0.05f, 1});
   }
 
-  world::Frame describe(float seconds) override {
+  world::Frame describe(float seconds) {
     // THE SKY, AS A NODE. Its transform is its orientation, so one
     // rotate lane turns every reflection in the set at once; the
     // crossfade runs beside it, from the studio bake to the sunset one.

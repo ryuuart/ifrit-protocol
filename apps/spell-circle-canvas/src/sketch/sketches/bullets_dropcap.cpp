@@ -136,8 +136,8 @@ Element illuminated(const char* key, std::optional<kit::NestedStyle> nested) {
 
 }  // namespace
 
-struct BulletsDropCap final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct BulletsDropCap {
+  void setup(sketch::SketchContext& ctx) {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     const sketch::kit::Theme& look = sketch::kit::theme();

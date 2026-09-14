@@ -15,8 +15,8 @@ using namespace sigil::draw;
 
 namespace {
 
-struct ObservableNoiseMap final : sketch::Sketch {
-  void setup(sketch::SketchContext& context) override {
+struct ObservableNoiseMap {
+  void setup(sketch::SketchContext& context) {
     context.canvas(720, 720);
     context.captureAt(0.05);
 

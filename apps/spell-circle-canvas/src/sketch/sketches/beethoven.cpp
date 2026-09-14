@@ -123,8 +123,8 @@ inline weave::StyleSheet look() {
 
 }  // namespace beethoven_plate
 
-struct Beethoven final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct Beethoven {
+  void setup(sketch::SketchContext& ctx) {
     // The whole table is revealed: the outermost ring runs 120 ms doubled
     // five times, so the last sweep lands before four seconds and the plate
     // is the poster rather than a frame of its assembly.

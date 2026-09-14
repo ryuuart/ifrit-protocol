@@ -124,10 +124,10 @@ Element cell(const char* call, const char* note, Element body) {
 
 }  // namespace
 
-struct CoverageBoundary final : sketch::Sketch {
+struct CoverageBoundary {
   const CutOuts cut;
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 

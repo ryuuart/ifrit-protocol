@@ -209,7 +209,7 @@ std::vector<SkRect> wordRects(const std::vector<Beat>& schedule) {
 
 // ===========================================================================
 
-struct KaraokeWipe : sketch::Sketch {
+struct KaraokeWipe {
   choreograph::Output<float> cycle{0};     // seconds into one pass, wrapping
   choreograph::Output<float> ballX{0};     // px along the line
   choreograph::Output<float> ballY{0};     // px above the ball's rest
@@ -329,7 +329,7 @@ struct KaraokeWipe : sketch::Sketch {
                  .ink(kFaint)});
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     ctx.canvas(kW, kH);
     ctx.background(kStage);
     if (!ctx.fonts) return;
@@ -374,7 +374,7 @@ struct KaraokeWipe : sketch::Sketch {
    *  ball and the playhead are placed from the same numbers the glyphs are
    *  drawn from — not from a second copy of the cascade's arithmetic that
    *  a nested beat or a recut table would silently invalidate. */
-  void update(double, sketch::SketchContext& ctx) override {
+  void update(double, sketch::SketchContext& ctx) {
     const std::vector<Beat> now = ctx.composer.beatsOf("line1", 0);
     if (now.empty()) return;  // nothing laid out yet
     const std::optional<SkRect> line = ctx.composer.bounds("line1");

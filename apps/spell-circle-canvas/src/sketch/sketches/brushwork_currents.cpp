@@ -43,8 +43,8 @@ constexpr std::array<SkColor4f, 5> kPalette{{
     {0.38f, 0.16f, 0.34f, 1.0f},
 }};
 
-struct BrushworkCurrents final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct BrushworkCurrents {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(
         ctx, {.size = {1080, 760}, .captureAt = 0.25, .background = kPaper});
 

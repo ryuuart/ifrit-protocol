@@ -108,14 +108,14 @@ Element cell(const sk_sp<SkImage>& frame, float w, float h, const char* call,
 
 }  // namespace
 
-struct GifFrames final : sketch::Sketch {
+struct GifFrames {
   /** WHAT THIS MACHINE MUST HAVE. The sheet is about one real file, and a
    *  cold cache would render a different picture under the same name. */
   static bool available(std::string* why) {
     return sketch::requireCached({kSource}, why);
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // every frame is on the sheet; nothing moves
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

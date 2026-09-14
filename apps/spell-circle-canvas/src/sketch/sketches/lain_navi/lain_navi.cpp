@@ -4,9 +4,7 @@
 
 #include "Navi.h"
 
-struct LainNavi : sketch::Sketch {
-  using Sketch::Sketch;
-
+struct LainNavi {
   ch::Output<float> creep{0};    // scanline creep, whole px
   ch::Output<float> flicker{0};  // phosphor dip
   ch::Output<float> breathe{0};  // the camera hunting focus, 0.15 Hz
@@ -385,7 +383,7 @@ struct LainNavi : sketch::Sketch {
   }
 
   // --- host ------------------------------------------------------------------
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     using namespace lain;
     // This sketch brings its own canvas size — the source frames' 1016x720,
     // so a capture diffs against them directly — and its own ground colour.
@@ -427,7 +425,7 @@ struct LainNavi : sketch::Sketch {
     ctx.composer.renderSlot("phrases", phrases());
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) {
     // Three independent rates, three slots. Nothing else re-describes at all.
     const long long line = motion::stepIndex(elapsed, 1.0 / 0.220);
     const long long orbit = motion::stepIndex(elapsed, 6.0);

@@ -319,7 +319,7 @@ Element plate(float height) {
 
 // ===========================================================================
 
-struct VertigoTitles : sketch::Sketch {
+struct VertigoTitles {
   // --- the perpetual loop's live cells ---------------------------------
   // One clock and three cells per card. The nib's trailing edge is a
   // shaped binding on `growth` and the turntable is a shaped binding on
@@ -730,7 +730,7 @@ struct VertigoTitles : sketch::Sketch {
   }
 
   // ------------------------------------------------------------------
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(
         ctx,
         {.size = SkSize::Make(kW, kH), .captureAt = 5.2, .background = kInk});

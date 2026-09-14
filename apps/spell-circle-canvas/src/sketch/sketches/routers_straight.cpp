@@ -91,8 +91,8 @@ Element cell(const char* call, const char* note, const std::string& tag,
 
 }  // namespace
 
-struct RoutersStraight final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct RoutersStraight {
+  void setup(sketch::SketchContext& ctx) {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 

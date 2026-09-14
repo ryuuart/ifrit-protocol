@@ -157,13 +157,13 @@ Element cell(const std::string& key, const char* heading,
 
 }  // namespace
 
-struct UsdRoundtrip final : sketch::Sketch {
+struct UsdRoundtrip {
   /** WHAT THIS MACHINE MUST HAVE. USD's file formats are plugins found
    *  on disk when it first runs, so a build that links and starts can
    *  still open nothing. */
   static bool available(std::string* why) { return usd::available(why); }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

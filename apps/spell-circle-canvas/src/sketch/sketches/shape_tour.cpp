@@ -125,8 +125,8 @@ const char* kHeartD =
 
 }  // namespace
 
-struct ShapeShelf final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct ShapeShelf {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // A generator is a pure function of its parameters and the box.
     sketch::kit::stage(ctx, {.size = {1120, 840}, .captureAt = 0.05});

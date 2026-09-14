@@ -182,8 +182,8 @@ Element cell(const char* call, const std::string& note, material::Material m,
 
 }  // namespace
 
-struct FrameInputs final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct FrameInputs {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

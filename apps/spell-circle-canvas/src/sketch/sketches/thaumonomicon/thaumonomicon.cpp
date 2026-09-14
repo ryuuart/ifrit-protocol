@@ -4,7 +4,7 @@
 
 #include "ResearchArt.h"
 
-struct Thaumonomicon : sketch::Sketch {
+struct Thaumonomicon {
   /** THE HOVERED NODE, and the one parent of it that is not complete — the
    *  tooltip's whole subject, named by key so its title, its position on the
    *  lattice and its missing line all come off the graph rather than being
@@ -504,7 +504,7 @@ struct Thaumonomicon : sketch::Sketch {
 
   // -------------------------------------------------------------------------
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     // The plate at exactly 2x. One GUI px is two canvas px and four device
     // px, so every stamped tile on the 24-px lattice lands whole.
     sketch::kit::stage(ctx, {.size = SkSize::Make(kCanvasW, kCanvasH),

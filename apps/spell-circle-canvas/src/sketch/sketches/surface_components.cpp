@@ -57,7 +57,7 @@ Element gel(float height) {
                           .cache(Cache::Texture));
 }
 
-struct SurfaceComponents : sketch::Sketch {
+struct SurfaceComponents {
   choreograph::Output<Fill> ink{Fill::color({0.10f, 0.30f, 0.40f, 1})};
   int sizeStep = -1;
 
@@ -95,12 +95,12 @@ struct SurfaceComponents : sketch::Sketch {
         .ink(kInk);
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     ctx.canvas({.size = {1020, 620}, .captureSeconds = 2.5});
     ctx.composer.render(describe(80));
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) {
     const float wave = 0.5f + 0.5f * std::sin((float)elapsed);
     ink = Fill::color({0.08f, 0.18f + wave * 0.18f, 0.28f + wave * 0.20f, 1});
     const int step = (int)elapsed % 4;

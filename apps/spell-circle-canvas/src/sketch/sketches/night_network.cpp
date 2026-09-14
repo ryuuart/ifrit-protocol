@@ -187,12 +187,12 @@ inline Element legendRow(const char* name, const char* what, SkColor4f c,
 
 }  // namespace night_network
 
-struct NightNetwork final : sketch::Sketch {
+struct NightNetwork {
   choreograph::Output<float> emberReveal{0}, railReveal{0}, cyanReveal{0},
       ringReveal{0}, roadReveal{0};
   choreograph::Output<float> hubGlow{0};
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
                              .background = SkColor4f{0, 0, 0, 1}});

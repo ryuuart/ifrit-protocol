@@ -2,7 +2,7 @@
 
 #include "Settings.h"
 
-struct Minard1869 : sketch::Sketch {
+struct Minard1869 {
   // ---- the timeline: ONE Output, every beat a window onto it.
   // NOT from() — ease:: is not total, so a value outside a beat's window
   // would feed the curve outside its domain. bind().window(a, b) clamps
@@ -275,10 +275,10 @@ struct Minard1869 : sketch::Sketch {
 
   Sheet plate;
 
-  void setup(sketch::SketchContext& ctx) override;
+  void setup(sketch::SketchContext& ctx);
 
   /** The one thing on the sheet that cannot be a bound value: the caliper's
    *  reading is TYPE, and a string is not a property a binding can drive,
    *  so a new step re-describes. renderSlot() keeps that to one node. */
-  void update(double, sketch::SketchContext& ctx) override;
+  void update(double, sketch::SketchContext& ctx);
 };

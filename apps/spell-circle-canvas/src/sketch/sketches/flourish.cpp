@@ -66,7 +66,7 @@ constexpr SkSize kSceneSize = {900, 640};
 
 namespace ch = choreograph;
 
-struct Flourish final : sketch::Sketch {
+struct Flourish {
   static constexpr float kW = 900.0f;  // kSceneSize.width()
   static constexpr float kH = 640.0f;  // kSceneSize.height()
   static constexpr float kFrameInset = 34.0f;
@@ -562,7 +562,7 @@ struct Flourish final : sketch::Sketch {
                    goldDust()});
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
                              .background = SkColor4f{0, 0, 0, 1}});
@@ -608,7 +608,7 @@ struct Flourish final : sketch::Sketch {
     composer.render(describe());
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) {
     Composer& composer = ctx.composer;
     if (elapsed < nextAccent) return;
     nextAccent = elapsed + 4.0;

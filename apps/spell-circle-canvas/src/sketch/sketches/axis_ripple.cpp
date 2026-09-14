@@ -168,7 +168,7 @@ TextEffect gradWave(float lo, float hi, float radPerGlyph) {
 
 // ===========================================================================
 
-struct AxisRipple : sketch::Sketch {
+struct AxisRipple {
   choreograph::Output<float> phase{0};
 
   sk_sp<SkTypeface> face, faceLabel;
@@ -374,7 +374,7 @@ struct AxisRipple : sketch::Sketch {
                  .ink(kFaint)});
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     // A quarter-pass in: the wave's crest is inside the word rather than at
     // either end, so both the ramp up and the ramp down are on the page.
     sketch::kit::stage(ctx, {.size = SkSize::Make(kW, kH),

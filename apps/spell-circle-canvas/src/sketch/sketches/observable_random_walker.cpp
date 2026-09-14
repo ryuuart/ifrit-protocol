@@ -24,8 +24,8 @@ namespace {
 /** One word keyed on @p value, from the library's mixer. */
 uint32_t hash(uint32_t value) { return chance::Stream::mix64(value).bits(); }
 
-struct ObservableRandomWalker final : sketch::Sketch {
-  void setup(sketch::SketchContext& context) override {
+struct ObservableRandomWalker {
+  void setup(sketch::SketchContext& context) {
     context.canvas(800, 800);
     context.captureAt(0.05);
 

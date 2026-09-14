@@ -78,11 +78,11 @@ const float kSettleSpan = kSettle.spanMs(2);
 
 }  // namespace tategaki
 
-struct Tategaki final : sketch::Sketch {
+struct Tategaki {
   /// After the cascade has settled: the plate is the finished setting, not
   /// a frame of its entrance.
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 2.4,
                              .background = SkColor4f{0, 0, 0, 1}});

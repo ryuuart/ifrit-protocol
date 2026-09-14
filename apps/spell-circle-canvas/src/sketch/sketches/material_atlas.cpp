@@ -175,13 +175,13 @@ void put(SkCanvas& canvas, const material::Texture& texture, SkRect where,
 
 }  // namespace
 
-struct MaterialAtlas final : sketch::Sketch {
+struct MaterialAtlas {
   /** The one sheet everything on the page is cut from, held for the
    *  sketch's life so the three atlases and the picture of the whole thing
    *  are readings of the SAME bake. */
   material::Texture sheet = buildSheet();
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

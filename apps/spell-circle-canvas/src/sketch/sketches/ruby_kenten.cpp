@@ -105,8 +105,8 @@ inline Element column(const char* caption, const char* note, Element specimen) {
 
 }  // namespace furigana
 
-struct RubyKenten final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct RubyKenten {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 0.4,
                              .background = furigana::kKinari});

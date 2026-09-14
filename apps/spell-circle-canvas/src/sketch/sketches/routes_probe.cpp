@@ -88,11 +88,11 @@ constexpr const char* kStateWords[] = {"Live",     "Picture",  "Texture",
 
 }  // namespace
 
-struct RoutesProbe final : sketch::Sketch {
+struct RoutesProbe {
   std::vector<std::string> routes;    // what routesAt() answered
   std::vector<std::string> verdicts;  // one line per probe, from profile()
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sketch::kit::houseTheme());
     // the readouts are taken before the sheet is built
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

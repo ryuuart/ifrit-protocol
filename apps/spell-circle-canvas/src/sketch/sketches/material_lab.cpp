@@ -305,7 +305,7 @@ world::Element cards() {
 
 namespace {
 
-struct MaterialLab final : sketch::Set {
+struct MaterialLab {
   /** The row and the floor it stands on, made once. Neither is a
    *  function of the time — the five recipes are what the sketch is
    *  about and the floor's two maps are generated pixel by pixel — so
@@ -314,7 +314,7 @@ struct MaterialLab final : sketch::Set {
   world::Element row;
   std::optional<material::Material> floorSurface;
 
-  void setup(sketch::SetContext& ctx) override {
+  void setup(sketch::SetContext& ctx) {
     sketch::kit::stage(ctx,
                        {.size = {880, 520},
                         .captureAt = 1.1,
@@ -338,7 +338,7 @@ struct MaterialLab final : sketch::Set {
     floorSurface = std::move(floor);
   }
 
-  world::Frame describe(float seconds) override {
+  world::Frame describe(float seconds) {
     // The room, as one value. The key stands just off the eye's own
     // bearing and above it, so every card is lit face on and the
     // highlight lands where a reader is already looking; the fill opens

@@ -2,7 +2,7 @@
 
 #include "Settings.h"
 
-struct ChevreulCircle : sketch::Sketch {
+struct ChevreulCircle {
   /** EVERY WORD ON THE PLATE THAT IS NOT A MEASUREMENT — the masthead,
    *  the imprint, the section heads, the quotations and the footer —
    *  stands in `data/content.json` beside this file, read in setup. EDIT
@@ -143,9 +143,9 @@ struct ChevreulCircle : sketch::Sketch {
   Element describe(sketch::SketchContext& ctx);
 
   // ==================================================================
-  void setup(sketch::SketchContext& ctx) override;
+  void setup(sketch::SketchContext& ctx);
 
   int frames = 0;
 
-  void update(double, sketch::SketchContext& ctx) override;
+  void update(double, sketch::SketchContext& ctx);
 };

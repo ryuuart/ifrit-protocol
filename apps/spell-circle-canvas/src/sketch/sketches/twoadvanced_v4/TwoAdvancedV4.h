@@ -2,7 +2,7 @@
 
 #include "Settings.h"
 
-struct TwoAdvancedV4 : sketch::Sketch {
+struct TwoAdvancedV4 {
   /** THE PRODUCTION GIFS ARE RUNTIME DATA, and a sketch over runtime data
    *  a machine may not have says so rather than drawing a second picture
    *  under the same name. The rails, the page ground, the footer strip
@@ -299,7 +299,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
 
   // =========================================================================
 
-  void setup(sketch::SketchContext& ctx) override;
+  void setup(sketch::SketchContext& ctx);
 
-  void update(double elapsed, sketch::SketchContext& ctx) override;
+  void update(double elapsed, sketch::SketchContext& ctx);
 };

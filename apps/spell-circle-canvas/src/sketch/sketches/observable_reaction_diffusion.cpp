@@ -28,13 +28,13 @@ struct Cell {
   float b = 0.0f;
 };
 
-struct ObservableReactionDiffusion final : sketch::Sketch {
+struct ObservableReactionDiffusion {
   std::vector<Cell> field =
       std::vector<Cell>(static_cast<size_t>(kGrid * kGrid));
   std::vector<Cell> next = field;
   SkBitmap bitmap;
 
-  void setup(sketch::SketchContext& context) override {
+  void setup(sketch::SketchContext& context) {
     context.canvas(720, 720);
     context.captureAt(5.0);
     bitmap.allocN32Pixels(kGrid, kGrid);

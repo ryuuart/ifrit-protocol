@@ -119,7 +119,7 @@ double stationTime(int i) { return kFirstStation + (double)i * kStationGap; }
 
 }  // namespace
 
-struct HitSlots final : sketch::Sketch {
+struct HitSlots {
   std::string hitLabel = "—";
   std::optional<SkRect> hitBounds;
   std::vector<std::string> hitRoutes;
@@ -242,7 +242,7 @@ struct HitSlots final : sketch::Sketch {
              .hitTestable(false)});
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(
         ctx, {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
@@ -257,7 +257,7 @@ struct HitSlots final : sketch::Sketch {
     ctx.composer.renderSlot("answer", answer());
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) {
     // The answer is described AGAIN whenever it changes, and a describe
     // outside the scope setup opened has no theme bound: the look must be
     // in scope wherever the tree is built, not only where it is first

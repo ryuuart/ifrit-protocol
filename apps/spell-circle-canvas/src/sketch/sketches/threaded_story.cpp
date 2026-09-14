@@ -156,8 +156,8 @@ weave::Story article() {
 
 }  // namespace story
 
-struct ThreadedStory final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct ThreadedStory {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(
         ctx,
         {.size = kSceneSize, .captureAt = 0.4, .background = story::kPaper});

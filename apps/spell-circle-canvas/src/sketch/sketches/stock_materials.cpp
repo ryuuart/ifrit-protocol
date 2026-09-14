@@ -118,8 +118,8 @@ Element row(std::vector<Element> cells) {
 
 }  // namespace
 
-struct StockMaterialsSheet final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct StockMaterialsSheet {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // Nothing on the sheet moves: every generator is evaluated from its
     // parameters and the box, and the two that read the clock are pinned

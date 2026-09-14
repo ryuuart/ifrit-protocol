@@ -101,8 +101,8 @@ const sketch::kit::Cell kSpecimen{
 
 }  // namespace
 
-struct SpacingPasses final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct SpacingPasses {
+  void setup(sketch::SketchContext& ctx) {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 

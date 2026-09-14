@@ -291,7 +291,7 @@ std::function<SkPath(SkSize)> spoke(float radiusFraction, float bearing) {
 
 // ===========================================================================
 
-struct NightingaleCoxcomb : sketch::Sketch {
+struct NightingaleCoxcomb {
   // --- the plate's own reading order, as a clock (seconds) ---
   static constexpr float tTitle1 = 0.0f;
   static constexpr float tTitle2 = 0.9f;
@@ -762,7 +762,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
   std::vector<Month> d1, d2;
   std::vector<LegendLine> legendText;
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     if (const auto deaths = ctx.assets.table(ctx.local("data/deaths.csv"))) {
       d1 = readWheel(*deaths, 1);
       d2 = readWheel(*deaths, 2);
@@ -868,7 +868,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
     ctx.composer.render(describe(ctx));
   }
 
-  void update(double, sketch::SketchContext&) override {}
+  void update(double, sketch::SketchContext&) {}
 };
 
 SIGIL_SKETCH(NightingaleCoxcomb, "Study · Science",

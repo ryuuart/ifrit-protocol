@@ -32,10 +32,10 @@ struct Turtle {
   float angle;
 };
 
-struct ObservableLSystemTree final : sketch::Sketch {
+struct ObservableLSystemTree {
   std::string sentence = "F";
 
-  void setup(sketch::SketchContext& context) override {
+  void setup(sketch::SketchContext& context) {
     context.canvas(800, 800);
     context.captureAt(0.05);
     for (int generation = 0; generation < 4; ++generation)

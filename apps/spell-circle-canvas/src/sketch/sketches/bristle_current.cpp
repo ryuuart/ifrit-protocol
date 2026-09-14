@@ -68,7 +68,7 @@ struct Mark {
   uint8_t pigment;
 };
 
-struct BristleCurrent final : sketch::Sketch {
+struct BristleCurrent {
   NoiseField field{0xC011A6Eu};
   std::vector<Bristle> bristles;
   std::vector<Mark> pending;
@@ -144,7 +144,7 @@ struct BristleCurrent final : sketch::Sketch {
     }
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     ctx.canvas(kCanvas, kCanvas);
     ctx.background({244 / 255.0f, 238 / 255.0f, 221 / 255.0f, 1});
     ctx.captureAt(5.2);

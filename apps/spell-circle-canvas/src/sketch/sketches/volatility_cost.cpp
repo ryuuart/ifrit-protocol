@@ -226,7 +226,7 @@ Element cells(const choreograph::Output<Fill>* tint) {
 
 }  // namespace
 
-struct VolatilityCost final : sketch::Sketch {
+struct VolatilityCost {
   /** THE PROBE, and why the sheet owns one. Every number here is a
    *  CACHING VERDICT, and a verdict is taken against a promotion policy —
    *  so a sheet reading its own tree would report the host's policy rather
@@ -446,7 +446,7 @@ struct VolatilityCost final : sketch::Sketch {
                       readout(ctx)}))});
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // the reading is taken and frozen by then
     sketch::kit::stage(ctx, {.size = {1320, 980}, .captureAt = kSnapAt + 0.5});
@@ -467,7 +467,7 @@ struct VolatilityCost final : sketch::Sketch {
     ctx.composer.render(describe(ctx));
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) {
     if (kRepaintHz > 0.0) {
       // The demonstration mode: a change every 1/kRepaintHz seconds — each
       // one re-declares volatility for a frame, after which the value

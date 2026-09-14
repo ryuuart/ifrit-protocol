@@ -86,15 +86,15 @@ gm::Mesh gate() { return gm::torus(26.0f, 3.0f, 6, 10); }
 
 namespace {
 
-struct DartFlight final : sketch::Set {
-  void setup(sketch::SetContext& ctx) override {
+struct DartFlight {
+  void setup(sketch::SetContext& ctx) {
     sketch::kit::stage(ctx,
                        {.size = {880, 600},
                         .captureAt = 1.5,
                         .background = SkColor4f{0.028f, 0.032f, 0.046f, 1.0f}});
   }
 
-  world::Frame describe(float seconds) override {
+  world::Frame describe(float seconds) {
     const gm::curve::Spline3 loop = flight();
     const float lap = loop.length();
 

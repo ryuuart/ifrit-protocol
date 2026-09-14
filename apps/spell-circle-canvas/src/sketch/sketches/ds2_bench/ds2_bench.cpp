@@ -5,7 +5,7 @@
 
 #include "Circuit.h"
 
-struct Ds2Bench : sketch::Sketch {
+struct Ds2Bench {
   // one bound glow per node — the idle pulse is desynced by index
   std::array<choreograph::Output<float>, 24> glow;
   choreograph::Output<float> socketPulse{1.0f};
@@ -761,7 +761,7 @@ struct Ds2Bench : sketch::Sketch {
     return root;
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = SkSize::Make((int)kW, (int)kH),
                              .captureAt = 2.5,
                              .background = hexColor(0x02060A)});
@@ -794,7 +794,7 @@ struct Ds2Bench : sketch::Sketch {
     ctx.composer.render(describe(ctx));
   }
 
-  void update(double, sketch::SketchContext&) override {}
+  void update(double, sketch::SketchContext&) {}
 };
 
 SIGIL_SKETCH(Ds2Bench, "Study · Game UI",

@@ -84,7 +84,7 @@ glm::vec4 oklabRamp(float f, float value) {
 
 }  // namespace
 
-struct PopPrims final : sketch::Sketch {
+struct PopPrims {
   mesh::Mesh facets, baked, pieces;
 
   void draw(SkCanvas& canvas) const {
@@ -111,7 +111,7 @@ struct PopPrims final : sketch::Sketch {
                      stamped);
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx,
                        {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
                         .captureAt = 1.0,

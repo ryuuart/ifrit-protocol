@@ -219,7 +219,7 @@ void paintRail(SkCanvas& canvas, const std::vector<curve::Frame3>& rail,
 
 }  // namespace
 
-struct YarnMarquee final : sketch::Sketch {
+struct YarnMarquee {
   sk_sp<SkImage> art;
   std::vector<curve::Frame3> transported;
   std::vector<curve::Frame3> hung;
@@ -236,7 +236,7 @@ struct YarnMarquee final : sketch::Sketch {
                                     .fill(Fill::color(kCellGround)));
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(ctx, {.size = {1200, 660}});
     // Both rails are computed from the loop and nothing reads the clock.

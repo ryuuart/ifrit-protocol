@@ -29,10 +29,10 @@ struct Circle {
   SkColor4f colour;
 };
 
-struct ObservableCirclePacking final : sketch::Sketch {
+struct ObservableCirclePacking {
   std::vector<Circle> circles;
 
-  void setup(sketch::SketchContext& context) override {
+  void setup(sketch::SketchContext& context) {
     sketch::kit::stage(context, {.size = kCanvas, .captureAt = 4.0});
 
     context.composer.render(compose::graphics("observable_circle_packing.loop",

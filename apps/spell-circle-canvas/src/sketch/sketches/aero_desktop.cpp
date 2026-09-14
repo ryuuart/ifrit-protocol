@@ -234,7 +234,7 @@ inline Paint buttonBase(float h) {
 
 }  // namespace aero_desktop
 
-struct AeroDesktop final : sketch::Sketch {
+struct AeroDesktop {
   /** THE TWO PROGRAMS THIS DESKTOP IS PAINTED WITH, compiled once and held
    *  for the sketch's life. An effect is compared by POINTER, so the
    *  wallpaper, its taskbar copy and its thumbnail copy share one compile or
@@ -246,7 +246,7 @@ struct AeroDesktop final : sketch::Sketch {
   choreograph::Output<float> bloom{0};    // close-button hover bloom fade-in
   choreograph::Output<float> orbGlow{0};  // start-orb ambient breathing
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
                              .background = SkColor4f{0, 0, 0, 1}});

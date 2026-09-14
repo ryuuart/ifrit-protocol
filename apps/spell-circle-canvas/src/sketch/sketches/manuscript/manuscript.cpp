@@ -128,7 +128,7 @@ constexpr float px(float mm) { return mm * kMm; }
  *  block to its foot: a page that stops two thirds of the way down is a
  *  setting abandoned, not a mise-en-page. */
 
-struct Manuscript final : sketch::Sketch {
+struct Manuscript {
   /** The two leaves the book turns between, read from beside the sketch:
    *  the prose is what the page SETS and not what sets it. */
   std::u8string pages[2];
@@ -319,7 +319,7 @@ struct Manuscript final : sketch::Sketch {
                    frieze(pal), incipit(pal), std::move(written)});
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 3.5,
                              .background = SkColor4f{0.11f, 0.09f, 0.075f, 1}});
@@ -331,7 +331,7 @@ struct Manuscript final : sketch::Sketch {
     ctx.composer.render(describe());
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) {
     if (elapsed < nextTurn) return;
     nextTurn = elapsed + kTurnSecs;
     page = (page + 1) % 2;

@@ -316,7 +316,7 @@ Element churning(Element plane, ch::Output<float>* progress) {
 
 // ===========================================================================
 
-struct MatrixRain : sketch::Sketch {
+struct MatrixRain {
   sk_sp<SkTypeface> faceKana, faceLabel;
 
   // One text per curtain, built once against measured metrics; the column
@@ -504,7 +504,7 @@ struct MatrixRain : sketch::Sketch {
     return root;
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     // Deep into the steady state: streaks at every age at once — fresh
     // heads, long tails, and columns resting dark between drops.
     sketch::kit::stage(
@@ -526,7 +526,7 @@ struct MatrixRain : sketch::Sketch {
     ctx.composer.render(describe(ctx));
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) {
     for (int j = 0; j < kFieldCount; ++j) {
       const FieldSpec& f = kFields[j];
       // The master is a wrapping phase whose wall period is the cascade's

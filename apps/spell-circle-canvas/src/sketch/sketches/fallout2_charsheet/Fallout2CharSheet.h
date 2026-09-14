@@ -2,7 +2,7 @@
 
 #include "Settings.h"
 
-struct Fallout2CharSheet : sketch::Sketch {
+struct Fallout2CharSheet {
   using Out = ch::Output<float>;
 
   // ---- the character. Seven numbers; everything else is computed. --------
@@ -272,9 +272,9 @@ struct Fallout2CharSheet : sketch::Sketch {
 
   // =========================================================================
 
-  void setup(sketch::SketchContext& ctx) override;
+  void setup(sketch::SketchContext& ctx);
 
-  void update(double elapsed, sketch::SketchContext& ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) {
     now = elapsed;
     pushSlots(ctx, false);
   }

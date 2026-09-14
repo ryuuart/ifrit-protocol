@@ -150,11 +150,11 @@ weave::StyleSheet sheetClasses() {
 
 namespace {
 
-struct KineticCard final : sketch::Sketch {
+struct KineticCard {
   /// The one clock: a wrapping [0,1) every cascade's master reads.
   choreograph::Output<float> phase{0};
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize, .captureAt = kPeriod * 0.5});
     // MID-CASCADE. The master maps onto each track's OWN span, so one
     // fraction of the period is the same fraction of every schedule
@@ -174,7 +174,7 @@ struct KineticCard final : sketch::Sketch {
     ctx.composer.render(describe(ctx));
   }
 
-  void update(double, sketch::SketchContext& ctx) override {
+  void update(double, sketch::SketchContext& ctx) {
     // A meter that moves with its cascade is re-read every frame; that is
     // the whole cost of an instrument, and it is why one is never in the
     // paint loop of anything that ships.

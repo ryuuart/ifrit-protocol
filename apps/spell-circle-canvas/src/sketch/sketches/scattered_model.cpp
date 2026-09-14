@@ -114,11 +114,11 @@ gm::pop::Chain dustOver(const gm::Mesh& subject) {
 
 namespace {
 
-struct ScatteredModel final : sketch::Set {
+struct ScatteredModel {
   gm::Mesh subject;
   gm::pop::Chain dust;
 
-  void setup(sketch::SetContext& ctx) override {
+  void setup(sketch::SetContext& ctx) {
     sketch::kit::stage(ctx,
                        {.size = {860, 580},
                         .captureAt = 1.7,
@@ -128,7 +128,7 @@ struct ScatteredModel final : sketch::Set {
     dust = dustOver(subject);
   }
 
-  world::Frame describe(float seconds) override {
+  world::Frame describe(float seconds) {
     const world::kit::Set set{
         .rig = {.extent = kExtent, .bearing = -34.0f, .elevation = 30.0f},
         .table = {.radius = 470.0f,

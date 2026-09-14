@@ -119,8 +119,8 @@ Element cell(const char* call, const char* note, sk_sp<SkImage> baked) {
 
 }  // namespace
 
-struct EnvLanes final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct EnvLanes {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // every bake has already been taken
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

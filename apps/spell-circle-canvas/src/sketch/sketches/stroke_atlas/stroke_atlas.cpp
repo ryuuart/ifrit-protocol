@@ -4,7 +4,7 @@
 
 #include "Specimens.h"
 
-struct StrokeAtlasSketch : sketch::Sketch {
+struct StrokeAtlasSketch {
   choreograph::Output<float> march{0};
 
   Element describe(sketch::SketchContext& ctx) {
@@ -543,7 +543,7 @@ struct StrokeAtlasSketch : sketch::Sketch {
     return plate;
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(
         ctx, {.size = {1600, 1990}, .captureAt = 6.0, .background = kPaper});
 

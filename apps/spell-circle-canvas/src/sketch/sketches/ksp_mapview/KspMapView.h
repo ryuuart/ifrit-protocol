@@ -2,7 +2,7 @@
 
 #include "Settings.h"
 
-struct KspMapView : sketch::Sketch {
+struct KspMapView {
   using Out = ch::Output<float>;
 
   Out dashFast{0}, dashSlow{0};  // marching dots, two rates
@@ -131,7 +131,7 @@ struct KspMapView : sketch::Sketch {
 
   // -------------------------------------------------------------------
 
-  void setup(sketch::SketchContext& ctx) override;
+  void setup(sketch::SketchContext& ctx);
 
-  void update(double elapsed, sketch::SketchContext& ctx) override;
+  void update(double elapsed, sketch::SketchContext& ctx);
 };

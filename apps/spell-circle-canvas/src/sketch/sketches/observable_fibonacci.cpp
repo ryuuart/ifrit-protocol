@@ -17,8 +17,8 @@ using namespace sigil::draw;
 
 namespace {
 
-struct ObservableFibonacci final : sketch::Sketch {
-  void setup(sketch::SketchContext& context) override {
+struct ObservableFibonacci {
+  void setup(sketch::SketchContext& context) {
     context.canvas(800, 800);
     context.captureAt(0.05);
 

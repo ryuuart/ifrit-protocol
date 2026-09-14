@@ -199,13 +199,13 @@ void drawTendril(Pen& pen, SkPoint from, SkPoint to, int index, float clock,
              controlB.y(), to.x(), to.y());
 }
 
-struct P5RefractiveMetaballs final : sketch::Sketch {
+struct P5RefractiveMetaballs {
   const mskia::Paint source = lineField();
   const mskia::Paint filament = tendrilInk();
   /** Compiled once and held on the sketch: the frame asks for it. */
   const sk_sp<SkRuntimeEffect> refraction = glassEffect();
 
-  void setup(sketch::SketchContext& context) override {
+  void setup(sketch::SketchContext& context) {
     context.canvas(720, 720);
     context.background({2 / 255.0f, 5 / 255.0f, 14 / 255.0f, 1});
     context.captureAt(0.05);  // the field is a direct function of the clock

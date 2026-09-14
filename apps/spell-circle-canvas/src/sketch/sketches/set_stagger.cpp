@@ -105,8 +105,8 @@ world::Element row(const std::string& key, float z, motion::Spread spread,
 
 }  // namespace
 
-struct SetStagger final : sketch::Set {
-  void setup(sketch::SetContext& ctx) override {
+struct SetStagger {
+  void setup(sketch::SetContext& ctx) {
     // MID-CASCADE: far enough in that the head of each row has landed and
     // its tail is still on the way, which is the whole of what a ladder
     // looks like.
@@ -124,7 +124,7 @@ struct SetStagger final : sketch::Set {
     ctx.camera(lens);
   }
 
-  world::Frame describe(float seconds) override {
+  world::Frame describe(float seconds) {
     // The tree declares NO camera, so the viewpoint the setup wrote is
     // the one the frame is seen from — a still eye, because what moves
     // here is the cascade and not the lens.

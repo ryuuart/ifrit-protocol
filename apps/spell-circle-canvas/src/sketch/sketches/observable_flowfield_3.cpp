@@ -28,8 +28,8 @@ namespace {
  *  so nothing here carries a mixer of its own. */
 float sample(uint32_t value) { return chance::Stream::mix64(value).unit(); }
 
-struct ObservableFlowfield3 final : sketch::Sketch {
-  void setup(sketch::SketchContext& context) override {
+struct ObservableFlowfield3 {
+  void setup(sketch::SketchContext& context) {
     sketch::kit::stage(context, {.size = {720, 720}, .captureAt = 0.05});
 
     context.composer.render(compose::graphics("observable_flowfield_3.loop",

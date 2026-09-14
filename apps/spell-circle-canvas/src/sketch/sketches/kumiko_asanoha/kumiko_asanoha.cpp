@@ -4,7 +4,7 @@
 
 #include "Joinery.h"
 
-struct KumikoAsanoha : sketch::Sketch {
+struct KumikoAsanoha {
   Panel panel;
   TimberBank bank;
   /** THE SHOP DRAWING'S WORDS: its caption, the three jig angles and the
@@ -346,7 +346,7 @@ struct KumikoAsanoha : sketch::Sketch {
                    shopDrawing()});
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     // This sketch brings its own canvas size and unlit background rather
     // than inheriting a default, and photographs itself mid-hold: the panel
     // is complete and lit from kTGlow + kDGlow onwards, and the loop tears
@@ -387,7 +387,7 @@ struct KumikoAsanoha : sketch::Sketch {
     ctx.composer.render(describe(ctx));
   }
 
-  void update(double, sketch::SketchContext&) override {}
+  void update(double, sketch::SketchContext&) {}
 };
 
 SIGIL_SKETCH(KumikoAsanoha, "Study · Pattern",

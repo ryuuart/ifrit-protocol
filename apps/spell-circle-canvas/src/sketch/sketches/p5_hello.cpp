@@ -33,10 +33,10 @@ constexpr float kFade = 30;
 
 }  // namespace
 
-struct P5Hello final : sketch::Sketch {
+struct P5Hello {
   float x = 200, y = 100, vx = 3, vy = 2;
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     ctx.canvas(400, 300);
     ctx.background({0.078f, 0.078f, 0.078f, 1});
     ctx.captureAt(3.0);

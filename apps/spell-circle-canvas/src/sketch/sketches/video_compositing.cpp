@@ -140,13 +140,13 @@ struct Clips {
 
 }  // namespace
 
-struct VideoCompositing final : sketch::Sketch {
+struct VideoCompositing {
   static bool available(std::string* why) {
     return sketch::requireCached(
         {kDaySky, kNightSky, kDust, kColorBurst, kAlphaVideo}, why);
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = SkSize::Make(kWidth, kHeight),
                              .captureAt = 4.25,
                              .background = SkColor4f{0, 0, 0, 1}});

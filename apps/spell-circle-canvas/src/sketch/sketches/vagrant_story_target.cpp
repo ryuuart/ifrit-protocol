@@ -507,7 +507,7 @@ compose::Element gauge(float x, float y, float w, float h, float fraction,
 
 namespace {
 
-struct VagrantStoryTarget final : sketch::Set {
+struct VagrantStoryTarget {
   /** THE SESSION KEEPS THE SCENE. Asked for once while the set declares
    *  itself, so the texture the overlay quad wears outlives every frame
    *  that wears it; asked for per frame it would be one scene per frame,
@@ -520,7 +520,7 @@ struct VagrantStoryTarget final : sketch::Set {
    *  set whose overlay is a fixed rectangle rather than a guess. */
   geometry::mesh::camera::Camera lens;
 
-  void setup(sketch::SetContext& ctx) override {
+  void setup(sketch::SetContext& ctx) {
     ctx.canvas(vs::kHudW, vs::kHudH);
     ctx.background({0.016f, 0.019f, 0.031f, 1.0f});
     ctx.captureAt(2.2);
@@ -664,7 +664,7 @@ struct VagrantStoryTarget final : sketch::Set {
         .tag("overlay");
   }
 
-  world::Frame describe(float seconds) override {
+  world::Frame describe(float seconds) {
     using namespace vs;
     const float pulse = 0.5f + 0.5f * std::sin(seconds * 4.2f);
     Element scene = Element().key("battle");

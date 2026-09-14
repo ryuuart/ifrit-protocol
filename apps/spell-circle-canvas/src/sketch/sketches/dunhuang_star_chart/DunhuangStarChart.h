@@ -2,7 +2,7 @@
 
 #include "Settings.h"
 
-struct DunhuangStarChart : sketch::Sketch {
+struct DunhuangStarChart {
   sk_sp<SkTypeface> faceSerif, faceItalic, faceMono, faceDisplay, faceHan;
 
   /** THE PLATE'S WHOLE LOOK, AS CLASSES. The running voice is the root's own
@@ -317,8 +317,8 @@ struct DunhuangStarChart : sketch::Sketch {
 
   // =========================================================================
 
-  void setup(sketch::SketchContext& ctx) override;
+  void setup(sketch::SketchContext& ctx);
 
   /** Two render()s per loop, at the score's end and at its start. */
-  void update(double, sketch::SketchContext& ctx) override;
+  void update(double, sketch::SketchContext& ctx);
 };

@@ -24,8 +24,8 @@ int signFor(int index) {
   return signs[index % signs.size()];
 }
 
-struct ObservableFibonacciRectangles final : sketch::Sketch {
-  void setup(sketch::SketchContext& context) override {
+struct ObservableFibonacciRectangles {
+  void setup(sketch::SketchContext& context) {
     context.canvas(800, 800);
     context.captureAt(0.05);
 

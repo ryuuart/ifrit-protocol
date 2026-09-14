@@ -159,7 +159,7 @@ inline constexpr int kBodyCount = (int)(sizeof(kBody) / sizeof(kBody[0]));
 
 }  // namespace gerstner
 
-struct GerstnerGrid final : sketch::Sketch {
+struct GerstnerGrid {
   // THE BAKE IS THE IDENTITY, so the two ruled fields are held here rather
   // than minted inside describe(): the programme re-describes on every
   // step, and a freshly constructed Pattern carries no bake, so a
@@ -176,7 +176,7 @@ struct GerstnerGrid final : sketch::Sketch {
   // falls in the middle of the opening four-column hold: settled after the
   // entrance, well clear of the first step.
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 1.5,
                              .background = SkColor4f{0, 0, 0, 1}});
@@ -211,7 +211,7 @@ struct GerstnerGrid final : sketch::Sketch {
   /** Stepping the programme is a DATA change, so it re-describes and the
    *  reconciler diffs — which is also the honest way to show that the six
    *  configurations are six layouts, not six frames of one. */
-  void update(double elapsed, sketch::SketchContext& ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) {
     Composer& composer = ctx.composer;
     if (elapsed < nextStep && shownConfig == config) return;
     if (elapsed >= nextStep) {

@@ -45,7 +45,7 @@ constexpr float kDisplay = 26;  // the size the tree sets
 
 }  // namespace
 
-struct P5MixedForms final : sketch::Sketch {
+struct P5MixedForms {
   // One shaded ball: a radial ramp in the pen's space, so each ball is
   // drawn at the origin after a translate and the highlight sits where
   // the ramp says.
@@ -70,7 +70,7 @@ struct P5MixedForms final : sketch::Sketch {
                        .key("frame")});
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx,
                        {.size = {720, 480},
                         .captureAt = 2.5,

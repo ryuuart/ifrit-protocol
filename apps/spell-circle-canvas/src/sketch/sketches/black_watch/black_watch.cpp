@@ -4,7 +4,7 @@
 
 #include "Tartan.h"
 
-struct BlackWatch : sketch::Sketch {
+struct BlackWatch {
   // --- the data -----------------------------------------------------------
   std::vector<Run> bwRuns, caRuns;
   std::vector<uint8_t> S, A;
@@ -848,7 +848,7 @@ struct BlackWatch : sketch::Sketch {
 
   // =========================================================================
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     doc = sketch::kit::Document(ctx, "data/content.json");
     build();
     // The still belongs to the MODERN hold, and has to be declared, because

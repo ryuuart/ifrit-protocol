@@ -95,7 +95,7 @@ std::vector<SkPoint> breathing(std::span<const SkPoint> base,
   return corners;
 }
 
-struct BrushLiveTutorial final : sketch::Sketch {
+struct BrushLiveTutorial {
   /** The scene table: the body, its ground, whether the canvas keeps what
    *  the body drew, the seed its stream starts at — 0 lets the stream run
    *  on from the frame before — and the signature over the drawing. */
@@ -113,7 +113,7 @@ struct BrushLiveTutorial final : sketch::Sketch {
   brush::Engine brushes;
   int lastScene = -1;
 
-  void setup(sketch::SketchContext& context) override {
+  void setup(sketch::SketchContext& context) {
     context.canvas(840, 840);
     context.background({255 / 255.0f, 252 / 255.0f, 235 / 255.0f, 1});
     context.captureAt(12.5);

@@ -5,7 +5,7 @@
 
 #include "Artwork.h"
 
-struct SpaceJam1996 : sketch::Sketch {
+struct SpaceJam1996 {
   using Ix = sj::Ix;
 
   // The load simulator's state: one Output per asset, in [0,1].
@@ -336,7 +336,7 @@ struct SpaceJam1996 : sketch::Sketch {
         S(40), S(120), S(560), S(30) + S(13) * (float)rows.size());
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     using namespace sj;
     // <body bgcolor="#000000">, literally
     // The still is taken mid-hold: the load finishes around 7.96 s of sketch
@@ -428,7 +428,7 @@ struct SpaceJam1996 : sketch::Sketch {
     }
   }
 
-  void update(double, sketch::SketchContext& ctx) override {
+  void update(double, sketch::SketchContext& ctx) {
     if (!needRender) return;
     needRender = false;
     ctx.composer.render(describe(ctx));

@@ -190,8 +190,8 @@ Element bandLabels(float stripW) {
 
 }  // namespace
 
-struct MatteLuma final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct MatteLuma {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(ctx, {.size = {1180, 620}});
     // Every gate is a constant: the sheet is complete on the first frame.

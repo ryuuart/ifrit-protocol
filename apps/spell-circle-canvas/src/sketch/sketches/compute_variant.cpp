@@ -113,13 +113,13 @@ world::Element row(const char* key, float z, const char* tag,
 
 namespace {
 
-struct ComputeVariant final : sketch::Set {
+struct ComputeVariant {
   /** What the readback last handed over. It arrives the frame after the
    *  one that made it, so the first frame has none and every frame after
    *  it stands the posts the count asks for. */
   int cookedPoints = 0;
 
-  void setup(sketch::SetContext& ctx) override {
+  void setup(sketch::SetContext& ctx) {
     sketch::kit::stage(ctx,
                        {.size = {880, 560},
                         .captureAt = 1.4,
@@ -163,7 +163,7 @@ struct ComputeVariant final : sketch::Set {
              }))});
   }
 
-  world::Frame describe(float seconds) override {
+  world::Frame describe(float seconds) {
     (void)seconds;
     // What the tagged row is REPAINTED in. What the two executors take
     // from it differs — the host reads its base colour and stands it

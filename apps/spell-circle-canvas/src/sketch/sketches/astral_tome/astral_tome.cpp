@@ -4,7 +4,7 @@
 
 #include "Constellations.h"
 
-struct AstralTome : sketch::Sketch {
+struct AstralTome {
   // TEN Outputs for 93 twinkling primitives: an Output per primitive is
   // a write per primitive per frame, and the twinkle reads the same at a
   // tenth of them shared round.
@@ -350,7 +350,7 @@ struct AstralTome : sketch::Sketch {
 
   // --------------------------------------------------------------- setup
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = SkSize::Make(at::kCanvasW, at::kCanvasH),
                              .captureAt = 6.0,
                              .background = SkColor4f{0, 0, 0, 1}});
@@ -482,7 +482,7 @@ struct AstralTome : sketch::Sketch {
 
   static float kInkAlphaOf() { return at::kInkAlpha; }
 
-  void update(double, sketch::SketchContext&) override {}
+  void update(double, sketch::SketchContext&) {}
 };
 
 SIGIL_SKETCH(AstralTome, "Study · Game UI",

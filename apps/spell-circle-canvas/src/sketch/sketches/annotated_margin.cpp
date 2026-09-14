@@ -102,8 +102,8 @@ constexpr const char8_t* kPassage =
 
 }  // namespace margin
 
-struct AnnotatedMargin final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct AnnotatedMargin {
+  void setup(sketch::SketchContext& ctx) {
     // MID-CASCADE. The playhead is the point of the lower strip, and a
     // meter photographed after its schedule has closed is nine full bars
     // saying nothing; this falls a little past half way through the roll.
@@ -119,7 +119,7 @@ struct AnnotatedMargin final : sketch::Sketch {
     ctx.composer.render(describe(ctx));
   }
 
-  void update(double, sketch::SketchContext& ctx) override {
+  void update(double, sketch::SketchContext& ctx) {
     ctx.composer.render(describe(ctx));
   }
 

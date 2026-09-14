@@ -2,7 +2,7 @@
 
 #include "Settings.h"
 
-struct ThunderFulu : sketch::Sketch {
+struct ThunderFulu {
   sk_sp<SkTypeface> faceSerif, faceItalic, faceMono, faceDisplay;
 
   // ONE Output writes the entire plate: it is the score position in seconds,
@@ -190,7 +190,7 @@ struct ThunderFulu : sketch::Sketch {
 
   Font font;
 
-  void setup(sketch::SketchContext& ctx) override;
+  void setup(sketch::SketchContext& ctx);
 
-  void update(double, sketch::SketchContext&) override {}
+  void update(double, sketch::SketchContext&) {}
 };

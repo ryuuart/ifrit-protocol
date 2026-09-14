@@ -69,8 +69,8 @@ void lane(Pen& pen, float y, const char* name, brush::Tool tool, float spacing,
   label(pen, name, y);
 }
 
-struct BrushDynamics final : sketch::Sketch {
-  void setup(sketch::SketchContext& context) override {
+struct BrushDynamics {
+  void setup(sketch::SketchContext& context) {
     context.canvas(1000, 760);
     context.captureAt(0.25);
 

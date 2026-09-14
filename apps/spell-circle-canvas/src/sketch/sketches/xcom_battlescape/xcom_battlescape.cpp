@@ -5,7 +5,7 @@
 
 #include "Sprites.h"
 
-struct XcomBattlescape : sketch::Sketch {
+struct XcomBattlescape {
   using Atlas = instancing::Atlas;
   using Pool = instancing::Pool;
 
@@ -739,7 +739,7 @@ struct XcomBattlescape : sketch::Sketch {
 
   // =========================================================================
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     using namespace xcom;
     // The still is captured inside the 9.6 s state cycle below, at the phase
     // that matches the reference screen: the 14-tile path preview with TU 58
@@ -848,7 +848,7 @@ struct XcomBattlescape : sketch::Sketch {
     ctx.composer.render(describe(ctx));
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) {
     // The verification runs BEFORE this frame's render(). bounds() and
     // hitTest() read the resolved Yoga layout, which the composer computes
     // inside draw(), so a query issued straight after a render() in the same

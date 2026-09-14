@@ -2,7 +2,7 @@
 
 #include "Settings.h"
 
-struct TwoAdvancedV3 : sketch::Sketch {
+struct TwoAdvancedV3 {
   /** THE PRODUCTION ART IS RUNTIME DATA, and a sketch over runtime data a
    *  machine may not have says so rather than drawing a second picture
    *  under the same name. Every bitmap on this page comes off the
@@ -213,7 +213,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
 
   // =========================================================================
 
-  void setup(sketch::SketchContext& ctx) override;
+  void setup(sketch::SketchContext& ctx);
 
   // Slot content must carry its own dims: a slot node sizes from its
   // content, so an inset()-positioned filler inside one measures zero.
@@ -242,5 +242,5 @@ struct TwoAdvancedV3 : sketch::Sketch {
     ctx.composer.renderSlot("navtabs", navTabs(active));
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) override;
+  void update(double elapsed, sketch::SketchContext& ctx);
 };

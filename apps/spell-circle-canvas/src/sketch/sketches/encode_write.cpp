@@ -113,8 +113,8 @@ Element cell(const char* call, const char* note, sk_sp<SkImage> picture,
 
 }  // namespace
 
-struct EncodeWrite final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct EncodeWrite {
+  void setup(sketch::SketchContext& ctx) {
     // every encode has already been taken
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 

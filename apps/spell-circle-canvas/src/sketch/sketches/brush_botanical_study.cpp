@@ -156,10 +156,10 @@ void vein(Pen& pen, const Leaf& leaf, SkColor4f color) {
   }
 }
 
-struct BrushBotanicalStudy final : sketch::Sketch {
+struct BrushBotanicalStudy {
   brush::Engine brushes;
 
-  void setup(sketch::SketchContext& context) override {
+  void setup(sketch::SketchContext& context) {
     context.canvas(1100, 780);
     context.captureAt(0.25);
     brushes.scaleBrushes(1.15f);

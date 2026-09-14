@@ -229,7 +229,7 @@ inline sigil::weave::Type smallType(float size, SkColor4f c, float track = 1) {
 
 }  // namespace persona_menu
 
-struct PersonaMenu final : sketch::Sketch {
+struct PersonaMenu {
   // Live idle motion: 6Hz-quantized water clock, the wedge heartbeat, the
   // cursor's damped diagonal overshoot.
   choreograph::Output<float> qTime{0};
@@ -245,7 +245,7 @@ struct PersonaMenu final : sketch::Sketch {
    *  that reload is a pointer into code that is gone. */
   sk_sp<SkRuntimeEffect> causticFx;
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
                              .background = SkColor4f{0, 0, 0, 1}});

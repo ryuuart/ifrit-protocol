@@ -181,7 +181,7 @@ sk_sp<SkImage> fibonacciStrip(int width, int height) {
 
 }  // namespace
 
-struct ShapeworksLab : sketch::Sketch {
+struct ShapeworksLab {
   // Built once per (re)load: an outline recipe, a normal map and a
   // material program are all description, and a reload re-runs setup.
   material::EnvironmentMap studio;
@@ -291,7 +291,7 @@ struct ShapeworksLab : sketch::Sketch {
         {std::move(outlineLab), std::move(materialLab), std::move(flight)});
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx,
                        {.size = {1280, 780},
                         .captureAt = 2.6,

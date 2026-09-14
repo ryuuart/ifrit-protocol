@@ -183,7 +183,7 @@ world::Element screen(const char* key, float x, float yawDeg,
 
 namespace {
 
-struct ImportNative final : sketch::Set {
+struct ImportNative {
   /** WHAT THIS MACHINE MUST HAVE: the web engine, since one of the two
    *  screens is a page. */
   static bool available(std::string* why) { return scry::available(why); }
@@ -192,7 +192,7 @@ struct ImportNative final : sketch::Set {
   std::shared_ptr<scry::WebView> view;
   sk_sp<SkImage> pageFrame;
 
-  void setup(sketch::SetContext& ctx) override {
+  void setup(sketch::SetContext& ctx) {
     sketch::kit::stage(ctx,
                        {.size = {880, 480},
                         .captureAt = 0.4,
@@ -224,7 +224,7 @@ struct ImportNative final : sketch::Set {
     }
   }
 
-  world::Frame describe(float seconds) override {
+  world::Frame describe(float seconds) {
     if (composed) composed->render(dial((float)kBake.width()), (double)seconds);
 
     material::Material screenSurface =

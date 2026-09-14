@@ -136,7 +136,7 @@ const char* page() {
 
 }  // namespace
 
-struct WebScript final : sketch::Sketch {
+struct WebScript {
   /** WHAT THIS MACHINE MUST HAVE: an engine with its layout tables and
    *  certificates, which ship with the application rather than with its
    *  dylibs, so a build that links the SDK can still find nothing to lay
@@ -150,7 +150,7 @@ struct WebScript final : sketch::Sketch {
   std::vector<std::shared_ptr<scry::WebView>> views;
   std::vector<scry::WebView::Frame> stills;
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // every stage is done before the first frame
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

@@ -160,10 +160,10 @@ Element panel(const char* title, const char* note, Element inner) {
 
 }  // namespace
 
-struct PopOrder : sketch::Sketch {
+struct PopOrder {
   mesh::Cloud unsorted, sorted;
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // Both clouds are cooked in setup; nothing reads the clock.
     sketch::kit::stage(ctx, {.size = {760, 500}, .captureAt = 0.05});

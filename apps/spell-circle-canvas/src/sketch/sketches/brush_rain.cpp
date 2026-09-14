@@ -59,8 +59,8 @@ const std::array<Mark, 7> kCycle{{
     {brush::pencil, 1.1f, 2.7f},
 }};
 
-struct BrushRain final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct BrushRain {
+  void setup(sketch::SketchContext& ctx) {
     ctx.canvas(840, 840);
     ctx.captureAt(0.25);
 

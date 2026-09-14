@@ -25,11 +25,11 @@ struct Circle {
   SkColor4f colour;
 };
 
-struct ObservableCirclePackingContained final : sketch::Sketch {
+struct ObservableCirclePackingContained {
   static constexpr float kBoundary = 255.0f;
   std::vector<Circle> circles;
 
-  void setup(sketch::SketchContext& context) override {
+  void setup(sketch::SketchContext& context) {
     context.canvas(800, 800);
     context.captureAt(3.0);
 

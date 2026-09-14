@@ -279,7 +279,7 @@ material::Material screenOf(material::Texture texture) {
 
 namespace {
 
-struct SceneSurfaces final : sketch::Set {
+struct SceneSurfaces {
   std::array<Screen, 3> cards;
   Screen strip;
   Screen loop;
@@ -287,7 +287,7 @@ struct SceneSurfaces final : sketch::Set {
    *  it per frame would be work the description already did. */
   gm::Mesh rail;
 
-  void setup(sketch::SetContext& ctx) override {
+  void setup(sketch::SetContext& ctx) {
     sketch::kit::stage(ctx,
                        {.size = {960, 620},
                         .captureAt = 1.35,
@@ -301,7 +301,7 @@ struct SceneSurfaces final : sketch::Set {
                            .normals = gm::pop::SweepOptions::Normals::Frame});
   }
 
-  world::Frame describe(float seconds) override {
+  world::Frame describe(float seconds) {
     const std::array<SkColor4f, 3> accents = {
         SkColor4f{0.30f, 0.82f, 1.00f, 1.0f},
         SkColor4f{1.00f, 0.62f, 0.24f, 1.0f},

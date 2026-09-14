@@ -134,11 +134,11 @@ Element cell(const char* call, const char* note, Element body,
 
 }  // namespace
 
-struct LaneRetarget final : sketch::Sketch {
+struct LaneRetarget {
   Trace plain, slots, family, reshaped;
   std::string readouts[4];
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     // the four flights have already been run
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 

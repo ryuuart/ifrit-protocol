@@ -2,7 +2,7 @@
 
 #include "Settings.h"
 
-struct WinampBase : sketch::Sketch {
+struct WinampBase {
   using Out = ch::Output<float>;
 
   // ---- THE bound outputs. Every idle motion is declared; only discrete
@@ -204,9 +204,9 @@ struct WinampBase : sketch::Sketch {
 
   // =========================================================================
 
-  void setup(sketch::SketchContext& ctx) override;
+  void setup(sketch::SketchContext& ctx);
 
-  void update(double elapsed, sketch::SketchContext& ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) {
     elapsedNow = elapsed;
     pushSlots(ctx, false);
   }

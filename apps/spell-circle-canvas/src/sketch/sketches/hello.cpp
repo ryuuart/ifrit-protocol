@@ -35,7 +35,7 @@ using namespace std::chrono_literals;
 //  3. update(elapsed, ctx) is for DATA changes: mutate state, call
 //     composer.render(describe()) again, and the reconciler diffs it
 //     (see the score counter below).
-struct HelloSketch : sketch::Sketch {
+struct HelloSketch {
   choreograph::Output<float> wave{0.0f};
   int score = 0;
   double nextScoreAt = 0.0;
@@ -107,7 +107,7 @@ struct HelloSketch : sketch::Sketch {
                  .inset(90, 560, 90, 40)});
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     // p5's createCanvas/background: declare the canvas you want —
     // the window letterboxes to it, headless captures honor it.
     sketch::kit::stage(ctx, {.size = {1000, 700},
@@ -121,7 +121,7 @@ struct HelloSketch : sketch::Sketch {
     });
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) {
     // Data path: when state changes, describe again and let the
     // reconciler diff. Everything unchanged stays cached.
     if (elapsed < nextScoreAt) return;

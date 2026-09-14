@@ -107,8 +107,8 @@ sketch::kit::Theme sheetTheme() {
 
 }  // namespace chrome
 
-struct ChromeType final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct ChromeType {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(chrome::sheetTheme());
     sketch::kit::stage(ctx, {.size = kSceneSize, .captureAt = 0.4});
     ctx.composer.render(describe());

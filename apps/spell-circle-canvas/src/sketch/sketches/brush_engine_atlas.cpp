@@ -31,10 +31,10 @@ constexpr std::array<SkColor4f, 6> kInk{{
     {0.48f, 0.22f, 0.48f, 1.0f},
 }};
 
-struct BrushEngineAtlas final : sketch::Sketch {
+struct BrushEngineAtlas {
   brush::Engine brushes;
 
-  void setup(sketch::SketchContext& context) override {
+  void setup(sketch::SketchContext& context) {
     context.canvas(1000, 900);
     context.captureAt(0.25);
     brushes.scaleBrushes(3.5f);

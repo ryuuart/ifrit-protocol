@@ -120,7 +120,7 @@ struct Panel {
 
 }  // namespace zellige_wall
 
-struct Zellige final : sketch::Sketch {
+struct Zellige {
   // Three panels from one generator at different parameters. Held as members
   // rather than built in describe(): a Pattern bakes once per recipe, so a
   // fresh one each render would re-bake every frame.
@@ -158,7 +158,7 @@ struct Zellige final : sketch::Sketch {
     panels[2].tile.rotate((float)(phase % 8) * 22.5f);
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 1.5,
                              .background = SkColor4f{0, 0, 0, 1}});
@@ -223,7 +223,7 @@ struct Zellige final : sketch::Sketch {
                                 })})})});
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) {
     if (elapsed < nextSwap) return;
     nextSwap = elapsed + zellige_wall::kSwapPeriod;
     ++phase;

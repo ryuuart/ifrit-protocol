@@ -113,8 +113,8 @@ const sketch::kit::Cell kSpecimen{
 
 }  // namespace
 
-struct HalfFloat final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct HalfFloat {
+  void setup(sketch::SketchContext& ctx) {
     // both readbacks have already been taken
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 

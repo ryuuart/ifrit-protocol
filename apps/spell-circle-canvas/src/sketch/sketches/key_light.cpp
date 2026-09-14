@@ -104,17 +104,17 @@ world::Element rigWithDials(const world::kit::Rig& spec, Dials& dials) {
 
 namespace {
 
-struct KeyLight final : sketch::Set {
+struct KeyLight {
   const std::shared_ptr<Dials> dials = std::make_shared<Dials>();
 
-  void setup(sketch::SetContext& ctx) override {
+  void setup(sketch::SetContext& ctx) {
     sketch::kit::stage(ctx,
                        {.size = {760, 500},
                         .captureAt = 1.6,
                         .background = SkColor4f{0.028f, 0.032f, 0.042f, 1.0f}});
   }
 
-  world::Frame describe(float seconds) override {
+  world::Frame describe(float seconds) {
     // The values the lanes read, written from the scene time — so the
     // plate is a function of the declared moment and of nothing else.
     const float swing = 0.5f + 0.5f * std::sin(seconds * 2.1f);

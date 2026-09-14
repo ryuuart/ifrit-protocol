@@ -58,10 +58,10 @@ constexpr float kNeighbour = 50.0f;
 constexpr int kBoids = 50;
 constexpr float kMargin = 20.0f;  // how far past the edge a boid wraps
 
-struct ObservableReynoldsSteering final : sketch::Sketch {
+struct ObservableReynoldsSteering {
   std::vector<Boid> boids;
 
-  void setup(sketch::SketchContext& context) override {
+  void setup(sketch::SketchContext& context) {
     context.canvas(900, 720);
     context.captureAt(5.0);
     boids.clear();

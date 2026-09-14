@@ -272,7 +272,7 @@ Element stacked(const char* call, const char* note, mat::Blend blend,
 
 }  // namespace
 
-struct MaterialChild final : sketch::Sketch {
+struct MaterialChild {
   int live = 0;
   const Tables tables;
 
@@ -338,14 +338,14 @@ struct MaterialChild final : sketch::Sketch {
                     .gap = 26}));
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // the live panel is on the fire LUT here
     sketch::kit::stage(ctx, {.size = {1060, 690}, .captureAt = 1.0});
     ctx.composer.render(describe());
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) {
     // Derived from `elapsed`, not accumulated: a still at a declared time
     // is then the same still every run.
     const int want = (int)(elapsed / kSwapEvery);

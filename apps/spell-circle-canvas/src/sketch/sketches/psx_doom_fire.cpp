@@ -169,7 +169,7 @@ float cue(double ms, float delayMs, float durationMs,
 
 // ---------------------------------------------------------------------------
 
-struct PsxDoomFire final : sketch::Sketch {
+struct PsxDoomFire {
   /** The host is capturing for a diff, so a figure this sketch took off
    *  its own execution is pinned. Read from the context while declaring
    *  and kept, because the panels are drawn by a pen program and a pen
@@ -729,7 +729,7 @@ struct PsxDoomFire final : sketch::Sketch {
 
   // =========================================================================
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     ctx.canvas(kCanvasW, kCanvasH);
     ctx.background(kInk);
     ctx.captureAt(6.0);

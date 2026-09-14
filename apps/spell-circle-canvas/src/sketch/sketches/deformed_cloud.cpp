@@ -86,12 +86,12 @@ std::vector<glm::vec4> heights() {
 
 namespace {
 
-struct DeformedCloud final : sketch::Set {
+struct DeformedCloud {
   gm::Cloud seed;
   float low = 0.0f;
   float high = 0.0f;
 
-  void setup(sketch::SetContext& ctx) override {
+  void setup(sketch::SetContext& ctx) {
     sketch::kit::stage(ctx,
                        {.size = {880, 580},
                         .captureAt = 1.45,
@@ -107,7 +107,7 @@ struct DeformedCloud final : sketch::Set {
     }
   }
 
-  world::Frame describe(float seconds) override {
+  world::Frame describe(float seconds) {
     const float middle = (low + high) * 0.5f;
     const glm::vec3 centre{0.0f, middle, 0.0f};
     const glm::vec3 slab{kExtent * 6.0f, (high - low) * kBandFraction,

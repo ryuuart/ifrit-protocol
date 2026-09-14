@@ -109,8 +109,8 @@ Element mapping(const Mapping& properties) {
                               std::move(body));
 }
 
-struct DataScales final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct DataScales {
+  void setup(sketch::SketchContext& ctx) {
     using enum data::Transform;
     const std::array<Mapping, 11> examples{{
         {"Linear",

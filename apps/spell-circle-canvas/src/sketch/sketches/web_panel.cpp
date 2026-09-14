@@ -173,14 +173,14 @@ Element note(std::u8string heading, std::u8string body) {
 
 }  // namespace
 
-struct WebPanelSketch final : sketch::Sketch {
+struct WebPanelSketch {
   /** WHAT THIS MACHINE MUST HAVE. The engine's ICU tables and
    *  certificate bundle ship with the application rather than with its
    *  dylibs, so a build that links the SDK can still find nothing to lay
    *  out with. */
   static bool available(std::string* why) { return scry::available(why); }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = {980, 660},
                              .captureAt = 1.0,
                              .background = hexColor(0x0b0a16)});

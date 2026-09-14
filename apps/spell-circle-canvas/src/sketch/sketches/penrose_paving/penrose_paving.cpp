@@ -5,7 +5,7 @@
 
 #include "Tiling.h"
 
-struct PenrosePaving : sketch::Sketch {
+struct PenrosePaving {
   /** THE PLAQUE'S OWN WORDS, from `data/content.json` beside this file:
    *  what the paving is, where it stands, and what the deflation vignette
    *  shows. EDIT THAT FILE to change what the plaza says; a name it does
@@ -452,7 +452,7 @@ struct PenrosePaving : sketch::Sketch {
 
   // -------------------------------------------------------------------------
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     // The finished plaza. 0.75 catches the crystal front mid-growth over the
     // exact five-fold centre, 1.45 the inlay chaining on.
     sketch::kit::stage(
@@ -615,7 +615,7 @@ struct PenrosePaving : sketch::Sketch {
     ctx.composer.renderSlot("deflate", diagram(0));
   }
 
-  void update(double, sketch::SketchContext& ctx) override {
+  void update(double, sketch::SketchContext& ctx) {
     const double now = std::fmod(t, kPeriod);
     int g = 0;
     for (int i = 3; i >= 0; --i)

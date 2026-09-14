@@ -211,8 +211,8 @@ Element readings(const material::Material& twice) {
 
 }  // namespace
 
-struct OverUnder final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct OverUnder {
+  void setup(sketch::SketchContext& ctx) {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 

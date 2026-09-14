@@ -73,11 +73,11 @@ mskia::Paint particleLight() {
                                  {1.0f, {0.18f, 0.08f, 0.42f, 0.0f}}});
 }
 
-struct P5FlowField final : sketch::Sketch {
+struct P5FlowField {
   const mskia::Paint ink = currentInk();
   const mskia::Paint sparks = particleLight();
 
-  void setup(sketch::SketchContext& context) override {
+  void setup(sketch::SketchContext& context) {
     context.canvas(960, 720);
     context.background({4 / 255.0f, 7 / 255.0f, 17 / 255.0f, 1});
     context.captureAt(0.05);  // the field is a direct function of the clock

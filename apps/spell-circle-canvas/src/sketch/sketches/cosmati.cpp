@@ -209,11 +209,11 @@ inline std::function<SkPath(SkSize)> triangleCourse(int cols, int rows,
 
 }  // namespace cosmati
 
-struct Cosmati final : sketch::Sketch {
+struct Cosmati {
   choreograph::Output<float> rake{0};  // the raking light's sweep, 0..1
   choreograph::Output<float> lay{0};   // the laying-in progress, 0..1
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
                              .background = SkColor4f{0, 0, 0, 1}});

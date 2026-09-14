@@ -126,8 +126,8 @@ sketch::kit::Theme sheetTheme() {
 
 }  // namespace
 
-struct OcioView final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct OcioView {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

@@ -155,12 +155,12 @@ sketch::kit::Theme sheetTheme() {
 
 }  // namespace
 
-struct ParagraphPaints final : sketch::Sketch {
+struct ParagraphPaints {
   /** The two thousand words every panel is set in, read from beside the
    *  sketch: the passage is the sheet's SUBJECT and not its source. */
   std::u8string prose;
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     prose = sketch::kit::passage(ctx, "data/paragraph_paints.txt");
     // the fields are frozen at kMoment, not the clock

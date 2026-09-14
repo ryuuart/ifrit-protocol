@@ -138,8 +138,8 @@ Element readout(const char* call, const std::string& note,
 
 }  // namespace
 
-struct SlangPortable final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct SlangPortable {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

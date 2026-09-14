@@ -232,11 +232,11 @@ Element track(Shape curve, MotionPath along, Element mark, const char* caption,
 
 }  // namespace
 
-struct BoundLane : sketch::Sketch {
+struct BoundLane {
   choreograph::Output<float> seconds{0};
   choreograph::Output<float> phase{0};
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(ctx, {.size = {1280, 900}, .captureAt = 6.0});
 

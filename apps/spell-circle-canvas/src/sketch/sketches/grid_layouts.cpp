@@ -99,8 +99,8 @@ Element cell(const char* call, const char* note, Element placed,
 
 }  // namespace
 
-struct GridLayouts final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct GridLayouts {
+  void setup(sketch::SketchContext& ctx) {
     // nothing moves; the sheet is complete at once
     const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

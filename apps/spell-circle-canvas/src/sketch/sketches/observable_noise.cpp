@@ -24,8 +24,8 @@ namespace {
  *  so nothing here carries a mixer of its own. */
 float sample(uint32_t value) { return chance::Stream::mix64(value).unit(); }
 
-struct ObservableNoise final : sketch::Sketch {
-  void setup(sketch::SketchContext& context) override {
+struct ObservableNoise {
+  void setup(sketch::SketchContext& context) {
     context.canvas(900, 720);
     context.captureAt(0.05);
 

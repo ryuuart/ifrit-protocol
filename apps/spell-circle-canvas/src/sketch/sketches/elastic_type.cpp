@@ -332,7 +332,7 @@ Element lanePanel(const Lane& lane) {
 
 // ===========================================================================
 
-struct ElasticType : sketch::Sketch {
+struct ElasticType {
   choreograph::Output<float> pass{0};  // one wrapping 0→1 over kLoop
 
   sk_sp<SkTypeface> face, faceLabel;
@@ -407,7 +407,7 @@ struct ElasticType : sketch::Sketch {
                  .ink(kFaint)});
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     // Early in the pass: the head of each word is past its overshoot and
     // settling while the tail is still at rest, so one frame shows the whole
     // table laid out along the line.

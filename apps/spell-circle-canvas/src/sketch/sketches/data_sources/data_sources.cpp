@@ -46,13 +46,13 @@ Element answer(const data::Table* table, const char* names, const char* values,
 
 }  // namespace
 
-struct DataSources final : sketch::Sketch {
+struct DataSources {
   std::shared_ptr<const data::Table> csv;
   std::optional<data::Table> fromSqlite;
   std::optional<data::Table> fromDuck;
   std::string sqliteNote, duckNote;
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = {1100, 420}, .captureAt = 0.05});
     // The CSV beside this sketch, decoded to a Table by the hub.
     csv = ctx.assets.table(ctx.local("data/cities.csv"));

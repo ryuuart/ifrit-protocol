@@ -2,7 +2,7 @@
 
 #include "Settings.h"
 
-struct HitmanVerlet final : sketch::Sketch {
+struct HitmanVerlet {
   /** EVERY WORD THE SIX PANELS SET — the headings, the listed code, the
    *  workings, the verdicts and the measured rest lengths — from
    *  `data/content.json` beside this file. EDIT THAT FILE to change what
@@ -331,7 +331,7 @@ struct HitmanVerlet final : sketch::Sketch {
 
   // =========================================================================
 
-  void setup(sketch::SketchContext& ctx) override;
+  void setup(sketch::SketchContext& ctx);
 
   /** THE LOOP, run by the pen of the node the study stands in: one frame
    *  of the canvas that node keeps. */

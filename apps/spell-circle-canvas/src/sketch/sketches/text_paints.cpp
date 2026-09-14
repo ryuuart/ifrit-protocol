@@ -108,8 +108,8 @@ Element field(const char* call, const char* note, material::Material m) {
 
 }  // namespace
 
-struct TextPaints final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct TextPaints {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Theme sheet = sheetTheme();
     const sketch::kit::Provide look(sheet);
     // the fields are frozen at kMoment, not at the clock

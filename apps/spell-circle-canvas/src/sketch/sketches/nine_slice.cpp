@@ -136,7 +136,7 @@ Element directLattice(std::shared_ptr<sigil::image::ImageAsset> asset) {
            text(u8"DIRECT").font({.size = 17, .track = 0}).ink(kQuest)});
 }
 
-struct NineSlice final : sketch::Sketch {
+struct NineSlice {
   std::shared_ptr<sigil::image::ImageAsset> oak, crimson;
   /** The trap's row compares two DRAW PATHS, so both of its cells wear a
    *  texture drawn at the size it is used at: the native call has no
@@ -214,7 +214,7 @@ struct NineSlice final : sketch::Sketch {
              .gap = 22}));
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
                              .background = SkColor4f{0, 0, 0, 1}});
@@ -231,7 +231,7 @@ struct NineSlice final : sketch::Sketch {
    *  value the layout already settled, and this changes what the layout
    *  settles. The reconciler diffs the rest, which is the point of
    *  watching the stretch rather than assuming it. */
-  void update(double elapsed, sketch::SketchContext& ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) {
     stretch = 0.5f + 0.5f * (float)std::sin(elapsed * 1.4);
     ctx.composer.render(describe());
   }

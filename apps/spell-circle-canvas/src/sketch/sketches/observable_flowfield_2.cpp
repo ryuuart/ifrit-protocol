@@ -27,8 +27,8 @@ namespace {
  *  so nothing here carries a mixer of its own. */
 float sample(uint32_t value) { return chance::Stream::mix64(value).unit(); }
 
-struct ObservableFlowfield2 final : sketch::Sketch {
-  void setup(sketch::SketchContext& context) override {
+struct ObservableFlowfield2 {
+  void setup(sketch::SketchContext& context) {
     context.canvas(720, 720);
     context.captureAt(0.05);
 

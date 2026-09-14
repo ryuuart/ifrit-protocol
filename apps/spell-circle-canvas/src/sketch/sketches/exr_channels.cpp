@@ -152,7 +152,7 @@ Element cell(const sk_sp<SkImage>& picture, const char* call,
 
 }  // namespace
 
-struct ExrChannels final : sketch::Sketch {
+struct ExrChannels {
   /** WHAT THIS BUILD MUST HAVE. The sheet writes its own fixture, so it
    *  needs the EXR encoder as well as the decoder — a build without
    *  OpenImageIO's encode side has neither. */
@@ -165,7 +165,7 @@ struct ExrChannels final : sketch::Sketch {
     return false;
   }
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

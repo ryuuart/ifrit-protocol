@@ -99,8 +99,8 @@ motion::Spread ladder(motion::Spread::From from,
 
 }  // namespace
 
-struct FxScatterMix final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct FxScatterMix {
+  void setup(sketch::SketchContext& ctx) {
     // Every track holds one constant progress: the sheet is one instant
     // of the cascade, not a moment of an animation.
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

@@ -73,11 +73,11 @@ mskia::Paint ground() {
         SkBlendMode::kSoftLight}});
 }
 
-struct P5AttractorLoom final : sketch::Sketch {
+struct P5AttractorLoom {
   const mskia::Paint threads = threadInk();
   const mskia::Paint background = ground();
 
-  void setup(sketch::SketchContext& context) override {
+  void setup(sketch::SketchContext& context) {
     // The loom is a direct function of the clock, so the plate is the
     // first moment.
     sketch::kit::stage(context, {.size = {900, 720},

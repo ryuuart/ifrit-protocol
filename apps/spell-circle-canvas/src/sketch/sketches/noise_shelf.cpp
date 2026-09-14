@@ -114,8 +114,8 @@ const sketch::kit::Cell kSpecimen{
 
 }  // namespace
 
-struct NoiseShelf final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct NoiseShelf {
+  void setup(sketch::SketchContext& ctx) {
     // nothing moves; the shelf is complete at once
     const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

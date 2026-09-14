@@ -141,8 +141,8 @@ Element panel(float left, const char* title, const char* note, Element body) {
 
 }  // namespace
 
-struct HorizontalFlow final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct HorizontalFlow {
+  void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     const sketch::kit::Theme& sheet = sketch::kit::theme();
     sketch::kit::stage(ctx,

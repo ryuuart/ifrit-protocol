@@ -97,13 +97,13 @@ const sketch::kit::Cell kSpecimen{
 
 }  // namespace
 
-struct WarichuPlaceholder final : sketch::Sketch {
+struct WarichuPlaceholder {
   weave::WarichuSplit split;
   std::u8string first, second;
   std::string report[3];
   float oneLine = 0;
 
-  void setup(sketch::SketchContext& ctx) override {
+  void setup(sketch::SketchContext& ctx) {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 

@@ -49,15 +49,15 @@ constexpr world::kit::Turntable kTable{
  *  reads as a curve in space rather than as a circle seen at an angle. */
 gm::curve::Spline3 ribbon() { return world::kit::wave({}); }
 
-struct FirstLight final : sketch::Set {
-  void setup(sketch::SetContext& ctx) override {
+struct FirstLight {
+  void setup(sketch::SetContext& ctx) {
     sketch::kit::stage(ctx,
                        {.size = {900, 640},
                         .captureAt = 1.4,
                         .background = SkColor4f{0.035f, 0.04f, 0.055f, 1.0f}});
   }
 
-  world::Frame describe(float seconds) override {
+  world::Frame describe(float seconds) {
     const gm::curve::Spline3 loop = ribbon();
     const gm::curve::Spline3 track = world::kit::rail(kTable);
 

@@ -134,8 +134,8 @@ Element bandCell(const char* call, const char* note, path::Profile law,
 
 }  // namespace
 
-struct FormationBands final : sketch::Sketch {
-  void setup(sketch::SketchContext& ctx) override {
+struct FormationBands {
+  void setup(sketch::SketchContext& ctx) {
     // nothing moves; the sheet is complete at once
     const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

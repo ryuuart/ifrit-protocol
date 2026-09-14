@@ -42,10 +42,10 @@ float leafSize(size_t index) {
   return chance::Stream::mix64(index).range(6.0f, 20.0f);
 }
 
-struct ObservableLSystem final : sketch::Sketch {
+struct ObservableLSystem {
   std::string sentence = "A";
 
-  void setup(sketch::SketchContext& context) override {
+  void setup(sketch::SketchContext& context) {
     context.canvas(800, 800);
     context.captureAt(0.05);
     for (int generation = 0; generation < 5; ++generation)
