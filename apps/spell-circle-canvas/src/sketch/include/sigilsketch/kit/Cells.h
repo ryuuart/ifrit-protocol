@@ -45,6 +45,10 @@ struct Well {
    *  common case. */
   std::optional<compose::Fill> keyline;
   float keylineWidth = 1;
+  /** Whether what the well holds is PLACED rather than flowed — a stack
+   *  rather than a box, for the plate whose children carry their own
+   *  rects. It says what the surface-less spelling builds. */
+  bool placed = false;
   /** THE RECESS: what makes a well read as a HOLE PUNCHED in what holds
    *  it rather than as a patch of ground on it — a shadow cast inside the
    *  well's own edge, and the lip round that edge. Unset is flush, which

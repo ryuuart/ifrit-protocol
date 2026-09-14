@@ -26,6 +26,7 @@
 
 #include <sigilcompose/core/Instances.h>
 #include <sigilcompose/kit/Flourish.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Legibility.h>
 #include <sigilcompose/kit/Ornament.h>
 #include <sigilcompose/typography/Typography.h>
@@ -116,19 +117,18 @@ struct UiParticles final : sketch::Sketch {
   }
 
   Element pill(const ChipTheme& t, std::u8string label) {
-    return box()
+    return kit::centred()
         .width(kSprite - 10)
         .height(kSprite - 26)
         .corners({14})
         .fill(Fill::color(t.fill))
         .foreground(sigil::compose::stroke(2, Fill::color(t.edge)))
-        .alignItems(Align::Center)
-        .justify(Justify::Center)
+
         .ink(t.ink)
         .children({text(std::move(label)).font({.size = 15})});
   }
   Element shout(const ChipTheme& t, std::u8string label, int spikes) {
-    return box()
+    return kit::centred()
         .width(kSprite - 4)
         .height(kSprite - 4)
         .shape(starburstOutline(spikes, 0.32f))
@@ -136,31 +136,28 @@ struct UiParticles final : sketch::Sketch {
                                              kSprite / 2,
                                              {{1.0f, 0.92f, 0.55f, 1}, t.fill}))
         .foreground(sigil::compose::stroke(2, Fill::color(t.edge)))
-        .alignItems(Align::Center)
-        .justify(Justify::Center)
+
         .ink(t.ink)
         .children({text(std::move(label)).font({.size = 13})});
   }
   Element seal(const ChipTheme& t, std::u8string label, float lobe) {
-    return box()
+    return kit::centred()
         .width(kSprite - 8)
         .height(kSprite - 8)
         .shape(scallopOutline(lobe))
         .fill(Fill::color(t.fill))
         .foreground(sigil::compose::stroke(2, Fill::color(t.edge)))
-        .alignItems(Align::Center)
-        .justify(Justify::Center)
+
         .ink(t.ink)
         .children({text(std::move(label)).font({.size = 13})});
   }
   Element framed(const Palette& pal, std::u8string label) {
-    return box()
+    return kit::centred()
         .width(kSprite - 8)
         .height(kSprite - 12)
         .background(carvedFrameSlice(std::make_shared<sigil::image::ImageAsset>(
             sigil::image::ImageAsset::wrap(makeCarvedFrame(pal, 96)))))
-        .alignItems(Align::Center)
-        .justify(Justify::Center)
+
         .ink(pal.ink)
         .children({text(std::move(label)).font({.size = 15})});
   }
@@ -231,10 +228,7 @@ struct UiParticles final : sketch::Sketch {
           }
         }
       }();
-      chipAtlas->cell(box()
-                          .alignItems(Align::Center)
-                          .justify(Justify::Center)
-                          .children({std::move(content)}),
+      chipAtlas->cell(kit::centred().children({std::move(content)}),
                       {kSprite, kSprite});
     }
   }
@@ -370,10 +364,7 @@ struct UiParticles final : sketch::Sketch {
 
     postAtlas = std::make_shared<instancing::Atlas>();  // 2x: crisp paragraphs
     for (const auto& post : kPosts)
-      postAtlas->cell(box()
-                          .alignItems(Align::Center)
-                          .justify(Justify::Center)
-                          .children({postVariant(post)}),
+      postAtlas->cell(kit::centred().children({postVariant(post)}),
                       {kPostW, kPostH});
   }
 

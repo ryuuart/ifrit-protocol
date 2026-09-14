@@ -23,12 +23,11 @@ Element TwoAdvancedV3::moduleBar(const Utf8& glyph, const Utf8& label,
           onEdges(path::Edge::Top,
                   stroke(1, Fill::color(mskia::withAlpha(kSteelHi, 0.7f)),
                          PathFormat::Align::Inner)))
-      .children({box()
+      .children({kit::centred()
                      .width(16)
                      .height(16)
                      .fill(kInk)
-                     .justify(Justify::Center)
-                     .alignItems(Align::Center)
+
                      .children({text(glyph).font(micro(9, kSteelHi, 0))}),
                  text(label).font(micro(14.5f, kInk, 140)), box().width(6),
                  box().grow(1).height(16).fill(dots.material()).opacity(0.85f),
@@ -39,7 +38,7 @@ Element TwoAdvancedV3::moduleBar(const Utf8& glyph, const Utf8& label,
 
 Element TwoAdvancedV3::button(const Utf8& label, float w, float h) {
   using namespace tv3;
-  return box()
+  return kit::centred()
       .width(w)
       .height(h)
       .fill(mskia::Paint::linearUnit(
@@ -47,8 +46,7 @@ Element TwoAdvancedV3::button(const Utf8& label, float w, float h) {
           {{0.0f, kSteelHi}, {0.5f, kSteel}, {1.0f, kSteelDim}}))
       .stroke(stroke(1, Fill::color(mskia::withAlpha(kInk, 0.7f)),
                      PathFormat::Align::Inner))
-      .justify(Justify::Center)
-      .alignItems(Align::Center)
+
       .children({text(label).font(micro(11, kInk, 140))});
 }
 
@@ -106,8 +104,8 @@ Element TwoAdvancedV3::wordmark() {
   } else {
     mark.corners({23})
         .stroke(stroke(3, Fill::color(kNear), PathFormat::Align::Inner))
-        .justify(Justify::Center)
         .alignItems(Align::Center)
+        .justify(Justify::Center)
         .children({t(
             "2a", sigil::weave::kit::tracked(grotBold(), 18, kNear, 0, 1.0f))});
   }
@@ -190,12 +188,11 @@ Element TwoAdvancedV3::navTabs(int active) {
   for (int i = 0; i < 6; ++i) {
     const bool on = i == active;
     row.children(
-        {box()
+        {kit::centred()
              .grow(1)
              .height(33)
              .column()
-             .justify(Justify::Center)
-             .alignItems(Align::Center)
+
              .gap(2)
              // THE NAV IS THE PAGE'S LOUDEST TYPE. On the studio's
              // own capture the six section names are set larger
@@ -294,8 +291,8 @@ Element TwoAdvancedV3::bootOverlay() {
     // white fill through its coverage is that filter's visible result.
     lockup.fill(kNear).mask(by::alpha(stretchFill(pageLogo, 197, 94)));
   else
-    lockup.justify(Justify::Center)
-        .alignItems(Align::Center)
+    lockup.alignItems(Align::Center)
+        .justify(Justify::Center)
         .children(
             {text(boot["wordmark"], sigil::weave::kit::tracked(
                                         grotBold(), 24, kNear, 200, 1.0f))});

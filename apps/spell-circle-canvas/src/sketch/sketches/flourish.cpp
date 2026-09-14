@@ -29,6 +29,7 @@
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Flourish.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Ornament.h>
 #include <sigilcompose/kit/Routers.h>
@@ -339,11 +340,10 @@ struct Flourish final : sketch::Sketch {
             .blend(SkBlendMode::kPlus);
       else
         t.translateY(&titleDrop);
-      return box()
+      return kit::centred()
           .inset(0)
           .column()
-          .alignItems(Align::Center)
-          .justify(Justify::Center)
+
           .children({std::move(t)});
     };
 

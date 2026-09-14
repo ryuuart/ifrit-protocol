@@ -35,6 +35,7 @@
 #include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Ornament.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -96,13 +97,12 @@ sketch::kit::Theme sheetTheme() {
  *  corner bosses, which reach 0.215 of the 96-unit band in from the
  *  edge. */
 Element panel(Slice frame, std::u8string caption, SkColor4f ink) {
-  return box()
+  return kit::centred()
       .width(kPanelW)
       .height(kPanelH)
       .background(std::move(frame))
       .padding(24)
-      .alignItems(Align::Center)
-      .justify(Justify::Center)
+
       .children(
           {text(std::move(caption)).font({.size = 17, .track = 0}).ink(ink)});
 }
@@ -112,11 +112,10 @@ Element panel(Slice frame, std::u8string caption, SkColor4f ink) {
  *  goes through a decoration, which is the point — the call is what a
  *  program of one's own reaches for, and it paints the same rects. */
 Element directLattice(std::shared_ptr<sigil::image::ImageAsset> asset) {
-  return box()
+  return kit::centred()
       .width(kPanelW)
       .height(kPanelH)
-      .alignItems(Align::Center)
-      .justify(Justify::Center)
+
       // The asset is the only captured input to this keyed draw.
       .children(
           {custom("lattice.direct",
@@ -190,10 +189,9 @@ struct NineSlice final : sketch::Sketch {
          .divider = Fill::color(kRule)});
 
     Element source = kit::cells(
-        {.cells = {sketch::kit::caption(
-                       kPanelW, u8"the source",
-                       u8"drawn once, offscreen, at 2×",
-                       image(oak).width(96).height(96)),
+        {.cells = {sketch::kit::caption(kPanelW, u8"the source",
+                                        u8"drawn once, offscreen, at 2×",
+                                        image(oak).width(96).height(96)),
                    sketch::kit::caption(
                        kPanelW, u8"re-laid out every frame",
                        u8"the box changes, the corners do not",

@@ -82,7 +82,7 @@ auto KspMapView::toolbar() -> Element {
   return stack().inset(0).staggerChildren(45ms).children(
       {each(doc["toolbar"].items(), [](const data::Json& glyph, std::size_t i) {
         return at(
-            box()
+            kit::centred()
                 .corners({5})
                 .fill(Paint::linearUnit({0, 0}, {0, 1},
                                         {{0.0f, mskia::lighten(kGun, 0.10f)},
@@ -91,8 +91,7 @@ auto KspMapView::toolbar() -> Element {
                     PathFormat{.width = 1.0f,
                                .strokeFill = Fill::color(hexColor(0x22282D)),
                                .align = PathFormat::Align::Inner})
-                .alignItems(Align::Center)
-                .justify(Justify::Center)
+
                 .appear({260ms})
                 .scale(animate(from(0.7f).to(1.0f), {320ms, ease::outBack()}))
                 .children({text(glyph, body(13, hexColor(0xD3DBE0)))}),
@@ -104,19 +103,17 @@ auto KspMapView::missionClock() -> Element {
   using namespace ksp;
   Element g = stack().inset(0);
   g.children(
-      {at(box()
+      {at(kit::centred()
               .corners({4})
-              .alignItems(Align::Center)
-              .justify(Justify::Center)
+
               .fill(Paint::solid(hexColor(0x26282C, 0.94f)))
               .stroke(PathFormat{.width = 1.0f,
                                  .strokeFill = Fill::color(hexColor(0x4A5157))})
               .children({text(doc["clock"], lcd(13, kLcd)).key("met")}),
           18, 14, 200, 28),
-       at(box()
+       at(kit::centred()
               .corners({4})
-              .alignItems(Align::Center)
-              .justify(Justify::Center)
+
               .fill(Paint::linearUnit({0, 0}, {0, 1},
                                       {{0.0f, mskia::lighten(kGun, 0.12f)},
                                        {1.0f, hexColor(0x3E4750)}}))
@@ -124,10 +121,9 @@ auto KspMapView::missionClock() -> Element {
           222, 14, 40, 28)});
   static const char* kIcons[5] = {"◉", "▮▮", "▼", "◍", "◈"};
   g.children({each(kIcons, [](const char* icon, std::size_t i) {
-    return at(box()
+    return at(kit::centred()
                   .corners({3})
-                  .alignItems(Align::Center)
-                  .justify(Justify::Center)
+
                   .fill(hexColor(0x474F57))
                   .children({t(icon, body(10, hexColor(0x8CE07A)))}),
               272 + (float)i * 28, 16, 24, 24);
@@ -140,7 +136,7 @@ auto KspMapView::chip(const char* glyph, const char* label, SkPoint p,
   using namespace ksp;
   Element g = stack();
   g.children(
-      {at(box()
+      {at(kit::centred()
               .shape(shapes::circle())
               .fill(Paint::radialUnit({0.38f, 0.30f}, 1.0f,
                                       {{0.0f, hexColor(0xB8C0C6)},
@@ -148,8 +144,7 @@ auto KspMapView::chip(const char* glyph, const char* label, SkPoint p,
                                        {1.0f, hexColor(0x2C3238)}}))
               .stroke(PathFormat{.width = 1.0f,
                                  .strokeFill = Fill::color(hexColor(0x161A1E))})
-              .alignItems(Align::Center)
-              .justify(Justify::Center)
+
               .children({t(glyph, body(r * 0.9f, hexColor(0x0F1316)))}),
           p, r * 2, r * 2)});
   if (label[0])

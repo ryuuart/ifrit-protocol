@@ -135,8 +135,8 @@ inline Element gelPill(std::string_view label, SkColor4f tint, float w = kPillW,
       .corners({h / 2})
       .style(kit::aquaGel(tint))  // body + gloss + hairline, no .fill()
       .row()
-      .justify(Justify::Center)
       .alignItems(Align::Center)
+      .justify(Justify::Center)
       .children({text(label).styleClass("gelLabel").font(gelGround(tint))});
 }
 
@@ -217,11 +217,10 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
                          {0, 0}, {0, h * 0.48f},
                          {{0.0f, {1, 1, 1, 0.72f}}, {1.0f, {1, 1, 1, 0.0f}}})),
                  // label, centered, riding above the lens
-                 box()
+                 kit::centred()
                      .inset(0)
                      .row()
-                     .justify(Justify::Center)
-                     .alignItems(Align::Center)
+
                      .zIndex(1)
                      .children({text(label)
                                     .styleClass("gelLabel")
@@ -247,8 +246,8 @@ inline Element plasticButton(std::string_view label) {
       .foreground(bevel)
       .stroke(stroke(1, Fill::color(hexColor(0x000000))))  // keyline
       .row()
-      .justify(Justify::Center)
       .alignItems(Align::Center)
+      .justify(Justify::Center)
       .children({text(label, type(13, hexColor(0xFFFFFF), 0.5f, 600))});
 }
 
@@ -361,13 +360,12 @@ struct Y2kChrome final : sketch::Sketch {
     const float plateH = yc::kPlateH;
     const float horizonY = plateH * 0.50f;
     Element plate =
-        box()
+        kit::centred()
             .height(plateH)
             .corners({10})
             .style(kit::y2kChrome())
             .row()
-            .justify(Justify::Center)
-            .alignItems(Align::Center)
+
             .padding(34, 0)
             .children({text("MILLENNIUM",
                             [] {

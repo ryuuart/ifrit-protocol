@@ -14,6 +14,7 @@
 
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkRect.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/video/Video.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilio/IO.h>
@@ -163,13 +164,12 @@ struct VideoCompose final : sketch::Sketch {
     stage.children({text(u8"100 / COMPOSE VIDEO", title)
                         .absolute()
                         .inset(42, 42, 42, kHeight - 96)});
-    stage.children({box()
+    stage.children({kit::centred()
                         .absolute()
                         .inset(0)
                         .fill(Fill::color({0, 0, 0, 1}))
                         .opacity(&loading)
-                        .alignItems(Align::Center)
-                        .justify(Justify::Center)
+
                         .children({text(u8"BUFFERING / 005 SOURCES", title)})});
     ctx.composer.render(std::move(stage));
   }

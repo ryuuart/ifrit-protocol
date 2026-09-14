@@ -549,7 +549,7 @@ struct PersonaMenu final : sketch::Sketch {
     // THE RING AND THE LETTER IN IT ARE ONE MARK, so the white is named
     // once: a stroke that names no colour is painted in the ink, and so is
     // the glyph inside it.
-    return box()
+    return kit::centred()
         .width(32)
         .height(32)
         .shape(shapes::squircle(2.0f))
@@ -557,8 +557,7 @@ struct PersonaMenu final : sketch::Sketch {
                         nn::kGroundDark.fB, 0.8f})
         .ink(nn::kPaper)
         .stroke(stroke(3))
-        .alignItems(Align::Center)
-        .justify(Justify::Center)
+
         .children({text(glyph).font({.size = 14, .color8 = true})});
   }
 

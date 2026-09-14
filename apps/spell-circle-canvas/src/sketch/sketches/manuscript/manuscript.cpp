@@ -55,6 +55,7 @@
 
 #include <include/core/SkMaskFilter.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Ornament.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Typeset.h>
@@ -194,7 +195,7 @@ struct Manuscript final : sketch::Sketch {
     PathFormat gilt;
     gilt.width = px(0.55f);
     gilt.strokeFill = Fill::color(pal.gold);
-    return box()
+    return kit::centred()
         .absolute()
         .left(px(kSpine))
         .top(px(kHead))
@@ -203,8 +204,7 @@ struct Manuscript final : sketch::Sketch {
         .zIndex(1)
         .fill(Fill::color(pal.stem))
         .foreground(gilt)
-        .alignItems(Align::Center)
-        .justify(Justify::Center)
+
         // The perspective lozenges: one row of gilded diamonds across the
         // frame, drawn on the frame itself rather than mounted on it.
         .background(SwirlCorners{pal, px(kPitch * 1.4f), px(0.5f)})

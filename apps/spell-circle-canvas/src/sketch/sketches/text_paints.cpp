@@ -29,6 +29,7 @@
 // TAGS: Typography/Effects
 
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Gloss.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/kit/TextPaint.h>
@@ -92,11 +93,10 @@ Element cell(const char* call, const char* note, paint::Paint fill,
                       .justify(Justify::Center);
   Element word = text(kWord).styleClass("display").textFill(std::move(fill));
   if (beneath.isSolid() || beneath.asShader())
-    plate.children({box()
+    plate.children({kit::centred()
                         .absolute()
                         .inset(0)
-                        .alignItems(Align::Center)
-                        .justify(Justify::Center)
+
                         .children({text(kWord).styleClass("display").textFill(
                             std::move(beneath))})});
   return sketch::kit::caption(kCell, call, note,

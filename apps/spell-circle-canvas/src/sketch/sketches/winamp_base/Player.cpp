@@ -68,8 +68,8 @@ auto WinampBase::mainWindow() -> Element {
     Element run = t(words, pix(size));
     if (ink) run.ink(*ink);
     return at(box(), x, 41, wN, 12)
-        .justify(Justify::Center)
         .alignItems(Align::Center)
+        .justify(Justify::Center)
         .children({std::move(run)});
   };
   // The display's lettering is TEXT.BMP's green: the marquee, the readouts and
@@ -93,8 +93,8 @@ auto WinampBase::mainWindow() -> Element {
                    {each(kClutter,
                          [this](const Clutter& c) {
                            return at(box(), 0, c.y, 8, c.h)
-                               .justify(Justify::Center)
                                .alignItems(Align::Center)
+                               .justify(Justify::Center)
                                .children(
                                    {t(c.letter, pix(3.4f)).ink(kCaption)});
                          }),
@@ -331,11 +331,7 @@ auto WinampBase::lcdCells(const std::string& s, SkColor4f ink) const
   const float pitch = n(54) / (s.empty() ? 1.0f : (float)s.size());
   return box().row().width(n(54)).height(n(13)).ink(ink).children(
       each(s, [this, pitch](char ch) {
-        Element cell = box()
-                           .width(pitch)
-                           .shrink(0)
-                           .justify(Justify::Center)
-                           .alignItems(Align::Center);
+        Element cell = kit::centred().width(pitch).shrink(0);
         if (ch != ' ') cell.children({t(std::string(1, ch), pix(10))});
         return cell;
       }));

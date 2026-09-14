@@ -184,12 +184,11 @@ auto TwoAdvancedV4::pressUpdates() -> Element {
   // length beside a list scrolled over a measured one says the wrong
   // thing twice, about how much is below and about where the reader is.
   auto stepper = [&](bool up) {
-    return box()
+    return kit::centred()
         .width(16)
         .height(16)
         .fill(kPanelSh)
-        .justify(Justify::Center)
-        .alignItems(Align::Center)
+
         .children({t(up ? "▴" : "▾", micro(8, kBody, 0))});
   };
   const sketch::kit::Scrolled well = pressScrolled();
@@ -264,14 +263,13 @@ auto TwoAdvancedV4::auxBar(const Utf8& label) -> Element {
 
 auto TwoAdvancedV4::auxView() -> Element {
   using namespace tav;
-  return box()
+  return kit::centred()
       .height(17)
       .fill(mskia::Paint::linearUnit(
           {0, 0}, {0, 1}, {{0.0f, kPanelHi}, {0.5f, kPanel}, {1.0f, kPanelSh}}))
       .stroke(stroke(1, Fill::color(mskia::withAlpha(hexColor(0xCFEFEC), 0.6f)),
                      PathFormat::Align::Inner))
-      .justify(Justify::Center)
-      .alignItems(Align::Center)
+
       .children({t("VIEW", label(11, kDate, 200))});
 }
 
@@ -289,7 +287,7 @@ auto TwoAdvancedV4::auxiliary() -> Element {
         .gap(8)
         .alignItems(Align::Center)
         .children(
-            {box()
+            {kit::centred()
                  .width(26)
                  .height(26)
                  .shrink(0)
@@ -299,8 +297,7 @@ auto TwoAdvancedV4::auxiliary() -> Element {
                      {{0.0f, hexColor(0x8E2A2A)}, {1.0f, hexColor(0x3A0C0E)}}))
                  .stroke(stroke(1, Fill::color(mskia::withAlpha(kNear, 0.4f)),
                                 PathFormat::Align::Inner))
-                 .justify(Justify::Center)
-                 .alignItems(Align::Center)
+
                  .children({t(it["glyph"], micro(11, kPanelHi, 0))}),
              box().grow(1).column().children(
                  {t(it["first"], prose(11.5f, kCopy)),
@@ -386,7 +383,7 @@ auto TwoAdvancedV4::subSystem() -> Element {
   const sigil::data::Json& sub = doc()["subsystem"];
   // A PARTNER CHIP: one letter on a round plate.
   const auto chip = [](const char* glyph) {
-    return box()
+    return kit::centred()
         .width(40)
         .height(40)
         .corners({20})
@@ -395,8 +392,7 @@ auto TwoAdvancedV4::subSystem() -> Element {
             {{0.0f, hexColor(0x6A1B21)}, {1.0f, hexColor(0x220608)}}))
         .stroke(stroke(1, Fill::color(mskia::withAlpha(kDust, 0.5f)),
                        PathFormat::Align::Inner))
-        .justify(Justify::Center)
-        .alignItems(Align::Center)
+
         .children({t(glyph, heavy(15, kCyan, 0))});
   };
   // A BANK: its quiet name over whatever answers it. Every station along

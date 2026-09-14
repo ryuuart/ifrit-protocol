@@ -138,7 +138,7 @@ auto TwoAdvancedV4::statusBar() -> Element {
           .translateY(animate(motion::from(-46.0f).to(0.0f),
                               {380ms, &ch::easeOutQuint, 1450ms}))
           .children(
-              {box()
+              {kit::centred()
                    .width(22)
                    .height(22)
                    .corners({5})
@@ -148,8 +148,7 @@ auto TwoAdvancedV4::statusBar() -> Element {
                                                    {1.0f, hexColor(0x0C2A2C)}}))
                    .stroke(stroke(1, Fill::color(mskia::withAlpha(kCyan, 0.7f)),
                                   PathFormat::Align::Inner))
-                   .justify(Justify::Center)
-                   .alignItems(Align::Center)
+
                    .children({box().width(9).height(9).corners({5}).stroke(
                        stroke(2, Fill::color(kCyan)))}),
                // The teal segment's voice, verbatim from the interface
@@ -238,7 +237,7 @@ auto TwoAdvancedV4::audioModule() -> Element {
                              PathFormat::Align::Inner));
 
   auto key = [&](const char* glyph, bool hot) {
-    return box()
+    return kit::centred()
         .width(38)
         .height(22)
         .shape(shapes::chamfered(6, shapes::Corner::Diagonal))
@@ -249,8 +248,7 @@ auto TwoAdvancedV4::audioModule() -> Element {
                                       {1.0f, hexColor(0x240607)}}))
         .stroke(stroke(1, Fill::color(mskia::withAlpha(kDust, 0.35f)),
                        PathFormat::Align::Inner))
-        .justify(Justify::Center)
-        .alignItems(Align::Center)
+
         .children({t(glyph, micro(11, hot ? kNear : kDust, 0))});
   };
   auto meter = [&](float w, const ch::Output<float>* bind, SkColor4f c) {

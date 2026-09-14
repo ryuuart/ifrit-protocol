@@ -93,13 +93,22 @@ struct Well {
    *  the one thing a fixed surface may not do. */
   std::optional<Fill> keyline;
   float keylineWidth = 1.0f;
+  /** WHETHER WHAT THE WELL HOLDS IS PLACED RATHER THAN FLOWED. false
+   *  (default) is a box, and its children lay out; true is a `stack`,
+   *  whose children each keep the rect they were built with — which is
+   *  what a plate holding a drawing rather than a reading is, and the
+   *  reason the grounded-rounded-ruled plate could not be one call at
+   *  those sites. It says what the EMPTY overload builds; a caller who
+   *  hands over a surface has already said which it is. */
+  bool placed = false;
 };
 
 /** @p surface, sized, grounded, padded, rounded and ruled as @p spec
  *  says. */
 [[nodiscard]] Element well(const Well& spec, Element surface);
 
-/** An empty specimen well, ready for children to be added fluently. */
+/** An empty specimen well, ready for children to be added fluently — a
+ *  box, or the `stack` `Well::placed` asks for. */
 [[nodiscard]] Element well(const Well& spec);
 
 /** HOW A CELL IS CAPTIONED: where its two lines stand, the air between

@@ -14,6 +14,7 @@
 
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/SurfacePaint.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Gel.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -47,16 +48,14 @@ Element card(const Card& properties, Element content) {
 }
 
 Element gel(float height) {
-  return box()
-      .alignItems(Align::Center)
-      .justify(Justify::Center)
-      .children({box()
-                     .key("gel")
-                     .width(112)
-                     .height(height)
-                     .corners({height / 2})
-                     .style(kit::aquaGel({0.10f, 0.64f, 0.96f, 1}))
-                     .cache(Cache::Texture)});
+  return kit::centred().children(
+      {box()
+           .key("gel")
+           .width(112)
+           .height(height)
+           .corners({height / 2})
+           .style(kit::aquaGel({0.10f, 0.64f, 0.96f, 1}))
+           .cache(Cache::Texture)});
 }
 
 struct SurfaceComponents : sketch::Sketch {

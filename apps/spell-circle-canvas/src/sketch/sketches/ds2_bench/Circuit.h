@@ -5,6 +5,7 @@
 #include <include/core/SkString.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/Lines.h>

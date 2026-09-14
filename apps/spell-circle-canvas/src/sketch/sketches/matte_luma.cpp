@@ -43,6 +43,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/pattern/Patterns.h>
@@ -156,15 +157,14 @@ mskia::Paint atPanelSize(const sk_sp<SkImage>& image, float w, float h) {
  *  partial coverage reads as partial coverage and not as a colour
  *  shift. */
 Element content(float w, float h) {
-  return box()
+  return kit::centred()
       .width(w)
       .height(h)
       .fill(mskia::Paint::linearUnit({0, 0}, {1, 1},
                                      {{0.0f, {1.0f, 0.85f, 0.20f, 1}},
                                       {0.5f, {0.95f, 0.32f, 0.42f, 1}},
                                       {1.0f, {0.35f, 0.40f, 0.98f, 1}}}))
-      .alignItems(Align::Center)
-      .justify(Justify::Center)
+
       .children({text(u8"MATTE")
                      .font({.size = 30, .track = 0})
                      .ink(SkColor4f{1, 1, 1, 0.92f})});

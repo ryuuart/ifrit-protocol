@@ -929,10 +929,9 @@ struct ShippingForecast : sketch::Sketch {
                             beaufort(),
                             stations(),
                         }),
-                        box()
+                        kit::centred()
                             .grow(1)
-                            .alignItems(Align::Center)
-                            .justify(Justify::Center)
+
                             .children({ringPanel()}),
                     }),
                     text(doc["foot"])

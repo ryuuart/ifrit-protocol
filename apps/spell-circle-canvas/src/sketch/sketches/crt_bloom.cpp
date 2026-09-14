@@ -46,6 +46,7 @@
 // TAGS: Materials/Compositing
 
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Effect.h>
@@ -167,11 +168,10 @@ struct CrtBloom final : sketch::Sketch {
         panel(stack()
                   .alignItems(Align::Center)
                   .justify(Justify::Center)
-                  .children({box()
+                  .children({kit::centred()
                                  .absolute()
                                  .inset(0)
-                                 .alignItems(Align::Center)
-                                 .justify(Justify::Center)
+
                                  .zIndex(1)
                                  .children({headline(kHalo)})
                                  .effect(mskia::Effect::directionalBlur(

@@ -74,15 +74,14 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
     for (const char* s : spec.subnav)
       if (s)
         tabs.children(
-            {box()
+            {kit::centred()
                  .height(17)
                  .padding(10, 0)
                  .fill(mskia::withAlpha(kSeam, 0.92f))
                  .stroke(stroke(1,
                                 Fill::color(mskia::withAlpha(kSteelHi, 0.45f)),
                                 PathFormat::Align::Inner))
-                 .justify(Justify::Center)
-                 .alignItems(Align::Center)
+
                  .children({t(s, micro(9, kNear, 200))})});
     art.children({at(box().row().justify(Justify::Center).children({tabs}),
                      kStageW / 2 - 220, 26, 440, 17)
@@ -157,23 +156,21 @@ Element TwoAdvancedV3::thumbPlate(Element content, const Utf8& btn) {
                .padding(3, 0)
                .children({box().width(28).height(4).fill(
                    mskia::withAlpha(kSteelHi, 0.85f))}),
-           box()
+           kit::centred()
                .height(96)
                .shape(shapes::chamfered(20, shapes::Corner::TopRight))
                .fill(hexColor(0x232E48))
                .stroke(stroke(1, Fill::color(mskia::withAlpha(kSteelHi, 0.5f)),
                               PathFormat::Align::Inner))
-               .justify(Justify::Center)
-               .alignItems(Align::Center)
+
                .children({std::move(content)}),
-           box()
+           kit::centred()
                .height(22)
                .shape(shapes::chamfered(14, shapes::Corner::BottomLeft))
                .fill(hexColor(0x313D5A))
                .stroke(stroke(1, Fill::color(mskia::withAlpha(kSteelHi, 0.45f)),
                               PathFormat::Align::Inner))
-               .justify(Justify::Center)
-               .alignItems(Align::Center)
+
                .children({text(btn).font(micro(11, kNear, 140))})});
 }
 
@@ -327,11 +324,10 @@ Element TwoAdvancedV3::follow2a() {
       icons.children({box().width(16).height(16).corners({8}).fill(
           mskia::withAlpha(kSteelHi, 0.8f))});
   }
-  Element body = box()
+  Element body = kit::centred()
                      .column()
                      .padding(12, 8)
-                     .justify(Justify::Center)
-                     .alignItems(Align::Center)
+
                      .children({icons});
   return module(page["glyph"], page["bar"], std::move(body), 5);
 }

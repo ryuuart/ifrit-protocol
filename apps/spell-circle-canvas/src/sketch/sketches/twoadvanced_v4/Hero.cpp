@@ -347,14 +347,13 @@ auto TwoAdvancedV4::mainframe() -> Element {
   // viewport — which is what a centred absolute child says, with no
   // half-widths anywhere.
   Element accessing =
-      box()
+      kit::centred()
           .absolute()
           .inset(0)
-          .justify(Justify::Center)
-          .alignItems(Align::Center)
+
           .opacity(&shutterInfo)
           .children(
-              {box()
+              {kit::centred()
                    .width(440)
                    .height(64)
                    .shape(shapes::chamfered(10, shapes::Corner::Diagonal))
@@ -363,8 +362,7 @@ auto TwoAdvancedV4::mainframe() -> Element {
                                   PathFormat::Align::Inner))
                    .foreground(styles::Brackets{mskia::withAlpha(kCyan, 0.7f),
                                                 10, 2, 3, shapes::Corner::All})
-                   .justify(Justify::Center)
-                   .alignItems(Align::Center)
+
                    .children({slot("mfload")})});
   Element body = box().grow(1).clip().children(
       {hero(1178, 316), each(std::views::iota(0, 6), slat),

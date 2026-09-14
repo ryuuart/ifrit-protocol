@@ -32,7 +32,9 @@ Element well(const Well& spec, Element surface) {
   return surface;
 }
 
-Element well(const Well& spec) { return well(spec, box()); }
+Element well(const Well& spec) {
+  return well(spec, spec.placed ? stack() : box());
+}
 
 namespace {
 

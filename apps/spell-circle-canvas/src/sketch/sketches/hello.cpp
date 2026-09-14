@@ -11,6 +11,7 @@
 // TAGS: Runtime/Starter
 
 #include <include/core/SkPathBuilder.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/style/Type.h>
@@ -39,14 +40,13 @@ struct HelloSketch : sketch::Sketch {
 
   Element describe(sketch::SketchContext& ctx) {
     auto card = [&](std::u8string label, SkColor4f color) {
-      return box()
+      return kit::centred()
           .width(150)
           .height(90)
           .corners({16})
           .fill(Fill::color(color))
           .background(shadow({0, 0, 0, 0.4f}, {3, 4}, 10))
-          .alignItems(Align::Center)
-          .justify(Justify::Center)
+
           .children({text(std::move(label)).font({.size = 20})});
     };
 

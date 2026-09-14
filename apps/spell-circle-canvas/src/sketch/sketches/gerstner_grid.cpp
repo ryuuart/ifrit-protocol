@@ -45,6 +45,7 @@
 // TAGS: Typography/Paragraph, Geometry/Layout
 
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/path/Arrange.h>
@@ -356,11 +357,10 @@ struct GerstnerGrid final : sketch::Sketch {
       const bool live = i == config;
       const std::string n = kit::formatted("%d", g::kConfigs[i].columns);
       ladder.children(
-          {box()
+          {kit::centred()
                .width(22.0f)
                .height(22.0f)
-               .alignItems(Align::Center)
-               .justify(Justify::Center)
+
                .fill(Fill::color(live ? g::kRed : SkColor4f{0, 0, 0, 0}))
                .foreground(
                    stroke(1.0f, Fill::color(live ? g::kRed : g::kInkSoft)))

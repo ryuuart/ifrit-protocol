@@ -29,7 +29,7 @@ auto TwoAdvancedV4::panelHeader(const char* boldHalf, const char* restHalf,
 auto TwoAdvancedV4::cta(const char* lbl, float w, float h, SkColor4f hairline)
     -> Element {
   using namespace tav;
-  return box()
+  return kit::centred()
       .width(w)
       .height(h)
       .shape(shapes::chamfered(9, shapes::Corner::Diagonal))
@@ -42,8 +42,7 @@ auto TwoAdvancedV4::cta(const char* lbl, float w, float h, SkColor4f hairline)
       .foreground(stroke(1, Fill::color(mskia::withAlpha(hairline, 0.45f)),
                          PathFormat::Align::Inner))
       .row()
-      .justify(Justify::Center)
-      .alignItems(Align::Center)
+
       .children({t(lbl, label(15, kNear, 110))});
 }
 
@@ -108,13 +107,8 @@ auto TwoAdvancedV4::navBar() -> Element {
 
 auto TwoAdvancedV4::masthead() -> Element {
   using namespace tav;
-  Element emblem =
-      box()
-          .width(78)
-          .height(78)
-          .background(styles::OuterGlow{mskia::withAlpha(kGlow, 0.45f), 14, 0})
-          .justify(Justify::Center)
-          .alignItems(Align::Center);
+  Element emblem = kit::centred().width(78).height(78).background(
+      styles::OuterGlow{mskia::withAlpha(kGlow, 0.45f), 14, 0});
   if (logoBugSvg) {
     // The production mark itself, recoloured to the wordmark cyan: a
     // solid fill masked by the SVG raster's coverage, so the vector
@@ -128,14 +122,13 @@ auto TwoAdvancedV4::masthead() -> Element {
                              .borderWidth = 4,
                              .borderColor = mskia::toColor(kCyan)})))
         .children(
-            {box()
+            {kit::centred()
                  .width(50)
                  .height(50)
                  .shape(shapes::polygon(6, 0))
                  .stroke(
                      stroke(1, Fill::color(mskia::withAlpha(kCyanRing, 0.75f))))
-                 .justify(Justify::Center)
-                 .alignItems(Align::Center)
+
                  .children({t("2", cut(blackFace(), 32, kCyan, 0, 0.85f))})});
   }
 
@@ -189,7 +182,7 @@ auto TwoAdvancedV4::masthead() -> Element {
 
 auto TwoAdvancedV4::toggle(const char* lbl, bool on) -> Element {
   using namespace tav;
-  return box()
+  return kit::centred()
       .height(18)
       .padding(7, 0)
       .shape(shapes::chamfered(5, shapes::Corner::Diagonal))
@@ -201,8 +194,7 @@ auto TwoAdvancedV4::toggle(const char* lbl, bool on) -> Element {
                      Fill::color(on ? mskia::withAlpha(kCyan, 0.7f)
                                     : mskia::withAlpha(kDust, 0.35f)),
                      PathFormat::Align::Inner))
-      .justify(Justify::Center)
-      .alignItems(Align::Center)
+
       .children({t(lbl, micro(10, on ? kCyan : kDustDim, 160))});
 }
 
@@ -424,7 +416,7 @@ auto TwoAdvancedV4::footerDock() -> Element {
                              kD5, 5, 3, 7, 1, 3, 0.5f, path::Edge::Top})})})});
 
   Element cluster =
-      box()
+      kit::centred()
           .width(310)
           .height(150)
           .shape(shapes::chamfered(9, shapes::Corner::Diagonal))
@@ -433,20 +425,18 @@ auto TwoAdvancedV4::footerDock() -> Element {
           .foreground(inset(5, styles::BevelPair{kD5, {0, 0, 0, 0.6f}, 2, 1}))
           .foreground(styles::Brackets{kD6, 12, 2, 5, shapes::Corner::All})
           .row()
-          .justify(Justify::Center)
-          .alignItems(Align::Center)
+
           .gap(14);
   for (int i = 0; i < 3; ++i)
     cluster.children(
-        {box()
+        {kit::centred()
              .width(80)
              .height(80)
              .fill(mskia::Paint::recipe(msdf::material(
                  msdf::circle(), {.fill = mskia::toColor(hexColor(0x0A0202)),
                                   .borderWidth = 3,
                                   .borderColor = mskia::toColor(kD6)})))
-             .justify(Justify::Center)
-             .alignItems(Align::Center)
+
              .children({radarSweep(i, hexColor(0xB65050), 0.42f),
                         box()
                             .inset(26)

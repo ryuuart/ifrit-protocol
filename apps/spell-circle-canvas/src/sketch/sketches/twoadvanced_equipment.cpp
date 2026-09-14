@@ -275,11 +275,10 @@ struct TwoAdvancedEquipment : sketch::Sketch {
     block.children(
         {box().height(15).row().children(
              {box().width(13),
-              box()
+              kit::centred()
                   .width(16)
                   .fill(kMaroon)
-                  .justify(Justify::Center)
-                  .alignItems(Align::Center)
+
                   .children({img("ecom-arrowbutton.gif", 16, 15)}),
               box()
                   .grow(1)
@@ -288,11 +287,10 @@ struct TwoAdvancedEquipment : sketch::Sketch {
                   .alignItems(Align::Center)
                   .padding(4, 0)
                   .children({t(p.name, {.color = kWhite})}),
-              box()
+              kit::centred()
                   .width(17)
                   .fill(kMaroon)
-                  .justify(Justify::Center)
-                  .alignItems(Align::Center)
+
                   .children({img("ecom-3dots.gif", 17, 15)})}),
          box().height(2),
          box().row().children(
@@ -341,7 +339,7 @@ struct TwoAdvancedEquipment : sketch::Sketch {
     // The styled IE scrollbar: two arrow buttons and a proportional
     // thumb, in exactly the BODY's SCROLLBAR-* colours.
     auto sbButton = [&](bool up) {
-      return box()
+      return kit::centred()
           .width(kSbW)
           .height(kSbW)
           .fill(kSbFace)
@@ -351,8 +349,7 @@ struct TwoAdvancedEquipment : sketch::Sketch {
           .foreground(onEdges(path::Edge::Bottom | path::Edge::Right,
                               stroke(1, Fill::color(hexColor(0x000000)),
                                      PathFormat::Align::Inner)))
-          .justify(Justify::Center)
-          .alignItems(Align::Center)
+
           .children({t(up ? "▴" : "▾",
                        {.face = verdanaFace(true), .color = kSbArrow})});
     };

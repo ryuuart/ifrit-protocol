@@ -1312,6 +1312,10 @@ stretched across the flow it stands in where no length is given; a
 hairline is its default thickness and a tick is the same call at another,
 which is why a separator, a rule, a tick, a caret and a whisker are one
 name) and `kit/Frame.h`'s nine-slice frame,
+`kit::centred` (a container whose content stands in the middle both ways,
+since `alignItems(Center)` and `justify(Center)` always travel together
+and say one thing between them, with an overload round the one child most
+of them hold),
 the pixel art in `kit/Sprites.h` — `kit::PixelInk`, a canvas and a cell
 size with the three verbs a pixel artist has, and `kit::Sprite`, the same
 verbs recorded as `kit::SpriteRun` marks over a palette, so WHAT is
@@ -1373,7 +1377,8 @@ holds inside it, and `Caption::reading` writes a figure over the body's
 corner on a scrim of that well's ground, in the class `readout`, through
 the part `readingLine`), `kit::well`, the fixed, clipped surface a
 specimen is drawn into with every size, fill, padding, corner radius and
-keyline supplied by the caller — `Well::paddingY` where a plate is set
+keyline supplied by the caller — `Well::placed` making it a `stack` rather
+than a box, for the plate whose children carry their own rects — `Well::paddingY` where a plate is set
 tighter down than across, and `Well::keyline` drawn INSIDE the well's own
 box, because a plate that is not the width it was given is the one thing a
 fixed surface may not be — `kit::formatted`, the dynamically sized

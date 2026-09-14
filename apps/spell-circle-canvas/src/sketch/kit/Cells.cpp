@@ -47,7 +47,8 @@ compose::Element well(const Well& specification, compose::Element surface) {
 }
 
 compose::Element well(const Well& specification) {
-  return well(specification, compose::box());
+  return well(specification,
+              specification.placed ? compose::stack() : compose::box());
 }
 
 compose::Element caption(float measure, compose::Utf8 label, compose::Utf8 note,

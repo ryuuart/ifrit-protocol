@@ -42,6 +42,7 @@
 
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>
@@ -172,13 +173,12 @@ struct CardFlip final : sketch::Sketch {
   Element cube() const {
     constexpr float edge = 180, half = edge * 0.5f;
     const auto face = [&](int i) {
-      return box()
+      return kit::centred()
           .absolute()
           .rect(SkRect::MakeXYWH(0, 0, edge, edge))
           .fill(Fill::color(kFaces[i]))
           .foreground(stroke(1.0f, Fill::color(kEdge)))
-          .alignItems(Align::Center)
-          .justify(Justify::Center)
+
           .children({text(kFaceNames[i]).font({.size = 64})});
     };
     return box()

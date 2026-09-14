@@ -234,7 +234,10 @@ sketch::kit::well({.ground = Fill::color(kPlate), .padding = 13,
     .row()
 ```
 
-`keyline` unset draws none — a specimen well is grounded and unruled, and
+`Well::placed` makes the well a `stack` rather than a box, so a plate
+holding a drawing rather than a reading is one call: its children keep the
+rects they were built with. `keyline` unset draws none — a specimen well
+is grounded and unruled, and
 that is the common case. Where it is set it is drawn INSIDE the well's own
 box: a rule centred on the boundary puts half its width outside, and a
 plate that is not the width it was given is the one thing a fixed surface

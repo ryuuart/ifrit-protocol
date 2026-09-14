@@ -237,10 +237,9 @@ struct Ds2Bench : sketch::Sketch {
     // integrity as an ANNULAR GAUGE — shapes::sector is a closed wedge, so
     // the track and the fill are the same generator twice
     root.children(
-        {box()
+        {kit::centred()
              .rect(SkRect::MakeXYWH(kPX, kPY + 20, kPW, kRuleY - kPY - 22))
-             .alignItems(Align::Center)
-             .justify(Justify::Center)
+
              .zIndex(7)
              .children(
                  {text("CONTACT BEAM")
@@ -565,11 +564,10 @@ struct Ds2Bench : sketch::Sketch {
              .padding(16, 11)
              .gap(2)
              .zIndex(7)
-             .children({box()
+             .children({kit::centred()
                             .width(112.0f)
                             .height(21.0f)
-                            .alignItems(Align::Center)
-                            .justify(Justify::Center)
+
                             .shape(chamfer(6))
                             .stroke(stroke(1.0f, Fill::color(mskia::withAlpha(
                                                      kCyan, 0.45f))))
@@ -628,11 +626,10 @@ struct Ds2Bench : sketch::Sketch {
              .shape(hline())
              .stroke(stroke(1.0f, Fill::color(mskia::withAlpha(kCyan, 0.36f))))
              .zIndex(8),
-         box()
+         kit::centred()
              .rect(SkRect::MakeXYWH(kPX, kHintY + 8, kPW, 26.0f))
              .row()
-             .alignItems(Align::Center)
-             .justify(Justify::Center)
+
              .gap(56)
              .zIndex(8)
              .styleClass("hint")

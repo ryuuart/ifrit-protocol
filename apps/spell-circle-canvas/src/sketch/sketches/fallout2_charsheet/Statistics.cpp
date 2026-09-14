@@ -84,10 +84,9 @@ auto Fallout2CharSheet::odometer(float x, float y, int value,
       glyph = onesOverride == " " ? "" : onesOverride;
     if (!glyph.empty())
       wheel.children(
-          {box()
+          {kit::centred()
                .inset(0)
-               .justify(Justify::Center)
-               .alignItems(Align::Center)
+
                .children({t(glyph, fo::sheetType(digitFace(), n(20.0f), kDigit,
                                                  0, 0.98f))
                               .translateY(n(0.7f))})});
@@ -180,7 +179,7 @@ auto Fallout2CharSheet::folder() -> Element {
     Element tab =
         raised({x0, sel ? 327.0f : 330.0f, x1 - x0, sel ? 33.0f : 29.0f}, 2.5f);
     if (!sel) tab.overlay(styles::colorOverlay(hexColor(0x000000, 0.30f)));
-    tab.justify(Justify::Center).alignItems(Align::Center);
+    tab.alignItems(Align::Center).justify(Justify::Center);
     tab.children(
         {engravedText(tabs[(size_t)i], n(23.0f), engravedCondense, 0.3f)
              .ink(sel ? kGold : hexColor(0x6E5A20))
@@ -273,10 +272,9 @@ auto Fallout2CharSheet::skillsColumn() -> Element {
                .fill(Fill::color(kLampOn))
                .corners(Corners{n(1.5f)})
                .opacity(&plusFlash),
-           box()
+           kit::centred()
                .inset(0)
-               .justify(Justify::Center)
-               .alignItems(Align::Center)
+
                .children({text(k == 0 ? "+" : "-")
                               .font({.size = n(7.0f), .color = kGold})})});
     slider.children({btn});

@@ -2,6 +2,7 @@
 
 // TAGS: Interfaces/Game
 
+#include <sigilcompose/kit/Frame.h>
 #include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
@@ -149,8 +150,8 @@ struct LootGrid final : sketch::Sketch {
               .foreground(stroke(
                   1.0f, Fill::color({rc.fR, rc.fG, rc.fB, lit ? 0.8f : 0.34f})))
               .row()
-              .justify(Justify::Center)
               .alignItems(Align::Center)
+              .justify(Justify::Center)
               .children({lt::artwork(item.art, w * 0.76f, h * 0.80f, item.tint,
                                      item.art == lt::Art::Potion)});
       // A set or a unique GLOWS — the one thing besides the tooltip's
@@ -203,15 +204,14 @@ struct LootGrid final : sketch::Sketch {
              .foreground(stroke(1.4f, Fill::color({1.0f, 0.35f, 0.30f, 0.8f})))
              .opacity(&blockedMix)
              .zIndex(6),
-         box()
+         kit::centred()
              .width(dw)
              .height(dh)
              .at({0, 0})
              .translateX(&dragX)
              .translateY(&dragY)
              .row()
-             .justify(Justify::Center)
-             .alignItems(Align::Center)
+
              .zIndex(7)
              .children({lt::artwork(lt::Art::Shield, dw * 0.78f, dh * 0.62f,
                                     hexColor(0x8895A2))})});
@@ -299,11 +299,10 @@ struct LootGrid final : sketch::Sketch {
                                       {1.0f, {0.05f, 0.048f, 0.042f, 0.95f}}}))
                  .foreground(
                      stroke(1.0f, Fill::color({rc.fR, rc.fG, rc.fB, 0.5f}))),
-             box()
+             kit::centred()
                  .inset(0)
                  .row()
-                 .justify(Justify::Center)
-                 .alignItems(Align::Center)
+
                  .children({lt::artwork(s.ghost, w * 0.72f, h * 0.76f,
                                         equipped->tint)})});
         return socket;
@@ -316,11 +315,10 @@ struct LootGrid final : sketch::Sketch {
       // by.
       const bool narrow = s.w < 2;
       socket.children(
-          {box()
+          {kit::centred()
                .inset(0)
                .row()
-               .justify(Justify::Center)
-               .alignItems(Align::Center)
+
                .opacity(0.13f)
                .children(
                    {lt::artwork(s.ghost, w * 0.64f, h * 0.68f, lt::kParch)}),
@@ -469,11 +467,10 @@ struct LootGrid final : sketch::Sketch {
                    const bool potion = held == lt::Art::Potion;
                    return stack().width(lt::kCell).height(lt::kCell).children(
                        {lt::well(lt::kCell, lt::kCell).inset(0),
-                        box()
+                        kit::centred()
                             .inset(0)
                             .row()
-                            .justify(Justify::Center)
-                            .alignItems(Align::Center)
+
                             .children({lt::artwork(held, lt::kCell * 0.6f,
                                                    lt::kCell * 0.7f,
                                                    potion ? hexColor(0xC24040)
@@ -511,12 +508,11 @@ struct LootGrid final : sketch::Sketch {
                                  .key("cube" + std::to_string(i))
                                  .at({lt::cellX(i % 3), lt::cellY(i / 3)});
                            }),
-                      box()
+                      kit::centred()
                           .rect(SkRect::MakeXYWH(lt::cellX(1), lt::cellY(1),
                                                  lt::kCell, lt::kCell))
                           .row()
-                          .justify(Justify::Center)
-                          .alignItems(Align::Center)
+
                           .children({lt::artwork(
                               lt::Art::Ring, lt::kCell * 0.6f, lt::kCell * 0.6f,
                               hexColor(0xB9A06A))})})});

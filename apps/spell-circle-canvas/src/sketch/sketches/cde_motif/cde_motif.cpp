@@ -95,13 +95,12 @@ struct CdeMotifSketch : sketch::Sketch {
   Element titleBar(const Utf8& t, bool active) {
     const Set s = cde::ambient();
     auto furniture = [&](Element glyph) {
-      return box()
+      return kit::centred()
           .width(20)
           .height(19)
           .fill(s.bg)
           .overlay(cde::bevel(1, false, false))
-          .alignItems(Align::Center)
-          .justify(Justify::Center)
+
           .children({std::move(glyph)});
     };
     Element menuGlyph = box().width(12).height(4).fill(s.fg);
@@ -114,10 +113,9 @@ struct CdeMotifSketch : sketch::Sketch {
         .alignItems(Align::Center)
         .padding(2, 1)
         .children({furniture(std::move(menuGlyph)),
-                   box()
+                   kit::centred()
                        .grow(1)
-                       .alignItems(Align::Center)
-                       .justify(Justify::Center)
+
                        .children({cde::label(t)}),
                    furniture(std::move(minGlyph)), box().width(2),
                    furniture(std::move(maxGlyph))});
@@ -187,14 +185,13 @@ struct CdeMotifSketch : sketch::Sketch {
         environment::Provide<cde::ColorSet> bar(theme[3]);
         const Set& c3 = cde::ambient();
         auto stepper = [&](bool up) {
-          return box()
+          return kit::centred()
               .width(15)
               .height(15)
               .shrink(0)
               .fill(c3.bg)
               .overlay(cde::bevel(2, false, false))
-              .alignItems(Align::Center)
-              .justify(Justify::Center)
+
               .children({box()
                              .width(9)
                              .height(7)
@@ -466,10 +463,9 @@ struct CdeMotifSketch : sketch::Sketch {
    *  to lay out — the phase puts the light rows on the odd ones. */
   Element handle() {
     const Set s = cde::ambient();
-    return box()
+    return kit::centred()
         .width(18)
-        .alignItems(Align::Center)
-        .justify(Justify::Center)
+
         .children({box().width(18).height(31).fill(s.bs).overlay(
             styles::Scanlines{s.ts, 2, 1, 1})});
   }
@@ -490,19 +486,17 @@ struct CdeMotifSketch : sketch::Sketch {
    *  draw a smaller shape with a smoothed hypotenuse. */
   Element control(Element icon, float w, bool subpanelArrow) {
     const Set s = cde::ambient();
-    Element chev =
-        box().height(10).alignItems(Align::Center).justify(Justify::Center);
+    Element chev = kit::centred().height(10);
     if (subpanelArrow) {
       Element up = box().column().alignItems(Align::Center);
       for (int i = 0; i < 4; ++i)
         up.children({box().width((float)(1 + i * 2)).height(1).fill(s.fg)});
       chev.children({std::move(up)});
     }
-    return box()
+    return kit::centred()
         .width(w)
         .column()
-        .alignItems(Align::Center)
-        .justify(Justify::Center)
+
         .children({std::move(chev), std::move(icon)});
   }
 
@@ -567,22 +561,20 @@ struct CdeMotifSketch : sketch::Sketch {
              .inset(3, 2, 3, 2)
              .fill(cde::C(cde::kIconColor[1]))
              .overlay(cde::bevel(2, false, false)),
-         box()
+         kit::centred()
              .left(5)
              .top(4)
              .width(38)
              .height(13)
              .fill(s.sel)
-             .alignItems(Align::Center)
-             .justify(Justify::Center)
+
              .children({cde::label(doc["date"]["month"], 11.0f)}),
-         box()
+         kit::centred()
              .left(5)
              .top(18)
              .width(38)
              .height(24)
-             .alignItems(Align::Center)
-             .justify(Justify::Center)
+
              .children({cde::label(doc["date"]["day"], 19.0f,
                                    cde::C(cde::kIconColor[0]))})});
   }
@@ -613,11 +605,10 @@ struct CdeMotifSketch : sketch::Sketch {
       gridEl.children({std::move(rr)});
     }
     Element left =
-        box()
+        kit::centred()
             .column()
             .gap(4)
-            .alignItems(Align::Center)
-            .justify(Justify::Center)
+
             .width(26)
             .children({cde::art(cde::icoLock(), 2.0f),
                        box()
@@ -626,16 +617,14 @@ struct CdeMotifSketch : sketch::Sketch {
                            .fill(cde::C(0x00C000))
                            .overlay(cde::bevel(1, true, false))
                            .opacity(motion::bind(&busy).quantize(2))});
-    Element right = box()
+    Element right = kit::centred()
                         .width(26)
-                        .alignItems(Align::Center)
-                        .justify(Justify::Center)
+
                         .children({cde::art(cde::icoExit(), 2.0f)});
-    return box()
+    return kit::centred()
         .width(324)
         .row()
-        .alignItems(Align::Center)
-        .justify(Justify::Center)
+
         .gap(3)
         .children({std::move(left), std::move(gridEl), std::move(right)});
   }
@@ -720,13 +709,12 @@ struct CdeMotifSketch : sketch::Sketch {
         .column()
         .alignItems(Align::Center)
         .gap(2)
-        .children({box()
+        .children({kit::centred()
                        .width(64)
                        .height(64)
                        .fill(s.bg)
                        .overlay(cde::bevel(2, false, false))
-                       .alignItems(Align::Center)
-                       .justify(Justify::Center)
+
                        .children({cde::art(pixmap, 2.0f)}),
                    cde::surface(s)
                        .overlay(cde::bevel(1, false, false))

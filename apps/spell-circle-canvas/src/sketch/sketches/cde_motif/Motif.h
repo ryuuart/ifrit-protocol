@@ -10,6 +10,7 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Chrome.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Sprites.h>
 #include <sigilcompose/testing/Checks.h>
@@ -519,18 +520,16 @@ inline Element mnemonicLabel(std::string_view t, SkColor4f c, int mnemonic) {
 inline Element pushButton(std::string_view t, bool armed = false,
                           bool defaulted = false, bool insensitive = false) {
   const ColorSet s = ambient();
-  Element inner = box()
+  Element inner = kit::centred()
                       .fill(armed ? s.sel : s.bg)
                       .ink(s.fg)
                       .overlay(bevel(2, armed, false))
                       .padding(2)
-                      .alignItems(Align::Center)
-                      .justify(Justify::Center)
+
                       .height(25)
-                      .children({box()
+                      .children({kit::centred()
                                      .padding(6, 2)
-                                     .alignItems(Align::Center)
-                                     .justify(Justify::Center)
+
                                      .children({label(t)})});
   if (insensitive) inner.foreground(stipple());
   Element ring = box().padding(2).children({std::move(inner)});

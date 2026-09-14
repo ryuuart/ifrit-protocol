@@ -1130,6 +1130,33 @@ TEST(KitLine, RunsDownWhereItIsAskedToAndTakesTheLengthItIsGiven) {
   EXPECT_FLOAT_EQ(shortRun.height(), 30);
 }
 
+TEST(KitFrame, CentredPutsWhatItHoldsInTheMiddleBothWays) {
+  Host host(100, 60);
+  host.composer.render(box().width(100).height(60).children(
+      {kit::centred(box().key("mark").width(20).height(10))
+           .absolute()
+           .inset(0)}));
+  host.frame();
+  EXPECT_EQ(require(host.composer.bounds("mark")),
+            SkRect::MakeXYWH(40, 25, 20, 10));
+}
+
+TEST(KitSpecimen, APlacedWellHoldsChildrenThatKeepTheirOwnRects) {
+  Host host(120, 90);
+  // Every child of a placed well is absolute, so the two below share the
+  // well's box instead of stacking down it.
+  host.composer.render(box().width(120).height(90).children(
+      {kit::well({.width = 100, .height = 60, .ground = red(), .placed = true})
+           .key("plate")
+           .children({box().key("a").width(30).height(20),
+                      box().key("b").width(30).height(20)})}));
+  host.frame();
+  EXPECT_EQ(require(host.composer.bounds("a")).top(),
+            require(host.composer.bounds("b")).top());
+  EXPECT_EQ(require(host.composer.bounds("plate")),
+            SkRect::MakeXYWH(0, 0, 100, 60));
+}
+
 TEST(KitFrame, ARingIsStrokedAndADotIsFilledAtTheirOwnRadius) {
   Host host(120, 120);
   host.composer.render(box().width(120).height(120).children(

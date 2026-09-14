@@ -187,10 +187,8 @@ auto KspMapView::navball() -> Element {
               .fill(Paint::solid(kGold)),
           kBall, 92, 26),
        // Readouts above and below.
-       at(box()
+       at(kit::centred()
               .column()
-              .alignItems(Align::Center)
-              .justify(Justify::Center)
               .corners({4})
               .fill(Paint::solid(kLcdBg))
               .stroke(PathFormat{.width = 1.2f,
@@ -198,11 +196,10 @@ auto KspMapView::navball() -> Element {
               .children({t("Orbit", lcd(11, kLcd)),
                          t("1140.0m/s", lcd(13, kLcdVal)).key("spd")}),
           kBall.fX - 68, kBall.fY - kBezelR - 6, 136, 38),
-       at(box()
+       at(kit::centred()
               .row()
               .gap(6)
-              .alignItems(Align::Center)
-              .justify(Justify::Center)
+
               .corners({4})
               .fill(Paint::solid(kLcdBg))
               .stroke(PathFormat{.width = 1.2f,
@@ -214,10 +211,9 @@ auto KspMapView::navball() -> Element {
   // RCS / SAS toggles, flanking the ball's shoulders.
   auto toggle = [&](const char* label, SkColor4f c, float x) {
     return at(
-        box()
+        kit::centred()
             .corners({3})
-            .alignItems(Align::Center)
-            .justify(Justify::Center)
+
             .fill(Paint::linearUnit(
                 {0, 0}, {0, 1}, {{0.0f, mskia::lighten(c, 0.14f)}, {1.0f, c}}))
             .stroke(
@@ -239,10 +235,8 @@ auto KspMapView::navball() -> Element {
                       brush::presets::filament(mskia::withAlpha(kDvArc, 0.5f),
                                                hexColor(0xEBFFDA), 0.5f)),
           kBall, (kBezelR + 16) * 2, (kBezelR + 16) * 2),
-       at(box()
+       at(kit::centred()
               .row()
-              .alignItems(Align::Center)
-              .justify(Justify::Center)
               .corners({3})
               .fill(Paint::linearUnit(
                   {0, 0}, {0, 1},
@@ -250,12 +244,11 @@ auto KspMapView::navball() -> Element {
               .gap(5)
               .children(
                   {t("164.9m/s", body(11, hexColor(0x14181A))),
-                   box()
+                   kit::centred()
                        .width(13)
                        .height(13)
                        .corners({2})
-                       .alignItems(Align::Center)
-                       .justify(Justify::Center)
+
                        .fill(Paint::solid(kStageTab))
                        .children({t("×", bold(10, hexColor(0xFFFFFF)))})}),
           // must clear SAS, whose right edge is at
@@ -291,27 +284,24 @@ auto KspMapView::staging() -> Element {
                            .width = 1.0f,
                            .strokeFill = Fill::color(hexColor(0x7A3703)),
                            .align = PathFormat::Align::Inner}),
-                   box()
+                   kit::centred()
                        .inset(0)
-                       .alignItems(Align::Center)
-                       .justify(Justify::Center)
+
                        .children({t(n, bold(13, hexColor(0xFFFFFF)))})});
   };
   auto partIcon = [&](float py, const char* badge, const char* count) {
     return at(
-        stack()
-            .corners({2})
-            .fill(Paint::linearUnit({0, 0}, {0, 1},
-                                    {{0.0f, hexColor(0x767F86)},
-                                     {0.5f, hexColor(0x545D64)},
-                                     {1.0f, hexColor(0x333A3F)}}))
-            .stroke(PathFormat{.width = 1.0f,
-                               .strokeFill = Fill::color(hexColor(0x1D2226)),
-                               .align = PathFormat::Align::Inner})
-            .children({box()
+        kit::well(
+            {.ground = Paint::linearUnit({0, 0}, {0, 1},
+                                         {{0.0f, hexColor(0x767F86)},
+                                          {0.5f, hexColor(0x545D64)},
+                                          {1.0f, hexColor(0x333A3F)}}),
+             .corners = 2,
+             .keyline = Fill::color(hexColor(0x1D2226)),
+             .placed = true})
+            .children({kit::centred()
                            .inset(0)
-                           .alignItems(Align::Center)
-                           .justify(Justify::Center)
+
                            .children({t(badge, body(14, hexColor(0xE3E9EC)))}),
                        box().right(1).bottom(0).children(
                            {t(count, bold(8, hexColor(0xF6D488)))})}),
@@ -399,13 +389,10 @@ auto KspMapView::staging() -> Element {
   auto tapeGauge = [&](const char* label, float py,
                        const ch::Output<float>* drive) {
     return at(
-        stack()
-            .corners({2})
-            .fill(Paint::solid(hexColor(0x1B1F22)))
-            .stroke(PathFormat{.width = 1.0f,
-                               .strokeFill = Fill::color(hexColor(0x454C51)),
-                               .align = PathFormat::Align::Inner})
-            .clip()
+        kit::well({.ground = Paint::solid(hexColor(0x1B1F22)),
+                            .corners = 2,
+                            .keyline = Fill::color(hexColor(0x454C51)),
+                            .placed = true})
             .children({box()
                            .inset(0)
                            .shape(keyedShape(std::string_view("gauge-rail"),
@@ -440,11 +427,10 @@ auto KspMapView::staging() -> Element {
 
 auto KspMapView::digitCell(const char* d) -> Element {
   using namespace ksp;
-  return box()
+  return kit::centred()
       .width(13)
       .height(17)
-      .alignItems(Align::Center)
-      .justify(Justify::Center)
+
       .fill(Paint::linearUnit({0, 0}, {0, 1},
                               {{0.0f, hexColor(0xF2F2F2)}, {1.0f, kStageLcd}}))
       .children({ksp::t(d, lcd(13, hexColor(0x16181A)))});
@@ -476,9 +462,7 @@ auto KspMapView::altimeter() -> Element {
   // odometer wheels
   auto wheel = [&](const Utf8& d, float x, bool red) {
     return at(
-        box()
-            .alignItems(Align::Center)
-            .justify(Justify::Center)
+        kit::centred()
             .fill(Paint::linearUnit(
                 {0, 0}, {0, 1},
                 red ? std::vector<Stop>{{0.0f, hexColor(0xE05B4A)},
@@ -655,10 +639,9 @@ auto KspMapView::crewPlate() -> Element {
               {0, 0}, {0, 1},
               {{0.0f, hexColor(0xE7E8E4)}, {1.0f, hexColor(0x9AA0A2)}})),
           40, 124, 104, 40),
-       at(box()
+       at(kit::centred()
               .corners({2})
-              .alignItems(Align::Center)
-              .justify(Justify::Center)
+
               .fill(Paint::linearUnit(
                   {0, 0}, {0, 1},
                   {{0.0f, hexColor(0x9AA2A7)}, {1.0f, hexColor(0x666E74)}}))
