@@ -84,12 +84,12 @@ Element cell(const char* call, const char* note,
              const std::shared_ptr<const img::ImageAsset>& asset,
              const std::string& readout) {
   const sketch::kit::Theme& sheet = sketch::kit::theme();
-  Element art = asset
-                    ? image(asset).width(150).height(100)
-                    : box()
-                          .width(150)
-                          .height(100)
-                          .fill(Fill::color({0.13f, 0.10f, 0.11f, 1}));
+  // What came back, at the seed's own size — or the hole where nothing
+  // did, which is a cell's answer as much as a picture is.
+  Element art =
+      (asset ? image(asset) : box().fill(Fill::color({0.13f, 0.10f, 0.11f, 1})))
+          .width(150)
+          .height(100);
   return sketch::kit::caption(
       kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
