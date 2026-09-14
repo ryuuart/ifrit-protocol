@@ -34,18 +34,17 @@
 
 // TAGS: Motion/Transitions
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilmotion/values/Animated.h>
 #include <sigilmotion/values/Lanes.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Kit.h>
 
 #include <chrono>
+#include <cmath>
 #include <memory>
 #include <string>
 #include <utility>
@@ -53,6 +52,7 @@
 
 namespace sketch = sigil::sketch;
 namespace motion = sigil::motion;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 
@@ -81,44 +81,39 @@ motion::Transition ramp() { return {std::chrono::milliseconds(kDuration)}; }
 
 using Trace = std::vector<float>;
 
-Element plot(const char* key, std::vector<std::pair<Trace, SkColor4f>> lanes) {
-  // A paint program runs after the describe scope has closed, so the
-  // baseline's colour is read here and carried in by value.
-  const SkColor4f rule = sketch::kit::theme().palette.rule;
-  return custom(key,
-                [lanes = std::move(lanes), rule](SkCanvas& canvas,
-                                                 const PaintContext& pc) {
-                  constexpr float kPad = 10;
-                  const float w = pc.size.width() - 2 * kPad;
-                  const float h = pc.size.height() - 2 * kPad;
-                  SkPaint paint;
-                  paint.setAntiAlias(true);
-                  // The moment the second description arrives, marked on
-                  // every cell at the same place.
-                  paint.setColor4f(kGrid);
-                  const float x = kPad + w * (kAt / kSpan);
-                  canvas.drawRect({x, kPad, x + 1, kPad + h}, paint);
-                  paint.setColor4f(rule);
-                  canvas.drawRect({kPad, kPad + h, kPad + w, kPad + h + 1},
-                                  paint);
-                  paint.setStyle(SkPaint::kStroke_Style);
-                  paint.setStrokeWidth(1.6f);
-                  for (const auto& [trace, colour] : lanes) {
-                    if (trace.size() < 2) continue;
-                    SkPathBuilder path;
-                    for (size_t i = 0; i < trace.size(); ++i) {
-                      const float px =
-                          kPad + w * (float)i / (float)(trace.size() - 1);
-                      const float py = kPad + h * (1.0f - trace[i]);
-                      if (i == 0)
-                        path.moveTo(px, py);
-                      else
-                        path.lineTo(px, py);
-                    }
-                    paint.setColor4f(colour);
-                    canvas.drawPath(path.detach(), paint);
-                  }
-                })
+/** THE CLASSES A CELL'S PLOT IS DRESSED BY, over the sheet the page
+ *  already states: the moment the second description arrives, the flight
+ *  that was left alone under the comparison, and the one whose family
+ *  changed shape. */
+weave::StyleSheet look() {
+  weave::StyleSheet dressed = sketch::kit::theme().styleSheet();
+  dressed.set("arrive", {.color = kGrid});
+  dressed.set("quiet", {.color = sketch::kit::theme().palette.ash});
+  dressed.set("reshaped", {.color = kSecondInk});
+  return dressed;
+}
+
+/** ONE CELL'S PLOT: the seconds across, the lane's value up, a rule where
+ *  the second description arrives, and one trace per flight in the class
+ *  it was named with. Each flight is a run of samples taken a tick apart,
+ *  so the trace reads it at the moment the frame asks for. */
+Element plot(const char* key,
+             std::vector<std::pair<Trace, const char*>> lanes) {
+  std::vector<sketch::kit::Layer> layers{
+      sketch::kit::rules({.x = {kAt}, .styleClass = "arrive"}),
+      sketch::kit::axis(
+          {.of = sketch::kit::Axis::X, .reach = 0, .numbers = false})};
+  for (auto& [flight, series] : lanes)
+    layers.push_back(sketch::kit::trace(
+        [taken = std::move(flight)](double seconds) {
+          const double last = (double)taken.size() - 1;
+          return (double)taken[(size_t)std::lround(seconds / kSpan * last)];
+        },
+        {.pen = {.width = 1.6f}, .styleClass = series}));
+  return sketch::kit::plot(
+             key,
+             {.x = {.domain = {0, kSpan}}, .y = {.domain = {0, 1}}, .pad = 10},
+             std::move(layers))
       .absolute()
       .inset(0);
 }
@@ -147,7 +142,6 @@ struct LaneRetarget final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     // the four flights have already been run
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
-    const sketch::kit::Theme& look = sketch::kit::theme();
 
     plain = run(Change::None);
     slots = run(Change::Slots);
@@ -177,31 +171,31 @@ struct LaneRetarget final : sketch::Sketch {
                             "the flight the other three interrupt · "
                             "one transition from the standing value to the "
                             "first target",
-                            plot("plain", {{plain, look.palette.figure}}),
-                            readouts[0]),
+                            plot("plain", {{plain, "plotTrace"}}), readouts[0]),
                        cell("retargetSlots(ticker, anims, prev, next, spec)",
                             "the fixed row bent onto the second target "
                             "mid-flight · the plain flight is under it "
                             "for comparison",
-                            plot("slots", {{plain, look.palette.ash},
-                                           {slots, look.palette.figure}}),
+                            plot("slots",
+                                 {{plain, "quiet"}, {slots, "plotTrace"}}),
                             readouts[1]),
                        cell("retargetFamily · equal shape",
                             "a positional family of the same length "
                             "retargets lane by lane, exactly as the fixed "
                             "rows do",
-                            plot("family", {{plain, look.palette.ash},
-                                            {family, look.palette.figure}}),
+                            plot("family",
+                                 {{plain, "quiet"}, {family, "plotTrace"}}),
                             readouts[2]),
                        cell("retargetFamily · the shape changed",
                             "one lane became two · the motions are "
                             "dropped and the new lanes start where the "
                             "storage starts, which is the jump this rule "
                             "chooses over a wrong carry",
-                            plot("reshaped", {{plain, look.palette.ash},
-                                              {reshaped, kSecondInk}}),
+                            plot("reshaped",
+                                 {{plain, "quiet"}, {reshaped, "reshaped"}}),
                             readouts[3])},
-             .gap = 14})));
+             .gap = 14})
+            .styleSheet(look())));
   }
 
   enum class Change { None, Slots, Family, Reshaped };
