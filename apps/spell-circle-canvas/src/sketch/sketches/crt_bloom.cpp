@@ -138,8 +138,11 @@ Element seam() {
                                       .size = 10,
                                       .color = kSeam,
                                       .track = 2.0f}),
-                 box().width(2).height(kPanelH).fill(
-                     Fill::color({kSeam.fR, kSeam.fG, kSeam.fB, 0.55f}))});
+                 kit::line({.length = Dimension(kPanelH),
+                            .thickness = 2,
+                            .column = true,
+                            .fill = Fill::color(
+                                {kSeam.fR, kSeam.fG, kSeam.fB, 0.55f})})});
 }
 
 }  // namespace
@@ -147,10 +150,9 @@ Element seam() {
 struct CrtBloom final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     const sketch::kit::Provide look(sheetTheme());
-    sketch::kit::stage(ctx, {.size = {1000, 500}});
     // Nothing on the sheet reads the clock: both halos are static and the
-    // tube is a function of the box.
-    ctx.captureAt(0.05);
+    // tube is a function of the box, so the plate is the first moment.
+    sketch::kit::stage(ctx, {.size = {1000, 500}, .captureAt = 0.05});
 
     // LEFT — one node. The effect owns the whole construction.
     Element primitive =
@@ -168,12 +170,10 @@ struct CrtBloom final : sketch::Sketch {
         panel(stack()
                   .alignItems(Align::Center)
                   .justify(Justify::Center)
-                  .children({kit::centred()
+                  .children({kit::centred(headline(kHalo))
                                  .absolute()
                                  .inset(0)
-
                                  .zIndex(1)
-                                 .children({headline(kHalo)})
                                  .effect(mskia::Effect::directionalBlur(
                                      kSigma, 0.0f, kSigma))
                                  .blend(SkBlendMode::kPlus)
