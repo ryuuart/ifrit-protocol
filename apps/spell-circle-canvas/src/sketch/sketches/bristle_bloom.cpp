@@ -17,6 +17,7 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Draw.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 
 #include <array>
 #include <cmath>
@@ -26,6 +27,10 @@ namespace compose = sigil::compose;
 using namespace sigil::draw;
 
 namespace {
+
+/** THE PAPER. The canvas is cleared to it and the pen lays it again as
+ *  the ground the bloom is painted on, so one colour says both. */
+constexpr SkColor4f kPaper{18 / 255.0f, 15 / 255.0f, 24 / 255.0f, 1};
 
 constexpr int kPetals = 30;
 constexpr int kBristles = 22;
@@ -47,14 +52,22 @@ constexpr std::array<Pigment, 5> kPigments{{
 
 struct BristleBloom final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(900, 900);
-    ctx.background({18 / 255.0f, 15 / 255.0f, 24 / 255.0f, 1});
-    ctx.captureAt(0.25);
-
+    sketch::kit::stage(
+        ctx, {.size = {900, 900}, .captureAt = 0.25, .background = kPaper});
     ctx.composer.render(compose::graphics("bristle_bloom.bloom",
                                           [this](Pen& pen) { draw(pen); })
                             .absolute()
                             .inset(0));
+  }
+
+  /** ONE HAIR of the loaded brush: it leaves the heel @p lane off the
+   *  axis, bows away from the bend, and lands at @p tip beside it. Every
+   *  stroke in the bundle is this curve at another lane and another
+   *  weight, which is what makes them read as one tool. */
+  static void hair(Pen& pen, float length, float width, float bend, float lane,
+                   float tip) {
+    pen.bezier(0, lane, length * 0.28f, lane * 0.70f - width * 0.14f,
+               length * 0.72f, bend + lane * 0.40f, length, bend + tip);
   }
 
   void brush(Pen& pen, float length, float width, float bend,
@@ -63,13 +76,12 @@ struct BristleBloom final : sketch::Sketch {
     // between discrete hairs from making the brush read as a comb.
     pen.stroke(pigment.red, pigment.green, pigment.blue, 5.0f * load);
     pen.strokeWeight(width * 0.72f);
-    pen.bezier(0, 0, length * 0.28f, -width * 0.18f, length * 0.70f,
-               bend - width * 0.12f, length, bend);
+    hair(pen, length, width, bend, 0, 0);
 
-    for (int hair = 0; hair < kBristles; ++hair) {
-      const float lane = map((float)hair, 0, (float)(kBristles - 1),
-                             -width * 0.5f, width * 0.5f);
-      const float tooth = pen.noise((float)hair * 0.43f, length * 0.013f);
+    for (int i = 0; i < kBristles; ++i) {
+      const float lane =
+          map((float)i, 0, (float)(kBristles - 1), -width * 0.5f, width * 0.5f);
+      const float tooth = pen.noise((float)i * 0.43f, length * 0.013f);
       if (tooth < 0.14f) continue;
 
       const float wander = pen.randomGaussian(0, width * 0.035f);
@@ -78,10 +90,8 @@ struct BristleBloom final : sketch::Sketch {
                           pen.random(0.72f, 1.18f);
       pen.stroke(pigment.red, pigment.green, pigment.blue, alpha);
       pen.strokeWeight(pen.random(0.65f, 1.65f));
-      pen.bezier(0, lane + wander, length * 0.27f, lane * 0.72f - width * 0.12f,
-                 length * 0.72f, bend + lane * 0.42f,
-                 length * pen.random(0.94f, 1.02f),
-                 bend + lane * 0.18f + wander);
+      hair(pen, length * pen.random(0.94f, 1.02f), width, bend, lane + wander,
+           lane * 0.18f + wander);
     }
 
     // Pigment pools at the two edges of a loaded brush and breaks where the
@@ -90,9 +100,7 @@ struct BristleBloom final : sketch::Sketch {
       pen.stroke(pigment.red * 0.72f, pigment.green * 0.72f,
                  pigment.blue * 0.78f, 62.0f * load);
       pen.strokeWeight(1.3f);
-      const float y = width * edge;
-      pen.bezier(0, y, length * 0.30f, y * 0.70f - width * 0.10f,
-                 length * 0.73f, bend + y * 0.35f, length, bend + y * 0.16f);
+      hair(pen, length, width, bend, width * edge, width * edge * 0.16f);
     }
   }
 
@@ -102,7 +110,7 @@ struct BristleBloom final : sketch::Sketch {
     pen.strokeCap(ROUND);
     pen.strokeJoin(ROUND);
     pen.noFill();
-    pen.background(18, 15, 24);
+    pen.background(kPaper);
 
     // Fine warm and cool flecks keep the ground from being a perfectly flat
     // digital field. They are points, so stroke weight is their grain size.
