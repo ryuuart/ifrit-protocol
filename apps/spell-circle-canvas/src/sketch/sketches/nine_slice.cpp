@@ -96,7 +96,7 @@ sketch::kit::Theme sheetTheme() {
  *  size, with room inside it for a line of type. 24 clears the carved
  *  corner bosses, which reach 0.215 of the 96-unit band in from the
  *  edge. */
-Element panel(Slice frame, std::u8string caption, SkColor4f ink) {
+Element panel(Slice frame, Utf8 caption, SkColor4f ink) {
   return kit::centred()
       .width(kPanelW)
       .height(kPanelH)
@@ -138,7 +138,7 @@ Element directLattice(std::shared_ptr<sigil::image::ImageAsset> asset) {
 }
 
 struct NineSlice final : sketch::Sketch {
-  std::shared_ptr<sigil::image::ImageAsset> oak, azure, crimson;
+  std::shared_ptr<sigil::image::ImageAsset> oak, crimson;
   /** The trap's row compares two DRAW PATHS, so both of its cells wear a
    *  texture drawn at the size it is used at: the native call has no
    *  density of its own, and a pair that also differed in weight would
@@ -220,7 +220,6 @@ struct NineSlice final : sketch::Sketch {
                              .captureAt = 6.0,
                              .background = SkColor4f{0, 0, 0, 1}});
     oak = generate(oakPalette());
-    azure = generate(azurePalette());
     crimson = generate(crimsonPalette());
     azurePlain = generate(azurePalette(), 1.0f);
     stretch = 0.0f;
