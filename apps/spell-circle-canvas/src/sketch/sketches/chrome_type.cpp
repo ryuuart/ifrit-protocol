@@ -155,16 +155,10 @@ struct ChromeType final : sketch::Sketch {
 
     // The two plainest decorations, hand-bundled: what is under the shape
     // and what is over it, which is all a LayerStyle is.
-    LayerStyle bevelAndGlow;
-    bevelAndGlow.under.push_back(
-        styles::OuterGlow{{0.45f, 0.72f, 1.0f, 0.85f}, 16.0f, 1.0f});
-    bevelAndGlow.over.push_back(
-        styles::BevelEmboss{.depth = 3.0f, .size = 4.0f, .angleDeg = 120.0f});
-
-    std::vector<Element> rows;
-    rows.push_back(pair("Y2K CHROME", kit::y2kChrome()));
-    rows.push_back(pair("AQUA GEL", kit::aquaGel(hexColor(0x1E8FFF))));
-    rows.push_back(pair("BEVEL + GLOW", bevelAndGlow));
+    const LayerStyle bevelAndGlow{
+        .under = {styles::OuterGlow{{0.45f, 0.72f, 1.0f, 0.85f}, 16.0f, 1.0f}},
+        .over = {styles::BevelEmboss{
+            .depth = 3.0f, .size = 4.0f, .angleDeg = 120.0f}}};
 
     return sketch::kit::page(
         {.title = u8"A DECORATION WAS NEVER ABOUT A BOX",
@@ -175,7 +169,12 @@ struct ChromeType final : sketch::Sketch {
                    u8"written follows",
          .ground =
              linearGradient({0, 0}, {0, c::kH}, {c::kGroundLift, c::kGround})},
-        kit::cells({.cells = std::move(rows), .column = true, .gap = 30}));
+        kit::cells(
+            {.cells = {pair("Y2K CHROME", kit::y2kChrome()),
+                       pair("AQUA GEL", kit::aquaGel(hexColor(0x1E8FFF))),
+                       pair("BEVEL + GLOW", bevelAndGlow)},
+             .column = true,
+             .gap = 30}));
   }
 };
 
