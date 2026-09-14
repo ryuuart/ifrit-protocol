@@ -48,8 +48,10 @@
 #include <array>
 #include <cstdio>
 #include <memory>
+#include <ranges>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
@@ -100,9 +102,35 @@ sketch::kit::Theme sheetTheme() {
   return look;
 }
 
-/** THE TILESET: a procedural four-cell atlas — floor, brick wall, moss
- *  floor, ember — built once and read with `image(atlas).region(cell)`,
- *  so forty tiles are forty regions of one image.
+/** ONE MARK inside a 16 px tile, in the tile's own coordinates. */
+struct Mark {
+  float x, y, w, h;
+  SkColor color;
+};
+/** ONE TILE: the ground it is laid on and the marks over it. */
+struct Tile {
+  SkColor ground;
+  std::vector<Mark> marks;
+};
+
+/** THE TILESET, AS A TABLE — floor, brick wall, moss floor, ember, each a
+ *  16 px square. */
+const std::array<Tile, 4> kTileset{{
+    {0xff181624, {{2, 2, 2, 2, 0xff242034}, {10, 9, 2, 2, 0xff242034}}},
+    // four courses of mortar and one head joint
+    {0xff5a332c,
+     {{0, 3, 16, 1, 0xff3a1f1c},
+      {0, 7, 16, 1, 0xff3a1f1c},
+      {0, 11, 16, 1, 0xff3a1f1c},
+      {0, 15, 16, 1, 0xff3a1f1c},
+      {7, 0, 1, 16, 0xff3a1f1c}}},
+    {0xff1c2a1e, {{3, 4, 3, 2, 0xff2f492c}, {10, 10, 4, 3, 0xff2f492c}}},
+    {0xff2a1218, {{6, 6, 4, 4, 0xffff7a33}, {7, 7, 2, 2, 0xffffc46b}}},
+}};
+
+/** THE TILESET BAKED: the table drawn into one 64x16 image, read back
+ *  with `image(atlas).region(cell)`, so forty tiles are forty regions of
+ *  one image.
  *
  *  ONE ASSET FOR THE WHOLE MAP, held on the sketch. An image node is
  *  compared by asset POINTER, so a fresh bake per tile would make every one
@@ -110,39 +138,23 @@ sketch::kit::Theme sheetTheme() {
  *  this sketch is about. Held there and not in a static, since this file is
  *  a dylib a reload unloads. */
 std::shared_ptr<sigil::image::ImageAsset> atlas() {
-  return [] {
-    sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 16));
-    SkCanvas& c = *s->getCanvas();
-    SkPaint p;
-    // 0: floor
-    p.setColor(SkColorSetRGB(0x18, 0x16, 0x24));
-    c.drawRect(SkRect::MakeXYWH(0, 0, 16, 16), p);
-    p.setColor(SkColorSetRGB(0x24, 0x20, 0x34));
-    c.drawRect(SkRect::MakeXYWH(2, 2, 2, 2), p);
-    c.drawRect(SkRect::MakeXYWH(10, 9, 2, 2), p);
-    // 1: brick wall
-    p.setColor(SkColorSetRGB(0x5a, 0x33, 0x2c));
-    c.drawRect(SkRect::MakeXYWH(16, 0, 16, 16), p);
-    p.setColor(SkColorSetRGB(0x3a, 0x1f, 0x1c));
-    for (int row = 0; row < 4; ++row)
-      c.drawRect(SkRect::MakeXYWH(16, (float)row * 4 + 3, 16, 1), p);
-    c.drawRect(SkRect::MakeXYWH(16 + 7, 0, 1, 16), p);
-    // 2: moss floor
-    p.setColor(SkColorSetRGB(0x1c, 0x2a, 0x1e));
-    c.drawRect(SkRect::MakeXYWH(32, 0, 16, 16), p);
-    p.setColor(SkColorSetRGB(0x2f, 0x49, 0x2c));
-    c.drawRect(SkRect::MakeXYWH(35, 4, 3, 2), p);
-    c.drawRect(SkRect::MakeXYWH(42, 10, 4, 3), p);
-    // 3: ember
-    p.setColor(SkColorSetRGB(0x2a, 0x12, 0x18));
-    c.drawRect(SkRect::MakeXYWH(48, 0, 16, 16), p);
-    p.setColor(SkColorSetRGB(0xff, 0x7a, 0x33));
-    c.drawRect(SkRect::MakeXYWH(54, 6, 4, 4), p);
-    p.setColor(SkColorSetRGB(0xff, 0xc4, 0x6b));
-    c.drawRect(SkRect::MakeXYWH(55, 7, 2, 2), p);
-    return std::make_shared<sigil::image::ImageAsset>(
-        sigil::image::ImageAsset::wrap(s->makeImageSnapshot()));
-  }();
+  sk_sp<SkSurface> sheet =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 16));
+  SkCanvas& canvas = *sheet->getCanvas();
+  SkPaint paint;
+  for (size_t i = 0; i < kTileset.size(); ++i) {
+    canvas.save();
+    canvas.translate((float)i * 16, 0);
+    paint.setColor(kTileset[i].ground);
+    canvas.drawRect(SkRect::MakeWH(16, 16), paint);
+    for (const Mark& mark : kTileset[i].marks) {
+      paint.setColor(mark.color);
+      canvas.drawRect(SkRect::MakeXYWH(mark.x, mark.y, mark.w, mark.h), paint);
+    }
+    canvas.restore();
+  }
+  return std::make_shared<sigil::image::ImageAsset>(
+      sigil::image::ImageAsset::wrap(sheet->makeImageSnapshot()));
 }
 
 /** ONE EDIT: which cell of a chunk carries a region other than the one
@@ -177,22 +189,18 @@ int tileAt(int chunk, int x, int y) {
 
 Element chunkElement(const std::shared_ptr<sigil::image::ImageAsset>& tileset,
                      const Chunk& chunk) {
-  Element tiles = box()
-                      .width(kChunkCols * kTile)
-                      .height(kChunkRows * kTile);
-  for (int y = 0; y < kChunkRows; ++y)
-    for (int x = 0; x < kChunkCols; ++x) {
-      const int cell = y * kChunkCols + x;
-      const int id =
-          cell == chunk.edit.cell ? chunk.edit.id : tileAt(chunk.index, x, y);
-      const SkRect at = arrange::cellRect({x, y}, {kTile, kTile});
-      tiles.children({image(tileset)
-                          .region(SkRect::MakeXYWH((float)id * 16, 0, 16, 16))
-                          .inset(at.fLeft, at.fTop, 0, 0)
-                          .width(kTile)
-                          .height(kTile)});
-    }
-  return tiles;
+  return box()
+      .width(kChunkCols * kTile)
+      .height(kChunkRows * kTile)
+      .children({each(std::views::iota(0, kCellsPerChunk), [&](int cell) {
+        const arrange::Cell at = arrange::cellAt((size_t)cell, kChunkCols);
+        const int id = cell == chunk.edit.cell
+                           ? chunk.edit.id
+                           : tileAt(chunk.index, at.column, at.row);
+        return image(tileset)
+            .region(SkRect::MakeXYWH((float)id * 16, 0, 16, 16))
+            .rect(arrange::cellRect(at, {kTile, kTile}));
+      })});
 }
 
 }  // namespace
@@ -253,30 +261,35 @@ struct TileMap final : sketch::Sketch {
 
   Element describe(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
-    Element grid = box().row().width(kChunks * kChunkCols * kTile);
-    for (int i = 0; i < kChunks; ++i) {
-      Element chunk =
-          stack()
-              .width(kChunkCols * kTile)
-              .height(kChunkRows * kTile)
-              // Recorded, so a describe that runs is a recording
-              // written and the footer's count is the work itself.
-              .children({memo(Chunk{i, revisions[(size_t)i], edits[(size_t)i]},
-                              [tileset = tileset](const Chunk& c) {
-                                return chunkElement(tileset, c);
-                              })
-                             .key("chunk" + std::to_string(i))
-                             .cache(Cache::Picture)})
-              // The wash: a sibling of the memo, so fading it costs the
-              // memo nothing and the memo's own recording stands.
-              .children({box()
-                             .key("flash" + std::to_string(i))
-                             .absolute()
-                             .inset(0)
-                             .fill(Fill::color(kFlash))
-                             .opacity(&flash[(size_t)i])});
-      grid.children({std::move(chunk)});
-    }
+    // THE MAP: one memo a chunk, and beside each the wash that says the
+    // reconciler described it again.
+    Element grid =
+        box()
+            .row()
+            .width(kChunks * kChunkCols * kTile)
+            .children({each(std::views::iota(0, kChunks), [this](int i) {
+              return stack()
+                  .width(kChunkCols * kTile)
+                  .height(kChunkRows * kTile)
+                  // Recorded, so a describe that runs is a recording
+                  // written and the footer's count is the work itself.
+                  .children(
+                      {memo(Chunk{i, revisions[(size_t)i], edits[(size_t)i]},
+                            [tileset = tileset](const Chunk& c) {
+                              return chunkElement(tileset, c);
+                            })
+                           .key("chunk" + std::to_string(i))
+                           .cache(Cache::Picture),
+                       // The wash: a sibling of the memo, so fading it
+                       // costs the memo nothing and the memo's own
+                       // recording stands.
+                       box()
+                           .key("flash" + std::to_string(i))
+                           .absolute()
+                           .inset(0)
+                           .fill(Fill::color(kFlash))
+                           .opacity(&flash[(size_t)i])});
+            })});
 
     const std::string counts = kit::formatted(
         "described %zu  ·  memo hits %zu  ·  patched "
