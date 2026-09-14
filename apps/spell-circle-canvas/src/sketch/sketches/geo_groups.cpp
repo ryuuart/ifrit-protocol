@@ -106,11 +106,7 @@ geometry::mesh::Cloud sourceGrid() {
 }
 
 geometry::mesh::camera::Camera lookDown() {
-  geometry::mesh::camera::Camera camera;
-  camera.eye = {0, 520, 620};
-  camera.target = {0, 0, 0};
-  camera.fovYDeg = 40;
-  return camera;
+  return {.eye = {0, 520, 620}, .target = {0, 0, 0}, .fovYDeg = 40};
 }
 
 /** THE SINK. The point stamp is baked into the program BY VALUE, once per
@@ -123,15 +119,14 @@ Element splat(geometry::mesh::Cloud cloud) {
   // never going to prune.
   return custom([cloud = std::move(cloud), sprite = kit::dotSprite()](
                     SkCanvas& canvas, const PaintContext& paint) {
-           geometry::mesh::points::BillboardStyle style;
-           style.sprite = sprite;
-           style.size = 6;
-           style.sizeLane = "size";
-           style.tintLane = "tint";
-           style.additive = false;
-           style.depthSort = true;
            geometry::mesh::points::drawBillboards(canvas, cloud, lookDown(),
-                                                  paint.size, style);
+                                                  paint.size,
+                                                  {.sprite = sprite,
+                                                   .size = 6,
+                                                   .sizeLane = "size",
+                                                   .tintLane = "tint",
+                                                   .additive = false,
+                                                   .depthSort = true});
          })
       .inset(0)
       .cache(Cache::None);
@@ -143,8 +138,8 @@ Element panel(const char* title, const char* note, Element inner) {
       sketch::kit::well({.width = Dimension(kPanel),
                          .height = Dimension(kPanel * 0.8f),
                          .ground = Fill::none(),
-                         .keyline = Fill::color(kFrame)})
-          .children({std::move(inner)}));
+                         .keyline = Fill::color(kFrame)},
+                        std::move(inner)));
 }
 
 // a literal table; only allocation could throw
@@ -160,9 +155,8 @@ struct GeoGroups : sketch::Sketch {
 
   void setup(sketch::SketchContext& ctx) override {
     const sketch::kit::Provide look(sheetTheme());
-    sketch::kit::stage(ctx, {.size = {1200, 440}});
     // Every cloud is cooked in setup; nothing reads the clock.
-    ctx.captureAt(0.05);
+    sketch::kit::stage(ctx, {.size = {1200, 440}, .captureAt = 0.05});
 
     const std::string geo = geometry::mesh::codec::encode::geo(sourceGrid());
     const std::optional<geometry::mesh::codec::decode::Model> model =
