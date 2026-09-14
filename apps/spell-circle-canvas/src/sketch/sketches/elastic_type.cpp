@@ -82,6 +82,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Instruments.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
@@ -95,6 +96,7 @@
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
+#include <array>
 #include <string>
 #include <utility>
 #include <vector>
@@ -236,24 +238,50 @@ Ticks shearTicks() {
   return {{12.5f, "+12.5°"}, {0.0f, "0°"}, {-12.5f, "−12.5°"}};
 }
 
-/** One lane of one effect, over local time, with a dot at every published
- *  keyframe. `lane` picks the field out of the deviation; @p lo and @p hi
- *  are the value range the plot's height spans, and @p ticks are the values
- *  it rules. */
-Element graph(const char* key, TextEffect effect, Table table,
-              float (*lane)(const GlyphModifier&), const char* series, float lo,
-              float hi, float rest, Ticks ticks) {
-  std::vector<double> ruled;
-  for (const Tick& tick : ticks)
-    if (tick.value != rest) ruled.push_back(tick.value);
-  std::vector<double> published;
-  for (const fx::Key& keyframe : table) published.push_back(keyframe.at);
-  // The curve is the effect's own law; the dots are the keyframes the
-  // reference publishes, which is a second reading of the same lane and
-  // therefore a run of marks rather than a property of the curve.
-  const auto curve = [effect, lane](double t) {
-    return (double)lane(at(effect, (float)t));
+/** ONE LANE OF ONE PUBLISHED TABLE: the table, which field of the glyph's
+ *  deviation the lane reads, the class it is drawn in, the range its box
+ *  spans, the value its rest pose stands at, and the values it is ruled
+ *  and named at. Three of these are the whole bottom of the plate. */
+struct Lane {
+  const char* key;
+  const char* title;
+  Table (*table)();
+  float (*read)(const GlyphModifier&);
+  const char* series;
+  float lo, hi, rest;
+  Ticks (*ticks)();
+};
+
+const std::array<Lane, 3> kLanes{{
+    {"g-rx", "rubberBand — scaleX 0.75 TO 1.25", rubberTable,
+     [](const GlyphModifier& m) { return m.scaleX; }, "x", kScaleLo, kScaleHi,
+     1.0f, scaleTicks},
+    {"g-ry", "rubberBand — scaleY 0.75 TO 1.25", rubberTable,
+     [](const GlyphModifier& m) { return m.scaleY; }, "y", kScaleLo, kScaleHi,
+     1.0f, scaleTicks},
+    {"g-j", "jello — skewX = skewY ±12.5°, HALVING", jelloTable,
+     [](const GlyphModifier& m) { return m.skewXDeg; }, "x", kShearLo, kShearHi,
+     0.0f, shearTicks},
+}};
+
+/** ONE LANE, FRAMED AND NAMED: the plot inside its keyline, the values it
+ *  is ruled at named down its right edge, and its title under it.
+ *
+ *  The curve is the effect's own law and the dots are the keyframes the
+ *  reference publishes — a second reading of the same lane, and therefore a
+ *  run of marks rather than a property of the curve. The labels hang off
+ *  the same frame the trace is drawn through, so a label names the line
+ *  beside it and cannot slide off it. */
+Element lanePanel(const Lane& lane) {
+  const TextEffect effect = fx::keys(lane.table(), &cssEase);
+  const auto curve = [effect, read = lane.read](double t) {
+    return (double)read(at(effect, (float)t));
   };
+  std::vector<double> ruled;
+  for (const Tick& tick : lane.ticks())
+    if (tick.value != lane.rest) ruled.push_back(tick.value);
+  std::vector<double> published;
+  for (const fx::Key& keyframe : lane.table()) published.push_back(keyframe.at);
   const auto dot = [](double, std::size_t) {
     return box()
         .width(5.2f)
@@ -261,20 +289,43 @@ Element graph(const char* key, TextEffect effect, Table table,
         .corners(Corners{2.6f})
         .fill(Fill::currentInk());
   };
-  return sketch::kit::plot(
-             key, {.y = {.domain = {lo, hi}}},
-             {sketch::kit::rules({.y = std::move(ruled)}),
-              sketch::kit::trace(
-                  [rest](double) { return rest; },
-                  {.pen = {.width = 1.0f}, .samples = 1, .styleClass = "rest"}),
-              sketch::kit::trace(
-                  curve, {.pen = {.width = 1.6f}, .styleClass = series}),
-              sketch::kit::marks(published, dot,
-                                 {.x = [](double at) { return at; },
-                                  .y = [curve](double at) { return curve(at); },
-                                  .styleClass = series})})
-      .width(pct(100))
-      .height(pct(100));
+  const float lo = lane.lo, hi = lane.hi, rest = lane.rest;
+
+  return box().column().grow(1).gap(7).children(
+      {box()
+           .width(pct(100))
+           .height(kPlotH)
+           .stroke(stroke(1.0f, Fill::color(kFaint)))
+           .children(
+               {sketch::kit::plot(
+                    lane.key, {.y = {.domain = {lo, hi}}},
+                    {sketch::kit::rules({.y = std::move(ruled)}),
+                     sketch::kit::trace([rest](double) { return (double)rest; },
+                                        {.pen = {.width = 1.0f},
+                                         .samples = 1,
+                                         .styleClass = "rest"}),
+                     sketch::kit::trace(curve, {.pen = {.width = 1.6f},
+                                                .styleClass = lane.series}),
+                     sketch::kit::marks(
+                         published, dot,
+                         {.x = [](double at) { return at; },
+                          .y = [curve](double at) { return curve(at); },
+                          .styleClass = lane.series})})
+                    .inset(0),
+                // Held inside the frame: a value at the very top of the
+                // range would hang its label off the plot, and a label
+                // outside the box it names is a label for nothing.
+                each(lane.ticks(),
+                     [lo, hi](const Tick& tick) {
+                       return text(tick.label)
+                           .font({.size = 9.5f, .track = 0.4f})
+                           .absolute()
+                           .right(5)
+                           .top(std::clamp(
+                               tickY(tick.value, lo, hi, kPlotH) - 12.0f, 1.0f,
+                               kPlotH - 15.0f));
+                     })}),
+       text(lane.title).font({.size = 11.0f, .track = 0.8f})});
 }
 
 }  // namespace
@@ -309,32 +360,6 @@ struct ElasticType : sketch::Sketch {
                                        kRest)});
   }
 
-  /** A plot, its frame, and the axis it is read against. The labels hang
-   *  off `tickY` with the plot box's own height, which is the arithmetic
-   *  the trace inside is drawn with, so a label names the line beside it
-   *  and cannot slide off it. */
-  [[nodiscard]] Element plot(const char* title, Element inner, float lo,
-                             float hi, const Ticks& ticks) {
-    Element frame = box()
-                        .width(pct(100))
-                        .height(kPlotH)
-                        .stroke(stroke(1.0f, Fill::color(kFaint)))
-                        .children({std::move(inner).inset(0)});
-    for (const Tick& tick : ticks)
-      frame.children(
-          {text(tick.label)
-               .font({.size = 9.5f, .track = 0.4f})
-               .absolute()
-               .right(5)
-               // Held inside the frame: a value at the very top of the
-               // range would hang its label off the plot, and a label
-               // outside the box it names is a label for nothing.
-               .top(std::clamp(tickY(tick.value, lo, hi, kPlotH) - 12.0f, 1.0f,
-                               kPlotH - 15.0f))});
-    return box().column().grow(1).gap(7).children(
-        {std::move(frame), text(title).font({.size = 11.0f, .track = 0.8f})});
-  }
-
   /** The label type is stated once on the root; a caption restates only what
    *  it changes. */
   [[nodiscard]] Element describe() {
@@ -355,11 +380,11 @@ struct ElasticType : sketch::Sketch {
                  .children({text("ELASTIC TYPE")
                                 .font({.size = 12.5f, .track = 3.4f})
                                 .ink(kInk)
-                                .grow(1)})
-                 .children({text("ANIMATE.CSS 2013 · SQUASH AND "
+                                .grow(1),
+                            text("ANIMATE.CSS 2013 · SQUASH AND "
                                  "STRETCH 1981")
                                 .ink(kFaint)}),
-             box().height(1).fill(Fill::color(kFaint)),
+             kit::line({.fill = Fill::color(kFaint)}),
              text("GREY IS THE REST POSE, SHARING THE LIVE LINE'S "
                   "ORIGIN — WHERE IT SHOWS, THAT LETTER "
                   "IS DEFORMED")
@@ -372,33 +397,8 @@ struct ElasticType : sketch::Sketch {
                  "BOTH AXES",
                  fx::keys(jelloTable(), &cssEase)),
              box().grow(1),
-             box()
-                 .row()
-                 .gap(28)
-                 .height(146)
-                 .children(
-                     {plot("rubberBand — scaleX 0.75 TO 1.25",
-                           graph(
-                               "g-rx", fx::keys(rubberTable(), &cssEase),
-                               rubberTable(),
-                               [](const GlyphModifier& m) { return m.scaleX; },
-                               "x", kScaleLo, kScaleHi, 1.0f, scaleTicks()),
-                           kScaleLo, kScaleHi, scaleTicks())})
-                 .children(
-                     {plot("rubberBand — scaleY 0.75 TO 1.25",
-                           graph(
-                               "g-ry", fx::keys(rubberTable(), &cssEase),
-                               rubberTable(),
-                               [](const GlyphModifier& m) { return m.scaleY; },
-                               "y", kScaleLo, kScaleHi, 1.0f, scaleTicks()),
-                           kScaleLo, kScaleHi, scaleTicks())})
-                 .children({plot(
-                     "jello — skewX = skewY ±12.5°, HALVING",
-                     graph(
-                         "g-j", fx::keys(jelloTable(), &cssEase), jelloTable(),
-                         [](const GlyphModifier& m) { return m.skewXDeg; }, "x",
-                         kShearLo, kShearHi, 0.0f, shearTicks()),
-                     kShearLo, kShearHi, shearTicks())}),
+             box().row().gap(28).height(146).children(
+                 {each(kLanes, lanePanel)}),
              text("A NON-UNIFORM SCALE AND A SHEAR ARE THE ONE "
                   "DEVIATION AN RSXFORM CANNOT CARRY · EVERY "
                   "GLYPH ON THESE TWO LINES DRAWS UNDER ITS OWN "
