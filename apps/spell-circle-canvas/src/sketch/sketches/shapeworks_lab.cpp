@@ -229,18 +229,15 @@ struct ShapeworksLab : sketch::Sketch {
     Element flight =
         custom([this](SkCanvas& canvas, const PaintContext& paint) {
           const SkSize viewport = paint.size;
-          mesh::camera::Camera camera;
-          camera.eye = {0, 620, 900};
-          camera.target = {0, 0, 0};
-          camera.fovYDeg = 40;
+          const mesh::camera::Camera camera{
+              .eye = {0, 620, 900}, .target = {0, 0, 0}, .fovYDeg = 40};
 
           const float t = (float)paint.elapsedSeconds;
           const std::vector<glm::vec3> loop = loopAt(t, 210, 80);
           const curve::Spline3 rail = closedLoop(loop);
 
-          mesh::render::MeshStyle steel;
-          steel.baseColor = {0.62f, 0.7f, 0.85f, 1};
-          steel.specular = 0.9f;
+          const mesh::render::MeshStyle steel{
+              .baseColor = {0.62f, 0.7f, 0.85f, 1}, .specular = 0.9f};
           mesh::render::drawMesh(canvas,
                                  pop::sweep(rail, sections::circle(),
                                             {.segments = 180, .scale = 7}),
@@ -256,12 +253,12 @@ struct ShapeworksLab : sketch::Sketch {
           // band. A swept line charts (across, along) into uv; the strip
           // tiles (one aperiodic period wraps the loop) and the
           // uvTransform's translate IS the scroll.
-          mesh::render::MeshStyle band;
-          band.texture = marqueeStrip;
-          band.tileTexture = true;
-          band.baseColor = {1, 1, 1, 0.92f};
-          band.lit = false;
-          band.uvTransform = SkMatrix::Translate(0, t * 0.11f);
+          const mesh::render::MeshStyle band{
+              .lit = false,
+              .baseColor = {1, 1, 1, 0.92f},
+              .texture = marqueeStrip,
+              .uvTransform = SkMatrix::Translate(0, t * 0.11f),
+              .tileTexture = true};
           mesh::render::drawMesh(
               canvas,
               pop::sweep(closedLoop(loopAt(t, 265, 96)), sections::line(),
@@ -282,11 +279,9 @@ struct ShapeworksLab : sketch::Sketch {
                   .rampBy({{0.4f, 0.85f, 1.0f, 0.4f}, {1.0f, 0.5f, 0.9f, 0.4f}})
                   .vary(0.6f, 1.0f)
                   .cloud();
-          mesh::points::BillboardStyle glow;
-          glow.size = 11;
-          glow.sizeLane = "size";
-          glow.tintLane = "tint";
-          mesh::points::drawBillboards(canvas, sparks, camera, viewport, glow);
+          mesh::points::drawBillboards(
+              canvas, sparks, camera, viewport,
+              {.size = 11, .sizeLane = "size", .tintLane = "tint"});
         })
             .inset(600, 50, 30, 40)
             .clip()
@@ -325,22 +320,13 @@ struct ShapeworksLab : sketch::Sketch {
     chromePath = SkPath::Circle(270, 150, 74);
     glassPath = SkPath::Circle(445, 150, 78);
     backdrop = bakeChecker(540, 300);
-    {
-      material::kit::GoldParameters parameters;
-      parameters.crinkle = 0.4f;
-      parameters.sparkle = 0.7f;
-      gold = material::kit::gold(material::bevelNormals(goldPath, 9), studio,
-                                 parameters);
-    }
-    {
-      material::kit::ChromeParameters parameters;
-      parameters.brushed = 0.6f;
-      parameters.roughness = 0.2f;
-      // studio, not sunset: a flat face reflects whatever sits dead
-      // ahead on the equirect, and the sunset parks its sun there.
-      chrome = material::kit::chrome(material::bevelNormals(chromePath, 12),
-                                     studio, parameters);
-    }
+    gold = material::kit::gold(material::bevelNormals(goldPath, 9), studio,
+                               {.crinkle = 0.4f, .sparkle = 0.7f});
+    // studio, not sunset: a flat face reflects whatever sits dead ahead on
+    // the equirect, and the sunset parks its sun there.
+    chrome =
+        material::kit::chrome(material::bevelNormals(chromePath, 12), studio,
+                              {.roughness = 0.2f, .brushed = 0.6f});
     glass = material::kit::glass(material::bevelNormals(glassPath, 14), studio,
                                  material::Texture::of(backdrop));
 
