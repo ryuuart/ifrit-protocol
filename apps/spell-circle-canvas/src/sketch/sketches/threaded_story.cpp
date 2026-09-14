@@ -39,6 +39,7 @@
 
 // TAGS: Typography/Paragraph, Motion/Transitions
 
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilcompose/typography/Typography.h>
@@ -171,35 +172,27 @@ struct ThreadedStory final : sketch::Sketch {
     const std::string head = std::string(prefix) + "-head";
     const std::string column = std::string(prefix) + "-column";
     const std::string stone = std::string(prefix) + "-stone";
+    // The paper a frame stands on: one well, at the frame's own measure.
+    const auto plate = [measure](float height, bool clip) {
+      return kit::well({.width = Dimension(measure + 28),
+                        .height = Dimension(height),
+                        .ground = Fill::color({1, 1, 1, 0.6f}),
+                        .padding = 14,
+                        .clip = clip,
+                        .corners = 3});
+    };
     return box().column().gap(12).children(
-        {box()
-             .fill(Fill::color({1, 1, 1, 0.6f}))
-             .corners({3})
-             .padding(14)
-             .width(measure + 28)
-             .height(s::kFrameH)
-             .clip()
-             .children({box()
-                            .key(stone)
-                            .absolute()
-                            .left(measure * 0.45f)
-                            .top(58.0f)
-                            .width(74.0f)
-                            .height(74.0f)
-                            .corners({37})
-                            .fill(Fill::color(s::kDisc))})
-             .children({frame(article)
+        {plate(s::kFrameH, true)
+             .children({kit::dot({measure * 0.45f + 37.0f, 95.0f}, 37.0f,
+                                 Fill::color(s::kDisc))
+                            .key(stone),
+                        frame(article)
                             .key(head)
                             .thread(column + "0")
                             .width(measure)
                             .height(s::kFrameH - 28)
                             .flowAround(stone, 9.0f)}),
-         box()
-             .fill(Fill::color({1, 1, 1, 0.6f}))
-             .corners({3})
-             .padding(14)
-             .width(measure + 28)
-             .height(s::kFrameH + 96)
+         plate(s::kFrameH + 96, false)
              .children({kit::columns(article, 2, s::kColumnGutter, measure,
                                      s::kFrameH + 68, column, u8"\u2026")})});
   }
@@ -220,21 +213,19 @@ struct ThreadedStory final : sketch::Sketch {
         .ink(s::kFaint)
         .children(
             {box()
-                 .absolute()
                  .inset(s::kMargin, s::kMargin - 14, 0, 0)
                  .column()
                  .gap(5)
                  .children(
                      {text("ONE STORY, THREE FRAMES, TWICE")
-                          .font({.size = 11, .color = s::kInk, .track = 3.4f})})
-                 .children({text("the cut is a word index — the "
-                                 "remainder the frame before reported — so a "
-                                 "narrower first frame moves "
-                                 "it, and the columns begin elsewhere")
-                                .font({.track = 0.3f})
-                                .width(700.0f)}),
+                          .font({.size = 11, .color = s::kInk, .track = 3.4f}),
+                      text("the cut is a word index — the "
+                           "remainder the frame before reported — so a "
+                           "narrower first frame moves "
+                           "it, and the columns begin elsewhere")
+                          .font({.track = 0.3f})
+                          .width(700.0f)}),
              box()
-                 .absolute()
                  .inset(s::kMargin, s::kMargin + 56, 0, 0)
                  .row()
                  .gap(44)
@@ -243,15 +234,14 @@ struct ThreadedStory final : sketch::Sketch {
                  .children({captioned("NARROW FIRST FRAME",
                                       "less fits before the columns, so they "
                                       "start earlier in the story",
-                                      chain("narrow", s::kNarrow, article))})
-                 .children({captioned("WIDE FIRST FRAME",
+                                      chain("narrow", s::kNarrow, article)),
+                            captioned("WIDE FIRST FRAME",
                                       "more fits before them, and the same two "
                                       "columns begin further in",
                                       chain("wide", s::kWide, article))}),
              text("a Western column is a FRAME; the vertical writing "
                   "mode keeps the word for the thing it already meant")
                  .font({.track = 0.2f})
-                 .absolute()
                  .inset(s::kMargin, s::kH - 32, 0, 0)});
   }
 };
