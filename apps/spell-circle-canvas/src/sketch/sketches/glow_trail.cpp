@@ -76,19 +76,6 @@ world::Element set(float seconds) {
           .fade({1.0f, 0.78f, 0.38f, 1.0f}, {1.0f, 0.42f, 0.16f, 1.0f})
           .lookAt(kEye);
 
-  world::Element root;
-  root.key("set").children(
-      {world::Element().key("sun").light(world::light::sun(
-           {-0.4f, -0.85f, -0.35f}, {0.95f, 0.96f, 1.0f, 1.0f}, 0.9f)),
-       world::Element()
-           .key("plate")
-           .at({0, -120, 0})
-           .rotateX(-90.0f)
-           .mesh(gm::quad(760, 760))
-           .fill(material::kit::surface(
-               {.baseColor = {0.09f, 0.10f, 0.13f, 1.0f}}))
-           .tag("ground")});
-
   world::Element posts;
   posts.key("posts");
   for (int i = 0; i < kPosts; ++i) {
@@ -107,16 +94,28 @@ world::Element set(float seconds) {
                  {.baseColor = {0.34f, 0.37f, 0.46f, 1.0f}}))
              .tag("lit")});
   }
-  root.children({std::move(posts)});
 
-  root.children({world::Element()
-                     .key("comet")
-                     .chain(comet)
-                     .stamp(gm::quad(8.9f, 8.9f))
-                     .window(head, 0.22f)
-                     .fill(material::kit::surface(
-                         {.baseColor = {1.0f, 0.72f, 0.34f, 1.0f}}))
-                     .tag("glow")});
+  world::Element root;
+  root.key("set").children(
+      {world::Element().key("sun").light(world::light::sun(
+           {-0.4f, -0.85f, -0.35f}, {0.95f, 0.96f, 1.0f, 1.0f}, 0.9f)),
+       world::Element()
+           .key("plate")
+           .at({0, -120, 0})
+           .rotateX(-90.0f)
+           .mesh(gm::quad(760, 760))
+           .fill(material::kit::surface(
+               {.baseColor = {0.09f, 0.10f, 0.13f, 1.0f}}))
+           .tag("ground"),
+       std::move(posts),
+       world::Element()
+           .key("comet")
+           .chain(comet)
+           .stamp(gm::quad(8.9f, 8.9f))
+           .window(head, 0.22f)
+           .fill(material::kit::surface(
+               {.baseColor = {1.0f, 0.72f, 0.34f, 1.0f}}))
+           .tag("glow")});
   return root;
 }
 
@@ -129,11 +128,7 @@ struct GlowTrail final : sketch::Set {
     ctx.canvas(640, 440);
     ctx.background({0.03f, 0.035f, 0.05f, 1.0f});
     ctx.captureAt(1.3);
-    gm::camera::Camera lens;
-    lens.eye = kEye;
-    lens.target = {0.0f, -30.0f, 0.0f};
-    lens.fovYDeg = 42.0f;
-    ctx.camera(lens);
+    ctx.camera({.eye = kEye, .target = {0.0f, -30.0f, 0.0f}, .fovYDeg = 42.0f});
   }
 
   world::Frame describe(float seconds) override {
