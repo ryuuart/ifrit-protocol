@@ -55,6 +55,7 @@
 #include <cmath>
 #include <cstdio>
 #include <glm/vec3.hpp>
+#include <ranges>
 #include <string>
 #include <vector>
 
@@ -94,20 +95,17 @@ gm::pop::Chain motes() {
 /** One row of blocks at @p z, every one of them carrying @p tag. */
 world::Element row(const char* key, float z, const char* tag,
                    material::Material surface) {
-  world::Element built;
-  built.key(key);
-  for (int i = 0; i < kBlocks; ++i) {
-    const float x = ((float)i - (float)(kBlocks - 1) * 0.5f) * kSpacing;
-    built.children(
-        {world::Element()
-             .key(std::string(key) + std::to_string(i))
-             .at({x, -60.0f, z})
-             .rotateY((float)i * 9.0f)
-             .mesh(gm::superellipsoid({30.0f, 44.0f, 30.0f}, 5.0f, 12, 8))
-             .fill(surface)
-             .tag(tag)});
-  }
-  return built;
+  return world::Element().key(key).children(
+      std::views::iota(0, kBlocks) | std::views::transform([&](int i) {
+        const float x = ((float)i - (float)(kBlocks - 1) * 0.5f) * kSpacing;
+        return world::Element()
+            .key(std::string(key) + std::to_string(i))
+            .at({x, -60.0f, z})
+            .rotateY((float)i * 9.0f)
+            .mesh(gm::superellipsoid({30.0f, 44.0f, 30.0f}, 5.0f, 12, 8))
+            .fill(surface)
+            .tag(tag);
+      }));
 }
 
 }  // namespace
@@ -136,9 +134,10 @@ struct ComputeVariant final : sketch::Set {
   world::Element scene() const {
     const material::Material slate = material::kit::surface(
         {.baseColor = {0.30f, 0.33f, 0.40f, 1.0f}, .roughness = 0.6f});
-
-    world::Element root;
-    root.key("set").children(
+    // THE READBACK, STOOD UP: one post per hundred points the callback
+    // counted — none at all in a frame nothing came back in.
+    const int posts = cookedPoints / 100;
+    return world::Element().key("set").children(
         {world::Element().key("sun").light(world::light::sun(
              {-0.42f, -0.82f, -0.38f}, {0.96f, 0.97f, 1.0f, 1.0f}, 1.0f)),
          world::Element()
@@ -149,24 +148,17 @@ struct ComputeVariant final : sketch::Set {
              .fill(material::kit::surface(
                  {.baseColor = {0.07f, 0.08f, 0.11f, 1.0f}})),
          row("far", -300.0f, "keep", slate),
-         row("near", 110.0f, kSwapTag, slate)});
-
-    // THE READBACK, STOOD UP. One post per hundred points the callback
-    // counted — none at all in a frame nothing came back in.
-    world::Element tally;
-    tally.key("tally");
-    const int posts = cookedPoints / 100;
-    for (int i = 0; i < posts; ++i)
-      tally.children(
-          {world::Element()
-               .key("tally" + std::to_string(i))
-               .at({((float)i - (float)(posts - 1) * 0.5f) * 34.0f, -90.0f,
-                    200.0f})
-               .mesh(gm::superellipsoid({9.0f, 18.0f, 9.0f}, 2.0f, 8, 5))
-               .fill(material::kit::unlit(
-                   {.baseColor = {0.95f, 0.78f, 0.35f, 1.0f}}))});
-    root.children({std::move(tally)});
-    return root;
+         row("near", 110.0f, kSwapTag, slate),
+         world::Element().key("tally").children(
+             std::views::iota(0, posts) | std::views::transform([posts](int i) {
+               return world::Element()
+                   .key("tally" + std::to_string(i))
+                   .at({((float)i - (float)(posts - 1) * 0.5f) * 34.0f, -90.0f,
+                        200.0f})
+                   .mesh(gm::superellipsoid({9.0f, 18.0f, 9.0f}, 2.0f, 8, 5))
+                   .fill(material::kit::unlit(
+                       {.baseColor = {0.95f, 0.78f, 0.35f, 1.0f}}));
+             }))});
   }
 
   world::Frame describe(float seconds) override {
