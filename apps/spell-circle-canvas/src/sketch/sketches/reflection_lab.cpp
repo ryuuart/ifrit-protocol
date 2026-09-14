@@ -144,12 +144,9 @@ struct ReflectionLab final : sketch::Set {
     // THE SKY, AS A NODE. Its transform is its orientation, so one
     // rotate lane turns every reflection in the set at once; the
     // crossfade runs beside it, from the studio bake to the sunset one.
-    world::Environment sky;
-    sky.map = studio;
-    sky.next = sunset;
     world::Element dome = world::Element()
                               .key("sky")
-                              .environmentMap(sky)
+                              .environmentMap({.map = studio, .next = sunset})
                               .rotateY(seconds * 26.0f)
                               // HELD, not ramping. Both maps are sampled and
                               // mixed at this value, which is what the dial
@@ -166,23 +163,23 @@ struct ReflectionLab final : sketch::Set {
                               .backdrop(0.85f)
                               .backdropBlur(0.35f);
 
-    world::kit::Set set;
-    set.rig.extent = 140.0f;
     // The rig is dimmer than a studio's, because the sky is now most of
     // the light in the set: a key at full strength would wash the
-    // reflections out and the study would be about the key.
-    set.rig.intensity = 0.45f;
-    set.rig.bearing = 62.0f;
-    set.rig.elevation = 34.0f;
-    set.rig.fill = 0.3f;
-    set.rig.back = 0.4f;
-    set.ground = 0.0f;
-    set.table.radius = 700.0f;
-    set.table.height = 250.0f;
-    // PARKED, like every lab: the row faces the eye and stays there, so
-    // what moves in the picture is the sky and nothing else.
-    set.table.period = 0.0f;
-    set.table.fovYDeg = 46.0f;
+    // reflections out and the study would be about the key. The
+    // turntable is PARKED, like every lab: the row faces the eye and
+    // stays there, so what moves in the picture is the sky and nothing
+    // else.
+    const world::kit::Set set{.rig = {.extent = 140.0f,
+                                      .bearing = 62.0f,
+                                      .elevation = 34.0f,
+                                      .fill = 0.3f,
+                                      .back = 0.4f,
+                                      .intensity = 0.45f},
+                              .table = {.radius = 700.0f,
+                                        .height = 250.0f,
+                                        .period = 0.0f,
+                                        .fovYDeg = 46.0f},
+                              .ground = 0.0f};
     return world::Frame(world::kit::litSet(
         world::Element().key("study").children({dome, row}), set, seconds));
   }
