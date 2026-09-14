@@ -215,82 +215,59 @@ struct FrameInputs final : sketch::Sketch {
     ramped.bind("uBars", second);
     ramped.set("uTint", Color{0.96f, 0.68f, 0.34f, 1});
 
+    // What the FRAME hands the same body: a content scale it reads its
+    // hairline width out of, and a world transform it reads as a phase.
+    Element theFrame = kit::cells(
+        {.cells = {cell("bind(\"uBars\", block) · contentScale 1",
+                        "twelve floats read LIVE at every resolve · the "
+                        "hairlines are 1 / uContentScale wide, so here they "
+                        "are 1 px",
+                        bars, 1.0f),
+                   cell("… contentScale 3",
+                        "the same material and the same block · only the "
+                        "frame value moved, and the hairlines thinned to a "
+                        "third",
+                        bars, 3.0f),
+                   cell("a second block, a second tint",
+                        "the block compares by IDENTITY, so this is a "
+                        "different binding · its values never enter the "
+                        "prune comparison",
+                        ramped, 1.0f)},
+         .gap = 14});
+
+    // …and what the RECIPE decides: one instance worn on three
+    // definitions of one parameters layout.
+    Element theRecipe = kit::cells(
+        {.cells = {cell("frame(WorldTransform) · uWorld translated",
+                        "the body reads column 2 of uWorld as its phase · "
+                        "identity outside a composite, so it degrades to the "
+                        "node's own space",
+                        bars, 1.0f, glm::mat3(1, 0, 0, 0, 1, 0, 142, 0, 1)),
+                   cell("withRecipe(dotsRecipe())",
+                        "THE SAME INSTANCE over a second definition of one "
+                        "parameters layout · the values, the binding and the "
+                        "tint all carried over",
+                        bars.withRecipe(dotsRecipe()), 1.0f),
+                   cell("withRecipe(flatRecipe())",
+                        "a body that reads neither uBars nor uGain · the "
+                        "third definition of one ABI, and the table it is "
+                        "still bound to reaches nothing",
+                        bars.withRecipe(flatRecipe()), 1.0f)},
+         .gap = 14});
+
     ctx.composer.render(sketch::kit::page(
-        {.title = "FRAME INPUTS · Recipe::frame + "
-                  "UniformBlock + Material::withRecipe",
-         .subtitle = "dials · the content scale (1, then 3) "
-                     "· the world translation · the "
-                     "block's twelve floats · the recipe the "
-                     "instance is worn on",
-         .footer = "what a compiler KEEPS is what the upload "
-                   "fills: a field a body never reads reaches "
-                   "nothing, and the program cache names the "
-                   "recipe and every field the compiler dropped "
-                   "once per target"},
-        kit::cells(
-            {.cells = {kit::cells(
-                           {.cells = {cell("bind(\"uBars\", block) · "
-                                           "contentScale 1",
-                                           kit::formatted(
-                                               "twelve floats read LIVE at "
-                                               "every "
-                                               "resolve · the hairlines "
-                                               "are 1 / uContentScale wide, so "
-                                               "here they are 1 px"),
-                                           bars, 1.0f),
-                                      cell("…"
-                                           " contentScale 3",
-                                           "the same material and the same "
-                                           "block "
-                                           "· only the frame value "
-                                           "moved, "
-                                           "and the hairlines thinned to a "
-                                           "third",
-                                           bars, 3.0f),
-                                      cell("a second block, a second tint",
-                                           "the block compares by IDENTITY, so "
-                                           "this is a different binding "
-                                           "· "
-                                           "its values never enter the prune "
-                                           "comparison",
-                                           ramped, 1.0f)},
-                            .gap = 14}),
-                       kit::cells(
-                           {.cells = {cell("frame(WorldTransform) "
-                                           "· uWorld "
-                                           "translated",
-                                           "the body reads column 2 of "
-                                           "uWorld as "
-                                           "its phase · identity "
-                                           "outside a "
-                                           "composite, so it degrades to "
-                                           "the "
-                                           "node's own space",
-                                           bars, 1.0f,
-                                           glm::mat3(1, 0, 0, 0, 1, 0, 142, 0,
-                                                     1)),
-                                      cell("withRecipe(dotsRecipe())",
-                                           "THE SAME INSTANCE over a "
-                                           "second "
-                                           "definition of one parameters "
-                                           "layout "
-                                           "· the values, the "
-                                           "binding and "
-                                           "the tint all carried over",
-                                           bars.withRecipe(dotsRecipe()), 1.0f),
-                                      cell("withRecipe(flatRecipe())",
-                                           "a body that reads neither "
-                                           "uBars nor "
-                                           "uGain · the third "
-                                           "definition "
-                                           "of one ABI, and the table "
-                                           "it is still "
-                                           "bound to reaches nothing",
-                                           bars.withRecipe(flatRecipe()),
-                                           1.0f)},
-                            .gap = 14})},
-             .column = true,
-             .gap = 18})));
+        {.title = "FRAME INPUTS · Recipe::frame + UniformBlock + "
+                  "Material::withRecipe",
+         .subtitle = "dials · the content scale (1, then 3) · the world "
+                     "translation · the block's twelve floats · the recipe "
+                     "the instance is worn on",
+         .footer = "what a compiler KEEPS is what the upload fills: a field "
+                   "a body never reads reaches nothing, and the program "
+                   "cache names the recipe and every field the compiler "
+                   "dropped once per target"},
+        kit::cells({.cells = {std::move(theFrame), std::move(theRecipe)},
+                    .column = true,
+                    .gap = 18})));
   }
 };
 
