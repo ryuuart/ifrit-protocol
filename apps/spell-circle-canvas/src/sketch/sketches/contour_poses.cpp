@@ -30,7 +30,9 @@
 
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigildraw/Draw.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Contour.h>
@@ -38,6 +40,7 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
+#include <functional>
 #include <span>
 #include <string>
 #include <vector>
@@ -84,39 +87,33 @@ SkPath subject() {
           SkMatrix::Translate((kCell - art) * 0.5f, (kPicture - art) * 0.5f));
 }
 
-SkPaint strokePaint(SkColor4f color, float width) {
-  SkPaint p;
-  p.setAntiAlias(true);
-  p.setStyle(SkPaint::kStroke_Style);
-  p.setStrokeWidth(width);
-  p.setColor4f(color);
-  return p;
-}
+using sigil::draw::Pen;
 
-SkPaint fillPaint(SkColor4f color) {
-  SkPaint p;
-  p.setAntiAlias(true);
-  p.setColor4f(color);
-  return p;
+/** The pen set for a stroked mark, and for a filled one. */
+void inked(Pen& pen, SkColor4f color, float width) {
+  pen.noFill();
+  pen.stroke(color);
+  pen.strokeWeight(width);
 }
-
-SkPoint sk(glm::vec2 v) { return {v.x, v.y}; }
+void filled(Pen& pen, SkColor4f color) {
+  pen.noStroke();
+  pen.fill(color);
+}
 
 /** The outline itself, faint, under every cell that marks something on
  *  it. */
-void ghost(SkCanvas& canvas, const SkPath& p) {
-  canvas.drawPath(p, strokePaint(kFaint, 1.2f));
+void ghost(Pen& pen, const SkPath& outline) {
+  inked(pen, kFaint, 1.2f);
+  pen.shape(outline);
 }
 
 Element cell(const char* call, const std::string& note,
-             std::function<void(SkCanvas&)> draw) {
+             std::function<void(Pen&)> draw) {
   return sketch::kit::caption(
       kCell, call, note,
       sketch::kit::well(
           {.width = kCell, .height = kPicture, .clip = false},
-          custom(call, [draw = std::move(draw)](SkCanvas& canvas) {
-            draw(canvas);
-          })));
+          pen(call, [draw = std::move(draw)](Pen& pen) { draw(pen); })));
 }
 
 }  // namespace
@@ -163,19 +160,20 @@ struct ContourPoses final : sketch::Sketch {
                                                                  : "no",
                                      (
                                          double)total),
-                                 [figure, contours](SkCanvas& canvas) {
+                                 [figure, contours](Pen& pen) {
                                    const std::span<const path::Contour> run{
                                        contours};
-                                   canvas.drawPath(figure,
-                                                   strokePaint(kFigure, 2.0f));
+                                   inked(pen, kFigure, 2.0f);
+                                   pen.shape(figure);
                                    const path::Pose head =
                                        path::poseAlong(run, 0.0f);
-                                   canvas.drawCircle(sk(head.position), 5,
-                                                     strokePaint(kWarm, 1.6f));
                                    const glm::vec2 tip =
                                        head.position + head.tangent * 22.0f;
-                                   canvas.drawLine(sk(head.position), sk(tip),
-                                                   strokePaint(kWarm, 1.6f));
+                                   inked(pen, kWarm, 1.6f);
+                                   pen.circle(head.position.x, head.position.y,
+                                              10);
+                                   pen.line(head.position.x, head.position.y,
+                                            tip.x, tip.y);
                                  }),
                             cell("poseAlong(contours, d) · "
                                  "Pose::normal",
@@ -185,10 +183,10 @@ struct ContourPoses final : sketch::Sketch {
                                      "· each tick on the pose's "
                                      "normal",
                                      kStations, (double)total),
-                                 [figure, contours, total](SkCanvas& canvas) {
+                                 [figure, contours, total](Pen& pen) {
                                    const std::span<const path::Contour> run{
                                        contours};
-                                   ghost(canvas, figure);
+                                   ghost(pen, figure);
                                    for (int i = 0; i < kStations; ++i) {
                                      const float d =
                                          arrange::along(0.0f, total, (size_t)i,
@@ -196,12 +194,15 @@ struct ContourPoses final : sketch::Sketch {
                                                         arrange::Turn::Closed);
                                      const path::Pose p =
                                          path::poseAlong(run, d);
-                                     canvas.drawLine(
-                                         sk(p.position - p.normal * 4.0f),
-                                         sk(p.position + p.normal * 13.0f),
-                                         strokePaint(kFigure, 1.8f));
-                                     canvas.drawCircle(sk(p.position), 1.8f,
-                                                       fillPaint(kWarm));
+                                     const glm::vec2 from =
+                                         p.position - p.normal * 4.0f;
+                                     const glm::vec2 to =
+                                         p.position + p.normal * 13.0f;
+                                     inked(pen, kFigure, 1.8f);
+                                     pen.line(from.x, from.y, to.x, to.y);
+                                     filled(pen, kWarm);
+                                     pen.circle(p.position.x, p.position.y,
+                                                3.6f);
                                    }
                                  }),
                             cell("Wrap::Clamp vs Wrap::Around",
@@ -212,10 +213,10 @@ struct ContourPoses final : sketch::Sketch {
                                      "· the outer chain parks "
                                      "at the ends, the inner one comes "
                                      "round the seam"),
-                                 [figure, contours, total](SkCanvas& canvas) {
+                                 [figure, contours, total](Pen& pen) {
                                    const std::span<const path::Contour> run{
                                        contours};
-                                   ghost(canvas, figure);
+                                   ghost(pen, figure);
                                    // Each policy's twelve stations
                                    // joined in order: where a chain
                                    // stalls, several distances have
@@ -228,78 +229,91 @@ struct ContourPoses final : sketch::Sketch {
                                          run, f * total, path::Wrap::Clamp);
                                      const path::Pose around = path::poseAlong(
                                          run, f * total, path::Wrap::Around);
-                                     const SkPoint out =
-                                         sk(clamped.position +
-                                            clamped.normal * 11.0f);
-                                     const SkPoint in =
-                                         sk(around.position -
-                                            around.normal * 11.0f);
-                                     (i ? parked.lineTo(out)
-                                        : parked.moveTo(out));
-                                     (i ? round.lineTo(in) : round.moveTo(in));
-                                     canvas.drawCircle(out, 3.6f,
-                                                       fillPaint(kWarm));
-                                     canvas.drawCircle(in, 3.6f,
-                                                       fillPaint(kCool));
+                                     const glm::vec2 out =
+                                         clamped.position +
+                                         clamped.normal * 11.0f;
+                                     const glm::vec2 in = around.position -
+                                                          around.normal * 11.0f;
+                                     const SkPoint outAt{out.x, out.y};
+                                     const SkPoint inAt{in.x, in.y};
+                                     (i ? parked.lineTo(outAt)
+                                        : parked.moveTo(outAt));
+                                     (i ? round.lineTo(inAt)
+                                        : round.moveTo(inAt));
+                                     filled(pen, kWarm);
+                                     pen.circle(out.x, out.y, 7.2f);
+                                     filled(pen, kCool);
+                                     pen.circle(in.x, in.y, 7.2f);
                                    }
-                                   canvas.drawPath(parked.detach(),
-                                                   strokePaint(kWarm, 1.0f));
-                                   canvas.drawPath(round.detach(),
-                                                   strokePaint(kCool, 1.0f));
+                                   inked(pen, kWarm, 1.0f);
+                                   pen.shape(parked.detach());
+                                   inked(pen, kCool, 1.0f);
+                                   pen.shape(round.detach());
                                  })},
                        .gap = 14}),
-                  kit::cells(
-                      {.cells =
-                           {cell("Contour::corners(30°)",
-                                 kit::formatted(
-                                     "%zu corners · sharpest turn "
-                                     "%.0f° · each drawn "
-                                     "as its in tangent and its out "
-                                     "tangent",
-                                     corners.size(), (double)sharpest),
-                                 [figure, corners, contours](SkCanvas& canvas) {
-                                   const std::span<const path::Contour> run{
-                                       contours};
-                                   ghost(canvas, figure);
-                                   for (const path::Contour::Corner& c :
-                                        corners) {
-                                     const path::Pose p =
-                                         path::poseAlong(run, c.distance);
-                                     canvas.drawLine(
-                                         sk(p.position - c.in * 18.0f),
-                                         sk(p.position),
-                                         strokePaint(kCool, 1.6f));
-                                     canvas.drawLine(
-                                         sk(p.position),
-                                         sk(p.position + c.out * 18.0f),
-                                         strokePaint(kWarm, 1.6f));
-                                     canvas.drawCircle(
-                                         sk(p.position), 3.2f,
-                                         strokePaint(kFigure, 1.4f));
-                                   }
-                                 }),
-                            cell("cornerWindows(26, true, 30°)",
-                                 "the pieces of the outline WITHIN the "
-                                 "window of a corner, kept",
-                                 [figure](SkCanvas& canvas) {
-                                   ghost(canvas, figure);
-                                   canvas.drawPath(
-                                       path::cornerWindows(figure, kWindow,
-                                                           true, kCornerDeg),
-                                       strokePaint(kWarm, 3.0f));
-                                 }),
-                            cell("cornerWindows(26, false, 30°)",
-                                 "the complement — everything "
-                                 "the windows did not claim, which is "
-                                 "the run a straight ornament may take",
-                                 [figure](SkCanvas& canvas) {
-                                   ghost(canvas, figure);
-                                   canvas.drawPath(
-                                       path::cornerWindows(figure, kWindow,
-                                                           false, kCornerDeg),
-                                       strokePaint(kCool, 3.0f));
-                                 })},
-                       .gap = 14})},
+                  kit::cells({.cells = {cell("Contour::corners(30°)",
+                                             kit::formatted("%zu corners · "
+                                                            "sharpest turn "
+                                                            "%.0f° · each "
+                                                            "drawn "
+                                                            "as its in tangent "
+                                                            "and its out "
+                                                            "tangent",
+                                                            corners.size(),
+                                                            (double)sharpest),
+                                             [figure, corners, contours](Pen&
+                                                                             pen) {
+                                               const std::span<
+                                                   const path::Contour>
+                                                   run{contours};
+                                               ghost(pen, figure);
+                                               for (const path::Contour::Corner&
+                                                        c : corners) {
+                                                 const path::Pose p =
+                                                     path::poseAlong(
+                                                         run, c.distance);
+                                                 const glm::vec2 from =
+                                                     p.position - c.in * 18.0f;
+                                                 const glm::vec2 to =
+                                                     p.position + c.out * 18.0f;
+                                                 inked(pen, kCool, 1.6f);
+                                                 pen.line(from.x, from.y,
+                                                          p.position.x,
+                                                          p.position.y);
+                                                 inked(pen, kWarm, 1.6f);
+                                                 pen.line(p.position.x,
+                                                          p.position.y, to.x,
+                                                          to.y);
+                                                 inked(pen, kFigure, 1.4f);
+                                                 pen.circle(p.position.x,
+                                                            p.position.y, 6.4f);
+                                               }
+                                             }),
+                                        cell("cornerWindows(26, true, 30°)",
+                                             "the pieces of the outline WITHIN "
+                                             "the "
+                                             "window of a corner, kept",
+                                             [figure](Pen& pen) {
+                                               ghost(pen, figure);
+                                               inked(pen, kWarm, 3.0f);
+                                               pen.shape(path::cornerWindows(
+                                                   figure, kWindow, true,
+                                                   kCornerDeg));
+                                             }),
+                                        cell("cornerWindows(26, false, 30°)",
+                                             "the complement — everything "
+                                             "the windows did not claim, which "
+                                             "is "
+                                             "the run a straight ornament may "
+                                             "take",
+                                             [figure](Pen& pen) {
+                                               ghost(pen, figure);
+                                               inked(pen, kCool, 3.0f);
+                                               pen.shape(path::cornerWindows(
+                                                   figure, kWindow, false,
+                                                   kCornerDeg));
+                                             })},
+                              .gap = 14})},
              .column = true,
              .gap = 18})));
   }
