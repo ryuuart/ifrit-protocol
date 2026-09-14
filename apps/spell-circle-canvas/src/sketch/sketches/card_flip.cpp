@@ -75,13 +75,23 @@ constexpr SkColor4f kCardFront{0.88f, 0.34f, 0.24f, 1};
 constexpr SkColor4f kCardBack{0.16f, 0.42f, 0.78f, 1};
 constexpr SkColor4f kEdge{1, 1, 1, 0.22f};
 
-/** The six faces' colours, front first and back last. */
-constexpr SkColor4f kFaces[6] = {
-    {0.88f, 0.34f, 0.24f, 1}, {0.95f, 0.72f, 0.20f, 1},
-    {0.30f, 0.70f, 0.45f, 1}, {0.16f, 0.42f, 0.78f, 1},
-    {0.62f, 0.36f, 0.78f, 1}, {0.85f, 0.85f, 0.80f, 1},
+/** THE SIX FACES, front first and back last — which the depth sort must
+ *  and does ignore. Each is turned about its own centre and pushed half
+ *  an edge along the cube's own axes, which is what `push` counts in. */
+struct Face {
+  SkColor4f fill;
+  const char* name;
+  float turnX, turnY;
+  float pushX, pushY, pushZ;
 };
-constexpr const char* kFaceNames[6] = {"F", "R", "T", "L", "B", "K"};
+constexpr Face kFaces[6] = {
+    {{0.88f, 0.34f, 0.24f, 1}, "F", 0, 0, 0, 0, 1},
+    {{0.95f, 0.72f, 0.20f, 1}, "R", 0, 90, 1, 0, 0},
+    {{0.30f, 0.70f, 0.45f, 1}, "T", 90, 0, 0, -1, 0},
+    {{0.16f, 0.42f, 0.78f, 1}, "L", 0, -90, -1, 0, 0},
+    {{0.62f, 0.36f, 0.78f, 1}, "B", -90, 0, 0, 1, 0},
+    {{0.85f, 0.85f, 0.80f, 1}, "K", 0, 180, 0, 0, -1},
+};
 
 /** The house sheet in this one's restrained palette: paper, ink and one
  *  accent per panel. Every line on the sheet is set from it. */
@@ -94,12 +104,13 @@ sketch::kit::Theme sheetTheme() {
   return look;
 }
 
-/** A panel: a dark plate with a caption under it, and the view every
- *  child of the plate is seen through. */
-Element panel(SkRect frame, const char* caption) {
-  return box()
-      .absolute()
-      .rect(frame)
+/** A panel: a dark plate with its subject standing in the middle of it,
+ *  a caption in the corner, and the view every child of the plate is seen
+ *  through. It takes an equal share of the row it stands in, so nothing
+ *  here divides the canvas by hand. */
+Element panel(const char* caption, Element content) {
+  return kit::centred(std::move(content))
+      .grow(1)
       .corners({10})
       .fill(Fill::color(sketch::kit::theme().palette.cellGround))
       .perspective(kViewDistance)
@@ -121,7 +132,7 @@ struct CardFlip final : sketch::Sketch {
     // has just taken over, the cube shows three faces at an oblique, and
     // the plate is near the end of its sway.
     sketch::kit::stage(ctx,
-                       {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
+                       {.size = kCanvas,
                         .captureAt = 2.2,
                         .background = sketch::kit::theme().palette.ground});
     flip = 0;
@@ -142,11 +153,9 @@ struct CardFlip final : sketch::Sketch {
    *  hides its back, so whichever faces the viewer is the one drawn. */
   Element card() const {
     constexpr float w = 220, h = 320;
-    const auto face = [&](const char* title, const char* line, SkColor4f fill,
-                          float turn) {
-      return box()
-          .absolute()
-          .rect(SkRect::MakeXYWH(0, 0, w, h))
+    const auto face = [](const char* title, const char* line, SkColor4f fill,
+                         float turn) {
+      return kit::at(0, 0, w, h)
           .corners({16})
           .fill(Fill::color(fill))
           .foreground(stroke(1.5f, Fill::color(kEdge)))
@@ -160,8 +169,8 @@ struct CardFlip final : sketch::Sketch {
                      text(line).font({.size = 14}).width(pct(100))});
     };
     return box()
-        .absolute()
-        .rect(SkRect::MakeXYWH((380 - w) * 0.5f, (440 - h) * 0.5f, w, h))
+        .width(w)
+        .height(h)
         .preserve3d()
         .rotateY(motion::bind(&flip).target(0, 360))
         .children({face("FRONT", "rotateY · backface hidden", kCardFront, 0),
@@ -172,33 +181,28 @@ struct CardFlip final : sketch::Sketch {
    *  and pushed half an edge out along the cube's axis. */
   Element cube() const {
     constexpr float edge = 180, half = edge * 0.5f;
-    const auto face = [&](int i) {
-      return kit::centred()
-          .absolute()
-          .rect(SkRect::MakeXYWH(0, 0, edge, edge))
-          .fill(Fill::color(kFaces[i]))
+    const auto face = [](const Face& one) {
+      return kit::at(kit::centred(text(one.name).font({.size = 64})), 0, 0,
+                     edge, edge)
+          .fill(Fill::color(one.fill))
           .foreground(stroke(1.0f, Fill::color(kEdge)))
-
-          .children({text(kFaceNames[i]).font({.size = 64})});
+          .rotateX(one.turnX)
+          .rotateY(one.turnY)
+          .translateX(one.pushX * half)
+          .translateY(one.pushY * half)
+          .translateZ(one.pushZ * half);
     };
     return box()
-        .absolute()
-        .rect(SkRect::MakeXYWH((380 - edge) * 0.5f, (440 - edge) * 0.5f, edge,
-                               edge))
+        .width(edge)
+        .height(edge)
         .preserve3d()
         .rotateX(motion::bind(&spinX).target(0, 360))
         .rotateY(motion::bind(&spinY).target(0, 360))
-        .children({face(0).translateZ(half),
-                   face(1).rotateY(90).translateX(half),
-                   face(2).rotateX(90).translateY(-half),
-                   face(3).rotateY(-90).translateX(-half),
-                   face(4).rotateX(-90).translateY(half),
-                   face(5).rotateY(180).translateZ(-half)});
+        .children({each(kFaces, face)});
   }
 
   /** THE PLATE: a paragraph on a plane tipped away, projected at draw. */
   Element plate() const {
-    constexpr float w = 300, h = 250;
     const char* passage =
         "A plane tipped away from the viewer keeps its type: the letters "
         "are shaped and placed in the plane and projected as they are "
@@ -206,8 +210,8 @@ struct CardFlip final : sketch::Sketch {
         "is as sharp as the far one, and a cache taken here is taken in "
         "the plane too.";
     return box()
-        .absolute()
-        .rect(SkRect::MakeXYWH((380 - w) * 0.5f, (440 - h) * 0.5f, w, h))
+        .width(300)
+        .height(250)
         .corners({8})
         .fill(Fill::color(kPaper))
         .padding(22)
@@ -221,10 +225,7 @@ struct CardFlip final : sketch::Sketch {
   }
 
   Element describe() const {
-    constexpr float gap = 20, top = 40, ph = 440;
-    // Not arrange::moduleSize: this measure takes the outer margins out
-    // of the width as well, and a module's gaps sit only between.
-    constexpr float pw = (kCanvas.fWidth - 4 * gap) / 3;
+    constexpr float gap = 20, top = 40;
     const sketch::kit::Theme& look = sketch::kit::theme();
     return stack()
         .fill(Fill::color(look.palette.ground))
@@ -232,20 +233,24 @@ struct CardFlip final : sketch::Sketch {
         // and the title name their ash, the card its paper.
         .font({.face = look.type.sans})
         .ink(look.palette.ink)
-        .children({text("THE DEPTH LANES — A NODE IS A PLANE")
-                       .font({.size = 14, .color = kAsh, .track = 3})
-                       .absolute()
-                       .left(gap)
-                       .top(14),
-                   panel(SkRect::MakeXYWH(gap, top, pw, ph),
-                         "CARD · rotateY under perspective, backs hidden")
-                       .children({card()}),
-                   panel(SkRect::MakeXYWH(2 * gap + pw, top, pw, ph),
-                         "CUBE · six planes in one space, sorted by depth")
-                       .children({cube()}),
-                   panel(SkRect::MakeXYWH(3 * gap + 2 * pw, top, pw, ph),
-                         "PLATE · type on a tilted plane stays sharp")
-                       .children({plate()})});
+        .children(
+            {text("THE DEPTH LANES — A NODE IS A PLANE")
+                 .font({.size = 14, .color = kAsh, .track = 3})
+                 .absolute()
+                 .left(gap)
+                 .top(14),
+             box()
+                 .absolute()
+                 .inset(gap, top, gap, gap)
+                 .row()
+                 .gap(gap)
+                 .children(
+                     {panel("CARD · rotateY under perspective, backs hidden",
+                            card()),
+                      panel("CUBE · six planes in one space, sorted by depth",
+                            cube()),
+                      panel("PLATE · type on a tilted plane stays sharp",
+                            plate())})});
   }
 };
 
