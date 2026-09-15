@@ -647,6 +647,63 @@ A timeline's `ink` is the whole mark's — a tick and the word under it are
 one mark and take one colour. A mark that states its own `ink` keeps its
 word out of the scale's, the way a legend entry does.
 
+### A number off a wire, as a motion output — `Channel.h`
+
+| | |
+| --- | --- |
+| `sketch::kit::Channel` | one number of one message name, followed on the hub's dispatch and written into a `choreograph::Output<float>` |
+| `Channel::output` | that output, which is what a binding chain is pointed at |
+| `Channel::value` | the number it stands at |
+| `Channel::lastRead` | the same reading as the wire spelled it, at the width the message carried it at; nothing until one has arrived |
+| `Channel::name` | the message name it follows |
+
+```cpp
+sketch::kit::Channel wind{hub, desk, "/sky/wind", 0};       // an argument
+sketch::kit::Channel gust{hub, phone, "Gust", "strength"};  // a field
+…
+compose::box().scaleY(
+    motion::bind(&wind.output()).source(0, 127).target(0.2f, 1.0f))
+```
+
+**A CHANNEL IS THE HANDLER TAKEN OUT.** A desk sends a fader reading and
+a property has to move by it, and what usually stands between the two is
+a function: read the message, write a member, scale it into the units the
+property wants, describe again. Every step of that but the first is
+arithmetic `motion::bind` already spells, so a channel follows the number
+and the chain does the rest — the whole path from a socket to a drawn
+property with nothing of the sketch's own in it.
+
+**TWO READINGS, because a number stands in one of two places.**
+`Channel::Reading` is an argument's INDEX for a wire whose message is an
+address and a list, which is what OSC is, and a field's NAME for a wire
+whose message is a record: `Channel(hub, desk, "/sky/wind", 0)` is that
+address's first argument and `Channel(hub, phone, "Wind", "value")` is
+that kind's `value`. The name is the one a handler would have been
+registered under — an address, or a kind — so a channel and an `on()`
+handler read the same wire the same way.
+
+**IT MOVES ONLY WHEN THE MESSAGE MOVED.** A dispatch that delivered
+nothing, a message under another name, and a message carrying the same
+reading as the last all leave the output exactly where it stood, so a
+still fader does not rewrite a bound property once a frame. A number that
+is not there leaves it standing too — an argument short of the index, a
+field the record does not carry, a value that is not a number — so a
+sender that went quiet holds its last reading rather than snapping to
+zero.
+
+**THE HUB IS NAMED, because a `data::Connection` does not carry the one
+it was opened on** and it is `io::Hub`'s dispatch that drives this: the
+callback runs after every recording has been advanced and before the
+frame is described, in the order the callbacks were registered. A channel
+built after its connection was opened therefore reads what that same
+dispatch delivered, and every reading a frame takes agrees with every
+other. Neither the connection nor the hub is owned, and both outlive the
+channel.
+
+The output keeps its address for the life of the channel, moves included,
+so a description that bound it once goes on reading it — which is why the
+state stands behind a pointer, as a connection's does.
+
 ## What is NOT here, and where it is
 
 A leaf may not invent what an ancestor should own.
@@ -672,6 +729,10 @@ A leaf may not invent what an ancestor should own.
   range, its transform and its tick ladder. `Chart.h` puts a box's own size
   into two of those and reads `Scale::apply`; it holds no arithmetic of its
   own, and it is the one component here that links SigilData.
+* The door a message arrives at, the scheme it is read by and the handlers
+  over it — `data::Connection`, opened by the sketch on the hub its assets
+  carry. `Channel` follows ONE number of what a connection already answers:
+  it opens nothing, decodes nothing, and registers no handler of its own.
 * Numbers a sketch measured about its own execution — `ctx.measured`,
   before they reach any component here. A sketch that draws its own
   timings into its own plate differs from itself between runs.
@@ -683,17 +744,27 @@ It draws nothing and holds no kernel state, and nothing links it back —
 ARCHIVE, because `stage()` writes a sketch's `CanvasSpecification` through the
 canvas runtime's own context: no device backend and no window come with
 that, but the reload engine and the headless renderer stand in the same
-archive and do. It is PIC, because a hot-reloaded sketch's dylib force-loads
-it out of the host.
+archive and do. It LINKS THE CONNECTION for the same kind of reason:
+`Channel` follows a door the sketch opened and is driven by `io::Hub`'s
+dispatch, so this library names `data::Connection` and that hub and opens
+neither. It is PIC, because a hot-reloaded sketch's dylib force-loads it
+out of the host.
 
 ## Build and test
 
 ```sh
 cmake --build build --config Release --target sketch_test
-ctest --test-dir build -C Release -R '^SketchKit' --output-on-failure
+ctest --test-dir build -C Release -R '^SketchKit' \
+      --output-on-failure
 ```
 
 `kit/test/` asserts the claim a migrated sketch's plate rests on:
 that the theme is a comparable value a scope binds and shadows, and that
 every component here draws — **in pixels** — exactly what the compose kit
 spelled by hand with the same values draws.
+
+The channel's cases are the one exception, because what a channel makes
+is a number and not a picture: they stand a door with no socket behind it
+on a hub, deliver bytes into it, and read the output — and a binding
+chain over it — after a dispatch, so no port has to be free and no clock
+has to run for them to pass.

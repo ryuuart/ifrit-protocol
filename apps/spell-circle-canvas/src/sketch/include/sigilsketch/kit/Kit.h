@@ -7,6 +7,7 @@
 
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilsketch/kit/Cells.h>
+#include <sigilsketch/kit/Channel.h>
 #include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Console.h>
 #include <sigilsketch/kit/Document.h>
