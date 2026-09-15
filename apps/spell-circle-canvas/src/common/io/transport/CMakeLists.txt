@@ -3,12 +3,15 @@
 # WebSocket over uWebSockets, one listener per feed on a loop of its own;
 # the WebSocket client over libcurl, one session per feed on a thread
 # of its own, which is what ws:// and wss:// open when the URI names a
-# server to call rather than a port to hold; and the shared memory
+# server to call rather than a port to hold; the shared memory
 # reader, which carries no stack at all — a region another process on
 # this machine mapped, looked at on a timer that shares the UDP
 # transport's kind of thread. POSIX is what a region is made of here,
 # so it needs nothing found beside it; Windows would carry a file of its
-# own behind the same door.
+# own behind the same door. And MIDI over RtMidi, which is the platform's
+# own MIDI stack behind one class: no thread is started for it at all,
+# the driver running the callback every arriving message is delivered
+# from.
 #
 # Every stack is PRIVATE: the header names a Hub and a scheme and
 # nothing of the network behind them, so a consumer that opens a feed
@@ -21,12 +24,14 @@
 find_package(boost_asio CONFIG REQUIRED)
 find_package(unofficial-uwebsockets CONFIG REQUIRED)
 find_package(CURL CONFIG REQUIRED)
+find_package(rtmidi CONFIG REQUIRED)
 sigil_library(SigilIOTransport
-  SOURCES Udp.cpp WebSocket.cpp WebSocketClient.cpp SharedMemory.cpp
+  SOURCES Udp.cpp WebSocket.cpp WebSocketClient.cpp SharedMemory.cpp Midi.cpp
           IoThread.cpp IoThread.h
   HEADERS Transport.h
   PUBLIC SigilIOHub
-  PRIVATE Boost::asio unofficial::uwebsockets::uwebsockets CURL::libcurl)
+  PRIVATE Boost::asio unofficial::uwebsockets::uwebsockets CURL::libcurl
+          RtMidi::rtmidi)
 
 # What the transports promise: the port a URI binds, the server a URI
 # calls, the region a URI maps, the bytes that arrive through any of
@@ -36,9 +41,9 @@ sigil_library(SigilIOTransport
 # by hand through raw Asio sockets, which is the test's own use of Boost
 # and not one it inherits; the client's cases call a listener this same
 # process is holding and the region's cases write the region they read,
-# so both ends of a session and both ends of a region stand in one
-# binary.
+# and the MIDI cases make a port of their own and open it back, so both
+# ends of a session, of a region and of a cable stand in one binary.
 sigil_test(io_test
   SOURCES test/UdpTest.cpp test/WebSocketTest.cpp test/WebSocketClientTest.cpp
-          test/SharedMemoryTest.cpp
+          test/SharedMemoryTest.cpp test/MidiTest.cpp
   LIBRARIES SigilIOTransport Boost::asio)

@@ -1,12 +1,13 @@
 # The decoders: delimiter-separated text and JSON into a Table, a JSON
-# document as a value of its own, and an OSC packet read into that same
-# value.
+# document as a value of its own, and an OSC packet or a MIDI message
+# read into that same value.
 #
 # It speaks io's BYTE vocabulary and nothing else of io: a decoder takes
 # Bytes and a name hint, and registerDecoders() is a template over the
 # hub, so this target never links the hub, its cache or its codecs. The
-# JSON parser is private and reaches no public header; the OSC codec
-# reads and writes the wire itself and takes nothing from outside.
+# JSON parser is private and reaches no public header; the OSC and MIDI
+# codecs read and write their wires themselves and take nothing from
+# outside.
 #
 # The FlatBuffers PARSER is private the same way: Schema.cpp is the one
 # translation unit that opens it, and the token a consumer holds names
@@ -17,8 +18,8 @@
 find_package(simdjson CONFIG REQUIRED)
 find_package(flatbuffers CONFIG REQUIRED)
 sigil_library(SigilDataDecode
-  SOURCES Csv.cpp Json.cpp Decoders.cpp Osc.cpp Schema.cpp
-  HEADERS Csv.h Json.h Decoders.h FlatBuffer.h Schema.h Osc.h
+  SOURCES Csv.cpp Json.cpp Decoders.cpp Osc.cpp Midi.cpp Schema.cpp
+  HEADERS Csv.h Json.h Decoders.h FlatBuffer.h Schema.h Osc.h Midi.h
   PUBLIC SigilDataTable SigilIOSource flatbuffers::flatbuffers
   PRIVATE simdjson::simdjson)
 
@@ -49,7 +50,7 @@ add_custom_target(SigilDataFlatBufferTestSchema
 # the day the token starts needing the reader under it.
 sigil_test(data_test
   SOURCES test/DecodeTest.cpp test/FlatBufferTest.cpp
-          test/SchemaHeaderTest.cpp test/OscTest.cpp
+          test/SchemaHeaderTest.cpp test/OscTest.cpp test/MidiTest.cpp
   LIBRARIES SigilDataDecode SigilIOHub)
 add_dependencies(data_test SigilDataFlatBufferTestSchema)
 target_include_directories(data_test PRIVATE ${FLATBUFFER_TEST_OUT})

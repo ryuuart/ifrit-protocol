@@ -15,6 +15,7 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <initializer_list>
 #include <memory>
 #include <optional>
 #include <string>
@@ -133,6 +134,69 @@ TEST(DataConnection, AnOscPacketIsItsAddressAndReachesTheHandlerOnThatAddress) {
   EXPECT_EQ(desk.latest()["address"].text(), "/sky/gust");
   ASSERT_EQ(desk.latest()["arguments"].size(), 1u);
   EXPECT_DOUBLE_EQ(desk.latest()["arguments"][0].number(), 0.5);
+}
+
+/** THE OTHER WIRE OF THE PERFORMANCE ROOM, standing beside the OSC one:
+ *  a `midi://` door reads each message as its kind and the fields that
+ *  kind carries, and writes one back as the bytes a cable carries. The
+ *  stub transport under it is what lets both ends be judged with no
+ *  controller in the room. */
+TEST(DataMidi, AMidiDoorReadsAMessageAsItsKindAndWritesOneBack) {
+  Hub hub;
+  const auto sent = std::make_shared<Sent>();
+  hub.setFeedTransport("midi", intoVector(sent));
+
+  // One message, spelled out byte by byte the way a cable carries it.
+  const auto wire = [](std::initializer_list<int> bytes) {
+    std::vector<std::byte> message;
+    for (const int one : bytes) message.push_back(static_cast<std::byte>(one));
+    return message;
+  };
+
+  Connection pads(hub, "midi://in/Launchpad");
+  std::vector<double> struck;
+  pads.on("NoteOn", [&struck](const Json& message) {
+    struck.push_back(message["note"].number());
+  });
+  pads.on("NoteOff", [&struck](const Json&) { struck.push_back(-1); });
+
+  // A pad struck, and the same pad coming back up — which a keyboard
+  // says with a note on at no velocity, and which the codec reads as
+  // the release it is, so the two handlers above are the whole of it.
+  pads.feed()->deliver(bytesOf(wire({0x90, 0x3C, 0x64})));
+  pads.feed()->deliver(bytesOf(wire({0x90, 0x3C, 0x00})));
+  hub.dispatch(0.0);
+
+  ASSERT_EQ(struck.size(), 2u);
+  EXPECT_DOUBLE_EQ(struck.front(), 60.0);
+  EXPECT_DOUBLE_EQ(struck.back(), -1.0);
+  // A message's KIND is the name a handler is registered under and the
+  // name it latches under, there being no address on this wire.
+  EXPECT_EQ(pads.latest()["kind"].text(), "NoteOff");
+  EXPECT_DOUBLE_EQ(pads.latest("NoteOn")["velocity"].number(), 100.0);
+  EXPECT_EQ(pads.undecodable(), 0u);
+
+  // And back out the same door as the bytes a cable carries: the light
+  // under the pad that was struck.
+  EXPECT_TRUE(pads.send(Json(Json::Object{{"kind", Json("NoteOn")},
+                                          {"channel", Json(1)},
+                                          {"note", Json(60)},
+                                          {"velocity", Json(127)}})));
+  ASSERT_EQ(sent->size(), 1u);
+  EXPECT_EQ(sent->front(), wire({0x90, 0x3C, 0x7F}));
+
+  // A value this wire cannot spell does not go out as an empty message,
+  // and an address with arguments under it is one of those: naming a
+  // message is OSC's way and not a cable's.
+  EXPECT_FALSE(pads.send(Json(Json::Object{{"kind", Json("Thunder")}})));
+  EXPECT_FALSE(pads.send("/sky/gust", Json(Json::Array{Json(0.5)})));
+  EXPECT_EQ(sent->size(), 1u);
+
+  // Bytes that are no message at all reach no reader and are counted.
+  pads.feed()->deliver(bytesOf(wire({0x3C, 0x64})));
+  hub.dispatch(1.0);
+  EXPECT_EQ(pads.undecodable(), 1u);
+  EXPECT_EQ(struck.size(), 2u);
 }
 
 TEST(DataConnection, EachNameLatchesItsOwnNewestBesideTheNewestOfAll) {

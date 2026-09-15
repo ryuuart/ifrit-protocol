@@ -1,13 +1,15 @@
 #pragma once
 
 /** @file
- * The thread every socket this feature opens runs its work on. Private
- * to the transport feature.
+ * The thread every socket this feature opens runs its work on, and the
+ * one of them a whole registration shares. Private to the transport
+ * feature.
  */
 
 #include <boost/asio/executor_work_guard.hpp>
 #include <boost/asio/io_context.hpp>
 #include <memory>
+#include <mutex>
 #include <thread>
 
 namespace sigil::io::detail {
@@ -43,6 +45,25 @@ class IoThread {
 
   std::shared_ptr<Running> m_running = std::make_shared<Running>();
   std::thread m_thread;
+};
+
+/** THE THREAD ONE REGISTRATION'S WORK SHARES — the sockets a UDP
+ *  registration opened, the timers a shared memory registration looks
+ *  on. It is made when the first feed opens, so a hub given a transport
+ *  and never asked for a feed of that scheme starts no thread, and it
+ *  stands until the hub drops the transport or the last work opened
+ *  through it is gone, whichever is later. */
+class SharedIoThread {
+ public:
+  std::shared_ptr<IoThread> acquire() {
+    const std::lock_guard<std::mutex> lock(m_gate);
+    if (!m_thread) m_thread = std::make_shared<IoThread>();
+    return m_thread;
+  }
+
+ private:
+  std::mutex m_gate;
+  std::shared_ptr<IoThread> m_thread;
 };
 
 }  // namespace sigil::io::detail

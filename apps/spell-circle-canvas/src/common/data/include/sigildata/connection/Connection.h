@@ -106,10 +106,11 @@ class Connection {
    *  the address-and-arguments spelling does not, unless the schema
    *  declares those two fields.
    *
-   *  AN `osc://` DOOR TAKES NO SCHEMA and is refused as it is opened:
-   *  no feed is bound, nothing arrives, and error() says so. OSC is a
-   *  wire with its own spelling of every value, down to the width a
-   *  number goes out at, and a buffer is not one of those spellings. */
+   *  AN `osc://` OR A `midi://` DOOR TAKES NO SCHEMA and is refused as
+   *  it is opened: no feed is bound, nothing arrives, and error() says
+   *  so. Each of those is a wire with its own spelling of every value,
+   *  down to the width a number goes out at, and a buffer is not one of
+   *  those spellings. */
   Connection(io::Hub& hub, std::string_view uri, Schema schema,
              io::FeedPolicy policy = {});
 

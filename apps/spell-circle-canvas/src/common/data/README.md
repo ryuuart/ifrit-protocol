@@ -27,7 +27,7 @@ what a consumer uses; every public header lives under
 |--------|---------|-------|
 | `SigilDataScale` | `scale/Scale.h` | `Interval`, `Transform`, `Overflow` and `Scale` — the mapping, its inverse, its tick ladder and `nice()` |
 | `SigilDataTable` | `table/Table.h` | `Instant`, `Flag`, `Value`, `ColumnType`, `Order`, `Column` and `Table` — named typed columns, the cells as spans, and the reshapings |
-| `SigilDataDecode` | `decode/Csv.h`, `decode/Json.h`, `decode/Decoders.h`, `decode/FlatBuffer.h`, `decode/Schema.h`, `decode/Osc.h` | `CsvOptions`, `decodeCsv()`, `decodeInstant()`; `Json`, `decodeJson()`, `encodeJson()`, `tableFromJson()`; `TableDecoder`, `JsonDecoder` and `registerDecoders(hub)` — the two decoders and the one call that puts them on a hub; `FlatBuffer`, `FlatBufferDecoder`, `flatBufferFromBytes()`, `flatBufferFromJson()` and `registerFlatBuffer(hub)` — a FlatBuffer as a value, read in place through the schema its generated root carries; `Schema`, `Schema::fromBinarySchema()` and `schema<Root>()` — that schema as one copyable value, which converts a buffer to its JSON form and a JSON form back to a buffer with the root named once and names nothing of the reader under it; and `decodeOsc()`, `encodeOsc()` and `maxOscPacketBytes` — an OSC packet read into a `Json` and written back out of one |
+| `SigilDataDecode` | `decode/Csv.h`, `decode/Json.h`, `decode/Decoders.h`, `decode/FlatBuffer.h`, `decode/Schema.h`, `decode/Osc.h`, `decode/Midi.h` | `CsvOptions`, `decodeCsv()`, `decodeInstant()`; `Json`, `decodeJson()`, `encodeJson()`, `tableFromJson()`; `TableDecoder`, `JsonDecoder` and `registerDecoders(hub)` — the two decoders and the one call that puts them on a hub; `FlatBuffer`, `FlatBufferDecoder`, `flatBufferFromBytes()`, `flatBufferFromJson()` and `registerFlatBuffer(hub)` — a FlatBuffer as a value, read in place through the schema its generated root carries; `Schema`, `Schema::fromBinarySchema()` and `schema<Root>()` — that schema as one copyable value, which converts a buffer to its JSON form and a JSON form back to a buffer with the root named once and names nothing of the reader under it; `decodeOsc()`, `encodeOsc()` and `maxOscPacketBytes` — an OSC packet read into a `Json` and written back out of one; and `decodeMidi()` and `encodeMidi()` — one MIDI message read into that same value, its kind, its channel and the fields that kind carries, and written back out of one |
 | `SigilDataConnection` | `connection/Connection.h` | `Connection` — a feed read as values: the newest message, the ones a reader has not taken once it has asked for them, the handlers a message's name reaches and the `Connection::otherwise()` one that runs when no name did, the two ways a message goes back out the same door, the schema a door may read and write every message through, and `Connection::reply()`, which answers the sender of one |
 | `SigilDataQuery` | `query/Database.h` | `Engine`, `Database` and `DatabaseDecoder`, with `engineOf()` — a SQL store behind one seam, SQLite or DuckDB, whose `query()` answers a `Table`, whose `insert()` writes one in, and whose decoder puts a `.sqlite` or `.duckdb` file on a hub |
 
@@ -327,11 +327,38 @@ taken from a package: the wire is a page of arithmetic, and what a
 receiver needs of it is that every reading be bounded and that a packet
 it cannot make sense of be no packet rather than a diagnostic.
 
+**MIDI is the other dialect of the performance room.** OSC is what the
+software in the room says; MIDI is what the hardware says — the pads,
+the knobs and the wheels on the controller standing beside the screen —
+and here it is one more way to spell the one dynamic value rather than a
+value of its own. `decodeMidi()` reads one message into a `Json`: its
+KIND, the channel it was played on, and the fields that kind carries —
+`{"kind": "NoteOn", "channel": 1, "note": 60, "velocity": 100}`, and
+`ControlChange` with a `controller` and a `value`, `PitchBend` with a
+`bend` the two halves of the wire have been put back together into,
+`SystemExclusive` and every other message addressed to the room with the
+`bytes` it arrived as. Every message also carries the `status` byte it
+opened with and the `data` bytes after it, so a reader that knows the
+wire reads the wire and a reader that does not reads the names.
+`encodeMidi()` writes those same forms back, and a record carrying
+`bytes` goes out as exactly those bytes — which is how a message this
+codec has no name for is answered the way it arrived.
+
+A NOTE ON AT VELOCITY ZERO IS A NOTE OFF, and reads as one. It is how a
+keyboard says a key was released, and a scene acting on the kind alone
+would hold every note it was ever played; it is also the one form that
+does not go back out as the bytes it came in as, a note off writing the
+status byte a note off carries. Everything else reads and writes back
+byte for byte. A value outside what its place on the wire holds is
+written at the nearer end of it, since wrapping it would put a note
+nobody played on the cable.
+
 **A connection is a feed read as values.** A feed is bytes that keep
 arriving; a `Connection` is that same door one floor up, where what a
 reader sees is the `Json` those bytes read as and never the bytes. The
-URI's scheme decides the reading — `osc://` is a packet and everything
-else is JSON text — so a sketch listening to a desk and a sketch
+URI's scheme decides the reading — `osc://` is a packet, `midi://` is a
+message off a cable and everything else is JSON text — so a sketch
+listening to a desk, a sketch listening to a controller and a sketch
 listening to a browser are one piece of code over one value.
 
 ```cpp
@@ -355,6 +382,15 @@ wind = sky.latest()["arguments"][0].number(); // the newest, already read
 while (const std::optional<Json> message = sky.receive()) log(*message);
 sky.send("/sky/ack", Json::Array{1});         // back out the same door
 if (sky.undecodable()) warn("something is speaking another language");
+
+Connection pads(hub, "midi://in/");           // the controller on the desk
+pads.on("NoteOn", [&](const Json& message) {          // named by its kind
+  strike(message["note"].number(), message["velocity"].number());
+});
+Connection lights(hub, "midi://out/");        // …and the lights under its pads
+lights.send(Json(Json::Object{{"kind", Json("NoteOn")},
+                              {"note", Json(60)},
+                              {"velocity", Json(127)}}));
 ```
 
 **A door may be read through a schema.** A connection opened with one
@@ -375,11 +411,11 @@ that is not a space.
 Going back out, `Connection::send()` and `Connection::reply()` write the
 buffer the schema makes of the message and are false where it does not
 fit — which the address-and-arguments spelling does not, unless the
-schema declares those two fields. An `osc://` door takes no schema and
-is refused as it is opened: no feed is bound, nothing arrives, and
-`Connection::error()` says so, OSC being a wire with its own spelling of
-every value, down to the width a number goes out at, and a buffer not
-being one of those spellings.
+schema declares those two fields. An `osc://` or a `midi://` door takes
+no schema and is refused as it is opened: no feed is bound, nothing
+arrives, and `Connection::error()` says so, each of those being a wire
+with its own spelling of every value, down to the width a number goes
+out at, and a buffer not being one of those spellings.
 
 **Nothing drives it but the frame.** Opening a connection registers it
 on the hub's dispatch, so the one call a host already makes,
@@ -406,10 +442,12 @@ reader catches up. A message NO name took reaches
 message would have run and in the order those were registered — `"*"`
 being every message rather than a name, so one standing leaves a message
 no name matched still unmatched. Going back out, a message is written the
-way its door is read: an OSC packet on an `osc://` door and JSON text on
-every other, and off the OSC wire `send(address, arguments)` writes the
-same `{"address": …, "arguments": …}` record a packet reads as, which is
-the form the far end reads a name out of.
+way its door is read: an OSC packet on an `osc://` door, the bytes of
+one message on a `midi://` door and JSON text on every other, and off
+the OSC wire `send(address, arguments)` writes the same
+`{"address": …, "arguments": …}` record a packet reads as, which is the
+form the far end reads a name out of — and which a cable cannot spell at
+all, a MIDI message being named by its kind and never by an address.
 
 **A reply answers the sender of one message.** `Connection::reply()`
 writes exactly what `send()` writes and puts it in front of ONE sender
@@ -582,8 +620,8 @@ holding a schema opens is the standard library. What does reach a public
 header is the buffer itself — the verifier that checks bytes and the
 accessor that reads a root out of them — because a `FlatBuffer` IS its
 bytes; that, and the generated roots a consumer spells over it, are why
-flatbuffers is linked publicly. The OSC codec takes nothing at all: it
-reads and writes the wire itself. It does NOT link the hub:
+flatbuffers is linked publicly. The OSC and MIDI codecs take nothing at
+all: each reads and writes its own wire. It does NOT link the hub:
 `registerDecoders` and `registerFlatBuffer` are templates over it, so
 the dependency runs one way and SigilIO gains nothing, which is what its
 own boundary asks for.
@@ -619,8 +657,10 @@ a newline and a doubled quote; a short row and a long one; a thousands
 separator and a decimal comma — and puts the decoders on a real hub over
 a scratch directory, because one `registerDecoders()` call answering
 `load<Table>` is the whole of what that call promises, and judges the
-OSC codec against packets spelled out byte by byte, a desk's among them,
-since the wire is the only thing a codec standing on its own answers to,
+OSC and MIDI codecs against packets and messages spelled out byte by
+byte — a desk's among the first, and every kind a cable carries read and
+then written back to the bytes it was read from among the second — since
+the wire is the only thing a codec standing on its own answers to,
 and which opens, in one case of its own, the schema header and the
 generated one and nothing else, so the day the schema token needs the
 reader under it that case stops compiling;

@@ -51,6 +51,7 @@
     "icu",
     "minizip-ng",
     "openimageio",
+    "rtmidi",
     "shader-slang",
     {
       "name": "shader-slang",

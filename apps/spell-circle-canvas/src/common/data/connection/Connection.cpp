@@ -8,6 +8,7 @@
 #include "sigildata/connection/Connection.h"
 
 #include <sigildata/decode/FlatBuffer.h>
+#include <sigildata/decode/Midi.h>
 #include <sigildata/decode/Osc.h>
 #include <sigilio/hub/Hub.h>
 
@@ -76,6 +77,9 @@ struct Connection::State {
   /** Whether a message is an OSC packet rather than JSON text, read off
    *  the scheme once, when the door is opened. */
   bool osc = false;
+  /** Whether a message is a MIDI message, read off the scheme the same
+   *  way and at the same moment. */
+  bool midi = false;
   /** THE ONE DYNAMIC VALUE ON THIS WIRE, where the door was opened with
    *  one: every message in and out goes through it, and the form a
    *  reader sees is the schema's own. None for a door read as the
@@ -127,6 +131,7 @@ struct Connection::State {
    *  in this connection's scheme, or no message its schema holds. */
   std::optional<Json> read(const io::Bytes& bytes) const {
     if (osc) return decodeOsc(std::span<const std::byte>(bytes.bytes));
+    if (midi) return decodeMidi(std::span<const std::byte>(bytes.bytes));
     if (!schema) return decodeJson(bytes.asText());
     return readThroughSchema(bytes);
   }
@@ -178,12 +183,19 @@ struct Connection::State {
     named.emplace(std::string(name), Named{message, ++writes});
   }
 
-  /** ONE MESSAGE ON THIS DOOR'S WIRE: the packet an OSC door is read
-   *  by, the buffer a door with a schema is, the JSON text every other
-   *  door is. Nothing where the value has no spelling there — no bytes
-   *  is no message, and a value the wire cannot hold does not go out as
-   *  an empty datagram. */
+  /** ONE MESSAGE ON THIS DOOR'S WIRE: the message a MIDI door carries,
+   *  the packet an OSC door is read by, the buffer a door with a schema
+   *  is, the JSON text every other door is. Nothing where the value has
+   *  no spelling there — no bytes is no message, and a value the wire
+   *  cannot hold does not go out as an empty datagram. */
   std::optional<io::Bytes> write(const Json& message) const {
+    if (midi) {
+      std::vector<std::byte> played = encodeMidi(message);
+      if (played.empty()) return std::nullopt;
+      io::Bytes bytes;
+      bytes.bytes = std::move(played);
+      return bytes;
+    }
     if (!osc) {
       if (!schema) return textBytes(encodeJson(message));
       // Through the schema where the door has one: what goes out is the
@@ -284,13 +296,16 @@ Connection::Connection(io::Hub& hub, std::string_view uri, Schema schema,
   auto state = std::make_shared<State>();
   state->uri = std::string(uri);
   state->osc = schemeOf(state->uri) == "osc";
+  state->midi = schemeOf(state->uri) == "midi";
   state->capacity = policy.capacity;
   state->schema = std::move(schema);
-  if (state->osc && state->schema) {
-    // OSC spells every value itself, down to the width a number goes
-    // out at, and a buffer is not one of those spellings. The door is
-    // not opened at all, so nothing is bound and nothing arrives.
-    state->trouble = "a schema reads a FlatBuffer wire, not OSC";
+  if ((state->osc || state->midi) && state->schema) {
+    // OSC and MIDI each spell every value themselves, down to the width
+    // a number goes out at, and a buffer is not one of those spellings.
+    // The door is not opened at all, so nothing is bound and nothing
+    // arrives.
+    state->trouble = std::string("a schema reads a FlatBuffer wire, not ") +
+                     (state->osc ? "OSC" : "MIDI");
     m_state = std::move(state);
     return;
   }

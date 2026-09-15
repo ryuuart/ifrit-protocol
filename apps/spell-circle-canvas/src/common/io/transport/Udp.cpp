@@ -28,7 +28,6 @@
 #include <cstdint>
 #include <locale>
 #include <memory>
-#include <mutex>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -354,28 +353,10 @@ OpenedFeed openFeed(const std::shared_ptr<detail::IoThread>& io,
   return opened;
 }
 
-/** THE THREAD ONE REGISTRATION'S SOCKETS SHARE. It is made when the
- *  first feed opens, so a hub given the transport and never asked for a
- *  udp feed starts no thread, and it stands until the hub drops the
- *  transport or the last socket opened through it is gone, whichever is
- *  later. */
-class SharedIoThread {
- public:
-  std::shared_ptr<detail::IoThread> acquire() {
-    const std::lock_guard<std::mutex> lock(m_gate);
-    if (!m_thread) m_thread = std::make_shared<detail::IoThread>();
-    return m_thread;
-  }
-
- private:
-  std::mutex m_gate;
-  std::shared_ptr<detail::IoThread> m_thread;
-};
-
 /** The one opener, under whichever scheme it was registered: the scheme
  *  travels with it, so the same socket answers udp:// and osc:// and
  *  each feed keeps the name it was opened with. */
-FeedTransport datagramTransport(std::shared_ptr<SharedIoThread> shared,
+FeedTransport datagramTransport(std::shared_ptr<detail::SharedIoThread> shared,
                                 std::string scheme) {
   return [shared = std::move(shared), scheme = std::move(scheme)](
              std::string_view uri, std::weak_ptr<Feed> into) {
@@ -388,7 +369,7 @@ FeedTransport datagramTransport(std::shared_ptr<SharedIoThread> shared,
 void registerUdp(Hub& hub) {
   // Both names share one thread, because they are one socket: a hub
   // asked for neither scheme still starts nothing.
-  auto shared = std::make_shared<SharedIoThread>();
+  auto shared = std::make_shared<detail::SharedIoThread>();
   hub.setFeedTransport("udp", datagramTransport(shared, "udp"));
   hub.setFeedTransport("osc", datagramTransport(shared, "osc"));
 }
@@ -401,6 +382,7 @@ void registerTransports(Hub& hub) {
   registerWebSocket(hub);
   registerWebSocketClient(hub);
   registerSharedMemory(hub);
+  registerMidi(hub);
 }
 
 }  // namespace sigil::io

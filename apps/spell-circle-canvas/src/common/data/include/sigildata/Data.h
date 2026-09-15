@@ -7,6 +7,7 @@
 #include "sigildata/decode/Decoders.h"
 #include "sigildata/decode/FlatBuffer.h"
 #include "sigildata/decode/Json.h"
+#include "sigildata/decode/Midi.h"
 #include "sigildata/decode/Osc.h"
 #include "sigildata/decode/Schema.h"
 #include "sigildata/query/Database.h"

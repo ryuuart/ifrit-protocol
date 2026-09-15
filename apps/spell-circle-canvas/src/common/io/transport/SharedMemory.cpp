@@ -44,7 +44,6 @@
 #include <cstring>
 #include <limits>
 #include <memory>
-#include <mutex>
 #include <optional>
 #include <span>
 #include <string>
@@ -358,28 +357,12 @@ OpenedFeed openFeed(const std::shared_ptr<detail::IoThread>& io,
   return opened;
 }
 
-/** THE THREAD ONE REGISTRATION'S LOOKS SHARE. It is made when the first
- *  feed opens, so a hub given the transport and never asked for a shm
- *  feed starts no thread, and it stands until the hub drops the
- *  transport or the last region opened through it is gone, whichever is
- *  later. */
-class SharedIoThread {
- public:
-  std::shared_ptr<detail::IoThread> acquire() {
-    const std::lock_guard<std::mutex> lock(m_gate);
-    if (!m_thread) m_thread = std::make_shared<detail::IoThread>();
-    return m_thread;
-  }
-
- private:
-  std::mutex m_gate;
-  std::shared_ptr<detail::IoThread> m_thread;
-};
-
 }  // namespace
 
 void registerSharedMemory(Hub& hub) {
-  auto shared = std::make_shared<SharedIoThread>();
+  // The looks of every region opened through one registration share one
+  // thread, made when the first of them opens.
+  auto shared = std::make_shared<detail::SharedIoThread>();
   hub.setFeedTransport("shm",
                        [shared = std::move(shared)](std::string_view uri,
                                                     std::weak_ptr<Feed> into) {
