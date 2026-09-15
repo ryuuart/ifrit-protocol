@@ -35,6 +35,20 @@
  * strip to plain local paths. poll() skips network entries: they
  * carry no mtime to watch.
  *
+ * A resource that keeps ARRIVING is a feed rather than a fetch, and the
+ * hub is the door on it too:
+ *
+ *   hub.setFeedTransport("udp", openUdpFeed);     // one per scheme
+ *   auto scene = hub.feed("udp://:27020");        // the same feed per URI
+ *   hub.dispatch();                               // once per frame
+ *   if (auto bytes = scene->latest()) draw(*bytes);
+ *
+ * feed() hands back the one feed a URI names for as long as anybody
+ * holds it. A URI that resolves through the mount table to a file is
+ * played back from that recording as dispatch() moves time forward, so
+ * the same code reads a live sender and a recorded session; anything
+ * else opens through the transport registered for its scheme.
+ *
  * SigilIO owns ACCESS: where bytes come from, caching, reload. A Hub
  * is a ByteSource: fetch() answers a URI with bytes, and every typed
  * view is a registered Decoder run over those bytes. What pixels mean
@@ -48,6 +62,7 @@
 #include <sigilimage/decode/Decode.h>
 
 #include <boost/container/flat_map.hpp>
+#include <chrono>
 #include <cstddef>
 #include <filesystem>
 #include <functional>
@@ -62,6 +77,7 @@
 #include <utility>
 #include <vector>
 
+#include "sigilio/hub/Feed.h"
 #include "sigilio/hub/Network.h"
 #include "sigilio/source/Sink.h"
 #include "sigilio/source/Source.h"
@@ -345,6 +361,31 @@ class Hub {
    *  changed. */
   bool poll();
 
+  /** The feed at @p uri: the same object for the same URI while anyone
+   *  holds it. A URI that resolves through the mount table to a regular
+   *  file is replayed from that recording (a mount whose remainder is
+   *  empty resolves with a trailing separator; it is stripped, so
+   *  mounting a URI directly onto a recording file works); any other
+   *  URI opens through the transport registered for its scheme — the
+   *  part before "://" — called outside the hub's lock. No scheme, no
+   *  transport, or an unreadable recording: the feed exists and its
+   *  error() says why. */
+  std::shared_ptr<Feed> feed(std::string_view uri, Feed::Policy policy = {});
+
+  /** Installs the transport a scheme opens through; registering a
+   *  scheme again replaces it. */
+  void setFeedTransport(std::string scheme, FeedTransport transport);
+
+  /** Every feed currently held by someone, in opening order. */
+  std::vector<std::shared_ptr<Feed>> feeds() const;
+
+  /** Advances every replayed recording to the steady seconds since this
+   *  hub was made. A live feed is unaffected. */
+  void dispatch();
+
+  /** The same, to @p seconds on the caller's own clock. */
+  void dispatch(double seconds);
+
  private:
   /** The one fetch both probes make: the bytes, uncached, with @p info
    *  filled in from them. Null when the URI cannot be served. */
@@ -457,6 +498,17 @@ class Hub {
   NetworkPolicy m_networkPolicy = NetworkPolicy::CacheFirst;
   NetworkTransport m_networkTransport;  // empty = libcurl
   std::shared_ptr<detail::Residency> m_residency;
+  /** The feeds opened through this hub, in opening order, held weakly
+   *  so a feed lives exactly as long as its readers do. Every walk of
+   *  the list erases the entries whose feed is gone, which is why the
+   *  list is mutable: dropping the name of something that no longer
+   *  exists changes no answer this hub can give. */
+  mutable std::vector<std::pair<std::string, std::weak_ptr<Feed>>> m_feeds;
+  boost::container::flat_map<std::string, FeedTransport, std::less<>>
+      m_feedTransports;
+  /** When this hub was made: what dispatch() counts its seconds from. */
+  const std::chrono::steady_clock::time_point m_created =
+      std::chrono::steady_clock::now();
 };
 
 }  // namespace sigil::io

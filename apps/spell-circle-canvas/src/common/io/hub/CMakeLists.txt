@@ -1,16 +1,17 @@
 # The hub: mounts and resolution, URI selection and retention, the entry cache
 # and its poll, network fetch behind the disk cache and the decoder registry —
-# split behind private seams — and TextCatalog, the stock value over it that
-# a shader catalogue is. A preload fans its fetches out through
-# SigilCoreSchedule's blocking seam, which is where a call that waits on a
-# disk or a server belongs; libcurl backs the http(s):// URIs (fetch +
-# on-disk cache). Both are implementation and stay private.
+# split behind private seams — the feeds a resource that keeps arriving is read
+# through, with the format one of them records itself in, and TextCatalog, the
+# stock value over it that a shader catalogue is. A preload fans its fetches
+# out through SigilCoreSchedule's blocking seam, which is where a call that
+# waits on a disk or a server belongs; libcurl backs the http(s):// URIs
+# (fetch + on-disk cache). Both are implementation and stay private.
 find_package(CURL CONFIG REQUIRED)
 find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilIOHub
-  SOURCES Cache.cpp Decoders.cpp Mounts.cpp Network.cpp Retention.cpp
-          Selection.cpp Fetch.h Residency.h
-  HEADERS Hub.h Network.h TextCatalog.h
+  SOURCES Cache.cpp Decoders.cpp Feed.cpp Feeds.cpp Mounts.cpp Network.cpp
+          Recording.cpp Retention.cpp Selection.cpp Fetch.h Residency.h
+  HEADERS Feed.h Hub.h Network.h Recording.h TextCatalog.h
   PUBLIC SigilIOSource SigilImageDecode SigilCoreCallable Boost::container
   PRIVATE SigilCoreSchedule CURL::libcurl)
 
@@ -22,9 +23,9 @@ find_package(OpenImageIO CONFIG QUIET)
 # preloads more resources than a fan-out runs at once, and it asks that
 # seam how many that is rather than guessing a number.
 sigil_test(io_test
-  SOURCES test/CacheTest.cpp test/MountsTest.cpp test/NetworkTest.cpp
-          test/OiioTest.cpp test/RetentionTest.cpp test/SelectionTest.cpp
-          test/MountedHub.h
+  SOURCES test/CacheTest.cpp test/FeedTest.cpp test/MountsTest.cpp
+          test/NetworkTest.cpp test/OiioTest.cpp test/RetentionTest.cpp
+          test/SelectionTest.cpp test/MountedHub.h
   LIBRARIES SigilIOHub SigilImageEncode SigilCoreSchedule)
 # The four EXR cases write their own fixtures through OpenImageIO, so
 # they exist only in a build that has it; the label says so.

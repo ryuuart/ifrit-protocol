@@ -18,6 +18,9 @@ sigil_library_root(SigilIO
 # Dependencies point down this list.
 add_subdirectory(source)
 add_subdirectory(hub)
+# Stands on the hub — it teaches one a scheme — and is linked by a
+# consumer that opens network feeds and by no other.
+add_subdirectory(transport)
 
 sigil_library(SigilIO
   HEADERS IO.h
@@ -31,7 +34,8 @@ sigil_library(SigilIO
 # The names it borrows from ABOVE are exempted instead — the brush
 # decoder is registered from SigilDrawBrush, which stands on this
 # library — as is the transport target, which is CMake's word and not a
-# C++ name at all.
+# C++ name at all. The transport feature is linked because the prose
+# spells its registration, which the umbrella does not carry.
 sigil_doc_probes(io
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../image/include/sigilimage
@@ -41,4 +45,4 @@ sigil_doc_probes(io
           "brush::Tool=SigilDrawBrush stands on this library, so its brush value is named and not probed"
           "CURL::libcurl=a CMake target name, not a C++ name"
   FLOORS 10,2,2,0,0
-  LIBRARIES SigilIO SigilImageDecode)
+  LIBRARIES SigilIO SigilIOTransport SigilImageDecode)

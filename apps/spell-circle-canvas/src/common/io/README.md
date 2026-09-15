@@ -19,10 +19,12 @@ what a consumer uses; every public header lives under
 | target | headers | holds |
 |--------|---------|-------|
 | `SigilIOSource` | `source/Source.h`, `source/Archive.h`, `source/Sink.h`, `source/Places.h` | the byte vocabulary in both directions: `Bytes`, the `ByteSource`, `ResolvingByteSource`, `Decoder` and `Probable` concepts, `AnyByteSource` (the type-erased source value), the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file; `ArchiveSource` and `ArchiveEntry`, one zip held in memory answering its files by name — and the two places only the platform can name, `executablePath()` and `scratchDirectory(label)` |
-| `SigilIOHub`    | `hub/Hub.h`, `hub/Network.h`, `hub/TextCatalog.h` | the `Hub`, `ResourceInfo` (a resource's byte size and the file it came from), and `ResourceLease`; `NetworkPolicy`, `NetworkTransport`, `probeNetworkCache()` and `seedNetworkCache()` — inspect or populate the persistent cache by URL without constructing its filenames or contacting a server; and `TextCatalog`, the stock value over the hub that a directory of authored shaders is |
+| `SigilIOHub`    | `hub/Hub.h`, `hub/Feed.h`, `hub/Recording.h`, `hub/Network.h`, `hub/TextCatalog.h` | the `Hub`, `ResourceInfo` (a resource's byte size and the file it came from), and `ResourceLease`; `NetworkPolicy`, `NetworkTransport`, `probeNetworkCache()` and `seedNetworkCache()` — inspect or populate the persistent cache by URL without constructing its filenames or contacting a server; `Feed`, `Arrival`, `OpenedFeed` and `FeedTransport` — a resource that keeps arriving, opened through the hub's `feed()` and moved forward by its `dispatch()`; `RecordingWriter` and `readRecording()`, the format a feed records itself in; and `TextCatalog`, the stock value over the hub that a directory of authored shaders is |
+| `SigilIOTransport` | `transport/Transport.h` | `registerUdp()` and `registerTransports()` — the UDP transport, one socket per feed on a thread of its own; linked by a consumer that opens network feeds and by no other |
 
-`SigilIO` is the umbrella target over both, and
-`<sigilio/IO.h>` the umbrella header. The hub is a `ByteSource`;
+`SigilIO` is the umbrella target over the source and the hub, and
+`<sigilio/IO.h>` the umbrella header; the transport feature stands
+outside both, linked only where a network feed is opened. The hub is a `ByteSource`;
 anything that consumes bytes by URI can be written against the concept
 and handed a hub, a fixture, or an `AnyByteSource` holding either.
 
@@ -113,6 +115,28 @@ if (hub.poll())
   redraw();
 ```
 
+A resource that keeps ARRIVING is a feed, and the hub is the door on it
+too. The same URI answers the same feed while anyone holds it; a
+transport registered for the scheme delivers into it from a thread of
+its own, and a reader on any thread never waits.
+
+```cpp
+#include <sigilio/hub/Feed.h>
+#include <sigilio/transport/Transport.h>
+
+sigil::io::registerTransports(hub);                  // udp:// today
+auto scene = hub.feed("udp://:27020");               // std::shared_ptr<sigil::io::Feed>
+if (auto newest = scene->latest())                   // the newest message; generation() counts them
+  draw(*newest);
+while (auto arrival = scene->receive())              // every message since the last receive, in order
+  fold(*arrival->bytes);
+auto desk = hub.feed("udp://desk.local:9001");       // a peer: send() reaches it, its replies arrive
+desk->send(reply);
+scene->record(outDir / "scene.feed");                // every arrival from now on, to a recording
+hub.mount("udp://:27020", outDir / "scene.feed");    // the next feed() on that URI replays the file
+hub.dispatch(seconds);                               // once per frame: recordings advance to this time
+```
+
 ## Mental model
 
 A `Hub` holds the mount list, decoder registry and cache. Resource leases keep
@@ -193,6 +217,41 @@ the decoder later asks run, while a view already decoded keeps its value
 and the decoder that made it, which is what `poll()` re-runs for it.
 `load<T>()` with no decoder registered for `T` answers null without
 fetching. The hub never inspects bytes.
+
+A **feed** is a resource that keeps arriving. `feed()` answers one `Feed`
+per URI for as long as anyone holds it, and a later ask for the same URI
+while it is held is the same object, so two readers of one port share
+one socket. What arrives is a byte message, delivered by a transport from
+whichever thread it runs on; the feed latches the newest as `latest()`
+with a `generation()` that counts every arrival, and queues each arrival
+for `receive()`, which hands them out in order and never waits. The queue
+is bounded by the feed's `Policy`: when it is full the oldest arrival is
+dropped and `dropped()` counts it, because a reader that fell behind a
+state feed wants the newest, not the backlog. `close()` takes nothing
+more and keeps what was received readable. A feed's `error()` says why a
+door could not be opened — no scheme, no transport for it, a port already
+taken — and the feed still exists, so a program that opened the wrong
+URI sees the sentence rather than a null.
+
+A scheme opens through the `FeedTransport` registered for it, called
+outside the hub's lock; the transport hands back an `OpenedFeed`: how the
+feed closes it, how `send()` goes back through it when the way is two-way,
+and the local `address()` it bound. `SigilIOTransport` registers the UDP
+transport: `udp://:PORT` listens on every interface, IPv4 and IPv6 alike,
+and `udp://HOST:PORT` is a peer that `send()` reaches and whose replies
+arrive. Every socket runs on one thread of its own, private to the
+transport.
+
+A **recording** is a feed written down: `record(path)` appends every
+arrival from then on, with the seconds since the feed was made, in the
+format `RecordingWriter` writes and `readRecording()` reads. A URI that
+resolves through the mount table to a regular file is not opened through
+a transport at all: the feed replays that file, and `dispatch(seconds)`
+advances every replay to that time on the caller's clock, delivering each
+recorded arrival at its recorded second and closing the feed after the
+last. That is how a deterministic run reads what a live one heard:
+`mount()` the URI onto the recording, and the code that opened the port
+opens the file.
 
 ## Gotchas
 
@@ -304,7 +363,10 @@ cache hit or failure.
 Dependencies: `SigilIOHub` links `SigilIOSource`, `SigilImageDecode` and
 Boost.Container publicly and `CURL::libcurl` plus `SigilCoreSchedule`
 privately — private because they are transport and where a fetch that
-blocks runs, while curl remains a hard requirement to configure. `SigilIOSource` itself depends on
+blocks runs, while curl remains a hard requirement to configure. `SigilIOTransport` links `SigilIOHub` publicly and Boost.Asio
+privately: its header names a hub and a scheme and nothing of the
+socket behind them, so a consumer that opens a feed inherits no
+executor and no Boost. `SigilIOSource` itself depends on
 nothing beyond the standard library, so a decoder or an encoder library
 can speak the byte vocabulary without inheriting the hub, libcurl or any
 codec.
@@ -374,16 +436,20 @@ hand, one of which claims an entry a thousand times the file it is in; `SigilIOH
 cache, retention, network and the decoder registry, split behind the
 private `hub/Fetch.h` and `hub/Residency.h`) with `hub/test/`, whose
 `IOHub`, `IOSource`, `IOChannels`, `IOResourceLease`, `IONetwork`,
-`IOOiio` and `IOTextCatalog` suites cover it — `IOSource` being the hub
+`IOOiio`, `IOTextCatalog` and `IOFeed` suites cover it — `IOSource` being the hub
 answering as a `ByteSource`, which is the seam a consumer that only
 wants bytes stands on; and `io_bench` (Google Benchmark, built
 by the `benches` target and run from a Release build through
 `scripts/sigil.py bench`: `Hub::blob` on a cache hit and `load<T>` on a
 decoded view per call and `resolve` per URI against the mount table — the
-disk kept out of every timed loop); and
-`SigilIO`, the umbrella.
+disk kept out of every timed loop); `SigilIOTransport` (static
+library, `transport/` — the UDP transport and the one thread its
+sockets run on, behind the private `transport/IoThread.h`) with
+`transport/test/`, whose `IOUdp` suite binds real ports on the loopback
+and sends its own datagrams through raw sockets; and `SigilIO`, the
+umbrella over the source and the hub.
 
-There is one test binary, `io_test`, built from both features' `test/`
+There is one test binary, `io_test`, built from every feature's `test/`
 directories, and ctest discovers one entry per CASE out of it, so a
 suite or a case is selected by name with no target behind it —
 `-R '^IOHub\.'` for the hub's cases, `-R '^Places\.'` for the platform's.
