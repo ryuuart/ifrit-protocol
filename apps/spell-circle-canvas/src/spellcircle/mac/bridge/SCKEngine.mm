@@ -1,5 +1,6 @@
 #import "SCKEngineInternal.h"
-#import "SCKNetworkRuntimeInternal.h"
+
+#include <sigilio/transport/Transport.h>
 
 #include <algorithm>
 
@@ -29,7 +30,7 @@ constexpr double kMaxTargetFps = 240.0;
 
 @implementation SCKEngine
 
-- (instancetype)initWithRuntime:(SCKNetworkRuntime *)runtime {
+- (instancetype)init {
   self = [super init];
   if (!self) return nil;
 
@@ -47,8 +48,9 @@ constexpr double kMaxTargetFps = 240.0;
   if (_device)
     _syphon = [[SyphonMetalServer alloc] initWithName:@"SpellCircle" device:_device options:nil];
 
-  _networkRuntime = runtime;
-  _receiver = std::make_unique<spellcircle::UdpReceiver>([runtime executor]);
+  // Only UDP: this product speaks nothing else, so the hub is taught the
+  // one scheme its port is opened on.
+  sigil::io::registerUdp(_hub);
   _port = kDefaultPort;
   _statusText = @"Stopped";
   _targetFramesPerSecond = kDefaultTargetFps;
@@ -81,9 +83,7 @@ constexpr double kMaxTargetFps = 240.0;
 }
 
 - (void)dealloc {
-  ++_networkGeneration;
-  _receiver->stop();
-  _receiver.reset();
+  [self closeDoor];
   [_syphon stop];
 }
 
@@ -91,11 +91,7 @@ constexpr double kMaxTargetFps = 240.0;
   const int boundedPort = std::clamp(port, 1, 65535);
   if (_port == boundedPort) return;
   _port = boundedPort;
-  if (_networkRequested) [self start];
-}
-
-- (BOOL)starting {
-  return _networkRequested && !_listening;
+  if (_listening) [self start];
 }
 
 // Reads as zero once the stream has been silent for a couple of seconds,

@@ -40,8 +40,8 @@ ColumnLayout {
             Layout.preferredWidth: 100
         }
         Switch {
-            text: root.network.starting ? "Starting…" : root.network.listening ? "Listening" : "Stopped"
-            checked: root.network.listening || root.network.starting
+            text: root.network.listening ? "Listening" : "Stopped"
+            checked: root.network.listening
             onToggled: checked ? root.network.start() : root.network.stop()
         }
     }

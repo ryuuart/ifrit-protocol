@@ -9,8 +9,6 @@
 #import <Foundation/Foundation.h>
 #import <QuartzCore/CAMetalLayer.h>
 
-#import "SCKNetworkRuntime.h"
-
 NS_ASSUME_NONNULL_BEGIN
 
 /** A single timestamped message entry shown in the activity feed. */
@@ -35,7 +33,7 @@ NS_SWIFT_UI_ACTOR
 - (void)enginePacketRateDidChange:(SCKEngine *)engine;
 /** One feed entry per changed scene packet. */
 - (void)engine:(SCKEngine *)engine didAppendFeedEntry:(SCKFeedEntry *)entry;
-/** `starting`, `listening`, or `statusText` changed. */
+/** `listening` or `statusText` changed. */
 - (void)engineStatusDidChange:(SCKEngine *)engine;
 @end
 
@@ -47,26 +45,23 @@ NS_SWIFT_UI_ACTOR
  * native canvas size, publishes that texture over Syphon, and blits it into
  * CAMetalLayers for on-screen presentation.
  *
- * Main-thread only: datagrams are delivered to the main queue and every
- * property/method below expects to be called there (NS_SWIFT_UI_ACTOR
- * makes Swift enforce that as @MainActor isolation).
+ * Main-thread only: arrivals are read on the main queue by a timer at
+ * the render rate, and every property/method below expects to be called
+ * there (NS_SWIFT_UI_ACTOR makes Swift enforce that as @MainActor
+ * isolation).
  */
 NS_SWIFT_UI_ACTOR
 @interface SCKEngine : NSObject
 
-/** Receives on the application's supplied event loop. The engine retains
- *  the runtime while its receiver exists and owns no network worker. */
-- (instancetype)initWithRuntime:(SCKNetworkRuntime *)runtime NS_DESIGNATED_INITIALIZER;
-- (instancetype)init NS_UNAVAILABLE;
-+ (instancetype)new NS_UNAVAILABLE;
+/** The engine opens its own port when it is started; nothing outside it
+ *  owns a socket or a loop on its behalf. */
+- (instancetype)init NS_DESIGNATED_INITIALIZER;
 
 @property(nonatomic, weak, nullable) id<SCKEngineDelegate> delegate;
 
 /** @name Network */
-/** UDP port; assigning while listening rebinds in place. */
+/** UDP port; assigning while listening reopens the door on the new one. */
 @property(nonatomic) int port;
-/** A bind request is waiting for its event loop to report an outcome. */
-@property(nonatomic, readonly) BOOL starting;
 @property(nonatomic, readonly) BOOL listening;
 @property(nonatomic, readonly, copy) NSString *statusText;
 
@@ -130,10 +125,17 @@ NS_SWIFT_UI_ACTOR
 
 /** The socket and what arrives on it. */
 @interface SCKEngine (Network)
-/** Requests an asynchronous bind. Status changes report binding, success,
- *  bind failure, and a terminal receive failure on the main queue. */
+/** Opens the door on the configured port. The bind happens inside this
+ *  call, so `listening` and `statusText` carry its outcome the moment it
+ *  returns. */
 - (void)start;
+/** Closes the door, which stops its socket and discards what it still
+ *  holds. */
 - (void)stop;
+/** Ingests every datagram the door has taken since the last call, oldest
+ *  first. A main-queue timer at the render rate calls this; a host that
+ *  paces itself may call it instead. */
+- (void)readArrivals;
 /** Removes all scene entities and re-renders the (empty) canvas. */
 - (void)clearScene;
 @end

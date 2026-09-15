@@ -4,9 +4,6 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQuickWindow>
-#include <boost/asio/executor_work_guard.hpp>
-#include <boost/asio/io_context.hpp>
-#include <thread>
 
 #include "Models.h"
 #include "spdlog/spdlog.h"
@@ -26,12 +23,9 @@ int main(int argc, char* argv[]) {
 
   spdlog::info("App started");
 
-  boost::asio::io_context networkContext;
-  auto networkWork = boost::asio::make_work_guard(networkContext);
-  std::thread networkThread([&networkContext] { networkContext.run(); });
   int result = 0;
   {
-    Models models(networkContext.get_executor());
+    Models models;
     QQmlApplicationEngine engine;
     engine.setInitialProperties({{"models", QVariant::fromValue(&models)}});
 
@@ -60,9 +54,5 @@ int main(int argc, char* argv[]) {
     result = QGuiApplication::exec();
     models.networkManager()->stop();
   }
-  // Adapters are destroyed before their executor. Releasing the work guard
-  // lets cancellation completions drain without stopping unrelated work.
-  networkWork.reset();
-  networkThread.join();
   return result;
 }

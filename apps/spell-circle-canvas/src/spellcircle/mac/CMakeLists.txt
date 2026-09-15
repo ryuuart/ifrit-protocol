@@ -6,8 +6,8 @@
 # Qt app remains the cross-platform build.
 #
 # Layering:
-#   bridge/  ObjC++ static lib (SpellCircleMacBridge): SCKEngine (UDP +
-#            decode + Graphite render + Syphon) and SCKCanvasView
+#   bridge/  ObjC++ static lib (SpellCircleMacBridge): SCKEngine (the UDP
+#            door + decode + Graphite render + Syphon) and SCKCanvasView
 #            (CAMetalLayer + pan/zoom). Pure-ObjC headers exported to Swift
 #            via module.modulemap.
 #   app/     SwiftUI executable importing that Clang module.
@@ -31,7 +31,6 @@ endif()
 enable_language(Swift)
 
 sigil_frameworks(frameworks Foundation AppKit Metal QuartzCore)
-find_package(boost_asio CONFIG REQUIRED)
 
 find_package(unofficial-syphon CONFIG)
 if(NOT TARGET unofficial::syphon::syphon)
@@ -45,8 +44,6 @@ add_library(SpellCircleMacBridge SHARED
   bridge/SCKEngine.mm bridge/SCKEngine.h bridge/SCKEngineInternal.h
   bridge/SCKEngine+Network.mm bridge/SCKEngine+Render.mm bridge/SCKEngine+Blit.mm
   bridge/SCKCanvasView.mm bridge/SCKCanvasView.h
-  bridge/SCKNetworkRuntime.mm bridge/SCKNetworkRuntime.h
-  bridge/SCKNetworkRuntimeInternal.h
 )
 
 # ARC for the ObjC++ engine/view; the shared Skia .mm translation units
@@ -63,15 +60,15 @@ target_link_libraries(SpellCircleMacBridge
     SpellCircleDocument
     SpellCircleScene
     SigilSkia
-    SpellCircleNet
-    Boost::asio
+    SigilIOHub          # the hub, and the feed the port is opened as
+    SigilIOTransport    # registerUdp: the scheme that port speaks
     unofficial::syphon::syphon
 )
 
 sigil_test(spellcircle_mac_test
   ARC
   SOURCES test/EngineTest.mm
-  LIBRARIES SpellCircleMacBridge SpellCircleSchema Boost::asio ${frameworks})
+  LIBRARIES SpellCircleMacBridge SpellCircleSchema ${frameworks})
 
 add_executable(SpellCircleMac MACOSX_BUNDLE
   app/SpellCircleMacApp.swift

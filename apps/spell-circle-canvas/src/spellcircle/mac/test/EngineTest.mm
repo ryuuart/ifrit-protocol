@@ -1,14 +1,17 @@
-#import "SCKEngine.h"
-#import "SCKNetworkRuntimeInternal.h"
+/** @file What the native engine's door reports when it opens, what a
+ *  drain hands the session, and what a closed door leaves behind. */
 
+#import "SCKEngine.h"
+
+#include <arpa/inet.h>
 #include <gtest/gtest.h>
-#include <boost/asio/executor_work_guard.hpp>
-#include <boost/asio/io_context.hpp>
-#include <boost/asio/ip/udp.hpp>
-#include <boost/asio/post.hpp>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 #include <chrono>
 #include <cstdint>
+#include <functional>
 #include <vector>
 
 #include "SpellCircle_generated.h"
@@ -48,17 +51,74 @@
 
 namespace {
 
-/** A queue marker observes every callback enqueued before this call. The
- *  deadline turns a missing main-queue integration into a test failure. */
-bool drainMainQueue() {
-  __block bool reached = false;
-  dispatch_async(dispatch_get_main_queue(), ^{
-    reached = true;
-  });
-  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
-  while (!reached && std::chrono::steady_clock::now() < deadline)
-    CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.01, true);
-  return reached;
+using Clock = std::chrono::steady_clock;
+
+/** One socket bound the way the UDP transport binds its own: a dual-stack
+ *  IPv6 socket, so a port this holds is a port the engine cannot take.
+ *  -1 when the bind failed. */
+int bindDualStack(std::uint16_t port) {
+  const int handle = ::socket(AF_INET6, SOCK_DGRAM, 0);
+  if (handle < 0) return -1;
+  int both = 0;
+  ::setsockopt(handle, IPPROTO_IPV6, IPV6_V6ONLY, &both, sizeof(both));
+  sockaddr_in6 address{};
+  address.sin6_family = AF_INET6;
+  address.sin6_addr = in6addr_any;
+  address.sin6_port = htons(port);
+  if (::bind(handle, reinterpret_cast<const sockaddr *>(&address), sizeof(address)) != 0) {
+    ::close(handle);
+    return -1;
+  }
+  return handle;
+}
+
+/** The port a socket was given. */
+std::uint16_t portOf(int handle) {
+  sockaddr_in6 address{};
+  socklen_t size = sizeof(address);
+  if (::getsockname(handle, reinterpret_cast<sockaddr *>(&address), &size) != 0) return 0;
+  return ntohs(address.sin6_port);
+}
+
+/** A port nobody holds: one taken the transport's way and given back. */
+std::uint16_t availablePort() {
+  const int handle = bindDualStack(0);
+  if (handle < 0) return 0;
+  const std::uint16_t port = portOf(handle);
+  ::close(handle);
+  return port;
+}
+
+/** One datagram to a port on loopback, from a socket of its own; answers
+ *  the port that socket was given, which is what the arrival should name
+ *  it by. */
+std::uint16_t sendTo(std::uint16_t port, const std::vector<std::uint8_t> &payload) {
+  const int handle = ::socket(AF_INET, SOCK_DGRAM, 0);
+  if (handle < 0) return 0;
+  sockaddr_in destination{};
+  destination.sin_family = AF_INET;
+  destination.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  destination.sin_port = htons(port);
+  ::sendto(handle, payload.data(), payload.size(), 0,
+           reinterpret_cast<const sockaddr *>(&destination), sizeof(destination));
+  sockaddr_in bound{};
+  socklen_t size = sizeof(bound);
+  ::getsockname(handle, reinterpret_cast<sockaddr *>(&bound), &size);
+  ::close(handle);
+  return ntohs(bound.sin_port);
+}
+
+/** Reads the engine's door and runs the main queue until @p complete
+ *  holds. The datagram lands on the transport's own thread, so what this
+ *  waits for is the drain, which is the call under test. */
+bool pumpUntil(SCKEngine *engine, const std::function<bool()> &complete) {
+  const auto deadline = Clock::now() + std::chrono::seconds(2);
+  do {
+    [engine readArrivals];
+    CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.001, true);
+    if (complete()) return true;
+  } while (Clock::now() < deadline);
+  return complete();
 }
 
 std::vector<std::uint8_t> circleScene(const char *name) {
@@ -71,133 +131,131 @@ std::vector<std::uint8_t> circleScene(const char *name) {
   return {builder.GetBufferPointer(), builder.GetBufferPointer() + builder.GetSize()};
 }
 
-TEST(SpellCircleMacEngine, LoopbackSeparatesChangedDuplicateAndRetiredPackets) {
+TEST(SpellCircleMacEngine, LoopbackSeparatesChangedDuplicateAndInvalidPackets) {
   ASSERT_TRUE(NSThread.isMainThread);
-  boost::asio::io_context context;
-  auto work = boost::asio::make_work_guard(context);
-  boost::asio::ip::udp::socket reservation(context, {boost::asio::ip::udp::v6(), 0});
-  const std::uint16_t port = reservation.local_endpoint().port();
-  reservation.close();
-  boost::asio::ip::udp::socket sender(context, boost::asio::ip::udp::v4());
-  const boost::asio::ip::udp::endpoint destination(boost::asio::ip::address_v4::loopback(), port);
-
   @autoreleasepool {
-    SCKNetworkRuntime *runtime =
-        [[SCKNetworkRuntime alloc] initWithExecutor:context.get_executor()];
-    SCKEngine *engine = [[SCKEngine alloc] initWithRuntime:runtime];
+    SCKEngine *engine = [[SCKEngine alloc] init];
     engine.canvasWidth = 128;
     engine.canvasHeight = 128;
-    engine.port = port;
+    engine.port = availablePort();
+    ASSERT_NE(engine.port, 0);
     EngineRecorder *recorder = [[EngineRecorder alloc] init];
     engine.delegate = recorder;
     [engine start];
-    context.poll();
-    ASSERT_TRUE(drainMainQueue());
     ASSERT_TRUE(engine.listening) << engine.statusText.UTF8String;
+    const auto port = static_cast<std::uint16_t>(engine.port);
 
     const auto original = circleScene("first");
-    sender.send_to(boost::asio::buffer(original), destination);
-    // The receive is the only outstanding I/O completion. Running it queues
-    // a main-thread delivery, which is observed separately below.
-    ASSERT_EQ(context.run_one_for(std::chrono::seconds(1)), 1u);
-    ASSERT_TRUE(drainMainQueue());
+    const std::uint16_t sender = sendTo(port, original);
+    ASSERT_NE(sender, 0);
+    ASSERT_TRUE(pumpUntil(engine, [&] { return recorder.feeds == 1u; }));
     EXPECT_EQ(recorder.packets, 1u);
     EXPECT_EQ(recorder.scenes, 1u);
-    EXPECT_EQ(recorder.feeds, 1u);
-    EXPECT_TRUE([recorder.lastSource hasPrefix:@"127.0.0.1:"]);
+    NSString *senderText =
+        [NSString stringWithFormat:@"127.0.0.1:%u", static_cast<unsigned>(sender)];
+    EXPECT_TRUE([recorder.lastSource isEqualToString:senderText])
+        << recorder.lastSource.UTF8String;
     EXPECT_TRUE([recorder.lastMessage containsString:@"1 circles"]);
 
-    sender.send_to(boost::asio::buffer(original), destination);
-    ASSERT_EQ(context.run_one_for(std::chrono::seconds(1)), 1u);
-    ASSERT_TRUE(drainMainQueue());
+    // The same bytes again count as an arrival and change nothing else.
+    sendTo(port, original);
+    ASSERT_TRUE(pumpUntil(engine, [&] { return recorder.packets == 2u; }));
+    EXPECT_EQ(recorder.scenes, 1u);
+    EXPECT_EQ(recorder.feeds, 1u);
+
+    // A payload that does not verify leaves every count where it was.
+    sendTo(port, std::vector<std::uint8_t>{1, 2, 3, 4});
+    const auto settle = Clock::now() + std::chrono::milliseconds(200);
+    while (Clock::now() < settle) {
+      [engine readArrivals];
+      CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.001, true);
+    }
     EXPECT_EQ(recorder.packets, 2u);
     EXPECT_EQ(recorder.scenes, 1u);
     EXPECT_EQ(recorder.feeds, 1u);
 
-    const auto changed = circleScene("replacement");
-    sender.send_to(boost::asio::buffer(changed), destination);
-    ASSERT_EQ(context.run_one_for(std::chrono::seconds(1)), 1u);
-    [engine stop];
-    ASSERT_TRUE(drainMainQueue());
-    EXPECT_EQ(recorder.packets, 2u);
-    EXPECT_EQ(recorder.scenes, 1u);
-    EXPECT_EQ(recorder.feeds, 1u);
-    EXPECT_FALSE(engine.listening);
+    // Different bytes are a new scene, and the door kept delivering
+    // across the one it could not read.
+    sendTo(port, circleScene("replacement"));
+    ASSERT_TRUE(pumpUntil(engine, [&] { return recorder.feeds == 2u; }));
+    EXPECT_EQ(recorder.packets, 3u);
+    EXPECT_EQ(recorder.scenes, 2u);
   }
 }
 
-TEST(SpellCircleMacEngine, StopDiscardsAStatusAlreadyQueuedToTheMainThread) {
+TEST(SpellCircleMacEngine, APortSomebodyElseHoldsIsReportedWhenTheDoorIsOpened) {
   ASSERT_TRUE(NSThread.isMainThread);
-  boost::asio::io_context context;
-  auto work = boost::asio::make_work_guard(context);
-  const boost::asio::ip::udp::socket occupied(context, {boost::asio::ip::udp::v6(), 0});
+  const int holder = bindDualStack(0);
+  ASSERT_GE(holder, 0);
+  const std::uint16_t port = portOf(holder);
+  ASSERT_NE(port, 0);
   @autoreleasepool {
-    SCKNetworkRuntime *runtime =
-        [[SCKNetworkRuntime alloc] initWithExecutor:context.get_executor()];
-    SCKEngine *engine = [[SCKEngine alloc] initWithRuntime:runtime];
-    engine.port = occupied.local_endpoint().port();
+    SCKEngine *engine = [[SCKEngine alloc] init];
+    engine.port = port;
     [engine start];
-    ASSERT_TRUE(engine.starting);
-    context.poll();
-
-    [engine stop];
-    ASSERT_TRUE(drainMainQueue());
-    EXPECT_FALSE(engine.starting);
+    // The bind happens inside start(), so its outcome is readable the
+    // moment it returns and nothing has to be pumped for.
     EXPECT_FALSE(engine.listening);
-    EXPECT_TRUE([engine.statusText isEqualToString:@"Stopped"]);
+    NSString *portText = [NSString stringWithFormat:@":%u", static_cast<unsigned>(port)];
+    EXPECT_TRUE([engine.statusText containsString:portText]) << engine.statusText.UTF8String;
+    EXPECT_TRUE([engine.statusText containsString:@"failed"]) << engine.statusText.UTF8String;
   }
+  ::close(holder);
 }
 
-TEST(SpellCircleMacEngine, RebindingWhileStartingReportsOnlyTheNewestPort) {
+TEST(SpellCircleMacEngine, APortChangeReopensTheDoorAndTheStatusNamesTheNewPort) {
   ASSERT_TRUE(NSThread.isMainThread);
-  boost::asio::io_context context;
-  auto work = boost::asio::make_work_guard(context);
-  const boost::asio::ip::udp::socket first(context, {boost::asio::ip::udp::v6(), 0});
-  const boost::asio::ip::udp::socket second(context, {boost::asio::ip::udp::v6(), 0});
   @autoreleasepool {
-    SCKNetworkRuntime *runtime =
-        [[SCKNetworkRuntime alloc] initWithExecutor:context.get_executor()];
-    SCKEngine *engine = [[SCKEngine alloc] initWithRuntime:runtime];
+    SCKEngine *engine = [[SCKEngine alloc] init];
     EngineRecorder *recorder = [[EngineRecorder alloc] init];
     engine.delegate = recorder;
-    engine.port = first.local_endpoint().port();
+    engine.port = availablePort();
+    ASSERT_NE(engine.port, 0);
     [engine start];
-    context.poll();
-    [recorder.changes removeAllObjects];
+    ASSERT_TRUE(engine.listening) << engine.statusText.UTF8String;
 
-    engine.port = second.local_endpoint().port();
-    ASSERT_TRUE(engine.starting);
-    context.poll();
-    ASSERT_TRUE(drainMainQueue());
+    const std::uint16_t replacement = availablePort();
+    ASSERT_NE(replacement, 0);
+    ASSERT_NE(static_cast<std::uint16_t>(engine.port), replacement);
+    engine.port = replacement;
+    EXPECT_TRUE(engine.listening);
+    NSString *expected =
+        [NSString stringWithFormat:@"Listening on UDP :%u", static_cast<unsigned>(replacement)];
+    EXPECT_TRUE([engine.statusText isEqualToString:expected]) << engine.statusText.UTF8String;
 
-    EXPECT_FALSE(engine.starting);
-    EXPECT_FALSE(engine.listening);
-    ASSERT_EQ(recorder.changes.count, 2u);
-    NSString *portText =
-        [NSString stringWithFormat:@":%u", static_cast<unsigned>(second.local_endpoint().port())];
-    for (NSString *status in recorder.changes) EXPECT_TRUE([status containsString:portText]);
+    // The new port is the one that receives.
+    ASSERT_NE(sendTo(replacement, circleScene("moved")), 0);
+    ASSERT_TRUE(pumpUntil(engine, [&] { return recorder.feeds == 1u; }));
   }
 }
 
-TEST(SpellCircleMacEngine, DestructionLeavesTheSuppliedContextRunning) {
+TEST(SpellCircleMacEngine, AClosedDoorLeavesNothingToRead) {
   ASSERT_TRUE(NSThread.isMainThread);
-  boost::asio::io_context context;
-  auto work = boost::asio::make_work_guard(context);
   @autoreleasepool {
-    SCKNetworkRuntime *runtime =
-        [[SCKNetworkRuntime alloc] initWithExecutor:context.get_executor()];
-    SCKEngine *engine = [[SCKEngine alloc] initWithRuntime:runtime];
+    SCKEngine *engine = [[SCKEngine alloc] init];
+    EngineRecorder *recorder = [[EngineRecorder alloc] init];
+    engine.delegate = recorder;
+    engine.port = availablePort();
+    ASSERT_NE(engine.port, 0);
     [engine start];
-    engine = nil;
-    runtime = nil;
+    ASSERT_TRUE(engine.listening) << engine.statusText.UTF8String;
+    const auto port = static_cast<std::uint16_t>(engine.port);
+
+    [engine stop];
+    EXPECT_FALSE(engine.listening);
+    EXPECT_TRUE([engine.statusText isEqualToString:@"Stopped"]);
+
+    // Nothing is listening for it any more, and nothing the closed door
+    // may still hold is read: the drain answers an engine with no door.
+    sendTo(port, circleScene("after"));
+    const auto deadline = Clock::now() + std::chrono::milliseconds(200);
+    while (Clock::now() < deadline) {
+      [engine readArrivals];
+      CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.001, true);
+    }
+    EXPECT_EQ(recorder.packets, 0u);
+    EXPECT_EQ(recorder.feeds, 0u);
   }
-  ASSERT_FALSE(context.stopped());
-  bool ran = false;
-  boost::asio::post(context, [&] { ran = true; });
-  context.poll();
-  EXPECT_TRUE(ran);
-  EXPECT_FALSE(context.stopped());
-  ASSERT_TRUE(drainMainQueue());
 }
 
 }  // namespace

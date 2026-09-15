@@ -43,8 +43,8 @@ struct NetworkManagerQmlType {
 
 /**
  * Application-owned models, graphics configuration, and network adapter.
- * Received datagrams reach the scene model on their shared QObject thread;
- * the supplied executor runs transport work independently.
+ * The receiver drains its port on this thread, so a scene reaches the
+ * scene model on the thread both of them live on.
  */
 class Models : public QObject {
   Q_OBJECT
@@ -56,8 +56,7 @@ class Models : public QObject {
   Q_PROPERTY(NetworkManager* networkManager READ networkManager CONSTANT)
  public:
   /** Constructs and wires the model, graphics configuration, and receiver. */
-  explicit Models(boost::asio::any_io_executor executor,
-                  QObject* parent = nullptr);
+  explicit Models(QObject* parent = nullptr);
 
   /** Returns the scene model. */
   SpellCircleModel* spellCircleModel() const { return m_spellCircleModel; }

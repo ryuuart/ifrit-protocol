@@ -11,17 +11,18 @@
 #import <Metal/Metal.h>
 #import <Syphon/SyphonMetalServer.h>
 
+#include <sigilio/hub/Feed.h>
+#include <sigilio/hub/Hub.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include "SceneGeometry.h"
 #include "SceneModel.h"
 #include "SceneRenderer.h"
 #include "SceneSession.h"
-#include "UdpReceiver.h"
 
 #include <include/core/SkColor.h>
 #include <include/core/SkShader.h>
 
-#include <cstdint>
+#include <chrono>
 #include <memory>
 
 #if !__has_feature(objc_arc)
@@ -62,13 +63,15 @@ struct BlitPalette {
 
   SyphonMetalServer *_syphon;
 
-  // The application supplies the event loop. Its runtime stays alive until
-  // the receiver is released; packet and status callbacks hop to the main
-  // queue and are accepted only for the binding that produced them.
-  SCKNetworkRuntime *_networkRuntime;
-  std::unique_ptr<spellcircle::UdpReceiver> _receiver;
-  uint64_t _networkGeneration;
-  BOOL _networkRequested;
+  // The port, as a door on a resource hub: the transport takes datagrams
+  // on a thread of its own and the door holds them until the drain timer
+  // reads them here, on the main queue. An arrival carries the seconds
+  // since its door was made, which _doorOpenedAt turns back into a clock
+  // reading.
+  sigil::io::Hub _hub;
+  std::shared_ptr<sigil::io::Feed> _door;
+  std::chrono::steady_clock::time_point _doorOpenedAt;
+  dispatch_source_t _drain;
   NSDateFormatter *_timestampFormatter;
 
   // Paced rendering: packets only mark the scene dirty; the render clock
@@ -109,6 +112,9 @@ struct BlitPalette {
 
 /** The calls the engine's parts make of each other. */
 @interface SCKEngine (Internal)
+/** Lets the door go and stops the drain that was reading it, so no socket
+ *  stands open and nothing is left to read. */
+- (void)closeDoor;
 /** Draws the resolved scene into the offscreen texture and publishes it. */
 - (void)renderScene;
 /** The render clock's step: draws now when a frame is due, and otherwise

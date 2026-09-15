@@ -2,7 +2,7 @@
 # include/ and qml/ tree, several targets kept separate so concerns stay
 # layered:
 #
-#   SpellCircleNetwork  Qt adapter over executor-owned transport
+#   SpellCircleNetwork  Qt adapter over a resource hub's UDP door
 #   SpellCircleModels   QML-facing models (SpellCircle.Models)
 #   SpellCircleCanvas   the canvas item + Skia backend (SpellCircle.Canvas)
 #   SpellCircle         the executable + application QML (SpellCircle.App)
@@ -15,12 +15,12 @@ find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 QuickLayouts
 qt_standard_project_setup(REQUIRES 6.11)
 find_package(EnTT CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
-find_package(boost_asio CONFIG REQUIRED)
 find_package(Threads REQUIRED)
 
-# ── Network: the Qt face of the shared transport ─────────────────────────
-# Marshals datagrams and binding results onto the QObject's thread. The
-# application supplies the executor, and the scene model verifies payloads.
+# ── Network: the Qt face of the UDP door ─────────────────────────────────
+# Opens the port on a hub of its own and drains what arrives there on the
+# frame, so a scene reaches the QObject's thread without being delivered
+# onto it. The scene model verifies payloads.
 qt_add_library(SpellCircleNetwork SHARED
   src/NetworkManager.cpp include/NetworkManager.h
 )
@@ -29,10 +29,10 @@ sigil_qt_target(SpellCircleNetwork)
 target_link_libraries(SpellCircleNetwork
     PUBLIC
       Qt6::Core
-      Boost::asio
     PRIVATE
       spdlog::spdlog
-      SpellCircleNet
+      SigilIOHub          # the hub, and the feed the port is opened as
+      SigilIOTransport    # registerUdp: the scheme that port speaks
 )
 
 target_include_directories(SpellCircleNetwork
@@ -77,7 +77,7 @@ target_include_directories(SpellCircleModels
 sigil_test(spellcircle_qt_test
   SOURCES test/ReceiverTest.cpp
   LIBRARIES SpellCircleNetwork SpellCircleModels SpellCircleSchema
-            Qt6::Core Boost::asio Threads::Threads
+            Qt6::Core Threads::Threads
 )
 
 # ── Canvas: the scene item, Skia backend, and texture publishing ─────────
@@ -226,6 +226,5 @@ target_link_libraries(SpellCircle
       spdlog::spdlog
       SpellCircleCanvas
       SpellCircleModels
-      Boost::asio
       Threads::Threads
 )

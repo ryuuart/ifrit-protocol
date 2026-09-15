@@ -66,23 +66,34 @@ tables yourself.
 ## How a packet becomes pixels
 
 ```
-Python  ──FlatBuffers──▶  UDP :27015  ──▶  verify  ──▶  decode
-                                                          │
-                        Syphon ◀── draw ◀── resolveScene ◀─┘
+Python  ──FlatBuffers──▶  UDP :27015  ──▶  drain  ──▶  verify  ──▶  decode
+                                                                      │
+                            Syphon ◀── draw ◀── resolveScene ◀─────────┘
 ```
 
-`UdpReceiver` binds dual-stack on a Boost.Asio executor supplied by its
-host. It delivers each payload with its source and monotonic receive time.
-The front end moves to its main thread, where `SceneSession` verifies and
-decodes changed payloads into an `entt` registry. Malformed packets leave
-the current scene intact. Byte-identical packets count toward the arrival
-rate without decoding or invalidating the scene again.
+The port is a door on a resource hub: `sigil::io::Hub::feed()` on a
+`udp://:27015` URI binds a dual-stack socket and takes every datagram
+that reaches it on a thread of its own. Each front end drains that door
+on its own thread at the render frame — `readArrivals()` in the Qt
+adapter, `-[SCKEngine readArrivals]` on macOS — and hands each arrival to
+`SceneSession`, which verifies and decodes a changed payload into an
+`entt` registry. Malformed packets leave the current scene
+intact. Byte-identical packets count toward the arrival rate without
+decoding or invalidating the scene again.
 
-Binding is asynchronous. Status callbacks report the actual bound port,
-bind errors, and terminal receive errors. A stop or rebind retires the old
-binding's callbacks immediately; the front ends also discard deliveries
-already queued for an obsolete binding. Socket operations and callbacks
-are serialized even when several threads run the supplied context.
+Nothing is delivered onto the user interface thread from outside it: the
+transport puts arrivals in the door and the frame takes them out, in
+order. `sigil::io::Arrival::at` is the seconds since the door was opened,
+so a receive time is that origin plus those seconds — measured where the
+datagram landed, not where it was read, which is what keeps the frame an
+arrival waited for out of the reported rate.
+
+Binding is synchronous: when the door is asked for,
+`sigil::io::Feed::error()` says whether the port was free and
+`sigil::io::Feed::address()` says which one was bound, so `listening` and
+the status line are right the moment `start()` returns. Closing the door
+— dropping the last reference to it — stops its socket and discards what
+it still holds.
 
 `resolveScene()` then converts that registry into a `ResolvedScene` of
 absolute native pixels, and `SceneRenderer::draw()` puts it on an
@@ -98,49 +109,54 @@ the change belongs.
 
 ### Embedding the receiver
 
-Link `SpellCircleNet` for UDP transport and `SpellCircleDocument` for
-verified scene state. Neither target depends on Qt, AppKit, Skia, or a
-renderer. `SpellCircleScene` adds geometry resolution and drawing.
+Link `SigilIOHub` and `SigilIOTransport` for the door, and
+`SpellCircleDocument` for verified scene state. None of them depends on
+Qt, AppKit, Skia, or a renderer. `SpellCircleScene` adds geometry
+resolution and drawing.
 
 ```cpp
 #include "SceneSession.h"
-#include "UdpReceiver.h"
-#include <boost/asio/io_context.hpp>
+#include <sigilio/hub/Feed.h>
+#include <sigilio/hub/Hub.h>
+#include <sigilio/transport/Transport.h>
 #include <iostream>
 
-boost::asio::io_context context;
+sigil::io::Hub hub;
+sigil::io::registerUdp(hub);          // only UDP: the product speaks nothing else
+
+const auto openedAt = spellcircle::SceneSession::Clock::now();
+const std::shared_ptr<sigil::io::Feed> door =
+    hub.feed("udp://:27015", {.capacity = 64});
+if (!door->error().empty()) std::cerr << door->error() << '\n';
+
 spellcircle::SceneSession scene;
-spellcircle::UdpReceiver receiver(context.get_executor());
-receiver.start(
-    27015,
-    [&](spellcircle::Datagram packet) {
-      scene.ingest(packet.payload.data(), packet.payload.size(),
-                   packet.receivedAt);
-    },
-    [](spellcircle::UdpReceiver::Status status) {
-      if (status.error) std::cerr << status.error.message() << '\n';
-    });
-context.run();
+for (;;) {                            // once a frame, on the thread that draws
+  while (const std::optional<sigil::io::Arrival> arrival = door->receive()) {
+    scene.ingest(arrival->bytes->bytes.data(), arrival->bytes->bytes.size(),
+                 openedAt + std::chrono::duration_cast<
+                                spellcircle::SceneSession::Clock::duration>(
+                                std::chrono::duration<double>(arrival->at)));
+  }
+}
 ```
 
-An existing host passes its executor and continues running its context.
-The receiver creates no thread and never runs, restarts, or stops that
-context. Stop and destruction wait for an executing callback to finish,
-except when invoked by that callback, then queue socket cancellation.
-They do not wait for the event loop to run. Keep the context alive until
-the receiver is destroyed; drain or destroy the context to release queued
-operations. Callbacks must not wait for a thread that is stopping or
-rebinding their receiver.
+The transport runs the socket on a thread of its own and the host never
+names it. `sigil::io::Feed::receive()` never waits: a frame that finds
+nothing gets on with itself. The door keeps the last `capacity` arrivals,
+so a reader that misses a frame loses nothing and one that falls a whole
+second behind loses the oldest scenes rather than the newest —
+`sigil::io::Feed::dropped()` counts those. `sigil::io::Arrival::from`
+names the sender, spelled `udp://127.0.0.1:52341`; both front ends show
+it with the scheme taken off.
 
-`SceneSession` is synchronous and belongs to one owner thread. In the
-example it belongs to the network callback; the two apps instead dispatch
-packets to the UI thread before ingesting them. A host can also feed the
-session directly from another transport. Its generation changes only
-when the accepted document changes or is cleared. Arrival rates use the
-packet's receive time, so a busy UI queue cannot inflate them, and expire
-after two seconds of silence. Feed presentation remains the host's choice.
-`SceneDocument::decode()` also verifies its input when used directly and
-returns no statistics for an invalid payload.
+`SceneSession` is synchronous and belongs to one owner thread — the one
+that drains the door, which in both apps is the thread that draws. A host
+can also feed the session from anything else that produces bytes. Its
+generation changes only when the accepted document changes or is cleared.
+Arrival rates use the datagram's receive time, so a busy frame cannot
+inflate them, and expire after two seconds of silence. Feed presentation
+remains the host's choice. `SceneDocument::decode()` also verifies its
+input when used directly and returns no statistics for an invalid payload.
 
 ## Layout
 
@@ -149,7 +165,6 @@ The Qt-free core is shared; the two front ends are not.
 | Path | What it is |
 | --- | --- |
 | `src/spellcircle/shared/schema/` | `SpellCircle.fbs` and its generated header — the wire format |
-| `src/spellcircle/shared/net/` | Executor-supplied `UdpReceiver`, datagrams, binding status |
 | `src/spellcircle/shared/scene/` | `SpellCircleDocument`: verified ingestion and session state; `SpellCircleScene`: resolve, draw, ring-label geometry |
 | `src/spellcircle/qt/` | The Qt app — QML front end, cross-platform target |
 | `src/spellcircle/mac/` | `SpellCircleMac` — SwiftUI over an ObjC++ bridge, macOS only |
@@ -164,11 +179,10 @@ side — scene core, Skia, SigilWeave, ICU, HarfBuzz, Syphon — so the whole
 of it links through the clang++ driver and the Swift executable links one
 dylib.
 
-The Qt executable creates the network context and injects `Models` into
-the QML root. The Swift app creates `SCKNetworkRuntime` and passes it to
-its engine; multiple engines can share that runtime. An ObjC++ host can
-wrap an existing Boost executor through `SCKNetworkRuntimeInternal.h`
-without giving the runtime ownership of the external context.
+The Qt executable injects `Models` into the QML root; the Swift app's
+`EngineModel` owns one `SCKEngine`. Each of them holds a hub and opens
+one door on it, so neither frontend needs an event loop of its own and
+nothing is shared between them but the wire format.
 
 ## Libraries
 
@@ -212,16 +226,15 @@ administration; `scripts/README.md` is the canon for all of them.
 
 The test suite covers the libraries and the receiver layers:
 
-- `spellcircle_net_test` uses loopback UDP to exercise shared contexts,
-  cancellation, rebinding, callback teardown, and concurrent controls.
 - `spellcircle_document_test` checks accepted scene state, malformed
   input, deduplication, clearing, and receive-time arrival rates.
 - `spellcircle_test` builds wire payloads and checks decode, resolution,
   box placement, and ring-label geometry.
-- `spellcircle_qt_test` checks asynchronous status and queued-delivery
-  cancellation through the Qt adapter and its scene model.
-- `spellcircle_mac_test` checks main-queue status cancellation and the
-  lifetime of an externally supplied runtime through the ObjC++ adapter.
+- `spellcircle_qt_test` sends loopback datagrams through the Qt adapter's
+  door and checks what opening, draining and closing it report, and what
+  reaches the scene model.
+- `spellcircle_mac_test` does the same through the ObjC++ engine, down to
+  the feed entry a changed scene appends and the source it names.
 
 App presentation also needs a live run with incoming scenes.
 

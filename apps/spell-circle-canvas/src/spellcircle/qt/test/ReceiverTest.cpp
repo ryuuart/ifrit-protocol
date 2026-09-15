@@ -1,18 +1,18 @@
-/** @file Qt delivery lifetime and accepted-scene presentation. */
+/** @file What the Qt receiver's door reports when it opens, what a drain
+ *  hands the scene model, and what a closed door leaves behind. */
 
+#include <arpa/inet.h>
 #include <gtest/gtest.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 #include <QCoreApplication>
-#include <QEvent>
 #include <QEventLoop>
-#include <boost/asio/executor_work_guard.hpp>
-#include <boost/asio/io_context.hpp>
-#include <boost/asio/ip/udp.hpp>
-#include <boost/asio/post.hpp>
 #include <chrono>
+#include <cstdint>
 #include <functional>
 #include <thread>
-#include <utility>
 #include <vector>
 
 #include "NetworkManager.h"
@@ -21,7 +21,6 @@
 
 namespace {
 
-using boost::asio::ip::udp;
 using Clock = std::chrono::steady_clock;
 using namespace std::chrono_literals;
 
@@ -32,59 +31,82 @@ void ensureApplication() {
   static QCoreApplication application(argc, argv);
 }
 
+/** One socket bound the way the UDP transport binds its own: a dual-stack
+ *  IPv6 socket, so a port this holds is a port the receiver cannot take.
+ *  -1 when the bind failed. */
+int bindDualStack(uint16_t port) {
+  const int handle = ::socket(AF_INET6, SOCK_DGRAM, 0);
+  if (handle < 0) return -1;
+  int both = 0;
+  ::setsockopt(handle, IPPROTO_IPV6, IPV6_V6ONLY, &both, sizeof(both));
+  sockaddr_in6 address{};
+  address.sin6_family = AF_INET6;
+  address.sin6_addr = in6addr_any;
+  address.sin6_port = htons(port);
+  if (::bind(handle, reinterpret_cast<const sockaddr*>(&address),
+             sizeof(address)) != 0) {
+    ::close(handle);
+    return -1;
+  }
+  return handle;
+}
+
+/** The port a socket was given. */
+uint16_t portOf(int handle) {
+  sockaddr_in6 address{};
+  socklen_t size = sizeof(address);
+  if (::getsockname(handle, reinterpret_cast<sockaddr*>(&address), &size) != 0)
+    return 0;
+  return ntohs(address.sin6_port);
+}
+
 class SpellCircleQt : public ::testing::Test {
  protected:
   SpellCircleQt() { ensureApplication(); }
 
-  bool pumpUntil(const std::function<bool()>& complete) {
+  /** Reads the receiver's door and runs the event loop until @p complete
+   *  holds. The datagram lands on the transport's own thread, so what
+   *  this waits for is the drain, which is the call under test. */
+  bool pumpUntil(NetworkManager& network,
+                 const std::function<bool()>& complete) {
     const auto deadline = Clock::now() + 2s;
     do {
-      context.poll();
+      network.readArrivals();
       QCoreApplication::processEvents(QEventLoop::AllEvents);
       if (complete()) return true;
-      std::this_thread::yield();
+      std::this_thread::sleep_for(1ms);
     } while (Clock::now() < deadline);
-    return false;
+    return complete();
   }
 
+  /** A port nobody holds: one taken the transport's way and given back. */
   uint16_t availablePort() {
-    udp::socket reservation(context, udp::endpoint(udp::v6(), 0));
-    return reservation.local_endpoint().port();
+    const int handle = bindDualStack(0);
+    if (handle < 0) return 0;
+    const uint16_t port = portOf(handle);
+    ::close(handle);
+    return port;
   }
 
-  void send(uint16_t port, const QByteArray& payload) {
-    udp::socket sender(context, udp::v4());
-    sender.send_to(
-        boost::asio::buffer(payload.constData(), payload.size()),
-        udp::endpoint(boost::asio::ip::address_v4::loopback(), port));
+  /** One datagram to a port on loopback, from a socket of its own;
+   *  answers the port that socket was given, which is what the arrival
+   *  should name it by. */
+  uint16_t sendTo(uint16_t port, const QByteArray& payload) {
+    const int handle = ::socket(AF_INET, SOCK_DGRAM, 0);
+    if (handle < 0) return 0;
+    sockaddr_in destination{};
+    destination.sin_family = AF_INET;
+    destination.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    destination.sin_port = htons(port);
+    ::sendto(handle, payload.constData(), static_cast<size_t>(payload.size()),
+             0, reinterpret_cast<const sockaddr*>(&destination),
+             sizeof(destination));
+    sockaddr_in bound{};
+    socklen_t size = sizeof(bound);
+    ::getsockname(handle, reinterpret_cast<sockaddr*>(&bound), &size);
+    ::close(handle);
+    return ntohs(bound.sin_port);
   }
-
-  boost::asio::io_context context;
-  boost::asio::executor_work_guard<boost::asio::io_context::executor_type>
-      work = boost::asio::make_work_guard(context);
-};
-
-// Retire a binding immediately before its next queued delivery executes.
-// The event remains queued and must reject its own obsolete generation.
-class BeforeDelivery final : public QObject {
- public:
-  explicit BeforeDelivery(std::function<void()> callback)
-      : callback(std::move(callback)) {}
-
-  bool invoked = false;
-
- protected:
-  bool eventFilter(QObject*, QEvent* event) override {
-    if (event->type() == QEvent::MetaCall && callback) {
-      auto invoke = std::move(callback);
-      invoked = true;
-      invoke();
-    }
-    return false;
-  }
-
- private:
-  std::function<void()> callback;
 };
 
 QByteArray circleScene() {
@@ -99,95 +121,94 @@ QByteArray circleScene() {
           static_cast<qsizetype>(builder.GetSize())};
 }
 
-TEST_F(SpellCircleQt, BindingStatusIsQueuedAndPendingBindingCanBeStopped) {
-  NetworkManager network(context.get_executor(), availablePort());
+TEST_F(SpellCircleQt, APortSomebodyElseHoldsIsReportedWhenTheDoorIsOpened) {
+  const int holder = bindDualStack(0);
+  ASSERT_GE(holder, 0);
+  const uint16_t port = portOf(holder);
+  ASSERT_NE(port, 0);
+
+  NetworkManager network(port);
   network.start();
-  EXPECT_TRUE(network.starting());
-  EXPECT_FALSE(network.listening());
-
-  context.poll();
-  EXPECT_TRUE(network.starting());
-  EXPECT_FALSE(network.listening());
-
-  network.stop();
-  EXPECT_FALSE(network.starting());
-  EXPECT_FALSE(network.listening());
-  bool unrelatedWork = false;
-  boost::asio::post(context, [&] { unrelatedWork = true; });
-  ASSERT_TRUE(pumpUntil([&] { return unrelatedWork; }));
-  EXPECT_FALSE(network.starting());
-  EXPECT_FALSE(network.listening());
-  EXPECT_EQ(network.statusText(), "Stopped");
-}
-
-TEST_F(SpellCircleQt, BindFailureCompletesThePendingState) {
-  udp::socket reservation(context, udp::endpoint(udp::v6(), 0));
-  const auto port = reservation.local_endpoint().port();
-  NetworkManager network(context.get_executor(), port);
-  network.start();
-  EXPECT_TRUE(network.starting());
-  ASSERT_TRUE(pumpUntil([&] { return !network.starting(); }));
+  // The bind happens inside start(), so its outcome is readable the
+  // moment it returns and nothing has to be pumped for.
   EXPECT_FALSE(network.listening());
   EXPECT_TRUE(network.statusText().contains(QString::number(port)));
   EXPECT_TRUE(network.statusText().contains("failed"));
+  ::close(holder);
 }
 
-TEST_F(SpellCircleQt, PortChangeRetiresAnAlreadyQueuedBindingStatus) {
-  NetworkManager network(context.get_executor(), availablePort());
+TEST_F(SpellCircleQt, APortChangeReopensTheDoorAndTheStatusNamesTheNewPort) {
+  const uint16_t first = availablePort();
+  ASSERT_NE(first, 0);
+  NetworkManager network(first);
   network.start();
-  context.poll();
-  const auto replacement = availablePort();
+  ASSERT_TRUE(network.listening()) << network.statusText().toStdString();
+
+  const uint16_t replacement = availablePort();
+  ASSERT_NE(replacement, 0);
   ASSERT_NE(network.port(), replacement);
   network.setPort(replacement);
-  QCoreApplication::processEvents(QEventLoop::AllEvents);
-  EXPECT_TRUE(network.starting());
-  EXPECT_FALSE(network.listening());
-  EXPECT_TRUE(network.statusText().contains(QString::number(replacement)));
-  ASSERT_TRUE(pumpUntil([&] { return network.listening(); }));
-  EXPECT_FALSE(network.starting());
+  EXPECT_TRUE(network.listening());
   EXPECT_EQ(network.port(), replacement);
   EXPECT_EQ(network.statusText(),
             QString("Listening on UDP :%1").arg(replacement));
-}
 
-TEST_F(SpellCircleQt, StopDiscardsADatagramAlreadyQueuedToTheObject) {
-  NetworkManager network(context.get_executor(), availablePort());
-  network.start();
-  ASSERT_TRUE(pumpUntil([&] { return network.listening(); }));
+  // The new port is the one that receives: a scene sent to it reaches the
+  // drain.
   int received = 0;
   QObject::connect(&network, &NetworkManager::spellCircleReceived, &network,
                    [&] { ++received; });
-  BeforeDelivery beforeDelivery([&] { network.stop(); });
-  network.installEventFilter(&beforeDelivery);
-
-  send(static_cast<uint16_t>(network.port()), "retired");
-  ASSERT_TRUE(pumpUntil([&] { return beforeDelivery.invoked; }));
-  EXPECT_EQ(received, 0);
-  EXPECT_FALSE(network.listening());
-  EXPECT_FALSE(network.starting());
+  ASSERT_NE(sendTo(replacement, circleScene()), 0);
+  ASSERT_TRUE(pumpUntil(network, [&] { return received == 1; }));
 }
 
-TEST_F(SpellCircleQt, RebindDiscardsQueuedDataAndAcceptsTheNewBinding) {
-  NetworkManager network(context.get_executor(), availablePort());
-  network.start();
-  ASSERT_TRUE(pumpUntil([&] { return network.listening(); }));
-  const auto replacement = availablePort();
-  ASSERT_NE(network.port(), replacement);
-  std::vector<QByteArray> received;
+TEST_F(SpellCircleQt, ASceneReachesTheModelThroughTheDrain) {
+  SpellCircleModel model;
+  NetworkManager network(availablePort());
+  ASSERT_NE(network.port(), 0);
+  QObject::connect(&network, &NetworkManager::spellCircleReceived, &model,
+                   &SpellCircleModel::onSpellCircleReceived);
+  QString source;
   QObject::connect(&network, &NetworkManager::spellCircleReceived, &network,
-                   [&](const QString&, const QByteArray& payload,
-                       Clock::time_point) { received.push_back(payload); });
-  BeforeDelivery beforeDelivery([&] { network.setPort(replacement); });
-  network.installEventFilter(&beforeDelivery);
+                   [&](const QString& from, const QByteArray&,
+                       Clock::time_point) { source = from; });
+  network.start();
+  ASSERT_TRUE(network.listening()) << network.statusText().toStdString();
 
-  send(static_cast<uint16_t>(network.port()), "retired");
-  ASSERT_TRUE(
-      pumpUntil([&] { return beforeDelivery.invoked && network.listening(); }));
-  EXPECT_TRUE(received.empty());
-  send(replacement, "current");
-  ASSERT_TRUE(pumpUntil([&] { return !received.empty(); }));
-  ASSERT_EQ(received.size(), 1u);
-  EXPECT_EQ(received.front(), "current");
+  const uint16_t sender =
+      sendTo(static_cast<uint16_t>(network.port()), circleScene());
+  ASSERT_NE(sender, 0);
+  ASSERT_TRUE(pumpUntil(network, [&] { return model.rowCount() == 1; }));
+  EXPECT_EQ(source, QString("127.0.0.1:%1").arg(sender));
+  EXPECT_EQ(
+      model.document().registry().view<spellcircle::CircleComponent>().size(),
+      1u);
+}
+
+TEST_F(SpellCircleQt, AClosedDoorLeavesNothingToRead) {
+  NetworkManager network(availablePort());
+  ASSERT_NE(network.port(), 0);
+  network.start();
+  ASSERT_TRUE(network.listening()) << network.statusText().toStdString();
+  const auto port = static_cast<uint16_t>(network.port());
+  int received = 0;
+  QObject::connect(&network, &NetworkManager::spellCircleReceived, &network,
+                   [&] { ++received; });
+
+  network.stop();
+  EXPECT_FALSE(network.listening());
+  EXPECT_EQ(network.statusText(), "Stopped");
+
+  // Nothing is listening for it any more, and nothing the closed door may
+  // still hold is read: the drain answers a receiver that has no door.
+  sendTo(port, circleScene());
+  const auto deadline = Clock::now() + 200ms;
+  while (Clock::now() < deadline) {
+    network.readArrivals();
+    QCoreApplication::processEvents(QEventLoop::AllEvents);
+    std::this_thread::sleep_for(1ms);
+  }
+  EXPECT_EQ(received, 0);
 }
 
 TEST_F(SpellCircleQt, InvalidAndRepeatedPacketsPreserveRenderedGeneration) {

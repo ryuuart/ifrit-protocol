@@ -53,9 +53,11 @@ sigil_doc_probes(spellcircle
   NAMESPACE spellcircle
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/../../../../README.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/include
-           ${CMAKE_CURRENT_SOURCE_DIR}/../net/include
+           ${CMAKE_CURRENT_SOURCE_DIR}/../../../common/io/include/sigilio/hub
+           ${CMAKE_CURRENT_SOURCE_DIR}/../../../common/io/include/sigilio/transport
   PRELUDES "\"SceneModel.h\"" "\"SceneSession.h\""
-           "\"SceneRenderer.h\"" "\"UdpReceiver.h\""
-           "<boost/asio/io_context.hpp>" "<iostream>"
-  FLOORS 5,1,2,0,0
-  LIBRARIES SpellCircleScene SpellCircleNet)
+           "\"SceneRenderer.h\"" "<sigilio/hub/Hub.h>"
+           "<sigilio/hub/Feed.h>" "<sigilio/transport/Transport.h>"
+           "<iostream>"
+  FLOORS 8,3,5,0,0
+  LIBRARIES SpellCircleScene SigilIOHub SigilIOTransport)
