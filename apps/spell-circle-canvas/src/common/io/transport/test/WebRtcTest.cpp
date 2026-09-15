@@ -24,6 +24,10 @@
  * the peer failing. Nothing above can catch what is thrown below such a
  * frame, and no call of this library's is on that stack; a peer in a
  * process of its own is what keeps two ends off one sweep.
+ *
+ * ONE CASE HOLDS BOTH ENDS ANYWAY, and times nothing: what it watches
+ * is the process, which two ends coming good on one sweep have to leave
+ * running.
  */
 
 #include <gtest/gtest.h>
@@ -96,6 +100,18 @@ constexpr std::chrono::seconds kPeerLife{30};
  *  channel is open goes nowhere and says nothing about it, so a peer
  *  keeps saying it until the case has heard it. */
 constexpr std::chrono::milliseconds kPeerSays{20};
+
+/** HOW MANY CONVERSATIONS ARE HELD ONE AFTER ANOTHER by the case that
+ *  keeps both ends in this process. One pairing says two ends can meet;
+ *  this many say that the sweep they share brings them good together
+ *  often enough for the pairing to be judged on. */
+constexpr int kConversations = 12;
+
+/** How long one of those conversations is given to come good or to say
+ *  why it did not. Both ends stand on this machine, so the routes they
+ *  try are the ones that answer at once and the pair is made in a frame
+ *  or two; a handshake is what is waited on here, never a network. */
+constexpr std::chrono::seconds kPairing{5};
 
 Bytes bytesOf(std::string_view text) {
   const auto* const first = reinterpret_cast<const std::byte*>(text.data());
@@ -404,6 +420,58 @@ TEST_F(IOWebRtc, DroppingTheLastHolderOfAFeedGivesUpItsSignallingPort) {
     taken.reset();
     return false;
   }));
+}
+
+/** BOTH ENDS OF ONE CONVERSATION IN THIS PROCESS, a dozen times over:
+ *  the topology every other case here keeps apart, held together on
+ *  purpose so that two ends come good within one sweep of the thread
+ *  the library underneath finds routes on.
+ *
+ *  What is asserted after each pair is that this process is still
+ *  running — a process that ended reaches this case as a case that
+ *  never returned — and that each end either crossed a message or says
+ *  why it could not. A pair that fails is one conversation's ending; a
+ *  pair that ends the process is the library's. */
+TEST_F(IOWebRtc,
+       BothEndsOfAConversationInOneProcessPairAndPartWithoutEndingIt) {
+  for (int conversation = 1; conversation <= kConversations; ++conversation) {
+    // A room and a port of its own for every pair, so what the sweep
+    // brings good is the two ends opened together and no leftover of
+    // the pair before them.
+    const std::string room = "sweep" + std::to_string(conversation);
+    const uint16_t port = freePort();
+    const std::shared_ptr<Feed> waiting = open(waitingAt(port, room));
+    ASSERT_TRUE(waiting->error().empty()) << waiting->error();
+    const std::shared_ptr<Feed> calling = open(callingInto(port, room));
+    ASSERT_TRUE(calling->error().empty()) << calling->error();
+
+    // The end that took the room up keeps saying its piece: a message
+    // written before the channel is open goes nowhere and says nothing
+    // about it.
+    const std::string said = "conversation " + std::to_string(conversation);
+    bool crossed = false;
+    auto next = std::chrono::steady_clock::now();
+    const auto settled = [&] {
+      if (std::chrono::steady_clock::now() >= next) {
+        next = std::chrono::steady_clock::now() + kPeerSays;
+        calling->send(bytesOf(said));
+      }
+      while (const std::optional<Arrival> arrival = waiting->receive())
+        if (arrival->bytes->asText() == said) crossed = true;
+      return crossed || !waiting->error().empty() || !calling->error().empty();
+    };
+    waitUntil(settled, kPairing);
+
+    EXPECT_TRUE(crossed || !waiting->error().empty() ||
+                !calling->error().empty())
+        << "conversation " << conversation
+        << ": nothing crossed and neither end says why";
+
+    // Both ends are let go before the next pair is made, so a teardown
+    // and a handshake are on that thread together as well.
+    calling->close();
+    waiting->close();
+  }
 }
 
 }  // namespace
