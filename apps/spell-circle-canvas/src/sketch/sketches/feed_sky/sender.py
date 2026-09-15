@@ -12,11 +12,16 @@ Two modes, one sky:
         writes those same messages to a file in the feed recording
         format, which is what the sketch's plate replays.
 
-A message is the sky exactly as the sketch reads it:
+A message is the sky exactly as feed_sky.fbs states it, in that
+schema's own JSON form:
 
     {"bands": [{"height": h, "speed": s, "wobble": w}, ...],
-     "wind": {"x": x, "y": 0},
-     "palette": [[r, g, b, a], ...]}
+     "wind": {"x": x, "y": y},
+     "palette": [{"r": r, "g": g, "b": b, "a": a}, ...]}
+
+A struct is an object there, wind and colour alike, and a field the
+schema does not declare is not a message at all: the reader converts
+every arrival through the schema and counts what does not fit.
 
 The sky is a function of the message's own time and of nothing else, so
 the file and the live send carry the same messages at the same seconds
@@ -83,7 +88,12 @@ def sky_at(seconds):
         hue = (0.52 + index * 0.11 + seconds * HUE_TURN) % 1.0
         red, green, blue = colorsys.hsv_to_rgb(hue, 0.55, 1.0)
         palette.append(
-            [round(red, 2), round(green, 2), round(blue, 2), round(0.58 - index * 0.05, 2)]
+            {
+                "r": round(red, 2),
+                "g": round(green, 2),
+                "b": round(blue, 2),
+                "a": round(0.58 - index * 0.05, 2),
+            }
         )
     return {"bands": bands, "wind": wind, "palette": palette}
 

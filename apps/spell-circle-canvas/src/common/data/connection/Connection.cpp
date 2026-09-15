@@ -1,12 +1,13 @@
 /** @file
- * The connection: the door it opened, the scheme its messages are read
- * by, the value and the latch per name and the queue and the handlers
- * one dispatch fills, and the ways a message goes back out — to the
- * door, or to the sender of the message being answered.
+ * The connection: the door it opened, the scheme or the schema its
+ * messages are read by, the value and the latch per name and the queue
+ * and the handlers one dispatch fills, and the ways a message goes back
+ * out — to the door, or to the sender of the message being answered.
  */
 
 #include "sigildata/connection/Connection.h"
 
+#include <sigildata/decode/FlatBuffer.h>
 #include <sigildata/decode/Osc.h>
 #include <sigilio/hub/Hub.h>
 
@@ -75,6 +76,14 @@ struct Connection::State {
   /** Whether a message is an OSC packet rather than JSON text, read off
    *  the scheme once, when the door is opened. */
   bool osc = false;
+  /** THE ONE DYNAMIC VALUE ON THIS WIRE, where the door was opened with
+   *  one: every message in and out goes through it, and the form a
+   *  reader sees is the schema's own. None for a door read as the
+   *  scheme alone says. */
+  Schema schema;
+  /** Why this door was never opened, where it was refused. It stands in
+   *  front of whatever the feed would say, there being no feed. */
+  std::string trouble;
   /** What the undelivered queue holds before its oldest falls off. */
   size_t capacity = 0;
   std::shared_ptr<io::Feed> feed;
@@ -115,10 +124,36 @@ struct Connection::State {
   io::DispatchLease lease;
 
   /** One arrival as a value, or nothing when the bytes are no message
-   *  in this connection's scheme. */
+   *  in this connection's scheme, or no message its schema holds. */
   std::optional<Json> read(const io::Bytes& bytes) const {
     if (osc) return decodeOsc(std::span<const std::byte>(bytes.bytes));
-    return decodeJson(bytes.asText());
+    if (!schema) return decodeJson(bytes.asText());
+    return readThroughSchema(bytes);
+  }
+
+  /** ONE ARRIVAL THROUGH THE SCHEMA, in whichever form it came: the
+   *  schema's JSON form is parsed to a buffer first, a buffer is taken
+   *  as it stands, and either is rendered back out of the schema. So
+   *  what a reader sees is the schema's own form both ways, and an
+   *  arrival that does not fit the schema is no message rather than a
+   *  value carrying whichever fields it happened to have.
+   *
+   *  Which form an arrival is in is read the way a resource's is: from
+   *  the door's NAME where it ends `.json`, and otherwise from the
+   *  first byte that is not a space, the JSON form opening with a brace
+   *  or a bracket. */
+  std::optional<Json> readThroughSchema(const io::Bytes& bytes) const {
+    std::optional<std::string> form;
+    if (flatBufferLooksLikeJson(bytes.asText(), uri)) {
+      const std::optional<std::vector<std::byte>> buffer =
+          schema.binary(bytes.asText());
+      if (!buffer) return std::nullopt;
+      form = schema.text(*buffer);
+    } else {
+      form = schema.text(bytes.bytes);
+    }
+    if (!form) return std::nullopt;
+    return decodeJson(*form);
   }
 
   /** Puts @p message under @p name, as the newest message of that name.
@@ -144,11 +179,23 @@ struct Connection::State {
   }
 
   /** ONE MESSAGE ON THIS DOOR'S WIRE: the packet an OSC door is read
-   *  by, the JSON text every other door is. Nothing where the value has
-   *  no spelling there — no bytes is no message, and a value the wire
-   *  cannot hold does not go out as an empty datagram. */
+   *  by, the buffer a door with a schema is, the JSON text every other
+   *  door is. Nothing where the value has no spelling there — no bytes
+   *  is no message, and a value the wire cannot hold does not go out as
+   *  an empty datagram. */
   std::optional<io::Bytes> write(const Json& message) const {
-    if (!osc) return textBytes(encodeJson(message));
+    if (!osc) {
+      if (!schema) return textBytes(encodeJson(message));
+      // Through the schema where the door has one: what goes out is the
+      // buffer the message makes, and a message the schema cannot hold
+      // is no message rather than text nobody at the far end reads.
+      std::optional<std::vector<std::byte>> buffer =
+          schema.binary(encodeJson(message));
+      if (!buffer) return std::nullopt;
+      io::Bytes bytes;
+      bytes.bytes = std::move(*buffer);
+      return bytes;
+    }
     std::vector<std::byte> packet = encodeOsc(message);
     if (packet.empty()) return std::nullopt;
     io::Bytes bytes;
@@ -160,7 +207,9 @@ struct Connection::State {
   std::optional<io::Bytes> write(std::string_view address,
                                  const Json& arguments) const {
     // Off the OSC wire the same message is the record a packet reads
-    // as, which is the form a name is read out of at the other end.
+    // as, which is the form a name is read out of at the other end — and
+    // a door with a schema writes that record through it, so it goes out
+    // only where the schema declares those two fields.
     if (!osc)
       return write(Json(Json::Object{{"address", Json(std::string(address))},
                                      {"arguments", arguments}}));
@@ -227,11 +276,24 @@ struct Connection::State {
 };
 
 Connection::Connection(io::Hub& hub, std::string_view uri,
+                       io::FeedPolicy policy)
+    : Connection(hub, uri, Schema{}, policy) {}
+
+Connection::Connection(io::Hub& hub, std::string_view uri, Schema schema,
                        io::FeedPolicy policy) {
   auto state = std::make_shared<State>();
   state->uri = std::string(uri);
   state->osc = schemeOf(state->uri) == "osc";
   state->capacity = policy.capacity;
+  state->schema = std::move(schema);
+  if (state->osc && state->schema) {
+    // OSC spells every value itself, down to the width a number goes
+    // out at, and a buffer is not one of those spellings. The door is
+    // not opened at all, so nothing is bound and nothing arrives.
+    state->trouble = "a schema reads a FlatBuffer wire, not OSC";
+    m_state = std::move(state);
+    return;
+  }
   state->feed = hub.feed(state->uri, policy);
   // The dispatch knows the state weakly: the state owns the lease, and
   // a lease owning the state back would keep both standing after the
@@ -317,7 +379,9 @@ std::string Connection::address() const {
 }
 
 std::string Connection::error() const {
-  return m_state && m_state->feed ? m_state->feed->error() : std::string();
+  if (!m_state) return {};
+  if (!m_state->trouble.empty()) return m_state->trouble;
+  return m_state->feed ? m_state->feed->error() : std::string();
 }
 
 uint64_t Connection::dropped() const {

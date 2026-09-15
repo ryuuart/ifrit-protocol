@@ -27,8 +27,8 @@ what a consumer uses; every public header lives under
 |--------|---------|-------|
 | `SigilDataScale` | `scale/Scale.h` | `Interval`, `Transform`, `Overflow` and `Scale` — the mapping, its inverse, its tick ladder and `nice()` |
 | `SigilDataTable` | `table/Table.h` | `Instant`, `Flag`, `Value`, `ColumnType`, `Order`, `Column` and `Table` — named typed columns, the cells as spans, and the reshapings |
-| `SigilDataDecode` | `decode/Csv.h`, `decode/Json.h`, `decode/Decoders.h`, `decode/FlatBuffer.h`, `decode/Osc.h` | `CsvOptions`, `decodeCsv()`, `decodeInstant()`; `Json`, `decodeJson()`, `encodeJson()`, `tableFromJson()`; `TableDecoder`, `JsonDecoder` and `registerDecoders(hub)` — the two decoders and the one call that puts them on a hub; `FlatBuffer`, `FlatBufferDecoder`, `flatBufferFromBytes()`, `flatBufferFromJson()` and `registerFlatBuffer(hub)` — a FlatBuffer as a value, read in place through the schema its generated root carries; and `decodeOsc()`, `encodeOsc()` and `maxOscPacketBytes` — an OSC packet read into a `Json` and written back out of one |
-| `SigilDataConnection` | `connection/Connection.h` | `Connection` — a feed read as values: the newest message, the ones a reader has not taken once it has asked for them, the handlers a message's name reaches and the `Connection::otherwise()` one that runs when no name did, the two ways a message goes back out the same door, and `Connection::reply()`, which answers the sender of one |
+| `SigilDataDecode` | `decode/Csv.h`, `decode/Json.h`, `decode/Decoders.h`, `decode/FlatBuffer.h`, `decode/Osc.h` | `CsvOptions`, `decodeCsv()`, `decodeInstant()`; `Json`, `decodeJson()`, `encodeJson()`, `tableFromJson()`; `TableDecoder`, `JsonDecoder` and `registerDecoders(hub)` — the two decoders and the one call that puts them on a hub; `FlatBuffer`, `FlatBufferDecoder`, `flatBufferFromBytes()`, `flatBufferFromJson()` and `registerFlatBuffer(hub)` — a FlatBuffer as a value, read in place through the schema its generated root carries, with `Schema` and `schema<Root>()` — that schema as one copyable value, which converts a buffer to its JSON form and a JSON form back to a buffer with the root named once; and `decodeOsc()`, `encodeOsc()` and `maxOscPacketBytes` — an OSC packet read into a `Json` and written back out of one |
+| `SigilDataConnection` | `connection/Connection.h` | `Connection` — a feed read as values: the newest message, the ones a reader has not taken once it has asked for them, the handlers a message's name reaches and the `Connection::otherwise()` one that runs when no name did, the two ways a message goes back out the same door, the schema a door may read and write every message through, and `Connection::reply()`, which answers the sender of one |
 | `SigilDataQuery` | `query/Database.h` | `Engine`, `Database` and `DatabaseDecoder`, with `engineOf()` — a SQL store behind one seam, SQLite or DuckDB, whose `query()` answers a `Table`, whose `insert()` writes one in, and whose decoder puts a `.sqlite` or `.duckdb` file on a hub |
 
 `SigilData` is the umbrella target over them, and `<sigildata/Data.h>`
@@ -257,6 +257,27 @@ otherwise from its first byte that is not a space. `flatBufferFromBytes()` and
 `flatBufferFromJson()` are the same two readings for a caller holding bytes of
 its own, with the parser's own message where they refuse.
 
+**A schema is one token.** `schema<Root>()` is the schema itself as a
+value: the binary schema the generated header carries, read once and
+held behind a shared pointer, so copying it costs a pointer and every
+copy is the same schema. `Schema::text()` answers a buffer's own JSON
+form, verified against the root before a byte of it is read, and
+`Schema::binary()` answers the buffer that form makes, refusing text the
+schema cannot hold; `Schema::rootName()` says which root both go
+through, which is the root the schema FILE declares rather than the type
+the token was spelled with, a generated header embedding its file's
+whole schema beside every type in it. That is what lets the root be
+named once and never again: a door reading a wire holds the token, not
+the type.
+
+The two conversions come to rest in the schema's form. That form quotes
+its field names, breaks no lines, and writes every scalar the schema
+declares even where the buffer left it at its default, so a reader that
+indexes a field finds it whatever arrived and text converted twice is
+text converted once. The parser behind the token holds one buffer and
+one message of its own, so it takes a lock around each conversion and
+one schema serves however many doors ask of it.
+
 **OSC is a dialect of the same value.** Open Sound Control is what the
 performance tools speak to one another — a lighting desk, a control
 surface, a patcher — and here it is one more way to spell the one
@@ -323,6 +344,30 @@ while (const std::optional<Json> message = sky.receive()) log(*message);
 sky.send("/sky/ack", Json::Array{1});         // back out the same door
 if (sky.undecodable()) warn("something is speaking another language");
 ```
+
+**A door may be read through a schema.** A connection opened with one
+— the sketch's own, `schema<Sky>()`, handed to it as it opens — puts
+every message through that schema: an arrival in the schema's JSON form
+is parsed to a buffer and rendered back out of it, an arrival that is a
+buffer is verified against the schema's root and rendered out the same
+way, and what `latest()`, `receive()` and a handler see is the schema's
+own JSON form whichever form the sender wrote. So a message that does
+not FIT the schema — a field it does not declare, a value of the wrong
+type, a buffer of another schema — is `undecodable()` rather than a
+`Json` carrying whichever fields it happened to have, and a scene
+drawing from a field it named knows that field means what the schema
+says. Which form an arrival is in is read the way a resource's is: from
+the door's NAME where it ends `.json`, and otherwise from the first byte
+that is not a space.
+
+Going back out, `Connection::send()` and `Connection::reply()` write the
+buffer the schema makes of the message and are false where it does not
+fit — which the address-and-arguments spelling does not, unless the
+schema declares those two fields. An `osc://` door takes no schema and
+is refused as it is opened: no feed is bound, nothing arrives, and
+`Connection::error()` says so, OSC being a wire with its own spelling of
+every value, down to the width a number goes out at, and a buffer not
+being one of those spellings.
 
 **Nothing drives it but the frame.** Opening a connection registers it
 on the hub's dispatch, so the one call a host already makes,
@@ -518,7 +563,8 @@ SigilGeometry, not here.
 alone. `SigilDataDecode` adds `SigilIOSource` — the byte vocabulary, and
 nothing else of SigilIO — a JSON parser that reaches no public header,
 and flatbuffers, whose verifier and schema parser the FlatBuffer decoder
-reads through and whose generated roots a consumer spells. The OSC codec
+reads through, whose reflection verifier and text generator a `Schema`
+reads through, and whose generated roots a consumer spells. The OSC codec
 takes nothing at all: it reads and writes the wire itself. It does NOT
 link the hub: `registerDecoders` and `registerFlatBuffer` are templates
 over it, so the dependency runs one way and SigilIO gains nothing, which
@@ -571,7 +617,11 @@ transport with no socket under it — what a case sends lands in a vector
 it owns, and what arrives it delivers into the feed itself — so which
 handler a message reaches, what `receive()` hands out, what an unreadable
 message costs, what goes out on either kind of door and how a recording
-replays are all judged on one thread with no port to be free; and
+replays are all judged on one thread with no port to be free, and
+whose schema cases put the decode feature's own test schema behind a
+door — the two conversions and what they refuse, an arrival in either
+form, one that does not fit, and the buffer a send writes — so the
+token and the door read through it are judged together; and
 `data_bench`, which times one mapping per call on each transform a
 per-mark loop runs through and the tick ladder a redraw rebuilds, the
 reshapings a redraw runs, and both formats read from bytes already in

@@ -1,0 +1,25 @@
+// feed_sky.fbs — the sky that keeps arriving, as this sketch reads it.
+//
+// One message is a whole Sky rather than a change to one: the bands
+// crossing the canvas, the wind they drift on, and the palette they are
+// tinted from. So a reader that fell behind draws what is true now
+// instead of replaying every step that led to it, and a door that has
+// heard nothing yet has nothing to draw.
+namespace feed_sky;
+
+struct Vec2 { x: float; y: float; }
+struct Color { r: float; g: float; b: float; a: float; }
+
+table Band {
+  height: float;  // in canvas pixels
+  speed: float;   // its own drift, added to the wind's
+  wobble: float;  // how far it breathes up and down
+}
+
+table Sky {
+  bands: [Band];
+  wind: Vec2;       // pixels per second, the drift every band shares
+  palette: [Color]; // one per band, cycled when there are fewer
+}
+
+root_type Sky;

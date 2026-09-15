@@ -32,6 +32,12 @@
  * Between two dispatches a connection answers exactly what the last one
  * left it, so every reading a frame takes agrees with every other.
  *
+ * A SCHEMA IS THE OTHER WAY A MESSAGE IS READ. A connection opened with
+ * one — `Connection(hub, uri, schema<Sky>())` — reads and writes every
+ * message through it, so what a reader sees is the schema's own JSON
+ * form whichever form the sender wrote and a message that does not FIT
+ * the schema is no message at all.
+ *
  * ONE THREAD. The value, the queue and the handlers are written and
  * read on the dispatching thread — the frame's — so a connection holds
  * no lock of its own; the feed underneath is the thread-safe part, and
@@ -41,6 +47,7 @@
  * each seeing all of them.
  */
 
+#include <sigildata/decode/FlatBuffer.h>
 #include <sigildata/decode/Json.h>
 #include <sigilio/hub/Feed.h>
 
@@ -76,6 +83,35 @@ class Connection {
    *  text. @p policy is the feed's, and bounds what receive() holds as
    *  well. */
   Connection(io::Hub& hub, std::string_view uri, io::FeedPolicy policy = {});
+
+  /** Opens @p uri on @p hub as the constructor above does, and reads
+   *  and writes every message THROUGH @p schema — the one a sketch's
+   *  own `.fbs` generates, `schema<Sky>()`.
+   *
+   *  BOTH FORMS ARRIVE THROUGH IT. An arrival whose bytes are the
+   *  schema's JSON form — read from the door's name where it ends
+   *  `.json`, and otherwise from the arrival's first byte that is not a
+   *  space, since the JSON form opens with a brace or a bracket — is
+   *  parsed through the schema and rendered back out of it; an arrival
+   *  that is a buffer is verified against the schema's root and
+   *  rendered out of it the same way. So latest(), receive() and every
+   *  handler see the schema's own JSON form whichever form the sender
+   *  wrote, and a message that does not FIT the schema — a field it
+   *  does not declare, a value of the wrong type, a buffer of another
+   *  schema — is undecodable() rather than a value carrying whichever
+   *  fields it happened to have.
+   *
+   *  GOING BACK OUT, send() and reply() write the buffer the schema
+   *  makes of the message and are false where it does not fit — which
+   *  the address-and-arguments spelling does not, unless the schema
+   *  declares those two fields.
+   *
+   *  AN `osc://` DOOR TAKES NO SCHEMA and is refused as it is opened:
+   *  no feed is bound, nothing arrives, and error() says so. OSC is a
+   *  wire with its own spelling of every value, down to the width a
+   *  number goes out at, and a buffer is not one of those spellings. */
+  Connection(io::Hub& hub, std::string_view uri, Schema schema,
+             io::FeedPolicy policy = {});
 
   Connection(Connection&&) noexcept = default;
   Connection& operator=(Connection&&) noexcept = default;
@@ -174,7 +210,9 @@ class Connection {
   /** The local end as the transport bound it, or empty. */
   std::string address() const;
 
-  /** What went wrong at the door; empty when nothing did. */
+  /** What went wrong at the door; empty when nothing did. A door that
+   *  was REFUSED as it opened — an `osc://` one handed a schema — says
+   *  so here and stays shut, nothing being bound for it. */
   std::string error() const;
 
   /** Arrivals the feed dropped before this connection drained them: a
@@ -184,9 +222,10 @@ class Connection {
    *  anywhere. */
   uint64_t dropped() const;
 
-  /** Arrivals that were no message in this connection's scheme. They
-   *  reach no reader, so a sender speaking the wrong language is seen
-   *  here rather than in the drawing. */
+  /** Arrivals that were no message in this connection's scheme, and,
+   *  where it has a schema, arrivals that did not fit it. They reach no
+   *  reader, so a sender speaking the wrong language is seen here
+   *  rather than in the drawing. */
   uint64_t undecodable() const;
 
   /** Whether nothing more is coming. A connection onto nothing is

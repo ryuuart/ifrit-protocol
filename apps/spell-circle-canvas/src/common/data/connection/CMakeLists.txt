@@ -11,6 +11,9 @@ sigil_library(SigilDataConnection
 # The cases put a connection on a real hub with a transport that has no
 # socket under it, so what a message decodes to, which handler it
 # reaches and what goes back down the wire are judged without a port.
+# The schema cases read through the test schema the decode feature
+# generates, whose include directory and dependency stand on data_test
+# already: one schema serves the token and the door over it.
 sigil_test(data_test
-  SOURCES test/ConnectionTest.cpp
+  SOURCES test/ConnectionTest.cpp test/SchemaTest.cpp
   LIBRARIES SigilDataConnection)
