@@ -62,6 +62,16 @@ sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder& recorder, void* mtlTexture,
                          sk_sp<SkColorSpace> colorSpace = nullptr);
 
 /**
+ * THE WHOLE OF @p mtlTexture, at the size the texture itself reports —
+ * for the caller handed a texture somebody else made, whose extent is
+ * that texture's own fact and not one worth restating. Everything else
+ * is the wrap above.
+ */
+sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder& recorder, void* mtlTexture,
+                         SkAlphaType alphaType = kPremul_SkAlphaType,
+                         sk_sp<SkColorSpace> colorSpace = nullptr);
+
+/**
  * ONE IMAGE OUT OF SEVERAL PLANES that each stand on the device — a
  * frame decoded straight into luma and chroma textures, most often —
  * wrapped as @p info describes them, with no copy and no conversion

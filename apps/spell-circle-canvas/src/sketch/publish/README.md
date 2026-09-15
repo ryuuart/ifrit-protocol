@@ -164,6 +164,11 @@ A subscription tells the system to keep delivering those announcements
 while its application is not the active one, since an application wearing
 another's picture is by definition behind the one drawing it.
 
+**What a sketch reaches for is not this.** `sigil::sketch::Guest`, in
+`<sigilsketch/canvas/Guest.h>`, is the subscription with the wrap
+already done — the newest frame as an `SkImage` on the recorder a canvas
+is drawing through — and `guest_picture` is the sketch that wears one.
+
 ## Receiver — the other side
 
 `Receiver` is a macOS application of its own (AppKit and Metal, no Qt),

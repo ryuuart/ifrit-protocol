@@ -115,7 +115,9 @@ It takes the RECORDER rather than the context, because that is what a
 wrap is recorded on, and a thread with a recorder of its own — a web
 renderer, a decoder — hands that one over. The texels are read as the
 format the texture itself declares; the alpha type and the colour space
-are the two things a texture cannot say for itself.
+are the two things a texture cannot say for itself. A caller wrapping the
+WHOLE of a texture somebody else made leaves the width and the height out
+and the texture is read at its own — `wrapImage(*recorder, mtlTexture)`.
 
 **The image holds the texture.** A wrap retains it and releases it when
 the last image naming it is gone, so an image outliving the view or the

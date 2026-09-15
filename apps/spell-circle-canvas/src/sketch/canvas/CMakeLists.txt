@@ -1,10 +1,11 @@
 # The canvas runtime: the 2D sketch surface and the session that drives
 # it — a clock, a ticker and a Composer wired together, with one sketch
-# body describing into them. The test walks through both doors, so it
+# body describing into them, and the guest a body wears another
+# application's picture as. The test walks through both doors, so it
 # links what a sketch doing the same would: the compose leaf that keeps
 # the scene, and the world it bakes.
 sigil_test(sketch_test
-  SOURCES test/CanvasSessionTest.cpp
+  SOURCES test/CanvasSessionTest.cpp test/GuestTest.cpp
   LIBRARIES SigilSketch SigilComposeTexture SigilWorldElement
             SigilWorldFrame SigilGeometryKit SigilMaterialKit
             SigilWeavePorts)

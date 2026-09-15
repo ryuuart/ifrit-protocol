@@ -43,6 +43,13 @@ sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder &recorder, void *mtlTexture, 
   return image;
 }
 
+sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder &recorder, void *mtlTexture,
+                         SkAlphaType alphaType, sk_sp<SkColorSpace> colorSpace) {
+  id<MTLTexture> texture = (__bridge id<MTLTexture>)mtlTexture;
+  return wrapImage(recorder, mtlTexture, (int)texture.width, (int)texture.height, alphaType,
+                   std::move(colorSpace));
+}
+
 sk_sp<SkImage> wrapPlanarImage(skgpu::graphite::Recorder &recorder,
                                std::span<const TexturePlane> planes, const SkYUVAInfo &info,
                                sk_sp<SkColorSpace> colorSpace, TextureRelease release,

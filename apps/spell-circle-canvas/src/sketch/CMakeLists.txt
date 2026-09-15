@@ -55,7 +55,7 @@ find_package(EnTT CONFIG REQUIRED)
 set(SIGIL_SKETCH_SOURCES
   core/Assets.cpp core/Crash.cpp core/Device.cpp core/Registry.cpp
   core/Sources.cpp
-  canvas/Context.cpp canvas/Session.cpp
+  canvas/Context.cpp canvas/Guest.cpp canvas/Session.cpp
   set/Context.cpp set/Session.cpp
   live/BuildDirectory.cpp live/Host.cpp live/Residency.cpp live/SkewGuard.cpp
   plate/Compare.cpp plate/Graphite.cpp plate/Story.cpp plate/Sweep.cpp
@@ -63,7 +63,7 @@ set(SIGIL_SKETCH_SOURCES
 set(SIGIL_SKETCH_HEADERS
   core/Assets.h core/CanvasSpecification.h core/Crash.h core/Device.h core/Fit.h
   core/Kind.h core/Members.h core/Registry.h core/Session.h core/Sources.h
-  canvas/Sketch.h
+  canvas/Guest.h canvas/Sketch.h
   set/Set.h
   live/Host.h live/Residency.h
   plate/Compare.h plate/FrameStats.h plate/Graphite.h plate/Story.h
@@ -81,6 +81,11 @@ set(SIGIL_SKETCH_PUBLIC
   SigilWorldLight
   SigilDraw EnTT::EnTT Boost::container)
 set(SIGIL_SKETCH_PRIVATE
+  # The door a frame arrives by. A canvas can wear another application's
+  # picture, so the archive that draws reaches the subscription — the
+  # publisher beside it is still nobody's but the host's, and neither
+  # protocol reaches a header.
+  SigilSketchPublish
   SigilDataDecode
   SigilDataQuery
   SigilIOSource SigilCoreSchedule SigilImage SigilImageDecode
@@ -122,11 +127,12 @@ endif()
 # a seam and the house one is a stock value over it.
 add_subdirectory(kit)
 
-# The door a drawn frame leaves by: one abstract publisher over the
-# graphics API's own handles, and the macOS server behind it. A seam of
-# its own rather than part of the archive above, because it draws
-# nothing and nothing that draws needs it: the one host that publishes
-# links it, and every other consumer of this library never sees Syphon.
+# Both ends of the door a frame goes through: one abstract publisher and
+# one abstract subscription over the graphics API's own handles, with the
+# macOS protocol behind them. A seam of its own rather than part of the
+# archive above, because it draws nothing: a host publishes what it drew
+# by holding one, and a canvas wears another application's picture by
+# holding the other, neither of them spelling a protocol anywhere.
 add_subdirectory(publish)
 
 # The sketches themselves, compiled into whichever host links them.
