@@ -928,10 +928,10 @@ disk kept out of every timed loop — and THE WIRES' OWN ARMS beside them,
 one per door with both ends of that door standing in the binary, a batch
 of messages sent through one feed and counted arrived on the feed at the
 other, so what such a row says is the messages a second that door
-carries end to end. WebRTC has no arm: both ends of one conversation
-inside a single process is the arrangement the library under that door
-can end the process from, and an arm whose two ends were two processes
-would time the pipe between them beside the door); `SigilIOTransport` (static
+carries end to end, the WebRTC arm among them with both ends of one
+conversation standing in the one process, which the library under that
+door survives now that it comes from the registry with its throws
+guarded); `SigilIOTransport` (static
 library, `transport/` — the UDP transport and the one thread its
 sockets run on, behind the private `transport/IoThread.h`, the
 WebSocket listener and the loop each one holds, the WebSocket client
@@ -977,12 +977,14 @@ STARTS A PEER IN A PROCESS OF ITS OWN — this same binary, run again on
 the one case of `IOWebRtcPeer`, which takes the room up, keeps saying
 what its environment told it to say and echoes back whatever it hears —
 because a door with nothing in the middle of it has its two ends on two
-machines, and two ends inside one process would share the one thread
-every end's routes are found on; it takes a port with a raw acceptor and
-gives it straight back to name one in the URI both ends spell, and
-dispatches on every look, an introduction crossing on the frame. Its
-peer case is skipped where no room was named for it, which is what a
-sweep of the whole binary does with it; and `SigilIO`, the umbrella over
+machines; one case holds both ends in this process on purpose, a dozen
+pairs over, since two ends inside one process share the one thread every
+end's routes are found on, and what that case asserts is the process
+still standing and the pairs carrying a message at all. It takes a port
+with a raw acceptor and gives it straight back to name one in the URI
+both ends spell, and dispatches on every look, an introduction crossing
+on the frame. Its peer case is skipped where no room was named for it,
+which is what a sweep of the whole binary does with it; and `SigilIO`, the umbrella over
 the source and the hub.
 
 There is one test binary, `io_test`, built from every feature's `test/`
