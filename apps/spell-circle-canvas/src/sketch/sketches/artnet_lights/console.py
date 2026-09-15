@@ -85,7 +85,7 @@ LAMP_CHANNELS = 3
 
 def art_dmx(universe, sequence, levels):
     """The bytes of one universe of dimmers."""
-    held = [max(0, min(255, int(round(level)))) for level in levels]
+    held = [max(0, min(255, round(level))) for level in levels]
     # The wire counts its dimmers in pairs, so an odd list goes out with
     # one more at nothing behind it.
     if len(held) % 2:
