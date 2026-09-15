@@ -1,6 +1,7 @@
 /** @file
- * The session: opening and closing wires, choosing the one to read,
- * recording and replaying, and the frame that moves all of it.
+ * The session: opening and closing wires, choosing the one to read, the
+ * peer a run is pointed at and the one thing it says, recording and
+ * replaying, and the frame that moves all of it.
  */
 
 #include "SeerSession.h"
@@ -12,11 +13,14 @@
 #include <deque>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
 QStringList SeerSession::opensOn;
 QString SeerSession::readsThrough;
+QString SeerSession::sendsTo;
+std::optional<QString> SeerSession::says;
 bool SeerSession::photographed = false;
 
 namespace {
@@ -45,6 +49,21 @@ SeerSession::SeerSession(QObject* parent) : QObject(parent) {
   // the wire a reader is watching is the one they named first; the rest
   // are named to have them open beside it.
   if (!opensOn.isEmpty()) select(0);
+  // The peer is opened where the wires are, before the first frame, so
+  // the send pane comes up on the form that peer's own dialect asks for
+  // rather than on an editor for a moment; a peer nothing can open
+  // stands in the list with the sentence that says why, as every other
+  // wire does.
+  if (!sendsTo.isEmpty()) {
+    m_sendForm.setPeerUri(sendsTo);
+    m_sendForm.reachPeer();
+  }
+  // The form is filled in here as well, so the pane comes up holding
+  // what this run has to say and a picture of it is a picture of the
+  // message that went out. It is sent a frame later, and not filled in
+  // then: an editor reads what it holds as it is built and is the
+  // reader's to type into afterwards.
+  if (says) m_unsaid = m_sendForm.fill(*says);
 }
 
 SeerSession::~SeerSession() = default;
@@ -77,6 +96,14 @@ void SeerSession::tick() {
   m_wires.dispatch(seconds);
   m_wires.tick(seconds);
   m_sender.tick(seconds);
+  // What a run was given to say goes out on a frame rather than as the
+  // session was made: every wire it opened is standing and being read by
+  // then, so a message said to a port this same run listens on crosses
+  // onto a wire a reader is already watching.
+  if (m_unsaid) {
+    m_unsaid = false;
+    m_sendForm.sendOnce();
+  }
 
   if (const std::shared_ptr<sigil::io::Feed> feed = selectedFeed()) {
     const size_t taken = m_log.drain(*feed);

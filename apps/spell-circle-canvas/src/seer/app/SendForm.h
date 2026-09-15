@@ -118,6 +118,23 @@ class SendForm : public QObject {
   /** Sends what the editor holds, once. */
   Q_INVOKABLE void sendOnce();
 
+  /** Fills the form in with @p said, the way a reader would have typed
+   *  it. WHAT THE PEER SPEAKS DECIDES WHAT @p said IS: on a wire that
+   *  carries anything it is the editor, and so are the arguments under
+   *  an OSC address and the dimmers of a universe; an instrument has no
+   *  editor, so it is the words of its form — "NoteOn 1 60 100", the
+   *  kind, the channel and the numbers that kind carries. False when the
+   *  peer's own dialect cannot spell it, with the note saying so, and
+   *  the form left holding what it held. */
+  bool fill(const QString& said);
+
+  /** Opens the peer the form is pointed at, before there is anything to
+   *  send, so a peer named rather than typed stands in the wire list
+   *  with the rest and a peer nothing can open says why straight away.
+   *  False when there is none, with the note saying what is wrong with
+   *  it. */
+  bool reachPeer();
+
   /** Sends @p bytes to the peer without touching the editor, which is
    *  how an arrival is echoed. */
   bool echo(const sigil::io::Bytes& bytes);
@@ -142,11 +159,6 @@ class SendForm : public QObject {
   /** The bytes the editor spells, or nothing when it spells none — which
    *  leaves the note saying which character stopped it. */
   std::optional<sigil::io::Bytes> messageBytes();
-
-  /** Opens the peer when the URI names one this is not already speaking
-   *  to. False when there is no peer to send through, with the note
-   *  saying why. */
-  bool reachPeer();
 
   void setNote(const QString& note);
 

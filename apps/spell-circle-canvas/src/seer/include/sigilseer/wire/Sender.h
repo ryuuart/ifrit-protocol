@@ -62,6 +62,27 @@ io::Bytes oscMessage(std::string_view address, std::string_view arguments);
 io::Bytes midiMessage(std::string_view kind, int channel, int first,
                       int second);
 
+/** ONE MIDI MESSAGE WRITTEN IN WORDS: the kind, the channel it is played
+ *  on, and the numbers that kind carries, which is the same message
+ *  `midiMessage()` spells and is how it is said where there is no form
+ *  to fill in. The second number stands at nothing for a kind that
+ *  carries one, since the wire carries none for it. */
+struct MidiWords {
+  std::string kind;
+  int channel = 1;
+  int first = 0;
+  int second = 0;
+};
+
+/** WHAT @p words SAY: the kind, the channel and the numbers that kind
+ *  carries, blanks between them and nothing else — "NoteOn 1 60 100" for
+ *  a kind that carries two numbers and "ProgramChange 2 7" for a kind
+ *  that carries one. Nothing when the first word is no kind a channel
+ *  carries, when a number is not written out whole, and when there are
+ *  more or fewer numbers than that kind takes, so a number nobody said
+ *  is never played as one they did. */
+std::optional<MidiWords> midiWords(std::string_view words);
+
 /** THE BYTES OF ONE ART-NET PACKET: a universe of dimmers for
  *  @p universe, whose levels @p channels spells as a JSON list of
  *  numbers — each 0 to 255, in the order the desk numbers them, so the

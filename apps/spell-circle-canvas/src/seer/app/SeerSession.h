@@ -25,6 +25,7 @@
 #include <QtCore/QUrl>
 #include <chrono>
 #include <memory>
+#include <optional>
 
 #include "MessageList.h"
 #include "SendForm.h"
@@ -85,6 +86,19 @@ class SeerSession : public QObject {
    *  thing once the window is up, but a picker needs a person, so a run
    *  that is driven from a script names the file here. */
   static QString readsThrough;
+
+  /** The peer the send pane opens on: what `--peer` named, pointed at
+   *  before the window comes up, so the pane already stands on the form
+   *  that peer's own dialect asks for. A peer nothing can open is opened
+   *  all the same and stands in the wire list carrying the sentence that
+   *  says why, which is what a reader who typed it would be shown. */
+  static QString sendsTo;
+
+  /** The one message a run says down that peer: what `--say` named, sent
+   *  on the first frame and never again. Nothing when the command line
+   *  said nothing — which is different from an empty message, that being
+   *  a thing a wire carries. */
+  static std::optional<QString> says;
 
   /** Whether this run is here to be photographed. What is read back off
    *  a window is the frames that window drew, and the machine's glass is
@@ -175,4 +189,6 @@ class SeerSession : public QObject {
   QString m_recordingPath;
   QString m_schemaRoot;
   bool m_recording = false;
+  /** Whether what a run was given to say is still to be said. */
+  bool m_unsaid = false;
 };

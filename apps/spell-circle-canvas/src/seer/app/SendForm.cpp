@@ -1,7 +1,7 @@
 /** @file
  * The send pane's state: the form the peer's own dialect asks for,
- * reading what it holds as bytes, reaching the peer, and the one message
- * or the repeat that goes out.
+ * reading what it holds as bytes, filling it in from what a run says,
+ * reaching the peer, and the one message or the repeat that goes out.
  */
 
 #include "SendForm.h"
@@ -13,6 +13,7 @@
 #include <QtCore/QLatin1String>
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -189,6 +190,29 @@ void SendForm::sendOnce() {
   }
   setNote({});
   refresh();
+}
+
+bool SendForm::fill(const QString& said) {
+  // An instrument is the one peer with no editor in front of it, so
+  // what is said fills that form's own fields. Every other peer holds
+  // its message where a reader would have typed it.
+  if (dialect() != QLatin1String("midi")) {
+    setMessage(said);
+    return true;
+  }
+  const std::optional<sigil::seer::MidiWords> words =
+      sigil::seer::midiWords(said.toStdString());
+  if (!words) {
+    setNote(QStringLiteral(
+        "no message: a kind, a channel and the numbers it carries, as in "
+        "\"NoteOn 1 60 100\""));
+    return false;
+  }
+  setMidiKind(QString::fromStdString(words->kind));
+  setMidiChannel(words->channel);
+  setMidiFirst(words->first);
+  setMidiSecond(words->second);
+  return true;
 }
 
 bool SendForm::echo(const sigil::io::Bytes& bytes) {

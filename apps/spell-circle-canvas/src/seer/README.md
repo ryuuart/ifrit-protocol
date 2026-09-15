@@ -21,6 +21,10 @@ build/bin/Release/Seer.app/Contents/MacOS/Seer osc://:27050 ws://:27060/sky
 build/bin/Release/Seer.app/Contents/MacOS/Seer midi://in/Launchpad artnet://:6454
 build/bin/Release/Seer.app/Contents/MacOS/Seer --schema feed_sky.bfbs udp://:27020
 build/bin/Release/Seer.app/Contents/MacOS/Seer --shot panes.png udp://:27020
+build/bin/Release/Seer.app/Contents/MacOS/Seer udp://:27020 \
+  --peer udp://127.0.0.1:27020 --say "a scene arrives"
+build/bin/Release/Seer.app/Contents/MacOS/Seer \
+  --peer midi://out/virtual:Seer --say "NoteOn 1 60 100"
 ```
 
 Every scheme SigilIO carries is a wire here: `udp://:PORT` and
@@ -134,6 +138,14 @@ address and the levels written as a JSON list of numbers. Each answers
 no bytes at all for a message it cannot spell, so half a message never
 goes out.
 
+`sigil::seer::midiWords()` reads that same instrument's message out of
+the one line it is written on — `sigil::seer::MidiWords`, the kind, the
+channel and the numbers that kind carries, three words where the kind
+carries one — because a form is filled in by hand and whoever is driving
+a run from a script has only a line to say it on. Nothing for words that
+are no message, a number short or a number over included, so a number
+nobody said is never played as one they did.
+
 `sigil::seer::Recorder` writes a wire down with
 `sigil::seer::Recorder::record()` and opens a URI back onto a file with
 `sigil::seer::Recorder::replay()`, which closes whatever was on that URI
@@ -229,7 +241,9 @@ frame's answer rather than three asks a moment apart.
   form — the kind, the channel from 1 to 16, and the one or two numbers
   that kind carries under the names it calls them; and on an `artnet://`
   peer a universe stands beside the peer and the editor is the dimmers
-  under it, as a JSON list of numbers. What is echoed back is the bytes
+  under it, as a JSON list of numbers. A run driven from a script fills
+  that same form in from its command line, so what goes out is what a
+  person standing here would have typed. What is echoed back is the bytes
   that arrived, whatever the wire is, because an echo is the message and
   not a reading of it.
 * **Record and replay** — writing the wire being read to a file, and
@@ -248,12 +262,34 @@ fields typed again every time. `--schema <bfbs>` is the schema file the
 messages are read through, loaded before the first wire is opened so the
 first message to arrive is already read as fields; the window loads one
 through a picker too, but a picker needs a person, so a run driven from
-a script names the file. `--shot` writes the
-window down as a picture once it has run for a moment and then closes
-it, which is how the panes are looked at from a script; a photographed
-run keeps its own opaque ground rather than the machine's glass, because
-the glass lies behind the window and a picture read back off the frames
-cannot reach it. Everything else a session does, it does in the window.
+a script names the file.
+
+`--peer <uri>` is the peer the send pane opens on, opened where the
+wires are so the pane comes up on the form that peer's own dialect asks
+for; a peer nothing can open stands in the list carrying the sentence
+that says why, as every other wire does. `--say <message>` is one
+message down that peer: the form comes up holding it and it goes out on
+a frame, once every wire the run opened is standing — so a message said
+to a port the same run listens on crosses onto a wire already being
+read, which is how a script proves a wire carries anything at all. WHAT
+THE PEER SPEAKS DECIDES WHAT IS SAID: a wire that carries anything takes
+it as the editor's text, an OSC peer as the arguments under its address
+and a desk as the dimmers of its universe, each written the way a reader
+types it; an instrument has no editor, so it takes the words of its form
+— `NoteOn 1 60 100`, the kind, the channel and the numbers that kind
+carries. A message the form cannot spell is not sent and the note says
+so, and something to say with no peer to say it to is refused on the
+command line rather than in the window.
+
+`--shot <png>` writes the window down as a picture once it has run for a
+moment and then closes it, which is how the panes are looked at from a
+script; a photographed run keeps its own opaque ground rather than the
+machine's glass, because the glass lies behind the window and a picture
+read back off the frames cannot reach it. It runs for long enough that a
+wire opened as the window came up has been read and drawn and that a
+message the run said has crossed, so a picture of a peer and a listener
+opened together is a picture of the message on the wire. Everything else
+a session does, it does in the window.
 
 ## Boundary
 

@@ -1,8 +1,9 @@
 /** @file
  * The dialects a wire speaks: what a MIDI message and a universe of
  * dimmers read as, the messages a form spells for a peer that speaks
- * one of them, and the word a wire says before anything has arrived on
- * it.
+ * one of them, the words one of those messages is written in where
+ * there is no form, and the word a wire says before anything has
+ * arrived on it.
  *
  * The readings and the spellings are judged against the codecs' own
  * bytes rather than against a message written out here. A tool that
@@ -204,6 +205,76 @@ TEST(SeerMidi, AMessageIsSpelledFromItsKindItsChannelAndItsNumbers) {
   // A kind the wire has no status byte for is no message at all.
   EXPECT_TRUE(sigil::seer::midiMessage("Applause", 1, 60, 100).bytes.empty());
   EXPECT_TRUE(sigil::seer::midiMessage("", 1, 0, 0).bytes.empty());
+}
+
+TEST(SeerMidi, TheWordsOfAMessageSpellTheMessageItsFieldsDo) {
+  // A message written on one line is the message a form is filled in
+  // with: the words a reader says and the fields a pane holds are two
+  // ways of writing the one thing, so they carry the same bytes.
+  const std::optional<sigil::seer::MidiWords> struck =
+      sigil::seer::midiWords("NoteOn 1 60 100");
+  ASSERT_TRUE(struck.has_value());
+  EXPECT_EQ(struck->kind, "NoteOn");
+  EXPECT_EQ(struck->channel, 1);
+  EXPECT_EQ(struck->first, 60);
+  EXPECT_EQ(struck->second, 100);
+  EXPECT_EQ(sigil::seer::midiMessage(struck->kind, struck->channel,
+                                     struck->first, struck->second)
+                .bytes,
+            sigil::data::encodeMidi(noteOn(1, 60, 100)));
+
+  // Blanks between the words and nothing else, however many of them a
+  // reader left.
+  const std::optional<sigil::seer::MidiWords> turned =
+      sigil::seer::midiWords("  ControlChange   16\t74 32 ");
+  ASSERT_TRUE(turned.has_value());
+  EXPECT_EQ(turned->kind, "ControlChange");
+  EXPECT_EQ(turned->channel, 16);
+  EXPECT_EQ(turned->first, 74);
+  EXPECT_EQ(turned->second, 32);
+
+  // A kind that carries one number is three words, and the second
+  // number stands at nothing because the wire carries none.
+  const std::optional<sigil::seer::MidiWords> chosen =
+      sigil::seer::midiWords("ProgramChange 2 7");
+  ASSERT_TRUE(chosen.has_value());
+  EXPECT_EQ(chosen->first, 7);
+  EXPECT_EQ(chosen->second, 0);
+  EXPECT_EQ(
+      sigil::seer::midiMessage(chosen->kind, chosen->channel, chosen->first,
+                               chosen->second)
+          .bytes,
+      sigil::data::encodeMidi(Json(Json::Object{{"kind", Json("ProgramChange")},
+                                                {"channel", Json(2)},
+                                                {"program", Json(7)}})));
+
+  // A wheel travels either side of its centre, so a minus sign is part
+  // of the number and not the character that stopped it.
+  const std::optional<sigil::seer::MidiWords> leaned =
+      sigil::seer::midiWords("PitchBend 1 -8192");
+  ASSERT_TRUE(leaned.has_value());
+  EXPECT_EQ(leaned->first, -8192);
+}
+
+TEST(SeerMidi, WordsThatAreNoMessageSpellNothingRatherThanHalfOfOne) {
+  // A kind the wire has no status byte for is no message, in words as
+  // in fields.
+  EXPECT_FALSE(sigil::seer::midiWords("Applause 1 60 100").has_value());
+  EXPECT_FALSE(sigil::seer::midiWords("").has_value());
+  EXPECT_FALSE(sigil::seer::midiWords("   ").has_value());
+
+  // One number short of what a kind takes is not a quieter note: a
+  // velocity nobody said would go out as one they did.
+  EXPECT_FALSE(sigil::seer::midiWords("NoteOn 1 60").has_value());
+  EXPECT_FALSE(sigil::seer::midiWords("NoteOn 1").has_value());
+  // And one number more was meant as another kind.
+  EXPECT_FALSE(sigil::seer::midiWords("ProgramChange 2 7 99").has_value());
+
+  // A number read up to the character that stopped it is a number
+  // nobody wrote.
+  EXPECT_FALSE(sigil::seer::midiWords("NoteOn one 60 100").has_value());
+  EXPECT_FALSE(sigil::seer::midiWords("NoteOn 1 60 100velocity").has_value());
+  EXPECT_FALSE(sigil::seer::midiWords("NoteOn 1 6.0 100").has_value());
 }
 
 TEST(SeerDmx, AUniverseIsSpelledFromItsAddressAndItsLevelsAsADocument) {
