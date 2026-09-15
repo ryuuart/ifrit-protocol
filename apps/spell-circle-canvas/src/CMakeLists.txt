@@ -62,5 +62,8 @@ add_subdirectory(common/compose)
 # Above both drawing libraries, and the only place they meet: a sketch may
 # describe a compose Element tree or a world Frame, so this links both.
 add_subdirectory(sketch)
+# Seer stands on the io library alone: the tool that watches the wires
+# a sketch listens on, with no sketch library in it.
+add_subdirectory(seer)
 add_subdirectory(sigilweave)
 add_subdirectory(spellcircle)
