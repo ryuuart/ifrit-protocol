@@ -256,9 +256,104 @@ void registerMidi(Hub& hub);
  *  scheme and never asked for a port starts nothing. */
 void registerSerial(Hub& hub);
 
+/** Installs the gRPC transport on @p hub for the scheme "grpc". ONE
+ *  SCHEME, TWO SHAPES, and the shape of the URI is what says which end
+ *  a feed is. A URI of the form grpc://:PORT/Service/Method holds that
+ *  port and serves that one method, PORT 0 meaning any free port;
+ *  grpc://HOST:PORT/Service/Method (HOST a name, an IPv4 address, or a
+ *  bracketed IPv6 address) calls that method there. BOTH ENDS NAME THE
+ *  METHOD, so a URI carrying a service and nothing after it opens
+ *  nothing and leaves the reason on the feed.
+ *
+ *  THE METHOD IS SCHEMA-AGNOSTIC: it carries bytes in both directions
+ *  and nothing here parses one, so a feed's buffers, its JSON and
+ *  whatever else a sender writes cross it with no generated stub in the
+ *  transport. What a message MEANS is the business of the library that
+ *  owns the format, exactly as on every other door.
+ *
+ *  A SERVER'S PEER IS A CALL AND NOT A CALLER. Every call that arrives
+ *  is a stream of its own, one caller may hold several at once, and
+ *  each message written on one is an arrival naming that call —
+ *  grpc://ADDRESS#NUMBER, the number counting the calls that feed has
+ *  taken. Feed::sendTo() writes on the call it names, send() writes on
+ *  every call standing and is false where none is, and a caller that
+ *  ends its half of the stream ends that peer. The address() such a
+ *  feed reports is grpc://[::]:PORT/Service/Method, every interface of
+ *  both families being one dual-stack listener.
+ *
+ *  A CLIENT HOLDS THE ONE CALL IT OPENED. send() writes one message on
+ *  it, every message the server writes is an arrival naming the URI
+ *  that was called — which is also the address() such a feed reports —
+ *  and Feed::sendTo() is false on it, a client having the one peer it
+ *  called. The server ending the call closes the feed, and a server
+ *  that goes away mid-conversation fails it with the sentence saying
+ *  the call ENDED — which a call that never reached a server at all
+ *  does not say, the two being worth telling apart by reading the
+ *  reason. A channel that has not connected within ten seconds fails
+ *  the feed that way too, and a refused connection says it at once
+ *  instead of waiting the bound out.
+ *
+ *  NO TLS AT EITHER END in this cut, so both a server and a call stand
+ *  on a machine or a network somebody already trusts; a "grpcs" scheme
+ *  carrying credentials is the step after this one and is not
+ *  registered.
+ *
+ *  NO THREAD IS STARTED FOR A FEED. gRPC runs threads of its own and
+ *  calls back onto them, so a server's callers and a client's stream
+ *  are carried without this library holding a loop, an executor or a
+ *  completion queue of its own. */
+void registerGrpc(Hub& hub);
+
+/** Installs the WEBRTC transport on @p hub for the scheme "webrtc". A
+ *  URI of the form webrtc://ROOM?signal=URI holds one conversation,
+ *  named ROOM, between this end and however many peers take it up, and
+ *  every message crosses STRAIGHT between them: two ends that have
+ *  found each other speak over no server, which is what lets a phone on
+ *  a mobile network reach a scene behind a router.
+ *
+ *  NEITHER END CAN DIAL THE OTHER, so they are introduced. `signal`
+ *  names the ws:// or wss:// URI that introduction crosses, opened on
+ *  @p hub as any other feed is, and THE SHAPE OF THAT URI SAYS WHICH
+ *  END THIS ONE IS: ws://:PORT/PATH is a port to hold, so this feed
+ *  WAITS to be taken up and answers whoever offers; ws://HOST:PORT/PATH
+ *  is a server to call, so this feed TAKES A ROOM UP and offers into
+ *  it. What crosses that door is JSON text —
+ *  {"kind":"offer","room":…,"sdp":…}, the same with "answer", and
+ *  {"kind":"candidate","room":…,"candidate":…,"mid":…} — each naming
+ *  its room, so one socket carries as many conversations as there are
+ *  rooms on it and a door reads only its own. The signalling feed is
+ *  the transport's own to drain: a reader that drains it too takes
+ *  introductions away from the doors on it. ?ice=stun:HOST:PORT names a
+ *  server asked what address this machine has to the world, may be
+ *  given more than once, and is needed for two ends on different
+ *  networks and for neither of two on one.
+ *
+ *  THE FRAME CARRIES THE INTRODUCTION. Hub::dispatch() is what reads
+ *  the signalling door and answers it, so a handshake takes a few
+ *  frames and a host that never dispatches never finishes one. What
+ *  arrives on a channel is not frame-paced: it is delivered the moment
+ *  it lands.
+ *
+ *  ONE PEER PER CONNECTION, on a channel named "feed". Every message
+ *  arriving on one is an arrival naming that peer —
+ *  webrtc://ROOM#NUMBER, the number counting the peers this feed has
+ *  taken — send() writes on every channel standing open, and
+ *  Feed::sendTo() writes on the one it names. A channel that closes
+ *  ends its peer, and closing the feed ends every connection and lets
+ *  the signalling door go with it. The address() such a feed reports is
+ *  webrtc://ROOM: the signal is this door's own arrangement and no part
+ *  of what the conversation is called.
+ *
+ *  NO THREAD IS STARTED FOR A FEED. The library underneath runs threads
+ *  of its own and calls back onto them, so the routes, the encryption
+ *  and the stream are carried without this library holding a loop or an
+ *  executor of its own. */
+void registerWebRtc(Hub& hub);
+
 /** Installs every transport this feature carries: UDP, the OSC name over
  *  it, WebSocket at both ends — the listener first, and the client in
- *  front of it — the shared memory reader, MIDI, and the serial port. */
+ *  front of it — the shared memory reader, MIDI, the serial port, gRPC
+ *  at both ends, and WebRTC over a signalling door of the same hub. */
 void registerTransports(Hub& hub);
 
 }  // namespace sigil::io

@@ -37,6 +37,7 @@
     },
     "flatbuffers",
     "glm",
+    "grpc",
     "gtest",
     {
       "name": "harfbuzz",
@@ -49,7 +50,9 @@
       ]
     },
     "icu",
+    "libdatachannel",
     "minizip-ng",
+    "msquic",
     "openimageio",
     "rtmidi",
     "shader-slang",

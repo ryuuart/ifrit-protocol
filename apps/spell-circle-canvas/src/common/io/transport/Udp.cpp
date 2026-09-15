@@ -389,6 +389,11 @@ void registerTransports(Hub& hub) {
   registerSharedMemory(hub);
   registerMidi(hub);
   registerSerial(hub);
+  registerGrpc(hub);
+  // After both ends of the websocket, because a webrtc feed opens its
+  // signalling door through this same hub: whichever end of that door
+  // its URI names has to be registered before one can be asked for.
+  registerWebRtc(hub);
 }
 
 }  // namespace sigil::io

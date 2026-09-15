@@ -20,7 +20,7 @@ what a consumer uses; every public header lives under
 |--------|---------|-------|
 | `SigilIOSource` | `source/Source.h`, `source/Archive.h`, `source/Sink.h`, `source/Places.h` | the byte vocabulary in both directions: `Bytes`, the `ByteSource`, `ResolvingByteSource`, `Decoder` and `Probable` concepts, `AnyByteSource` (the type-erased source value), the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file; `ArchiveSource` and `ArchiveEntry`, one zip held in memory answering its files by name — and the two places only the platform can name, `executablePath()` and `scratchDirectory(label)` |
 | `SigilIOHub`    | `hub/Hub.h`, `hub/Feed.h`, `hub/Recording.h`, `hub/Network.h`, `hub/TextCatalog.h` | the `Hub`, `ResourceInfo` (a resource's byte size and the file it came from), and `ResourceLease`; `NetworkPolicy`, `NetworkTransport`, `probeNetworkCache()` and `seedNetworkCache()` — inspect or populate the persistent cache by URL without constructing its filenames or contacting a server; `Feed`, `Arrival`, `OpenedFeed` and `FeedTransport` — a resource that keeps arriving, opened through the hub's `feed()` and moved forward by its `dispatch()`; `DispatchLease` and `Hub::onDispatch()` — a callback the same `dispatch()` drives, for as long as the lease lives; `RecordingWriter` and `readRecording()`, the format a feed records itself in; and `TextCatalog`, the stock value over the hub that a directory of authored shaders is |
-| `SigilIOTransport` | `transport/Transport.h` | `registerUdp()`, `registerWebSocket()`, `registerWebSocketClient()`, `registerSharedMemory()`, `registerMidi()`, `registerSerial()` and `registerTransports()`, with `SharedMemoryWriter` beside them — the UDP transport, one socket per feed on a thread of its own, answering to udp://, to osc:// for messages that are OSC packets and to artnet:// for the universes a lighting desk sends; the WebSocket listener, one of them per feed on a loop of its own, answering to ws:// and, where that URI's query names a directory of pages, answering HTTP GET out of it on the same port; the WebSocket client over libcurl, one session per feed on a thread of its own, which is what ws:// and wss:// open when the URI names a server to call rather than a port to hold; and the shared memory reader, answering to shm://, which is a region another process on this machine wrote and no socket at all, with the writer's end of such a region standing beside it; and the MIDI transport, answering to midi://, which is the controller standing beside the screen — its pads and knobs in at midi://in/NAME, its lights out at midi://out/NAME, and a port made rather than found under virtual:NAME — on the thread the driver itself runs its callbacks on and none of this feature's own; and the serial transport, answering to serial://, which is the board on a cable printing one line per reading — a device file and a baud rate, one arrival per line and a line out of every send — one port per feed on a thread every port of a registration shares; either listener fills `OpenedFeed::sendTo`, so a listening feed answers the one sender an arrival names through `Feed::sendTo()`; linked by a consumer that opens a feed over a wire or over a region, and by no other |
+| `SigilIOTransport` | `transport/Transport.h` | `registerUdp()`, `registerWebSocket()`, `registerWebSocketClient()`, `registerSharedMemory()`, `registerMidi()`, `registerSerial()`, `registerGrpc()`, `registerWebRtc()` and `registerTransports()`, with `SharedMemoryWriter` beside them — the UDP transport, one socket per feed on a thread of its own, answering to udp://, to osc:// for messages that are OSC packets and to artnet:// for the universes a lighting desk sends; the WebSocket listener, one of them per feed on a loop of its own, answering to ws:// and, where that URI's query names a directory of pages, answering HTTP GET out of it on the same port; the WebSocket client over libcurl, one session per feed on a thread of its own, which is what ws:// and wss:// open when the URI names a server to call rather than a port to hold; and the shared memory reader, answering to shm://, which is a region another process on this machine wrote and no socket at all, with the writer's end of such a region standing beside it; and the MIDI transport, answering to midi://, which is the controller standing beside the screen — its pads and knobs in at midi://in/NAME, its lights out at midi://out/NAME, and a port made rather than found under virtual:NAME — on the thread the driver itself runs its callbacks on and none of this feature's own; and the serial transport, answering to serial://, which is the board on a cable printing one line per reading — a device file and a baud rate, one arrival per line and a line out of every send — one port per feed on a thread every port of a registration shares; and the gRPC transport, answering to grpc:// at both ends of one generic method — a server holding grpc://:PORT/Service/Method and a call reaching grpc://HOST:PORT/Service/Method — which carries bytes and parses nothing, so a feed's buffers cross it with no generated stub in the transport, and which starts no thread of this feature's at all; and the WebRTC transport, answering to webrtc://, which is the door with nothing in the middle of it — `webrtc://ROOM?signal=URI` is introduced over the websocket door that signal names, a port to hold or a server to call, and every message afterwards crosses straight between the two ends, one connection per peer and one channel on each, on threads of the library underneath and none of this feature's; either listener fills `OpenedFeed::sendTo`, so a listening feed answers the one sender an arrival names through `Feed::sendTo()`; linked by a consumer that opens a feed over a wire or over a region, and by no other |
 
 `SigilIO` is the umbrella target over the source and the hub, and
 `<sigilio/IO.h>` the umbrella header; the transport feature stands
@@ -124,7 +124,7 @@ its own, and a reader on any thread never waits.
 #include <sigilio/hub/Feed.h>
 #include <sigilio/transport/Transport.h>
 
-sigil::io::registerTransports(hub);                  // udp://, osc://, artnet://, ws://, wss://, shm://, midi://, serial://
+sigil::io::registerTransports(hub);                  // udp://, osc://, artnet://, ws://, wss://, shm://, midi://, serial://, grpc://, webrtc://
 auto scene = hub.feed("udp://:27020");               // std::shared_ptr<sigil::io::Feed>
 if (auto newest = scene->latest())                   // the newest message; generation() counts them
   draw(*newest);
@@ -148,6 +148,12 @@ lights->send(noteOn);
 auto made = hub.feed("midi://in/virtual:sigil");     // a port other software reaches instead of a controller
 auto board = hub.feed("serial:///dev/tty.usbmodem1101?baud=115200");  // a board on a cable: one arrival per line
 board->send(command);                                // …and a line back down the same cable
+auto watchers = hub.feed("grpc://:27090/Sky/Watch"); // one generic method: every call on it is a caller
+watchers->send(frame);                               // …and one send writes on every call standing
+auto watching = hub.feed("grpc://sky.local:27090/Sky/Watch");  // the other end: the one call it opened
+auto room = hub.feed("webrtc://sky?signal=ws://:8849/signal");  // a conversation, introduced over that door
+room->send(frame);                                   // …straight to every phone that took it up
+auto joining = hub.feed("webrtc://sky?signal=ws://sky.local:8849/signal");  // the other end: taking a room up
 scene->record(outDir / "scene.feed");                // every arrival from now on, to a recording
 hub.mount("udp://:27020", outDir / "scene.feed");    // the next feed() on that URI replays the file
 hub.dispatch(seconds);                               // once per frame: recordings advance to this time
@@ -272,7 +278,7 @@ sender to answer and no end to answer through. `send()` is unchanged by
 it: a peer's feed still writes to its peer and a listening WebSocket
 still broadcasts to every peer on its path.
 
-`SigilIOTransport` registers six transports under eight schemes, two of
+`SigilIOTransport` registers eight transports under ten schemes, two of
 those transports sharing a scheme.
 `registerUdp()` takes the UDP ones: `udp://:PORT` listens on every
 interface, IPv4 and IPv6 alike, and `udp://HOST:PORT` is a peer that
@@ -477,6 +483,128 @@ as the `address()` such a feed reports is. The ports every registration
 opens share ONE thread, made when the first of them opens, so a hub
 taught the scheme and never asked for a port starts nothing.
 
+`registerGrpc()` takes `grpc://`, and it is one scheme at both ends: the
+SHAPE of the URI is what says which end a feed is, as it is for the two
+websocket ones, but here one registration takes both. `grpc://:PORT/
+Service/Method` holds that port and serves that one method — PORT 0
+meaning any free port — and `grpc://HOST:PORT/Service/Method` calls that
+method there. BOTH ENDS NAME THE METHOD, a method being a leading slash,
+a service and a method with nothing after, so a URI carrying a service
+and nothing behind it is half an address and opens neither end.
+
+THE METHOD CARRIES BYTES AND PARSES NOTHING. It is generic at both ends,
+which is gRPC's own word for a method with no generated stub standing
+over it, so a feed's buffers, its JSON and whatever else a sender writes
+cross it exactly as they cross a datagram — and what a message MEANS is
+the business of the library that owns the format, as it is on every
+other door here. A scene that wants a wire format across gRPC writes
+that format and this transport never learns it.
+
+A SERVER'S PEER IS A CALL AND NOT A CALLER. Every call that arrives is a
+bidirectional stream of its own and one caller may hold several at once,
+so the address alone would not tell two of them apart: an arrival is
+named `grpc://ADDRESS#NUMBER`, the number counting the calls that feed
+has taken, and `Feed::sendTo()` writes on the call it names. `send()`
+writes on every call standing and is false where none is — a door that
+holds its own callers can say that a broadcast reached nobody, which a
+door that posts to a loop cannot — and a caller that ends its half of
+the stream ends that peer, its name answering nothing from then on. The
+`address()` such a feed reports is
+`grpc://[::]:PORT/Service/Method`, every interface of both families
+being one dual-stack listener, and closing the feed gives the port back
+and cancels the calls standing on it rather than waiting for a caller to
+stop talking. A call asking for any other method is told nothing here
+answers to it, a generic service being handed every method a caller
+names.
+
+A CLIENT HOLDS THE ONE CALL IT OPENED. `send()` writes one message on
+it — and a message handed over before the server has been reached waits
+on the stream rather than going nowhere, which is where this end differs
+from the websocket client beside it — every message the server writes is
+an arrival naming the URI that was called, which is also the `address()`
+such a feed reports, and `Feed::sendTo()` is false on it, a client
+having the one peer it called. The server ending the call closes the
+feed, while a server that goes away mid-conversation fails it with the
+sentence saying the call ENDED — which is not the sentence a call that
+never reached a server gets, the two being worth telling apart by
+reading the reason rather than by guessing which one happened.
+A channel that has not connected within ten seconds fails the feed
+with the sentence saying so, while a connection nobody takes is refused
+at once and says that instead, so a host that swallows the connection
+and a host that refuses it both answer rather than leaving a feed
+waiting.
+
+NO TLS AT EITHER END in this cut: a server takes callers without it and
+a call is made without it, so both belong on a machine or a network
+somebody already trusts. A `grpcs://` scheme carrying credentials is the
+step after this one and nothing is registered for it. And NO THREAD IS
+STARTED for any of this — gRPC runs threads of its own and calls back
+onto them, so a server's callers and a client's stream are carried
+without this library holding a loop, an executor or a completion queue.
+The one thread this transport ever makes is the one a feed let go from
+inside such a callback hands its shutdown to, a server being shut down
+by waiting for every call's callbacks to end and a callback not being
+able to wait for itself.
+
+`registerWebRtc()` takes `webrtc://`, and what it opens is the only door
+here with NOTHING IN THE MIDDLE OF IT. A phone on a mobile network and a
+scene behind a router have no address for each other, so neither can be
+dialled; what they can do is say what addresses they might be reachable
+at, hear the other's, and try every pair until one answers — and from
+then on every message goes straight between them, over no server at all.
+`webrtc://ROOM?signal=URI` is that conversation: ROOM is what it is
+called, and the signal is the door the saying crosses.
+
+THE SIGNAL IS A FEED OF THIS SAME HUB, and the SHAPE of its URI is what
+says which end this one is, exactly as it is for the two websocket ones.
+`?signal=ws://:PORT/PATH` is a port to hold, so the feed WAITS to be
+taken up and answers whoever offers — and that door may stand its own
+pages, `?signal=ws://:PORT/PATH?pages=URI`, so the page a phone loads,
+the socket it opens back and the introduction it makes are one address.
+`?signal=ws://HOST:PORT/PATH` is a server to call, so the feed TAKES A
+ROOM UP and offers into it. What crosses that door is JSON text —
+`{"kind":"offer","room":…,"sdp":…}`, the same with `"answer"`, and
+`{"kind":"candidate","room":…,"candidate":…,"mid":…}` — every one of
+them naming its room, so ONE SOCKET CARRIES AS MANY CONVERSATIONS AS
+THERE ARE ROOMS ON IT and each door reads only its own. The doors of one
+signalling URI share one reading of that feed, draining being taking;
+what they do not share it with is anybody else, so a reader that drains
+that same door takes introductions away from them.
+`?ice=stun:HOST:PORT` names a server asked what address this machine has
+to the world, may be written more than once, and is what two ends on
+different networks need and two on one network do not.
+
+THE FRAME CARRIES THE INTRODUCTION. `dispatch()` is what reads the
+signalling door and answers it, so a handshake takes a few frames rather
+than a few microseconds and a host that never dispatches never finishes
+one — while what arrives on a channel is not frame-paced at all, being
+delivered the moment it lands. An introduction written before its door
+can take it waits for the next frame rather than being lost, which is
+how a caller's offer stands until its socket has finished its own
+handshake.
+
+ONE PEER PER CONNECTION, on a channel named `feed`. An arrival is named
+`webrtc://ROOM#NUMBER`, the number counting the peers that feed has
+taken and never handed out twice; `Feed::sendTo()` writes on the one it
+names, and `send()` writes on every channel standing open, which is what
+makes an audience of phones see one sky rather than each its own. A
+message larger than what a peer's channel takes is not written to that
+peer, a channel carrying whole messages and cutting none in half. The
+`address()` such a feed reports is `webrtc://ROOM`: the signal is the
+door's own arrangement and no part of what the conversation is called,
+as a listener's pages are no part of the path its peers reach.
+
+A CHANNEL THAT CLOSES ENDS ITS PEER, and a peer whose connection found
+no route at all ends the same way — on the frame, a connection torn down
+inside its own callback being one that waits for itself. A SIGNAL THAT
+ENDS ENDS NO CONVERSATION, though: two ends that have found each other
+speak through nothing else, so a door whose signalling socket closed
+keeps every peer it has and only takes no new one. Closing the feed ends
+every connection and lets the signalling door go with it, and the last
+conversation crossing one is what gives that port back. NO THREAD IS
+STARTED for any of this: the library underneath runs its own and calls
+back onto them.
+
 A **recording** is a feed written down: `record(path)` appends every
 arrival from then on, with the seconds since the feed was made, in the
 format `RecordingWriter` writes and `readRecording()` reads. A URI that
@@ -618,11 +746,19 @@ behind one class and starts no thread of this feature's at all. The
 serial transport adds nothing to the line either: a device file is what
 the platform itself names, and the ports opened on one run on a thread
 of that same private kind — one for every registration, made when the
-first port of it opens. Its
+first port of it opens. The gRPC transport adds gRPC, privately, which
+carries its own transport, its own threads and the protobuf, abseil and
+OpenSSL beneath them, and starts no thread of this feature's at all. The
+WebRTC transport adds libdatachannel, privately, which carries what a
+connection through a router is made of — the routes each end offers, the
+encryption they agree on and the stream they open — on threads of its
+own and none of this feature's; the door its introductions cross is a
+websocket feed of the hub the transport was registered on, so no
+signalling server stands beside this library. Its
 header names a hub, a scheme
 and a region's own writer, and nothing of the socket, the mapping or the
 cable behind them, so a consumer that opens a feed inherits no executor,
-no event loop, no Boost and no driver. `SigilIOSource` itself depends on
+no event loop, no Boost, no driver and no stub. `SigilIOSource` itself depends on
 nothing beyond the standard library, so a decoder or an encoder library
 can speak the byte vocabulary without inheriting the hub, libcurl or any
 codec.
@@ -704,8 +840,12 @@ sockets run on, behind the private `transport/IoThread.h`, the
 WebSocket listener and the loop each one holds, the WebSocket client
 and the session each of its feeds runs on a thread of its own, the
 shared memory reader, whose looks run on a thread of that same private
-kind, the MIDI transport, which starts no thread at all, and the serial
-transport, whose ports run on a thread of that same private kind) with
+kind, the MIDI transport, which starts no thread at all, the serial
+transport, whose ports run on a thread of that same private kind, the
+gRPC transport, which starts none either, gRPC calling back onto
+threads of its own, and the WebRTC transport, which starts none either
+and whose wire format — the introductions two ends make — stands beside
+it behind the private `transport/Introduction.h`) with
 `transport/test/`, whose `IOUdp` suite binds real ports on the loopback
 and sends its own datagrams through raw sockets, whose `IOWebSocket`
 suite does the same with a websocket peer it writes out by hand, upgrade
@@ -726,8 +866,14 @@ the port it then opens, a pseudo-terminal pair whose slave the feed
 opens by the path the system named it while the case writes the
 readings into the master — a port with a path being the whole of what
 that transport asks of a board — and skips with the reason where the
-system hands over no such pair; and `SigilIO`, the umbrella over
-the source and the hub.
+system hands over no such pair, and whose `IOGrpc` suite calls a server
+this same process is holding, so both ends of a method stand in one
+binary with no stub generated for either, and whose `IOWebRtc` suite
+gives each end a hub of its own — which is what two machines are inside
+one process — takes a port with a raw acceptor and gives it straight
+back to name one in a URI both ends spell, and dispatches every hub on
+every look, an introduction crossing on the frame; and `SigilIO`, the
+umbrella over the source and the hub.
 
 There is one test binary, `io_test`, built from every feature's `test/`
 directories, and ctest discovers one entry per CASE out of it, so a

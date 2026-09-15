@@ -13,7 +13,13 @@
 # the driver running the callback every arriving message is delivered
 # from. And the serial port, over Boost.Asio again: a device file read
 # on the UDP transport's kind of thread, with the lines a board prints
-# cut out of the stream that carries them.
+# cut out of the stream that carries them. And gRPC, at both ends of one
+# generic method: a server holding a port and a call reaching one, with
+# no generated stub anywhere in the transport and no thread of this
+# library's at all, gRPC running its own and calling back onto them. And
+# WebRTC over libdatachannel: one connection per peer and one channel on
+# each, introduced over a websocket door this same feature opens, with
+# no thread of this library's either.
 #
 # Every stack is PRIVATE: the header names a Hub and a scheme and
 # nothing of the network behind them, so a consumer that opens a feed
@@ -22,18 +28,27 @@
 # TLS and without zlib, so there is no OpenSSL or ZLIB to find beside it
 # and nothing it could listen for wss:// on; libcurl carries the TLS the
 # client end speaks it over, and the hub beneath this feature already
-# requires it.
+# requires it. gRPC brings its own stack the same way — its transport,
+# its threads and the protobuf, abseil and OpenSSL beneath them are
+# found by its own package and reach nothing above this target.
+# libdatachannel brings the same way what a connection through a router
+# is made of — the routes, the encryption and the stream — and its
+# introductions cross a door this feature already opens, so there is no
+# signalling server to find beside it.
 find_package(boost_asio CONFIG REQUIRED)
 find_package(unofficial-uwebsockets CONFIG REQUIRED)
 find_package(CURL CONFIG REQUIRED)
 find_package(rtmidi CONFIG REQUIRED)
+find_package(gRPC CONFIG REQUIRED)
+find_package(LibDataChannel CONFIG REQUIRED)
 sigil_library(SigilIOTransport
   SOURCES Udp.cpp WebSocket.cpp WebSocketClient.cpp SharedMemory.cpp Midi.cpp
-          Serial.cpp IoThread.cpp IoThread.h
+          Serial.cpp Grpc.cpp WebRtc.cpp Introduction.cpp Introduction.h
+          IoThread.cpp IoThread.h
   HEADERS Transport.h
   PUBLIC SigilIOHub
   PRIVATE Boost::asio unofficial::uwebsockets::uwebsockets CURL::libcurl
-          RtMidi::rtmidi)
+          RtMidi::rtmidi gRPC::grpc++ LibDataChannel::LibDataChannel)
 
 # What the transports promise: the port a URI binds, the server a URI
 # calls, the region a URI maps, the bytes that arrive through any of
@@ -47,8 +62,14 @@ sigil_library(SigilIOTransport
 # ends of a session, of a region and of a cable stand in one binary. The
 # serial cases make a pseudo-terminal pair and write the readings into
 # the master, the feed opening the slave by the path the system named
-# it, so a board is needed for none of them.
+# it, so a board is needed for none of them. The gRPC cases call a
+# server this same process is holding, so both ends of a method stand in
+# one binary and no stub is generated for either. The WebRTC cases give
+# each end a hub of its own — which is what two machines are in one
+# process — and dispatch every one of them on every look, an
+# introduction crossing on the frame.
 sigil_test(io_test
   SOURCES test/UdpTest.cpp test/WebSocketTest.cpp test/WebSocketClientTest.cpp
           test/SharedMemoryTest.cpp test/MidiTest.cpp test/SerialTest.cpp
+          test/GrpcTest.cpp test/WebRtcTest.cpp
   LIBRARIES SigilIOTransport Boost::asio)

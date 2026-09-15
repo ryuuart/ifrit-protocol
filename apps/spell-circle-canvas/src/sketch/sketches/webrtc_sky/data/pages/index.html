@@ -1,0 +1,226 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>webrtc sky</title>
+
+<!--
+  The page the sketch beside this file hands out. It is served by the
+  same port it opens a socket back to, so the whole of what a person
+  needs is the address.
+
+  THAT SOCKET IS ONLY THE INTRODUCTION. Over it this page and the sketch
+  say what addresses they might be reachable at until one pair answers;
+  the sky and the buttons then cross the connection they found, straight
+  between this phone and that machine.
+
+  Standalone on purpose. Nothing is fetched from anywhere — no font, no
+  library, no stylesheet — because the only server in reach is the
+  sketch, and it serves this directory and nothing else.
+-->
+
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0;
+    background: #090913;
+    color: #8f909c;
+    font: 15px/1.5 -apple-system, system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+    min-height: 100vh;
+    box-sizing: border-box;
+  }
+  canvas { width: 100%; display: block; border-radius: 8px; }
+  #deck { display: flex; flex-wrap: wrap; gap: 10px; }
+  button {
+    flex: 1 1 40%;
+    min-height: 56px;
+    border: 1px solid #2c2d38;
+    border-radius: 10px;
+    background: #14141f;
+    color: #cfd0da;
+    font: inherit;
+    letter-spacing: 0.04em;
+  }
+  button:active { background: #23243250; }
+  #gust { flex-basis: 100%; }
+  #state { font-size: 13px; font-family: ui-monospace, monospace; }
+</style>
+
+<canvas id="sky"></canvas>
+<div id="deck">
+  <button data-palette="0">dusk</button>
+  <button data-palette="1">ember</button>
+  <button data-palette="2">tide</button>
+  <button id="gust">gust</button>
+</div>
+<div id="state">opening the sky…</div>
+
+<script>
+  // The conversation this page joins, which is the room the sketch
+  // waits in, and the path the introductions cross.
+  const ROOM = "sky";
+  const PATH = "/signal";
+
+  // WHERE THIS PHONE ASKS WHAT ADDRESS IT HAS TO THE WORLD. Two ends on
+  // one network find each other without one and this stays empty; a
+  // phone on another network needs a server named here AND in the
+  // sketch's own ice setting, both ends having to ask the same
+  // question, as in [{ urls: "stun:stun.example:3478" }].
+  const ICE = [];
+
+  // The three palettes the buttons send, in the order the buttons
+  // stand. They are the same three the stand-in phone beside this file
+  // turns, so the sky looks the same whichever hand turned it.
+  const PALETTES = [
+    [[0.44, 0.60, 0.90, 0.82], [0.54, 0.50, 0.86, 0.82], [0.38, 0.72, 0.84, 0.82]],
+    [[0.95, 0.62, 0.35, 0.82], [0.92, 0.42, 0.42, 0.82], [0.99, 0.80, 0.45, 0.82]],
+    [[0.40, 0.85, 0.68, 0.82], [0.30, 0.72, 0.80, 0.82], [0.70, 0.90, 0.55, 0.82]]
+  ];
+
+  const canvas = document.getElementById("sky");
+  const paint = canvas.getContext("2d");
+  const state = document.getElementById("state");
+  let latest = null;
+
+  // The signalling socket is the address this page came from: the sketch
+  // answers GET and the upgrade on one port, so there is nothing to
+  // configure.
+  const scheme = location.protocol === "https:" ? "wss://" : "ws://";
+  const socket = new WebSocket(scheme + location.host + PATH);
+  // An introduction arrives as a binary frame, a feed carrying bytes
+  // rather than text, so it is read back as UTF-8 here.
+  socket.binaryType = "arraybuffer";
+
+  const peer = new RTCPeerConnection({ iceServers: ICE });
+  // THE CHANNEL IS MADE BY WHOEVER TAKES THE ROOM UP, which is this
+  // page: the sketch waits, and answers whatever offer reaches it.
+  const channel = peer.createDataChannel("feed");
+  channel.binaryType = "arraybuffer";
+
+  // The addresses the sketch sends before this page has taken its
+  // answer: a candidate added to a connection with no remote session
+  // yet has nothing to belong to, so they wait here for one.
+  const waiting = [];
+
+  function tell(message) {
+    if (socket.readyState === WebSocket.OPEN)
+      socket.send(JSON.stringify(Object.assign({ room: ROOM }, message)));
+  }
+
+  function textOf(data) {
+    return typeof data === "string" ? data : new TextDecoder().decode(data);
+  }
+
+  socket.onopen = async () => {
+    state.textContent = "asking for the sky…";
+    const offer = await peer.createOffer();
+    await peer.setLocalDescription(offer);
+    tell({ kind: "offer", sdp: peer.localDescription.sdp });
+  };
+
+  peer.onicecandidate = (event) => {
+    if (!event.candidate) return;
+    tell({
+      kind: "candidate",
+      candidate: event.candidate.candidate,
+      mid: event.candidate.sdpMid
+    });
+  };
+
+  socket.onmessage = async (event) => {
+    let message;
+    try {
+      message = JSON.parse(textOf(event.data));
+    } catch (trouble) {
+      return;
+    }
+    if (message.room !== ROOM) return;
+    if (message.kind === "answer") {
+      await peer.setRemoteDescription({ type: "answer", sdp: message.sdp });
+      for (const held of waiting.splice(0)) await peer.addIceCandidate(held);
+      return;
+    }
+    if (message.kind === "candidate") {
+      const found = { candidate: message.candidate, sdpMid: message.mid };
+      if (peer.remoteDescription) await peer.addIceCandidate(found);
+      else waiting.push(found);
+    }
+  };
+
+  socket.onerror = () => { state.textContent = "the sky cannot be reached"; };
+
+  channel.onopen = () => { state.textContent = "connected, waiting for a sky"; };
+  channel.onclose = () => { state.textContent = "the sky is gone"; };
+
+  channel.onmessage = (event) => {
+    let message;
+    try {
+      message = JSON.parse(textOf(event.data));
+    } catch (trouble) {
+      return;
+    }
+    if (message.kind !== "Sky") return;
+    latest = message;
+    state.textContent = "the sky, " + message.bands.length + " bands";
+    fit();
+    draw();
+  };
+
+  function send(message) {
+    if (channel.readyState === "open") channel.send(JSON.stringify(message));
+  }
+
+  for (const button of document.querySelectorAll("[data-palette]"))
+    button.onclick = () => send({
+      kind: "Palette",
+      colors: PALETTES[Number(button.dataset.palette)]
+    });
+
+  document.getElementById("gust").onclick = () => send({
+    kind: "Gust", strength: 140, seconds: 1.6
+  });
+
+  // The canvas is the wall's own shape, at this screen's pixels: the
+  // message carries the sky in the wall's coordinates and every length
+  // below is scaled from them, so a phone shows the whole sky rather
+  // than a corner of it.
+  function fit() {
+    if (!latest) return;
+    const density = window.devicePixelRatio || 1;
+    const across = canvas.clientWidth * density;
+    const down = across * (latest.height / latest.width);
+    if (canvas.width !== Math.round(across)) canvas.width = Math.round(across);
+    if (canvas.height !== Math.round(down)) canvas.height = Math.round(down);
+  }
+
+  function ink(tint) {
+    const channel = (at) => Math.round(tint[at] * 255);
+    return "rgba(" + channel(0) + "," + channel(1) + "," + channel(2) + "," + tint[3] + ")";
+  }
+
+  // Drawn when a sky arrives and when the page resizes, and at no other
+  // time: what is on the screen is a message and never a guess about
+  // where the sky would be by now.
+  function draw() {
+    if (!latest) return;
+    const scale = canvas.width / latest.width;
+    paint.fillStyle = "#0a0a17";
+    paint.fillRect(0, 0, canvas.width, canvas.height);
+    latest.bands.forEach((band, index) => {
+      paint.fillStyle = ink(latest.palette[index % latest.palette.length]);
+      const height = band.height * scale;
+      for (let x = band.offset - latest.period; x < latest.width; x += latest.period) {
+        paint.beginPath();
+        const box = [x * scale, band.y * scale, latest.segment * scale, height];
+        if (paint.roundRect) paint.roundRect(...box, height * 0.5);
+        else paint.rect(...box);
+        paint.fill();
+      }
+    });
+  }
+
+  window.onresize = () => { fit(); draw(); };
+</script>
