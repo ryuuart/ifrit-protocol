@@ -42,6 +42,22 @@ void registerUdp(Hub& hub);
  *  Each listening feed runs on a thread of its own that stands until the
  *  feed is closed.
  *
+ *  A URI'S QUERY MAY NAME WHERE ITS PAGES STAND —
+ *  ws://:PORT/PATH?pages=URI — and the same port then answers HTTP GET
+ *  out of that directory, so what a peer loads and the socket it opens
+ *  back are one address. "/" and "/index.html" are the directory's
+ *  index.html; any other path is the file of that name beneath the
+ *  directory, typed by its extension; a path naming no file there, one
+ *  climbing out through "..", and every request to a listener whose URI
+ *  named no pages at all, are answered 404. The URI is resolved through
+ *  @p hub's mount table as the feed opens — a URI that resolves to no
+ *  directory opens nothing and leaves the reason on the feed — and what
+ *  the listener keeps afterwards is the directory itself, read again
+ *  per request, so a page edited on disk is the page the next reload is
+ *  served. The path peers reach is the PATH alone: a query is the
+ *  listener's own arrangement and stands in neither the address the
+ *  feed reports nor the one an arrival names.
+ *
  *  This registration LISTENS: the sockets underneath carry no client and
  *  are built without TLS, so a URI naming a host to call opens nothing
  *  here and leaves the reason on the feed, and there is no "wss" it

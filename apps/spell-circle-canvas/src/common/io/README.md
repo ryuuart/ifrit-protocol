@@ -20,7 +20,7 @@ what a consumer uses; every public header lives under
 |--------|---------|-------|
 | `SigilIOSource` | `source/Source.h`, `source/Archive.h`, `source/Sink.h`, `source/Places.h` | the byte vocabulary in both directions: `Bytes`, the `ByteSource`, `ResolvingByteSource`, `Decoder` and `Probable` concepts, `AnyByteSource` (the type-erased source value), the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file; `ArchiveSource` and `ArchiveEntry`, one zip held in memory answering its files by name — and the two places only the platform can name, `executablePath()` and `scratchDirectory(label)` |
 | `SigilIOHub`    | `hub/Hub.h`, `hub/Feed.h`, `hub/Recording.h`, `hub/Network.h`, `hub/TextCatalog.h` | the `Hub`, `ResourceInfo` (a resource's byte size and the file it came from), and `ResourceLease`; `NetworkPolicy`, `NetworkTransport`, `probeNetworkCache()` and `seedNetworkCache()` — inspect or populate the persistent cache by URL without constructing its filenames or contacting a server; `Feed`, `Arrival`, `OpenedFeed` and `FeedTransport` — a resource that keeps arriving, opened through the hub's `feed()` and moved forward by its `dispatch()`; `DispatchLease` and `Hub::onDispatch()` — a callback the same `dispatch()` drives, for as long as the lease lives; `RecordingWriter` and `readRecording()`, the format a feed records itself in; and `TextCatalog`, the stock value over the hub that a directory of authored shaders is |
-| `SigilIOTransport` | `transport/Transport.h` | `registerUdp()`, `registerWebSocket()`, `registerWebSocketClient()` and `registerTransports()` — the UDP transport, one socket per feed on a thread of its own, answering to udp:// and, for messages that are OSC packets, to osc://; the WebSocket listener, one of them per feed on a loop of its own, answering to ws://; and the WebSocket client over libcurl, one session per feed on a thread of its own, which is what ws:// and wss:// open when the URI names a server to call rather than a port to hold; either listener fills `OpenedFeed::sendTo`, so a listening feed answers the one sender an arrival names through `Feed::sendTo()`; linked by a consumer that opens network feeds and by no other |
+| `SigilIOTransport` | `transport/Transport.h` | `registerUdp()`, `registerWebSocket()`, `registerWebSocketClient()` and `registerTransports()` — the UDP transport, one socket per feed on a thread of its own, answering to udp:// and, for messages that are OSC packets, to osc://; the WebSocket listener, one of them per feed on a loop of its own, answering to ws:// and, where that URI's query names a directory of pages, answering HTTP GET out of it on the same port; and the WebSocket client over libcurl, one session per feed on a thread of its own, which is what ws:// and wss:// open when the URI names a server to call rather than a port to hold; either listener fills `OpenedFeed::sendTo`, so a listening feed answers the one sender an arrival names through `Feed::sendTo()`; linked by a consumer that opens network feeds and by no other |
 
 `SigilIO` is the umbrella target over the source and the hub, and
 `<sigilio/IO.h>` the umbrella header; the transport feature stands
@@ -137,6 +137,7 @@ if (auto arrival = scene->newest())                  // a listener holds no peer
   scene->sendTo(arrival->from, reply);               // …so it answers the one sender that wrote to it
 auto browsers = hub.feed("ws://:8848/scene");        // every peer that reaches that path
 browsers->send(frame);                               // …and one send goes out to all of them
+auto staged = hub.feed("ws://:8848/sky?pages=res://sky");  // …and GET serves that directory
 auto studio = hub.feed("wss://sky.example:443/scene");  // the same scheme calling out: a server to reach
 studio->send(frame);                                 // …the one peer it dialled, whose messages arrive
 scene->record(outDir / "scene.feed");                // every arrival from now on, to a recording
@@ -291,6 +292,27 @@ what `sendTo()` says, since the loop that holds the peers is not the
 thread that asked. That registration LISTENS: the library underneath
 carries no client and its sockets are built without TLS, so it opens a
 port to hold and nothing else.
+
+A URI'S QUERY MAY NAME WHERE ITS PAGES STAND —
+`ws://:PORT/PATH?pages=URI` — and the same port then answers HTTP GET
+out of that directory, so what a peer loads and the socket it opens back
+are one address. `/` and `/index.html` are that directory's
+`index.html`; any other path is the file of that name beneath it, typed
+by its extension — html, css, js, json, png, jpg, svg and txt, and bytes
+with no name otherwise. A path naming no file there, a path climbing out
+through `..` exactly as a mount refuses one, a page larger than the
+listener hands back, and every request to a listener whose URI named no
+pages at all, are answered with a status and a plain sentence and never
+with a page. The pages URI is resolved through the hub's mount table AS
+THE FEED OPENS, and what the listener keeps from then on is the
+directory: a feed may outlive the hub that opened it, and a request is
+answered out of the filesystem and nothing else. So a pages URI that
+resolves to no directory opens nothing and leaves the reason on the
+feed, while a page edited on disk is the page the next reload is served,
+the directory being read per request and cached nowhere. The query is
+the listener's own arrangement and no part of the path peers reach: it
+stands in neither the address the feed reports nor the sender an arrival
+names.
 
 `registerWebSocketClient()` is the other end, and it takes `ws://` and
 `wss://` both. The two ends share a scheme, and the SHAPE of the URI is
@@ -531,9 +553,10 @@ and the session each of its feeds runs on a thread of its own) with
 `transport/test/`, whose `IOUdp` suite binds real ports on the loopback
 and sends its own datagrams through raw sockets, whose `IOWebSocket`
 suite does the same with a websocket peer it writes out by hand, upgrade
-request and masked frames and all — which a case may do to prove what the
-listener does with it, while a transport stands on a library that speaks
-the protocol instead — and whose `IOWebSocketClient` suite calls a
+request and masked frames and all, and with one plain HTTP request for
+the pages a listener's query stands that same port over — which a case
+may do to prove what the listener answers, while a transport stands on a
+library that speaks the protocol instead — and whose `IOWebSocketClient` suite calls a
 listener this same process is holding, so both ends of a session stand in
 one binary; and `SigilIO`, the umbrella over the source and the hub.
 

@@ -1,9 +1,10 @@
 /** @file
  * The WebSocket transport: the port and path a listening feed binds, the
  * messages peers send it and the sender each one names, the broadcast a
- * send is and the one peer a named send reaches instead, what a URI
- * nobody can open leaves on its feed, and the port a feed gives back
- * when the last holder lets go.
+ * send is and the one peer a named send reaches instead, the pages a
+ * URI's query stands the same port over, what a URI nobody can open
+ * leaves on its feed, and the port a feed gives back when the last
+ * holder lets go.
  */
 
 #include <gtest/gtest.h>
@@ -25,6 +26,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -32,6 +34,8 @@
 #include <string_view>
 #include <thread>
 #include <vector>
+
+#include "ScratchDir.h"
 
 namespace {
 
@@ -181,6 +185,78 @@ class Peer {
   std::string m_greeting;
 };
 
+/** WHAT ONE HTTP ANSWER SAYS: the number on its status line, the content
+ *  type it named, and the body behind the blank line. */
+struct Answer {
+  int status = 0;
+  std::string type;
+  std::string body;
+};
+
+/** ONE HTTP GET WRITTEN OUT BY HAND, and the whole answer read back.
+ *
+ *  It is here for the reason the peer above is: the library the
+ *  transport stands on carries no client of any kind, and a case may
+ *  speak a protocol by hand to prove what the listener answers. The
+ *  connection asks to be closed, so the end of the stream is the end of
+ *  the answer and no length has to be believed to find it. The read runs
+ *  on the case's own context with a deadline, so an answer that never
+ *  comes fails the case rather than hanging it. */
+Answer fetch(boost::asio::io_context& context, uint16_t port,
+             std::string_view path) {
+  tcp::socket socket(context);
+  socket.connect(tcp::endpoint(boost::asio::ip::address_v4::loopback(), port));
+  const std::string request = "GET " + std::string(path) +
+                              " HTTP/1.1\r\nHost: 127.0.0.1\r\n"
+                              "Connection: close\r\n\r\n";
+  boost::asio::write(socket, boost::asio::buffer(request));
+
+  boost::asio::streambuf incoming;
+  boost::asio::async_read(socket, incoming,
+                          [](const boost::system::error_code&, size_t) {});
+  context.restart();
+  context.run_for(2s);
+  boost::system::error_code closing;
+  socket.close(closing);
+  // A read the deadline cut short is cancelled by that close, and its
+  // handler is run here — while the buffer it was reading into is still
+  // standing.
+  context.restart();
+  context.run();
+
+  const std::string whole(boost::asio::buffers_begin(incoming.data()),
+                          boost::asio::buffers_end(incoming.data()));
+  Answer answer;
+  const size_t blank = whole.find("\r\n\r\n");
+  if (blank == std::string::npos) return answer;
+  const std::string head = whole.substr(0, blank);
+  answer.body = whole.substr(blank + 4);
+  if (const size_t space = head.find(' '); space != std::string::npos)
+    answer.status = std::atoi(head.c_str() + space + 1);
+  // The key is the one the transport writes, spelled the way it writes
+  // it.
+  constexpr std::string_view kType = "\r\nContent-Type: ";
+  if (const size_t at = head.find(kType); at != std::string::npos) {
+    const size_t from = at + kType.size();
+    const size_t end = head.find("\r\n", from);
+    answer.type = head.substr(from, end - from);
+  }
+  return answer;
+}
+
+/** A page small enough for a case to compare whole, and HTML so that
+ *  what it is served as is the type its extension names. */
+constexpr std::string_view kIndex = "<!doctype html><title>the sky</title>";
+
+/** A directory of pages under @p scratch, mounted on @p hub at
+ *  "pages://", with the file a climb out of that directory would reach
+ *  standing one level above it. */
+void standPages(Hub& hub, const sigil::test::ScratchDir& scratch) {
+  scratch.write("pages/index.html", kIndex);
+  scratch.write("secret", "what stands outside the pages");
+  hub.mount("pages://", scratch.path / "pages");
+}
+
 /** WHAT A WEBSOCKET CASE NEEDS BEFORE IT CAN OPEN ANYTHING: a hub that
  *  has been taught the schemes, and one Asio context of the test's own
  *  for the sockets it speaks the protocol over by hand. */
@@ -307,6 +383,80 @@ TEST_F(IOWebSocket, APeerNobodyIsAttachedUnderIsNobodyToAnswer) {
   // which is all a caller on another thread can be told.
   EXPECT_TRUE(listener->sendTo("ws://127.0.0.1:1", bytesOf("nobody")));
   EXPECT_FALSE(listener->closed());
+}
+
+TEST_F(IOWebSocket, AListenerServesThePagesItsUriNames) {
+  const sigil::test::ScratchDir scratch("sigilio_ws_pages");
+  standPages(hub, scratch);
+
+  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky?pages=pages://");
+  ASSERT_TRUE(listener->error().empty()) << listener->error();
+  const uint16_t port = portOf(listener->address());
+  ASSERT_NE(port, 0);
+
+  const Answer named = fetch(context, port, "/index.html");
+  EXPECT_EQ(named.status, 200);
+  EXPECT_EQ(named.type, "text/html");
+  EXPECT_EQ(named.body, kIndex);
+  // The root is that same index: it is what a person who typed the
+  // address and nothing after it asked for.
+  const Answer root = fetch(context, port, "/");
+  EXPECT_EQ(root.status, 200);
+  EXPECT_EQ(root.body, kIndex);
+}
+
+TEST_F(IOWebSocket, APathClimbingOutOfThePagesReachesNothing) {
+  const sigil::test::ScratchDir scratch("sigilio_ws_pages");
+  standPages(hub, scratch);
+
+  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky?pages=pages://");
+  ASSERT_TRUE(listener->error().empty()) << listener->error();
+  const uint16_t port = portOf(listener->address());
+  ASSERT_NE(port, 0);
+
+  // The file is really there, one directory above the pages, and the
+  // request spells the way to it — which is the spelling a mount refuses
+  // too: what a name reaches stands beneath the directory it resolved
+  // from and nothing around it.
+  const Answer climbed = fetch(context, port, "/../secret");
+  EXPECT_EQ(climbed.status, 404);
+  EXPECT_EQ(climbed.body.find("what stands outside"), std::string::npos)
+      << climbed.body;
+}
+
+TEST_F(IOWebSocket, TheSocketStandsBesideThePagesOnTheSamePort) {
+  const sigil::test::ScratchDir scratch("sigilio_ws_pages");
+  standPages(hub, scratch);
+
+  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky?pages=pages://");
+  ASSERT_TRUE(listener->error().empty()) << listener->error();
+  const uint16_t port = portOf(listener->address());
+  ASSERT_NE(port, 0);
+  // The path peers reach is the path alone: the query the pages were
+  // named in is no part of the address the feed reports.
+  EXPECT_TRUE(listener->address().ends_with("/sky")) << listener->address();
+
+  Peer peer(context, port, "/sky");
+  ASSERT_TRUE(peer.upgraded());
+  peer.send(0x1, "a phone is looking");
+
+  ASSERT_TRUE(waitUntil([&] { return listener->latest() != nullptr; }));
+  EXPECT_EQ(listener->latest()->asText(), "a phone is looking");
+}
+
+TEST_F(IOWebSocket, AListenerWhoseUriNamedNoPagesServesNone) {
+  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky");
+  ASSERT_TRUE(listener->error().empty()) << listener->error();
+  const uint16_t port = portOf(listener->address());
+  ASSERT_NE(port, 0);
+
+  EXPECT_EQ(fetch(context, port, "/index.html").status, 404);
+}
+
+TEST_F(IOWebSocket, PagesMountedNowhereOpenNothingAndSayWhy) {
+  const std::shared_ptr<Feed> feed = hub.feed("ws://:0/sky?pages=pages://");
+  EXPECT_FALSE(feed->error().empty());
+  EXPECT_TRUE(feed->address().empty());
 }
 
 TEST_F(IOWebSocket, AUriThatNamesNoPortOpensNothingAndSaysWhy) {
