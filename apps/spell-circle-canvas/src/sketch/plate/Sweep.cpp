@@ -219,6 +219,12 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     std::unique_ptr<Session> session;
     {
       PhaseMark mark(Phase::Setup);
+      // The session standing here goes before the next one opens: a feed
+      // is one object per URI for as long as anybody holds it, so a
+      // capture that opened its port while the earlier session still
+      // held that feed would read one already moved past the capture
+      // moment, and a still is a function of the declaration alone.
+      session.reset();
       session = kind->open(fonts, assets, true, entry.key);
     }
     if (options.noPromotion) session->setAutoPromotion(Session::Promotion::Off);
@@ -372,6 +378,12 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     // frame the benchmarked sweep captures.
     if (options.ledger && declared <= 0) declared = kCaptureFrame / kRate;
     if (declared > 0) {
+      // The session standing here goes before the next one opens: a feed
+      // is one object per URI for as long as anybody holds it, so a
+      // capture that opened its port while the earlier session still
+      // held that feed would read one already moved past the capture
+      // moment, and a still is a function of the declaration alone.
+      session.reset();
       session = kind->open(fonts, assets, true, entry.key);
       if (options.noPromotion)
         session->setAutoPromotion(Session::Promotion::Off);
