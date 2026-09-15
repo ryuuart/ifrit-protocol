@@ -1,7 +1,9 @@
 /** The connection: what a message reads as through the door it came in
- *  by, which handler it reaches, what the newest of a name is, what
- *  receive() hands out, what a message that cannot be read costs, what
- *  goes back down the wire, and what a recording replays through one.
+ *  by, which handler it reaches and which one runs when no name did,
+ *  what the newest of a name is, what receive() hands out once a first
+ *  call has asked for a queue, what a message that cannot be read
+ *  costs, what goes back down the wire — to the door or to the sender
+ *  of one message — and what a recording replays through one.
  */
 
 #include <gtest/gtest.h>
@@ -33,22 +35,35 @@ namespace {
  *  sent, in order. */
 using Sent = std::vector<std::vector<std::byte>>;
 
+/** The same for what went back to ONE sender: the address each reply
+ *  named, and the bytes it carried. */
+using Answered = std::vector<std::pair<std::string, std::vector<std::byte>>>;
+
 /** A TRANSPORT WITH NO SOCKET UNDER IT. It opens every URI it is given
- *  and takes what is sent into @p sent; what arrives a case delivers
- *  into the feed itself, so one thread runs a case from its first line
- *  to its last and no port has to be free for it to pass. */
-sigil::io::FeedTransport intoVector(std::shared_ptr<Sent> sent) {
-  return [sent](std::string_view uri, std::weak_ptr<sigil::io::Feed>) {
-    sigil::io::OpenedFeed opened;
-    // It binds nothing, so the local end it names is the URI it was
-    // asked for: enough for a case to see that the end reaches through.
-    opened.address = std::string(uri);
-    opened.send = [sent](const Bytes& bytes) {
-      sent->push_back(bytes.bytes);
-      return true;
-    };
-    return opened;
-  };
+ *  and takes what is sent into @p sent and what is answered into @p
+ *  answered; what arrives a case delivers into the feed itself, so one
+ *  thread runs a case from its first line to its last and no port has
+ *  to be free for it to pass. A null @p answered is a door that cannot
+ *  address one sender, which is what a case not about replies has. */
+sigil::io::FeedTransport intoVector(std::shared_ptr<Sent> sent,
+                                    std::shared_ptr<Answered> answered = {}) {
+  return
+      [sent, answered](std::string_view uri, std::weak_ptr<sigil::io::Feed>) {
+        sigil::io::OpenedFeed opened;
+        // It binds nothing, so the local end it names is the URI it was
+        // asked for: enough for a case to see that the end reaches through.
+        opened.address = std::string(uri);
+        opened.send = [sent](const Bytes& bytes) {
+          sent->push_back(bytes.bytes);
+          return true;
+        };
+        if (answered)
+          opened.sendTo = [answered](std::string_view to, const Bytes& bytes) {
+            answered->emplace_back(std::string(to), bytes.bytes);
+            return true;
+          };
+        return opened;
+      };
 }
 
 Bytes bytesOf(std::string_view text) {
@@ -178,6 +193,9 @@ TEST(DataConnection, ReceiveHandsOutEveryMessageInOrderAndThenNothing) {
   hub.setFeedTransport("ws", intoVector(std::make_shared<Sent>()));
 
   Connection scene(hub, "ws://:8848/scene");
+  // The queue opens on the first ask, so that ask comes before the
+  // messages it expects to be held.
+  EXPECT_FALSE(scene.receive().has_value());
   for (int number = 0; number != 3; ++number)
     scene.feed()->deliver(
         bytesOf(R"({"kind":"step","n":)" + std::to_string(number) + "}"));
@@ -193,6 +211,65 @@ TEST(DataConnection, ReceiveHandsOutEveryMessageInOrderAndThenNothing) {
   EXPECT_DOUBLE_EQ(scene.latest()["n"].number(), 2);
 }
 
+TEST(DataConnection, TheUnreadQueueFillsFromTheFirstReceiveOn) {
+  Hub hub;
+  hub.setFeedTransport("ws", intoVector(std::make_shared<Sent>()));
+
+  Connection scene(hub, "ws://:8848/scene");
+  int handled = 0;
+  scene.on("*", [&handled](const Json&) { ++handled; });
+  const auto arrives = [&scene, &hub](std::string_view text) {
+    scene.feed()->deliver(bytesOf(text));
+    hub.dispatch(0.0);
+  };
+
+  // Nobody has asked for a queue, so these are read, handled and not
+  // held: a reader that only registers handlers keeps no backlog.
+  arrives(R"({"kind":"step","n":1})");
+  arrives(R"({"kind":"step","n":2})");
+  EXPECT_EQ(handled, 2);
+  EXPECT_EQ(scene.generation(), 2u);
+  EXPECT_DOUBLE_EQ(scene.latest()["n"].number(), 2);
+
+  // This ask is the one that opens it, and it comes back empty because
+  // what came before it was never held.
+  EXPECT_FALSE(scene.receive().has_value());
+  arrives(R"({"kind":"step","n":3})");
+  const std::optional<Json> message = scene.receive();
+  ASSERT_TRUE(message.has_value());
+  EXPECT_DOUBLE_EQ((*message)["n"].number(), 3);
+  EXPECT_FALSE(scene.receive().has_value());
+  EXPECT_EQ(scene.dropped(), 0u);  // the feed dropped nothing either
+}
+
+TEST(DataConnection, OtherwiseRunsForEveryMessageNoNameMatched) {
+  Hub hub;
+  hub.setFeedTransport("osc", intoVector(std::make_shared<Sent>()));
+
+  Connection desk(hub, "osc://:9000");
+  std::vector<std::string> ran;
+  desk.on("/sky/wind", [&ran](const Json&) { ran.push_back("wind"); });
+  desk.on("*", [&ran](const Json&) { ran.push_back("every"); });
+  desk.otherwise([&ran](const Json& message) {
+    ran.push_back("otherwise " + std::string(message["address"].text()));
+  });
+  desk.otherwise([&ran](const Json&) { ran.push_back("otherwise again"); });
+
+  desk.feed()->deliver(bytesOf(encodeOsc("/sky/thunder", Json(Json::Array{}))));
+  desk.feed()->deliver(
+      bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.5)}))));
+  hub.dispatch(0.0);
+
+  // A name nothing was registered under reaches "*" and then, after it,
+  // both otherwise handlers in the order they were registered — "*"
+  // being every message rather than a name, so one standing does not
+  // make a message matched. A name a handler WAS registered under
+  // reaches that one and "*" and no otherwise at all.
+  EXPECT_EQ(ran,
+            (std::vector<std::string>{"every", "otherwise /sky/thunder",
+                                      "otherwise again", "wind", "every"}));
+}
+
 TEST(DataConnection, AMessageThatCannotBeReadLeavesTheLatestStanding) {
   Hub hub;
   hub.setFeedTransport("ws", intoVector(std::make_shared<Sent>()));
@@ -200,6 +277,7 @@ TEST(DataConnection, AMessageThatCannotBeReadLeavesTheLatestStanding) {
   Connection scene(hub, "ws://:8848/scene");
   int handled = 0;
   scene.on("*", [&handled](const Json&) { ++handled; });
+  EXPECT_FALSE(scene.receive().has_value());  // the queue opens here
 
   scene.feed()->deliver(bytesOf(R"({"kind":"gust","strength":0.5})"));
   scene.feed()->deliver(bytesOf("this is no document at all"));
@@ -243,6 +321,103 @@ TEST(DataConnection, SendWritesThePacketOnOscAndTheTextOnEveryOtherDoor) {
   EXPECT_EQ(desked->back(), desked->front());
 }
 
+TEST(DataConnection, AReplyInAHandlerAnswersTheSenderOfTheMessage) {
+  Hub hub;
+  const auto answered = std::make_shared<Answered>();
+  hub.setFeedTransport("osc", intoVector(std::make_shared<Sent>(), answered));
+
+  Connection desk(hub, "osc://:9000");
+  desk.on("/sky/wind", [&desk](const Json& message) {
+    desk.reply("/sky/state", Json(Json::Array{message["arguments"][0]}));
+  });
+
+  desk.feed()->deliver(
+      bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.5)}))),
+      "osc://127.0.0.1:52341");
+  hub.dispatch(0.0);
+
+  ASSERT_EQ(answered->size(), 1u);
+  // It went to the address the arrival named, and it is written exactly
+  // as a send on that door writes one.
+  EXPECT_EQ(answered->front().first, "osc://127.0.0.1:52341");
+  EXPECT_EQ(answered->front().second,
+            encodeOsc("/sky/state", Json(Json::Array{Json(0.5)})));
+}
+
+TEST(DataConnection, AReplyOutsideAHandlerAnswersTheNewestSender) {
+  Hub hub;
+  const auto answered = std::make_shared<Answered>();
+  hub.setFeedTransport("osc", intoVector(std::make_shared<Sent>(), answered));
+
+  Connection desk(hub, "osc://:9000");
+  // Nothing has arrived, so there is nobody to answer.
+  EXPECT_FALSE(desk.reply("/sky/state", Json(Json::Array{})));
+
+  desk.feed()->deliver(
+      bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.25)}))),
+      "osc://127.0.0.1:52341");
+  desk.feed()->deliver(
+      bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.75)}))),
+      "osc://127.0.0.1:52342");
+  hub.dispatch(0.0);
+
+  EXPECT_TRUE(desk.reply("/sky/state", Json(Json::Array{Json(0.75)})));
+  ASSERT_EQ(answered->size(), 1u);
+  // The newest message is the one an answer outside a handler answers,
+  // as the newest message is what latest() reads.
+  EXPECT_EQ(answered->front().first, "osc://127.0.0.1:52342");
+  // The message form goes back the same way the address form does.
+  EXPECT_TRUE(desk.reply(desk.latest()));
+  ASSERT_EQ(answered->size(), 2u);
+  EXPECT_EQ(answered->back().first, "osc://127.0.0.1:52342");
+  EXPECT_EQ(answered->back().second,
+            encodeOsc("/sky/wind", Json(Json::Array{Json(0.75)})));
+}
+
+TEST(DataConnection, AMessageThatNamedNoSenderIsNobodyToAnswer) {
+  Hub hub;
+  const auto sent = std::make_shared<Sent>();
+  const auto answered = std::make_shared<Answered>();
+  hub.setFeedTransport("ws", intoVector(sent, answered));
+
+  Connection scene(hub, "ws://:8848/scene");
+  // The door answers one sender, and a message arrived; what is missing
+  // is who sent it, which a transport that cannot say leaves empty.
+  scene.feed()->deliver(bytesOf(R"({"kind":"gust"})"));
+  hub.dispatch(0.0);
+  EXPECT_EQ(scene.latest()["kind"].text(), "gust");
+  EXPECT_FALSE(scene.reply(scene.latest()));
+  EXPECT_FALSE(scene.reply("/sky/state", Json(Json::Array{})));
+  EXPECT_TRUE(answered->empty());
+  // The door itself is no less open for it: what goes out to everybody
+  // still goes.
+  EXPECT_TRUE(scene.send(scene.latest()));
+  EXPECT_EQ(sent->size(), 1u);
+}
+
+TEST(DataConnection, ARecordingHasNobodyToReplyTo) {
+  const ScratchDir scratch("data_connection_reply_replay");
+  const std::filesystem::path path = scratch.path / "scene.feed";
+  {
+    sigil::io::RecordingWriter writer(path);
+    ASSERT_TRUE(writer.good());
+    writer.append({1, 0.0,
+                   std::make_shared<const Bytes>(
+                       bytesOf(R"({"kind":"gust","strength":1})"))});
+  }
+
+  Hub hub;
+  hub.mount("ws://:8848/scene", path);
+  Connection scene(hub, "ws://:8848/scene");
+  hub.dispatch(0.0);
+
+  EXPECT_DOUBLE_EQ(scene.latest()["strength"].number(), 1.0);
+  // A recording holds the messages and not who sent them, so what runs
+  // again against a file answers nobody rather than answering wrongly.
+  EXPECT_FALSE(scene.reply(scene.latest()));
+  EXPECT_FALSE(scene.reply("/sky/state", Json(Json::Array{})));
+}
+
 TEST(DataConnection, AMovedConnectionGoesOnDispatchingToItsHandlers) {
   Hub hub;
   hub.setFeedTransport("ws", intoVector(std::make_shared<Sent>()));
@@ -274,7 +449,11 @@ TEST(DataConnection, AConnectionOntoNothingAnswersNothing) {
   EXPECT_FALSE(none.receive().has_value());
   EXPECT_FALSE(none.send(Json(Json::Object{{"kind", Json("gust")}})));
   EXPECT_FALSE(none.send("/sky/gust", Json(Json::Array{})));
+  EXPECT_FALSE(none.reply(Json(Json::Object{{"kind", Json("gust")}})));
+  EXPECT_FALSE(none.reply("/sky/gust", Json(Json::Array{})));
   none.on("*", [](const Json&) { FAIL() << "no message arrives at no door"; });
+  none.otherwise(
+      [](const Json&) { FAIL() << "no message arrives at no door"; });
 }
 
 TEST(DataConnection, ARecordingReplaysThroughAConnectionByTheTimeDispatched) {

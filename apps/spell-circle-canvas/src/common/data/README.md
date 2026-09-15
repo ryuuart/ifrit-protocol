@@ -28,7 +28,7 @@ what a consumer uses; every public header lives under
 | `SigilDataScale` | `scale/Scale.h` | `Interval`, `Transform`, `Overflow` and `Scale` — the mapping, its inverse, its tick ladder and `nice()` |
 | `SigilDataTable` | `table/Table.h` | `Instant`, `Flag`, `Value`, `ColumnType`, `Order`, `Column` and `Table` — named typed columns, the cells as spans, and the reshapings |
 | `SigilDataDecode` | `decode/Csv.h`, `decode/Json.h`, `decode/Decoders.h`, `decode/FlatBuffer.h`, `decode/Osc.h` | `CsvOptions`, `decodeCsv()`, `decodeInstant()`; `Json`, `decodeJson()`, `encodeJson()`, `tableFromJson()`; `TableDecoder`, `JsonDecoder` and `registerDecoders(hub)` — the two decoders and the one call that puts them on a hub; `FlatBuffer`, `FlatBufferDecoder`, `flatBufferFromBytes()`, `flatBufferFromJson()` and `registerFlatBuffer(hub)` — a FlatBuffer as a value, read in place through the schema its generated root carries; and `decodeOsc()`, `encodeOsc()` and `maxOscPacketBytes` — an OSC packet read into a `Json` and written back out of one |
-| `SigilDataConnection` | `connection/Connection.h` | `Connection` — a feed read as values: the newest message, the ones a reader has not taken, the handlers a message's name reaches, and the two ways one goes back out the same door |
+| `SigilDataConnection` | `connection/Connection.h` | `Connection` — a feed read as values: the newest message, the ones a reader has not taken once it has asked for them, the handlers a message's name reaches and the `Connection::otherwise()` one that runs when no name did, the two ways a message goes back out the same door, and `Connection::reply()`, which answers the sender of one |
 | `SigilDataQuery` | `query/Database.h` | `Engine`, `Database` and `DatabaseDecoder`, with `engineOf()` — a SQL store behind one seam, SQLite or DuckDB, whose `query()` answers a `Table`, whose `insert()` writes one in, and whose decoder puts a `.sqlite` or `.duckdb` file on a hub |
 
 `SigilData` is the umbrella target over them, and `<sigildata/Data.h>`
@@ -312,6 +312,10 @@ sky.on("weather", [&](const Json& message) {          // named by its "kind"
   cloud = message["cloud"].number();
 });
 sky.on("*", [&](const Json&) { ++messages; });        // every message
+sky.otherwise([&](const Json&) { ++strangers; });     // every message no name took
+sky.on("/sky/ping", [&](const Json&) {
+  sky.reply("/sky/pong", Json::Array{1});             // back to that sender
+});
 
 hub.dispatch(seconds);                        // the frame: handlers run here
 wind = sky.latest()["arguments"][0].number(); // the newest, already read
@@ -340,11 +344,26 @@ carries as text, in that order. `"*"` names every message, one with no
 name of its own included. Several handlers may share a name and each
 runs once per message, in the order they were registered; one registered
 after a message arrived does not see it, `latest()` being how a late
-reader catches up. Going back out, a message is written the way its door
-is read: an OSC packet on an `osc://` door and JSON text on every other,
-and off the OSC wire `send(address, arguments)` writes the same
-`{"address": …, "arguments": …}` record a packet reads as, which is the
-form the far end reads a name out of.
+reader catches up. A message NO name took reaches
+`Connection::otherwise()` instead, after the named handlers of that
+message would have run and in the order those were registered — `"*"`
+being every message rather than a name, so one standing leaves a message
+no name matched still unmatched. Going back out, a message is written the
+way its door is read: an OSC packet on an `osc://` door and JSON text on
+every other, and off the OSC wire `send(address, arguments)` writes the
+same `{"address": …, "arguments": …}` record a packet reads as, which is
+the form the far end reads a name out of.
+
+**A reply answers the sender of one message.** `Connection::reply()`
+writes exactly what `send()` writes and puts it in front of ONE sender
+rather than the door: inside a handler, the sender of the message being
+handled, so a port that listens answers the desk that just spoke without
+a second connection opened back at it; outside one, the sender of the
+newest message. It is false where there is nobody to answer — nothing has
+arrived, the door cannot address one sender, or the arrival named none,
+which is what a replayed recording has, holding the messages and not who
+sent them. A message that could not be read leaves the sender standing
+exactly as it leaves `latest()` standing.
 
 **The newest of one name is a reading, not a handler.** That reading is
 `Connection::latest(what)`: the newest message named `what`, under the
@@ -364,11 +383,16 @@ every message rather than a name a message can carry.
 **A message that cannot be read is no message.** It reaches neither
 `latest()` nor `receive()` nor a handler, and `undecodable()` counts it:
 a sender speaking another language cannot blank a scene, and a reader
-can see that it happened. What a reader has not taken is bounded by the
-feed's own capacity and loses its oldest first, which is what a reader
-that registered handlers and never drains wants. Draining is taking, so
-two connections on one URI split its messages between them rather than
-each seeing all of them, and `feed()` is the floor below for whoever
+can see that it happened. **The unread queue is opt-in.** THE FIRST
+`receive()` OPENS IT: before that a connection queues nothing, so a
+reader that registers handlers and never calls `receive()` holds no
+backlog it will never look at and drops nothing into one. From that call
+on the queue is bounded by the same capacity the latches are and loses
+its oldest first, and what it loses there is counted nowhere —
+`dropped()` is the FEED's count, of arrivals that never reached this
+connection at all. Draining is taking, so two connections on one URI
+split its messages between them rather than each seeing all of them,
+and `feed()` is the floor below for whoever
 wants the bytes — to record them, or to read a wire this library has no
 reading for.
 

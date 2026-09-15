@@ -1,7 +1,8 @@
 /** @file
  * The connection: the door it opened, the scheme its messages are read
  * by, the value and the latch per name and the queue and the handlers
- * one dispatch fills, and the two ways a message goes back out.
+ * one dispatch fills, and the ways a message goes back out — to the
+ * door, or to the sender of the message being answered.
  */
 
 #include "sigildata/connection/Connection.h"
@@ -78,7 +79,18 @@ struct Connection::State {
   size_t capacity = 0;
   std::shared_ptr<io::Feed> feed;
   Json latest;
+  /** WHO SENT THE MESSAGE A REPLY ANSWERS: the address the newest
+   *  message that could be read arrived from, which inside a handler is
+   *  the address of the message that handler was given. Empty where
+   *  there is nobody to answer — nothing has arrived, or the arrival
+   *  named no sender, as a recording's frames do not. */
+  std::string sender;
   std::deque<Json> unread;
+  /** Whether the queue behind receive() is being filled. The first
+   *  receive() raises it and nothing lowers it: a reader that only
+   *  registers handlers holds no backlog it never looks at, and one
+   *  that asks for a message is asking for the ones after it too. */
+  bool queuing = false;
 
   /** ONE MESSAGE UNDER EACH NAME, and the write that put it there: the
    *  name written longest ago is the one carrying the smallest count,
@@ -94,6 +106,9 @@ struct Connection::State {
    *  count comes from. */
   uint64_t writes = 0;
   std::vector<std::pair<std::string, Handler>> handlers;
+  /** What runs for a message no name above matched, in the order these
+   *  were registered. */
+  std::vector<Handler> otherwise;
   uint64_t undecodable = 0;
   /** What the hub's dispatch runs. It is released with this state, so a
    *  connection that is gone leaves nothing to run. */
@@ -128,11 +143,40 @@ struct Connection::State {
     named.emplace(std::string(name), Named{message, ++writes});
   }
 
+  /** ONE MESSAGE ON THIS DOOR'S WIRE: the packet an OSC door is read
+   *  by, the JSON text every other door is. Nothing where the value has
+   *  no spelling there — no bytes is no message, and a value the wire
+   *  cannot hold does not go out as an empty datagram. */
+  std::optional<io::Bytes> write(const Json& message) const {
+    if (!osc) return textBytes(encodeJson(message));
+    std::vector<std::byte> packet = encodeOsc(message);
+    if (packet.empty()) return std::nullopt;
+    io::Bytes bytes;
+    bytes.bytes = std::move(packet);
+    return bytes;
+  }
+
+  /** THE SAME, spelled as @p arguments under @p address. */
+  std::optional<io::Bytes> write(std::string_view address,
+                                 const Json& arguments) const {
+    // Off the OSC wire the same message is the record a packet reads
+    // as, which is the form a name is read out of at the other end.
+    if (!osc)
+      return write(Json(Json::Object{{"address", Json(std::string(address))},
+                                     {"arguments", arguments}}));
+    std::vector<std::byte> packet = encodeOsc(address, arguments);
+    if (packet.empty()) return std::nullopt;
+    io::Bytes bytes;
+    bytes.bytes = std::move(packet);
+    return bytes;
+  }
+
   /** ONE FRAME'S MESSAGES. The feed is drained in order, and each
    *  message that reads is latched — under nothing and under its own
-   *  name — queued, and handed to every handler that names it before
-   *  the next one is taken, so a handler asking for the latest reads
-   *  the message it was given. */
+   *  name — queued where a queue was asked for, and handed to every
+   *  handler that names it before the next one is taken, so a handler
+   *  asking for the latest reads the message it was given and a handler
+   *  replying answers the sender of it. */
   void dispatch() {
     if (!feed) return;
     while (const std::optional<io::Arrival> arrival = feed->receive()) {
@@ -142,24 +186,40 @@ struct Connection::State {
         continue;
       }
       latest = *message;
+      // Who sent it moves with what it says: a message that cannot be
+      // read is no message, so it leaves the sender standing exactly as
+      // it leaves the latest standing.
+      sender = arrival->from;
       const std::string_view name = nameOf(latest);
       // A message that says what it is is latched under that name as
       // well as under none, so a reader asks for the newest of one name
       // without registering a handler for it. A message that says
       // nothing latches under nothing: no name is not a name.
       if (!name.empty()) latch(name, latest);
-      unread.push_back(std::move(*message));
-      while (capacity != 0 && unread.size() > capacity) unread.pop_front();
+      if (queuing) {
+        unread.push_back(std::move(*message));
+        while (capacity != 0 && unread.size() > capacity) unread.pop_front();
+      }
 
       // The count is taken first and the handler is held rather than
       // referred to: a handler may register another, which moves the
       // list it is standing in, and one registered from inside a
       // handler runs from the next message.
       const size_t registered = handlers.size();
+      bool matched = false;
       for (size_t index = 0; index != registered; ++index) {
         const std::string_view what = handlers[index].first;
         if (what != "*" && what != name) continue;
+        // "*" is every message rather than a name a message carries, so
+        // one standing leaves a message no NAME reached still unnamed.
+        if (what != "*") matched = true;
         const Handler handler = handlers[index].second;
+        handler(latest);
+      }
+      if (matched) continue;
+      const size_t unmatched = otherwise.size();
+      for (size_t index = 0; index != unmatched; ++index) {
+        const Handler handler = otherwise[index];
         handler(latest);
       }
     }
@@ -197,7 +257,12 @@ uint64_t Connection::generation() const {
 }
 
 std::optional<Json> Connection::receive() {
-  if (!m_state || m_state->unread.empty()) return std::nullopt;
+  if (!m_state) return std::nullopt;
+  // Asking for a message is what says this reader wants them held: what
+  // arrived before the first ask was never queued, and everything after
+  // it is.
+  m_state->queuing = true;
+  if (m_state->unread.empty()) return std::nullopt;
   Json message = std::move(m_state->unread.front());
   m_state->unread.pop_front();
   return message;
@@ -210,31 +275,37 @@ void Connection::on(std::string_view what, Handler handler) {
   m_state->handlers.emplace_back(std::string(what), std::move(handler));
 }
 
+void Connection::otherwise(Handler handler) {
+  if (!m_state || !handler) return;
+  m_state->otherwise.push_back(std::move(handler));
+}
+
 bool Connection::send(const Json& message) const {
   if (!m_state || !m_state->feed) return false;
-  if (!m_state->osc) return m_state->feed->send(textBytes(encodeJson(message)));
-  std::vector<std::byte> packet = encodeOsc(message);
-  // No bytes is no message: a value the wire has no spelling for does
-  // not go out as an empty datagram.
-  if (packet.empty()) return false;
-  io::Bytes bytes;
-  bytes.bytes = std::move(packet);
-  return m_state->feed->send(bytes);
+  const std::optional<io::Bytes> bytes = m_state->write(message);
+  return bytes && m_state->feed->send(*bytes);
 }
 
 bool Connection::send(std::string_view address, const Json& arguments) const {
   if (!m_state || !m_state->feed) return false;
-  if (!m_state->osc) {
-    // Off the OSC wire the same message is the record a packet reads
-    // as, which is the form a name is read out of at the other end.
-    return send(Json(Json::Object{{"address", Json(std::string(address))},
-                                  {"arguments", arguments}}));
-  }
-  std::vector<std::byte> packet = encodeOsc(address, arguments);
-  if (packet.empty()) return false;
-  io::Bytes bytes;
-  bytes.bytes = std::move(packet);
-  return m_state->feed->send(bytes);
+  const std::optional<io::Bytes> bytes = m_state->write(address, arguments);
+  return bytes && m_state->feed->send(*bytes);
+}
+
+bool Connection::reply(const Json& message) const {
+  // The same bytes as a send, out of a door that names whom they go to
+  // instead of writing to whoever is on the other side. Nobody to
+  // answer is not an error to report: it is what a recording, and a
+  // door nothing has arrived at, has.
+  if (!m_state || !m_state->feed || m_state->sender.empty()) return false;
+  const std::optional<io::Bytes> bytes = m_state->write(message);
+  return bytes && m_state->feed->sendTo(m_state->sender, *bytes);
+}
+
+bool Connection::reply(std::string_view address, const Json& arguments) const {
+  if (!m_state || !m_state->feed || m_state->sender.empty()) return false;
+  const std::optional<io::Bytes> bytes = m_state->write(address, arguments);
+  return bytes && m_state->feed->sendTo(m_state->sender, *bytes);
 }
 
 const std::string& Connection::uri() const {

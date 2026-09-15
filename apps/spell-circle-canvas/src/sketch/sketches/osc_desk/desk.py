@@ -4,10 +4,9 @@
 Two modes, one desk:
 
     python3 desk.py
-        sends the traffic to 127.0.0.1:27070 until interrupted, and
-        listens on 27071 for the /sky/state readings the sketch sends
-        back, printing each one — which is the whole round trip a fader
-        on a real desk makes.
+        sends the traffic to 127.0.0.1:27070 until interrupted and
+        prints the /sky/state readings the sketch answers with, which
+        is the whole round trip a fader on a real desk makes.
 
     python3 desk.py --record data/desk.feed --seconds 6
         writes that same traffic to a file in the feed recording format,
@@ -19,6 +18,12 @@ WHAT THE DESK SAYS. Three addresses, and the sketch answers a fourth:
     /sky/gust     two floats: how hard, and over how long
     /sky/palette  nine floats: three colours, red green blue each
     /sky/state    what comes back: the eased wind, one float
+
+ONE SOCKET, BOTH WAYS. The sketch listens on a port and answers the
+SENDER of each message, so its answers come back to the address the
+messages left from — this socket, on whichever port the system gave it.
+There is no second port to bind and nothing the sketch has to be told
+about where to write.
 
 A PACKET IS SPELLED HERE BY HAND, because the whole point of the sketch
 is that nothing between the desk and the drawing had to be installed. An
@@ -158,16 +163,20 @@ def write_recording(path, seconds):
     return written
 
 
-def drain(back, until):
-    """Prints whatever reaches the return door until `until`, then waits."""
+def drain(door, until):
+    """Prints what the sketch has answered, until `until`, then waits.
+
+    The answers arrive on the socket the messages left from, so this is
+    the same `door` the traffic goes out of.
+    """
     while True:
         remaining = until - time.monotonic()
         if remaining <= 0:
             return
-        ready, _, _ = select.select([back], [], [], remaining)
+        ready, _, _ = select.select([door], [], [], remaining)
         if not ready:
             return
-        packet, _ = back.recvfrom(65536)
+        packet, _ = door.recvfrom(65536)
         message = read_message(packet)
         if message:
             address, arguments = message
@@ -175,18 +184,19 @@ def drain(back, until):
             print(f"  <- {address} {readings}")
 
 
-def send(host, port, listen_port, seconds):
+def send(host, port, seconds):
     """The same traffic, to a port, over and over until interrupted."""
-    out = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    back = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    back.bind(("", listen_port))
+    # One socket both ways: what the sketch answers is addressed to
+    # whoever wrote to it, which is the port this socket is given the
+    # first time it sends.
+    door = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     schedule = traffic(seconds)
     started = time.monotonic()
     cycle = 0
     while True:
         for at, address, arguments in schedule:
-            drain(back, started + cycle * seconds + at)
-            out.sendto(osc_message(address, arguments), (host, port))
+            drain(door, started + cycle * seconds + at)
+            door.sendto(osc_message(address, arguments), (host, port))
             if address != "/sky/wind":
                 readings = " ".join(f"{value:.2f}" for value in arguments)
                 print(f"-> {address} {readings}")
@@ -208,12 +218,6 @@ def main(argv=None):
     )
     parser.add_argument("--host", default="127.0.0.1", help="where to send")
     parser.add_argument("--port", type=int, default=27070, help="the port to send to")
-    parser.add_argument(
-        "--listen-port",
-        type=int,
-        default=27071,
-        help="the port the sketch sends /sky/state back to",
-    )
     arguments = parser.parse_args(argv)
 
     if arguments.record:
@@ -223,10 +227,10 @@ def main(argv=None):
 
     print(
         f"working the desk at {arguments.host}:{arguments.port}, "
-        f"listening for /sky/state on {arguments.listen_port}"
+        "printing the /sky/state readings it answers with"
     )
     try:
-        send(arguments.host, arguments.port, arguments.listen_port, arguments.seconds)
+        send(arguments.host, arguments.port, arguments.seconds)
     except KeyboardInterrupt:
         print()
     return 0

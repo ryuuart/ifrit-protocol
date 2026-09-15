@@ -14,7 +14,12 @@
     "cgltf",
     "choreograph",
     "concurrentqueue",
-    "curl",
+    {
+      "name": "curl",
+      "features": [
+        "websockets"
+      ]
+    },
     "diligent-engine",
     "duckdb",
     "earcut-hpp",

@@ -8,14 +8,18 @@
  * packet through an `osc://` door, JSON text through every other — and
  * what a reader sees is the `Json` value, never the bytes. The newest
  * message is `latest()` and the newest of one name `latest(name)`, the
- * ones not taken yet come out of `receive()` in order, and a handler
- * registered with `on()` runs for the messages it names.
+ * ones not taken yet come out of `receive()` in order once a first call
+ * has opened that queue, a handler registered with `on()` runs for the
+ * messages it names and one registered with `otherwise()` for the
+ * messages no name did.
  *
  *     Connection sky(hub, "osc://:9000");
  *     sky.on("/sky/gust", [&](const Json& message) {
  *       gust = message["arguments"][0].number();
+ *       sky.reply("/sky/ack", Json::Array{gust});   // back to that sender
  *     });
  *     sky.on("*", [&](const Json&) { ++messages; });
+ *     sky.otherwise([&](const Json&) { ++strangers; });
  *     ...
  *     hub.dispatch(seconds);                   // the frame: handlers run here
  *     wind = sky.latest()["arguments"][0].number();
@@ -104,10 +108,15 @@ class Connection {
 
   /** The next message this reader has not taken, in order; nothing when
    *  none is waiting, and never a wait. What the handlers see is not
-   *  taken from here — one message reaches both. The queue holds what
-   *  the policy's capacity says and its oldest falls off the front when
-   *  it is full, which is what a reader that registered handlers and
-   *  never calls this wants. */
+   *  taken from here — one message reaches both.
+   *
+   *  THE FIRST CALL OPENS THE QUEUE: messages read before it are not
+   *  held, so a reader that registers handlers and never calls this
+   *  keeps no queue and loses nothing to one. From then on the queue
+   *  holds what the policy's capacity says and its oldest falls off the
+   *  front when it is full, which is what a reader that has fallen
+   *  behind the newest wants; what falls off there is counted nowhere.
+   */
   std::optional<Json> receive();
 
   /** Runs @p handler for every message named @p what, from now on.
@@ -123,6 +132,15 @@ class Connection {
    *  latest() being how a late reader catches up. */
   void on(std::string_view what, Handler handler);
 
+  /** Runs @p handler for every message NO on() name matched, from now
+   *  on. `"*"` is a handler's word for every message and not a name, so
+   *  one standing does not make a message matched: a message no on()
+   *  name reached arrives here whatever else ran for it. Several may be
+   *  registered and each runs once per such message, in the order they
+   *  were registered, after the handlers a name would have reached on
+   *  that same message. */
+  void otherwise(Handler handler);
+
   /** Sends @p message back through the same door, written the way that
    *  door is read: an `osc://` door takes the packet an `address` and
    *  its `arguments` are written as, every other door the JSON text.
@@ -136,6 +154,20 @@ class Connection {
    *  at the other end reads a name out of. */
   bool send(std::string_view address, const Json& arguments) const;
 
+  /** Sends @p message back TO THE SENDER OF ONE, written exactly as
+   *  send() writes it. Inside a handler that sender is the one that
+   *  sent the message being handled, so a door that listens answers the
+   *  desk that just spoke; outside one it is the sender of the newest
+   *  message. False when there is nobody to answer — nothing has
+   *  arrived, a recording holds the messages and not who sent them, or
+   *  the connection is onto nothing — and when the door cannot address
+   *  one sender or the value has no spelling on that wire. */
+  bool reply(const Json& message) const;
+
+  /** THE OSC SPELLING of a reply: @p arguments under @p address, back
+   *  to that same sender. */
+  bool reply(std::string_view address, const Json& arguments) const;
+
   /** The URI this was opened on; empty for a connection onto nothing. */
   const std::string& uri() const;
 
@@ -146,7 +178,10 @@ class Connection {
   std::string error() const;
 
   /** Arrivals the feed dropped before this connection drained them: a
-   *  sender faster than the frame. */
+   *  sender faster than the frame. It is the FEED's count and nothing
+   *  else: what receive()'s own queue loses to its own capacity, once a
+   *  first receive() has opened it, is counted neither here nor
+   *  anywhere. */
   uint64_t dropped() const;
 
   /** Arrivals that were no message in this connection's scheme. They

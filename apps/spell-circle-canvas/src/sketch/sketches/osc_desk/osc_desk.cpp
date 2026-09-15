@@ -18,25 +18,26 @@
  * file: bands crossing the canvas, the wind they drift on, the palette
  * they are tinted from.
  *
- * TWO DOORS, BECAUSE ONE OF THEM IS A LISTENER. `osc://:27070` binds a
- * port and takes messages from whoever writes to it, which means it has
- * no one peer to answer: its way is one-way and sending down it is
- * refused. So what goes back to the desk goes out of a second
- * connection opened onto the desk's OWN port, and the eased wind leaves
- * on it whenever it moves, which is what a motorised fader follows. A
- * capture opens no socket, so that door stands only in a window and a
- * plate is the listening half alone.
+ * ONE DOOR, ANSWERED. `osc://:27070` binds a port and takes messages
+ * from whoever writes to it, which means it holds no one peer to send
+ * to — but every message names the sender it came from, and `reply()`
+ * answers that one. So the eased wind goes back to whoever moved the
+ * fader, which is what a motorised fader follows, and it goes as the
+ * answer to each `/sky/wind` message: the sky moves every frame while a
+ * handler runs only on an arrival, so an arrival is answered with the
+ * sky as it stands when it lands. A capture replays a recording, which
+ * holds the messages and not who sent them, so there is nobody to
+ * answer and a plate is the listening half alone.
  *
  * `desk.py` beside this file is the desk: it sends the traffic to the
- * port and prints what comes back, and it writes the recording a
- * capture replays.
+ * port and prints the answers, which come back to the one socket it
+ * sent them from, and it writes the recording a capture replays.
  *
  *     python3 desk.py                                  # a window moves
  *     python3 desk.py --record data/desk.feed --seconds 6
  *
  * EDIT THESE FIRST
  *   kDesk       the URI the desk's messages arrive on
- *   kMotor      the URI the eased wind is sent back out of
  *   kRecording  what a capture replays instead of listening
  *   kGustPush   how much drift a gust of full strength adds
  *   kSpacing    how far apart the bands stand
@@ -77,9 +78,8 @@ using sigil::draw::Pen;
 
 namespace {
 
-const char* kDesk = "osc://:27070";            // where the desk's messages land
-const char* kMotor = "osc://127.0.0.1:27071";  // where the desk's motor listens
-const char* kRecording = "data/desk.feed";     // what a capture replays
+const char* kDesk = "osc://:27070";         // where the desk's messages land
+const char* kRecording = "data/desk.feed";  // what a capture replays
 
 constexpr SkSize kCanvas = {1280, 720};
 constexpr SkColor4f kGround = {0.04f, 0.04f, 0.09f, 1};
@@ -141,6 +141,7 @@ struct Reading {
   uint64_t undecodable = 0;
   uint64_t gusts = 0;
   uint64_t palettes = 0;
+  uint64_t replies = 0;
   std::string spoken;
   std::string address;
   std::string trouble;
@@ -163,11 +164,6 @@ struct OscDesk {
    *  the call the host already makes once a frame — so a message that
    *  arrived is folded in before the frame it belongs to is drawn. */
   data::Connection desk;
-  /** THE WAY BACK, which cannot be the door above: a listener answers
-   *  whoever wrote to it and has no one peer, so this is a second
-   *  connection onto the desk's own port. A connection onto nothing in
-   *  a capture, which opens no socket. */
-  data::Connection motor;
   /** The session's ticker, which outlives this sketch. A handler runs
    *  on the dispatch rather than inside a describe, so it cannot hold
    *  the per-frame context the ticker is otherwise reached through. */
@@ -186,12 +182,12 @@ struct OscDesk {
   double drift = 0;
   /** The scene time the last frame stood at, for the step between. */
   double seconds = 0;
-  /** The reading the motor was last given, so one is sent when it moves
-   *  and not on every frame. */
-  float sent = 0;
 
   uint64_t gusts = 0;
   uint64_t palettes = 0;
+  /** How many answers went back to a desk, which is none at all under a
+   *  capture: a recording has no sender to answer. */
+  uint64_t replies = 0;
   Reading shown;
 
   void setup(sketch::SketchContext& ctx) {
@@ -211,9 +207,9 @@ struct OscDesk {
     palette = kOpeningPalette;
     drift = 0;
     seconds = 0;
-    sent = 0;
     gusts = 0;
     palettes = 0;
+    replies = 0;
     shown = {};
 
     desk = data::Connection(hub, kDesk);
@@ -221,12 +217,6 @@ struct OscDesk {
     desk.on("/sky/gust", [this](const data::Json& message) { burst(message); });
     desk.on("/sky/palette",
             [this](const data::Json& message) { colours(message); });
-
-    // The way out stands only where there is a socket to open. Onto
-    // nothing it answers closed and sends nothing, which is what a
-    // plate of a listening scene should show.
-    motor =
-        ctx.deterministic ? data::Connection() : data::Connection(hub, kMotor);
 
     read();
     describe(ctx);
@@ -236,7 +226,6 @@ struct OscDesk {
     const double step = elapsed - seconds;
     seconds = elapsed;
     drift += ((double)wind() + (double)gust() * kGustPush) * step;
-    answer();
     // The data path: the sky itself moves without being described
     // again, because the pen reads it on every frame. What is described
     // again is the readout, and only when one of its figures changed.
@@ -244,8 +233,14 @@ struct OscDesk {
   }
 
   /** A FADER READING IS A STATE: the sky eases to it, so a desk moving
-   *  its fader in steps still drifts smoothly. */
+   *  its fader in steps still drifts smoothly. IT IS ALSO ANSWERED, to
+   *  the sender that moved it, with where the easing has REACHED rather
+   *  than with the reading that just arrived — that is the wind the
+   *  bands are drifting on, and what a motorised fader follows. A
+   *  recording has no sender, so under a capture the answer is refused
+   *  and nothing goes out. */
   void fader(const data::Json& message) {
+    if (desk.reply("/sky/state", data::Json::Array{(double)wind()})) ++replies;
     if (!ticker) return;
     ticker->timeline().apply(&wind).then<ch::RampTo>(
         (float)message["arguments"][0].number(), kWindEase, &ch::easeOutQuad);
@@ -282,15 +277,6 @@ struct OscDesk {
     ++palettes;
   }
 
-  /** THE EASED WIND, BACK OUT, whenever it has moved — which is what a
-   *  motorised fader follows. It goes out of the second door, because
-   *  the one the desk speaks through has no peer to answer. */
-  void answer() {
-    if (wind() == sent) return;
-    sent = wind();
-    motor.send("/sky/state", data::Json::Array{(double)sent});
-  }
-
   /** Takes what the connection answers, and says whether the readout
    *  standing now was written from something else. */
   bool read() {
@@ -298,6 +284,7 @@ struct OscDesk {
                 .undecodable = desk.undecodable(),
                 .gusts = gusts,
                 .palettes = palettes,
+                .replies = replies,
                 .spoken = std::string(desk.latest()["address"].text()),
                 .address = desk.address(),
                 .trouble = desk.error()};
@@ -356,8 +343,8 @@ struct OscDesk {
   }
 
   /** THE TWO CONTINUOUS FIGURES, where a live number belongs: the wind
-   *  the sky is drifting on, which is also what leaves by the second
-   *  door, and the gust standing over it. They are drawn rather than
+   *  the sky is drifting on, which is also what goes back to the desk,
+   *  and the gust standing over it. They are drawn rather than
    *  written because a description carrying a number that changes every
    *  frame is a description rebuilt every frame. */
   void faders(Pen& pen, SkColor4f rule, SkColor4f figure, SkColor4f ash) {
@@ -396,8 +383,9 @@ struct OscDesk {
 
   /** WHAT THE CONNECTION ANSWERS, small in the corner: how many
    *  messages have arrived, how many of them were no OSC packet at all,
-   *  what the newest one was addressed to, and where each door is — or
-   *  the sentence saying why there is none. */
+   *  what the newest one was addressed to, where the door is — or the
+   *  sentence saying why there is none — and how many answers have gone
+   *  back to a desk. */
   compose::Element readout() {
     const sketch::kit::Theme& look = sketch::kit::theme();
     std::vector<compose::Element> lines{
@@ -418,8 +406,8 @@ struct OscDesk {
       lines.push_back(
           row("address", shown.address.empty() ? "-" : shown.address));
     lines.push_back(row(
-        "motor", motor.closed() ? std::string("no door · a capture opens none")
-                                : std::string(kMotor)));
+        "replies",
+        compose::kit::formatted("%llu", (unsigned long long)shown.replies)));
     return compose::box()
         .column()
         .gap(look.spacing.rowGap)
@@ -436,5 +424,5 @@ struct OscDesk {
 SIGIL_SKETCH(OscDesk, "Data",
              "A desk on the other end of an OSC cable: its faders ease the "
              "wind, its bursts start a gust on the ticker, its nine floats "
-             "are three colours, and the eased wind goes back out a second "
-             "door for its motor to follow.")
+             "are three colours, and the eased wind is answered back to "
+             "whoever moved the fader for its motor to follow.")
