@@ -153,8 +153,7 @@ TEST(SpellCircleMacEngine, LoopbackSeparatesChangedDuplicateAndInvalidPackets) {
     EXPECT_EQ(recorder.scenes, 1u);
     NSString *senderText =
         [NSString stringWithFormat:@"127.0.0.1:%u", static_cast<unsigned>(sender)];
-    EXPECT_TRUE([recorder.lastSource isEqualToString:senderText])
-        << recorder.lastSource.UTF8String;
+    EXPECT_TRUE([recorder.lastSource isEqualToString:senderText]) << recorder.lastSource.UTF8String;
     EXPECT_TRUE([recorder.lastMessage containsString:@"1 circles"]);
 
     // The same bytes again count as an arrival and change nothing else.
