@@ -1,0 +1,7 @@
+// flatbuffer_test.fbs — the schema the FlatBuffer decoder's cases read through.
+namespace flatbuffer_test;
+
+table Reading { name: string; value: float; }
+table Sheet { readings: [Reading]; }
+
+root_type Sheet;

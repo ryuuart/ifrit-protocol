@@ -1,0 +1,36 @@
+// schema_scene.fbs — what this sketch evaluates and shows.
+//
+// A Sky is the state the scene is drawn from: bands crossing it, the
+// wind they drift on, and the palette they are tinted from. The
+// commands beside it are what moves a sky that is arriving live; a sky
+// read from a file is the state alone.
+namespace schema_scene;
+
+struct Vec2 { x: float; y: float; }
+struct Color { r: float; g: float; b: float; a: float; }
+
+table Band {
+  height: float;  // in canvas pixels
+  speed: float;   // its own drift, added to the wind's
+  wobble: float;  // how far it breathes up and down
+}
+
+table Sky {
+  bands: [Band];
+  wind: Vec2;       // pixels per second, the drift every band shares
+  palette: [Color]; // one per band, cycled when there are fewer
+}
+
+table SetPalette { palette: [Color]; }
+table Gust { wind: Vec2; seconds: float; }
+table Snapshot { path: string; }
+
+union Message { Sky, SetPalette, Gust, Snapshot }
+
+table Envelope {
+  generation: uint64;
+  at: double;        // seconds on the sender's clock
+  message: Message;
+}
+
+root_type Envelope;

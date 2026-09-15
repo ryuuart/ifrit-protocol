@@ -27,7 +27,7 @@ what a consumer uses; every public header lives under
 |--------|---------|-------|
 | `SigilDataScale` | `scale/Scale.h` | `Interval`, `Transform`, `Overflow` and `Scale` — the mapping, its inverse, its tick ladder and `nice()` |
 | `SigilDataTable` | `table/Table.h` | `Instant`, `Flag`, `Value`, `ColumnType`, `Order`, `Column` and `Table` — named typed columns, the cells as spans, and the reshapings |
-| `SigilDataDecode` | `decode/Csv.h`, `decode/Json.h`, `decode/Decoders.h` | `CsvOptions`, `decodeCsv()`, `decodeInstant()`; `Json`, `decodeJson()`, `tableFromJson()`; and `TableDecoder`, `JsonDecoder` and `registerDecoders(hub)` — the two decoders and the one call that puts them on a hub |
+| `SigilDataDecode` | `decode/Csv.h`, `decode/Json.h`, `decode/Decoders.h`, `decode/FlatBuffer.h` | `CsvOptions`, `decodeCsv()`, `decodeInstant()`; `Json`, `decodeJson()`, `tableFromJson()`; `TableDecoder`, `JsonDecoder` and `registerDecoders(hub)` — the two decoders and the one call that puts them on a hub; and `FlatBuffer`, `FlatBufferDecoder`, `flatBufferFromBytes()`, `flatBufferFromJson()` and `registerFlatBuffer(hub)` — a FlatBuffer as a value, read in place through the schema its generated root carries |
 | `SigilDataQuery` | `query/Database.h` | `Engine`, `Database` and `DatabaseDecoder`, with `engineOf()` — a SQL store behind one seam, SQLite or DuckDB, whose `query()` answers a `Table`, whose `insert()` writes one in, and whose decoder puts a `.sqlite` or `.duckdb` file on a hub |
 
 `SigilData` is the umbrella target over them, and `<sigildata/Data.h>`
@@ -242,6 +242,18 @@ where it has one — `.csv`, `.tsv`, `.json` — and otherwise from its
 first character that is not a space, since a JSON document begins with a
 bracket or a brace and a row of fields does not.
 
+**A FlatBuffer is a value that is its bytes.** Its root is a pointer
+into them, so `FlatBuffer` holds the bytes and reads the generated root in
+place, and `registerFlatBuffer<Root>(hub)` makes `hub.load<FlatBuffer<Root>>(uri)`
+answer for the buffer itself, verified, or for the schema's own JSON
+form, converted through the schema the generated root carries — a
+header written with `flatc --cpp -b --schema --bfbs-gen-embed` embeds it
+beside every root, so no schema file is read. Which form a resource is
+in is read the way a table's is: from its name where it has one, and
+otherwise from its first byte that is not a space. `flatBufferFromBytes()` and
+`flatBufferFromJson()` are the same two readings for a caller holding bytes of
+its own, with the parser's own message where they refuse.
+
 **A column's type is what every cell in it turns out to be.** Numbers
 make a number column, the words true, false, yes and no in any case a
 boolean column, instants a time column, and anything else a text
@@ -362,10 +374,12 @@ SigilGeometry, not here.
 
 `SigilDataScale` and `SigilDataTable` depend on the standard library
 alone. `SigilDataDecode` adds `SigilIOSource` — the byte vocabulary, and
-nothing else of SigilIO — and a JSON parser that reaches no public
-header. It does NOT link the hub: `registerDecoders` is a template over
-it, so the dependency runs one way and SigilIO gains nothing, which is
-what its own boundary asks for.
+nothing else of SigilIO — a JSON parser that reaches no public header,
+and flatbuffers, whose verifier and schema parser the FlatBuffer decoder reads
+through and whose generated roots a consumer spells. It does NOT link
+the hub: `registerDecoders` and `registerFlatBuffer` are templates over it, so
+the dependency runs one way and SigilIO gains nothing, which is what its
+own boundary asks for.
 
 A delimiter-separated reader is written here rather than taken from a
 package because what is wanted is a run of fields under the quoting rule

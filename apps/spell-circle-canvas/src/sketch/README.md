@@ -144,6 +144,17 @@ it was last compiled is not compiled again — so a save of the entry
 costs the entry, not the table. A bare `sketches/<stem>.cpp` stays what
 it was, and a sketch goes from one form to the other by moving.
 
+A sketch that carries a schema of its own is a directory sketch too:
+`<stem>.fbs` beside the entry is the sketch's own FlatBuffers schema,
+stating what that sketch evaluates and shows. The build compiles it into
+`<stem>_generated.h`, which the entry includes by name and which
+carries the binary schema beside every root; the header is the build's
+and is never committed. The scene a sketch reads is then a resource
+like a CSV is — the buffer itself, or the schema's own JSON form under
+`data/`, which SigilData's FlatBuffer decoder converts through the schema —
+and a saved scene file re-declares the sketch. A saved schema wants a
+build, since the header is the build's.
+
 ### Helpers have an owner
 
 A sketch owns its reference-specific construction, palette and type in its
