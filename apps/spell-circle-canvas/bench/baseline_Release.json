@@ -2,7 +2,7 @@
  "config": "Release",
  "host": "MacBookPro.control",
  "machine": "arm64",
- "taken": "2026-09-09T14:37:44+00:00",
+ "taken": "2026-09-15T13:59:13+00:00",
  "benches": {
   "compose_bench": {
    "BM_Mount_Cold/100": {
@@ -3984,56 +3984,56 @@
   },
   "io_bench": {
    "BM_Blob_CacheHit/1": {
-    "real_ns": 19.905538372377116,
-    "cpu_ns": 19.904888263248417,
+    "real_ns": 19.4850148069431,
+    "cpu_ns": 19.484419984669007,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Blob_CacheHit/64": {
-    "real_ns": 2240.8133981309666,
-    "cpu_ns": 2240.793247562075,
+    "real_ns": 2243.644616574262,
+    "cpu_ns": 2242.890861179816,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Blob_CacheHit/1024": {
-    "real_ns": 108101.18864680255,
-    "cpu_ns": 108089.7537728356,
+    "real_ns": 108584.41475316086,
+    "cpu_ns": 108558.17610062887,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Load_ViewHit/1": {
-    "real_ns": 22.4933988740055,
-    "cpu_ns": 22.493355053334497,
+    "real_ns": 23.18612657844548,
+    "cpu_ns": 23.184712660589565,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Load_ViewHit/64": {
-    "real_ns": 3814.3866559154576,
-    "cpu_ns": 3814.3723628691987,
+    "real_ns": 2588.485521125999,
+    "cpu_ns": 2588.4724199781685,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Load_ViewHit/1024": {
-    "real_ns": 110028.44962838691,
-    "cpu_ns": 110026.16970658266,
+    "real_ns": 116563.13193655726,
+    "cpu_ns": 116550.59021922424,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Resolve/1": {
-    "real_ns": 104.55945538514462,
-    "cpu_ns": 104.55940955514427,
+    "real_ns": 104.64563353645293,
+    "cpu_ns": 104.6128621357984,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Resolve/8": {
-    "real_ns": 133.32620051134322,
-    "cpu_ns": 133.30832800316574,
+    "real_ns": 139.0208035524688,
+    "cpu_ns": 138.95962131463463,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Resolve/64": {
-    "real_ns": 422.97112719606446,
-    "cpu_ns": 422.93131176686046,
+    "real_ns": 436.7782415108463,
+    "cpu_ns": 436.66247212839767,
     "unit": "ns",
     "repetitions": 4
    },
@@ -4041,6 +4041,96 @@
     "real_ns": 86.7153830301975,
     "cpu_ns": 86.71547331757546,
     "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Udp/64": {
+    "real_ns": 1338035.9558786657,
+    "cpu_ns": 1220427.4193548327,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Udp/1400": {
+    "real_ns": 1362033.3328920726,
+    "cpu_ns": 1219266.6666666593,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_WebSocket/64": {
+    "real_ns": 1529366.9302306909,
+    "cpu_ns": 1499134.4086021483,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_WebSocket/1400": {
+    "real_ns": 1546980.0358308323,
+    "cpu_ns": 1512526.0416666563,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_SharedMemory/64": {
+    "real_ns": 4093549.7640425134,
+    "cpu_ns": 3898111.1111111334,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_SharedMemory/1400": {
+    "real_ns": 4076879.041450512,
+    "cpu_ns": 3899902.7777777174,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Midi": {
+    "real_ns": 51794.62162794439,
+    "cpu_ns": 25149.79431228785,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Serial/64": {
+    "real_ns": 467529.59510131605,
+    "cpu_ns": 465462.61682242877,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Serial/1400": {
+    "real_ns": 6217423.024202656,
+    "cpu_ns": 5991065.217391307,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Grpc/64": {
+    "real_ns": 844650.6543883255,
+    "cpu_ns": 398582.85714285355,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Grpc/1400": {
+    "real_ns": 865688.1896551722,
+    "cpu_ns": 427808.7349397617,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Quic/64": {
+    "real_ns": 260186.70586181985,
+    "cpu_ns": 206560.21341463752,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Quic/1400": {
+    "real_ns": 682523.4839699294,
+    "cpu_ns": 488388.692579504,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_QuicDatagrams/64": {
+    "real_ns": 87622.70025461976,
+    "cpu_ns": 60349.040139616154,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_QuicDatagrams/1400": {
+    "real_ns": 446136.2778522244,
+    "cpu_ns": 338886.03988603665,
+    "unit": "us",
     "repetitions": 4
    }
   },

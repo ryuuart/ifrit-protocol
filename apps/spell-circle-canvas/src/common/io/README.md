@@ -924,7 +924,14 @@ wants bytes stands on; and `io_bench` (Google Benchmark, built
 by the `benches` target and run from a Release build through
 `scripts/sigil.py bench`: `Hub::blob` on a cache hit and `load<T>` on a
 decoded view per call and `resolve` per URI against the mount table — the
-disk kept out of every timed loop); `SigilIOTransport` (static
+disk kept out of every timed loop — and THE WIRES' OWN ARMS beside them,
+one per door with both ends of that door standing in the binary, a batch
+of messages sent through one feed and counted arrived on the feed at the
+other, so what such a row says is the messages a second that door
+carries end to end. WebRTC has no arm: both ends of one conversation
+inside a single process is the arrangement the library under that door
+can end the process from, and an arm whose two ends were two processes
+would time the pipe between them beside the door); `SigilIOTransport` (static
 library, `transport/` — the UDP transport and the one thread its
 sockets run on, behind the private `transport/IoThread.h`, the
 WebSocket listener and the loop each one holds, the WebSocket client

@@ -80,11 +80,30 @@ sigil_library(SigilIOTransport
 # same process is holding, so both ends of a connection stand in one
 # binary; that port has to answer for itself, so they WRITE A CERTIFICATE
 # AND A KEY into a scratch directory of their own with OpenSSL — which
-# is why this binary and no other target here finds it — and the call
-# reaches the self-signed pair the way a machine on a stage does.
+# is why this binary and the bench below find it and no other target
+# here does — and the call reaches the self-signed pair the way a
+# machine on a stage does.
 find_package(OpenSSL REQUIRED)
 sigil_test(io_test
   SOURCES test/UdpTest.cpp test/WebSocketTest.cpp test/WebSocketClientTest.cpp
           test/SharedMemoryTest.cpp test/MidiTest.cpp test/SerialTest.cpp
           test/GrpcTest.cpp test/QuicTest.cpp test/WebRtcTest.cpp
   LIBRARIES SigilIOTransport Boost::asio OpenSSL::SSL OpenSSL::Crypto)
+
+# WHAT THE WIRES CARRY: one arm per door, with both ends of it standing
+# in the one binary, timing the messages a second that door carries end
+# to end — a batch sent through one feed and counted arrived on the feed
+# at the other, so what is measured is the whole round through the door
+# rather than the socket underneath it, and a regression in a door
+# stands in the ledger. Each arm makes what it measures for itself, as
+# the cases do: a port on the loopback, a region of this machine's
+# memory, a pseudo-terminal pair, a MIDI port made rather than found,
+# and for QUIC the same self-signed pair written with the OpenSSL above.
+# WEBRTC HAS NO ARM. Both ends of one conversation inside a single
+# process is the arrangement the library under that door can end the
+# process from, which is why its cases run the far end as a process of
+# their own, and an arm across two processes would time the pipe between
+# them beside the door.
+sigil_bench(io_bench
+  SOURCES bench/TransportBench.cpp
+  LIBRARIES SigilIOTransport OpenSSL::SSL OpenSSL::Crypto)
