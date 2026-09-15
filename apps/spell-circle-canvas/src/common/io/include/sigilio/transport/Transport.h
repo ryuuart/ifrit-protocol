@@ -6,9 +6,10 @@
  * is then asked for on it binds or connects a socket of its own, and
  * every message that socket receives arrives in that feed.
  *
- * Two of them carry no socket at all: a shm:// feed reads a region of
- * memory another process on this machine has mapped, and a midi:// feed
- * is a port on the controller standing beside the screen — the same
+ * Three of them carry no socket at all: a shm:// feed reads a region of
+ * memory another process on this machine has mapped, a midi:// feed is
+ * a port on the controller standing beside the screen, and a serial://
+ * feed is the device file a board on a cable is plugged into — the same
  * door with the network taken out from under it.
  *
  * What a message MEANS is not decided here: a feed answers bytes, and
@@ -24,23 +25,26 @@ namespace sigil::io {
 
 class Hub;
 
-/** Installs the UDP transport on @p hub for the schemes "udp" and
- *  "osc". A URI of the form udp://:PORT listens on every interface, IPv4
- *  and IPv6 alike, PORT 0 meaning any free port; udp://HOST:PORT (HOST a
- *  name, an IPv4 address, or a bracketed IPv6 address) opens a socket
- *  that sends to that peer and receives whatever comes back to it. Every
- *  socket the transport opens runs on one thread of its own that lives
- *  as long as the hub holds the transport.
+/** Installs the UDP transport on @p hub for the schemes "udp", "osc"
+ *  and "artnet". A URI of the form udp://:PORT listens on every
+ *  interface, IPv4 and IPv6 alike, PORT 0 meaning any free port;
+ *  udp://HOST:PORT (HOST a name, an IPv4 address, or a bracketed IPv6
+ *  address) opens a socket that sends to that peer and receives whatever
+ *  comes back to it. Every socket the transport opens runs on one thread
+ *  of its own that lives as long as the hub holds the transport.
  *
  *  A listening socket holds no one peer, so nothing goes out of it by
  *  itself; what it can do is answer ONE sender, by the address that
  *  sender's datagram arrived from.
  *
  *  osc:// is that same socket under another name: an osc://:9000 feed is
- *  a UDP socket whose messages are OSC packets. A feed keeps the scheme
- *  it was opened with — in its uri(), in the local address() it reports
- *  and in the sender every arrival names — so a reader picks the
- *  decoding off the URI rather than out of the bytes. */
+ *  a UDP socket whose messages are OSC packets. artnet:// is that same
+ *  socket again, for the datagrams a lighting desk sends: an
+ *  artnet://:6454 feed listens for them and an artnet://HOST:6454 feed
+ *  is a desk to send them to. A feed keeps the scheme it was opened with
+ *  — in its uri(), in the local address() it reports and in the sender
+ *  every arrival names — so a reader picks the decoding off the URI
+ *  rather than out of the bytes. */
 void registerUdp(Hub& hub);
 
 /** Installs the WebSocket transport on @p hub for the scheme "ws". A URI
@@ -215,9 +219,46 @@ class SharedMemoryWriter {
  *  and an output is written on the thread that asked. */
 void registerMidi(Hub& hub);
 
+/** Installs the SERIAL transport on @p hub for the scheme "serial". A
+ *  URI of the form serial://DEVICE?baud=RATE opens the device file of
+ *  that path — whole and absolute, as in
+ *  serial:///dev/tty.usbmodem1101?baud=115200 — at that rate. THE RATE
+ *  IS REQUIRED and there is none to fall back on: two ends that
+ *  disagree about it read each other as noise, so a URI carrying none
+ *  opens nothing and says so. The rest of the wire's settings stand in
+ *  the same query and have the defaults a board is wired for —
+ *  bits=5|6|7|8 (8), parity=none|odd|even (none), stop=1|2 (1),
+ *  flow=none|software|hardware (none) — and a port that will not take
+ *  one of them is a door that does not open, since a port read at a
+ *  setting nobody asked for answers bytes that are not the ones on the
+ *  wire.
+ *
+ *  A MESSAGE IS A LINE, BOTH WAYS. What reaches a serial port is a run
+ *  of bytes with no message boundary in it, so the boundary is the one
+ *  the sender writes: every arrival is the bytes up to a newline, with
+ *  a carriage return before it left off and a blank line delivered to
+ *  nobody, and half a line is no arrival at all until the rest of it
+ *  comes. A FEED THAT OPENS ONTO A WIRE ALREADY IN MID-LINE takes the
+ *  tail of that line as its first arrival, there being nothing in the
+ *  bytes that says where the line began. A run of 64 KiB with no
+ *  newline among them is handed over as
+ *  the line it stands as and the reading begins again, so a sender that
+ *  frames nothing still reaches a reader. send() writes the bytes and a
+ *  newline after them, which is where the reader on the board stops.
+ *
+ *  A CABLE HOLDS ONE PEER: send() reaches what is at the other end and
+ *  there is no sender to pick out by name, so Feed::sendTo() is false
+ *  on such a feed. Every arrival names the port as its sender, spelled
+ *  serial://DEVICE with the settings left off — what the board IS, and
+ *  not how this end was told to read it — exactly as the address() the
+ *  feed reports is. The ports every registration opens share ONE
+ *  thread, made when the first of them opens, so a hub taught the
+ *  scheme and never asked for a port starts nothing. */
+void registerSerial(Hub& hub);
+
 /** Installs every transport this feature carries: UDP, the OSC name over
  *  it, WebSocket at both ends — the listener first, and the client in
- *  front of it — the shared memory reader, and MIDI. */
+ *  front of it — the shared memory reader, MIDI, and the serial port. */
 void registerTransports(Hub& hub);
 
 }  // namespace sigil::io

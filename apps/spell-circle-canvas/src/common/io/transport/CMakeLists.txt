@@ -11,7 +11,9 @@
 # own behind the same door. And MIDI over RtMidi, which is the platform's
 # own MIDI stack behind one class: no thread is started for it at all,
 # the driver running the callback every arriving message is delivered
-# from.
+# from. And the serial port, over Boost.Asio again: a device file read
+# on the UDP transport's kind of thread, with the lines a board prints
+# cut out of the stream that carries them.
 #
 # Every stack is PRIVATE: the header names a Hub and a scheme and
 # nothing of the network behind them, so a consumer that opens a feed
@@ -27,7 +29,7 @@ find_package(CURL CONFIG REQUIRED)
 find_package(rtmidi CONFIG REQUIRED)
 sigil_library(SigilIOTransport
   SOURCES Udp.cpp WebSocket.cpp WebSocketClient.cpp SharedMemory.cpp Midi.cpp
-          IoThread.cpp IoThread.h
+          Serial.cpp IoThread.cpp IoThread.h
   HEADERS Transport.h
   PUBLIC SigilIOHub
   PRIVATE Boost::asio unofficial::uwebsockets::uwebsockets CURL::libcurl
@@ -42,8 +44,11 @@ sigil_library(SigilIOTransport
 # and not one it inherits; the client's cases call a listener this same
 # process is holding and the region's cases write the region they read,
 # and the MIDI cases make a port of their own and open it back, so both
-# ends of a session, of a region and of a cable stand in one binary.
+# ends of a session, of a region and of a cable stand in one binary. The
+# serial cases make a pseudo-terminal pair and write the readings into
+# the master, the feed opening the slave by the path the system named
+# it, so a board is needed for none of them.
 sigil_test(io_test
   SOURCES test/UdpTest.cpp test/WebSocketTest.cpp test/WebSocketClientTest.cpp
-          test/SharedMemoryTest.cpp test/MidiTest.cpp
+          test/SharedMemoryTest.cpp test/MidiTest.cpp test/SerialTest.cpp
   LIBRARIES SigilIOTransport Boost::asio)

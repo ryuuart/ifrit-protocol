@@ -4,11 +4,13 @@
  * hands every datagram to the feed it was opened for, and the one
  * datagram a listener writes back to a sender it named.
  *
- * Two schemes stand on it. udp:// is the socket by its own name, and
- * osc:// is the same socket opened for messages that are OSC packets:
- * the scheme a feed was opened with is the scheme every address it
- * reports is spelled with, so a reader takes the decoding off the URI
- * and this file carries no opinion about what a datagram holds.
+ * Three schemes stand on it. udp:// is the socket by its own name, and
+ * osc:// and artnet:// are that same socket opened for datagrams that
+ * are OSC packets and for datagrams that are a lighting desk's
+ * universes: the scheme a feed was opened with is the scheme every
+ * address it reports is spelled with, so a reader takes the decoding
+ * off the URI and this file carries no opinion about what a datagram
+ * holds.
  */
 
 #include <array>
@@ -367,11 +369,14 @@ FeedTransport datagramTransport(std::shared_ptr<detail::SharedIoThread> shared,
 }  // namespace
 
 void registerUdp(Hub& hub) {
-  // Both names share one thread, because they are one socket: a hub
-  // asked for neither scheme still starts nothing.
+  // All three names share one thread, because they are one socket: a hub
+  // asked for none of the schemes still starts nothing.
   auto shared = std::make_shared<detail::SharedIoThread>();
   hub.setFeedTransport("udp", datagramTransport(shared, "udp"));
   hub.setFeedTransport("osc", datagramTransport(shared, "osc"));
+  // The lighting desks' datagrams, under the name their wire is called
+  // by, on the port that wire holds: artnet://:6454 listens for them.
+  hub.setFeedTransport("artnet", datagramTransport(shared, "artnet"));
 }
 
 void registerTransports(Hub& hub) {
@@ -383,6 +388,7 @@ void registerTransports(Hub& hub) {
   registerWebSocketClient(hub);
   registerSharedMemory(hub);
   registerMidi(hub);
+  registerSerial(hub);
 }
 
 }  // namespace sigil::io

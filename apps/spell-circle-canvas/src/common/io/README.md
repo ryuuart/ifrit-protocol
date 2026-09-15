@@ -20,7 +20,7 @@ what a consumer uses; every public header lives under
 |--------|---------|-------|
 | `SigilIOSource` | `source/Source.h`, `source/Archive.h`, `source/Sink.h`, `source/Places.h` | the byte vocabulary in both directions: `Bytes`, the `ByteSource`, `ResolvingByteSource`, `Decoder` and `Probable` concepts, `AnyByteSource` (the type-erased source value), the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file; `ArchiveSource` and `ArchiveEntry`, one zip held in memory answering its files by name — and the two places only the platform can name, `executablePath()` and `scratchDirectory(label)` |
 | `SigilIOHub`    | `hub/Hub.h`, `hub/Feed.h`, `hub/Recording.h`, `hub/Network.h`, `hub/TextCatalog.h` | the `Hub`, `ResourceInfo` (a resource's byte size and the file it came from), and `ResourceLease`; `NetworkPolicy`, `NetworkTransport`, `probeNetworkCache()` and `seedNetworkCache()` — inspect or populate the persistent cache by URL without constructing its filenames or contacting a server; `Feed`, `Arrival`, `OpenedFeed` and `FeedTransport` — a resource that keeps arriving, opened through the hub's `feed()` and moved forward by its `dispatch()`; `DispatchLease` and `Hub::onDispatch()` — a callback the same `dispatch()` drives, for as long as the lease lives; `RecordingWriter` and `readRecording()`, the format a feed records itself in; and `TextCatalog`, the stock value over the hub that a directory of authored shaders is |
-| `SigilIOTransport` | `transport/Transport.h` | `registerUdp()`, `registerWebSocket()`, `registerWebSocketClient()`, `registerSharedMemory()`, `registerMidi()` and `registerTransports()`, with `SharedMemoryWriter` beside them — the UDP transport, one socket per feed on a thread of its own, answering to udp:// and, for messages that are OSC packets, to osc://; the WebSocket listener, one of them per feed on a loop of its own, answering to ws:// and, where that URI's query names a directory of pages, answering HTTP GET out of it on the same port; the WebSocket client over libcurl, one session per feed on a thread of its own, which is what ws:// and wss:// open when the URI names a server to call rather than a port to hold; and the shared memory reader, answering to shm://, which is a region another process on this machine wrote and no socket at all, with the writer's end of such a region standing beside it; and the MIDI transport, answering to midi://, which is the controller standing beside the screen — its pads and knobs in at midi://in/NAME, its lights out at midi://out/NAME, and a port made rather than found under virtual:NAME — on the thread the driver itself runs its callbacks on and none of this feature's own; either listener fills `OpenedFeed::sendTo`, so a listening feed answers the one sender an arrival names through `Feed::sendTo()`; linked by a consumer that opens a feed over a wire or over a region, and by no other |
+| `SigilIOTransport` | `transport/Transport.h` | `registerUdp()`, `registerWebSocket()`, `registerWebSocketClient()`, `registerSharedMemory()`, `registerMidi()`, `registerSerial()` and `registerTransports()`, with `SharedMemoryWriter` beside them — the UDP transport, one socket per feed on a thread of its own, answering to udp://, to osc:// for messages that are OSC packets and to artnet:// for the universes a lighting desk sends; the WebSocket listener, one of them per feed on a loop of its own, answering to ws:// and, where that URI's query names a directory of pages, answering HTTP GET out of it on the same port; the WebSocket client over libcurl, one session per feed on a thread of its own, which is what ws:// and wss:// open when the URI names a server to call rather than a port to hold; and the shared memory reader, answering to shm://, which is a region another process on this machine wrote and no socket at all, with the writer's end of such a region standing beside it; and the MIDI transport, answering to midi://, which is the controller standing beside the screen — its pads and knobs in at midi://in/NAME, its lights out at midi://out/NAME, and a port made rather than found under virtual:NAME — on the thread the driver itself runs its callbacks on and none of this feature's own; and the serial transport, answering to serial://, which is the board on a cable printing one line per reading — a device file and a baud rate, one arrival per line and a line out of every send — one port per feed on a thread every port of a registration shares; either listener fills `OpenedFeed::sendTo`, so a listening feed answers the one sender an arrival names through `Feed::sendTo()`; linked by a consumer that opens a feed over a wire or over a region, and by no other |
 
 `SigilIO` is the umbrella target over the source and the hub, and
 `<sigilio/IO.h>` the umbrella header; the transport feature stands
@@ -124,7 +124,7 @@ its own, and a reader on any thread never waits.
 #include <sigilio/hub/Feed.h>
 #include <sigilio/transport/Transport.h>
 
-sigil::io::registerTransports(hub);                  // udp://, osc://, ws://, wss://, shm://, midi://
+sigil::io::registerTransports(hub);                  // udp://, osc://, artnet://, ws://, wss://, shm://, midi://, serial://
 auto scene = hub.feed("udp://:27020");               // std::shared_ptr<sigil::io::Feed>
 if (auto newest = scene->latest())                   // the newest message; generation() counts them
   draw(*newest);
@@ -146,6 +146,8 @@ auto pads = hub.feed("midi://in/Launchpad");         // the controller beside th
 auto lights = hub.feed("midi://out/Launchpad");      // …and its lights, which send() writes to
 lights->send(noteOn);
 auto made = hub.feed("midi://in/virtual:sigil");     // a port other software reaches instead of a controller
+auto board = hub.feed("serial:///dev/tty.usbmodem1101?baud=115200");  // a board on a cable: one arrival per line
+board->send(command);                                // …and a line back down the same cable
 scene->record(outDir / "scene.feed");                // every arrival from now on, to a recording
 hub.mount("udp://:27020", outDir / "scene.feed");    // the next feed() on that URI replays the file
 hub.dispatch(seconds);                               // once per frame: recordings advance to this time
@@ -270,7 +272,7 @@ sender to answer and no end to answer through. `send()` is unchanged by
 it: a peer's feed still writes to its peer and a listening WebSocket
 still broadcasts to every peer on its path.
 
-`SigilIOTransport` registers four transports under five schemes, two of
+`SigilIOTransport` registers six transports under eight schemes, two of
 those transports sharing a scheme.
 `registerUdp()` takes the UDP ones: `udp://:PORT` listens on every
 interface, IPv4 and IPv6 alike, and `udp://HOST:PORT` is a peer that
@@ -282,8 +284,11 @@ a `from` that is not literal is nobody to answer. `osc://` is that same
 socket under another name, for a port whose messages are OSC packets; a
 feed keeps the scheme it was opened with, in its `uri()`, in its `address()`
 and in every sender it names, so a reader picks the decoding off the URI
-rather than out of the bytes. Every socket runs on one thread of its own,
-private to the transport.
+rather than out of the bytes. `artnet://` is that same socket once more,
+for a port whose datagrams are a lighting desk's universes of dimmers —
+`artnet://:6454` listens for them and `artnet://HOST:6454` is a desk to
+send them to. Every socket runs on one thread of its own, private to the
+transport.
 
 `registerWebSocket()` takes `ws://`. `ws://:PORT/PATH` listens on every
 interface for peers reaching that path — an omitted PATH being the root —
@@ -432,6 +437,46 @@ callback of its own on every arriving message, which is the thread an
 arrival is delivered from, and an output is written on the thread that
 asked.
 
+`registerSerial()` takes `serial://`, and what stands behind it is the
+oldest wire there is: a board on a cable, printing a line whenever it
+has something to say. `serial://DEVICE?baud=RATE` opens the device file
+of that path — whole and absolute, as in
+`serial:///dev/tty.usbmodem1101?baud=115200` — at that rate. THE RATE IS
+REQUIRED and there is none to fall back on, because two ends that
+disagree about it read each other as noise, so a URI carrying none opens
+nothing and says so. The rest of the wire stands in the same query and
+has the defaults a board is wired for: `bits` is 5, 6, 7 or 8 and is 8,
+`parity` is none, odd or even and is none, `stop` is 1 or 2 and is 1,
+`flow` is none, software or hardware and is none. A port that will not
+take one of those settings is a door that does not open, since a port
+read at a setting nobody asked for answers bytes that are not the ones
+on the wire.
+
+A MESSAGE IS A LINE, AND SO IS A REPLY. What reaches a serial port is a
+run of bytes with no message boundary anywhere in it, so the boundary is
+the one the sender writes: an arrival is the bytes up to a newline, with
+a carriage return before it left off and a blank line delivered to
+nobody, and half a line is no arrival at all until the rest of it comes
+— a reading with its numbers cut in two being worse than a reading that
+has not arrived yet. A FEED THAT OPENS ONTO A WIRE ALREADY IN MID-LINE
+takes the tail of that line as its first arrival: nothing in the bytes
+says where a line began, so a reader that attaches to a board already
+talking pays one fragment for it and reads whole lines from then on. A
+run of 64 KiB with no newline among them is
+handed over as the line it stands as and the reading begins again, so a
+sender that frames nothing still reaches a reader instead of growing one
+arrival without end. `send()` writes the bytes and a newline after them,
+which is where the reader on the board stops.
+
+A CABLE HOLDS ONE PEER. What is at the other end is the only thing
+there, so `send()` reaches it and there is no sender to pick out by
+name: `Feed::sendTo()` is false on such a feed. Every arrival names the
+port as its sender, spelled `serial://DEVICE` with the settings left off
+— what the board IS, and not how this end was told to read it — exactly
+as the `address()` such a feed reports is. The ports every registration
+opens share ONE thread, made when the first of them opens, so a hub
+taught the scheme and never asked for a port starts nothing.
+
 A **recording** is a feed written down: `record(path)` appends every
 arrival from then on, with the seconds since the feed was made, in the
 format `RecordingWriter` writes and `readRecording()` reads. A URI that
@@ -569,7 +614,11 @@ what the platform itself names, and the looks at one run on a thread of
 the same private kind the datagram sockets stand on — one for every
 region a registration opens, made when the first of them opens. The MIDI
 transport adds RtMidi, privately, which is the platform's own MIDI stack
-behind one class and starts no thread of this feature's at all. Its
+behind one class and starts no thread of this feature's at all. The
+serial transport adds nothing to the line either: a device file is what
+the platform itself names, and the ports opened on one run on a thread
+of that same private kind — one for every registration, made when the
+first port of it opens. Its
 header names a hub, a scheme
 and a region's own writer, and nothing of the socket, the mapping or the
 cable behind them, so a consumer that opens a feed inherits no executor,
@@ -655,7 +704,8 @@ sockets run on, behind the private `transport/IoThread.h`, the
 WebSocket listener and the loop each one holds, the WebSocket client
 and the session each of its feeds runs on a thread of its own, the
 shared memory reader, whose looks run on a thread of that same private
-kind, and the MIDI transport, which starts no thread at all) with
+kind, the MIDI transport, which starts no thread at all, and the serial
+transport, whose ports run on a thread of that same private kind) with
 `transport/test/`, whose `IOUdp` suite binds real ports on the loopback
 and sends its own datagrams through raw sockets, whose `IOWebSocket`
 suite does the same with a websocket peer it writes out by hand, upgrade
@@ -671,7 +721,12 @@ another reads, which is the only way the count that brackets a message
 can be shown to work — and whose `IOMidi` suite MAKES the port it then
 opens back by name, so both ends of a cable stand in one binary with no
 controller plugged in, and skips with the reason where the system
-offers no port made rather than found; and `SigilIO`, the umbrella over
+offers no port made rather than found, and whose `IOSerial` suite MAKES
+the port it then opens, a pseudo-terminal pair whose slave the feed
+opens by the path the system named it while the case writes the
+readings into the master — a port with a path being the whole of what
+that transport asks of a board — and skips with the reason where the
+system hands over no such pair; and `SigilIO`, the umbrella over
 the source and the hub.
 
 There is one test binary, `io_test`, built from every feature's `test/`
