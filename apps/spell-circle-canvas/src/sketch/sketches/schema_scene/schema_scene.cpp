@@ -12,8 +12,17 @@
  * place. A saved edit to the file is a new sky in the window, because a
  * file a sketch read is watched and a change re-declares it.
  *
+ * AND A DOOR BESIDE THE FILE. A window also opens a feed on `kLive`,
+ * and a message that arrives there and verifies as an Envelope carrying
+ * a Sky replaces the file's sky from then on — the same schema, off the
+ * wire instead of off the disk, verified before a byte of it is read
+ * and never decoded twice. The door is a window's alone: a capture
+ * opens nothing, so its still is the file's sky and stays what it was.
+ * Nothing is sent back through it; this sketch is a reader.
+ *
  * EDIT THESE FIRST
  *   data/sky.json  the sky: its bands, its wind and its palette
+ *   kLive          the URI a window listens for a sky on
  *   kSpacing       how far apart the bands stand
  *   kSegment       the length of a ribbon's segments, and their gap
  */
@@ -24,23 +33,30 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigildata/decode/FlatBuffer.h>
 #include <sigildraw/Pen.h>
+#include <sigilio/hub/Feed.h>
+#include <sigilio/hub/Hub.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 
 #include <cmath>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include "schema_scene_generated.h"
 
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace data = sigil::data;
+namespace io = sigil::io;
 
 using sigil::draw::Pen;
 
 namespace {
+
+const char* kLive = "udp://:27022";  // where a window listens for a sky
 
 constexpr float kSpacing = 104.0f;  // how far apart the bands stand
 constexpr float kSegment = 260.0f;  // a ribbon's segment, and its gap after
@@ -54,6 +70,15 @@ struct SchemaScene {
    *  file changes. Null when the file is missing or does not fit. */
   std::shared_ptr<const Envelope> sky;
   std::string why;
+  /** A WINDOW'S DOOR onto the same schema. Null in a capture, which
+   *  opens none. */
+  std::shared_ptr<io::Feed> live;
+  /** The newest message that verified as an Envelope carrying a Sky,
+   *  which stands in front of the file's sky once there is one. */
+  std::shared_ptr<const Envelope> arrived;
+  /** The generation `arrived` was read at, so one message is verified
+   *  once rather than on every frame. */
+  uint64_t taken = 0;
 
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = {1280, 720},
@@ -75,8 +100,35 @@ struct SchemaScene {
       else
         data::flatBufferFromJson<schema_scene::Envelope>(*text, &why);
     }
+    // THE DOOR A WINDOW OPENS. A capture opens none: its still is a
+    // function of the files beside it, and a port is not one of those.
+    live.reset();
+    arrived.reset();
+    taken = 0;
+    if (!ctx.deterministic) live = ctx.assets.hub().feed(kLive);
     ctx.composer.render(
         compose::pen("schema_scene.sky", [this](Pen& pen) { draw(pen); }));
+  }
+
+  /** The newest message on the door, taken once each time one arrives:
+   *  bytes that verify as this schema's Envelope and carry a Sky become
+   *  the sky the scene is drawn from. Bytes that are something else are
+   *  left where they are — a sender at the wrong port cannot blank the
+   *  scene. Nothing is described again, because the pen reads the sky
+   *  it draws on every frame. */
+  void update() {
+    if (!live) return;
+    const uint64_t generation = live->generation();
+    if (generation == taken) return;
+    taken = generation;
+    const std::shared_ptr<const io::Bytes> newest = live->latest();
+    if (!newest) return;
+    std::optional<Envelope> verified =
+        data::flatBufferFromBytes<schema_scene::Envelope>(
+            {reinterpret_cast<const uint8_t*>(newest->bytes.data()),
+             newest->bytes.size()});
+    if (verified && (*verified)->message_as_Sky())
+      arrived = std::make_shared<const Envelope>(std::move(*verified));
   }
 
   /** The bands: each a ribbon of segments the width of the canvas,
@@ -84,7 +136,10 @@ struct SchemaScene {
    *  wobble, tinted from the palette in turn. */
   void draw(Pen& pen) {
     pen.noStroke();
-    const schema_scene::Sky* state = sky ? (*sky)->message_as_Sky() : nullptr;
+    // What arrived stands in front of what was read.
+    const std::shared_ptr<const Envelope>& scene = arrived ? arrived : sky;
+    const schema_scene::Sky* state =
+        scene ? (*scene)->message_as_Sky() : nullptr;
     if (!state) {
       pen.fill(255, 90, 120);
       pen.textSize(18);
