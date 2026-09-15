@@ -420,6 +420,11 @@ class Hub {
    *  scheme again replaces it. */
   void setFeedTransport(std::string scheme, FeedTransport transport);
 
+  /** The transport registered for @p scheme, or an empty function. A
+   *  transport that stands in front of another reads the one it wraps
+   *  through here before it registers itself. */
+  FeedTransport feedTransport(std::string_view scheme) const;
+
   /** Every feed currently held by someone, in opening order. */
   std::vector<std::shared_ptr<Feed>> feeds() const;
 

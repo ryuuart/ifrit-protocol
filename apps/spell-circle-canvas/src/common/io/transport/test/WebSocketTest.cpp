@@ -1,8 +1,9 @@
 /** @file
  * The WebSocket transport: the port and path a listening feed binds, the
  * messages peers send it and the sender each one names, the broadcast a
- * send is, what a URI nobody can open leaves on its feed, and the port a
- * feed gives back when the last holder lets go.
+ * send is and the one peer a named send reaches instead, what a URI
+ * nobody can open leaves on its feed, and the port a feed gives back
+ * when the last holder lets go.
  */
 
 #include <gtest/gtest.h>
@@ -266,6 +267,48 @@ TEST_F(IOWebSocket, SendReachesEveryPeerOnThePath) {
   EXPECT_EQ(second.receive(), "out to everyone");
 }
 
+TEST_F(IOWebSocket, SendToReachesTheOnePeerItNamesAndNoOther) {
+  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky");
+  ASSERT_TRUE(listener->error().empty()) << listener->error();
+  const uint16_t port = portOf(listener->address());
+  ASSERT_NE(port, 0);
+
+  Peer first(context, port, "/sky");
+  ASSERT_TRUE(first.upgraded());
+  Peer second(context, port, "/sky");
+  ASSERT_TRUE(second.upgraded());
+  // Each peer says which one it is, and the arrival it says it in names
+  // the address that peer is answered by.
+  first.send(0x1, "first");
+  second.send(0x1, "second");
+  ASSERT_TRUE(waitUntil([&] { return listener->generation() == 2u; }));
+
+  std::string answering;
+  while (const std::optional<Arrival> arrival = listener->receive())
+    if (arrival->bytes->asText() == "first") answering = arrival->from;
+  ASSERT_FALSE(answering.empty());
+
+  EXPECT_TRUE(listener->sendTo(answering, bytesOf("to you alone")));
+  EXPECT_EQ(first.receive(), "to you alone");
+  // What the other peer reads first is the broadcast that came after,
+  // which is what says the message before it went to one peer and not
+  // to the path.
+  EXPECT_TRUE(listener->send(bytesOf("out to everyone")));
+  EXPECT_EQ(second.receive(), "out to everyone");
+  EXPECT_EQ(first.receive(), "out to everyone");
+}
+
+TEST_F(IOWebSocket, APeerNobodyIsAttachedUnderIsNobodyToAnswer) {
+  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky");
+  ASSERT_TRUE(listener->error().empty()) << listener->error();
+
+  // The loop is what holds the peers, so a name it has nobody under is
+  // answered by nothing being written — and the send says it was posted,
+  // which is all a caller on another thread can be told.
+  EXPECT_TRUE(listener->sendTo("ws://127.0.0.1:1", bytesOf("nobody")));
+  EXPECT_FALSE(listener->closed());
+}
+
 TEST_F(IOWebSocket, AUriThatNamesNoPortOpensNothingAndSaysWhy) {
   const std::shared_ptr<Feed> feed = hub.feed("ws://localhost");
   EXPECT_FALSE(feed->error().empty());
@@ -273,11 +316,15 @@ TEST_F(IOWebSocket, AUriThatNamesNoPortOpensNothingAndSaysWhy) {
   EXPECT_EQ(feed->latest(), nullptr);
 }
 
-TEST_F(IOWebSocket, AUriThatNamesAHostToReachOpensNothingAndSaysWhy) {
-  // The transport listens and does not call, so a peer to reach is not
-  // something it can open — and the feed says that rather than binding
-  // something else.
-  const std::shared_ptr<Feed> feed = hub.feed("ws://desk.local:9001/scene");
+TEST_F(IOWebSocket, AUriThatNamesAHostToReachOpensNothingOnTheListenerAlone) {
+  // The listener does not call, so on a hub taught the listener and
+  // nothing else a peer to reach is not something it can open — and the
+  // feed says that rather than binding something else. A hub taught the
+  // caller as well hands such a URI to the caller.
+  Hub listening;
+  sigil::io::registerWebSocket(listening);
+  const std::shared_ptr<Feed> feed =
+      listening.feed("ws://desk.local:9001/scene");
   EXPECT_FALSE(feed->error().empty());
   EXPECT_TRUE(feed->address().empty());
 }

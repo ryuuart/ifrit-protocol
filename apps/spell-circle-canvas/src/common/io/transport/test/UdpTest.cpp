@@ -1,9 +1,9 @@
 /** @file
  * The UDP transport: the port a listening feed binds and the datagrams
- * that arrive there, the sender each arrival names, the peer a sending
- * feed reaches, the same socket answering to osc://, what a URI nobody
- * can open leaves on its feed, and the port a feed gives back when the
- * last holder lets go.
+ * that arrive there, the sender each arrival names and the one datagram
+ * a listener answers it with, the peer a sending feed reaches, the same
+ * socket answering to osc://, what a URI nobody can open leaves on its
+ * feed, and the port a feed gives back when the last holder lets go.
  */
 
 #include <gtest/gtest.h>
@@ -12,6 +12,7 @@
 #include <sigilio/source/Source.h>
 #include <sigilio/transport/Transport.h>
 
+#include <array>
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/udp.hpp>
@@ -156,6 +157,53 @@ TEST_F(IOUdp, ASendingFeedReachesTheListenerItNames) {
   // A listener answers whoever writes to it and holds no peer of its
   // own, so there is no way back out through it.
   EXPECT_FALSE(listener->send(bytesOf("no way back")));
+  // The other way round: a feed that holds one peer reaches that peer
+  // and nobody else, so naming a sender to answer is not its way out.
+  EXPECT_FALSE(sender->sendTo(listener->address(), bytesOf("by name")));
+}
+
+TEST_F(IOUdp, AListenerAnswersTheSenderOfADatagram) {
+  const std::shared_ptr<Feed> listener = hub.feed("udp://:0");
+  ASSERT_TRUE(listener->error().empty()) << listener->error();
+  const uint16_t port = portOf(listener->address());
+  ASSERT_NE(port, 0);
+
+  // The desk's own socket, held for as long as the case runs: what it
+  // writes is what the listener has to answer, and the answer comes
+  // back to this same socket.
+  udp::socket desk(context, udp::v4());
+  const std::string_view moved = "a fader moved";
+  desk.send_to(boost::asio::buffer(moved.data(), moved.size()),
+               udp::endpoint(boost::asio::ip::address_v4::loopback(), port));
+
+  ASSERT_TRUE(waitUntil([&] { return listener->latest() != nullptr; }));
+  const std::optional<Arrival> arrival = listener->receive();
+  ASSERT_TRUE(arrival.has_value());
+  // A listener holds no peer, so there is no broadcast out of it — and
+  // the sender an arrival names is an address it can write back to, so
+  // the one it is answering it can answer.
+  EXPECT_FALSE(listener->send(bytesOf("no way back")));
+  EXPECT_TRUE(listener->sendTo(arrival->from, bytesOf("the sky answers")));
+
+  ASSERT_TRUE(waitUntil([&] { return desk.available() != 0; }));
+  std::array<char, 64> answer{};
+  udp::endpoint whence;
+  const size_t count = desk.receive_from(boost::asio::buffer(answer), whence);
+  EXPECT_EQ(std::string_view(answer.data(), count), "the sky answers");
+  EXPECT_EQ(whence.port(), port);
+}
+
+TEST_F(IOUdp, ASenderThatIsNoLiteralAddressIsNobodyToAnswer) {
+  const std::shared_ptr<Feed> listener = hub.feed("udp://:0");
+  ASSERT_TRUE(listener->error().empty()) << listener->error();
+
+  // Answering a sender waits on nothing, so a name that would have to
+  // be looked up is nobody to answer rather than a pause on a resolver,
+  // and neither is an address of another scheme or of no scheme at all.
+  EXPECT_FALSE(listener->sendTo("udp://desk.local:9001", bytesOf("nowhere")));
+  EXPECT_FALSE(listener->sendTo("osc://127.0.0.1:9001", bytesOf("nowhere")));
+  EXPECT_FALSE(listener->sendTo("127.0.0.1:9001", bytesOf("nowhere")));
+  EXPECT_FALSE(listener->sendTo("", bytesOf("nowhere")));
 }
 
 TEST_F(IOUdp, AUriThatNamesNoAddressOpensNothingAndSaysWhy) {

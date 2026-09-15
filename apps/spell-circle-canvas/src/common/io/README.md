@@ -20,7 +20,7 @@ what a consumer uses; every public header lives under
 |--------|---------|-------|
 | `SigilIOSource` | `source/Source.h`, `source/Archive.h`, `source/Sink.h`, `source/Places.h` | the byte vocabulary in both directions: `Bytes`, the `ByteSource`, `ResolvingByteSource`, `Decoder` and `Probable` concepts, `AnyByteSource` (the type-erased source value), the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file; `ArchiveSource` and `ArchiveEntry`, one zip held in memory answering its files by name — and the two places only the platform can name, `executablePath()` and `scratchDirectory(label)` |
 | `SigilIOHub`    | `hub/Hub.h`, `hub/Feed.h`, `hub/Recording.h`, `hub/Network.h`, `hub/TextCatalog.h` | the `Hub`, `ResourceInfo` (a resource's byte size and the file it came from), and `ResourceLease`; `NetworkPolicy`, `NetworkTransport`, `probeNetworkCache()` and `seedNetworkCache()` — inspect or populate the persistent cache by URL without constructing its filenames or contacting a server; `Feed`, `Arrival`, `OpenedFeed` and `FeedTransport` — a resource that keeps arriving, opened through the hub's `feed()` and moved forward by its `dispatch()`; `DispatchLease` and `Hub::onDispatch()` — a callback the same `dispatch()` drives, for as long as the lease lives; `RecordingWriter` and `readRecording()`, the format a feed records itself in; and `TextCatalog`, the stock value over the hub that a directory of authored shaders is |
-| `SigilIOTransport` | `transport/Transport.h` | `registerUdp()`, `registerWebSocket()` and `registerTransports()` — the UDP transport, one socket per feed on a thread of its own, answering to udp:// and, for messages that are OSC packets, to osc://; and the WebSocket transport, one listener per feed on a loop of its own, answering to ws://; linked by a consumer that opens network feeds and by no other |
+| `SigilIOTransport` | `transport/Transport.h` | `registerUdp()`, `registerWebSocket()`, `registerWebSocketClient()` and `registerTransports()` — the UDP transport, one socket per feed on a thread of its own, answering to udp:// and, for messages that are OSC packets, to osc://; the WebSocket listener, one of them per feed on a loop of its own, answering to ws://; and the WebSocket client over libcurl, one session per feed on a thread of its own, which is what ws:// and wss:// open when the URI names a server to call rather than a port to hold; either listener fills `OpenedFeed::sendTo`, so a listening feed answers the one sender an arrival names through `Feed::sendTo()`; linked by a consumer that opens network feeds and by no other |
 
 `SigilIO` is the umbrella target over the source and the hub, and
 `<sigilio/IO.h>` the umbrella header; the transport feature stands
@@ -124,7 +124,7 @@ its own, and a reader on any thread never waits.
 #include <sigilio/hub/Feed.h>
 #include <sigilio/transport/Transport.h>
 
-sigil::io::registerTransports(hub);                  // udp://, osc://, ws://
+sigil::io::registerTransports(hub);                  // udp://, osc://, ws://, wss://
 auto scene = hub.feed("udp://:27020");               // std::shared_ptr<sigil::io::Feed>
 if (auto newest = scene->latest())                   // the newest message; generation() counts them
   draw(*newest);
@@ -133,8 +133,12 @@ while (auto arrival = scene->receive())              // every message since the 
 auto desk = hub.feed("udp://desk.local:9001");       // a peer: send() reaches it, its replies arrive
 desk->send(reply);
 auto control = hub.feed("osc://:9000");              // the same socket, for messages that are OSC
+if (auto arrival = scene->newest())                  // a listener holds no peer of its own…
+  scene->sendTo(arrival->from, reply);               // …so it answers the one sender that wrote to it
 auto browsers = hub.feed("ws://:8848/scene");        // every peer that reaches that path
 browsers->send(frame);                               // …and one send goes out to all of them
+auto studio = hub.feed("wss://sky.example:443/scene");  // the same scheme calling out: a server to reach
+studio->send(frame);                                 // …the one peer it dialled, whose messages arrive
 scene->record(outDir / "scene.feed");                // every arrival from now on, to a recording
 hub.mount("udp://:27020", outDir / "scene.feed");    // the next feed() on that URI replays the file
 hub.dispatch(seconds);                               // once per frame: recordings advance to this time
@@ -243,18 +247,33 @@ sentence rather than a null.
 A scheme opens through the `FeedTransport` registered for it, called
 outside the hub's lock; the transport hands back an `OpenedFeed`: how the
 feed closes it, how `send()` goes back through it when the way is two-way,
+how `OpenedFeed::sendTo` answers one named sender when it can address one,
 and the local `address()` it bound. Every arrival also names where it came
 from: `sigil::io::Arrival::from` is the sender's address spelled the way a
 URI of that scheme is, `udp://127.0.0.1:52341`, and is empty where the
 transport has no way of knowing — and on a replayed recording, which holds
 the messages and not who sent them.
 
-`SigilIOTransport` registers two transports under three schemes.
+`Feed::sendTo()` is the OTHER way back out, and the one a door that holds
+no peer of its own has: it takes an address spelled the way an arrival's
+`from` is and writes to that sender alone. It is false where the
+transport cannot address one, where the feed is closed and where no
+transport opened it — a replayed recording among them, which has no
+sender to answer and no end to answer through. `send()` is unchanged by
+it: a peer's feed still writes to its peer and a listening WebSocket
+still broadcasts to every peer on its path.
+
+`SigilIOTransport` registers three transports under four schemes, two of
+those transports sharing a scheme.
 `registerUdp()` takes the UDP ones: `udp://:PORT` listens on every
 interface, IPv4 and IPv6 alike, and `udp://HOST:PORT` is a peer that
-`send()` reaches and whose replies arrive. `osc://` is that same socket
-under another name, for a port whose messages are OSC packets; a feed
-keeps the scheme it was opened with, in its `uri()`, in its `address()`
+`send()` reaches and whose replies arrive. A listener has no peer to
+`send()` to and answers ONE sender instead, through `Feed::sendTo()`:
+the address is read the way a URI of that scheme is written and
+resolved as the literal it is, so answering waits on no name lookup and
+a `from` that is not literal is nobody to answer. `osc://` is that same
+socket under another name, for a port whose messages are OSC packets; a
+feed keeps the scheme it was opened with, in its `uri()`, in its `address()`
 and in every sender it names, so a reader picks the decoding off the URI
 rather than out of the bytes. Every socket runs on one thread of its own,
 private to the transport.
@@ -262,12 +281,37 @@ private to the transport.
 `registerWebSocket()` takes `ws://`. `ws://:PORT/PATH` listens on every
 interface for peers reaching that path — an omitted PATH being the root —
 every text or binary message from any of them arrives naming that peer,
-and one `send()` goes out to all of them at once. Each listening feed
-holds a loop on a thread of its own, and closing the feed gives the port
-back and ends the peers still attached to it. It LISTENS: the library
-underneath carries no client, so a `ws://` URI naming a host to reach
-opens nothing and leaves the reason on the feed, and there is no `wss://`
-because those sockets are built without TLS.
+and one `send()` goes out to all of them at once while `Feed::sendTo()`
+reaches the one peer it names and no other. Each listening feed holds a
+loop on a thread of its own, and closing the feed gives the port back and
+ends the peers still attached to it. A peer is named by the address its
+own messages arrive under, and a peer that has left before the loop
+reaches an answer is nobody to answer — the answer having been posted is
+what `sendTo()` says, since the loop that holds the peers is not the
+thread that asked. That registration LISTENS: the library underneath
+carries no client and its sockets are built without TLS, so it opens a
+port to hold and nothing else.
+
+`registerWebSocketClient()` is the other end, and it takes `ws://` and
+`wss://` both. The two ends share a scheme, and the SHAPE of the URI is
+what says which one a feed is: `ws://HOST:PORT/PATH` and
+`wss://HOST:PORT/PATH` name a server to call, `ws://:PORT/PATH` names a
+port to hold. The client stands in front of whatever was registered for
+those schemes and splits the two in one place — a URI with a host it
+calls itself, a URI without one it hands to the listener behind it — so
+`registerWebSocket()` is installed first, and a scheme with nothing
+behind it refuses a hostless URI with the reason. The port is spelled
+rather than taken from the scheme, so what a feed reaches is what its
+URI says. A call is made over libcurl, which is where the TLS `wss://`
+needs comes from: each feed holds one session on a thread of its own,
+every message the server sends arrives whole however many frames it was
+split into, `send()` writes one whole message back as bytes, and both
+the `address()` the feed reports and the sender every arrival names are
+the server it dialled — the one peer a client has, so `Feed::sendTo()`
+is false on it. The handshake runs on that same thread: a feed is
+answered before its server has been reached, `error()` carries the
+reason when it cannot be, and a `send()` before then goes nowhere and
+says so. A server that ends the session closes the feed.
 
 A **recording** is a feed written down: `record(path)` appends every
 arrival from then on, with the seconds since the feed was made, in the
@@ -397,8 +441,11 @@ cache hit or failure.
 Dependencies: `SigilIOHub` links `SigilIOSource`, `SigilImageDecode` and
 Boost.Container publicly and `CURL::libcurl` plus `SigilCoreSchedule`
 privately — private because they are transport and where a fetch that
-blocks runs, while curl remains a hard requirement to configure. `SigilIOTransport` links `SigilIOHub` publicly and Boost.Asio and
-uWebSockets privately: its header names a hub and a scheme and nothing of
+blocks runs, while curl remains a hard requirement to configure. `SigilIOTransport` links `SigilIOHub` publicly and Boost.Asio,
+uWebSockets and `CURL::libcurl` privately — the last one for the
+websocket client, which is also where the TLS a `wss://` feed is carried
+over comes from, the sockets a listener stands on being built without
+any: its header names a hub and a scheme and nothing of
 the socket behind them, so a consumer that opens a feed inherits no
 executor, no event loop and no Boost. `SigilIOSource` itself depends on
 nothing beyond the standard library, so a decoder or an encoder library
@@ -478,15 +525,17 @@ by the `benches` target and run from a Release build through
 decoded view per call and `resolve` per URI against the mount table — the
 disk kept out of every timed loop); `SigilIOTransport` (static
 library, `transport/` — the UDP transport and the one thread its
-sockets run on, behind the private `transport/IoThread.h`, and the
-WebSocket transport and the loop each of its listeners holds) with
+sockets run on, behind the private `transport/IoThread.h`, the
+WebSocket listener and the loop each one holds, and the WebSocket client
+and the session each of its feeds runs on a thread of its own) with
 `transport/test/`, whose `IOUdp` suite binds real ports on the loopback
-and sends its own datagrams through raw sockets and whose `IOWebSocket`
+and sends its own datagrams through raw sockets, whose `IOWebSocket`
 suite does the same with a websocket peer it writes out by hand, upgrade
 request and masked frames and all — which a case may do to prove what the
-listener does with it, and a transport may not, a client written to the
-length of one test being no door anybody else could open; and `SigilIO`,
-the umbrella over the source and the hub.
+listener does with it, while a transport stands on a library that speaks
+the protocol instead — and whose `IOWebSocketClient` suite calls a
+listener this same process is holding, so both ends of a session stand in
+one binary; and `SigilIO`, the umbrella over the source and the hub.
 
 There is one test binary, `io_test`, built from every feature's `test/`
 directories, and ctest discovers one entry per CASE out of it, so a

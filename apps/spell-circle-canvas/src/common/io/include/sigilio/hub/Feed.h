@@ -65,6 +65,9 @@ struct OpenedFeed {
   std::function<void()> close;
   /** Sends through the same door; empty when the way is one-way. */
   std::function<bool(const Bytes&)> send;
+  /** Sends to ONE sender, named the way an arrival's `from` spells it;
+   *  empty when the transport cannot address one. */
+  std::function<bool(std::string_view to, const Bytes&)> sendTo;
   /** The local end as the transport bound it, "udp://[::]:52341";
    *  empty when it has none. */
   std::string address;
@@ -151,6 +154,13 @@ class Feed {
   /** Sends back through the opened end. False when the way is one-way,
    *  when the feed is closed, and when no transport opened it. */
   bool send(const Bytes& bytes) const;
+
+  /** Sends to ONE sender: @p to is an address spelled the way an
+   *  arrival's `from` is, `udp://127.0.0.1:52341`, which is how a door
+   *  that holds no peer of its own answers the one that wrote to it.
+   *  False when the way is one-way for that purpose, when the feed is
+   *  closed, and when no transport opened it. */
+  bool sendTo(std::string_view to, const Bytes& bytes) const;
 
   /** Appends every arrival from now on to the file at @p path in the
    *  recording format, so this feed can be played back later. An empty

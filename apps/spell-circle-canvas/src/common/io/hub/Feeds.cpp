@@ -50,6 +50,13 @@ void Hub::setFeedTransport(std::string scheme, FeedTransport transport) {
   m_feedTransports.insert_or_assign(std::move(scheme), std::move(transport));
 }
 
+FeedTransport Hub::feedTransport(std::string_view scheme) const {
+  const std::lock_guard lock(m_mutex);
+  const auto registered = m_feedTransports.find(scheme);
+  return registered == m_feedTransports.end() ? FeedTransport{}
+                                              : registered->second;
+}
+
 std::vector<std::shared_ptr<Feed>> Hub::feeds() const {
   const std::lock_guard lock(m_mutex);
   std::vector<std::shared_ptr<Feed>> held;

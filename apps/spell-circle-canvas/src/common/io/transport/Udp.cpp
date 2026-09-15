@@ -1,7 +1,8 @@
 /** @file
  * The UDP transport: the address a feed's URI names, the dual-stack
- * listener or the connected sender opened for it, and the receive loop
- * that hands every datagram to the feed it was opened for.
+ * listener or the connected sender opened for it, the receive loop that
+ * hands every datagram to the feed it was opened for, and the one
+ * datagram a listener writes back to a sender it named.
  *
  * Two schemes stand on it. udp:// is the socket by its own name, and
  * osc:// is the same socket opened for messages that are OSC packets:
@@ -164,6 +165,7 @@ struct Door : std::enable_shared_from_this<Door> {
   void receive();
   void close();
   bool send(const Bytes& datagram);
+  bool sendTo(std::string_view to, const Bytes& datagram);
 
   /** Held, not borrowed: the context has to outlive the socket standing
    *  on it. */
@@ -240,6 +242,38 @@ bool Door::send(const Bytes& datagram) {
   return true;
 }
 
+bool Door::sendTo(std::string_view to, const Bytes& datagram) {
+  if (closed.load(std::memory_order_acquire)) return false;
+  const std::optional<Address> address = parseAddress(to, scheme);
+  if (!address) return false;
+  error_code reading;
+  const boost::asio::ip::address peer =
+      boost::asio::ip::make_address(address->host, reading);
+  // A sender is named by the literal address its datagram arrived from,
+  // so answering one is arithmetic and never a lookup: a host name here
+  // is nobody to answer rather than a wait on a resolver.
+  if (reading) return false;
+  boost::asio::post(
+      strand, [self = shared_from_this(), peer, port = address->port,
+               payload = datagram.bytes]() mutable {
+        if (self->closed.load(std::memory_order_acquire)) return;
+        error_code local;
+        const udp::endpoint bound = self->socket.local_endpoint(local);
+        boost::asio::ip::address host = peer;
+        // A listener is one dual-stack v6 socket, and an IPv4 peer is
+        // written back to as the mapping such a socket reads one as.
+        if (!local && bound.protocol() == udp::v6() && host.is_v4())
+          host = boost::asio::ip::make_address_v6(boost::asio::ip::v4_mapped,
+                                                  host.to_v4());
+        // A datagram the system refuses is one datagram and not the socket,
+        // exactly as the peer's own send beside this one is.
+        error_code ignored;
+        self->socket.send_to(boost::asio::buffer(payload),
+                             udp::endpoint(host, port), 0, ignored);
+      });
+  return true;
+}
+
 /** A feed whose transport could not open: the reason stands on the feed,
  *  and there is no door to close or to send through. */
 OpenedFeed refuse(const std::weak_ptr<Feed>& into, std::string why) {
@@ -305,6 +339,13 @@ OpenedFeed openFeed(const std::shared_ptr<detail::IoThread>& io,
     opened.send = [door](const Bytes& datagram) {
       return door->send(datagram);
     };
+  else
+    // It can still answer ONE sender: the address a datagram arrived
+    // from is an address to write back to, which is the whole of the
+    // way out of a door that holds no peer.
+    opened.sendTo = [door](std::string_view to, const Bytes& datagram) {
+      return door->sendTo(to, datagram);
+    };
 
   // Armed last: the socket belongs to the strand from the first receive
   // on, so the local end it bound is read while this thread is still the
@@ -354,7 +395,11 @@ void registerUdp(Hub& hub) {
 
 void registerTransports(Hub& hub) {
   registerUdp(hub);
+  // The listener first and the caller after it: the caller stands in
+  // front of whatever the scheme holds and hands a URI with no host back
+  // to it, so the order is what makes both forms open.
   registerWebSocket(hub);
+  registerWebSocketClient(hub);
 }
 
 }  // namespace sigil::io

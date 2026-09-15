@@ -3,8 +3,8 @@
  * message as bytes and whole, the ones it has not drained, the sender
  * each one names, and the ones a feed too full to hold them dropped —
  * the one door a hub opens per URI and closes when nobody holds it any
- * more, and the recording a feed writes as it runs and plays back
- * afterwards.
+ * more, what goes back out of it to everybody or to one named sender,
+ * and the recording a feed writes as it runs and plays back afterwards.
  */
 
 #include <gtest/gtest.h>
@@ -195,6 +195,7 @@ TEST_F(IOFeed, AUriWithNoTransportIsAFeedWhoseErrorSaysSo) {
   ASSERT_NE(feed, nullptr);
   EXPECT_NE(feed->error().find("udp"), std::string::npos);
   EXPECT_FALSE(feed->send(message("nowhere to go")));
+  EXPECT_FALSE(feed->sendTo("udp://127.0.0.1:52341", message("nobody")));
   EXPECT_TRUE(feed->address().empty());
 }
 
@@ -245,7 +246,31 @@ TEST_F(IOFeed, AOneWayFeedAnswersFalseToSend) {
 
   const std::shared_ptr<Feed> feed = hub.feed("udp://:27020");
   EXPECT_FALSE(feed->send(message("outward")));
+  EXPECT_FALSE(feed->sendTo("udp://127.0.0.1:52341", message("outward")));
   EXPECT_FALSE(feed->closed());
+}
+
+TEST_F(IOFeed, SendToGoesThroughTheOpenedEndNamingTheSenderToAnswer) {
+  const auto answered = std::make_shared<std::string>();
+  hub.setFeedTransport(
+      "udp", [answered](std::string_view, std::weak_ptr<Feed>) {
+        // A door that answers one sender and broadcasts to none, which
+        // is what a listening socket is.
+        OpenedFeed opened;
+        opened.sendTo = [answered](std::string_view to, const Bytes& bytes) {
+          *answered = std::string(to) + " " + std::string(bytes.asText());
+          return true;
+        };
+        return opened;
+      });
+
+  const std::shared_ptr<Feed> feed = hub.feed("udp://:27020");
+  EXPECT_FALSE(feed->send(message("to nobody in particular")));
+  EXPECT_TRUE(feed->sendTo("udp://127.0.0.1:52341", message("answered")));
+  EXPECT_EQ(*answered, "udp://127.0.0.1:52341 answered");
+  // There is no end to answer through once it has been closed.
+  feed->close();
+  EXPECT_FALSE(feed->sendTo("udp://127.0.0.1:52341", message("too late")));
 }
 
 TEST_F(IOFeed, ARecordingReadsBackTheBytesAndTimesItWasWrittenWith) {

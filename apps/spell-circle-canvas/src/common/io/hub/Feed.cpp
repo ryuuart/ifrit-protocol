@@ -170,6 +170,18 @@ bool Feed::send(const Bytes& bytes) const {
   return outward ? outward(bytes) : false;
 }
 
+bool Feed::sendTo(std::string_view to, const Bytes& bytes) const {
+  std::function<bool(std::string_view, const Bytes&)> outward;
+  {
+    const std::lock_guard lock(m_mutex);
+    if (m_closed) return false;
+    outward = m_openedEnd.sendTo;
+  }
+  // Outside the lock, for the reason the broadcast beside it is: a
+  // reader waits for another reader, and never for a socket.
+  return outward ? outward(to, bytes) : false;
+}
+
 void Feed::record(std::filesystem::path path) {
   // The file is opened, and emptied, before the lock is taken: a reader
   // never waits on a disk.

@@ -2,7 +2,7 @@
  * The WebSocket transport: the port and the path a feed's URI names, the
  * listener holding them, the loop that listener runs on, and the peers
  * whose messages arrive in the feed and whom one send reaches all at
- * once.
+ * once — or, named one by one, alone.
  *
  * Listening only. The library underneath carries a websocket client as a
  * name and an empty body, so a URI naming a host to reach opens nothing
@@ -29,6 +29,7 @@
 #include <string_view>
 #include <system_error>
 #include <thread>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -134,9 +135,15 @@ std::string peerAddress(std::string_view scheme, std::string_view binary,
   return printed.str();
 }
 
-/** A peer carries nothing of its own: the topic it subscribes to is the
- *  path it reached, and what it sends goes to the feed. */
-struct Peer {};
+/** WHAT ONE PEER CARRIES: the address it is named by. It is written
+ *  once, when the peer arrives, so the sender every message of its
+ *  names, the key it is found under to be answered alone, and the key
+ *  its leaving clears are one string and cannot drift apart. The topic
+ *  it subscribes to is the path it reached, and what it sends goes to
+ *  the feed. */
+struct Peer {
+  std::string address;
+};
 
 /** WHAT THE LISTENER'S THREAD AND ITS CALLBACKS SHARE: the feed every
  *  peer delivers into, the topic a send goes out on, and the app and the
@@ -147,9 +154,10 @@ struct Peer {};
  *  held weakly: when it cannot be locked there is nobody left to deliver
  *  to, and the message is dropped there.
  *
- *  Only the loop's own thread reads or writes `app` and `listening`; a
- *  door on another thread reaches them by deferring onto `loop`, which
- *  is published once the listener is bound and never changes after. */
+ *  Only the loop's own thread reads or writes `app`, `listening` and
+ *  `peers`; a door on another thread reaches them by deferring onto
+ *  `loop`, which is published once the listener is bound and never
+ *  changes after. */
 struct Session {
   std::weak_ptr<Feed> feed;
   std::string scheme;
@@ -157,6 +165,11 @@ struct Session {
   uWS::App* app = nullptr;
   us_listen_socket_t* listening = nullptr;
   std::atomic<uWS::Loop*> loop{nullptr};
+  /** EVERY PEER ATTACHED, under the address its messages are named by,
+   *  which is what an answer to one of them is found through. A peer
+   *  puts itself in as it arrives and takes itself out as it leaves, so
+   *  nothing here outlives the socket it points at. */
+  std::unordered_map<std::string, uWS::WebSocket<false, true, Peer>*> peers;
 };
 
 /** What a listener's thread answers with once it has tried to bind: the
@@ -186,8 +199,15 @@ void hold(const std::shared_ptr<Session>& session, const Address& place,
     behavior.open = [session](auto* peer) {
       // Every peer on the path subscribes to that path, which is what
       // makes a broadcast one publish rather than a walk over a list
-      // this file would have to keep.
+      // this file would have to keep. Answering ONE peer is the other
+      // half, and that one is found by name, so the address is read
+      // here — where the socket is certainly still open — and kept.
       peer->subscribe(session->topic);
+      std::string named = peerAddress(session->scheme, peer->getRemoteAddress(),
+                                      peer->getRemotePort());
+      if (named.empty()) return;
+      peer->getUserData()->address = named;
+      session->peers[std::move(named)] = peer;
     };
     behavior.message = [session](auto* peer, std::string_view message,
                                  uWS::OpCode) {
@@ -197,9 +217,12 @@ void hold(const std::shared_ptr<Session>& session, const Address& place,
           reinterpret_cast<const std::byte*>(message.data());
       Bytes payload;
       payload.bytes.assign(first, first + message.size());
-      feed->deliver(std::move(payload),
-                    peerAddress(session->scheme, peer->getRemoteAddress(),
-                                peer->getRemotePort()));
+      feed->deliver(std::move(payload), peer->getUserData()->address);
+    };
+    behavior.close = [session](auto* peer, int, std::string_view) {
+      // A peer that has left is nobody to answer, and the entry that
+      // would answer it points at a socket about to be freed.
+      session->peers.erase(peer->getUserData()->address);
     };
     app.ws<Peer>(place.path, std::move(behavior));
     app.listen(place.port, [&session](us_listen_socket_t* token) {
@@ -239,6 +262,7 @@ struct Door {
 
   void close();
   bool send(const Bytes& message);
+  bool sendTo(std::string_view to, const Bytes& message);
 
   std::shared_ptr<Session> session = std::make_shared<Session>();
   std::thread thread;
@@ -288,6 +312,26 @@ bool Door::send(const Bytes& message) {
                          payload.size()),
         uWS::OpCode::BINARY);
   });
+  return true;
+}
+
+bool Door::sendTo(std::string_view to, const Bytes& message) {
+  if (closed.load(std::memory_order_acquire)) return false;
+  uWS::Loop* const loop = session->loop.load(std::memory_order_acquire);
+  if (!loop) return false;
+  // The peer is looked up on the loop that owns it, so the answer is
+  // true when it was posted rather than when it was written: a peer
+  // that left in between is gone by the time the loop reaches this, and
+  // its message stops here.
+  loop->defer(
+      [session = session, named = std::string(to), payload = message.bytes] {
+        const auto found = session->peers.find(named);
+        if (found == session->peers.end()) return;
+        found->second->send(
+            std::string_view(reinterpret_cast<const char*>(payload.data()),
+                             payload.size()),
+            uWS::OpCode::BINARY);
+      });
   return true;
 }
 
@@ -342,6 +386,9 @@ OpenedFeed openFeed(std::string_view uri, const std::weak_ptr<Feed>& into) {
   opened.address = "ws://[::]:" + std::to_string(bound.port) + address->path;
   opened.close = [door] { door->close(); };
   opened.send = [door](const Bytes& message) { return door->send(message); };
+  opened.sendTo = [door](std::string_view to, const Bytes& message) {
+    return door->sendTo(to, message);
+  };
   return opened;
 }
 
