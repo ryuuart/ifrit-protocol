@@ -2,7 +2,7 @@
 
 A **wire** is one URI a message arrives on or leaves by. Seer is the tool
 that watches all of them at once: it opens a wire, says what is coming
-down it and who is at the other end, shows the newest message four ways,
+down it and who is at the other end, shows the newest message five ways,
 keeps the ones before it, sends a message back, writes a wire down to a
 file, and opens that file again as if it were the port.
 
@@ -17,6 +17,7 @@ cmake --build build --config Release --target Seer
 open build/bin/Release/Seer.app                          # the window
 build/bin/Release/Seer.app/Contents/MacOS/Seer udp://:27020
 build/bin/Release/Seer.app/Contents/MacOS/Seer osc://:27050 ws://:27060/sky
+build/bin/Release/Seer.app/Contents/MacOS/Seer --schema feed_sky.bfbs udp://:27020
 build/bin/Release/Seer.app/Contents/MacOS/Seer --shot panes.png udp://:27020
 ```
 
@@ -31,7 +32,7 @@ here.
 
 | target | what it is |
 | --- | --- |
-| `SigilSeerWire` | the archive: the wires, the log, the way out, the recorder, and the readings. Namespace `sigil::seer`, headers under `include/sigilseer/wire/`, no toolkit at all |
+| `SigilSeerWire` | the archive: the wires, the log, the way out, the recorder, the schema they are read through, and the readings. Namespace `sigil::seer`, headers under `include/sigilseer/wire/`, no toolkit at all |
 | `Seer` | the application: one window over that archive, a macOS bundle, its QML module `Sigil.Seer` |
 
 Everything a wire DOES is in the archive, and it is asserted with no
@@ -76,11 +77,11 @@ the system ended — stays on it and says it is closed.
 wire: the rate over the last second of ticks, the newest message, how
 many have arrived, how many were dropped, the local end, the error,
 whether it is closed, and `sigil::seer::Vitals::lastFrom`, the address
-the last message taken off the wire came from. The rate is worked out
-from the generations earlier ticks read, so it is a property of how
-often the host calls this and needs no thread behind it. Nothing here
-has a clock: `sigil::seer::Wires::dispatch()` and the tick both take
-the caller's seconds.
+that message came from. The rate is worked out from the generations
+earlier ticks read, so it is a property of how often the host calls
+this and needs no thread behind it. Nothing here has a clock:
+`sigil::seer::Wires::dispatch()` and the tick both take the caller's
+seconds.
 
 `sigil::seer::Log` keeps what `sigil::seer::Log::drain()` takes off one
 feed, newest last, up to the capacity it was made with;
@@ -90,11 +91,23 @@ separately. Every entry carries `sigil::seer::LogEntry::from`, the
 sender the arrival named, since one wire carries messages from many
 senders and which of them sent a message is a fact about the message.
 
-The sender travels with the arrival — it is `sigil::io::Arrival::from`,
-and a feed hands each arrival out once — so the only place that knows
-who sent a message is whoever took it. That is why a wire is TOLD:
-`sigil::seer::Wires::rememberSender()` is what a reader calls with what
-it drained, and a wire nobody drains names nobody.
+The bytes and the sender come out of one ask. The sender travels with
+the arrival — it is `sigil::io::Arrival::from` — and `sigil::io::Feed`
+latches its newest arrival whole beside the queue it hands out, so
+`sigil::io::Feed::newest()` answers both at once to a tick that drains
+nothing. Every row therefore names where its own messages are coming
+from, not only the row being read, and no row can show one message's
+bytes under another message's sender.
+
+`sigil::seer::Wires::readThrough()` puts one `sigil::data::Schema` over
+every wire, and `sigil::seer::Wires::schema()` is the one that is on.
+It is the wires' and not one wire's because a reader who went and found
+a schema found it for the MESSAGES, which cross whichever wire the
+sender happened to open. A tool holds no generated header for what it
+is watching, so the token is made from a schema file's own bytes with
+`sigil::data::Schema::fromBinarySchema()` — the `.bfbs` the sender's
+build wrote beside its header — which is the whole of what Seer needs to
+know about somebody else's format.
 
 `sigil::seer::Sender` opens a peer through the same wires — so the peer
 stands in the same list and its replies arrive on it — and sends one
@@ -113,13 +126,24 @@ first: a feed answers for a URI as long as anyone holds it, so the door
 has to be let go before the file can take its place.
 
 `sigil::seer::hexadecimal()`, `sigil::seer::printableText()`,
-`sigil::seer::indentedJson()` and `sigil::seer::oscReading()` are the
-four readings of a message. Each answers an empty string when the
-message is not that — a message half of which is text is not text,
-because a reader shown the readable half would take the whole thing for
-a broken string rather than for bytes. The document and the packet are
-written out in one layout, so a reader turning from one to the other
-reads what differs rather than how each was printed.
+`sigil::seer::indentedJson()`, `sigil::seer::oscReading()` and
+`sigil::seer::schemaReading()` are the five readings of a message. Each
+answers an empty string when the message is not that — a message half of
+which is text is not text, because a reader shown the readable half
+would take the whole thing for a broken string rather than for bytes.
+All of them are written out in one layout, so a reader turning from one
+to another reads what differs rather than how each was printed.
+
+The fifth is the only one that needs something besides the bytes,
+because a buffer read in place says nothing about itself: the names of
+its fields are in the schema and nowhere in the message. A buffer that
+verifies as the schema's root is shown as the schema's own form, and a
+message that IS that form already is converted through the schema and
+back, so what a reader sees is what a door reading the same wire through
+the same schema would hold rather than the text that happened to arrive.
+A message the schema cannot hold is no reading, and the sentence the
+call is asked for says whether there was no schema or no fit.
+
 `sigil::seer::hostAndPort()` is an address without the scheme in front
 of it, for the lines that stand beside a wire whose scheme is spelled
 there already.
@@ -130,21 +154,27 @@ Four panes, and one session behind all of them. Every pane reads what
 the last frame wrote, so the list, the readings and the log are one
 frame's answer rather than three asks a moment apart.
 
-* **Connections** — a field to open a URI, and the wires that are open:
-  a dot for whether anything is coming, the URI, the rate, how many have
-  arrived, the local end or the sentence that says why there is none,
-  the end the last message came from once one has been taken, and a
-  button to close it. Choosing a row is what the other panes read. A
+* **Connections** — a field to open a URI, a picker for the schema every
+  wire is read through with the root it declares beside it, and the
+  wires that are open: a dot for whether anything is coming, the URI,
+  the rate, how many have arrived, the local end or the sentence that
+  says why there is none, the end its newest message came from, and a
+  button to close it. Every row names its own sender, because the tick
+  reads it off the arrival rather than off whoever drained one.
+  Choosing a row is what the other panes read. A
   `ws://` wire's path is part of the URI it was opened on, so the row
   says which path it is listening for; how many peers have reached it is
   not something a feed can be asked, so no row claims it.
 * **Receive** — the newest message as hexadecimal pairs, as text, as an
-  indented JSON document and as an OSC packet, whichever of those it is;
-  a reading the message does not have is offered disabled, which is how
-  the pane says what the message is not. Choosing a wire opens the
-  readings on the one its scheme makes natural — the packet on an
-  `osc://` wire, the document elsewhere, the bytes where the message is
-  neither — and a reader who picks a tab keeps it until they choose
+  indented JSON document, as an OSC packet and as the schema's own form,
+  whichever of those it is; a reading the message does not have is
+  offered disabled, which is how the pane says what the message is not,
+  and the sentence under the tabs says why the schema's reading is not
+  there. Choosing a wire opens the readings on the one its scheme makes
+  natural — the packet on an `osc://` wire, the document elsewhere, the
+  bytes where the message is neither — except that a loaded schema that
+  reads the message reads first, a reader having gone and found it for
+  exactly that. A reader who picks a tab keeps it until they choose
   another wire. The log stands below it, one line per message: when it
   arrived, who sent it, how big it is, and what it says.
 * **Send** — the peer, an editor read either as text or as hexadecimal
@@ -166,7 +196,11 @@ Every URI on the command line is opened before the window comes up and
 the first of them is the one being read — a reader who names several
 names the wire they are watching first and the rest to have them open —
 so a run that always watches the same wires is one command rather than
-fields typed again every time. `--shot` writes the
+fields typed again every time. `--schema <bfbs>` is the schema file the
+messages are read through, loaded before the first wire is opened so the
+first message to arrive is already read as fields; the window loads one
+through a picker too, but a picker needs a person, so a run driven from
+a script names the file. `--shot` writes the
 window down as a picture once it has run for a moment and then closes
 it, which is how the panes are looked at from a script; a photographed
 run keeps its own opaque ground rather than the machine's glass, because
@@ -175,12 +209,14 @@ cannot reach it. Everything else a session does, it does in the window.
 
 ## Boundary
 
-SigilIO's feeds and byte vocabulary are the public dependency. The
-transports are private — no header here names one, a scheme being a
-string — and so are the JSON parser and the OSC codec, because a reading
-answers a string and a spelled message answers bytes: nobody who links
-this inherits a document type. Nothing of SigilSketch is here, and
-nothing that draws.
+SigilIO's feeds and byte vocabulary are the public dependency, and so
+are SigilData's decoders: the schema a wire is read through is one of
+their values, and whoever hands one over has to be able to make one. The
+transports stay private — no header here names one, a scheme being a
+string. What every reading ANSWERS is still a string and what a spelled
+message answers is still bytes, so nobody who links this is made to
+speak in document types, even where the schema puts them within reach.
+Nothing of SigilSketch is here, and nothing that draws.
 
 ## Building
 
@@ -188,7 +224,11 @@ One archive and one application, both always configured. The cases are
 in `seer_test` under `build/bin/<config>/tests/`, and every one of them
 runs with no application in the process. The codec is linked there
 beside the library, because what the OSC cases assert is that a reading
-and a spelling agree with the bytes a sender writes:
+and a spelling agree with the bytes a sender writes; the build also
+compiles a schema of the cases' own and the schema cases read the
+`.bfbs` file it writes off the disk, since what the schema reading
+promises is a format no generated header in that binary was compiled
+from:
 
 ```sh
 cmake --build build --config Release --target Seer seer_test

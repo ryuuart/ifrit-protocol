@@ -268,7 +268,10 @@ through, which is the root the schema FILE declares rather than the type
 the token was spelled with, a generated header embedding its file's
 whole schema beside every type in it. That is what lets the root be
 named once and never again: a door reading a wire holds the token, not
-the type.
+the type. `Schema::fromBinarySchema()` makes that same token out of a
+`.bfbs` file's own bytes rather than out of a type, so a tool that has
+no generated header for what it is watching reads any schema the build
+wrote, and a token the bytes could not make says what stopped it.
 
 The two conversions come to rest in the schema's form. That form quotes
 its field names, breaks no lines, and writes every scalar the schema

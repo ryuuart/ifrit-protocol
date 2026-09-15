@@ -23,7 +23,9 @@
  * one copyable token, which converts a buffer to its JSON form and a
  * JSON form back to a buffer without naming Root again — what a door
  * reading a wire holds, where the type of the next message is not known
- * at the call site.
+ * at the call site. `Schema::fromBinarySchema()` is the same token made
+ * out of a schema file's own bytes, for a tool that has no generated
+ * header for what it is looking at and was handed the schema instead.
  *
  * Speaks io's byte vocabulary and flatbuffers, and nothing else of io:
  * `registerFlatBuffer` is a template over the hub.
@@ -159,28 +161,21 @@ class Schema {
    *  root has nothing to read a buffer AS. The bytes are copied, so the
    *  caller keeps nothing for this. */
   explicit Schema(std::span<const uint8_t> binarySchema) {
-    auto state = std::make_shared<State>();
-    state->bytes.assign(binarySchema.begin(), binarySchema.end());
-    flatbuffers::Verifier verifier(state->bytes.data(), state->bytes.size());
-    if (!reflection::VerifySchemaBuffer(verifier)) return;
-    const reflection::Schema* reflected =
-        reflection::GetSchema(state->bytes.data());
-    const reflection::Object* root = reflected->root_table();
-    if (!root || !root->name()) return;
-    // THE JSON FORM IS ONE A JSON READER READS: field names quoted, no
-    // line breaks, and every scalar the schema declares written even
-    // where the buffer left it at the default, so a reader indexing a
-    // field finds it whatever arrived. The options stand before the
-    // schema is read, because they are what both conversions run under.
-    state->parser.opts.strict_json = true;
-    state->parser.opts.indent_step = -1;
-    state->parser.opts.output_default_scalars_in_json = true;
-    if (!state->parser.Deserialize(state->bytes.data(), state->bytes.size()))
-      return;
-    state->reflected = reflected;
-    state->root = root;
-    state->rootName = root->name()->str();
-    m_state = std::move(state);
+    read(binarySchema, nullptr);
+  }
+
+  /** THE SCHEMA A `.bfbs` FILE HOLDS, made from the bytes of the file
+   *  the build wrote rather than from a generated type. It is the same
+   *  token either way, so a tool that has no generated header for what
+   *  it is looking at reads any schema it is handed. None where the
+   *  bytes are no schema or the schema declares no root, and @p why
+   *  says which where it is asked for. */
+  static Schema fromBinarySchema(std::span<const std::byte> bfbs,
+                                 std::string* why = nullptr) {
+    Schema made;
+    made.read({reinterpret_cast<const uint8_t*>(bfbs.data()), bfbs.size()},
+              why);
+    return made;
   }
 
   /** Whether this is a schema at all. */
@@ -255,6 +250,48 @@ class Schema {
   }
 
  private:
+  /** Reads @p binarySchema into the state this token stands on, leaving
+   *  the token none when the bytes are no schema; @p why says what
+   *  stopped it where it is asked for. Every way of making a schema
+   *  runs through here, so a schema made from a file and one made from
+   *  a generated type are one schema made one way. */
+  void read(std::span<const uint8_t> binarySchema, std::string* why) {
+    if (binarySchema.empty()) {
+      if (why) *why = "no bytes are no schema";
+      return;
+    }
+    auto state = std::make_shared<State>();
+    state->bytes.assign(binarySchema.begin(), binarySchema.end());
+    flatbuffers::Verifier verifier(state->bytes.data(), state->bytes.size());
+    if (!reflection::VerifySchemaBuffer(verifier)) {
+      if (why) *why = "the bytes are no binary schema";
+      return;
+    }
+    const reflection::Schema* reflected =
+        reflection::GetSchema(state->bytes.data());
+    const reflection::Object* root = reflected->root_table();
+    if (!root || !root->name()) {
+      if (why) *why = "the schema declares no root type";
+      return;
+    }
+    // THE JSON FORM IS ONE A JSON READER READS: field names quoted, no
+    // line breaks, and every scalar the schema declares written even
+    // where the buffer left it at the default, so a reader indexing a
+    // field finds it whatever arrived. The options stand before the
+    // schema is read, because they are what both conversions run under.
+    state->parser.opts.strict_json = true;
+    state->parser.opts.indent_step = -1;
+    state->parser.opts.output_default_scalars_in_json = true;
+    if (!state->parser.Deserialize(state->bytes.data(), state->bytes.size())) {
+      if (why) *why = state->parser.error_;
+      return;
+    }
+    state->reflected = reflected;
+    state->root = root;
+    state->rootName = root->name()->str();
+    m_state = std::move(state);
+  }
+
   /** The deserialized schema behind one pointer, so a copy of the token
    *  is the same schema rather than a second reading of it. */
   struct State {

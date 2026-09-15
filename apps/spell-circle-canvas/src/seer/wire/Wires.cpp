@@ -8,6 +8,7 @@
 #include <sigilio/transport/Transport.h>
 
 #include <algorithm>
+#include <optional>
 #include <utility>
 
 namespace sigil::seer {
@@ -28,7 +29,7 @@ std::shared_ptr<io::Feed> Wires::open(std::string_view uri,
                                       io::FeedPolicy policy) {
   if (const Watch* watch = watchOf(uri)) return watch->feed;
   std::shared_ptr<io::Feed> feed = m_hub.feed(uri, policy);
-  m_watches.push_back({feed, {}, {}});
+  m_watches.push_back({feed, {}});
   return feed;
 }
 
@@ -67,13 +68,7 @@ void Wires::mountRecording(std::string_view uri,
 
 void Wires::dispatch(double seconds) { m_hub.dispatch(seconds); }
 
-void Wires::rememberSender(std::string_view uri, std::string address) {
-  for (Watch& watch : m_watches)
-    if (watch.feed->uri() == uri) {
-      watch.lastFrom = std::move(address);
-      return;
-    }
-}
+void Wires::readThrough(data::Schema schema) { m_schema = std::move(schema); }
 
 void Wires::tick(double seconds) {
   m_vitals.clear();
@@ -102,8 +97,15 @@ void Wires::tick(double seconds) {
     vitals.arrivalsPerSecond =
         span > 0 ? double(newest.generation - oldest.generation) / span : 0.0;
     vitals.closed = feed.closed();
-    vitals.newest = feed.latest();
-    vitals.lastFrom = watch.lastFrom;
+    // The newest arrival whole, in one ask: the bytes and the sender
+    // that came in together are read out together, so a wire that takes
+    // a message between two asks cannot be shown one message's bytes
+    // under another message's sender. A feed latches it rather than
+    // queueing it, so a wire nobody drains names its sender too.
+    if (const std::optional<io::Arrival> arrival = feed.newest()) {
+      vitals.newest = arrival->bytes;
+      vitals.lastFrom = arrival->from;
+    }
     m_vitals.push_back(std::move(vitals));
   }
 }

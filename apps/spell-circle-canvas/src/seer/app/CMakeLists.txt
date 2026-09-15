@@ -54,8 +54,11 @@ qt_add_qml_module(Seer
     SendForm.cpp SendForm.h
 )
 
+# SigilData is named here and not taken from the archive's link: the
+# session makes the schema it hands the wires out of a file's bytes, so
+# this target spells that vocabulary itself.
 target_include_directories(Seer PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(Seer PRIVATE
-  SigilSeerWire
+  SigilSeerWire SigilDataDecode
   IfritUiplugin Qt6::Gui Qt6::Quick Qt6::QuickControls2 Qt6::QuickLayouts
   Qt6::QuickDialogs2)

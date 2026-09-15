@@ -1,5 +1,5 @@
 /** @file
- * The selected wire's detail, the four readings of its newest message,
+ * The selected wire's detail, the five readings of its newest message,
  * and which of them the wire is opened on.
  */
 
@@ -9,6 +9,7 @@
 
 #include <QtCore/QString>
 #include <cstddef>
+#include <string>
 
 namespace {
 
@@ -23,6 +24,10 @@ constexpr size_t kHexadecimalLimit = 1024;
 WireDetail::WireDetail(QObject* parent) : QObject(parent) {}
 
 int WireDetail::naturalReading() const {
+  // A schema was gone and found for these messages, so a message it
+  // reads is read through it: the names of the fields are in the schema
+  // and nowhere in the bytes, and no other reading can show them.
+  if (!m_schema.isEmpty()) return Schema;
   // The scheme says what the wire carries, which the bytes of one
   // message often do not: a packet and a document are both a run of
   // printable characters to look at, and the wire is where a reader was
@@ -32,6 +37,15 @@ int WireDetail::naturalReading() const {
   if (scheme == QLatin1String("osc") && !m_osc.isEmpty()) return Osc;
   if (!m_json.isEmpty()) return Json;
   return Hexadecimal;
+}
+
+void WireDetail::readThrough(const sigil::data::Schema& schema) {
+  m_readThrough = schema;
+  // The message on screen was read before this schema was here, so the
+  // mark that says it has been read is taken off and the next tick
+  // reads it again.
+  m_readUri.clear();
+  m_readGeneration = 0;
 }
 
 void WireDetail::show(const sigil::seer::Vitals* vitals) {
@@ -50,6 +64,8 @@ void WireDetail::show(const sigil::seer::Vitals* vitals) {
     m_text.clear();
     m_json.clear();
     m_osc.clear();
+    m_schema.clear();
+    m_schemaNote.clear();
     m_readUri.clear();
     m_readGeneration = 0;
     emit changed();
@@ -80,13 +96,15 @@ void WireDetail::show(const sigil::seer::Vitals* vitals) {
 bool WireDetail::readMessage(const sigil::seer::Vitals& vitals) {
   if (!vitals.newest) {
     if (m_byteSize == 0 && m_hexadecimal.isEmpty() && m_text.isEmpty() &&
-        m_json.isEmpty() && m_osc.isEmpty())
+        m_json.isEmpty() && m_osc.isEmpty() && m_schema.isEmpty())
       return false;
     m_byteSize = 0;
     m_hexadecimal.clear();
     m_text.clear();
     m_json.clear();
     m_osc.clear();
+    m_schema.clear();
+    m_schemaNote.clear();
     m_readUri.clear();
     m_readGeneration = 0;
     return true;
@@ -100,6 +118,16 @@ bool WireDetail::readMessage(const sigil::seer::Vitals& vitals) {
   m_text = QString::fromStdString(sigil::seer::printableText(bytes));
   m_json = QString::fromStdString(sigil::seer::indentedJson(bytes));
   m_osc = QString::fromStdString(sigil::seer::oscReading(bytes));
+  // The sentence stands only where a schema was handed over and this
+  // message is not one it holds. A reader who has asked for no schema is
+  // not told on every message that they have none: the disabled tab is
+  // the whole of what there is to say to them.
+  std::string why;
+  m_schema = QString::fromStdString(
+      sigil::seer::schemaReading(bytes, m_readThrough, &why));
+  m_schemaNote = m_schema.isEmpty() && static_cast<bool>(m_readThrough)
+                     ? QString::fromStdString(why)
+                     : QString();
   m_readUri = m_uri;
   m_readGeneration = m_generation;
   return true;

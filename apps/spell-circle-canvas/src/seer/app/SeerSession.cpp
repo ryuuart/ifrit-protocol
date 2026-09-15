@@ -5,13 +5,18 @@
 
 #include "SeerSession.h"
 
+#include <sigildata/decode/FlatBuffer.h>
+
 #include <QtGui/QGuiApplication>
 #include <cstddef>
 #include <deque>
 #include <filesystem>
+#include <memory>
 #include <string>
+#include <utility>
 
 QStringList SeerSession::opensOn;
+QString SeerSession::readsThrough;
 bool SeerSession::photographed = false;
 
 namespace {
@@ -31,6 +36,9 @@ SeerSession::SeerSession(QObject* parent) : QObject(parent) {
   connect(&m_frame, &QTimer::timeout, this, &SeerSession::tick);
   m_frame.setInterval(kFrameMilliseconds);
   m_frame.start();
+  // The schema goes on before a wire is opened, so the first message to
+  // arrive is read through it rather than shown as bytes for a frame.
+  if (!readsThrough.isEmpty()) loadSchema(QUrl::fromLocalFile(readsThrough));
   for (const QString& uri : opensOn) open(uri);
   // Opening a wire is asking to read it, so the last one opened would
   // be the one read — but a command line names them all at once, and
@@ -79,12 +87,6 @@ void SeerSession::tick() {
     const size_t echoed = taken < entries.size() ? taken : entries.size();
     for (size_t at = entries.size() - echoed; at != entries.size(); ++at)
       if (entries[at].bytes) m_sendForm.echo(*entries[at].bytes);
-    // The sender travels with the arrival and the log is where the
-    // arrival was taken, so the wire is told who sent what was taken off
-    // it: the row a reader is watching says where the messages on it are
-    // coming from without their opening one.
-    if (taken != 0 && !entries.empty())
-      m_wires.rememberSender(m_selectedUri.toStdString(), entries.back().from);
   }
   publish();
 }
@@ -177,6 +179,35 @@ void SeerSession::replay(const QString& uri, const QUrl& file) {
   // what the reader was looking at is this.
   m_selectedUri.clear();
   select(m_wireList.rowOf(named));
+}
+
+void SeerSession::loadSchema(const QUrl& file) {
+  const std::filesystem::path path = pathOf(file);
+  const std::shared_ptr<const sigil::io::Bytes> bytes =
+      m_wires.hub().blob(path.string());
+  if (!bytes) {
+    setNote(QStringLiteral("the schema could not be read: ") +
+            QString::fromStdString(path.string()));
+    return;
+  }
+  std::string why;
+  sigil::data::Schema schema =
+      sigil::data::Schema::fromBinarySchema(bytes->bytes, &why);
+  if (!schema) {
+    // The schema that was loaded stays loaded: a reader who opened the
+    // wrong file is left reading what they were reading before it.
+    setNote(QString::fromStdString(why));
+    return;
+  }
+  const QString root(QString::fromStdString(std::string(schema.rootName())));
+  m_wires.readThrough(std::move(schema));
+  m_detail.readThrough(m_wires.schema());
+  if (root != m_schemaRoot) {
+    m_schemaRoot = root;
+    emit schemaChanged();
+  }
+  setNote({});
+  publish();
 }
 
 void SeerSession::setNote(const QString& note) {

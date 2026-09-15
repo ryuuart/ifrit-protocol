@@ -52,6 +52,11 @@ class SeerSession : public QObject {
   /** The last thing the session has to say — why a wire would not open,
    *  what a recording could not do. Empty when there is nothing. */
   Q_PROPERTY(QString note READ note NOTIFY noteChanged)
+  /** The root the loaded schema reads a message as, `feed_sky.Sky`;
+   *  empty when no schema is loaded. It is the one thing about a schema
+   *  a reader has to recognise to know they handed over the file they
+   *  meant to. */
+  Q_PROPERTY(QString schemaRoot READ schemaRoot NOTIFY schemaChanged)
   /** Whether this run's window can wear the machine's own dressing. The
    *  native glass is put on behind a native window, and a run drawing
    *  against no display has none to put it behind. */
@@ -74,6 +79,13 @@ class SeerSession : public QObject {
    *  of. */
   static QStringList opensOn;
 
+  /** The schema file a run is handed before the window comes up: what
+   *  `--schema` named, loaded into the wires so the first message to
+   *  arrive is already read through it. A file picker does the same
+   *  thing once the window is up, but a picker needs a person, so a run
+   *  that is driven from a script names the file here. */
+  static QString readsThrough;
+
   /** Whether this run is here to be photographed. What is read back off
    *  a window is the frames that window drew, and the machine's glass is
    *  not among them — it lies behind the window — so a run that is going
@@ -88,6 +100,7 @@ class SeerSession : public QObject {
   [[nodiscard]] bool recording() const { return m_recording; }
   [[nodiscard]] QString recordingPath() const { return m_recordingPath; }
   [[nodiscard]] QString note() const { return m_note; }
+  [[nodiscard]] QString schemaRoot() const { return m_schemaRoot; }
   [[nodiscard]] bool nativeChrome() const;
 
   /** Opens @p uri as a wire and reads it. A URI nothing can open is a
@@ -110,10 +123,18 @@ class SeerSession : public QObject {
    *  URI is closed, and the file takes its place. */
   Q_INVOKABLE void replay(const QString& uri, const QUrl& file);
 
+  /** Reads every wire through the binary schema in @p file — what
+   *  `flatc -b --schema` wrote beside a sender's generated header — so
+   *  the messages are shown as the fields the schema names. A file that
+   *  is no schema leaves the one that was loaded standing and says so
+   *  in the note. */
+  Q_INVOKABLE void loadSchema(const QUrl& file);
+
  signals:
   void selectionChanged();
   void recordingChanged();
   void noteChanged();
+  void schemaChanged();
 
  private:
   /** One frame: the recordings are moved forward, every wire is read,
@@ -152,5 +173,6 @@ class SeerSession : public QObject {
   int m_selectedRow = -1;
   QString m_note;
   QString m_recordingPath;
+  QString m_schemaRoot;
   bool m_recording = false;
 };

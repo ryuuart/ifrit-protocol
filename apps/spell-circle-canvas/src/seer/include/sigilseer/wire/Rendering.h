@@ -1,17 +1,23 @@
 #pragma once
 
 /** @file
- * A MESSAGE MADE READABLE: the same bytes shown four ways, each of
+ * A MESSAGE MADE READABLE: the same bytes shown five ways, each of
  * which answers an empty string when the bytes are not that — and the
  * short spelling of an address, for the line a reading stands on.
  *
  * Nothing here decides what a message IS. A reader looking at an unknown
- * wire wants all four at once — the bytes as they stand, the text if
+ * wire wants all of them at once — the bytes as they stand, the text if
  * they happen to be text, the document or the packet if they happen to
  * be one — and the emptiness of a reading is the answer that they are
  * not.
+ *
+ * Four of the five need nothing but the bytes. The fifth needs a schema,
+ * because a buffer read in place says nothing about itself: the names
+ * of its fields are in the schema and nowhere in the message, so a
+ * reader who has not been handed one sees bytes.
  */
 
+#include <sigildata/decode/FlatBuffer.h>
 #include <sigilio/source/Source.h>
 
 #include <cstddef>
@@ -45,6 +51,17 @@ std::string indentedJson(const io::Bytes& bytes);
  *  in one shape is how a reader comparing them sees what differs
  *  rather than how each was printed. */
 std::string oscReading(const io::Bytes& bytes);
+
+/** The bytes read through @p schema, written out indented the way the
+ *  document and the packet are. A buffer that verifies as the schema's
+ *  root is converted to the schema's own form; bytes that are that form
+ *  already are converted to a buffer and back, so what a reader is
+ *  shown is what a door reading this wire through the same schema would
+ *  hold, defaults and all. Empty when the message is neither and when
+ *  there is no schema, with @p why carrying the sentence that says
+ *  which where it is asked for. */
+std::string schemaReading(const io::Bytes& bytes, const data::Schema& schema,
+                          std::string* why = nullptr);
 
 /** The end of @p uri, without the scheme in front of it: what follows
  *  the "://", which for an address a transport spells is the host and

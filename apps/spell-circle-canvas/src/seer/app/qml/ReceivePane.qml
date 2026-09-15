@@ -3,10 +3,11 @@
 //
 // The readings are tabs rather than panes side by side because they are
 // one message: a reader wants the bytes, or the text, or the document,
-// or the packet — never two of them at once. A reading a message does
-// not have is offered disabled, which is how the pane says what the
-// message is not, and the wire's own scheme is what opens the pane on
-// the reading that wire carries.
+// or the packet, or what a schema makes of it — never two of them at
+// once. A reading a message does not have is offered disabled, which is
+// how the pane says what the message is not, and the wire's own scheme
+// is what opens the pane on the reading that wire carries until a
+// schema is handed over, which reads before any of them.
 
 pragma ComponentBehavior: Bound
 
@@ -24,6 +25,8 @@ Ui.GlassPanel {
     /** The reading the chosen tab asks for, falling back to the bytes
      *  themselves, which every message has. */
     function shownReading() {
+        if (readings.currentIndex === 4 && pane.reading.schema.length > 0)
+            return pane.reading.schema;
         if (readings.currentIndex === 3 && pane.reading.osc.length > 0)
             return pane.reading.osc;
         if (readings.currentIndex === 2 && pane.reading.json.length > 0)
@@ -86,9 +89,9 @@ Ui.GlassPanel {
             }
         }
 
-        // Four readings of one message, so the control is as wide as the
-        // four words are: stretched across the pane it would read as
-        // four panes rather than as one choice. They stand in the order
+        // Five readings of one message, so the control is as wide as the
+        // five words are: stretched across the pane it would read as
+        // five panes rather than as one choice. They stand in the order
         // the wire detail numbers them, so the reading it calls natural
         // is this index.
         TabBar {
@@ -129,6 +132,27 @@ Ui.GlassPanel {
                 enabled: pane.reading.osc.length > 0
                 onClicked: readings.picked = true
             }
+
+            TabButton {
+                text: "Schema"
+                width: implicitWidth
+                enabled: pane.reading.schema.length > 0
+                onClicked: readings.picked = true
+            }
+        }
+
+        // Why the schema reading is not there: no schema handed over, or
+        // a message this schema cannot hold. A disabled tab alone says
+        // the message is not that; the sentence says which of the two
+        // it is, which is the difference between opening a file and
+        // looking at another wire.
+        Label {
+            Layout.fillWidth: true
+            visible: pane.reading.schemaNote.length > 0
+            text: pane.reading.schemaNote
+            color: Ui.Theme.secondaryText
+            font.pixelSize: 11
+            elide: Text.ElideRight
         }
 
         // A wire chosen is a reading chosen: what the last wire was read

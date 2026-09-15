@@ -1,8 +1,9 @@
 /** @file
  * The wires: what a URI nobody can open leaves behind, what two wires on
- * the loopback carry between them, the sender a message is kept with,
- * the rate a tick reads off a wire, the file a recording writes and the
- * wire that plays it back, and the readings a message is shown through.
+ * the loopback carry between them, the sender a message is kept with and
+ * the sender every wire names, the rate a tick reads off a wire, the
+ * file a recording writes and the wire that plays it back, and the
+ * readings a message is shown through.
  */
 
 #include <gtest/gtest.h>
@@ -176,28 +177,39 @@ TEST(SeerLog, AnEntryCarriesTheSenderItWasDeliveredWith) {
   EXPECT_TRUE(log.entries()[1].from.empty());
 }
 
-TEST(SeerWires, AWireNamesTheSenderOfTheMessageLastTakenOffIt) {
+TEST(SeerWires, EveryWireNamesTheSenderOfItsNewestMessage) {
   Wires wires;
-  wires.open("pigeon://the.desk");
+  const std::shared_ptr<Feed> desk = wires.open("pigeon://the.desk");
+  const std::shared_ptr<Feed> window = wires.open("pigeon://the.window");
   wires.tick(0.0);
-  // A wire nobody has taken a message off names nobody: the sender
-  // travels with the arrival, and an arrival nobody took is one nobody
-  // has read a sender out of.
+  // A wire nothing has arrived on names nobody.
   ASSERT_NE(wires.vitalsOf("pigeon://the.desk"), nullptr);
   EXPECT_TRUE(wires.vitalsOf("pigeon://the.desk")->lastFrom.empty());
 
-  wires.rememberSender("pigeon://the.desk", "udp://127.0.0.1:52341");
+  desk->deliver(bytesOf("from the field"),
+                std::string("udp://127.0.0.1:52341"));
+  window->deliver(bytesOf("from the roof"),
+                  std::string("udp://127.0.0.1:52342"));
   wires.tick(1.0);
-  EXPECT_EQ(wires.vitalsOf("pigeon://the.desk")->lastFrom,
-            "udp://127.0.0.1:52341");
 
-  // A URI no wire is open on is passed over rather than remembered
-  // against a wire that is not there.
-  wires.rememberSender("pigeon://elsewhere", "udp://127.0.0.1:52342");
-  wires.tick(2.0);
-  EXPECT_EQ(wires.vitals().size(), 1u);
+  // Nobody drained either wire. The sender travels with the arrival and
+  // a feed latches its newest whole, so every row names where its own
+  // messages are coming from rather than only the row being read.
   EXPECT_EQ(wires.vitalsOf("pigeon://the.desk")->lastFrom,
             "udp://127.0.0.1:52341");
+  EXPECT_EQ(wires.vitalsOf("pigeon://the.window")->lastFrom,
+            "udp://127.0.0.1:52342");
+  // The bytes and the sender are read out of the one arrival, so the
+  // row never shows one message's bytes under another's sender.
+  ASSERT_NE(wires.vitalsOf("pigeon://the.desk")->newest, nullptr);
+  EXPECT_EQ(wires.vitalsOf("pigeon://the.desk")->newest->asText(),
+            "from the field");
+
+  // A message delivered by a transport that cannot tell who sent it
+  // leaves the wire naming nobody rather than the sender before it.
+  desk->deliver(bytesOf("from nobody"));
+  wires.tick(2.0);
+  EXPECT_TRUE(wires.vitalsOf("pigeon://the.desk")->lastFrom.empty());
 }
 
 TEST(SeerLog, AFullLogLetsGoOfTheOldestAndCountsIt) {

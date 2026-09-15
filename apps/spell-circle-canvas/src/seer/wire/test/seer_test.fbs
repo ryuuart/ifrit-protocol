@@ -1,0 +1,15 @@
+// seer_test.fbs — the schema the cases read a message through, standing
+// for the one a reader hands the tool on the command line: a message
+// with a count on it and a name under that.
+//
+// The fields are declared in the order their names sort in, so the form
+// the schema writes stands in one order however a schema read by
+// reflection walks them.
+namespace seer_test;
+
+table Ping {
+  hops: int;
+  label: string;
+}
+
+root_type Ping;

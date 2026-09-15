@@ -3,12 +3,17 @@
  * sent back down it.
  *
  *   Seer [<uri>…]                the window, with each URI already open
+ *   Seer --schema <bfbs> [<uri>…]  …reading every message through it
  *   Seer --shot <png> [<uri>…]   …photographed once it has run, and closed
  *
  * Every URI on the command line is opened before the window comes up and
  * the first of them is the one being read, so a run that always watches
  * the same wires is one command rather than fields typed again every
- * time. Everything else a session does, it does in the window.
+ * time. `--schema` names the binary schema the messages are read
+ * through — what `flatc -b --schema` wrote beside a sender's generated
+ * header — which the window also takes from a file picker; the picker
+ * needs a person, so a run driven from a script names the file here.
+ * Everything else a session does, it does in the window.
  *
  * `--shot` IS THE WINDOW WITHOUT SOMEBODY IN FRONT OF IT: the frames the
  * window drew, read back and written down, which is how the panes are
@@ -52,8 +57,16 @@ int main(int argc, char* argv[]) {
   QString shotPath;
   for (int at = 1; at != argc; ++at) {
     if (std::strcmp(argv[at], "--help") == 0) {
-      std::printf("usage: Seer [--shot <png>] [<uri>…]\n");
+      std::printf("usage: Seer [--schema <bfbs>] [--shot <png>] [<uri>…]\n");
       return 0;
+    }
+    if (std::strcmp(argv[at], "--schema") == 0) {
+      if (at + 1 == argc) {
+        std::fprintf(stderr, "--schema: no binary schema to read through\n");
+        return 2;
+      }
+      SeerSession::readsThrough = QString::fromLocal8Bit(argv[++at]);
+      continue;
     }
     if (std::strcmp(argv[at], "--shot") == 0) {
       if (at + 1 == argc) {
@@ -64,7 +77,8 @@ int main(int argc, char* argv[]) {
       continue;
     }
     if (argv[at][0] == '-') {
-      std::fprintf(stderr, "%s: Seer takes the URIs to open and --shot\n",
+      std::fprintf(stderr,
+                   "%s: Seer takes the URIs to open, --schema and --shot\n",
                    argv[at]);
       return 2;
     }

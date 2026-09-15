@@ -16,6 +16,7 @@
  * whatever loop the host runs.
  */
 
+#include <sigildata/decode/FlatBuffer.h>
 #include <sigilio/hub/Feed.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Source.h>
@@ -55,10 +56,12 @@ struct Vitals {
   bool closed = false;
   /** The newest message, or null before the first one arrives. */
   std::shared_ptr<const io::Bytes> newest;
-  /** The address the newest message TAKEN OFF this wire came from,
-   *  spelled the way a URI of its scheme is. Empty until a message has
-   *  been taken, on a recording, and on a transport that cannot tell
-   *  who sent what it delivered. */
+  /** The address the newest message on this wire came from, spelled the
+   *  way a URI of its scheme is. It is read off the arrival itself
+   *  rather than off whoever drained it, so every wire names its sender
+   *  and not only the one being read. Empty before the first message,
+   *  on a recording, and on a transport that cannot tell who sent what
+   *  it delivered. */
   std::string lastFrom;
 };
 
@@ -67,7 +70,12 @@ struct Vitals {
  *  Every transport this build carries is registered on that hub when
  *  this is made, so a udp:// URI opens a socket without the caller
  *  naming a transport. A URI that resolves onto a file is played back
- *  from it instead, which is what `mountRecording()` arranges. */
+ *  from it instead, which is what `mountRecording()` arranges.
+ *
+ *  One schema stands over all of them, or none does. It is the wires'
+ *  and not one wire's because a reader who was handed a schema was
+ *  handed it for the messages, and the same messages cross whichever
+ *  wire the sender happened to open. */
 class Wires {
  public:
   Wires();
@@ -107,13 +115,15 @@ class Wires {
    *  wire is unaffected — its transport delivers on its own. */
   void dispatch(double seconds);
 
-  /** Remembers that the newest message taken off the wire at @p uri
-   *  came from @p address, which the next tick writes into that wire's
-   *  vitals. A feed hands each arrival out once and the sender travels
-   *  with the arrival, so the only place that knows who sent a message
-   *  is whoever took it: a wire nobody drains names nobody. A URI no
-   *  wire is open on is passed over. */
-  void rememberSender(std::string_view uri, std::string address);
+  /** Reads every wire through @p schema from now on: the token a
+   *  message is shown as its own form through, which a reader holds
+   *  once they have been handed the schema the sender's build wrote.
+   *  A schema that is none takes that reading away again. */
+  void readThrough(data::Schema schema);
+
+  /** The schema every wire is read through; a schema that is none
+   *  until one is handed over. */
+  const data::Schema& schema() const { return m_schema; }
 
   /** Reads every wire and writes down what it is doing at @p seconds on
    *  the caller's clock. The rate is worked out from the generations
@@ -139,12 +149,11 @@ class Wires {
     uint64_t generation = 0;
   };
 
-  /** One wire: the feed, the recent generations its rate is read off,
-   *  and who sent the last message taken off it. */
+  /** One wire: the feed, and the recent generations its rate is read
+   *  off. */
   struct Watch {
     std::shared_ptr<io::Feed> feed;
     std::deque<Sample> samples;
-    std::string lastFrom;
   };
 
   /** The wire open on @p uri, or nothing. */
@@ -153,6 +162,7 @@ class Wires {
   io::Hub m_hub;
   std::vector<Watch> m_watches;
   std::vector<Vitals> m_vitals;
+  data::Schema m_schema;
 };
 
 }  // namespace sigil::seer

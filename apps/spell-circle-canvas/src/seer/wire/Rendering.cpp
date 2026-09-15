@@ -1,21 +1,24 @@
 /** @file
- * The four readings of a message — the bytes themselves, the text they
- * may be, the document they may be and the packet they may be — and the
- * short spelling of an address.
+ * The five readings of a message — the bytes themselves, the text they
+ * may be, the document they may be, the packet they may be and the form
+ * a schema reads them as — and the short spelling of an address.
  */
 
 #include "sigilseer/wire/Rendering.h"
 
+#include <sigildata/decode/FlatBuffer.h>
 #include <sigildata/decode/Json.h>
 #include <sigildata/decode/Osc.h>
 
 #include <charconv>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <span>
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace sigil::seer {
 namespace {
@@ -227,6 +230,38 @@ std::string oscReading(const io::Bytes& bytes) {
   const std::optional<data::Json> packet = data::decodeOsc(bytes.bytes);
   if (!packet) return {};
   return indented(*packet);
+}
+
+std::string schemaReading(const io::Bytes& bytes, const data::Schema& schema,
+                          std::string* why) {
+  if (why) why->clear();
+  if (!schema) {
+    if (why) *why = "no schema is loaded to read the message through";
+    return {};
+  }
+  // A buffer and the schema's own form share no first byte, so which of
+  // them arrived is knowable before either is read — and a message that
+  // is neither is left with the sentence of the reading it was nearest,
+  // which is the one that names what is wrong with it.
+  std::string trouble;
+  std::optional<std::string> form;
+  if (data::flatBufferLooksLikeJson(bytes.asText(), {})) {
+    if (const std::optional<std::vector<std::byte>> built =
+            schema.binary(bytes.asText(), &trouble))
+      form = schema.text(*built, &trouble);
+  } else {
+    form = schema.text(bytes.bytes, &trouble);
+  }
+  if (!form) {
+    if (why) *why = trouble;
+    return {};
+  }
+  // The schema writes its form on one line. It is laid out here through
+  // the same printer the document and the packet go through, so a reader
+  // turning from one reading to another reads what differs rather than
+  // how each was printed.
+  const std::optional<data::Json> document = data::decodeJson(*form);
+  return document ? indented(*document) : *form;
 }
 
 std::string hostAndPort(std::string_view uri) {

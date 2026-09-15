@@ -1,16 +1,22 @@
-// THE WIRES: a field to open one, and the list of the ones that are
-// open.
+// THE WIRES: a field to open one, the schema they are all read
+// through, and the list of the ones that are open.
 //
 // A row is a whole wire — whether anything is coming, the URI it was
 // opened on, either the end the transport bound or the sentence saying
-// why it bound none, and the end the last message came from. A wire
+// why it bound none, and the end its newest message came from. A wire
 // that could not be opened is listed like any other, because the reader
 // has to see the URI they mistyped beside what is wrong with it.
+//
+// The schema stands here with the wires rather than with the readings
+// because it is one file over all of them, and what a reader has to see
+// of it is the root it declares: that is how they know the file they
+// picked is the one they meant.
 
 pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
 import Ifrit.Ui 1.0 as Ui
 
@@ -71,6 +77,28 @@ Ui.GlassPanel {
                 text: "Open"
                 enabled: uriField.text.trim().length > 0
                 onClicked: pane.openTyped()
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+
+            Button {
+                text: "Schema…"
+                onClicked: schemaDialog.open()
+            }
+
+            // The root the schema declares, which is what a message is
+            // read AS. A reader who picked the wrong file sees another
+            // name here rather than a wire that quietly shows bytes.
+            Label {
+                Layout.fillWidth: true
+                text: pane.session.schemaRoot.length > 0 ? pane.session.schemaRoot : "no schema"
+                color: pane.session.schemaRoot.length > 0 ? Ui.Theme.primaryText : Ui.Theme.disabledText
+                font.family: Ui.Theme.monospaceFontFamily
+                font.pixelSize: 11
+                elide: Text.ElideMiddle
             }
         }
 
@@ -141,9 +169,9 @@ Ui.GlassPanel {
                         }
 
                         // Who is at the other end, under where this end
-                        // stands. It is there once a message has been
-                        // taken off the wire and not before, because the
-                        // sender arrives with the message.
+                        // stands. It is there once a message has
+                        // arrived and not before, because the sender
+                        // arrives with the message.
                         Label {
                             Layout.fillWidth: true
                             visible: wire.lastFrom.length > 0
@@ -192,5 +220,14 @@ Ui.GlassPanel {
                 visible: wireView.count === 0
             }
         }
+    }
+
+    FileDialog {
+        id: schemaDialog
+
+        fileMode: FileDialog.OpenFile
+        nameFilters: ["Binary schema (*.bfbs)", "Any file (*)"]
+        acceptLabel: "Read Through"
+        onAccepted: pane.session.loadSchema(schemaDialog.selectedFile)
     }
 }
