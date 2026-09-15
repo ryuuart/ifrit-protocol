@@ -27,11 +27,14 @@ what a consumer uses; every public header lives under
 |--------|---------|-------|
 | `SigilDataScale` | `scale/Scale.h` | `Interval`, `Transform`, `Overflow` and `Scale` — the mapping, its inverse, its tick ladder and `nice()` |
 | `SigilDataTable` | `table/Table.h` | `Instant`, `Flag`, `Value`, `ColumnType`, `Order`, `Column` and `Table` — named typed columns, the cells as spans, and the reshapings |
-| `SigilDataDecode` | `decode/Csv.h`, `decode/Json.h`, `decode/Decoders.h`, `decode/FlatBuffer.h`, `decode/Osc.h` | `CsvOptions`, `decodeCsv()`, `decodeInstant()`; `Json`, `decodeJson()`, `tableFromJson()`; `TableDecoder`, `JsonDecoder` and `registerDecoders(hub)` — the two decoders and the one call that puts them on a hub; `FlatBuffer`, `FlatBufferDecoder`, `flatBufferFromBytes()`, `flatBufferFromJson()` and `registerFlatBuffer(hub)` — a FlatBuffer as a value, read in place through the schema its generated root carries; and `decodeOsc()`, `encodeOsc()` and `maxOscPacketBytes` — an OSC packet read into a `Json` and written back out of one |
+| `SigilDataDecode` | `decode/Csv.h`, `decode/Json.h`, `decode/Decoders.h`, `decode/FlatBuffer.h`, `decode/Osc.h` | `CsvOptions`, `decodeCsv()`, `decodeInstant()`; `Json`, `decodeJson()`, `encodeJson()`, `tableFromJson()`; `TableDecoder`, `JsonDecoder` and `registerDecoders(hub)` — the two decoders and the one call that puts them on a hub; `FlatBuffer`, `FlatBufferDecoder`, `flatBufferFromBytes()`, `flatBufferFromJson()` and `registerFlatBuffer(hub)` — a FlatBuffer as a value, read in place through the schema its generated root carries; and `decodeOsc()`, `encodeOsc()` and `maxOscPacketBytes` — an OSC packet read into a `Json` and written back out of one |
+| `SigilDataConnection` | `connection/Connection.h` | `Connection` — a feed read as values: the newest message, the ones a reader has not taken, the handlers a message's name reaches, and the two ways one goes back out the same door |
 | `SigilDataQuery` | `query/Database.h` | `Engine`, `Database` and `DatabaseDecoder`, with `engineOf()` — a SQL store behind one seam, SQLite or DuckDB, whose `query()` answers a `Table`, whose `insert()` writes one in, and whose decoder puts a `.sqlite` or `.duckdb` file on a hub |
 
 `SigilData` is the umbrella target over them, and `<sigildata/Data.h>`
-the umbrella header.
+the umbrella header. Every one of them reads bytes somebody else
+resolved, except the connection: it stands on SigilIO's hub, so what
+links the umbrella links the hub with it.
 
 ## Using it
 
@@ -291,6 +294,69 @@ taken from a package: the wire is a page of arithmetic, and what a
 receiver needs of it is that every reading be bounded and that a packet
 it cannot make sense of be no packet rather than a diagnostic.
 
+**A connection is a feed read as values.** A feed is bytes that keep
+arriving; a `Connection` is that same door one floor up, where what a
+reader sees is the `Json` those bytes read as and never the bytes. The
+URI's scheme decides the reading — `osc://` is a packet and everything
+else is JSON text — so a sketch listening to a desk and a sketch
+listening to a browser are one piece of code over one value.
+
+```cpp
+#include <sigildata/connection/Connection.h>
+
+Connection sky(hub, "osc://:9000");           // one door, opened on the hub
+sky.on("/sky/gust", [&](const Json& message) {        // named by its address
+  gust = message["arguments"][0].number();
+});
+sky.on("weather", [&](const Json& message) {          // named by its "kind"
+  cloud = message["cloud"].number();
+});
+sky.on("*", [&](const Json&) { ++messages; });        // every message
+
+hub.dispatch(seconds);                        // the frame: handlers run here
+wind = sky.latest()["arguments"][0].number(); // the newest, already read
+while (const std::optional<Json> message = sky.receive()) log(*message);
+sky.send("/sky/ack", Json::Array{1});         // back out the same door
+if (sky.undecodable()) warn("something is speaking another language");
+```
+
+**Nothing drives it but the frame.** Opening a connection registers it
+on the hub's dispatch, so the one call a host already makes,
+`hub.dispatch(seconds)`, drains the feed, reads what arrived and runs
+the handlers — after it has moved every replayed recording forward, so a
+recording replays through a connection exactly as a live sender arrives
+through it. Between two dispatches every reading answers what the last
+one left, and a frame's readings therefore agree with one another. The
+value, the queue and the handlers are written and read on that one
+thread, so a connection holds no lock of its own; the feed underneath is
+the thread-safe part, and a transport delivers into it from whatever
+thread it runs on.
+
+**A message's name is what a handler is registered under.** It is the
+message's `address` where it carries one as text — which is what an OSC
+message reads as, and what `send(address, arguments)` writes on any
+wire — and otherwise the first of `type`, `message_type` and `kind` it
+carries as text, in that order. `"*"` names every message, one with no
+name of its own included. Several handlers may share a name and each
+runs once per message, in the order they were registered; one registered
+after a message arrived does not see it, `latest()` being how a late
+reader catches up. Going back out, a message is written the way its door
+is read: an OSC packet on an `osc://` door and JSON text on every other,
+and off the OSC wire `send(address, arguments)` writes the same
+`{"address": …, "arguments": …}` record a packet reads as, which is the
+form the far end reads a name out of.
+
+**A message that cannot be read is no message.** It reaches neither
+`latest()` nor `receive()` nor a handler, and `undecodable()` counts it:
+a sender speaking another language cannot blank a scene, and a reader
+can see that it happened. What a reader has not taken is bounded by the
+feed's own capacity and loses its oldest first, which is what a reader
+that registered handlers and never drains wants. Draining is taking, so
+two connections on one URI split its messages between them rather than
+each seeing all of them, and `feed()` is the floor below for whoever
+wants the bytes — to record them, or to read a wire this library has no
+reading for.
+
 **A column's type is what every cell in it turns out to be.** Numbers
 make a number column, the words true, false, yes and no in any case a
 boolean column, instants a time column, and anything else a text
@@ -419,6 +485,14 @@ link the hub: `registerDecoders` and `registerFlatBuffer` are templates
 over it, so the dependency runs one way and SigilIO gains nothing, which
 is what its own boundary asks for.
 
+`SigilDataConnection` is the one feature that does link `SigilIOHub`,
+because a connection IS a door that hub opened and a reading the
+dispatch that hub runs drives. What it adds is the READING — which
+scheme a message is read by, the value it becomes, the queue, the
+handlers — and nothing of the door itself: the bytes, the transport, the
+recording and the thread stay SigilIO's, which is why it links the hub
+rather than reimplementing one.
+
 A delimiter-separated reader is written here rather than taken from a
 package because what is wanted is a run of fields under the quoting rule
 feeding this library's own type inference and missing-cell bit, and the
@@ -452,10 +526,17 @@ case asserts one thing the header promises against a closed form worked
 out by hand — a half of an area is a half of a radius squared, a
 ladder's ends are the ends of a niced domain, a lone entry stands where
 its transform says it stands — rather than against whatever the code
-happens to answer; and `data_bench`, which times one mapping per call on
-each transform a per-mark loop runs through and the tick ladder a redraw
-rebuilds, the reshapings a redraw runs, and both formats read from bytes
-already in memory so no disk is inside a timed loop.
+happens to answer; `SigilDataConnection` (`connection/`) with
+`connection/test/`, whose cases put a connection on a real hub behind a
+transport with no socket under it — what a case sends lands in a vector
+it owns, and what arrives it delivers into the feed itself — so which
+handler a message reaches, what `receive()` hands out, what an unreadable
+message costs, what goes out on either kind of door and how a recording
+replays are all judged on one thread with no port to be free; and
+`data_bench`, which times one mapping per call on each transform a
+per-mark loop runs through and the tick ladder a redraw rebuilds, the
+reshapings a redraw runs, and both formats read from bytes already in
+memory so no disk is inside a timed loop.
 
 `data_test` takes its scratch directory from `src/test/ScratchDir.h`, the
 repository-level test support header: a directory named after the case

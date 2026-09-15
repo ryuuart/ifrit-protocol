@@ -18,10 +18,15 @@ add_subdirectory(scale)
 add_subdirectory(table)
 add_subdirectory(decode)
 add_subdirectory(query)
+add_subdirectory(connection)
 
+# SigilDataConnection stands on SigilIOHub, so a consumer of the
+# umbrella links the hub as well: a connection is a feed read as values,
+# and there is no feed without the hub that opens it.
 sigil_library(SigilData
   HEADERS Data.h
-  INTERFACE SigilDataScale SigilDataTable SigilDataDecode SigilDataQuery)
+  INTERFACE SigilDataScale SigilDataTable SigilDataDecode SigilDataQuery
+            SigilDataConnection)
 
 # Every API name the prose spells, compiled against the headers that own
 # it.

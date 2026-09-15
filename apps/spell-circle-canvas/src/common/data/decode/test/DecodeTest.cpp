@@ -438,4 +438,48 @@ TEST(DataDecode, AWriteThroughTheHubDropsTheTableItDecoded) {
   EXPECT_DOUBLE_EQ(2.0, again->column<double>("v")[0]);
 }
 
+TEST(DataDecode, ADocumentWrittenBackReadsAsTheSameValue) {
+  const std::optional<Json> document = decodeJson(
+      R"({"name":"sky","nodes":[{"x":1,"y":-2.5},{"x":3,"y":4}],)"
+      R"("open":true,"tags":[],"none":null,"nested":{"deep":[[1,2],[3]]}})");
+  ASSERT_TRUE(document);
+
+  const std::string written = encodeJson(*document);
+  const std::optional<Json> again = decodeJson(written);
+  ASSERT_TRUE(again);
+  EXPECT_TRUE(*again == *document);
+  // Compact: what this writes goes on a wire, not in front of an eye.
+  EXPECT_EQ(std::string::npos, written.find(' '));
+  // A record keeps the order its members were written in.
+  EXPECT_EQ(0u, written.find(R"({"name":"sky","nodes":[)"));
+}
+
+TEST(DataDecode, WritingEscapesWhatJsonCannotHoldAsItStands) {
+  const Json text = Json(std::string("he said \"go\"\n\ttab\\slash\x01"));
+  // Spelled out rather than raw: a raw literal would make the last
+  // escape the character it names instead of the six characters JSON
+  // writes it as.
+  EXPECT_EQ("\"he said \\\"go\\\"\\n\\ttab\\\\slash\\u0001\"",
+            encodeJson(text));
+  const std::optional<Json> back = decodeJson(encodeJson(text));
+  ASSERT_TRUE(back);
+  EXPECT_TRUE(*back == text);
+  // Text that arrived as UTF-8 leaves as the same UTF-8.
+  EXPECT_EQ("\"\u00c5ngstr\u00f6m\"", encodeJson(Json("\u00c5ngstr\u00f6m")));
+}
+
+TEST(DataDecode, AWholeNumberIsWrittenWholeAndWithTheFewestDigits) {
+  EXPECT_EQ("7", encodeJson(Json(7)));
+  EXPECT_EQ("-0.125", encodeJson(Json(-0.125)));
+  EXPECT_EQ("0.1", encodeJson(Json(0.1)));
+  EXPECT_EQ(
+      R"({"count":7,"ratio":0.5})",
+      encodeJson(Json(Json::Object{{"count", Json(7)}, {"ratio", Json(0.5)}})));
+  // A number JSON has no spelling for is written as the value a reader
+  // would get back for it.
+  EXPECT_EQ("null", encodeJson(Json(std::nan(""))));
+  EXPECT_EQ("[null,null]",
+            encodeJson(Json(Json::Array{Json(INFINITY), Json(-INFINITY)})));
+}
+
 }  // namespace

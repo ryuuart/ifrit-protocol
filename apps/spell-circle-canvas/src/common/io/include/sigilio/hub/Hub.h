@@ -40,6 +40,7 @@
  *
  *   hub.setFeedTransport("udp", openUdpFeed);     // one per scheme
  *   auto scene = hub.feed("udp://:27020");        // the same feed per URI
+ *   auto lease = hub.onDispatch(readTheScene);    // driven by that same call
  *   hub.dispatch();                               // once per frame
  *   if (auto bytes = scene->latest()) draw(*bytes);
  *
@@ -47,7 +48,10 @@
  * holds it. A URI that resolves through the mount table to a file is
  * played back from that recording as dispatch() moves time forward, so
  * the same code reads a live sender and a recorded session; anything
- * else opens through the transport registered for its scheme.
+ * else opens through the transport registered for its scheme. That one
+ * call also runs every callback registered through onDispatch(), so
+ * something that reads feeds on the frame is driven by the call a host
+ * already makes and no host code has to name it.
  *
  * SigilIO owns ACCESS: where bytes come from, caching, reload. A Hub
  * is a ByteSource: fetch() answers a URI with bytes, and every typed
@@ -131,6 +135,46 @@ class ResourceLease {
   std::weak_ptr<detail::Residency> m_residency;
   std::vector<std::string> m_selectors;
   std::vector<std::string> m_uris;
+};
+
+/** A movable lease that keeps a callback on the hub's dispatch.
+ *
+ * Something that reads feeds on the frame — a reader draining one, a
+ * decoder over what arrived — has to be driven, and the call a host
+ * already makes once a frame is dispatch(). This is how that driving is
+ * registered without the host naming the reader: the lease holds the
+ * callback, and releasing it or destroying it takes the callback off
+ * the hub. A lease may outlive its Hub, having then nothing left to
+ * unregister from.
+ */
+class DispatchLease {
+ public:
+  /** What a dispatch hands a callback: the seconds it was given, which
+   *  are the seconds every replayed recording was just advanced to. */
+  using Callback = std::function<void(double seconds)>;
+
+  DispatchLease() = default;
+  DispatchLease(DispatchLease&&) noexcept = default;
+  DispatchLease& operator=(DispatchLease&&) noexcept = default;
+  DispatchLease(const DispatchLease&) = delete;
+  DispatchLease& operator=(const DispatchLease&) = delete;
+
+  /** Takes the callback off the hub, which destroying the lease does
+   *  anyway. A dispatch that is already running its callbacks runs this
+   *  one out: it holds what it is running. */
+  void release() { m_callback.reset(); }
+
+  /** Whether a callback still stands on the hub through this lease. */
+  bool registered() const { return m_callback != nullptr; }
+
+ private:
+  friend class Hub;
+  explicit DispatchLease(std::shared_ptr<Callback> callback)
+      : m_callback(std::move(callback)) {}
+
+  /** The one owner of the callback. The hub knows it weakly, so a lease
+   *  that is gone leaves nothing to run. */
+  std::shared_ptr<Callback> m_callback;
 };
 
 /** WHERE A RESOURCE'S BYTES ARE AND HOW MANY OF THEM THERE ARE — the
@@ -386,6 +430,16 @@ class Hub {
   /** The same, to @p seconds on the caller's own clock. */
   void dispatch(double seconds);
 
+  /** Runs @p callback on every dispatch for as long as the lease lives.
+   *  It is given the seconds that dispatch was given, and runs after
+   *  every replayed recording has been advanced to them, on the
+   *  dispatching thread, in the order the callbacks were registered —
+   *  so a callback sees what this same dispatch delivered. That is how
+   *  something reading feeds on the frame is driven by the call a host
+   *  already makes, with no host code naming it. A callback registered
+   *  from inside a dispatch runs from the next one. */
+  DispatchLease onDispatch(DispatchLease::Callback callback);
+
  private:
   /** The one fetch both probes make: the bytes, uncached, with @p info
    *  filled in from them. Null when the URI cannot be served. */
@@ -506,6 +560,12 @@ class Hub {
   mutable std::vector<std::pair<std::string, std::weak_ptr<Feed>>> m_feeds;
   boost::container::flat_map<std::string, FeedTransport, std::less<>>
       m_feedTransports;
+  /** The callbacks registered through onDispatch(), held weakly so one
+   *  lives exactly as long as the lease that owns it. A dispatch copies
+   *  the live ones out from under the lock — a callback reads feeds and
+   *  may ask this hub for a resource — and erases the entries whose
+   *  lease is gone. */
+  std::vector<std::weak_ptr<DispatchLease::Callback>> m_dispatchers;
   /** When this hub was made: what dispatch() counts its seconds from. */
   const std::chrono::steady_clock::time_point m_created =
       std::chrono::steady_clock::now();

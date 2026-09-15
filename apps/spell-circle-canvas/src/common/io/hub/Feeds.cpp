@@ -2,13 +2,16 @@
  * The hub's feeds: the one feed a URI names while anybody holds it, the
  * transport a scheme is opened through, the recording a URI that
  * resolves to a file is played back from, and the dispatch that moves
- * every replayed recording forward.
+ * every replayed recording forward and runs what is registered to read
+ * them.
  */
 
 #include <chrono>
+#include <memory>
 #include <string>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 #include "Fetch.h"
 #include "sigilio/hub/Feed.h"
@@ -125,11 +128,42 @@ void Hub::dispatch() {
   dispatch(since.count());
 }
 
+DispatchLease Hub::onDispatch(DispatchLease::Callback callback) {
+  auto held = std::make_shared<DispatchLease::Callback>(std::move(callback));
+  {
+    const std::lock_guard lock(m_mutex);
+    m_dispatchers.push_back(held);
+  }
+  return DispatchLease(std::move(held));
+}
+
 void Hub::dispatch(double seconds) {
   // Every feed is taken out from under the lock first: what a recording
   // delivers is somebody else's work, and it may reach a reader that
   // asks this hub for a resource.
   for (const std::shared_ptr<Feed>& feed : feeds()) feed->advance(seconds);
+
+  // Then what reads them, for the same reason and with the same second.
+  // The live callbacks are copied out and the expired entries erased;
+  // holding each one while it runs is what lets a callback release its
+  // own lease, or register another, without pulling the list out from
+  // under this loop.
+  std::vector<std::shared_ptr<DispatchLease::Callback>> live;
+  {
+    const std::lock_guard lock(m_mutex);
+    live.reserve(m_dispatchers.size());
+    for (auto entry = m_dispatchers.begin(); entry != m_dispatchers.end();) {
+      std::shared_ptr<DispatchLease::Callback> callback = entry->lock();
+      if (!callback) {
+        entry = m_dispatchers.erase(entry);  // its lease is gone
+        continue;
+      }
+      live.push_back(std::move(callback));
+      ++entry;
+    }
+  }
+  for (const std::shared_ptr<DispatchLease::Callback>& callback : live)
+    if (*callback) (*callback)(seconds);
 }
 
 }  // namespace sigil::io

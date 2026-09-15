@@ -111,6 +111,20 @@ class Json {
  *  all: nothing comes back rather than the part that parsed. */
 std::optional<Json> decodeJson(std::string_view text);
 
+/** @p value AS JSON TEXT, which decodeJson reads back as the same
+ *  value.
+ *
+ *  Compact: nothing stands between a member and the next, because what
+ *  this writes goes on a wire or into a file rather than in front of an
+ *  eye. A record keeps the order its members are in. Text is written as
+ *  it stands, escaping only what JSON cannot hold raw, so text that
+ *  arrived as UTF-8 leaves as the same UTF-8. A number is written with
+ *  the fewest digits that read back as itself, so a whole number is
+ *  written whole; a number that is not finite has no JSON spelling and
+ *  is written null, which is the value a reader would get back for
+ *  it. */
+std::string encodeJson(const Json& value);
+
 /** THE RECTANGLE INSIDE @p document, in whichever of the three shapes it
  *  is published in, or nothing when it holds no rectangle:
  *

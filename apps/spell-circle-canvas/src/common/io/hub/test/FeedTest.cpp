@@ -346,3 +346,58 @@ TEST_F(IOFeed, ArrivalsFromAnotherThreadAreAllReceivedInOrder) {
     ASSERT_EQ(received[(size_t)number], std::to_string(number));
   EXPECT_EQ(feed.dropped(), 0u);
 }
+
+TEST_F(IOFeed, DispatchRunsEveryRegisteredCallbackInOrderUntilItsLeaseGoes) {
+  std::vector<std::string> ran;
+  std::vector<double> given;
+  DispatchLease first = hub.onDispatch([&ran, &given](double seconds) {
+    ran.emplace_back("first");
+    given.push_back(seconds);
+  });
+  const DispatchLease second =
+      hub.onDispatch([&ran](double) { ran.emplace_back("second"); });
+  EXPECT_TRUE(first.registered());
+
+  hub.dispatch(0.5);
+  const std::vector<std::string> both = {"first", "second"};
+  EXPECT_EQ(ran, both);
+  const std::vector<double> once = {0.5};
+  EXPECT_EQ(given, once);  // the seconds the dispatch was given
+
+  first.release();
+  EXPECT_FALSE(first.registered());
+  {
+    const DispatchLease third =
+        hub.onDispatch([&ran](double) { ran.emplace_back("third"); });
+  }
+
+  ran.clear();
+  hub.dispatch(1.5);
+  // A released lease and a lease that is gone both leave nothing to
+  // run; the one still held runs on.
+  const std::vector<std::string> onlySecond = {"second"};
+  EXPECT_EQ(ran, onlySecond);
+  EXPECT_EQ(given, once);
+}
+
+TEST_F(IOFeed, ACallbackSeesWhatTheSameDispatchDelivered) {
+  const fs::path path = dir.path / "seen.feed";
+  {
+    RecordingWriter writer(path);
+    writer.append({1, 0.0, shared("at zero")});
+  }
+  hub.mount("udp://:27020", path);
+  const std::shared_ptr<Feed> feed = hub.feed("udp://:27020");
+
+  std::vector<std::string> seen;
+  const DispatchLease lease = hub.onDispatch([&seen, feed](double) {
+    if (const std::optional<Arrival> arrival = feed->receive())
+      seen.emplace_back(arrival->bytes->asText());
+  });
+
+  hub.dispatch(0.0);
+  // The recordings move first and the callbacks run after them, so what
+  // a reader is driven for is already there when it is driven.
+  const std::vector<std::string> one = {"at zero"};
+  EXPECT_EQ(seen, one);
+}

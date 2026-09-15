@@ -3,7 +3,9 @@
 #include <simdjson.h>
 
 #include <algorithm>
+#include <charconv>
 #include <cmath>
+#include <system_error>
 
 #include "UniqueName.h"
 
@@ -167,6 +169,108 @@ std::optional<Table> fromColumns(
   return table;
 }
 
+/** @p text as a JSON string, quoted, with an escape wherever the format
+ *  has no other spelling. */
+void writeText(std::string_view text, std::string& out) {
+  static constexpr char hexDigits[] = "0123456789abcdef";
+  out.push_back('"');
+  for (char character : text) {
+    switch (character) {
+      case '"':
+        out += "\\\"";
+        break;
+      case '\\':
+        out += "\\\\";
+        break;
+      case '\b':
+        out += "\\b";
+        break;
+      case '\f':
+        out += "\\f";
+        break;
+      case '\n':
+        out += "\\n";
+        break;
+      case '\r':
+        out += "\\r";
+        break;
+      case '\t':
+        out += "\\t";
+        break;
+      default: {
+        const auto byte = (unsigned char)character;
+        // A byte below a space has no spelling of its own and goes out
+        // as an escape. Everything above one is written as it stands,
+        // so a run of UTF-8 leaves as the run of UTF-8 it arrived as.
+        if (byte >= 0x20) {
+          out.push_back(character);
+          break;
+        }
+        out += "\\u00";
+        out.push_back(hexDigits[byte >> 4]);
+        out.push_back(hexDigits[byte & 0xF]);
+      }
+    }
+  }
+  out.push_back('"');
+}
+
+void writeNumber(double value, std::string& out) {
+  // The shortest spelling that reads back as this number, which for a
+  // whole number is the whole number and carries no fraction after it.
+  char digits[32];
+  const auto [end, failure] =
+      std::to_chars(digits, digits + sizeof digits, value);
+  // A number that is not finite is not a JSON number at all: null is
+  // what a reader gets back for it, so null is what is written.
+  if (failure != std::errc() || !std::isfinite(value)) {
+    out += "null";
+    return;
+  }
+  out.append(digits, end);
+}
+
+void write(const Json& value, std::string& out) {
+  switch (value.kind()) {
+    case Json::Kind::Null:
+      out += "null";
+      break;
+    case Json::Kind::Boolean:
+      out += value.boolean() ? "true" : "false";
+      break;
+    case Json::Kind::Number:
+      writeNumber(value.number(), out);
+      break;
+    case Json::Kind::Text:
+      writeText(value.text(), out);
+      break;
+    case Json::Kind::List: {
+      out.push_back('[');
+      bool first = true;
+      for (const Json& item : value.items()) {
+        if (!first) out.push_back(',');
+        first = false;
+        write(item, out);
+      }
+      out.push_back(']');
+      break;
+    }
+    case Json::Kind::Record: {
+      out.push_back('{');
+      bool first = true;
+      for (const auto& [name, member] : value.fields()) {
+        if (!first) out.push_back(',');
+        first = false;
+        writeText(name, out);
+        out.push_back(':');
+        write(member, out);
+      }
+      out.push_back('}');
+      break;
+    }
+  }
+}
+
 }  // namespace
 
 bool Json::boolean(bool fallback) const {
@@ -219,6 +323,12 @@ std::optional<Json> decodeJson(std::string_view text) {
   if (parser.parse(simdjson::padded_string(text)).get(document))
     return std::nullopt;
   return converted(document);
+}
+
+std::string encodeJson(const Json& value) {
+  std::string text;
+  write(value, text);
+  return text;
 }
 
 std::optional<Table> tableFromJson(const Json& document) {

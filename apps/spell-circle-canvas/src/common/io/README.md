@@ -19,7 +19,7 @@ what a consumer uses; every public header lives under
 | target | headers | holds |
 |--------|---------|-------|
 | `SigilIOSource` | `source/Source.h`, `source/Archive.h`, `source/Sink.h`, `source/Places.h` | the byte vocabulary in both directions: `Bytes`, the `ByteSource`, `ResolvingByteSource`, `Decoder` and `Probable` concepts, `AnyByteSource` (the type-erased source value), the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file; `ArchiveSource` and `ArchiveEntry`, one zip held in memory answering its files by name — and the two places only the platform can name, `executablePath()` and `scratchDirectory(label)` |
-| `SigilIOHub`    | `hub/Hub.h`, `hub/Feed.h`, `hub/Recording.h`, `hub/Network.h`, `hub/TextCatalog.h` | the `Hub`, `ResourceInfo` (a resource's byte size and the file it came from), and `ResourceLease`; `NetworkPolicy`, `NetworkTransport`, `probeNetworkCache()` and `seedNetworkCache()` — inspect or populate the persistent cache by URL without constructing its filenames or contacting a server; `Feed`, `Arrival`, `OpenedFeed` and `FeedTransport` — a resource that keeps arriving, opened through the hub's `feed()` and moved forward by its `dispatch()`; `RecordingWriter` and `readRecording()`, the format a feed records itself in; and `TextCatalog`, the stock value over the hub that a directory of authored shaders is |
+| `SigilIOHub`    | `hub/Hub.h`, `hub/Feed.h`, `hub/Recording.h`, `hub/Network.h`, `hub/TextCatalog.h` | the `Hub`, `ResourceInfo` (a resource's byte size and the file it came from), and `ResourceLease`; `NetworkPolicy`, `NetworkTransport`, `probeNetworkCache()` and `seedNetworkCache()` — inspect or populate the persistent cache by URL without constructing its filenames or contacting a server; `Feed`, `Arrival`, `OpenedFeed` and `FeedTransport` — a resource that keeps arriving, opened through the hub's `feed()` and moved forward by its `dispatch()`; `DispatchLease` and `Hub::onDispatch()` — a callback the same `dispatch()` drives, for as long as the lease lives; `RecordingWriter` and `readRecording()`, the format a feed records itself in; and `TextCatalog`, the stock value over the hub that a directory of authored shaders is |
 | `SigilIOTransport` | `transport/Transport.h` | `registerUdp()`, `registerWebSocket()` and `registerTransports()` — the UDP transport, one socket per feed on a thread of its own, answering to udp:// and, for messages that are OSC packets, to osc://; and the WebSocket transport, one listener per feed on a loop of its own, answering to ws://; linked by a consumer that opens network feeds and by no other |
 
 `SigilIO` is the umbrella target over the source and the hub, and
@@ -275,6 +275,13 @@ recorded arrival at its recorded second and closing the feed after the
 last. That is how a deterministic run reads what a live one heard:
 `mount()` the URI onto the recording, and the code that opened the port
 opens the file.
+
+Once every replay has been advanced, that same `dispatch()` runs each
+callback registered through `onDispatch()`, in registration order, on
+the dispatching thread and with the same seconds — so something that
+reads feeds on the frame is driven by the call a host already makes,
+sees what this very dispatch delivered, and is unregistered by letting
+its `DispatchLease` go.
 
 ## Gotchas
 
