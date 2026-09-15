@@ -147,6 +147,11 @@ class CanvasSession final : public Session {
       step = m_clock.tick();
     }
     m_ticker.tick(step);
+    // A recording plays back as a function of the scene time, so the
+    // feeds the body reads are moved by the same clock that moved the
+    // ticker, and moved before the body reads them: what a frame sees is
+    // everything that had arrived by the moment it draws.
+    m_assets.dispatch(m_clock.elapsed());
     {
       SketchContext ctx = context();
       m_sketch->update(m_clock.elapsed(), ctx);

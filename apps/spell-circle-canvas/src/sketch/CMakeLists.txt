@@ -84,6 +84,9 @@ set(SIGIL_SKETCH_PRIVATE
   SigilDataDecode
   SigilDataQuery
   SigilIOSource SigilCoreSchedule SigilImage SigilImageDecode
+  # A sketch opens network feeds through its assets, so the host is the
+  # consumer that links the transports.
+  SigilIOTransport
   SigilGeometryDevice SigilSkiaGraphite SigilVideoEncode SigilWeaveFonts)
 # The one WebEngine Ultralight permits in a process, lent to every sketch
 # that asks for it. SigilScry itself keeps explicit caller ownership as
@@ -181,6 +184,7 @@ sigil_doc_probes(sketch
           ${CMAKE_CURRENT_SOURCE_DIR}/sketches/README.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../common/core/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/data/include/sigildata
+           ${CMAKE_CURRENT_SOURCE_DIR}/../common/io/include/sigilio
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/motion/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/compose/include/sigilcompose
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/geometry/include/sigilgeometry
@@ -190,6 +194,7 @@ sigil_doc_probes(sketch
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/draw/include/sigildraw
            ${CMAKE_CURRENT_SOURCE_DIR}/../sigilweave/include/sigilweave
   PRELUDES ${SIGIL_SKETCH_DOC_SCRY_PRELUDE}
+           "<sigilio/transport/Transport.h>"
            "<sigilcompose/Compose.h>"
            "<sigilcompose/draw/Draw.h>"
            "<sigilcompose/kit/Ground.h>"

@@ -1524,6 +1524,45 @@ per URI and decode policy, and drops those clips when the hub observes the
 source changing. A video keeps only its small decoded-frame cache; the asset
 store does not expand the whole timeline into images.
 
+### A resource that keeps arriving
+
+A sketch that listens rather than loads reads a FEED through the same
+hub. The store registers the UDP transport on the hub it builds —
+`sigil::io::registerTransports()` — so `ctx.assets.hub().feed(uri)` binds
+a real port in a window, and `Hub::feed()` answers the one feed a URI
+names for as long as the sketch holds it. `Feed::latest()` is the newest
+message that reached it, for a scene that draws the state it was last
+told; `Feed::receive()` drains in order the ones this frame has not seen,
+for a scene that folds every message in. Neither ever waits.
+
+The host moves those feeds forward, and there is nothing for a sketch to
+call: both runtimes hand `Assets::dispatch()` the scene time the frame is
+being drawn at, after the clock has advanced and before the sketch's own
+body runs, which is `Hub::dispatch()` over every feed the sketch opened.
+A window and a headless capture step through the same call, so a sketch
+reads what had arrived by the moment it is drawing either way.
+
+That is what lets a CAPTURE read the port out of a file. A recording is a
+feed written down, and a URI that resolves through the mount table to one
+is played back from it instead of being opened, each arrival delivered at
+the scene second it was recorded at. So a sketch mounts its own recording
+while it is being captured and opens the same port either way:
+
+```cpp
+void setup(SketchContext& ctx) {
+  sigil::io::Hub& hub = ctx.assets.hub();
+  if (ctx.deterministic)  // a plate reads the file the window heard
+    hub.mount("udp://:27020", hub.resolve(ctx.local("data/sky.feed")));
+  m_sky = hub.feed("udp://:27020");
+}
+```
+
+`Hub::mount()` is the whole of it: the code that listens is the code that
+reads, so a plate is the arrivals rather than a picture of an empty port,
+and a sweep that steps from zero delivers them at the seconds they were
+heard at. A sketch's recording stands under `data/` beside it like any
+other file it carries.
+
 ## Build and test
 
 From `apps/spell-circle-canvas`:

@@ -7,23 +7,39 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkData.h>
 #include <sigildata/decode/Json.h>
+#include <sigilio/hub/Feed.h>
+#include <sigilio/hub/Hub.h>
 #include <sigilio/hub/Network.h>
+#include <sigilio/hub/Recording.h>
 #include <sigilio/source/Sink.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilvideo/encode/Encode.h>
 
 #include <chrono>
+#include <cstddef>
 #include <filesystem>
 #include <fstream>
+#include <memory>
 #include <span>
 #include <string>
+#include <string_view>
 #include <system_error>
+#include <utility>
 
 #include "ScratchDir.h"
 
 namespace {
 
 using namespace sigil::sketch;
+
+/** One recorded message carrying @p text, for a case that says WHICH
+ *  arrival a frame was handed rather than how many bytes it was. */
+std::shared_ptr<const sigil::io::Bytes> recorded(std::string_view text) {
+  const auto* first = reinterpret_cast<const std::byte*>(text.data());
+  sigil::io::Bytes bytes;
+  bytes.bytes.assign(first, first + text.size());
+  return std::make_shared<const sigil::io::Bytes>(std::move(bytes));
+}
 
 sk_sp<SkData> solidVideo(SkColor color) {
   constexpr int kWidth = 64;
@@ -117,6 +133,54 @@ TEST(Assets, VideoUsesTheClipCacheAndInvalidatesAfterSourceChange) {
       assets.video("clip.mp4", options);
   ASSERT_NE(second, nullptr);
   EXPECT_NE(second, first);
+}
+
+/** A recording standing among a sketch's own files, mounted onto the URI
+ *  the sketch listens on: the store answers a feed that plays the file
+ *  back, and what a dispatch delivers is everything recorded at or
+ *  before the scene time it is handed. This is what a capture does with
+ *  the port a window binds. */
+TEST(Assets, AMountedRecordingIsAFeedThatReplaysByTheSceneTimeDispatched) {
+  sigil::test::ScratchDir dir("sketch_assets_feed");
+  const std::filesystem::path recording = dir.path / "data" / "sky.feed";
+  std::filesystem::create_directories(recording.parent_path());
+  {
+    sigil::io::RecordingWriter writer(recording);
+    ASSERT_TRUE(writer.good());
+    ASSERT_TRUE(writer.append({1, 0.0, recorded("dawn")}));
+    ASSERT_TRUE(writer.append({2, 0.5, recorded("noon")}));
+    ASSERT_TRUE(writer.append({3, 1.0, recorded("dusk")}));
+  }
+
+  Assets assets("");
+  assets.mountSketch("sky", dir.path);
+  sigil::io::Hub& hub = assets.hub();
+  // The two lines a sketch writes while a capture is being taken: the
+  // port is mounted onto the file, and the ask for the port opens the
+  // recording rather than a socket.
+  hub.mount("udp://:27020", hub.resolve("sketch://sky/data/sky.feed"));
+  const std::shared_ptr<sigil::io::Feed> feed = hub.feed("udp://:27020");
+  ASSERT_NE(feed, nullptr);
+  EXPECT_TRUE(feed->error().empty());
+  EXPECT_EQ(feed->generation(), 0u);  // nothing arrives until time moves
+
+  assets.dispatch(0.0);
+  EXPECT_EQ(feed->generation(), 1u);
+  ASSERT_NE(feed->latest(), nullptr);
+  EXPECT_EQ(feed->latest()->asText(), "dawn");
+  EXPECT_FALSE(feed->closed());
+
+  // One dispatch may cover several arrivals and never covers one that is
+  // still ahead: the scene time decides, not the number of calls.
+  assets.dispatch(0.6);
+  EXPECT_EQ(feed->generation(), 2u);
+  EXPECT_EQ(feed->latest()->asText(), "noon");
+  EXPECT_FALSE(feed->closed());
+
+  assets.dispatch(2.0);
+  EXPECT_EQ(feed->generation(), 3u);
+  EXPECT_EQ(feed->latest()->asText(), "dusk");
+  EXPECT_TRUE(feed->closed());  // the recording ran out
 }
 
 }  // namespace

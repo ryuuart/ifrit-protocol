@@ -6,6 +6,7 @@
 #include <sigildata/decode/Decoders.h>
 #include <sigildata/query/Database.h>
 #include <sigilio/hub/Network.h>
+#include <sigilio/transport/Transport.h>
 
 namespace sigil::sketch {
 
@@ -55,6 +56,12 @@ Assets::Assets(std::filesystem::path root, std::filesystem::path sketches)
   // database file answers the same way, opened in place.
   sigil::data::registerDecoders(m_hub);
   m_hub.registerDecoder<sigil::data::Database>(sigil::data::DatabaseDecoder{});
+  // A resource that keeps ARRIVING is a feed, and a sketch opens one
+  // through this same hub: with the transports registered,
+  // hub().feed("udp://:27020") binds the port and every datagram that
+  // reaches it arrives in that feed. A URI mounted onto a recording is
+  // played back from the file instead, through no transport at all.
+  sigil::io::registerTransports(m_hub);
   m_placeholder = makePlaceholder();
 }
 
@@ -102,6 +109,8 @@ std::shared_ptr<sigil::video::Video> Assets::video(
         {.name = std::string(name), .options = options, .clip = clip});
   return clip;
 }
+
+void Assets::dispatch(double seconds) { m_hub.dispatch(seconds); }
 
 bool Assets::poll() {
   bool changed = m_hub.poll();

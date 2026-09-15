@@ -84,6 +84,13 @@ class Assets {
    *  sketch's assets directory mounted at "res://". */
   sigil::io::Hub& hub() { return m_hub; }
 
+  /** Moves every feed opened through this store's hub to @p seconds, the
+   *  scene time of the frame about to be drawn. A recording mounted onto
+   *  a feed's URI delivers exactly the arrivals recorded at or before
+   *  that time; a live feed is unaffected, because what reaches it is
+   *  its sender's to decide. */
+  void dispatch(double seconds);
+
   /** Re-checks everything: returns true when a loaded resource changed
    *  on disk OR a placeholder's file appeared (host re-runs setup). */
   bool poll();

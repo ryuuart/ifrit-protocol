@@ -11,6 +11,9 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
+#include <sigilio/hub/Feed.h>
+#include <sigilio/hub/Hub.h>
+#include <sigilio/hub/Recording.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilworld/element/Element.h>
@@ -18,12 +21,17 @@
 
 #include <chrono>
 #include <cmath>
+#include <cstddef>
 #include <cstring>
+#include <filesystem>
 #include <memory>
 #include <numbers>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
+#include "ScratchDir.h"
 #include "support/Fixtures.h"
 #include "support/Pixels.h"
 #include "support/Sessions.h"
@@ -118,6 +126,34 @@ struct Declaring {
         box().width(100).height(50).fill(Fill::color({1, 0, 0, 1})));
   }
   void update(double, SketchContext&) { ++updates; }
+};
+
+/** The port the listening sketch below opens, and the recording it reads
+ *  instead while a capture is being taken. */
+constexpr const char* kSkyPort = "udp://:27020";
+
+/** One recorded message carrying @p text. */
+std::shared_ptr<const sigil::io::Bytes> recorded(std::string_view text) {
+  const auto* first = reinterpret_cast<const std::byte*>(text.data());
+  sigil::io::Bytes bytes;
+  bytes.bytes.assign(first, first + text.size());
+  return std::make_shared<const sigil::io::Bytes>(std::move(bytes));
+}
+
+/** A sketch that LISTENS: it opens a feed on a port while declaring
+ *  itself, and under a capture it first mounts its own recording onto
+ *  that port, so the door it opens is the file. The feed is kept where
+ *  the case can read it, which is what stands for the drawing a real
+ *  body would do from what arrived. */
+struct Listening {
+  static inline std::shared_ptr<sigil::io::Feed> sky;
+  void setup(SketchContext& ctx) {
+    ctx.canvas(64, 48);
+    sigil::io::Hub& hub = ctx.assets.hub();
+    if (ctx.deterministic)
+      hub.mount(kSkyPort, hub.resolve(ctx.local("data/sky.feed")));
+    sky = hub.feed(kSkyPort);
+  }
 };
 
 /** A sketch that PROBES something while declaring itself and keeps the
@@ -488,6 +524,50 @@ TEST(CanvasBodies, StepsABodyThatNamedTheSecondsAndNotTheContext) {
   // The clock the session steps is the one the body is handed, so two
   // frames of a sixtieth put it two sixtieths in.
   EXPECT_NEAR(Stepped::last, 2.0 / 60.0, 1e-9);
+}
+
+/** A recording is a function of the SCENE time, and the session is what
+ *  moves it: the frames a host steps carry the feed forward to exactly
+ *  the arrivals due by the moment being drawn, with nothing for the
+ *  sketch to call and nothing for a host to schedule. */
+TEST(CanvasDoors, CarriesAMountedRecordingToTheSceneTimeTheFramesReach) {
+  sigil::test::ScratchDir dir("sketch_canvas_feed");
+  std::filesystem::create_directories(dir.path / "data");
+  {
+    sigil::io::RecordingWriter writer(dir.path / "data" / "sky.feed");
+    ASSERT_TRUE(writer.good());
+    ASSERT_TRUE(writer.append({1, 0.0, recorded("dawn")}));
+    ASSERT_TRUE(writer.append({2, 0.5, recorded("noon")}));
+    ASSERT_TRUE(writer.append({3, 5.0, recorded("dusk")}));
+  }
+  Assets store("");
+  store.mountSketch("listening", dir.path);
+
+  Listening::sky.reset();
+  const std::unique_ptr<Session> session =
+      kindOf<Listening>()->open(fonts(), store, true, "listening");
+  ASSERT_NE(session, nullptr);
+  ASSERT_NE(Listening::sky, nullptr);
+  EXPECT_TRUE(Listening::sky->error().empty());
+  // A session that has drawn no frame has reached no scene time, so the
+  // recording has not started.
+  EXPECT_EQ(Listening::sky->generation(), 0u);
+
+  const sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 48));
+  for (int i = 0; i < 36; ++i)
+    session->frame(*surface->getCanvas(), 1.0 / 60.0);
+
+  // Thirty-six frames of a sixtieth is six tenths of a scene second: the
+  // two arrivals recorded by then have been delivered, and the one at
+  // five seconds is still ahead.
+  EXPECT_EQ(Listening::sky->generation(), 2u);
+  ASSERT_NE(Listening::sky->latest(), nullptr);
+  EXPECT_EQ(Listening::sky->latest()->asText(), "noon");
+  EXPECT_FALSE(Listening::sky->closed());
+  // The store outlives nothing here: the feed is let go before the
+  // session that opened it and the hub it was opened on.
+  Listening::sky.reset();
 }
 
 }  // namespace

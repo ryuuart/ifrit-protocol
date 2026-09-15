@@ -66,7 +66,10 @@ class SetSession final : public Session {
  public:
   SetSession(SetBody* set, weave::FontContext& fonts, Assets& assets,
              bool deterministic, world::Runtime runtime)
-      : m_set(set), m_scene(m_ticker), m_runtime(std::move(runtime)) {
+      : m_set(set),
+        m_assets(assets),
+        m_scene(m_ticker),
+        m_runtime(std::move(runtime)) {
     m_specification.size = {900, 640};
     m_specification.background = {0.04f, 0.045f, 0.06f, 1.0f};
     m_specification.captureSeconds = 1.0;
@@ -91,6 +94,11 @@ class SetSession final : public Session {
     // first time either was paused.
     const double step = dt >= 0.0 ? m_clock.advance(dt) : m_clock.tick();
     m_ticker.tick(step);
+    // A recording plays back as a function of the scene time, so the
+    // feeds the set reads are moved by the same clock that moved the
+    // ticker, and moved before it describes: what a frame is described
+    // from is everything that had arrived by the moment it draws.
+    m_assets.dispatch(m_clock.elapsed());
     world::Frame frame = m_set->describe((float)m_clock.elapsed());
     // The plate's size and its viewpoint are the host's to state: a set
     // says what it is of, not where it lands. The size is the declared
@@ -223,6 +231,10 @@ class SetSession final : public Session {
    *  still standing when its wearer goes. */
   std::vector<std::shared_ptr<compose::TextureScene>> m_scenes;
   std::unique_ptr<SetBody> m_set;
+  /** What the set reaches for that it did not generate. Held for the
+   *  session's life rather than only for the setup that declared it,
+   *  because the feeds it opened are moved forward every frame. */
+  Assets& m_assets;
   /** Taken once, when this session opened: every frame it draws goes
    *  through this one, whatever the process installed after. */
   world::Runtime m_runtime;
