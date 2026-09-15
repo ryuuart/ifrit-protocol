@@ -1,0 +1,59 @@
+// values_test.fbs — the schema the generated value header's cases read
+// through: a nested struct, a table field that may be absent, a vector
+// of tables, a required string, an enum, a deprecated field and a union
+// of three, so one schema carries every shape a value has to say.
+namespace values_test;
+
+/// How a reading was taken.
+enum Weather : byte { Clear = 0, Rain = 1 }
+
+/// The ends of a range, which travel inline.
+struct Span {
+  low: float;
+  high: float;
+}
+
+/// A remark on a reading.
+table Note {
+  text: string;
+  weight: int;
+}
+
+/// One reading: when it was taken, over what, with a remark where
+/// somebody left one.
+table Reading {
+  at: double;
+  span: Span;
+  note: Note;
+  tags: [string];
+}
+
+/// A page of readings: what it is called, the weather over it, the
+/// range it covers, the readings themselves and, one per reading, how
+/// deep it went, what the sky did and whether it rained.
+table Sheet {
+  title: string (required);
+  weather: Weather;
+  bounds: Span;
+  readings: [Reading];
+  depths: [float];
+  skies: [Weather];
+  wet: [bool];
+  retired: int (deprecated);
+}
+
+/// A place in the record somebody named.
+table Mark {
+  name: string;
+}
+
+/// What one entry of the log carries.
+union Entry { Sheet, Note, Mark }
+
+/// One entry of the log, numbered.
+table Log {
+  count: uint;
+  entry: Entry;
+}
+
+root_type Log;

@@ -28,6 +28,7 @@ what a consumer uses; every public header lives under
 | `SigilDataScale` | `scale/Scale.h` | `Interval`, `Transform`, `Overflow` and `Scale` — the mapping, its inverse, its tick ladder and `nice()` |
 | `SigilDataTable` | `table/Table.h` | `Instant`, `Flag`, `Value`, `ColumnType`, `Order`, `Column` and `Table` — named typed columns, the cells as spans, and the reshapings |
 | `SigilDataDecode` | `decode/Csv.h`, `decode/Json.h`, `decode/Decoders.h`, `decode/FlatBuffer.h`, `decode/Schema.h`, `decode/Osc.h`, `decode/Midi.h`, `decode/ArtNet.h` | `CsvOptions`, `decodeCsv()`, `decodeInstant()`; `Json`, `decodeJson()`, `encodeJson()`, `tableFromJson()`; `TableDecoder`, `JsonDecoder` and `registerDecoders(hub)` — the two decoders and the one call that puts them on a hub; `FlatBuffer`, `FlatBufferDecoder`, `flatBufferFromBytes()`, `flatBufferFromJson()` and `registerFlatBuffer(hub)` — a FlatBuffer as a value, read in place through the schema its generated root carries; `Schema`, `Schema::fromBinarySchema()` and `schema<Root>()` — that schema as one copyable value, which converts a buffer to its JSON form and a JSON form back to a buffer with the root named once and names nothing of the reader under it; `decodeOsc()`, `encodeOsc()` and `maxOscPacketBytes` — an OSC packet read into a `Json` and written back out of one; `decodeMidi()` and `encodeMidi()` — one MIDI message read into that same value, its kind, its channel and the fields that kind carries, and written back out of one; and `decodeArtNet()` and `encodeArtNet()` — one Art-Net packet read into that same value, the universe of dimmers a lighting desk sends and the three other forms its wire carries, and written back out of one |
+| `SigilDataValues` | `values/Values.h` | `rootOf()`, `bytesOf()`, `readString()`, `readStrings()`, `readScalars()`, `readBools()`, `readEach()`, `readEachOrNone()`, `writeString()`, `writeStrings()`, `writeScalars()`, `writeBools()`, `writeStructs()` and `writeEach()` — what a generated value header stands on: a string, a vector and a struct read out of a buffer into standard types and written back through a builder, with the one place a whole buffer is verified |
 | `SigilDataConnection` | `connection/Connection.h` | `Connection` — a feed read as values: the newest message, the ones a reader has not taken once it has asked for them, the handlers a message's name reaches and the `Connection::otherwise()` one that runs when no name did, the two ways a message goes back out the same door, the schema a door may read and write every message through, and `Connection::reply()`, which answers the sender of one |
 | `SigilDataQuery` | `query/Database.h` | `Engine`, `Database` and `DatabaseDecoder`, with `engineOf()` — a SQL store behind one seam, SQLite or DuckDB, whose `query()` answers a `Table`, whose `insert()` writes one in, and whose decoder puts a `.sqlite` or `.duckdb` file on a hub |
 
@@ -289,6 +290,39 @@ indexes a field finds it whatever arrived and text converted twice is
 text converted once. The parser behind the token holds one buffer and
 one message of its own, so it takes a lock around each conversion and
 one schema serves however many doors ask of it.
+
+**The friendly header.** A buffer read in place is a set of pointers
+into bytes: a string may be null, a vector may be null, and none of it
+outlives what it was read from, so code that wants to HOLD a message
+copies every field out by hand. `sigil_schema_values` reads the same
+schema with the FlatBuffers parser and writes a SECOND header beside
+flatc's — `<stem>_values.h` next to `<stem>_generated.h` — in which
+every table is a plain struct: `std::string` for a string,
+`std::vector` for a vector, the value type for a nested struct,
+`std::optional` for a table that may be absent, a `std::variant` named
+after the union for a union, and the generated enum for an enum. The
+schema's field order and field names are kept exactly, a field it
+deprecated is left out, and the field a union's tag travels in is no
+member at all, because the alternative the variant holds already says
+which type it is. Every table gets a reading and a writing named for it
+— `readSky()` and `writeSky()` for a table called `Sky` — where the
+reading verifies the bytes and answers nothing when they are not that
+root or when a required field is absent, and the root gets `fromJson()`
+and `toJson()` through the schema its generated header carries.
+
+The friendly header stands ON the generated one and never replaces it:
+every reading goes through a generated accessor and every writing
+through a generated builder, so the wire format is the one flatc
+decided and nothing is reimplemented. `values/Values.h` is what those
+headers include and all they need beyond flatbuffers —
+`values::rootOf()` is the one place a whole buffer is verified, and the
+readings and writings beside it carry no schema. Two rules in this tree
+run the generator: the decode feature's own test schema is written both
+ways, so one sheet read in place and the same sheet read as a value are
+judged against each other, and a sketch that keeps a schema beside its
+entry gets both headers out of the one rule, into the directory that
+entry already includes. Both are build artefacts, and neither is
+hand-edited.
 
 **OSC is a dialect of the same value.** Open Sound Control is what the
 performance tools speak to one another — a lighting desk, a control
@@ -664,6 +698,15 @@ the hub: `registerDecoders` and `registerFlatBuffer` are templates over
 it, so the dependency runs one way and SigilIO gains nothing, which is
 what its own boundary asks for.
 
+`SigilDataValues` is headers and nothing else: the readings and the
+writings a generated value header stands on, over the buffer's own
+header, and the schema token beside them for the root's JSON form. The
+generator that writes those headers is a tool the build runs rather
+than a library anyone links — it is the one thing in this tree that
+opens the FlatBuffers parser from outside the decode feature, and it
+opens nothing of this library at all — so what a consumer links carries
+none of it.
+
 `SigilDataConnection` is the one feature that does link `SigilIOHub`,
 because a connection IS a door that hub opened and a reading the
 dispatch that hub runs drives. What it adds is the READING — which
@@ -704,6 +747,15 @@ wire is the only thing a codec standing on its own answers to,
 and which opens, in one case of its own, the schema header and the
 generated one and nothing else, so the day the schema token needs the
 reader under it that case stops compiling;
+`SigilDataValues` (`values/`) with `values/test/`, whose cases stand on
+a schema of its own carrying every shape a value has to say — a nested
+struct, a table field that may be absent, a vector of tables, a
+required string, an enum, a deprecated field and a union of three — and
+judge what the generator wrote against the wire rather than against
+itself: a value written and read back field for field, a union through
+each alternative and through none, the root's own JSON form both ways,
+bytes that are not that schema at all, and the decode feature's sheet
+read as a value beside the same sheet read in place;
 `SigilDataTable` (`table/`) with `table/test/`, which pins what
 each reshaping answers and what it leaves alone — a filtered table's
 source unchanged, a tie keeping its order, a missing cell last both ways

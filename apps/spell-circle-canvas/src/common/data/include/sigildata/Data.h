@@ -14,3 +14,4 @@
 #include "sigildata/query/Database.h"
 #include "sigildata/scale/Scale.h"
 #include "sigildata/table/Table.h"
+#include "sigildata/values/Values.h"

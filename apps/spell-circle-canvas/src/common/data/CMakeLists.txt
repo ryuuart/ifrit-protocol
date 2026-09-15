@@ -17,6 +17,7 @@ sigil_library_root(SigilData
 add_subdirectory(scale)
 add_subdirectory(table)
 add_subdirectory(decode)
+add_subdirectory(values)
 add_subdirectory(query)
 add_subdirectory(connection)
 
@@ -25,8 +26,8 @@ add_subdirectory(connection)
 # and there is no feed without the hub that opens it.
 sigil_library(SigilData
   HEADERS Data.h
-  INTERFACE SigilDataScale SigilDataTable SigilDataDecode SigilDataQuery
-            SigilDataConnection)
+  INTERFACE SigilDataScale SigilDataTable SigilDataDecode SigilDataValues
+            SigilDataQuery SigilDataConnection)
 
 # Every API name the prose spells, compiled against the headers that own
 # it.

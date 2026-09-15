@@ -174,20 +174,33 @@ foreach(schema IN LISTS SIGIL_SKETCH_SCHEMAS)
   endif()
   set(schema_out ${CMAKE_CURRENT_BINARY_DIR}/schema/${sketch_stem})
   set(schema_header ${schema_out}/${sketch_stem}_generated.h)
+  set(schema_values ${schema_out}/${sketch_stem}_values.h)
   # The binary schema is written beside the header and embedded in it,
   # so the sketch's own JSON form converts through the schema with no
   # schema file read, and the binary schema stands for whatever reads a
   # message by reflection.
+  #
+  # THEN THE SECOND GENERATED HEADER. `<stem>_values.h` says what
+  # `<stem>_generated.h` says as plain C++ — std::string, std::vector,
+  # std::optional for a table that may be absent, std::variant for a
+  # union — so a sketch holds its scene in a field and edits it instead
+  # of walking accessors into bytes it has to keep alive. It stands on
+  # the first header and never replaces it: every reading goes through a
+  # generated accessor and every writing through a generated builder.
+  # Like the first, it is a build artefact and never hand-edited, and it
+  # is written into the same directory, which is on the entry's include
+  # path already.
   add_custom_command(
     OUTPUT ${schema_header} ${schema_out}/${sketch_stem}_bfbs_generated.h
-           ${schema_out}/${sketch_stem}.bfbs
+           ${schema_out}/${sketch_stem}.bfbs ${schema_values}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${schema_out}
     COMMAND flatbuffers::flatc --cpp -b --schema --bfbs-gen-embed
             -o ${schema_out} ${schema}
-    DEPENDS ${schema}
-    COMMENT "Generating ${sketch_stem}_generated.h from the sketch's schema"
+    COMMAND sigil_schema_values ${schema} -o ${schema_out}
+    DEPENDS ${schema} sigil_schema_values
+    COMMENT "Generating ${sketch_stem}_generated.h and ${sketch_stem}_values.h"
     VERBATIM)
-  list(APPEND SIGIL_SKETCH_SCHEMA_HEADERS ${schema_header})
+  list(APPEND SIGIL_SKETCH_SCHEMA_HEADERS ${schema_header} ${schema_values})
   set_property(SOURCE ${schema_dir}/${sketch_stem}.cpp APPEND
     PROPERTY INCLUDE_DIRECTORIES ${schema_out})
   set_property(SOURCE ${CMAKE_CURRENT_LIST_DIR}/Anchor.cpp APPEND
