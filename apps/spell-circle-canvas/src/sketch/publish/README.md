@@ -1,22 +1,24 @@
-# SigilSketchPublish — the door a drawn frame leaves by
+# SigilSketchPublish — the door a drawn frame goes through
 
 A frame that has been drawn into a texture can be handed to another
 application on the same machine, which composites it live: a VJ program,
-a projection mapper, a recorder. This feature is the door that hands it
-over — one abstract publisher, one factory, and the macOS
-implementation behind them.
+a projection mapper, a recorder. And a frame another application drew can
+be received the same way, so a host may wear somebody else's picture as
+easily as one of its own. This feature is **both ends of that door** —
+one abstract publisher, one abstract subscription, a factory each, and
+the macOS implementations behind them.
 
-It is **one static archive, `SigilSketchPublish`, and one header**. It
-knows no window, no toolkit and no drawing: the texture and the command
-buffer cross the seam as opaque pointers, so a host that owns its own
-device reaches the same publisher as one drawing inside a window
-somebody else owns.
+It is **one static archive, `SigilSketchPublish`, and two headers**. It
+knows no window, no toolkit and no drawing: every texture and command
+buffer crosses the seam as an opaque pointer, so a host that owns its own
+device reaches the same publisher as one drawing inside a window somebody
+else owns.
 
-**Receiver** stands beside it, in `receiver/`: the subscriber, so what is
-being offered can be looked at and written down without another
-application in the middle. The two ends of one protocol are one subject,
-and a door with nothing on the other side of it is a door nobody has
-opened.
+**Receiver** stands beside it, in `receiver/`: an application over the
+subscription, so what is being offered can be looked at and written down
+without another application in the middle. The two ends of one protocol
+are one subject, and a door with nothing on the other side of it is a
+door nobody has opened.
 
 ## The seam
 
@@ -96,11 +98,78 @@ stood up when a host is asked to publish and not before — a publisher
 that exists is a publisher other applications can already see in their
 own menus.
 
+## The seam the other way
+
+* `<sigilsketch/publish/Subscription.h>` — `Subscription`, `subscribe`,
+  `defaultMetalDevice`
+
+`sigil::sketch::subscribe` answers with a subscription to the
+publication that announced itself under a name — and, where an
+application is named too, only that application's.
+
+```cpp
+#include <sigilsketch/publish/Subscription.h>
+
+// The device the frames will be made textures on: the caller's own, or
+// this machine's where the caller holds none.
+std::unique_ptr<sigil::sketch::Subscription> guest = sigil::sketch::subscribe(
+    "Guest", "", sigil::sketch::defaultMetalDevice());
+
+// …every frame, wherever the drawing is about to happen:
+if (guest)
+  if (void* texture = guest->newestFrame()) {  /* an id<MTLTexture> */
+  }
+```
+
+**Null is an ordinary answer** here for the same three reasons: this
+build subscribes over no protocol, there is no device to receive on, or
+the name is empty and nothing could have announced itself under it.
+
+**A name nothing publishes yet is not one of them.** The subscription
+stands and waits, and `sigil::sketch::Subscription::newestFrame` is what
+opens it onto the publication once one appears — so the order the two
+applications were started in never matters, and a publisher that stops
+and comes back is followed rather than lost. That is also why the ask is
+worth making when the answer is nothing.
+
+`sigil::sketch::Subscription::standing` is whether frames can still
+arrive: the publication answered AND the directory still knows of it.
+Both, because a publisher that retires tells its subscribers and a
+publisher that was killed tells nobody — the second is noticed by the
+publication going off the list.
+`sigil::sketch::Subscription::generation` counts the frames that have
+arrived, across a publisher that came back, so a host can tell a NEW
+frame from whatever was already there and read a frame rate off it; and
+`sigil::sketch::Subscription::publishingApplication` is the application
+the standing publication is drawn in, as the directory named it.
+
+**The frame is borrowed until the next call.** The subscription holds
+the texture it handed over and lets it go when it is asked for another,
+so a caller that must keep one past that call takes its own reference —
+which is what wrapping it as an image does.
+
+`sigil::sketch::defaultMetalDevice` is this machine's own Metal device,
+for the caller that holds none: a texture belongs to the device it was
+made on and to no other, so a frame is received on the device the
+drawing that will sample it stands on.
+
+On macOS the subscription is a `SyphonMetalClient` onto a description
+read off Syphon's own directory, and every line that talks to
+Objective-C is in the one translation unit behind the factory.
+**The directory is heard over a run loop**: what one process has to say
+to another arrives there, so a process that has only just started knows
+nothing until it has let the loop turn — which a host with a window of
+its own does as part of running, and a run without one does deliberately.
+A subscription tells the system to keep delivering those announcements
+while its application is not the active one, since an application wearing
+another's picture is by definition behind the one drawing it.
+
 ## Receiver — the other side
 
-`Receiver` is a macOS application of its own (AppKit and Metal, no Qt and
-no sketch), built to `build/bin/<config>/Receiver.app`. It takes three
-shapes:
+`Receiver` is a macOS application of its own (AppKit and Metal, no Qt),
+built to `build/bin/<config>/Receiver.app`. It holds the archive's
+subscription and adds what an application adds: a listing, a window and a
+file. It takes three shapes:
 
 ```sh
 Receiver --list                          # every publication, one per line

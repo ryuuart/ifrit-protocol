@@ -7,14 +7,15 @@
 #import <MetalKit/MetalKit.h>
 #import <simd/simd.h>
 
-#include "Feed.h"
-#include "Servers.h"
+#include <sigilsketch/publish/Subscription.h>
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <memory>
 #include <string>
+#include <utility>
 
 namespace receiver {
 
@@ -80,14 +81,14 @@ constexpr double kRateSeconds = 1.0;
   NSTimer *_follower;
   id<MTLCommandQueue> _queue;
   id<MTLRenderPipelineState> _pipeline;
-  std::unique_ptr<receiver::Feed> _feed;
+  std::unique_ptr<sigil::sketch::Subscription> _subscription;
   std::string _name;
   /** The size the last frame arrived at, so the window is resized when
    *  the publication's own size changes and not on every frame. */
   NSUInteger _width;
   NSUInteger _height;
   NSTimeInterval _rateAt;
-  unsigned long long _rateFrames;
+  uint64_t _rateFrames;
   double _rate;
   /** Whether a subscription stood the last time anything was said about
    *  it, so coming and going are each said once. */
@@ -95,11 +96,11 @@ constexpr double kRateSeconds = 1.0;
 }
 
 - (instancetype)initWithDevice:(id<MTLDevice>)device
-                          feed:(std::unique_ptr<receiver::Feed>)feed
+                  subscription:(std::unique_ptr<sigil::sketch::Subscription>)subscription
                           name:(std::string)name {
   self = [super init];
   if (!self) return nil;
-  _feed = std::move(feed);
+  _subscription = std::move(subscription);
   _name = std::move(name);
   _queue = [device newCommandQueue];
 
@@ -160,8 +161,9 @@ constexpr double kRateSeconds = 1.0;
  *  judging is the frames another application is producing. */
 - (void)retitle {
   NSString *title = nil;
-  if (_feed->standing()) {
-    NSString *app = _feed->publishingApp().empty() ? @"" : @(_feed->publishingApp().c_str());
+  if (_subscription->standing()) {
+    const std::string drawnIn(_subscription->publishingApplication());
+    NSString *app = drawnIn.empty() ? @"" : @(drawnIn.c_str());
     title =
         [NSString stringWithFormat:@"%s%@%@", _name.c_str(), app.length > 0 ? @" · " : @"", app];
     if (_rateFrames > 0) title = [title stringByAppendingFormat:@" — %.1f FPS", _rate];
@@ -201,18 +203,21 @@ constexpr double kRateSeconds = 1.0;
  *  next is what it shows. Said out loud as well as in the title, because
  *  a window opened from a terminal is watched from there too. */
 - (void)follow {
-  if (!_feed->standing()) _feed->open(0);
-  if (_feed->standing() != _standing) {
+  // ASKING FOR A FRAME IS WHAT OPENS, so a window that is not being
+  // drawn asks for one anyway and throws it away: what it is following
+  // is the name, and whatever stands up under it next.
+  if (!_subscription->standing()) _subscription->newestFrame();
+  if (_subscription->standing() != _standing) {
     _standing = !_standing;
     if (_standing)
       std::fprintf(stderr, "subscribed to \"%s\" (%s)\n", _name.c_str(),
-                   _feed->publishingApp().c_str());
+                   std::string(_subscription->publishingApplication()).c_str());
     else
       std::fprintf(stderr, "\"%s\" stopped publishing; waiting for it\n", _name.c_str());
   }
   const NSTimeInterval now = [NSDate timeIntervalSinceReferenceDate];
   if (now - _rateAt >= receiver::kRateSeconds) {
-    const unsigned long long frames = _feed->frames();
+    const uint64_t frames = _subscription->generation();
     _rate = (double)(frames - _rateFrames) / (now - _rateAt);
     _rateFrames = frames;
     _rateAt = now;
@@ -221,7 +226,7 @@ constexpr double kRateSeconds = 1.0;
 }
 
 - (void)drawInMTKView:(MTKView *)view {
-  id<MTLTexture> frame = _feed->newestFrame();
+  id<MTLTexture> frame = (__bridge id<MTLTexture>)_subscription->newestFrame();
   if (frame) [self fitTo:frame];
   MTLRenderPassDescriptor *pass = view.currentRenderPassDescriptor;
   if (!pass) return;
@@ -258,7 +263,7 @@ constexpr double kRateSeconds = 1.0;
 - (void)applicationWillTerminate:(NSNotification *)notification {
   // The subscription is let go here rather than left to the process's
   // end, so the publisher sees its last client leave and stops copying.
-  _feed.reset();
+  _subscription.reset();
 }
 
 @end
@@ -288,20 +293,23 @@ int runWindow(const Arguments &arguments) {
     std::fprintf(stderr, "this machine has no Metal device to receive on\n");
     return 4;
   }
-  auto feed = std::make_unique<Feed>(device, arguments.server, arguments.app);
   // The publication may not be there yet; the window says so and keeps
   // looking, which is the same answer it gives when one goes away.
-  feed->open(kAnnounceSeconds);
+  std::unique_ptr<sigil::sketch::Subscription> subscription =
+      sigil::sketch::subscribe(arguments.server, arguments.app, (__bridge void *)device);
+  if (!subscription) {
+    std::fprintf(stderr, "this build subscribes to nothing\n");
+    return 4;
+  }
 
   [NSApplication sharedApplication];
   [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
-  hearWhileInactive();
   installMenu();
   // THE ONE STRONG REFERENCE. An application's delegate and a view's
   // delegate are both weak, so nothing else here holds this object.
   static ReceiverWindow *window = nil;
   window = [[ReceiverWindow alloc] initWithDevice:device
-                                             feed:std::move(feed)
+                                     subscription:std::move(subscription)
                                              name:arguments.server];
   if (!window) return 4;
   NSApp.delegate = window;

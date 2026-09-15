@@ -5,11 +5,14 @@
 
 #import <Metal/Metal.h>
 
+#include <sigilsketch/publish/Subscription.h>
+
 #include "Capture.h"
-#include "Feed.h"
 #include "Servers.h"
 
+#include <cstdint>
 #include <cstdio>
+#include <memory>
 
 namespace receiver {
 
@@ -45,27 +48,42 @@ int runGrab(const Arguments &arguments) {
     return 4;
   }
 
-  Feed feed(device, arguments.server, arguments.app);
-  if (!feed.open(budget)) {
-    // The application is named back when one was asked for: a publication
-    // of that name from somebody else is not the one that was wanted, and
-    // a refusal that did not say so would read as nobody publishing it.
-    if (arguments.app.empty())
-      std::fprintf(stderr, "nothing is publishing under \"%s\" on this machine\n",
-                   arguments.server.c_str());
-    else
-      std::fprintf(stderr, "%s is publishing nothing under \"%s\" on this machine\n",
-                   arguments.app.c_str(), arguments.server.c_str());
-    return 2;
+  std::unique_ptr<sigil::sketch::Subscription> subscription =
+      sigil::sketch::subscribe(arguments.server, arguments.app, (__bridge void *)device);
+  if (!subscription) {
+    std::fprintf(stderr, "this build subscribes to nothing\n");
+    return 4;
   }
 
-  while (feed.frames() < (unsigned long long)wanted) {
+  // ASKING FOR A FRAME IS WHAT OPENS onto the publication, so waiting for
+  // one to answer is a wait spent asking.
+  for (;;) {
+    subscription->newestFrame();
+    if (subscription->standing()) break;
     if ([NSDate timeIntervalSinceReferenceDate] >= deadline) {
-      std::fprintf(stderr, "%llu of %d frames arrived from \"%s\" in %.3g seconds\n", feed.frames(),
-                   wanted, arguments.server.c_str(), budget);
+      // The application is named back when one was asked for: a
+      // publication of that name from somebody else is not the one that
+      // was wanted, and a refusal that did not say so would read as
+      // nobody publishing it.
+      if (arguments.app.empty())
+        std::fprintf(stderr, "nothing is publishing under \"%s\" on this machine\n",
+                     arguments.server.c_str());
+      else
+        std::fprintf(stderr, "%s is publishing nothing under \"%s\" on this machine\n",
+                     arguments.app.c_str(), arguments.server.c_str());
+      return 2;
+    }
+    turnRunLoop(kSlice);
+  }
+
+  while (subscription->generation() < (uint64_t)wanted) {
+    if ([NSDate timeIntervalSinceReferenceDate] >= deadline) {
+      std::fprintf(stderr, "%llu of %d frames arrived from \"%s\" in %.3g seconds\n",
+                   (unsigned long long)subscription->generation(), wanted, arguments.server.c_str(),
+                   budget);
       return 3;
     }
-    if (!feed.standing()) {
+    if (!subscription->standing()) {
       std::fprintf(stderr, "\"%s\" stopped publishing before a frame arrived\n",
                    arguments.server.c_str());
       return 3;
@@ -73,7 +91,7 @@ int runGrab(const Arguments &arguments) {
     turnRunLoop(kSlice);
   }
 
-  id<MTLTexture> frame = feed.newestFrame();
+  id<MTLTexture> frame = (__bridge id<MTLTexture>)subscription->newestFrame();
   if (!frame) {
     std::fprintf(stderr, "\"%s\" announced a frame it then had none of\n",
                  arguments.server.c_str());
