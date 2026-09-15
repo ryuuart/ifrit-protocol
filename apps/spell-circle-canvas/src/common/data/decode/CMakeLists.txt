@@ -1,15 +1,17 @@
-# The decoders: delimiter-separated text and JSON into a Table, and a
-# JSON document as a value of its own.
+# The decoders: delimiter-separated text and JSON into a Table, a JSON
+# document as a value of its own, and an OSC packet read into that same
+# value.
 #
 # It speaks io's BYTE vocabulary and nothing else of io: a decoder takes
 # Bytes and a name hint, and registerDecoders() is a template over the
 # hub, so this target never links the hub, its cache or its codecs. The
-# JSON parser is private and reaches no public header.
+# JSON parser is private and reaches no public header; the OSC codec
+# reads and writes the wire itself and takes nothing from outside.
 find_package(simdjson CONFIG REQUIRED)
 find_package(flatbuffers CONFIG REQUIRED)
 sigil_library(SigilDataDecode
-  SOURCES Csv.cpp Json.cpp Decoders.cpp
-  HEADERS Csv.h Json.h Decoders.h FlatBuffer.h
+  SOURCES Csv.cpp Json.cpp Decoders.cpp Osc.cpp
+  HEADERS Csv.h Json.h Decoders.h FlatBuffer.h Osc.h
   PUBLIC SigilDataTable SigilIOSource flatbuffers::flatbuffers
   PRIVATE simdjson::simdjson)
 
@@ -36,7 +38,7 @@ add_custom_target(SigilDataFlatBufferTestSchema
 # decoders on a real hub and read a real file back through it, which is
 # the whole of what registerDecoders() and registerFlatBuffer() promise.
 sigil_test(data_test
-  SOURCES test/DecodeTest.cpp test/FlatBufferTest.cpp
+  SOURCES test/DecodeTest.cpp test/FlatBufferTest.cpp test/OscTest.cpp
   LIBRARIES SigilDataDecode SigilIOHub)
 add_dependencies(data_test SigilDataFlatBufferTestSchema)
 target_include_directories(data_test PRIVATE ${FLATBUFFER_TEST_OUT})

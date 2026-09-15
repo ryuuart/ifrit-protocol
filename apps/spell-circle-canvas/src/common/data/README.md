@@ -27,7 +27,7 @@ what a consumer uses; every public header lives under
 |--------|---------|-------|
 | `SigilDataScale` | `scale/Scale.h` | `Interval`, `Transform`, `Overflow` and `Scale` — the mapping, its inverse, its tick ladder and `nice()` |
 | `SigilDataTable` | `table/Table.h` | `Instant`, `Flag`, `Value`, `ColumnType`, `Order`, `Column` and `Table` — named typed columns, the cells as spans, and the reshapings |
-| `SigilDataDecode` | `decode/Csv.h`, `decode/Json.h`, `decode/Decoders.h`, `decode/FlatBuffer.h` | `CsvOptions`, `decodeCsv()`, `decodeInstant()`; `Json`, `decodeJson()`, `tableFromJson()`; `TableDecoder`, `JsonDecoder` and `registerDecoders(hub)` — the two decoders and the one call that puts them on a hub; and `FlatBuffer`, `FlatBufferDecoder`, `flatBufferFromBytes()`, `flatBufferFromJson()` and `registerFlatBuffer(hub)` — a FlatBuffer as a value, read in place through the schema its generated root carries |
+| `SigilDataDecode` | `decode/Csv.h`, `decode/Json.h`, `decode/Decoders.h`, `decode/FlatBuffer.h`, `decode/Osc.h` | `CsvOptions`, `decodeCsv()`, `decodeInstant()`; `Json`, `decodeJson()`, `tableFromJson()`; `TableDecoder`, `JsonDecoder` and `registerDecoders(hub)` — the two decoders and the one call that puts them on a hub; `FlatBuffer`, `FlatBufferDecoder`, `flatBufferFromBytes()`, `flatBufferFromJson()` and `registerFlatBuffer(hub)` — a FlatBuffer as a value, read in place through the schema its generated root carries; and `decodeOsc()`, `encodeOsc()` and `maxOscPacketBytes` — an OSC packet read into a `Json` and written back out of one |
 | `SigilDataQuery` | `query/Database.h` | `Engine`, `Database` and `DatabaseDecoder`, with `engineOf()` — a SQL store behind one seam, SQLite or DuckDB, whose `query()` answers a `Table`, whose `insert()` writes one in, and whose decoder puts a `.sqlite` or `.duckdb` file on a hub |
 
 `SigilData` is the umbrella target over them, and `<sigildata/Data.h>`
@@ -254,6 +254,43 @@ otherwise from its first byte that is not a space. `flatBufferFromBytes()` and
 `flatBufferFromJson()` are the same two readings for a caller holding bytes of
 its own, with the parser's own message where they refuse.
 
+**OSC is a dialect of the same value.** Open Sound Control is what the
+performance tools speak to one another — a lighting desk, a control
+surface, a patcher — and here it is one more way to spell the one
+dynamic value rather than a value of its own. `decodeOsc()` reads a
+packet into a `Json`: a message is its address and its arguments,
+`{"address": "/sky/wind", "arguments": [0.5]}`, and a bundle is its
+elements and the time they are for. `encodeOsc()` writes that same form
+back out. So a sketch that reads an OSC desk reads a `Json` carrying an
+address and its arguments, and answers down the same wire with one.
+Which reading a hub's bytes get is taken from the resource's NAME, as a
+table's format is: a name beginning `osc://` or ending `.osc` is a
+packet and everything else is text, because a packet and a document
+share no first byte that could tell them apart.
+
+A number goes out as a 32-BIT FLOAT, always. A number carries no memory
+of the width it arrived at, and what the performance tools expect under
+a continuous control is a float, so that is what one writes as; a value
+that must go out at another width says so by name, `{"int": 7}` or
+`{"double": 0.1}`. An integer argument therefore does not survive the
+round trip, by design: it reads as a plain number and goes back out a
+float, as a timetag, a character and a 64-bit number do, while a symbol
+comes back a string and an impulse a true. Reading a packet and writing
+the reading gives the packet back byte for byte when every argument is
+a float, a string, a boolean, a nil, a blob, a colour, a MIDI message or
+an array of those. `maxOscPacketBytes` is the most one packet carries;
+arguments needing more are not written, half a packet being no shorter
+message.
+
+Every length on the wire is a claim the bytes make about themselves — a
+blob's, a bundle element's, the null a string ends at — and each is
+measured against what actually arrived before a byte of it is read, so a
+packet claiming more than it holds answers nothing rather than reading
+past its own end. That is why the codec is written here rather than
+taken from a package: the wire is a page of arithmetic, and what a
+receiver needs of it is that every reading be bounded and that a packet
+it cannot make sense of be no packet rather than a diagnostic.
+
 **A column's type is what every cell in it turns out to be.** Numbers
 make a number column, the words true, false, yes and no in any case a
 boolean column, instants a time column, and anything else a text
@@ -375,11 +412,12 @@ SigilGeometry, not here.
 `SigilDataScale` and `SigilDataTable` depend on the standard library
 alone. `SigilDataDecode` adds `SigilIOSource` — the byte vocabulary, and
 nothing else of SigilIO — a JSON parser that reaches no public header,
-and flatbuffers, whose verifier and schema parser the FlatBuffer decoder reads
-through and whose generated roots a consumer spells. It does NOT link
-the hub: `registerDecoders` and `registerFlatBuffer` are templates over it, so
-the dependency runs one way and SigilIO gains nothing, which is what its
-own boundary asks for.
+and flatbuffers, whose verifier and schema parser the FlatBuffer decoder
+reads through and whose generated roots a consumer spells. The OSC codec
+takes nothing at all: it reads and writes the wire itself. It does NOT
+link the hub: `registerDecoders` and `registerFlatBuffer` are templates
+over it, so the dependency runs one way and SigilIO gains nothing, which
+is what its own boundary asks for.
 
 A delimiter-separated reader is written here rather than taken from a
 package because what is wanted is a run of fields under the quoting rule
@@ -403,7 +441,9 @@ the awkward parts of a real file — a quoted field holding the delimiter,
 a newline and a doubled quote; a short row and a long one; a thousands
 separator and a decimal comma — and puts the decoders on a real hub over
 a scratch directory, because one `registerDecoders()` call answering
-`load<Table>` is the whole of what that call promises;
+`load<Table>` is the whole of what that call promises, and judges the
+OSC codec against packets spelled out byte by byte, a desk's among them,
+since the wire is the only thing a codec standing on its own answers to;
 `SigilDataTable` (`table/`) with `table/test/`, which pins what
 each reshaping answers and what it leaves alone — a filtered table's
 source unchanged, a tie keeping its order, a missing cell last both ways

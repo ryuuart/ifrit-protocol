@@ -6,9 +6,10 @@
  * A hub answers a URI with bytes and hands those bytes to whatever
  * decoder is registered for the type asked for. These two are the
  * `Table` decoder and the `Json` decoder; after `registerDecoders(hub)`
- * a data file is `hub.load<Table>("res://data/deaths.csv")` and a nested
- * record is `hub.load<Json>("res://data/tree.json")`, cached and
- * reloaded like anything else the hub holds.
+ * a data file is `hub.load<Table>("res://data/deaths.csv")`, a nested
+ * record is `hub.load<Json>("res://data/tree.json")`, and an OSC desk
+ * is `hub.load<Json>("osc://desk:9000")`, cached and reloaded like
+ * anything else the hub holds.
  *
  * `registerDecoders` is a template over the hub so this library depends
  * on the byte vocabulary alone and never on the hub, its cache or its
@@ -17,6 +18,7 @@
 
 #include <sigildata/decode/Csv.h>
 #include <sigildata/decode/Json.h>
+#include <sigildata/decode/Osc.h>
 #include <sigildata/table/Table.h>
 #include <sigilio/source/Source.h>
 
@@ -43,7 +45,14 @@ struct TableDecoder {
 };
 
 /** BYTES AS A JSON DOCUMENT — the nested record a rectangle cannot
- *  hold. */
+ *  hold — or as an OSC packet, which reads into the same value.
+ *
+ *  THE RESOURCE'S NAME decides which: a name beginning `osc://` or
+ *  ending `.osc` is a packet and everything else is JSON text. A URI's
+ *  SCHEME is the hint a hub hands its decoder, so what a resource is
+ *  named by is what decides how its bytes are read, and a desk that
+ *  speaks OSC and a file that holds JSON both answer `load<Json>`
+ *  without a second type or a second decoder standing between them. */
 struct JsonDecoder {
   std::optional<Json> decode(const io::Bytes& bytes,
                              std::string_view hint) const;

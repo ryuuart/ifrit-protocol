@@ -29,6 +29,13 @@ std::string_view withoutMark(std::string_view text) {
   return text.starts_with("\xEF\xBB\xBF") ? text.substr(3) : text;
 }
 
+/** Whether a resource's name says its bytes are an OSC packet: the
+ *  scheme a desk is reached at, or the extension a recorded packet is
+ *  filed under. */
+bool looksLikeOsc(std::string_view hint) {
+  return hint.starts_with("osc://") || endsWith(hint, ".osc");
+}
+
 }  // namespace
 
 std::optional<Table> TableDecoder::decode(const io::Bytes& bytes,
@@ -43,7 +50,11 @@ std::optional<Table> TableDecoder::decode(const io::Bytes& bytes,
 }
 
 std::optional<Json> JsonDecoder::decode(const io::Bytes& bytes,
-                                        std::string_view) const {
+                                        std::string_view hint) const {
+  // A packet is bytes and a document is text, and no reading of the
+  // first byte tells the two apart, so the name is the whole of what
+  // there is to go on.
+  if (looksLikeOsc(hint)) return decodeOsc(bytes.bytes);
   return decodeJson(withoutMark(bytes.asText()));
 }
 
