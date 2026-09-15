@@ -20,7 +20,7 @@ what a consumer uses; every public header lives under
 |--------|---------|-------|
 | `SigilIOSource` | `source/Source.h`, `source/Archive.h`, `source/Sink.h`, `source/Places.h` | the byte vocabulary in both directions: `Bytes`, the `ByteSource`, `ResolvingByteSource`, `Decoder` and `Probable` concepts, `AnyByteSource` (the type-erased source value), the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file; `ArchiveSource` and `ArchiveEntry`, one zip held in memory answering its files by name — and the two places only the platform can name, `executablePath()` and `scratchDirectory(label)` |
 | `SigilIOHub`    | `hub/Hub.h`, `hub/Feed.h`, `hub/Recording.h`, `hub/Network.h`, `hub/TextCatalog.h` | the `Hub`, `ResourceInfo` (a resource's byte size and the file it came from), and `ResourceLease`; `NetworkPolicy`, `NetworkTransport`, `probeNetworkCache()` and `seedNetworkCache()` — inspect or populate the persistent cache by URL without constructing its filenames or contacting a server; `Feed`, `Arrival`, `OpenedFeed` and `FeedTransport` — a resource that keeps arriving, opened through the hub's `feed()` and moved forward by its `dispatch()`; `DispatchLease` and `Hub::onDispatch()` — a callback the same `dispatch()` drives, for as long as the lease lives; `RecordingWriter` and `readRecording()`, the format a feed records itself in; and `TextCatalog`, the stock value over the hub that a directory of authored shaders is |
-| `SigilIOTransport` | `transport/Transport.h` | `registerUdp()`, `registerWebSocket()`, `registerWebSocketClient()` and `registerTransports()` — the UDP transport, one socket per feed on a thread of its own, answering to udp:// and, for messages that are OSC packets, to osc://; the WebSocket listener, one of them per feed on a loop of its own, answering to ws:// and, where that URI's query names a directory of pages, answering HTTP GET out of it on the same port; and the WebSocket client over libcurl, one session per feed on a thread of its own, which is what ws:// and wss:// open when the URI names a server to call rather than a port to hold; either listener fills `OpenedFeed::sendTo`, so a listening feed answers the one sender an arrival names through `Feed::sendTo()`; linked by a consumer that opens network feeds and by no other |
+| `SigilIOTransport` | `transport/Transport.h` | `registerUdp()`, `registerWebSocket()`, `registerWebSocketClient()`, `registerSharedMemory()` and `registerTransports()`, with `SharedMemoryWriter` beside them — the UDP transport, one socket per feed on a thread of its own, answering to udp:// and, for messages that are OSC packets, to osc://; the WebSocket listener, one of them per feed on a loop of its own, answering to ws:// and, where that URI's query names a directory of pages, answering HTTP GET out of it on the same port; the WebSocket client over libcurl, one session per feed on a thread of its own, which is what ws:// and wss:// open when the URI names a server to call rather than a port to hold; and the shared memory reader, answering to shm://, which is a region another process on this machine wrote and no socket at all, with the writer's end of such a region standing beside it; either listener fills `OpenedFeed::sendTo`, so a listening feed answers the one sender an arrival names through `Feed::sendTo()`; linked by a consumer that opens a feed over a wire or over a region, and by no other |
 
 `SigilIO` is the umbrella target over the source and the hub, and
 `<sigilio/IO.h>` the umbrella header; the transport feature stands
@@ -124,7 +124,7 @@ its own, and a reader on any thread never waits.
 #include <sigilio/hub/Feed.h>
 #include <sigilio/transport/Transport.h>
 
-sigil::io::registerTransports(hub);                  // udp://, osc://, ws://, wss://
+sigil::io::registerTransports(hub);                  // udp://, osc://, ws://, wss://, shm://
 auto scene = hub.feed("udp://:27020");               // std::shared_ptr<sigil::io::Feed>
 if (auto newest = scene->latest())                   // the newest message; generation() counts them
   draw(*newest);
@@ -140,6 +140,8 @@ browsers->send(frame);                               // …and one send goes out
 auto staged = hub.feed("ws://:8848/sky?pages=res://sky");  // …and GET serves that directory
 auto studio = hub.feed("wss://sky.example:443/scene");  // the same scheme calling out: a server to reach
 studio->send(frame);                                 // …the one peer it dialled, whose messages arrive
+auto handed = hub.feed("shm://scene");               // a region another process on this machine wrote
+auto watched = hub.feed("shm://scene?rate=240");     // …read that many times a second, 120 by default
 scene->record(outDir / "scene.feed");                // every arrival from now on, to a recording
 hub.mount("udp://:27020", outDir / "scene.feed");    // the next feed() on that URI replays the file
 hub.dispatch(seconds);                               // once per frame: recordings advance to this time
@@ -335,6 +337,61 @@ answered before its server has been reached, `error()` carries the
 reason when it cannot be, and a `send()` before then goes nowhere and
 says so. A server that ends the session closes the feed.
 
+`registerSharedMemory()` takes `shm://`, and it is the one transport
+here with no network under it. `shm://NAME` maps the shared memory
+object of that name and answers what the ONE writer of that region put
+there, so a scene crosses from another process on this machine through
+memory both of them have mapped, with no socket beneath it and no kernel
+on the way. A region opens with a fixed header of sixty-four bytes — the
+sixteen bytes `sigil-shared-1` and its padding, then the capacity the
+region was made for, a field left spare, a count of the messages written
+into it, the size of the one standing now, and the wall-clock nanosecond
+it was written at — and the payload begins where that header ends. Every
+number stands at a fixed offset in the byte order of the machine both
+ends run on, so a writer in another language is a structure definition
+and not a library.
+
+THE COUNT IS THE WHOLE PROTOCOL. The writer raises it to an odd number
+before it touches the payload and to the next even one once the message
+is whole; a reader copies the payload between two reads of that count
+and keeps what it copied only when both reads are the same even number.
+So a reader never takes half of one message and half of the next, and a
+writer is never held up by a reader that is mid-copy: the two ends share
+no lock and neither of them makes a system call to speak. What says a
+message is NEW is the count and not what the message says, so the same
+bytes written twice are two arrivals.
+
+NOTHING PUSHES, SO THE FEED LOOKS. `shm://NAME?rate=HERTZ` reads the
+region a whole number of times a second, 120 times where the URI names
+no rate, and every message left standing between two looks is one
+arrival — while a message written and written over between them is one
+the reader missed rather than one it queued, a region holding the
+message that stands NOW and no backlog. Every arrival names the region
+as its sender, spelled `shm://NAME` exactly as the `address()` the feed
+reports is, the rate being the reader's own arrangement and no part of
+what the region is called, as a listener's pages are no part of the path
+its peers reach. The mapping is read-only and there is no way back
+through it, so `send()` and `Feed::sendTo()` are both false on such a
+feed: a scene that must answer holds another door for that. A region no
+writer has made, one smaller than its own header, one whose first bytes
+are not this layout's, and one claiming more payload than it has room
+for, open nothing and leave the reason on the feed.
+
+`SharedMemoryWriter` is the other end, for a tool or a test written in
+this language — a writer in any other needs the layout and nothing else.
+Constructing one takes a region's name and a capacity and makes that
+object, replacing whatever stood under the name, sized to hold that many
+payload bytes;
+`SharedMemoryWriter::write` puts one message in it and is false for a
+message larger than that capacity, a message being written whole or not
+at all; `SharedMemoryWriter::open` says whether the region stands; and
+destruction unmaps the region and takes the name back, after which a
+reader opening that name finds nothing while one that already mapped it
+goes on reading the message it holds. ONE WRITER PER REGION, a region
+carrying one count and not one per writer. And a writer stands BEFORE
+its readers: a feed maps what is there when it opens, so a region made
+afterwards is a region that feed never sees.
+
 A **recording** is a feed written down: `record(path)` appends every
 arrival from then on, with the seconds since the feed was made, in the
 format `RecordingWriter` writes and `readRecording()` reads. A URI that
@@ -467,9 +524,14 @@ blocks runs, while curl remains a hard requirement to configure. `SigilIOTranspo
 uWebSockets and `CURL::libcurl` privately — the last one for the
 websocket client, which is also where the TLS a `wss://` feed is carried
 over comes from, the sockets a listener stands on being built without
-any: its header names a hub and a scheme and nothing of
-the socket behind them, so a consumer that opens a feed inherits no
-executor, no event loop and no Boost. `SigilIOSource` itself depends on
+any. The shared memory reader adds nothing to that line: a region is
+what the platform itself names, and the looks at one run on a thread of
+the same private kind the datagram sockets stand on — one for every
+region a registration opens, made when the first of them opens. Its
+header names a hub, a scheme
+and a region's own writer, and nothing of the socket or the mapping
+behind them, so a consumer that opens a feed inherits no executor, no
+event loop and no Boost. `SigilIOSource` itself depends on
 nothing beyond the standard library, so a decoder or an encoder library
 can speak the byte vocabulary without inheriting the hub, libcurl or any
 codec.
@@ -548,17 +610,24 @@ decoded view per call and `resolve` per URI against the mount table — the
 disk kept out of every timed loop); `SigilIOTransport` (static
 library, `transport/` — the UDP transport and the one thread its
 sockets run on, behind the private `transport/IoThread.h`, the
-WebSocket listener and the loop each one holds, and the WebSocket client
-and the session each of its feeds runs on a thread of its own) with
+WebSocket listener and the loop each one holds, the WebSocket client
+and the session each of its feeds runs on a thread of its own, and the
+shared memory reader, whose looks run on a thread of that same private
+kind) with
 `transport/test/`, whose `IOUdp` suite binds real ports on the loopback
 and sends its own datagrams through raw sockets, whose `IOWebSocket`
 suite does the same with a websocket peer it writes out by hand, upgrade
 request and masked frames and all, and with one plain HTTP request for
 the pages a listener's query stands that same port over — which a case
 may do to prove what the listener answers, while a transport stands on a
-library that speaks the protocol instead — and whose `IOWebSocketClient` suite calls a
+library that speaks the protocol instead — whose `IOWebSocketClient` suite calls a
 listener this same process is holding, so both ends of a session stand in
-one binary; and `SigilIO`, the umbrella over the source and the hub.
+one binary, and whose `IOSharedMemory` suite writes the regions it
+reads through `SharedMemoryWriter`, so both ends of a region do too —
+one of its cases writing without pause from a thread of its own while
+another reads, which is the only way the count that brackets a message
+can be shown to work; and `SigilIO`, the umbrella over the source and
+the hub.
 
 There is one test binary, `io_test`, built from every feature's `test/`
 directories, and ctest discovers one entry per CASE out of it, so a

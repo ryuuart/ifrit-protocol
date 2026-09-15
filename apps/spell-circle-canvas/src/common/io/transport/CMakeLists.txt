@@ -1,9 +1,14 @@
 # The transports a feed is opened through: UDP over Boost.Asio, one
 # socket per feed and one thread every socket of a registration shares;
 # WebSocket over uWebSockets, one listener per feed on a loop of its own;
-# and the WebSocket client over libcurl, one session per feed on a thread
+# the WebSocket client over libcurl, one session per feed on a thread
 # of its own, which is what ws:// and wss:// open when the URI names a
-# server to call rather than a port to hold.
+# server to call rather than a port to hold; and the shared memory
+# reader, which carries no stack at all — a region another process on
+# this machine mapped, looked at on a timer that shares the UDP
+# transport's kind of thread. POSIX is what a region is made of here,
+# so it needs nothing found beside it; Windows would carry a file of its
+# own behind the same door.
 #
 # Every stack is PRIVATE: the header names a Hub and a scheme and
 # nothing of the network behind them, so a consumer that opens a feed
@@ -17,19 +22,23 @@ find_package(boost_asio CONFIG REQUIRED)
 find_package(unofficial-uwebsockets CONFIG REQUIRED)
 find_package(CURL CONFIG REQUIRED)
 sigil_library(SigilIOTransport
-  SOURCES Udp.cpp WebSocket.cpp WebSocketClient.cpp IoThread.cpp IoThread.h
+  SOURCES Udp.cpp WebSocket.cpp WebSocketClient.cpp SharedMemory.cpp
+          IoThread.cpp IoThread.h
   HEADERS Transport.h
   PUBLIC SigilIOHub
   PRIVATE Boost::asio unofficial::uwebsockets::uwebsockets CURL::libcurl)
 
 # What the transports promise: the port a URI binds, the server a URI
-# calls, the bytes that arrive through either, who sent them, the peer or
-# peers a sending feed reaches, and what a URI nobody can open leaves on
-# its feed. The cases send their own datagrams, hold their own ports and
-# speak the websocket handshake by hand through raw Asio sockets, which
-# is the test's own use of Boost and not one it inherits; the client's
-# cases call a listener this same process is holding, so both ends of a
-# session stand in one binary.
+# calls, the region a URI maps, the bytes that arrive through any of
+# them, who sent them, the peer or peers a sending feed reaches, and
+# what a URI nobody can open leaves on its feed. The cases send their
+# own datagrams, hold their own ports and speak the websocket handshake
+# by hand through raw Asio sockets, which is the test's own use of Boost
+# and not one it inherits; the client's cases call a listener this same
+# process is holding and the region's cases write the region they read,
+# so both ends of a session and both ends of a region stand in one
+# binary.
 sigil_test(io_test
   SOURCES test/UdpTest.cpp test/WebSocketTest.cpp test/WebSocketClientTest.cpp
+          test/SharedMemoryTest.cpp
   LIBRARIES SigilIOTransport Boost::asio)

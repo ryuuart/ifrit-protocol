@@ -400,6 +400,7 @@ void registerTransports(Hub& hub) {
   // to it, so the order is what makes both forms open.
   registerWebSocket(hub);
   registerWebSocketClient(hub);
+  registerSharedMemory(hub);
 }
 
 }  // namespace sigil::io
