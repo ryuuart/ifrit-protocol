@@ -1,5 +1,6 @@
 #include "WindowChrome.h"
 #import <AppKit/AppKit.h>
+#include <QGuiApplication>
 #include <QQuickWindow>
 
 /** Subclass exists only so repeat applyVibrancy() calls can recognize the
@@ -10,8 +11,14 @@
 @implementation IfritVibrancyView
 @end
 
+/** Whether the windows this process opens are AppKit's. winId() is only
+ *  an NSView on the Cocoa platform; on any other, the offscreen platform a
+ *  photographed run uses among them, it is a handle that is no pointer at
+ *  all, and sending it a message ends the process. */
+static bool onCocoa() { return QGuiApplication::platformName() == "cocoa"; }
+
 bool WindowChrome::setSubtitle(QQuickWindow *window, const QString &subtitle) {
-  if (!window) return false;
+  if (!window || !onCocoa()) return false;
   // NOLINTNEXTLINE(performance-no-int-to-ptr): Qt hands the view over as an integer
   auto *contentView = reinterpret_cast<NSView *>(window->winId());
   if (!contentView || !contentView.window) return false;
@@ -23,7 +30,11 @@ bool WindowChrome::setSubtitle(QQuickWindow *window, const QString &subtitle) {
 }
 
 bool WindowChrome::applyVibrancy(QQuickWindow *window) {
-  if (!window) return false;
+  if (!window || !onCocoa()) return false;
+  // Escape hatch for debugging compositing issues: opaque palette-driven
+  // windows instead of the glass background. Checked before the native
+  // window is reached for, so it holds wherever the reach would fail.
+  if (qEnvironmentVariableIsSet("IFRIT_NO_VIBRANCY")) return false;
 
   // winId() forces platform-window creation for windows that are not yet
   // visible (the settings window starts hidden), so the NSWindow exists.
@@ -32,10 +43,6 @@ bool WindowChrome::applyVibrancy(QQuickWindow *window) {
   if (!contentView) return false;
   NSWindow *nativeWindow = contentView.window;
   if (!nativeWindow) return false;
-
-  // Escape hatch for debugging compositing issues: opaque palette-driven
-  // windows instead of the glass background.
-  if (qEnvironmentVariableIsSet("IFRIT_NO_VIBRANCY")) return false;
 
   nativeWindow.opaque = NO;
   nativeWindow.backgroundColor = NSColor.clearColor;
