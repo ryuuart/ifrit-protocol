@@ -667,6 +667,19 @@ with: `Receiver --list` says what is being offered, `Receiver <name>`
 opens a window on it and `Receiver <name> --grab <png>` writes its newest
 frame to a file.
 
+**Frames come the other way too.** `sigil::sketch::Guest`, from
+`<sigilsketch/canvas/Guest.h>`, is the same door read from the inside of
+a sketch: made from the context and the name a publication announces, it
+answers with the newest frame as an image on the recorder the canvas is
+being drawn on — one wrap per frame that arrived, and null while nothing
+is publishing. `sigil::sketch::Guest::publishing` and
+`sigil::sketch::Guest::application` are what a scene says about the
+publication it is wearing, and `guest_picture` is the sketch that wears
+one. A capture subscribes to nothing at all: what another application
+happens to be offering while a still is taken is not a function of the
+sketch that took it, so a plate of such a scene is what it draws with
+nobody publishing.
+
 What travels is the texture the frame was drawn into, so publishing
 wants the window on Graphite. On the CPU raster fallback there is no
 texture of this window's to offer, and the flag is REFUSED rather than
@@ -1433,7 +1446,7 @@ src/sketch/
   live/       the reload engine, the resident set and the sweep's cadence
   scry/       the opt-in shared Ultralight engine a web sketch borrows
   plate/      the headless sweep, the montage, the plate comparison, the thumbnail store
-  publish/    the door a drawn frame leaves by, and Receiver, which subscribes to one
+  publish/    both ends of the door a frame goes through, and Receiver over the subscription
   book/       Sketchbook: the app, and the headless entry point, with the browser's rows
   cmake/      SketchLinkSurface.cmake, the link surface a reloaded sketch is read against
   test/       support/, the fixtures every feature's cases share
@@ -1448,7 +1461,7 @@ keeps its headers under `include/sigilsketch/canvas/` and its own
 |---|---|---|
 | `SigilSketch` | static archive | `core/`, `canvas/`, `set/`, `live/`, `plate/`, and `scry/` where the SDK is installed: the registry, the two runtimes, the reload engine and the headless renderer. Links no device backend and no Qt. |
 | `SigilSketchKit` | static archive | the sheet a sketch stands on, over the canvas runtime alone |
-| `SigilSketchPublish` | static archive | `publish/`: the door a drawn frame leaves by. Knows no window, no toolkit and no drawing; `publish/README.md` is its canon |
+| `SigilSketchPublish` | static archive | `publish/`: both ends of the door a frame goes through — the publisher a host offers its texture over, and the subscription another application's frames arrive by. Knows no window, no toolkit and no drawing; `publish/README.md` is its canon |
 | `SigilSketches` | object library | every sketch, and the one place the sketch API surface is stated |
 | `Sketchbook` | application bundle | the host: the window, the browser's rows, and every headless entry |
 | `Receiver` | application bundle | `publish/receiver/`: the subscriber, so a publication can be watched in a window or grabbed to a PNG — macOS only, and `publish/README.md` is its canon too |
