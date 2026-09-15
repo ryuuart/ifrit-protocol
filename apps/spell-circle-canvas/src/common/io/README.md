@@ -966,11 +966,17 @@ a self-signed certificate and the key that goes with it into its own
 scratch directory with OpenSSL and the call reaches the pair the way a
 machine on a stage is reached, and a case that could make no pair says so
 rather than passing — and whose `IOWebRtc` suite
-gives each end a hub of its own — which is what two machines are inside
-one process — takes a port with a raw acceptor and gives it straight
-back to name one in a URI both ends spell, and dispatches every hub on
-every look, an introduction crossing on the frame; and `SigilIO`, the
-umbrella over the source and the hub.
+STARTS A PEER IN A PROCESS OF ITS OWN — this same binary, run again on
+the one case of `IOWebRtcPeer`, which takes the room up, keeps saying
+what its environment told it to say and echoes back whatever it hears —
+because a door with nothing in the middle of it has its two ends on two
+machines, and two ends inside one process would share the one thread
+every end's routes are found on; it takes a port with a raw acceptor and
+gives it straight back to name one in the URI both ends spell, and
+dispatches on every look, an introduction crossing on the frame. Its
+peer case is skipped where no room was named for it, which is what a
+sweep of the whole binary does with it; and `SigilIO`, the umbrella over
+the source and the hub.
 
 There is one test binary, `io_test`, built from every feature's `test/`
 directories, and ctest discovers one entry per CASE out of it, so a

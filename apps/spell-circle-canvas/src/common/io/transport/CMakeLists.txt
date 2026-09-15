@@ -71,10 +71,12 @@ sigil_library(SigilIOTransport
 # the master, the feed opening the slave by the path the system named
 # it, so a board is needed for none of them. The gRPC cases call a
 # server this same process is holding, so both ends of a method stand in
-# one binary and no stub is generated for either. The WebRTC cases give
-# each end a hub of its own — which is what two machines are in one
-# process — and dispatch every one of them on every look, an
-# introduction crossing on the frame. The QUIC cases call a port this
+# one binary and no stub is generated for either. The WebRTC cases start a
+# peer in a process of their own — this same binary, run again on the
+# one case that takes a room up and echoes what it hears — because a
+# door with nothing in the middle of it has its two ends on two
+# machines, and dispatch on every look, an introduction crossing on the
+# frame. The QUIC cases call a port this
 # same process is holding, so both ends of a connection stand in one
 # binary; that port has to answer for itself, so they WRITE A CERTIFICATE
 # AND A KEY into a scratch directory of their own with OpenSSL — which

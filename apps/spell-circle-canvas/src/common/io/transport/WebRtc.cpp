@@ -282,6 +282,68 @@ struct Signal {
   DispatchLease lease;
 };
 
+/** Whether @p peer's conversation is over: its channel has ended, or
+ *  its connection found no route at all and will not find one. */
+bool peerIsOver(const Peer& peer) {
+  if (peer.gone.load(std::memory_order_acquire)) return true;
+  if (!peer.connection) return false;
+  try {
+    const rtc::PeerConnection::State standing = peer.connection->state();
+    return standing == rtc::PeerConnection::State::Closed ||
+           standing == rtc::PeerConnection::State::Failed;
+  } catch (const std::exception&) {
+    // A connection that cannot say what state it stands in is one to
+    // let go of.
+    return true;
+  }
+}
+
+/** Writes @p message on @p channel where that channel can take it, and
+ *  answers whether it went.
+ *
+ *  A CHANNEL CARRIES WHOLE MESSAGES AND CUTS NONE IN HALF, so one
+ *  larger than it takes is not written to it at all; and a peer that
+ *  left between the look and the write is misuse by the time the write
+ *  happens, which the library answers by throwing. Every call it takes
+ *  stands inside the guard, the look included. */
+bool writeOn(const std::shared_ptr<rtc::DataChannel>& channel,
+             const Bytes& message) {
+  try {
+    if (!channel->isOpen() || message.bytes.size() > channel->maxMessageSize())
+      return false;
+    channel->send(message.bytes.data(), message.bytes.size());
+    return true;
+  } catch (const std::exception&) {
+    return false;
+  }
+}
+
+/** ENDS ONE PEER: its callbacks come off, its channel closes, and its
+ *  connection after it.
+ *
+ *  EVERY CALL INTO THE LIBRARY UNDERNEATH STANDS INSIDE A GUARD. It
+ *  answers a teardown that races its own transports by throwing — a
+ *  stream shutting down over a connection whose encryption is already
+ *  gone is the usual one — and a frame must not end because a peer
+ *  did. The channel goes first so the stream is closed over a
+ *  connection that still stands. */
+void endPeer(const Peer& peer) {
+  try {
+    if (peer.channel) {
+      peer.channel->resetCallbacks();
+      peer.channel->close();
+    }
+  } catch (const std::exception&) {
+  }
+  try {
+    if (peer.connection) {
+      peer.connection->resetCallbacks();
+      peer.connection->close();
+    }
+  } catch (const std::exception&) {
+  }
+}
+
 void Door::say(detail::Introduction message, std::string to) {
   if (closed.load(std::memory_order_acquire)) return;
   const std::lock_guard<std::mutex> lock(sayingGate);
@@ -454,15 +516,9 @@ void Door::carry() {
     {
       const std::lock_guard<std::mutex> lock(peerGate);
       for (auto entry = peers.begin(); entry != peers.end();) {
-        const Peer& peer = **entry;
         // A channel that ended, and a connection that found no route at
         // all: a peer this door will hear nothing more from either way.
-        const bool over =
-            peer.gone.load(std::memory_order_acquire) ||
-            (peer.connection &&
-             (peer.connection->state() == rtc::PeerConnection::State::Closed ||
-              peer.connection->state() == rtc::PeerConnection::State::Failed));
-        if (over) {
+        if (peerIsOver(**entry)) {
           ending.push_back(std::move(*entry));
           entry = peers.erase(entry);
           continue;
@@ -470,16 +526,7 @@ void Door::carry() {
         ++entry;
       }
     }
-    for (const std::shared_ptr<Peer>& peer : ending) {
-      if (peer->channel) {
-        peer->channel->resetCallbacks();
-        peer->channel->close();
-      }
-      if (peer->connection) {
-        peer->connection->resetCallbacks();
-        peer->connection->close();
-      }
-    }
+    for (const std::shared_ptr<Peer>& peer : ending) endPeer(*peer);
   }
 
   const std::shared_ptr<Feed> through = signal ? signal->feed : nullptr;
@@ -507,25 +554,18 @@ void Door::carry() {
 
 bool Door::send(const Bytes& message) {
   if (closed.load(std::memory_order_acquire)) return false;
-  std::vector<std::shared_ptr<rtc::DataChannel>> open;
+  std::vector<std::shared_ptr<rtc::DataChannel>> channels;
   {
+    // The channels are taken out from under the lock and written to
+    // outside it: nothing of the library underneath is called while a
+    // lock of this door's is held, a connection being taken down there
+    // reaching back into this door on the thread taking it down.
     const std::lock_guard<std::mutex> lock(peerGate);
     for (const std::shared_ptr<Peer>& peer : peers)
-      if (peer->channel && peer->channel->isOpen())
-        open.push_back(peer->channel);
+      if (peer->channel) channels.push_back(peer->channel);
   }
-  for (const std::shared_ptr<rtc::DataChannel>& channel : open) {
-    // A CHANNEL CARRIES WHOLE MESSAGES AND CUTS NONE IN HALF, so one
-    // larger than a peer's channel takes is not written to that peer;
-    // and a peer that left between the look and the write is misuse by
-    // the time the write happens, which the library answers by
-    // throwing.
-    if (message.bytes.size() > channel->maxMessageSize()) continue;
-    try {
-      channel->send(message.bytes.data(), message.bytes.size());
-    } catch (const std::exception&) {
-    }
-  }
+  for (const std::shared_ptr<rtc::DataChannel>& channel : channels)
+    writeOn(channel, message);
   return true;
 }
 
@@ -535,17 +575,9 @@ bool Door::sendTo(std::string_view to, const Bytes& message) {
   {
     const std::lock_guard<std::mutex> lock(peerGate);
     for (const std::shared_ptr<Peer>& peer : peers)
-      if (peer->name == to && peer->channel && peer->channel->isOpen())
-        channel = peer->channel;
+      if (peer->name == to && peer->channel) channel = peer->channel;
   }
-  if (!channel || message.bytes.size() > channel->maxMessageSize())
-    return false;
-  try {
-    channel->send(message.bytes.data(), message.bytes.size());
-  } catch (const std::exception&) {
-    return false;
-  }
-  return true;
+  return channel && writeOn(channel, message);
 }
 
 void Door::close() {
@@ -558,16 +590,7 @@ void Door::close() {
   // With no lock held: taking a connection down runs whatever the
   // library still has in flight for it, and what is in flight delivers
   // into this door.
-  for (const std::shared_ptr<Peer>& peer : ending) {
-    if (peer->channel) {
-      peer->channel->resetCallbacks();
-      peer->channel->close();
-    }
-    if (peer->connection) {
-      peer->connection->resetCallbacks();
-      peer->connection->close();
-    }
-  }
+  for (const std::shared_ptr<Peer>& peer : ending) endPeer(*peer);
   if (signal) {
     const std::lock_guard<std::mutex> lock(signal->gate);
     for (auto entry = signal->doors.begin(); entry != signal->doors.end();) {
