@@ -30,6 +30,7 @@ class WireList : public QAbstractListModel {
   enum Field {
     UriField = Qt::UserRole + 1,
     AddressField,
+    DialectField,
     LastFromField,
     ErrorField,
     ArrivalsPerSecondField,
@@ -61,6 +62,11 @@ class WireList : public QAbstractListModel {
   struct Row {
     QString uri;
     QString address;
+    /** The word this wire's scheme speaks in; empty for a scheme there
+     *  is no word for. It is what a reader picks a row by before
+     *  anything has arrived on any of them, so it is read off the URI
+     *  and not off a message. */
+    QString dialect;
     /** Who sent the last message taken off this wire, without the
      *  scheme the URI above it already spells; empty on a wire nothing
      *  has been taken off. */

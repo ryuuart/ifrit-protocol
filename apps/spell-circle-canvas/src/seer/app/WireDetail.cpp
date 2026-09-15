@@ -1,5 +1,5 @@
 /** @file
- * The selected wire's detail, the five readings of its newest message,
+ * The selected wire's detail, the seven readings of its newest message,
  * and which of them the wire is opened on.
  */
 
@@ -34,6 +34,13 @@ int WireDetail::naturalReading() const {
   // told which one they are looking at.
   const int mark = m_uri.indexOf(QLatin1String("://"));
   const QString scheme = mark < 0 ? QString() : m_uri.left(mark);
+  if (scheme == QLatin1String("midi") && !m_midi.isEmpty()) return Midi;
+  if (scheme == QLatin1String("artnet") && !m_dmx.isEmpty()) return Dmx;
+  // A cable ends its messages at a newline, so what arrives on one is a
+  // line somebody wrote — and where it is not text it is a board
+  // speaking bytes, which is the reading that shows them.
+  if (scheme == QLatin1String("serial"))
+    return m_text.isEmpty() ? Hexadecimal : Text;
   if (scheme == QLatin1String("osc") && !m_osc.isEmpty()) return Osc;
   if (!m_json.isEmpty()) return Json;
   return Hexadecimal;
@@ -64,6 +71,8 @@ void WireDetail::show(const sigil::seer::Vitals* vitals) {
     m_text.clear();
     m_json.clear();
     m_osc.clear();
+    m_midi.clear();
+    m_dmx.clear();
     m_schema.clear();
     m_schemaNote.clear();
     m_readUri.clear();
@@ -96,13 +105,16 @@ void WireDetail::show(const sigil::seer::Vitals* vitals) {
 bool WireDetail::readMessage(const sigil::seer::Vitals& vitals) {
   if (!vitals.newest) {
     if (m_byteSize == 0 && m_hexadecimal.isEmpty() && m_text.isEmpty() &&
-        m_json.isEmpty() && m_osc.isEmpty() && m_schema.isEmpty())
+        m_json.isEmpty() && m_osc.isEmpty() && m_midi.isEmpty() &&
+        m_dmx.isEmpty() && m_schema.isEmpty())
       return false;
     m_byteSize = 0;
     m_hexadecimal.clear();
     m_text.clear();
     m_json.clear();
     m_osc.clear();
+    m_midi.clear();
+    m_dmx.clear();
     m_schema.clear();
     m_schemaNote.clear();
     m_readUri.clear();
@@ -118,6 +130,8 @@ bool WireDetail::readMessage(const sigil::seer::Vitals& vitals) {
   m_text = QString::fromStdString(sigil::seer::printableText(bytes));
   m_json = QString::fromStdString(sigil::seer::indentedJson(bytes));
   m_osc = QString::fromStdString(sigil::seer::oscReading(bytes));
+  m_midi = QString::fromStdString(sigil::seer::midiReading(bytes));
+  m_dmx = QString::fromStdString(sigil::seer::dmxReading(bytes));
   // The sentence stands only where a schema was handed over and this
   // message is not one it holds. A reader who has asked for no schema is
   // not told on every message that they have none: the disabled tab is

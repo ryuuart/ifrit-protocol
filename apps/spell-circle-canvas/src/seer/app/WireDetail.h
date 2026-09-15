@@ -2,14 +2,15 @@
 
 /** @file
  * THE WIRE BEING READ: what it is doing, and its newest message shown
- * five ways at once.
+ * seven ways at once.
  *
  * The readings are worked out when the message changes rather than when
  * they are asked for, so a wire carrying nothing new costs nothing to
  * keep on screen, and a wire carrying a message a frame is rendered
  * exactly once per message however many panes are looking at it. A
- * schema handed over is a sixth thing that can change the readings, so
- * it puts the message back up for reading as a new message would.
+ * schema handed over changes what the message says without the message
+ * moving, so it puts the message back up for reading as a new one
+ * would.
  */
 
 #include <QtQml/qqmlregistration.h>
@@ -35,13 +36,16 @@ class WireDetail : public QObject {
   /** Whether a wire is being read at all. Everything below is empty
    *  while this is false. */
   Q_PROPERTY(bool present READ present NOTIFY changed)
-  /** The newest message: how many bytes it is, and the five readings —
+  /** The newest message: how many bytes it is, and the seven readings —
    *  each empty when the message is not that. */
   Q_PROPERTY(qulonglong byteSize READ byteSize NOTIFY changed)
   Q_PROPERTY(QString hexadecimal READ hexadecimal NOTIFY changed)
   Q_PROPERTY(QString text READ text NOTIFY changed)
   Q_PROPERTY(QString json READ json NOTIFY changed)
   Q_PROPERTY(QString osc READ osc NOTIFY changed)
+  /** The message as an instrument's, and as a lighting desk's. */
+  Q_PROPERTY(QString midi READ midi NOTIFY changed)
+  Q_PROPERTY(QString dmx READ dmx NOTIFY changed)
   /** The message as the loaded schema reads it, and — where a schema is
    *  loaded and this message is not one it holds — the sentence saying
    *  what stopped it. A reader who has asked for no schema is told
@@ -58,7 +62,7 @@ class WireDetail : public QObject {
   /** THE READINGS, in the order a pane offers them: the bytes first,
    *  because every message has them, then what the message may be, and
    *  last the one a reader had to go and find a schema for. */
-  enum Reading { Hexadecimal, Text, Json, Osc, Schema };
+  enum Reading { Hexadecimal, Text, Json, Osc, Midi, Dmx, Schema };
   Q_ENUM(Reading)
 
   explicit WireDetail(QObject* parent = nullptr);
@@ -76,17 +80,21 @@ class WireDetail : public QObject {
   [[nodiscard]] QString text() const { return m_text; }
   [[nodiscard]] QString json() const { return m_json; }
   [[nodiscard]] QString osc() const { return m_osc; }
+  [[nodiscard]] QString midi() const { return m_midi; }
+  [[nodiscard]] QString dmx() const { return m_dmx; }
   [[nodiscard]] QString schema() const { return m_schema; }
   [[nodiscard]] QString schemaNote() const { return m_schemaNote; }
 
   /** THE READING A WIRE IS OPENED ON, before a reader picks one for
    *  themselves. A message the loaded schema reads is opened on that,
    *  since a reader who went and found a schema for this wire found it
-   *  to read the fields; otherwise a wire of OSC packets is opened on
-   *  the packet and every other wire on the document, each of them
-   *  falling back to the bytes when the message is not that — because
-   *  the bytes are the one reading every message has, and a pane opened
-   *  on a reading that is empty says nothing about what arrived. */
+   *  to read the fields. Otherwise the wire's own scheme chooses, it
+   *  being where a reader was told what they are looking at: an
+   *  instrument's messages, a desk's universe, a packet, the lines off a
+   *  cable, and the document on every other wire. Each of them falls
+   *  back to the bytes when the message is not that — the bytes being
+   *  the one reading every message has, and a pane opened on a reading
+   *  that is empty says nothing about what arrived. */
   [[nodiscard]] int naturalReading() const;
 
   /** Reads every message from now on through @p schema as well, which
@@ -119,6 +127,8 @@ class WireDetail : public QObject {
   QString m_text;
   QString m_json;
   QString m_osc;
+  QString m_midi;
+  QString m_dmx;
   QString m_schema;
   QString m_schemaNote;
   /** The schema the fifth reading is made through; none until one is

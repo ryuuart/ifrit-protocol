@@ -3,9 +3,14 @@
 //
 // A row is a whole wire — whether anything is coming, the URI it was
 // opened on, either the end the transport bound or the sentence saying
-// why it bound none, and the end its newest message came from. A wire
-// that could not be opened is listed like any other, because the reader
-// has to see the URI they mistyped beside what is wrong with it.
+// why it bound none, the word its scheme speaks in, and the end its
+// newest message came from. A reader picks a wire before a message has
+// arrived on any of them, so the word is there from the moment the wire
+// is opened: what it SPEAKS is a fact about the wire, while what one
+// message turned out to be is a fact about the message and is read in
+// the pane beside this one. A wire that could not be opened is listed
+// like any other, because the reader has to see the URI they mistyped
+// beside what is wrong with it.
 //
 // The schema stands here with the wires rather than with the readings
 // because it is one file over all of them, and what a reader has to see
@@ -119,6 +124,7 @@ Ui.GlassPanel {
                 required property int index
                 required property string uri
                 required property string address
+                required property string dialect
                 required property string lastFrom
                 required property string error
                 required property real arrivalsPerSecond
@@ -168,14 +174,15 @@ Ui.GlassPanel {
                             elide: Text.ElideRight
                         }
 
-                        // Who is at the other end, under where this end
-                        // stands. It is there once a message has
-                        // arrived and not before, because the sender
-                        // arrives with the message.
+                        // What the wire speaks, and who is at the other
+                        // end, under where this end stands. The word is
+                        // read off the scheme and is there from the
+                        // start; the sender arrives with the first
+                        // message and not before.
                         Label {
                             Layout.fillWidth: true
-                            visible: wire.lastFrom.length > 0
-                            text: "from " + wire.lastFrom
+                            visible: wire.dialect.length > 0 || wire.lastFrom.length > 0
+                            text: wire.dialect.length === 0 ? "from " + wire.lastFrom : wire.lastFrom.length === 0 ? wire.dialect : wire.dialect + " · from " + wire.lastFrom
                             color: Ui.Theme.disabledText
                             font.family: Ui.Theme.monospaceFontFamily
                             font.pixelSize: 11

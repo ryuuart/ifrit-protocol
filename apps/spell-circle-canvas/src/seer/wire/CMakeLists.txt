@@ -1,7 +1,7 @@
 # The wires themselves: the feeds a session has open and what each of
 # them is doing, the log of one wire's messages, the way out through a
-# peer, the recording a wire is written down to, and the five readings a
-# message is shown through.
+# peer, the recording a wire is written down to, and the seven readings
+# a message is shown through.
 #
 # PUBLIC is what the headers spell: SigilIO's feeds and its byte
 # vocabulary, and SigilData's decoders, because the schema a wire is read
@@ -45,17 +45,20 @@ add_custom_target(SigilSeerTestSchema
 # names the sender of its newest message without anyone draining it, a
 # tick reads a rate off a wire without a clock of its own, a recording
 # is a file that reads back and a wire that plays it as time moves
-# forward, and each reading of a message is empty exactly when the
-# message is not that. No toolkit: every one of them runs with no
-# application.
+# forward, each reading of a message is empty exactly when the message
+# is not that, a message a reader spells is the bytes its codec writes,
+# and a wire says what it speaks off its URI alone. No toolkit: every one
+# of them runs with no application.
 #
-# The codec is named here and not in the library: what the OSC cases
-# assert is that a reading and a spelling agree with the bytes the codec
-# itself writes, which is a claim about both and cannot be made against
-# one of them alone. The FlatBuffers runtime is named for the same
-# reason: a case builds the buffer it then reads back through a schema.
+# The codecs are named here and not in the library: what the dialect
+# cases assert is that a reading and a spelling agree with the bytes the
+# codec itself writes, which is a claim about both and cannot be made
+# against one of them alone. The FlatBuffers runtime is named for the
+# same reason: a case builds the buffer it then reads back through a
+# schema.
 sigil_test(seer_test
-  SOURCES test/OscTest.cpp test/SchemaTest.cpp test/WiresTest.cpp
+  SOURCES test/DialectTest.cpp test/OscTest.cpp test/SchemaTest.cpp
+          test/WiresTest.cpp
   LIBRARIES SigilSeerWire SigilDataDecode flatbuffers::flatbuffers
   SUPPORT_DIRS ${SEER_TEST_SCHEMA_OUT}
   DEFINITIONS SEER_TEST_SCHEMA_FILE="${SEER_TEST_SCHEMA_OUT}/seer_test.bfbs")

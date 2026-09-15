@@ -1,9 +1,12 @@
 /** @file
- * The send pane's state: reading the editor as bytes, reaching the peer,
- * and the one message or the repeat that goes out.
+ * The send pane's state: the form the peer's own dialect asks for,
+ * reading what it holds as bytes, reaching the peer, and the one message
+ * or the repeat that goes out.
  */
 
 #include "SendForm.h"
+
+#include <sigilseer/wire/Rendering.h>
 
 #include <QtCore/QByteArray>
 #include <QtCore/QChar>
@@ -11,6 +14,8 @@
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <string_view>
+#include <utility>
 
 namespace {
 
@@ -31,6 +36,26 @@ int digitOf(QChar character) {
   return -1;
 }
 
+/** WHAT THE TWO NUMBERS OF @p kind ARE CALLED, the second being empty
+ *  for a kind that carries one number. They are the names the message
+ *  itself uses, so a reader typing into the field and a reader looking
+ *  at the arrival on the other pane read one word for one thing. */
+std::pair<QString, QString> numbersOf(const QString& kind) {
+  if (kind == QLatin1String("NoteOn") || kind == QLatin1String("NoteOff"))
+    return {QStringLiteral("Note"), QStringLiteral("Velocity")};
+  if (kind == QLatin1String("PolyAftertouch"))
+    return {QStringLiteral("Note"), QStringLiteral("Pressure")};
+  if (kind == QLatin1String("ControlChange"))
+    return {QStringLiteral("Controller"), QStringLiteral("Value")};
+  if (kind == QLatin1String("ProgramChange"))
+    return {QStringLiteral("Program"), QString()};
+  if (kind == QLatin1String("Aftertouch"))
+    return {QStringLiteral("Pressure"), QString()};
+  if (kind == QLatin1String("PitchBend"))
+    return {QStringLiteral("Bend"), QString()};
+  return {QString(), QString()};
+}
+
 }  // namespace
 
 SendForm::SendForm(sigil::seer::Sender& sender, double period, QObject* parent)
@@ -46,31 +71,86 @@ void SendForm::setMessage(const QString& message) {
   if (message == m_message) return;
   m_message = message;
   emit messageChanged();
-  // A repeat is sending what the editor held when it was turned on, so
-  // an edit while it runs re-arms it with what the editor holds now.
-  if (repeating()) setRepeating(true);
+  rearmRepeat();
 }
 
 void SendForm::setHexadecimal(bool hexadecimal) {
   if (hexadecimal == m_hexadecimal) return;
   m_hexadecimal = hexadecimal;
   emit hexadecimalChanged();
-  if (repeating()) setRepeating(true);
+  rearmRepeat();
 }
 
-bool SendForm::oscPeer() const {
+QString SendForm::dialect() const {
   // The scheme is where a reader said what the other end speaks, and it
-  // is the only place that says it: the same datagram socket carries
-  // packets under one name and anything at all under the other.
-  return m_peerUri.startsWith(QLatin1String("osc://"));
+  // is the only place that says it: one datagram socket carries packets
+  // under one name, a universe of dimmers under another, and anything at
+  // all under a third.
+  const std::string_view word = sigil::seer::dialect(m_peerUri.toStdString());
+  return QString::fromUtf8(word.data(), qsizetype(word.size()));
 }
 
 void SendForm::setOscAddress(const QString& address) {
   if (address == m_oscAddress) return;
   m_oscAddress = address;
   emit oscAddressChanged();
-  // A repeat is sending the packet the address held when it was turned
-  // on, so an edit while it runs re-arms it with the address now.
+  rearmRepeat();
+}
+
+QStringList SendForm::midiKinds() const {
+  // The kinds a person plays from a form. The two a keyboard leans out
+  // are played by leaning on it rather than typed, and the messages
+  // addressed to the room instead of to a channel are not a channel's
+  // to send, so neither stands in a chooser of channel messages.
+  return {QStringLiteral("NoteOn"), QStringLiteral("NoteOff"),
+          QStringLiteral("ControlChange"), QStringLiteral("ProgramChange"),
+          QStringLiteral("PitchBend")};
+}
+
+QString SendForm::midiFirstName() const { return numbersOf(m_midiKind).first; }
+
+QString SendForm::midiSecondName() const {
+  return numbersOf(m_midiKind).second;
+}
+
+void SendForm::setMidiKind(const QString& kind) {
+  if (kind == m_midiKind) return;
+  m_midiKind = kind;
+  emit midiChanged();
+  rearmRepeat();
+}
+
+void SendForm::setMidiChannel(int channel) {
+  if (channel == m_midiChannel) return;
+  m_midiChannel = channel;
+  emit midiChanged();
+  rearmRepeat();
+}
+
+void SendForm::setMidiFirst(int number) {
+  if (number == m_midiFirst) return;
+  m_midiFirst = number;
+  emit midiChanged();
+  rearmRepeat();
+}
+
+void SendForm::setMidiSecond(int number) {
+  if (number == m_midiSecond) return;
+  m_midiSecond = number;
+  emit midiChanged();
+  rearmRepeat();
+}
+
+void SendForm::setDmxUniverse(int universe) {
+  if (universe == m_dmxUniverse) return;
+  m_dmxUniverse = universe;
+  emit dmxChanged();
+  rearmRepeat();
+}
+
+void SendForm::rearmRepeat() {
+  // A repeat is sending the message the form held when it was turned on,
+  // so an edit while it runs arms it again with what the form holds now.
   if (repeating()) setRepeating(true);
 }
 
@@ -123,13 +203,35 @@ void SendForm::refresh() {
 }
 
 std::optional<sigil::io::Bytes> SendForm::messageBytes() {
-  if (oscPeer()) {
+  const QString speaks = dialect();
+  if (speaks == QLatin1String("osc")) {
     sigil::io::Bytes packet = sigil::seer::oscMessage(
         m_oscAddress.toStdString(), m_message.toStdString());
     if (packet.bytes.empty()) {
       setNote(QStringLiteral(
           "no packet: an OSC message is an address, and arguments spelled "
           "as a JSON list"));
+      return std::nullopt;
+    }
+    return packet;
+  }
+  if (speaks == QLatin1String("midi")) {
+    sigil::io::Bytes played = sigil::seer::midiMessage(
+        m_midiKind.toStdString(), m_midiChannel, m_midiFirst, m_midiSecond);
+    if (played.bytes.empty()) {
+      setNote(QStringLiteral("no message: \"%1\" is no kind this wire carries")
+                  .arg(m_midiKind));
+      return std::nullopt;
+    }
+    return played;
+  }
+  if (speaks == QLatin1String("dmx")) {
+    sigil::io::Bytes packet =
+        sigil::seer::dmxMessage(m_dmxUniverse, m_message.toStdString());
+    if (packet.bytes.empty()) {
+      setNote(QStringLiteral(
+          "no packet: the dimmers of a universe are a JSON list of "
+          "numbers, as in [255, 128, 0]"));
       return std::nullopt;
     }
     return packet;
@@ -162,7 +264,8 @@ std::optional<sigil::io::Bytes> SendForm::messageBytes() {
 bool SendForm::reachPeer() {
   if (m_peerUri.isEmpty()) {
     setNote(QStringLiteral(
-        "no peer: a message goes to udp://host:port or osc://host:port"));
+        "no peer: a message goes to udp://host:port, osc://host:port, "
+        "artnet://host:6454 or midi://out/NAME"));
     return false;
   }
   const std::string uri = m_peerUri.toStdString();

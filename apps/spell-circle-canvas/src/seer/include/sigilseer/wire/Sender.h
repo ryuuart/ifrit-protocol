@@ -3,7 +3,15 @@
 /** @file
  * SENDING DOWN A WIRE: the peer a message goes to, one message or the
  * same message again and again, driven by the caller's own clock, and
- * the one message a reader spells rather than types out byte by byte.
+ * the messages a reader spells rather than types out byte by byte.
+ *
+ * A wire that speaks a format is answered in what it speaks. The
+ * hexadecimal a reader would otherwise type is a header, a set of type
+ * tags, a status byte or a run of padding all at once — which is a
+ * message nobody spells twice without a mistake in it — so the three
+ * wires that name their format carry the message a reader means instead:
+ * an address with its arguments, a note played on a channel, a universe
+ * of dimmers.
  *
  * The peer is a wire like any other — it is opened through Wires, it
  * stands in the same list, and what the peer sends back arrives on it —
@@ -33,11 +41,35 @@ class Wires;
  *  arguments are not a document, and when the message will not fit one
  *  packet, so half a message never goes out.
  *
- *  A wire that speaks OSC is answered in what it speaks. The
- *  hexadecimal a reader would otherwise type out is the address, the
- *  type tags and the padding between them all at once, which is a
- *  message nobody spells twice without a mistake in it. */
+ *  An address is where on the instrument at the other end the message
+ *  lands, and it is the one part of a packet that is not an argument. */
 io::Bytes oscMessage(std::string_view address, std::string_view arguments);
+
+/** THE BYTES OF ONE MIDI MESSAGE: @p kind — "NoteOn", "NoteOff",
+ *  "PolyAftertouch", "ControlChange", "ProgramChange", "Aftertouch" or
+ *  "PitchBend" — played on @p channel, 1 to 16, carrying @p first and
+ *  @p second, which are the numbers that kind takes in the order the
+ *  wire carries them: the note and how hard it was struck, the key and
+ *  the weight leaned on it, the controller and where it now stands. A
+ *  kind that takes one number — a program, a whole keyboard's weight, a
+ *  wheel's distance from centre — takes @p first and leaves @p second
+ *  off the wire.
+ *
+ *  Empty for a kind the wire has no status byte for, so half a message
+ *  never goes out. A number past what its place on the wire holds is
+ *  written at the nearer end of that place rather than wrapped, since a
+ *  wrapped note is a note nobody played. */
+io::Bytes midiMessage(std::string_view kind, int channel, int first,
+                      int second);
+
+/** THE BYTES OF ONE ART-NET PACKET: a universe of dimmers for
+ *  @p universe, whose levels @p channels spells as a JSON list of
+ *  numbers — each 0 to 255, in the order the desk numbers them, so the
+ *  channel a desk calls 1 is the first of the list. Empty when the
+ *  levels are not a list, so a desk is never sent half a universe; a
+ *  list with nothing in it is every fixture dark, which is a thing a
+ *  desk says. */
+io::Bytes dmxMessage(int universe, std::string_view channels);
 
 /** THE WAY OUT: one peer, and the message that goes to it. */
 class Sender {

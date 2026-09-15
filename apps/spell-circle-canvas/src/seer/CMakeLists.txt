@@ -25,12 +25,15 @@ add_subdirectory(app)
 # Every API name the README spells, compiled against the headers that own
 # it. SigilIO's include root is scanned because the prose names the feed
 # and the hub a wire stands on, and SigilData's because it names the
-# schema a wire is read through; both are what this library's public
-# link carries.
+# schema a wire is read through and the two codecs the dialect readings
+# are; both are what this library's public link carries. A name is
+# compiled where it is declared, so a header the prose reaches into and
+# this library's own headers do not is opened here.
 sigil_doc_probes(seer
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../common/io/include/sigilio
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/data/include/sigildata
   PRELUDES "<sigilio/hub/Feed.h>" "<sigilio/hub/Hub.h>"
-           "<sigildata/decode/FlatBuffer.h>"
+           "<sigildata/decode/FlatBuffer.h>" "<sigildata/decode/Midi.h>"
+           "<sigildata/decode/ArtNet.h>"
   LIBRARIES SigilSeerWire SigilDataDecode)

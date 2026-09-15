@@ -3,11 +3,12 @@
 //
 // The readings are tabs rather than panes side by side because they are
 // one message: a reader wants the bytes, or the text, or the document,
-// or the packet, or what a schema makes of it — never two of them at
-// once. A reading a message does not have is offered disabled, which is
-// how the pane says what the message is not, and the wire's own scheme
-// is what opens the pane on the reading that wire carries until a
-// schema is handed over, which reads before any of them.
+// or the packet, or the instrument's message, or the desk's universe, or
+// what a schema makes of it — never two of them at once. A reading a
+// message does not have is offered disabled, which is how the pane says
+// what the message is not, and the wire's own scheme is what opens the
+// pane on the reading that wire carries until a schema is handed over,
+// which reads before any of them.
 
 pragma ComponentBehavior: Bound
 
@@ -23,17 +24,13 @@ Ui.GlassPanel {
     readonly property var reading: pane.session.reading
 
     /** The reading the chosen tab asks for, falling back to the bytes
-     *  themselves, which every message has. */
+     *  themselves, which every message has. The readings stand in the
+     *  order the tabs do, which is the order the wire detail numbers
+     *  them. */
     function shownReading() {
-        if (readings.currentIndex === 4 && pane.reading.schema.length > 0)
-            return pane.reading.schema;
-        if (readings.currentIndex === 3 && pane.reading.osc.length > 0)
-            return pane.reading.osc;
-        if (readings.currentIndex === 2 && pane.reading.json.length > 0)
-            return pane.reading.json;
-        if (readings.currentIndex === 1 && pane.reading.text.length > 0)
-            return pane.reading.text;
-        return pane.reading.hexadecimal;
+        const offered = [pane.reading.hexadecimal, pane.reading.text, pane.reading.json, pane.reading.osc, pane.reading.midi, pane.reading.dmx, pane.reading.schema];
+        const chosen = offered[readings.currentIndex];
+        return chosen && chosen.length > 0 ? chosen : pane.reading.hexadecimal;
     }
 
     /** Opens the tabs on the reading the wire makes natural, which is
@@ -89,9 +86,11 @@ Ui.GlassPanel {
             }
         }
 
-        // Five readings of one message, so the control is as wide as the
-        // five words are: stretched across the pane it would read as
-        // five panes rather than as one choice. They stand in the order
+        // Seven readings of one message, so the control is as wide as
+        // the seven words are: stretched across the pane it would read
+        // as seven panes rather than as one choice. Each word is as
+        // short as the format it names, which is what keeps the row one
+        // row at the narrowest the pane goes. They stand in the order
         // the wire detail numbers them, so the reading it calls natural
         // is this index.
         TabBar {
@@ -106,15 +105,25 @@ Ui.GlassPanel {
 
             Layout.alignment: Qt.AlignLeft
 
+            // A reading the message does not have is dimmed as well as
+            // dead. The controls of this machine's own tab bar are drawn
+            // the same whether or not they can be hit, so a tab that was
+            // only dead would read as a tab the reader has not hit yet,
+            // and the pane would have no way of saying what the message
+            // is not.
             TabButton {
                 text: "Hex"
                 width: implicitWidth
+                font.pixelSize: 11
+                opacity: enabled ? 1 : 0.45
                 onClicked: readings.picked = true
             }
 
             TabButton {
                 text: "Text"
                 width: implicitWidth
+                font.pixelSize: 11
+                opacity: enabled ? 1 : 0.45
                 enabled: pane.reading.text.length > 0
                 onClicked: readings.picked = true
             }
@@ -122,6 +131,8 @@ Ui.GlassPanel {
             TabButton {
                 text: "JSON"
                 width: implicitWidth
+                font.pixelSize: 11
+                opacity: enabled ? 1 : 0.45
                 enabled: pane.reading.json.length > 0
                 onClicked: readings.picked = true
             }
@@ -129,13 +140,35 @@ Ui.GlassPanel {
             TabButton {
                 text: "OSC"
                 width: implicitWidth
+                font.pixelSize: 11
+                opacity: enabled ? 1 : 0.45
                 enabled: pane.reading.osc.length > 0
+                onClicked: readings.picked = true
+            }
+
+            TabButton {
+                text: "MIDI"
+                width: implicitWidth
+                font.pixelSize: 11
+                opacity: enabled ? 1 : 0.45
+                enabled: pane.reading.midi.length > 0
+                onClicked: readings.picked = true
+            }
+
+            TabButton {
+                text: "DMX"
+                width: implicitWidth
+                font.pixelSize: 11
+                opacity: enabled ? 1 : 0.45
+                enabled: pane.reading.dmx.length > 0
                 onClicked: readings.picked = true
             }
 
             TabButton {
                 text: "Schema"
                 width: implicitWidth
+                font.pixelSize: 11
+                opacity: enabled ? 1 : 0.45
                 enabled: pane.reading.schema.length > 0
                 onClicked: readings.picked = true
             }
