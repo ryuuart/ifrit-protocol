@@ -169,16 +169,12 @@ def main(argv=None):
         help="how long a recording runs, and how long one live cycle takes",
     )
     parser.add_argument("--host", default="127.0.0.1", help="where to send")
-    parser.add_argument(
-        "--port", type=int, default=27080, help="the port to send to"
-    )
+    parser.add_argument("--port", type=int, default=27080, help="the port to send to")
     arguments = parser.parse_args(argv)
 
     if arguments.record:
         written = write_recording(arguments.record, arguments.seconds)
-        print(
-            f"{arguments.record}: {written} messages over {arguments.seconds:g}s"
-        )
+        print(f"{arguments.record}: {written} messages over {arguments.seconds:g}s")
         return 0
 
     print(f"working the desk at {arguments.host}:{arguments.port}")
