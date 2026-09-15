@@ -4037,12 +4037,6 @@
     "unit": "ns",
     "repetitions": 4
    },
-   "BM_NetworkCacheKey": {
-    "real_ns": 86.7153830301975,
-    "cpu_ns": 86.71547331757546,
-    "unit": "ns",
-    "repetitions": 4
-   },
    "BM_Udp/64": {
     "real_ns": 1338035.9558786657,
     "cpu_ns": 1220427.4193548327,
