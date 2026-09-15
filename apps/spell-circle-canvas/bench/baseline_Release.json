@@ -2,7 +2,7 @@
  "config": "Release",
  "host": "MacBookPro.control",
  "machine": "arm64",
- "taken": "2026-09-15T13:59:13+00:00",
+ "taken": "2026-09-15T14:35:50+00:00",
  "benches": {
   "compose_bench": {
    "BM_Mount_Cold/100": {
@@ -4124,6 +4124,18 @@
    "BM_QuicDatagrams/1400": {
     "real_ns": 446136.2778522244,
     "cpu_ns": 338886.03988603665,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_WebRtc/64": {
+    "real_ns": 2483195.428448241,
+    "cpu_ns": 2133999.999999971,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_WebRtc/1400": {
+    "real_ns": 4452524.079372071,
+    "cpu_ns": 3198544.4444444505,
     "unit": "us",
     "repetitions": 4
    }

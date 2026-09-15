@@ -19,8 +19,10 @@
  * Run a Release build; Debug numbers say nothing.
  */
 
+#include <arpa/inet.h>
 #include <benchmark/benchmark.h>
 #include <fcntl.h>
+#include <netinet/in.h>
 #include <openssl/bio.h>
 #include <openssl/ec.h>
 #include <openssl/evp.h>
@@ -30,6 +32,7 @@
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Source.h>
 #include <sigilio/transport/Transport.h>
+#include <sys/socket.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -646,12 +649,131 @@ void BM_QuicDatagrams(benchmark::State& state) {
 }
 BENCHMARK(BM_QuicDatagrams)->Arg(64)->Arg(1400)->Unit(benchmark::kMicrosecond);
 
-/** NO WEBRTC ARM STANDS HERE. Both ends of one conversation inside a
- *  single process is the arrangement the library underneath that door
- *  can end the process from — which is why its cases run the far end as
- *  a process of their own — and an arm whose two ends were two
- *  processes would time the pipe between them beside the door it meant
- *  to measure. That door is proven by its suite and left out of the
- *  ledger. */
+// --------------------------------------------------------------- webrtc
+
+/** How often the end that called offers its message again while the two
+ *  are still being introduced. A message written before a channel
+ *  stands goes nowhere and says nothing about it, so one is offered on
+ *  a beat rather than on every look: what is waited on is the pair
+ *  coming good, and a look that offered nothing leaves nothing behind
+ *  it in flight when it does. */
+constexpr auto kOffer = 20ms;
+
+/** A PORT NOTHING HOLDS: one taken and given straight back. Both ends
+ *  of a conversation spell the signalling door between them — one holds
+ *  it and the other calls it — so its number has to be known before
+ *  either end is opened, which makes this the one door here that cannot
+ *  be opened at port zero and read back off the feed. Zero where this
+ *  machine offered none. */
+uint16_t freePort() {
+  const int probe = ::socket(AF_INET, SOCK_STREAM, 0);
+  if (probe < 0) return 0;
+  sockaddr_in wanted{};
+  wanted.sin_family = AF_INET;
+  wanted.sin_addr.s_addr = htonl(INADDR_ANY);
+  socklen_t room = sizeof(wanted);
+  uint16_t port = 0;
+  if (::bind(probe, reinterpret_cast<const sockaddr*>(&wanted), room) == 0 &&
+      ::getsockname(probe, reinterpret_cast<sockaddr*>(&wanted), &room) == 0)
+    port = ntohs(wanted.sin_port);
+  ::close(probe);
+  return port;
+}
+
+/** Polls @p ready with the hub dispatched on every look, or gives up.
+ *  AN INTRODUCTION CROSSES ON THE FRAME: the offer, the answer and the
+ *  addresses either end finds are carried by the call a host already
+ *  makes once a frame, so a wait that never dispatched would be waiting
+ *  on a handshake nothing was carrying. */
+bool waitDispatching(Hub& hub, const std::function<bool()>& ready) {
+  const Moment until = std::chrono::steady_clock::now() + kReach;
+  while (std::chrono::steady_clock::now() < until) {
+    hub.dispatch();
+    if (ready()) return true;
+    std::this_thread::sleep_for(1ms);
+  }
+  hub.dispatch();
+  return ready();
+}
+
+/** BOTH ENDS OF ONE CONVERSATION, standing in this process: one holds
+ *  the signalling door and the other calls it, and once the two have
+ *  found each other what crosses goes straight between them over no
+ *  server at all. What is timed is the send, the encryption and the
+ *  stream underneath it, and the thread of the library's own the
+ *  receiving feed is delivered from — the hub is dispatched to make the
+ *  pair and never inside the timed loop, what arrives on a channel
+ *  being no part of what a frame carries.
+ *
+ *  THE ONE CONSTRAINT LEFT is the arrangement itself: two ends in one
+ *  process share the single thread the library underneath finds every
+ *  end's routes on, which is a handshake this row does not time and a
+ *  process the library now survives. What the row says is what this
+ *  door carries once it stands. */
+void BM_WebRtc(benchmark::State& state) {
+  const size_t size = static_cast<size_t>(state.range(0));
+  const uint16_t port = freePort();
+  if (port == 0) {
+    state.SkipWithMessage("this machine offered no port to be introduced over");
+    return;
+  }
+  Hub hub;
+  // The door the introductions cross is a websocket one this same hub
+  // opens: a port held at the end that waits, a server called at the
+  // end that takes the room up.
+  sigil::io::registerWebSocket(hub);
+  sigil::io::registerWebSocketClient(hub);
+  sigil::io::registerWebRtc(hub);
+  const std::shared_ptr<Feed> waiting = hub.feed(
+      "webrtc://bench?signal=ws://:" + std::to_string(port) + "/signal");
+  if (!waiting->error().empty()) {
+    state.SkipWithError(waiting->error());
+    return;
+  }
+  const std::shared_ptr<Feed> calling =
+      hub.feed("webrtc://bench?signal=ws://127.0.0.1:" + std::to_string(port) +
+               "/signal");
+  if (!calling->error().empty()) {
+    state.SkipWithError(calling->error());
+    return;
+  }
+
+  const Bytes message = payloadOf(size);
+  // WHAT SAYS THE TWO HAVE FOUND EACH OTHER IS A MESSAGE CROSSING: a
+  // door takes a send whether or not it has a channel to write it on,
+  // so the end that called offers one until the end that waited has
+  // taken it.
+  const uint64_t standing = waiting->generation() + 1;
+  Moment next = std::chrono::steady_clock::now();
+  const bool stood = waitDispatching(hub, [&] {
+    if (std::chrono::steady_clock::now() >= next) {
+      next = std::chrono::steady_clock::now() + kOffer;
+      calling->send(message);
+    }
+    return waiting->generation() >= standing;
+  });
+  if (!stood) {
+    const std::string why = !calling->error().empty() ? calling->error()
+                            : !waiting->error().empty()
+                                ? waiting->error()
+                                : "neither end says why";
+    state.SkipWithError("the conversation never stood: " + why);
+    return;
+  }
+
+  const SendOne sendOne = [&](Moment) { return calling->send(message); };
+  if (!carried(waiting, sendOne)) {
+    state.SkipWithError(kNotCarried);
+    return;
+  }
+  for ([[maybe_unused]] auto iteration : state) {
+    if (!carried(waiting, sendOne)) {
+      state.SkipWithError(kNotCarried);
+      break;
+    }
+  }
+  countMessages(state, size);
+}
+BENCHMARK(BM_WebRtc)->Arg(64)->Arg(1400)->Unit(benchmark::kMicrosecond);
 
 }  // namespace

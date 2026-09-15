@@ -99,11 +99,13 @@ sigil_test(io_test
 # the cases do: a port on the loopback, a region of this machine's
 # memory, a pseudo-terminal pair, a MIDI port made rather than found,
 # and for QUIC the same self-signed pair written with the OpenSSL above.
-# WEBRTC HAS NO ARM. Both ends of one conversation inside a single
-# process is the arrangement the library under that door can end the
-# process from, which is why its cases run the far end as a process of
-# their own, and an arm across two processes would time the pipe between
-# them beside the door.
+# WEBRTC HAS ONE TOO: both ends of a conversation stand in this process,
+# introduced over a websocket door this same feature opens on a port
+# taken and given straight back, which puts two ends on the one thread
+# the library under that door finds every end's routes on — an
+# arrangement that library now survives. The pair is made before
+# anything is timed, so what the row says is what the door carries once
+# it stands.
 sigil_bench(io_bench
   SOURCES bench/TransportBench.cpp
   LIBRARIES SigilIOTransport OpenSSL::SSL OpenSSL::Crypto)
