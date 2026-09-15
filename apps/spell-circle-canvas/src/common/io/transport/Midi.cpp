@@ -22,6 +22,13 @@
  * WHAT A MESSAGE MEANS IS NOT DECIDED HERE. An arrival carries the
  * bytes the wire carried, status byte first, and the library that owns
  * the format reads them.
+ *
+ * NOTHING THE DRIVER REFUSES LEAVES THIS FILE. Every port stands on a
+ * client the system hands the process, and every instance carries an
+ * error callback: a machine that will not give a client, a port that
+ * would not open and a message the cable would not take are each a
+ * sentence on a feed, and never an exception loose in a process that
+ * asked for a controller.
  */
 
 #include <rtmidi/RtMidi.h>
@@ -30,16 +37,29 @@
 #include <cctype>
 #include <cstddef>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
+#ifdef __APPLE__
+#include <CoreMIDI/CoreMIDI.h>
+#endif
+
 #include "sigilio/hub/Feed.h"
 #include "sigilio/hub/Hub.h"
 #include "sigilio/source/Source.h"
 #include "sigilio/transport/Transport.h"
+
+#ifdef __APPLE__
+/** Gives RtMidi the one MIDI client a process holds, so that the place
+ *  where RtMidi would ask the system for a client of its own is never
+ *  reached. RtMidi exports this and declares it in no header, so the
+ *  spelling stands here. */
+void RtMidi_setCoreMidiClientSingleton(MIDIClientRef client);
+#endif
 
 namespace sigil::io {
 namespace {
@@ -127,21 +147,6 @@ bool holds(std::string_view name, std::string_view wanted) {
   return false;
 }
 
-/** Every port at this end of the cable, in the order the system lists
- *  them. A system that stops answering partway leaves what it did
- *  answer: the list is what a sentence names and what a match is looked
- *  for in, and neither is better for having nothing in it. */
-std::vector<std::string> portNames(RtMidi& midi) {
-  std::vector<std::string> names;
-  try {
-    const unsigned int count = midi.getPortCount();
-    for (unsigned int at = 0; at != count; ++at)
-      names.push_back(midi.getPortName(at));
-  } catch (const RtMidiError&) {
-  }
-  return names;
-}
-
 /** The first of @p names holding @p wanted, or nothing when none does.
  *  An empty piece is held by every name, so it answers the first port
  *  there is. */
@@ -174,6 +179,48 @@ std::string noSuchPort(std::string_view uri, Direction direction,
   return why;
 }
 
+/** Why @p uri opened nothing, the address first and the driver's own
+ *  words for it after. */
+std::string opensNothing(std::string_view uri, std::string_view why) {
+  return std::string(uri) + " opens nothing: " + std::string(why);
+}
+
+/** THE ONE MIDI CLIENT THIS PROCESS HOLDS: nothing when the system has
+ *  handed one over, here or at an earlier asking, and the system's own
+ *  number for the refusal when it would not. A machine that will not
+ *  give a client has no MIDI to give at all, and the next asking asks
+ *  again — a server that was not answering this second may be answering
+ *  the next.
+ *
+ *  workaround: RtMidi asks the system for that client from inside a
+ *  function it declares `throw()`, and hands a refusal to its own error
+ *  path, which throws whenever no error callback stands on the
+ *  instance — and none can stand there, because the instance whose
+ *  callback it would be is the one still being constructed. A throw out
+ *  of a function that promises not to throw ends the process where it
+ *  stands and unwinds nothing, so no `try` around a construction can
+ *  answer it. The client is asked for here instead, where a refusal is
+ *  a sentence, and given to RtMidi, which then never asks. */
+std::optional<std::string> clientRefusal() {
+#ifdef __APPLE__
+  static std::mutex asking;
+  static bool held = false;
+  const std::lock_guard<std::mutex> once(asking);
+  if (held) return std::nullopt;
+  MIDIClientRef client = 0;
+  const CFStringRef name =
+      CFStringCreateWithCString(nullptr, kClientName, kCFStringEncodingASCII);
+  const OSStatus made = MIDIClientCreate(name, nullptr, nullptr, &client);
+  if (name) CFRelease(name);
+  if (made != noErr)
+    return "this machine's midi server would not make a client for it (" +
+           std::to_string(made) + ")";
+  RtMidi_setCoreMidiClientSingleton(client);
+  held = true;
+#endif
+  return std::nullopt;
+}
+
 /** WHAT A CALLBACK TOUCHES, and the whole of it. The driver runs the
  *  callback on a thread of its own, so what that callback reaches is
  *  held by shared_ptr and holds the feed weakly: a feed nobody holds
@@ -190,15 +237,25 @@ struct Delivery {
   std::atomic<bool> closed{false};
 };
 
-/** THE TRANSPORT'S END OF ONE FEED: the port, and what the callback
- *  delivering through it needs.
+/** THE TRANSPORT'S END OF ONE FEED: the port, what the callback
+ *  delivering through it needs, and the last thing the driver refused.
  *
- *  The ports stand AFTER the delivery here, so they are the members
+ *  The ports stand AFTER both of those here, so they are the members
  *  destroyed first: closing a port is what stops its callbacks, and a
- *  callback reading a delivery that had already gone would be reading a
- *  door taken apart around it. */
+ *  callback reading a delivery that had already gone, or a port saying
+ *  on its way out what there was no longer anywhere to put, would be
+ *  reading a door taken apart around it. */
 struct Door {
   std::shared_ptr<Delivery> delivery = std::make_shared<Delivery>();
+
+  /** What the driver last refused, in its own words, which is what it
+   *  would otherwise have thrown. A port is opened and closed on
+   *  whatever thread asked and a message is sent from whatever thread
+   *  is sending, so the sentence is written and taken by more than
+   *  one. */
+  std::mutex saying;
+  std::string sentence;
+
   std::unique_ptr<RtMidiIn> input;
   std::unique_ptr<RtMidiOut> output;
   /** Whether the callback stands, which is what says there is one to
@@ -209,8 +266,34 @@ struct Door {
 
   ~Door() { close(); }
 
+  /** Keeps @p why until the call that caused it takes it. NOTHING HERE
+   *  MAY THROW: the driver says this from inside places it promises not
+   *  to throw from, and a throw out of such a place ends the process
+   *  where it stands. */
+  void say(const std::string& why) noexcept {
+    try {
+      const std::lock_guard<std::mutex> held(saying);
+      sentence = why;
+    } catch (...) {
+      // A sentence there was no room to keep is a sentence nobody
+      // reads, and this is not a place anything may be thrown out of.
+    }
+  }
+
+  /** What the driver refused since this was last asked, and nothing
+   *  when it refused nothing. ASKING TAKES IT: a sentence belongs to
+   *  the call that caused it, and every call here that can be refused
+   *  asks. */
+  std::string trouble() {
+    const std::lock_guard<std::mutex> held(saying);
+    return std::exchange(sentence, std::string());
+  }
+
   void close() {
     delivery->closed.store(true, std::memory_order_release);
+    // A port the system has already taken back is a port that is
+    // closed, and a port with something to say on its way out is saying
+    // it to nobody: the feed is going, which is why this ran.
     try {
       if (listening) {
         input->cancelCallback();
@@ -219,28 +302,57 @@ struct Door {
       if (input) input->closePort();
       if (output) output->closePort();
     } catch (const RtMidiError&) {
-      // A port the system has already taken back is a port that is
-      // closed. There is nothing here to say and nobody left to say it
-      // to: the feed is on its way out, which is why this ran.
     }
+    trouble();
   }
 
   bool send(const Bytes& message) {
     if (!output || message.bytes.empty()) return false;
     if (delivery->closed.load(std::memory_order_acquire)) return false;
+    // One message the driver refused is one message and not the port:
+    // the cable is still there and the next send is as good as this one
+    // was. A driver carrying an error callback says so rather than
+    // throwing, so what it said is taken here.
     try {
       output->sendMessage(
           reinterpret_cast<const unsigned char*>(message.bytes.data()),
           message.bytes.size());
     } catch (const RtMidiError&) {
-      // One message the driver refused is one message and not the port:
-      // the cable is still there and the next send is as good as this
-      // one was.
       return false;
     }
-    return true;
+    return trouble().empty();
   }
 };
+
+/** ONE THING THE DRIVER REFUSED, kept for the call that caused it. An
+ *  error callback standing on an instance is what turns that instance's
+ *  error path from a throw into a call, which is the only way a port
+ *  given back inside a destructor that promises not to throw has of
+ *  saying what went wrong.
+ *
+ *  A WARNING is not a door that did not open: it is what the error path
+ *  would have printed rather than thrown — a port already open, a name
+ *  the backend cannot set — and it is not kept. */
+void refused(RtMidiError::Type kind, const std::string& why, void* which) {
+  if (!which) return;
+  if (kind == RtMidiError::WARNING || kind == RtMidiError::DEBUG_WARNING)
+    return;
+  static_cast<Door*>(which)->say(why);
+}
+
+/** Every port at this end of the cable, in the order the system lists
+ *  them. A system that stops answering partway refused the LIST and not
+ *  the port, so its sentence is taken here and what it did answer
+ *  stands: the list is what a sentence names and what a match is looked
+ *  for in, and neither is better for having nothing in it. */
+std::vector<std::string> portNames(RtMidi& midi, Door& door) {
+  std::vector<std::string> names;
+  const unsigned int count = midi.getPortCount();
+  for (unsigned int at = 0; at != count; ++at)
+    names.push_back(midi.getPortName(at));
+  door.trouble();
+  return names;
+}
 
 /** ONE MESSAGE, ON THE DRIVER'S OWN THREAD. The delivery is COPIED out
  *  of the door, so it stands for as long as this call does however the
@@ -269,11 +381,12 @@ OpenedFeed refuse(const std::weak_ptr<Feed>& into, std::string why) {
 /** Opens one feed's port: the first port whose name holds what the URI
  *  named, or a port of that name made for other software to reach.
  *
- *  Every call into RtMidi may throw — a system with no MIDI at all, a
+ *  Every call into RtMidi may fail — a system with no MIDI at all, a
  *  port another program is holding, a machine that refuses a port made
  *  rather than found — and every one of them is the same thing to a
- *  feed: a door that did not open, with the driver's own words for
- *  why. */
+ *  feed: a door that did not open, with the driver's own words for why.
+ *  A construction says so by throwing and every call after it by
+ *  leaving a sentence on the door, so both are read. */
 OpenedFeed openFeed(std::string_view uri, const std::weak_ptr<Feed>& into) {
   const std::optional<PortWanted> wanted = parsePort(uri);
   if (!wanted)
@@ -284,12 +397,16 @@ OpenedFeed openFeed(std::string_view uri, const std::weak_ptr<Feed>& into) {
                             "and on midi://in/virtual:NAME to make a port "
                             "other software can reach");
 
+  if (const std::optional<std::string> why = clientRefusal())
+    return refuse(into, opensNothing(uri, *why));
+
   const auto door = std::make_shared<Door>();
   std::string fullName;
   try {
     if (wanted->direction == Direction::In) {
       door->input = std::make_unique<RtMidiIn>(RtMidi::UNSPECIFIED,
                                                std::string(kClientName));
+      door->input->setErrorCallback(&refused, door.get());
       // EVERY MESSAGE THE WIRE CARRIES BUT THE TWO A SCENE CANNOT USE.
       // A clock beats twenty-four times a quarter note and a sensing
       // byte arrives several times a second whether or not anybody
@@ -302,7 +419,7 @@ OpenedFeed openFeed(std::string_view uri, const std::weak_ptr<Feed>& into) {
         door->input->openVirtualPort(wanted->name);
         fullName = wanted->name;
       } else {
-        const std::vector<std::string> names = portNames(*door->input);
+        const std::vector<std::string> names = portNames(*door->input, *door);
         const std::optional<size_t> found = firstPort(names, wanted->name);
         if (!found)
           return refuse(
@@ -314,11 +431,12 @@ OpenedFeed openFeed(std::string_view uri, const std::weak_ptr<Feed>& into) {
     } else {
       door->output = std::make_unique<RtMidiOut>(RtMidi::UNSPECIFIED,
                                                  std::string(kClientName));
+      door->output->setErrorCallback(&refused, door.get());
       if (wanted->made) {
         door->output->openVirtualPort(wanted->name);
         fullName = wanted->name;
       } else {
-        const std::vector<std::string> names = portNames(*door->output);
+        const std::vector<std::string> names = portNames(*door->output, *door);
         const std::optional<size_t> found = firstPort(names, wanted->name);
         if (!found)
           return refuse(
@@ -329,9 +447,10 @@ OpenedFeed openFeed(std::string_view uri, const std::weak_ptr<Feed>& into) {
       }
     }
   } catch (const RtMidiError& trouble) {
-    return refuse(into,
-                  std::string(uri) + " opens nothing: " + trouble.getMessage());
+    return refuse(into, opensNothing(uri, trouble.getMessage()));
   }
+  if (const std::string why = door->trouble(); !why.empty())
+    return refuse(into, opensNothing(uri, why));
 
   // The address is written before anything can arrive at it: a message
   // names its sender, and the sender is this port.
@@ -352,11 +471,12 @@ OpenedFeed openFeed(std::string_view uri, const std::weak_ptr<Feed>& into) {
   door->delivery->feed = into;
   try {
     door->input->setCallback(&arrived, &door->delivery);
-    door->listening = true;
   } catch (const RtMidiError& trouble) {
-    return refuse(into,
-                  std::string(uri) + " opens nothing: " + trouble.getMessage());
+    return refuse(into, opensNothing(uri, trouble.getMessage()));
   }
+  if (const std::string why = door->trouble(); !why.empty())
+    return refuse(into, opensNothing(uri, why));
+  door->listening = true;
   return opened;
 }
 

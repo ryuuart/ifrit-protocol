@@ -9,6 +9,12 @@
  * rather than waiting for a controller to be plugged in, and every case
  * that needs one is skipped with the reason where the system does not
  * offer ports made rather than found.
+ *
+ * A MACHINE THAT WILL NOT GIVE THIS PROCESS A MIDI CLIENT cannot be
+ * arranged on purpose — the system hands one over or it does not — so
+ * what the suite shows is the other half of that rule: a machine with
+ * no MIDI to give is a sentence on a feed and a suite that skips,
+ * never an end to the binary.
  */
 
 #include <gtest/gtest.h>
@@ -72,11 +78,32 @@ std::string uniqueName(std::string_view what) {
   return "sigil-" + std::string(what) + "-" + std::to_string(pid);
 }
 
+/** Whether @p why is this machine saying it has no MIDI to give at all:
+ *  every port, made or found, stands on a client the system hands the
+ *  process, and a refusal naming that client is a machine with nothing
+ *  to open rather than one port that could not be opened. */
+bool noMidiAtAll(std::string_view why) {
+  return why.find("client") != std::string_view::npos;
+}
+
 /** WHAT A CASE NEEDS BEFORE IT CAN OPEN ANYTHING: a hub that has been
  *  taught the schemes. */
 class IOMidi : public ::testing::Test {
  protected:
   IOMidi() { sigil::io::registerTransports(hub); }
+
+  /** WHAT NO CASE HERE CAN BE RUN WITHOUT: a machine that will hand
+   *  this process a MIDI client. A port is asked for and given straight
+   *  back, and what it was refused with is read — a machine with no
+   *  client to give has no port to make and none to find either, so the
+   *  whole suite skips with the reason before any case has asserted
+   *  anything. A port refused for any other reason is left to the case
+   *  that asked, which knows whether it needed one. */
+  void SetUp() override {
+    const std::shared_ptr<Feed> asking = makePort(uniqueName("asking"));
+    if (!asking->error().empty() && noMidiAtAll(asking->error()))
+      GTEST_SKIP() << "this machine has no midi to give: " << asking->error();
+  }
 
   /** A port of this machine's own, made rather than found, for the
    *  cases that would otherwise need a controller plugged in. Nothing
@@ -92,7 +119,7 @@ TEST_F(IOMidi, AMessageCrossesFromAPortToTheInputThatOpenedItByName) {
   const std::string name = uniqueName("keys");
   const std::shared_ptr<Feed> keys = makePort(name);
   if (!keys->error().empty())
-    GTEST_SKIP() << "this machine offers no port made rather than found: "
+    GTEST_SKIP() << "this machine will not give this case a port of its own: "
                  << keys->error();
   EXPECT_TRUE(keys->address().starts_with("midi://out/")) << keys->address();
 
@@ -133,7 +160,7 @@ TEST_F(IOMidi, AnInputIsOneWay) {
   const std::string name = uniqueName("oneway");
   const std::shared_ptr<Feed> made = makePort(name);
   if (!made->error().empty())
-    GTEST_SKIP() << "this machine offers no port made rather than found: "
+    GTEST_SKIP() << "this machine will not give this case a port of its own: "
                  << made->error();
 
   std::shared_ptr<Feed> pads;
@@ -203,7 +230,7 @@ TEST_F(IOMidi, DroppingTheLastHolderOfAFeedGivesUpItsPort) {
   {
     const std::shared_ptr<Feed> made = makePort(name);
     if (!made->error().empty())
-      GTEST_SKIP() << "this machine offers no port made rather than found: "
+      GTEST_SKIP() << "this machine will not give this case a port of its own: "
                    << made->error();
     std::shared_ptr<Feed> pads;
     ASSERT_TRUE(waitUntil([&] {
