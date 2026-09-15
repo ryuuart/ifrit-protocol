@@ -2,8 +2,9 @@
  *  a value written and read back field for field, a union through each
  *  alternative and through none, a table field that is absent and one
  *  that is there, a vector of tables, the root's own JSON form both
- *  ways, bytes that are not this schema at all, and the sheet the
- *  buffer cases read coming back as a value.
+ *  ways, bytes that are not this schema at all, the sheet the buffer
+ *  cases read coming back as a value, and every table reachable through
+ *  the trait a reader that names the value asks by.
  */
 
 #include <flatbuffers/flatbuffers.h>
@@ -268,6 +269,27 @@ TEST(DataValues, TheSheetTheBufferCasesReadComesBackAsAValue) {
   ASSERT_EQ(2u, twice->readings.size());
   EXPECT_EQ("c", twice->readings[1].name);
   EXPECT_FLOAT_EQ(-1.0f, twice->readings[1].value);
+}
+
+TEST(DataValues, EveryTableIsReadableThroughItsOwnTrait) {
+  namespace trait = sigil::data::values;
+
+  // One reading per TABLE and none for a struct, which travels inline
+  // inside a table and is never a root; a type from outside a schema
+  // has none either, so a door handed one does not compile.
+  static_assert(trait::Readable<values::Log>);
+  static_assert(trait::Readable<values::Sheet>);
+  static_assert(trait::Readable<sheet::Sheet>);
+  static_assert(!trait::Readable<values::Span>);
+  static_assert(!trait::Readable<int>);
+
+  // And the trait reads what the reading beside it reads, refusal
+  // included.
+  const std::vector<std::byte> bytes = values::writeLog(aLog());
+  const std::optional<values::Log> back = trait::Read<values::Log>::from(bytes);
+  ASSERT_TRUE(back);
+  EXPECT_TRUE(aLog() == *back);
+  EXPECT_FALSE(trait::Read<values::Log>::from(std::span<const std::byte>()));
 }
 
 }  // namespace

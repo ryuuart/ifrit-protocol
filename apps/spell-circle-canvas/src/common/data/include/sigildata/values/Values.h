@@ -25,6 +25,12 @@
  * Reading a table that is already inside a verified buffer runs no
  * second verification.
  *
+ * A VALUE'S OWN READING IS NAMED ONCE. `Read<Value>` is the seam a
+ * generated header specializes: it says how that value is read out of
+ * bytes, so a reader that names the value type reaches the reading
+ * without naming it, and a door templated over the value compiles
+ * against this header alone.
+ *
  * Of flatbuffers this opens the buffer's own header alone — the
  * builder, the verifier, the vector and the string — because a value is
  * read off those and written back through them. Nothing here knows a
@@ -33,6 +39,7 @@
 
 #include <flatbuffers/flatbuffers.h>
 
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -116,10 +123,10 @@ std::vector<Enumerated> readEnums(const flatbuffers::Vector<Stored>* from) {
 
 /** ONE VALUE AN ENTRY, for a vector whose entries always read — a
  *  vector of structs, which have no absent form. Absent is empty. */
-template <class Element, class Read>
-auto readEach(const flatbuffers::Vector<Element>* from, Read read) {
+template <class Element, class ReadEntry>
+auto readEach(const flatbuffers::Vector<Element>* from, ReadEntry read) {
   using Entry = typename flatbuffers::Vector<Element>::return_type;
-  std::vector<std::invoke_result_t<Read, Entry>> out;
+  std::vector<std::invoke_result_t<ReadEntry, Entry>> out;
   if (!from) return out;
   out.reserve(from->size());
   for (const Entry each : *from) out.push_back(read(each));
@@ -130,10 +137,10 @@ auto readEach(const flatbuffers::Vector<Element>* from, Read read) {
  *  one of which may have left a required field out. Nothing when any
  *  entry refuses, because half a vector is not the vector the buffer
  *  claimed to carry; absent is the empty vector. */
-template <class Element, class Read>
-auto readEachOrNone(const flatbuffers::Vector<Element>* from, Read read) {
+template <class Element, class ReadEntry>
+auto readEachOrNone(const flatbuffers::Vector<Element>* from, ReadEntry read) {
   using Entry = typename flatbuffers::Vector<Element>::return_type;
-  using Answer = std::invoke_result_t<Read, Entry>;
+  using Answer = std::invoke_result_t<ReadEntry, Entry>;
   using Value = typename Answer::value_type;
   std::optional<std::vector<Value>> out(std::in_place);
   if (!from) return out;
@@ -212,5 +219,29 @@ auto writeEach(flatbuffers::FlatBufferBuilder& into,
   for (const Value& one : value) each.push_back(write(into, one));
   return into.CreateVector(each);
 }
+
+/** HOW ONE VALUE IS READ OUT OF BYTES, for a reader that names the
+ *  value and not the reading. A specialization declares
+ *
+ *      static std::optional<Value> from(std::span<const std::byte> bytes);
+ *
+ *  which verifies the bytes against that value's root and answers
+ *  nothing where they are not it. A generated header writes one for
+ *  every table of its schema, beside the reading it stands on.
+ *
+ *  The primary template is left UNDEFINED, so a value nobody wrote a
+ *  reading for is a name that cannot be completed rather than a reading
+ *  that always answers nothing. */
+template <class Value>
+struct Read;
+
+/** Whether Value has a reading of its own, which is what a door asks of
+ *  the type it is handed before it reads a message as one. A struct has
+ *  none — it travels inline inside a table and is never a root — and
+ *  neither has a type from outside a schema. */
+template <class Value>
+concept Readable = requires(std::span<const std::byte> bytes) {
+  { Read<Value>::from(bytes) } -> std::same_as<std::optional<Value>>;
+};
 
 }  // namespace sigil::data::values

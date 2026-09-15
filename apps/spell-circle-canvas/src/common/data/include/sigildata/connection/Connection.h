@@ -38,6 +38,22 @@
  * form whichever form the sender wrote and a message that does not FIT
  * the schema is no message at all.
  *
+ * AND A TYPED DOOR OVER BOTH. `latest<Sky>()` hands out the newest
+ * message as the value type the schema's generated VALUE header
+ * declares, read through that header's own reading:
+ *
+ *     namespace sky = feed_sky::values;    // what that schema generated
+ *     Connection door(hub, "udp://:27022", schema<feed_sky::Sky>());
+ *     ...
+ *     hub.dispatch(seconds);               // the frame: the door fills
+ *     if (const std::optional<sky::Sky> state = door.latest<sky::Sky>())
+ *       for (const sky::Band& band : state->bands) draw(band);
+ *
+ * so a scene draws from a field of a value rather than from a lookup by
+ * name, and a message that is not that value is nothing rather than a
+ * reading of whatever it was. It reads the bytes the same dispatch left,
+ * so the typed reading and the Json one are readings of ONE frame.
+ *
  * ONE THREAD. The value, the queue and the handlers are written and
  * read on the dispatching thread — the frame's — so a connection holds
  * no lock of its own; the feed underneath is the thread-safe part, and
@@ -49,14 +65,18 @@
 
 #include <sigildata/decode/FlatBuffer.h>
 #include <sigildata/decode/Json.h>
+#include <sigildata/values/Values.h>
 #include <sigilio/hub/Feed.h>
+#include <sigilio/source/Source.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace sigil::io {
 // The door is opened on a hub, which a consumer of this header names
@@ -125,6 +145,44 @@ class Connection {
    *  speaking the wrong language cannot blank a scene. Inside a handler
    *  it is the message that handler was given. */
   const Json& latest() const;
+
+  /** THE NEWEST MESSAGE AS A VALUE OF ITS OWN: the newest bytes that
+   *  arrived, read through the reading the schema's generated value
+   *  header wrote for Value — `door.latest<sky::Sky>()`, where that
+   *  header put `Sky` in the schema's own `values` namespace. So a
+   *  scene draws from a field of a value, `state->bands`, rather than
+   *  from a lookup by name, and a message that is not that value is
+   *  nothing rather than a reading of whatever it was.
+   *
+   *  Nothing before the first arrival, where the bytes are not that
+   *  value, and on a connection onto nothing.
+   *
+   *  BOTH FORMS STILL READ. Where this door was opened with a schema
+   *  and the newest bytes are that schema's JSON form — read from the
+   *  door's name where it ends `.json`, and otherwise from the first
+   *  byte that is not a space — they go through the schema first, so a
+   *  sender speaking JSON hands out the same value as one speaking the
+   *  buffer.
+   *
+   *  THE FRAME IS WHAT READS. What is decoded is the newest bytes the
+   *  last dispatch took off the feed — latestBytes() below — held there
+   *  whether or not they were a message in this door's scheme, since a
+   *  buffer arriving at a door read as JSON text is no Json message and
+   *  is still the value its sender wrote. So a delivery the dispatch
+   *  has not taken yet is nothing here exactly as it is nothing to
+   *  latest(), and every reading a frame takes agrees with every other.
+   *
+   *  IT IS A READING AND NOT A CACHE. Those bytes are decoded every
+   *  time this is asked and no value is held between two asks, so a
+   *  scene that asks once a frame pays that reading once a frame —
+   *  which is the value it draws from anyway.
+   *
+   *  THERE IS NO TYPED READING OF ONE NAME. A name is read off the
+   *  value a message decoded to and the latch under it holds that Json;
+   *  a buffer carries no name of that kind, so a door whose messages
+   *  are values is read whole. */
+  template <values::Readable Value>
+  std::optional<Value> latest() const;
 
   /** THE NEWEST MESSAGE NAMED @p what; a null value until one of that
    *  name has arrived, which reads through as the default of whatever
@@ -209,6 +267,20 @@ class Connection {
   /** The URI this was opened on; empty for a connection onto nothing. */
   const std::string& uri() const;
 
+  /** THE SCHEMA THIS DOOR READS AND WRITES THROUGH, as it was handed
+   *  one; a schema that is none where it was opened without one, and on
+   *  a connection onto nothing. */
+  const Schema& schema() const;
+
+  /** THE NEWEST ARRIVAL'S BYTES AS OF THE LAST DISPATCH, whole and
+   *  unread: what latest<Value>() decodes, and what a reader that wants
+   *  a wire this library has no reading for reads itself. They are
+   *  latched whether or not they were a message in this door's scheme,
+   *  so a buffer at a door read as JSON text is here even though it
+   *  reached no handler. Null before the first arrival, and on a
+   *  connection onto nothing. */
+  std::shared_ptr<const io::Bytes> latestBytes() const;
+
   /** The local end as the transport bound it, or empty. */
   std::string address() const;
 
@@ -247,5 +319,28 @@ class Connection {
   struct State;
   std::shared_ptr<State> m_state;
 };
+
+/** The frame's newest bytes read as one value. It stands in the header
+ *  rather than in the connection's one translation unit because a
+ *  template is instantiated where the value type is known, which is the
+ *  consumer's own: everything it reaches — the bytes the last dispatch
+ *  left, the schema the door was opened with, and the reading the
+ *  generated header wrote — is named in a header already. */
+template <values::Readable Value>
+std::optional<Value> Connection::latest() const {
+  const std::shared_ptr<const io::Bytes> newest = latestBytes();
+  if (!newest) return std::nullopt;
+  const Schema& through = schema();
+  // The schema's JSON form is parsed to a buffer first, so a sender
+  // that speaks it hands out the same value as one that sends the
+  // buffer; text the schema cannot hold is no value at all.
+  if (through && flatBufferLooksLikeJson(newest->asText(), uri())) {
+    const std::optional<std::vector<std::byte>> buffer =
+        through.binary(newest->asText());
+    if (!buffer) return std::nullopt;
+    return values::Read<Value>::from(*buffer);
+  }
+  return values::Read<Value>::from(newest->bytes);
+}
 
 }  // namespace sigil::data

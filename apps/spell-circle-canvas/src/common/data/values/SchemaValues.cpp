@@ -26,6 +26,12 @@
  * since the generated header already declares `Sky` there and two `Sky`
  * in one namespace is no program.
  *
+ * AND EACH TABLE'S READING IS NAMED ONCE MORE, as a specialization of
+ * the trait the values header declares, so a reader that names the
+ * VALUE type reaches the reading without naming it. Those stand outside
+ * the schema's namespace: a specialization of a template another
+ * namespace declares is written at namespace scope.
+ *
  * WHAT THIS REFUSES rather than half-answering: a fixed-size array
  * field, a vector of unions, a union alternative that is not a table, a
  * schema whose definitions do not share one namespace, and tables that
@@ -100,6 +106,12 @@ std::string namespaceOf(const flatbuffers::Namespace* space) {
  *  anything: `::schema_scene::Sky`. */
 std::string wireName(const std::string& space, const std::string& name) {
   return space.empty() ? "::" + name : "::" + space + "::" + name;
+}
+
+/** A value type as a reader outside the value namespace spells it:
+ *  `::schema_scene::values::Sky`. */
+std::string valueName(const std::string& valueSpace, const std::string& name) {
+  return "::" + valueSpace + "::" + name;
 }
 
 /** One enumerator of a union's tag enum: `::schema_scene::Message_Sky`. */
@@ -224,6 +236,9 @@ class Header {
   void writeJson(std::ostream& out, const StructDef& root);
   void writeDeclarations(std::ostream& out,
                          const std::vector<const StructDef*>& ordered);
+  void writeReadTraits(std::ostream& out,
+                       const std::vector<const StructDef*>& ordered,
+                       const std::string& valueSpace);
 
   /** Every value type that must be complete before @p def's own is. */
   std::vector<const StructDef*> needs(const StructDef& def) const;
@@ -761,6 +776,41 @@ void Header::writeJson(std::ostream& out, const StructDef& root) {
   out << "}\n\n";
 }
 
+/** HOW EACH TABLE IS READ OUT OF BYTES, for a reader that names the
+ *  value and not the reading: one specialization of the trait the
+ *  values header declares, per table.
+ *
+ *  These stand OUTSIDE the schema's own namespace, because a
+ *  specialization of a template another namespace declares has to be
+ *  written at namespace scope, and after the readings because each one
+ *  calls the reading for its table. A struct gets none: it travels
+ *  inline inside a table, is never a root, and has no reading out of
+ *  bytes to stand on. */
+void Header::writeReadTraits(std::ostream& out,
+                             const std::vector<const StructDef*>& ordered,
+                             const std::string& valueSpace) {
+  bool any = false;
+  for (const StructDef* def : ordered) {
+    if (def->fixed) continue;
+    if (!any) {
+      out << "\n// HOW EACH TABLE IS READ OUT OF BYTES, for a reader that\n"
+             "// names the value and not the reading. A specialization of a\n"
+             "// template another namespace declares stands at namespace\n"
+             "// scope, so these are written outside the schema's own\n"
+             "// namespace, after the readings each of them calls.\n";
+      any = true;
+    }
+    const std::string value = valueName(valueSpace, def->name);
+    out << "\ntemplate <>\nstruct ::sigil::data::values::Read<" << value
+        << "> {\n";
+    out << "  static std::optional<" << value << "> from(\n";
+    out << "      std::span<const std::byte> bytes) {\n";
+    out << "    return " << valueName(valueSpace, "read" + def->name)
+        << "(bytes);\n";
+    out << "  }\n};\n";
+  }
+}
+
 void Header::writeDeclarations(std::ostream& out,
                                const std::vector<const StructDef*>& ordered) {
   out << "// The readings and the writings, named before any of them is\n"
@@ -873,6 +923,8 @@ bool Header::write(std::ostream& out) {
   if (m_parser.root_struct_def_) writeJson(out, *m_parser.root_struct_def_);
 
   out << "}  // namespace " << valueSpace << "\n";
+
+  writeReadTraits(out, ordered, valueSpace);
   return true;
 }
 

@@ -310,6 +310,16 @@ reading verifies the bytes and answers nothing when they are not that
 root or when a required field is absent, and the root gets `fromJson()`
 and `toJson()` through the schema its generated header carries.
 
+Every table's reading is also named ONCE, as a specialization of
+`values::Read` — the trait a reader that names the VALUE type asks by,
+which is how a door hands out `Sky` without naming `readSky()` at the
+call site. `values::Readable` holds for a type one was written for: a
+table has a reading out of bytes and a struct has none, a struct
+travelling inline inside a table and never being a root. The
+specializations stand outside the schema's own namespace, after the
+readings they call, because a specialization of a template another
+namespace declares is written at namespace scope.
+
 The friendly header stands ON the generated one and never replaces it:
 every reading goes through a generated accessor and every writing
 through a generated builder, so the wire format is the one flatc
@@ -488,6 +498,51 @@ is bound, nothing arrives, and `Connection::error()` says so, each of
 those being a wire
 with its own spelling of every value, down to the width a number goes
 out at, and a buffer not being one of those spellings.
+
+**And a door may hand out the value itself.** `Connection::latest<Sky>()`
+is the newest message as the value type the schema's generated value
+header declares, read through the reading that header wrote for it — so
+a scene draws from a field of a value and not from a lookup by name, and
+a message that is not that value is nothing rather than a `Json`
+carrying whichever fields it happened to have.
+
+```cpp
+Connection door(hub, "udp://:27022", schema<Sky>());   // the generated root
+
+hub.dispatch(seconds);                         // the frame: the door fills
+if (const std::optional<Sky> state = door.latest<Sky>())   // the value type
+  for (const Band& band : state->bands) draw(band);        // a field, held
+```
+
+The type it is asked for is the VALUE the generated value header
+declares and not the accessor over the buffer, the two carrying one name
+in namespaces of their own — which is also why the schema the door was
+opened with names the accessor and the reading names the value.
+
+It answers nothing before the first arrival, where the bytes are not
+that value, and on a connection onto nothing. Where the door was opened
+with a schema — `Connection::schema()` is the one it holds — the
+schema's own JSON form is parsed through that schema first, so a sender
+speaking JSON hands out the same value as one sending the buffer, and
+text the schema cannot hold is no value.
+
+The frame is what reads it, as it is for every other reading here. What
+gets decoded is the newest bytes the last dispatch took off the feed —
+`Connection::latestBytes()`, the arrival whole and unread — so a
+delivery the dispatch has not taken yet is nothing here exactly as it is
+nothing to `Connection::latest()`, and a frame never sees a typed value
+newer than the message it is drawing from. Those bytes are latched
+whether or not they were a message in the door's own scheme, because a
+reading asked for a value decodes them itself: a buffer arriving at a
+door read as JSON text reaches no handler, counts as `undecodable()`,
+and is still the value its sender wrote. It is a READING and not a
+cache: those bytes are decoded every time it is asked and no value is
+held between two asks, so a scene that asks once a frame pays that
+reading once a frame, which is the value it draws from anyway. There is
+no typed reading of one NAME — a name is read off the value a message
+decoded to and the latch under it holds that `Json`, while a buffer
+carries no name of that kind — so a door whose messages are values is
+read whole.
 
 **Nothing drives it but the frame.** Opening a connection registers it
 on the hub's dispatch, so the one call a host already makes,

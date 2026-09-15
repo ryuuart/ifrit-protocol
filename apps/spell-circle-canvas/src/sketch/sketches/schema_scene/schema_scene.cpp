@@ -19,13 +19,15 @@
  * file is a new sky in the window, because a file a sketch read is
  * watched and a change re-declares it.
  *
- * AND A DOOR BESIDE THE FILE. A window also opens a feed on `kLive`,
- * and a message that arrives there and reads as an Envelope carrying a
- * Sky replaces the file's sky from then on — the same schema and the
- * same reading, off the wire instead of off the disk, verified before a
- * byte of it is read and never read twice. The door is a window's
- * alone: a capture opens nothing, so its still is the file's sky and
- * stays what it was. Nothing is sent back through it; this sketch is a
+ * AND A DOOR BESIDE THE FILE. A window also opens a connection on
+ * `kLive` through that same schema, and asks it for the newest message
+ * as an Envelope: one that carries a Sky replaces the file's sky from
+ * then on — the same schema and the same value, off the wire instead of
+ * off the disk, verified before a byte of it is read, taken on the
+ * frame's own dispatch and read once per message. Either form arrives, since
+ * the door holds the schema: a buffer, or the schema's own JSON form. The door
+ * is a window's alone: a capture opens nothing, so its still is the file's sky
+ * and stays what it was. Nothing is sent back through it; this sketch is a
  * reader.
  *
  * EDIT THESE FIRST
@@ -39,16 +41,16 @@
 
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
+#include <sigildata/connection/Connection.h>
 #include <sigildata/decode/FlatBuffer.h>
 #include <sigildraw/Pen.h>
-#include <sigilio/hub/Feed.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilio/source/Source.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 
 #include <cmath>
 #include <cstddef>
-#include <cstdint>
 #include <memory>
 #include <optional>
 #include <span>
@@ -80,15 +82,17 @@ struct SchemaScene {
    *  held. Nothing when the file is missing or does not fit. */
   std::optional<scene::Envelope> sky;
   std::string why;
-  /** A WINDOW'S DOOR onto the same schema. Null in a capture, which
-   *  opens none. */
-  std::shared_ptr<io::Feed> live;
+  /** A WINDOW'S DOOR onto the same schema, which hands out the same
+   *  value the file reads as. A connection onto nothing in a capture,
+   *  which opens none. */
+  data::Connection live;
   /** The newest message that read as an Envelope carrying a Sky, which
    *  stands in front of the file's sky once there is one. */
   std::optional<scene::Envelope> arrived;
-  /** The generation `arrived` was read at, so one message is read once
-   *  rather than on every frame. */
-  uint64_t taken = 0;
+  /** The bytes `arrived` was read out of, so one message is read once
+   *  rather than on every frame. They are the door's own and stand as
+   *  long as it holds them, which is until the next message it takes. */
+  std::shared_ptr<const io::Bytes> taken;
 
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = {1280, 720},
@@ -119,28 +123,30 @@ struct SchemaScene {
     }
     // THE DOOR A WINDOW OPENS. A capture opens none: its still is a
     // function of the files beside it, and a port is not one of those.
-    live.reset();
+    live = data::Connection();
     arrived.reset();
-    taken = 0;
-    if (!ctx.deterministic) live = ctx.assets.hub().feed(kLive);
+    taken.reset();
+    if (!ctx.deterministic)
+      live = data::Connection(ctx.assets.hub(), kLive,
+                              data::schema<schema_scene::Envelope>());
     ctx.composer.render(
         compose::pen("schema_scene.sky", [this](Pen& pen) { draw(pen); }));
   }
 
-  /** The newest message on the door, taken once each time one arrives:
-   *  bytes that read as this schema's Envelope and carry a Sky become
-   *  the sky the scene is drawn from. Bytes that are something else are
-   *  left where they are — a sender at the wrong port cannot blank the
-   *  scene. Nothing is described again, because the pen reads the sky
-   *  it draws on every frame. */
+  /** The newest message on the door, read once each time one arrives:
+   *  a message that reads as this schema's Envelope and carries a Sky
+   *  becomes the sky the scene is drawn from. One that is something
+   *  else leaves the sky where it is — a sender at the wrong port
+   *  cannot blank the scene. What says a message is new is the bytes
+   *  the door's own dispatch took, so a door nothing has arrived at,
+   *  and a capture's door onto nothing, read nothing at all. Nothing is
+   *  described again, because the pen reads the sky it draws on every
+   *  frame. */
   void update() {
-    if (!live) return;
-    const uint64_t generation = live->generation();
-    if (generation == taken) return;
-    taken = generation;
-    const std::shared_ptr<const io::Bytes> newest = live->latest();
-    if (!newest) return;
-    std::optional<scene::Envelope> read = scene::readEnvelope(newest->bytes);
+    std::shared_ptr<const io::Bytes> newest = live.latestBytes();
+    if (!newest || newest == taken) return;
+    taken = std::move(newest);
+    std::optional<scene::Envelope> read = live.latest<scene::Envelope>();
     if (read && std::holds_alternative<scene::Sky>(read->message))
       arrived = std::move(read);
   }

@@ -38,6 +38,13 @@ const std::string& noUri() {
   return empty;
 }
 
+/** The schema a door that was opened without one reads through: one,
+ *  shared, so answering it costs nothing. */
+const Schema& noSchema() {
+  static const Schema none;
+  return none;
+}
+
 /** The part of @p uri before "://", which is what says how a message is
  *  read. Empty when the URI names no scheme. */
 std::string_view schemeOf(std::string_view uri) {
@@ -96,6 +103,12 @@ struct Connection::State {
   size_t capacity = 0;
   std::shared_ptr<io::Feed> feed;
   Json latest;
+  /** THE NEWEST ARRIVAL'S BYTES AS OF THE LAST DISPATCH, whole and
+   *  unread, which is what a reading asked for a value decodes. They
+   *  stand beside the Json above and move on the same dispatch, so a
+   *  frame never reads a value newer than the message it is drawing
+   *  from. Null before the first arrival. */
+  std::shared_ptr<const io::Bytes> latestBytes;
   /** WHO SENT THE MESSAGE A REPLY ANSWERS: the address the newest
    *  message that could be read arrived from, which inside a handler is
    *  the address of the message that handler was given. Empty where
@@ -254,6 +267,11 @@ struct Connection::State {
   void dispatch() {
     if (!feed) return;
     while (const std::optional<io::Arrival> arrival = feed->receive()) {
+      // The bytes are latched whether or not they are a message in this
+      // door's scheme, because a reading asked for a VALUE decodes them
+      // itself: a buffer arriving at a door read as JSON text is no Json
+      // message and is still the value its sender wrote.
+      latestBytes = arrival->bytes;
       std::optional<Json> message = read(*arrival->bytes);
       if (!message) {
         ++undecodable;
@@ -403,6 +421,14 @@ bool Connection::reply(std::string_view address, const Json& arguments) const {
 
 const std::string& Connection::uri() const {
   return m_state ? m_state->uri : noUri();
+}
+
+const Schema& Connection::schema() const {
+  return m_state ? m_state->schema : noSchema();
+}
+
+std::shared_ptr<const io::Bytes> Connection::latestBytes() const {
+  return m_state ? m_state->latestBytes : nullptr;
 }
 
 std::string Connection::address() const {
