@@ -8,6 +8,7 @@
 
 #include <gtest/gtest.h>
 #include <sigildata/connection/Connection.h>
+#include <sigildata/decode/ArtNet.h>
 #include <sigildata/decode/Json.h>
 #include <sigildata/decode/Osc.h>
 #include <sigilio/hub/Hub.h>
@@ -197,6 +198,73 @@ TEST(DataMidi, AMidiDoorReadsAMessageAsItsKindAndWritesOneBack) {
   hub.dispatch(1.0);
   EXPECT_EQ(pads.undecodable(), 1u);
   EXPECT_EQ(struck.size(), 2u);
+}
+
+/** THE WIRE THE LIGHTING DESKS SPEAK, standing beside the other two of
+ *  the performance room: an `artnet://` door reads each packet as its
+ *  universe, its sequence and its dimmers, and writes one back as the
+ *  datagram a desk sends. The stub transport under it is what lets both
+ *  ends be judged with no desk in the room. */
+TEST(DataArtNet, AnArtNetDoorReadsAUniverseAndWritesOneBack) {
+  Hub hub;
+  const auto sent = std::make_shared<Sent>();
+  hub.setFeedTransport("artnet", intoVector(sent));
+
+  // One packet, spelled out byte by byte the way a desk sends it: the
+  // name and the null that ends it, the code for a universe of dimmers
+  // low byte first, the version, the sequence and the physical input,
+  // the two halves of the port address with the sub-universe first, the
+  // count of dimmers, and the levels.
+  const auto wire = [](std::initializer_list<int> bytes) {
+    std::vector<std::byte> packet;
+    for (const int one : bytes) packet.push_back(static_cast<std::byte>(one));
+    return packet;
+  };
+
+  Connection desk(hub, "artnet://:6454");
+  std::vector<double> washes;
+  desk.on("Dmx", [&washes](const Json& message) {
+    washes.push_back(message["channels"][0].number());
+  });
+
+  desk.feed()->deliver(bytesOf(
+      wire({'A',  'r', 't', '-',  'N',  'e',  't',  0,   0x00, 0x50, 0x00,
+            0x0E, 7,   0,   0x02, 0x00, 0x00, 0x04, 255, 128,  0,    0})));
+  hub.dispatch(0.0);
+
+  ASSERT_EQ(washes.size(), 1u);
+  EXPECT_DOUBLE_EQ(washes.front(), 255.0);
+  // A packet's KIND is the name a handler is registered under and the
+  // name it latches under, there being no address on this wire.
+  EXPECT_EQ(desk.latest()["kind"].text(), "Dmx");
+  EXPECT_EQ(desk.latest()["universe"], Json(2));
+  EXPECT_EQ(desk.latest("Dmx")["sequence"], Json(7));
+  EXPECT_EQ(desk.latest()["channels"].size(), 4u);
+  EXPECT_EQ(desk.undecodable(), 0u);
+
+  // And back out the same door as the datagram a desk sends: a universe
+  // of this scene's own, which is the bytes the codec writes for it.
+  const Json lit(Json::Object{
+      {"kind", Json("Dmx")},
+      {"universe", Json(1)},
+      {"sequence", Json(1)},
+      {"channels", Json(Json::Array{Json(255), Json(128), Json(64)})}});
+  EXPECT_TRUE(desk.send(lit));
+  ASSERT_EQ(sent->size(), 1u);
+  EXPECT_EQ(sent->front(), encodeArtNet(lit));
+
+  // A value this wire cannot spell does not go out as an empty
+  // datagram, and an address with arguments under it is one of those:
+  // naming a message is OSC's way and not a lighting wire's.
+  EXPECT_FALSE(desk.send(Json(Json::Object{{"kind", Json("Blackout")}})));
+  EXPECT_FALSE(desk.send("/sky/gust", Json(Json::Array{Json(0.5)})));
+  EXPECT_EQ(sent->size(), 1u);
+
+  // Bytes that are no packet at all reach no reader and are counted.
+  desk.feed()->deliver(bytesOf(wire({'A', 'r', 't', 0})));
+  hub.dispatch(1.0);
+  EXPECT_EQ(desk.undecodable(), 1u);
+  EXPECT_EQ(washes.size(), 1u);
 }
 
 TEST(DataConnection, EachNameLatchesItsOwnNewestBesideTheNewestOfAll) {

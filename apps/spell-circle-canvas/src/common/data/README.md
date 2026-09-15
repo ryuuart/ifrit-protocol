@@ -27,7 +27,7 @@ what a consumer uses; every public header lives under
 |--------|---------|-------|
 | `SigilDataScale` | `scale/Scale.h` | `Interval`, `Transform`, `Overflow` and `Scale` — the mapping, its inverse, its tick ladder and `nice()` |
 | `SigilDataTable` | `table/Table.h` | `Instant`, `Flag`, `Value`, `ColumnType`, `Order`, `Column` and `Table` — named typed columns, the cells as spans, and the reshapings |
-| `SigilDataDecode` | `decode/Csv.h`, `decode/Json.h`, `decode/Decoders.h`, `decode/FlatBuffer.h`, `decode/Schema.h`, `decode/Osc.h`, `decode/Midi.h` | `CsvOptions`, `decodeCsv()`, `decodeInstant()`; `Json`, `decodeJson()`, `encodeJson()`, `tableFromJson()`; `TableDecoder`, `JsonDecoder` and `registerDecoders(hub)` — the two decoders and the one call that puts them on a hub; `FlatBuffer`, `FlatBufferDecoder`, `flatBufferFromBytes()`, `flatBufferFromJson()` and `registerFlatBuffer(hub)` — a FlatBuffer as a value, read in place through the schema its generated root carries; `Schema`, `Schema::fromBinarySchema()` and `schema<Root>()` — that schema as one copyable value, which converts a buffer to its JSON form and a JSON form back to a buffer with the root named once and names nothing of the reader under it; `decodeOsc()`, `encodeOsc()` and `maxOscPacketBytes` — an OSC packet read into a `Json` and written back out of one; and `decodeMidi()` and `encodeMidi()` — one MIDI message read into that same value, its kind, its channel and the fields that kind carries, and written back out of one |
+| `SigilDataDecode` | `decode/Csv.h`, `decode/Json.h`, `decode/Decoders.h`, `decode/FlatBuffer.h`, `decode/Schema.h`, `decode/Osc.h`, `decode/Midi.h`, `decode/ArtNet.h` | `CsvOptions`, `decodeCsv()`, `decodeInstant()`; `Json`, `decodeJson()`, `encodeJson()`, `tableFromJson()`; `TableDecoder`, `JsonDecoder` and `registerDecoders(hub)` — the two decoders and the one call that puts them on a hub; `FlatBuffer`, `FlatBufferDecoder`, `flatBufferFromBytes()`, `flatBufferFromJson()` and `registerFlatBuffer(hub)` — a FlatBuffer as a value, read in place through the schema its generated root carries; `Schema`, `Schema::fromBinarySchema()` and `schema<Root>()` — that schema as one copyable value, which converts a buffer to its JSON form and a JSON form back to a buffer with the root named once and names nothing of the reader under it; `decodeOsc()`, `encodeOsc()` and `maxOscPacketBytes` — an OSC packet read into a `Json` and written back out of one; `decodeMidi()` and `encodeMidi()` — one MIDI message read into that same value, its kind, its channel and the fields that kind carries, and written back out of one; and `decodeArtNet()` and `encodeArtNet()` — one Art-Net packet read into that same value, the universe of dimmers a lighting desk sends and the three other forms its wire carries, and written back out of one |
 | `SigilDataConnection` | `connection/Connection.h` | `Connection` — a feed read as values: the newest message, the ones a reader has not taken once it has asked for them, the handlers a message's name reaches and the `Connection::otherwise()` one that runs when no name did, the two ways a message goes back out the same door, the schema a door may read and write every message through, and `Connection::reply()`, which answers the sender of one |
 | `SigilDataQuery` | `query/Database.h` | `Engine`, `Database` and `DatabaseDecoder`, with `engineOf()` — a SQL store behind one seam, SQLite or DuckDB, whose `query()` answers a `Table`, whose `insert()` writes one in, and whose decoder puts a `.sqlite` or `.duckdb` file on a hub |
 
@@ -353,13 +353,50 @@ byte for byte. A value outside what its place on the wire holds is
 written at the nearer end of it, since wrapping it would put a note
 nobody played on the cable.
 
+**ART-NET IS THE WIRE THE LIGHTING DESKS SPEAK.** OSC is what the
+software in the room says and MIDI what the hardware on the desk says;
+Art-Net is what a lighting desk says to the fixtures hanging over the
+room, and here it is one more way to spell the one dynamic value rather
+than a value of its own. `decodeArtNet()` reads one packet into a
+`Json`. Nearly every packet is a universe of dimmers —
+`{"kind": "Dmx", "universe": 0, "sequence": 7, "physical": 0,
+"channels": [255, 128, 0, 64]}` — where `universe` is the fifteen-bit
+port address the wire carries in two halves and which is put back
+together here, `sequence` counts the packets of one universe so a
+receiver tells a datagram that arrived late from one that arrived
+twice, and `channels` are the dimmers themselves, 0 to 255 each, in the
+order the desk numbers them, so the channel a desk calls 1 is the first
+of that list. The three other forms are a desk asking who is out there,
+`{"kind": "Poll"}`, its answer and every other operation, each carried
+whole as the `bytes` it arrived as under a `PollReply` or an `ArtNet`
+kind and the latter naming its own `opcode`. `encodeArtNet()` writes
+those same forms back, and a record carrying `bytes` goes out as exactly
+those bytes — which is how a packet this codec has no reading for is
+answered the way it arrived.
+
+THE WIRE COUNTS ITS DIMMERS IN PAIRS: a packet carries an even number of
+them, at least two and at most the 512 of one universe. So a list
+written odd goes out padded with one dimmer at nothing, a list past the
+end of a universe stops there, and a packet claiming any other count is
+no packet rather than a reading of whatever those bytes happen to say —
+as is one that does not open with the name every Art-Net packet opens
+with, and one written at an older version of the protocol, which writes
+other fields where these are read. A level outside what a dimmer holds
+is written at the nearer end of it, since wrapping it would put a
+fixture at nothing that was meant to stand at full. Every length on this
+wire is a claim the bytes make about themselves and is measured against
+what actually arrived before a byte of it is read, which is the same
+reason the OSC codec above is written here rather than taken from a
+package.
+
 **A connection is a feed read as values.** A feed is bytes that keep
 arriving; a `Connection` is that same door one floor up, where what a
 reader sees is the `Json` those bytes read as and never the bytes. The
 URI's scheme decides the reading — `osc://` is a packet, `midi://` is a
-message off a cable and everything else is JSON text — so a sketch
-listening to a desk, a sketch listening to a controller and a sketch
-listening to a browser are one piece of code over one value.
+message off a cable, `artnet://` is a universe of dimmers and everything
+else is JSON text — so a sketch listening to a desk, a sketch listening
+to a controller, a sketch lit by a lighting desk and a sketch listening
+to a browser are one piece of code over one value.
 
 ```cpp
 #include <sigildata/connection/Connection.h>
@@ -411,9 +448,10 @@ that is not a space.
 Going back out, `Connection::send()` and `Connection::reply()` write the
 buffer the schema makes of the message and are false where it does not
 fit — which the address-and-arguments spelling does not, unless the
-schema declares those two fields. An `osc://` or a `midi://` door takes
-no schema and is refused as it is opened: no feed is bound, nothing
-arrives, and `Connection::error()` says so, each of those being a wire
+schema declares those two fields. An `osc://`, a `midi://` or an
+`artnet://` door takes no schema and is refused as it is opened: no feed
+is bound, nothing arrives, and `Connection::error()` says so, each of
+those being a wire
 with its own spelling of every value, down to the width a number goes
 out at, and a buffer not being one of those spellings.
 
@@ -620,11 +658,11 @@ holding a schema opens is the standard library. What does reach a public
 header is the buffer itself — the verifier that checks bytes and the
 accessor that reads a root out of them — because a `FlatBuffer` IS its
 bytes; that, and the generated roots a consumer spells over it, are why
-flatbuffers is linked publicly. The OSC and MIDI codecs take nothing at
-all: each reads and writes its own wire. It does NOT link the hub:
-`registerDecoders` and `registerFlatBuffer` are templates over it, so
-the dependency runs one way and SigilIO gains nothing, which is what its
-own boundary asks for.
+flatbuffers is linked publicly. The OSC, MIDI and Art-Net codecs take
+nothing at all: each reads and writes its own wire. It does NOT link
+the hub: `registerDecoders` and `registerFlatBuffer` are templates over
+it, so the dependency runs one way and SigilIO gains nothing, which is
+what its own boundary asks for.
 
 `SigilDataConnection` is the one feature that does link `SigilIOHub`,
 because a connection IS a door that hub opened and a reading the
@@ -657,10 +695,12 @@ a newline and a doubled quote; a short row and a long one; a thousands
 separator and a decimal comma — and puts the decoders on a real hub over
 a scratch directory, because one `registerDecoders()` call answering
 `load<Table>` is the whole of what that call promises, and judges the
-OSC and MIDI codecs against packets and messages spelled out byte by
-byte — a desk's among the first, and every kind a cable carries read and
-then written back to the bytes it was read from among the second — since
-the wire is the only thing a codec standing on its own answers to,
+three codecs of the performance room against packets and messages
+spelled out byte by byte — a desk's among the first, every kind a cable
+carries read and then written back to the bytes it was read from among
+the second, and a universe of dimmers with the halves of its port
+address and the count the wire holds it to among the third — since the
+wire is the only thing a codec standing on its own answers to,
 and which opens, in one case of its own, the schema header and the
 generated one and nothing else, so the day the schema token needs the
 reader under it that case stops compiling;

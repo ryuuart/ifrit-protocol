@@ -1,13 +1,13 @@
 # The decoders: delimiter-separated text and JSON into a Table, a JSON
-# document as a value of its own, and an OSC packet or a MIDI message
-# read into that same value.
+# document as a value of its own, and an OSC packet, a MIDI message or
+# an Art-Net universe read into that same value.
 #
 # It speaks io's BYTE vocabulary and nothing else of io: a decoder takes
 # Bytes and a name hint, and registerDecoders() is a template over the
 # hub, so this target never links the hub, its cache or its codecs. The
-# JSON parser is private and reaches no public header; the OSC and MIDI
-# codecs read and write their wires themselves and take nothing from
-# outside.
+# JSON parser is private and reaches no public header; the performance
+# room's three codecs read and write their wires themselves and take
+# nothing from outside.
 #
 # The FlatBuffers PARSER is private the same way: Schema.cpp is the one
 # translation unit that opens it, and the token a consumer holds names
@@ -18,8 +18,10 @@
 find_package(simdjson CONFIG REQUIRED)
 find_package(flatbuffers CONFIG REQUIRED)
 sigil_library(SigilDataDecode
-  SOURCES Csv.cpp Json.cpp Decoders.cpp Osc.cpp Midi.cpp Schema.cpp
+  SOURCES Csv.cpp Json.cpp Decoders.cpp Osc.cpp Midi.cpp ArtNet.cpp
+          Schema.cpp
   HEADERS Csv.h Json.h Decoders.h FlatBuffer.h Schema.h Osc.h Midi.h
+          ArtNet.h
   PUBLIC SigilDataTable SigilIOSource flatbuffers::flatbuffers
   PRIVATE simdjson::simdjson)
 
@@ -51,6 +53,7 @@ add_custom_target(SigilDataFlatBufferTestSchema
 sigil_test(data_test
   SOURCES test/DecodeTest.cpp test/FlatBufferTest.cpp
           test/SchemaHeaderTest.cpp test/OscTest.cpp test/MidiTest.cpp
+          test/ArtNetTest.cpp
   LIBRARIES SigilDataDecode SigilIOHub)
 add_dependencies(data_test SigilDataFlatBufferTestSchema)
 target_include_directories(data_test PRIVATE ${FLATBUFFER_TEST_OUT})

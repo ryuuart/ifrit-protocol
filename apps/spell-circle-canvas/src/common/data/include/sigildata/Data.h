@@ -3,6 +3,7 @@
 /** @file Every public SigilData header in one include. */
 
 #include "sigildata/connection/Connection.h"
+#include "sigildata/decode/ArtNet.h"
 #include "sigildata/decode/Csv.h"
 #include "sigildata/decode/Decoders.h"
 #include "sigildata/decode/FlatBuffer.h"

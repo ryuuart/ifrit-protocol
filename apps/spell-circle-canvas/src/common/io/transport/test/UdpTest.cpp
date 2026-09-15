@@ -2,8 +2,9 @@
  * The UDP transport: the port a listening feed binds and the datagrams
  * that arrive there, the sender each arrival names and the one datagram
  * a listener answers it with, the peer a sending feed reaches, the same
- * socket answering to osc://, what a URI nobody can open leaves on its
- * feed, and the port a feed gives back when the last holder lets go.
+ * socket answering to osc:// and to artnet://, what a URI nobody can
+ * open leaves on its feed, and the port a feed gives back when the last
+ * holder lets go.
  */
 
 #include <gtest/gtest.h>
@@ -138,6 +139,26 @@ TEST_F(IOUdp, AnOscFeedIsTheSameSocketUnderItsOwnName) {
   const std::optional<Arrival> arrival = listener->receive();
   ASSERT_TRUE(arrival.has_value());
   EXPECT_TRUE(arrival->from.starts_with("osc://")) << arrival->from;
+}
+
+TEST_F(IOUdp, AnArtNetFeedIsTheSameSocketUnderTheLightingDesksName) {
+  const std::shared_ptr<Feed> listener = hub.feed("artnet://:0");
+  ASSERT_TRUE(listener->error().empty()) << listener->error();
+  // The lighting desks' datagrams are datagrams, and the decoding is
+  // taken off the URI: a feed keeps the scheme it was opened with, in
+  // the local end it reports and in the sender every arrival names.
+  EXPECT_TRUE(listener->address().starts_with("artnet://"))
+      << listener->address();
+  const uint16_t port = portOf(listener->address());
+  ASSERT_NE(port, 0);
+
+  ASSERT_NE(sendTo(port, "Art-Net"), 0);
+  ASSERT_TRUE(waitUntil([&] { return listener->latest() != nullptr; }));
+  EXPECT_EQ(listener->latest()->asText(), "Art-Net");
+
+  const std::optional<Arrival> arrival = listener->receive();
+  ASSERT_TRUE(arrival.has_value());
+  EXPECT_TRUE(arrival->from.starts_with("artnet://")) << arrival->from;
 }
 
 TEST_F(IOUdp, ASendingFeedReachesTheListenerItNames) {
