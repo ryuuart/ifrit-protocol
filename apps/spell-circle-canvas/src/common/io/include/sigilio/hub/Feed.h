@@ -6,16 +6,17 @@
  * One door, keyed by URI, with a transport on one side and readers on
  * the other. The transport delivers byte messages from whatever thread
  * it runs on; a reader on any thread either takes the newest message —
- * latest(), with the generation that says how many have come — or
- * drains in order the ones it has not seen yet through receive().
- * Neither ever waits for a message: a reader that finds nothing is told
- * so and gets on with its frame.
+ * latest() for its bytes and newest() for the whole arrival, with the
+ * generation that says how many have come — or drains in order the ones
+ * it has not seen yet through receive(). Neither ever waits for a
+ * message: a reader that finds nothing is told so and gets on with its
+ * frame.
  *
  * A feed keeps the last `Policy::capacity` arrivals for receive(). When
  * one more reaches a feed nobody has drained, the oldest falls off the
  * front and dropped() counts it, so a reader that cannot keep up loses
  * the oldest messages rather than the newest and can see that it
- * happened. latest() is never dropped.
+ * happened. What latest() and newest() answer is never dropped.
  *
  * The same door plays a recording back. record() appends every arrival
  * from then on to a file, and a feed the hub resolved to a recording
@@ -120,6 +121,13 @@ class Feed {
   /** The newest message; null before the first arrival. */
   std::shared_ptr<const Bytes> latest() const;
 
+  /** THE NEWEST ARRIVAL WHOLE: the generation it came in as, the second
+   *  it came in at, its bytes and the address it came from; nothing
+   *  before the first arrival. It is latched rather than queued, so
+   *  draining through receive() leaves it standing, as latest() is
+   *  left standing. */
+  std::optional<Arrival> newest() const;
+
   /** How many messages have arrived; 0 before the first. */
   uint64_t generation() const;
 
@@ -191,6 +199,10 @@ class Feed {
   mutable std::mutex m_mutex;
   std::deque<Arrival> m_arrivals;
   std::shared_ptr<const Bytes> m_latest;
+  /** The last arrival, kept whole beside its bytes: who sent the newest
+   *  message and which one it is are readable without draining the
+   *  queue another reader is taking messages off. */
+  std::optional<Arrival> m_newest;
   uint64_t m_generation = 0;
   uint64_t m_dropped = 0;
   bool m_closed = false;

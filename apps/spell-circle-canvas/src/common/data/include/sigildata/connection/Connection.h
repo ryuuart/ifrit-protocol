@@ -7,9 +7,9 @@
  * one floor up: the bytes are read by the scheme the URI names — an OSC
  * packet through an `osc://` door, JSON text through every other — and
  * what a reader sees is the `Json` value, never the bytes. The newest
- * message is `latest()`, the ones not taken yet come out of `receive()`
- * in order, and a handler registered with `on()` runs for the messages
- * it names.
+ * message is `latest()` and the newest of one name `latest(name)`, the
+ * ones not taken yet come out of `receive()` in order, and a handler
+ * registered with `on()` runs for the messages it names.
  *
  *     Connection sky(hub, "osc://:9000");
  *     sky.on("/sky/gust", [&](const Json& message) {
@@ -19,6 +19,7 @@
  *     ...
  *     hub.dispatch(seconds);                   // the frame: handlers run here
  *     wind = sky.latest()["arguments"][0].number();
+ *     calm = sky.latest("/sky/calm")["arguments"][0].number();
  *     sky.send("/sky/ack", Json::Array{1});
  *
  * NOTHING DRIVES IT BUT THE FRAME. A connection registers on the hub's
@@ -82,6 +83,20 @@ class Connection {
    *  speaking the wrong language cannot blank a scene. Inside a handler
    *  it is the message that handler was given. */
   const Json& latest() const;
+
+  /** THE NEWEST MESSAGE NAMED @p what; a null value until one of that
+   *  name has arrived, which reads through as the default of whatever
+   *  is asked of it. The name is the one on() registers under, so a
+   *  reader takes one fader off the wire with no handler at all:
+   *  `sky.latest("/sky/wind")["arguments"][0].number()`.
+   *
+   *  One latch per name, and the names are bounded by the policy's
+   *  capacity: when a message arrives under one name too many, the name
+   *  written longest ago is dropped and reading it answers null again,
+   *  as if nothing had ever arrived under it. A message carrying no
+   *  name of its own latches under none, and `"*"` is a handler's word
+   *  for every message rather than a name a message can carry. */
+  const Json& latest(std::string_view what) const;
 
   /** How many messages have arrived on the feed, whether or not they
    *  could be read; 0 before the first. */

@@ -1,7 +1,7 @@
 /** The connection: what a message reads as through the door it came in
- *  by, which handler it reaches, what receive() hands out, what a
- *  message that cannot be read costs, what goes back down the wire, and
- *  what a recording replays through one.
+ *  by, which handler it reaches, what the newest of a name is, what
+ *  receive() hands out, what a message that cannot be read costs, what
+ *  goes back down the wire, and what a recording replays through one.
  */
 
 #include <gtest/gtest.h>
@@ -118,6 +118,59 @@ TEST(DataConnection, AnOscPacketIsItsAddressAndReachesTheHandlerOnThatAddress) {
   EXPECT_EQ(desk.latest()["address"].text(), "/sky/gust");
   ASSERT_EQ(desk.latest()["arguments"].size(), 1u);
   EXPECT_DOUBLE_EQ(desk.latest()["arguments"][0].number(), 0.5);
+}
+
+TEST(DataConnection, EachNameLatchesItsOwnNewestBesideTheNewestOfAll) {
+  Hub hub;
+  hub.setFeedTransport("osc", intoVector(std::make_shared<Sent>()));
+
+  Connection desk(hub, "osc://:9000");
+  desk.feed()->deliver(
+      bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.25)}))));
+  desk.feed()->deliver(
+      bytesOf(encodeOsc("/sky/gust", Json(Json::Array{Json(0.5)}))));
+  desk.feed()->deliver(
+      bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.75)}))));
+  hub.dispatch(0.0);
+
+  // One fader read off the wire with no handler at all, and the one
+  // beside it standing where it was left: a name is its own latch.
+  EXPECT_DOUBLE_EQ(desk.latest("/sky/wind")["arguments"][0].number(), 0.75);
+  EXPECT_DOUBLE_EQ(desk.latest("/sky/gust")["arguments"][0].number(), 0.5);
+  // The reading that names nothing is the newest of every name.
+  EXPECT_EQ(desk.latest()["address"].text(), "/sky/wind");
+  EXPECT_DOUBLE_EQ(desk.latest()["arguments"][0].number(), 0.75);
+}
+
+TEST(DataConnection, ANameNothingIsLatchedUnderAnswersNothing) {
+  Hub hub;
+  hub.setFeedTransport("ws", intoVector(std::make_shared<Sent>()));
+
+  // Two of anything is all this door holds, latches and queue alike, so
+  // each message arrives on a frame of its own: one left on the feed
+  // would fall off the front before the connection read it.
+  Connection scene(hub, "ws://:8848/scene", {.capacity = 2});
+  const auto arrives = [&scene, &hub](std::string_view text) {
+    scene.feed()->deliver(bytesOf(text));
+    hub.dispatch(0.0);
+  };
+  arrives(R"({"kind":"gust","strength":1})");
+  arrives(R"({"kind":"calm","strength":2})");
+  arrives(R"({"kind":"hail","strength":3})");
+  arrives(R"({"strength":4})");
+
+  EXPECT_TRUE(scene.latest("squall").null());  // no such message ever came
+  // The third name was one too many, so the name written longest ago
+  // reads as if nothing had ever arrived under it.
+  EXPECT_TRUE(scene.latest("gust").null());
+  EXPECT_DOUBLE_EQ(scene.latest("calm")["strength"].number(), 2);
+  EXPECT_DOUBLE_EQ(scene.latest("hail")["strength"].number(), 3);
+  EXPECT_TRUE(scene.latest("*").null());  // a handler's word, not a name
+  EXPECT_TRUE(scene.latest("").null());
+  // The last message named nothing, so it latched under nothing and is
+  // the newest all the same.
+  EXPECT_DOUBLE_EQ(scene.latest()["strength"].number(), 4);
+  EXPECT_TRUE(Connection().latest("gust").null());
 }
 
 TEST(DataConnection, ReceiveHandsOutEveryMessageInOrderAndThenNothing) {

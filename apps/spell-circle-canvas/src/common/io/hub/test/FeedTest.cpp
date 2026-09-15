@@ -1,9 +1,10 @@
 /** @file
  * Feeds: what a reader sees of what a transport delivers — the newest
- * message, the ones it has not drained, the sender each one names, and
- * the ones a feed too full to hold them dropped — the one door a hub
- * opens per URI and closes when nobody holds it any more, and the
- * recording a feed writes as it runs and plays back afterwards.
+ * message as bytes and whole, the ones it has not drained, the sender
+ * each one names, and the ones a feed too full to hold them dropped —
+ * the one door a hub opens per URI and closes when nobody holds it any
+ * more, and the recording a feed writes as it runs and plays back
+ * afterwards.
  */
 
 #include <gtest/gtest.h>
@@ -59,6 +60,30 @@ TEST_F(IOFeed, TheLatestIsTheNewestArrivalAndGenerationsCountFromOne) {
   EXPECT_EQ(feed.generation(), 2u);
   EXPECT_EQ(feed.uri(), "udp://:27020");
   EXPECT_TRUE(feed.error().empty());
+}
+
+TEST_F(IOFeed, TheNewestIsTheWholeArrivalAndOutlastsDraining) {
+  Feed feed("udp://:27020");
+  EXPECT_FALSE(feed.newest().has_value());
+
+  feed.deliver(message("first"), "udp://127.0.0.1:52341");
+  feed.deliver(message("second"), "udp://127.0.0.1:52342");
+
+  std::optional<Arrival> newest = feed.newest();
+  ASSERT_TRUE(newest.has_value());
+  EXPECT_EQ(newest->bytes->asText(), "second");
+  EXPECT_EQ(newest->from, "udp://127.0.0.1:52342");
+  EXPECT_EQ(newest->generation, 2u);
+  EXPECT_GE(newest->at, 0.0);
+
+  while (feed.receive().has_value()) {
+  }
+  // Draining is not taking it: the newest message stands whole after
+  // the queue it was also put on is empty.
+  newest = feed.newest();
+  ASSERT_TRUE(newest.has_value());
+  EXPECT_EQ(newest->generation, 2u);
+  EXPECT_EQ(newest->from, "udp://127.0.0.1:52342");
 }
 
 TEST_F(IOFeed, AnArrivalCarriesTheSenderItWasDeliveredWithAndNoOther) {

@@ -31,6 +31,10 @@ void Feed::deliverLocked(std::shared_ptr<const Bytes> bytes, double at,
   arrival.bytes = std::move(bytes);
   arrival.from = std::move(from);
   m_latest = arrival.bytes;
+  // The whole arrival is latched beside its bytes, under the same lock
+  // that stamped it, so a reader asking what the newest message is and
+  // a reader asking who sent it are answered the same message.
+  m_newest = arrival;
   // The frame is written under the lock that stamped the arrival, so a
   // recording lists messages in the order the feed took them however
   // many threads are delivering. A file that stops taking frames ends
@@ -114,6 +118,11 @@ void Feed::opened(OpenedFeed opened) {
 std::shared_ptr<const Bytes> Feed::latest() const {
   const std::lock_guard lock(m_mutex);
   return m_latest;
+}
+
+std::optional<Arrival> Feed::newest() const {
+  const std::lock_guard lock(m_mutex);
+  return m_newest;
 }
 
 uint64_t Feed::generation() const {

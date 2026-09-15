@@ -227,14 +227,18 @@ while it is held is the same object, so two readers of one port share
 one socket. What arrives is a byte message, delivered by a transport from
 whichever thread it runs on; the feed latches the newest as `latest()`
 with a `generation()` that counts every arrival, and queues each arrival
-for `receive()`, which hands them out in order and never waits. The queue
-is bounded by the feed's `Policy`: when it is full the oldest arrival is
-dropped and `dropped()` counts it, because a reader that fell behind a
-state feed wants the newest, not the backlog. `close()` takes nothing
-more and keeps what was received readable. A feed's `error()` says why a
-door could not be opened — no scheme, no transport for it, a port already
-taken — and the feed still exists, so a program that opened the wrong
-URI sees the sentence rather than a null.
+for `receive()`, which hands them out in order and never waits.
+`Feed::newest()` is that same latched message WHOLE — the generation it
+came in as, the second it came in at, its bytes and the sender it named —
+for a reader that wants more of the newest than its bytes and is not
+draining the queue to get it. The queue is bounded by the feed's
+`Policy`: when it is full the oldest arrival is dropped and `dropped()`
+counts it, because a reader that fell behind a state feed wants the
+newest, not the backlog. `close()` takes nothing more and keeps what was
+received readable. A feed's `error()` says why a door could not be
+opened — no scheme, no transport for it, a port already taken — and the
+feed still exists, so a program that opened the wrong URI sees the
+sentence rather than a null.
 
 A scheme opens through the `FeedTransport` registered for it, called
 outside the hub's lock; the transport hands back an `OpenedFeed`: how the

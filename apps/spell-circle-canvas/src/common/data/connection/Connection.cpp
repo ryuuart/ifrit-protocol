@@ -1,7 +1,7 @@
 /** @file
  * The connection: the door it opened, the scheme its messages are read
- * by, the value and the queue and the handlers one dispatch fills, and
- * the two ways a message goes back out.
+ * by, the value and the latch per name and the queue and the handlers
+ * one dispatch fills, and the two ways a message goes back out.
  */
 
 #include "sigildata/connection/Connection.h"
@@ -11,7 +11,9 @@
 
 #include <cstddef>
 #include <deque>
+#include <map>
 #include <span>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -77,6 +79,20 @@ struct Connection::State {
   std::shared_ptr<io::Feed> feed;
   Json latest;
   std::deque<Json> unread;
+
+  /** ONE MESSAGE UNDER EACH NAME, and the write that put it there: the
+   *  name written longest ago is the one carrying the smallest count,
+   *  which is the one that goes when there is no room for another. The
+   *  comparator is transparent so a reader's name is looked up as the
+   *  view it already is, without a string being built for it. */
+  struct Named {
+    Json message;
+    uint64_t written = 0;
+  };
+  std::map<std::string, Named, std::less<>> named;
+  /** How many latches have been written, which is where a name's own
+   *  count comes from. */
+  uint64_t writes = 0;
   std::vector<std::pair<std::string, Handler>> handlers;
   uint64_t undecodable = 0;
   /** What the hub's dispatch runs. It is released with this state, so a
@@ -90,10 +106,33 @@ struct Connection::State {
     return decodeJson(bytes.asText());
   }
 
+  /** Puts @p message under @p name, as the newest message of that name.
+   *
+   *  The names are bounded as the queue is, by the one capacity: a
+   *  sender that writes an address it never writes again would
+   *  otherwise grow this for as long as the door is open. When there is
+   *  no room for one more, the name written longest ago goes, so the
+   *  names a scene keeps hearing are the names it keeps. */
+  void latch(std::string_view name, const Json& message) {
+    const auto found = named.find(name);
+    if (found != named.end()) {
+      found->second = Named{message, ++writes};
+      return;
+    }
+    if (capacity != 0 && named.size() >= capacity) {
+      auto oldest = named.begin();
+      for (auto latched = named.begin(); latched != named.end(); ++latched)
+        if (latched->second.written < oldest->second.written) oldest = latched;
+      named.erase(oldest);
+    }
+    named.emplace(std::string(name), Named{message, ++writes});
+  }
+
   /** ONE FRAME'S MESSAGES. The feed is drained in order, and each
-   *  message that reads is latched, queued, and handed to every handler
-   *  that names it before the next one is taken — so a handler asking
-   *  for the latest reads the message it was given. */
+   *  message that reads is latched — under nothing and under its own
+   *  name — queued, and handed to every handler that names it before
+   *  the next one is taken, so a handler asking for the latest reads
+   *  the message it was given. */
   void dispatch() {
     if (!feed) return;
     while (const std::optional<io::Arrival> arrival = feed->receive()) {
@@ -103,10 +142,15 @@ struct Connection::State {
         continue;
       }
       latest = *message;
+      const std::string_view name = nameOf(latest);
+      // A message that says what it is is latched under that name as
+      // well as under none, so a reader asks for the newest of one name
+      // without registering a handler for it. A message that says
+      // nothing latches under nothing: no name is not a name.
+      if (!name.empty()) latch(name, latest);
       unread.push_back(std::move(*message));
       while (capacity != 0 && unread.size() > capacity) unread.pop_front();
 
-      const std::string_view name = nameOf(latest);
       // The count is taken first and the handler is held rather than
       // referred to: a handler may register another, which moves the
       // list it is standing in, and one registered from inside a
@@ -140,6 +184,12 @@ Connection::Connection(io::Hub& hub, std::string_view uri,
 
 const Json& Connection::latest() const {
   return m_state ? m_state->latest : nothing();
+}
+
+const Json& Connection::latest(std::string_view what) const {
+  if (!m_state) return nothing();
+  const auto found = m_state->named.find(what);
+  return found == m_state->named.end() ? nothing() : found->second.message;
 }
 
 uint64_t Connection::generation() const {

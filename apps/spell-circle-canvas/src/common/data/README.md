@@ -346,6 +346,21 @@ and off the OSC wire `send(address, arguments)` writes the same
 `{"address": …, "arguments": …}` record a packet reads as, which is the
 form the far end reads a name out of.
 
+**The newest of one name is a reading, not a handler.** That reading is
+`Connection::latest(what)`: the newest message named `what`, under the
+same naming rule `on()` registers by, so a scene takes one fader straight
+off the wire — `sky.latest("/sky/wind")["arguments"][0].number()` — and
+gets the last value that arrived under that address whenever it arrived,
+rather than the last message of any name. A name nothing has arrived
+under answers a null value, which reads through as the default of
+whatever is asked of it, so a scene draws before a desk has said
+anything. There is one latch per name, and the names are bounded by the
+same capacity the queue is: when a message arrives under one name too
+many, the name written longest ago is dropped and reading it answers null
+again, as if nothing had ever arrived under it. A message carrying no
+name of its own latches under none, and `"*"` is a handler's word for
+every message rather than a name a message can carry.
+
 **A message that cannot be read is no message.** It reaches neither
 `latest()` nor `receive()` nor a handler, and `undecodable()` counts it:
 a sender speaking another language cannot blank a scene, and a reader
