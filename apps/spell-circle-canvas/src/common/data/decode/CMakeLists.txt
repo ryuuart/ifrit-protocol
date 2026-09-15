@@ -7,11 +7,18 @@
 # hub, so this target never links the hub, its cache or its codecs. The
 # JSON parser is private and reaches no public header; the OSC codec
 # reads and writes the wire itself and takes nothing from outside.
+#
+# The FlatBuffers PARSER is private the same way: Schema.cpp is the one
+# translation unit that opens it, and the token a consumer holds names
+# none of it. flatbuffers is linked PUBLIC all the same, because the
+# buffer's own header still reaches a public one — a FlatBuffer IS its
+# bytes, verified and read in place — and a consumer spells the
+# generated roots over it.
 find_package(simdjson CONFIG REQUIRED)
 find_package(flatbuffers CONFIG REQUIRED)
 sigil_library(SigilDataDecode
-  SOURCES Csv.cpp Json.cpp Decoders.cpp Osc.cpp
-  HEADERS Csv.h Json.h Decoders.h FlatBuffer.h Osc.h
+  SOURCES Csv.cpp Json.cpp Decoders.cpp Osc.cpp Schema.cpp
+  HEADERS Csv.h Json.h Decoders.h FlatBuffer.h Schema.h Osc.h
   PUBLIC SigilDataTable SigilIOSource flatbuffers::flatbuffers
   PRIVATE simdjson::simdjson)
 
@@ -37,8 +44,12 @@ add_custom_target(SigilDataFlatBufferTestSchema
 # The hub is named here and not in the library: the cases put the
 # decoders on a real hub and read a real file back through it, which is
 # the whole of what registerDecoders() and registerFlatBuffer() promise.
+# SchemaHeaderTest.cpp stands apart from them: it opens the schema
+# header and the generated one and nothing else, so it fails to compile
+# the day the token starts needing the reader under it.
 sigil_test(data_test
-  SOURCES test/DecodeTest.cpp test/FlatBufferTest.cpp test/OscTest.cpp
+  SOURCES test/DecodeTest.cpp test/FlatBufferTest.cpp
+          test/SchemaHeaderTest.cpp test/OscTest.cpp
   LIBRARIES SigilDataDecode SigilIOHub)
 add_dependencies(data_test SigilDataFlatBufferTestSchema)
 target_include_directories(data_test PRIVATE ${FLATBUFFER_TEST_OUT})

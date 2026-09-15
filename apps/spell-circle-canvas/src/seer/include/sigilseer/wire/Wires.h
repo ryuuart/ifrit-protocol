@@ -16,7 +16,7 @@
  * whatever loop the host runs.
  */
 
-#include <sigildata/decode/FlatBuffer.h>
+#include <sigildata/decode/Schema.h>
 #include <sigilio/hub/Feed.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Source.h>

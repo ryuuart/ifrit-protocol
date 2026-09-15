@@ -17,7 +17,7 @@
  * reader who has not been handed one sees bytes.
  */
 
-#include <sigildata/decode/FlatBuffer.h>
+#include <sigildata/decode/Schema.h>
 #include <sigilio/source/Source.h>
 
 #include <cstddef>

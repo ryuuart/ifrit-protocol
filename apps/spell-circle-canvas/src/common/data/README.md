@@ -27,7 +27,7 @@ what a consumer uses; every public header lives under
 |--------|---------|-------|
 | `SigilDataScale` | `scale/Scale.h` | `Interval`, `Transform`, `Overflow` and `Scale` — the mapping, its inverse, its tick ladder and `nice()` |
 | `SigilDataTable` | `table/Table.h` | `Instant`, `Flag`, `Value`, `ColumnType`, `Order`, `Column` and `Table` — named typed columns, the cells as spans, and the reshapings |
-| `SigilDataDecode` | `decode/Csv.h`, `decode/Json.h`, `decode/Decoders.h`, `decode/FlatBuffer.h`, `decode/Osc.h` | `CsvOptions`, `decodeCsv()`, `decodeInstant()`; `Json`, `decodeJson()`, `encodeJson()`, `tableFromJson()`; `TableDecoder`, `JsonDecoder` and `registerDecoders(hub)` — the two decoders and the one call that puts them on a hub; `FlatBuffer`, `FlatBufferDecoder`, `flatBufferFromBytes()`, `flatBufferFromJson()` and `registerFlatBuffer(hub)` — a FlatBuffer as a value, read in place through the schema its generated root carries, with `Schema` and `schema<Root>()` — that schema as one copyable value, which converts a buffer to its JSON form and a JSON form back to a buffer with the root named once; and `decodeOsc()`, `encodeOsc()` and `maxOscPacketBytes` — an OSC packet read into a `Json` and written back out of one |
+| `SigilDataDecode` | `decode/Csv.h`, `decode/Json.h`, `decode/Decoders.h`, `decode/FlatBuffer.h`, `decode/Schema.h`, `decode/Osc.h` | `CsvOptions`, `decodeCsv()`, `decodeInstant()`; `Json`, `decodeJson()`, `encodeJson()`, `tableFromJson()`; `TableDecoder`, `JsonDecoder` and `registerDecoders(hub)` — the two decoders and the one call that puts them on a hub; `FlatBuffer`, `FlatBufferDecoder`, `flatBufferFromBytes()`, `flatBufferFromJson()` and `registerFlatBuffer(hub)` — a FlatBuffer as a value, read in place through the schema its generated root carries; `Schema`, `Schema::fromBinarySchema()` and `schema<Root>()` — that schema as one copyable value, which converts a buffer to its JSON form and a JSON form back to a buffer with the root named once and names nothing of the reader under it; and `decodeOsc()`, `encodeOsc()` and `maxOscPacketBytes` — an OSC packet read into a `Json` and written back out of one |
 | `SigilDataConnection` | `connection/Connection.h` | `Connection` — a feed read as values: the newest message, the ones a reader has not taken once it has asked for them, the handlers a message's name reaches and the `Connection::otherwise()` one that runs when no name did, the two ways a message goes back out the same door, the schema a door may read and write every message through, and `Connection::reply()`, which answers the sender of one |
 | `SigilDataQuery` | `query/Database.h` | `Engine`, `Database` and `DatabaseDecoder`, with `engineOf()` — a SQL store behind one seam, SQLite or DuckDB, whose `query()` answers a `Table`, whose `insert()` writes one in, and whose decoder puts a `.sqlite` or `.duckdb` file on a hub |
 
@@ -272,6 +272,15 @@ the type. `Schema::fromBinarySchema()` makes that same token out of a
 `.bfbs` file's own bytes rather than out of a type, so a tool that has
 no generated header for what it is watching reads any schema the build
 wrote, and a token the bytes could not make says what stopped it.
+
+The token names nothing of the reader it stands on. `decode/Schema.h`
+declares the class and the two conversions over the standard library
+alone, and what a schema HOLDS is one pointer to a state defined in the
+one translation unit that opens the FlatBuffers parser and its
+reflection. So a door, a scene or a tool that keeps a schema in a field
+compiles with none of that in reach; the buffer's own header is the only
+one of flatbuffers a public header here opens, because `FlatBuffer` IS
+those bytes.
 
 The two conversions come to rest in the schema's form. That form quotes
 its field names, breaks no lines, and writes every scalar the schema
@@ -565,13 +574,19 @@ SigilGeometry, not here.
 `SigilDataScale` and `SigilDataTable` depend on the standard library
 alone. `SigilDataDecode` adds `SigilIOSource` — the byte vocabulary, and
 nothing else of SigilIO — a JSON parser that reaches no public header,
-and flatbuffers, whose verifier and schema parser the FlatBuffer decoder
-reads through, whose reflection verifier and text generator a `Schema`
-reads through, and whose generated roots a consumer spells. The OSC codec
-takes nothing at all: it reads and writes the wire itself. It does NOT
-link the hub: `registerDecoders` and `registerFlatBuffer` are templates
-over it, so the dependency runs one way and SigilIO gains nothing, which
-is what its own boundary asks for.
+and flatbuffers. The FlatBuffers parser reaches no public header either:
+the schema parser, the reflection reader and the text generator a
+`Schema` stands on are private to this feature, compiled in the one
+translation unit that defines what the token holds, so what a consumer
+holding a schema opens is the standard library. What does reach a public
+header is the buffer itself — the verifier that checks bytes and the
+accessor that reads a root out of them — because a `FlatBuffer` IS its
+bytes; that, and the generated roots a consumer spells over it, are why
+flatbuffers is linked publicly. The OSC codec takes nothing at all: it
+reads and writes the wire itself. It does NOT link the hub:
+`registerDecoders` and `registerFlatBuffer` are templates over it, so
+the dependency runs one way and SigilIO gains nothing, which is what its
+own boundary asks for.
 
 `SigilDataConnection` is the one feature that does link `SigilIOHub`,
 because a connection IS a door that hub opened and a reading the
@@ -605,7 +620,10 @@ separator and a decimal comma — and puts the decoders on a real hub over
 a scratch directory, because one `registerDecoders()` call answering
 `load<Table>` is the whole of what that call promises, and judges the
 OSC codec against packets spelled out byte by byte, a desk's among them,
-since the wire is the only thing a codec standing on its own answers to;
+since the wire is the only thing a codec standing on its own answers to,
+and which opens, in one case of its own, the schema header and the
+generated one and nothing else, so the day the schema token needs the
+reader under it that case stops compiling;
 `SigilDataTable` (`table/`) with `table/test/`, which pins what
 each reshaping answers and what it leaves alone — a filtered table's
 source unchanged, a tie keeping its order, a missing cell last both ways
