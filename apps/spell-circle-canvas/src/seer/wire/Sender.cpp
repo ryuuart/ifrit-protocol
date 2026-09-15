@@ -1,15 +1,45 @@
 /** @file
- * The peer a message goes to, the one send, and the repeat the caller's
- * clock drives.
+ * The peer a message goes to, the one send, the repeat the caller's
+ * clock drives, and the OSC message a reader spells.
  */
 
 #include "sigilseer/wire/Sender.h"
 
+#include <sigildata/decode/Json.h>
+#include <sigildata/decode/Osc.h>
+
+#include <optional>
 #include <utility>
+#include <vector>
 
 #include "sigilseer/wire/Wires.h"
 
 namespace sigil::seer {
+namespace {
+
+/** Whether @p text holds anything but blanks. An editor a reader has
+ *  typed nothing into is a message with no arguments, not a document
+ *  that would not parse. */
+bool anythingIn(std::string_view text) {
+  for (const char letter : text)
+    if (letter != ' ' && letter != '\t' && letter != '\n' && letter != '\r')
+      return true;
+  return false;
+}
+
+}  // namespace
+
+io::Bytes oscMessage(std::string_view address, std::string_view arguments) {
+  data::Json carried{data::Json::Array{}};
+  if (anythingIn(arguments)) {
+    std::optional<data::Json> read = data::decodeJson(arguments);
+    if (!read) return {};
+    carried = std::move(*read);
+  }
+  io::Bytes message;
+  message.bytes = data::encodeOsc(address, carried);
+  return message;
+}
 
 Sender::Sender(Wires& wires) : m_wires(wires) {}
 

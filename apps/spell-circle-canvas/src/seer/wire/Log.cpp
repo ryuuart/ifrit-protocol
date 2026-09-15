@@ -24,6 +24,7 @@ size_t Log::drain(io::Feed& feed) {
     entry.generation = arrival->generation;
     entry.size = arrival->bytes ? arrival->bytes->bytes.size() : 0;
     entry.bytes = std::move(arrival->bytes);
+    entry.from = std::move(arrival->from);
     m_entries.push_back(std::move(entry));
     if (m_entries.size() > m_capacity) {
       m_entries.pop_front();

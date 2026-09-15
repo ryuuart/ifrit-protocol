@@ -2,9 +2,12 @@
 // a message leaves — once, on every frame, or as the echo of whatever
 // arrives on the wire being read.
 //
-// The editor holds text either way. Read as text it is sent as its
+// The editor holds text every way. Read as text it is sent as its
 // UTF-8 bytes; read as hexadecimal it is the bytes those digits spell,
-// which is how a wire carrying no text at all is answered by hand.
+// which is how a wire carrying no text at all is answered by hand; and
+// on a peer that speaks OSC it is the arguments under the address
+// beside it, since the packet a reader would otherwise type out is a
+// run of type tags and padding rather than anything they meant.
 
 pragma ComponentBehavior: Bound
 
@@ -57,8 +60,25 @@ Ui.GlassPanel {
                 onEditingFinished: pane.sending.peerUri = text.trim()
             }
 
+            // Where on the instrument the packet goes. It stands beside
+            // the peer because the two together are the destination —
+            // the machine, and the thing on it — and only a peer that
+            // speaks OSC has one.
+            TextField {
+                Layout.preferredWidth: 170
+                visible: pane.sending.oscPeer
+                placeholderText: "/sky/wind"
+                text: pane.sending.oscAddress
+                font.family: Ui.Theme.monospaceFontFamily
+                onEditingFinished: pane.sending.oscAddress = text.trim()
+            }
+
+            // How the editor is read, which an OSC peer decides for
+            // itself: its editor is arguments, and a choice offered
+            // there would be a choice with no effect.
             RadioButton {
                 text: "Text"
+                visible: !pane.sending.oscPeer
                 checked: !pane.sending.hexadecimal
                 onToggled: if (checked)
                     pane.sending.hexadecimal = false
@@ -66,6 +86,7 @@ Ui.GlassPanel {
 
             RadioButton {
                 text: "Hex"
+                visible: !pane.sending.oscPeer
                 checked: pane.sending.hexadecimal
                 onToggled: if (checked)
                     pane.sending.hexadecimal = true
@@ -80,7 +101,7 @@ Ui.GlassPanel {
             TextArea {
                 id: editor
 
-                placeholderText: pane.sending.hexadecimal ? "48 65 6c 6c 6f" : "{ \"scene\": 1 }"
+                placeholderText: pane.sending.oscPeer ? "[0.5]" : pane.sending.hexadecimal ? "48 65 6c 6c 6f" : "{ \"scene\": 1 }"
                 color: Ui.Theme.primaryText
                 font.family: Ui.Theme.monospaceFontFamily
                 font.pixelSize: 12

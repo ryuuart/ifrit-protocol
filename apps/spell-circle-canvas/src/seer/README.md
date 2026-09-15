@@ -2,9 +2,9 @@
 
 A **wire** is one URI a message arrives on or leaves by. Seer is the tool
 that watches all of them at once: it opens a wire, says what is coming
-down it, shows the newest message three ways, keeps the ones before it,
-sends a message back, writes a wire down to a file, and opens that file
-again as if it were the port.
+down it and who is at the other end, shows the newest message four ways,
+keeps the ones before it, sends a message back, writes a wire down to a
+file, and opens that file again as if it were the port.
 
 It stands on SigilIO's feeds and on nothing else that draws. What
 travels a wire is bytes, and what those bytes mean belongs to whoever is
@@ -16,8 +16,16 @@ way it is useful while that format is still being decided.
 cmake --build build --config Release --target Seer
 open build/bin/Release/Seer.app                          # the window
 build/bin/Release/Seer.app/Contents/MacOS/Seer udp://:27020
+build/bin/Release/Seer.app/Contents/MacOS/Seer osc://:27050 ws://:27060/sky
 build/bin/Release/Seer.app/Contents/MacOS/Seer --shot panes.png udp://:27020
 ```
+
+Every scheme SigilIO carries is a wire here and none of them is named in
+this code: `udp://:PORT` and `udp://HOST:PORT`, `osc://` — the same
+datagram socket under the name that says its messages are packets — and
+`ws://:PORT/PATH`, which listens for peers on that path. A wire is
+opened by typing its URI, so a scheme added underneath needs nothing
+here.
 
 ## Two targets
 
@@ -66,23 +74,37 @@ the system ended — stays on it and says it is closed.
 
 `sigil::seer::Wires::tick()` writes down one `sigil::seer::Vitals` per
 wire: the rate over the last second of ticks, the newest message, how
-many have arrived, how many were dropped, the local end, the error, and
-whether it is closed. The rate is worked out from the generations
-earlier ticks read, so it is a property of how often the host calls
-this and needs no thread behind it. Nothing here has a clock:
-`sigil::seer::Wires::dispatch()` and the tick both take the caller's
-seconds.
+many have arrived, how many were dropped, the local end, the error,
+whether it is closed, and `sigil::seer::Vitals::lastFrom`, the address
+the last message taken off the wire came from. The rate is worked out
+from the generations earlier ticks read, so it is a property of how
+often the host calls this and needs no thread behind it. Nothing here
+has a clock: `sigil::seer::Wires::dispatch()` and the tick both take
+the caller's seconds.
 
 `sigil::seer::Log` keeps what `sigil::seer::Log::drain()` takes off one
 feed, newest last, up to the capacity it was made with;
 `sigil::seer::Log::forgotten()` counts what fell off the front, which is
 a different bound from the feed's own dropped count and is reported
-separately.
+separately. Every entry carries `sigil::seer::LogEntry::from`, the
+sender the arrival named, since one wire carries messages from many
+senders and which of them sent a message is a fact about the message.
+
+The sender travels with the arrival — it is `sigil::io::Arrival::from`,
+and a feed hands each arrival out once — so the only place that knows
+who sent a message is whoever took it. That is why a wire is TOLD:
+`sigil::seer::Wires::rememberSender()` is what a reader calls with what
+it drained, and a wire nobody drains names nobody.
 
 `sigil::seer::Sender` opens a peer through the same wires — so the peer
 stands in the same list and its replies arrive on it — and sends one
 message or the same message every period, with
 `sigil::seer::Sender::tick()` as the only thing that sends.
+`sigil::seer::oscMessage()` spells the bytes of one OSC message from an
+address and its arguments written as a JSON list, which is what goes to
+a peer on an `osc://` URI: the packet a reader would otherwise type out
+by hand is the address, the type tags and the padding between them, and
+nobody spells that twice without a mistake in it.
 
 `sigil::seer::Recorder` writes a wire down with
 `sigil::seer::Recorder::record()` and opens a URI back onto a file with
@@ -90,11 +112,17 @@ message or the same message every period, with
 first: a feed answers for a URI as long as anyone holds it, so the door
 has to be let go before the file can take its place.
 
-`sigil::seer::hexadecimal()`, `sigil::seer::printableText()` and
-`sigil::seer::indentedJson()` are the three readings of a message. Each
-answers an empty string when the message is not that — a message half of
-which is text is not text, because a reader shown the readable half
-would take the whole thing for a broken string rather than for bytes.
+`sigil::seer::hexadecimal()`, `sigil::seer::printableText()`,
+`sigil::seer::indentedJson()` and `sigil::seer::oscReading()` are the
+four readings of a message. Each answers an empty string when the
+message is not that — a message half of which is text is not text,
+because a reader shown the readable half would take the whole thing for
+a broken string rather than for bytes. The document and the packet are
+written out in one layout, so a reader turning from one to the other
+reads what differs rather than how each was printed.
+`sigil::seer::hostAndPort()` is an address without the scheme in front
+of it, for the lines that stand beside a wire whose scheme is spelled
+there already.
 
 ## The window
 
@@ -105,14 +133,27 @@ frame's answer rather than three asks a moment apart.
 * **Connections** — a field to open a URI, and the wires that are open:
   a dot for whether anything is coming, the URI, the rate, how many have
   arrived, the local end or the sentence that says why there is none,
-  and a button to close it. Choosing a row is what the other panes read.
-* **Receive** — the newest message as hexadecimal pairs, as text, and as
-  an indented JSON document, whichever of those it is; a reading the
-  message does not have is offered disabled, which is how the pane says
-  what the message is not. The log stands below it, one line per message.
+  the end the last message came from once one has been taken, and a
+  button to close it. Choosing a row is what the other panes read. A
+  `ws://` wire's path is part of the URI it was opened on, so the row
+  says which path it is listening for; how many peers have reached it is
+  not something a feed can be asked, so no row claims it.
+* **Receive** — the newest message as hexadecimal pairs, as text, as an
+  indented JSON document and as an OSC packet, whichever of those it is;
+  a reading the message does not have is offered disabled, which is how
+  the pane says what the message is not. Choosing a wire opens the
+  readings on the one its scheme makes natural — the packet on an
+  `osc://` wire, the document elsewhere, the bytes where the message is
+  neither — and a reader who picks a tab keeps it until they choose
+  another wire. The log stands below it, one line per message: when it
+  arrived, who sent it, how big it is, and what it says.
 * **Send** — the peer, an editor read either as text or as hexadecimal
   digits, and the three ways a message leaves: once, on every frame, or
-  as the echo of everything arriving on the wire being read.
+  as the echo of everything arriving on the wire being read. A peer on
+  an `osc://` URI is answered in OSC instead: an address stands beside
+  the peer and the editor is the arguments under it, as a JSON list.
+  What is echoed back is the bytes that arrived, whatever the wire is,
+  because an echo is the message and not a reading of it.
 * **Record and replay** — writing the wire being read to a file, and
   opening a file back onto a URI. What is above then reads the file
   exactly as it read the port.
@@ -121,9 +162,11 @@ The controls are Ifrit.Ui's — the theme derived from the system palette,
 the glass panel, the native window dressing — so the window follows the
 machine's light and dark appearance and invents no look of its own.
 
-A URI on the command line is opened before the window comes up and is
-the one being read, so a run that always watches the same port is one
-command rather than a field typed again every time. `--shot` writes the
+Every URI on the command line is opened before the window comes up and
+the first of them is the one being read — a reader who names several
+names the wire they are watching first and the rest to have them open —
+so a run that always watches the same wires is one command rather than
+fields typed again every time. `--shot` writes the
 window down as a picture once it has run for a moment and then closes
 it, which is how the panes are looked at from a script; a photographed
 run keeps its own opaque ground rather than the machine's glass, because
@@ -134,15 +177,18 @@ cannot reach it. Everything else a session does, it does in the window.
 
 SigilIO's feeds and byte vocabulary are the public dependency. The
 transports are private — no header here names one, a scheme being a
-string — and so is the JSON parser, because a reading answers a string
-and nobody who links this inherits a document type. Nothing of
-SigilSketch is here, and nothing that draws.
+string — and so are the JSON parser and the OSC codec, because a reading
+answers a string and a spelled message answers bytes: nobody who links
+this inherits a document type. Nothing of SigilSketch is here, and
+nothing that draws.
 
 ## Building
 
 One archive and one application, both always configured. The cases are
 in `seer_test` under `build/bin/<config>/tests/`, and every one of them
-runs with no application in the process:
+runs with no application in the process. The codec is linked there
+beside the library, because what the OSC cases assert is that a reading
+and a spelling agree with the bytes a sender writes:
 
 ```sh
 cmake --build build --config Release --target Seer seer_test

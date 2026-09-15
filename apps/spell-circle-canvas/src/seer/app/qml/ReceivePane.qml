@@ -1,10 +1,12 @@
 // WHAT ARRIVED: the newest message in whichever reading it has, and
-// every message before it as a line each.
+// every message before it as a line each with the end it came from.
 //
-// The three readings are tabs rather than three panes because they are
-// one message: a reader wants the bytes, or the text, or the document —
-// never two of them side by side. A reading a message does not have is
-// offered disabled, which is how the pane says what the message is not.
+// The readings are tabs rather than panes side by side because they are
+// one message: a reader wants the bytes, or the text, or the document,
+// or the packet — never two of them at once. A reading a message does
+// not have is offered disabled, which is how the pane says what the
+// message is not, and the wire's own scheme is what opens the pane on
+// the reading that wire carries.
 
 pragma ComponentBehavior: Bound
 
@@ -22,11 +24,19 @@ Ui.GlassPanel {
     /** The reading the chosen tab asks for, falling back to the bytes
      *  themselves, which every message has. */
     function shownReading() {
+        if (readings.currentIndex === 3 && pane.reading.osc.length > 0)
+            return pane.reading.osc;
         if (readings.currentIndex === 2 && pane.reading.json.length > 0)
             return pane.reading.json;
         if (readings.currentIndex === 1 && pane.reading.text.length > 0)
             return pane.reading.text;
         return pane.reading.hexadecimal;
+    }
+
+    /** Opens the tabs on the reading the wire makes natural, which is
+     *  what a reader who has not chosen one is shown. */
+    function openOnNatural() {
+        readings.currentIndex = pane.reading.naturalReading;
     }
 
     radius: 12
@@ -76,29 +86,71 @@ Ui.GlassPanel {
             }
         }
 
-        // Three readings of one message, so the control is as wide as the
-        // three words are: stretched across the pane it would read as
-        // three panes rather than as one choice.
+        // Four readings of one message, so the control is as wide as the
+        // four words are: stretched across the pane it would read as
+        // four panes rather than as one choice. They stand in the order
+        // the wire detail numbers them, so the reading it calls natural
+        // is this index.
         TabBar {
             id: readings
+
+            /** Whether the reader picked this tab themselves. Until they
+             *  do, the wire's own scheme chooses; once they have, their
+             *  choice stands until another wire is chosen, so a message
+             *  arriving a second does not take the pane off what they
+             *  are reading. */
+            property bool picked: false
 
             Layout.alignment: Qt.AlignLeft
 
             TabButton {
                 text: "Hex"
                 width: implicitWidth
+                onClicked: readings.picked = true
             }
 
             TabButton {
                 text: "Text"
                 width: implicitWidth
                 enabled: pane.reading.text.length > 0
+                onClicked: readings.picked = true
             }
 
             TabButton {
                 text: "JSON"
                 width: implicitWidth
                 enabled: pane.reading.json.length > 0
+                onClicked: readings.picked = true
+            }
+
+            TabButton {
+                text: "OSC"
+                width: implicitWidth
+                enabled: pane.reading.osc.length > 0
+                onClicked: readings.picked = true
+            }
+        }
+
+        // A wire chosen is a reading chosen: what the last wire was read
+        // as says nothing about this one.
+        Connections {
+            target: pane.session
+
+            function onSelectionChanged() {
+                readings.picked = false;
+                pane.openOnNatural();
+            }
+        }
+
+        // The first message on a wire is where its reading becomes
+        // knowable, so a pane opened before anything arrived follows
+        // until the reader takes it somewhere.
+        Connections {
+            target: pane.reading
+
+            function onChanged() {
+                if (!readings.picked)
+                    pane.openOnNatural();
             }
         }
 
@@ -152,6 +204,7 @@ Ui.GlassPanel {
 
                 required property real at
                 required property var generation
+                required property string from
                 required property var size
                 required property string preview
 
@@ -180,6 +233,19 @@ Ui.GlassPanel {
                         font.pixelSize: 11
                         horizontalAlignment: Text.AlignRight
                         Layout.preferredWidth: 64
+                    }
+
+                    // Which end sent it. One wire carries messages from
+                    // many senders, and the scheme is the wire's and
+                    // already above, so only the end that differs is
+                    // here.
+                    Label {
+                        text: message.from
+                        color: Ui.Theme.disabledText
+                        font.family: Ui.Theme.monospaceFontFamily
+                        font.pixelSize: 11
+                        elide: Text.ElideRight
+                        Layout.preferredWidth: 124
                     }
 
                     Label {

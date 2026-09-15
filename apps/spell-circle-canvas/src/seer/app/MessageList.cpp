@@ -46,6 +46,8 @@ QVariant MessageList::data(const QModelIndex& index, int role) const {
       return row.at;
     case GenerationField:
       return row.generation;
+    case FromField:
+      return row.from;
     case SizeField:
       return row.size;
     case PreviewField:
@@ -58,6 +60,7 @@ QVariant MessageList::data(const QModelIndex& index, int role) const {
 QHash<int, QByteArray> MessageList::roleNames() const {
   return {{AtField, "at"},
           {GenerationField, "generation"},
+          {FromField, "from"},
           {SizeField, "size"},
           {PreviewField, "preview"}};
 }
@@ -78,6 +81,7 @@ void MessageList::refresh(const sigil::seer::Log& log) {
       Row row;
       row.at = entry.at;
       row.generation = entry.generation;
+      row.from = QString::fromStdString(sigil::seer::hostAndPort(entry.from));
       row.size = entry.size;
       row.preview = entry.bytes ? previewOf(*entry.bytes) : QString();
       m_rows.append(row);

@@ -2,7 +2,7 @@
 
 /** @file
  * THE WIRE BEING READ: what it is doing, and its newest message shown
- * three ways at once.
+ * four ways at once.
  *
  * The readings are worked out when the message changes rather than when
  * they are asked for, so a wire carrying nothing new costs nothing to
@@ -32,14 +32,23 @@ class WireDetail : public QObject {
   /** Whether a wire is being read at all. Everything below is empty
    *  while this is false. */
   Q_PROPERTY(bool present READ present NOTIFY changed)
-  /** The newest message: how many bytes it is, and the three readings —
+  /** The newest message: how many bytes it is, and the four readings —
    *  each empty when the message is not that. */
   Q_PROPERTY(qulonglong byteSize READ byteSize NOTIFY changed)
   Q_PROPERTY(QString hexadecimal READ hexadecimal NOTIFY changed)
   Q_PROPERTY(QString text READ text NOTIFY changed)
   Q_PROPERTY(QString json READ json NOTIFY changed)
+  Q_PROPERTY(QString osc READ osc NOTIFY changed)
+  /** Which reading this wire is opened on, as its place among the
+   *  readings named below. */
+  Q_PROPERTY(int naturalReading READ naturalReading NOTIFY changed)
 
  public:
+  /** THE READINGS, in the order a pane offers them: the bytes first,
+   *  because every message has them, then what the message may be. */
+  enum Reading { Hexadecimal, Text, Json, Osc };
+  Q_ENUM(Reading)
+
   explicit WireDetail(QObject* parent = nullptr);
 
   [[nodiscard]] QString uri() const { return m_uri; }
@@ -54,6 +63,15 @@ class WireDetail : public QObject {
   [[nodiscard]] QString hexadecimal() const { return m_hexadecimal; }
   [[nodiscard]] QString text() const { return m_text; }
   [[nodiscard]] QString json() const { return m_json; }
+  [[nodiscard]] QString osc() const { return m_osc; }
+
+  /** THE READING A WIRE IS OPENED ON, before a reader picks one for
+   *  themselves. A wire of OSC packets is opened on the packet and
+   *  every other wire on the document, each of them falling back to the
+   *  bytes when the message is not that — because the bytes are the one
+   *  reading every message has, and a pane opened on a reading that is
+   *  empty says nothing about what arrived. */
+  [[nodiscard]] int naturalReading() const;
 
   /** Shows what a tick read; null shows no wire at all. */
   void show(const sigil::seer::Vitals* vitals);
@@ -62,7 +80,7 @@ class WireDetail : public QObject {
   void changed();
 
  private:
-  /** Reads the newest message the three ways, unless it is the message
+  /** Reads the newest message every way, unless it is the message
    *  already read. */
   bool readMessage(const sigil::seer::Vitals& vitals);
 
@@ -78,6 +96,7 @@ class WireDetail : public QObject {
   QString m_hexadecimal;
   QString m_text;
   QString m_json;
+  QString m_osc;
   /** Which message the readings were made from: the wire it came off
    *  and the arrival it was, because generations begin again on every
    *  wire. */

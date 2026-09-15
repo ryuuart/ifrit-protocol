@@ -7,6 +7,7 @@
 
 #include <QtCore/QByteArray>
 #include <QtCore/QChar>
+#include <QtCore/QLatin1String>
 #include <cstddef>
 #include <memory>
 #include <string>
@@ -54,6 +55,22 @@ void SendForm::setHexadecimal(bool hexadecimal) {
   if (hexadecimal == m_hexadecimal) return;
   m_hexadecimal = hexadecimal;
   emit hexadecimalChanged();
+  if (repeating()) setRepeating(true);
+}
+
+bool SendForm::oscPeer() const {
+  // The scheme is where a reader said what the other end speaks, and it
+  // is the only place that says it: the same datagram socket carries
+  // packets under one name and anything at all under the other.
+  return m_peerUri.startsWith(QLatin1String("osc://"));
+}
+
+void SendForm::setOscAddress(const QString& address) {
+  if (address == m_oscAddress) return;
+  m_oscAddress = address;
+  emit oscAddressChanged();
+  // A repeat is sending the packet the address held when it was turned
+  // on, so an edit while it runs re-arms it with the address now.
   if (repeating()) setRepeating(true);
 }
 
@@ -106,6 +123,17 @@ void SendForm::refresh() {
 }
 
 std::optional<sigil::io::Bytes> SendForm::messageBytes() {
+  if (oscPeer()) {
+    sigil::io::Bytes packet = sigil::seer::oscMessage(
+        m_oscAddress.toStdString(), m_message.toStdString());
+    if (packet.bytes.empty()) {
+      setNote(QStringLiteral(
+          "no packet: an OSC message is an address, and arguments spelled "
+          "as a JSON list"));
+      return std::nullopt;
+    }
+    return packet;
+  }
   if (!m_hexadecimal) return bytesOf(m_message.toUtf8());
 
   sigil::io::Bytes bytes;
@@ -133,7 +161,8 @@ std::optional<sigil::io::Bytes> SendForm::messageBytes() {
 
 bool SendForm::reachPeer() {
   if (m_peerUri.isEmpty()) {
-    setNote(QStringLiteral("no peer: a message goes to udp://host:port"));
+    setNote(QStringLiteral(
+        "no peer: a message goes to udp://host:port or osc://host:port"));
     return false;
   }
   const std::string uri = m_peerUri.toStdString();

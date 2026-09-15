@@ -55,6 +55,11 @@ struct Vitals {
   bool closed = false;
   /** The newest message, or null before the first one arrives. */
   std::shared_ptr<const io::Bytes> newest;
+  /** The address the newest message TAKEN OFF this wire came from,
+   *  spelled the way a URI of its scheme is. Empty until a message has
+   *  been taken, on a recording, and on a transport that cannot tell
+   *  who sent what it delivered. */
+  std::string lastFrom;
 };
 
 /** THE WIRES BEING WATCHED, and the one hub they are opened on.
@@ -102,6 +107,14 @@ class Wires {
    *  wire is unaffected — its transport delivers on its own. */
   void dispatch(double seconds);
 
+  /** Remembers that the newest message taken off the wire at @p uri
+   *  came from @p address, which the next tick writes into that wire's
+   *  vitals. A feed hands each arrival out once and the sender travels
+   *  with the arrival, so the only place that knows who sent a message
+   *  is whoever took it: a wire nobody drains names nobody. A URI no
+   *  wire is open on is passed over. */
+  void rememberSender(std::string_view uri, std::string address);
+
   /** Reads every wire and writes down what it is doing at @p seconds on
    *  the caller's clock. The rate is worked out from the generations
    *  earlier ticks read, so it is a property of how often this is
@@ -126,11 +139,12 @@ class Wires {
     uint64_t generation = 0;
   };
 
-  /** One wire: the feed, and the recent generations its rate is read
-   *  off. */
+  /** One wire: the feed, the recent generations its rate is read off,
+   *  and who sent the last message taken off it. */
   struct Watch {
     std::shared_ptr<io::Feed> feed;
     std::deque<Sample> samples;
+    std::string lastFrom;
   };
 
   /** The wire open on @p uri, or nothing. */

@@ -1,11 +1,11 @@
 // THE WIRES: a field to open one, and the list of the ones that are
 // open.
 //
-// A row is a whole wire in three readings — whether anything is coming,
-// the URI it was opened on, and either the end the transport bound or
-// the sentence saying why it bound none. A wire that could not be opened
-// is listed like any other, because the reader has to see the URI they
-// mistyped beside what is wrong with it.
+// A row is a whole wire — whether anything is coming, the URI it was
+// opened on, either the end the transport bound or the sentence saying
+// why it bound none, and the end the last message came from. A wire
+// that could not be opened is listed like any other, because the reader
+// has to see the URI they mistyped beside what is wrong with it.
 
 pragma ComponentBehavior: Bound
 
@@ -91,6 +91,7 @@ Ui.GlassPanel {
                 required property int index
                 required property string uri
                 required property string address
+                required property string lastFrom
                 required property string error
                 required property real arrivalsPerSecond
                 required property var generation
@@ -137,6 +138,20 @@ Ui.GlassPanel {
                             color: wire.error.length > 0 ? Ui.Theme.primaryText : Ui.Theme.secondaryText
                             font.pixelSize: 11
                             elide: Text.ElideRight
+                        }
+
+                        // Who is at the other end, under where this end
+                        // stands. It is there once a message has been
+                        // taken off the wire and not before, because the
+                        // sender arrives with the message.
+                        Label {
+                            Layout.fillWidth: true
+                            visible: wire.lastFrom.length > 0
+                            text: "from " + wire.lastFrom
+                            color: Ui.Theme.disabledText
+                            font.family: Ui.Theme.monospaceFontFamily
+                            font.pixelSize: 11
+                            elide: Text.ElideMiddle
                         }
                     }
 

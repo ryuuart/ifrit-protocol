@@ -1,8 +1,8 @@
 /** @file
  * The wires: what a URI nobody can open leaves behind, what two wires on
- * the loopback carry between them, the rate a tick reads off a wire, the
- * file a recording writes and the wire that plays it back, and the three
- * readings a message is shown through.
+ * the loopback carry between them, the sender a message is kept with,
+ * the rate a tick reads off a wire, the file a recording writes and the
+ * wire that plays it back, and the readings a message is shown through.
  */
 
 #include <gtest/gtest.h>
@@ -156,6 +156,48 @@ TEST(SeerWires, TwoWiresOnTheLoopbackCarryBytesAndTheLogDrainsThemInOrder) {
   // nothing, and the log keeps what it already took.
   EXPECT_EQ(log.drain(*listener), 0u);
   EXPECT_EQ(log.entries().size(), 2u);
+}
+
+TEST(SeerLog, AnEntryCarriesTheSenderItWasDeliveredWith) {
+  Wires wires;
+  const std::shared_ptr<Feed> feed = wires.open("pigeon://the.desk");
+  feed->deliver(bytesOf("from the field"),
+                std::string("udp://127.0.0.1:52341"));
+  feed->deliver(bytesOf("from nobody"));
+
+  Log log;
+  EXPECT_EQ(log.drain(*feed), 2u);
+  ASSERT_EQ(log.entries().size(), 2u);
+  // One wire carries messages from many senders, so the sender belongs
+  // to the message: a reader looking down the log sees which of them
+  // each line came from.
+  EXPECT_EQ(log.entries()[0].from, "udp://127.0.0.1:52341");
+  // A transport with no way of knowing, and a recording, name nobody.
+  EXPECT_TRUE(log.entries()[1].from.empty());
+}
+
+TEST(SeerWires, AWireNamesTheSenderOfTheMessageLastTakenOffIt) {
+  Wires wires;
+  wires.open("pigeon://the.desk");
+  wires.tick(0.0);
+  // A wire nobody has taken a message off names nobody: the sender
+  // travels with the arrival, and an arrival nobody took is one nobody
+  // has read a sender out of.
+  ASSERT_NE(wires.vitalsOf("pigeon://the.desk"), nullptr);
+  EXPECT_TRUE(wires.vitalsOf("pigeon://the.desk")->lastFrom.empty());
+
+  wires.rememberSender("pigeon://the.desk", "udp://127.0.0.1:52341");
+  wires.tick(1.0);
+  EXPECT_EQ(wires.vitalsOf("pigeon://the.desk")->lastFrom,
+            "udp://127.0.0.1:52341");
+
+  // A URI no wire is open on is passed over rather than remembered
+  // against a wire that is not there.
+  wires.rememberSender("pigeon://elsewhere", "udp://127.0.0.1:52342");
+  wires.tick(2.0);
+  EXPECT_EQ(wires.vitals().size(), 1u);
+  EXPECT_EQ(wires.vitalsOf("pigeon://the.desk")->lastFrom,
+            "udp://127.0.0.1:52341");
 }
 
 TEST(SeerLog, AFullLogLetsGoOfTheOldestAndCountsIt) {
@@ -338,6 +380,16 @@ TEST(SeerRendering, BytesAreShownAsHexadecimalPairsUpToTheLimit) {
   EXPECT_EQ(sigil::seer::hexadecimal(bytesOf("Hi\n")), "48 69 0a");
   EXPECT_EQ(sigil::seer::hexadecimal(bytesOf("Hi\n"), 2), "48 69 …");
   EXPECT_TRUE(sigil::seer::hexadecimal(bytesOf("")).empty());
+}
+
+TEST(SeerRendering, AnAddressIsShownWithoutTheSchemeTheWireAlreadySpells) {
+  EXPECT_EQ(sigil::seer::hostAndPort("udp://127.0.0.1:52341"),
+            "127.0.0.1:52341");
+  EXPECT_EQ(sigil::seer::hostAndPort("ws://[::1]:27060"), "[::1]:27060");
+  // An address with no scheme in front of it is already the end a
+  // reader is being shown.
+  EXPECT_EQ(sigil::seer::hostAndPort("the.desk"), "the.desk");
+  EXPECT_TRUE(sigil::seer::hostAndPort("").empty());
 }
 
 TEST(SeerRendering, TextIsAnsweredOnlyWhenEveryByteIsPrintableUtf8) {

@@ -2,7 +2,7 @@
 
 /** @file
  * THE LOG AS ROWS: every message taken off the wire being read, newest
- * last.
+ * last, each with the sender it came from.
  *
  * The log below it is the truth, and this mirrors it by appending what
  * it has not seen and letting go of what the log has already forgotten —
@@ -30,6 +30,7 @@ class MessageList : public QAbstractListModel {
   enum Field {
     AtField = Qt::UserRole + 1,
     GenerationField,
+    FromField,
     SizeField,
     PreviewField,
   };
@@ -53,6 +54,10 @@ class MessageList : public QAbstractListModel {
   struct Row {
     double at = 0;
     qulonglong generation = 0;
+    /** Who sent it, without the scheme: the wire the log belongs to
+     *  spells that already, and what a reader is comparing down the
+     *  column is which end the message came from. */
+    QString from;
     qulonglong size = 0;
     QString preview;
   };

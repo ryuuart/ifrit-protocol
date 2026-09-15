@@ -4,6 +4,8 @@
 
 #include "WireList.h"
 
+#include <sigilseer/wire/Rendering.h>
+
 #include <QtCore/QString>
 
 WireList::WireList(QObject* parent) : QAbstractListModel(parent) {}
@@ -20,6 +22,8 @@ QVariant WireList::data(const QModelIndex& index, int role) const {
       return row.uri;
     case AddressField:
       return row.address;
+    case LastFromField:
+      return row.lastFrom;
     case ErrorField:
       return row.error;
     case ArrivalsPerSecondField:
@@ -38,6 +42,7 @@ QVariant WireList::data(const QModelIndex& index, int role) const {
 QHash<int, QByteArray> WireList::roleNames() const {
   return {{UriField, "uri"},
           {AddressField, "address"},
+          {LastFromField, "lastFrom"},
           {ErrorField, "error"},
           {ArrivalsPerSecondField, "arrivalsPerSecond"},
           {GenerationField, "generation"},
@@ -50,6 +55,8 @@ void WireList::refresh(const std::vector<sigil::seer::Vitals>& vitals) {
     Row row;
     row.uri = QString::fromStdString(read.uri);
     row.address = QString::fromStdString(read.address);
+    row.lastFrom =
+        QString::fromStdString(sigil::seer::hostAndPort(read.lastFrom));
     row.error = QString::fromStdString(read.error);
     row.arrivalsPerSecond = read.arrivalsPerSecond;
     row.generation = read.generation;

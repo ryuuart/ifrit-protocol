@@ -5,10 +5,10 @@
  *   Seer [<uri>…]                the window, with each URI already open
  *   Seer --shot <png> [<uri>…]   …photographed once it has run, and closed
  *
- * A URI on the command line is opened before the window comes up and the
- * last of them is the one being read, so a run that always watches the
- * same port is one command rather than a field typed again every time.
- * Everything else a session does, it does in the window.
+ * Every URI on the command line is opened before the window comes up and
+ * the first of them is the one being read, so a run that always watches
+ * the same wires is one command rather than fields typed again every
+ * time. Everything else a session does, it does in the window.
  *
  * `--shot` IS THE WINDOW WITHOUT SOMEBODY IN FRONT OF IT: the frames the
  * window drew, read back and written down, which is how the panes are

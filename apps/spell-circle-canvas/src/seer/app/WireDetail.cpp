@@ -1,12 +1,13 @@
 /** @file
- * The selected wire's detail, and the three readings of its newest
- * message.
+ * The selected wire's detail, the four readings of its newest message,
+ * and which of them the wire is opened on.
  */
 
 #include "WireDetail.h"
 
 #include <sigilseer/wire/Rendering.h>
 
+#include <QtCore/QString>
 #include <cstddef>
 
 namespace {
@@ -20,6 +21,18 @@ constexpr size_t kHexadecimalLimit = 1024;
 }  // namespace
 
 WireDetail::WireDetail(QObject* parent) : QObject(parent) {}
+
+int WireDetail::naturalReading() const {
+  // The scheme says what the wire carries, which the bytes of one
+  // message often do not: a packet and a document are both a run of
+  // printable characters to look at, and the wire is where a reader was
+  // told which one they are looking at.
+  const int mark = m_uri.indexOf(QLatin1String("://"));
+  const QString scheme = mark < 0 ? QString() : m_uri.left(mark);
+  if (scheme == QLatin1String("osc") && !m_osc.isEmpty()) return Osc;
+  if (!m_json.isEmpty()) return Json;
+  return Hexadecimal;
+}
 
 void WireDetail::show(const sigil::seer::Vitals* vitals) {
   if (!vitals) {
@@ -36,6 +49,7 @@ void WireDetail::show(const sigil::seer::Vitals* vitals) {
     m_hexadecimal.clear();
     m_text.clear();
     m_json.clear();
+    m_osc.clear();
     m_readUri.clear();
     m_readGeneration = 0;
     emit changed();
@@ -66,12 +80,13 @@ void WireDetail::show(const sigil::seer::Vitals* vitals) {
 bool WireDetail::readMessage(const sigil::seer::Vitals& vitals) {
   if (!vitals.newest) {
     if (m_byteSize == 0 && m_hexadecimal.isEmpty() && m_text.isEmpty() &&
-        m_json.isEmpty())
+        m_json.isEmpty() && m_osc.isEmpty())
       return false;
     m_byteSize = 0;
     m_hexadecimal.clear();
     m_text.clear();
     m_json.clear();
+    m_osc.clear();
     m_readUri.clear();
     m_readGeneration = 0;
     return true;
@@ -84,6 +99,7 @@ bool WireDetail::readMessage(const sigil::seer::Vitals& vitals) {
       sigil::seer::hexadecimal(bytes, kHexadecimalLimit));
   m_text = QString::fromStdString(sigil::seer::printableText(bytes));
   m_json = QString::fromStdString(sigil::seer::indentedJson(bytes));
+  m_osc = QString::fromStdString(sigil::seer::oscReading(bytes));
   m_readUri = m_uri;
   m_readGeneration = m_generation;
   return true;

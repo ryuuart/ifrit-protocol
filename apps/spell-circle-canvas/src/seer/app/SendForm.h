@@ -4,11 +4,14 @@
  * WHAT IS ABOUT TO BE SENT: the peer, the message, and how the message
  * is written.
  *
- * The editor holds text either way. Read as text it is sent as its UTF-8
+ * The editor holds text every way. Read as text it is sent as its UTF-8
  * bytes; read as hexadecimal it is the bytes those digits spell, which
- * is how a wire that carries no text at all is answered by hand. A
- * message the digits do not spell is not sent, and the note says so
- * rather than a wrong message going out.
+ * is how a wire that carries no text at all is answered by hand; and on
+ * a peer that speaks OSC it is the arguments, written as a JSON list
+ * under an address of its own, because a packet spelled out by hand is
+ * a byte count and a run of padding a reader gets wrong once and then
+ * distrusts. A message the editor does not spell is not sent, and the
+ * note says so rather than a wrong message going out.
  */
 
 #include <QtQml/qqmlregistration.h>
@@ -29,9 +32,18 @@ class SendForm : public QObject {
   Q_PROPERTY(
       QString message READ message WRITE setMessage NOTIFY messageChanged)
   /** Whether the editor's text is read as hexadecimal digits rather than
-   *  as text. */
+   *  as text. A peer that speaks OSC reads it as arguments whichever
+   *  way this stands. */
   Q_PROPERTY(bool hexadecimal READ hexadecimal WRITE setHexadecimal NOTIFY
                  hexadecimalChanged)
+  /** Whether the peer speaks OSC, which is what the scheme of its URI
+   *  says. The editor is then the arguments and the address below is
+   *  where they go. */
+  Q_PROPERTY(bool oscPeer READ oscPeer NOTIFY peerChanged)
+  /** The address an OSC message is sent to, the one part of a packet
+   *  that is not in the editor. */
+  Q_PROPERTY(QString oscAddress READ oscAddress WRITE setOscAddress NOTIFY
+                 oscAddressChanged)
   /** Whether the message goes out again on every frame. */
   Q_PROPERTY(
       bool repeating READ repeating WRITE setRepeating NOTIFY repeatingChanged)
@@ -54,6 +66,8 @@ class SendForm : public QObject {
   [[nodiscard]] QString peerUri() const { return m_peerUri; }
   [[nodiscard]] QString message() const { return m_message; }
   [[nodiscard]] bool hexadecimal() const { return m_hexadecimal; }
+  [[nodiscard]] bool oscPeer() const;
+  [[nodiscard]] QString oscAddress() const { return m_oscAddress; }
   [[nodiscard]] bool repeating() const { return m_sender.repeating(); }
   [[nodiscard]] bool loopingBack() const { return m_loopingBack; }
   [[nodiscard]] qulonglong sent() const { return m_sender.sent(); }
@@ -62,6 +76,7 @@ class SendForm : public QObject {
   void setPeerUri(const QString& uri);
   void setMessage(const QString& message);
   void setHexadecimal(bool hexadecimal);
+  void setOscAddress(const QString& address);
   void setRepeating(bool repeating);
   void setLoopingBack(bool looping);
 
@@ -80,6 +95,7 @@ class SendForm : public QObject {
   void peerChanged();
   void messageChanged();
   void hexadecimalChanged();
+  void oscAddressChanged();
   void repeatingChanged();
   void loopingBackChanged();
   void sentChanged();
@@ -102,6 +118,10 @@ class SendForm : public QObject {
   QString m_peerUri;
   QString m_message;
   QString m_note;
+  /** Where a packet goes on the instrument at the other end. A wire
+   *  carries one, so the pane opens on one rather than on nothing a
+   *  reader would have to invent. */
+  QString m_oscAddress = QStringLiteral("/sky/wind");
   bool m_hexadecimal = false;
   bool m_loopingBack = false;
   qulonglong m_sentSeen = 0;

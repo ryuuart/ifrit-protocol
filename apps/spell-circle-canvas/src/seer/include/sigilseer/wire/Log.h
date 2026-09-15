@@ -18,13 +18,14 @@
 #include <cstdint>
 #include <deque>
 #include <memory>
+#include <string>
 
 namespace sigil::seer {
 
-/** ONE MESSAGE AS THE LOG KEEPS IT: when it arrived, which arrival it
- *  was on its feed, how big it is, and the bytes themselves. The bytes
- *  are shared with everyone else holding that message, so a log of a
- *  thousand entries copies none of them. */
+/** ONE MESSAGE AS THE LOG KEEPS IT: when it arrived, who sent it,
+ *  which arrival it was on its feed, how big it is, and the bytes
+ *  themselves. The bytes are shared with everyone else holding that
+ *  message, so a log of a thousand entries copies none of them. */
 struct LogEntry {
   /** Seconds, as the feed stamped the arrival: since the feed was made
    *  on a live wire, and the recorded time on a replayed one. */
@@ -32,6 +33,12 @@ struct LogEntry {
   uint64_t generation = 0;
   size_t size = 0;
   std::shared_ptr<const io::Bytes> bytes;
+  /** The address the message came from, spelled the way a URI of the
+   *  wire's own scheme is; empty on a recording, which has nobody at
+   *  the other end, and on a transport with no way of knowing. One
+   *  wire carries messages from many senders, so this belongs to the
+   *  message and not to the wire. */
+  std::string from;
 };
 
 /** A BOUNDED LOG OF ONE WIRE'S MESSAGES, oldest first. */

@@ -30,6 +30,7 @@ class WireList : public QAbstractListModel {
   enum Field {
     UriField = Qt::UserRole + 1,
     AddressField,
+    LastFromField,
     ErrorField,
     ArrivalsPerSecondField,
     GenerationField,
@@ -60,6 +61,10 @@ class WireList : public QAbstractListModel {
   struct Row {
     QString uri;
     QString address;
+    /** Who sent the last message taken off this wire, without the
+     *  scheme the URI above it already spells; empty on a wire nothing
+     *  has been taken off. */
+    QString lastFrom;
     QString error;
     double arrivalsPerSecond = 0;
     qulonglong generation = 0;

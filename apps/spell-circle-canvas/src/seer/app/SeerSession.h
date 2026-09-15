@@ -68,9 +68,10 @@ class SeerSession : public QObject {
   ~SeerSession() override;
 
   /** The wires a run opens before the window comes up: every URI the
-   *  command line named, in the order it named them. A static because
-   *  the session is made by the QML that declares the window, which the
-   *  command line is out of reach of. */
+   *  command line named, in the order it named them, the first of which
+   *  is the one read. A static because the session is made by the QML
+   *  that declares the window, which the command line is out of reach
+   *  of. */
   static QStringList opensOn;
 
   /** Whether this run is here to be photographed. What is read back off

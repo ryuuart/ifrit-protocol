@@ -28,7 +28,7 @@ std::shared_ptr<io::Feed> Wires::open(std::string_view uri,
                                       io::FeedPolicy policy) {
   if (const Watch* watch = watchOf(uri)) return watch->feed;
   std::shared_ptr<io::Feed> feed = m_hub.feed(uri, policy);
-  m_watches.push_back({feed, {}});
+  m_watches.push_back({feed, {}, {}});
   return feed;
 }
 
@@ -67,6 +67,14 @@ void Wires::mountRecording(std::string_view uri,
 
 void Wires::dispatch(double seconds) { m_hub.dispatch(seconds); }
 
+void Wires::rememberSender(std::string_view uri, std::string address) {
+  for (Watch& watch : m_watches)
+    if (watch.feed->uri() == uri) {
+      watch.lastFrom = std::move(address);
+      return;
+    }
+}
+
 void Wires::tick(double seconds) {
   m_vitals.clear();
   m_vitals.reserve(m_watches.size());
@@ -95,6 +103,7 @@ void Wires::tick(double seconds) {
         span > 0 ? double(newest.generation - oldest.generation) / span : 0.0;
     vitals.closed = feed.closed();
     vitals.newest = feed.latest();
+    vitals.lastFrom = watch.lastFrom;
     m_vitals.push_back(std::move(vitals));
   }
 }

@@ -1,11 +1,13 @@
 /** @file
- * The three readings of a message: the bytes themselves, the text they
- * may be, and the document they may be.
+ * The four readings of a message — the bytes themselves, the text they
+ * may be, the document they may be and the packet they may be — and the
+ * short spelling of an address.
  */
 
 #include "sigilseer/wire/Rendering.h"
 
 #include <sigildata/decode/Json.h>
+#include <sigildata/decode/Osc.h>
 
 #include <charconv>
 #include <cstdint>
@@ -178,6 +180,16 @@ void appendValue(std::string& out, const data::Json& value, size_t depth) {
   }
 }
 
+/** @p value written out indented. One printer serves the document and
+ *  the packet alike: a reader turning from one to the other is reading
+ *  the same kind of value and should not have to read two layouts to
+ *  see it. */
+std::string indented(const data::Json& value) {
+  std::string out;
+  appendValue(out, value, 0);
+  return out;
+}
+
 }  // namespace
 
 std::string hexadecimal(const io::Bytes& bytes, size_t limit) {
@@ -208,9 +220,19 @@ std::string printableText(const io::Bytes& bytes) {
 std::string indentedJson(const io::Bytes& bytes) {
   const std::optional<data::Json> document = data::decodeJson(bytes.asText());
   if (!document) return {};
-  std::string out;
-  appendValue(out, *document, 0);
-  return out;
+  return indented(*document);
+}
+
+std::string oscReading(const io::Bytes& bytes) {
+  const std::optional<data::Json> packet = data::decodeOsc(bytes.bytes);
+  if (!packet) return {};
+  return indented(*packet);
+}
+
+std::string hostAndPort(std::string_view uri) {
+  const size_t mark = uri.find("://");
+  if (mark == std::string_view::npos) return std::string(uri);
+  return std::string(uri.substr(mark + 3));
 }
 
 }  // namespace sigil::seer

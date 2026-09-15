@@ -2,7 +2,8 @@
 
 /** @file
  * SENDING DOWN A WIRE: the peer a message goes to, one message or the
- * same message again and again, driven by the caller's own clock.
+ * same message again and again, driven by the caller's own clock, and
+ * the one message a reader spells rather than types out byte by byte.
  *
  * The peer is a wire like any other — it is opened through Wires, it
  * stands in the same list, and what the peer sends back arrives on it —
@@ -24,6 +25,19 @@
 namespace sigil::seer {
 
 class Wires;
+
+/** THE BYTES OF ONE OSC MESSAGE: @p address, and the arguments
+ *  @p arguments spells as a JSON document — a list being the arguments
+ *  in order, any other value the one argument it is, and nothing at all
+ *  a message carrying none. Empty when the address is empty, when the
+ *  arguments are not a document, and when the message will not fit one
+ *  packet, so half a message never goes out.
+ *
+ *  A wire that speaks OSC is answered in what it speaks. The
+ *  hexadecimal a reader would otherwise type out is the address, the
+ *  type tags and the padding between them all at once, which is a
+ *  message nobody spells twice without a mistake in it. */
+io::Bytes oscMessage(std::string_view address, std::string_view arguments);
 
 /** THE WAY OUT: one peer, and the message that goes to it. */
 class Sender {
