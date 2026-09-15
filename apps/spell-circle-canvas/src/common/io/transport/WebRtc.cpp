@@ -33,6 +33,15 @@
  * A SIGNAL THAT ENDS ENDS NO CONVERSATION. Two ends that have found
  * each other speak through nothing else, so a door whose signalling
  * socket has closed keeps every peer it has and only takes no new one.
+ *
+ * workaround: EVERY GUARD HERE IS A CATCH-ALL. A catch of
+ * `const std::exception&` matches nothing the standard library throws in
+ * an image that carries a hidden copy of that type's typeinfo — a static
+ * dependency compiled without run-time type information emits one at
+ * every throw site, the linker binds every other object's reference to
+ * it, and the runtime holds that copy unequal to the unique one a throw
+ * carries — so the guards name no type, and the two that report the
+ * library's own sentence keep a nameless clause behind it.
  */
 
 #include <atomic>
@@ -291,7 +300,7 @@ bool peerIsOver(const Peer& peer) {
     const rtc::PeerConnection::State standing = peer.connection->state();
     return standing == rtc::PeerConnection::State::Closed ||
            standing == rtc::PeerConnection::State::Failed;
-  } catch (const std::exception&) {
+  } catch (...) {
     // A connection that cannot say what state it stands in is one to
     // let go of.
     return true;
@@ -313,7 +322,7 @@ bool writeOn(const std::shared_ptr<rtc::DataChannel>& channel,
       return false;
     channel->send(message.bytes.data(), message.bytes.size());
     return true;
-  } catch (const std::exception&) {
+  } catch (...) {
     return false;
   }
 }
@@ -333,14 +342,14 @@ void endPeer(const Peer& peer) {
       peer.channel->resetCallbacks();
       peer.channel->close();
     }
-  } catch (const std::exception&) {
+  } catch (...) {
   }
   try {
     if (peer.connection) {
       peer.connection->resetCallbacks();
       peer.connection->close();
     }
-  } catch (const std::exception&) {
+  } catch (...) {
   }
 }
 
@@ -446,6 +455,10 @@ void Door::callOut() {
     if (const std::shared_ptr<Feed> into = feed.lock())
       into->fail(std::string("could not take up ") + address + ": " +
                  trouble.what());
+  } catch (...) {
+    if (const std::shared_ptr<Feed> into = feed.lock())
+      into->fail(std::string("could not take up ") + address +
+                 ": the library refused the call");
   }
 }
 
@@ -473,7 +486,7 @@ void Door::answer(const std::string& sdp, const std::string& from) {
     // the offer is what makes the answer, which goes out through the
     // callback above.
     peer->connection->setRemoteDescription(rtc::Description(sdp, "offer"));
-  } catch (const std::exception&) {
+  } catch (...) {
     peer->gone.store(true, std::memory_order_release);
   }
 }
@@ -498,7 +511,7 @@ void Door::take(const detail::Introduction& message, const std::string& from) {
     if (message.kind == "candidate" && !message.candidate.empty())
       peer->connection->addRemoteCandidate(
           rtc::Candidate(message.candidate, message.mid));
-  } catch (const std::exception&) {
+  } catch (...) {
     // One sentence this end could not read leaves the conversation
     // standing: a candidate is one address out of several, and an
     // answer that does not fit is a peer that will find no route
@@ -716,6 +729,8 @@ OpenedFeed openFeed(Hub& hub, Signals& signals, std::string_view uri,
     } catch (const std::exception& trouble) {
       return refuse(into, server + " is no ice server for " + std::string(uri) +
                               ": " + trouble.what());
+    } catch (...) {
+      return refuse(into, server + " is no ice server for " + std::string(uri));
     }
   }
 
