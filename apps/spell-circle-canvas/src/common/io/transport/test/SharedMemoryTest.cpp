@@ -212,6 +212,11 @@ TEST_F(IOSharedMemory, AMessageIsNeverSeenHalfWritten) {
       std::fill(message.begin(), message.end(),
                 std::byte{(unsigned char)(mark++ & 0xFF)});
       writer.write(message);
+      // A breath between writes, far shorter than a look: a writer that
+      // never pauses can overtake every copy the reader makes, and what
+      // this case asserts is that a copy is never torn, which needs
+      // copies to exist.
+      std::this_thread::sleep_for(std::chrono::microseconds(20));
     }
   });
 

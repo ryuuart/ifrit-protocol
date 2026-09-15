@@ -233,27 +233,40 @@ struct Door : std::enable_shared_from_this<Door> {
   std::atomic<bool> closed{false};
 };
 
+/** How many times one look tries again when the writer overtook it. A
+ *  writer that never pauses can overtake every copy a reader makes, and
+ *  a look that gave up on its first overtaken copy would then read
+ *  nothing for as long as the writing lasts; a few tries in a row find
+ *  the gap between two writes, and a look that finds none leaves the
+ *  message to the next look rather than spinning against the writer. */
+constexpr int kTriesPerLook = 8;
+
 void Door::read(Feed& into) {
   std::atomic_ref<std::uint64_t> written(region->sequence);
-  const std::uint64_t before = written.load(std::memory_order_acquire);
-  // An odd count is a message half written, and an unchanged one is the
-  // message this feed already has: neither is anything to deliver.
-  if ((before & 1) != 0 || before == delivered) return;
-  const size_t claimed = (size_t)std::atomic_ref<std::uint64_t>(region->size)
-                             .load(std::memory_order_relaxed);
-  if (claimed > capacity) return;
-  Bytes message;
-  message.bytes.resize(claimed);
-  if (claimed != 0)
-    std::memcpy(message.bytes.data(), payloadOf(region), claimed);
-  // The count is read again only once the copy is finished: what makes
-  // the copy a whole message is that the count did not move across it,
-  // and a copy the writer overtook is dropped rather than delivered in
-  // pieces. The next look reads the message that overtook it.
-  std::atomic_thread_fence(std::memory_order_acquire);
-  if (written.load(std::memory_order_relaxed) != before) return;
-  delivered = before;
-  into.deliver(std::move(message), address);
+  for (int attempt = 0; attempt != kTriesPerLook; ++attempt) {
+    const std::uint64_t before = written.load(std::memory_order_acquire);
+    // An unchanged count is the message this feed already has, and there
+    // is nothing to deliver; an odd count is a message half written, and
+    // the next try may find it whole.
+    if (before == delivered) return;
+    if ((before & 1) != 0) continue;
+    const size_t claimed = (size_t)std::atomic_ref<std::uint64_t>(region->size)
+                               .load(std::memory_order_relaxed);
+    if (claimed > capacity) return;
+    Bytes message;
+    message.bytes.resize(claimed);
+    if (claimed != 0)
+      std::memcpy(message.bytes.data(), payloadOf(region), claimed);
+    // The count is read again only once the copy is finished: what makes
+    // the copy a whole message is that the count did not move across it,
+    // and a copy the writer overtook is dropped rather than delivered in
+    // pieces; the next try reads the message that overtook it.
+    std::atomic_thread_fence(std::memory_order_acquire);
+    if (written.load(std::memory_order_relaxed) != before) continue;
+    delivered = before;
+    into.deliver(std::move(message), address);
+    return;
+  }
 }
 
 void Door::look() {
