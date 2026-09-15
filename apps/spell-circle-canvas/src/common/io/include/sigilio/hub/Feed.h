@@ -51,6 +51,10 @@ struct Arrival {
    *  recording, the value the recording carries. */
   double at = 0;
   std::shared_ptr<const Bytes> bytes;
+  /** The address the message came from, spelled the way a URI of that
+   *  scheme is, `udp://127.0.0.1:52341`; empty for a recording, and for
+   *  a transport that has no way of knowing. */
+  std::string from;
 };
 
 /** WHAT A TRANSPORT HANDS BACK once it has opened a URI. */
@@ -97,6 +101,10 @@ class Feed {
   /** Takes one message, stamped with the seconds since the feed was
    *  made. Any thread. */
   void deliver(Bytes bytes);
+
+  /** The same, naming the address the message came from — what a
+   *  transport that knows its sender delivers through. */
+  void deliver(Bytes bytes, std::string from);
 
   /** The same, with a recording's own time instead of the clock's. */
   void deliver(Bytes bytes, double at);
@@ -162,7 +170,8 @@ class Feed {
    *  path that takes a message — the transport's and the recording's —
    *  runs through here, so a generation is never handed out twice and
    *  the file a recording writes carries the feed's own order. */
-  void deliverLocked(std::shared_ptr<const Bytes> bytes, double at);
+  void deliverLocked(std::shared_ptr<const Bytes> bytes, double at,
+                     std::string from);
 
   /** Marks the feed closed and takes the opened end's close function
    *  out of it. The caller runs that function after releasing the lock:

@@ -1,9 +1,9 @@
 /** @file
  * Feeds: what a reader sees of what a transport delivers — the newest
- * message, the ones it has not drained, and the ones a feed too full to
- * hold them dropped — the one door a hub opens per URI and closes when
- * nobody holds it any more, and the recording a feed writes as it runs
- * and plays back afterwards.
+ * message, the ones it has not drained, the sender each one names, and
+ * the ones a feed too full to hold them dropped — the one door a hub
+ * opens per URI and closes when nobody holds it any more, and the
+ * recording a feed writes as it runs and plays back afterwards.
  */
 
 #include <gtest/gtest.h>
@@ -59,6 +59,22 @@ TEST_F(IOFeed, TheLatestIsTheNewestArrivalAndGenerationsCountFromOne) {
   EXPECT_EQ(feed.generation(), 2u);
   EXPECT_EQ(feed.uri(), "udp://:27020");
   EXPECT_TRUE(feed.error().empty());
+}
+
+TEST_F(IOFeed, AnArrivalCarriesTheSenderItWasDeliveredWithAndNoOther) {
+  Feed feed("udp://:27020");
+  feed.deliver(message("from a peer"), "udp://127.0.0.1:52341");
+  feed.deliver(message("from nowhere named"));
+
+  std::optional<Arrival> arrival = feed.receive();
+  ASSERT_TRUE(arrival.has_value());
+  EXPECT_EQ(arrival->from, "udp://127.0.0.1:52341");
+  arrival = feed.receive();
+  ASSERT_TRUE(arrival.has_value());
+  // A transport with no way of knowing who sent a message names
+  // nobody, and the arrival is one all the same.
+  EXPECT_TRUE(arrival->from.empty());
+  EXPECT_EQ(arrival->bytes->asText(), "from nowhere named");
 }
 
 TEST_F(IOFeed, ReceiveHandsOutEveryArrivalInOrderAndThenNothing) {
@@ -273,6 +289,8 @@ TEST_F(IOFeed, ARecordingMountedOnAUriReplaysByTheTimeDispatched) {
   const std::optional<Arrival> first = feed->receive();
   ASSERT_TRUE(first.has_value());
   EXPECT_EQ(first->at, 0.0);  // the recorded time, not a clock's
+  // A recording is the messages and not who sent them.
+  EXPECT_TRUE(first->from.empty());
   const std::optional<Arrival> second = feed->receive();
   ASSERT_TRUE(second.has_value());
   EXPECT_EQ(second->at, 1.0);

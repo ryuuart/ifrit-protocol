@@ -1,6 +1,7 @@
 /** @file
  * The UDP transport: the port a listening feed binds and the datagrams
- * that arrive there, the peer a sending feed reaches, what a URI nobody
+ * that arrive there, the sender each arrival names, the peer a sending
+ * feed reaches, the same socket answering to osc://, what a URI nobody
  * can open leaves on its feed, and the port a feed gives back when the
  * last holder lets go.
  */
@@ -20,6 +21,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -27,6 +29,7 @@
 namespace {
 
 using boost::asio::ip::udp;
+using sigil::io::Arrival;
 using sigil::io::Bytes;
 using sigil::io::Feed;
 using sigil::io::Hub;
@@ -67,12 +70,15 @@ class IOUdp : public ::testing::Test {
  protected:
   IOUdp() { sigil::io::registerTransports(hub); }
 
-  /** One datagram to a port on loopback, from a socket of its own. */
-  void sendTo(uint16_t port, std::string_view text) {
+  /** One datagram to a port on loopback, from a socket of its own;
+   *  answers the port that socket was given, which is what the listener
+   *  should name the datagram by. */
+  uint16_t sendTo(uint16_t port, std::string_view text) {
     udp::socket sender(context, udp::v4());
     sender.send_to(
         boost::asio::buffer(text.data(), text.size()),
         udp::endpoint(boost::asio::ip::address_v4::loopback(), port));
+    return sender.local_endpoint().port();
   }
 
   Hub hub;
@@ -92,6 +98,45 @@ TEST_F(IOUdp, AListeningFeedSaysWhichPortItBoundAndTakesWhatArrivesThere) {
   sendTo(port, "a scene arrives");
   ASSERT_TRUE(waitUntil([&] { return listener->latest() != nullptr; }));
   EXPECT_EQ(listener->latest()->asText(), "a scene arrives");
+}
+
+TEST_F(IOUdp, AnArrivalNamesTheSenderTheDatagramCameFrom) {
+  const std::shared_ptr<Feed> listener = hub.feed("udp://:0");
+  ASSERT_TRUE(listener->error().empty()) << listener->error();
+  const uint16_t port = portOf(listener->address());
+  ASSERT_NE(port, 0);
+
+  const uint16_t sender = sendTo(port, "from somewhere");
+  ASSERT_NE(sender, 0);
+  ASSERT_TRUE(waitUntil([&] { return listener->latest() != nullptr; }));
+
+  const std::optional<Arrival> arrival = listener->receive();
+  ASSERT_TRUE(arrival.has_value());
+  EXPECT_EQ(arrival->bytes->asText(), "from somewhere");
+  // The sender is the loopback socket the datagram left, named with the
+  // port it took and spelled the way a URI that would reach it is — not
+  // the mapping a dual-stack socket holds an IPv4 peer as.
+  EXPECT_TRUE(arrival->from.starts_with("udp://127.0.0.1:")) << arrival->from;
+  EXPECT_EQ(portOf(arrival->from), sender) << arrival->from;
+}
+
+TEST_F(IOUdp, AnOscFeedIsTheSameSocketUnderItsOwnName) {
+  const std::shared_ptr<Feed> listener = hub.feed("osc://:0");
+  ASSERT_TRUE(listener->error().empty()) << listener->error();
+  // What arrives is bytes either way. The scheme a feed was opened with
+  // is the scheme every address it reports is spelled with, so a reader
+  // takes the decoding off the URI rather than out of the message.
+  EXPECT_TRUE(listener->address().starts_with("osc://")) << listener->address();
+  const uint16_t port = portOf(listener->address());
+  ASSERT_NE(port, 0);
+
+  ASSERT_NE(sendTo(port, "#bundle"), 0);
+  ASSERT_TRUE(waitUntil([&] { return listener->latest() != nullptr; }));
+  EXPECT_EQ(listener->latest()->asText(), "#bundle");
+
+  const std::optional<Arrival> arrival = listener->receive();
+  ASSERT_TRUE(arrival.has_value());
+  EXPECT_TRUE(arrival->from.starts_with("osc://")) << arrival->from;
 }
 
 TEST_F(IOUdp, ASendingFeedReachesTheListenerItNames) {

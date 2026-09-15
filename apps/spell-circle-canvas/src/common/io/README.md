@@ -20,7 +20,7 @@ what a consumer uses; every public header lives under
 |--------|---------|-------|
 | `SigilIOSource` | `source/Source.h`, `source/Archive.h`, `source/Sink.h`, `source/Places.h` | the byte vocabulary in both directions: `Bytes`, the `ByteSource`, `ResolvingByteSource`, `Decoder` and `Probable` concepts, `AnyByteSource` (the type-erased source value), the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file; `ArchiveSource` and `ArchiveEntry`, one zip held in memory answering its files by name — and the two places only the platform can name, `executablePath()` and `scratchDirectory(label)` |
 | `SigilIOHub`    | `hub/Hub.h`, `hub/Feed.h`, `hub/Recording.h`, `hub/Network.h`, `hub/TextCatalog.h` | the `Hub`, `ResourceInfo` (a resource's byte size and the file it came from), and `ResourceLease`; `NetworkPolicy`, `NetworkTransport`, `probeNetworkCache()` and `seedNetworkCache()` — inspect or populate the persistent cache by URL without constructing its filenames or contacting a server; `Feed`, `Arrival`, `OpenedFeed` and `FeedTransport` — a resource that keeps arriving, opened through the hub's `feed()` and moved forward by its `dispatch()`; `RecordingWriter` and `readRecording()`, the format a feed records itself in; and `TextCatalog`, the stock value over the hub that a directory of authored shaders is |
-| `SigilIOTransport` | `transport/Transport.h` | `registerUdp()` and `registerTransports()` — the UDP transport, one socket per feed on a thread of its own; linked by a consumer that opens network feeds and by no other |
+| `SigilIOTransport` | `transport/Transport.h` | `registerUdp()`, `registerWebSocket()` and `registerTransports()` — the UDP transport, one socket per feed on a thread of its own, answering to udp:// and, for messages that are OSC packets, to osc://; and the WebSocket transport, one listener per feed on a loop of its own, answering to ws://; linked by a consumer that opens network feeds and by no other |
 
 `SigilIO` is the umbrella target over the source and the hub, and
 `<sigilio/IO.h>` the umbrella header; the transport feature stands
@@ -124,14 +124,17 @@ its own, and a reader on any thread never waits.
 #include <sigilio/hub/Feed.h>
 #include <sigilio/transport/Transport.h>
 
-sigil::io::registerTransports(hub);                  // udp:// today
+sigil::io::registerTransports(hub);                  // udp://, osc://, ws://
 auto scene = hub.feed("udp://:27020");               // std::shared_ptr<sigil::io::Feed>
 if (auto newest = scene->latest())                   // the newest message; generation() counts them
   draw(*newest);
 while (auto arrival = scene->receive())              // every message since the last receive, in order
-  fold(*arrival->bytes);
+  fold(*arrival->bytes, arrival->from);              // …and the address that one came from
 auto desk = hub.feed("udp://desk.local:9001");       // a peer: send() reaches it, its replies arrive
 desk->send(reply);
+auto control = hub.feed("osc://:9000");              // the same socket, for messages that are OSC
+auto browsers = hub.feed("ws://:8848/scene");        // every peer that reaches that path
+browsers->send(frame);                               // …and one send goes out to all of them
 scene->record(outDir / "scene.feed");                // every arrival from now on, to a recording
 hub.mount("udp://:27020", outDir / "scene.feed");    // the next feed() on that URI replays the file
 hub.dispatch(seconds);                               // once per frame: recordings advance to this time
@@ -236,11 +239,31 @@ URI sees the sentence rather than a null.
 A scheme opens through the `FeedTransport` registered for it, called
 outside the hub's lock; the transport hands back an `OpenedFeed`: how the
 feed closes it, how `send()` goes back through it when the way is two-way,
-and the local `address()` it bound. `SigilIOTransport` registers the UDP
-transport: `udp://:PORT` listens on every interface, IPv4 and IPv6 alike,
-and `udp://HOST:PORT` is a peer that `send()` reaches and whose replies
-arrive. Every socket runs on one thread of its own, private to the
-transport.
+and the local `address()` it bound. Every arrival also names where it came
+from: `sigil::io::Arrival::from` is the sender's address spelled the way a
+URI of that scheme is, `udp://127.0.0.1:52341`, and is empty where the
+transport has no way of knowing — and on a replayed recording, which holds
+the messages and not who sent them.
+
+`SigilIOTransport` registers two transports under three schemes.
+`registerUdp()` takes the UDP ones: `udp://:PORT` listens on every
+interface, IPv4 and IPv6 alike, and `udp://HOST:PORT` is a peer that
+`send()` reaches and whose replies arrive. `osc://` is that same socket
+under another name, for a port whose messages are OSC packets; a feed
+keeps the scheme it was opened with, in its `uri()`, in its `address()`
+and in every sender it names, so a reader picks the decoding off the URI
+rather than out of the bytes. Every socket runs on one thread of its own,
+private to the transport.
+
+`registerWebSocket()` takes `ws://`. `ws://:PORT/PATH` listens on every
+interface for peers reaching that path — an omitted PATH being the root —
+every text or binary message from any of them arrives naming that peer,
+and one `send()` goes out to all of them at once. Each listening feed
+holds a loop on a thread of its own, and closing the feed gives the port
+back and ends the peers still attached to it. It LISTENS: the library
+underneath carries no client, so a `ws://` URI naming a host to reach
+opens nothing and leaves the reason on the feed, and there is no `wss://`
+because those sockets are built without TLS.
 
 A **recording** is a feed written down: `record(path)` appends every
 arrival from then on, with the seconds since the feed was made, in the
@@ -363,10 +386,10 @@ cache hit or failure.
 Dependencies: `SigilIOHub` links `SigilIOSource`, `SigilImageDecode` and
 Boost.Container publicly and `CURL::libcurl` plus `SigilCoreSchedule`
 privately — private because they are transport and where a fetch that
-blocks runs, while curl remains a hard requirement to configure. `SigilIOTransport` links `SigilIOHub` publicly and Boost.Asio
-privately: its header names a hub and a scheme and nothing of the
-socket behind them, so a consumer that opens a feed inherits no
-executor and no Boost. `SigilIOSource` itself depends on
+blocks runs, while curl remains a hard requirement to configure. `SigilIOTransport` links `SigilIOHub` publicly and Boost.Asio and
+uWebSockets privately: its header names a hub and a scheme and nothing of
+the socket behind them, so a consumer that opens a feed inherits no
+executor, no event loop and no Boost. `SigilIOSource` itself depends on
 nothing beyond the standard library, so a decoder or an encoder library
 can speak the byte vocabulary without inheriting the hub, libcurl or any
 codec.
@@ -444,10 +467,15 @@ by the `benches` target and run from a Release build through
 decoded view per call and `resolve` per URI against the mount table — the
 disk kept out of every timed loop); `SigilIOTransport` (static
 library, `transport/` — the UDP transport and the one thread its
-sockets run on, behind the private `transport/IoThread.h`) with
+sockets run on, behind the private `transport/IoThread.h`, and the
+WebSocket transport and the loop each of its listeners holds) with
 `transport/test/`, whose `IOUdp` suite binds real ports on the loopback
-and sends its own datagrams through raw sockets; and `SigilIO`, the
-umbrella over the source and the hub.
+and sends its own datagrams through raw sockets and whose `IOWebSocket`
+suite does the same with a websocket peer it writes out by hand, upgrade
+request and masked frames and all — which a case may do to prove what the
+listener does with it, and a transport may not, a client written to the
+length of one test being no door anybody else could open; and `SigilIO`,
+the umbrella over the source and the hub.
 
 There is one test binary, `io_test`, built from every feature's `test/`
 directories, and ctest discovers one entry per CASE out of it, so a

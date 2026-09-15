@@ -20,6 +20,10 @@
  * one feed has taken, which is a property of the feed rather than of
  * the recording, so a reader numbers the frames 1, 2, 3 as it reads
  * them.
+ *
+ * Neither is the address a message came from. A recording is the
+ * messages and not who sent them, so a replayed arrival names no
+ * sender.
  */
 
 #include <filesystem>

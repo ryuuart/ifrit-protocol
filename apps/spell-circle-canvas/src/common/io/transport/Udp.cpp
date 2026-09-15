@@ -2,12 +2,21 @@
  * The UDP transport: the address a feed's URI names, the dual-stack
  * listener or the connected sender opened for it, and the receive loop
  * that hands every datagram to the feed it was opened for.
+ *
+ * Two schemes stand on it. udp:// is the socket by its own name, and
+ * osc:// is the same socket opened for messages that are OSC packets:
+ * the scheme a feed was opened with is the scheme every address it
+ * reports is spelled with, so a reader takes the decoding off the URI
+ * and this file carries no opinion about what a datagram holds.
  */
 
 #include <array>
 #include <atomic>
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/io_context.hpp>
+#include <boost/asio/ip/address.hpp>
+#include <boost/asio/ip/address_v4.hpp>
+#include <boost/asio/ip/address_v6.hpp>
 #include <boost/asio/ip/udp.hpp>
 #include <boost/asio/ip/v6_only.hpp>
 #include <boost/asio/post.hpp>
@@ -56,22 +65,25 @@ bool describesOneDatagram(const error_code& error) {
          error == try_again;
 }
 
-/** WHAT A udp:// URI NAMES: the peer to speak to, or no host at all,
+/** WHAT A DATAGRAM URI NAMES: the peer to speak to, or no host at all,
  *  which is a port to listen on. */
 struct Address {
   std::string host;
   std::uint16_t port = 0;
 };
 
-/** The address @p uri names, or nothing when it names none: everything
- *  after the scheme is a host and a port, the host bracketed when it is
- *  an IPv6 literal and left out altogether to listen on every interface.
- *  A port is decimal digits and nothing else, so a path or a query
- *  behind it is not an address this transport can open. */
-std::optional<Address> parseAddress(std::string_view uri) {
-  constexpr std::string_view kScheme = "udp://";
-  if (!uri.starts_with(kScheme)) return std::nullopt;
-  std::string_view rest = uri.substr(kScheme.size());
+/** The address @p uri names under @p scheme, or nothing when it names
+ *  none: everything after the scheme is a host and a port, the host
+ *  bracketed when it is an IPv6 literal and left out altogether to
+ *  listen on every interface. A port is decimal digits and nothing else,
+ *  so a path or a query behind it is not an address this transport can
+ *  open. */
+std::optional<Address> parseAddress(std::string_view uri,
+                                    std::string_view scheme) {
+  if (!uri.starts_with(scheme)) return std::nullopt;
+  std::string_view rest = uri.substr(scheme.size());
+  if (!rest.starts_with("://")) return std::nullopt;
+  rest = rest.substr(3);
   Address address;
   if (rest.starts_with('[')) {
     const size_t bracket = rest.find(']');
@@ -97,17 +109,39 @@ std::optional<Address> parseAddress(std::string_view uri) {
   return address;
 }
 
+/** An endpoint spelled the way a URI of @p scheme is,
+ *  "udp://127.0.0.1:52341". An IPv6 address is bracketed, so what
+ *  follows the last colon is always the port. */
+std::string printedAddress(std::string_view scheme,
+                           const udp::endpoint& endpoint) {
+  std::ostringstream printed;
+  printed.imbue(std::locale::classic());
+  printed << scheme << "://";
+  const boost::asio::ip::address host = endpoint.address();
+  if (host.is_v6()) {
+    const boost::asio::ip::address_v6 six = host.to_v6();
+    // An IPv4 peer that reached a dual-stack socket arrives as its
+    // address mapped into IPv6, and is named by the IPv4 address it can
+    // be written back to rather than by the mapping.
+    if (six.is_v4_mapped())
+      printed << boost::asio::ip::make_address_v4(boost::asio::ip::v4_mapped,
+                                                  six);
+    else
+      printed << "[" << six << "]";
+  } else {
+    printed << host;
+  }
+  printed << ":" << endpoint.port();
+  return printed.str();
+}
+
 /** The local end @p socket holds, spelled the way the URI that opened it
- *  is; empty when the socket cannot say. An IPv6 address is bracketed,
- *  so what follows the last colon is always the port. */
-std::string localAddress(const udp::socket& socket) {
+ *  is; empty when the socket cannot say. */
+std::string localAddress(std::string_view scheme, const udp::socket& socket) {
   error_code error;
   const udp::endpoint local = socket.local_endpoint(error);
   if (error) return {};
-  std::ostringstream printed;
-  printed.imbue(std::locale::classic());
-  printed << "udp://" << local;
-  return printed.str();
+  return printedAddress(scheme, local);
 }
 
 /** THE TRANSPORT'S END OF ONE FEED: the socket, the buffer a datagram
@@ -118,10 +152,12 @@ std::string localAddress(const udp::socket& socket) {
  *  itself is held weakly: when it cannot be locked there is nobody left
  *  to deliver to, and the loop ends there. */
 struct Door : std::enable_shared_from_this<Door> {
-  Door(std::shared_ptr<detail::IoThread> thread, std::weak_ptr<Feed> feed)
+  Door(std::shared_ptr<detail::IoThread> thread, std::string scheme,
+       std::weak_ptr<Feed> feed)
       : io(std::move(thread)),
         strand(boost::asio::make_strand(io->context())),
         socket(strand),
+        scheme(std::move(scheme)),
         feed(std::move(feed)) {}
 
   /** Arms one receive, which arms the next. */
@@ -134,6 +170,9 @@ struct Door : std::enable_shared_from_this<Door> {
   std::shared_ptr<detail::IoThread> io;
   boost::asio::strand<boost::asio::io_context::executor_type> strand;
   udp::socket socket;
+  /** The name this socket was opened under, which every address it
+   *  reports is spelled with. */
+  std::string scheme;
   std::weak_ptr<Feed> feed;
   udp::endpoint sender;
   std::array<std::byte, kDatagramCeiling> buffer{};
@@ -164,11 +203,15 @@ void Door::receive() {
         Bytes datagram;
         datagram.bytes.assign(self->buffer.begin(),
                               self->buffer.begin() + count);
+        // The sender is read here because the next receive writes over
+        // it: the endpoint is one member, and it belongs to whichever
+        // datagram last landed in the buffer.
+        std::string from = printedAddress(self->scheme, self->sender);
         // Re-armed before the delivery: the bytes are already out of the
         // buffer, and the time a consumer takes over them is not time
         // the socket spends unable to receive.
         self->receive();
-        feed->deliver(std::move(datagram));
+        feed->deliver(std::move(datagram), std::move(from));
       });
 }
 
@@ -211,14 +254,17 @@ OpenedFeed refuse(const std::weak_ptr<Feed>& into, std::string why) {
  *  A named host is resolved here rather than in the background, so a
  *  feed that cannot reach its peer says so by the time it is answered. */
 OpenedFeed openFeed(const std::shared_ptr<detail::IoThread>& io,
-                    std::string_view uri, const std::weak_ptr<Feed>& into) {
-  const std::optional<Address> address = parseAddress(uri);
+                    std::string_view scheme, std::string_view uri,
+                    const std::weak_ptr<Feed>& into) {
+  const std::string name(scheme);
+  const std::optional<Address> address = parseAddress(uri, scheme);
   if (!address)
-    return refuse(into, std::string(uri) +
-                            " is not a udp address: a feed is opened on "
-                            "udp://host:port, and on udp://:port to listen");
+    return refuse(into, std::string(uri) + " is not a " + name +
+                            " address: a feed is opened on " + name +
+                            "://host:port, and on " + name +
+                            "://:port to listen");
 
-  const auto door = std::make_shared<Door>(io, into);
+  const auto door = std::make_shared<Door>(io, name, into);
   error_code error;
   bool sends = false;
   if (address->host.empty()) {
@@ -251,7 +297,7 @@ OpenedFeed openFeed(const std::shared_ptr<detail::IoThread>& io,
   }
 
   OpenedFeed opened;
-  opened.address = localAddress(door->socket);
+  opened.address = localAddress(name, door->socket);
   opened.close = [door] { door->close(); };
   // A listener answers whoever writes to it and has no one peer of its
   // own, so its way is one-way.
@@ -285,16 +331,30 @@ class SharedIoThread {
   std::shared_ptr<detail::IoThread> m_thread;
 };
 
+/** The one opener, under whichever scheme it was registered: the scheme
+ *  travels with it, so the same socket answers udp:// and osc:// and
+ *  each feed keeps the name it was opened with. */
+FeedTransport datagramTransport(std::shared_ptr<SharedIoThread> shared,
+                                std::string scheme) {
+  return [shared = std::move(shared), scheme = std::move(scheme)](
+             std::string_view uri, std::weak_ptr<Feed> into) {
+    return openFeed(shared->acquire(), scheme, uri, into);
+  };
+}
+
 }  // namespace
 
 void registerUdp(Hub& hub) {
-  hub.setFeedTransport("udp",
-                       [shared = std::make_shared<SharedIoThread>()](
-                           std::string_view uri, std::weak_ptr<Feed> into) {
-                         return openFeed(shared->acquire(), uri, into);
-                       });
+  // Both names share one thread, because they are one socket: a hub
+  // asked for neither scheme still starts nothing.
+  auto shared = std::make_shared<SharedIoThread>();
+  hub.setFeedTransport("udp", datagramTransport(shared, "udp"));
+  hub.setFeedTransport("osc", datagramTransport(shared, "osc"));
 }
 
-void registerTransports(Hub& hub) { registerUdp(hub); }
+void registerTransports(Hub& hub) {
+  registerUdp(hub);
+  registerWebSocket(hub);
+}
 
 }  // namespace sigil::io

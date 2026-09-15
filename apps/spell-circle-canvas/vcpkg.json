@@ -12,11 +12,11 @@
     "boost-unordered",
     "cdt",
     "cgltf",
-    "duckdb",
     "choreograph",
     "concurrentqueue",
     "curl",
     "diligent-engine",
+    "duckdb",
     "earcut-hpp",
     "entt",
     {
@@ -51,6 +51,7 @@
       "name": "shader-slang",
       "host": true
     },
+    "simdjson",
     {
       "$comment": [
         "version>= holds the port cmake/SkiaSanitizerAbi.h was written",
@@ -75,15 +76,7 @@
         }
       ]
     },
-    "simdjson",
     "spdlog",
-    "sqlite3",
-    "stb",
-    {
-      "name": "syphon",
-      "platform": "osx"
-    },
-    "tbb",
     {
       "name": "spout2",
       "features": [
@@ -91,11 +84,19 @@
       ],
       "platform": "windows & !uwp & !arm64"
     },
+    "sqlite3",
+    "stb",
+    {
+      "name": "syphon",
+      "platform": "osx"
+    },
+    "tbb",
     "tinyobjloader",
     {
       "name": "usd",
       "default-features": false
     },
+    "uwebsockets",
     "vulkan-headers",
     "yoga"
   ],

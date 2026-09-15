@@ -18,7 +18,8 @@ Feed::Feed(std::string uri, Policy policy)
 
 Feed::~Feed() { close(); }
 
-void Feed::deliverLocked(std::shared_ptr<const Bytes> bytes, double at) {
+void Feed::deliverLocked(std::shared_ptr<const Bytes> bytes, double at,
+                         std::string from) {
   if (m_closed) return;
   // Every arrival carries bytes, empty ones included: latest() says
   // that nothing has arrived by being null, and an arrival that left it
@@ -28,6 +29,7 @@ void Feed::deliverLocked(std::shared_ptr<const Bytes> bytes, double at) {
   arrival.generation = ++m_generation;
   arrival.at = at;
   arrival.bytes = std::move(bytes);
+  arrival.from = std::move(from);
   m_latest = arrival.bytes;
   // The frame is written under the lock that stamped the arrival, so a
   // recording lists messages in the order the feed took them however
@@ -47,19 +49,26 @@ void Feed::deliverLocked(std::shared_ptr<const Bytes> bytes, double at) {
   }
 }
 
-void Feed::deliver(Bytes bytes) {
+void Feed::deliver(Bytes bytes) { deliver(std::move(bytes), std::string()); }
+
+void Feed::deliver(Bytes bytes, std::string from) {
   const double at =
       std::chrono::duration<double>(std::chrono::steady_clock::now() - m_made)
           .count();
-  deliver(std::move(bytes), at);
-}
-
-void Feed::deliver(Bytes bytes, double at) {
   // Shared before the lock: copying a message is the delivering
   // thread's own work, not something the next reader waits behind.
   auto shared = std::make_shared<const Bytes>(std::move(bytes));
   const std::lock_guard lock(m_mutex);
-  deliverLocked(std::move(shared), at);
+  deliverLocked(std::move(shared), at, std::move(from));
+}
+
+void Feed::deliver(Bytes bytes, double at) {
+  auto shared = std::make_shared<const Bytes>(std::move(bytes));
+  const std::lock_guard lock(m_mutex);
+  // A message carrying its own time carries no sender: it is a
+  // recording's frame, and a recording is the messages and not who sent
+  // them.
+  deliverLocked(std::move(shared), at, std::string());
 }
 
 void Feed::fail(std::string why) {
@@ -188,7 +197,7 @@ void Feed::advance(double seconds) {
            m_recording[m_replayed].at <= elapsed) {
       const Arrival& recorded = m_recording[m_replayed];
       ++m_replayed;
-      deliverLocked(recorded.bytes, recorded.at);
+      deliverLocked(recorded.bytes, recorded.at, std::string());
     }
     if (m_replayed != m_recording.size()) return;
     // Nothing else is coming: a reader that watches closed() learns
