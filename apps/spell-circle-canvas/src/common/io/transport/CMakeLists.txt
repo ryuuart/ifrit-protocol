@@ -34,21 +34,28 @@
 # libdatachannel brings the same way what a connection through a router
 # is made of — the routes, the encryption and the stream — and its
 # introductions cross a door this feature already opens, so there is no
-# signalling server to find beside it.
+# signalling server to find beside it. And QUIC over msquic: one
+# encrypted connection per peer on one UDP port, a unidirectional stream
+# per message and datagrams beside them, with no thread of this
+# library's either — msquic runs its own workers and calls back onto
+# them. It carries the TLS that door is made of inside its own shared
+# library, so there is no OpenSSL to find beside it, and it is linked
+# privately like every other stack here.
 find_package(boost_asio CONFIG REQUIRED)
 find_package(unofficial-uwebsockets CONFIG REQUIRED)
 find_package(CURL CONFIG REQUIRED)
 find_package(rtmidi CONFIG REQUIRED)
 find_package(gRPC CONFIG REQUIRED)
 find_package(LibDataChannel CONFIG REQUIRED)
+find_package(msquic CONFIG REQUIRED)
 sigil_library(SigilIOTransport
   SOURCES Udp.cpp WebSocket.cpp WebSocketClient.cpp SharedMemory.cpp Midi.cpp
-          Serial.cpp Grpc.cpp WebRtc.cpp Introduction.cpp Introduction.h
-          IoThread.cpp IoThread.h
+          Serial.cpp Grpc.cpp Quic.cpp WebRtc.cpp Introduction.cpp
+          Introduction.h IoThread.cpp IoThread.h
   HEADERS Transport.h
   PUBLIC SigilIOHub
   PRIVATE Boost::asio unofficial::uwebsockets::uwebsockets CURL::libcurl
-          RtMidi::rtmidi gRPC::grpc++ LibDataChannel::LibDataChannel)
+          RtMidi::rtmidi gRPC::grpc++ LibDataChannel::LibDataChannel msquic)
 
 # What the transports promise: the port a URI binds, the server a URI
 # calls, the region a URI maps, the bytes that arrive through any of
@@ -67,9 +74,15 @@ sigil_library(SigilIOTransport
 # one binary and no stub is generated for either. The WebRTC cases give
 # each end a hub of its own — which is what two machines are in one
 # process — and dispatch every one of them on every look, an
-# introduction crossing on the frame.
+# introduction crossing on the frame. The QUIC cases call a port this
+# same process is holding, so both ends of a connection stand in one
+# binary; that port has to answer for itself, so they WRITE A CERTIFICATE
+# AND A KEY into a scratch directory of their own with OpenSSL — which
+# is why this binary and no other target here finds it — and the call
+# reaches the self-signed pair the way a machine on a stage does.
+find_package(OpenSSL REQUIRED)
 sigil_test(io_test
   SOURCES test/UdpTest.cpp test/WebSocketTest.cpp test/WebSocketClientTest.cpp
           test/SharedMemoryTest.cpp test/MidiTest.cpp test/SerialTest.cpp
-          test/GrpcTest.cpp test/WebRtcTest.cpp
-  LIBRARIES SigilIOTransport Boost::asio)
+          test/GrpcTest.cpp test/QuicTest.cpp test/WebRtcTest.cpp
+  LIBRARIES SigilIOTransport Boost::asio OpenSSL::SSL OpenSSL::Crypto)
