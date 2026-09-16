@@ -242,7 +242,8 @@ std::unique_ptr<Database::Impl> openSqlite(const std::filesystem::path& file,
                                            std::string* why) {
   sqlite3* db = nullptr;
   const std::string name = file.empty() ? ":memory:" : file.string();
-  const int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
+  const int flags =
+      SQLITE_OPEN_READWRITE | (file.empty() ? SQLITE_OPEN_CREATE : 0);
   if (sqlite3_open_v2(name.c_str(), &db, flags, nullptr) != SQLITE_OK) {
     if (why) *why = db ? sqlite3_errmsg(db) : "sqlite could not open";
     sqlite3_close(db);

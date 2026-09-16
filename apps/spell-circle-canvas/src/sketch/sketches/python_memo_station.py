@@ -8,7 +8,7 @@ from math import sin
 
 from sigil.compose import box, column, memo, pct, row, stroke, text
 from sigil.motion import Transition, animate, ease, from_
-from sigil.sketch import sketch
+from sigil.sketch import SketchContext, sketch
 from sigil.weave import StyleSheet, Type, rule
 
 
@@ -57,7 +57,7 @@ def instrument(reading):
 
 @sketch(size=(960, 580), background="#071811", capture_at=2.4)
 class MemoStation:
-    def setup(self, ctx):
+    def setup(self, ctx: SketchContext) -> None:
         self.last = None
         self.sheet = StyleSheet(
             [
@@ -68,7 +68,7 @@ class MemoStation:
             ]
         )
 
-    def update(self, elapsed, ctx):
+    def update(self, elapsed: float, ctx: SketchContext) -> None:
         # The input model changes at an instrument's reporting cadence.
         tick = int(elapsed * 2)
         if tick == self.last:

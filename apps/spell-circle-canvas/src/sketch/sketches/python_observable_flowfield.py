@@ -9,15 +9,15 @@ from math import tau
 
 import numpy as np
 from sigil.core import chance
-from sigil.draw import SQUARE, PointMode
-from sigil.sketch import sketch
+from sigil.draw import SQUARE, Pen, PointMode
+from sigil.sketch import SketchContext, sketch
 
 REQUIRES = ("numpy",)
 
 
 @sketch(size=(720, 720), capture_at=0.05)
 class FlowField:
-    def setup(self, ctx):
+    def setup(self, ctx: SketchContext) -> None:
         self.samples = np.array(
             [
                 (
@@ -30,7 +30,7 @@ class FlowField:
         self.lines = np.empty((len(self.samples) * 2, 2), dtype=np.float32)
         self.lines[::2] = self.samples
 
-    def draw(self, pen):
+    def draw(self, pen: Pen) -> None:
         pen.background(0)
         pen.noFill()
         pen.strokeCap(SQUARE)

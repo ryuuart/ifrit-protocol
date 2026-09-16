@@ -5,18 +5,18 @@ TAGS: Drawing/Generative, Patterns/Ornament
 
 from math import cos, pi, radians, sin
 
-from sigil.draw import ROUND
-from sigil.sketch import sketch
+from sigil.draw import ROUND, Pen
+from sigil.sketch import SketchContext, sketch
 
 
 @sketch(size=(800, 800), capture_at=0.05)
 class LSystemTree:
-    def setup(self, ctx):
+    def setup(self, ctx: SketchContext) -> None:
         self.sentence = "F"
         for _ in range(4):
             self.sentence = self.sentence.replace("F", "FF+[+F-F-F]-[-F+F+F]")
 
-    def draw(self, pen):
+    def draw(self, pen: Pen) -> None:
         pen.background(51)
         pen.noFill()
         pen.strokeCap(ROUND)

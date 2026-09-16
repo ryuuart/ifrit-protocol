@@ -143,7 +143,8 @@ network and every other port still downloads normally.
 ## Formatting and linting — `check`
 
 One command covering clang-format (Google C++ style, stock), ruff (lint
-and format) and qmllint. THE DEFAULT SCOPE IS THE BRANCH'S WORK:
+and format for Python source and handwritten type stubs) and qmllint.
+THE DEFAULT SCOPE IS THE BRANCH'S WORK:
 everything this branch changed since it left `main`, committed or not,
 plus untracked files that are not ignored — work is committed freely and
 verified once, so a scope that saw only uncommitted changes would miss
@@ -160,13 +161,11 @@ than passing it. clang-format rides the Xcode toolchain through
 `xcrun`, qmllint the Qt prefix the setup verb recorded, ruff comes from
 `brew install ruff`.
 
-Two paths no checker touches — the FlatBuffers-generated sources and
-`vcpkg_installed/` — are named by the verb itself, in `EXCLUDED_FRAGMENTS`
-(`scripts/sigil/check.py`), which is the one list. Both live under the
-build tree, which no scope reaches on its own, so the list is what holds
-when a path under it is named on the command line; `.clang-format-ignore`
-carries no patterns and says so, and `ruff.toml` excludes the generated
-Python beside it.
+Generated FlatBuffers sources, `vcpkg_installed/`, and the generated native
+Python stub tree are excluded by `EXCLUDED_FRAGMENTS` in the verb, including
+when explicitly named on the command line. `ruff.toml` also excludes the
+generated Python sources and stubs for direct Ruff invocations. The native
+stub generator owns their formatting and its drift check verifies them.
 
 ## Plates — `plates`
 

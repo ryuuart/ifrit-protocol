@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import shutil
 import struct
 import subprocess
 import sys
@@ -47,7 +48,18 @@ def main():
     parser.add_argument(
         "--output", type=Path, help="keep the verified PNG at this path"
     )
+    parser.add_argument(
+        "--checker",
+        type=Path,
+        default=shutil.which("basedpyright"),
+        help="basedpyright executable for installed-package type checks",
+    )
     options = parser.parse_args()
+    if options.checker is None:
+        parser.error(
+            "basedpyright is required; install the typing dependency group or pass --checker"
+        )
+    checker = options.checker.resolve(strict=True)
     wheel = options.wheel.resolve(strict=True)
     with TemporaryDirectory(prefix="sigil-installed-") as directory:
         root = Path(directory)
@@ -114,6 +126,11 @@ from sigil.sketch import render_file
 root = pathlib.Path(sys.prefix).resolve()
 assert pathlib.Path(sigil.__file__).resolve().is_relative_to(root)
 assert pathlib.Path(_sigil.__file__).resolve().is_relative_to(root)
+package = pathlib.Path(sigil.__file__).parent
+assert (package / "py.typed").is_file()
+assert (package / "compose" / "__init__.pyi").is_file()
+assert (package.parent / "_sigil" / "__init__.pyi").is_file()
+assert (package.parent / "_sigil" / "py.typed").is_file()
 assert compose_kit.__name__ == "sigil.compose.kit"
 assert compose_kit.Well is compose.kit.Well
 assert sketch_kit.Theme is sketch.kit.Theme
@@ -130,6 +147,22 @@ print("Installed", version("sigil-sketch"), "from", sigil.__file__)
 """
         subprocess.run(
             [str(python), "-I", "-c", program, str(source), str(second)],
+            cwd=root,
+            env=environment,
+            check=True,
+        )
+        typing_check = (
+            Path(__file__).resolve().parents[1] / "test" / "typing" / "check.py"
+        )
+        subprocess.run(
+            [
+                sys.executable,
+                str(typing_check),
+                "--python",
+                str(python),
+                "--checker",
+                str(checker),
+            ],
             cwd=root,
             env=environment,
             check=True,

@@ -6,8 +6,9 @@ Requires the optional ``studies`` package extra.
 # TAGS: Drawing/Generative, Patterns/Simulation
 
 import numpy as np
+from sigil.draw import Pen
 from sigil.image import from_rgba
-from sigil.sketch import sketch
+from sigil.sketch import SketchContext, sketch
 
 REQUIRES = ("numpy",)
 
@@ -24,7 +25,7 @@ def laplace(field):
 
 @sketch(size=(720, 720), capture_at=5)
 class ReactionDiffusion:
-    def setup(self, ctx):
+    def setup(self, ctx: SketchContext) -> None:
         self.a = np.ones((144, 144), dtype=np.float32)
         self.b = np.zeros_like(self.a)
         self.b[56:88, 56:88] = 1
@@ -45,7 +46,7 @@ class ReactionDiffusion:
         a[:] = next_a
         b[:] = next_b
 
-    def draw(self, pen):
+    def draw(self, pen: Pen) -> None:
         for _ in range(5):
             self.advance()
         shade = np.clip((self.a - self.b) * np.float32(255), 0, 255).astype(np.uint8)

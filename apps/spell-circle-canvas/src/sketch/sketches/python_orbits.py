@@ -5,6 +5,7 @@ TAGS: Drawing/Generative, Motion/Animation
 
 from math import cos, sin, tau
 
+from sigil.draw import Pen
 from sigil.sketch import sketch
 
 ORBITS = [
@@ -17,7 +18,7 @@ ORBITS = [
 
 @sketch(size=(1100, 740), background="#111b27", capture_at=3.0)
 class Orbits:
-    def draw(self, pen):
+    def draw(self, pen: Pen) -> None:
         t = pen.millis() / 1000
         cx, cy = 374, 405
         pen.background("#111b27")

@@ -7,8 +7,8 @@ TAGS: Drawing/Brushes, Drawing/Generative
 
 from math import cos, pi, sin
 
-from sigil.draw import CENTER, LEFT, brush
-from sigil.sketch import sketch
+from sigil.draw import CENTER, LEFT, Pen, brush
+from sigil.sketch import SketchContext, sketch
 
 LEAVES = [
     ((286, 626), 184, 48, -2.45, -0.10),
@@ -90,11 +90,11 @@ def veins(pen, at, pigment):
 
 @sketch(size=(1100, 780), background="#f7f1de", capture_at=0)
 class BotanicalStudy:
-    def setup(self, ctx):
+    def setup(self, ctx: SketchContext) -> None:
         self.brushes = brush.Engine()
         self.brushes.scaleBrushes(1.15)
 
-    def draw(self, pen):
+    def draw(self, pen: Pen) -> None:
         pen.noLoop()
         pen.randomSeed(0xB07A11CA)
         pen.noiseSeed(0xB07A11CA)

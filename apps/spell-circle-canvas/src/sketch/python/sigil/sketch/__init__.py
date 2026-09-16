@@ -6,7 +6,9 @@ from math import isfinite
 from numbers import Real
 from os import fspath
 
-__all__ = ["render_file", "sketch"]
+from _sigil.sketch import Context as SketchContext
+
+__all__ = ["SketchContext", "render_file", "sketch"]
 
 
 def render_file(source, output, *, at=None):

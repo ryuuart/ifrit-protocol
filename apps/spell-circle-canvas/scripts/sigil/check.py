@@ -37,6 +37,7 @@ TRUNK = "main"
 EXCLUDED_FRAGMENTS = (
     "SpellCircle_generated",
     "vcpkg_installed/",
+    "src/sketch/python/stubs/",
 )
 
 
@@ -163,7 +164,7 @@ def check_qmllint(files: list) -> bool:
     if not qmllint.exists():
         tree.fail(f"qmllint not found at {qmllint}")
     # The build tree's qml/ holds the repository's own compiled modules
-    # (Ifrit.Ui, SpellCircle.*); without it every project import is
+    # (Ifrit.Qt, SpellCircle.*); without it every project import is
     # unresolvable and the lint is meaningless.
     import_dir = tree.build_dir() / "qml"
     command = [qmllint]
@@ -219,7 +220,9 @@ def main(argv: list) -> int:
         "clang-format": check_clang_format(
             with_suffixes(scope, CXX_SUFFIXES), arguments.fix
         ),
-        "ruff": check_ruff(with_suffixes(scope, {".py"}), arguments.fix, arguments.all),
+        "ruff": check_ruff(
+            with_suffixes(scope, {".py", ".pyi"}), arguments.fix, arguments.all
+        ),
         "qmllint": check_qmllint(with_suffixes(scope, {".qml"})),
     }
 

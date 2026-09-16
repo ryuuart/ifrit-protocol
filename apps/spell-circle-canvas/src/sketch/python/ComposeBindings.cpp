@@ -428,7 +428,6 @@ void bindCompose(py::module_& module) {
       .def_static("currentInk", &Fill::currentInk)
       .def_static("color",
                   [](py::object value) { return Fill::color(color(value)); })
-      .def_static("shader", &Fill::shader)
       .def_static("var", py::overload_cast<VarRef>(&Fill::var))
       .def_readonly("colorValue", &Fill::colorValue)
       .def(py::self == py::self);

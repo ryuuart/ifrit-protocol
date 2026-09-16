@@ -4,9 +4,9 @@
 
 from math import cos, hypot, sin
 
-from sigil.draw import ADD, BLEND, CANVAS, ROUND
+from sigil.draw import ADD, BLEND, CANVAS, ROUND, Pen
 from sigil.material import skia
-from sigil.sketch import sketch
+from sigil.sketch import SketchContext, sketch
 
 Paint = skia.Paint
 
@@ -121,7 +121,7 @@ FILAMENT = r"""
 
 @sketch(size=(720, 720), background="#02050e", capture_at=0.05)
 class LiquidGlass:
-    def setup(self, ctx):
+    def setup(self, ctx: SketchContext) -> None:
         self.source = Paint.sksl(LINE_FIELD).quantizeTime(30)
         self.filament = Paint.sksl(FILAMENT).quantizeTime(30)
         self.glass = (
@@ -178,7 +178,7 @@ class LiquidGlass:
                 by,
             )
 
-    def draw(self, pen):
+    def draw(self, pen: Pen) -> None:
         t = pen.millis() / 1000
         balls = self.lobes(t)
         glass = self.glass.copy()

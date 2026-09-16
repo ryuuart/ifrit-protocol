@@ -6,8 +6,8 @@ TAGS: Drawing/Generative, Motion/Physics
 from cmath import phase
 from math import cos, pi
 
-from sigil.draw import CLOSE, HSB
-from sigil.sketch import sketch
+from sigil.draw import CLOSE, HSB, Pen
+from sigil.sketch import SketchContext, sketch
 
 
 def limited(vector, maximum):
@@ -21,7 +21,7 @@ def steer(desired, velocity):
 
 @sketch(size=(900, 720), capture_at=5)
 class ReynoldsSteering:
-    def setup(self, ctx):
+    def setup(self, ctx: SketchContext) -> None:
         self.boids = []
 
     def advance(self, width, height):
@@ -56,7 +56,7 @@ class ReynoldsSteering:
             updated.append((complex(x, y), velocity))
         self.boids = updated
 
-    def draw(self, pen):
+    def draw(self, pen: Pen) -> None:
         if pen.frameCount == 1:
             pen.randomSeed(0xC2A16)
             pen.colorMode(HSB, 360, 100, 100, 255)

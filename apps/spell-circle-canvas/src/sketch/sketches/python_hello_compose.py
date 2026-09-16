@@ -8,10 +8,10 @@ EDIT THESE FIRST
 TAGS: Runtime/Starter, Geometry/Layout, Materials/Gradients, Motion/Animation
 """
 
-from sigil.compose import column, row, text
+from sigil.compose import Element, column, row, text
 from sigil.material import skia
 from sigil.motion import entrance
-from sigil.sketch import kit, sketch
+from sigil.sketch import SketchContext, kit, sketch
 
 TITLE = "Hello, Compose."
 CARDS = [
@@ -21,11 +21,11 @@ CARDS = [
 ]
 
 
-def wash(accent):
+def wash(accent: str) -> skia.Paint:
     return skia.Paint.linearUnit((0, 0), (1, 1), [(0, accent), (1, "#172b36")])
 
 
-def card(title, detail, accent, delay=0):
+def card(title: str, detail: str, accent: str, delay: float = 0) -> Element:
     return column(
         text(title, size=26),
         text(detail, size=14, color="#dce6e9"),
@@ -44,7 +44,7 @@ def card(title, detail, accent, delay=0):
 
 @sketch(size=(900, 360), capture_at=1.1)
 class HelloCompose:
-    def setup(self, ctx):
+    def setup(self, ctx: SketchContext) -> None:
         look = kit.house_theme()
         look.palette.ground = "#f4f0e6"
         look.palette.ink = "#273d41"

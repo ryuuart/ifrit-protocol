@@ -52,6 +52,45 @@ sigil::io::Bytes readAll(const std::filesystem::path& file) {
 
 class QueryEngines : public testing::TestWithParam<Engine> {};
 
+TEST_P(QueryEngines, OpeningAnAbsentStoreDoesNotCreateIt) {
+  const auto file =
+      scratch(GetParam() == Engine::Sqlite ? "sigil-absent-store.sqlite"
+                                           : "sigil-absent-store.duckdb");
+  std::filesystem::remove(file);
+  std::string why;
+  EXPECT_FALSE(Database::open(file, &why));
+  EXPECT_FALSE(why.empty());
+  EXPECT_FALSE(std::filesystem::exists(file));
+}
+
+TEST_P(QueryEngines, AnExistingStoreCanStillBeWritten) {
+  const auto file =
+      scratch(GetParam() == Engine::Sqlite ? "sigil-writable-store.sqlite"
+                                           : "sigil-writable-store.duckdb");
+  std::filesystem::remove(file);
+  std::string why;
+  {
+    auto memory = Database::memory(GetParam(), &why);
+    ASSERT_TRUE(memory) << why;
+    const std::string create = GetParam() == Engine::Sqlite
+                                   ? "VACUUM INTO '" + file.string() + "'"
+                                   : "ATTACH '" + file.string() + "' AS store";
+    ASSERT_TRUE(memory->execute(create, &why)) << why;
+  }
+  {
+    auto opened = Database::open(file, &why);
+    ASSERT_TRUE(opened) << why;
+    ASSERT_TRUE(opened->insert("records", sample(), &why)) << why;
+    ASSERT_TRUE(opened->execute("DELETE FROM records WHERE n = 1", &why))
+        << why;
+    const auto rows = opened->query("SELECT n FROM records ORDER BY n", &why);
+    ASSERT_TRUE(rows) << why;
+    ASSERT_EQ(rows->size(), 2u);
+    EXPECT_EQ(rows->column<double>("n")[0], 2);
+  }
+  std::filesystem::remove(file);
+}
+
 TEST_P(QueryEngines, ATableRoundTripsWithItsTypesAndItsMissingCells) {
   std::string why;
   std::optional<Database> db = Database::memory(GetParam(), &why);

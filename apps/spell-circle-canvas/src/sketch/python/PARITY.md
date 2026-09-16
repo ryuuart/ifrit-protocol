@@ -8,7 +8,7 @@ convenience builders share native values; neither is a second scene model.
 
 | Surface | Bound contract | Remaining boundary |
 | --- | --- | --- |
-| Canvas hosting | Setup, update and draw argument prefixes; checked context services; fresh local import generations | Python entries are opened by path, not compiled catalogue entries; model state is replaced on reload |
+| Canvas hosting | Setup, update and draw argument prefixes; checked context services; fresh local import generations; source-backed catalogue and external workspaces | Model state is replaced on reload; each workspace process uses one Python environment |
 | Composition | Native factories, dimensions and units, layout and placement, 2D/3D transforms, fills, typography and style classes | The full native Element and feature catalogue is not claimed |
 | Memo | Deep-copied model, Python equality, native reconciliation and captured inherited environment | Builder must be pure in its model and environment; closure mutation is not a dependency |
 | Motion | Shared outputs, binding chains, easing values, entrances, transitions and keyframe paths | Python times use seconds; scheduling comes from the native session ticker |
@@ -44,7 +44,8 @@ A mapped surface means the operations needed to translate the source are
 exposed. It does not mean the original sketch has been ported or that its
 Python and C++ pixels are byte-identical. The Python ports below preserve the
 subjects and algorithms; floating-point evaluation and simulation arithmetic
-may differ. NumPy is an optional dependency for the reaction-diffusion study.
+may differ. NumPy is an optional dependency for the reaction-diffusion and
+vectorized flow-field studies.
 
 | C++ sketch | Native requirements beyond basic pen verbs | Python study |
 | --- | --- | --- |

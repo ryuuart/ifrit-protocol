@@ -8,10 +8,10 @@ normals, lighting and triangle drawing are the native geometry library's.
 
 from math import cos, pi, sin
 
-from sigil.draw import LEFT, TOP
+from sigil.draw import LEFT, TOP, Pen
 from sigil.geometry import mesh
 from sigil.material import pattern
-from sigil.sketch import sketch
+from sigil.sketch import SketchContext, sketch
 
 camera = mesh.camera
 render = mesh.render
@@ -38,7 +38,7 @@ def surface(color, *, gloss=0.8):
 
 @sketch(size=(1400, 900), background="#101a25", capture_at=0.5)
 class MeshObservatory:
-    def setup(self, ctx):
+    def setup(self, ctx: SketchContext) -> None:
         self.knot = mesh.grid(180, 22, knot)
         self.vase = mesh.revolve(
             [
@@ -67,7 +67,7 @@ class MeshObservatory:
             39,
         )
 
-    def draw(self, pen):
+    def draw(self, pen: Pen) -> None:
         t = pen.millis() / 1000
         pen.background("#101a25")
         pen.push()

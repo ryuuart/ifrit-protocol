@@ -7,7 +7,7 @@ from math import sin
 
 from sigil.compose import box, column, row, text
 from sigil.motion import entrance
-from sigil.sketch import sketch
+from sigil.sketch import SketchContext, sketch
 
 INK = "#e8eef2"
 MUTED = "#8da1b6"
@@ -115,7 +115,7 @@ def signal_panel():
 
 @sketch(size=(1100, 740), background="#111b27", capture_at=2.0)
 class Dashboard:
-    def setup(self, ctx):
+    def setup(self, ctx: SketchContext) -> None:
         ctx.render(
             column(
                 row(

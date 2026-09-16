@@ -10,6 +10,7 @@ TAGS: Runtime/Starter, Drawing/Primitives, Motion/Animation
 
 from math import sin
 
+from sigil.draw import Pen
 from sigil.sketch import sketch
 
 COLOR = "#efb87e"
@@ -18,7 +19,7 @@ SPEED = 1.2
 
 @sketch(size=(640, 420), capture_at=1.0)
 class Hello:
-    def draw(self, pen):
+    def draw(self, pen: Pen) -> None:
         t = pen.millis() / 1000
         pen.background("#18252e")
         pen.noStroke()

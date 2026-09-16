@@ -9,7 +9,7 @@ TAGS: Data/Visualization, Drawing/Charts, Typography/Editorial
 from sigil.compose import box, column, graphics, row, text
 from sigil.data import Order, Scale, Transform, decodeCsv
 from sigil.draw import CENTER, LEFT, RIGHT
-from sigil.sketch import sketch
+from sigil.sketch import SketchContext, sketch
 
 CSV = """species,light,height,water,room
 Maidenhair,36,24,84,A
@@ -37,7 +37,7 @@ def label(value, size=12, color=INK, **properties):
 
 @sketch(size=(1000, 780), background="#f3f1e8", capture_at=0)
 class DataGarden:
-    def setup(self, ctx):
+    def setup(self, ctx: SketchContext) -> None:
         self.table = decodeCsv(CSV)
         self.ranking = self.table.sort("height", Order.Descending)
         self.light = Scale(domain=(20, 100), range=(52, 530))

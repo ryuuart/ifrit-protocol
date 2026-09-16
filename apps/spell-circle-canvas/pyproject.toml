@@ -9,7 +9,7 @@ backend-path = ["src/sketch/python/packaging"]
 
 [project]
 name = "sigil-sketch"
-version = "0.1.0a3"
+version = "0.1.0a4"
 description = "Native Sigil drawing libraries and headless Python sketches"
 readme = "src/sketch/python/README.md"
 requires-python = ">=3.12"
@@ -26,6 +26,9 @@ sigil = "sigil.cli:main"
 
 [project.optional-dependencies]
 studies = ["numpy>=2.0"]
+
+[dependency-groups]
+typing = ["basedpyright==1.40.1", "pybind11-stubgen==2.5.5"]
 
 [tool.scikit-build]
 minimum-version = "build-system.requires"

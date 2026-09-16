@@ -1,0 +1,6 @@
+{
+  "include": ["../stubs/_sigil", "../sigil/**/*.pyi"],
+  "extraPaths": ["..", "../stubs"],
+  "typeCheckingMode": "strict",
+  "pythonVersion": "3.12"
+}

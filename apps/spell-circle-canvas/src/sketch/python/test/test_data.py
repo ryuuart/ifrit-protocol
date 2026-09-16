@@ -147,6 +147,15 @@ class Data(unittest.TestCase):
         self.assertLessEqual(nice.domain.low, 2.3)
         self.assertGreaterEqual(nice.domain.high, 17.6)
 
+    def test_opening_a_missing_database_does_not_create_it(self):
+        with tempfile.TemporaryDirectory() as folder:
+            for extension in ("sqlite", "sqlite3", "db", "duckdb"):
+                with self.subTest(extension=extension):
+                    path = Path(folder) / f"missing.{extension}"
+                    with self.assertRaisesRegex(RuntimeError, "absent"):
+                        data.Database.open(path)
+                    self.assertFalse(path.exists())
+
     def test_database_queries_return_independent_tables(self):
         with self.assertRaises(RuntimeError):
             data.Database.fromBytes(b"")

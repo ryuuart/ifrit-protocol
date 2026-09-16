@@ -44,6 +44,40 @@ build, with tests checking shared types, mixed construction and lifecycle
 contracts. Expanding the surface means deciding and testing each new
 Python contract, rather than maintaining a second renderer.
 
+## Type information
+
+The wheel includes type declarations for the direct bindings and authoring
+helpers, with a `py.typed` marker for editors. Builders return native
+`Element` values; material factories return native paints. Supported input
+forms use unions and overloads, keyword properties have named types, and
+memo builders preserve the type of their model. Decorating a sketch retains
+its class type.
+
+Annotate the parameters of your own callbacks so an editor knows which
+native service you receive:
+
+```python
+from sigil.compose import Element, text
+from sigil.draw import Pen
+from sigil.sketch import SketchContext, sketch
+
+def caption(label: str) -> Element:
+    return text(label, size=18, color="#e8eef2")
+
+@sketch(size=(640, 420))
+class Hello:
+    def setup(self, ctx: SketchContext) -> None:
+        ctx.background("#18252e")
+
+    def draw(self, pen: Pen) -> None:
+        pen.circle(320, 210, 80)
+```
+
+Python still runs without annotations. Static checking is an authoring aid;
+runtime conversion and lifetime checks remain in force. Python cannot infer
+an unannotated method parameter merely because its class has a decorator.
+The bundled starter sketches show both Draw and Compose with explicit types.
+
 ## Install and render
 
 The distribution is named `sigil-sketch`; its import package is `sigil`.
@@ -126,11 +160,34 @@ native dependencies. No distribution is published by these commands.
 Verify a built wheel with a fresh uv environment outside the checkout:
 
 ```sh
-python3 src/sketch/python/packaging/check_wheel.py dist/sigil_sketch-*.whl
+python3 src/sketch/python/packaging/check_wheel.py dist/sigil_sketch-*.whl \
+  --checker .venv/bin/basedpyright
 ```
 
-The check installs offline, removes Python path overrides, and compares
-images rendered by the installed CLI and by Python's isolated mode.
+The check installs offline, removes Python path overrides, compares
+images rendered by the installed CLI and by Python's isolated mode, and
+checks positive and invalid authoring examples against the installed types.
+The `typing` development dependency group supplies the checker and pinned
+stub generator; these tools are not runtime dependencies.
+
+Native declarations are checked in so an editor can read them without a
+native build. After changing bindings, regenerate against the rebuilt
+extension using an interpreter with the `typing` group installed:
+
+```sh
+PYTHONPATH=build/python .venv/bin/python src/sketch/python/typing/generate.py
+PYTHONPATH=build/python .venv/bin/python src/sketch/python/typing/generate.py --check
+```
+
+Generation uses the compiled binding signatures plus explicit refinements
+for conversion boundaries such as colours, callbacks and property records.
+New C++ APIs are not automatically bound. Bound API changes update generated
+declarations; a changed conversion contract may also need its refinement
+updated. CTest checks native export coverage and static authoring when the
+checker is on `PATH`, in `.venv`, or in `build/typing-tools`. Declaration
+drift is checked when the configured interpreter or one of those local
+environments has the pinned stub generator and matches the extension's
+Python version.
 
 ## Develop with Sketchbook
 
@@ -192,7 +249,7 @@ launch the same native application:
 uv init my-sketches
 cd my-sketches
 uv python pin 3.14
-uv add /path/to/sigil_sketch-0.1.0a3-cp314-cp314-macosx_26_0_arm64.whl
+uv add /path/to/sigil_sketch-0.1.0a4-cp314-cp314-macosx_26_0_arm64.whl
 uv add numpy
 uv run sigil open sketch.py --sketchbook /path/to/Sketchbook
 ```
@@ -237,12 +294,13 @@ the wheel is the installation artifact.
 
 ```python
 from math import cos, sin
+from sigil.draw import Pen
 from sigil.sketch import sketch
 
 
 @sketch(size=(640, 420), background="#121720", capture_at=2.0)
 class Orbit:
-    def draw(self, pen):
+    def draw(self, pen: Pen) -> None:
         t = pen.millis() / 1000
         pen.background("#121720")
         pen.noStroke()

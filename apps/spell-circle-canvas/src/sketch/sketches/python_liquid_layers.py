@@ -7,9 +7,9 @@ TAGS: Drawing/Brushes, Drawing/Generative, Motion/Animation
 
 from math import cos, pi, sin, tau
 
-from sigil.draw import ADD, CLOSE, ROUND, SCREEN, brush
+from sigil.draw import ADD, CLOSE, ROUND, SCREEN, Pen, brush
 from sigil.material import pattern
-from sigil.sketch import sketch
+from sigil.sketch import SketchContext, sketch
 
 PIGMENTS = [
     (0.08, 0.82, 0.88, 1),
@@ -59,13 +59,13 @@ def liquid_nib(color, width):
 
 @sketch(size=(960, 700), background="#040912", capture_at=0.8)
 class LiquidLayers:
-    def setup(self, ctx):
+    def setup(self, ctx: SketchContext) -> None:
         self.grid = [
             pattern.gridLines(34, 1.15, (0.18, 0.46, 0.58, 0.34)).paint(),
             pattern.gridLines(136, 2.2, (0.70, 0.82, 0.88, 0.22)).paint(),
         ]
 
-    def draw(self, pen):
+    def draw(self, pen: Pen) -> None:
         seconds = pen.millis() / 1000
         width, height = pen.width, pen.height
         cx, cy = width / 2, height / 2

@@ -15,6 +15,8 @@ extend-exclude = [
     "apps/python/SpellCircle/Point.py",
     "apps/python/SpellCircle/Scene.py",
     "apps/python/SpellCircle/Vec2.py",
+    # Native declarations are generated from bindings and typed refinements.
+    "apps/spell-circle-canvas/src/sketch/python/stubs/**",
     # Build trees carry generated and vendored Python.
     "apps/spell-circle-canvas/build*",
     "touchdesigner/venv*",

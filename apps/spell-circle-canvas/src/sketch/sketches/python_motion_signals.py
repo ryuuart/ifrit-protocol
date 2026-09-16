@@ -7,7 +7,7 @@ TAGS: Motion/Animation, Drawing/Generative, Typography/Interface
 
 from sigil.compose import box, column, row, text
 from sigil.motion import Output, Transition, animate, bind, ease, from_, through
-from sigil.sketch import sketch
+from sigil.sketch import SketchContext, sketch
 
 WIDTH = 860
 TRACK = 610
@@ -64,7 +64,7 @@ def signal_row(number, title, detail, signal, accent):
 
 @sketch(size=(960, 800), background="#0b1713", capture_at=1.1)
 class MotionSignals:
-    def setup(self, ctx):
+    def setup(self, ctx: SketchContext) -> None:
         seconds = Output(0)
         ctx.ticker.add(lambda dt, elapsed: seconds.set(elapsed))
         folded = Output(0)

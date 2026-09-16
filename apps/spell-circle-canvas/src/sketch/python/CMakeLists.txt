@@ -52,14 +52,19 @@ add_custom_target(sigil_python_package
     "${CMAKE_BINARY_DIR}/python/sigil/compose.py"
     "${CMAKE_BINARY_DIR}/python/sigil/sketch.py"
   COMMAND ${CMAKE_COMMAND} -E copy_directory
-    "${CMAKE_CURRENT_SOURCE_DIR}/sigil" "${CMAKE_BINARY_DIR}/python/sigil")
+    "${CMAKE_CURRENT_SOURCE_DIR}/sigil" "${CMAKE_BINARY_DIR}/python/sigil"
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${CMAKE_CURRENT_SOURCE_DIR}/stubs/_sigil" "${CMAKE_BINARY_DIR}/python/_sigil")
 add_dependencies(sigil_python sigil_python_package)
 
 install(TARGETS sigil_python
   LIBRARY DESTINATION . COMPONENT SigilPython
   RUNTIME DESTINATION . COMPONENT SigilPython)
 install(DIRECTORY sigil DESTINATION . COMPONENT SigilPython
-  FILES_MATCHING PATTERN "*.py" PATTERN "__pycache__" EXCLUDE)
+  FILES_MATCHING PATTERN "*.py" PATTERN "*.pyi" PATTERN "py.typed"
+  PATTERN "__pycache__" EXCLUDE)
+install(DIRECTORY stubs/_sigil DESTINATION . COMPONENT SigilPython
+  FILES_MATCHING PATTERN "*.pyi" PATTERN "py.typed")
 file(GLOB SIGIL_PYTHON_EXAMPLES CONFIGURE_DEPENDS
   "${CMAKE_CURRENT_SOURCE_DIR}/../sketches/python_*.py")
 install(FILES ${SIGIL_PYTHON_EXAMPLES}
@@ -85,3 +90,48 @@ add_test(NAME sketch_python_authoring
     "SIGIL_TEST_SKETCHBOOK=$<TARGET_FILE:Sketchbook>"
     ${Python3_EXECUTABLE} -m unittest discover
       -s "${CMAKE_CURRENT_SOURCE_DIR}/test" -p "test_*.py")
+add_test(NAME sketch_python_stub_surface
+  COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${CMAKE_BINARY_DIR}/python"
+    ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/typing/check_surface.py")
+
+find_program(SIGIL_BASEDPYRIGHT basedpyright
+  HINTS "${CMAKE_BINARY_DIR}/typing-tools/bin" "${CMAKE_BINARY_DIR}/typing-tools/Scripts"
+        "${PROJECT_SOURCE_DIR}/.venv/bin" "${PROJECT_SOURCE_DIR}/.venv/Scripts")
+# Stub generation imports the extension, so its interpreter must match the
+# Python version the native module was built against.
+set(SIGIL_TYPING_PYTHON "")
+foreach(candidate IN ITEMS
+    "${CMAKE_BINARY_DIR}/typing-tools/bin/python"
+    "${CMAKE_BINARY_DIR}/typing-tools/Scripts/python.exe"
+    "${PROJECT_SOURCE_DIR}/.venv/bin/python"
+    "${PROJECT_SOURCE_DIR}/.venv/Scripts/python.exe"
+    "${Python3_EXECUTABLE}")
+  if(EXISTS "${candidate}")
+    execute_process(COMMAND "${candidate}" -c
+      "import importlib.metadata, sys; assert sys.version_info[:2] == (${Python3_VERSION_MAJOR}, ${Python3_VERSION_MINOR}); assert importlib.metadata.version('pybind11-stubgen') == '2.5.5'; import pybind11_stubgen"
+      RESULT_VARIABLE SIGIL_TYPING_PROBE OUTPUT_QUIET ERROR_QUIET TIMEOUT 10)
+    if(SIGIL_TYPING_PROBE STREQUAL "0")
+      set(SIGIL_TYPING_PYTHON "${candidate}")
+      break()
+    endif()
+  endif()
+endforeach()
+if(SIGIL_BASEDPYRIGHT)
+  add_test(NAME sketch_python_type_declarations
+    COMMAND "${SIGIL_BASEDPYRIGHT}"
+      -p "${CMAKE_CURRENT_SOURCE_DIR}/typing/pyrightconfig.json")
+  add_test(NAME sketch_python_typing
+    COMMAND ${Python3_EXECUTABLE}
+      "${CMAKE_CURRENT_SOURCE_DIR}/test/typing/check.py"
+      --python "${Python3_EXECUTABLE}" --checker "${SIGIL_BASEDPYRIGHT}"
+      --extra-path "${CMAKE_BINARY_DIR}/python"
+      --example "${CMAKE_CURRENT_SOURCE_DIR}/../sketches/python_hello.py"
+      --example "${CMAKE_CURRENT_SOURCE_DIR}/../sketches/python_hello_compose.py")
+endif()
+if(SIGIL_TYPING_PYTHON)
+  add_test(NAME sketch_python_stub_drift
+    COMMAND ${CMAKE_COMMAND} -E env
+      "PYTHONPATH=${CMAKE_BINARY_DIR}/python"
+      "${SIGIL_TYPING_PYTHON}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/typing/generate.py" --check)
+endif()

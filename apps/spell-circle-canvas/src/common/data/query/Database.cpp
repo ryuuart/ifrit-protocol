@@ -32,6 +32,13 @@ std::optional<Database> Database::open(const std::filesystem::path& file,
     if (why) *why = "not a database file by its extension: " + file.string();
     return std::nullopt;
   }
+  // DuckDB's file opener also creates stores. Resource opening requires an
+  // existing regular file before either engine is asked to interpret it.
+  std::error_code error;
+  if (!std::filesystem::is_regular_file(file, error)) {
+    if (why) *why = "database file is absent or inaccessible: " + file.string();
+    return std::nullopt;
+  }
   std::unique_ptr<Impl> impl = *engine == Engine::Sqlite
                                    ? detail::openSqlite(file, why)
                                    : detail::openDuck(file, why);
