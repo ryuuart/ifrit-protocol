@@ -112,9 +112,13 @@ render_file("sketch.py", "preview.png", at=2.0)
 ```
 
 The renderer accepts strings and `pathlib.Path` objects. Omitting `at`
-uses the capture moment declared by the sketch. The headless host steps
-the scene clock from zero, so native entrances and pen history are
-present in a capture. The CLI creates output directories as needed and
+uses the capture moment declared by the sketch, or 1.5 seconds if none is
+declared. Sketchbook and standalone Python use the native host's capture
+preparation: whole steps at 60 FPS followed by the fractional remainder.
+Zero runs one update without advancing time. The headless host steps the
+scene clock from zero, so native entrances and pen history are present
+in a capture. Fractional canvas dimensions round up to whole pixels.
+The CLI creates output directories as needed and
 returns a nonzero status when import, setup or rendering fails.
 
 ## Build a wheel
@@ -249,7 +253,7 @@ launch the same native application:
 uv init my-sketches
 cd my-sketches
 uv python pin 3.14
-uv add /path/to/sigil_sketch-0.1.0a5-cp314-cp314-macosx_26_0_arm64.whl
+uv add /path/to/sigil_sketch-0.1.0a6-cp314-cp314-macosx_26_0_arm64.whl
 uv add numpy
 uv run sigil open sketch.py --sketchbook /path/to/Sketchbook
 ```

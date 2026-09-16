@@ -7,7 +7,6 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
-#include <include/utils/SkNoDrawCanvas.h>
 #include <sigilmeasure/stats/Samples.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilsketch/core/Crash.h>
@@ -267,26 +266,17 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
 
 int runFrames(sketch::Host& host, const CaptureOptions& options) {
   if (!awaitFirstBuild(host)) return 1;
-  // THE MOMENT THE SKETCH DECLARED wins over any number this program
-  // could pick, because a still of an animation is a claim about that
-  // animation and the author is the one who knows which frame makes it.
-  // A stated --at overrides the declaration; a sketch declaring nothing
-  // gets the fallback. The declaration is only readable once a body has
-  // run its setup, which is why it is read here and not while parsing.
   const double declared = host.captureSeconds();
-  const double at = options.at >= 0.0
-                        ? options.at
-                        : (declared > 0.0 ? declared : kFallbackMoment);
-  // Step at the sketch's full extent without rasterizing discarded pixels.
-  // The clip is part of a retained recording, so a tiny warm-up canvas
-  // would describe a different viewport from the one being captured.
+  double at;
+  try {
+    at = host.prepareCapture(
+        options.at >= 0.0 ? std::optional<double>{options.at} : std::nullopt,
+        options.fps);
+  } catch (const std::exception& error) {
+    std::fprintf(stderr, "capture: %s\n", error.what());
+    return 1;
+  }
   const double dt = 1.0 / options.fps;
-  const SkSize size = host.canvasSize();
-  SkNoDrawCanvas scratch((int)std::ceil(size.width()),
-                         (int)std::ceil(size.height()));
-  const int warmup = std::max(1, (int)std::lround(at / dt));
-  for (int i = 0; i < warmup; ++i)
-    if (!host.frame(scratch, dt)) return 1;
 
   for (int index = 0; index < options.frames; ++index) {
     const std::string path = options.frames > 1
@@ -299,7 +289,14 @@ int runFrames(sketch::Host& host, const CaptureOptions& options) {
         return 1;
       }
     }
-    if (index + 1 < options.frames && !host.frame(scratch, dt)) return 1;
+    if (index + 1 < options.frames) {
+      try {
+        host.prepareCapture(dt, options.fps);
+      } catch (const std::exception& error) {
+        std::fprintf(stderr, "capture: %s\n", error.what());
+        return 1;
+      }
+    }
   }
   std::printf(
       "wrote %s (%d frame%s at %.3gx, t=%.3gs %s, build %d, work %.2f ms "
@@ -307,7 +304,7 @@ int runFrames(sketch::Host& host, const CaptureOptions& options) {
       options.outputPath.c_str(), options.frames,
       options.frames == 1 ? "" : "s", options.scale, at,
       options.at >= 0.0 ? "asked for"
-                        : (declared > 0.0 ? "declared" : "by default"),
+                        : (declared >= 0.0 ? "declared" : "by default"),
       host.generation(), host.workMsAverage());
   return 0;
 }

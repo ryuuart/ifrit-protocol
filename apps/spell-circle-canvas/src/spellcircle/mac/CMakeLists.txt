@@ -32,12 +32,6 @@ enable_language(Swift)
 
 sigil_frameworks(frameworks Foundation AppKit Metal QuartzCore)
 
-find_package(unofficial-syphon CONFIG)
-if(NOT TARGET unofficial::syphon::syphon)
-  message(STATUS "SpellCircleMac skipped: Syphon.framework not found")
-  return()
-endif()
-
 # SHARED deliberately: the Swift executable crosses one ObjC module boundary,
 # while the bridge owns and links the complete C++ rendering runtime.
 add_library(SpellCircleMacBridge SHARED
@@ -62,7 +56,7 @@ target_link_libraries(SpellCircleMacBridge
     SigilSkia
     SigilIOHub          # the hub, and the feed the port is opened as
     SigilIOTransport    # registerUdp: the scheme that port speaks
-    unofficial::syphon::syphon
+    SigilPublish
 )
 
 sigil_test(spellcircle_mac_test

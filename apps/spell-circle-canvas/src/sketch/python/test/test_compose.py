@@ -56,6 +56,41 @@ class Compose(unittest.TestCase):
         self.assertAlmostEqual(mark.trimPhase.value, 0.75)
         self.assertTrue(mark.isAnimated())
 
+    def test_alignment_strings_and_enums_share_native_layout(self):
+        def render(mode):
+            return self.render(
+                f"""from sigil.compose import box
+from sigil.native import compose as raw
+from sigil.sketch import sketch
+@sketch(size=(24, 16), background="#000000")
+class Scene:
+    def setup(self, ctx):
+        children = [raw.box().size(4, 4).fill("#ff0000"),
+                    raw.box().size(4, 4).fill("#00ff00")]
+        if {mode!r} == "enum":
+            root = raw.box().size(24, 16).row().alignItems(raw.Align.Auto).justify(raw.Justify.SpaceBetween).children(children)
+        elif {mode!r} == "string":
+            root = raw.box().size(24, 16).row().alignItems("auto").justify("space_between").children(children)
+        else:
+            root = box(*children, width=24, height=16, align_items="auto", justify="space_between").row()
+        ctx.render(root)
+""",
+                at=0,
+            )
+
+        expected = render("enum")
+        colors = {expected[index : index + 4] for index in range(0, len(expected), 4)}
+        self.assertIn(b"\xff\x00\x00\xff", colors)
+        self.assertIn(b"\x00\xff\x00\xff", colors)
+        self.assertEqual(render("string"), expected)
+        self.assertEqual(render("convenience"), expected)
+        for method in ("alignItems", "alignSelf", "justify"):
+            with (
+                self.subTest(method=method),
+                self.assertRaisesRegex(ValueError, "Unknown"),
+            ):
+                getattr(raw.box(), method)("sideways")
+
     def test_rules_merge_native_partials_without_resetting_other_fields(self):
         sheet = weave.StyleSheet(
             [

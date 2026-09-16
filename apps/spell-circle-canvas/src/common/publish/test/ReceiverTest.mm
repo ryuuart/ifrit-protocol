@@ -12,7 +12,10 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
 #include <sigilimage/decode/Decode.h>
+#include <sigilpublish/Publisher.h>
+#include <sigilpublish/Subscription.h>
 
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -31,12 +34,12 @@ using receiver::Arguments;
 
 /** The command line as a caller types it, with the program's own name in
  *  front of it the way the platform hands it over. */
-std::optional<Arguments> parse(std::initializer_list<const char *> words) {
+std::optional<Arguments> parse(std::initializer_list<const char*> words) {
   std::vector<std::string> owned{"Receiver"};
   owned.insert(owned.end(), words.begin(), words.end());
-  std::vector<char *> argv;
+  std::vector<char*> argv;
   argv.reserve(owned.size());
-  for (std::string &word : owned) argv.push_back(word.data());
+  for (std::string& word : owned) argv.push_back(word.data());
   return receiver::parseArguments((int)argv.size(), argv.data());
 }
 
@@ -101,7 +104,7 @@ constexpr uint32_t kQuadrants[4] = {
 };
 
 /** Whatever stands in @p path, as bytes. */
-std::vector<std::byte> contentsOf(const std::filesystem::path &path) {
+std::vector<std::byte> contentsOf(const std::filesystem::path& path) {
   std::ifstream stream(path, std::ios::binary);
   std::vector<std::byte> bytes;
   for (char byte = 0; stream.get(byte);) bytes.push_back((std::byte)byte);
@@ -114,7 +117,7 @@ TEST(ReceiverCapture, AFrameKeepsItsRowsAndItsChannels) {
   id<MTLCommandQueue> queue = [device newCommandQueue];
   ASSERT_TRUE(queue);
 
-  MTLTextureDescriptor *description =
+  MTLTextureDescriptor* description =
       [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
                                                          width:2
                                                         height:2
@@ -137,7 +140,7 @@ TEST(ReceiverCapture, AFrameKeepsItsRowsAndItsChannels) {
       sigil::image::decodeImage(written.data(), written.size());
   ASSERT_TRUE(read);
   ASSERT_FALSE(read->frames().empty());
-  const sk_sp<SkImage> &image = read->frames().front().image;
+  const sk_sp<SkImage>& image = read->frames().front().image;
   ASSERT_EQ(image->width(), 2);
   ASSERT_EQ(image->height(), 2);
 
@@ -148,6 +151,68 @@ TEST(ReceiverCapture, AFrameKeepsItsRowsAndItsChannels) {
   for (int y = 0; y < 2; ++y)
     for (int x = 0; x < 2; ++x)
       EXPECT_EQ(*pixels.getAddr32(x, y), kQuadrants[y * 2 + x]) << "at " << x << "," << y;
+}
+
+TEST(PublishDelivery, AStaticFrameReachesClientsThatSubscribeAfterDrawingStops) {
+  @autoreleasepool {
+    id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+    if (!device) GTEST_SKIP() << "no Metal device on this machine";
+    id<MTLCommandQueue> queue = [device newCommandQueue];
+    ASSERT_TRUE(queue);
+    const std::string name = NSUUID.UUID.UUIDString.UTF8String;
+    auto publisher = sigil::publish::createPublisher(name, sigil::publish::Backend::Metal,
+                                                     (__bridge void*)device);
+    ASSERT_TRUE(publisher);
+    EXPECT_EQ(publisher->name(), name);
+
+    MTLTextureDescriptor* description =
+        [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+                                                           width:2
+                                                          height:2
+                                                       mipmapped:NO];
+    description.storageMode = MTLStorageModeShared;
+    id<MTLTexture> texture = [device newTextureWithDescriptor:description];
+    ASSERT_TRUE(texture);
+    [texture replaceRegion:MTLRegionMake2D(0, 0, 2, 2)
+               mipmapLevel:0
+                 withBytes:kQuadrants
+               bytesPerRow:8];
+    id<MTLCommandBuffer> commands = [queue commandBuffer];
+    publisher->publishFrame((__bridge void*)texture, (__bridge void*)commands, 2, 2);
+    [commands commit];
+    [commands waitUntilCompleted];
+    ASSERT_EQ(commands.status, MTLCommandBufferStatusCompleted);
+    commands = nil;
+    texture = nil;
+
+    const sigil::test::ScratchDir scratch("publish_static_clients");
+    for (int client = 0; client < 2; ++client) {
+      auto incoming = sigil::publish::subscribe(name, "", (__bridge void*)device);
+      ASSERT_TRUE(incoming);
+      id<MTLTexture> received = nil;
+      const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(4);
+      while (!received && std::chrono::steady_clock::now() < deadline) {
+        [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+        received = (__bridge id<MTLTexture>)incoming->newestFrame();
+      }
+      ASSERT_TRUE(received) << "late client " << client;
+      EXPECT_TRUE(incoming->standing());
+      const auto out = scratch.path / (std::to_string(client) + ".png");
+      ASSERT_TRUE(receiver::writeTexturePng(received, queue, out));
+      const auto written = contentsOf(out);
+      const auto decoded = sigil::image::decodeImage(written.data(), written.size());
+      ASSERT_TRUE(decoded);
+      const auto& image = decoded->frames().front().image;
+      ASSERT_EQ(image->width(), 2);
+      ASSERT_EQ(image->height(), 2);
+      SkBitmap pixels;
+      ASSERT_TRUE(pixels.tryAllocPixels(
+          SkImageInfo::Make(2, 2, kBGRA_8888_SkColorType, kPremul_SkAlphaType)));
+      ASSERT_TRUE(image->readPixels(nullptr, pixels.pixmap(), 0, 0));
+      for (int y = 0; y < 2; ++y)
+        for (int x = 0; x < 2; ++x) EXPECT_EQ(*pixels.getAddr32(x, y), kQuadrants[y * 2 + x]);
+    }
+  }
 }
 
 }  // namespace

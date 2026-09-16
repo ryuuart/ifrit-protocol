@@ -886,14 +886,19 @@ from.
 
 **The moment is the sketch's, not the flag's.** `--at <sec>` overrides
 it, and a sketch that declared none falls back to 1.5 s; otherwise a
-still lands where `ctx.captureAt` put it, so the same file photographed
-here and photographed by the sweep is the same frame. The line it prints
-says which of the three it used. `--bench` keeps the 1.5 s default
+still uses the same declared moment as the plate sweep. The line it prints
+says which of the three it used. A declared zero runs one update without
+advancing time; a moment between fixed steps uses a final fractional step.
+The standalone Python renderer uses the same host preparation. Fractional
+canvas dimensions round up to whole pixels at the requested scale.
+`--bench` keeps the 1.5 s default
 whatever the sketch declared: its `--at` is a warm-up that has only to
 get programs, bakes and atlases hot, and pinning it keeps the measured
 run the same run for every sketch.
 
-`--fps` sets the PRE-ROLL step, not just the capture rate. A sketch
+`--fps` sets the PRE-ROLL step as well as the capture rate. Steps longer
+than the session clock's maximum delta are subdivided so the clock reaches
+the requested moment. A sketch
 using a fixed-rate steppable has a catch-up clamp, so pre-rolling far
 below its own rate discards simulated time and lands earlier than you
 asked for. Keep `--fps` near the rate you would actually draw at.
@@ -1500,7 +1505,6 @@ src/sketch/
   live/       the reload engine, the resident set and the sweep's cadence
   scry/       the opt-in shared Ultralight engine a web sketch borrows
   plate/      the headless sweep, the montage, the plate comparison, the thumbnail store
-  publish/    both ends of the door a frame goes through, and Receiver over the subscription
   book/       Sketchbook: the app, and the headless entry point, with the browser's rows
   cmake/      SketchLinkSurface.cmake, the link surface a reloaded sketch is read against
   test/       support/, the fixtures every feature's cases share
@@ -1509,19 +1513,21 @@ src/sketch/
 
 Directories and headers are the same outline — a feature at `canvas/`
 keeps its headers under `include/sigilsketch/canvas/` and its own
-`test/` and `bench/` — and the targets are six:
+`test/` and `bench/` — and the sketch targets are:
 
 | Target | Kind | What it is |
 |---|---|---|
 | `SigilSketch` | static archive | `core/`, `canvas/`, `set/`, `live/`, `plate/`, and `scry/` where the SDK is installed: the registry, the two runtimes, the reload engine and the headless renderer. Links no device backend and no Qt. |
 | `SigilSketchKit` | static archive | the sheet a sketch stands on, over the canvas runtime alone |
-| `SigilSketchPublish` | static archive | `publish/`: both ends of the door a frame goes through — the publisher a host offers its texture over, and the subscription another application's frames arrive by. Knows no window, no toolkit and no drawing; `publish/README.md` is its canon |
 | `SigilSketches` | object library | every sketch, and the one place the sketch API surface is stated |
 | `Sketchbook` | application bundle | the host: the window, the browser's rows, and every headless entry |
-| `Receiver` | application bundle | `publish/receiver/`: the subscriber, so a publication can be watched in a window or grabbed to a PNG — macOS only, and `publish/README.md` is its canon too |
 
 Beside them stand `sketch_test`, `sketch_bench`, and the build step that
-writes the response file a hot-reloaded sketch compiles with.
+writes the response file a hot-reloaded sketch compiles with. Native frame
+publication and subscription come from `SigilPublish` in `common/publish/`.
+Sketchbook uses the shared Qt publication adapter; `Guest` wraps a native
+subscription for canvas and material use. The separate macOS `Receiver`
+monitor and PNG capture tool belongs to `common/publish/tools/receiver/`.
 
 ## Boundaries
 

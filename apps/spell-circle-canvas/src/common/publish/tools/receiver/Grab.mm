@@ -5,7 +5,7 @@
 
 #import <Metal/Metal.h>
 
-#include <sigilsketch/publish/Subscription.h>
+#include <sigilpublish/Subscription.h>
 
 #include "Capture.h"
 #include "Servers.h"
@@ -48,8 +48,8 @@ int runGrab(const Arguments &arguments) {
     return 4;
   }
 
-  std::unique_ptr<sigil::sketch::Subscription> subscription =
-      sigil::sketch::subscribe(arguments.server, arguments.app, (__bridge void *)device);
+  std::unique_ptr<sigil::publish::Subscription> subscription =
+      sigil::publish::subscribe(arguments.server, arguments.app, (__bridge void *)device);
   if (!subscription) {
     std::fprintf(stderr, "this build subscribes to nothing\n");
     return 4;

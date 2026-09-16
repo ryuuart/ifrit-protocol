@@ -12,6 +12,7 @@ namespace sigil::sketch::python {
 SkPoint point(pybind11::handle value);
 /** A four-number sequence describes x, y, width and height. */
 SkRect rect(pybind11::handle value);
+void bindCore(pybind11::module_& module);
 void bindValues(pybind11::module_& module);
 void bindGeometry(pybind11::module_& module);
 

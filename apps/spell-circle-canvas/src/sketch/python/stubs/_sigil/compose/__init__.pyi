@@ -548,12 +548,7 @@ class Element:
     def absolute(self) -> Element:
         ...
 
-    @typing.overload
-    def alignItems(self, arg0: str) -> Element:
-        ...
-
-    @typing.overload
-    def alignItems(self, arg0: Align) -> Element:
+    def alignItems(self, arg0: _t.AlignLike) -> Element:
         ...
 
     def alignSelf(self, arg0: _t.AlignLike) -> Element:
@@ -703,22 +698,13 @@ class Element:
         ...
 
     @typing.overload
-    def inset(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat) -> Element:
-        ...
-
-    @typing.overload
     def inset(self, arg0: _t.DimensionLike, arg1: _t.DimensionLike, arg2: _t.DimensionLike, arg3: _t.DimensionLike) -> Element:
         ...
 
     def inward(self) -> Element:
         ...
 
-    @typing.overload
-    def justify(self, arg0: str) -> Element:
-        ...
-
-    @typing.overload
-    def justify(self, arg0: Justify) -> Element:
+    def justify(self, arg0: _t.JustifyLike) -> Element:
         ...
 
     def key(self, arg0: str) -> Element:

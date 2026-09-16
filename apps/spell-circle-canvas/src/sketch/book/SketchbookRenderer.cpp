@@ -15,20 +15,19 @@
 #include <sigilskia/qt/QtInterop.h>
 #endif
 
+#include <TexturePublisher.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPixmap.h>
 #include <include/core/SkSurface.h>
 #include <rhi/qrhi.h>
-#include <rhi/qrhi_platform.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilsketch/core/Fit.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Sources.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/plate/Thumbnails.h>
-#include <sigilsketch/publish/Publisher.h>
 #include <sigilsketch/python/Python.h>
 #include <sigilweave/fonts/FontContext.h>
 
@@ -61,44 +60,6 @@ namespace {
  *  backend stays visible rather than inferred. Written on the render
  *  thread, read on the GUI thread's poll. */
 std::atomic<int> g_backend{0};  // 0 unknown, 1 Graphite GPU, 2 CPU raster
-
-// THE GRAPHICS API'S OWN OBJECTS, behind the handles Qt hands out. Qt
-// declares the Metal handle structs only in a build that has Metal, so
-// the unwrapping stands here, guarded once, and everything below reads
-// three plain functions. A backend that is not Metal answers nothing,
-// and the publisher's factory refuses a device that is not there — which
-// is the same refusal as a build with no publication protocol at all.
-#if defined(Q_OS_MACOS)
-
-void* metalDevice(QRhi* rhi) {
-  if (!rhi || rhi->backend() != QRhi::Metal) return nullptr;
-  const auto* handles =
-      static_cast<const QRhiMetalNativeHandles*>(rhi->nativeHandles());
-  return handles ? handles->dev : nullptr;
-}
-
-void* metalTexture(QRhiTexture* texture) {
-  if (!texture) return nullptr;
-  // Qt packs the id<MTLTexture> pointer into a quint64 on Metal, and it
-  // is only ever handed on as an opaque pointer.
-  // NOLINTNEXTLINE(performance-no-int-to-ptr)
-  return reinterpret_cast<void*>(texture->nativeTexture().object);
-}
-
-void* metalCommandBuffer(QRhiCommandBuffer* commandBuffer) {
-  if (!commandBuffer) return nullptr;
-  const auto* handles = static_cast<const QRhiMetalCommandBufferNativeHandles*>(
-      commandBuffer->nativeHandles());
-  return handles ? handles->commandBuffer : nullptr;
-}
-
-#else
-
-void* metalDevice(QRhi*) { return nullptr; }
-void* metalTexture(QRhiTexture*) { return nullptr; }
-void* metalCommandBuffer(QRhiCommandBuffer*) { return nullptr; }
-
-#endif
 
 /** ONE INDEX OVER TWO LISTS: the registry first, the files this session
  *  was pointed at after it. An index below the registry's size selects a
@@ -572,8 +533,12 @@ bool SketchbookRenderer::readbackGraphite(SkSurface& surface,
 void SketchbookRenderer::startPublishing() {
   if (m_publisher) return;
   m_metricsDirty = true;
-  m_publisher =
-      sketch::createPublisher(SketchbookView::publishName, metalDevice(m_rhi));
+  // Only the Graphite frame path submits a texture to the publisher.
+#ifdef SIGILSKETCH_BOOK_GPU
+  if (m_graphiteContext)
+    m_publisher =
+        ifrit::qt::createPublisher(m_rhi, SketchbookView::publishName);
+#endif
   if (m_publisher) {
     std::fprintf(stderr, "[sketchbook] publishing as \"%s\"\n",
                  SketchbookView::publishName.c_str());
@@ -615,9 +580,7 @@ void SketchbookRenderer::publishFrame(QRhiTexture* texture,
   // The drawing has already been submitted on this device's queue and
   // the buffer below is the one Qt commits after render() returns, so
   // the copy is ordered behind the frame it is copying.
-  m_publisher->publishFrame(metalTexture(texture),
-                            metalCommandBuffer(commandBuffer),
-                            pixelSize.width(), pixelSize.height());
+  ifrit::qt::publishFrame(*m_publisher, texture, commandBuffer, pixelSize);
 }
 
 void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {

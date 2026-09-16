@@ -4,6 +4,7 @@ import io
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -326,6 +327,40 @@ class ProjectEnvironment(unittest.TestCase):
         self.assertNotEqual(stopped.exception.code, 0)
         self.assertEqual(output.getvalue(), "")
         self.assertIn("sigil environment:", errors.getvalue())
+
+
+class StandaloneEnvironment(unittest.TestCase):
+    def test_isolated_script_needs_no_package_or_sketch_import(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "scene.py"
+            source.write_text(
+                'raise AssertionError("The resolver must not execute sketches")\n'
+            )
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    str(Path(environment.__file__).resolve()),
+                    str(source),
+                    "--version",
+                    "3.14",
+                    "--abi",
+                    "cpython-314-darwin",
+                    "--machine",
+                    "arm64",
+                    "--pointer-bits",
+                    "64",
+                    "--boundary",
+                    folder,
+                ],
+                cwd=folder,
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=10,
+            )
+            self.assertEqual(json.loads(result.stdout), {"executable": "", "abi": ""})
+            self.assertEqual(result.stderr, "")
 
 
 if __name__ == "__main__":

@@ -16,7 +16,7 @@
 #include <string_view>
 #include <utility>
 
-namespace sigil::sketch {
+namespace sigil::publish {
 
 namespace {
 
@@ -188,4 +188,4 @@ void *metalDeviceOfThisMachine() {
   return (__bridge void *)device;
 }
 
-}  // namespace sigil::sketch
+}  // namespace sigil::publish

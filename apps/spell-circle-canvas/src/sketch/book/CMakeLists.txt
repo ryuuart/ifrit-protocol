@@ -122,7 +122,7 @@ target_compile_definitions(Sketchbook PRIVATE SIGILSKETCH_BOOK_GPU)
 # window drew into to other applications on the machine. The seam knows
 # no Qt, and the one host that publishes is the one that links it — no
 # consumer of the library gets a publication protocol it never asked for.
-target_link_libraries(Sketchbook PRIVATE SigilSketchPublish)
+target_link_libraries(Sketchbook PRIVATE SigilPublish)
 
 # THE HOT-RELOAD LINK SURFACE. A sketch dylib links with `-undefined
 # dynamic_lookup` and resolves the framework's symbols out of this

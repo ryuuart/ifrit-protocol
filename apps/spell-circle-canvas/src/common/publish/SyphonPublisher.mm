@@ -11,7 +11,7 @@
 #include <string_view>
 #include <utility>
 
-namespace sigil::sketch {
+namespace sigil::publish {
 
 namespace {
 
@@ -26,10 +26,9 @@ class SyphonPublisher final : public Publisher {
 
   void publishFrame(void *nativeTexture, void *nativeCommandBuffer, int width,
                     int height) override {
-    // NOBODY WATCHING, NOTHING COPIED: a frame with no subscriber costs
-    // the check and no GPU work at all.
-    if (!m_server || !m_server.hasClients) return;
-    if (!nativeTexture || !nativeCommandBuffer) return;
+    // Syphon retains the last image for clients that subscribe later.
+    // A static host may publish once and perform no more drawing.
+    if (!m_server || !nativeTexture || !nativeCommandBuffer || width <= 0 || height <= 0) return;
 
     // The handles cross the seam as opaque pointers; __bridge recasts
     // them without moving ownership, which stays with the host that
@@ -78,4 +77,4 @@ std::unique_ptr<Publisher> makeSyphonPublisher(std::string name, void *mtlDevice
   return std::make_unique<SyphonPublisher>(std::move(name), server);
 }
 
-}  // namespace sigil::sketch
+}  // namespace sigil::publish

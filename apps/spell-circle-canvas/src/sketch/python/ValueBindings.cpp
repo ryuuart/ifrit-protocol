@@ -14,6 +14,7 @@
 #include <include/pathops/SkPathOps.h>
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
+#include <sigilcore/compute/Chance.h>
 #include <sigilimage/decode/Decode.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilmaterial/field/Field.h>
@@ -93,6 +94,44 @@ SkRect rect(py::handle value) {
   if (py::isinstance<SkRect>(value)) return py::cast<SkRect>(value);
   const auto v = py::cast<std::array<float, 4>>(value);
   return SkRect::MakeXYWH(v[0], v[1], v[2], v[3]);
+}
+
+void bindCore(py::module_& module) {
+  auto chance = module.def_submodule("core").def_submodule("chance");
+  namespace chanceNative = core::chance;
+  py::enum_<chanceNative::Source>(chance, "Source")
+      .value("Pcg", chanceNative::Source::Pcg)
+      .value("Mix64", chanceNative::Source::Mix64)
+      .value("Xorshift", chanceNative::Source::Xorshift)
+      .value("Halton", chanceNative::Source::Halton)
+      .value("Sobol", chanceNative::Source::Sobol)
+      .value("Golden", chanceNative::Source::Golden)
+      .value("Stratified", chanceNative::Source::Stratified);
+  using Stream = chanceNative::Stream;
+  py::class_<Stream>(chance, "Stream")
+      .def(py::init<>())
+      .def_static("pcg", &Stream::pcg)
+      .def_static("mix64", &Stream::mix64)
+      .def_static("xorshift", &Stream::xorshift)
+      .def_static("halton", &Stream::halton, py::arg("base"),
+                  py::arg("skip") = 0)
+      .def_static("sobol", &Stream::sobol, py::arg("skip") = 0)
+      .def_static("golden", &Stream::golden, py::arg("seed") = 0)
+      .def_static("stratified", &Stream::stratified, py::arg("strata"),
+                  py::arg("seed") = 0)
+      .def_static("of", &Stream::of, py::arg("source"), py::arg("seed"),
+                  py::arg("parameter") = 0)
+      .def("copy", [](const Stream& self) { return self; })
+      .def("__copy__", [](const Stream& self) { return self; })
+      .def("bits", &Stream::bits)
+      .def("unit", &Stream::unit)
+      .def("signedUnit", &Stream::signedUnit)
+      .def("range", &Stream::range)
+      .def("below", &Stream::below)
+      .def("normal", &Stream::normal)
+      .def("source", &Stream::source)
+      .def("parameter", &Stream::parameter)
+      .def("drawn", &Stream::drawn);
 }
 
 void bindValues(py::module_& module) {
@@ -652,14 +691,7 @@ void bindValues(py::module_& module) {
   weave.def("em", &weave::em).def("rem", &weave::rem).def("lh", &weave::lh);
   py::class_<weave::Type>(weave, "Type")
       .def(py::init([](py::kwargs kwargs) {
-        auto object = py::cast(weave::Type{});
-        for (const auto& [key, value] : kwargs) {
-          const auto name = key.cast<std::string>();
-          if (!py::hasattr(object, name.c_str()))
-            throw py::type_error("Unknown Type field: " + name);
-          py::setattr(object, name.c_str(), value);
-        }
-        return object.cast<weave::Type>();
+        return keywordValue<weave::Type>(kwargs, "Unknown Type field: ");
       }))
       .def_readwrite("face", &weave::Type::face)
       .def_property(

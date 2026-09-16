@@ -7,7 +7,7 @@
 #import <MetalKit/MetalKit.h>
 #import <simd/simd.h>
 
-#include <sigilsketch/publish/Subscription.h>
+#include <sigilpublish/Subscription.h>
 
 #include <algorithm>
 #include <cmath>
@@ -81,7 +81,7 @@ constexpr double kRateSeconds = 1.0;
   NSTimer *_follower;
   id<MTLCommandQueue> _queue;
   id<MTLRenderPipelineState> _pipeline;
-  std::unique_ptr<sigil::sketch::Subscription> _subscription;
+  std::unique_ptr<sigil::publish::Subscription> _subscription;
   std::string _name;
   /** The size the last frame arrived at, so the window is resized when
    *  the publication's own size changes and not on every frame. */
@@ -96,7 +96,7 @@ constexpr double kRateSeconds = 1.0;
 }
 
 - (instancetype)initWithDevice:(id<MTLDevice>)device
-                  subscription:(std::unique_ptr<sigil::sketch::Subscription>)subscription
+                  subscription:(std::unique_ptr<sigil::publish::Subscription>)subscription
                           name:(std::string)name {
   self = [super init];
   if (!self) return nil;
@@ -295,8 +295,8 @@ int runWindow(const Arguments &arguments) {
   }
   // The publication may not be there yet; the window says so and keeps
   // looking, which is the same answer it gives when one goes away.
-  std::unique_ptr<sigil::sketch::Subscription> subscription =
-      sigil::sketch::subscribe(arguments.server, arguments.app, (__bridge void *)device);
+  std::unique_ptr<sigil::publish::Subscription> subscription =
+      sigil::publish::subscribe(arguments.server, arguments.app, (__bridge void *)device);
   if (!subscription) {
     std::fprintf(stderr, "this build subscribes to nothing\n");
     return 4;

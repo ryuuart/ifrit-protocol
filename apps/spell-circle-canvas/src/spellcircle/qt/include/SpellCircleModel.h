@@ -1,7 +1,4 @@
 #pragma once
-#include <QtQml/qqml.h>
-#include <QtQml/qqmlregistration.h>
-
 #include <QAbstractListModel>
 #include <QDateTime>
 #include <QList>

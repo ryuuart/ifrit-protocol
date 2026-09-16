@@ -1,10 +1,26 @@
 #include "SpellCircleRenderer.h"
 
+#include <TexturePublisher.h>
+#include <include/core/SkCanvas.h>
+#include <include/core/SkColor.h>
+#include <sigilmeasure/time/FrameTimer.h>
+#include <sigilskia/qt/QtInterop.h>
+#include <sigilweave/qt/SigilWeaveQt.h>
 #include <spdlog/spdlog.h>
 
-#include "SkiaSceneBackend.h"
+#include "SceneRenderer.h"
 #include "SpellCircle.h"
-#include "TexturePublisher.h"
+
+struct SpellCircleRenderer::RenderState {
+  explicit RenderState(std::unique_ptr<sigil::skia::GraphiteContext> context)
+      : context(std::move(context)) {}
+
+  std::unique_ptr<sigil::skia::GraphiteContext> context;
+  // The drawer's font context and label caches stay on their creating thread.
+  spellcircle::SceneRenderer scene;
+  uint64_t frame = 0;
+  sigil::measure::FrameTimer timing;
+};
 
 SpellCircleRenderer::SpellCircleRenderer() {
   m_font.setBold(true);
@@ -66,23 +82,21 @@ void SpellCircleRenderer::resolveGeometry(SpellCircleModel* model) {
 
 void SpellCircleRenderer::initializeResources(QCanvasPainter* painter) {
   static_cast<void>(painter);
-  // Both factories inspect the active QRhi backend themselves and return
-  // null when they have no implementation for it: publishing is optional,
-  // and without a Skia backend the canvas stays empty (the QCanvasPainter
-  // fallback drawing path is gone).
-  m_publisher = createTexturePublisher(rhi(), "SpellCircle");
-  m_sceneBackend = createSkiaSceneBackend(rhi());
-  if (!m_sceneBackend)
+  m_publisher = ifrit::qt::createPublisher(rhi(), "SpellCircle");
+  if (auto context = sigil::skia::createGraphiteContext(rhi()))
+    m_renderState = std::make_unique<RenderState>(std::move(context));
+  else {
+    m_renderState.reset();
     spdlog::warn(
         "No Skia scene backend for the active graphics API; the "
         "canvas will not render scene content");
+  }
 }
 
 void SpellCircleRenderer::prePaint(QCanvasPainter* painter) {
-  if (!m_sceneBackend || !m_geometryDirty) return;
+  if (!m_renderState || !m_geometryDirty) return;
   m_geometryDirty = false;
 
-  // ── Syphon canvas ─────────────────────────────────────────────────────────
   // Full native resolution for external publishing; updated at the same rate
   // as the display cache (once per scene update, not on every zoom/pan).
   // Reassigning m_canvas drops the old QCanvasOffscreenCanvas's reference to
@@ -94,9 +108,52 @@ void SpellCircleRenderer::prePaint(QCanvasPainter* painter) {
     m_allocatedCanvasWidth = m_canvasWidth;
     m_allocatedCanvasHeight = m_canvasHeight;
   }
-  m_displayImage = m_sceneBackend->drawScene(
-      *this, painter, m_canvas,
+  m_displayImage = drawScene(painter);
+}
+
+QCanvasImage SpellCircleRenderer::drawScene(QCanvasPainter* painter) {
+  auto& state = *m_renderState;
+  state.timing.begin();
+  auto surface = sigil::skia::wrapTexture(
+      *state.context, m_canvas.texture(),
       QSize(m_allocatedCanvasWidth, m_allocatedCanvasHeight));
+  SkCanvas* canvas = surface.canvas();
+  if (!canvas) return {};
+  canvas->clear(SK_ColorTRANSPARENT);
+
+  spellcircle::SceneStyle style;
+  style.accentColor = sigil::weave::qt::toSkColor(m_accentColor);
+  style.strokeWidth = static_cast<float>(m_strokeWidth * m_scale);
+  style.labelOffset = static_cast<float>(m_labelOffset * m_scale);
+  style.pointDistance = static_cast<float>(m_pointDistance * m_scale);
+  style.boxWidth = static_cast<float>(m_boxWidth * m_scale);
+  style.boxHeight = static_cast<float>(m_boxHeight * m_scale);
+  style.boxPadding = static_cast<float>(m_boxPadding * m_scale);
+  style.boxDistance = static_cast<float>(m_boxDistance * m_scale);
+  style.fontSize = static_cast<float>(m_font.pointSizeF() * m_scale);
+  style.typeface = sigil::weave::qt::toSkTypeface(
+      state.scene.fontContext().fontManager(), m_font);
+  state.scene.draw(canvas, m_resolved, style);
+
+  state.timing.composed();
+  surface.submit();
+  state.timing.finished();
+  if (state.frame++ % 600 == 0) {
+    const double recordMs = state.timing.work().last();
+    const double submitMs = state.timing.frame().last() - recordMs;
+    spdlog::info(
+        "drawScene: record {:.0f} us (mean {:.0f}), submit {:.0f} "
+        "us (mean {:.0f})",
+        recordMs * 1000.0, state.timing.work().mean() * 1000.0,
+        submitMs * 1000.0,
+        (state.timing.frame().mean() - state.timing.work().mean()) * 1000.0);
+  }
+
+  // The texture already contains blended, premultiplied pixels; the image
+  // flag prevents drawImage from multiplying translucent colors a second time.
+  return painter->addImage(m_canvas,
+                           QCanvasPainter::ImageFlag::GenerateMipmaps |
+                               QCanvasPainter::ImageFlag::Premultiplied);
 }
 
 void SpellCircleRenderer::paint(QCanvasPainter* painter) {
@@ -107,6 +164,6 @@ void SpellCircleRenderer::paint(QCanvasPainter* painter) {
 void SpellCircleRenderer::render(QRhiCommandBuffer* commandBuffer) {
   QCanvasPainterItemRenderer::render(commandBuffer);
   if (m_publisher && !m_canvas.isNull() && m_canvas.texture())
-    m_publisher->publishFrame(m_canvas.texture(), commandBuffer,
-                              m_allocatedCanvasWidth, m_allocatedCanvasHeight);
+    ifrit::qt::publishFrame(*m_publisher, m_canvas.texture(), commandBuffer,
+                            {m_allocatedCanvasWidth, m_allocatedCanvasHeight});
 }

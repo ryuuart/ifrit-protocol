@@ -85,7 +85,7 @@ set(SIGIL_SKETCH_PRIVATE
   # picture, so the archive that draws reaches the subscription — the
   # publisher beside it is still nobody's but the host's, and neither
   # protocol reaches a header.
-  SigilSketchPublish
+  SigilPublish
   SigilDataDecode
   SigilDataQuery
   SigilIOSource SigilCoreSchedule SigilImage SigilImageDecode
@@ -128,14 +128,6 @@ endif()
 # specimen sheet would otherwise retype. It decides no look: the theme is
 # a seam and the house one is a stock value over it.
 add_subdirectory(kit)
-
-# Both ends of the door a frame goes through: one abstract publisher and
-# one abstract subscription over the graphics API's own handles, with the
-# macOS protocol behind them. A seam of its own rather than part of the
-# archive above, because it draws nothing: a host publishes what it drew
-# by holding one, and a canvas wears another application's picture by
-# holding the other, neither of them spelling a protocol anywhere.
-add_subdirectory(publish)
 
 # The sketches themselves, compiled into whichever host links them.
 add_subdirectory(sketches)
@@ -200,7 +192,6 @@ endif()
 sigil_doc_probes(sketch
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/kit/README.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/publish/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/sketches/README.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../common/core/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/data/include/sigildata
@@ -231,4 +222,4 @@ sigil_doc_probes(sketch
   SKIP_HEADERS ${SIGIL_SKETCH_DOC_SKIP_HEADERS}
   EXCLUDE ${SIGIL_SKETCH_DOC_EXCLUDE}
   FLOORS 50,10,10,0,0
-  LIBRARIES SigilSketch SigilSketchPublish SigilDataDecode SigilDataScale)
+  LIBRARIES SigilSketch SigilPublish SigilDataDecode SigilDataScale)

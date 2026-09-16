@@ -4,7 +4,7 @@
  * nothing.
  */
 
-#include <sigilsketch/publish/Subscription.h>
+#include <sigilpublish/Subscription.h>
 
 #include <utility>
 
@@ -12,7 +12,7 @@
 #include "SyphonSubscription.h"
 #endif
 
-namespace sigil::sketch {
+namespace sigil::publish {
 
 std::unique_ptr<Subscription> subscribe(std::string name,
                                         std::string application,
@@ -34,4 +34,4 @@ void* defaultMetalDevice() {
 #endif
 }
 
-}  // namespace sigil::sketch
+}  // namespace sigil::publish

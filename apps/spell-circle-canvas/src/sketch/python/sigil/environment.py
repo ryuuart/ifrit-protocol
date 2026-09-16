@@ -24,6 +24,28 @@ def _machine(value):
     return {"aarch64": "arm64", "amd64": "x86_64"}.get(value, value)
 
 
+def _compatibility_mismatches(info, expected, actual_name, expected_name):
+    """Validate and compare a native host or interpreter's compatibility report."""
+    if (
+        not isinstance(info, dict)
+        or any(
+            not isinstance(info.get(name), str) or not info[name]
+            for name in ("implementation", "soabi", "machine")
+        )
+        or not isinstance(info.get("version"), list)
+        or len(info["version"]) != 2
+        or any(type(value) is not int for value in info["version"])
+        or type(info.get("pointer_bits")) is not int
+    ):
+        raise ValueError("Invalid Python compatibility fields")
+    normalized = {**info, "machine": _machine(info["machine"])}
+    return [
+        f"{name}: {actual_name} {normalized[name]!r}, {expected_name} {value!r}"
+        for name, value in expected.items()
+        if normalized[name] != value
+    ]
+
+
 def _version(value):
     if not re.fullmatch(r"[0-9]+\.[0-9]+", value):
         raise argparse.ArgumentTypeError("version must be major.minor, such as 3.14")
@@ -145,26 +167,12 @@ def _compatible(executable, expected, root, environment):
         raise ValueError(
             f"The project interpreter returned invalid compatibility JSON: {executable}"
         ) from error
-    if (
-        not isinstance(info, dict)
-        or any(
-            not isinstance(info.get(name), str) or not info[name]
-            for name in ("implementation", "soabi", "machine")
-        )
-        or not isinstance(info.get("version"), list)
-        or len(info["version"]) != 2
-        or any(type(value) is not int for value in info["version"])
-        or type(info.get("pointer_bits")) is not int
-    ):
+    try:
+        mismatches = _compatibility_mismatches(info, expected, "project", "Sketchbook")
+    except ValueError as error:
         raise ValueError(
             f"The project interpreter returned invalid compatibility fields: {executable}"
-        )
-    info["machine"] = _machine(info["machine"])
-    mismatches = [
-        f"{name}: project {info[name]!r}, Sketchbook {value!r}"
-        for name, value in expected.items()
-        if info[name] != value
-    ]
+        ) from error
     if mismatches:
         raise ValueError(
             f"The project Python interpreter is incompatible with Sketchbook: {executable} ("

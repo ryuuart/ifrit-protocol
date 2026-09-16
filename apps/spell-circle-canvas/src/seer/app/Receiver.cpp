@@ -8,6 +8,7 @@
 #include <QSaveFile>
 #include <QStandardPaths>
 #include <QUrl>
+#include <optional>
 
 namespace {
 QString storageRoot(const QString& supplied) {
@@ -23,6 +24,28 @@ QString importRoot(const QString& supplied) {
                                   .filePath("SpellCircle")
                             : supplied;
 }
+
+std::optional<QJsonObject> readSettings(const QString& path) {
+  QFile file(path);
+  if (!file.open(QIODevice::ReadOnly)) return std::nullopt;
+  const auto document = QJsonDocument::fromJson(file.readAll());
+  if (!document.isObject()) return std::nullopt;
+  return document.object();
+}
+
+/** The first existing file owns the answer, even if it cannot be decoded.
+ *  An unreadable current file must not silently restore another directory's
+ *  settings. Importing never changes or writes any of these files. */
+std::optional<QJsonObject> importSettings(const QString& name,
+                                          const QString& settingsDirectory,
+                                          const QString& importDirectory) {
+  for (const auto& directory : {settingsDirectory, importDirectory,
+                                QCoreApplication::applicationDirPath()}) {
+    const QString path = QDir(directory).filePath(name);
+    if (QFile::exists(path)) return readSettings(path);
+  }
+  return std::nullopt;
+}
 }  // namespace
 
 Receiver::Receiver(sigil::seer::Wires& wires, QObject* parent,
@@ -32,33 +55,29 @@ Receiver::Receiver(sigil::seer::Wires& wires, QObject* parent,
       m_wires(wires),
       m_deferWireChange(std::move(deferWireChange)),
       m_settingsDirectory(storageRoot(settingsDirectory)),
-      m_config(this, m_settingsDirectory, importRoot(importDirectory)),
+      m_config(this),
       m_model(this) {
-  QFile saved(QDir(m_settingsDirectory).filePath("receiver_config.json"));
-  if (saved.open(QIODevice::ReadOnly)) {
-    const auto values = QJsonDocument::fromJson(saved.readAll()).object();
-    const auto graphics = values.value("graphics");
-    const QString source = values.value("uri").toString();
+  if (const auto values = readSettings(
+          QDir(m_settingsDirectory).filePath("receiver_config.json"))) {
+    const auto graphics = values->value("graphics");
+    const QString source = values->value("uri").toString();
     if (graphics.isObject() && !source.isEmpty()) {
       m_config.restore(graphics.toObject());
       m_uri = source;
       return;
     }
   }
-  QString path = QDir(m_settingsDirectory).filePath("network_config.json");
-  if (!QFile::exists(path))
-    path = QDir(importRoot(importDirectory)).filePath("network_config.json");
-  if (!QFile::exists(path))
-    path = QDir(QCoreApplication::applicationDirPath())
-               .filePath("network_config.json");
-  QFile file(path);
-  if (file.open(QIODevice::ReadOnly)) {
-    const auto values = QJsonDocument::fromJson(file.readAll()).object();
-    const QString source = values.value("uri").toString();
+  const QString imported = importRoot(importDirectory);
+  if (const auto graphics =
+          importSettings("graphics_config.json", m_settingsDirectory, imported))
+    m_config.restore(*graphics);
+  if (const auto network = importSettings("network_config.json",
+                                          m_settingsDirectory, imported)) {
+    const QString source = network->value("uri").toString();
     if (!source.isEmpty())
       m_uri = source;
     else {
-      const int port = values.value("port").toInt(27015);
+      const int port = network->value("port").toInt(27015);
       if (port > 0 && port <= 65535) m_uri = QString("udp://:%1").arg(port);
     }
   }

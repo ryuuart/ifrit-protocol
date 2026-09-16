@@ -1,25 +1,32 @@
-# SigilMeasure — timing, statistics and check reporting, as one feature
-# library per directory. `SigilMeasure` is the umbrella: an interface over
-# every feature, for a consumer of the whole library.
+# SigilMeasure — timing, statistics and check reporting in one library.
 #
 # Every other library measures itself with this one, so it has no
 # domain-library dependency at all; its only outside link is the
 # Boost.Container header the compact, ordered counter table is built on.
 #
-# Every public header lives under one include root, include/sigilmeasure/
-# <feature>/, so a feature adds the root and spells its own directory.
+# Every public header lives under one include root, include/sigilmeasure/.
 # <sigilmeasure/Measure.h> is the umbrella header over every feature.
 sigil_library_root(SigilMeasure
   BRIEF "Timing, statistics and check reporting, with compact ordered counter storage")
 
-# Dependencies point down this list.
-add_subdirectory(stats)
-add_subdirectory(time)
-add_subdirectory(check)
-
+find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilMeasure
-  HEADERS Measure.h
-  INTERFACE SigilMeasureStats SigilMeasureTime SigilMeasureCheck)
+  SOURCES check/Check.cpp
+  HEADERS Measure.h check/Check.h
+          stats/Counters.h stats/Fit.h stats/FrameSample.h stats/Histogram.h
+          stats/Moments.h stats/Rescale.h stats/Samples.h
+          time/FrameTimer.h time/Laps.h time/Stopwatch.h
+  PUBLIC Boost::container)
+
+sigil_test(measure_test
+  SOURCES stats/test/CountersTest.cpp stats/test/FitTest.cpp
+          stats/test/SamplesTest.cpp stats/test/StatsTest.cpp
+          time/test/TimeTest.cpp check/test/CheckTest.cpp
+  LIBRARIES SigilMeasure)
+
+sigil_bench(measure_bench
+  SOURCES stats/bench/SamplesBench.cpp stats/bench/StatsBench.cpp
+  LIBRARIES SigilMeasure)
 
 # Every API name the prose spells, compiled against the headers that own
 # it.

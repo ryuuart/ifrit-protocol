@@ -35,6 +35,7 @@ qt_add_qml_module(IfritQt
     WindowChrome.h
     WindowCapture.h WindowCapture.cpp
     FontDatabase.h FontDatabase.cpp
+    TexturePublisher.h TexturePublisher.cpp
 )
 
 if(APPLE)
@@ -50,6 +51,8 @@ target_link_libraries(IfritQt
     Qt6::Quick
     Qt6::QuickControls2
     Qt6::QuickLayouts
+    SigilPublish
+  PRIVATE Qt::GuiPrivate
 )
 
 target_include_directories(IfritQt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -85,7 +88,7 @@ sigil_doc_probes(qt
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}
   NAMESPACE ifrit::qt
-  PRELUDES "<WindowChrome.h>" "<WindowCapture.h>"
+  PRELUDES "<WindowChrome.h>" "<WindowCapture.h>" "<TexturePublisher.h>"
   EXCLUDE "Qt6::Quick=a CMake target name, not a C++ name"
           "Qt6::QuickControls2=a CMake target name, not a C++ name"
           "Qt6::QuickLayouts=a CMake target name, not a C++ name"

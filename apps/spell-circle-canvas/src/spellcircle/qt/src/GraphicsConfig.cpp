@@ -1,16 +1,7 @@
 #include "GraphicsConfig.h"
 
-#include <spdlog/spdlog.h>
-
-#include <QCoreApplication>
-#include <QDir>
-#include <QFile>
-#include <QFileInfo>
 #include <QFontDatabase>
-#include <QJsonDocument>
 #include <QJsonObject>
-#include <QSaveFile>
-#include <QStandardPaths>
 
 void BoxStyleConfig::setWidth(qreal width) {
   if (qFuzzyCompare(m_width, width)) return;
@@ -48,11 +39,8 @@ void CanvasSizeConfig::setHeight(int height) {
   emit changed();
 }
 
-GraphicsConfig::GraphicsConfig(QObject* parent, QString storageDirectory,
-                               QString importDirectory)
+GraphicsConfig::GraphicsConfig(QObject* parent)
     : QObject(parent),
-      m_storageDirectory(std::move(storageDirectory)),
-      m_importDirectory(std::move(importDirectory)),
       m_box(new BoxStyleConfig(this)),
       m_canvas(new CanvasSizeConfig(this)) {
   m_font.setBold(true);
@@ -62,8 +50,6 @@ GraphicsConfig::GraphicsConfig(QObject* parent, QString storageDirectory,
           &GraphicsConfig::bumpGeneration);
   connect(m_canvas, &CanvasSizeConfig::changed, this,
           &GraphicsConfig::bumpGeneration);
-
-  load();
 }
 
 void GraphicsConfig::setColor(const QColor& color) {
@@ -111,50 +97,6 @@ void GraphicsConfig::setFont(const QFont& font) {
 void GraphicsConfig::bumpGeneration() {
   ++m_generation;
   emit generationChanged();
-}
-
-QString GraphicsConfig::configFilePath() const {
-  const QString directory =
-      m_storageDirectory.isEmpty()
-          ? QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)
-          : m_storageDirectory;
-  return QDir(directory).filePath("graphics_config.json");
-}
-
-QString GraphicsConfig::legacyConfigFilePath() {
-  return QCoreApplication::applicationDirPath() + "/graphics_config.json";
-}
-
-bool GraphicsConfig::load() {
-  QString path = configFilePath();
-  if (!QFile::exists(path)) {
-    // A config that lives beside the executable keeps loading until the
-    // first save() writes the per-user location, which wins from then on —
-    // settings stored next to the binary migrate on the next save.
-    const QString imported =
-        QDir(m_importDirectory).filePath("graphics_config.json");
-    if (!m_importDirectory.isEmpty() && QFile::exists(imported))
-      path = imported;
-    else if (QFile::exists(legacyConfigFilePath()))
-      path = legacyConfigFilePath();
-  }
-
-  QFile file(path);
-  if (!file.open(QIODevice::ReadOnly)) {
-    spdlog::info("GraphicsConfig: no config file at {}, using defaults",
-                 path.toStdString());
-    return false;
-  }
-
-  const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
-  if (!document.isObject()) {
-    spdlog::warn("GraphicsConfig: malformed config file at {}",
-                 path.toStdString());
-    return false;
-  }
-
-  restore(document.object());
-  return true;
 }
 
 void GraphicsConfig::restore(const QJsonObject& rootObject) {
@@ -230,21 +172,4 @@ QJsonObject GraphicsConfig::snapshot() const {
   rootObject["font"] = fontObject;
 
   return rootObject;
-}
-
-bool GraphicsConfig::save() const {
-  const QString path = configFilePath();
-  // The per-user config directory is not guaranteed to exist until someone
-  // creates it; the first save is that someone.
-  QDir().mkpath(QFileInfo(path).absolutePath());
-  QSaveFile file(path);
-  if (!file.open(QIODevice::WriteOnly)) {
-    spdlog::error("GraphicsConfig: failed to write config file at {}",
-                  path.toStdString());
-    return false;
-  }
-  const QByteArray encoded =
-      QJsonDocument(snapshot()).toJson(QJsonDocument::Indented);
-  if (file.write(encoded) != encoded.size()) return false;
-  return file.commit();
 }

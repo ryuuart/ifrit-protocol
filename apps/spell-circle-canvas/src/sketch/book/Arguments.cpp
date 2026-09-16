@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <limits>
 #include <string>
 
 namespace {
@@ -159,12 +160,26 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
       args.capture.outputPath = argv[++i];
     } else if (arg == "--at" && i + 1 < argc) {
       args.capture.at = std::stod(argv[++i]);
+      if (!std::isfinite(args.capture.at) || args.capture.at < 0) {
+        std::fprintf(stderr, "--at requires a finite nonnegative time\n");
+        return std::nullopt;
+      }
     } else if (arg == "--scale" && i + 1 < argc) {
       args.capture.scale = std::stof(argv[++i]);
+      if (!std::isfinite(args.capture.scale) || args.capture.scale <= 0) {
+        std::fprintf(stderr, "--scale requires a finite positive value\n");
+        return std::nullopt;
+      }
     } else if (arg == "--frames" && i + 1 < argc) {
       args.capture.frames = std::max(1, std::stoi(argv[++i]));
     } else if (arg == "--fps" && i + 1 < argc) {
       args.capture.fps = std::stod(argv[++i]);
+      if (!std::isfinite(args.capture.fps) || args.capture.fps <= 0 ||
+          !std::isfinite(1.0 / args.capture.fps) ||
+          args.capture.fps > std::numeric_limits<int>::max()) {
+        std::fprintf(stderr, "--fps requires a finite positive frame rate\n");
+        return std::nullopt;
+      }
       args.storyOptions.framesPerSecond =
           std::max(1, (int)std::lround(args.capture.fps));
     } else if (arg == "--bench") {

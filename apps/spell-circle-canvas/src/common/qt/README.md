@@ -9,6 +9,8 @@ installs macOS window vibrancy and supports continuous background rendering.
 The same library owns the shared font database used by searchable pickers.
 Its C++ window capture helper also supports repeatable screenshots of live
 Qt Quick applications.
+Its texture-publication adapter connects QRhi hosts to the native publication
+library without duplicating platform servers.
 
 Nothing here is application-specific. Components take their data as
 injected properties and functions and report changes with signals, so they
@@ -185,12 +187,22 @@ Readiness waiting is bounded by `maxReadyFrames`, after which warmup and
 capture continue so loading and error states can also be inspected. Destroying
 the window cancels the capture. A failed grab or save exits with status 1.
 
+## Texture publication
+
+`ifrit::qt::createPublisher` takes a QRhi and publication name, checks its
+backend and opens the matching native publisher. `ifrit::qt::publishFrame`
+unwraps a texture and still-open command buffer from that same QRhi. The host
+submits drawing first and Qt commits the command buffer afterwards. Destroy
+the publisher before the QRhi device. Unsupported backends return no publisher;
+the adapter does not create another device or perform a CPU readback.
+
 ## Boundary
 
 Public dependencies: `Qt6::Quick`, `Qt6::QuickControls2`,
-`Qt6::QuickLayouts`. On Apple, AppKit privately — elsewhere a stub
-implementation stands in. Nothing else under `common/` is involved, and this
-module knows nothing about Skia, scene content, or the products that use it.
+`Qt6::QuickLayouts` and `SigilPublish`. Qt's private graphics API is used only
+inside the publication adapter. On Apple, AppKit privately — elsewhere a stub
+implementation stands in. This module knows nothing about Skia, scene content,
+or the products that use it.
 
 ## Building
 

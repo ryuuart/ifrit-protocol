@@ -11,7 +11,7 @@
 #include <string>
 #include <string_view>
 
-namespace sigil::sketch {
+namespace sigil::publish {
 
 /**
  * A PUBLICATION, HELD BY ITS NAME. Another application on this machine
@@ -108,4 +108,4 @@ std::unique_ptr<Subscription> subscribe(std::string name,
  */
 void* defaultMetalDevice();
 
-}  // namespace sigil::sketch
+}  // namespace sigil::publish

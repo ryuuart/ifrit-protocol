@@ -6,12 +6,12 @@
  * the framework.
  */
 
-#include <sigilsketch/publish/Subscription.h>
+#include <sigilpublish/Subscription.h>
 
 #include <memory>
 #include <string>
 
-namespace sigil::sketch {
+namespace sigil::publish {
 
 /** A subscription to the publication @p name — and, where
  *  @p application is not empty, that application's — receiving on
@@ -25,4 +25,4 @@ std::unique_ptr<Subscription> makeSyphonSubscription(std::string name,
  *  `void*`; null where there is none. */
 void* metalDeviceOfThisMachine();
 
-}  // namespace sigil::sketch
+}  // namespace sigil::publish

@@ -1,18 +1,10 @@
 #include "Bindings.h"
 
-#include <pybind11/stl.h>
-#include <sigilcompose/core/Element.h>
-#include <sigilcompose/core/Factories.h>
-#include <sigilcompose/draw/Draw.h>
-#include <sigilcore/compute/Chance.h>
 #include <sigildraw/Color.h>
 #include <sigildraw/Pen.h>
-#include <sigilmotion/values/Keyframes.h>
-#include <sigilweave/style/Type.h>
 
-#include <chrono>
+#include <algorithm>
 #include <cmath>
-#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -20,10 +12,7 @@
 #include <utility>
 #include <vector>
 
-#include "ComposeBindings.h"
 #include "KitBindings.h"
-#include "MotionBindings.h"
-#include "PenBindings.h"
 
 namespace sigil::sketch::python {
 
@@ -50,9 +39,6 @@ SkColor4f color(py::handle value) {
 
 namespace {
 
-using compose::Element;
-using draw::Pen;
-constexpr auto kFluent = py::return_value_policy::reference_internal;
 thread_local CallbackLifetime* currentLifetime = nullptr;
 
 }  // namespace
@@ -127,28 +113,23 @@ void PythonValue::clear() {
 
 std::shared_ptr<PythonValue> retainValue(py::object value) {
   auto retained = std::make_shared<PythonValue>(std::move(value));
-  if (currentLifetime) {
-    if (currentLifetime->m_impl->closed)
-      throw std::runtime_error("This sketch session has ended.");
-    auto& callbacks = currentLifetime->m_impl->callbacks;
-    callbacks.push_back(retained);
-    if (callbacks.size() % 64 == 0)
-      std::erase_if(callbacks, [](const auto& weak) { return weak.expired(); });
-  }
+  if (currentLifetime) currentLifetime->retain(retained);
   return retained;
 }
 
 std::shared_ptr<PythonCallback> retainCallback(py::function function) {
   auto callback = std::make_shared<PythonCallback>(std::move(function));
-  if (currentLifetime) {
-    if (currentLifetime->m_impl->closed)
-      throw std::runtime_error("This sketch session has ended.");
-    auto& callbacks = currentLifetime->m_impl->callbacks;
-    callbacks.push_back(callback);
-    if (callbacks.size() % 64 == 0)
-      std::erase_if(callbacks, [](const auto& weak) { return weak.expired(); });
-  }
+  if (currentLifetime) currentLifetime->retain(callback);
   return callback;
+}
+
+void CallbackLifetime::retain(const std::shared_ptr<PythonValue>& value) {
+  if (m_impl->closed)
+    throw std::runtime_error("This sketch session has ended.");
+  m_impl->callbacks.push_back(value);
+  if (m_impl->callbacks.size() % 64 == 0)
+    std::erase_if(m_impl->callbacks,
+                  [](const auto& weak) { return weak.expired(); });
 }
 
 CallbackLifetime::CallbackLifetime() : m_impl(std::make_unique<Impl>()) {}
@@ -177,266 +158,5 @@ CallbackScope::CallbackScope(CallbackLifetime& owner)
     : m_previous(std::exchange(currentLifetime, &owner)) {}
 
 CallbackScope::~CallbackScope() { currentLifetime = m_previous; }
-
-void bindDrawing(py::module_& module) {
-  auto chance = module.def_submodule("core").def_submodule("chance");
-  namespace chanceNative = core::chance;
-  py::enum_<chanceNative::Source>(chance, "Source")
-      .value("Pcg", chanceNative::Source::Pcg)
-      .value("Mix64", chanceNative::Source::Mix64)
-      .value("Xorshift", chanceNative::Source::Xorshift)
-      .value("Halton", chanceNative::Source::Halton)
-      .value("Sobol", chanceNative::Source::Sobol)
-      .value("Golden", chanceNative::Source::Golden)
-      .value("Stratified", chanceNative::Source::Stratified);
-  using Stream = chanceNative::Stream;
-  py::class_<Stream>(chance, "Stream")
-      .def(py::init<>())
-      .def_static("pcg", &Stream::pcg)
-      .def_static("mix64", &Stream::mix64)
-      .def_static("xorshift", &Stream::xorshift)
-      .def_static("halton", &Stream::halton, py::arg("base"),
-                  py::arg("skip") = 0)
-      .def_static("sobol", &Stream::sobol, py::arg("skip") = 0)
-      .def_static("golden", &Stream::golden, py::arg("seed") = 0)
-      .def_static("stratified", &Stream::stratified, py::arg("strata"),
-                  py::arg("seed") = 0)
-      .def_static("of", &Stream::of, py::arg("source"), py::arg("seed"),
-                  py::arg("parameter") = 0)
-      .def("copy", [](const Stream& self) { return self; })
-      .def("__copy__", [](const Stream& self) { return self; })
-      .def("bits", &Stream::bits)
-      .def("unit", &Stream::unit)
-      .def("signedUnit", &Stream::signedUnit)
-      .def("range", &Stream::range)
-      .def("below", &Stream::below)
-      .def("normal", &Stream::normal)
-      .def("source", &Stream::source)
-      .def("parameter", &Stream::parameter)
-      .def("drawn", &Stream::drawn);
-  auto drawing = module.def_submodule("draw");
-  bindConstants(drawing);
-
-  auto composition = module.def_submodule("compose");
-  py::enum_<compose::Cache>(composition, "Cache")
-      .value("Auto", compose::Cache::Auto)
-      .value("Picture", compose::Cache::Picture)
-      .value("Texture", compose::Cache::Texture)
-      .value("Group", compose::Cache::Group)
-      .value("None_", compose::Cache::None);
-  py::class_<Element> element(composition, "Element");
-  element.def("copy", [](const Element& value) { return value; })
-      .def("__copy__", [](const Element& value) { return value; })
-      .def("row", &Element::row, kFluent)
-      .def("column", &Element::column, kFluent)
-      .def("grow", &Element::grow, py::arg("factor") = 1.0f, kFluent)
-      .def("shrink", &Element::shrink, kFluent)
-      .def("absolute", &Element::absolute, kFluent)
-      .def("cover", &Element::cover, kFluent)
-      .def("key", &Element::key, kFluent)
-      .def("cache", &Element::cache, kFluent)
-      .def(
-          "children",
-          [](Element& self, const std::vector<Element>& values) -> Element& {
-            return self.children(values);
-          },
-          kFluent)
-      .def(
-          "size",
-          [](Element& self, py::object width, py::object height) -> Element& {
-            return self.width(dimension(width)).height(dimension(height));
-          },
-          py::arg("width"), py::arg("height"), kFluent)
-      .def(
-          "fill",
-          [](Element& self, py::object value) -> Element& {
-            if (py::isinstance<compose::SurfacePaint>(value))
-              return value.cast<compose::SurfacePaint>().apply(self);
-            if (py::isinstance<material::skia::Paint>(value))
-              return self.fill(value.cast<material::skia::Paint>());
-            return self.fill(motionFill(value));
-          },
-          kFluent)
-      .def(
-          "ink",
-          [](Element& self, py::object value) -> Element& {
-            if (py::isinstance<compose::VarRef>(value))
-              return self.ink(value.cast<compose::VarRef>());
-            return self.ink(color(value));
-          },
-          kFluent)
-      .def("font", &Element::font, kFluent)
-      .def(
-          "fontTrack",
-          [](Element& self, py::object value) -> Element& {
-            return self.font(
-                {.track = py::isinstance<weave::Length>(value)
-                              ? value.cast<weave::Length>()
-                              : weave::Length{value.cast<float>()}});
-          },
-          kFluent)
-      .def(
-          "fontSize",
-          [](Element& self, py::object value) -> Element& {
-            return self.font(
-                {.size = py::isinstance<weave::Length>(value)
-                             ? value.cast<weave::Length>()
-                             : weave::Length{value.cast<float>()}});
-          },
-          kFluent)
-      .def(
-          "fontWeight",
-          [](Element& self, float value) -> Element& {
-            return self.font({.weight = value});
-          },
-          kFluent)
-      .def(
-          "padding",
-          [](Element& self, float all) -> Element& {
-            return self.padding(all);
-          },
-          kFluent)
-      .def(
-          "padding",
-          [](Element& self, float x, float y) -> Element& {
-            return self.padding(x, y);
-          },
-          kFluent)
-      .def(
-          "padding",
-          [](Element& self, float l, float t, float r, float b) -> Element& {
-            return self.padding(l, t, r, b);
-          },
-          kFluent)
-      .def(
-          "corners",
-          [](Element& self, float all) -> Element& {
-            return self.corners({all});
-          },
-          kFluent)
-      .def(
-          "corners",
-          [](Element& self, float tl, float tr, float br,
-             float bl) -> Element& { return self.corners({tl, tr, br, bl}); },
-          kFluent)
-      .def("inset", py::overload_cast<float>(&Element::inset), kFluent)
-      .def("inset",
-           py::overload_cast<float, float, float, float>(&Element::inset),
-           kFluent)
-      .def("transformOrigin",
-           py::overload_cast<float, float>(&Element::transformOrigin), kFluent)
-      .def(
-          "alignItems",
-          [](Element& self, const std::string& value) -> Element& {
-            if (value == "start") return self.alignItems(compose::Align::Start);
-            if (value == "end") return self.alignItems(compose::Align::End);
-            if (value == "center")
-              return self.alignItems(compose::Align::Center);
-            if (value == "stretch")
-              return self.alignItems(compose::Align::Stretch);
-            if (value == "baseline")
-              return self.alignItems(compose::Align::Baseline);
-            throw py::value_error("Unknown alignment: " + value);
-          },
-          kFluent)
-      .def(
-          "justify",
-          [](Element& self, const std::string& value) -> Element& {
-            if (value == "start") return self.justify(compose::Justify::Start);
-            if (value == "end") return self.justify(compose::Justify::End);
-            if (value == "center")
-              return self.justify(compose::Justify::Center);
-            if (value == "space_between")
-              return self.justify(compose::Justify::SpaceBetween);
-            if (value == "space_around")
-              return self.justify(compose::Justify::SpaceAround);
-            if (value == "space_evenly")
-              return self.justify(compose::Justify::SpaceEvenly);
-            throw py::value_error("Unknown justification: " + value);
-          },
-          kFluent);
-
-  const auto dimensionMethod =
-      [&](const char* name, Element& (Element::*setter)(compose::Dimension)) {
-        element.def(
-            name,
-            [setter](Element& self, py::object value) -> Element& {
-              return (self.*setter)(dimension(value));
-            },
-            kFluent);
-      };
-  dimensionMethod("width", &Element::width);
-  dimensionMethod("height", &Element::height);
-  dimensionMethod("minWidth", &Element::minWidth);
-  dimensionMethod("minHeight", &Element::minHeight);
-  dimensionMethod("maxWidth", &Element::maxWidth);
-  dimensionMethod("maxHeight", &Element::maxHeight);
-  dimensionMethod("gap", &Element::gap);
-  dimensionMethod("left", &Element::left);
-  dimensionMethod("top", &Element::top);
-  dimensionMethod("right", &Element::right);
-  dimensionMethod("bottom", &Element::bottom);
-  const auto animatedMethod =
-      [&](const char* name,
-          Element& (Element::*setter)(motion::Animatable<float>)) {
-        element.def(
-            name,
-            [setter](Element& self, py::object value) -> Element& {
-              return (self.*setter)(motionAnimatable(value));
-            },
-            kFluent);
-      };
-  animatedMethod("opacity", &Element::opacity);
-  animatedMethod("rotate", &Element::rotate);
-  animatedMethod("scale", &Element::scale);
-  animatedMethod("scaleX", &Element::scaleX);
-  animatedMethod("scaleY", &Element::scaleY);
-  animatedMethod("translateX", &Element::translateX);
-  animatedMethod("translateY", &Element::translateY);
-
-  composition.def("box", &compose::box);
-  composition.def(
-      "text",
-      [](const std::string& value, py::object size, py::object ink) {
-        auto element = compose::text(value);
-        if (!size.is_none())
-          element.font({.size = py::isinstance<weave::Length>(size)
-                                    ? size.cast<weave::Length>()
-                                    : weave::Length{size.cast<float>()}});
-        if (!ink.is_none()) element.ink(color(ink));
-        return element;
-      },
-      py::arg("value"), py::arg("size") = py::none(),
-      py::arg("color") = py::none());
-  composition.def(
-      "graphics",
-      [](const std::string& key, py::function program, compose::Cache cache) {
-        auto callback = retainCallback(std::move(program));
-        return compose::graphics(
-            key,
-            [callback](Pen& pen) {
-              const py::gil_scoped_acquire lock;
-              invokePen(callback->get(), pen);
-            },
-            cache);
-      },
-      py::arg("key"), py::arg("program"),
-      py::arg("cache") = compose::Cache::None);
-  composition.def(
-      "pen",
-      [](const std::string& key, py::function program, compose::Cache cache) {
-        auto callback = retainCallback(std::move(program));
-        return compose::pen(
-            key,
-            [callback](Pen& pen) {
-              const py::gil_scoped_acquire lock;
-              invokePen(callback->get(), pen);
-            },
-            cache);
-      },
-      py::arg("key"), py::arg("program"),
-      py::arg("cache") = compose::Cache::None);
-  bindPen(drawing);
-}
 
 }  // namespace sigil::sketch::python

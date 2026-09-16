@@ -6,6 +6,8 @@ compose.box().width({"pixels": 20})  # error: reportArgumentType
 compose.box().opacity("opaque")  # error: reportArgumentType
 compose.box().fill(object())  # error: reportArgumentType
 compose.box().padding(1, 2, 3)  # error: reportCallIssue
+compose.box().alignItems("sideways")  # error: reportArgumentType
+compose.box().justify("spread")  # error: reportArgumentType
 compose.memo(2, lambda value: str(value))  # error: reportArgumentType
 weave.Type(misspelled=12)  # error: reportCallIssue
 material.skia.Paint.sksl("code", {"gain": object()})  # error: reportArgumentType

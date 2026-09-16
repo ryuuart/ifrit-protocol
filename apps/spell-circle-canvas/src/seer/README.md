@@ -270,9 +270,12 @@ package retain the corresponding publisher.
 
 Graphics and source settings are committed together in one atomic file only by
 **Done** in Receiver Settings. Opening settings does not start a source.
-Cancel restores the editor's opening snapshot. The receiver imports existing
-SpellCircle graphics and port settings when no receiver settings have been
-saved beneath Seer's configuration directory. A normal launch opens no ports;
+Cancel restores the editor's opening snapshot. The graphics model owns observable
+values and snapshots; Receiver alone reads and writes their files. A valid
+combined receiver file is authoritative. Otherwise the receiver imports separate
+graphics and network files, looking first in its settings directory, then the
+SpellCircle configuration directory, then beside the executable. Importing never
+writes these files. A normal launch opens no ports;
 the saved source is used only after **Open Receiver** is requested.
 
 The controls are Ifrit.Qt's — the theme derived from the system palette,
@@ -327,7 +330,10 @@ message answers is still bytes, so nobody who links this is made to
 speak in document types, even where the schema puts them within reach.
 The wire archive has no drawing or Qt dependencies. The Seer executable links
 SpellCircle's Qt models and canvas for its receiver; neither consumes
-SigilSketch.
+SigilSketch. The models are a plain C++ archive with observable values and scene
+state. The canvas module owns their anonymous QML registration and its renderer's
+Graphite context, native scene drawer and texture publisher. Headless receiver
+tests link the model archive without the canvas or a model QML plugin.
 
 ## Building
 

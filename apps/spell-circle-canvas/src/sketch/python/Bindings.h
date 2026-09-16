@@ -5,6 +5,7 @@
 
 #include <functional>
 #include <memory>
+#include <string>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -14,6 +15,31 @@ class Pen;
 }
 
 namespace sigil::sketch::python {
+
+/** Construct native records through their bound setters so keyword arguments
+ *  and subsequent assignments share conversion and ownership policies. */
+template <class T>
+T keywordValue(pybind11::kwargs fields,
+               const char* unknownField = "Unknown field: ") {
+  auto value = pybind11::cast(T{});
+  for (const auto& [key, item] : fields) {
+    const auto name = pybind11::cast<std::string>(key);
+    if (!pybind11::hasattr(value, name.c_str()))
+      throw pybind11::type_error(std::string(unknownField) + name);
+    pybind11::setattr(value, name.c_str(), item);
+  }
+  return value.template cast<T>();
+}
+
+template <class T>
+pybind11::class_<T> bindRecord(pybind11::module_& module, const char* name,
+                               const char* unknownField) {
+  return pybind11::class_<T>(module, name)
+      .def(pybind11::init([unknownField](pybind11::kwargs fields) {
+        return keywordValue<T>(fields, unknownField);
+      }))
+      .def("copy", [](const T& value) { return value; });
+}
 
 /** Reads a native color from a string or an RGB or RGBA sequence whose
  *  channels are between zero and one. Requires the interpreter lock. */
@@ -78,6 +104,7 @@ class CallbackLifetime {
   void clear();
 
  private:
+  void retain(const std::shared_ptr<PythonValue>& value);
   struct Impl;
   std::unique_ptr<Impl> m_impl;
   friend std::shared_ptr<PythonCallback> retainCallback(pybind11::function);
@@ -96,10 +123,5 @@ class CallbackScope {
  private:
   CallbackLifetime* m_previous;
 };
-
-/** Registers the native drawing descriptions in either an embedded module
- *  or an ordinary Python extension. The interpreter must outlive descriptions
- *  carrying Python callbacks. */
-void bindDrawing(pybind11::module_& module);
 
 }  // namespace sigil::sketch::python

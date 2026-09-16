@@ -28,23 +28,9 @@ namespace brush = draw::brush;
 
 namespace {
 
-/** Keyword construction uses the same bound setters as later edits, so tuple,
- *  color and callable conversion has one owner. The temporary is a native
- *  value wrapper; copying it preserves the native description's ownership. */
 template <class T>
 py::class_<T> record(py::module_& module, const char* name) {
-  return py::class_<T>(module, name)
-      .def(py::init([](py::kwargs fields) {
-        py::object value = py::cast(T{});
-        for (auto item : fields) {
-          const auto name = py::cast<std::string>(item.first);
-          if (!py::hasattr(value, name.c_str()))
-            throw py::type_error("Unknown brush property: " + name);
-          py::setattr(value, name.c_str(), item.second);
-        }
-        return value.cast<T>();
-      }))
-      .def("copy", [](const T& value) { return value; });
+  return bindRecord<T>(module, name, "Unknown brush property: ");
 }
 
 std::function<float(float)> scalarCurve(py::handle value) {

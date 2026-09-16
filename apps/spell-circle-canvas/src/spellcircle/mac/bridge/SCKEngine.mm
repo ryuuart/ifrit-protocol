@@ -43,10 +43,11 @@ constexpr double kMaxTargetFps = 240.0;
 
   // Same Syphon server name as the Qt app, so downstream clients
   // (TouchDesigner) don't care which receiver is running. Created up front:
-  // SyphonMetalServer announces itself immediately and keeps the last
+  // The publisher announces itself immediately and keeps the last
   // published frame for late-joining clients.
   if (_device)
-    _syphon = [[SyphonMetalServer alloc] initWithName:@"SpellCircle" device:_device options:nil];
+    _publisher = sigil::publish::createPublisher("SpellCircle", sigil::publish::Backend::Metal,
+                                                 (__bridge void *)_device);
 
   // Only UDP: this product speaks nothing else, so the hub is taught the
   // one scheme its port is opened on.
@@ -84,7 +85,7 @@ constexpr double kMaxTargetFps = 240.0;
 
 - (void)dealloc {
   [self closeDoor];
-  [_syphon stop];
+  _publisher.reset();
 }
 
 - (void)setPort:(int)port {

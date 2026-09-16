@@ -13,11 +13,9 @@ of different units on a common footing, the least-squares line, and
 reports. It has no domain-library dependency, so every other library can
 measure itself without pulling in another Sigil layer.
 
-Namespace `sigil::measure`. One target per feature —
-`SigilMeasureStats` and `SigilMeasureTime`, both header-only, and
-`SigilMeasureCheck`, which carries the one source file the table
-formatting lives in — with `SigilMeasure` the umbrella over all three,
-so a consumer of the whole library links one name. Every public header
+Namespace `sigil::measure`, target `SigilMeasure`. Timing and statistics are
+inline; check formatting lives in the library's one compiled source file.
+The same target supplies the headers and their implementation. Every public header
 lives under `include/sigilmeasure/<feature>/` and is spelled
 `<sigilmeasure/<feature>/X.h>`, and `<sigilmeasure/Measure.h>` includes
 them all:
@@ -202,8 +200,8 @@ the writer's, not this one's.
 
 ## Testing and benchmarks
 
-One `measure_test`, contributed to by every feature's own `test/`
-directory: `stats/test/` holds `SamplesTest.cpp`, `StatsTest.cpp`,
+One `measure_test`, collecting the cases beside each subject:
+`stats/test/` holds `SamplesTest.cpp`, `StatsTest.cpp`,
 `FitTest.cpp` and `CountersTest.cpp`, `time/test/TimeTest.cpp` holds the
 instruments and `check/test/CheckTest.cpp` the claims. Every statistical
 claim is asserted against an arithmetic answer that can be written down

@@ -1,4 +1,6 @@
 #pragma once
+#include <sigilpublish/Publisher.h>
+
 #include <QColor>
 #include <QFont>
 #include <QtCanvasPainter/QCanvasPainterItemRenderer>
@@ -6,18 +8,15 @@
 #include <limits>
 #include <memory>
 
-#include "CanvasSceneBackend.h"
 #include "SceneGeometry.h"
 #include "SpellCircleModel.h"
-
-class TexturePublisher;
 
 /**
  * Render-thread renderer for SpellCircle. Resolves scene entities queried
  * from the model's document into absolute, native-scaled positions (via the
  * shared spellcircle::resolveScene()), draws the resulting geometry and
- * labels onto an offscreen canvas each frame, and (when the active graphics
- * backend has a TexturePublisher — Syphon on Metal) publishes that texture
+ * labels onto an offscreen canvas when the scene changes, and (when the active
+ * graphics backend supports publication) publishes that texture
  * for inter-application sharing.
  */
 class SpellCircleRenderer : public QCanvasPainterItemRenderer {
@@ -27,7 +26,7 @@ class SpellCircleRenderer : public QCanvasPainterItemRenderer {
 
   /** Copies GUI-thread model and configuration state into the renderer. */
   void synchronize(QCanvasPainterItem* item) override;
-  /** Creates the offscreen backend and external publishing resources. */
+  /** Creates the Graphite context and external publishing resources. */
   void initializeResources(QCanvasPainter* painter) override;
   /** Resolves dirty geometry and records the current offscreen image. */
   void prePaint(QCanvasPainter* painter) override;
@@ -39,17 +38,14 @@ class SpellCircleRenderer : public QCanvasPainterItemRenderer {
   void render(QRhiCommandBuffer* commandBuffer) override;
 
  private:
-  // Grants access to the resolved geometry (m_resolved) and style fields.
-  // SkiaSceneBackendImpl (defined at global scope in SkiaSceneBackend.cpp,
-  // not in an anonymous namespace, so this forward-declaring friend
-  // actually names it) reads them to hand the shared
-  // spellcircle::SceneRenderer an equivalent scene.
-  friend class SkiaSceneBackendImpl;
+  struct RenderState;
 
   /** Queries the model's document (if the generation changed) and resolves
    *  every entity's canvas position/scale into m_resolved via the shared
    *  spellcircle::resolveScene(). */
   void resolveGeometry(SpellCircleModel* model);
+  /** Records the current scene into the native-size offscreen canvas. */
+  QCanvasImage drawScene(QCanvasPainter* painter);
 
   // Scene geometry in absolute, native-scaled canvas coordinates — the
   // same Qt-free structures the native macOS app draws from.
@@ -57,7 +53,7 @@ class SpellCircleRenderer : public QCanvasPainterItemRenderer {
   // Registered image for blitting the latest native offscreen scene into the
   // visible item without re-recording geometry during zoom or pan.
   QCanvasImage m_displayImage;
-  // Syphon canvas — native size, published to other apps. Recreated
+  // Native-size canvas, published to other apps. Recreated
   // whenever m_canvasWidth/m_canvasHeight no longer match the dimensions
   // it was allocated at.
   QCanvasOffscreenCanvas m_canvas;
@@ -66,18 +62,15 @@ class SpellCircleRenderer : public QCanvasPainterItemRenderer {
   uint64_t m_knownModelGeneration = std::numeric_limits<uint64_t>::max();
   int m_knownConfigGeneration = -1;
   bool m_geometryDirty = true;
-  // Null when the active QRhi backend has no publisher implementation (see
-  // createTexturePublisher()); render() skips publishing in that case.
-  std::unique_ptr<TexturePublisher> m_publisher;
+  // Null when the active QRhi backend has no publisher implementation.
+  std::unique_ptr<sigil::publish::Publisher> m_publisher;
 
-  // The Skia Graphite offscreen backend, created once in
-  // initializeResources(). Null when the active QRhi backend is
-  // unsupported; prePaint() then draws nothing.
-  std::unique_ptr<CanvasSceneBackend> m_sceneBackend;
+  // Graphite context, scene drawer and frame timing, owned by this render
+  // thread. Null when the active QRhi backend has no Graphite context.
+  std::unique_ptr<RenderState> m_renderState;
 
   // Copied from GraphicsConfig in synchronize() — defaults match the
-  // GraphicsConfig defaults so an unconfigured SpellCircle item (no
-  // config bound) renders identically to before this property existed.
+  // GraphicsConfig defaults for an unconfigured SpellCircle item.
   QColor m_accentColor{"#ff0000"};
   qreal m_strokeWidth = 4.0;
   qreal m_scale = 1.0;

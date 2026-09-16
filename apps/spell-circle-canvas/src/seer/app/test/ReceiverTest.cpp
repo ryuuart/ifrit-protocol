@@ -395,6 +395,79 @@ TEST_F(SeerReceiver, SettingsImportSaveAndCancelHaveDistinctOwnership) {
   EXPECT_TRUE(original.readAll().contains("#112233"));
 }
 
+TEST_F(SeerReceiver, CombinedSettingsAreAuthoritativeWithoutOpeningSource) {
+  write(directory.path() + "/old/graphics_config.json",
+        R"({"color":"#112233","strokeWidth":9})");
+  write(directory.path() + "/new/graphics_config.json",
+        R"({"color":"#445566","strokeWidth":15})");
+  write(directory.path() + "/new/network_config.json", R"({"port":27123})");
+  write(directory.path() + "/new/receiver_config.json",
+        R"({"graphics":{"color":"#abcdef"},"uri":"udp://:27125"})");
+  auto app = session();
+  EXPECT_EQ(app->receiver()->config()->color(), QColor("#abcdef"));
+  EXPECT_EQ(app->receiver()->config()->strokeWidth(), 4);
+  EXPECT_EQ(app->receiver()->port(), 27125);
+  EXPECT_FALSE(app->receiver()->opened());
+  EXPECT_FALSE(app->receiver()->listening());
+}
+
+TEST_F(SeerReceiver,
+       CurrentLooseSettingsPrecedeImportedSettingsWithoutWriting) {
+  write(directory.path() + "/old/graphics_config.json",
+        R"({"color":"#112233","strokeWidth":9})");
+  write(directory.path() + "/old/network_config.json", R"({"port":27123})");
+  const QByteArray graphics = R"({"color":"#445566","strokeWidth":15})";
+  write(directory.path() + "/new/graphics_config.json", graphics);
+  write(directory.path() + "/new/network_config.json",
+        R"({"uri":"udp://:27124"})");
+  auto app = session();
+  EXPECT_EQ(app->receiver()->config()->color(), QColor("#445566"));
+  EXPECT_EQ(app->receiver()->config()->strokeWidth(), 15);
+  EXPECT_EQ(app->receiver()->port(), 27124);
+  EXPECT_FALSE(QFile::exists(directory.path() + "/new/receiver_config.json"));
+  QFile original(directory.path() + "/new/graphics_config.json");
+  ASSERT_TRUE(original.open(QIODevice::ReadOnly));
+  EXPECT_EQ(original.readAll(), graphics);
+}
+
+TEST_F(SeerReceiver, InvalidCombinedSettingsFallBackButInvalidLooseFilesDoNot) {
+  write(directory.path() + "/new/receiver_config.json", "not json");
+  write(directory.path() + "/old/graphics_config.json",
+        R"({"color":"#112233","strokeWidth":9})");
+  write(directory.path() + "/old/network_config.json", R"({"port":27123})");
+  {
+    auto app = session();
+    EXPECT_EQ(app->receiver()->config()->strokeWidth(), 9);
+    EXPECT_EQ(app->receiver()->port(), 27123);
+  }
+  write(directory.path() + "/new/graphics_config.json", "not json");
+  write(directory.path() + "/new/network_config.json", "not json");
+  auto app = session();
+  EXPECT_EQ(app->receiver()->config()->strokeWidth(), 4);
+  EXPECT_EQ(app->receiver()->port(), 27015);
+}
+
+TEST_F(SeerReceiver, GraphicsSnapshotsRestoreGroupedValuesAndNotifyObservers) {
+  GraphicsConfig config;
+  const auto original = config.snapshot();
+  int changes = 0;
+  QObject::connect(&config, &GraphicsConfig::generationChanged,
+                   [&changes] { ++changes; });
+  config.box()->setWidth(720);
+  config.canvas()->setHeight(1080);
+  config.setColor(QColor("#abcdef"));
+  EXPECT_EQ(changes, 3);
+  config.box()->setWidth(720);
+  EXPECT_EQ(changes, 3);
+  const int generation = config.generation();
+  config.restore(original);
+  EXPECT_EQ(config.box()->width(), 360);
+  EXPECT_EQ(config.canvas()->height(), 4000);
+  EXPECT_EQ(config.color(), QColor("#ff0000"));
+  EXPECT_GT(config.generation(), generation);
+  EXPECT_GT(changes, 3);
+}
+
 TEST_F(SeerReceiver, FailedSaveAndCancelLeaveBothPersistedSettingsUnchanged) {
   write(directory.path() + "/old/graphics_config.json",
         R"({"color":"#112233","strokeWidth":9})");

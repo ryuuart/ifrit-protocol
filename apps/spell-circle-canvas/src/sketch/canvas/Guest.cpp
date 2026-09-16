@@ -4,9 +4,9 @@
  * a texture a body is dressed with.
  */
 
+#include <sigilpublish/Subscription.h>
 #include <sigilsketch/canvas/Guest.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilsketch/publish/Subscription.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilskia/graphite/TextureImage.h>
 
@@ -27,8 +27,8 @@ Guest::Guest(bool deterministic, std::string name, std::string application)
   // another application happens to be publishing while it is taken is
   // not one.
   if (deterministic) return;
-  m_subscription =
-      subscribe(m_name, std::move(application), defaultMetalDevice());
+  m_subscription = publish::subscribe(m_name, std::move(application),
+                                      publish::defaultMetalDevice());
 }
 
 Guest::~Guest() = default;

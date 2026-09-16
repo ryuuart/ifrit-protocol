@@ -29,6 +29,10 @@ def describe(model: Model) -> compose.Element:
 
 tree = compose.memo(Model(3), describe).width("100%").padding(12, 16)
 assert_type(tree, compose.Element)
+assert_type(tree.alignItems("auto").justify("space_between"), compose.Element)
+assert_type(
+    tree.alignItems(compose.Align.Auto).justify(compose.Justify.End), compose.Element
+)
 assert_type(motion.from_(0).to(1), motion.FromTo)
 assert_type(motion.animate(motion.from_(0).to(1)), motion.Transitioned)
 assert_type(motion.entrance("#000", "#fff"), motion.ColorTransitioned)

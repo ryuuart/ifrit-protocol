@@ -56,7 +56,7 @@ qt_add_qml_module(Seer
 target_include_directories(Seer PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(Seer PRIVATE
   SigilSeerWire SigilDataDecode SpellCircleModels SpellCircleCanvas
-  SpellCircleModelsplugin SpellCircleCanvasplugin
+  SpellCircleCanvasplugin
   IfritQt IfritQtplugin Qt6::Gui Qt6::Quick Qt6::QuickControls2 Qt6::QuickLayouts
   Qt6::QuickDialogs2)
 

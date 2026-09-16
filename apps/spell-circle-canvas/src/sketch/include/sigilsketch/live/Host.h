@@ -164,6 +164,11 @@ class Host {
    *  A negative @p fixedDt uses wall time. */
   bool frame(SkCanvas& canvas, double fixedDt = -1.0);
 
+  /** Advances a frame without rasterizing discarded pixels. The recording
+   *  clip follows the current canvas size; persistent pen surfaces still draw.
+   *  Invalid canvas dimensions fail with a message in errorLog(). */
+  bool frame(double fixedDt);
+
   [[nodiscard]] bool compiling() const { return m_compile.valid(); }
   [[nodiscard]] bool live() const { return m_session != nullptr; }
   [[nodiscard]] int generation() const { return m_generation; }
@@ -236,9 +241,20 @@ class Host {
    *  which is the point of a session outliving the look away from it. */
   void resume() { m_presentSince.reset(); }
 
+  /** Advances a newly opened session to a capture moment: the explicit
+   *  interval, the declared moment, or 1.5 seconds when neither is supplied.
+   *  Uses whole fixed steps followed by the fractional remainder; zero runs
+   *  one update without advancing time. Steps longer than the session clock's
+   *  maximum delta are subdivided. Does not restart an existing session.
+   *  Returns the chosen interval and throws on invalid inputs or failed frames.
+   */
+  double prepareCapture(std::optional<double> at = std::nullopt,
+                        double fps = 60.0);
+
   /** Renders the CURRENT state (clock untouched) into a PNG at @p scale
    *  times the sketch's canvas. The capture path for both the windowed
-   *  save command and headless asset generation. */
+   *  save command and headless asset generation. Fractional pixel extents
+   *  round up; each dimension must be positive and at most 16384 pixels. */
   bool capture(const std::filesystem::path& out, float scale = 1.0f);
 
   /** A host on the device must route capture through its own backend:

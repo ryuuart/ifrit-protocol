@@ -9,10 +9,10 @@
 #import "SCKEngine.h"
 
 #import <Metal/Metal.h>
-#import <Syphon/SyphonMetalServer.h>
 
 #include <sigilio/hub/Feed.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilpublish/Publisher.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include "SceneGeometry.h"
 #include "SceneModel.h"
@@ -61,7 +61,7 @@ struct BlitPalette {
   // published over Syphon and blitted into on-screen layers.
   id<MTLTexture> _sceneTexture;
 
-  SyphonMetalServer *_syphon;
+  std::unique_ptr<sigil::publish::Publisher> _publisher;
 
   // The port, as a door on a resource hub: the transport takes datagrams
   // on a thread of its own and the door holds them until the drain timer

@@ -15,6 +15,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <system_error>
@@ -209,6 +210,106 @@ TEST(SketchHost, WritesACaptureAtTheScaleItIsAsked) {
   const std::filesystem::path out = file.dir.path / "capture.png";
   EXPECT_TRUE(host.capture(out, 2.0f));
   EXPECT_TRUE(std::filesystem::exists(out));
+}
+
+struct CaptureClock {
+  static inline std::vector<double> updates;
+  static inline bool resize = false;
+  void setup(SketchContext& ctx) {
+    ctx.canvas(120, 90);
+    ctx.captureAt(0);
+  }
+  void update(double elapsed, SketchContext& ctx) {
+    updates.push_back(elapsed);
+    if (resize) ctx.canvas(150.5f, 100.25f);
+  }
+};
+Kind captureClockKind() { return kindOf<CaptureClock>(); }
+const Entry kCaptureClock{"capture_clock", "capture_clock", "Test", "",
+                          &captureClockKind};
+
+TEST(SketchHost, CaptureMomentIncludesZeroAndTheFractionalStep) {
+  const Watched file("sigil_sketch_capture_clock");
+  auto opts = options(file.path);
+  opts.compiledIn = &kCaptureClock;
+  Host host(std::move(opts), fonts());
+  CaptureClock::updates.clear();
+  EXPECT_EQ(host.prepareCapture(), 0);
+  ASSERT_EQ(CaptureClock::updates.size(), 1u);
+  EXPECT_EQ(CaptureClock::updates.back(), 0);
+
+  ASSERT_TRUE(host.restartSession());
+  CaptureClock::updates.clear();
+  EXPECT_EQ(host.prepareCapture(0.025), 0.025);
+  ASSERT_EQ(CaptureClock::updates.size(), 2u);
+  EXPECT_DOUBLE_EQ(CaptureClock::updates.front(), 1.0 / 60.0);
+  EXPECT_DOUBLE_EQ(CaptureClock::updates.back(), 0.025);
+}
+
+TEST(SketchHost, InvalidCaptureTimingDoesNotRunTheSketch) {
+  const Watched file("sigil_sketch_capture_invalid_timing");
+  auto opts = options(file.path);
+  opts.compiledIn = &kCaptureClock;
+  Host host(std::move(opts), fonts());
+  CaptureClock::updates.clear();
+  const double infinity = std::numeric_limits<double>::infinity();
+  const double nan = std::numeric_limits<double>::quiet_NaN();
+  for (double at : {-1.0, infinity, nan, 1e20})
+    EXPECT_THROW(host.prepareCapture(at), std::invalid_argument);
+  for (double fps : {0.0, -1.0, infinity, nan, 1e-320})
+    EXPECT_THROW(host.prepareCapture(0, fps), std::invalid_argument);
+  EXPECT_TRUE(CaptureClock::updates.empty());
+}
+
+TEST(SketchHost, SlowCaptureRateDoesNotDiscardSceneTime) {
+  const Watched file("sigil_sketch_capture_slow_rate");
+  auto opts = options(file.path);
+  opts.compiledIn = &kCaptureClock;
+  Host host(std::move(opts), fonts());
+  CaptureClock::updates.clear();
+  EXPECT_EQ(host.prepareCapture(1.125, 1), 1.125);
+  ASSERT_FALSE(CaptureClock::updates.empty());
+  EXPECT_DOUBLE_EQ(CaptureClock::updates.back(), 1.125);
+  EXPECT_EQ(host.prepareCapture(1, 1), 1);
+  EXPECT_DOUBLE_EQ(CaptureClock::updates.back(), 2.125);
+}
+
+TEST(SketchHost, CaptureUsesResizedCanvasAndRoundsPixelExtentUp) {
+  const Watched file("sigil_sketch_capture_resized");
+  auto opts = options(file.path);
+  opts.compiledIn = &kCaptureClock;
+  Host host(std::move(opts), fonts());
+  CaptureClock::resize = true;
+  EXPECT_NO_THROW(host.prepareCapture(0));
+  CaptureClock::resize = false;
+  EXPECT_EQ(host.canvasSize(), SkSize::Make(150.5f, 100.25f));
+  SkISize captured{};
+  Host::CaptureBackend backend;
+  backend.makeSurface = [&](const SkImageInfo& info) {
+    captured = info.dimensions();
+    return SkSurfaces::Raster(info);
+  };
+  host.setCaptureBackend(std::move(backend));
+  EXPECT_TRUE(host.capture(file.dir.path / "resized.png", 0.5f));
+  EXPECT_EQ(captured, SkISize::Make(76, 51));
+  for (float scale :
+       {0.0f, -1.0f, 1000.0f, std::numeric_limits<float>::infinity(),
+        std::numeric_limits<float>::quiet_NaN()}) {
+    const auto output = file.dir.path / "invalid.png";
+    EXPECT_FALSE(host.capture(output, scale));
+    EXPECT_FALSE(std::filesystem::exists(output));
+  }
+}
+
+TEST(SketchHost, CaptureRefusesFailedReadback) {
+  const Watched file("sigil_sketch_capture_readback");
+  Host host(options(file.path), fonts());
+  Host::CaptureBackend backend;
+  backend.readback = [](SkSurface&, const SkPixmap&) { return false; };
+  host.setCaptureBackend(std::move(backend));
+  const auto output = file.dir.path / "failed.png";
+  EXPECT_FALSE(host.capture(output));
+  EXPECT_FALSE(std::filesystem::exists(output));
 }
 
 /** ONE EDIT, and whether it is an edit to the sketch.

@@ -1,5 +1,4 @@
 #include <include/core/SkCanvas.h>
-#include <include/utils/SkNoDrawCanvas.h>
 #include <pybind11/embed.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl/filesystem.h>
@@ -16,7 +15,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <limits>
 #include <memory>
 #include <mutex>
 #include <stdexcept>
@@ -504,30 +502,7 @@ std::string renderFile(const std::string& source, const std::string& output,
   Host host(options, fonts);
   host.poll();
   if (!host.live()) throw std::runtime_error(host.errorLog());
-  const double seconds =
-      at.value_or(host.captureSeconds() >= 0 ? host.captureSeconds() : 1.5);
-  const auto dimensions = [&] {
-    const auto size = host.canvasSize();
-    const double width = std::ceil(size.width());
-    const double height = std::ceil(size.height());
-    if (!std::isfinite(width) || !std::isfinite(height) || width < 1 ||
-        height < 1 || width > 16384 || height > 16384)
-      throw std::runtime_error("Canvas dimensions are invalid");
-    return SkISize::Make(int(width), int(height));
-  };
-  if (!std::isfinite(seconds) || seconds < 0 ||
-      seconds * 60 > static_cast<double>(std::numeric_limits<int>::max()))
-    throw std::runtime_error("Capture time is invalid");
-  const auto size = dimensions();
-  SkNoDrawCanvas scratch(size.width(), size.height());
-  const int frames = int(std::floor(seconds * 60));
-  for (int frame = 0; frame < frames; ++frame)
-    if (!host.frame(scratch, 1.0 / 60.0))
-      throw std::runtime_error(host.errorLog());
-  const double remainder = seconds - double(frames) / 60;
-  if ((frames == 0 || remainder > 1e-12) && !host.frame(scratch, remainder))
-    throw std::runtime_error(host.errorLog());
-  dimensions();
+  host.prepareCapture(at);
   const auto destination = std::filesystem::absolute(output);
   if (!host.capture(destination))
     throw std::runtime_error(host.errorLog().empty()

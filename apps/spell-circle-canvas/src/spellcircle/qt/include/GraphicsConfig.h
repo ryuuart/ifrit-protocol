@@ -5,7 +5,7 @@
 #include <QObject>
 
 /** Geometry of the labelled boxes a scene can attach to its points, exposed as
- *  a grouped QML property on GraphicsConfig (models.graphicsConfig.box.width,
+ *  a grouped QML property on GraphicsConfig (receiver.config.box.width,
  *  and so on) — the grouping convention Qt itself uses for Rectangle.border.
  *
  *  Lengths here are pre-scale: each is multiplied by GraphicsConfig's global
@@ -58,7 +58,7 @@ class BoxStyleConfig : public QObject {
 };
 
 /** Size of the render target, in real pixels, exposed as a grouped QML property
- *  (models.graphicsConfig.canvas.width, and so on).
+ *  (receiver.config.canvas.width, and so on).
  *
  *  One setting feeds two consumers that must agree: it is both the coordinate
  *  space an incoming author-space scene is scaled into and the size of the
@@ -91,7 +91,7 @@ class CanvasSizeConfig : public QObject {
 /**
  * How scenes are styled: accent color, stroke width, global scale, typography,
  * box geometry, and the render-target size. Reachable from QML as
- * the application-owned models.graphicsConfig. Lives on the GUI thread: the
+ * the application-owned receiver.config. Lives on the GUI thread: the
  * render side does not read these accessors while drawing, it copies the values
  * across when generation() tells it something changed.
  *
@@ -100,13 +100,10 @@ class CanvasSizeConfig : public QObject {
  * things look is a local setting, which is why the same scene renders
  * differently on two machines by design.
  *
- * Reads graphics_config.json during construction — from the per-user
- * application config directory, or, when no file exists there yet, from the
- * directory holding the executable — keeping the defaults below wherever the
- * file is missing, unreadable, or malformed: startup never fails over
- * configuration. Writing is never automatic: values changed at runtime are
- * lost unless save() is called, so a settings window can experiment and then
- * discard.
+ * This object owns values, not files. Its application takes and restores
+ * snapshots for persistence and an editor's explicit accept/cancel.
+ * Constructing a configuration always starts from the defaults below and
+ * performs no IO.
  *
  * Every setter ignores a value equal to the current one, so a QML binding that
  * re-fires with the same number costs nothing. Anything that does change bumps
@@ -128,12 +125,7 @@ class GraphicsConfig : public QObject {
   Q_PROPERTY(int generation READ generation NOTIFY generationChanged)
 
  public:
-  /** Uses the supplied settings directory when present. If it has no
-   *  graphics file, reads the import directory before the executable's
-   *  adjacent file. Saving always writes to the settings directory. */
-  explicit GraphicsConfig(QObject* parent = nullptr,
-                          QString storageDirectory = {},
-                          QString importDirectory = {});
+  explicit GraphicsConfig(QObject* parent = nullptr);
 
   /** A value snapshot for a settings editor's explicit accept/cancel. */
   QJsonObject snapshot() const;
@@ -192,21 +184,6 @@ class GraphicsConfig : public QObject {
    *  carries nothing. */
   int generation() const { return m_generation; }
 
-  /** Reads graphics_config.json from the per-user config directory, falling
-   *  back to the copy beside the executable when the per-user file does not
-   *  exist yet. Returns false, leaving all current values untouched, when no
-   *  file is found or the one found is not a JSON object; keys the file omits
-   *  keep their current values. Called during construction, and callable
-   *  again to reload after an external edit. */
-  Q_INVOKABLE bool load();
-
-  /** Writes the current values to graphics_config.json in the per-user config
-   *  directory, creating that directory if needed and overwriting the file.
-   *  Returns false if the file could not be opened for writing. This is the
-   *  only thing that persists anything — nothing here saves on change or at
-   *  shutdown. */
-  Q_INVOKABLE bool save() const;
-
  signals:
   void colorChanged();
   void strokeWidthChanged();
@@ -217,24 +194,11 @@ class GraphicsConfig : public QObject {
   void generationChanged();
 
  private:
-  /** The path save() writes and load() prefers: graphics_config.json under
-   *  the per-user application config directory
-   *  (QStandardPaths::AppConfigLocation) — writable, outside the application
-   *  bundle, and surviving a reinstall of the app. */
-  QString configFilePath() const;
-  /** graphics_config.json in the directory holding the running executable,
-   *  which on macOS is inside the .app bundle. Read only, and only when
-   *  configFilePath() does not exist yet: a file that ended up here keeps
-   *  loading until the next save() writes the per-user path, which then
-   *  takes precedence. */
-  static QString legacyConfigFilePath();
   /** Advances generation() and emits generationChanged(). Every setter that
-   *  actually changes a value calls this, as does a successful load(); the
+   *  actually changes a value calls this, as does a restored snapshot; the
    *  grouped objects' changed() signals are connected to it. */
   void bumpGeneration();
 
-  QString m_storageDirectory;
-  QString m_importDirectory;
   QColor m_color{"#ff0000"};
   qreal m_strokeWidth = 4.0;
   qreal m_scale = 1.0;

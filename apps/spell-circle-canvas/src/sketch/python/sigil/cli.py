@@ -14,6 +14,8 @@ from importlib.metadata import PackageNotFoundError, version
 from importlib.resources import as_file, files
 from pathlib import Path
 
+from .environment import _compatibility_mismatches, _machine
+
 
 def _examples():
     directory = files("sigil").joinpath("examples")
@@ -83,11 +85,6 @@ def _sketchbook(source, explicit):
     )
 
 
-def _machine(value):
-    value = value.casefold()
-    return {"aarch64": "arm64", "amd64": "x86_64"}.get(value, value)
-
-
 def _compatible_python(host, environment):
     if sys.implementation.name != "cpython":
         raise ValueError("Sketchbook requires a CPython environment.")
@@ -126,26 +123,12 @@ def _compatible_python(host, environment):
         raise RuntimeError(
             f"Sketchbook returned invalid --python-info JSON: {host}"
         ) from error
-    if (
-        not isinstance(info, dict)
-        or any(
-            not isinstance(info.get(name), str) or not info[name]
-            for name in ("implementation", "soabi", "machine")
-        )
-        or not isinstance(info.get("version"), list)
-        or len(info["version"]) != 2
-        or any(type(part) is not int for part in info["version"])
-        or type(info.get("pointer_bits")) is not int
-    ):
+    try:
+        mismatches = _compatibility_mismatches(info, expected, "host", "current Python")
+    except ValueError as error:
         raise RuntimeError(
             f"Sketchbook returned invalid Python compatibility fields: {host}"
-        )
-    info["machine"] = _machine(info["machine"])
-    mismatches = [
-        f"{name}: host {info[name]!r}, current Python {value!r}"
-        for name, value in expected.items()
-        if info[name] != value
-    ]
+        ) from error
     if mismatches:
         raise ValueError(
             "Sketchbook and the current Python environment are incompatible ("

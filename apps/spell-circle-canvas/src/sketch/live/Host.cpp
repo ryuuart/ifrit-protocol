@@ -10,6 +10,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkData.h>
 #include <include/core/SkSurface.h>
+#include <include/utils/SkNoDrawCanvas.h>
 #include <sigilcore/schedule/ConcurrentIo.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/source/Sink.h>
@@ -21,9 +22,11 @@
 #include <atomic>
 #include <cctype>
 #include <cerrno>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <limits>
 #include <mutex>
 #include <sstream>
 #include <stdexcept>
@@ -36,6 +39,16 @@
 namespace sigil::sketch {
 
 namespace {
+
+std::optional<SkISize> captureExtent(SkSize size, float scale = 1.0f) {
+  const double width = std::ceil(double(size.width()) * scale);
+  const double height = std::ceil(double(size.height()) * scale);
+  if (!std::isfinite(scale) || scale <= 0 || !std::isfinite(width) ||
+      !std::isfinite(height) || width < 1 || height < 1 || width > 16384 ||
+      height > 16384)
+    return std::nullopt;
+  return SkISize::Make(int(width), int(height));
+}
 
 Host::Options withDefaults(Host::Options options) {
   // A sketch this binary carries takes the root the process stated; only
@@ -584,6 +597,42 @@ bool Host::frame(SkCanvas& canvas, double fixedDt) {
   return true;
 }
 
+bool Host::frame(double fixedDt) {
+  const auto extent = captureExtent(canvasSize());
+  if (!extent) {
+    m_errorLog = "Canvas dimensions are invalid";
+    return false;
+  }
+  SkNoDrawCanvas scratch(extent->width(), extent->height());
+  if (!frame(scratch, fixedDt)) return false;
+  if (!captureExtent(canvasSize())) {
+    m_errorLog = "Canvas dimensions are invalid";
+    return false;
+  }
+  return true;
+}
+
+double Host::prepareCapture(std::optional<double> at, double fps) {
+  const double declared = captureSeconds();
+  const double seconds = at.value_or(declared >= 0 ? declared : 1.5);
+  if (!std::isfinite(seconds) || seconds < 0 || !std::isfinite(fps) ||
+      fps <= 0 || !std::isfinite(1.0 / fps))
+    throw std::invalid_argument("Capture time or frame rate is invalid");
+  const double rate = std::max(fps, 1.0 / motion::FrameClockOptions{}.maxDelta);
+  if (seconds * rate > double(std::numeric_limits<int>::max()))
+    throw std::invalid_argument("Capture time or frame rate is invalid");
+  const auto advance = [&](double dt) {
+    if (!frame(dt))
+      throw std::runtime_error(m_errorLog.empty() ? "No sketch is loaded"
+                                                  : m_errorLog);
+  };
+  const int frames = int(std::floor(seconds * rate));
+  for (int index = 0; index < frames; ++index) advance(1.0 / rate);
+  const double remainder = seconds - double(frames) / rate;
+  if (frames == 0 || remainder > 1e-12) advance(remainder);
+  return seconds;
+}
+
 double Host::workMsAverage() const { return m_workMs.mean(); }
 
 double Host::drawMsAverage() const { return m_drawMs.mean(); }
@@ -611,9 +660,13 @@ void Host::markPresented() {
 bool Host::capture(const std::filesystem::path& out, float scale) {
   if (!m_session || m_runtimeFailed) return false;
   const CanvasSpecification& specification = m_session->canvas();
-  const SkImageInfo info = SkImageInfo::MakeN32Premul(
-      std::max(1, (int)(specification.size.width() * scale)),
-      std::max(1, (int)(specification.size.height() * scale)));
+  const auto extent = captureExtent(specification.size, scale);
+  if (!extent) {
+    m_errorLog = "Capture dimensions or scale are invalid";
+    return false;
+  }
+  const SkImageInfo info =
+      SkImageInfo::MakeN32Premul(extent->width(), extent->height());
   sk_sp<SkSurface> surface = m_captureBackend.makeSurface
                                  ? m_captureBackend.makeSurface(info)
                                  : SkSurfaces::Raster(info);
@@ -630,11 +683,11 @@ bool Host::capture(const std::filesystem::path& out, float scale) {
     return false;
   }
   SkBitmap bitmap;
-  bitmap.allocPixels(surface->imageInfo());
+  if (!bitmap.tryAllocPixels(surface->imageInfo())) return false;
   if (m_captureBackend.readback) {
     if (!m_captureBackend.readback(*surface, bitmap.pixmap())) return false;
   } else {
-    surface->readPixels(bitmap.pixmap(), 0, 0);
+    if (!surface->readPixels(bitmap.pixmap(), 0, 0)) return false;
   }
   // The format the capture path is named for; the directories above the
   // file are the sink's business, not this one's.

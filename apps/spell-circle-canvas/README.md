@@ -179,7 +179,7 @@ The Qt-free core is shared; the two front ends are not.
 | --- | --- |
 | `src/spellcircle/shared/schema/` | `SpellCircle.fbs` and its generated header — the wire format |
 | `src/spellcircle/shared/scene/` | `SpellCircleDocument`: verified ingestion and session state; `SpellCircleScene`: resolve, draw, ring-label geometry |
-| `src/spellcircle/qt/` | Reusable scene models, canvas, graphics form and texture publisher hosted by Seer |
+| `src/spellcircle/qt/` | Reusable scene models, canvas and graphics form hosted by Seer; the canvas uses the shared Qt publication adapter |
 | `src/seer/app/` | The Qt application: wire inspection and the pinned scene receiver |
 | `src/spellcircle/mac/` | `SpellCircleMac` — SwiftUI over an ObjC++ bridge, macOS only |
 
@@ -210,6 +210,7 @@ The app is thin. Most of the code is in libraries under `src/common/`,
 | [Ifrit.Qt](src/common/qt/README.md) | Reusable Qt Quick controls |
 | [SigilImage](src/common/image/README.md) | Still-image and animated-image decoding and encoding, and signed distance fields over a coverage mask |
 | [SigilVideo](src/common/video/README.md) | Streaming video decoding, GPU composition, and MP4 encoding |
+| [SigilPublish](src/common/publish/README.md) | Native inter-application texture publication and subscription, plus the macOS Receiver monitor and capture tool |
 | [SigilIO](src/common/io/README.md) | Resource access and export: URIs, mounts, caching, hot reload, byte sinks |
 | [SigilData](src/common/data/README.md) | Tabular data and scales: typed columns, and the one value that maps a domain onto a range |
 | [SigilScry](src/common/scry/README.md) | HTML and CSS rendered to Skia images |

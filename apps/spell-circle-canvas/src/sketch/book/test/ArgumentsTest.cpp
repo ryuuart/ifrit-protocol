@@ -22,6 +22,19 @@ std::optional<Arguments> parse(std::initializer_list<const char*> words) {
   return parseArguments((int)argv.size(), argv.data());
 }
 
+TEST(SketchbookArguments, CaptureRejectsInvalidTimingAndScale) {
+  for (const char* value : {"-1", "nan", "inf"}) {
+    EXPECT_FALSE(parse({"--at", value}));
+    EXPECT_FALSE(parse({"--scale", value}));
+    EXPECT_FALSE(parse({"--fps", value}));
+  }
+  EXPECT_FALSE(parse({"--scale", "0"}));
+  EXPECT_FALSE(parse({"--fps", "0"}));
+  EXPECT_FALSE(parse({"--fps", "1e20"}));
+  EXPECT_TRUE(parse({"--at", "0"}));
+  EXPECT_TRUE(parse({"--at", "0.025", "--fps", "60", "--scale", "0.5"}));
+}
+
 TEST(SketchbookArguments, PythonInfoIsAStandaloneQuery) {
   const auto args = parse({"--python-info"});
   ASSERT_TRUE(args);

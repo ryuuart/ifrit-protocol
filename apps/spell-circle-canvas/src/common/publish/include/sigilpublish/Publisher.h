@@ -10,7 +10,10 @@
 #include <string>
 #include <string_view>
 
-namespace sigil::sketch {
+namespace sigil::publish {
+
+/** The graphics API whose native handles a publisher consumes. */
+enum class Backend { Metal, Direct3D11 };
 
 /**
  * A FRAME, OFFERED TO WHOEVER IS WATCHING. A host that has just drawn
@@ -23,10 +26,10 @@ namespace sigil::sketch {
  * a host that owns its device publishes through the same seam as one
  * drawing inside a window someone else owns.
  *
- * THE TEXTURE IS BORROWED FOR THE CALL. No reference to it outlives the
- * call, so a host whose texture is reallocated — by a resize, by a new
- * device, by anything — hands the new one over on the next frame and
- * owes nothing to the last.
+ * THE TEXTURE IS BORROWED FOR THE CALL. The submitted command buffer
+ * keeps its GPU resources until completion; the publication owns the
+ * copied image. A host whose texture is reallocated hands the new one
+ * over on the next frame without preserving an old render target.
  *
  * WHAT A SUBSCRIBER RECEIVES is the frame as it was drawn: its rows in
  * the order the texture holds them, the first of them the top of the
@@ -35,19 +38,21 @@ namespace sigil::sketch {
  * publication carries a pixel format of its own, so the channels are put
  * in that order on the way across; nothing else about a pixel changes.
  *
- * THE WORK IS APPENDED, NOT SUBMITTED. The publication rides the buffer
+ * METAL WORK IS APPENDED, NOT SUBMITTED. The publication rides the buffer
  * the caller is still filling and runs when the caller commits it, so
  * the drawing must already have been submitted on the same queue: work
  * on one queue runs in the order it was committed, which is what lets
- * the copy see a finished frame rather than a half-drawn one.
+ * the copy see a finished frame rather than a half-drawn one. Direct3D11
+ * instead copies through its immediate context after the host's draw.
  */
 class Publisher {
  public:
   virtual ~Publisher() = default;
 
   /** Appends the publication of the @p width by @p height region of
-   *  @p nativeTexture to the still-open @p nativeCommandBuffer. Costs
-   *  nothing but the check while nobody is watching. */
+   *  @p nativeTexture to the still-open @p nativeCommandBuffer. The newest
+   *  image remains available to clients that subscribe after this call.
+   *  Direct3D11 uses its immediate context and ignores the command buffer. */
   virtual void publishFrame(void* nativeTexture, void* nativeCommandBuffer,
                             int width, int height) = 0;
 
@@ -56,11 +61,13 @@ class Publisher {
 };
 
 /**
- * The publisher this build has for @p mtlDevice, under @p name — a
- * Syphon server on macOS, and nothing anywhere else.
+ * The publisher this build has for @p backend and @p nativeDevice, under
+ * @p name: Syphon on Metal, Spout on Direct3D11 when that SDK is present,
+ * and null for unsupported platform/backend combinations.
  *
- * @p mtlDevice is an `id<MTLDevice>` as an opaque pointer, the device
- * whose textures will be handed over; the caller stays its owner.
+ * @p nativeDevice is an `id<MTLDevice>` for Metal or `ID3D11Device*` for
+ * Direct3D11. Its textures are `id<MTLTexture>` or `ID3D11Texture2D*`
+ * respectively. The caller owns the device and outlives the publisher.
  *
  * NULL IS AN ORDINARY ANSWER: this build publishes over no protocol, or
  * there is no device to publish from, or the name is empty and nothing
@@ -68,6 +75,7 @@ class Publisher {
  * that does not publish and says so, never as a reason to publish
  * another way.
  */
-std::unique_ptr<Publisher> createPublisher(std::string name, void* mtlDevice);
+std::unique_ptr<Publisher> createPublisher(std::string name, Backend backend,
+                                           void* nativeDevice);
 
-}  // namespace sigil::sketch
+}  // namespace sigil::publish

@@ -55,6 +55,8 @@ guard checks and what it cannot see.
   fields
 - `src/common/video/README.md` — SigilVideo: streaming decode, GPU
   composition, MP4 encode
+- `src/common/publish/README.md` — SigilPublish: native inter-application
+  texture publication and subscription, and the Receiver capture tool
 - `src/common/io/README.md` — SigilIO: resource access: URIs, mounts,
   caching, hot reload, byte sinks
 - `src/common/data/README.md` — SigilData: tabular data and the one

@@ -5,6 +5,7 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Stroke.h>
+#include <sigilcompose/draw/Draw.h>
 #include <sigilweave/layout/StyleSheet.h>
 
 #include <algorithm>
@@ -35,18 +36,6 @@ compose::Decoration decoration(py::handle value) {
   if (py::isinstance<compose::Shadow>(value))
     return value.cast<compose::Shadow>();
   throw py::type_error("A decoration is a Decoration, PathFormat, or Shadow.");
-}
-
-template <typename T>
-T keywordValue(py::kwargs kwargs) {
-  auto object = py::cast(T{});
-  for (const auto& [key, value] : kwargs) {
-    const auto name = key.cast<std::string>();
-    if (!py::hasattr(object, name.c_str()))
-      throw py::type_error("Unknown field: " + name);
-    py::setattr(object, name.c_str(), value);
-  }
-  return object.template cast<T>();
 }
 
 void bindTypography(py::module_& module) {
@@ -93,7 +82,8 @@ void bindTypography(py::module_& module) {
       .def_readwrite("value", &FontVariation::value)
       .def(py::self == py::self);
   py::class_<ShapingStyle>(text, "ShapingStyle")
-      .def(py::init(&keywordValue<ShapingStyle>))
+      .def(py::init(
+          [](py::kwargs fields) { return keywordValue<ShapingStyle>(fields); }))
       .def_readwrite("typeface", &ShapingStyle::typeface)
       .def_readwrite("fontSize", &ShapingStyle::fontSize)
       .def_readwrite("letterSpacing", &ShapingStyle::letterSpacing)
@@ -118,12 +108,14 @@ void bindTypography(py::module_& module) {
       .def_readwrite("opticalKerning", &ShapingStyle::opticalKerning)
       .def(py::self == py::self);
   py::class_<PaintStyle>(text, "PaintStyle")
-      .def(py::init(&keywordValue<PaintStyle>))
+      .def(py::init(
+          [](py::kwargs fields) { return keywordValue<PaintStyle>(fields); }))
       .def_readwrite("foreground", &PaintStyle::foreground)
       .def_readwrite("baselineShift", &PaintStyle::baselineShift)
       .def(py::self == py::self);
   py::class_<TextStyle>(text, "TextStyle")
-      .def(py::init(&keywordValue<TextStyle>))
+      .def(py::init(
+          [](py::kwargs fields) { return keywordValue<TextStyle>(fields); }))
       .def_readwrite("shaping", &TextStyle::shaping)
       .def_readwrite("paint", &TextStyle::paint)
       .def("weight", &TextStyle::weight, fluent)
@@ -169,7 +161,8 @@ void bindTypography(py::module_& module) {
       .def_readwrite("value", &Leading::value)
       .def(py::self == py::self);
   py::class_<Block>(text, "Block")
-      .def(py::init(&keywordValue<Block>))
+      .def(py::init(
+          [](py::kwargs fields) { return keywordValue<Block>(fields); }))
       .def_property(
           "leading", [](const Block& self) { return self.leading; },
           [](Block& self, std::optional<Leading> value) {
@@ -356,8 +349,13 @@ compose::Shape shape(py::handle value) {
 void bindCompose(py::module_& module) {
   bindTypography(module);
   auto composition = module.def_submodule("compose");
-  auto element =
-      py::reinterpret_borrow<py::class_<Element>>(composition.attr("Element"));
+  py::enum_<compose::Cache>(composition, "Cache")
+      .value("Auto", compose::Cache::Auto)
+      .value("Picture", compose::Cache::Picture)
+      .value("Texture", compose::Cache::Texture)
+      .value("Group", compose::Cache::Group)
+      .value("None_", compose::Cache::None);
+  py::class_<Element> element(composition, "Element");
   using namespace compose;
   py::class_<VarRef>(composition, "VarRef")
       .def_readonly("id", &VarRef::id)
@@ -581,6 +579,107 @@ void bindCompose(py::module_& module) {
   selections.def("rest", py::overload_cast<>(&spans::rest));
   selections.def("rest", py::overload_cast<std::string_view>(&spans::rest));
 
+  element.def("copy", [](const Element& value) { return value; })
+      .def("__copy__", [](const Element& value) { return value; })
+      .def("row", &Element::row, fluent)
+      .def("column", &Element::column, fluent)
+      .def("grow", &Element::grow, py::arg("factor") = 1.0f, fluent)
+      .def("shrink", &Element::shrink, fluent)
+      .def("absolute", &Element::absolute, fluent)
+      .def("cover", &Element::cover, fluent)
+      .def("key", &Element::key, fluent)
+      .def("cache", &Element::cache, fluent)
+      .def(
+          "children",
+          [](Element& self, const std::vector<Element>& values) -> Element& {
+            return self.children(values);
+          },
+          fluent)
+      .def(
+          "size",
+          [](Element& self, py::object width, py::object height) -> Element& {
+            return self.width(dimension(width)).height(dimension(height));
+          },
+          py::arg("width"), py::arg("height"), fluent)
+      .def(
+          "fill",
+          [](Element& self, py::object value) -> Element& {
+            if (py::isinstance<compose::SurfacePaint>(value))
+              return value.cast<compose::SurfacePaint>().apply(self);
+            if (py::isinstance<material::skia::Paint>(value))
+              return self.fill(value.cast<material::skia::Paint>());
+            return self.fill(motionFill(value));
+          },
+          fluent)
+      .def(
+          "ink",
+          [](Element& self, py::object value) -> Element& {
+            if (py::isinstance<compose::VarRef>(value))
+              return self.ink(value.cast<compose::VarRef>());
+            return self.ink(color(value));
+          },
+          fluent)
+      .def("font", &Element::font, fluent)
+      .def(
+          "fontTrack",
+          [](Element& self, py::object value) -> Element& {
+            return self.font(
+                {.track = py::isinstance<weave::Length>(value)
+                              ? value.cast<weave::Length>()
+                              : weave::Length{value.cast<float>()}});
+          },
+          fluent)
+      .def(
+          "fontSize",
+          [](Element& self, py::object value) -> Element& {
+            return self.font(
+                {.size = py::isinstance<weave::Length>(value)
+                             ? value.cast<weave::Length>()
+                             : weave::Length{value.cast<float>()}});
+          },
+          fluent)
+      .def(
+          "fontWeight",
+          [](Element& self, float value) -> Element& {
+            return self.font({.weight = value});
+          },
+          fluent)
+      .def(
+          "corners",
+          [](Element& self, float all) -> Element& {
+            return self.corners({all});
+          },
+          fluent)
+      .def(
+          "corners",
+          [](Element& self, float tl, float tr, float br,
+             float bl) -> Element& { return self.corners({tl, tr, br, bl}); },
+          fluent)
+      .def("inset", py::overload_cast<float>(&Element::inset), fluent)
+      .def("transformOrigin",
+           py::overload_cast<float, float>(&Element::transformOrigin), fluent);
+
+  const auto dimensionMethod =
+      [&](const char* name, Element& (Element::*setter)(compose::Dimension)) {
+        element.def(
+            name,
+            [setter](Element& self, py::object value) -> Element& {
+              return (self.*setter)(dimension(value));
+            },
+            fluent);
+      };
+  dimensionMethod("width", &Element::width);
+  dimensionMethod("height", &Element::height);
+  dimensionMethod("minWidth", &Element::minWidth);
+  dimensionMethod("minHeight", &Element::minHeight);
+  dimensionMethod("maxWidth", &Element::maxWidth);
+  dimensionMethod("maxHeight", &Element::maxHeight);
+  dimensionMethod("gap", &Element::gap);
+  dimensionMethod("left", &Element::left);
+  dimensionMethod("top", &Element::top);
+  dimensionMethod("right", &Element::right);
+  dimensionMethod("bottom", &Element::bottom);
+
   element.def("wrapLines", &Element::wrapLines, py::arg("wrap") = true, fluent)
       .def("aspect", &Element::aspect, fluent)
       .def(
@@ -591,8 +690,8 @@ void bindCompose(py::module_& module) {
           fluent)
       .def(
           "alignItems",
-          [](Element& self, Align value) -> Element& {
-            return self.alignItems(value);
+          [](Element& self, py::object value) -> Element& {
+            return self.alignItems(alignment(value));
           },
           fluent)
       .def(
@@ -603,8 +702,8 @@ void bindCompose(py::module_& module) {
           fluent)
       .def(
           "justify",
-          [](Element& self, Justify value) -> Element& {
-            return self.justify(value);
+          [](Element& self, py::object value) -> Element& {
+            return self.justify(justification(value));
           },
           fluent)
       .def(
@@ -722,6 +821,13 @@ void bindCompose(py::module_& module) {
           fluent);
   for (const auto& [name, setter] : std::initializer_list<std::pair<
            const char*, Element& (Element::*)(motion::Animatable<float>)>>{
+           {"opacity", &Element::opacity},
+           {"rotate", &Element::rotate},
+           {"scale", &Element::scale},
+           {"scaleX", &Element::scaleX},
+           {"scaleY", &Element::scaleY},
+           {"translateX", &Element::translateX},
+           {"translateY", &Element::translateY},
            {"skewX", &Element::skewX},
            {"skewY", &Element::skewY},
            {"rotateX", &Element::rotateX},
@@ -808,6 +914,49 @@ void bindCompose(py::module_& module) {
         return self.background(std::move(spans), decoration(value), name);
       },
       py::arg("spans"), py::arg("decoration"), py::arg("name") = "", fluent);
+
+  composition.def("box", &compose::box);
+  composition.def(
+      "text",
+      [](const std::string& value, py::object size, py::object ink) {
+        auto element = compose::text(value);
+        if (!size.is_none())
+          element.font({.size = py::isinstance<weave::Length>(size)
+                                    ? size.cast<weave::Length>()
+                                    : weave::Length{size.cast<float>()}});
+        if (!ink.is_none()) element.ink(color(ink));
+        return element;
+      },
+      py::arg("value"), py::arg("size") = py::none(),
+      py::arg("color") = py::none());
+  composition.def(
+      "graphics",
+      [](const std::string& key, py::function program, compose::Cache cache) {
+        auto callback = retainCallback(std::move(program));
+        return compose::graphics(
+            key,
+            [callback](draw::Pen& pen) {
+              const py::gil_scoped_acquire lock;
+              invokePen(callback->get(), pen);
+            },
+            cache);
+      },
+      py::arg("key"), py::arg("program"),
+      py::arg("cache") = compose::Cache::None);
+  composition.def(
+      "pen",
+      [](const std::string& key, py::function program, compose::Cache cache) {
+        auto callback = retainCallback(std::move(program));
+        return compose::pen(
+            key,
+            [callback](draw::Pen& pen) {
+              const py::gil_scoped_acquire lock;
+              invokePen(callback->get(), pen);
+            },
+            cache);
+      },
+      py::arg("key"), py::arg("program"),
+      py::arg("cache") = compose::Cache::None);
 
   composition.def("memo", &memo, py::arg("properties"), py::arg("describe"));
   composition.def("stack", &stack)
