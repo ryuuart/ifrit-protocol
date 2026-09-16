@@ -18,13 +18,17 @@
  * changes which lines it holds and never where they break.
  *
  * `Composer::settling` reports what one frame actually got: `reused` is
- * how many blocks came out of the store, `degraded` how many the budget
- * forced to the greedy breaker. A degrade drops the whole setting — the
- * hyphens, the justification passes, the widow rule — for that frame
- * alone, and the leaf lays out again so the setting comes back the frame
- * the budget is met. It is a REPORT about one input and not a verdict
- * about the node: the runtime holds one proof that a node has settled and
- * folds this into it beside everything else the node reads.
+ * how many blocks came out of the store, `degraded` how many the floor
+ * forced to the greedy breaker. That floor is a COUNT OF BREAK
+ * CANDIDATES — how many lines the optimizing breaker may score for one
+ * block before it gives that block to the greedy one — so what a frame
+ * reports is a fact about the words and the measure rather than about the
+ * machine. A degrade drops the whole setting — the hyphens, the
+ * justification passes, the widow rule — for that frame alone, and the
+ * leaf lays out again so the setting comes back the frame the floor is
+ * met. It is a REPORT about one input and not a verdict about the node:
+ * the runtime holds one proof that a node has settled and folds this into
+ * it beside everything else the node reads.
  *
  * The swell is run on a composer of its own, one whole pixel at a time
  * across the range, and the reports are read after it — so the numbers
@@ -33,12 +37,12 @@
  * comes back out of the store, so the report answers `reused` 1 and the
  * frame costs no break decision; the passage that never declared itself
  * live answers `live` false and `reused` 0, having decided its breaks
- * again every frame; and under a floor of one microsecond the block is
+ * again every frame; and under a floor of one candidate the block is
  * filled greedily and the report answers `degraded` 1.
  *
  * EDIT THESE FIRST
  *   kNarrow, kWide — the measure the swell runs between, px.
- *   kBudget — the floor under a frame the optimizing breaker cannot meet.
+ *   kFloor — how many break candidates a frame of this block may weigh.
  */
 
 // TAGS: Typography/Paragraph
@@ -67,10 +71,10 @@ constexpr SkSize kCanvas = {1100, 400};
 constexpr float kCell = 254;
 constexpr float kPicture = 210;
 
-constexpr float kNarrow = 150;   // the measure the swell runs from
-constexpr float kWide = 230;     // …and to
-constexpr float kBudget = 4000;  // the frame's floor, microseconds
-constexpr float kStarved = 1;    // a floor nothing can meet
+constexpr float kNarrow = 150;  // the measure the swell runs from
+constexpr float kWide = 230;    // …and to
+constexpr int kFloor = 4000;    // the frame's floor, break candidates
+constexpr int kStarved = 1;     // a floor nothing can meet
 
 constexpr SkColor4f kBody{0.84f, 0.85f, 0.88f, 1};
 
@@ -85,15 +89,15 @@ const char* kPassage =
     "a question somebody asked once, and the block that knows so keeps "
     "the break decisions it has already made.";
 
-/** The passage at one measure. `live` and the budget are what the cells
+/** The passage at one measure. `live` and the floor are what the cells
  *  vary; everything else is one setting. */
-Element passage(float measure, bool live, float budget) {
+Element passage(float measure, bool live, int candidates) {
   Element leaf =
       text(kPassage, body())
           .key("para")
           .width(measure)
           .block({.lineBreak = weave::LineBreakStrategy::kKnuthPlass});
-  if (live) leaf.live(true, budget);
+  if (live) leaf.live(true, candidates);
   return leaf;
 }
 
@@ -105,27 +109,28 @@ struct Run {
   const char* note;
   float measure;
   bool live;
-  float budget;
+  int candidates;
 };
 
 constexpr Run kRuns[] = {
     {"live(true, 4000) · at the narrow end",
      "the swell has crossed this measure before · the block comes back out "
      "of the store, so this frame costs no break decision at all",
-     kNarrow, true, kBudget},
+     kNarrow, true, kFloor},
     {"live(true, 4000) · at the wide end",
      "the other end of the range, reached from the narrow one · the "
      "decisions are keyed on the words and on the measure taken to the "
      "whole pixel below it",
-     kWide, true, kBudget},
+     kWide, true, kFloor},
     {"no live() at all",
      "the same swell run on a passage that never said its input moves · it "
      "decides its breaks again every frame and stores nothing",
      kWide, false, 0},
     {"live(true, 1)",
-     "a floor no optimizing break can meet · the block is filled greedily "
-     "for this frame and counted, and the setting comes back the frame the "
-     "budget is met",
+     "a floor of one break candidate, which no block of more than one "
+     "break position can meet · the block is filled greedily for this "
+     "frame and counted, and the setting comes back the frame the floor is "
+     "met",
      kWide, true, kStarved},
 };
 
@@ -140,14 +145,14 @@ struct LiveSettling {
     // narrow measure to the wide one and back, drawn each time, because
     // neither the store nor the report exists until a frame has been
     // drawn. The report read afterwards is the last frame's.
-    const auto sweep = [&](bool live, float budget, float endAt) {
+    const auto sweep = [&](bool live, int candidates, float endAt) {
       Composer probe(ctx.ticker, *ctx.fonts);
       probe.setSize({kWide + 40, 320});
       sk_sp<SkSurface> scratch =
           SkSurfaces::Raster(SkImageInfo::MakeN32Premul((int)kWide + 40, 320));
       const auto step = [&](float measure) {
         probe.render(
-            box().padding(10).children({passage(measure, live, budget)}));
+            box().padding(10).children({passage(measure, live, candidates)}));
         if (scratch) probe.draw(*scratch->getCanvas());
       };
       for (float w = kNarrow; w <= kWide; w += 1) step(w);
@@ -162,8 +167,8 @@ struct LiveSettling {
     // Each run's swell is made where its cell is, so a run states its
     // declaration once and the report under it is that run's own.
     const auto study = [&](const Run& run) {
-      return cell(run.call, run.note, run.measure, run.live, run.budget,
-                  sweep(run.live, run.budget, run.measure));
+      return cell(run.call, run.note, run.measure, run.live, run.candidates,
+                  sweep(run.live, run.candidates, run.measure));
     };
 
     ctx.composer.render(sketch::kit::page(
@@ -171,8 +176,8 @@ struct LiveSettling {
                   "Composer::settling",
          .subtitle = "dials · the measure the swell runs "
                      "between (150 to 230 px, one pixel at a step) "
-                     "· the frame's budget (4000 µs, "
-                     "then 1)",
+                     "· the frame's floor in break candidates "
+                     "(4000, then 1)",
          .footer = "a settled passage reports nothing and answers "
                    "reused 0 — it decided its breaks "
                    "once and no later frame asks it again, which "
@@ -183,14 +188,14 @@ struct LiveSettling {
   /** One cell: the passage set at its own measure, with the report the
    *  swell produced printed under it. */
   Element cell(const char* call, const char* note, float measure, bool live,
-               float budget, const std::string& report) {
+               int candidates, const std::string& report) {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
     return sketch::kit::caption(
         kCell, call, note,
         sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
             .column()
             .gap(10)
-            .children({passage(measure, live, budget),
+            .children({passage(measure, live, candidates),
                        text(report).styleClass("readout")}));
   }
 };

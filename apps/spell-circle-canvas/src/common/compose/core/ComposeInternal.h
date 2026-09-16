@@ -214,11 +214,11 @@ struct TextOptions {
   /// first block at layout whichever way the blocks were styled.
   std::optional<sigil::weave::InitialLetter> initial;
   sigil::weave::FrameOptions frame;
-  /// live(): this layout is one of a run of them. The budget rides with it
+  /// live(): this layout is one of a run of them. The floor rides with it
   /// because they are one statement — a text that says it is moving is the
-  /// only one for which running out of time is a normal event.
+  /// only one for which giving up on a block is a normal event.
   bool live = false;
-  float budgetMicroseconds = 0;
+  int candidates = 0;
   /// reserve(): room beside every line of this passage, on top of whatever
   /// an annotation reserves.
   sigil::weave::ReservedBand reserved;

@@ -10,7 +10,7 @@ each control.
 - [Text on a path](#text-on-a-path)
 - [Mixed text](#mixed-text) — `weave::rich()`, span restyling, and the
   layout setters
-- [A passage whose input moves](#a-passage-whose-input-moves) — `live`, the budget, and what a frame reports
+- [A passage whose input moves](#a-passage-whose-input-moves) — `live`, the floor, and what a frame reports
 - [Paragraphs, frames and stories](#paragraphs-frames-and-stories)
 - [Beside the text](#beside-the-text) — `Composer::units`, annotations, and the kit over them
 - [Vertical CJK](#vertical-cjk)
@@ -857,23 +857,26 @@ than against the frame's supply of lines, so a frame that changes only in
 DEPTH changes which lines it holds and never where they break.
 
 ```cpp
-text(caption, body).width(Dimension(measure)).live(true, 2000.0f)
+text(caption, body).width(Dimension(measure)).live(true, 6000)
 ```
 
 **NOTHING INFERS IT.** A live layout answers the overflow tail
 differently from a settled one, so a guess would change the setting of a
 page that never moves. A passage that moves says so.
 
-The second argument is the composer's budget in microseconds: a block the
-optimizing breaker cannot finish inside it is filled greedily for that
-frame, and a degrade drops the whole setting rather than the breaker
-alone — the hyphens, the justification passes past the word gaps, and the
-widow rule go with it. **A degrade is provisional.** The leaf does not
+The second argument is the floor under the frame, in BREAK CANDIDATES:
+how many lines the optimizing breaker may score for one block before that
+block is filled greedily for that frame. A degrade drops the whole
+setting rather than the breaker alone — the hyphens, the justification
+passes past the word gaps, and the widow rule go with it. It is a count
+and never a stretch of clock, so whether a block is composed or filled is
+a fact about its words and its measure and not a race with whatever else
+the machine is doing. **A degrade is provisional.** The leaf does not
 hold that layout as the answer for its measure, so the next frame lays
-out again and the setting comes back the frame the budget is met.
+out again and the setting comes back the frame the floor is met.
 
 `Composer::settling(key)` is what the frame actually got: `reused` blocks
-answered from decisions already made, `degraded` blocks the budget forced
+answered from decisions already made, `degraded` blocks the floor forced
 to the greedy breaker. It is a REPORT about one input and not a verdict
 about the node — the runtime holds one proof that a node has settled, and
 this is folded into it beside everything else the node reads. What the

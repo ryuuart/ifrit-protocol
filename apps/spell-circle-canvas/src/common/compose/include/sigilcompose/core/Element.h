@@ -1084,7 +1084,7 @@ class Element {
    *  the next — so this layout is one of a run of them rather than an
    *  answer somebody asked for once.
    *
-   *      text(caption, body).width(Dimension(slider)).live(true, 2000.0f)
+   *      text(caption, body).width(Dimension(slider)).live(true, 6000)
    *
    *  It buys two things. The break decisions of a block set in a uniform
    *  measure are kept and reused, keyed on the words and on the measure
@@ -1095,17 +1095,20 @@ class Element {
    *  where they break. `Composer::settling` reports what a frame actually
    *  got for it.
    *
-   *  `budgetMicroseconds` is the floor under a frame the optimizing
-   *  breaker cannot finish in time: a block past it is filled greedily for
-   *  that frame and counted as a degrade, and everything is back the next
-   *  frame the budget is met. 0 is no floor.
+   *  `candidates` is the floor under a frame the optimizing breaker
+   *  cannot finish: how many break candidates it may weigh for one block —
+   *  one candidate being one line it scores — before that block is filled
+   *  greedily for that frame and counted as a degrade. Everything is back
+   *  the next frame the floor is met, and 0 is no floor. It is a COUNT and
+   *  not a stretch of clock, so a passage draws the same on a loaded
+   *  machine as on an idle one.
    *
    *  NOTHING INFERS THIS. A live layout answers the overflow tail
    *  differently from a settled one — it is broken against the measure
    *  rather than against the lines the frame has left — so a guess would
    *  change the setting of a page that never moves. A passage that moves
    *  says so. */
-  Element& live(bool on = true, float budgetMicroseconds = 0);
+  Element& live(bool on = true, int candidates = 0);
 
   /** Text leaves only: ROOM BESIDE EVERY LINE of this passage, over and
    *  above the leading — `before` above a line and right of a column,

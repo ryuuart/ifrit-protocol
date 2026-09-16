@@ -8,7 +8,6 @@
 #include <sigilcore/compute/Hash.h>
 
 #include <algorithm>
-#include <chrono>
 #include <cmath>
 #include <limits>
 #include <optional>
@@ -114,27 +113,22 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
                      IntervalSequence& intervalSequence, const Block& block,
                      size_t firstInterval, ParagraphLayout& result,
                      size_t& lastIntervalUsed, uint32_t& overflowWord,
-                     bool& outOfBudget) {
+                     bool& outOfCandidates) {
   const ParagraphLayoutOptions& options = *block.options;
-  using Clock = std::chrono::steady_clock;
-  outOfBudget = false;
-  // The moment this block must be composed by, when a budget was set.
-  std::optional<Clock::time_point> budgetExpiry;
-  if (options.knuthPlass.budgetMicroseconds > 0)
-    budgetExpiry =
-        Clock::now() + std::chrono::microseconds(static_cast<int64_t>(
-                           options.knuthPlass.budgetMicroseconds));
+  outOfCandidates = false;
+  // THE FLOOR UNDER THIS BLOCK and what has been spent against it. A
+  // candidate is one path in the active list carried to the break position
+  // under consideration and scored there — the innermost step of the pass
+  // below — and the count runs across every pass the block takes, because
+  // the floor is what the breaker may weigh for THE BLOCK and not for one
+  // pass of it. Counted and not timed: how many candidates a block weighs
+  // is a fact about its words and its measure, so the block meets or
+  // misses its floor the same way every time it is composed.
+  const int candidateFloor = options.knuthPlass.candidates;
+  int candidatesWeighed = 0;
   const std::vector<Word>& words = paragraph.words();
   const uint32_t base = block.firstWord;
   const uint32_t wordCount = block.endWord;
-  // HOW OFTEN THE BUDGET IS READ: the clock costs more than a breakpoint
-  // does, so it is read at a fixed FRACTION of the block rather than every
-  // so many breakpoints. A fixed count reads it zero times on every block
-  // shorter than that count — which is every ordinary paragraph — and a
-  // budget stated over one would then bound nothing at all.
-  constexpr uint32_t kBudgetChecksPerBlock = 8;
-  const uint32_t budgetCheckStride = std::max(
-      1u, (wordCount > base ? wordCount - base : 1u) / kBudgetChecksPerBlock);
   lastIntervalUsed = SIZE_MAX;
   if (base >= wordCount) return;
   if (!intervalSequence.intervalAt(firstInterval)) {
@@ -245,9 +239,13 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
 
     for (uint32_t breakIndex = base + 1;
          breakIndex <= wordCount && !active.empty(); ++breakIndex) {
-      if (budgetExpiry && (breakIndex - base) % budgetCheckStride == 0 &&
-          Clock::now() >= *budgetExpiry) {
-        outOfBudget = true;
+      // WHERE THE FLOOR IS TESTED: at the break position, and never
+      // inside the scoring below, which is the loop a block's cost is
+      // actually in. A block therefore stops within one break position's
+      // worth of candidates past its floor, and a floor of one stops
+      // every block with more than one position to weigh.
+      if (candidateFloor > 0 && candidatesWeighed >= candidateFloor) {
+        outOfCandidates = true;
         return -1;
       }
       // Shape only as the dynamic-programming frontier advances.
@@ -267,6 +265,7 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
       Node bestForced;
 
       for (const int32_t nodeIndex : active) {
+        ++candidatesWeighed;
         const Node& node = arena[nodeIndex];
         const FlatInterval* lineInterval =
             liveMeasure ? nullptr : intervalSequence.intervalAt(node.interval);
@@ -461,15 +460,15 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
   bool forcedOverfull = false;
   uint32_t firstUnplacedWord = ~0u;
   int32_t best = runPass(false, forcedOverfull, firstUnplacedWord);
-  // A block the composer could not finish inside its budget is left where
-  // it stands: nothing is placed, and the caller fills it greedily for
-  // this frame.
-  if (outOfBudget) return;
+  // A block the breaker could not finish inside its floor is left where it
+  // stands: nothing is placed, and the caller fills it greedily for this
+  // frame.
+  if (outOfCandidates) return;
   if (best < 0 || forcedOverfull) {
     bool stillOverfull = false;
     uint32_t retryFirstUnplacedWord = ~0u;
     const int32_t retry = runPass(true, stillOverfull, retryFirstUnplacedWord);
-    if (outOfBudget) return;
+    if (outOfCandidates) return;
     if (retry >= 0) {
       best = retry;
       firstUnplacedWord = retryFirstUnplacedWord;
@@ -529,6 +528,11 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
         uint32_t narrowedUnplaced = ~0u;
         const int32_t narrowed =
             runPass(false, narrowedOverfull, narrowedUnplaced);
+        // The search spends against the block's floor like every other
+        // pass, and the arena these passes share no longer holds the
+        // unbalanced answer found before them: a block that runs out in
+        // here is left to the greedy fill like any other.
+        if (outOfCandidates) return;
         // A narrowing that costs a line, forces a word past the measure or
         // leaves text behind is one step too far.
         if (narrowed >= 0 && !narrowedOverfull && narrowedUnplaced == ~0u &&

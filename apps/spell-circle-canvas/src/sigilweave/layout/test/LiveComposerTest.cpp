@@ -134,9 +134,9 @@ TEST_F(LiveComposer, ABudgetTooShortLeavesTheBlockToTheGreedyBreaker) {
   BlockFlow flow(SkRect::MakeWH(300, 200000));
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
-  // The shortest budget the option can carry, against a text no composer
-  // could break inside it.
-  options.knuthPlass.budgetMicroseconds = 1.0f;
+  // The lowest floor the option can carry, against a text the breaker
+  // cannot weigh a whole break position inside it.
+  options.knuthPlass.candidates = 1;
   const ParagraphLayout layout =
       layoutParagraph(fonts, paragraph, flow, options);
   EXPECT_EQ(layout.degradedBlocks, 1);

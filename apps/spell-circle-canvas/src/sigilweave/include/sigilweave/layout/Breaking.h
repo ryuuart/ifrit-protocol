@@ -88,18 +88,26 @@ struct KnuthPlassOptions {
   /// Intervals narrower than this are ignored so the algorithm never has to
   /// force a word into exclusion-shape slivers.
   float minimumIntervalWidth = 0.0f;
-  /// The longest the optimizing breaker may spend on ONE BLOCK before it
-  /// gives up and lets the greedy breaker fill that block instead, in
-  /// microseconds; 0 lifts the limit, which is what a layout that says
-  /// nothing gets.
+  /// How many BREAK CANDIDATES the optimizing breaker may weigh for ONE
+  /// BLOCK before it gives up and lets the greedy breaker fill that block
+  /// instead; 0 lifts the floor, which is what a layout that says nothing
+  /// gets. ONE CANDIDATE IS ONE CANDIDATE LINE: one path in the breaker's
+  /// active list carried to the break position under consideration and
+  /// scored there, which is the innermost step of its dynamic program.
+  ///
+  /// It is COUNTED AND NOT TIMED. How many candidates a block weighs is a
+  /// fact about its words and its measure, so the same block at the same
+  /// measure meets or misses the floor every time — the same answer on a
+  /// loaded machine as on an idle one, and a capture of it is a function
+  /// of the declaration alone.
   ///
   /// It is a DEGRADE AND NOT A POLICY. The composer is meant to run on
   /// moving text — that is what it is for — and this is the floor under a
-  /// frame that meets a block it cannot compose in time: one frame set
+  /// frame that meets a block it cannot compose inside it: one frame set
   /// greedily, counted in ParagraphLayout::degradedBlocks, rather than a
   /// frame that arrives late. A layout that reports degrades every frame
-  /// is asking for a longer budget or a shorter block.
-  float budgetMicroseconds = 0.0f;
+  /// is asking for a higher floor or a shorter block.
+  int candidates = 0;
   bool operator==(const KnuthPlassOptions&) const = default;
 };
 
