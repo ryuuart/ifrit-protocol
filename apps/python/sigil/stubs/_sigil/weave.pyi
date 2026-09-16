@@ -651,16 +651,37 @@ class Type:
     face: _sigil.skia.Typeface | None
     language: str | None
     opticalKerning: bool | None
-    size: _sigil.weave.Length | None
+
+    @property
+    def size(self) -> Length | None:
+        ...
+
+    @size.setter
+    def size(self, value: Length | float | int | None) -> None:
+        ...
     textTransform: TextTransform | None
-    track: _sigil.weave.Length | None
+
+    @property
+    def track(self) -> Length | None:
+        ...
+
+    @track.setter
+    def track(self, value: Length | float | int | None) -> None:
+        ...
     verticalForm: VerticalForm | None
-    wordSpacing: _sigil.weave.Length | None
+
+    @property
+    def wordSpacing(self) -> Length | None:
+        ...
+
+    @wordSpacing.setter
+    def wordSpacing(self, value: Length | float | int | None) -> None:
+        ...
 
     def __eq__(self, arg0: builtins.object) -> bool:
         ...
 
-    def __init__(self, *, aliased: bool | None=..., antiAlias: bool | None=..., color8: bool | None=..., face: _sigil.skia.Typeface | None=..., language: str | None=..., opticalKerning: bool | None=..., size: _sigil.weave.Length | None=..., textTransform: TextTransform | None=..., track: _sigil.weave.Length | None=..., verticalForm: VerticalForm | None=..., wordSpacing: _sigil.weave.Length | None=..., color: _t.ColorLike | None=..., condense: typing.SupportsFloat | None=..., features: collections.abc.Sequence[FontFeature] | None=..., slant: typing.SupportsFloat | None=..., variations: collections.abc.Sequence[FontVariation]=..., weight: typing.SupportsFloat | None=...) -> None:
+    def __init__(self, *, aliased: bool | None=..., antiAlias: bool | None=..., color8: bool | None=..., face: _sigil.skia.Typeface | None=..., language: str | None=..., opticalKerning: bool | None=..., textTransform: TextTransform | None=..., verticalForm: VerticalForm | None=..., size: Length | float | int | None=..., track: Length | float | int | None=..., wordSpacing: Length | float | int | None=..., color: _t.ColorLike | None=..., condense: typing.SupportsFloat | None=..., features: collections.abc.Sequence[FontFeature] | None=..., slant: typing.SupportsFloat | None=..., variations: collections.abc.Sequence[FontVariation]=..., weight: typing.SupportsFloat | None=...) -> None:
         ...
 
     def copy(self) -> Type:

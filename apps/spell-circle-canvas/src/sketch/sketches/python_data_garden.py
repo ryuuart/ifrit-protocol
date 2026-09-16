@@ -31,8 +31,8 @@ MUTED = "#708176"
 RULE = "#d9e0d6"
 
 
-def label(value, size=12, color=INK, **properties):
-    return text(value, size=size, color=color, **properties)
+def label(value, size=12, color=INK):
+    return text(value, size=size, color=color)
 
 
 @sketch(size=(1000, 780), background="#f3f1e8", capture_at=0)
@@ -47,91 +47,198 @@ class DataGarden:
             range=(12, 361), transform=Transform.Band, steps=12, padding=0.42
         )
         self.bar = Scale(domain=(0, 80), range=(0, 130))
-        summary = row(
-            column(label("SPECIMENS", 11, MUTED), label("12", 33), gap=5),
-            column(label("ROOMS", 11, MUTED), label("03", 33), gap=5),
-            column(label("OBSERVATION", 11, MUTED), label("Week 08", 25), gap=9),
-            column(label("BUBBLE AREA", 11, MUTED), label("Water / ml", 19), gap=12),
-            width=892,
-            justify="space_between",
-            padding=(19, 0),
+        summary = (
+            row()
+            .width(892)
+            .justify("space_between")
+            .padding(19, 0)
+            .children(
+                [
+                    (
+                        column()
+                        .gap(5)
+                        .children(
+                            [
+                                label("SPECIMENS", 11, MUTED),
+                                label("12", 33),
+                            ]
+                        )
+                    ),
+                    (
+                        column()
+                        .gap(5)
+                        .children(
+                            [
+                                label("ROOMS", 11, MUTED),
+                                label("03", 33),
+                            ]
+                        )
+                    ),
+                    (
+                        column()
+                        .gap(9)
+                        .children(
+                            [
+                                label("OBSERVATION", 11, MUTED),
+                                label("Week 08", 25),
+                            ]
+                        )
+                    ),
+                    (
+                        column()
+                        .gap(12)
+                        .children(
+                            [
+                                label("BUBBLE AREA", 11, MUTED),
+                                label("Water / ml", 19),
+                            ]
+                        )
+                    ),
+                ]
+            )
         )
-        legend = row(
-            [
-                row(
-                    box(width=8, height=8, fill=ink, corners=4),
-                    label(f"ROOM {room}", 10, MUTED),
-                    gap=7,
-                )
-                for room, ink in ROOMS.items()
-            ],
-            gap=19,
+        legend = (
+            row()
+            .gap(19)
+            .children(
+                [
+                    (
+                        row()
+                        .gap(7)
+                        .children(
+                            [
+                                (box().width(8).height(8).fill(ink).corners(4)),
+                                label(f"ROOM {room}", 10, MUTED),
+                            ]
+                        )
+                    )
+                    for room, ink in ROOMS.items()
+                ]
+            )
         )
         ctx.render(
-            column(
-                row(
-                    label("FIELDNOTES / 08", 12, MUTED),
-                    label("CONTROLLED CULTIVATION", 11, MUTED),
-                    width=892,
-                    justify="space_between",
-                ),
-                row(
-                    column(
-                        label("Under glass.", 48),
-                        label("A small trial of light, water and growth.", 15, MUTED),
-                        gap=9,
+            column()
+            .width(892)
+            .absolute()
+            .left(54)
+            .top(39)
+            .gap(16)
+            .children(
+                [
+                    (
+                        row()
+                        .width(892)
+                        .justify("space_between")
+                        .children(
+                            [
+                                label("FIELDNOTES / 08", 12, MUTED),
+                                label("CONTROLLED CULTIVATION", 11, MUTED),
+                            ]
+                        )
                     ),
-                    box(
-                        label("BOTANICAL\nTRIAL LEDGER", 11, "#f3f1e8"),
-                        fill=INK,
-                        padding=17,
-                        corners=3,
+                    (
+                        row()
+                        .width(892)
+                        .justify("space_between")
+                        .alignItems("center")
+                        .children(
+                            [
+                                (
+                                    column()
+                                    .gap(9)
+                                    .children(
+                                        [
+                                            label("Under glass.", 48),
+                                            label(
+                                                "A small trial of light, water and growth.",
+                                                15,
+                                                MUTED,
+                                            ),
+                                        ]
+                                    )
+                                ),
+                                (
+                                    box()
+                                    .fill(INK)
+                                    .padding(17)
+                                    .corners(3)
+                                    .children(
+                                        [
+                                            label(
+                                                "BOTANICAL\nTRIAL LEDGER", 11, "#f3f1e8"
+                                            ),
+                                        ]
+                                    )
+                                ),
+                            ]
+                        )
                     ),
-                    width=892,
-                    justify="space_between",
-                    align_items="center",
-                ),
-                box(width=892, height=1, fill=RULE),
-                summary,
-                row(
-                    column(
-                        row(
-                            label("LIGHT × HEIGHT", 12),
-                            legend,
-                            width=560,
-                            justify="space_between",
-                        ),
-                        graphics(
-                            self.scatter,
-                            key="greenhouse-scatter",
-                            width=560,
-                            height=416,
-                        ),
-                        label(
-                            "Illustrative measurements  ·  relative light / final height in cm",
-                            11,
-                            MUTED,
-                        ),
-                        width=560,
-                        gap=15,
+                    (box().width(892).height(1).fill(RULE)),
+                    summary,
+                    (
+                        row()
+                        .gap(27)
+                        .children(
+                            [
+                                (
+                                    column()
+                                    .width(560)
+                                    .gap(15)
+                                    .children(
+                                        [
+                                            (
+                                                row()
+                                                .width(560)
+                                                .justify("space_between")
+                                                .children(
+                                                    [
+                                                        label("LIGHT × HEIGHT", 12),
+                                                        legend,
+                                                    ]
+                                                )
+                                            ),
+                                            (
+                                                graphics(
+                                                    "greenhouse-scatter", self.scatter
+                                                )
+                                                .width(560)
+                                                .height(416)
+                                            ),
+                                            label(
+                                                "Illustrative measurements  ·  relative light / final height in cm",
+                                                11,
+                                                MUTED,
+                                            ),
+                                        ]
+                                    )
+                                ),
+                                (box().width(1).height(448).fill(RULE)),
+                                (
+                                    column()
+                                    .width(276)
+                                    .gap(15)
+                                    .children(
+                                        [
+                                            label("HEIGHT / SORTED", 12),
+                                            (
+                                                graphics(
+                                                    "greenhouse-ranking", self.bars
+                                                )
+                                                .width(276)
+                                                .height(416)
+                                            ),
+                                            label(
+                                                "NATIVE TABLE → SORT → BAND SCALE",
+                                                9,
+                                                MUTED,
+                                            ),
+                                        ]
+                                    )
+                                ),
+                            ]
+                        )
                     ),
-                    box(width=1, height=448, fill=RULE),
-                    column(
-                        label("HEIGHT / SORTED", 12),
-                        graphics(
-                            self.bars, key="greenhouse-ranking", width=276, height=416
-                        ),
-                        label("NATIVE TABLE → SORT → BAND SCALE", 9, MUTED),
-                        width=276,
-                        gap=15,
-                    ),
-                    gap=27,
-                ),
-                width=892,
-                absolute=True,
-                left=54,
-                top=39,
-                gap=16,
+                ]
             )
         )
 

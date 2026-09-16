@@ -20,38 +20,61 @@ class Reading:
 
 
 def instrument(reading):
-    marks = row(
-        (
-            box(width=3, height=5 if index % 5 else 10, fill="#425751")
-            for index in range(36)
-        ),
-        gap=3,
-        align_items="end",
+    marks = (
+        row()
+        .gap(3)
+        .alignItems("end")
+        .children(
+            [
+                (box().width(3).height(5 if index % 5 else 10).fill("#425751"))
+                for index in range(36)
+            ]
+        )
     )
-    return column(
-        text(reading.label, style_class="label"),
-        row(
-            text(f"{reading.value:02d}", style_class="reading"),
-            text("/ 100", style_class="unit"),
-            gap=12,
-            align_items="baseline",
-        ),
-        box(
-            box(width=pct(reading.value), height=6, fill=reading.accent),
-            width=212,
-            height=6,
-            fill="#253e36",
-            corners=3,
-            clip=True,
-        ),
-        marks,
-        text("SIGNAL LOCKED", style_class="label", ink=reading.accent),
-        width=272,
-        gap=20,
-        padding=30,
-        fill="#10241e",
-        corners=15,
-        opacity=animate(from_(0).to(1), Transition(0.4, ease.outQuad)),
+    return (
+        column()
+        .width(272)
+        .gap(20)
+        .padding(30)
+        .fill("#10241e")
+        .corners(15)
+        .opacity(animate(from_(0).to(1), Transition(0.4, ease.outQuad)))
+        .children(
+            [
+                (text(reading.label).styleClass("label")),
+                (
+                    row()
+                    .gap(12)
+                    .alignItems("baseline")
+                    .children(
+                        [
+                            (text(f"{reading.value:02d}").styleClass("reading")),
+                            (text("/ 100").styleClass("unit")),
+                        ]
+                    )
+                ),
+                (
+                    box()
+                    .width(212)
+                    .height(6)
+                    .fill("#253e36")
+                    .corners(3)
+                    .clip(True)
+                    .children(
+                        [
+                            (
+                                box()
+                                .width(pct(reading.value))
+                                .height(6)
+                                .fill(reading.accent)
+                            ),
+                        ]
+                    )
+                ),
+                marks,
+                (text("SIGNAL LOCKED").styleClass("label").ink(reading.accent)),
+            ]
+        )
     ).stroke(stroke(1, "#2b463d"))
 
 
@@ -80,30 +103,53 @@ class MemoStation:
             Reading("03 / AMPLITUDE", 40 + round(14 * sin(tick * 0.3)), "#e6bd7b"),
         )
         ctx.render(
-            column(
-                row(
-                    text("STATION / 04", style_class="label"),
-                    text("LIVE READINGS", style_class="label"),
-                    width=864,
-                    justify="space_between",
-                ),
-                text("A quiet signal, held in place.", style_class="title"),
-                row(
-                    (memo(value, instrument, key=value.label) for value in values),
-                    gap=24,
-                ),
-                row(
-                    text("SENSOR ARRAY", style_class="label"),
-                    text("NATIVE COMPOSITION / PYTHON MODELS", style_class="label"),
-                    width=864,
-                    justify="space_between",
-                ),
-                gap=28,
-                width=864,
-                absolute=True,
-                left=48,
-                top=46,
-                ink="#e0ede5",
-                style_sheet=self.sheet,
+            column()
+            .gap(28)
+            .width(864)
+            .absolute()
+            .left(48)
+            .top(46)
+            .ink("#e0ede5")
+            .styleSheet(self.sheet)
+            .children(
+                [
+                    (
+                        row()
+                        .width(864)
+                        .justify("space_between")
+                        .children(
+                            [
+                                (text("STATION / 04").styleClass("label")),
+                                (text("LIVE READINGS").styleClass("label")),
+                            ]
+                        )
+                    ),
+                    (text("A quiet signal, held in place.").styleClass("title")),
+                    (
+                        row()
+                        .gap(24)
+                        .children(
+                            [
+                                (memo(value, instrument).key(value.label))
+                                for value in values
+                            ]
+                        )
+                    ),
+                    (
+                        row()
+                        .width(864)
+                        .justify("space_between")
+                        .children(
+                            [
+                                (text("SENSOR ARRAY").styleClass("label")),
+                                (
+                                    text(
+                                        "NATIVE COMPOSITION / PYTHON MODELS"
+                                    ).styleClass("label")
+                                ),
+                            ]
+                        )
+                    ),
+                ]
             )
         )

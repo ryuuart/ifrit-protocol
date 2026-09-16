@@ -1,8 +1,8 @@
 """Neutral native components for sheets, specimen wells and construction marks."""
 
+from .._kit import children as _children
 from .._kit import specification
 from ..native import compose as _compose
-from . import _children
 
 _native = _compose.kit
 

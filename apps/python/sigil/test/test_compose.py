@@ -24,7 +24,7 @@ class Compose(unittest.TestCase):
         builtins._sigil_compose_contract = []
         self.addCleanup(delattr, builtins, "_sigil_compose_contract")
 
-    def test_native_relative_dimensions_and_kwargs_types(self):
+    def test_native_relative_dimensions_and_property_types(self):
         self.assertEqual(Dimension(weave.em(2)).unit, Dimension.Unit.Em)
         self.assertEqual(Dimension("45%"), pct(45))
         self.assertEqual(Dimension("auto").unit, Dimension.Unit.Auto)
@@ -32,7 +32,7 @@ class Compose(unittest.TestCase):
         self.assertEqual(font.size.value, 24)
         self.assertEqual(font.track.unit, weave.Length.Unit.Em)
         self.assertIsInstance(
-            box(width=pct(50), padding=weave.em(1), align_items=Align.End).stroke(
+            (box().width(pct(50)).padding(weave.em(1)).alignItems(Align.End)).stroke(
                 stroke(2)
             ),
             raw.Element,
@@ -62,17 +62,42 @@ class Compose(unittest.TestCase):
                 f"""from sigil.compose import box
 from sigil.native import compose as raw
 from sigil.sketch import sketch
+
+
 @sketch(size=(24, 16), background="#000000")
 class Scene:
     def setup(self, ctx):
-        children = [raw.box().size(4, 4).fill("#ff0000"),
-                    raw.box().size(4, 4).fill("#00ff00")]
+        children = [
+            raw.box().size(4, 4).fill("#ff0000"),
+            raw.box().size(4, 4).fill("#00ff00"),
+        ]
         if {mode!r} == "enum":
-            root = raw.box().size(24, 16).row().alignItems(raw.Align.Auto).justify(raw.Justify.SpaceBetween).children(children)
+            root = (
+                raw.box()
+                .size(24, 16)
+                .row()
+                .alignItems(raw.Align.Auto)
+                .justify(raw.Justify.SpaceBetween)
+                .children(children)
+            )
         elif {mode!r} == "string":
-            root = raw.box().size(24, 16).row().alignItems("auto").justify("space_between").children(children)
+            root = (
+                raw.box()
+                .size(24, 16)
+                .row()
+                .alignItems("auto")
+                .justify("space_between")
+                .children(children)
+            )
         else:
-            root = box(*children, width=24, height=16, align_items="auto", justify="space_between").row()
+            root = (
+                box()
+                .width(24)
+                .height(16)
+                .alignItems("auto")
+                .justify("space_between")
+                .children(children)
+            ).row()
         ctx.render(root)
 """,
                 at=0,
@@ -151,6 +176,8 @@ class Scene:
             """import builtins
 from sigil.compose import box
 from sigil.sketch import sketch, kit
+
+
 @sketch(size=(8, 8))
 class Scene:
     def __init__(self):
@@ -159,9 +186,12 @@ class Scene:
         custom.type.title.size = 99
         self.abandoned = kit.provide(custom)
         self.abandoned.__enter__()
+
     def setup(self, ctx):
-        builtins._sigil_compose_contract.append((self.initial, kit.theme().type.title.size))
-        ctx.render(box(width=8, height=8))
+        builtins._sigil_compose_contract.append(
+            (self.initial, kit.theme().type.title.size)
+        )
+        ctx.render((box().width(8).height(8)))
 """,
             at=0,
         )
@@ -174,20 +204,27 @@ class Scene:
 import builtins
 from sigil.compose import box, memo
 from sigil.sketch import sketch
+
+
 @dataclass(frozen=True)
 class Model:
     color: str
+
+
 @sketch(size=(32, 32), background="#000000")
 class Scene:
     def setup(self, ctx):
         self.frame = 0
+
     def update(self, elapsed, ctx):
         self.frame += 1
         color = "#ff0000" if self.frame < 3 else "#00ff00"
+
         def describe(model):
             builtins._sigil_compose_contract.append(model.color)
-            return box(width=32, height=32, fill=model.color)
-        ctx.render(memo(Model(color), describe, key="subject"))
+            return box().width(32).height(32).fill(model.color)
+
+        ctx.render((memo(Model(color), describe).key("subject")))
 """)
         self.assertEqual(builtins._sigil_compose_contract, ["#ff0000", "#00ff00"])
 
@@ -195,11 +232,13 @@ class Scene:
         pixels = self.render(
             """from sigil.compose import box, memo
 from sigil.sketch import sketch
+
+
 @sketch(size=(8, 8), background="#000000")
 class Scene:
     def setup(self, ctx):
         model = {"color": "#ff0000"}
-        node = memo(model, lambda value: box(width=8, height=8, fill=value["color"]))
+        node = memo(model, lambda value: box().width(8).height(8).fill(value["color"]))
         model["color"] = "#00ff00"
         ctx.render(node)
 """,
@@ -212,11 +251,14 @@ class Scene:
             self.render(
                 """from sigil.compose import memo
 from sigil.sketch import sketch
+
+
 @sketch(size=(8, 8))
 class Scene:
     def setup(self, ctx):
         def describe(model):
             raise ValueError("component exploded")
+
         ctx.render(memo(1, describe))
 """,
                 at=0,
@@ -224,10 +266,12 @@ class Scene:
         pixels = self.render(
             """from sigil.compose import box
 from sigil.sketch import sketch
+
+
 @sketch(size=(8, 8))
 class Scene:
     def setup(self, ctx):
-        ctx.render(box(width=8, height=8, fill="#223344"))
+        ctx.render((box().width(8).height(8).fill("#223344")))
 """,
             at=0,
         )
@@ -241,21 +285,28 @@ class Scene:
 import weakref
 from sigil.compose import box, memo
 from sigil.sketch import sketch
+
+
 class Model:
     def __init__(self, owner):
         self.owner = owner
+
     def __deepcopy__(self, memo):
         return self
+
     def __eq__(self, other):
         return self is other
+
+
 @sketch(size=(8, 8))
 class Scene:
     def setup(self, ctx):
         builtins._sigil_compose_contract.append(weakref.ref(self))
         self.node = memo(Model(self), self.describe)
         ctx.render(self.node)
+
     def describe(self, model):
-        return box(width=8, height=8, fill="#cc8844")
+        return box().width(8).height(8).fill("#cc8844")
 """,
             at=0,
         )
@@ -266,15 +317,20 @@ class Scene:
         with self.assertRaisesRegex(RuntimeError, "model equality exploded"):
             self.render("""from sigil.compose import box, memo
 from sigil.sketch import sketch
+
+
 class Model:
     def __eq__(self, other):
         raise ValueError("model equality exploded")
+
+
 @sketch(size=(8, 8))
 class Scene:
     def setup(self, ctx):
         pass
+
     def update(self, elapsed, ctx):
-        ctx.render(memo(Model(), lambda value: box(width=8, height=8)))
+        ctx.render((memo(Model(), lambda value: box().width(8).height(8))))
 """)
 
     def test_native_styles_and_explicit_total_style_render_identically(self):
@@ -283,13 +339,38 @@ class Scene:
 from sigil.native import compose
 from sigil.sketch import sketch
 from sigil.weave import Type, StyleSheet, rule, textStyle
+
+
 @sketch(size=(128, 48), background="#000000")
 class Scene:
     def setup(self, ctx):
         style = Type(size=30, color="#ff0000")
         sheet = StyleSheet([rule("title").font(style)])
-        children = [text("HI", style_class="title"), compose.text("HI", textStyle(style))]
-        ctx.render(box(*(box(child, width=64, height=48) for child in children), style_sheet=sheet).row())
+        children = [
+            (text("HI").styleClass("title")),
+            compose.text("HI", textStyle(style)),
+        ]
+        ctx.render(
+            (
+                box()
+                .styleSheet(sheet)
+                .children(
+                    (
+                        (
+                            box()
+                            .width(64)
+                            .height(48)
+                            .children(
+                                [
+                                    child,
+                                ]
+                            )
+                        )
+                        for child in children
+                    )
+                )
+            ).row()
+        )
 """,
             at=0,
         )

@@ -26,19 +26,24 @@ def wash(accent: str) -> skia.Paint:
 
 
 def card(title: str, detail: str, accent: str, delay: float = 0) -> Element:
-    return column(
-        text(title, size=26),
-        text(detail, size=14, color="#dce6e9"),
-        gap=14,
-        padding=24,
-        height=172,
-        basis=0,
-        grow=1,
-        corners=16,
-        ink="#ffffff",
-        fill=wash(accent),
-        opacity=entrance(0, 1, duration=0.6, delay=delay),
-        translate_y=entrance(16, 0, duration=0.6, delay=delay),
+    return (
+        column()
+        .gap(14)
+        .padding(24)
+        .height(172)
+        .basis(0)
+        .grow(1)
+        .corners(16)
+        .ink("#ffffff")
+        .fill(wash(accent))
+        .opacity(entrance(0, 1, duration=0.6, delay=delay))
+        .translateY(entrance(16, 0, duration=0.6, delay=delay))
+        .children(
+            [
+                text(title, size=26),
+                text(detail, size=14, color="#dce6e9"),
+            ]
+        )
     )
 
 
@@ -54,9 +59,12 @@ class HelloCompose:
         with kit.provide(look):
             ctx.render(
                 kit.page(
-                    row(
-                        (card(*data, delay=i * 0.1) for i, data in enumerate(CARDS)),
-                        gap=18,
+                    (
+                        row()
+                        .gap(18)
+                        .children(
+                            [card(*data, delay=i * 0.1) for i, data in enumerate(CARDS)]
+                        )
                     ),
                     title=TITLE,
                     subtitle="One description. Layout, type, paint and motion stay native.",

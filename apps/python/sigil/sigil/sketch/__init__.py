@@ -82,7 +82,7 @@ def sketch(*, size=(960, 640), background="#121720", capture_at=1.0):
                     def program(pen):
                         paint(pen, ctx)
 
-                ctx.render(graphics(program, key="sketch.draw", absolute=True, inset=0))
+                ctx.render(graphics("sketch.draw", program).absolute().inset(0))
             if setup is not None:
                 initialize = setup.__get__(self, cls)
                 if arity(initialize, 1) == 0:

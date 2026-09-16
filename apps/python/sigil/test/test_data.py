@@ -200,23 +200,24 @@ class Data(unittest.TestCase):
                 store.execute("INSERT INTO totals VALUES (2)")
             entry = root / "scene.py"
             entry.write_text(
-                textwrap.dedent("""
-                import builtins
-                from sigil.compose import box
-                from sigil.sketch import sketch
-                @sketch(size=(24, 24), capture_at=0)
-                class Resources:
-                    def setup(self, ctx):
-                        assets = ctx.assets
-                        document = assets.json(ctx.local("config.json"))
-                        table = assets.table(ctx.local("rows.csv"))
-                        database = assets.database(ctx.local("field.sqlite"))
-                        assert assets.json(ctx.local("missing.json")) is None
-                        assert assets.table(ctx.local("missing.csv")) is None
-                        assert assets.database(ctx.local("missing.sqlite")) is None
-                        builtins._sigil_data = (assets, document, table, database)
-                        ctx.render(box(width=24, height=24, fill="#45827b"))
-            """)
+                textwrap.dedent("""import builtins
+from sigil.compose import box
+from sigil.sketch import sketch
+
+
+@sketch(size=(24, 24), capture_at=0)
+class Resources:
+    def setup(self, ctx):
+        assets = ctx.assets
+        document = assets.json(ctx.local("config.json"))
+        table = assets.table(ctx.local("rows.csv"))
+        database = assets.database(ctx.local("field.sqlite"))
+        assert assets.json(ctx.local("missing.json")) is None
+        assert assets.table(ctx.local("missing.csv")) is None
+        assert assets.database(ctx.local("missing.sqlite")) is None
+        builtins._sigil_data = (assets, document, table, database)
+        ctx.render((box().width(24).height(24).fill("#45827b")))
+""")
             )
             render_file(entry, root / "frame.png", at=0)
             assets, document, table, database = builtins._sigil_data

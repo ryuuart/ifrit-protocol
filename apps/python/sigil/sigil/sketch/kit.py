@@ -1,7 +1,7 @@
 """Native specimen pages and their inherited theme."""
 
+from .._kit import children as _children
 from .._kit import specification
-from ..compose import _children
 from ..native import sketch as _sketch
 
 _native = _sketch.kit

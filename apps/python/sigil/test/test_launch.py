@@ -70,43 +70,46 @@ class NativeLaunch(unittest.TestCase):
         )
         source = self.root / "environment sketch.py"
         source.write_text(
-            textwrap.dedent("""
-                import json
-                import subprocess
-                import sys
-                from pathlib import Path
-                import _sigil_launch_environment_only as dependency
-                from sigil.compose import box
-                from sigil.sketch import sketch
+            textwrap.dedent("""import json
+import subprocess
+import sys
+from pathlib import Path
+import _sigil_launch_environment_only as dependency
+from sigil.compose import box
+from sigil.sketch import sketch
 
-                CHILD = (
-                    "import json, sys; "
-                    "import _sigil_launch_environment_only as dependency; "
-                    "print(json.dumps({'prefix': sys.prefix, "
-                    "'executable': sys.executable, 'value': dependency.VALUE, "
-                    "'pth': sys._sigil_launch_pth_loaded}))"
-                )
+CHILD = (
+    "import json, sys; "
+    "import _sigil_launch_environment_only as dependency; "
+    "print(json.dumps({'prefix': sys.prefix, "
+    "'executable': sys.executable, 'value': dependency.VALUE, "
+    "'pth': sys._sigil_launch_pth_loaded}))"
+)
 
-                @sketch(size=(96, 64), background="#142333", capture_at=0)
-                class EnvironmentSketch:
-                    def setup(self, ctx):
-                        child = subprocess.run(
-                            [sys.executable, "-I", "-c", CHILD],
-                            capture_output=True, text=True, check=True, timeout=20,
-                        )
-                        evidence = {
-                            "prefix": sys.prefix,
-                            "executable": sys.executable,
-                            "value": dependency.VALUE,
-                            "module": dependency.__file__,
-                            "pth": sys._sigil_launch_pth_loaded,
-                            "isolated": sys.flags.isolated,
-                            "ignore_environment": sys.flags.ignore_environment,
-                            "child": json.loads(child.stdout),
-                        }
-                        Path(__file__).with_suffix(".json").write_text(json.dumps(evidence))
-                        ctx.render(box(width=96, height=64, fill="#8bd0bd"))
-                """)
+
+@sketch(size=(96, 64), background="#142333", capture_at=0)
+class EnvironmentSketch:
+    def setup(self, ctx):
+        child = subprocess.run(
+            [sys.executable, "-I", "-c", CHILD],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=20,
+        )
+        evidence = {
+            "prefix": sys.prefix,
+            "executable": sys.executable,
+            "value": dependency.VALUE,
+            "module": dependency.__file__,
+            "pth": sys._sigil_launch_pth_loaded,
+            "isolated": sys.flags.isolated,
+            "ignore_environment": sys.flags.ignore_environment,
+            "child": json.loads(child.stdout),
+        }
+        Path(__file__).with_suffix(".json").write_text(json.dumps(evidence))
+        ctx.render((box().width(96).height(64).fill("#8bd0bd")))
+""")
         )
         output = self.root / "rendered frame.png"
         launch_environment = self.environment | {

@@ -14,12 +14,15 @@ def wrong_paint(pen: str) -> None:
 
 
 box(wdith=20)  # error: reportCallIssue
-box(width=object())  # error: reportArgumentType
-row(42)  # error: reportArgumentType
+box().width(object())  # error: reportArgumentType
+row().children([42])  # error: reportArgumentType
 text(12)  # error: reportArgumentType
-box(fill=object())  # error: reportArgumentType
-box(align_items="middle")  # error: reportArgumentType
-graphics(wrong_paint, key="bad")  # error: reportArgumentType
+box().fill(object())  # error: reportArgumentType
+box().alignItems("middle")  # error: reportArgumentType
+row(text("implicit child"))  # error: reportCallIssue
+row().children(["implicit text"])  # error: reportArgumentType
+row().children([None])  # error: reportArgumentType
+graphics("bad", wrong_paint)  # error: reportArgumentType
 memo("wrong model", component)  # error: reportArgumentType
 kit.page(box(), titlle="typo")  # error: reportCallIssue
 kit.well(width=120, content="center")  # error: reportArgumentType

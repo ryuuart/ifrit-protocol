@@ -110,8 +110,8 @@ class Motion(unittest.TestCase):
                 model.level = Output(0.5)
                 model_ref, output_ref = weakref.ref(model), weakref.ref(model.level)
                 opacity = bind(model.level).target(0, 1) if shaped else model.level
-                builtins._motion_tree = box(
-                    width=16, height=16, fill="#ff0000", opacity=opacity
+                builtins._motion_tree = (
+                    box().width(16).height(16).fill("#ff0000").opacity(opacity)
                 )
                 del opacity, model
                 gc.collect()
@@ -132,22 +132,25 @@ class Motion(unittest.TestCase):
         self.clean_globals(
             "_motion_node", "_motion_output", "_motion_context", "_motion_model"
         )
-        self.render("""
-            import builtins
-            import weakref
-            from sigil.compose import box
-            from sigil.motion import Output
-            from sigil.sketch import sketch
-            @sketch(size=(64, 24), background="#000000", capture_at=0)
-            class Scene:
-                def setup(self, ctx):
-                    self.x = Output(4)
-                    builtins._motion_model = weakref.ref(self)
-                    builtins._motion_output = self.x
-                    builtins._motion_context = ctx
-                    builtins._motion_node = box(width=12, height=12, fill="#00ff00", translate_x=self.x)
-                    ctx.render(builtins._motion_node)
-        """)
+        self.render("""import builtins
+import weakref
+from sigil.compose import box
+from sigil.motion import Output
+from sigil.sketch import sketch
+
+
+@sketch(size=(64, 24), background="#000000", capture_at=0)
+class Scene:
+    def setup(self, ctx):
+        self.x = Output(4)
+        builtins._motion_model = weakref.ref(self)
+        builtins._motion_output = self.x
+        builtins._motion_context = ctx
+        builtins._motion_node = (
+            box().width(12).height(12).fill("#00ff00").translateX(self.x)
+        )
+        ctx.render(builtins._motion_node)
+""")
         gc.collect()
         self.assertIsNone(builtins._motion_model())
         with self.assertRaisesRegex(RuntimeError, "session"):
@@ -168,26 +171,35 @@ class Motion(unittest.TestCase):
 
     def test_scene_ticker_drives_a_retained_binding_on_scene_time(self):
         self.clean_globals("_motion_ticks", "_motion_owner")
-        source = """
-            import builtins
-            import weakref
-            from sigil.compose import box
-            from sigil.motion import Output, bind
-            from sigil.sketch import sketch
-            @sketch(size=(64, 24), background="#000000", capture_at=0)
-            class Scene:
-                def setup(self, ctx):
-                    self.seconds = Output(0)
-                    builtins._motion_ticks = []
-                    builtins._motion_owner = weakref.ref(self)
-                    ctx.ticker.add(self.advance)
-                    ctx.render(box(width=12, height=12, fill="#ff0000",
-                                   translate_x=bind(self.seconds).target(0, 32)))
-                def advance(self, dt, elapsed):
-                    self.seconds.value = elapsed
-                    builtins._motion_ticks.append((dt, elapsed))
-                    return elapsed < 1
-        """
+        source = """import builtins
+import weakref
+from sigil.compose import box
+from sigil.motion import Output, bind
+from sigil.sketch import sketch
+
+
+@sketch(size=(64, 24), background="#000000", capture_at=0)
+class Scene:
+    def setup(self, ctx):
+        self.seconds = Output(0)
+        builtins._motion_ticks = []
+        builtins._motion_owner = weakref.ref(self)
+        ctx.ticker.add(self.advance)
+        ctx.render(
+            (
+                box()
+                .width(12)
+                .height(12)
+                .fill("#ff0000")
+                .translateX(bind(self.seconds).target(0, 32))
+            )
+        )
+
+    def advance(self, dt, elapsed):
+        self.seconds.value = elapsed
+        builtins._motion_ticks.append((dt, elapsed))
+        return elapsed < 1
+"""
         initial = self.render(source, at=0)
         moved = self.render(source, at=0.5)
         self.assertEqual(initial(5, 5), bytes([255, 0, 0, 255]))
@@ -198,17 +210,28 @@ class Motion(unittest.TestCase):
         self.assertIsNone(builtins._motion_owner())
 
     def test_keyframes_and_color_entrances_render_at_the_requested_time(self):
-        source = """
-            from sigil.compose import box
-            from sigil.motion import Transition, animate, ease, from_, through
-            from sigil.sketch import sketch
-            @sketch(size=(64, 24), background="#000000", capture_at=0)
-            class Scene:
-                def setup(self, ctx):
-                    ctx.render(box(width=12, height=12,
-                        translate_x=animate(through([(0, 0), (0.5, 32), (1, 0)]), ease=ease.linear),
-                        fill=animate(from_("#ff0000").to("#0000ff"), Transition(1, ease.linear))))
-        """
+        source = """from sigil.compose import box
+from sigil.motion import Transition, animate, ease, from_, through
+from sigil.sketch import sketch
+
+
+@sketch(size=(64, 24), background="#000000", capture_at=0)
+class Scene:
+    def setup(self, ctx):
+        ctx.render(
+            (
+                box()
+                .width(12)
+                .height(12)
+                .translateX(
+                    animate(through([(0, 0), (0.5, 32), (1, 0)]), ease=ease.linear)
+                )
+                .fill(
+                    animate(from_("#ff0000").to("#0000ff"), Transition(1, ease.linear))
+                )
+            )
+        )
+"""
         pixel = self.render(source, at=0.5)
         self.assertEqual(pixel(37, 5)[1], 0)
         self.assertGreater(pixel(37, 5)[0], 100)
@@ -218,45 +241,53 @@ class Motion(unittest.TestCase):
     def test_callback_easing_does_not_keep_a_closed_model_alive(self):
         self.clean_globals("_motion_curve_owner")
         self.render(
-            """
-            import builtins
-            import weakref
-            from sigil.compose import box
-            from sigil.motion import Transition, animate, from_
-            from sigil.sketch import sketch
-            @sketch(size=(64, 24), background="#000000", capture_at=0)
-            class Scene:
-                def setup(self, ctx):
-                    builtins._motion_curve_owner = weakref.ref(self)
-                    self.node = box(width=12, height=12, fill="#ffffff",
-                        opacity=animate(from_(0).to(1), Transition(1, self.curve)))
-                    ctx.render(self.node)
-                def curve(self, progress):
-                    return progress * progress
-        """,
+            """import builtins
+import weakref
+from sigil.compose import box
+from sigil.motion import Transition, animate, from_
+from sigil.sketch import sketch
+
+
+@sketch(size=(64, 24), background="#000000", capture_at=0)
+class Scene:
+    def setup(self, ctx):
+        builtins._motion_curve_owner = weakref.ref(self)
+        self.node = (
+            box()
+            .width(12)
+            .height(12)
+            .fill("#ffffff")
+            .opacity(animate(from_(0).to(1), Transition(1, self.curve)))
+        )
+        ctx.render(self.node)
+
+    def curve(self, progress):
+        return progress * progress
+""",
             at=0.25,
         )
         gc.collect()
         self.assertIsNone(builtins._motion_curve_owner())
 
     def test_ticker_derivation_runs_after_its_writer_and_owns_cells(self):
-        source = """
-            import gc
-            from sigil.compose import box
-            from sigil.motion import Output, bind
-            from sigil.sketch import sketch
-            @sketch(size=(64, 24), background="#000000", capture_at=0)
-            class Scene:
-                def setup(self, ctx):
-                    source = Output(0)
-                    target = Output(0)
-                    assert ctx.ticker.derive(target, bind(source).target(0, 32))
-                    assert ctx.ticker.add(lambda dt, elapsed: source.set(elapsed)) is None
-                    assert ctx.ticker.derive(Output(0), bind(Output(0.5)))
-                    ctx.render(box(width=12, height=12, fill="#ff0000", translate_x=target))
-                    del target
-                    gc.collect()
-        """
+        source = """import gc
+from sigil.compose import box
+from sigil.motion import Output, bind
+from sigil.sketch import sketch
+
+
+@sketch(size=(64, 24), background="#000000", capture_at=0)
+class Scene:
+    def setup(self, ctx):
+        source = Output(0)
+        target = Output(0)
+        assert ctx.ticker.derive(target, bind(source).target(0, 32))
+        assert ctx.ticker.add(lambda dt, elapsed: source.set(elapsed)) is None
+        assert ctx.ticker.derive(Output(0), bind(Output(0.5)))
+        ctx.render((box().width(12).height(12).fill("#ff0000").translateX(target)))
+        del target
+        gc.collect()
+"""
         pixel = self.render(source, at=0.5)
         self.assertEqual(pixel(20, 5), bytes([255, 0, 0, 255]))
         self.assertEqual(pixel(5, 5), bytes([0, 0, 0, 255]))

@@ -142,17 +142,38 @@ class Kit(unittest.TestCase):
 from sigil.compose import box, layout
 from sigil.compose.layouts import Grid, px, fr
 from sigil.sketch import sketch
+
+
 @sketch(size=(160, 80), capture_at=0.05)
 class GridSheet:
     def setup(self, ctx):
-        ctx.render(layout(Grid(columns=[px(40), fr()], rows=[fr()],
-                               areas=["rail body"], gap=(8, 0)),
-                          box(key="rail", area="rail"),
-                          box(key="body", area="body"), width=160, height=80))
+        ctx.render(
+            (
+                layout(
+                    Grid(
+                        columns=[px(40), fr()],
+                        rows=[fr()],
+                        areas=["rail body"],
+                        gap=(8, 0),
+                    )
+                )
+                .width(160)
+                .height(80)
+                .children(
+                    [
+                        (box().key("rail").area("rail")),
+                        (box().key("body").area("body")),
+                    ]
+                )
+            )
+        )
+
     def update(self, elapsed, ctx):
         if elapsed > 1 / 60:
-            builtins._sigil_kit_grid = (ctx.composer.bounds("rail"),
-                                        ctx.composer.bounds("body"))
+            builtins._sigil_kit_grid = (
+                ctx.composer.bounds("rail"),
+                ctx.composer.bounds("body"),
+            )
 """,
             at=0.05,
         )
@@ -176,6 +197,8 @@ class GridSheet:
     def test_stage_uses_the_native_context_and_scoped_theme(self):
         self.render("""from sigil.compose import text
 from sigil.sketch import kit, sketch
+
+
 @sketch(size=(8, 8), capture_at=0)
 class Sheet:
     def setup(self, ctx):
@@ -193,6 +216,8 @@ class Sheet:
         self.render("""import builtins
 from sigil.compose import box
 from sigil.sketch import kit, sketch
+
+
 @sketch(size=(32, 32), capture_at=0)
 class LeakedScope:
     def setup(self, ctx):
@@ -200,7 +225,7 @@ class LeakedScope:
         look.palette.ink = "#ff0000"
         builtins._sigil_kit_scope = kit.provide(look)
         builtins._sigil_kit_scope.__enter__()
-        ctx.render(box(width=20, height=20))
+        ctx.render((box().width(20).height(20)))
 """)
         self.assertFalse(builtins._sigil_kit_scope.active)
         self.assertEqual(kit.theme(), original)
@@ -212,9 +237,13 @@ class LeakedScope:
         self.render("""import builtins
 from sigil.compose import box, memo
 from sigil.sketch import kit, sketch
+
+
 def describe(properties):
     builtins._sigil_kit_memo.append(kit.theme().type.title.size)
-    return box(width=20, height=20, fill="#abcdef")
+    return box().width(20).height(20).fill("#abcdef")
+
+
 @sketch(size=(32, 32), capture_at=0)
 class Deferred:
     def setup(self, ctx):
@@ -235,6 +264,8 @@ class Deferred:
         self.render("""import builtins
 from sigil.compose import box, memo
 from sigil.sketch import kit, sketch
+
+
 @sketch(size=(8, 8), capture_at=0)
 class DeferredClose:
     def setup(self, ctx):
@@ -243,6 +274,7 @@ class DeferredClose:
         look.type.title.size = 99
         results = builtins._sigil_kit_scope_close
         with kit.provide(look) as provider:
+
             def describe(model):
                 try:
                     provider.close()
@@ -250,7 +282,8 @@ class DeferredClose:
                     results.append(str(error))
                 else:
                     results.append(None)
-                return box(width=8, height=8)
+                return box().width(8).height(8)
+
             ctx.render(memo(0, describe))
             results.append(provider.active)
             results.append(kit.theme() == look)

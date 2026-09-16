@@ -1423,7 +1423,7 @@ def text(value: str, style: _sigil.weave.TextStyle) -> Element:
     ...
 
 @typing.overload
-def text(value: str, size: _t.FloatLike | None=None, color: _t.ColorLike | None=None) -> Element:
+def text(value: str, size: _t.FloatLike | _sigil.weave.Length | None=None, color: _t.ColorLike | None=None) -> Element:
     ...
 
 def var(arg0: str) -> VarRef:

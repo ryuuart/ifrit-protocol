@@ -17,9 +17,9 @@ The public direct binding surface is `sigil.native`: its library namespaces
 expose the bound native types and verbs, including `compose`, `draw`,
 `material`, `geometry`, `image`, `weave`, `core`, `motion`, `sketch`,
 `data`, `io` and `skia`.
-The separate authoring layer in `sigil.compose` adds keyword properties
-and child normalization. It produces those same native elements, so an
-author can mix both styles within one component:
+`sigil.compose` exposes those same native factories and types, with `row()`
+and `column()` as small shortcuts for a box's flow direction. Properties
+use native fluent methods; `.children([...])` supplies composed elements:
 
 ```python
 from sigil.native import compose as raw
@@ -27,12 +27,22 @@ from sigil.compose import row, text
 
 mark = raw.box().width(12).height(12).fill("#8bd0bd")
 caption = text("Observing", size=14)
-panel = row(mark, caption, gap=8, align_items="center")
+panel = (
+    row()
+    .gap(8)
+    .alignItems("center")
+    .children(
+        [
+            mark,
+            caption,
+        ]
+    )
+)
 ```
 
 There is one element type and no separate Python node model to keep in
-sync. A direct fluent call can continue a convenience-built element, and
-a convenience builder can accept a directly bound element. `_sigil` is
+sync. `box`, `text`, `graphics`, `memo`, `layout`, `stack` and `positioned`
+are the direct bound factories, including their native overloads. `_sigil` is
 the extension's implementation module; application code uses the public
 package paths.
 
@@ -49,8 +59,8 @@ Python contract, rather than maintaining a second renderer.
 The wheel includes type declarations for the direct bindings and authoring
 helpers, with a `py.typed` marker for editors. Builders return native
 `Element` values; material factories return native paints. Supported input
-forms use unions and overloads, keyword properties have named types, and
-memo builders preserve the type of their model. Decorating a sketch retains
+forms use unions and overloads, fluent methods retain their native signatures,
+and memo builders preserve the type of their model. Decorating a sketch retains
 its class type.
 
 Annotate the parameters of your own callbacks so an editor knows which
@@ -61,8 +71,10 @@ from sigil.compose import Element, text
 from sigil.draw import Pen
 from sigil.sketch import SketchContext, sketch
 
+
 def caption(label: str) -> Element:
     return text(label, size=18, color="#e8eef2")
+
 
 @sketch(size=(640, 420))
 class Hello:
@@ -321,7 +333,7 @@ launch the same native application:
 uv init my-sketches
 cd my-sketches
 uv python pin 3.14
-uv add /path/to/sigil_sketch-0.1.0a6-cp314-cp314-macosx_26_0_arm64.whl
+uv add /path/to/sigil_sketch-0.1.0a8-cp314-cp314-macosx_26_0_arm64.whl
 uv add numpy
 uv run sigil open sketch.py --sketchbook /path/to/Sketchbook
 ```
@@ -566,24 +578,46 @@ from sigil.sketch import sketch
 
 
 def metric(label, value, accent):
-    return column(
-        text(label, size=13, color="#92a4b6"),
-        text(value, size=42, color=accent),
-        gap=10, padding=24, fill="#1b2735", corners=16, grow=1,
-        opacity=entrance(0, 1, duration=0.6),
+    return (
+        column()
+        .gap(10)
+        .padding(24)
+        .fill("#1b2735")
+        .corners(16)
+        .grow(1)
+        .opacity(entrance(0, 1, duration=0.6))
+        .children(
+            [
+                text(label, size=13, color="#92a4b6"),
+                text(value, size=42, color=accent),
+            ]
+        )
     )
 
 
 @sketch(size=(800, 320), background="#101923", capture_at=1.0)
 class Metrics:
     def setup(self, ctx):
-        readings = [("RESONANCE", "0.86", "#e5b677"),
-                    ("COHERENCE", "94%", "#8bc9bc")]
-        ctx.render(column(
-            text("Field observations", size=28),
-            row((metric(*reading) for reading in readings), gap=16),
-            padding=32, gap=24, absolute=True, inset=0,
-        ))
+        readings = [("RESONANCE", "0.86", "#e5b677"), ("COHERENCE", "94%", "#8bc9bc")]
+        ctx.render(
+            (
+                column()
+                .padding(32)
+                .gap(24)
+                .absolute()
+                .inset(0)
+                .children(
+                    [
+                        text("Field observations", size=28),
+                        (
+                            row()
+                            .gap(16)
+                            .children([metric(*reading) for reading in readings])
+                        ),
+                    ]
+                )
+            )
+        )
 ```
 
 The description is submitted once. Its entrance motion is evaluated
@@ -592,37 +626,26 @@ model can submit another tree with `ctx.render(...)`. Keys match elements
 across those descriptions, and native transition declarations animate a
 property when its described target changes.
 
-`box`, `row` and `column` accept native elements, strings, `None`, and
-nested ordered iterables as children. Strings become text, `None` is
-omitted, and lists and generators flatten in order. Call component
-functions explicitly: the result is already a native element, with no
-Python node tree or second renderer to synchronize.
+Create an element, state its properties, then give it children:
+`column().gap(12).children([heading(), body()])`. `row()` is
+`box().row()` and `column()` is `box().column()`. Constructors do not take
+layout or styling keywords. Fluent methods keep their native names, such
+as `.alignItems("center")`, `.fontSize(18)` and `.translateY(12)`.
 
-Keyword properties spell the common native setters in Python form:
+Children are an ordered sequence of native elements. Use a list comprehension
+for repeated children, `*items` to include another list, and ordinary Python
+conditions to include optional content. Strings become elements explicitly
+with `text(...)`; nested lists and `None` are not children. Components remain
+ordinary functions returning an `Element`.
 
-| Properties | Values |
-| --- | --- |
-| `width`, `height` | canvas units or a percentage string |
-| `gap`, `left`, `top`, `inset`, `grow` | numbers |
-| `padding` | one number or a tuple of two or four numbers |
-| `corners` | one number or four corner radii |
-| `fill`, `ink` | a hex color string or a normalized RGB/RGBA tuple; `fill` also takes a native material paint |
-| `absolute` | boolean |
-| `align_items`, `justify` | a supported alignment name |
-| `key` | a stable string |
-| `font_size`, `font_weight` | numbers |
-| `opacity`, `rotate`, `scale`, `scale_x`, `scale_y`, `translate_x`, `translate_y` | numbers or native motion declarations |
-
-Text takes `text(value, size=None, color=None, **properties)`; omitted size
-and color inherit from its container. Font selection follows the host's
-native font context. Explicit retained
-drawings use `graphics(program, key="identity", **properties)`.
+Text supports `text(value, size=None, color=None)` and `text(value, style)`
+with a native `TextStyle`. Omitted size and color inherit from its container.
+Font selection follows the host's native font context. Explicit retained
+drawings use `graphics("identity", program)` followed by fluent properties.
 The graphics key identifies its paint program as well as its node:
 reusing it across descriptions promises an equivalent program. A drawing
 that changes can read model state on its sketch instance; a replacement
 closure that captures different values needs a different graphics key.
-Properties outside the supported subset raise a `TypeError`; misspelled
-names suggest a close supported spelling.
 
 The builders return the actual native `Element` type. Native fluent
 methods are available on that object, and `copy()` creates another native
@@ -631,9 +654,34 @@ fresh component call or `copy()` before changing a reused description.
 Descriptions already submitted to the native composer retain its
 copy-on-write behavior.
 
+## Compose inside Draw
+
+`pen.element(tree, (x, y, width, height), index=...)` places a retained native
+composition on the pen's current canvas. Pen transforms and clipping apply.
+Each Python call site identifies a retained guest; use a stable `index` when
+that call site places several independent trees in a loop. The guest retains
+its own layout and motion state across frames.
+
+```python
+from sigil.compose import box, text
+from sigil.draw import Pen
+
+stamp = box().padding(8).fill("#356c69").children([text("Aa", size=24)])
+
+
+def paint(pen: Pen) -> None:
+    for index in range(3):
+        pen.element(stamp, (20 + index * 100, 20, 80, 60), index=index)
+```
+
+A custom brush tip receives a pen too and can call the same method.
+`python_compose_stamps.py` shows both placement and a brush built from a
+Compose tree. For a dense brush of identical static marks, render the mark
+to an image and reuse it; a retained layout per dab has additional work.
+
 ## Memo, layouts and specimen kits
 
-`memo(properties, describe, key=...)` uses the native reconciler. Its
+`memo(properties, describe).key("identity")` uses the native reconciler. Its
 properties must support `copy.deepcopy` and equality; the description
 captures a copied model and the current native environment. The builder
 is a pure function of those values. A changed closure alone does not
@@ -642,7 +690,7 @@ the memo's description shell.
 
 Stock layouts are native values from `sigil.compose.layouts`: `Grid`,
 `Radial`, `AlongPath`, `Diagonal`, `BaselineGrid` and `Jittered`. Pass one to
-`layout(scheme, *children, **properties)`. Grid tracks use `px`, `content`,
+`layout(scheme).children([...])`. Grid tracks use `px`, `content`,
 `fr` and `minmax`, with named areas or child-owned cells. Relative text
 lengths belong to `sigil.weave`; parent and percentage dimensions belong
 to `sigil.compose`.
@@ -710,10 +758,19 @@ def wash(accent):
 
 
 def card(title, detail, accent):
-    return column(
-        text(title, size=26),
-        text(detail, size=14),
-        gap=14, padding=24, corners=16, ink="#ffffff", fill=wash(accent),
+    return (
+        column()
+        .gap(14)
+        .padding(24)
+        .corners(16)
+        .ink("#ffffff")
+        .fill(wash(accent))
+        .children(
+            [
+                text(title, size=26),
+                text(detail, size=14),
+            ]
+        )
     )
 ```
 

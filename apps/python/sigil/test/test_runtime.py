@@ -44,20 +44,48 @@ class Runtime(unittest.TestCase):
 
     def test_composer_queries_are_owned_and_slot_replacement_is_native(self):
         self.render(
-            """
-            import builtins
-            from sigil.compose import box, slot
-            from sigil.sketch import sketch
-            @sketch(size=(80, 48), capture_at=0)
-            class Queries:
-                def setup(self, ctx):
-                    ctx.composer.render(box(slot("replace"), key="root"))
-                    ctx.composer.renderSlot("replace", box(width=32, height=24, fill="#abcdef", key="replacement", hit_testable=True))
-                def update(self, elapsed, ctx):
-                    if elapsed > 1 / 60:
-                        bounds = ctx.composer.bounds("replacement")
-                        builtins._sigil_runtime = (ctx.composer, bounds, ctx.composer.hitTest((8, 8)), ctx.composer.stats(), ctx.composer.settling("missing"))
-        """,
+            """import builtins
+from sigil.compose import box, slot
+from sigil.sketch import sketch
+
+
+@sketch(size=(80, 48), capture_at=0)
+class Queries:
+    def setup(self, ctx):
+        ctx.composer.render(
+            (
+                box()
+                .key("root")
+                .children(
+                    [
+                        slot("replace"),
+                    ]
+                )
+            )
+        )
+        ctx.composer.renderSlot(
+            "replace",
+            (
+                box()
+                .width(32)
+                .height(24)
+                .fill("#abcdef")
+                .key("replacement")
+                .hitTestable(True)
+            ),
+        )
+
+    def update(self, elapsed, ctx):
+        if elapsed > 1 / 60:
+            bounds = ctx.composer.bounds("replacement")
+            builtins._sigil_runtime = (
+                ctx.composer,
+                bounds,
+                ctx.composer.hitTest((8, 8)),
+                ctx.composer.stats(),
+                ctx.composer.settling("missing"),
+            )
+""",
             at=0.05,
         )
         composer, bounds, hit, stats, settling = builtins._sigil_runtime
@@ -70,24 +98,25 @@ class Runtime(unittest.TestCase):
 
     def test_assets_return_owned_values_and_checked_views(self):
         self.render(
-            """
-            import builtins
-            from sigil.compose import box
-            from sigil.sketch import sketch
-            @sketch(size=(20, 20), capture_at=0)
-            class Resources:
-                def setup(self, ctx):
-                    hub = ctx.assets.hub()
-                    uri = ctx.local("hello.txt")
-                    text = hub.text(uri)
-                    blob = hub.blob(uri)
-                    info = hub.probe(uri)
-                    names = hub.select(ctx.local("*.txt"))
-                    missing = ctx.assets.image(ctx.local("missing.png"))
-                    builtins._sigil_runtime = (ctx.assets, hub, text, blob, info, names, missing)
-                    assert hub.text(ctx.local("absent.txt")) is None
-                    ctx.render(box())
-        """,
+            """import builtins
+from sigil.compose import box
+from sigil.sketch import sketch
+
+
+@sketch(size=(20, 20), capture_at=0)
+class Resources:
+    def setup(self, ctx):
+        hub = ctx.assets.hub()
+        uri = ctx.local("hello.txt")
+        text = hub.text(uri)
+        blob = hub.blob(uri)
+        info = hub.probe(uri)
+        names = hub.select(ctx.local("*.txt"))
+        missing = ctx.assets.image(ctx.local("missing.png"))
+        builtins._sigil_runtime = (ctx.assets, hub, text, blob, info, names, missing)
+        assert hub.text(ctx.local("absent.txt")) is None
+        ctx.render(box())
+""",
             files={"hello.txt": "resource value"},
         )
         assets, hub, text, blob, info, names, image = builtins._sigil_runtime
@@ -102,49 +131,67 @@ class Runtime(unittest.TestCase):
             hub.text("anything")
 
     def test_context_measure_snapshot_and_deterministic_values(self):
-        self.render("""
-            import builtins
-            from sigil.compose import box, picture
-            from sigil.sketch import sketch
-            @sketch(size=(60, 40), capture_at=0)
-            class Measured:
-                def setup(self, ctx):
-                    tree = box(box(width=24, height=18, fill="#ff3300"))
-                    size = ctx.measure(tree)
-                    snapshot = ctx.snapshot(tree)
-                    builtins._sigil_runtime = (size, snapshot, ctx.measured(17), ctx.measured(17, 4))
-                    ctx.render(picture(snapshot, 24, 18))
-        """)
+        self.render("""import builtins
+from sigil.compose import box, picture
+from sigil.sketch import sketch
+
+
+@sketch(size=(60, 40), capture_at=0)
+class Measured:
+    def setup(self, ctx):
+        tree = box().children(
+            [
+                (box().width(24).height(18).fill("#ff3300")),
+            ]
+        )
+        size = ctx.measure(tree)
+        snapshot = ctx.snapshot(tree)
+        builtins._sigil_runtime = (
+            size,
+            snapshot,
+            ctx.measured(17),
+            ctx.measured(17, 4),
+        )
+        ctx.render(picture(snapshot, 24, 18))
+""")
         size, snapshot, pinned, custom = builtins._sigil_runtime
         self.assertEqual((size.width(), size.height()), (24, 18))
         self.assertIsNotNone(snapshot)
         self.assertEqual((pinned, custom), (0, 4))
 
     def test_context_and_views_reject_foreign_thread(self):
-        self.render("""
-            import builtins
-            from threading import Thread
-            from sigil.compose import box
-            from sigil.sketch import sketch
-            @sketch(size=(20, 20), capture_at=0)
-            class Threads:
-                def setup(self, ctx):
-                    views = [ctx, ctx.composer, ctx.assets, ctx.assets.hub(), ctx.ticker]
-                    operations = [lambda: ctx.elapsed, views[1].stats, views[2].root,
-                                  lambda: views[3].text("missing"), views[4].elapsed]
-                    errors = []
-                    def worker():
-                        for operation in operations:
-                            try:
-                                operation()
-                            except RuntimeError as error:
-                                errors.append(str(error))
-                    thread = Thread(target=worker)
-                    thread.start()
-                    thread.join()
-                    builtins._sigil_runtime = errors
-                    ctx.render(box())
-        """)
+        self.render("""import builtins
+from threading import Thread
+from sigil.compose import box
+from sigil.sketch import sketch
+
+
+@sketch(size=(20, 20), capture_at=0)
+class Threads:
+    def setup(self, ctx):
+        views = [ctx, ctx.composer, ctx.assets, ctx.assets.hub(), ctx.ticker]
+        operations = [
+            lambda: ctx.elapsed,
+            views[1].stats,
+            views[2].root,
+            lambda: views[3].text("missing"),
+            views[4].elapsed,
+        ]
+        errors = []
+
+        def worker():
+            for operation in operations:
+                try:
+                    operation()
+                except RuntimeError as error:
+                    errors.append(str(error))
+
+        thread = Thread(target=worker)
+        thread.start()
+        thread.join()
+        builtins._sigil_runtime = errors
+        ctx.render(box())
+""")
         self.assertEqual(len(builtins._sigil_runtime), 5)
         self.assertTrue(
             all("sketch thread" in error for error in builtins._sigil_runtime)

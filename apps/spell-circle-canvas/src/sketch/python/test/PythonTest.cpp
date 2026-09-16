@@ -515,8 +515,7 @@ TEST(SketchPython, AStoredElementDoesNotKeepItsSketchAliveAfterTeardown) {
                "class Study:\n"
                "    def setup(self, ctx):\n"
                "        ctx.canvas(80, 60)\n"
-               "        self.node = graphics(self.draw, key='loop', width=80, "
-               "height=60)\n"
+               "        self.node = graphics('loop', self.draw).size(80, 60)\n"
                "        ctx.render(self.node)\n"
                "        builtins._sigil_callback_owner = weakref.ref(self)\n"
                "    def draw(self, pen):\n"
@@ -572,7 +571,7 @@ TEST(SketchPython, AGlobalGraphicsCallbackDoesNotKeepItsGenerationAlive) {
                "builtins._sigil_generation_owner = weakref.ref(owner)\n"
                "def draw(pen):\n"
                "    pass\n"
-               "GLOBAL = graphics(draw, key='global')\n"
+               "GLOBAL = graphics('global', draw)\n"
                "class Study:\n"
                "    def setup(self, ctx):\n"
                "        ctx.render(GLOBAL)\n");

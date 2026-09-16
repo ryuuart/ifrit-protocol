@@ -38,33 +38,51 @@ READINGS = [
 
 
 def metric(label, value, detail, accent, level, index):
-    return column(
-        row(
-            box(width=7, height=7, corners=4, fill=accent),
-            text(label, size=12, color=MUTED),
-            gap=8,
-            align_items="center",
-        ),
-        text(value, size=46, color=INK),
-        box(
-            box(
-                width=f"{level * 100}%",
-                height=3,
-                fill=accent,
-                scale_x=entrance(0.02, 1, duration=0.9, delay=index * 0.12),
-            ),
-            height=3,
-            fill="#324153",
-        ),
-        text(detail, size=12, color=MUTED),
-        padding=23,
-        gap=15,
-        grow=1,
-        corners=16,
-        fill=PANEL,
-        key=label,
-        opacity=entrance(0, 1, duration=0.6, delay=index * 0.1),
-        translate_y=entrance(12, 0, duration=0.6, delay=index * 0.1),
+    return (
+        column()
+        .padding(23)
+        .gap(15)
+        .grow(1)
+        .corners(16)
+        .fill(PANEL)
+        .key(label)
+        .opacity(entrance(0, 1, duration=0.6, delay=index * 0.1))
+        .translateY(entrance(12, 0, duration=0.6, delay=index * 0.1))
+        .children(
+            [
+                (
+                    row()
+                    .gap(8)
+                    .alignItems("center")
+                    .children(
+                        [
+                            (box().width(7).height(7).corners(4).fill(accent)),
+                            text(label, size=12, color=MUTED),
+                        ]
+                    )
+                ),
+                text(value, size=46, color=INK),
+                (
+                    box()
+                    .height(3)
+                    .fill("#324153")
+                    .children(
+                        [
+                            (
+                                box()
+                                .width(f"{level * 100}%")
+                                .height(3)
+                                .fill(accent)
+                                .scaleX(
+                                    entrance(0.02, 1, duration=0.9, delay=index * 0.12)
+                                )
+                            ),
+                        ]
+                    )
+                ),
+                text(detail, size=12, color=MUTED),
+            ]
+        )
     )
 
 
@@ -73,43 +91,75 @@ def signal_panel():
         0.26 + 0.52 * sin(i * 0.15 + 0.3) ** 2 + 0.13 * sin(i * 0.8) ** 2
         for i in range(48)
     ]
-    return column(
-        row(
-            column(
-                text("Signal envelope", size=22, color=INK),
-                text("A composed view of 48 observations", size=12, color=MUTED),
-                gap=6,
-            ),
-            text("NORMALIZED  /  0—1", size=11, color=MUTED),
-            justify="space_between",
-            align_items="center",
-        ),
-        row(
-            (
-                box(
-                    height=124 * sample + 8,
-                    grow=1,
-                    corners=3,
-                    fill="#8bd0bd" if i < 32 else "#edbb83",
-                    key=f"sample.{i}",
-                    scale_y=entrance(0.03, 1, duration=0.7, delay=0.2 + i * 0.01),
-                )
-                for i, sample in enumerate(samples)
-            ),
-            height=136,
-            gap=7,
-            align_items="end",
-        ),
-        row(
-            text("00:00", size=11, color=MUTED),
-            text("00:24", size=11, color=MUTED),
-            text("00:48", size=11, color=MUTED),
-            justify="space_between",
-        ),
-        padding=25,
-        gap=22,
-        corners=16,
-        fill=PANEL,
+    return (
+        column()
+        .padding(25)
+        .gap(22)
+        .corners(16)
+        .fill(PANEL)
+        .children(
+            [
+                (
+                    row()
+                    .justify("space_between")
+                    .alignItems("center")
+                    .children(
+                        [
+                            (
+                                column()
+                                .gap(6)
+                                .children(
+                                    [
+                                        text("Signal envelope", size=22, color=INK),
+                                        text(
+                                            "A composed view of 48 observations",
+                                            size=12,
+                                            color=MUTED,
+                                        ),
+                                    ]
+                                )
+                            ),
+                            text("NORMALIZED  /  0—1", size=11, color=MUTED),
+                        ]
+                    )
+                ),
+                (
+                    row()
+                    .height(136)
+                    .gap(7)
+                    .alignItems("end")
+                    .children(
+                        [
+                            (
+                                box()
+                                .height(124 * sample + 8)
+                                .grow(1)
+                                .corners(3)
+                                .fill("#8bd0bd" if i < 32 else "#edbb83")
+                                .key(f"sample.{i}")
+                                .scaleY(
+                                    entrance(
+                                        0.03, 1, duration=0.7, delay=0.2 + i * 0.01
+                                    )
+                                )
+                            )
+                            for i, sample in enumerate(samples)
+                        ]
+                    )
+                ),
+                (
+                    row()
+                    .justify("space_between")
+                    .children(
+                        [
+                            text("00:00", size=11, color=MUTED),
+                            text("00:24", size=11, color=MUTED),
+                            text("00:48", size=11, color=MUTED),
+                        ]
+                    )
+                ),
+            ]
+        )
     )
 
 
@@ -117,39 +167,84 @@ def signal_panel():
 class Dashboard:
     def setup(self, ctx: SketchContext) -> None:
         ctx.render(
-            column(
-                row(
-                    column(
-                        text("FIELD NOTES    /    002", size=12, color=MUTED),
-                        text("A quiet instrument", size=36, color=INK),
-                        gap=10,
+            column()
+            .padding(44)
+            .gap(24)
+            .absolute()
+            .inset(0)
+            .children(
+                [
+                    (
+                        row()
+                        .justify("space_between")
+                        .alignItems("center")
+                        .children(
+                            [
+                                (
+                                    column()
+                                    .gap(10)
+                                    .children(
+                                        [
+                                            text(
+                                                "FIELD NOTES    /    002",
+                                                size=12,
+                                                color=MUTED,
+                                            ),
+                                            text(
+                                                "A quiet instrument", size=36, color=INK
+                                            ),
+                                        ]
+                                    )
+                                ),
+                                (
+                                    row()
+                                    .padding(14, 10)
+                                    .gap(8)
+                                    .corners(14)
+                                    .fill("#203d3b")
+                                    .alignItems("center")
+                                    .children(
+                                        [
+                                            (
+                                                box()
+                                                .width(6)
+                                                .height(6)
+                                                .corners(3)
+                                                .fill("#8bd0bd")
+                                            ),
+                                            text("OBSERVING", size=11, color="#8bd0bd"),
+                                        ]
+                                    )
+                                ),
+                            ]
+                        )
                     ),
-                    row(
-                        box(width=6, height=6, corners=3, fill="#8bd0bd"),
-                        text("OBSERVING", size=11, color="#8bd0bd"),
-                        padding=(14, 10),
-                        gap=8,
-                        corners=14,
-                        fill="#203d3b",
-                        align_items="center",
+                    (box().height(1).fill("#2b3b4c")),
+                    (
+                        row()
+                        .gap(18)
+                        .children(
+                            [
+                                metric(**reading, index=i)
+                                for i, reading in enumerate(READINGS)
+                            ]
+                        )
                     ),
-                    justify="space_between",
-                    align_items="center",
-                ),
-                box(height=1, fill="#2b3b4c"),
-                row(
-                    (metric(**reading, index=i) for i, reading in enumerate(READINGS)),
-                    gap=18,
-                ),
-                signal_panel(),
-                row(
-                    text("Three readings. One continuous field.", size=12, color=MUTED),
-                    text("OBSERVATION 002", size=11, color=MUTED),
-                    justify="space_between",
-                ),
-                padding=44,
-                gap=24,
-                absolute=True,
-                inset=0,
+                    signal_panel(),
+                    (
+                        row()
+                        .justify("space_between")
+                        .children(
+                            [
+                                text(
+                                    "Three readings. One continuous field.",
+                                    size=12,
+                                    color=MUTED,
+                                ),
+                                text("OBSERVATION 002", size=11, color=MUTED),
+                            ]
+                        )
+                    ),
+                ]
             )
         )

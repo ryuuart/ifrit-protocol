@@ -74,23 +74,33 @@ class Authoring(unittest.TestCase):
         self.assertIsInstance(ctx.calls[-2][1], Element)
         self.assertEqual(ctx.calls[-1][0], "setup")
 
-    def test_nested_children_and_native_motion_share_one_element_type(self):
-        tree = column(
-            "A heading",
-            None,
-            [row(text(str(i)), box(width=20, height=8)) for i in range(2)],
-            (box(height=i + 1) for i in range(2)),
-            padding=(12, 18),
-            opacity=entrance(0, 1, duration=0.4),
+    def test_explicit_children_and_native_motion_share_one_element_type(self):
+        tree = (
+            column()
+            .padding(12, 18)
+            .opacity(entrance(0, 1, duration=0.4))
+            .children(
+                [
+                    text("A heading"),
+                    *[
+                        row().children([text(str(i)), box().size(20, 8)])
+                        for i in range(2)
+                    ],
+                    *[box().height(i + 1) for i in range(2)],
+                ]
+            )
         )
         self.assertIsInstance(tree, Element)
         self.assertIsInstance(tree.copy(), Element)
 
-    def test_raw_and_convenience_elements_mix_without_conversion(self):
+    def test_public_factories_are_native_and_elements_mix_without_conversion(self):
         self.assertIs(raw.Element, Element)
+        self.assertIs(raw.box, box)
+        self.assertIs(raw.text, text)
+        self.assertIs(raw.graphics, graphics)
         native = raw.box().width(24).height(12).fill("#8bd0bd")
         self.assertIs(native, native.width(36))
-        tree = row("Native beside convenient", native, gap=8)
+        tree = row().gap(8).children([text("Native composition"), native])
         self.assertIsInstance(tree, raw.Element)
         self.assertIs(tree, tree.gap(12))
         self.assertIs(native, native.opacity(0.5))
@@ -103,14 +113,30 @@ class Authoring(unittest.TestCase):
 from sigil.native import compose
 from sigil.sketch import sketch
 from sigil.weave import Type
+
+
 @sketch(size=(192, 64), capture_at=0, background="#000000")
 class Inheritance:
     def setup(self, ctx):
         font = Type()
         font.size = 30
-        labels = [compose.text("HI"), text("HI"), compose.text("HI", size=30, color="#ff0000")]
-        panels = [compose.box().width(64).height(64).children([label]) for label in labels]
-        ctx.render(compose.box().row().absolute().inset(0).font(font).ink("#ff0000").children(panels))
+        labels = [
+            compose.text("HI"),
+            text("HI"),
+            compose.text("HI", size=30, color="#ff0000"),
+        ]
+        panels = [
+            compose.box().width(64).height(64).children([label]) for label in labels
+        ]
+        ctx.render(
+            compose.box()
+            .row()
+            .absolute()
+            .inset(0)
+            .font(font)
+            .ink("#ff0000")
+            .children(panels)
+        )
 """)
             render_file(source, output, at=0)
             pixels = image.load(output).rgba()
@@ -125,29 +151,27 @@ class Inheritance:
             self.assertEqual(panels[1], panels[2])
             self.assertTrue(any(panels[2][::4]))
 
-    def test_invalid_children_and_recursive_collections_explain_the_input(self):
-        for value in (42, True, b"hello", {"label": "hello"}, {"unordered"}):
+    def test_children_accept_only_an_ordered_sequence_of_elements(self):
+        for value in (42, True, "hello", None, [text("nested")], {"label": "hello"}):
             with (
                 self.subTest(value=value),
-                self.assertRaisesRegex(TypeError, "children must"),
+                self.assertRaises(TypeError),
             ):
-                row(value)
-        recursive = []
-        recursive.append(recursive)
-        with self.assertRaisesRegex(ValueError, "recursive collection"):
-            column(recursive)
+                row().children([value])
 
-    def test_unknown_property_suggests_the_supported_name(self):
-        with self.assertRaisesRegex(TypeError, "did you mean 'width'"):
-            box(wdith=30)
-        with self.assertRaisesRegex(TypeError, "absolute must"):
-            box(absolute="yes")
+    def test_constructors_keep_properties_and_children_explicit(self):
+        for constructor in (box, row, column):
+            with self.subTest(constructor=constructor):
+                with self.assertRaises(TypeError):
+                    constructor(width=30)
+                with self.assertRaises(TypeError):
+                    constructor(text("child"))
+        with self.assertRaises(AttributeError):
+            box().wdith(30)
 
     def test_invalid_graphics_are_rejected_at_authorship_boundary(self):
-        with self.assertRaisesRegex(TypeError, "must be callable"):
-            graphics(None, key="drawing")
-        with self.assertRaisesRegex(ValueError, "nonempty string"):
-            graphics(lambda pen: None, key="")
+        with self.assertRaises(TypeError):
+            graphics("drawing", None)
 
     def test_invalid_canvas_metadata_fails_when_declared(self):
         for size in ((0, 100), (float("nan"), 100), (100, -2)):

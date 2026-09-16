@@ -98,6 +98,7 @@ if(SIGIL_BASEDPYRIGHT)
       --extra-path "${CMAKE_BINARY_DIR}/python"
       --example "${PROJECT_SOURCE_DIR}/src/sketch/sketches/python_hello.py"
       --example "${PROJECT_SOURCE_DIR}/src/sketch/sketches/python_hello_compose.py"
+      --example "${PROJECT_SOURCE_DIR}/src/sketch/sketches/python_compose_stamps.py"
       --example "${PROJECT_SOURCE_DIR}/src/sketch/sketches/python_live_signals.py"
       --example "${CMAKE_CURRENT_SOURCE_DIR}/sigil/examples/tools/send_live_signals.py")
 endif()

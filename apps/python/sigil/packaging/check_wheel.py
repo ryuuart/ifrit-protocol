@@ -15,13 +15,25 @@ from sigil.motion import Output, bind
 from sigil.sketch import kit
 from sigil.sketch import sketch
 
+
 def content(words):
     look = kit.theme()
-    return kit.well(column(
-        text(words[0], size=22, color=look.palette.ink),
-        marks.line(length=160, thickness=24, fill=look.palette.figure),
-        gap=16,
-    ), width=208, height=128, padding=16)
+    return kit.well(
+        (
+            column()
+            .gap(16)
+            .children(
+                [
+                    text(words[0], size=22, color=look.palette.ink),
+                    marks.line(length=160, thickness=24, fill=look.palette.figure),
+                ]
+            )
+        ),
+        width=208,
+        height=128,
+        padding=16,
+    )
+
 
 @sketch(size=(240, 160), background="#142333", capture_at=0.5)
 class InstalledSketch:
@@ -33,7 +45,19 @@ class InstalledSketch:
         alpha = Output(1)
         with kit.provide(look):
             tree = memo(("Installed Sigil",), content)
-        ctx.render(box(tree, absolute=True, inset=16, opacity=bind(alpha)))
+        ctx.render(
+            (
+                box()
+                .absolute()
+                .inset(16)
+                .opacity(bind(alpha))
+                .children(
+                    [
+                        tree,
+                    ]
+                )
+            )
+        )
 """
 
 
@@ -149,6 +173,7 @@ from sigil.motion import Output
 from sigil.native import compose, data as native_data, io as native_io, motion, sketch
 from sigil.sketch import kit as sketch_kit
 from sigil.sketch import render_file
+
 root = pathlib.Path(sys.prefix).resolve()
 assert pathlib.Path(sigil.__file__).resolve().is_relative_to(root)
 assert pathlib.Path(_sigil.__file__).resolve().is_relative_to(root)
@@ -176,6 +201,8 @@ io.registerUdp(hub)
 listener = hub.feed("udp://:0")
 assert listener.opened(), listener.error()
 peer = hub.feed("udp://127.0.0.1:" + listener.address().rsplit(":", 1)[1])
+
+
 def receive(feed):
     deadline = time.monotonic() + 10
     while time.monotonic() < deadline:
@@ -184,6 +211,8 @@ def receive(feed):
             return arrival
         time.sleep(0.005)
     raise AssertionError("Installed SigilIO loopback did not receive its message")
+
+
 try:
     assert peer.send(encoded), peer.error()
     arrival = receive(listener)

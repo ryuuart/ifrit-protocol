@@ -67,6 +67,16 @@ ATTRIBUTES["_sigil.weave.Type.textTransform"] = "TextTransform | None"
 ATTRIBUTES["_sigil.weave.Type.verticalForm"] = "VerticalForm | None"
 returns("_sigil.weave.Type", "features", "list[FontFeature] | None")
 returns("_sigil.weave.Type", "variations", "list[FontVariation]")
+for field in ("size", "track", "wordSpacing"):
+    signatures(
+        "_sigil.weave.Type",
+        field,
+        f"""@property
+def {field}(self) -> Length | None: ...
+@{field}.setter
+def {field}(self, value: Length | float | int | None) -> None: ...
+""",
+    )
 PARAMETERS["_sigil.weave.Type.features"] = {
     "arg1": "collections.abc.Sequence[FontFeature] | None"
 }
@@ -131,7 +141,12 @@ erased("_sigil.compose.SurfacePaint", "__init__", "_t.SurfacePaintLike")
 erased("_sigil.compose", "shadow", "_t.ColorLike", "_t.PointLike")
 erased("_sigil.compose", "shape", "_t.ShapeLike")
 erased("_sigil.compose", "stroke", "_t.SurfacePaintLike")
-erased("_sigil.compose", "text", "_t.FloatLike | None", "_t.ColorLike | None")
+erased(
+    "_sigil.compose",
+    "text",
+    "_t.FloatLike | _sigil.weave.Length | None",
+    "_t.ColorLike | None",
+)
 for name in ("pen", "graphics"):
     PARAMETERS[f"_sigil.compose.{name}"] = {"program": "_t.DrawCallback"}
 signatures(
@@ -497,6 +512,14 @@ def refine(module: str, tree: ast.Module) -> None:
                     )
                     continue
                 visit(node.body, path + "." + node.name, node.name)
+            elif (
+                isinstance(node, ast.AnnAssign)
+                and path + "." + show(node.target) in SIGNATURES
+            ):
+                output.extend(
+                    ast.parse(SIGNATURES[path + "." + show(node.target)]).body
+                )
+                continue
             elif isinstance(node, ast.AnnAssign) and show(node.annotation) == "tuple":
                 dim = 4 if path.endswith(".BoxOptions") else 3
                 name = show(node.target)

@@ -46,50 +46,60 @@ def board(*children):
 
 def bead(index, diameter=12):
     colors = (TEAL, TEAL, TEAL, RUST, GOLD)
-    return box(
-        width=diameter,
-        height=diameter,
-        corners=diameter / 2,
-        fill=colors[index % len(colors)],
-        shrink=0,
+    return (
+        box()
+        .width(diameter)
+        .height(diameter)
+        .corners(diameter / 2)
+        .fill(colors[index % len(colors)])
+        .shrink(0)
     )
 
 
 def radial():
     orbit = marks.ring((WIDTH / 2, HEIGHT / 2), 73, raw.stroke(0.8, "#b9bead"))
-    numbers = layout(
-        Radial(radiusFraction=0.71),
-        (
-            marks.centred(text(f"{i + 1:02}", size=10, color=TEAL))
-            .width(24)
-            .height(24)
-            .shrink(0)
-            for i in range(12)
-        ),
-        width=WIDTH,
-        height=HEIGHT,
+    numbers = (
+        layout(Radial(radiusFraction=0.71))
+        .width(WIDTH)
+        .height(HEIGHT)
+        .children(
+            [
+                marks.centred(text(f"{i + 1:02}", size=10, color=TEAL))
+                .width(24)
+                .height(24)
+                .shrink(0)
+                for i in range(12)
+            ]
+        )
     )
     core = marks.centred(text("360°", size=27, color=TEAL)).width(WIDTH).height(HEIGHT)
     return board(orbit, numbers, core)
 
 
 def diagonal():
-    steps = layout(
-        Diagonal(skewDeg=-14, gap=8),
-        (
-            row(
-                box(width=4, height=19, fill=RUST),
-                text(word, size=11, color="#f7f1e5"),
-                gap=12,
-                width=194,
-                height=22,
-                align_items="center",
-                fill=TEAL,
-            )
-            for word in ("ORIGIN", "MEASURE", "OFFSET", "REPEAT", "RESOLVE")
-        ),
-        width=234,
-        height=150,
+    steps = (
+        layout(Diagonal(skewDeg=-14, gap=8))
+        .width(234)
+        .height(150)
+        .children(
+            [
+                (
+                    row()
+                    .gap(12)
+                    .width(194)
+                    .height(22)
+                    .alignItems("center")
+                    .fill(TEAL)
+                    .children(
+                        [
+                            (box().width(4).height(19).fill(RUST)),
+                            text(word, size=11, color="#f7f1e5"),
+                        ]
+                    )
+                )
+                for word in ("ORIGIN", "MEASURE", "OFFSET", "REPEAT", "RESOLVE")
+            ]
+        )
     )
     return board(marks.at(steps, 62, 29, 234, 150))
 
@@ -97,36 +107,43 @@ def diagonal():
 def along_path():
     curve = PathBuilder().moveTo(26, 160).cubicTo(94, -13, 226, 231, 328, 51).detach()
     guide = (
-        box(width=WIDTH, height=HEIGHT)
+        (box().width(WIDTH).height(HEIGHT))
         .shape(curve)
         .fill(None)
         .stroke(raw.stroke(1.2, "#a5b4a2"))
     )
-    samples = layout(
-        AlongPath(path=curve), (bead(i) for i in range(22)), width=WIDTH, height=HEIGHT
+    samples = (
+        layout(AlongPath(path=curve))
+        .width(WIDTH)
+        .height(HEIGHT)
+        .children([bead(i) for i in range(22)])
     )
     return board(guide, samples)
 
 
 def baseline():
     guides = marks.ladder(count=5, pitch=28, fill="#c4c6b6").width(296)
-    verse = layout(
-        BaselineGrid(rhythm=28, gap=4),
-        text("Light", size=30, color=TEAL),
-        text("through the", size=16, color="#72766c"),
-        text("leaves.", size=29, color=RUST),
-        width=296,
-        height=154,
+    verse = (
+        layout(BaselineGrid(rhythm=28, gap=4))
+        .width(296)
+        .height(154)
+        .children(
+            [
+                text("Light", size=30, color=TEAL),
+                text("through the", size=16, color="#72766c"),
+                text("leaves.", size=29, color=RUST),
+            ]
+        )
     )
     return board(marks.at(guides, 28, 28, 296, 140), marks.at(verse, 28, 28, 296, 154))
 
 
 def jittered():
-    seeds = layout(
-        Jittered(seed=37, jitter=0.82),
-        (bead(i, 8 + (i % 4) * 4) for i in range(35)),
-        width=302,
-        height=164,
+    seeds = (
+        layout(Jittered(seed=37, jitter=0.82))
+        .width(302)
+        .height(164)
+        .children([bead(i, 8 + (i % 4) * 4) for i in range(35)])
     )
     return board(marks.at(seeds, 25, 25, 302, 164))
 
@@ -134,15 +151,22 @@ def jittered():
 def captured_palette(properties):
     look = kit.theme()
     colors = (look.palette.ink, look.palette.figure, look.palette.rule)
-    swatches = row(
-        (box(width=72, height=84, fill=color, corners=3) for color in colors), gap=10
+    swatches = (
+        row()
+        .gap(10)
+        .children(
+            [(box().width(72).height(84).fill(color).corners(3)) for color in colors]
+        )
     )
     return (
         marks.centred(
-            column(
-                swatches,
-                text(properties[0], size=11, color=look.palette.ink),
-                gap=18,
+            column()
+            .gap(18)
+            .children(
+                [
+                    swatches,
+                    text(properties[0], size=11, color=look.palette.ink),
+                ]
             )
         )
         .width(WIDTH)
