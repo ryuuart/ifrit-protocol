@@ -219,7 +219,7 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
     uint32_t overflowWord = ~0u;
     size_t lastIntervalUsed = SIZE_MAX;
     const size_t firstRun = result.runs.size();
-    bool outOfBudget = false;
+    bool outOfCandidates = false;
     // A block whose lines this thread has already decided the ends of, for
     // these words at this measure under this setting, is placed from that
     // decision: deciding is the expensive half of composing a paragraph and
@@ -240,8 +240,8 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
     } else if (optimizing)
       knuthPlassBlock(fontContext, paragraph, intervalSequence, block,
                       nextInterval, result, lastIntervalUsed, overflowWord,
-                      outOfBudget);
-    // WHAT A DEGRADE ACTUALLY DROPS. The composer ran out of budget on
+                      outOfCandidates);
+    // WHAT A DEGRADE ACTUALLY DROPS. The breaker ran out of candidates on
     // this block, so the frame is set greedily rather than late — and
     // greedily means the whole setting, not the breaker alone. The
     // controls that cost a frame something go with it: the hyphens (a
@@ -252,9 +252,9 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
     // cannot see, which means shaping past its own end). The keeps that
     // cost nothing — orphans, keep-with-next, all-lines-together — are
     // enforced as they always are. Everything is back the next frame the
-    // budget is met.
+    // floor is met.
     const Block* setFrom = &block;
-    if (outOfBudget) {
+    if (outOfCandidates) {
       ++result.degradedBlocks;
       overflowWord = ~0u;
       cheapBlocks.push_back(block);
@@ -271,7 +271,7 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
       cheap.style.keep.widowLines = 0;
       setFrom = &cheap;
     }
-    if ((!optimizing && !kept) || outOfBudget)
+    if ((!optimizing && !kept) || outOfCandidates)
       lastIntervalUsed =
           greedyBlock(fontContext, paragraph, intervalSequence, *setFrom,
                       nextInterval, result, overflowWord);

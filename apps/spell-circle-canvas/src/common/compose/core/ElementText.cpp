@@ -122,10 +122,10 @@ Element& Element::distribute(sigil::weave::FrameOptions::Distribute rule,
   return *this;
 }
 
-Element& Element::live(bool on, float budgetMicroseconds) {
+Element& Element::live(bool on, int candidates) {
   detail::TextOptions& options = m_node->textData.ensure().options;
   options.live = on;
-  options.budgetMicroseconds = budgetMicroseconds;
+  options.candidates = candidates;
   options.set |= detail::TextOptions::kLive;
   return *this;
 }
@@ -184,7 +184,7 @@ void detail::TextOptions::applyTo(
   if (set & kFrame) options.frame = frame;
   if (set & kLive) {
     options.live = live;
-    options.knuthPlass.budgetMicroseconds = budgetMicroseconds;
+    options.knuthPlass.candidates = candidates;
   }
   if (set & kReserved) options.reserved = reserved;
 }

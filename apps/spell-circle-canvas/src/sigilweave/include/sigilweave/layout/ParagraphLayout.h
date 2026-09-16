@@ -71,10 +71,10 @@ struct ParagraphLayout {
   /// An overflow marker from ParagraphLayoutOptions::overflow was appended
   /// to the final placed line. Its run is the last in `runs`.
   bool ellipsized = false;
-  /// How many blocks the optimizing breaker ran out of budget on and left
-  /// to the greedy breaker (KnuthPlassOptions::budgetMicroseconds). Zero
-  /// whenever no budget was set, and the number a caller watches to know
-  /// its budget is too short for the text it is setting.
+  /// How many blocks the optimizing breaker ran out of candidates on and
+  /// left to the greedy breaker (KnuthPlassOptions::candidates). Zero
+  /// whenever no floor was set, and the number a caller watches to know
+  /// its floor is too low for the text it is setting.
   int degradedBlocks = 0;
   /// How many blocks were set from break decisions this thread had already
   /// made for the same words at the same measure, under

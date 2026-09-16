@@ -246,7 +246,7 @@ catalogue of those values.
 
 | Seam | What it decides | Reached through |
 |---|---|---|
-| **Break decision** | where lines end — the breaker, its demerits, which hyphenation points it takes, how far it may spend on justification, and the budget past which it gives up for a frame | `LineBreakStrategy`, `KnuthPlassOptions`, `HyphenationOptions`, `JustificationOptions` |
+| **Break decision** | where lines end — the breaker, its demerits, which hyphenation points it takes, how far it may spend on justification, and the count of break candidates past which it gives up for a frame | `LineBreakStrategy`, `KnuthPlassOptions`, `HyphenationOptions`, `JustificationOptions` |
 | **Line placement** | where a line's words sit — the intervals a geometry hands back for a band, the indents that inset them, the tab stops inside them, the edge a character may hang past, and where a frame seats its first baseline | `FlowGeometry`, `IndentOptions`, `TabStop`, `HangingTable`, `FrameOptions` |
 | **Strut** | a block's pitch — its leading mode, and every band something set beside the type reserved | `Leading`, `ReservedBand` |
 | **Story** | the shaped-once text and where a fill stopped, so the next frame begins there | `Story`, `Paragraph`, `layoutParagraph`'s resume word, `ParagraphLayout::firstUnplacedWord` |

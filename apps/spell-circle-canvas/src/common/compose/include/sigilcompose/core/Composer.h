@@ -54,7 +54,7 @@ struct Beat;
  *
  *  A text told its input is moving keeps its break decisions and reuses
  *  them, and this is what a frame actually got for that: how many blocks
- *  came out of the store, and how many the composer's budget forced to the
+ *  came out of the store, and how many the breaker's floor forced to the
  *  greedy breaker. It is a REPORT about one input, not a verdict about the
  *  node — the runtime holds one proof that a node has settled, and folds
  *  this into it beside everything else the node reads. */
@@ -67,10 +67,11 @@ struct TextSettling {
   /// `live`, a frame that reused every block of its passage did no
   /// composing at all.
   int reused = 0;
-  /// Blocks the budget forced to the greedy breaker. A degrade drops the
-  /// whole setting — the hyphens, the justification passes past the word
-  /// gaps, the widow rule — for that frame alone, and the leaf lays out
-  /// again so the setting comes back the frame the budget is met.
+  /// Blocks the floor forced to the greedy breaker — the count of break
+  /// candidates `Element::live` carries. A degrade drops the whole
+  /// setting — the hyphens, the justification passes past the word gaps,
+  /// the widow rule — for that frame alone, and the leaf lays out again so
+  /// the setting comes back the frame the floor is met.
   int degraded = 0;
   bool operator==(const TextSettling&) const = default;
 };

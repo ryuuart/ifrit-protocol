@@ -49,7 +49,7 @@ std::u8string threeSentences() {
 /** Two blocks, the second after a hard break. */
 std::u8string twoBlocks() {
   return u8"First block runs on for several words so that it wraps here.\n"
-      u8"Second block does the same and wraps as well over here.";
+         u8"Second block does the same and wraps as well over here.";
 }
 
 /** Distinct baselines of a keyed text node's placed lines, ascending. */
@@ -68,8 +68,8 @@ std::vector<float> baselinesOf(Host& host, const char* key) {
 
 TEST(ComposeParagraphs, ABlockStyleOpensThePitchTheLeafSetsIt) {
   Host plain(360, 300);
-  plain.composer.render(box().children(
-      {text(passage(), whiteStyle(14)).key("t").width(200.0f)}));
+  plain.composer.render(
+      box().children({text(passage(), whiteStyle(14)).key("t").width(200.0f)}));
   plain.frame();
   const std::vector<float> tight = baselinesOf(plain, "t");
 
@@ -115,10 +115,8 @@ TEST(ComposeParagraphs, OneEntryStylesTheFirstBlockAndLeavesTheRestPlain) {
 
 TEST(ComposeUnits, EveryUnitASelectorAddressesIsReportedOnce) {
   Host host(400, 300);
-  host.composer.render(
-      box().children({text(u8"alpha beta gamma", whiteStyle(16))
-                          .key("t")
-                          .width(360.0f)}));
+  host.composer.render(box().children(
+      {text(u8"alpha beta gamma", whiteStyle(16)).key("t").width(360.0f)}));
   host.frame();
   const std::vector<TextUnit> words = host.composer.units(
       "t", sigil::weave::selectors::each(sigil::weave::Unit::Word),
@@ -143,8 +141,8 @@ TEST(ComposeUnits, AUnitReportsOnEveryLineItLandedOn) {
   // selector over a wrapped passage reports one entry per line, never one
   // rect spanning the break.
   Host host(300, 300);
-  host.composer.render(box().children(
-      {text(passage(), whiteStyle(14)).key("t").width(160.0f)}));
+  host.composer.render(
+      box().children({text(passage(), whiteStyle(14)).key("t").width(160.0f)}));
   host.frame();
   const std::vector<TextUnit> lines = host.composer.units(
       "t", sigil::weave::selectors::each(sigil::weave::Unit::Line),
@@ -158,10 +156,8 @@ TEST(ComposeUnits, AUnitReportsOnEveryLineItLandedOn) {
 
 TEST(ComposeUnits, AnUnknownKeyAndAnEmptySelectionAnswerEmpty) {
   Host host(300, 200);
-  host.composer.render(
-      box().children({text(u8"alpha beta", whiteStyle(16))
-                          .key("t")
-                          .width(280.0f)}));
+  host.composer.render(box().children(
+      {text(u8"alpha beta", whiteStyle(16)).key("t").width(280.0f)}));
   host.frame();
   EXPECT_TRUE(
       host.composer
@@ -185,16 +181,12 @@ TEST(ComposeUnits, ASiblingAnnotationPlacesOneElementPerUnit) {
              .left(20.0f)
              .top(40.0f)
              .width(360.0f),
-         kit::annotate(host.composer, "t",
-                       sigil::weave::selectors::each(sigil::weave::Unit::Word),
-                       sigil::weave::Unit::Word,
-                       {.side = kit::Beside::Side::After, .gap = 4.0f},
-                       [] {
-                         return box()
-                             .width(6.0f)
-                             .height(6.0f)
-                             .fill(green());
-                       })
+         kit::annotate(
+             host.composer, "t",
+             sigil::weave::selectors::each(sigil::weave::Unit::Word),
+             sigil::weave::Unit::Word,
+             {.side = kit::Beside::Side::After, .gap = 4.0f},
+             [] { return box().width(6.0f).height(6.0f).fill(green()); })
              .absolute()
              .inset(0, 0, 0, 0)});
   };
@@ -236,15 +228,10 @@ TEST(ComposeUnits, AnAnchoredObjectStandsWhereTheOffsetPutsIt) {
              .left(80.0f)
              .top(40.0f)
              .width(300.0f),
-         kit::annotate(host.composer, "t",
-                       sigil::weave::selectors::text(u8"gamma"),
-                       sigil::weave::Unit::Word, anchored,
-                       [] {
-                         return box()
-                             .width(6.0f)
-                             .height(6.0f)
-                             .fill(green());
-                       })
+         kit::annotate(
+             host.composer, "t", sigil::weave::selectors::text(u8"gamma"),
+             sigil::weave::Unit::Word, anchored,
+             [] { return box().width(6.0f).height(6.0f).fill(green()); })
              .absolute()
              .inset(0, 0, 0, 0)});
   };
@@ -257,9 +244,8 @@ TEST(ComposeUnits, AnAnchoredObjectStandsWhereTheOffsetPutsIt) {
   host.composer.render(describe(fromFrame));
   host.frame();
 
-  const std::vector<TextUnit> words =
-      host.composer.units("t", sigil::weave::selectors::text(u8"gamma"),
-                          sigil::weave::Unit::Word);
+  const std::vector<TextUnit> words = host.composer.units(
+      "t", sigil::weave::selectors::text(u8"gamma"), sigil::weave::Unit::Word);
   ASSERT_EQ(words.size(), 1u);
   const SkRect& word = words.front().rect;
   const auto frame = host.composer.bounds("t");
@@ -285,14 +271,14 @@ TEST(ComposeTypeset, ANestedStyleCoversTheWordsItCountsAndStops) {
   const kit::NestedStyle opening{.until = kit::NestedStyle::Until::Words,
                                  .count = 3,
                                  .style = colouredType(16, SK_ColorGREEN)};
-  host.composer.render(box().children(
-      {text(u8"alpha beta gamma delta epsilon", whiteStyle(16))
-           .key("t")
-           .absolute()
-           .left(20.0f)
-           .top(40.0f)
-           .width(360.0f)
-           .spanStyle(kit::nestedRun(opening), opening.style)}));
+  host.composer.render(
+      box().children({text(u8"alpha beta gamma delta epsilon", whiteStyle(16))
+                          .key("t")
+                          .absolute()
+                          .left(20.0f)
+                          .top(40.0f)
+                          .width(360.0f)
+                          .spanStyle(kit::nestedRun(opening), opening.style)}));
   host.frame();
   const std::vector<TextUnit> words = host.composer.units(
       "t", sigil::weave::selectors::each(sigil::weave::Unit::Word),
@@ -404,8 +390,8 @@ TEST(ComposeAnnotate, AReservingReadingOpensThePitchBeforeTheBaseIsBroken) {
     return lines.empty() ? 0.0f : lines.front().pitch;
   };
   Host bare(400, 400);
-  bare.composer.render(box().children(
-      {text(passage(), whiteStyle(16)).key("t").width(220.0f)}));
+  bare.composer.render(
+      box().children({text(passage(), whiteStyle(16)).key("t").width(220.0f)}));
   bare.frame();
 
   Host read(400, 400);
@@ -429,8 +415,8 @@ TEST(ComposeAnnotate, AReadingThatReservesNothingLeavesThePitchAlone) {
     return lines.empty() ? 0.0f : lines.front().pitch;
   };
   Host bare(400, 400);
-  bare.composer.render(box().children(
-      {text(passage(), whiteStyle(16)).key("t").width(220.0f)}));
+  bare.composer.render(
+      box().children({text(passage(), whiteStyle(16)).key("t").width(220.0f)}));
   bare.frame();
 
   Host marked(400, 400);
@@ -475,8 +461,8 @@ TEST(ComposeAnnotate, ReserveIsWhatOpensTheBaseLineBox) {
     return pitchOf(host);
   };
   Host bare(400, 400);
-  bare.composer.render(box().children(
-      {text(passage(), whiteStyle(16)).key("t").width(220.0f)}));
+  bare.composer.render(
+      box().children({text(passage(), whiteStyle(16)).key("t").width(220.0f)}));
   bare.frame();
 
   Host over(400, 400), reserved(400, 400);
@@ -495,15 +481,9 @@ TEST(ComposeStory, EachFrameFillsFromWhereTheOneBeforeItStopped) {
                                   .add(u8" ")
                                   .add(passage()));
   Host host(500, 300);
-  host.composer.render(box().row().children({frame(article)
-                                                 .key("a")
-                                                 .thread("b")
-                                                 .width(160.0f)
-                                                 .height(60.0f),
-                                             frame(article)
-                                                 .key("b")
-                                                 .width(160.0f)
-                                                 .height(200.0f)}));
+  host.composer.render(box().row().children(
+      {frame(article).key("a").thread("b").width(160.0f).height(60.0f),
+       frame(article).key("b").width(160.0f).height(200.0f)}));
   host.frame();
   const std::vector<TextUnit> first = host.composer.units(
       "a", sigil::weave::selectors::each(sigil::weave::Unit::Word),
@@ -531,16 +511,9 @@ TEST(ComposeStory, ANarrowerFirstFrameMovesTheCut) {
                                     .add(u8" ")
                                     .add(passage()));
     Host host(500, 300);
-    host.composer.render(
-        box().row().children({frame(article)
-                                  .key("a")
-                                  .thread("b")
-                                  .width(measure)
-                                  .height(60.0f),
-                              frame(article)
-                                  .key("b")
-                                  .width(160.0f)
-                                  .height(200.0f)}));
+    host.composer.render(box().row().children(
+        {frame(article).key("a").thread("b").width(measure).height(60.0f),
+         frame(article).key("b").width(160.0f).height(200.0f)}));
     host.frame();
     const std::vector<TextUnit> second = host.composer.units(
         "b", sigil::weave::selectors::each(sigil::weave::Unit::Word),
@@ -623,22 +596,27 @@ TEST(ComposeBoundary, GlyphsHandTheDecorationsTheLettersInsteadOfTheBox) {
 namespace {
 
 /** A passage long enough that a frame of it is worth composing — past the
- *  stride the optimizing breaker reads its budget on, so a starved block
- *  can notice it has run out. */
+ *  break position the optimizing breaker tests its floor at, so a starved
+ *  block can notice it has run out. */
 std::u8string longPassage() {
   std::u8string out;
   for (int i = 0; i < 30; ++i) out += passage() + u8" ";
   return out;
 }
 
+/** A floor the breaker meets on the passage above with room to spare, in
+ *  break candidates: a block of it weighs a couple of thousand at these
+ *  measures. */
+constexpr int kMetFloor = 20000;
+
 /** One frame of a live passage at `measure`, reporting what it cost. */
-TextSettling settlingAt(Host& host, float measure, float budget) {
+TextSettling settlingAt(Host& host, float measure, int candidates) {
   host.composer.render(box().children(
       {text(longPassage(), whiteStyle(13))
            .key("t")
            .width(measure)
            .block({.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})
-           .live(true, budget)}));
+           .live(true, candidates)}));
   host.frame();
   return host.composer.settling("t");
 }
@@ -652,7 +630,7 @@ TEST(ComposeLiveText, ABoundMeasureRelaysEveryFrameWithoutGrowingTheTree) {
   const std::vector<float> sweep = {320, 330, 340, 350, 360, 370, 380};
   std::vector<int> lineCounts;
   for (const float measure : sweep) {
-    settlingAt(host, measure, 0.0f);
+    settlingAt(host, measure, 0);
     const sigil::weave::ParagraphLayout* layout =
         host.composer.paragraphLayout("t");
     ASSERT_NE(layout, nullptr);
@@ -667,10 +645,10 @@ TEST(ComposeLiveText, ABoundMeasureRelaysEveryFrameWithoutGrowingTheTree) {
   // against the first frame, because the first run of a sweep is also the
   // one that warms the caches a settled measure is then answered from.
   for (int pass = 0; pass < 3; ++pass)
-    for (const float measure : sweep) settlingAt(host, measure, 0.0f);
+    for (const float measure : sweep) settlingAt(host, measure, 0);
   const Composer::Stats warm = host.composer.stats();
   for (int pass = 0; pass < 3; ++pass)
-    for (const float measure : sweep) settlingAt(host, measure, 0.0f);
+    for (const float measure : sweep) settlingAt(host, measure, 0);
   const Composer::Stats after = host.composer.stats();
   EXPECT_EQ(after.instances, warm.instances);
   EXPECT_EQ(after.picturesLive, warm.picturesLive);
@@ -678,7 +656,7 @@ TEST(ComposeLiveText, ABoundMeasureRelaysEveryFrameWithoutGrowingTheTree) {
 
   // …and a measure it has already crossed costs no break decision at all:
   // the block is answered from decisions this thread already has.
-  const TextSettling seen = settlingAt(host, sweep.front(), 0.0f);
+  const TextSettling seen = settlingAt(host, sweep.front(), 0);
   EXPECT_TRUE(seen.live);
   EXPECT_GT(seen.reused, 0);
   EXPECT_EQ(seen.degraded, 0);
@@ -735,7 +713,7 @@ TEST(ComposeLiveText, AnInheritingPassageSettlesExactlyAsATotalOneDoes) {
                .width(measure)
                .block(
                    {.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass})
-               .live(true, 1.0f)}));
+               .live(true, 1)}));
       host.frame();
       answers.push_back(host.composer.settling("t"));
     }
@@ -748,20 +726,20 @@ TEST(ComposeLiveText, AnInheritingPassageSettlesExactlyAsATotalOneDoes) {
     EXPECT_TRUE(total[i] == inheriting[i]) << "frame " << i;
     EXPECT_TRUE(total[i].live);
     EXPECT_EQ(total[i].reused, 0) << "a degraded frame stores nothing";
-    EXPECT_EQ(total[i].degraded, 1) << "one block, over a 1 us budget";
+    EXPECT_EQ(total[i].degraded, 1) << "one block, over a floor of one";
   }
 }
 
 TEST(ComposeLiveText, ADegradedFrameIsProvisionalAndTheSettingComesBack) {
   Host host(600, 500);
-  // A budget no composer can meet: the block is filled greedily for that
+  // A floor no breaker can meet: the block is filled greedily for that
   // frame and says so.
-  const TextSettling starved = settlingAt(host, 340.0f, 1.0f);
+  const TextSettling starved = settlingAt(host, 340.0f, 1);
   EXPECT_TRUE(starved.live);
   EXPECT_GT(starved.degraded, 0);
-  // …and a budget it can meet gets the setting back, at the same measure,
+  // …and a floor it can meet gets the setting back, at the same measure,
   // because a degrade never held the layout as the answer for it.
-  const TextSettling fed = settlingAt(host, 340.0f, 1.0e6f);
+  const TextSettling fed = settlingAt(host, 340.0f, kMetFloor);
   EXPECT_EQ(fed.degraded, 0);
 }
 
@@ -773,15 +751,9 @@ namespace {
 void twoFrames(Host& host, float measure = 160.0f) {
   sigil::weave::Story article(
       sigil::weave::rich(whiteStyle(13)).add(longPassage()));
-  host.composer.render(box().row().children({frame(article)
-                                                 .key("a")
-                                                 .thread("b")
-                                                 .width(measure)
-                                                 .height(70.0f),
-                                             frame(article)
-                                                 .key("b")
-                                                 .width(measure)
-                                                 .height(400.0f)}));
+  host.composer.render(box().row().children(
+      {frame(article).key("a").thread("b").width(measure).height(70.0f),
+       frame(article).key("b").width(measure).height(400.0f)}));
   host.frame();
 }
 
@@ -800,22 +772,15 @@ TEST(ComposeStory, ABalancedRunHoldsTheStoryDownToTheLineItWasGiven) {
   const sigil::weave::Story article{words, whiteStyle(12)};
   Host host(600, 500);
   const uint32_t through = 5;
-  host.composer.render(box().row().children({frame(article)
-                                                 .key("a")
-                                                 .thread("b")
-                                                 .width(120.0f)
-                                                 .height(200.0f)
-                                                 .balanceChain(through),
-                                             frame(article)
-                                                 .key("b")
-                                                 .thread("c")
-                                                 .width(120.0f)
-                                                 .height(200.0f),
-                                             frame(article)
-                                                 .key("c")
-                                                 .width(120.0f)
-                                                 .height(200.0f)
-                                                 .balanceChain()}));
+  host.composer.render(box().row().children(
+      {frame(article)
+           .key("a")
+           .thread("b")
+           .width(120.0f)
+           .height(200.0f)
+           .balanceChain(through),
+       frame(article).key("b").thread("c").width(120.0f).height(200.0f),
+       frame(article).key("c").width(120.0f).height(200.0f).balanceChain()}));
   host.frame();
   host.frame();  // the first draw has no fill to balance against
 
@@ -911,10 +876,9 @@ TEST(ComposeLineTables, TsumeClosesTheGapsBetweenFullWidthCharacters) {
   // A passage set with it is narrower than the same passage without.
   const auto widthWith = [](float tsume) {
     Host host(400, 300);
-    Element leaf =
-        text(u8"あいうえお、かきくけこ。さしすせそ", whiteStyle(20))
-            .key("t")
-            .width(360.0f);
+    Element leaf = text(u8"あいうえお、かきくけこ。さしすせそ", whiteStyle(20))
+                       .key("t")
+                       .width(360.0f);
     if (tsume != 0)
       leaf.block({.mojikumi = sigil::weave::MojikumiTable{}, .tsume = tsume});
     host.composer.render(box().children({std::move(leaf)}));
@@ -941,17 +905,10 @@ TEST(ComposeStory, BeatsSpanTheChainOnOneMasterProgress) {
     track.progress = 0.5f;
     return track;
   };
-  host.composer.render(box().row().children({frame(article)
-                                                 .key("a")
-                                                 .thread("b")
-                                                 .width(160.0f)
-                                                 .height(70.0f)
-                                                 .fx(reveal()),
-                                             frame(article)
-                                                 .key("b")
-                                                 .width(160.0f)
-                                                 .height(400.0f)
-                                                 .fx(reveal())}));
+  host.composer.render(box().row().children(
+      {frame(article).key("a").thread("b").width(160.0f).height(70.0f).fx(
+           reveal()),
+       frame(article).key("b").width(160.0f).height(400.0f).fx(reveal())}));
   host.frame();
   const std::vector<Beat> first = host.composer.beatsOf("a", 0);
   const std::vector<Beat> second = host.composer.beatsOf("b", 0);
@@ -1016,11 +973,9 @@ TEST(ComposeFrameOptions, DistributeSpendsTheRoomLeftOverDownAStoryFrame) {
     Host host(360, 400);
     sigil::weave::Story article(
         sigil::weave::rich(whiteStyle(14)).add(passage()));
-    host.composer.render(box().children({frame(article)
-                                             .key("t")
-                                             .width(200.0f)
-                                             .height(300.0f)
-                                             .distribute(rule)}));
+    host.composer.render(box().children(
+        {frame(article).key("t").width(200.0f).height(300.0f).distribute(
+            rule)}));
     host.frame();
     return baselinesOf(host, "t");
   };
@@ -1084,28 +1039,34 @@ TEST(ComposeJustification, WhatALeafIsToldAboutJustificationReachesTheLayout) {
 
 // ── What a live passage's last layout cost ──────────────────────────────
 
+/** A floor the swell's block meets at every measure in its range, with
+ *  room to spare, in break candidates: a block of this passage weighs a
+ *  few hundred anywhere in that range. */
+constexpr int kSweptFloor = 4000;
+
 /** A passage whose measure swells from 150 px to 230 px and back, drawn at
  *  every whole pixel, then set once more at @p endAt — and what
  *  `Composer::settling` reports about that last frame. */
-TextSettling sweptSettling(bool live, float budgetMicroseconds, float endAt) {
+TextSettling sweptSettling(bool live, int candidates, float endAt) {
   Host host(280, 320);
   const auto step = [&](float measure) {
-    // Said twice: the budget is read once every eighth of the block's
-    // words, so a block has to carry enough of them for the search to be
-    // still running at its second reading.
+    // Said twice: the floor is tested once per break position, so a block
+    // has to carry enough of them for the search to be still running at
+    // the second one.
     Element leaf =
-        text(u8"A measure that animates is one input of a run of layouts "
-                    u8"rather than a question somebody asked once, and the block "
-                    u8"that knows so keeps the break decisions it has already "
-                    u8"made. A measure that animates is one input of a run of "
-                    u8"layouts rather than a question somebody asked once, and "
-                    u8"the block that knows so keeps the break decisions it has "
-                    u8"already made.",
-             whiteStyle(11.5f))
+        text(
+            u8"A measure that animates is one input of a run of layouts "
+            u8"rather than a question somebody asked once, and the block "
+            u8"that knows so keeps the break decisions it has already "
+            u8"made. A measure that animates is one input of a run of "
+            u8"layouts rather than a question somebody asked once, and "
+            u8"the block that knows so keeps the break decisions it has "
+            u8"already made.",
+            whiteStyle(11.5f))
             .key("para")
             .width(measure)
             .block({.lineBreak = sigil::weave::LineBreakStrategy::kKnuthPlass});
-    if (live) leaf.live(true, budgetMicroseconds);
+    if (live) leaf.live(true, candidates);
     host.composer.render(box().padding(10).children({std::move(leaf)}));
     host.frame();
   };
@@ -1120,32 +1081,48 @@ TEST(ComposeSettling, AMeasureAlreadyCrossedCostsNoBreakDecision) {
   // words and on the measure taken to the whole pixel below it. A swell
   // that has run the whole range and comes back to a measure inside it
   // therefore decides nothing — and the report says so, at either end.
-  const TextSettling narrow = sweptSettling(true, 4000.0f, 150.0f);
+  const TextSettling narrow = sweptSettling(true, kSweptFloor, 150.0f);
   EXPECT_TRUE(narrow.live);
   EXPECT_GT(narrow.reused, 0);
   EXPECT_EQ(narrow.degraded, 0);
-  const TextSettling wide = sweptSettling(true, 4000.0f, 230.0f);
+  const TextSettling wide = sweptSettling(true, kSweptFloor, 230.0f);
   EXPECT_TRUE(wide.live);
   EXPECT_GT(wide.reused, 0);
   EXPECT_EQ(wide.degraded, 0);
 }
 
 TEST(ComposeSettling, APassageThatNeverSaidItMovesStoresNothing) {
-  const TextSettling settled = sweptSettling(false, 0.0f, 230.0f);
+  const TextSettling settled = sweptSettling(false, 0, 230.0f);
   EXPECT_FALSE(settled.live);
   EXPECT_EQ(settled.reused, 0);
   EXPECT_EQ(settled.degraded, 0);
 }
 
-TEST(ComposeSettling, ABudgetNothingCanMeetDegradesAndSaysSo) {
-  // The floor under a frame the optimizing breaker cannot finish in time:
-  // the block is filled greedily for that frame and counted. A budget is
-  // read DURING the search, so a block shorter than whatever stride the
-  // search reads it at would otherwise never read it at all — which is
-  // every ordinary paragraph.
-  const TextSettling starved = sweptSettling(true, 1.0f, 230.0f);
+TEST(ComposeSettling, AFloorNothingCanMeetDegradesAndSaysSo) {
+  // The floor under a frame the optimizing breaker cannot finish: the
+  // block is filled greedily for that frame and counted. The floor is
+  // tested DURING the search, at each break position, so a block of one
+  // position is never stopped by one — and a floor of one stops every
+  // block longer than that.
+  const TextSettling starved = sweptSettling(true, 1, 230.0f);
   EXPECT_TRUE(starved.live);
   EXPECT_GT(starved.degraded, 0);
+}
+
+TEST(ComposeSettling, TheSameSwellRunTwiceReportsTheSameSettling) {
+  // WHAT A SWELL REPORTS IS A FACT ABOUT THE TEXT AND THE MEASURE. How
+  // many candidates a block weighs is decided by its words and the
+  // measure it is set in, so the floor is met or missed the same way on
+  // every run — and a block that meets it puts its break decisions in the
+  // store every later step of the swell is answered from, which is why
+  // one block deciding differently would change the whole report and the
+  // whole setting. Run under the floor nothing can meet, which is where a
+  // floor spent against a clock raced.
+  const TextSettling first = sweptSettling(true, 1, 230.0f);
+  const TextSettling second = sweptSettling(true, 1, 230.0f);
+  EXPECT_EQ(first.reused, second.reused);
+  EXPECT_EQ(first.degraded, second.degraded);
+  EXPECT_EQ(first.live, second.live);
 }
 
 // ── The kit's hanging list ──────────────────────────────────────────────
@@ -1161,7 +1138,7 @@ TEST(KitBullets, TheMarkerKeepsTheRoomTheIndentOpened) {
   constexpr float kHang = 24.0f;
   const std::array<std::u8string, 1> items = {
       u8"First line long enough that this item wraps, and a second that "
-             u8"carries on under it."};
+      u8"carries on under it."};
   const std::array<std::u8string, 1> markers = {std::u8string()};
   Host host(300, 160);
   host.composer.render(box().padding(0).children({kit::bullets(
@@ -1198,8 +1175,7 @@ TEST(ComposeAnnotate, ABrokenBaseSharesOneReadingAndShiftsNothingAfterIt) {
            .annotate(kit::ruby(
                sigil::weave::selectors::each(sigil::weave::Unit::Sentence),
                sigil::weave::Unit::Sentence,
-               {u8"one", u8"two two two", u8"three"}, reading,
-               2.0f))}));
+               {u8"one", u8"two two two", u8"three"}, reading, 2.0f))}));
   host.frame();
 
   const std::vector<TextUnit> units = host.composer.units(
@@ -1227,7 +1203,7 @@ TEST(ComposeAnnotate, ABrokenBaseSharesOneReadingAndShiftsNothingAfterIt) {
 }
 
 // A COMPOSING PASSAGE IS NEVER PROVEN STILL. A live block that had to
-// DECIDE a break this frame, or that the budget DEGRADED, may be set
+// DECIDE a break this frame, or that the floor DEGRADED, may be set
 // differently the next frame with no number on this node changing — which
 // is precisely what no memo can see — so the layout reports it and the
 // volatility pass keeps the node out of the cache. The frame it answers
@@ -1248,7 +1224,7 @@ TEST(ComposeLiveText,
   // Cache::None above it so the leaf is visited every frame; without that
   // a settled node paints once into an ancestor's recording and never
   // appears in the profile at all.
-  const auto frameAt = [&](float measure, float budget) {
+  const auto frameAt = [&](float measure, int candidates) {
     host.composer.render(
         box()
             .cache(Cache::None)
@@ -1258,7 +1234,7 @@ TEST(ComposeLiveText,
                      .width(measure)
                      .block({.lineBreak =
                                  sigil::weave::LineBreakStrategy::kKnuthPlass})
-                     .live(true, budget)}));
+                     .live(true, candidates)}));
     host.frame();
     return host.composer.settling("t");
   };
@@ -1266,7 +1242,7 @@ TEST(ComposeLiveText,
   // A measure this thread has not settled before: every block is decided,
   // nothing is reused, and the node paints live for as long as that holds.
   for (int i = 0; i < 3; ++i) {
-    const TextSettling composing = frameAt(340.0f, 0.0f);
+    const TextSettling composing = frameAt(340.0f, 0);
     EXPECT_EQ(composing.reused, 0);
     EXPECT_EQ(composing.degraded, 0);
     EXPECT_EQ(stateOfT(), Composer::CacheState::Live);
@@ -1275,19 +1251,19 @@ TEST(ComposeLiveText,
   // Move off the measure and back, and the block is answered from the
   // decisions the store now holds: reuse with no degrade is the frame the
   // node stops composing, and it is cached from that frame.
-  frameAt(360.0f, 0.0f);
+  frameAt(360.0f, 0);
   for (int i = 0; i < 3; ++i) {
-    const TextSettling settled = frameAt(340.0f, 0.0f);
+    const TextSettling settled = frameAt(340.0f, 0);
     EXPECT_GT(settled.reused, 0);
     EXPECT_EQ(settled.degraded, 0);
     EXPECT_EQ(stateOfT(), Composer::CacheState::Picture);
   }
 
-  // A budget no composer can meet degrades the block, which is
+  // A floor no breaker can meet degrades the block, which is
   // provisional by construction — so the node is out of the cache again on
   // exactly the frames that report it.
   for (int i = 0; i < 2; ++i) {
-    const TextSettling starved = frameAt(340.0f, 1.0f);
+    const TextSettling starved = frameAt(340.0f, 1);
     EXPECT_GT(starved.degraded, 0);
     EXPECT_EQ(stateOfT(), Composer::CacheState::Live);
   }

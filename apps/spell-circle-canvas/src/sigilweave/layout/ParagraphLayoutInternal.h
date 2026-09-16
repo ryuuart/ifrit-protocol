@@ -476,7 +476,7 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
                      IntervalSequence& intervalSequence, const Block& block,
                      size_t firstInterval, ParagraphLayout& result,
                      size_t& lastIntervalUsed, uint32_t& overflowWord,
-                     bool& outOfBudget);
+                     bool& outOfCandidates);
 
 // THE INITIAL LETTER THIS PASS IS SETTING: what the sizing rule answered,
 // the glyphs it shaped, and the pen travel it takes out of the head of each

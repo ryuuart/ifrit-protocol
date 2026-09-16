@@ -693,21 +693,31 @@ no value memo can see.
 greedily for that frame alone and the setting the caller asked for is
 still what the passage wants, so a host holding the layout must not treat
 it as the answer for that measure: the next frame asks again, and
-everything is back the frame the budget is met. SigilCompose's text leaf
+everything is back the frame the floor is met. SigilCompose's text leaf
 does exactly that — it drops the measure the degraded layout was held
 for, so the leaf lays out again.
 
-**The floor under a frame that cannot be composed in time.**
-`KnuthPlassOptions::budgetMicroseconds` is a degrade and not a policy: a
-block the composer cannot finish inside it is filled greedily for that
-frame and counted in `ParagraphLayout::degradedBlocks`. A degrade drops
-the whole setting and not the breaker alone — the hyphens, the
-justification passes past the word gaps, and the widow rule (the one keep
-that has to count lines the frame cannot see) go with it, while the keeps
-that cost nothing are enforced as always — and everything is back the next
-frame the budget is met. A layout that reports degrades every frame is
-asking for a longer budget or a shorter block, not for a different
-breaker.
+**The floor under a block the breaker cannot finish.**
+`KnuthPlassOptions::candidates` is a degrade and not a policy: a block the
+breaker cannot finish inside it is filled greedily for that frame and
+counted in `ParagraphLayout::degradedBlocks`. A degrade drops the whole
+setting and not the breaker alone — the hyphens, the justification passes
+past the word gaps, and the widow rule (the one keep that has to count
+lines the frame cannot see) go with it, while the keeps that cost nothing
+are enforced as always — and everything is back the next frame the floor
+is met. A layout that reports degrades every frame is asking for a higher
+floor or a shorter block, not for a different breaker.
+
+**The floor is COUNTED AND NOT TIMED.** It is how many break candidates
+the breaker may weigh for one block — one candidate being one path in its
+active list carried to the break position under consideration and scored
+there — and never a stretch of clock. A stretch of clock would make
+whether a block is composed or filled a race with whatever else the
+machine is doing, and a won race changes what is drawn: a block that
+finishes puts its break decisions in the store, and every later frame at
+that measure is answered from them rather than composed. Counted, the
+same block at the same measure meets or misses its floor every time, so a
+capture of a moving passage is a function of the declaration alone.
 
 **The budget the arms hold.** `weave_bench` carries one arm per
 mechanism — the paragraph controls, hyphenation, the justification ranges,

@@ -692,8 +692,13 @@ pages are no part of the path its peers reach.
 
 A CHANNEL THAT CLOSES ENDS ITS PEER, and a peer whose connection found
 no route at all ends the same way — on the frame, a connection torn down
-inside its own callback being one that waits for itself. A SIGNAL THAT
-ENDS ENDS NO CONVERSATION, though: two ends that have found each other
+inside its own callback being one that waits for itself. AN END THAT
+TOOK A ROOM UP TAKES IT UP AGAIN where the conversation it had is over
+and it holds no other: it offers once when it opens, so a route that
+never came good would otherwise leave that feed standing with nobody at
+the other end of it, and the end waiting in the room answers the new
+offer as it answers a first one, retiring what it held for that caller.
+A SIGNAL THAT ENDS ENDS NO CONVERSATION, though: two ends that have found each other
 speak through nothing else, so a door whose signalling socket closed
 keeps every peer it has and only takes no new one. Closing the feed ends
 every connection and lets the signalling door go with it, and the last
@@ -986,17 +991,24 @@ scratch directory with OpenSSL and the call reaches the pair the way a
 machine on a stage is reached, and a case that could make no pair says so
 rather than passing — and whose `IOWebRtc` suite
 STARTS A PEER IN A PROCESS OF ITS OWN — this same binary, run again on
-the one case of `IOWebRtcPeer`, which takes the room up, keeps saying
-what its environment told it to say and echoes back whatever it hears —
-because a door with nothing in the middle of it has its two ends on two
-machines; one case holds both ends in this process on purpose, a dozen
-pairs over, since two ends inside one process share the one thread every
-end's routes are found on, and what that case asserts is the process
-still standing and the pairs carrying a message at all. It takes a port
-with a raw acceptor and gives it straight back to name one in the URI
-both ends spell, and dispatches on every look, an introduction crossing
-on the frame. Its peer case is skipped where no room was named for it,
-which is what a sweep of the whole binary does with it; and `SigilIO`, the umbrella over
+the one case of `IOWebRtcPeer`, which takes the room up, SAYS ON ITS OWN
+OUTPUT THAT IT IS UP, keeps saying what its environment told it to say
+and echoes back whatever it hears — because a door with nothing in the
+middle of it has its two ends on two machines. That line is read back
+off the process before anything is judged: a process starting is the
+machine's to answer for and the pairing after it is this transport's, so
+the two are waited on apart, generously and with no verdict on the
+first, and a peer that never came up stands its case down naming the
+machine while a pairing that does not come once both ends are up fails
+saying the transport did not make it. One case holds both ends in this
+process on purpose, a dozen pairs over, since two ends inside one
+process share the one thread every end's routes are found on, and what
+that case asserts is the process still standing and the pairs carrying a
+message at all. Every door in it opens on the port zero names and is
+dialled at the port it answers, so nothing here is guessed, and it
+dispatches on every look, an introduction crossing on the frame. Its
+peer case is skipped where no room was named for it, which is what a
+sweep of the whole binary does with it; and `SigilIO`, the umbrella over
 the source and the hub.
 
 There is one test binary, `io_test`, built from every feature's `test/`
