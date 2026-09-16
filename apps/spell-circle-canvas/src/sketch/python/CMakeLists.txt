@@ -25,7 +25,8 @@ target_include_directories(SigilSketchPython PRIVATE ${Python3_INCLUDE_DIRS})
 target_link_libraries(SigilSketchPython INTERFACE
   "$<$<NOT:$<BOOL:$<TARGET_PROPERTY:SIGIL_PYTHON_EXTENSION>>>:Python3::Python>")
 target_compile_definitions(SigilSketchPython PRIVATE
-  SIGIL_PYTHON_PACKAGE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+  SIGIL_PYTHON_PACKAGE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+  SIGIL_PYTHON_ABI="${Python3_SOABI}")
 
 # The same registration code is a built-in module in Sketchbook and an
 # extension in ordinary Python. Each process loads one native implementation.
@@ -38,6 +39,13 @@ set_target_properties(sigil_python PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python/$<0:>")
 if(APPLE)
   target_link_options(sigil_python PRIVATE "LINKER:-dead_strip_dylibs")
+  # Wheel repair resolves dependencies after installation. CMake omits
+  # in-tree link directories from the install rpath, so name vcpkg's path
+  # explicitly; repair copies the libraries and removes this search path.
+  if(DEFINED VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET)
+    set_property(TARGET sigil_python APPEND PROPERTY INSTALL_RPATH
+      "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib")
+  endif()
 endif()
 add_custom_target(sigil_python_package
   COMMAND ${CMAKE_COMMAND} -E rm -f
@@ -74,5 +82,6 @@ sigil_test(sketch_test
 add_test(NAME sketch_python_authoring
   COMMAND ${CMAKE_COMMAND} -E env
     "PYTHONPATH=${CMAKE_BINARY_DIR}/python"
+    "SIGIL_TEST_SKETCHBOOK=$<TARGET_FILE:Sketchbook>"
     ${Python3_EXECUTABLE} -m unittest discover
       -s "${CMAKE_CURRENT_SOURCE_DIR}/test" -p "test_*.py")

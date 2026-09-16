@@ -100,7 +100,7 @@ link Python. A native live host opts in by supplying its Python loader
 through `Host::Options::pythonLoader`. Sketchbook and the standalone
 renderer always supply that function. Both use the same module registration
 and canvas-session implementation. Sketchbook initializes the interpreter
-when it first loads a Python sketch.
+when it loads a Python sketch or checks a declared Python package requirement.
 
 A source build needs the native dependencies and toolchain configured for
 the application, plus Python 3.12 or newer with development headers and
@@ -134,6 +134,39 @@ images rendered by the installed CLI and by Python's isolated mode.
 
 ## Develop with Sketchbook
 
+Use Sketchbook's **Open → Open Sketch…** or **Open → Open Workspace…**
+picker to open sources outside the bundled catalogue. The app remembers
+recent files, workspace folders and each workspace's selected sketch; a
+normal launch restores the last opened location. A folder is the workspace,
+so there is no separate workspace document to create.
+
+For a Python project, Sketchbook finds its nearest `pyproject.toml` or
+`.venv`. It uses uv to synchronize a project's dependencies, or reuses an
+existing plain virtual environment. Preparation reports progress and errors
+in the opening window. Standalone sketches use the host's default Python.
+The project does not need to install `sigil-sketch` to draw in Sketchbook:
+the native application supplies its matching bindings and authoring code.
+An incompatible Python interpreter is rejected before the sketch runs.
+
+Each project opens in another window of the same C++ application, with one
+environment for that process. Reopen the project after changing installed
+dependencies; saving sketch code or local helpers still hot reloads the
+current session. A workspace scan leaves nested Python projects for their
+own windows and skips environment, cache and build directories.
+
+Bundled Python sketches appear in the Python collection and in the subject
+tree beside C++ sketches. Their module docstring supplies the description;
+`# TAGS:` lines supply subject paths. A root `.py` file or a directory
+entry `<name>/<name>.py` joins the registry on the next build. Registration
+reads metadata without executing the sketch; every session imports current
+source, including thumbnail and headless sessions.
+
+A sketch with optional installed modules can declare a literal tuple such
+as `REQUIRES = ("numpy",)`. The browser keeps the entry visible and marks
+it unavailable when a module cannot be found. Headless selections skip
+unavailable entries. This declaration checks availability; it does not
+install packages or choose an environment.
+
 The application's normal build setup includes Python support. From
 `apps/spell-circle-canvas`, build the host and standalone extension:
 
@@ -149,6 +182,41 @@ build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 
 build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
   src/sketch/sketches/python_dashboard.py
+```
+
+For terminal launching and standalone Python rendering, install the
+matching wheel into a uv project. `sigil open` remains an optional way to
+launch the same native application:
+
+```sh
+uv init my-sketches
+cd my-sketches
+uv python pin 3.14
+uv add /path/to/sigil_sketch-0.1.0a3-cp314-cp314-macosx_26_0_arm64.whl
+uv add numpy
+uv run sigil open sketch.py --sketchbook /path/to/Sketchbook
+```
+
+Use the actual wheel filename and the Python version it targets. Sketchbook
+is built or installed separately; the wheel provides the bindings,
+headless renderer and launcher. `--sketchbook` names the executable inside
+the application bundle on macOS. It can be omitted when `SIGIL_SKETCHBOOK`
+names that executable, `Sketchbook` is on `PATH`, or the native build is
+under a parent of the working directory or sketch. The launcher also checks
+the macOS Applications folders.
+
+The launcher checks the host's Python version, ABI and architecture before
+opening the window. The native host then uses the active environment's
+site packages, including its `.pth` files and editable installs. A process
+uses one Python environment; restart it after changing dependencies. The
+host supplies its own matching `sigil` package, so its bindings and
+authoring layer stay together. Python sketches and C++ sketches share the
+same catalogue, controls, rendering and live host.
+
+Native command arguments can follow `--`, including headless capture:
+
+```sh
+uv run sigil open sketch.py -- --frame preview.png
 ```
 
 Save the file while the window is open to replace its session. Each
@@ -367,6 +435,43 @@ A neutral `Caption` or `Sheet` can replace its native line part with a
 Python callable accepting no arguments, the text, or the text and props.
 The props passed to that callable are an owned native copy.
 
+## Authoring a Python kit
+
+A kit can be an ordinary Python module exporting component functions and
+paint factories. A component returns an `Element`; a paint factory returns
+a native `skia.Paint`. Both compose directly with the bound native kits:
+
+```python
+from sigil.compose import column, text
+from sigil.material import skia
+
+
+def wash(accent):
+    return skia.Paint.linearUnit((0, 0), (1, 1), [(0, accent), (1, "#172b36")])
+
+
+def card(title, detail, accent):
+    return column(
+        text(title, size=26),
+        text(detail, size=14),
+        gap=14, padding=24, corners=16, ink="#ffffff", fill=wash(accent),
+    )
+```
+
+Pass the returned card to `kit.page`, a layout, or another Python component.
+The native composer owns layout, text shaping, reconciliation and painting.
+Calling these factories describes values; it does not install a Python
+callback for every frame. Native motion and time-dependent shader paints
+continue running after description. A changed model submits another tree.
+
+For project-specific design data, ordinary arguments or dataclasses keep
+dependencies explicit. The bound specimen `Theme` has native inherited
+scope; arbitrary Python theme types do not automatically join that scope.
+Move reusable factories into a helper beside the sketch and import them
+normally; local helper changes participate in hot reload.
+
+`python_hello_compose` is a small complete example of this pattern.
+
 ## Motion and type values
 
 `Output(value)` is a shared native cell. Set its `.value` from model logic
@@ -424,8 +529,23 @@ Seeded pen streams and `sigil.core.chance` keep deterministic models in the
 same native random vocabulary.
 
 Use `pen.canvas().drawPath(...)` or `drawPoints(...)` to submit native
-batches. `sigil.skia` supplies paths, a path builder, path operations,
-points, rectangles, matrices, images and paints. The canvas expires with
+batches. `drawPoints` accepts point iterables or a contiguous native-endian
+float32 buffer with shape `(N, 2)` or an even-length flat buffer of x/y
+pairs. NumPy arrays can pass directly without creating Python tuples:
+
+```python
+import numpy as np
+from sigil.draw import PointMode
+
+points = np.empty((count * 2, 2), dtype=np.float32)
+# Fill alternating start and end points with NumPy array operations.
+pen.canvas().drawPoints(PointMode.Lines, points, pen.strokePaint())
+```
+
+The call copies the coordinates into native storage before drawing; the
+Python buffer can be reused after it returns. `sigil.skia` supplies paths,
+a path builder, path operations, points, rectangles, matrices, images and
+paints. The canvas expires with
 the drawing callback. `pen.fillPaint()` and `strokePaint()` return an owned
 paint copy, or `None` when that style is disabled. A four-number rectangle
 tuple means `(x, y, width, height)`.
@@ -452,6 +572,22 @@ recipes, shader programs and layered blends. Compile a shader once in setup
 and change a copy's uniforms when re-describing it. Native `uTime`,
 `uResolution` and `uContentScale` retain their frame meanings. A child paint
 fills a shader input through `slot`; it is the native material graph.
+
+A custom SkSL paint can also be authored in Python. Compile a shader through
+`sigil.skia.RuntimeEffect.MakeForShader`, keep that effect, and make paint
+instances with `skia.Paint.sksl(effect, uniforms)`. Reusing the compiled
+effect avoids compiling source on each description. Use a fresh instance
+or `paint.copy()` before changing uniform values or child slots on a shared
+paint.
+
+This surface does not expose the full native recipe-definition API, uniform
+blocks, material preset kit, SDF catalogue or texture/PBR catalogue. The
+generic material value returned by the bound field factories is opaque
+apart from copying and conversion into a paint or effect. Paint uniform
+setters currently take constant values; native frame uniforms animate
+shader paints, while effect uniforms can also take bound motion values.
+New backend-neutral recipes and unbound material catalogues still require
+C++ bindings.
 
 `sigil.image.from_rgba(buffer, width, height)` copies a contiguous RGBA byte
 buffer into an immutable native image. It accepts `bytearray`, `memoryview`
@@ -507,6 +643,8 @@ Render one with `sigil render --example NAME -o preview.png`.
 
 | Example | What it exercises |
 | --- | --- |
+| `python_hello` | A first drawing: a greeting, a moving circle and two constants to edit |
+| `python_hello_compose` | A first retained composition: Python component and paint factories, native themed page and entrance motion |
 | `python_kit_specimen` | Native page and captions, stock layouts, scoped theme and deferred memo |
 | `python_motion_signals` | Shared native outputs, ticker callbacks, binding chains and keyframe entrance |
 | `python_memo_station` | Retained model descriptions, memo invalidation and native motion |
@@ -515,7 +653,7 @@ Render one with `sigil render --example NAME -o preview.png`.
 | `python_liquid_glass` | Shader-driven refraction, nested shader inputs, moving field uniforms, Bezier filaments |
 | `python_botanical_study` | Layered natural media, native hatching and dry pigment |
 | `python_liquid_layers` | Pressure-shaped ribbons, wet fibres, pigment blooms and pattern materials |
-| `python_observable_flowfield` | Persistent particles and native batched line drawing |
+| `python_observable_flowfield` | NumPy vectorized angle field and packed line drawing; needs the `studies` extra |
 | `python_observable_l_system` | Python string rewriting, turtle stack and native geometry |
 | `python_observable_reynolds` | Stateful flocking, seeded initialization and transforms |
 | `python_observable_reaction_diffusion` | NumPy Gray–Scott simulation and bulk pixel transfer; needs the `studies` extra |
@@ -540,9 +678,9 @@ larger geometry operation should use a native batch API when one is
 available. Python supports experimentation and higher-level components
 without restricting the full C++ API.
 
-The examples are loaded by file path. They are not compiled C++ registry
-entries. Reload replaces Python instance state; it does not migrate an
-existing simulation or model into the new class.
+The examples are source-backed registry entries and also load by file path.
+Reload replaces Python instance state; it does not migrate an existing
+simulation or model into the new class.
 
 The authoring contract tests run against the built extension:
 

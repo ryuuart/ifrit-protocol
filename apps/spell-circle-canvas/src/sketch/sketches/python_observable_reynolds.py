@@ -1,4 +1,7 @@
-"""Fifty boids combine separation, alignment and cohesion, with retained trails."""
+"""Fifty boids combine separation, alignment and cohesion, with retained trails.
+
+TAGS: Drawing/Generative, Motion/Physics
+"""
 
 from cmath import phase
 from math import cos, pi

@@ -1,4 +1,7 @@
-"""A retained instrument sheet built with ordinary Python components."""
+"""A retained instrument sheet built with ordinary Python components.
+
+TAGS: Geometry/Layout, Typography/Interface, Motion/Animation
+"""
 
 from math import sin
 

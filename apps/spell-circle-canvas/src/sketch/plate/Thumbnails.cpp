@@ -23,6 +23,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <exception>
 #include <fstream>
 #include <memory>
 #include <set>
@@ -80,7 +81,12 @@ std::string thumbnailKey(const fs::path& entrySource) {
   // that a rebuild made slightly wrong heals by being looked at.
   std::uint64_t seed = 0;
   std::set<fs::path> files{entrySource};
-  if (directorySketch(entrySource)) {
+  const bool python = entrySource.extension() == ".py";
+  if (python) {
+    files.clear();
+    for (const auto& source : pythonSourcesOf(entrySource))
+      files.insert(source);
+  } else if (directorySketch(entrySource)) {
     // Every source beside the entry: a directory sketch is built from all
     // of them, so a still is stale when any of them changed.
     std::error_code ec;
@@ -91,8 +97,16 @@ std::string thumbnailKey(const fs::path& entrySource) {
       if (ext == ".cpp" || ext == ".h" || ext == ".hpp") files.insert(p);
     }
   }
-  for (const auto& header : headersOf(entrySource)) files.insert(header);
-  for (const fs::path& file : files) hashFile(seed, file);
+  if (!python)
+    for (const auto& header : headersOf(entrySource)) files.insert(header);
+  for (const fs::path& file : files) {
+    if (python)
+      hashInto(seed, std::hash<std::string>{}(
+                         file.lexically_relative(
+                                 entrySource.parent_path().lexically_normal())
+                             .generic_string()));
+    hashFile(seed, file);
+  }
   char hex[17];
   std::snprintf(hex, sizeof hex, "%016llx", (unsigned long long)seed);
   return hex;
@@ -175,7 +189,7 @@ bool stopped(const std::atomic_bool* stop) {
 }  // namespace
 
 ThumbnailOutcome renderThumbnail(const Entry& entry, weave::FontContext& fonts,
-                                 Assets& assets, const ThumbnailRun& run) {
+                                 Assets& assets, const ThumbnailRun& run) try {
   // ON THE CPU WHATEVER THE PROCESS INSTALLED. A still is drawn on a
   // worker beside a window that is presenting, and a device is one device
   // and one queue: a background walk driving the queue the render thread
@@ -184,6 +198,7 @@ ThumbnailOutcome renderThumbnail(const Entry& entry, weave::FontContext& fonts,
   // also the tier a plate is hashed from — for both doors a sketch draws
   // a mesh through: a set's whole frame, and the mesh style a 2D body
   // stands up in space. What a host installed reaches nothing here.
+  if (!entry.kind) return ThumbnailOutcome::Failed;
   const Kind kind = onPainterRuntime(onRuntime(entry.kind(), {}), {});
   if (!kind) return ThumbnailOutcome::Failed;
   // Deterministic, so a sketch that measured something about its own
@@ -253,6 +268,9 @@ ThumbnailOutcome renderThumbnail(const Entry& entry, weave::FontContext& fonts,
     return ThumbnailOutcome::Failed;
   pruneThumbnails(run.outputPath.parent_path(), run.stem, run.outputPath);
   return ThumbnailOutcome::Wrote;
+} catch (const std::exception& error) {
+  std::fprintf(stderr, "[thumbnail] %s: %s\n", entry.key, error.what());
+  return ThumbnailOutcome::Failed;
 }
 
 }  // namespace sigil::sketch

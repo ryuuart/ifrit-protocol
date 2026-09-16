@@ -28,6 +28,13 @@ bool isRule(const std::string& text) {
   return text.size() >= 3 && text.find_first_not_of("=-") == std::string::npos;
 }
 
+std::string headerText(std::string text) {
+  if (!text.empty() && text.front() == ' ') text = text.substr(1);
+  const std::string content = trimmed(text);
+  if (content.empty() || content == "@file" || isRule(content)) return {};
+  return text;
+}
+
 /** One header line with its comment marker taken off, or nothing when
  *  the line carries no text of its own. Leading indentation SURVIVES:
  *  the knobs an author lists are indented under their heading, and a
@@ -47,10 +54,31 @@ std::string undecorate(std::string text) {
     text = text.substr(text.find('*') + 1);
   if (const size_t close = text.find("*/"); close != std::string::npos)
     text = text.substr(0, close);
-  if (!text.empty() && text.front() == ' ') text = text.substr(1);
-  const std::string content = trimmed(text);
-  if (content.empty() || content == "@file" || isRule(content)) return {};
-  return text;
+  return headerText(std::move(text));
+}
+
+/** Only an ordinary or raw string can be a Python module docstring;
+ *  formatted strings and byte strings are executable expressions. */
+size_t docstringPrefix(std::string_view text) {
+  size_t prefix = 0;
+  if (!text.empty() && (text.front() == 'r' || text.front() == 'R' ||
+                        text.front() == 'u' || text.front() == 'U'))
+    prefix = 1;
+  const auto quoted = text.substr(prefix);
+  return quoted.starts_with("\"\"\"") || quoted.starts_with("'''")
+             ? prefix
+             : std::string_view::npos;
+}
+
+size_t docstringEnd(std::string_view text, std::string_view quote) {
+  size_t close = text.find(quote);
+  while (close != std::string_view::npos) {
+    size_t slash = close;
+    while (slash > 0 && text[slash - 1] == '\\') --slash;
+    if ((close - slash) % 2 == 0) return close;
+    close = text.find(quote, close + 1);
+  }
+  return close;
 }
 
 /** Prose wraps in a header and does not wrap in a panel, so a paragraph
@@ -131,13 +159,51 @@ SourceMetadata sourceMetadata(const std::filesystem::path& file) {
   std::vector<std::string> current;
   bool inHeader = true;
   bool inBlock = false;
+  const bool python = file.extension() == ".py";
+  bool readDocstring = false;
+  std::string quote;
+  size_t subjectStart = 1;
   std::string line;
   while (std::getline(stream, line)) {
     ++header.lines;
     if (!inHeader) continue;
     const std::string bare = trimmed(line);
     std::string text;
-    if (inBlock) {
+    if (python) {
+      if (!quote.empty()) {
+        text = line;
+      } else if (bare.empty()) {
+        text = {};
+      } else if (bare.starts_with('#')) {
+        const size_t coding = bare.find("coding");
+        const bool encoding =
+            header.lines <= 2 && coding != std::string::npos &&
+            coding + 6 < bare.size() &&
+            (bare[coding + 6] == ':' || bare[coding + 6] == '=');
+        if (bare.starts_with("#!") || encoding) continue;
+        text = headerText(line.substr(line.find('#') + 1));
+      } else if (!readDocstring && docstringPrefix(bare) != std::string::npos) {
+        if (!current.empty()) paragraphs.push_back(std::exchange(current, {}));
+        subjectStart = paragraphs.size();
+        readDocstring = true;
+        const size_t prefix = docstringPrefix(bare);
+        quote = bare.substr(prefix, 3);
+        text = bare.substr(prefix + 3);
+      } else {
+        inHeader = false;
+        continue;
+      }
+      if (!quote.empty()) {
+        const size_t close = docstringEnd(text, quote);
+        if (close != std::string::npos) {
+          const auto tail = trimmed(text.substr(close + quote.size()));
+          if (!tail.empty() && !tail.starts_with('#')) inHeader = false;
+          text.resize(close);
+          quote.clear();
+        }
+        text = headerText(std::move(text));
+      }
+    } else if (inBlock) {
       text = undecorate(line);
       if (bare.find("*/") != std::string::npos) inBlock = false;
     } else if (bare.empty()) {
@@ -164,12 +230,12 @@ SourceMetadata sourceMetadata(const std::filesystem::path& file) {
   }
   if (!current.empty()) paragraphs.push_back(current);
 
-  // The subject: past the title, then headings until something says
-  // something.
-  for (size_t i = 1; i < paragraphs.size(); ++i) {
+  // A module docstring opens with its summary; comment headers put a title
+  // before their subject. Headings continue into the paragraph below them.
+  for (size_t i = subjectStart; i < paragraphs.size(); ++i) {
     if (!header.subject.empty()) header.subject += '\n';
     header.subject += unwrap(paragraphs[i]);
-    if (!isHeading(paragraphs[i])) break;
+    if (readDocstring || !isHeading(paragraphs[i])) break;
   }
   for (const std::vector<std::string>& paragraph : paragraphs) {
     if (trimmed(paragraph.front()) != "EDIT THESE FIRST") continue;
@@ -181,11 +247,15 @@ SourceMetadata sourceMetadata(const std::filesystem::path& file) {
 
 std::filesystem::path sourceOf(const std::filesystem::path& dir,
                                std::string_view key) {
-  const std::filesystem::path name(std::string(key) + ".cpp");
-  const std::filesystem::path entry = dir / std::filesystem::path(key) / name;
-  std::error_code ec;
-  if (std::filesystem::is_regular_file(entry, ec)) return entry;
-  return dir / name;
+  for (const auto extension : {".cpp", ".py"}) {
+    const std::filesystem::path name(std::string(key) + extension);
+    for (const auto& entry :
+         {dir / std::filesystem::path(key) / name, dir / name}) {
+      std::error_code ec;
+      if (std::filesystem::is_regular_file(entry, ec)) return entry;
+    }
+  }
+  return dir / (std::string(key) + ".cpp");
 }
 
 bool directorySketch(const std::filesystem::path& entry) {

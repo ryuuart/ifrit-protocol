@@ -12,29 +12,31 @@
 
 namespace sigil::sketch {
 
-/** Author-supplied prose from a source file's opening comment. */
+/** Author-supplied prose from opening comments or a Python module docstring. */
 struct SourceMetadata {
   std::string subject;
   std::string editFirst;
-  /** Comma-separated TAGS in the opening comment. A slash nests a subject;
+  /** Comma-separated TAGS in the opening header. A slash nests a subject;
    *  several paths place a sketch in several browser groups. */
   std::vector<std::string> tags;
   int lines = 0;
 };
 
-/** Counts source lines and reads the opening comments. The first paragraph
- *  is the title; the next is the subject. EDIT THESE FIRST introduces knobs,
- *  preserving list breaks and joining wrapped lines. TAGS: lines supply
- *  group paths without becoming prose. Missing files return an empty value. */
+/** Counts source lines and reads opening comments, including Python # headers
+ *  and a leading triple-quoted module docstring. Comment headers put a title
+ *  paragraph before the subject; a module docstring opens with its subject.
+ *  EDIT THESE FIRST introduces knobs, preserving list breaks and joining
+ *  wrapped lines. TAGS: lines supply group paths without becoming prose.
+ *  The first code statement ends the header. Missing files return an empty
+ *  value. */
 [[nodiscard]] SourceMetadata sourceMetadata(const std::filesystem::path& file);
 
 /** THE FILE A KEY NAMES under @p dir.
  *
- *  A sketch is either the file `<key>.cpp` or the directory `<key>/`
- *  with `<key>.cpp` inside it as the entry, and the directory form is
- *  the answer when it stands there. Nothing has to exist: the bare file
- *  is the answer when no directory sketch of that key does, whether or
- *  not the file itself is there. */
+ *  Entries are `<key>.cpp` or `<key>.py`, directly under the directory or
+ *  inside `<key>/`. C++ takes precedence over Python, and a language's
+ *  directory entry takes precedence over its bare file. If no regular entry
+ *  exists, the answer remains the bare `<key>.cpp` path. */
 [[nodiscard]] std::filesystem::path sourceOf(const std::filesystem::path& dir,
                                              std::string_view key);
 

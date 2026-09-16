@@ -1,4 +1,7 @@
-"""A bracketed Lindenmayer tree with a slowly moving branch angle."""
+"""A bracketed Lindenmayer tree with a slowly moving branch angle.
+
+TAGS: Drawing/Generative, Patterns/Ornament
+"""
 
 from math import cos, pi, radians, sin
 

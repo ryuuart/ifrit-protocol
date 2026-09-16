@@ -147,10 +147,15 @@ Host::Host(Options options, weave::FontContext& fonts)
   if (claimSweep()) sweepAbandonedBuildDirectories();
   m_buildDirectory = acquireBuildDirectory();
   m_hostId = nextHostId();
-  // A sketch this binary already carries opens instantly, and the file is
-  // watched from where it stands: an edit builds, an unedited file never
-  // does. A file the binary does not carry has to be built to be seen.
+  // Registered native bodies open directly. Python entries use the source
+  // loader and record their input stamps before opening, so the first poll
+  // does not import the same generation twice.
   if (m_options.compiledIn && m_options.compiledIn->kind) {
+    if (m_options.sketchPath.extension() == ".py") {
+      pythonChanged();
+      loadPython();
+      return;
+    }
     m_kind = m_options.compiledIn->kind();
     if (!openSession(m_kind)) return;
     if (const auto stamp = sourceStamp()) {

@@ -9,7 +9,7 @@ backend-path = ["src/sketch/python/packaging"]
 
 [project]
 name = "sigil-sketch"
-version = "0.1.0a2"
+version = "0.1.0a3"
 description = "Native Sigil drawing libraries and headless Python sketches"
 readme = "src/sketch/python/README.md"
 requires-python = ">=3.12"

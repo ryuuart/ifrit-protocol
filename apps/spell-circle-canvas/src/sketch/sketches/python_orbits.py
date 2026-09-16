@@ -1,4 +1,7 @@
-"""Four periodic paths drawn from the scene clock with the native pen."""
+"""Four periodic paths drawn from the scene clock with the native pen.
+
+TAGS: Drawing/Generative, Motion/Animation
+"""
 
 from math import cos, sin, tau
 

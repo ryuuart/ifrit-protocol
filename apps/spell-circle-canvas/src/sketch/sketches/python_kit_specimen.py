@@ -1,4 +1,7 @@
-"""Six native arrangements on one inherited specimen sheet."""
+"""Six native arrangements on one inherited specimen sheet.
+
+TAGS: Geometry/Layout, Typography/Interface
+"""
 
 from sigil.compose import box, column, layout, memo, row, text
 from sigil.compose import kit as marks

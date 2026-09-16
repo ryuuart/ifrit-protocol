@@ -25,7 +25,12 @@
  *  what it draws to other applications. */
 struct Arguments {
   std::filesystem::path sketchFile;
+  std::filesystem::path workspace;
   std::filesystem::path assetsOverride;
+  /** A launcher chooses one Python environment before any sketch is probed.
+   *  The executable and its native extension ABI must be supplied together. */
+  std::filesystem::path pythonExecutable;
+  std::string pythonAbi;
   std::string selected, kind, shotPath;
   sigil::sketch::CompareOptions compareOptions;
   sigil::sketch::SweepOptions sweepOptions;
@@ -34,6 +39,8 @@ struct Arguments {
   WindowBench windowBench;
   bool headless = false, list = false, catalog = false, gpu = false;
   bool noGpu = false;
+  bool pythonInfo = false;
+  bool noRestore = false;
   bool warmThumbnails = false;
   /** Whether the window offers its frames to other applications, and
    *  the name they are offered under — empty for the sketch's stem. */

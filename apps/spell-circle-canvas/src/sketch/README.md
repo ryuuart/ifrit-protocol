@@ -19,12 +19,34 @@ repository renders a catalogue.
 
 Sketchbook includes a Python authoring layer that opens `.py` files as
 canvas sketches inside the same session. Its bindings build with the
-application, and the interpreter initializes when a Python sketch opens.
+application. Python entries join the same registry under the Python
+collection, and their subject tags join the normal browser tree. Listing
+does not import sketch code; opening a session imports its current source.
 A save imports a fresh sketch without
 compiling C++; Python functions construct native descriptions or draw with
 the pen. `python/README.md` describes its supported vocabulary, examples,
-reload behavior and use from an ordinary Python interpreter. Python files
-open by path and do not yet join the compiled registry.
+reload behavior and use from an ordinary Python interpreter. Files outside
+the catalogue also open by path. `uv run sigil open sketch.py` launches this
+same application with the uv project's Python dependencies; the launcher
+checks that the environment matches the host's Python ABI first.
+
+The **Open** menu uses native pickers for a sketch file or a workspace
+folder. A workspace is an ordinary directory: its C++ and Python sketches
+join the bundled catalogue in the Workspace collection. Discovery skips
+helper sources, build products, virtual environments and nested Python
+projects. Reopening a folder discovers added or removed sketches.
+Recent files and folders persist in application settings, including the
+last selected sketch in each workspace. A normal launch restores the last
+opened location, falling back to the bundled catalogue if it is missing.
+Missing recent entries remain visible until the history is cleared.
+`--no-restore` opens the bundled catalogue directly.
+
+Opening a file or folder creates another Sketchbook window. Python project
+dependencies are prepared automatically before that window starts, and each
+window uses one Python environment. C++ sketches and standalone Python
+files need no project configuration. `--workspace <directory>` opens the
+same workspace from the command line; an optional sketch path selects its
+initial source.
 
 ```sh
 cmake --build build --config Release --target Sketchbook
@@ -1132,7 +1154,9 @@ first line that is neither a comment nor blank — a run of line comments,
 a doc block, or one after the other. The comment markers come off, and a
 line reading only `@file` is dropped. What is left reads as
 **paragraphs**: runs of non-blank lines, broken by blank lines and by
-rule lines (a line of nothing but `=` or `-`).
+rule lines (a line of nothing but `=` or `-`). Python headers accept the
+opening module docstring and `#` comments; their first paragraph is the
+subject, without a separate title paragraph.
 
 * **The subject** is the first paragraph after the title paragraph — the
   title being the first one, which by convention opens `stem.cpp — …`.

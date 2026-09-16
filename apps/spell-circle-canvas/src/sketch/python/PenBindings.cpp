@@ -10,11 +10,15 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <src/core/SkScopeExit.h>
 
+#include <bit>
+#include <cstddef>
+#include <cstring>
 #include <exception>
 #include <optional>
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -26,6 +30,43 @@ using draw::Pen;
 using PenClass = py::class_<BorrowedPen, std::shared_ptr<BorrowedPen>>;
 
 namespace {
+
+std::vector<SkPoint> pointBatch(py::handle values) {
+  if (PyObject_CheckBuffer(values.ptr())) {
+    const auto source = py::reinterpret_borrow<py::buffer>(values).request();
+    const bool nativeFloat =
+        source.format == "f" || source.format == "@f" ||
+        source.format == "=f" ||
+        (std::endian::native == std::endian::little && source.format == "<f") ||
+        (std::endian::native == std::endian::big && source.format == ">f");
+    if (!nativeFloat || source.itemsize != sizeof(float))
+      throw py::type_error(
+          "Point buffers must contain native-endian float32 coordinates.");
+    if (!((source.ndim == 1 && source.shape[0] % 2 == 0) ||
+          (source.ndim == 2 && source.shape[1] == 2)))
+      throw py::value_error(
+          "Point buffers need shape (N, 2) or an even-length flat array.");
+    if (!PyBuffer_IsContiguous(source.view(), 'C'))
+      throw py::value_error("Point buffers must be C-contiguous.");
+
+    // Buffer storage holds floats, not SkPoint objects. A bulk copy keeps
+    // native object lifetime and alignment independent of the exporter.
+    static_assert(std::is_trivially_copyable_v<SkPoint> &&
+                  sizeof(SkPoint) == 2 * sizeof(float) &&
+                  offsetof(SkPoint, fX) == 0 &&
+                  offsetof(SkPoint, fY) == sizeof(float));
+    std::vector<SkPoint> points(static_cast<size_t>(source.size) / 2);
+    if (!points.empty())
+      std::memcpy(points.data(), source.ptr, points.size() * sizeof(SkPoint));
+    return points;
+  }
+  std::vector<SkPoint> points;
+  if (PyList_Check(values.ptr()) || PyTuple_Check(values.ptr()))
+    points.reserve(py::len(values));
+  for (auto value : py::reinterpret_borrow<py::iterable>(values))
+    points.push_back(point(value));
+  return points;
+}
 
 draw::Slot callerSlot(Pen& pen, int index) {
   struct Names {
@@ -163,10 +204,12 @@ void bindCanvas(py::module_& module) {
              self.get().drawCircle(x, y, radius, paint);
            })
       .def("drawPoints",
-           [](BorrowedCanvas& self, SkCanvas::PointMode mode,
-              py::iterable values, const SkPaint& paint) {
-             std::vector<SkPoint> points;
-             for (auto value : values) points.push_back(point(value));
+           [](BorrowedCanvas& self, SkCanvas::PointMode mode, py::object values,
+              const SkPaint& paint) {
+             (void)self.get();
+             const auto points = pointBatch(values);
+             // Conversion can run Python iteration or buffer callbacks that
+             // close this frame, so reacquire its checked canvas afterward.
              self.get().drawPoints(
                  mode, SkSpan<const SkPoint>{points.data(), points.size()},
                  paint);

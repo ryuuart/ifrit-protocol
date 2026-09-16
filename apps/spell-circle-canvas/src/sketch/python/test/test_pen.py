@@ -1,9 +1,12 @@
 """Drawing and lifetime contracts exercised through real native sessions."""
 
 import builtins
+import ctypes
+import sys
 import tempfile
 import textwrap
 import unittest
+from array import array
 from pathlib import Path
 
 from sigil import draw, image
@@ -77,6 +80,120 @@ class PenContracts(unittest.TestCase):
         self.assertEqual(self.pixel(picture, 24, 8), (0, 255, 0, 255))
         with self.assertRaisesRegex(RuntimeError, "callback"):
             self.results["canvas"].getSaveCount()
+
+    def test_point_buffers_match_iterable_pixels_without_retaining_storage(self):
+        drawing = """
+            pen.background('#102030')
+            pen.stroke('#f0e0d0')
+            pen.strokeWeight(3)
+            canvas = pen.canvas()
+            paint = pen.strokePaint()
+            canvas.drawPoints(draw.PointMode.Lines, results['points'], paint)
+            results['canvas'], results['paint'] = canvas, paint
+        """
+        pairs = [(4, 4), (28, 4), (4, 16), (28, 28)]
+        self.results["points"] = pairs
+        expected = self.render(drawing).rgba()
+        coordinates = array("f", (value for point in pairs for value in point))
+        packed = coordinates.tobytes()
+        variants = {
+            "flat_array": coordinates,
+            "two_columns": memoryview(packed).cast("f", shape=[4, 2]),
+            "readonly": memoryview(packed).cast("f"),
+            "unaligned": memoryview(b"x" + packed)[1:].cast("f"),
+        }
+        for name, points in variants.items():
+            with self.subTest(buffer=name):
+                self.results["points"] = points
+                self.assertEqual(self.render(drawing).rgba(), expected)
+        # A live exported view would prevent this resize. The canvas also
+        # remains borrowed even when its argument is a self-contained buffer.
+        coordinates.extend([0, 0])
+        with self.assertRaisesRegex(RuntimeError, "callback"):
+            self.results["canvas"].drawPoints(
+                draw.PointMode.Lines, coordinates, self.results["paint"]
+            )
+
+    def test_numpy_point_buffer_matches_iterable_pixels(self):
+        try:
+            import numpy as np
+        except ImportError:
+            self.skipTest("NumPy is an optional study dependency")
+        drawing = """
+            pen.background(0)
+            pen.stroke(255)
+            pen.strokeWeight(2)
+            pen.canvas().drawPoints(draw.PointMode.Polygon, results['points'], pen.strokePaint())
+        """
+        pairs = [(4, 4), (24, 8), (16, 28)]
+        self.results["points"] = pairs
+        expected = self.render(drawing).rgba()
+        self.results["points"] = np.array(pairs, dtype=np.float32)
+        self.assertEqual(self.render(drawing).rgba(), expected)
+
+    def test_point_buffer_export_is_released_before_the_next_statement(self):
+        self.render("""
+            from array import array
+            coordinates = array('f', [4, 4, 28, 28])
+            pen.stroke(255)
+            pen.canvas().drawPoints(draw.PointMode.Lines, coordinates, pen.strokePaint())
+            coordinates.extend([8, 8])
+            results['resized'] = len(coordinates)
+        """)
+        self.assertEqual(self.results["resized"], 6)
+
+    def test_point_iteration_cannot_draw_after_closing_its_graphics_frame(self):
+        with self.assertRaisesRegex(RuntimeError, "callback"):
+            self.render(
+                """
+                child = self.buffer.begin(pen)
+                child.stroke(255)
+                canvas, paint = child.canvas(), child.strokePaint()
+                def points():
+                    yield (4, 4)
+                    self.buffer.end()
+                    self.buffer.resize(64, 64)
+                    results['closed'] = True
+                    yield (28, 28)
+                canvas.drawPoints(draw.PointMode.Lines, points(), paint)
+            """,
+                setup="self.buffer = draw.Graphics(32, 32)",
+            )
+        self.assertTrue(self.results["closed"])
+
+    def test_point_buffers_reject_wrong_dtype_shape_and_strides(self):
+        opposite_float = (
+            ctypes.c_float.__ctype_be__
+            if sys.byteorder == "little"
+            else ctypes.c_float.__ctype_le__
+        )
+        coordinates = memoryview(array("f", range(12)))
+        self.results["invalid"] = [
+            (array("d", [1, 2]), TypeError, "float32"),
+            (array("i", [1, 2]), TypeError, "float32"),
+            ((opposite_float * 2)(1, 2), TypeError, "native-endian"),
+            (array("f", [1, 2, 3]), ValueError, "shape"),
+            (coordinates.cast("B").cast("f", shape=[4, 3]), ValueError, "shape"),
+            (coordinates.cast("B").cast("f", shape=[2, 3, 2]), ValueError, "shape"),
+            (coordinates[::2], ValueError, "C-contiguous"),
+            (coordinates[::-1], ValueError, "C-contiguous"),
+        ]
+        self.render("""
+            pen.stroke(255)
+            canvas, paint = pen.canvas(), pen.strokePaint()
+            results['rejected'] = 0
+            for points, kind, message in results['invalid']:
+                try:
+                    canvas.drawPoints(draw.PointMode.Points, points, paint)
+                except kind as error:
+                    assert message in str(error), str(error)
+                    results['rejected'] += 1
+                else:
+                    raise AssertionError('An invalid point buffer was accepted')
+            from array import array
+            canvas.drawPoints(draw.PointMode.Points, array('f'), paint)
+        """)
+        self.assertEqual(self.results["rejected"], len(self.results["invalid"]))
 
     def test_offscreen_frames_close_automatically_and_resize_keeps_pixels(self):
         self.render(

@@ -9,6 +9,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import QtQml.Models
 import Sigil.Sketchbook
 
 Rectangle {
@@ -22,12 +23,19 @@ Rectangle {
     property bool inspectorOpen: true
     property bool inspectorAvailable: true
     property bool taskRunning: false
+    property bool opening: false
+    property var recents: []
     property string filterText: ""
 
     signal filterRequested(string text)
     signal viewModeRequested(string mode)
     signal inspectorToggled
     signal videoRequested
+    signal openFileRequested
+    signal openWorkspaceRequested
+    signal recentRequested(var recent)
+    signal clearRecentsRequested
+    signal recentsRequested
     /** The filter field gives up the keyboard downwards: typing narrows
      *  the list, and the arrow that follows should move in it. */
     signal steppedOut
@@ -76,6 +84,64 @@ Rectangle {
             font.pixelSize: 14
             font.bold: true
             font.letterSpacing: 1.1
+        }
+        Button {
+            id: openButton
+
+            text: "Open ▾"
+            implicitHeight: 28
+            enabled: !bar.opening
+            Accessible.name: "Open sketch or workspace"
+            onClicked: openMenu.popup()
+
+            Menu {
+                id: openMenu
+
+                y: openButton.height
+                onAboutToShow: bar.recentsRequested()
+
+                MenuItem {
+                    text: "Open Sketch…"
+                    onTriggered: bar.openFileRequested()
+                }
+                MenuItem {
+                    text: "Open Workspace…"
+                    onTriggered: bar.openWorkspaceRequested()
+                }
+                Menu {
+                    id: recentMenu
+
+                    title: "Open Recent"
+
+                    Instantiator {
+                        model: bar.recents
+                        delegate: MenuItem {
+                            required property var modelData
+
+                            text: modelData.name
+                                + (modelData.kind === "folder" ? "/" : "")
+                                + (modelData.exists ? "" : " — missing")
+                            enabled: modelData.exists && !bar.opening
+                            Accessible.description: modelData.path
+                            onTriggered: bar.recentRequested(modelData)
+                        }
+                        onObjectAdded: (index, object) => recentMenu.insertItem(index, object)
+                        onObjectRemoved: (index, object) => recentMenu.removeItem(object)
+                    }
+                    MenuItem {
+                        text: "No recent locations"
+                        visible: bar.recents.length === 0
+                        enabled: false
+                        height: visible ? implicitHeight : 0
+                    }
+                    MenuSeparator { visible: bar.recents.length > 0 }
+                    MenuItem {
+                        text: "Clear Recent Locations"
+                        enabled: bar.recents.length > 0
+                        onTriggered: bar.clearRecentsRequested()
+                    }
+                }
+            }
         }
         Label {
             // The second number appears only when it differs, so the

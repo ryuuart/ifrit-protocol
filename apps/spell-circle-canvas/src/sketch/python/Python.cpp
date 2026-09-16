@@ -20,6 +20,7 @@
 #include <memory>
 #include <mutex>
 #include <stdexcept>
+#include <system_error>
 #include <thread>
 
 #include "Bindings.h"
@@ -34,6 +35,44 @@ namespace py = pybind11;
 
 namespace {
 
+struct InterpreterConfiguration {
+  std::mutex mutex;
+  std::filesystem::path executable;
+};
+
+InterpreterConfiguration& interpreterConfiguration() {
+  static InterpreterConfiguration configuration;
+  return configuration;
+}
+
+void initializeInterpreter(const std::filesystem::path& executable) {
+  if (executable.empty()) {
+    py::initialize_interpreter(false, 0, nullptr, false);
+    return;
+  }
+  PyConfig config;
+  PyConfig_InitIsolatedConfig(&config);
+  config.site_import = 1;
+  config.parse_argv = 0;
+  config.install_signal_handlers = 0;
+  const std::string path = executable.string();
+  const auto setPath = [&](wchar_t** field) {
+    const PyStatus status =
+        PyConfig_SetBytesString(&config, field, path.c_str());
+    if (PyStatus_Exception(status)) {
+      const std::string error =
+          status.err_msg ? status.err_msg : "Could not configure Python";
+      PyConfig_Clear(&config);
+      throw std::runtime_error(error);
+    }
+  };
+  setPath(&config.executable);
+  setPath(&config.program_name);
+  // The executable locates pyvenv.cfg; site discovers its package paths.
+  // The pybind11 initializer clears the configuration on success or failure.
+  py::initialize_interpreter(&config, 0, nullptr, false);
+}
+
 void interpreter() {
   // Retained callbacks can be destroyed on worker threads. The embedded
   // interpreter belongs to the process and outlives all such callbacks.
@@ -41,19 +80,25 @@ void interpreter() {
   static std::once_flag initialized;
   static bool embedded = false;
   std::call_once(initialized, [] {
+    auto& configuration = interpreterConfiguration();
+    const std::lock_guard lock(configuration.mutex);
     if (!Py_IsInitialized()) {
       if (PyImport_AppendInittab("_sigil", &PyInit__sigil) == -1)
         throw std::runtime_error("Could not register the Sigil Python module");
-      py::initialize_interpreter(false, 0, nullptr, false);
+      initializeInterpreter(configuration.executable);
       embedded = true;
       PyEval_SaveThread();
     }
   });
   if (!embedded) return;
   const py::gil_scoped_acquire lock;
-  py::list path = py::module_::import("sys").attr("path");
-  const py::str packageRoot(SIGIL_PYTHON_PACKAGE_DIR);
-  if (!path.contains(packageRoot)) path.attr("insert")(0, packageRoot);
+  try {
+    py::list path = py::module_::import("sys").attr("path");
+    const py::str packageRoot(SIGIL_PYTHON_PACKAGE_DIR);
+    if (!path.contains(packageRoot)) path.attr("insert")(0, packageRoot);
+  } catch (const py::error_already_set& error) {
+    throw std::runtime_error(error.what());
+  }
 }
 
 /** A Python reference whose final native owner may leave on any thread. */
@@ -416,6 +461,25 @@ class PythonKind final : public KindOperations {
   std::shared_ptr<Generation> m_generation;
 };
 
+class SourceKind final : public KindOperations {
+ public:
+  explicit SourceKind(std::filesystem::path source)
+      : m_source(std::move(source)) {}
+  bool operator==(const SourceKind& other) const {
+    return m_source == other.m_source;
+  }
+  std::string_view runtime() const override { return "canvas"; }
+  std::unique_ptr<Session> open(weave::FontContext& fonts, Assets& assets,
+                                bool deterministic,
+                                std::string_view key) const override {
+    const Kind imported = load(m_source);
+    return imported->open(fonts, assets, deterministic, key);
+  }
+
+ private:
+  std::filesystem::path m_source;
+};
+
 std::string renderFile(const std::string& source, const std::string& output,
                        std::optional<double> at) {
   const auto path = std::filesystem::absolute(source);
@@ -461,6 +525,63 @@ std::string renderFile(const std::string& source, const std::string& output,
 }
 
 }  // namespace
+
+std::string_view interpreterAbi() { return SIGIL_PYTHON_ABI; }
+
+std::pair<int, int> interpreterVersion() {
+  return {PY_MAJOR_VERSION, PY_MINOR_VERSION};
+}
+
+void configureInterpreter(const std::filesystem::path& executable) {
+  auto& configuration = interpreterConfiguration();
+  const std::lock_guard lock(configuration.mutex);
+  if (Py_IsInitialized())
+    throw std::runtime_error(
+        "Python is already initialized; open a new Sketchbook process to "
+        "select another environment");
+  configuration.executable =
+      executable.empty()
+          ? std::filesystem::path{}
+          : std::filesystem::absolute(executable).lexically_normal();
+}
+
+Kind source(const std::filesystem::path& path) {
+  return Kind{SourceKind(std::filesystem::absolute(path).lexically_normal())};
+}
+
+bool available(const std::filesystem::path& path,
+               std::initializer_list<const char*> modules, std::string* why) {
+  const auto unavailable = [why](std::string reason) {
+    if (why) *why = std::move(reason);
+    return false;
+  };
+  std::error_code error;
+  if (!std::filesystem::is_regular_file(path, error))
+    return unavailable("Python source is unavailable: " + path.string());
+  if (modules.size() == 0) return true;
+  try {
+    interpreter();
+    const py::gil_scoped_acquire lock;
+    try {
+      const py::object find =
+          py::module_::import("importlib.util").attr("find_spec");
+      for (const char* module : modules) {
+        if (!module || !*module)
+          return unavailable("A required Python module has no name");
+        if (find(module).is_none())
+          return unavailable("Python module '" + std::string(module) +
+                             "' is not installed");
+      }
+      return true;
+    } catch (const py::error_already_set& failure) {
+      return unavailable("Python module discovery failed: " +
+                         std::string(failure.what()));
+    }
+  } catch (const std::exception& failure) {
+    return unavailable("Python module discovery failed: " +
+                       std::string(failure.what()));
+  }
+}
 
 Kind load(const std::filesystem::path& source) {
   interpreter();

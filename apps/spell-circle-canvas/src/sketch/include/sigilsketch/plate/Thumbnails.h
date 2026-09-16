@@ -55,6 +55,8 @@ inline constexpr std::chrono::milliseconds kThumbnailBudget{8000};
  *  is a directory, every `.cpp`/`.h` standing beside the entry — plus
  *  the local headers reached through quoted includes, by size and
  *  modification time. Includes are followed across owner directories.
+ *  Python entries include sibling modules and regular packages, with their
+ *  relative paths, sizes and modification times.
  *  A thumbnail file whose name carries a different key is stale.
  *
  *  THE HOST IS NOT IN IT. A library edit that changes what a sketch draws

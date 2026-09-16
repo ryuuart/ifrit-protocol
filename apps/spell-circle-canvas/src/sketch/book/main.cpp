@@ -6,8 +6,12 @@
  *   Sketchbook --list [--kind canvas|set]     the registry, one per line
  *   Sketchbook --catalog [<file.cpp>]          the browser's rows, one JSON
  *                                              object per line
- *   Sketchbook --compare <dir-a> <dir-b>       two sweeps' plates, differenced
- *   Sketchbook --headless <outdir> [--gpu] [--sketch <name>] [--kind <k>]
+ *   Sketchbook --python-info                  Python ABI as JSON
+ *   Sketchbook --workspace <directory>        a saved folder selection
+ *   Sketchbook --no-restore                   the bundled catalogue
+ *   Sketchbook --compare <dir-a> <dir-b>       compare two plate sweeps
+ *   Sketchbook --headless <outdir> [--gpu] [--sketch <name>]
+ *              [--kind <k>]
  *              [--ledger] [--no-promotion | --promotion] [--composites]
  *              [--capture-at <s>]
  *              [--timing-json <path>]          plates, and the timing table
@@ -30,6 +34,8 @@
  *                                              to other applications
  *   … [--assets <dir>]                         where res:// mounts
  *   … [--thumbnails-dir <dir>]                 the app's own thumbnail store
+ *   … --python-executable <path> --python-abi <abi>
+ *                                              the Python environment
  *
  * `--sketch` takes a case-insensitive substring and answers to a
  * sketch's filed name or its file stem, which is the loop for visual
@@ -71,17 +77,24 @@
 #include <unistd.h>
 
 #include <QtCore/QCoreApplication>
+#include <QtCore/QJsonArray>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QMutex>
+#include <QtCore/QProcess>
+#include <QtCore/QProcessEnvironment>
+#include <QtCore/QSettings>
+#include <QtCore/QSysInfo>
 #include <QtCore/QTimer>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QImage>
 #include <QtQml/QQmlApplicationEngine>
 #include <QtQuick/QQuickItem>
 #include <QtQuick/QQuickWindow>
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <exception>
 #include <filesystem>
 #include <future>
 #include <memory>
@@ -91,6 +104,8 @@
 
 #include "Arguments.h"
 #include "FrameLane.h"
+#include "PythonEnvironment.h"
+#include "SketchActions.h"
 #include "SketchCatalog.h"
 #include "SketchbookView.h"
 #include "Startup.h"
@@ -98,6 +113,7 @@
 #include "ThumbnailWarm.h"
 #include "VideoLane.h"
 #include "WindowBench.h"
+#include "Workspace.h"
 
 namespace sketch = sigil::sketch;
 
@@ -111,16 +127,157 @@ int main(int argc, char* argv[]) {
   QCoreApplication::setOrganizationDomain(QStringLiteral("sigil.dev"));
   QCoreApplication::setApplicationName(QStringLiteral("Sketchbook"));
 
-  // Every way out of main lets the device go first: released during static
-  // destruction, the textures and pipelines it holds want locks that no
-  // longer exist.
-  struct DeviceScope {
-    ~DeviceScope() { releaseDevice(); }
-  } deviceScope;
-
   std::optional<Arguments> parsed = parseArguments(argc, argv);
   if (!parsed) return 2;
   Arguments& args = *parsed;
+
+  // The launcher's handshake and environment selection precede every registry
+  // probe: checking an optional Python module can initialize the interpreter.
+  const auto pythonAbi = sketch::python::interpreterAbi();
+  if (args.pythonInfo) {
+    const auto [major, minor] = sketch::python::interpreterVersion();
+    const QJsonObject info{
+        {QStringLiteral("implementation"), QStringLiteral("cpython")},
+        {QStringLiteral("version"), QJsonArray{major, minor}},
+        {QStringLiteral("soabi"),
+         QString::fromUtf8(pythonAbi.data(), (qsizetype)pythonAbi.size())},
+        {QStringLiteral("machine"), QSysInfo::currentCpuArchitecture()},
+        {QStringLiteral("pointer_bits"), (int)(sizeof(void*) * 8)},
+    };
+    std::printf("%s\n",
+                QJsonDocument(info).toJson(QJsonDocument::Compact).constData());
+    return 0;
+  }
+
+  const bool windowRun = !args.list && !args.catalog && !args.headless &&
+                         !args.warmThumbnails &&
+                         args.compareOptions.first.empty() &&
+                         args.storyOptions.outputPath.empty() &&
+                         args.capture.outputPath.empty() && !args.capture.bench;
+  const bool remembersWindow =
+      windowRun && args.shotPath.empty() && args.windowBench.seconds <= 0;
+  QSettings workspaceSettings;
+  sketchbook::WorkspaceHistory history(workspaceSettings);
+  if (remembersWindow && !args.noRestore && args.workspace.empty() &&
+      args.sketchFile.empty() && args.selected.empty()) {
+    const auto previous = history.restore();
+    std::error_code error;
+    if (!previous.root.empty() &&
+        std::filesystem::is_directory(previous.root, error)) {
+      args.workspace = previous.root;
+    } else if (previous.root.empty() && !previous.file.empty() &&
+               std::filesystem::is_regular_file(previous.file, error)) {
+      args.sketchFile = previous.file;
+    }
+  }
+  std::vector<std::filesystem::path> workspaceSources;
+  if (!args.workspace.empty()) {
+    std::error_code error;
+    if (!std::filesystem::is_directory(args.workspace, error)) {
+      std::fprintf(stderr, "workspace directory is unavailable: %s\n",
+                   args.workspace.string().c_str());
+      return 2;
+    }
+    args.workspace = std::filesystem::weakly_canonical(args.workspace);
+    workspaceSources = sketchbook::workspaceFiles(args.workspace);
+    if (args.sketchFile.empty() && args.selected.empty()) {
+      const auto previous = history.forRoot(args.workspace);
+      if (std::find(workspaceSources.begin(), workspaceSources.end(),
+                    previous) != workspaceSources.end())
+        args.sketchFile = previous;
+      else if (!workspaceSources.empty())
+        args.sketchFile = workspaceSources.front();
+    }
+  }
+  if (!args.sketchFile.empty()) {
+    std::error_code error;
+    if (!std::filesystem::is_regular_file(args.sketchFile, error)) {
+      std::fprintf(stderr, "sketch file is unavailable: %s\n",
+                   args.sketchFile.string().c_str());
+      return 2;
+    }
+    args.sketchFile = std::filesystem::weakly_canonical(args.sketchFile);
+    if (std::find(workspaceSources.begin(), workspaceSources.end(),
+                  args.sketchFile) == workspaceSources.end()) {
+      if (args.workspace.empty()) {
+        workspaceSources.push_back(args.sketchFile);
+      } else {
+        std::fprintf(stderr, "sketch is not an entry in this workspace: %s\n",
+                     args.sketchFile.string().c_str());
+        return 2;
+      }
+    }
+  }
+
+  // Environment selection precedes catalogue probes and thumbnail workers.
+  // A picker supplies an already prepared interpreter; direct file opens and
+  // restored workspaces resolve theirs here before any Python module runs.
+  const bool hasPython =
+      std::any_of(workspaceSources.begin(), workspaceSources.end(),
+                  [](const auto& path) { return path.extension() == ".py"; });
+  if (args.pythonExecutable.empty() && hasPython && !args.catalog &&
+      !args.list) {
+    const auto source =
+        args.workspace.empty() ? args.sketchFile : args.workspace;
+    QProcess prepare;
+    auto prepareEnvironment = QProcessEnvironment::systemEnvironment();
+    prepareEnvironment.remove(QStringLiteral("PYTHONEXECUTABLE"));
+    prepareEnvironment.remove(QStringLiteral("__PYVENV_LAUNCHER__"));
+    prepare.setProcessEnvironment(prepareEnvironment);
+    prepare.start(QStringLiteral(SIGIL_PYTHON_EXECUTABLE),
+                  sketchbook::pythonEnvironmentArguments(source));
+    QString problem;
+    sketchbook::PythonEnvironment environment;
+    if (!prepare.waitForStarted()) {
+      problem = prepare.errorString();
+    } else if (!prepare.waitForFinished(180000)) {
+      prepare.kill();
+      prepare.waitForFinished();
+      problem = QStringLiteral("Preparing the Python environment timed out.");
+    } else if (prepare.exitStatus() != QProcess::NormalExit ||
+               prepare.exitCode() != 0) {
+      problem = QString::fromUtf8(prepare.readAllStandardError()).trimmed();
+      if (problem.isEmpty())
+        problem = QStringLiteral("Could not prepare the Python environment.");
+    } else {
+      (void)sketchbook::readPythonEnvironment(prepare.readAllStandardOutput(),
+                                              environment, problem);
+    }
+    if (!problem.isEmpty()) {
+      std::fprintf(stderr, "%s\n", problem.toUtf8().constData());
+      if (!windowRun) return 1;
+      SketchActions::startupError = problem;
+      args.workspace.clear();
+      args.sketchFile.clear();
+      workspaceSources.clear();
+    } else {
+      args.pythonExecutable = environment.executable;
+      args.pythonAbi = environment.abi;
+    }
+  }
+  if (!args.pythonExecutable.empty()) {
+    if (args.pythonAbi != pythonAbi) {
+      std::fprintf(stderr,
+                   "--python-abi mismatch: executable declares \"%s\", "
+                   "Sketchbook requires \"%.*s\"\n",
+                   args.pythonAbi.c_str(), (int)pythonAbi.size(),
+                   pythonAbi.data());
+      return 2;
+    }
+    try {
+      sketch::python::configureInterpreter(args.pythonExecutable);
+    } catch (const std::exception& error) {
+      std::fprintf(stderr, "--python-executable: %s\n", error.what());
+      return 2;
+    }
+  }
+
+  // Every way out of a rendering run lets the device go first: released during
+  // static destruction, its textures and pipelines want locks that no longer
+  // exist.
+  struct DeviceScope {
+    ~DeviceScope() { releaseDevice(); }
+  } deviceScope;
 
   // PUBLISHING IS THE LIVE WINDOW'S. What travels is the texture a
   // frame was drawn into, and every lane below that answers before the
@@ -190,7 +347,8 @@ int main(int argc, char* argv[]) {
     const QCoreApplication core(coreArgc, argv);
     SketchCatalog::sketchDirectory = SIGIL_SKETCH_DIR;
     SketchCatalog::thumbnailDirectory.clear();  // no still is rendered here
-    if (!args.sketchFile.empty()) SketchCatalog::externals = {args.sketchFile};
+    SketchCatalog::externals = workspaceSources;
+    SketchCatalog::workspaceRoot = args.workspace;
     const SketchCatalog rows;
     for (const QVariant& row : rows.sketches())
       std::printf("%s\n",
@@ -337,6 +495,11 @@ int main(int argc, char* argv[]) {
     buildDirectorySweep = std::async(
         std::launch::async, &sketch::Host::sweepAbandonedBuildDirectories);
   SketchCatalog::sketchDirectory = sketchDirectory;
+  SketchCatalog::workspaceRoot = args.workspace;
+  SketchActions::workspaceRoot = args.workspace;
+  SketchActions::pythonExecutable = args.pythonExecutable;
+  SketchActions::pythonAbi = QString::fromStdString(args.pythonAbi);
+  SketchActions::rememberSelections = remembersWindow;
   // WHERE THE BROWSER'S THUMBNAILS COME FROM: this app's own store, filled
   // on demand by a background worker and by the `--thumbnails` warm
   // command. The worker renders with the process's own font context and
@@ -370,10 +533,12 @@ int main(int argc, char* argv[]) {
   // reads after it, under its own stem — the dylib a hot-loaded sketch
   // exports carries neither key nor name.
   int openAt = chosen;
+  SketchCatalog::externals = workspaceSources;
   if (fileGiven) {
-    SketchCatalog::externals.push_back(
-        std::filesystem::absolute(args.sketchFile));
-    openAt = (int)sketch::registry().size();
+    const auto selectedFile = std::find(
+        workspaceSources.begin(), workspaceSources.end(), args.sketchFile);
+    openAt = (int)sketch::registry().size() +
+             (int)std::distance(workspaceSources.begin(), selectedFile);
   }
   // WHAT THE CANVAS OPENS ON, AND WHEN. Left alone, the window comes up
   // on the browser and fills in the thumbnails nothing has drawn yet,
@@ -382,9 +547,9 @@ int main(int argc, char* argv[]) {
   // a sketch, or that is here to photograph or measure one, is not
   // browsing: it opens at once and no fill starts.
   SketchCatalog::opensAt = openAt >= 0 ? openAt : 0;
-  SketchCatalog::opensWithoutFill = !args.shotPath.empty() ||
-                                    args.windowBench.seconds > 0.0 ||
-                                    fileGiven || chosen >= 0;
+  SketchCatalog::opensWithoutFill =
+      !args.shotPath.empty() || args.windowBench.seconds > 0.0 || fileGiven ||
+      !args.workspace.empty() || chosen >= 0;
   // A FRAME-RATE SWEEP MEASURES THE FRAMES AND NOTHING BESIDE THEM. The
   // browser photographs each sketch it opens for its own store, on the
   // render thread and inside a frame; here that still would be taken in
@@ -400,6 +565,8 @@ int main(int argc, char* argv[]) {
                                                        : args.sketchFile);
 
   QGuiApplication application(argc, argv);
+  if (remembersWindow && (!args.workspace.empty() || fileGiven))
+    history.remember({args.workspace, args.sketchFile});
 
   finishMaterialWarmup(materialWarmup);
 

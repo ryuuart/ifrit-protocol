@@ -15,6 +15,8 @@ find_package(Python3 COMPONENTS Interpreter REQUIRED)
 qt_add_executable(Sketchbook
   main.cpp
   Arguments.cpp Arguments.h
+  PythonEnvironment.cpp PythonEnvironment.h
+  Workspace.cpp Workspace.h
   FrameLane.cpp FrameLane.h
   Keys.cpp Keys.h
   SketchbookRenderer.cpp SketchbookRenderer.h
@@ -89,9 +91,18 @@ qt_add_qml_module(Sketchbook
 # and the SIGIL_SKETCHBOOK_THUMBNAILS environment variable name another.
 target_include_directories(Sketchbook PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(Sketchbook PRIVATE
-  SigilSketch SigilSketchPython SigilSketches SigilMeasure SigilWeavePorts SigilMaterial
+  SigilSketch SigilSketchPython SigilSketches SigilSketchesPython
+  SigilMeasure SigilWeavePorts SigilMaterial
   IfritUiplugin Qt6::Gui Qt6::GuiPrivate Qt6::Quick Qt6::QuickControls2
   Qt6::QuickDialogs2)
+
+sigil_test(sketch_test
+  SOURCES Arguments.cpp Workspace.cpp test/ArgumentsTest.cpp test/WorkspaceTest.cpp
+  LIBRARIES SigilSketch Qt6::Core)
+
+target_compile_definitions(Sketchbook PRIVATE
+  SIGIL_PYTHON_EXECUTABLE="${Python3_EXECUTABLE}"
+  SIGIL_PYTHON_ENVIRONMENT_SCRIPT="${CMAKE_CURRENT_LIST_DIR}/../python/sigil/environment.py")
 
 # Sharing the sole Ultralight renderer is an opt-in property of this host,
 # separate from SigilScry's ordinary explicitly owned WebEngine path.

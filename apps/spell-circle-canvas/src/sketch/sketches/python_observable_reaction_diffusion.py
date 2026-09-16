@@ -3,9 +3,13 @@
 Requires the optional ``studies`` package extra.
 """
 
+# TAGS: Drawing/Generative, Patterns/Simulation
+
 import numpy as np
 from sigil.image import from_rgba
 from sigil.sketch import sketch
+
+REQUIRES = ("numpy",)
 
 
 def laplace(field):
