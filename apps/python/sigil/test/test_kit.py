@@ -24,19 +24,29 @@ class Kit(unittest.TestCase):
             self.assertTrue(output.is_file())
 
     def test_theme_is_a_native_value_and_reads_are_owned_snapshots(self):
-        original = kit.house_theme()
-        custom = original.copy()
-        custom.palette.ground = "#244466"
-        custom.type.title.size = 39
-        self.assertNotEqual(custom, original)
-        self.assertEqual(kit.house_theme(), original)
-        with kit.provide(custom):
-            self.assertEqual(kit.theme(), raw.kit.theme())
-            self.assertEqual(kit.theme(), custom)
-            snapshot = kit.theme()
-            snapshot.spacing.cellGap = 99
-            self.assertEqual(kit.theme(), custom)
-        self.assertEqual(kit.theme(), original)
+        ambient = kit.theme()
+        for factory, native in (
+            (kit.house_theme, raw.kit.houseTheme),
+            (kit.study_theme, raw.kit.studyTheme),
+        ):
+            with self.subTest(factory=factory.__name__):
+                original = factory()
+                self.assertIsInstance(original, raw.kit.Theme)
+                self.assertEqual(original, native())
+                custom = original.copy()
+                custom.palette.ground = "#244466"
+                custom.type.title.size += 1
+                self.assertNotEqual(custom, original)
+                fresh = factory()
+                fresh.spacing.cellGap += 1
+                self.assertEqual(factory(), original)
+                with kit.provide(custom):
+                    self.assertEqual(kit.theme(), raw.kit.theme())
+                    self.assertEqual(kit.theme(), custom)
+                    snapshot = kit.theme()
+                    snapshot.spacing.cellGap += 1
+                    self.assertEqual(kit.theme(), custom)
+                self.assertEqual(kit.theme(), ambient)
 
     def test_nested_providers_restore_the_original_theme_on_exception(self):
         original = kit.theme()

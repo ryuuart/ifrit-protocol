@@ -85,6 +85,7 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
    *  that exists is one other applications can already see. */
   std::unique_ptr<sigil::publish::Publisher> m_publisher;
   bool m_publishing = false;
+  std::uint64_t m_publicationRequest = 0;
   SketchbookView* m_view = nullptr;
   QRhi* m_rhi = nullptr;
   bool m_initialized = false;

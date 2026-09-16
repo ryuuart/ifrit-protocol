@@ -158,6 +158,7 @@ void bindTheme(py::module_& module) {
       },
       py::arg("voice"), py::arg("weight") = 400, py::arg("italic") = false);
   module.def("houseTheme", [] { return sketchKit::houseTheme(); });
+  module.def("studyTheme", [] { return sketchKit::studyTheme(); });
   module.def("theme", [] { return sketchKit::theme(); });
   py::class_<ThemeProvider, std::shared_ptr<ThemeProvider>>(module, "Provide")
       .def(py::init<sketchKit::Theme>(), py::arg("theme"))

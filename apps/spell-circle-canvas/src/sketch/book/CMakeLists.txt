@@ -35,6 +35,13 @@ add_test(NAME sketch_browser
 set_tests_properties(sketch_browser PROPERTIES
   ENVIRONMENT "QT_QUICK_BACKEND=software" TIMEOUT 30)
 
+add_test(NAME sketch_publication_controls
+  COMMAND qt_qml_test
+    -input ${CMAKE_CURRENT_LIST_DIR}/test/tst_publication.qml
+    -platform offscreen)
+set_tests_properties(sketch_publication_controls PROPERTIES
+  ENVIRONMENT "QT_QUICK_BACKEND=software" TIMEOUT 30)
+
 # A real .app: a bare Mach-O in bin/ gets no bundle identity, so macOS
 # gives it the executable's name in the menu bar and treats activation as
 # a plain process. `--headless` still works through the inner binary

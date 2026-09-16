@@ -10,7 +10,7 @@ import _sigil.compose
 import _sigil.compose.kit
 import _sigil.skia
 import _sigil.weave
-__all__: list[str] = ['Cell', 'Page', 'Palette', 'PanelGrid', 'Provide', 'Recess', 'Register', 'Relief', 'Run', 'Spacing', 'Stage', 'Theme', 'TypeScale', 'Voice', 'Well', 'WellContent', 'caption', 'cell', 'cells', 'houseFace', 'houseTheme', 'page', 'panelGrid', 'stage', 'theme', 'well']
+__all__: list[str] = ['Cell', 'Page', 'Palette', 'PanelGrid', 'Provide', 'Recess', 'Register', 'Relief', 'Run', 'Spacing', 'Stage', 'Theme', 'TypeScale', 'Voice', 'Well', 'WellContent', 'caption', 'cell', 'cells', 'houseFace', 'houseTheme', 'page', 'panelGrid', 'stage', 'studyTheme', 'theme', 'well']
 
 class Cell:
 
@@ -1022,6 +1022,9 @@ def panelGrid(arg0: PanelGrid) -> _sigil.compose.Element:
     ...
 
 def stage(arg0: _sigil.Context, arg1: Stage) -> None:
+    ...
+
+def studyTheme() -> Theme:
     ...
 
 def theme() -> Theme:

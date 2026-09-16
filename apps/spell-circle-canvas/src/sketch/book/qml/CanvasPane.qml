@@ -13,6 +13,7 @@ ColumnLayout {
     property alias sketchIndex: view.sketchIndex
     property alias paused: view.paused
     property alias publishing: view.publishing
+    readonly property string publicationError: view.publicationError
     property alias timeScale: view.timeScale
     readonly property var metrics: view.metrics
     readonly property string hostState: view.state
@@ -160,6 +161,20 @@ ColumnLayout {
                 view.key(event.key, event.text, false);
                 event.accepted = true;
             }
+        }
+    }
+
+    Ui.Panel {
+        Layout.fillWidth: true
+        visible: pane.publicationError.length > 0
+        padding: Ui.Theme.spacing
+        contentItem: Label {
+            text: pane.publicationError
+            color: Ui.Theme.errorText
+            font.pixelSize: Ui.Theme.bodySize
+            textFormat: Text.PlainText
+            wrapMode: Text.Wrap
+            Accessible.role: Accessible.AlertMessage
         }
     }
 

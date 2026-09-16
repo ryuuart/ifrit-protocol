@@ -27,6 +27,9 @@ from _sigil.sketch.kit import (
 from _sigil.sketch.kit import (
     houseTheme as house_theme,
 )
+from _sigil.sketch.kit import (
+    studyTheme as study_theme,
+)
 
 from ..compose._typing import Child as _Child
 from ._kit_typing import (
@@ -106,6 +109,7 @@ __all__ = [
     "panel_grid",
     "provide",
     "stage",
+    "study_theme",
     "theme",
     "well",
 ]

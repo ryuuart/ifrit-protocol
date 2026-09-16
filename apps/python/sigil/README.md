@@ -640,8 +640,10 @@ fields and ordered children; native components own arrangement and
 painting. Lowercase wrappers accept snake_case properties; native record
 classes such as `Page`, `Well` and `Spacing` retain their native field names.
 
-`house_theme()` and `theme()` return owned native values. Their embedded
-palette, type and spacing fields are editable parts of the value.
+`house_theme()` supplies the default stock theme; `study_theme()` supplies
+the stock theme for typographic studies. Both factories and `theme()` return
+owned native values. Their embedded palette, type and spacing fields are
+editable parts of the value.
 `with kit.provide(look):` installs a snapshot in the native inherited
 scope; nested scopes restore the enclosing theme. Close a provider in
 reverse nesting order on its owning thread. Callback boundaries close a

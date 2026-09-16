@@ -24,7 +24,7 @@ namespace sketch = sigil::sketch;
 std::filesystem::path SketchbookView::assetsDirectory;
 std::filesystem::path SketchbookView::sketchesDirectory;
 std::filesystem::path SketchbookView::flagsFile;
-std::string SketchbookView::publishName;
+std::string SketchbookView::publishName = "Sketchbook";
 bool SketchbookView::publishAtStart = false;
 sketch::Host* SketchbookView::host = nullptr;
 sigil::weave::FontContext* SketchbookView::fonts = nullptr;
@@ -169,6 +169,8 @@ void SketchbookView::replay() {
 void SketchbookView::setPublishing(bool publishing) {
   if (publishing == m_publishing) return;
   m_publishing = publishing;
+  ++m_publicationRequest;
+  m_publicationError.clear();
   if (publishing && window()) WindowChrome::keepRendering(window());
   emit publishingChanged();
   update();  // the renderer reads it on the synchronize this asks for

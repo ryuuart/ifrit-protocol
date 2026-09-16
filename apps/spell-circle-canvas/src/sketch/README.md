@@ -692,9 +692,12 @@ A program on this machine subscribes to a name and receives every frame
 this canvas draws, composited live in its own scene — a VJ program, a
 projection mapper, a recorder. The name is the one given, or the stem of
 the sketch the run opens on; a subscriber binds to it, so it is the
-run's and does not follow the sketch on screen. Ctrl-P turns it on and
-off while the window runs, and the status line says what is leaving and
-under what name.
+run's and does not follow the sketch on screen. The status bar's **Publish**
+button and Ctrl-P invoke the same action. A normal launch without `--publish`
+starts with publishing off and uses **Sketchbook** when enabled. The status
+line distinguishes off, starting and publishing under the server's name.
+If publication cannot start, the button returns to off and the canvas shows
+the reason until the next attempt; CPU rendering cannot publish frames.
 
 `Receiver`, the subscriber in the same feature, is what to check it
 with: `Receiver --list` says what is being offered, `Receiver <name>`

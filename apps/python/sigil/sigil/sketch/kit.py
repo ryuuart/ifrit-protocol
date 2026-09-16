@@ -49,6 +49,7 @@ __all__ = [
     "panel_grid",
     "provide",
     "stage",
+    "study_theme",
     "theme",
     "well",
 ]
@@ -57,6 +58,11 @@ __all__ = [
 def house_theme():
     """Return an editable copy of the native house theme."""
     return _native.houseTheme()
+
+
+def study_theme():
+    """Return an editable copy of the native study theme."""
+    return _native.studyTheme()
 
 
 def house_face(voice, weight=400, italic=False):

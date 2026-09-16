@@ -42,6 +42,7 @@
 
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
@@ -50,9 +51,9 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 400};
-constexpr float kCell = 254;
-constexpr float kPicture = 200;
+constexpr SkSize kCanvas = {1100, 620};
+constexpr float kComparison = 660;
+constexpr float kReading = 332;
 
 constexpr float kSize = 40;  // the size the deltas are measured at
 const char* kHeadline = "WAVY. To AVA";
@@ -60,6 +61,14 @@ const char* kPairs[6] = {"AV", "VA", "To", "Y.", "WA", "av"};
 
 constexpr SkColor4f kTable{0.95f, 0.44f, 0.32f, 0.80f};
 constexpr SkColor4f kOptical{0.40f, 0.76f, 0.98f, 0.80f};
+
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::studyTheme();
+  look.type.captionLabel = {.size = 11, .track = 0.8f, .mono = true};
+  look.spacing.rowGap = 8;
+  look.captionWhere = kit::Caption::Where::Above;
+  return look;
+}
 
 /** The headline's register. `optical` is the whole difference between the
  *  two settings on this sheet. */
@@ -72,18 +81,20 @@ weave::TextStyle display(float size, SkColor4f color, bool optical) {
   return style;
 }
 
-/** The plate every specimen on this sheet stands on, and the
- *  measure its caption is set to. */
 const sketch::kit::Cell kSpecimen{
-    .plate = {.width = kCell, .height = kPicture, .padding = 12}};
+    .plate = {.width = kComparison,
+              .height = 86,
+              .padding = 20,
+              .content = sketch::kit::Well::Content{.across = Align::Start}}};
 
 }  // namespace
 
 struct OpticalKerning {
-  std::string rows[7];
+  std::vector<sketch::kit::Reading> pairs;
+  std::string lineDelta;
 
   void setup(sketch::SketchContext& ctx) {
-    // nothing moves; the sheet is complete at once
+    const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     // THE DELTAS ARE MEASURED: each pair is set twice at the headline's
@@ -96,76 +107,76 @@ struct OpticalKerning {
               box().children({text(text8, display(kSize, figure, optical))}))
           .width();
     };
-    for (int i = 0; i < 6; ++i)
-      rows[i] =
-          kit::formatted("%-3s %+6.2f px", kPairs[i],
-                         advance(kPairs[i], true) - advance(kPairs[i], false));
-    rows[6] =
-        kit::formatted("%-3s %+6.2f px", "the line",
-                       advance(kHeadline, true) - advance(kHeadline, false));
+    pairs.clear();
+    for (const char* pair : kPairs)
+      pairs.push_back(
+          {.name = pair,
+           .value = kit::formatted(
+               "%+.2f px", advance(pair, true) - advance(pair, false))});
+    lineDelta = kit::formatted(
+        "%+.2f", advance(kHeadline, true) - advance(kHeadline, false));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "OPTICAL KERNING · "
-                  "ShapingStyle::opticalKerning",
-         .subtitle = "dials · the size (40 px, which is the "
-                     "size the deltas are for) · the pairs "
-                     "measured · the face, whose own even "
-                     "pair is the reference",
-         .footer = "the face's table is switched OFF while this is "
-                   "on, because the two are answers to the same "
-                   "question and a page takes one of them — and the reference "
-                   "is the face's own even "
-                   "pair, so a loose face stays loose"},
+        {.title = "Optical kerning",
+         .subtitle = "One line at 40 px · the designer's table and the "
+                     "measured alternative",
+         .footer = "Optical kerning replaces the face's table. Negative "
+                   "deltas close a pair; positive deltas open it."},
         kit::cells(
-            {.cells = {sketch::kit::cell(
-                           kSpecimen, "opticalKerning = false",
-                           "the face's own kerning table · a "
-                           "designer's pairs, and the setting every other "
-                           "cell is read against",
-                           headline(figure, false)),
-                       sketch::kit::cell(
-                           kSpecimen, "opticalKerning = true",
-                           "every pair measured instead · the "
-                           "outlines are read for the narrowest distance "
-                           "between them and closed to the face's own even "
-                           "pair",
-                           headline(figure, true)),
-                       both(), table()},
-             .gap = 14})));
+            {.cells = {kit::cells({.cells = {sketch::kit::cell(
+                                                 kSpecimen, "FONT TABLE",
+                                                 "opticalKerning = false",
+                                                 headline(figure, false)),
+                                             sketch::kit::cell(
+                                                 kSpecimen, "OPTICAL FIT",
+                                                 "opticalKerning = true",
+                                                 headline(figure, true)),
+                                             both()},
+                                   .column = true,
+                                   .gap = 18}),
+                       table()},
+             .gap = 28})));
   }
 
   Element headline(SkColor4f colour, bool optical) {
-    return text(kHeadline, display(kSize, colour, optical)).width(kCell - 24);
+    return text(kHeadline, display(kSize, colour, optical))
+        .width(kComparison - 40);
   }
 
   /** The two settings over one another: where they disagree is where the
    *  measured answer and the designer's differ. */
   Element both() {
     return sketch::kit::cell(
-        kSpecimen, "both, superimposed",
-        "the table in warm under the measured answer in cool "
-        "· the letters drift apart along the line, because "
-        "every pair's delta accumulates into the next",
-        box().inset(0).children({headline(kTable, false).inset(0),
-                                 headline(kOptical, true).inset(0)}));
+        kSpecimen, "SUPERIMPOSED", "Warm: font table · cool: optical fit",
+        box()
+            .width(kComparison - 40)
+            .height(50)
+            .children({headline(kTable, false).absolute().inset(0),
+                       headline(kOptical, true).absolute().inset(0)}));
   }
 
   Element table() {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
-    return sketch::kit::cell(
-        kSpecimen, "measured pair deltas",
-        "each pair set twice and the two advances subtracted "
-        "· negative closes the pair up, and the last row is "
-        "the whole line",
-        // The rows are one voice, stated on the column they stand
-        // in; a row says only its own words.
-        box()
+    return sketch::kit::caption(
+        kReading, "MEASURED DIFFERENCE",
+        "Optical advance minus font-table advance",
+        sketch::kit::well({.width = kReading, .height = 368, .padding = 22})
             .column()
-            .gap(7)
-            .font(sheet.font({.size = 11, .mono = true}))
-            .ink(sheet.palette.figure)
+            .gap(24)
             .children(
-                each(rows, [](const std::string& row) { return text(row); })));
+                {sketch::kit::readout(pairs,
+                                      {.measure = kReading - 44, .ruled = true})
+                     .shrink(0),
+                 box().column().gap(4).children(
+                     {text("WHOLE LINE").styleClass("eyebrow"),
+                      text(lineDelta)
+                          .font(sheet.font({.size = 42, .mono = true}))
+                          .ink(sheet.palette.figure),
+                      text("px in total advance").styleClass("captionNote")}),
+                 text("The reference is the face's own even pair. "
+                      "Each difference accumulates along the line.")
+                     .width(kReading - 44)
+                     .styleClass("captionNote")}));
   }
 };
 

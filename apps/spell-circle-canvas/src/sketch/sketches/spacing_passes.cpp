@@ -62,9 +62,9 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 400};
-constexpr float kCell = 200;
-constexpr float kPicture = 200;
+constexpr SkSize kCanvas = {1100, 490};
+constexpr float kCell = 190;
+constexpr float kPicture = 156;
 
 constexpr float kMeasure = 130;          // every cell is set in this measure
 constexpr float kWordSpacing = 2.0f;     // the multiple a gap is AIMED at
@@ -94,16 +94,45 @@ Element passage(weave::JustificationOptions options) {
       .block({.justification = options});
 }
 
-/** The plate every specimen on this sheet stands on, and the
- *  measure its caption is set to. */
-const sketch::kit::Cell kSpecimen{
-    .plate = {.width = kCell, .height = kPicture, .padding = 12}};
+Element singleWord(weave::JustificationOptions options) {
+  const sketch::kit::Theme& sheet = sketch::kit::theme();
+  const auto sample = [&](const char* label,
+                          weave::JustificationOptions justification) {
+    return box().column().gap(4).children(
+        {text(label)
+             .font(sheet.font({.size = 8.5f, .track = 0.5f, .mono = true}))
+             .ink(sheet.palette.ash),
+         text("Alone.", body())
+             .width(kMeasure)
+             .block({.alignment = weave::TextAlignment::kJustify,
+                     .justification = justification})});
+  };
+  return box().column().gap(16).children(
+      {sample("ALIGNED", {}), sample("JUSTIFIED", options)});
+}
+
+Element setting(Utf8 label, Utf8 control, Utf8 note, Element specimen) {
+  const sketch::kit::Theme& sheet = sketch::kit::theme();
+  return sketch::kit::caption(
+      kCell, std::move(label), std::move(note),
+      box().column().gap(10).children(
+          {text(control)
+               .font(sheet.font({.size = 10, .mono = true}))
+               .ink(sheet.palette.figure),
+           sketch::kit::well(
+               {.width = kCell,
+                .height = kPicture,
+                .padding = 22,
+                .content = sketch::kit::Well::Content{.across = Align::Center,
+                                                      .down = Justify::Start}},
+               std::move(specimen))}));
+}
 
 }  // namespace
 
 struct SpacingPasses {
   void setup(sketch::SketchContext& ctx) {
-    // nothing moves; the sheet is complete at once
+    const sketch::kit::Provide look(sketch::kit::studyTheme());
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     // Every value is the stock one with a single field moved, so a cell
@@ -117,60 +146,45 @@ struct SpacingPasses {
     weave::JustificationOptions glyphs = gaps;
     glyphs.glyphScale = kGlyphScale;
     glyphs.glyphScaleMinimum = kGlyphScale;
+    glyphs.glyphScaleMaximum = kGlyphScale;
     weave::JustificationOptions lastWord = gaps;
     lastWord.justifyLastLine = true;
     lastWord.singleWord = weave::JustificationOptions::SingleWord::kJustify;
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE THREE PASSES · JustificationOptions "
-                  "word gaps, letter spacing, glyph scale",
-         .subtitle = "dials · one measure (130 px) for every "
-                     "cell · the multiple a gap is aimed at "
-                     "(2.0) · "
-                     "the em fraction the letter pass adds "
-                     "(0.05) · the glyph scale (0.92)",
-         .footer = "each pass spends only what the one before it "
-                   "could not, and a pass whose limits equal its "
-                   "desired value contributes nothing and costs "
-                   "nothing — which is why a caller who "
-                   "sets none of them gets word spacing alone"},
+        {.title = "Fitting a justified line",
+         .subtitle = kit::formatted("One %.0f px measure · four paragraph "
+                                    "settings and a single-word edge case",
+                                    kMeasure),
+         .footer = "Fitting order: word gaps → letter spacing → glyph scale. "
+                   "A one-word line can spend only letter spacing."},
         kit::cells(
-            {.cells = {sketch::kit::cell(
-                           kSpecimen, "justification({})",
-                           "the word gaps alone · the two later "
-                           "passes have limits equal to their desired "
-                           "values and do not run, so nothing bounds the "
-                           "gaps and they take the whole fit",
-                           passage(gaps)),
-                       sketch::kit::cell(
-                           kSpecimen, "wordSpacing = 2.0",
-                           "the FIRST pass aimed at twice the shaped space "
-                           "· the elasticity is measured from this, "
-                           "not from the space the face cut",
-                           passage(wider)),
-                       sketch::kit::cell(
-                           kSpecimen, "letterSpacing = 0.05",
-                           "the SECOND pass, in em fractions, applied to "
-                           "every justified line whatever its fit · "
-                           "a pass past the gaps is open, so the gaps hold "
-                           "at their stretch limit and the letters carry "
-                           "the rest",
-                           passage(letters)),
-                       sketch::kit::cell(
-                           kSpecimen, "glyphScale = 0.92",
-                           "the THIRD pass, which scales the letters "
-                           "themselves across · the last thing a page "
-                           "should do: every justified line is set at 92 "
-                           "per cent of its shaped width",
-                           passage(glyphs)),
-                       sketch::kit::cell(
-                           kSpecimen, "singleWord = kJustify",
-                           "a line holding ONE word has no gaps to "
-                           "spend · stretched across the measure by "
-                           "letter spacing alone, with justifyLastLine "
-                           "setting the closing line too",
-                           passage(lastWord))},
-             .gap = 12})));
+            {.cells =
+                 {setting("WORD GAPS", "justification({})",
+                          "Stock word gaps take the whole fit. "
+                          "The later passes are closed.",
+                          passage(gaps)),
+                  setting("WIDER GAPS",
+                          kit::formatted("wordSpacing = %.1f", kWordSpacing),
+                          "Aim at twice the shaped space. Stretch and shrink "
+                          "are measured from that target.",
+                          passage(wider)),
+                  setting(
+                      "LETTER SPACING",
+                      kit::formatted("letterSpacing = %.2f", kLetterSpacing),
+                      "Open the second pass. Word gaps stop at their limit; "
+                      "space between letters carries the rest.",
+                      passage(letters)),
+                  setting("GLYPH SCALE",
+                          kit::formatted("glyphScale = %.2f", kGlyphScale),
+                          "The final pass changes the width of the glyphs "
+                          "themselves, here to 92 per cent.",
+                          passage(glyphs)),
+                  setting("ONE-WORD LINE", "singleWord = kJustify",
+                          "A lone word, before and after. Letter spacing "
+                          "fills the measure when justifyLastLine is on.",
+                          singleWord(lastWord))},
+             .gap = 16})));
   }
 };
 

@@ -140,6 +140,7 @@ void SketchbookRenderer::synchronize(QQuickRhiItem* item) {
     m_publishing = view->m_publishing;
     m_metricsDirty = true;
   }
+  m_publicationRequest = view->m_publicationRequest;
   m_logicalSize = QSizeF(view->width(), view->height());
   m_deviceRatio = view->window()
                       ? (float)view->window()->effectiveDevicePixelRatio()
@@ -544,26 +545,32 @@ void SketchbookRenderer::startPublishing() {
                  SketchbookView::publishName.c_str());
     return;
   }
-  // REFUSED, NOT DEGRADED. What travels is the texture the frame was
-  // drawn into, and the raster fallback draws into memory of its own and
-  // uploads it — there is no texture of this window's to hand over.
-  //
-  // THE WINDOW HOLDS THE ANSWER, so the refusal waits until there is a
-  // window to give it to: the first attempt happens as the context comes
-  // up, before this renderer has been handed its item, and the flag it
-  // was asked through is the item's. Left standing, it is tried once
-  // more on the first frame — which is where it is refused out loud and
-  // put back down, so the window says publishing is off rather than
-  // showing it on over a canvas nobody can subscribe to.
+  // Initialization can precede synchronization with the view. Leave the
+  // request pending until its refusal can reach the window.
   SketchbookView* view = m_view;
   if (!view) return;
   m_publishing = false;
-  std::fprintf(stderr,
-               "[sketchbook] publish: what is offered is the texture a "
-               "frame was drawn into, and this window has none to offer "
-               "\u2014 it is on the CPU raster fallback\n");
+  QString reason = QStringLiteral(
+      "This window uses CPU rendering. Frame publishing requires a supported "
+      "GPU renderer.");
+#ifdef SIGILSKETCH_BOOK_GPU
+  if (m_graphiteContext)
+    reason = QStringLiteral(
+        "A frame publisher could not be opened for this graphics backend.");
+#endif
+  std::fprintf(stderr, "[sketchbook] publish: %s\n",
+               reason.toUtf8().constData());
+  const auto request = m_publicationRequest;
   QMetaObject::invokeMethod(
-      view, [view] { view->setPublishing(false); }, Qt::QueuedConnection);
+      view,
+      [view, request, reason] {
+        if (request != view->m_publicationRequest || !view->m_publishing)
+          return;
+        view->m_publishing = false;
+        view->m_publicationError = reason;
+        emit view->publishingChanged();
+      },
+      Qt::QueuedConnection);
 }
 
 void SketchbookRenderer::stopPublishing() {

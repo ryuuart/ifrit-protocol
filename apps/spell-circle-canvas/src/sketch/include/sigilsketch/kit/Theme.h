@@ -274,6 +274,11 @@ enum class Voice {
  *  writes the two. */
 [[nodiscard]] const Theme& houseTheme();
 
+/** A stock sheet for comparative studies: larger headings, brighter notes
+ *  and wider margins. Copy it to adjust the specimen's caption placement or
+ *  measured readouts; its resolved faces are shared across calls. */
+[[nodiscard]] const Theme& studyTheme();
+
 /** THE THEME IN SCOPE, or the house one where nothing bound a theme —
  *  which is what makes every component here correct on its own. */
 [[nodiscard]] const Theme& theme();

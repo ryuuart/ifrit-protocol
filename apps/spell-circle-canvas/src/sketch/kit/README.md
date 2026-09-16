@@ -14,6 +14,12 @@ it. A sketch's own theme is indistinguishable from the house one at every
 call site, and every component here behaves correctly with no theme bound
 at all.
 
+`studyTheme()` is a second stock value for comparative studies. It gives the
+page a larger heading, brighter notes and wider margins while keeping the
+house ground and specimen components. Bind it with `Provide`, or copy it and
+change only the choices specific to a specimen, such as caption placement.
+Both stock themes hold their resolved faces across calls.
+
 ```cpp
 #include <sigilsketch/kit/Kit.h>
 

@@ -134,6 +134,27 @@ const Theme& houseTheme() {
   return house;
 }
 
+const Theme& studyTheme() {
+  static const Theme study = [] {
+    Theme sheet = houseTheme();
+    sheet.palette.ash = {0.65f, 0.67f, 0.72f, 1};
+    sheet.type.sans = houseFace(Voice::Interface);
+    sheet.type.title = {.size = 30, .track = -0.4f};
+    sheet.type.subtitle = {.size = 12, .track = 0};
+    sheet.type.footer = {.size = 11, .track = 0};
+    sheet.type.captionLabel = {.size = 11, .track = 0.5f};
+    sheet.type.captionNote = {.size = 11, .track = 0};
+    sheet.spacing.marginX = 40;
+    sheet.spacing.marginTop = 32;
+    sheet.spacing.marginBottom = 24;
+    sheet.spacing.subtitleGap = 8;
+    sheet.spacing.contentGap = 26;
+    sheet.spacing.captionGap = 10;
+    return sheet;
+  }();
+  return study;
+}
+
 const Theme& theme() {
   const Theme* bound = sigil::core::environment::inherited<Theme>();
   return bound != nullptr ? *bound : houseTheme();

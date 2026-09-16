@@ -13,6 +13,7 @@
 #include <QtCore/QVariantList>
 #include <QtCore/QVariantMap>
 #include <QtQuick/QQuickRhiItem>
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -44,6 +45,8 @@ class SketchbookView : public QQuickRhiItem {
    *  the window turns it on and off from here. */
   Q_PROPERTY(bool publishing READ publishing WRITE setPublishing NOTIFY
                  publishingChanged)
+  Q_PROPERTY(
+      QString publicationError READ publicationError NOTIFY publishingChanged)
   Q_PROPERTY(double timeScale READ timeScale WRITE setTimeScale NOTIFY
                  timeScaleChanged)
   // Structured, not preformatted: the panel is narrow and its width is
@@ -102,6 +105,7 @@ class SketchbookView : public QQuickRhiItem {
   [[nodiscard]] bool paused() const { return m_paused; }
   void setPaused(bool paused);
   [[nodiscard]] bool publishing() const { return m_publishing; }
+  [[nodiscard]] QString publicationError() const { return m_publicationError; }
   [[nodiscard]] double timeScale() const { return m_timeScale; }
   void setTimeScale(double scale);
   [[nodiscard]] QVariantMap metrics() const { return m_metrics; }
@@ -131,7 +135,7 @@ class SketchbookView : public QQuickRhiItem {
    *  offered from the moment it opens — the command line's answer,
    *  written before anything is created. A subscriber binds to the
    *  name, so it is the run's and does not follow the sketch on screen.
-   *  Empty publishes nothing. */
+   *  Defaults to Sketchbook when no name was supplied. */
   static std::string publishName;
   static bool publishAtStart;
   /** WHAT EVERY SESSION THIS WINDOW OPENS SHAPES TEXT WITH — the
@@ -217,6 +221,9 @@ class SketchbookView : public QQuickRhiItem {
   bool m_paused = false;
   /** Written here, read by the renderer on the next synchronize. */
   bool m_publishing = false;
+  QString m_publicationError;
+  /** Refusals from an earlier render-thread request cannot cancel a retry. */
+  std::uint64_t m_publicationRequest = 0;
   bool m_orbitable = false;
   double m_timeScale = 1.0;
   float m_yawDeg = 0.0f;

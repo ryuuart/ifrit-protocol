@@ -161,12 +161,13 @@ ApplicationWindow {
         sequences: [StandardKey.Save]
         onActivated: view.capture()
     }
-    Shortcut {
-        // Offer what the canvas is drawing to other applications on this
-        // machine, or stop offering it. A window that cannot publish
-        // what it draws turns this back off and says why on the console.
-        sequence: "Ctrl+P"
-        onActivated: view.publishing = !view.publishing
+    Action {
+        id: publicationAction
+        text: "Publish"
+        shortcut: "Ctrl+P"
+        checkable: true
+        checked: view.publishing
+        onTriggered: view.publishing = checked
     }
     Shortcut {
         sequence: "/"
@@ -628,6 +629,8 @@ ApplicationWindow {
             metrics: view.metrics
             capture: window.captureLine
             publication: view.publishing ? (view.metrics.publish ?? "") : ""
+            publicationError: view.publicationError
+            publishAction: publicationAction
             onPauseToggled: view.paused = !view.paused
             onCaptureRequested: view.capture()
             onTimeScaleRequested: scale => view.timeScale = scale

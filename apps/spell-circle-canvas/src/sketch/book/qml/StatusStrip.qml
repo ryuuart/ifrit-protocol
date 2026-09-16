@@ -6,7 +6,6 @@ import QtQuick
 import Ifrit.Qt 1.0 as Ui
 import QtQuick.Controls
 import QtQuick.Layouts
-import Sigil.Sketchbook
 
 Rectangle {
     id: strip
@@ -31,10 +30,10 @@ Rectangle {
     property var metrics: ({})
     /** What the last capture wrote, shown for a moment and then gone. */
     property string capture: ""
-    /** THE NAME THE FRAMES ARE LEAVING UNDER, while they are: what
-     *  another application subscribes to. Empty while nothing is being
-     *  published, which is what makes the line's absence the answer. */
+    /** The native publisher's name once it is running. */
     property string publication: ""
+    property string publicationError: ""
+    property Action publishAction: null
 
     signal pauseToggled
     signal captureRequested
@@ -92,18 +91,24 @@ Rectangle {
             font.pixelSize: Ui.Theme.captionSize
             elide: Text.ElideLeft
         }
-        Label {
-            Layout.maximumWidth: 160
+        Ui.IconButton {
+            objectName: "publicationButton"
+            action: strip.publishAction
+            tooltip: (checked ? "Stop frame publishing" : "Publish frames to other applications")
+                + " (" + (Qt.platform.os === "osx" ? "⌘P" : "Ctrl+P") + ")"
+        }
+        Ui.StatusIndicator {
+            objectName: "publicationStatus"
+            Layout.preferredWidth: 175
+            Layout.maximumWidth: 220
             Layout.minimumWidth: 0
-            text: "◉ publishing · " + strip.publication
-            color: Ui.Theme.statusText
-            font.family: Ui.Theme.monospaceFontFamily
-            font.pixelSize: Ui.Theme.captionSize
-            visible: strip.publication.length > 0
-            elide: Text.ElideMiddle
-            ToolTip.visible: publicationHover.hovered
-            ToolTip.text: "Publishing as " + strip.publication
-            HoverHandler { id: publicationHover }
+            text: strip.publicationError.length > 0 ? "Publishing unavailable"
+                : !strip.publishAction || !strip.publishAction.checked ? "Publishing off"
+                : strip.publication.length > 0 ? "Publishing as " + strip.publication
+                : "Starting publication…"
+            tone: strip.publicationError.length > 0 ? "error"
+                : strip.publication.length > 0 && strip.publishAction?.checked ? "good" : "neutral"
+            busy: !!strip.publishAction?.checked && strip.publication.length === 0
         }
         // The keys, beside what they act on rather than after the
         // controls: this is the line a reader is already looking at
