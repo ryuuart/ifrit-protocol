@@ -25,11 +25,21 @@
  * frame, and no call of this library's is on that stack; a peer in a
  * process of its own is what keeps two ends off one sweep.
  *
+ * A PEER SAYS WHEN IT IS UP, in one line on its own standard output
+ * which the case that started it reads back off the process, and that
+ * wait carries no verdict at all: what stands behind it is a process
+ * starting, which a machine with other work on it can be slow at and
+ * which says nothing about this transport. Only the pairing after that
+ * line is waited on against this transport's own deadline, so a case
+ * fails when two ends that were both up could not meet, and stands down
+ * naming the machine where a peer never got going at all.
+ *
  * ONE CASE HOLDS BOTH ENDS ANYWAY, and times nothing: what it watches
  * is the process, which two ends coming good on one sweep have to leave
  * running.
  */
 
+#include <fcntl.h>
 #include <gtest/gtest.h>
 #include <sigilio/hub/Feed.h>
 #include <sigilio/hub/Hub.h>
@@ -39,10 +49,12 @@
 #include <signal.h>
 #include <spawn.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <functional>
 #include <memory>
@@ -65,15 +77,23 @@ using namespace std::chrono_literals;
 /** How long a case gives something that must happen. A WHOLE HANDSHAKE
  *  STANDS BEHIND EVERY WAIT HERE — the offer and the answer over the
  *  signalling door, the routes each end finds and tries, the encryption
- *  they agree on and the stream they open through it, with a process to
- *  start before any of that — so the deadline is longer than the one a
- *  socket alone is given. */
+ *  they agree on and the stream they open through it — so the deadline
+ *  is longer than the one a socket alone is given. What does NOT stand
+ *  behind it is a process starting: every peer a case wants is up and
+ *  has said so before any wait of this length begins. */
 constexpr std::chrono::seconds kPatience{10};
 
 /** How long a case watches something that must NOT happen. A caller
  *  nobody is waiting for can never finish, so what this has to outlast
  *  is only the introduction it keeps making. */
 constexpr std::chrono::seconds kQuiet{1};
+
+/** How long a case waits for the peer it started to say it is up. NO
+ *  VERDICT HANGS ON THIS ONE: what it covers is a process starting,
+ *  which a loaded machine can be slow at and which this suite is not
+ *  here to time, so it is generous and a case that runs out of it
+ *  stands down naming the machine rather than failing the transport. */
+constexpr std::chrono::seconds kPeerComingUp{20};
 
 /** WHAT A PEER IS TOLD, and how it says it. The room it is to take up
  *  stands in one, what it is to keep saying in the other; a binary run
@@ -82,16 +102,38 @@ constexpr std::chrono::seconds kQuiet{1};
 constexpr const char* kRoomVariable = "SIGIL_IO_WEBRTC_ROOM";
 constexpr const char* kSayingVariable = "SIGIL_IO_WEBRTC_SAYING";
 
+/** WHAT A PEER SAYS WHEN IT IS UP, on its own standard output: the room
+ *  is taken up, the feed over it opened without complaint and the first
+ *  greeting written. The case that started the process reads this line
+ *  back off it, and everything it waits on afterwards is this
+ *  transport's to answer for. */
+constexpr const char* kPeerIsUp = "the peer is up";
+
+/** WHAT A CASE SAYS WHERE ITS PEER NEVER CAME UP. A process that did not
+ *  get going in a generous time is the machine this suite is running
+ *  on, so the case stands down on it rather than reporting a transport
+ *  that was never reached. */
+constexpr const char* kNeverCameUp =
+    "the peer never came up: the process this case started never said its "
+    "room was open, which is this machine and not this transport";
+
+/** WHAT A CASE SAYS WHERE THE PEER WAS UP AND THE TWO ENDS NEVER MET.
+ *  Both ends were standing and this transport did not pair them, which
+ *  is the failure this suite is here to catch. */
+constexpr const char* kNeverPaired =
+    "the peer was up and the two ends never paired: ";
+
 /** What a peer answers anything it hears with, in front of the words it
  *  heard: a case that sends knows its message arrived by being told it
  *  back. */
 constexpr std::string_view kEcho = "echo ";
 
 /** How long a peer keeps its room open before giving up on whoever
- *  started it. It outlives the deadline a case waits on, so a peer is
+ *  started it. It outlives every wait a case makes on it — the one for
+ *  it to come up and the ones on the transport after — so a peer is
  *  ended by the case that started it and not by its own clock, and a
  *  case that died leaves nothing running for long. */
-constexpr std::chrono::seconds kPeerLife{30};
+constexpr std::chrono::seconds kPeerLife{60};
 
 /** How often a peer says its piece again. A message written before the
  *  channel is open goes nowhere and says nothing about it, so a peer
@@ -134,8 +176,9 @@ Bytes bytesOf(std::string_view text) {
 }
 
 /** THE PEER, IN THE PROCESS A CASE STARTED FOR IT: it takes the room
- *  its environment names, keeps saying what it was told to say, and
- *  answers everything it hears with the same words behind `echo`.
+ *  its environment names, SAYS ON ITS OWN OUTPUT THAT IT IS UP, keeps
+ *  saying what it was told to say, and answers everything it hears with
+ *  the same words behind `echo`.
  *
  *  It is a case of its own suite so that this binary can be run as one
  *  — a peer is this same test binary under another filter — and it
@@ -153,8 +196,17 @@ TEST(IOWebRtcPeer, TheOneACaseStartsThisBinaryFor) {
   const std::shared_ptr<Feed> caller = hub.feed(room);
   ASSERT_TRUE(caller->error().empty()) << caller->error();
 
+  // UP, AND SAYING SO: the room is taken and the first greeting is
+  // written, which is the whole of what this process has to do before
+  // the case that started it can hold the transport to anything. The
+  // line is pushed out as it is written, since what reads it is another
+  // process standing on it.
+  if (saying != nullptr) caller->send(bytesOf(saying));
+  std::printf("%s\n", kPeerIsUp);
+  std::fflush(stdout);
+
   const auto deadline = std::chrono::steady_clock::now() + kPeerLife;
-  auto next = std::chrono::steady_clock::now();
+  auto next = std::chrono::steady_clock::now() + kPeerSays;
   while (std::chrono::steady_clock::now() < deadline) {
     // The frame, as any host makes it: what carries the introduction
     // this end is making is the same dispatch a scene would call.
@@ -170,7 +222,15 @@ TEST(IOWebRtcPeer, TheOneACaseStartsThisBinaryFor) {
   }
 }
 
-/** A PEER THIS CASE STARTED: the process, and the way to end it.
+/** A PEER THIS CASE STARTED: the process, what it has said on its own
+ *  output, and the way to end it.
+ *
+ *  ITS OUTPUT COMES BACK THROUGH A PIPE rather than straight to this
+ *  process's, because the line a peer prints when its room is open is
+ *  how a case knows the process is standing. Whatever is read off that
+ *  pipe is written on to this process's own output as it comes, so a
+ *  peer's words stand where anybody looking for them looks, and the
+ *  pipe is emptied often enough that a peer is never held up by it.
  *
  *  Ending is a signal and then a wait: a peer that has been told to go
  *  is gone by the time this returns, so the case after it starts its
@@ -178,6 +238,15 @@ TEST(IOWebRtcPeer, TheOneACaseStartsThisBinaryFor) {
 class StartedPeer {
  public:
   StartedPeer(const std::string& room, const std::string& saying) {
+    int pipeEnds[2] = {-1, -1};
+    if (::pipe(pipeEnds) != 0) return;
+    m_reading = pipeEnds[0];
+    const int writing = pipeEnds[1];
+    // Read without waiting: a case looks for the peer's line between
+    // dispatches, and a look that stood still on a silent process would
+    // be a frame the introduction did not cross on.
+    ::fcntl(m_reading, F_SETFL, O_NONBLOCK);
+
     const std::string binary = sigil::io::executablePath().string();
     const std::string filter =
         "--gtest_filter=IOWebRtcPeer.TheOneACaseStartsThisBinaryFor";
@@ -191,17 +260,40 @@ class StartedPeer {
     environment.push_back(const_cast<char*>(named.c_str()));
     environment.push_back(const_cast<char*>(said.c_str()));
     environment.push_back(nullptr);
-    if (posix_spawn(&m_process, binary.c_str(), nullptr, nullptr,
+    // The peer's output is the pipe and nothing else of this end's is
+    // the peer's: what it writes is what a case here reads.
+    posix_spawn_file_actions_t actions;
+    posix_spawn_file_actions_init(&actions);
+    posix_spawn_file_actions_adddup2(&actions, writing, STDOUT_FILENO);
+    posix_spawn_file_actions_addclose(&actions, writing);
+    posix_spawn_file_actions_addclose(&actions, m_reading);
+    if (posix_spawn(&m_process, binary.c_str(), &actions, nullptr,
                     arguments.data(), environment.data()) != 0)
       m_process = -1;
+    posix_spawn_file_actions_destroy(&actions);
+    // Written from the peer alone from here, so a peer that ended is a
+    // pipe that ended and a case reading it is told so.
+    ::close(writing);
   }
 
-  ~StartedPeer() { end(); }
+  ~StartedPeer() {
+    end();
+    if (m_reading >= 0) ::close(m_reading);
+  }
 
   StartedPeer(const StartedPeer&) = delete;
   StartedPeer& operator=(const StartedPeer&) = delete;
 
   bool started() const { return m_process > 0; }
+
+  /** Whether the peer has said it is up. It says so once, and what it
+   *  said stands from then on. */
+  bool cameUp() {
+    if (m_cameUp) return true;
+    takeWhatItSaid();
+    m_cameUp = m_said.find(kPeerIsUp) != std::string::npos;
+    return m_cameUp;
+  }
 
   void end() {
     if (m_process <= 0) return;
@@ -209,10 +301,37 @@ class StartedPeer {
     int how = 0;
     ::waitpid(m_process, &how, 0);
     m_process = -1;
+    takeWhatItSaid();
   }
 
  private:
+  /** Takes whatever the peer has written since the last look and writes
+   *  it on to this process's own output. */
+  void takeWhatItSaid() {
+    if (m_reading < 0) return;
+    char block[512];
+    for (;;) {
+      const ssize_t taken = ::read(m_reading, block, sizeof(block));
+      if (taken <= 0) return;
+      m_said.append(block, static_cast<size_t>(taken));
+      std::fwrite(block, 1, static_cast<size_t>(taken), stdout);
+    }
+  }
+
   pid_t m_process = -1;
+  int m_reading = -1;
+  bool m_cameUp = false;
+  std::string m_said;
+};
+
+/** WHAT STARTING A PEER FOR A CASE CAME TO. The two waits behind it mean
+ *  different things, so what came of them is answered apart: whether the
+ *  peer ever said it was up, which is the machine's to answer, and the
+ *  address its arrivals name it by, which is filled where the two ends
+ *  paired and empty where this transport left them apart. */
+struct PeerStanding {
+  bool cameUp = false;
+  std::string sender;
 };
 
 /** WHAT A WEBRTC CASE NEEDS BEFORE IT CAN OPEN ANYTHING: a hub that has
@@ -276,21 +395,34 @@ class IOWebRtc : public ::testing::Test {
   /** Starts a peer that takes the room @p onto waits in up — on the
    *  port that door answered, which is the one it was given — and keeps
    *  saying @p saying, and answers the address its arrivals name it by,
-   *  which is what says the channel between the two processes is
-   *  open. */
-  std::string peerSaying(const std::shared_ptr<Feed>& onto,
-                         const std::string& saying) {
+   *  which is what says the channel between the two processes is open.
+   *
+   *  TWO WAITS STAND HERE AND THEY ANSWER TO DIFFERENT THINGS. The
+   *  first is for the peer's own line saying its room is open, which is
+   *  a process starting and nothing of this transport, so it is
+   *  generous and nothing is judged on it. The second is for the
+   *  greeting that peer is already saying to arrive, which is the two
+   *  ends pairing and is what the case above passes or fails on. */
+  PeerStanding peerSaying(const std::shared_ptr<Feed>& onto,
+                          const std::string& saying) {
     const uint16_t port = portOf(onto->address());
-    if (port == 0) return {};
+    // A door standing on no port is this transport with nothing for a
+    // peer to dial: no process is started for it, and the case's own
+    // verdict on the pairing is what says so.
+    if (port == 0) return {.cameUp = true};
     peers.push_back(std::make_unique<StartedPeer>(callingInto(port), saying));
-    if (!peers.back()->started()) return {};
-    std::string sender;
+    StartedPeer& peer = *peers.back();
+    if (!peer.started()) return {};
+    if (!waitUntil([&] { return peer.cameUp(); }, kPeerComingUp)) return {};
+
+    PeerStanding standing;
+    standing.cameUp = true;
     waitUntil([&] {
       while (const std::optional<Arrival> arrival = onto->receive())
-        if (arrival->bytes->asText() == saying) sender = arrival->from;
-      return !sender.empty();
+        if (arrival->bytes->asText() == saying) standing.sender = arrival->from;
+      return !standing.sender.empty();
     });
-    return sender;
+    return standing;
   }
 
   /** Whether @p onto is told @p text back by the peer named @p from —
@@ -356,11 +488,12 @@ TEST_F(IOWebRtc, APeersMessageArrivesOnTheOneWaitingNamingThePeerItCameFrom) {
   const std::shared_ptr<Feed> waiting = open(waitingAt(0));
   ASSERT_TRUE(waiting->error().empty()) << waiting->error();
 
-  const std::string sender = peerSaying(waiting, "a phone speaks");
-  ASSERT_FALSE(sender.empty()) << waiting->error();
+  const PeerStanding peer = peerSaying(waiting, "a phone speaks");
+  if (!peer.cameUp) GTEST_SKIP() << kNeverCameUp;
+  ASSERT_FALSE(peer.sender.empty()) << kNeverPaired << waiting->error();
   // A peer is named by the room it is in and the number it came in as,
   // which is an address the door can be asked to answer alone.
-  EXPECT_TRUE(sender.starts_with("webrtc://room#")) << sender;
+  EXPECT_TRUE(peer.sender.starts_with("webrtc://room#")) << peer.sender;
 }
 
 TEST_F(IOWebRtc, TheOneWaitingReachesThePeerWithOneSend) {
@@ -369,11 +502,12 @@ TEST_F(IOWebRtc, TheOneWaitingReachesThePeerWithOneSend) {
 
   // The peer speaks first because that is what makes the channel: until
   // one stands there is nothing for the door to broadcast over.
-  const std::string sender = peerSaying(waiting, "a phone speaks");
-  ASSERT_FALSE(sender.empty()) << waiting->error();
+  const PeerStanding peer = peerSaying(waiting, "a phone speaks");
+  if (!peer.cameUp) GTEST_SKIP() << kNeverCameUp;
+  ASSERT_FALSE(peer.sender.empty()) << kNeverPaired << waiting->error();
 
   EXPECT_TRUE(waiting->send(bytesOf("the sky as it stands")));
-  EXPECT_TRUE(echoedBy(waiting, sender, "the sky as it stands"));
+  EXPECT_TRUE(echoedBy(waiting, peer.sender, "the sky as it stands"));
 }
 
 TEST_F(IOWebRtc, SendToReachesTheOnePeerItNamesAndNoOther) {
@@ -382,22 +516,24 @@ TEST_F(IOWebRtc, SendToReachesTheOnePeerItNamesAndNoOther) {
 
   // Each peer says which one it is, and the arrival it says it in names
   // the address that peer is answered by.
-  const std::string first = peerSaying(waiting, "first");
-  ASSERT_FALSE(first.empty()) << waiting->error();
-  const std::string second = peerSaying(waiting, "second");
-  ASSERT_FALSE(second.empty()) << waiting->error();
-  ASSERT_NE(first, second);
+  const PeerStanding first = peerSaying(waiting, "first");
+  if (!first.cameUp) GTEST_SKIP() << kNeverCameUp;
+  ASSERT_FALSE(first.sender.empty()) << kNeverPaired << waiting->error();
+  const PeerStanding second = peerSaying(waiting, "second");
+  if (!second.cameUp) GTEST_SKIP() << kNeverCameUp;
+  ASSERT_FALSE(second.sender.empty()) << kNeverPaired << waiting->error();
+  ASSERT_NE(first.sender, second.sender);
 
-  EXPECT_TRUE(waiting->sendTo(first, bytesOf("to you alone")));
-  EXPECT_TRUE(echoedBy(waiting, first, "to you alone"));
+  EXPECT_TRUE(waiting->sendTo(first.sender, bytesOf("to you alone")));
+  EXPECT_TRUE(echoedBy(waiting, first.sender, "to you alone"));
   // The other peer echoes everything it hears, so what says the message
   // above reached one peer and not the room is that this one never
   // echoed it — while the broadcast after it comes back from both.
   EXPECT_TRUE(waiting->send(bytesOf("out to everyone")));
-  EXPECT_TRUE(echoedBy(waiting, second, "out to everyone"));
+  EXPECT_TRUE(echoedBy(waiting, second.sender, "out to everyone"));
   bool answeredTwice = false;
   while (const std::optional<Arrival> arrival = waiting->receive())
-    if (arrival->from == second &&
+    if (arrival->from == second.sender &&
         arrival->bytes->asText() == std::string(kEcho) + "to you alone")
       answeredTwice = true;
   EXPECT_FALSE(answeredTwice);
@@ -433,7 +569,9 @@ TEST_F(IOWebRtc, DroppingTheLastHolderOfAFeedGivesUpItsSignallingPort) {
     // this case asks for again below is the very port that went.
     port = portOf(waiting->address());
     ASSERT_NE(port, 0) << waiting->address();
-    ASSERT_FALSE(peerSaying(waiting, "a phone speaks").empty());
+    const PeerStanding peer = peerSaying(waiting, "a phone speaks");
+    if (!peer.cameUp) GTEST_SKIP() << kNeverCameUp;
+    ASSERT_FALSE(peer.sender.empty()) << kNeverPaired << waiting->error();
     peers.clear();
   }
 

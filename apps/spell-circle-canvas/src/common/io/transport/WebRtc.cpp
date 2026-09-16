@@ -544,6 +544,22 @@ void Door::carry() {
       }
     }
     for (const std::shared_ptr<Peer>& peer : ending) endPeer(*peer);
+
+    // A DOOR THAT TOOK A ROOM UP TAKES IT UP AGAIN where the
+    // conversation it had is over and it holds no other. Such a door
+    // offers once, when it opens, so a route that never came good or a
+    // peer that let go would leave the feed standing with nobody at the
+    // other end of it and nothing to say about that; the end waiting in
+    // the room answers this offer as it answers the first, retiring
+    // what it held for this caller. The offer is made outside the lock
+    // the peers are kept under, a connection being one this door reads
+    // its own peers back through.
+    bool again = false;
+    if (calling && !ending.empty()) {
+      const std::lock_guard<std::mutex> lock(peerGate);
+      again = peers.empty();
+    }
+    if (again) callOut();
   }
 
   const std::shared_ptr<Feed> through = signal ? signal->feed : nullptr;
