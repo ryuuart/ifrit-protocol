@@ -157,6 +157,8 @@ auto dialling = hub.feed("quic://sky.local:27100?insecure=1");  // the other end
 auto loose = hub.feed("quic://sky.local:27100?insecure=1&datagrams=1");  // …unreliable, one packet each
 auto room = hub.feed("webrtc://sky?signal=ws://:8849/signal");  // a conversation, introduced over that door
 room->send(frame);                                   // …straight to every phone that took it up
+auto waiting = hub.feed("webrtc://sky?signal=ws://:0/signal");  // …on a port of the kernel's giving
+waiting->address();  // webrtc://sky?signal=ws://[::]:52341/signal — the port it got, and what a phone dials
 auto joining = hub.feed("webrtc://sky?signal=ws://sky.local:8849/signal");  // the other end: taking a room up
 scene->record(outDir / "scene.feed");                // every arrival from now on, to a recording
 hub.mount("udp://:27020", outDir / "scene.feed");    // the next feed() on that URI replays the file
@@ -645,6 +647,8 @@ says which end this one is, exactly as it is for the two websocket ones.
 taken up and answers whoever offers — and that door may stand its own
 pages, `?signal=ws://:PORT/PATH?pages=URI`, so the page a phone loads,
 the socket it opens back and the introduction it makes are one address.
+The PORT may be written `0`, which is the kernel's to fill, and the
+address a feed reports is how the one it gave is read back.
 `?signal=ws://HOST:PORT/PATH` is a server to call, so the feed TAKES A
 ROOM UP and offers into it. What crosses that door is JSON text —
 `{"kind":"offer","room":…,"sdp":…}`, the same with `"answer"`, and
@@ -673,10 +677,18 @@ taken and never handed out twice; `Feed::sendTo()` writes on the one it
 names, and `send()` writes on every channel standing open, which is what
 makes an audience of phones see one sky rather than each its own. A
 message larger than what a peer's channel takes is not written to that
-peer, a channel carrying whole messages and cutting none in half. The
-`address()` such a feed reports is `webrtc://ROOM`: the signal is the
-door's own arrangement and no part of what the conversation is called,
-as a listener's pages are no part of the path its peers reach.
+peer, a channel carrying whole messages and cutting none in half.
+
+A feed that WAITS reports `webrtc://ROOM?signal=URI` as its
+`address()`, the signal spelled as that door BOUND it —
+`webrtc://sky?signal=ws://[::]:52341/signal`, the room and the path
+standing where the URI had them and the port between them being the one
+taken. So `?signal=ws://:0/PATH` is a first-class way to wait: what a
+phone has to be pointed at is read off the end holding the door rather
+than agreed on beforehand. A feed that TOOK A ROOM UP reports
+`webrtc://ROOM`, holding no door anybody dials. The ice servers stand in
+neither, being what an end asks its own address of, as a listener's
+pages are no part of the path its peers reach.
 
 A CHANNEL THAT CLOSES ENDS ITS PEER, and a peer whose connection found
 no route at all ends the same way — on the frame, a connection torn down

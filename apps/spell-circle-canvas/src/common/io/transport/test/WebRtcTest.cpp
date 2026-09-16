@@ -40,8 +40,6 @@
 #include <spawn.h>
 #include <sys/wait.h>
 
-#include <boost/asio/io_context.hpp>
-#include <boost/asio/ip/tcp.hpp>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -58,7 +56,6 @@ extern char** environ;
 
 namespace {
 
-using boost::asio::ip::tcp;
 using sigil::io::Arrival;
 using sigil::io::Bytes;
 using sigil::io::Feed;
@@ -106,16 +103,28 @@ constexpr std::chrono::milliseconds kPeerSays{20};
  *  this many say that the sweep they share brings them good together
  *  often enough for the pairing to be judged on. */
 constexpr int kConversations = 12;
-/** How many ports a pair asks for before the case gives up: each one is
- *  a moment's collision with the pair before, never a port nothing can
- *  give back. */
-constexpr int kPortAttempts = 4;
 
 /** How long one of those conversations is given to come good or to say
  *  why it did not. Both ends stand on this machine, so the routes they
  *  try are the ones that answer at once and the pair is made in a frame
  *  or two; a handshake is what is waited on here, never a network. */
 constexpr std::chrono::seconds kPairing{5};
+
+/** The port the door at @p address bound: the digits behind the last
+ *  colon of it, which is where a port stands whether the address before
+ *  it is written in one family's spelling or the other's, and a path
+ *  behind them is not read. Zero where nothing there is a port, which
+ *  is what a door that bound none answers. */
+uint16_t portOf(const std::string& address) {
+  const size_t colon = address.rfind(':');
+  if (colon == std::string::npos) return 0;
+  unsigned long port = 0;
+  for (size_t at = colon + 1; at != address.size(); ++at) {
+    if (address[at] < '0' || address[at] > '9') break;
+    port = port * 10 + static_cast<unsigned long>(address[at] - '0');
+  }
+  return static_cast<uint16_t>(port);
+}
 
 Bytes bytesOf(std::string_view text) {
   const auto* const first = reinterpret_cast<const std::byte*>(text.data());
@@ -207,9 +216,14 @@ class StartedPeer {
 };
 
 /** WHAT A WEBRTC CASE NEEDS BEFORE IT CAN OPEN ANYTHING: a hub that has
- *  been taught the schemes, one Asio context of its own for picking a
- *  port with, and the peers it started, which are ended before the next
- *  case starts one. */
+ *  been taught the schemes, and the peers it started, which are ended
+ *  before the next case starts one.
+ *
+ *  NO PORT IS EVER GUESSED HERE. Every door opens on zero, which is the
+ *  kernel's to fill, and answers the port it was given; what has to
+ *  reach that door is spelled from the address it answered. A port
+ *  asked for by number is one the door a moment from giving it back may
+ *  still hold. */
 class IOWebRtc : public ::testing::Test {
  protected:
   IOWebRtc() { sigil::io::registerTransports(hub); }
@@ -238,19 +252,10 @@ class IOWebRtc : public ::testing::Test {
     return ready();
   }
 
-  /** A port nothing holds: one taken and given straight back, which is
-   *  how a case names a port in a URI it has to spell twice — once for
-   *  the end that holds it and once for the end that reaches it. */
-  uint16_t freePort() {
-    tcp::acceptor probe(context, tcp::endpoint(tcp::v6(), 0));
-    const uint16_t port = probe.local_endpoint().port();
-    probe.close();
-    return port;
-  }
-
   /** The URI a door waiting at @p port stands on, and the one a peer
    *  reaches it by: one room, and the two shapes of the same signalling
-   *  door. */
+   *  door. Zero is what a door waiting stands on, the port it gets
+   *  being read back off it. */
   std::string waitingAt(uint16_t port, std::string_view room = "room") {
     return "webrtc://" + std::string(room) +
            "?signal=ws://:" + std::to_string(port) + "/signal";
@@ -268,11 +273,15 @@ class IOWebRtc : public ::testing::Test {
     return feed;
   }
 
-  /** Starts a peer that takes the room at @p port up and keeps saying
-   *  @p saying, and answers the address its arrivals name it by — which
-   *  is what says the channel between the two processes is open. */
-  std::string peerSaying(uint16_t port, const std::string& saying,
-                         const std::shared_ptr<Feed>& onto) {
+  /** Starts a peer that takes the room @p onto waits in up — on the
+   *  port that door answered, which is the one it was given — and keeps
+   *  saying @p saying, and answers the address its arrivals name it by,
+   *  which is what says the channel between the two processes is
+   *  open. */
+  std::string peerSaying(const std::shared_ptr<Feed>& onto,
+                         const std::string& saying) {
+    const uint16_t port = portOf(onto->address());
+    if (port == 0) return {};
     peers.push_back(std::make_unique<StartedPeer>(callingInto(port), saying));
     if (!peers.back()->started()) return {};
     std::string sender;
@@ -301,19 +310,33 @@ class IOWebRtc : public ::testing::Test {
   }
 
   Hub hub;
-  boost::asio::io_context context;
   std::vector<std::shared_ptr<Feed>> opened;
   std::vector<std::unique_ptr<StartedPeer>> peers;
 };
 
-TEST_F(IOWebRtc, AFeedNamesTheRoomItStandsInAndNotTheDoorItWasIntroducedOver) {
-  const uint16_t port = freePort();
-  const std::shared_ptr<Feed> waiting = open(waitingAt(port, "sky"));
+TEST_F(IOWebRtc, AWaitingFeedNamesItsSignalAsBoundAndACallingOneTheRoomAlone) {
+  const std::shared_ptr<Feed> waiting = open(waitingAt(0, "sky"));
   ASSERT_TRUE(waiting->error().empty()) << waiting->error();
-  // The signal is this door's own arrangement and no part of what the
-  // conversation is called, exactly as a listener's pages are no part
-  // of the path its peers reach.
-  EXPECT_EQ(waiting->address(), "webrtc://sky");
+  // WHAT A CALLER HAS TO DIAL AND NOTHING ELSE: the conversation, and
+  // the signalling door as it BOUND rather than as the URI asked for
+  // it. The room and the path stand where the URI had them, and the
+  // port between them is the one the kernel gave — so an end that
+  // waited on zero is an end a phone can be pointed at.
+  EXPECT_TRUE(waiting->address().starts_with("webrtc://sky?signal=ws://[::]:"))
+      << waiting->address();
+  EXPECT_TRUE(waiting->address().ends_with("/signal")) << waiting->address();
+  const uint16_t port = portOf(waiting->address());
+  ASSERT_NE(port, 0) << waiting->address();
+
+  // The end that TOOK A ROOM UP holds no door anybody dials, so what it
+  // names is the conversation and nothing of the arrangement it was
+  // introduced under. It takes a room of its own up, over the door the
+  // one above is waiting behind: an introduction goes to the room it
+  // names, so these two are two doors on one socket and never the pair
+  // the case at the end of this file is for.
+  const std::shared_ptr<Feed> calling = open(callingInto(port, "lane"));
+  ASSERT_TRUE(calling->error().empty()) << calling->error();
+  EXPECT_EQ(calling->address(), "webrtc://lane");
 }
 
 TEST_F(IOWebRtc, AUriThatNamesNoSignalOpensNothingAndSaysWhy) {
@@ -330,11 +353,10 @@ TEST_F(IOWebRtc, AUriWhoseSignalIsNoWebsocketDoorOpensNothingAndSaysWhy) {
 }
 
 TEST_F(IOWebRtc, APeersMessageArrivesOnTheOneWaitingNamingThePeerItCameFrom) {
-  const uint16_t port = freePort();
-  const std::shared_ptr<Feed> waiting = open(waitingAt(port));
+  const std::shared_ptr<Feed> waiting = open(waitingAt(0));
   ASSERT_TRUE(waiting->error().empty()) << waiting->error();
 
-  const std::string sender = peerSaying(port, "a phone speaks", waiting);
+  const std::string sender = peerSaying(waiting, "a phone speaks");
   ASSERT_FALSE(sender.empty()) << waiting->error();
   // A peer is named by the room it is in and the number it came in as,
   // which is an address the door can be asked to answer alone.
@@ -342,13 +364,12 @@ TEST_F(IOWebRtc, APeersMessageArrivesOnTheOneWaitingNamingThePeerItCameFrom) {
 }
 
 TEST_F(IOWebRtc, TheOneWaitingReachesThePeerWithOneSend) {
-  const uint16_t port = freePort();
-  const std::shared_ptr<Feed> waiting = open(waitingAt(port));
+  const std::shared_ptr<Feed> waiting = open(waitingAt(0));
   ASSERT_TRUE(waiting->error().empty()) << waiting->error();
 
   // The peer speaks first because that is what makes the channel: until
   // one stands there is nothing for the door to broadcast over.
-  const std::string sender = peerSaying(port, "a phone speaks", waiting);
+  const std::string sender = peerSaying(waiting, "a phone speaks");
   ASSERT_FALSE(sender.empty()) << waiting->error();
 
   EXPECT_TRUE(waiting->send(bytesOf("the sky as it stands")));
@@ -356,15 +377,14 @@ TEST_F(IOWebRtc, TheOneWaitingReachesThePeerWithOneSend) {
 }
 
 TEST_F(IOWebRtc, SendToReachesTheOnePeerItNamesAndNoOther) {
-  const uint16_t port = freePort();
-  const std::shared_ptr<Feed> waiting = open(waitingAt(port));
+  const std::shared_ptr<Feed> waiting = open(waitingAt(0));
   ASSERT_TRUE(waiting->error().empty()) << waiting->error();
 
   // Each peer says which one it is, and the arrival it says it in names
   // the address that peer is answered by.
-  const std::string first = peerSaying(port, "first", waiting);
+  const std::string first = peerSaying(waiting, "first");
   ASSERT_FALSE(first.empty()) << waiting->error();
-  const std::string second = peerSaying(port, "second", waiting);
+  const std::string second = peerSaying(waiting, "second");
   ASSERT_FALSE(second.empty()) << waiting->error();
   ASSERT_NE(first, second);
 
@@ -384,12 +404,12 @@ TEST_F(IOWebRtc, SendToReachesTheOnePeerItNamesAndNoOther) {
 }
 
 TEST_F(IOWebRtc, ASignalNobodyAnswersLeavesTheCallerOpenAndSilent) {
-  const uint16_t port = freePort();
   // The signalling door stands and the caller's introduction crosses
   // it; what is not there is anybody waiting in the room to answer.
-  const std::shared_ptr<Feed> door =
-      open("ws://:" + std::to_string(port) + "/signal");
+  const std::shared_ptr<Feed> door = open("ws://:0/signal");
   ASSERT_TRUE(door->error().empty()) << door->error();
+  const uint16_t port = portOf(door->address());
+  ASSERT_NE(port, 0) << door->address();
   const std::shared_ptr<Feed> caller = open(callingInto(port));
   ASSERT_TRUE(caller->error().empty()) << caller->error();
 
@@ -403,13 +423,17 @@ TEST_F(IOWebRtc, ASignalNobodyAnswersLeavesTheCallerOpenAndSilent) {
 }
 
 TEST_F(IOWebRtc, DroppingTheLastHolderOfAFeedGivesUpItsSignallingPort) {
-  const uint16_t port = freePort();
+  uint16_t port = 0;
   {
     // Held here and nowhere else — the fixture keeps no hold of this
     // one, since what this case watches is the last holder letting go.
-    const std::shared_ptr<Feed> waiting = hub.feed(waitingAt(port));
+    const std::shared_ptr<Feed> waiting = hub.feed(waitingAt(0));
     ASSERT_TRUE(waiting->error().empty()) << waiting->error();
-    ASSERT_FALSE(peerSaying(port, "a phone speaks", waiting).empty());
+    // The port it was given, read off it while it still stands: what
+    // this case asks for again below is the very port that went.
+    port = portOf(waiting->address());
+    ASSERT_NE(port, 0) << waiting->address();
+    ASSERT_FALSE(peerSaying(waiting, "a phone speaks").empty());
     peers.clear();
   }
 
@@ -446,21 +470,15 @@ TEST_F(IOWebRtc,
     // brings good is the two ends opened together and no leftover of
     // the pair before them.
     const std::string room = "sweep" + std::to_string(conversation);
-    // A signalling door gives its port back a moment after its last
-    // holder lets go, on the listener's own loop, and the pair before
-    // this one let go a moment ago — so a port the kernel hands out
-    // again may still be held for that moment, and one that could not
-    // be taken is asked for again on another.
-    uint16_t port = 0;
-    std::shared_ptr<Feed> waiting;
-    for (int attempt = 0; attempt < kPortAttempts; ++attempt) {
-      port = freePort();
-      waiting = open(waitingAt(port, room));
-      if (waiting->error().empty()) break;
-      ASSERT_NE(waiting->error().find("could not be taken"), std::string::npos)
-          << waiting->error();
-    }
+    // The port is the kernel's to give and the door answers the one it
+    // got: a signalling door gives its port back a moment after its
+    // last holder lets go, on the listener's own loop, and the pair
+    // before this one let go a moment ago — so a port named by number
+    // here would be one that pair may still be holding.
+    const std::shared_ptr<Feed> waiting = open(waitingAt(0, room));
     ASSERT_TRUE(waiting->error().empty()) << waiting->error();
+    const uint16_t port = portOf(waiting->address());
+    ASSERT_NE(port, 0) << waiting->address();
     const std::shared_ptr<Feed> calling = open(callingInto(port, room));
     ASSERT_TRUE(calling->error().empty()) << calling->error();
 

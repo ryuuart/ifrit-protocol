@@ -404,9 +404,12 @@ void registerQuic(Hub& hub);
  *  taken — send() writes on every channel standing open, and
  *  Feed::sendTo() writes on the one it names. A channel that closes
  *  ends its peer, and closing the feed ends every connection and lets
- *  the signalling door go with it. The address() such a feed reports is
- *  webrtc://ROOM: the signal is this door's own arrangement and no part
- *  of what the conversation is called.
+ *  the signalling door go with it. A feed that WAITS reports
+ *  webrtc://ROOM?signal=URI as its address(), the signal spelled with
+ *  the port that door bound — so ?signal=ws://:0/PATH is a way to wait,
+ *  and what a caller has to dial is read off the end holding it rather
+ *  than agreed on beforehand. A feed that TOOK A ROOM UP reports
+ *  webrtc://ROOM, holding no door anybody dials.
  *
  *  NO THREAD IS STARTED FOR A FEED. The library underneath runs threads
  *  of its own and calls back onto them, so the routes, the encryption

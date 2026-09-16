@@ -22,6 +22,12 @@
  * belongs to, so one socket carries as many conversations as there are
  * rooms on it and every door reads only its own.
  *
+ * A DOOR THAT WAITS REPORTS THE SIGNAL AS IT BOUND. What it answers is
+ * its own URI with the port the signalling door took standing in it, so
+ * `?signal=ws://:0/PATH` is a way to wait: the port is the kernel's to
+ * give, and the address a caller has to dial is read off the door that
+ * took it rather than agreed on beforehand.
+ *
  * THE FRAME CARRIES THE INTRODUCTION. A feed is read by the call a host
  * already makes once a frame, so that is when the signalling socket is
  * drained and what this door has to say goes back out of it: a
@@ -243,9 +249,9 @@ struct Door : std::enable_shared_from_this<Door> {
   void say(detail::Introduction message, std::string to);
 
   std::string room;
-  /** What the feed reports and every peer is named from: the room,
-   *  spelled as a URI of this scheme, without the signal — which is
-   *  this door's own arrangement and no part of what the conversation
+  /** What every peer is named from: the room, spelled as a URI of this
+   *  scheme, without the signal — which is the arrangement the
+   *  introduction was made under and no part of what the conversation
    *  is called. */
   std::string address;
   rtc::Configuration configuration;
@@ -747,6 +753,17 @@ OpenedFeed openFeed(Hub& hub, Signals& signals, std::string_view uri,
 
   OpenedFeed opened;
   opened.address = door->address;
+  // A DOOR THAT WAITS ANSWERS WHAT TO DIAL IT BY: the conversation, and
+  // the signalling door as it BOUND rather than as this URI asked for
+  // it — so a scene may wait on a port of the kernel's giving and show
+  // a phone the one it got. The ice servers stay out of it, being what
+  // this end asks its own address of and nothing the other end reaches.
+  // A door that TOOK A ROOM UP holds nothing anybody dials, and names
+  // the conversation alone.
+  if (!door->calling) {
+    const std::string bound = door->signal->feed->address();
+    if (!bound.empty()) opened.address += "?signal=" + bound;
+  }
   opened.close = [door] { door->close(); };
   opened.send = [door](const Bytes& message) { return door->send(message); };
   opened.sendTo = [door](std::string_view to, const Bytes& message) {

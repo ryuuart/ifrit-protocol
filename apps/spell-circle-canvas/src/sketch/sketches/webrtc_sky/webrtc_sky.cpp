@@ -16,6 +16,12 @@
  * its own connection back — one channel per phone, and the sketch is
  * the far end of however many of them are attached.
  *
+ * WHAT A PHONE IS TOLD TO OPEN IS WHAT THE DOOR ANSWERS. The
+ * conversation reports the signal as it BOUND, so the port on the page
+ * is the one standing rather than the one asked for — and `kPort` may
+ * be written 0, which is the kernel's to fill, the door then saying
+ * which one it gave.
+ *
  * WHAT GOES EACH WAY, and it is the sibling's own vocabulary: out,
  * twenty times a second, one `Sky` message carrying the bands as they
  * stand; in, the things a hand can do — a `Palette` swaps the colours
@@ -78,7 +84,7 @@ using sigil::draw::Pen;
 
 namespace {
 
-constexpr int kPort = 8849;                  // where a phone reaches this
+constexpr int kPort = 8849;                  // where a phone reaches this, or 0
 const char* kPath = "/signal";               // the path the introductions cross
 const char* kRoom = "sky";                   // the conversation held over them
 const char* kPages = "data/pages";           // where index.html stands
@@ -160,6 +166,21 @@ std::string doorOf(const sketch::SketchContext& ctx) {
       "webrtc://" + std::string(kRoom) + "?signal=" + signalOf(ctx);
   if (*kIce != '\0') uri += "&ice=" + std::string(kIce);
   return uri;
+}
+
+/** The port the door at @p address is reached on: the digits behind the
+ *  last colon of it, a path behind them not being read. Zero where it
+ *  names none, which is what a capture replaying a recording answers,
+ *  no port being held at all. */
+int portOf(const std::string& address) {
+  const size_t colon = address.rfind(':');
+  if (colon == std::string::npos) return 0;
+  int port = 0;
+  for (size_t at = colon + 1; at != address.size(); ++at) {
+    if (address[at] < '0' || address[at] > '9') break;
+    port = port * 10 + (address[at] - '0');
+  }
+  return port;
 }
 
 /** A number as far as a phone can use it. A tenth of a pixel is finer
@@ -405,6 +426,17 @@ struct WebRtcSky {
     }
   }
 
+  /** THE PORT A PHONE OPENS, as the door ANSWERS it: a conversation
+   *  waiting reports the signal it bound, so a port asked for as zero
+   *  is readable here and what is shown is never a port nothing stands
+   *  on. Where no door is open at all — a capture, which replays the
+   *  recording and holds nothing — what was asked for is all there
+   *  is. */
+  int reachedOn() const {
+    const int bound = portOf(shown.address);
+    return bound != 0 ? bound : kPort;
+  }
+
   /** WHERE TO POINT A PHONE, until one has spoken. The page that opens
    *  this conversation is served by the same port the introduction
    *  crosses, so the whole of what a person needs is the address. */
@@ -412,7 +444,8 @@ struct WebRtcSky {
     const sketch::kit::Theme& look = sketch::kit::theme();
     return compose::text(
                compose::kit::formatted(
-                   "open this machine on port %d in a phone's browser", kPort))
+                   "open this machine on port %d in a phone's browser",
+                   reachedOn()))
         .font(look.font({.size = 15, .mono = true}))
         .ink(look.palette.ash)
         .centerAt({kCanvas.width() * 0.5f, kCanvas.height() - 96.0f});
