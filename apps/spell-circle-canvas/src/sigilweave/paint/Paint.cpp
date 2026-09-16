@@ -181,12 +181,13 @@ void ParagraphLayout::drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
     }
 
     const ShapedWord& shapedWord = *run.shaped;
+    const float scaleX = shapedWord.scaleX * run.fit.glyphScale;
     Bucket* bucket = nullptr;
     for (Bucket& candidate :
          std::span<Bucket>(buckets.data(), activeBucketCount))
       if (candidate.typeface.get() == shapedWord.typeface.get() &&
           candidate.fontSize == shapedWord.fontSize &&
-          candidate.scaleX == shapedWord.scaleX &&
+          candidate.scaleX == scaleX &&
           candidate.aliased == shapedWord.aliased && candidate.style == style) {
         bucket = &candidate;
         break;
@@ -196,7 +197,7 @@ void ParagraphLayout::drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
       bucket = &buckets[activeBucketCount++];
       bucket->typeface = shapedWord.typeface;
       bucket->fontSize = shapedWord.fontSize;
-      bucket->scaleX = shapedWord.scaleX;
+      bucket->scaleX = scaleX;
       bucket->aliased = shapedWord.aliased;
       bucket->style = style;
       bucket->glyphs.clear();
@@ -205,8 +206,13 @@ void ParagraphLayout::drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
     for (size_t glyphIndex = 0; glyphIndex < shapedWord.glyphs.size();
          ++glyphIndex) {
       bucket->glyphs.push_back(shapedWord.glyphs[glyphIndex]);
-      bucket->positions.push_back(run.origin +
-                                  shapedWord.positions[glyphIndex]);
+      // The line's fit changes both the glyph origins and their horizontal
+      // scale. Shaping positions alone describe the unfitted word.
+      bucket->positions.push_back(
+          run.origin +
+          SkVector{shapedWord.positions[glyphIndex].x() * run.fit.glyphScale +
+                       run.fit.letterSpacing * static_cast<float>(glyphIndex),
+                   shapedWord.positions[glyphIndex].y()});
     }
   }
 

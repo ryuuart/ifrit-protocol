@@ -24,6 +24,7 @@
 #include <utility>
 #include <vector>
 
+#include "GlyphCanvas.h"
 #include "support/Faces.h"
 #include "support/Layouts.h"
 #include "support/Paints.h"
@@ -47,6 +48,57 @@ class InstalledResolver {
 };
 
 }  // namespace
+
+namespace {
+
+enum class LineFit { Letters, Glyphs };
+class FittedPaint : public ::testing::TestWithParam<LineFit> {};
+
+}  // namespace
+
+TEST_P(FittedPaint, BatchedDrawingKeepsThePositionsAndScaleOfTheFittedBlobs) {
+  Paragraph paragraph = makeParagraph(u8"Alone.\nAlone.", 20.0f);
+  JustificationOptions fit;
+  fit.justifyLastLine = true;
+  if (GetParam() == LineFit::Letters) {
+    fit.singleWord = JustificationOptions::SingleWord::kJustify;
+  } else {
+    fit.glyphScale = fit.glyphScaleMinimum = fit.glyphScaleMaximum = 0.6f;
+  }
+  ParagraphLayoutOptions options;
+  options.blocks = {
+      {.alignment = TextAlignment::kJustify, .justification = fit},
+      {.alignment = TextAlignment::kStart}};
+  BlockFlow flow(SkRect::MakeWH(200, 100));
+  const ParagraphLayout layout =
+      layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
+  ASSERT_EQ(layout.runs.size(), 2u);
+  ASSERT_FALSE(layout.runs.front().fit.plain());
+  ASSERT_TRUE(layout.runs.back().fit.plain());
+
+  sigil::test::GlyphCanvas direct(240, 100), batched(240, 100);
+  layout.draw(&direct, paragraph);
+  layout.drawBatched(&batched, paragraph);
+  ASSERT_FALSE(direct.glyphs.empty());
+  ASSERT_EQ(batched.glyphs.size(), direct.glyphs.size());
+  for (size_t index = 0; index < direct.glyphs.size(); ++index) {
+    SCOPED_TRACE(index);
+    const auto& expected = direct.glyphs[index];
+    const auto& actual = batched.glyphs[index];
+    EXPECT_EQ(actual.glyph, expected.glyph);
+    EXPECT_FLOAT_EQ(actual.position.x(), expected.position.x());
+    EXPECT_FLOAT_EQ(actual.position.y(), expected.position.y());
+    EXPECT_EQ(actual.font, expected.font);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(Justification, FittedPaint,
+                         ::testing::Values(LineFit::Letters, LineFit::Glyphs),
+                         [](const ::testing::TestParamInfo<LineFit>& row) {
+                           return row.param == LineFit::Letters
+                                      ? "LetterSpacing"
+                                      : "GlyphScale";
+                         });
 
 TEST(PaintPasses, ShadowAndShaderDrawWithoutRelayout) {
   FontContext& fontContext = sigil::test::fonts();
