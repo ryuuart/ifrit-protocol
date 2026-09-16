@@ -1,43 +1,40 @@
 # Python packages
 
-This uv workspace owns two independently installable distributions:
+This virtual uv workspace groups independently installable Python projects.
+The workspace root owns the member list and lockfile; each member owns its
+package, dependencies, examples, tests and build backend.
 
 | Project | Import | Purpose |
 | --- | --- | --- |
-| `ifrit-protocol-apps`, in this directory | `SpellCircle` | Record vector scenes, serialize FlatBuffers and send them over UDP |
+| `ifrit-protocol-apps`, in `spellcircle/` | `SpellCircle` | Model and author vector scenes, encode FlatBuffers and exchange scene bytes |
 | `sigil-sketch`, in `sigil/` | `sigil` | Use native Sigil libraries, render Python sketches and launch Sketchbook |
 
 ## SpellCircle transport
 
-The root project requires Python 3.11 or newer and the `flatbuffers` package.
+The `spellcircle/` project requires Python 3.11 or newer and `flatbuffers`.
 It installs with a normal Python package installer, without CMake, a graphics
 device or the native Sigil extension. From this directory, install it into an
 existing environment:
 
 ```sh
-uv pip install --python /path/to/environment/bin/python .
+uv pip install --python /path/to/environment/bin/python ./spellcircle
 ```
 
-```python
-from SpellCircle import SceneSender, SpellCircleCanvas
+The package has no Qt or native Sigil dependency. A consumer can use its scene
+values and codec without opening a socket. Its installed examples run as
+modules:
 
-canvas = SpellCircleCanvas(width=1000, height=1000)
-canvas.circle("outer", center_x=500, center_y=500, radius=400)
-with SceneSender("127.0.0.1", 27015) as sender:
-    sender.send(canvas.to_bytes())
+```sh
+python -m SpellCircle.examples.send_spell_circles --seed 1 --output scenes/example.bin
+python -m SpellCircle.examples.animate_spell_circles --fps 60
 ```
 
-The canvas records ordinary Python values. Serialization belongs to
-`SceneBuilder`; `SceneSender` owns a standard UDP socket. Importing `SpellCircle`
-does not import `sigil` or load native drawing libraries. TouchDesigner consumes
-this root project independently and can retain its Python 3.11 environment.
-Workspace-wide dependency resolution also includes the native member's Python
-requirements; use the independent install for an environment intended only for
-the transport package.
-
-The generated schema modules in `SpellCircle/` are committed. Run the native
-application's `scripts/sigil.py flatbuffers` command after changing the schema;
-it replaces only generated table modules and preserves the handwritten API.
+[`spellcircle/README.md`](spellcircle/README.md) describes the scene API and
+transport options. TouchDesigner depends on this member by path and retains
+its own Python 3.11 environment. The generated schema modules in
+`spellcircle/SpellCircle/` are committed. The native application's
+`scripts/sigil.py flatbuffers` command replaces only generated table modules
+and preserves the handwritten API.
 
 ## Native Sigil authoring
 
@@ -60,3 +57,19 @@ needs the native toolchain and dependency settings documented in
 presets. Neither command builds the lightweight transport distribution into
 the native wheel. The native project's README describes interpreter matching,
 standalone rendering, live authoring and the supported binding surface.
+
+## Workspace development
+
+Select a project explicitly for workspace commands:
+
+```sh
+uv build --package ifrit-protocol-apps
+uv run --package ifrit-protocol-apps python -m SpellCircle.examples.send_spell_circles --output scene.bin
+```
+
+Workspace resolution uses the intersection of its members' Python requirements,
+currently Python 3.12 or newer. To use or test only SpellCircle with Python 3.11,
+install `./spellcircle` directly into a separate environment instead of using
+the workspace environment. Adding a project means creating another member
+directory with its own `pyproject.toml` and listing it in the workspace; it does
+not make that project a runtime dependency of the existing members.

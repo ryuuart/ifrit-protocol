@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Send a single SpellCircle FlatBuffer scene via UDP.
+Create a SpellCircle FlatBuffer scene and send it over UDP or save it to a file.
 
 Builds a screen-filling sigil: a large central circle whose perimeter points
 are webbed together by edges, several randomly placed smaller circles around
@@ -9,21 +9,17 @@ the canvas, edges connecting them, and labelled boxes anchored to points.
 The scene is authored in a logical canvas of `--canvas` units (square). The
 app records this size and scales the geometry up to its native 4K texture, so
 a small authoring canvas (e.g. 100) still renders at full resolution.
+With `--output`, the scene is written to a file without opening a socket.
 
 Usage:
-    python send_spell_circles.py [--host HOST] [--port PORT] [--seed N]
-                                 [--canvas UNITS] [--circles N] [--boxes N]
-
-Requires: pip install flatbuffers
+    python -m SpellCircle.examples.send_spell_circles [--host HOST] [--port PORT]
+        [--seed N] [--canvas UNITS] [--circles N] [--boxes N] [--output PATH]
 """
 
 import argparse
 import math
-import os
 import random
-import sys
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from pathlib import Path
 
 from SpellCircle import SpellCircleCanvas, send_once
 
@@ -32,12 +28,33 @@ PORT = 27015
 CANVAS = 4000
 
 SMALL_NAMES = [
-    "IGNIS", "AQUA", "TERRA", "VENTUS", "UMBRA", "LUX", "GLACIES", "FULGUR",
-    "SILVA", "MARE", "AETHER", "CHAOS", "ORDO", "NOX", "AURORA",
+    "IGNIS",
+    "AQUA",
+    "TERRA",
+    "VENTUS",
+    "UMBRA",
+    "LUX",
+    "GLACIES",
+    "FULGUR",
+    "SILVA",
+    "MARE",
+    "AETHER",
+    "CHAOS",
+    "ORDO",
+    "NOX",
+    "AURORA",
 ]
 BOX_NAMES = [
-    "ANGER", "FAITH", "SADNESS", "JOY", "FEAR", "HOPE", "WRATH", "CALM",
-    "GREED", "VALOR",
+    "ANGER",
+    "FAITH",
+    "SADNESS",
+    "JOY",
+    "FEAR",
+    "HOPE",
+    "WRATH",
+    "CALM",
+    "GREED",
+    "VALOR",
 ]
 
 
@@ -91,19 +108,22 @@ def build_scene(
             ),
             canvas_size - radius - margin,
         )
-        small_circles.append(scene_canvas.circle(
-            name, x_position, y_position, round(radius),
-            active=random.random(),
-        ))
+        small_circles.append(
+            scene_canvas.circle(
+                name,
+                x_position,
+                y_position,
+                round(radius),
+                active=random.random(),
+            )
+        )
 
     # Star web on the big circle. Points here are pure edge endpoints with
     # nothing worth labelling, so they carry no value.
     ring = 12
     for point_index in range(ring):
         for skip in (5, 7):
-            first_point = scene_canvas.point(
-                central_circle, point_index / ring
-            )
+            first_point = scene_canvas.point(central_circle, point_index / ring)
             second_point = scene_canvas.point(
                 central_circle, ((point_index + skip) % ring) / ring
             )
@@ -116,18 +136,14 @@ def build_scene(
             small_circle.center_x - canvas_center,
         ) / (2 * math.pi)
         central_circle_position = (angle_fraction + 1.0 + 0.25) % 1.0
-        central_point = scene_canvas.point(
-            central_circle, central_circle_position
-        )
+        central_point = scene_canvas.point(central_circle, central_circle_position)
         small_circle_point = scene_canvas.point(small_circle, 0.5)
         scene_canvas.edge(central_point, small_circle_point)
 
     # Boxes at random positions on the big circle. The anchor point carries
     # no value of its own — the box already draws `name` — to avoid stacking
     # an identical label on top of the box.
-    selected_box_names = random.sample(
-        BOX_NAMES, min(box_count, len(BOX_NAMES))
-    )
+    selected_box_names = random.sample(BOX_NAMES, min(box_count, len(BOX_NAMES)))
     for name in selected_box_names:
         anchor_point = scene_canvas.point(central_circle, random.random())
         scene_canvas.box(name, anchor_point, active=random.random())
@@ -142,18 +158,35 @@ def build_scene(
 
 
 def main() -> None:
-    """Parses command-line options, builds a scene, and sends it once."""
-    parser = argparse.ArgumentParser(description="Send a SpellCircle FlatBuffer via UDP")
+    """Build a scene and write its bytes to the selected destination."""
+    parser = argparse.ArgumentParser(
+        description="Create a SpellCircle FlatBuffer and send it over UDP or save it"
+    )
     parser.add_argument("--host", default=HOST)
     parser.add_argument("--port", default=PORT, type=int)
-    parser.add_argument("--seed", default=None, type=int,
-                        help="RNG seed for reproducible layouts (default: random)")
-    parser.add_argument("--canvas", default=CANVAS, type=float,
-                        help="authoring canvas size in logical units (default: 4000)")
-    parser.add_argument("--circles", default=5, type=int,
-                        help="number of randomly placed small circles")
-    parser.add_argument("--boxes", default=3, type=int,
-                        help="number of randomly placed labelled boxes")
+    parser.add_argument(
+        "--output",
+        type=Path,
+        help="write the scene to this file instead of sending UDP",
+    )
+    parser.add_argument(
+        "--seed",
+        default=None,
+        type=int,
+        help="RNG seed for reproducible layouts (default: random)",
+    )
+    parser.add_argument(
+        "--canvas",
+        default=CANVAS,
+        type=float,
+        help="authoring canvas size in logical units (default: 4000)",
+    )
+    parser.add_argument(
+        "--circles", default=5, type=int, help="number of randomly placed small circles"
+    )
+    parser.add_argument(
+        "--boxes", default=3, type=int, help="number of randomly placed labelled boxes"
+    )
     arguments = parser.parse_args()
 
     if arguments.seed is not None:
@@ -164,12 +197,18 @@ def main() -> None:
         box_count=arguments.boxes,
     )
 
-    send_once(scene_bytes, arguments.host, arguments.port)
+    if arguments.output is not None:
+        output = arguments.output.expanduser()
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_bytes(scene_bytes)
+        action, destination = "Wrote", str(output)
+    else:
+        send_once(scene_bytes, arguments.host, arguments.port)
+        action, destination = "Sent", f"{arguments.host}:{arguments.port}"
 
     print(
-        f"Sent SpellCircle ({circle_count} circles, {edge_count} edges, "
-        f"{box_count} boxes, {len(scene_bytes)} bytes) -> "
-        f"{arguments.host}:{arguments.port}"
+        f"{action} SpellCircle ({circle_count} circles, {edge_count} edges, "
+        f"{box_count} boxes, {len(scene_bytes)} bytes) -> {destination}"
     )
 
 

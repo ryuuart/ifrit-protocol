@@ -654,7 +654,7 @@ literal still means what the compile line meant.
 `sigil.py flatbuffers` (`mise run flatbuffers`) regenerates the
 committed Python schema modules. Only the Python side: the C++ header is
 generated into the build tree by the `SpellCircleSchema` target and is
-not committed, while `apps/python` is installed and imported — by
+not committed, while `apps/python/spellcircle` is installed and imported — by
 TouchDesigner among others — with no CMake build in reach. The generator
 writes a package, and the `SpellCircle/__init__.py` it emits is a name
 already taken by the hand-written public API, so generation goes to a

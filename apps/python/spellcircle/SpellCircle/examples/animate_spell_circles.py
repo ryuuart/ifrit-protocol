@@ -25,18 +25,13 @@ The scene is authored in a 1000×1000 coordinate space so coordinates are easy
 to reason about; the app scales it up to the native 4K texture automatically.
 
 Usage:
-    python animate_spell_circles.py [--host HOST] [--port PORT] [--fps N]
-
-Requires: pip install flatbuffers
+    python -m SpellCircle.examples.animate_spell_circles
+        [--host HOST] [--port PORT] [--fps N]
 """
 
 import argparse
 import math
-import os
-import sys
 import time
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from SpellCircle import SceneSender, SpellCircleCanvas
 
@@ -58,18 +53,18 @@ BIG_CIRCLE_RADIUS = 380.0 * FOOTPRINT_SCALE
 # (orbit_radius, angular_speed rad/s, name, base_radius)
 # Negative speed = counter-clockwise.
 ORBITERS = [
-    (220.0 * FOOTPRINT_SCALE,  0.80, "IGNIS",  58.0 * FOOTPRINT_SCALE),
-    (280.0 * FOOTPRINT_SCALE,  0.50, "AQUA",   52.0 * FOOTPRINT_SCALE),
-    (190.0 * FOOTPRINT_SCALE, -0.35, "TERRA",  62.0 * FOOTPRINT_SCALE),
-    (260.0 * FOOTPRINT_SCALE,  0.65, "VENTUS", 48.0 * FOOTPRINT_SCALE),
-    (235.0 * FOOTPRINT_SCALE, -0.55, "UMBRA",  55.0 * FOOTPRINT_SCALE),
+    (220.0 * FOOTPRINT_SCALE, 0.80, "IGNIS", 58.0 * FOOTPRINT_SCALE),
+    (280.0 * FOOTPRINT_SCALE, 0.50, "AQUA", 52.0 * FOOTPRINT_SCALE),
+    (190.0 * FOOTPRINT_SCALE, -0.35, "TERRA", 62.0 * FOOTPRINT_SCALE),
+    (260.0 * FOOTPRINT_SCALE, 0.65, "VENTUS", 48.0 * FOOTPRINT_SCALE),
+    (235.0 * FOOTPRINT_SCALE, -0.55, "UMBRA", 55.0 * FOOTPRINT_SCALE),
 ]
 
 # Boxes that drift along the big circle at different rates.
 BOX_SPECS = [
-    ("NEXUS",  0.13, 0.00),   # (name, drift_speed rad/s, initial_phase)
+    ("NEXUS", 0.13, 0.00),  # (name, drift_speed rad/s, initial_phase)
     ("ANCHOR", 0.08, 0.33),
-    ("VOID",   0.11, 0.67),
+    ("VOID", 0.11, 0.67),
 ]
 
 # Star-web ring on the big circle.
@@ -81,7 +76,7 @@ RING_SKIPS = (4, 6)
 # See build_frame() for how the "spoke" and "ring" tracks are resolved.
 EDGE_RIDERS = [
     ("COURIER", "spoke", 0),
-    ("HERALD",  "ring",  1),
+    ("HERALD", "ring", 1),
 ]
 
 # Free-roaming box/point: each laps its own rectangular racetrack
@@ -207,19 +202,14 @@ def build_frame(elapsed_seconds: float) -> bytes:
                 0.68,
             )
         else:
-            active = _hold_pulse(
-                elapsed_seconds, phase=orbiter_index * 0.9
-            )
+            active = _hold_pulse(elapsed_seconds, phase=orbiter_index * 0.9)
         orbiting_circles.append(
             scene_canvas.circle(
                 name,
                 center_x,
                 center_y,
                 max(1, round(radius)),
-                text_start=(
-                    0.0 + elapsed_seconds * 0.09 + orbiter_index * 0.13
-                )
-                % 1.0,
+                text_start=(0.0 + elapsed_seconds * 0.09 + orbiter_index * 0.13) % 1.0,
                 active=active,
             )
         )
@@ -228,9 +218,7 @@ def build_frame(elapsed_seconds: float) -> bytes:
     # nothing worth labelling, so they carry no value.
     for point_index in range(RING):
         for skip in RING_SKIPS:
-            first_point = scene_canvas.point(
-                central_circle, point_index / RING
-            )
+            first_point = scene_canvas.point(central_circle, point_index / RING)
             second_point = scene_canvas.point(
                 central_circle, ((point_index + skip) % RING) / RING
             )
@@ -248,9 +236,7 @@ def build_frame(elapsed_seconds: float) -> bytes:
             orbiting_circle.center_x, orbiting_circle.center_y
         )
         value = f"{central_position:.2f}" if orbiter_index == 0 else ""
-        central_point = scene_canvas.point(
-            central_circle, central_position, value
-        )
+        central_point = scene_canvas.point(central_circle, central_position, value)
         orbiting_point = scene_canvas.point(orbiting_circle, 0.5)
         scene_canvas.edge(central_point, orbiting_point)
         spoke_points.append((central_point, orbiting_point))
@@ -260,9 +246,7 @@ def build_frame(elapsed_seconds: float) -> bytes:
     ring_points = []
     for orbiter_index in range(orbiter_count):
         first_circle = orbiting_circles[orbiter_index]
-        second_circle = orbiting_circles[
-            (orbiter_index + 1) % orbiter_count
-        ]
+        second_circle = orbiting_circles[(orbiter_index + 1) % orbiter_count]
         first_point = scene_canvas.point(first_circle, 0.25)
         second_point = scene_canvas.point(second_circle, 0.75)
         scene_canvas.edge(first_point, second_point)
@@ -275,21 +259,15 @@ def build_frame(elapsed_seconds: float) -> bytes:
     # phase so they don't all transition in lockstep.
     for box_index, (name, drift_speed, phase) in enumerate(BOX_SPECS):
         position = (elapsed_seconds * drift_speed + phase) % 1.0
-        active = _hold_pulse(
-            elapsed_seconds, phase=box_index * 0.9 + 0.4
-        )
+        active = _hold_pulse(elapsed_seconds, phase=box_index * 0.9 + 0.4)
         anchor_point = scene_canvas.point(central_circle, position)
         scene_canvas.box(name, anchor_point, active=active)
 
     # Boxes pinned to one of the points an edge is already assigned to, so
     # they follow that point wherever the edge's endpoint goes.
-    for rider_index, (name, track_name, endpoint_index) in enumerate(
-        EDGE_RIDERS
-    ):
+    for rider_index, (name, track_name, endpoint_index) in enumerate(EDGE_RIDERS):
         anchor_point = tracks[track_name][endpoint_index]
-        active = _hold_pulse(
-            elapsed_seconds, phase=rider_index * 0.9 + 1.3
-        )
+        active = _hold_pulse(elapsed_seconds, phase=rider_index * 0.9 + 1.3)
         scene_canvas.box(name, anchor_point, active=active)
 
     # DRIFTER: a box anchored to a radius-0 circle lapping a rectangular
@@ -345,9 +323,7 @@ def main() -> None:
                 # Print actual FPS every 5 seconds.
                 if frame_number % (arguments.fps * 5) == 0:
                     actual_fps = (
-                        frame_number / elapsed_seconds
-                        if elapsed_seconds > 0
-                        else 0
+                        frame_number / elapsed_seconds if elapsed_seconds > 0 else 0
                     )
                     print(
                         f"  t={elapsed_seconds:6.1f}s  "

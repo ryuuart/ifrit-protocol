@@ -19,12 +19,12 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "ifrit-protocol-apps", directory = "../apps/python" }]
+requires-dist = [{ name = "ifrit-protocol-apps", directory = "../apps/python/spellcircle" }]
 
 [[package]]
 name = "ifrit-protocol-apps"
-version = "0.1.0"
-source = { directory = "../apps/python" }
+version = "0.2.0"
+source = { directory = "../apps/python/spellcircle" }
 dependencies = [
     { name = "flatbuffers" },
 ]

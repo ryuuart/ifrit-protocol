@@ -14,6 +14,7 @@ Usage: python3 configure_editors.py
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -69,9 +70,7 @@ def find_touchdesigner_python() -> Path:
         None,
     )
     if executable is None:
-        raise SystemExit(
-            f"no python3.x executable found under {binary_directory}"
-        )
+        raise SystemExit(f"no python3.x executable found under {binary_directory}")
     return executable
 
 
@@ -101,8 +100,16 @@ def ensure_environment(touchdesigner_python: Path) -> None:
     )
     print("running uv sync")
     subprocess.run(
-        [str(environment_python), "-m", "uv", "sync"],
+        [
+            str(environment_python),
+            "-m",
+            "uv",
+            "sync",
+            "--python",
+            str(environment_python),
+        ],
         cwd=SCRIPTS_DIR,
+        env={**os.environ, "UV_PROJECT_ENVIRONMENT": str(VENV_DIR)},
         check=True,
     )
 
@@ -117,10 +124,7 @@ def main() -> None:
     python_version_tag = "python" + python_version_directory.name
 
     touchdesigner_site_packages = (
-        python_version_directory
-        / "lib"
-        / python_version_tag
-        / "site-packages"
+        python_version_directory / "lib" / python_version_tag / "site-packages"
     )
     if not touchdesigner_site_packages.is_dir():
         raise SystemExit(

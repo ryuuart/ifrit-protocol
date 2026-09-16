@@ -9,7 +9,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-ifrit-protocol-apps = { path = "../apps/python"}
+ifrit-protocol-apps = { path = "../apps/python/spellcircle" }
 
 [tool.touchdesigner.TDPyEnvManagerContext]
 contextVersion = 2

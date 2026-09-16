@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import operator
 import socket
 from types import TracebackType
 
@@ -14,13 +15,32 @@ class SceneSender:
 
     def __init__(self, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> None:
         """Opens a datagram socket that sends to ``host`` and ``port``."""
+        if isinstance(port, bool) or not 1 <= operator.index(port) <= 65535:
+            raise ValueError("port must be between 1 and 65535")
         self.host = host
         self.port = port
-        self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        addresses = socket.getaddrinfo(host, port, type=socket.SOCK_DGRAM)
+        error: OSError | None = None
+        for family, kind, protocol, _, address in addresses:
+            try:
+                connection = socket.socket(family, kind, protocol)
+            except OSError as failure:
+                error = failure
+                continue
+            try:
+                connection.connect(address)
+            except OSError as failure:
+                connection.close()
+                error = failure
+                continue
+            self._socket = connection
+            break
+        else:
+            raise error or OSError("No UDP address was resolved for the destination")
 
     def send(self, data: bytes | bytearray | memoryview) -> None:
         """Sends one serialized scene datagram to the configured destination."""
-        self._socket.sendto(data, (self.host, self.port))
+        self._socket.send(data)
 
     def close(self) -> None:
         """Closes the underlying socket; repeated calls are safe."""

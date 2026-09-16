@@ -136,9 +136,9 @@ def check_ruff(files: list, fix: bool, whole_tree: bool) -> bool:
         return True
     if not shutil.which("ruff"):
         tree.fail("ruff not found — brew install ruff")
-    # Whole-tree mode hands ruff the repository root so ruff.toml's own
-    # excludes drive selection; scoped mode hands it the exact files.
-    targets = ["."] if whole_tree else [str(f) for f in files]
+    # Explicit file arguments must respect the same generated-source and
+    # formatting exclusions as a directory scan.
+    targets = ["--force-exclude", *(["."] if whole_tree else [str(f) for f in files])]
     if fix:
         run(["ruff", "check", "--fix", *targets], capture=False)
         run(["ruff", "format", *targets], capture=False)

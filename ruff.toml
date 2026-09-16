@@ -9,12 +9,12 @@ line-length = 88
 extend-exclude = [
     # FlatBuffers output, owned by the flatbuffers verb. Regenerating
     # would silently discard any hand fix or reformat.
-    "apps/python/SpellCircle/Box.py",
-    "apps/python/SpellCircle/Circle.py",
-    "apps/python/SpellCircle/Edge.py",
-    "apps/python/SpellCircle/Point.py",
-    "apps/python/SpellCircle/Scene.py",
-    "apps/python/SpellCircle/Vec2.py",
+    "apps/python/spellcircle/SpellCircle/Box.py",
+    "apps/python/spellcircle/SpellCircle/Circle.py",
+    "apps/python/spellcircle/SpellCircle/Edge.py",
+    "apps/python/spellcircle/SpellCircle/Point.py",
+    "apps/python/spellcircle/SpellCircle/Scene.py",
+    "apps/python/spellcircle/SpellCircle/Vec2.py",
     # Native declarations are generated from bindings and typed refinements.
     "apps/python/sigil/stubs/**",
     # Build trees carry generated and vendored Python.
@@ -55,8 +55,6 @@ ignore = [
 # until then they are lint-checked but not format-checked. New Python
 # files are format-checked from birth; do not add to this list.
 exclude = [
-    "apps/python/SpellCircle/test/animate_spell_circles.py",
-    "apps/python/SpellCircle/test/send_spell_circles.py",
     "apps/spell-circle-canvas/src/common/compose/gallery/tools_gen_skill_tree_data.py",
     "apps/spell-circle-canvas/src/common/compose/test/assets/make_advance_variant_vf.py",
     "apps/spell-circle-canvas/src/common/compose/test/docs/api_doc_probes.py",

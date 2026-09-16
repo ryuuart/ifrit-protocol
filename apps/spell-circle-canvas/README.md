@@ -38,9 +38,11 @@ SpellCircle graphics and port settings when no Seer receiver settings exist.
 Cancel restores the values present when settings opened. Syphon continues to
 publish under the server name `SpellCircle`.
 
+With the lightweight Python package installed, run its bundled examples:
+
 ```sh
-python3 apps/python/SpellCircle/test/send_spell_circles.py --seed 1
-python3 apps/python/SpellCircle/test/animate_spell_circles.py --fps 60
+python3 -m SpellCircle.examples.send_spell_circles --seed 1
+python3 -m SpellCircle.examples.animate_spell_circles --fps 60
 ```
 
 The first sends a single randomized sigil; the second streams an animated
@@ -48,9 +50,11 @@ one. Both default to `127.0.0.1:27015`.
 
 ## Authoring a scene
 
-The lightweight `ifrit-protocol-apps` package under `apps/python/` builds and
-sends scenes. It requires Python 3.11 or newer and FlatBuffers, with no native
-drawing extension:
+The lightweight `ifrit-protocol-apps` package under `apps/python/spellcircle/`
+builds and sends scenes. It requires Python 3.11 or newer and FlatBuffers, with
+no native drawing extension. Install that project with a Python package
+installer; its [README](../python/spellcircle/README.md) describes the model,
+codec and transport APIs:
 
 ```python
 from SpellCircle import SpellCircleCanvas, SceneSender
@@ -294,11 +298,11 @@ The **C++ header** is generated into the build tree by the
 `SpellCircleSchema` target, so the next build picks the edit up on its
 own — there is nothing to run and nothing to commit.
 
-The **Python modules** are committed, because `apps/python` is installed
-and imported without a CMake build in reach. Run
+The **Python modules** are committed, because `apps/python/spellcircle` is
+installed and imported without a CMake build in reach. Run
 `scripts/sigil.py flatbuffers` and commit what it writes:
 
-- `apps/python/SpellCircle/{Vec2,Circle,Point,Edge,Box,Scene}.py`
+- `apps/python/spellcircle/SpellCircle/{Vec2,Circle,Point,Edge,Box,Scene}.py`
 
 ### The SDKs that are not in vcpkg
 

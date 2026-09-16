@@ -183,9 +183,9 @@ uses the same dependency flags with external installed dependency directories.
 The wheel build does not build the sketch catalogue or application bundles.
 `uv build --package sigil-sketch --sdist` from the workspace builds only the source archive;
 building its wheel still requires the native dependencies. These commands
-publish no distributions. The separate `ifrit-protocol-apps` workspace project
-keeps its lightweight SpellCircle transport package and has no dependency on
-the native extension.
+publish no distributions. The `ifrit-protocol-apps` peer project in
+`apps/python/spellcircle/` owns the lightweight SpellCircle package and has no
+dependency on the native extension.
 
 An editable install uses the same native dependency settings. Its `sigil`
 Python modules are read directly from this project, while the compiled

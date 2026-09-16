@@ -3,7 +3,7 @@
     sigil.py flatbuffers
 
 Only the Python side. The C++ header is generated into the build tree by
-the SpellCircleSchema target and is not committed, while apps/python is
+the SpellCircleSchema target and is not committed, while apps/python/spellcircle is
 installed and imported — by TouchDesigner among others — with no CMake
 build in reach, which is why its modules stay committed and regenerating
 them is a step to run after every schema edit.
@@ -25,13 +25,13 @@ from sigil import tree
 SCHEMA = (
     tree.PROJECT_DIR / "src" / "spellcircle" / "shared" / "schema" / "SpellCircle.fbs"
 )
-PACKAGE = tree.REPO_DIR / "apps" / "python" / "SpellCircle"
+PACKAGE = tree.REPO_DIR / "apps" / "python" / "spellcircle" / "SpellCircle"
 
 
 def main(argv: list) -> int:
     argparse.ArgumentParser(
         prog="sigil.py flatbuffers",
-        description="regenerate apps/python/SpellCircle's schema modules from "
+        description="regenerate apps/python/spellcircle/SpellCircle's schema modules from "
         "SpellCircle.fbs",
     ).parse_args(argv)
 

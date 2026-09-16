@@ -1,14 +1,12 @@
 """FlatBuffers serialization for SpellCircle scenes.
 
-This is the only module that touches the generated FlatBuffers bindings.
-Scene authoring and transport work with ordinary Python values instead of
-depending on generated table functions.
+Scene authoring and transport work with ordinary Python values. This builder
+and the decoder contain the generated-table operations at the wire boundary.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
 
 import flatbuffers
 
@@ -17,32 +15,11 @@ from . import Circle as circle_schema
 from . import Edge as edge_schema
 from . import Point as point_schema
 from . import Scene as scene_schema
+from .model import CircleDefinition, PointReference, _active, _number, _text
 from .Vec2 import CreateVec2
 
 FlatBufferOffset = int
 VectorStartFunction = Callable[[flatbuffers.Builder, int], None]
-
-
-@dataclass(frozen=True, slots=True)
-class CircleDefinition:
-    """Describes one circle before it is encoded into the wire format."""
-
-    name: str
-    center_x: float
-    center_y: float
-    radius: int
-    text_start: float = 0.0
-    active: float = 0.0
-
-    @property
-    def x(self) -> float:
-        """Compatibility view of ``center_x`` for older authoring scripts."""
-        return self.center_x
-
-    @property
-    def y(self) -> float:
-        """Compatibility view of ``center_y`` for older authoring scripts."""
-        return self.center_y
 
 
 class SceneBuilder:
@@ -56,9 +33,21 @@ class SceneBuilder:
     def __init__(self, initial_size: int = 16_384) -> None:
         """Creates a builder with ``initial_size`` bytes of initial capacity."""
         self._builder = flatbuffers.Builder(initial_size)
+        self._circles: dict[int, tuple[CircleDefinition, FlatBufferOffset]] = {}
+        self._finished = False
+
+    def _open(self) -> None:
+        if self._finished:
+            raise RuntimeError("A SceneBuilder encodes one scene; create a new builder")
 
     def build_circle(self, circle: CircleDefinition) -> FlatBufferOffset:
         """Encodes ``circle`` and returns its FlatBuffers table offset."""
+        self._open()
+        if not isinstance(circle, CircleDefinition):
+            raise TypeError("circle must be a CircleDefinition")
+        cached = self._circles.get(id(circle))
+        if cached is not None:
+            return cached[1]
         builder = self._builder
         name_offset = builder.CreateString(circle.name)
         circle_schema.CircleStart(builder)
@@ -69,7 +58,10 @@ class SceneBuilder:
         circle_schema.CircleAddRadius(builder, circle.radius)
         circle_schema.CircleAddTextStart(builder, circle.text_start)
         circle_schema.CircleAddActive(builder, circle.active)
-        return circle_schema.CircleEnd(builder)
+        offset = circle_schema.CircleEnd(builder)
+        # Retain the value with its offset so Python cannot reuse its identity.
+        self._circles[id(circle)] = (circle, offset)
+        return offset
 
     def build_point(
         self,
@@ -78,13 +70,15 @@ class SceneBuilder:
         value: str = "",
     ) -> FlatBufferOffset:
         """Encodes a point at fractional ``position`` around ``circle``."""
+        self._open()
+        point = PointReference(circle, position, value)
         builder = self._builder
         circle_offset = self.build_circle(circle)
-        value_offset = builder.CreateString(value)
+        value_offset = builder.CreateString(point.value)
         point_schema.PointStart(builder)
         point_schema.PointAddValue(builder, value_offset)
         point_schema.PointAddCircle(builder, circle_offset)
-        point_schema.PointAddPosition(builder, float(position))
+        point_schema.PointAddPosition(builder, point.position)
         return point_schema.PointEnd(builder)
 
     def build_edge(
@@ -93,6 +87,7 @@ class SceneBuilder:
         second_point_offset: FlatBufferOffset,
     ) -> FlatBufferOffset:
         """Connects two already-built point tables and returns an edge offset."""
+        self._open()
         builder = self._builder
         edge_schema.EdgeStart(builder)
         edge_schema.EdgeAddFirst(builder, first_point_offset)
@@ -106,12 +101,15 @@ class SceneBuilder:
         active: float = 0.0,
     ) -> FlatBufferOffset:
         """Encodes a labelled box anchored to an already-built point."""
+        self._open()
+        value = _text("value", value)
+        active = _active(active)
         builder = self._builder
         value_offset = builder.CreateString(value)
         box_schema.BoxStart(builder)
         box_schema.BoxAddValue(builder, value_offset)
         box_schema.BoxAddPoint(builder, point_offset)
-        box_schema.BoxAddActive(builder, float(active))
+        box_schema.BoxAddActive(builder, active)
         return box_schema.BoxEnd(builder)
 
     def _build_vector(
@@ -140,6 +138,9 @@ class SceneBuilder:
         the renderer can scale it to the native target. Zero means coordinates
         are already expressed in native space.
         """
+        self._open()
+        canvas_width = _number("canvas_width", canvas_width, 0)
+        canvas_height = _number("canvas_height", canvas_height, 0)
         builder = self._builder
         edges_vector = self._build_vector(
             scene_schema.SceneStartEdgesVector, edge_offsets
@@ -160,4 +161,5 @@ class SceneBuilder:
         if canvas_height > 0:
             scene_schema.SceneAddHeight(builder, float(canvas_height))
         builder.Finish(scene_schema.SceneEnd(builder))
+        self._finished = True
         return bytes(builder.Output())
