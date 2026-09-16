@@ -5,8 +5,13 @@
  * the other direction from `OffscreenSurface`, which is the same texture
  * as a surface a draw can WRITE.
  *
- * Nothing is copied either way. What crosses is a name: the API's own
- * texture object, wrapped where it stands.
+ * TWO WAYS TO READ ONE, and which is possible is a fact about the
+ * devices rather than a preference. A WRAP copies nothing: what crosses
+ * is a name, the API's own texture object read where it stands, and the
+ * image belongs to the recorder that wrapped it and to no other. A READ
+ * copies the pixels into host memory, which is the only thing left when
+ * the drawing that must sample them stands on a different device — or on
+ * a different graphics API — from the one the texture was made on.
  */
 
 // A colour space is held by value in a defaulted argument, so it is
@@ -68,6 +73,34 @@ sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder& recorder, void* mtlTexture,
  * is the wrap above.
  */
 sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder& recorder, void* mtlTexture,
+                         SkAlphaType alphaType = kPremul_SkAlphaType,
+                         sk_sp<SkColorSpace> colorSpace = nullptr);
+
+/**
+ * @p mtlTexture's pixels READ BACK INTO HOST MEMORY, as an image any
+ * canvas and any renderer can draw — the answer for a picture that has
+ * to reach a device the texture does not stand on, where a wrap has
+ * nothing either side could hand the other.
+ *
+ * THIS ONE COPIES and the wraps do not, which is the whole difference
+ * between them. An image from here names bytes this process owns, so it
+ * is uploaded again wherever it is drawn and costs a frame of pixels
+ * every time one is made; a wrapped one costs nothing and is drawable on
+ * exactly one recorder. Ask for a wrap wherever a wrap will do.
+ *
+ * The copy runs on a command queue this call keeps for the texture's own
+ * device — one queue held for the process, since a queue made per read
+ * would be a queue allocated per read — and the calling thread blocks
+ * until it has finished, which is what having the pixels means.
+ *
+ * The texels are read as the format the texture declares, with the
+ * channels in that format's own order; @p alphaType says what its alpha
+ * channel means and @p colorSpace what its colours do, with null asking
+ * for no conversion. Null when there is no texture, when the copy did
+ * not complete, or when the format is not four eight-bit channels, which
+ * is the only shape read here.
+ */
+sk_sp<SkImage> readImage(void* mtlTexture,
                          SkAlphaType alphaType = kPremul_SkAlphaType,
                          sk_sp<SkColorSpace> colorSpace = nullptr);
 

@@ -29,7 +29,7 @@ directory, and links only what it needs.
 
 | Feature | Target | Headers | What it holds |
 |---|---|---|---|
-| graphite | `SigilSkiaGraphite` | `<sigilskia/graphite/GraphiteContext.h>`, `<sigilskia/graphite/OffscreenSurface.h>`, `<sigilskia/graphite/PaintOrder.h>`, `<sigilskia/graphite/TextureImage.h>`, `<sigilskia/graphite/Pixels.h>` | the context over a native device and queue, the surface over a texture, the image over one, the canvas that keeps a scene's painting order, and the pixel reads a device upload takes; Metal and Vulkan as parallel paths, and the entry points that read a `GpuDevice` — `GraphiteContext::create`, the `OffscreenSurface` wrap over a `TextureHandle`, the submit that signals a `FenceHandle` |
+| graphite | `SigilSkiaGraphite` | `<sigilskia/graphite/GraphiteContext.h>`, `<sigilskia/graphite/OffscreenSurface.h>`, `<sigilskia/graphite/PaintOrder.h>`, `<sigilskia/graphite/TextureImage.h>`, `<sigilskia/graphite/Pixels.h>` | the context over a native device and queue, the surface over a texture, the image over one — wrapped where it stands or read back into host memory — the canvas that keeps a scene's painting order, and the pixel reads a device upload takes; Metal and Vulkan as parallel paths, and the entry points that read a `GpuDevice` — `GraphiteContext::create`, the `OffscreenSurface` wrap over a `TextureHandle`, the submit that signals a `FenceHandle` |
 | qt | `SigilSkiaQt` | `<sigilskia/qt/QtInterop.h>` | the adapters that unwrap a `QRhi`'s native handles and forward to graphite |
 | draw | `SigilSkiaDraw` | `<sigilskia/draw/Direct.h>` | the two `SkCanvas` ops Graphite leaves unimplemented, decomposed into ones every backend performs |
 
@@ -123,6 +123,26 @@ and the texture is read at its own — `wrapImage(*recorder, mtlTexture)`.
 the last image naming it is gone, so an image outliving the view or the
 frame that owned its texture still samples pixels rather than whatever
 now holds the slot.
+
+**A texture that must cross to another device is READ, not wrapped.**
+A wrap names one texture on one recorder, so it has nothing to give a
+renderer standing on a different device — or on a different graphics API,
+which is the case a Metal frame handed to a Vulkan renderer is.
+`sigil::skia::readImage(mtlTexture)` copies the pixels into host memory
+instead and answers an ordinary raster image, which every canvas draws
+and every renderer uploads for itself:
+
+```cpp
+sk_sp<SkImage> pixels = sigil::skia::readImage(mtlTexture);
+```
+
+It states the copy in its name because that is the whole difference:
+an image from here costs a frame of pixels every time one is made and is
+drawable anywhere, where a wrapped one costs nothing and is drawable on
+exactly one recorder — so a caller asks for a wrap wherever a wrap will
+do. The copy runs on a command queue held for the texture's own device,
+the calling thread blocks until it has finished, and a format that is
+not four eight-bit channels is answered with nothing.
 
 **Several planes are one image.** `wrapPlanarImage`, taking a span of
 `TexturePlane` and an `SkYUVAInfo`, wraps a frame that arrived as

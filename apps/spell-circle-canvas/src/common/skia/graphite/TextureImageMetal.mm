@@ -1,10 +1,14 @@
 // Metal arm of the image wrap: an id<MTLTexture> as an SkImage on a
-// Metal recorder, so a draw samples the texture where it stands.
+// Metal recorder, so a draw samples the texture where it stands — and,
+// beside it, the read that copies one into host memory for a drawing
+// that stands somewhere else.
 
 #import <Metal/Metal.h>
 
 #include <include/core/SkColorSpace.h>
+#include <include/core/SkData.h>
 #include <include/core/SkImage.h>
+#include <include/core/SkImageInfo.h>
 #include <include/core/SkSize.h>
 #include <include/gpu/GpuTypes.h>
 #include <include/gpu/graphite/BackendTexture.h>
@@ -15,9 +19,55 @@
 #include <sigilskia/graphite/TextureImage.h>
 
 #include <array>
+#include <mutex>
+#include <optional>
 #include <utility>
 
 namespace sigil::skia {
+
+namespace {
+
+/** WHAT THE TEXTURE'S BYTES MEAN, in the vocabulary an image is made in.
+ *  The sRGB spellings are the same bytes as their plain twins — the
+ *  difference is how a sampler reads them, and the colour space the
+ *  caller names is what says that here — so both arrive as the same
+ *  colour type. Nothing for a format that is not four eight-bit
+ *  channels. */
+std::optional<SkColorType> colorType(MTLPixelFormat format) {
+  switch (format) {
+    case MTLPixelFormatBGRA8Unorm:
+    case MTLPixelFormatBGRA8Unorm_sRGB:
+      return kBGRA_8888_SkColorType;
+    case MTLPixelFormatRGBA8Unorm:
+    case MTLPixelFormatRGBA8Unorm_sRGB:
+      return kRGBA_8888_SkColorType;
+    default:
+      return std::nullopt;
+  }
+}
+
+/** THE QUEUE A READ RUNS ON: one for @p device, made on the first read
+ *  from it, because a queue made per read would be a queue allocated per
+ *  read.
+ *
+ *  IT IS KEPT FOR THE PROCESS AND NEVER RELEASED, the way the device it
+ *  stands on is: a read on another thread may still be submitting to the
+ *  queue a device change would replace, and a machine has as many
+ *  devices as it has — which is not a count that grows. Only the pair is
+ *  behind the lock; the queue orders the work submitted to it itself. */
+id<MTLCommandQueue> readQueue(id<MTLDevice> device) {
+  static std::mutex mutex;
+  static id<MTLDevice> lastDevice = nil;
+  static id<MTLCommandQueue> queue = nil;
+  const std::lock_guard<std::mutex> lock(mutex);
+  if (device != lastDevice) {
+    lastDevice = [device retain];
+    queue = [device newCommandQueue];
+  }
+  return queue;
+}
+
+}  // namespace
 
 sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder &recorder, void *mtlTexture, int width,
                          int height, SkAlphaType alphaType, sk_sp<SkColorSpace> colorSpace) {
@@ -48,6 +98,59 @@ sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder &recorder, void *mtlTexture,
   id<MTLTexture> texture = (__bridge id<MTLTexture>)mtlTexture;
   return wrapImage(recorder, mtlTexture, (int)texture.width, (int)texture.height, alphaType,
                    std::move(colorSpace));
+}
+
+sk_sp<SkImage> readImage(void *mtlTexture, SkAlphaType alphaType, sk_sp<SkColorSpace> colorSpace) {
+  if (!mtlTexture) return nullptr;
+  id<MTLTexture> texture = (__bridge id<MTLTexture>)mtlTexture;
+  const std::optional<SkColorType> type = colorType(texture.pixelFormat);
+  if (!type) return nullptr;
+  id<MTLCommandQueue> queue = readQueue(texture.device);
+  if (!queue) return nullptr;
+
+  const NSUInteger width = texture.width;
+  const NSUInteger height = texture.height;
+  const NSUInteger rowBytes = width * 4;
+  if (width == 0 || height == 0) return nullptr;
+
+  // A BUFFER, NOT A SECOND TEXTURE: a copy into shared storage is
+  // readable on every Mac without asking which side of the bus the
+  // texture's own memory is on.
+  id<MTLBuffer> pixels = [queue.device newBufferWithLength:rowBytes * height
+                                                   options:MTLResourceStorageModeShared];
+  if (!pixels) return nullptr;
+  id<MTLCommandBuffer> commands = [queue commandBuffer];
+  id<MTLBlitCommandEncoder> blit = [commands blitCommandEncoder];
+  [blit copyFromTexture:texture
+                   sourceSlice:0
+                   sourceLevel:0
+                  sourceOrigin:MTLOriginMake(0, 0, 0)
+                    sourceSize:MTLSizeMake(width, height, 1)
+                      toBuffer:pixels
+             destinationOffset:0
+        destinationBytesPerRow:rowBytes
+      destinationBytesPerImage:rowBytes * height];
+  [blit endEncoding];
+  [commands commit];
+  // The bytes are read on this thread the moment the copy is done, so the
+  // wait is the point rather than a stall to be hidden.
+  [commands waitUntilCompleted];
+  if (commands.status != MTLCommandBufferStatusCompleted) {
+    [pixels release];
+    return nullptr;
+  }
+
+  // THE IMAGE HOLDS THE BUFFER rather than copying out of it: the bytes
+  // are already this process's, and a second copy of them would buy
+  // nothing. The one reference this call owns is handed to the release
+  // proc, which is what lets the buffer go once the last image naming it
+  // has.
+  sk_sp<SkData> bytes = SkData::MakeWithProc(
+      pixels.contents, rowBytes * height,
+      [](const void *, void *context) { [(id<MTLBuffer>)context release]; }, (void *)pixels);
+  const SkImageInfo info =
+      SkImageInfo::Make((int)width, (int)height, *type, alphaType, std::move(colorSpace));
+  return SkImages::RasterFromData(info, std::move(bytes), rowBytes);
 }
 
 sk_sp<SkImage> wrapPlanarImage(skgpu::graphite::Recorder &recorder,
