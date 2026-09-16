@@ -278,7 +278,8 @@ Differences that must coexist belong on a view or web session.
 A page is not there when the sketch showing it is declared. The engine
 loads it on its own thread and hands over one frame per painting, and
 what says the page is THERE is the engine's own events — the load
-callback and the frame callback — never a stretch of clock.
+callback, the frame callback, and the render-pass callback a stretch
+with no repaint in it is counted in — never a stretch of clock.
 `<sigilsketch/scry/SettledPage.h>` is that door, and it states every
 one of them twice: as a WAIT, and as a READING that answers what the
 engine has said so far and returns at once.
@@ -669,16 +670,27 @@ frame to a file.
 
 **Frames come the other way too.** `sigil::sketch::Guest`, from
 `<sigilsketch/canvas/Guest.h>`, is the same door read from the inside of
-a sketch: made from the context and the name a publication announces, it
-answers with the newest frame as an image on the recorder the canvas is
-being drawn on — one wrap per frame that arrived, and null while nothing
-is publishing. `sigil::sketch::Guest::publishing` and
+a sketch: made from the context a sketch was handed — a page's
+`SketchContext` or a set's `SetContext` — and the name a publication
+announces, it answers with the newest frame two ways.
+`sigil::sketch::Guest::frame` is the frame as an image on the recorder
+the canvas is being drawn on, one wrap per frame that arrived and null
+while nothing is publishing; `guest_picture` is the page that wears one,
+and nothing is copied on the way in.
+`sigil::sketch::Guest::texture` is the same frame as a
+`material::Texture`, which is what a surface's base-colour slot takes, so
+a body in a set wears the publication the way it wears any other picture;
+`guest_body` is the set that turns one under a light. That one reads the
+pixels back into host memory, because the renderer that shades a body
+does not stand where a publication arrives — a frame is a Metal texture
+and the world draws through Vulkan — and a slot that works on every tier
+is worth a copy where no handle can cross.
+`sigil::sketch::Guest::publishing` and
 `sigil::sketch::Guest::application` are what a scene says about the
-publication it is wearing, and `guest_picture` is the sketch that wears
-one. A capture subscribes to nothing at all: what another application
-happens to be offering while a still is taken is not a function of the
-sketch that took it, so a plate of such a scene is what it draws with
-nobody publishing.
+publication it is wearing. A capture subscribes to nothing at all: what
+another application happens to be offering while a still is taken is not
+a function of the sketch that took it, so a plate of such a scene is what
+it draws with nobody publishing.
 
 What travels is the texture the frame was drawn into, so publishing
 wants the window on Graphite. On the CPU raster fallback there is no

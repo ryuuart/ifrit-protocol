@@ -166,8 +166,23 @@ another's picture is by definition behind the one drawing it.
 
 **What a sketch reaches for is not this.** `sigil::sketch::Guest`, in
 `<sigilsketch/canvas/Guest.h>`, is the subscription with the wrap
-already done — the newest frame as an `SkImage` on the recorder a canvas
-is drawing through — and `guest_picture` is the sketch that wears one.
+already done — `sigil::sketch::Guest::frame` is the newest frame as an
+`SkImage` on the recorder a canvas is drawing through — and
+`guest_picture` is the sketch that wears one.
+
+**A body in the world wears the same publication through a material
+slot.** `sigil::sketch::Guest::texture` is the newest frame as a
+`material::Texture`, which is what a surface's base-colour slot takes,
+and `guest_body` is the sketch that turns one in a lit set. That one
+COPIES, and it is the only thing on either side of this door that does:
+a body is shaded by the renderer the world stands on, and that renderer
+does not stand where a publication arrives — a frame is a Metal texture
+and the world draws through Vulkan — so neither device holds anything
+the other could be handed. The pixels are read back into host memory
+instead and the renderer uploads them like any other image, which is
+what makes the slot work on every tier rather than on none. The door
+itself still reads nothing back: what crosses it is the texture, and the
+read is on the subscriber's side, the way a grab is.
 
 ## Receiver — the other side
 
