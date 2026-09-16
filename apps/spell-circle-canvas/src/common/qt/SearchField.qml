@@ -9,6 +9,9 @@ TextField {
     implicitHeight: Theme.controlHeight
     leftPadding: 28
     rightPadding: clearButton.visible ? clearButton.width + 4 : 10
+    topPadding: Theme.smallSpacing
+    bottomPadding: Theme.smallSpacing
+    verticalAlignment: TextInput.AlignVCenter
     placeholderText: "Search"
     selectByMouse: true
     Accessible.name: placeholderText

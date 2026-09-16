@@ -10,6 +10,7 @@ Ui.Panel {
     id: pane
     padding: 0
 
+    property var sketch: ({})
     property alias sketchIndex: view.sketchIndex
     property alias paused: view.paused
     property alias publishing: view.publishing
@@ -32,32 +33,11 @@ Ui.Panel {
 
     contentItem: ColumnLayout {
         spacing: 0
-        RowLayout {
+        Ui.PanelHeading {
             Layout.fillWidth: true
             Layout.margins: Ui.Theme.sectionSpacing
-            spacing: Ui.Theme.spacing
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: Ui.Theme.smallSpacing
-                Ui.SectionHeading {
-                    text: "CANVAS"
-                }
-                Label {
-                    Layout.fillWidth: true
-                    text: (pane.metrics.sketch ?? "Open a sketch").replace(/_/g, " ")
-                    color: Ui.Theme.primaryText
-                    font.pixelSize: Ui.Theme.headingSize
-                    font.weight: Font.DemiBold
-                    elide: Text.ElideRight
-                }
-            }
-            Label {
-                visible: pane.width >= 540
-                text: pane.metrics.canvas ?? ""
-                color: Ui.Theme.secondaryText
-                font.pixelSize: Ui.Theme.captionSize
-                font.family: Ui.Theme.monospaceFontFamily
-            }
+            title: (pane.metrics.sketch ?? "Open a sketch").replace(/_/g, " ")
+            detail: [pane.sketch.folder ?? "", pane.sketch.path ? (pane.sketch.path.endsWith(".py") ? "Python" : "C++") : "", (pane.metrics.canvas ?? "").replace("x", " × ")].filter(value => value.length > 0).join(" · ")
             Ui.IconButton {
                 text: "Fit"
                 tooltip: "Fit the whole sketch in the canvas"
@@ -72,7 +52,7 @@ Ui.Panel {
         Ui.GlassPanel {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.margins: Ui.Theme.spacing
+            Layout.margins: Ui.Theme.sectionSpacing
             Layout.topMargin: 0
             radius: Ui.Theme.cornerRadius
             Ui.PanZoomCanvas {

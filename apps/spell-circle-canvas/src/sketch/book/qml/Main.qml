@@ -376,6 +376,10 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.fillHeight: true
             orientation: Qt.Horizontal
+            onResizingChanged: {
+                if (!resizing)
+                    settings.browserWidth = browserPane.width;
+            }
             handle: Item {
                 implicitWidth: Ui.Theme.sectionSpacing
                 Rectangle {
@@ -390,12 +394,11 @@ ApplicationWindow {
             Ui.Panel {
                 id: browserPane
                 objectName: "libraryPanel"
-                SplitView.preferredWidth: Math.min(settings.browserWidth, Math.max(320, window.width * 0.32), 500)
-                SplitView.minimumWidth: 320
-                SplitView.maximumWidth: 560
+                SplitView.preferredWidth: settings.browserWidth
+                SplitView.minimumWidth: 360
+                SplitView.maximumWidth: 640
                 padding: 0
                 backgroundColor: Ui.Theme.panelBackground
-                Component.onDestruction: settings.browserWidth = browserPane.width
 
                 contentItem: ColumnLayout {
                     spacing: 0
@@ -403,19 +406,15 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         Layout.margins: Ui.Theme.sectionSpacing
                         spacing: Ui.Theme.spacing
-                        RowLayout {
+                        Ui.PanelHeading {
                             Layout.fillWidth: true
-                            Label {
-                                text: "Library"
-                                color: Ui.Theme.primaryText
-                                font.pixelSize: Ui.Theme.headingSize
-                                font.weight: Font.DemiBold
-                                Layout.fillWidth: true
-                            }
-                            Label {
-                                text: browser.cards.length + (browser.cards.length === 1 ? " sketch" : " sketches")
-                                color: Ui.Theme.secondaryText
-                                font.pixelSize: Ui.Theme.captionSize
+                            title: "Library"
+                            detail: browser.cards.length + (browser.cards.length === 1 ? " sketch" : " sketches") + (browser.groupPath.length ? " · " + browser.groupPath.split("/").join(" › ") : " · All sketches")
+                            Ui.IconButton {
+                                visible: browser.hasFilters
+                                text: "×"
+                                tooltip: "Clear search and group filters"
+                                onClicked: browser.clearFilters()
                             }
                         }
                         Ui.SearchField {
@@ -439,8 +438,17 @@ ApplicationWindow {
                                 objectName: "groupPicker"
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: 60
+                                leftPadding: 0
                                 text: (browser.groupPath.split("/").pop() || "All sketches") + " ▾"
                                 tooltip: "Browse subjects and collections"
+                                contentItem: Label {
+                                    text: groupButton.text
+                                    font: groupButton.font
+                                    color: Ui.Theme.primaryText
+                                    horizontalAlignment: Text.AlignLeft
+                                    verticalAlignment: Text.AlignVCenter
+                                    elide: Text.ElideRight
+                                }
                                 onClicked: groupPopup.open()
                                 Popup {
                                     id: groupPopup
@@ -509,22 +517,6 @@ ApplicationWindow {
                                         onTriggered: browser.sortAscending = !browser.sortAscending
                                     }
                                 }
-                            }
-                        }
-                        RowLayout {
-                            visible: browser.hasFilters
-                            Layout.fillWidth: true
-                            Label {
-                                Layout.fillWidth: true
-                                text: browser.groupPath.length ? browser.groupPath.split("/").join(" › ") : "Search results"
-                                color: Ui.Theme.secondaryText
-                                font.pixelSize: Ui.Theme.captionSize
-                                elide: Text.ElideRight
-                            }
-                            Ui.IconButton {
-                                text: "Clear"
-                                tooltip: "Clear search and group filters"
-                                onClicked: browser.clearFilters()
                             }
                         }
                     }
@@ -644,6 +636,7 @@ ApplicationWindow {
                 id: view
                 SplitView.fillWidth: true
                 SplitView.minimumWidth: 380
+                sketch: browser.sketchAt(view.sketchIndex) ?? ({})
                 onCaptureReady: path => window.showCapture(path)
                 onThumbnailCaptured: index => catalog.adoptThumbnail(index)
             }

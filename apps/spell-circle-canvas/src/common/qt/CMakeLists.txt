@@ -18,6 +18,7 @@ qt_add_qml_module(IfritQt
   QML_FILES
     Theme.qml
     Panel.qml
+    PanelHeading.qml
     SectionHeading.qml
     FactRow.qml
     StatusIndicator.qml

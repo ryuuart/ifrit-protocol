@@ -89,6 +89,10 @@ Use `GlassPanel` when GPU content itself must be clipped to rounded corners.
 `label` and `value`, with optional `labelWidth`, `valueColor`, `valueElide`
 and `monospace`. A truncated value is available in its tooltip.
 
+`PanelHeading` aligns a panel's `title` and secondary `detail` with optional
+trailing controls. Its children are actions; the text shrinks and elides to
+keep those controls available. A truncated detail has a full-text tooltip.
+
 `IconButton` retains the standard ToolButton action, checked state, keyboard
 focus and click signal. Its `tooltip` is also its accessible name.
 `SearchField` retains the standard TextField API, provides a clear button,
@@ -218,7 +222,7 @@ checks keyboard activation, font-result navigation, search clearing, disabled
 choices and model updates that must not emit user-edit signals. There are no
 assets.
 
-QML types provided: the `Theme` singleton, `Panel`, `SectionHeading`,
+QML types provided: the `Theme` singleton, `Panel`, `PanelHeading`, `SectionHeading`,
 `FactRow`, `StatusIndicator`, `Notice`, `IconButton`, `SegmentedControl`,
 `SearchField`, `SliderField`, `FontDatabase`, `Checkerboard`, `PanZoomCanvas`,
 `GlassPanel`,

@@ -43,6 +43,16 @@ Item {
         return Math.max(1, Math.floor((grid.width - (gridScroll.visible ? gridScroll.width : 0)) / 240));
     }
 
+    FontMetrics {
+        id: titleMetrics
+        font.pixelSize: Ui.Theme.bodySize
+    }
+    FontMetrics {
+        id: captionMetrics
+        font.pixelSize: Ui.Theme.captionSize
+    }
+    readonly property int descriptionHeight: Math.ceil(captionMetrics.height * 1.2) * 2
+
     GridView {
         id: grid
 
@@ -55,7 +65,7 @@ Item {
         cacheBuffer: 600
         cellWidth: Math.floor((grid.width - (gridScroll.visible ? gridScroll.width : 0)) / gallery.columns())
         // Card text and actions keep a fixed budget while session facts arrive.
-        cellHeight: Math.round((grid.cellWidth - 32) * 0.625 + 137)
+        cellHeight: Math.ceil((grid.cellWidth - 32) * 0.5) + 32 + Math.ceil(titleMetrics.height) + gallery.descriptionHeight + Math.ceil(captionMetrics.height) + Ui.Theme.controlHeight + Ui.Theme.smallSpacing * 4
         Keys.onLeftPressed: gallery.stepRequested(-1)
         Keys.onRightPressed: gallery.stepRequested(1)
         Keys.onUpPressed: gallery.stepRequested(-gallery.columns())
@@ -93,13 +103,13 @@ Item {
 
                 ColumnLayout {
                     anchors.fill: parent
-                    spacing: Ui.Theme.spacing
+                    spacing: Ui.Theme.smallSpacing
 
                     PlateThumb {
                         id: still
 
                         Layout.fillWidth: true
-                        Layout.preferredHeight: still.width * 0.625
+                        Layout.preferredHeight: Math.ceil(still.width * 0.5)
                         Layout.minimumHeight: Layout.preferredHeight
                         plate: cell.sketch.plate
                         kind: cell.sketch.kind
@@ -107,27 +117,54 @@ Item {
                         sketchIndex: cell.sketch.sketchIndex
                         radius: Ui.Theme.cornerRadius
                     }
-                    Label {
+                    RowLayout {
                         Layout.fillWidth: true
-                        text: cell.sketch.name
-                        color: Ui.Theme.primaryText
-                        font.pixelSize: Ui.Theme.bodySize
-                        font.weight: Font.DemiBold
-                        elide: Text.ElideRight
+                        Layout.preferredHeight: Math.ceil(titleMetrics.height)
+                        spacing: Ui.Theme.spacing
+                        Label {
+                            Layout.fillWidth: true
+                            text: cell.sketch.name
+                            color: Ui.Theme.primaryText
+                            font.pixelSize: Ui.Theme.bodySize
+                            font.weight: Font.DemiBold
+                            elide: Text.ElideRight
+                        }
+                        Label {
+                            text: cell.sketch.path.endsWith(".py") ? "Python" : "C++"
+                            color: Ui.Theme.secondaryText
+                            font.pixelSize: Ui.Theme.captionSize
+                        }
                     }
                     Text {
-                        id: blurb
-
                         Layout.fillWidth: true
-                        Layout.preferredHeight: Math.ceil(blurb.font.pixelSize * blurb.lineHeight * 2) + 2
+                        Layout.preferredHeight: gallery.descriptionHeight
                         Layout.minimumHeight: Layout.preferredHeight
+                        Layout.maximumHeight: Layout.preferredHeight
                         text: cell.sketch.available ? cell.sketch.blurb : "Unavailable · " + cell.sketch.reason
                         color: cell.sketch.available ? Ui.Theme.secondaryText : Ui.Theme.warningText
                         font.pixelSize: Ui.Theme.captionSize
-                        lineHeight: 1.3
+                        textFormat: Text.PlainText
+                        lineHeight: 1.2
                         wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                         elide: Text.ElideRight
                         maximumLineCount: 2
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Math.ceil(captionMetrics.height)
+                        spacing: Ui.Theme.spacing
+                        Label {
+                            Layout.fillWidth: true
+                            text: cell.sketch.folder
+                            color: Ui.Theme.secondaryText
+                            font.pixelSize: Ui.Theme.captionSize
+                            elide: Text.ElideRight
+                        }
+                        Label {
+                            text: cell.sketch.lines + " lines"
+                            color: Ui.Theme.secondaryText
+                            font.pixelSize: Ui.Theme.captionSize
+                        }
                     }
                     RowLayout {
                         Layout.fillWidth: true

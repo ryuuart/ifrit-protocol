@@ -87,10 +87,8 @@ Ui.Panel {
                 }
                 Ui.StatusIndicator {
                     Layout.fillWidth: true
-                    text: !rail.sketch.available ? "Unavailable"
-                        : rail.presented ? "On canvas" : "Ready to open"
-                    tone: !rail.sketch.available ? "warning"
-                        : rail.presented ? "good" : "neutral"
+                    text: !rail.sketch.available ? "Unavailable" : rail.presented ? "On canvas" : "Ready to open"
+                    tone: !rail.sketch.available ? "warning" : rail.presented ? "good" : "neutral"
                 }
                 Label {
                     Layout.fillWidth: true
@@ -106,6 +104,7 @@ Ui.Panel {
                 id: still
 
                 Layout.fillWidth: true
+                visible: !rail.presented
                 Layout.preferredHeight: still.width * 0.5625
                 radius: Ui.Theme.cornerRadius
                 plate: rail.sketch.plate
@@ -117,8 +116,9 @@ Ui.Panel {
 
             Button {
                 Layout.fillWidth: true
-                text: rail.presented ? "On canvas" : "Open sketch"
-                enabled: !rail.presented && rail.sketch.available
+                visible: !rail.presented
+                text: "Open sketch"
+                enabled: rail.sketch.available
                 onClicked: rail.openRequested()
             }
 
@@ -127,7 +127,9 @@ Ui.Panel {
                 visible: rail.sketch.subject.length > 0
                 spacing: Ui.Theme.spacing
 
-                Ui.SectionHeading { text: "OVERVIEW" }
+                Ui.SectionHeading {
+                    text: "OVERVIEW"
+                }
                 Label {
                     Layout.fillWidth: true
                     text: rail.sketch.subject
@@ -143,7 +145,9 @@ Ui.Panel {
                 visible: (rail.sketch.tags ?? []).length > 0
                 spacing: Ui.Theme.spacing
 
-                Ui.SectionHeading { text: "SUBJECTS" }
+                Ui.SectionHeading {
+                    text: "SUBJECTS"
+                }
                 Flow {
                     id: subjects
                     Layout.fillWidth: true
@@ -173,15 +177,16 @@ Ui.Panel {
                 Layout.fillWidth: true
                 spacing: Ui.Theme.spacing
 
-                Ui.SectionHeading { text: "SOURCE" }
+                Ui.SectionHeading {
+                    text: "SOURCE"
+                }
                 Fact {
                     label: "File"
                     value: rail.sketch.path
                 }
                 Fact {
                     label: "Runtime"
-                    value: rail.sketch.kind.length > 0 ? rail.sketch.kind
-                        : "Not yet compiled"
+                    value: rail.sketch.kind.length > 0 ? rail.sketch.kind : "Not yet compiled"
                     monospace: false
                 }
                 Fact {
@@ -222,23 +227,18 @@ Ui.Panel {
                 Layout.fillWidth: true
                 spacing: Ui.Theme.spacing
 
-                Ui.SectionHeading { text: "EXPORT" }
+                Ui.SectionHeading {
+                    text: "EXPORT"
+                }
                 Fact {
                     label: "Canvas"
-                    value: rail.sketch.canvas.length > 0
-                        ? rail.sketch.canvas + " · " + rail.sketch.background
-                        : "Declared when it runs"
-                    valueColor: rail.sketch.canvas.length > 0
-                        ? Ui.Theme.primaryText : Ui.Theme.secondaryText
+                    value: rail.sketch.canvas.length > 0 ? rail.sketch.canvas + " · " + rail.sketch.background : "Declared when it runs"
+                    valueColor: rail.sketch.canvas.length > 0 ? Ui.Theme.primaryText : Ui.Theme.secondaryText
                 }
                 Fact {
                     label: "Capture at"
-                    value: rail.sketch.moment > 0
-                        ? rail.sketch.moment.toFixed(2) + " s"
-                        : rail.sketch.canvas.length > 0
-                            ? "None declared" : "Declared when it runs"
-                    valueColor: rail.sketch.moment > 0
-                        ? Ui.Theme.primaryText : Ui.Theme.secondaryText
+                    value: rail.sketch.moment > 0 ? rail.sketch.moment.toFixed(2) + " s" : rail.sketch.canvas.length > 0 ? "None declared" : "Declared when it runs"
+                    valueColor: rail.sketch.moment > 0 ? Ui.Theme.primaryText : Ui.Theme.secondaryText
                 }
                 RowLayout {
                     Layout.fillWidth: true
@@ -259,9 +259,7 @@ Ui.Panel {
                         enabled: !rail.taskRunning && rail.sketch.videoExportable
                         ToolTip.visible: hovered
                         ToolTip.delay: 700
-                        ToolTip.text: rail.sketch.videoExportable
-                            ? "Export this sketch as a vertical MP4"
-                            : "Video export requires a registry sketch"
+                        ToolTip.text: rail.sketch.videoExportable ? "Export this sketch as a vertical MP4" : "Video export requires a registry sketch"
                         onClicked: rail.videoRequested()
                     }
                 }
@@ -290,8 +288,7 @@ Ui.Panel {
                     }
                     Label {
                         visible: rail.presented
-                        text: rail.metrics.fps !== undefined
-                            ? rail.metrics.fps.toFixed(0) + " fps" : "— fps"
+                        text: rail.metrics.fps !== undefined ? rail.metrics.fps.toFixed(0) + " fps" : "— fps"
                         color: Ui.Theme.primaryText
                         font.pixelSize: Ui.Theme.bodySize
                         font.weight: Font.DemiBold
@@ -329,8 +326,7 @@ Ui.Panel {
 
                     Fact {
                         label: "Work · p99"
-                        value: (rail.metrics.workMs ?? 0).toFixed(2) + " · "
-                            + (rail.metrics.p99Ms ?? 0).toFixed(2) + " ms"
+                        value: (rail.metrics.workMs ?? 0).toFixed(2) + " · " + (rail.metrics.p99Ms ?? 0).toFixed(2) + " ms"
                     }
                     Fact {
                         label: "Submit"

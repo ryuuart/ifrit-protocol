@@ -1035,7 +1035,9 @@ The library and canvas occupy two resizable panels. Search, grouping, view
 mode and sorting live together in the library; the canvas has explicit Fit
 and actual-size controls. Details opens a drawer over the right edge at any
 window size and closes on Escape or a click outside it. The drawer starts
-closed, leaving the artwork its space. Browsing and presentation stay separate:
+closed, leaving the artwork its space. Both panel headings align their title
+and contextual detail; the canvas heading identifies the current sketch's
+collection, language and dimensions. Browsing and presentation stay separate:
 
 * **selection is a look.** Arrow keys move it, a click moves it, and all
   it moves is the selection and its details. Whatever the canvas was
@@ -1076,9 +1078,13 @@ does not reshuffle ties.
 
 * **the list** — one row per sketch, with the thumbnail,
   blurb, collection, runtime, canvas, declared moment and line count in
-  columns. Clicking a column heading orders by it; clicking again reverses.
+  columns where width permits. A compact metadata line keeps collection,
+  runtime and known dimensions visible in narrow panes. Clicking a column
+  heading orders by it; clicking again reverses.
 * **the gallery** (the default when no view preference is saved) — every
-  matching sketch as its own still, a short description and an Open action.
+  matching sketch as its own still, a two-line description, collection,
+  source language and line count, with canvas dimensions when known. The
+  Open action and current-canvas status stay visible in each card.
 
 Sketchbook uses the shared `Ifrit.Qt` system-palette theme and controls.
 It follows the operating system's light or dark appearance; rendered

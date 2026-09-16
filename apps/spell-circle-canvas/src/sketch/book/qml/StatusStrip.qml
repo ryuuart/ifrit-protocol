@@ -38,24 +38,51 @@ Ui.Panel {
     contentItem: RowLayout {
         spacing: Ui.Theme.spacing
         Ui.StatusIndicator {
-            Layout.fillWidth: true
-            Layout.minimumWidth: 60
+            Layout.fillWidth: false
+            Layout.minimumWidth: 0
             Layout.maximumWidth: 280
             text: strip.capture || (strip.filling ? "Preparing previews · " + strip.fillDone + " / " + strip.fillTotal : strip.hostState === "live" ? (strip.paused ? "Paused" : "Live") : strip.status || "Ready")
             tone: strip.capture === "capture failed" ? "error" : strip.capture.length > 0 ? "good" : strip.filling || strip.hostState === "compiling" ? "warning" : strip.hostState === "failed" ? "error" : strip.hostState === "live" && !strip.paused ? "good" : "neutral"
             busy: strip.capture.length === 0 && (strip.filling || strip.hostState === "compiling")
         }
-        Label {
+        ColumnLayout {
+            id: context
+
             Layout.fillWidth: true
             Layout.minimumWidth: 0
-            visible: strip.width >= 1200
-            text: strip.path
-            color: Ui.Theme.secondaryText
-            font.pixelSize: Ui.Theme.captionSize
-            elide: Text.ElideLeft
-        }
-        Item {
-            Layout.fillWidth: true
+            spacing: 2
+
+            readonly property string source: strip.filling && strip.fillNote.length > 0
+                ? strip.fillNote : strip.path.length > 0
+                    ? strip.path.split(/[\\/]/).slice(-2).join("/") : strip.sketch
+            readonly property string details: [strip.path, strip.hints]
+                .filter(value => value.length > 0).join("\n")
+
+            Label {
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                text: context.source || strip.hints
+                color: Ui.Theme.secondaryText
+                font.pixelSize: Ui.Theme.captionSize
+                elide: Text.ElideLeft
+                ToolTip.visible: sourceHover.hovered && context.details.length > 0
+                ToolTip.delay: 600
+                ToolTip.text: context.details
+                HoverHandler { id: sourceHover }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                visible: context.width >= 340 && context.source.length > 0 && strip.hints.length > 0
+                text: strip.hints
+                color: Ui.Theme.secondaryText
+                font.pixelSize: Ui.Theme.captionSize
+                elide: Text.ElideRight
+                ToolTip.visible: hintsHover.hovered && truncated
+                ToolTip.delay: 600
+                ToolTip.text: strip.hints
+                HoverHandler { id: hintsHover }
+            }
         }
         Ui.IconButton {
             objectName: "publicationButton"

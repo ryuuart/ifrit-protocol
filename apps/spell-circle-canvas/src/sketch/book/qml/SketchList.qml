@@ -53,13 +53,14 @@ Item {
     // The columns, stated once: a heading and its row are the same
     // grid, and a width that disagreed would show as a heading over the
     // wrong column rather than as a layout error.
-    readonly property int colThumb: 80
+    readonly property int contentInset: Ui.Theme.smallSpacing + 12
+    readonly property int colThumb: 64
     readonly property int colFolder: 128
     readonly property int colKind: 50
     readonly property int colCanvas: 78
     readonly property int colMoment: 58
     readonly property int colLines: 48
-    readonly property int gap: 12
+    readonly property int gap: 10
 
     // THE COLUMNS GIVE WAY FROM THE RIGHT as the pane narrows, and the
     // name never does: a row with no name is unreadable.
@@ -68,6 +69,7 @@ Item {
     readonly property bool showMoment: list.width > 800
     readonly property bool showLines: list.width > 880
     readonly property bool showKind: list.width > 600
+    readonly property bool showActionColumn: list.width > 600
 
     /** One column heading: says what the column is, says whether the
      *  list is ordered by it, and asks for that ordering when clicked. */
@@ -106,8 +108,8 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
-            Layout.leftMargin: 16
-            Layout.rightMargin: 16 + (rowScroll.visible ? rowScroll.width : 0)
+            Layout.leftMargin: list.contentInset
+            Layout.rightMargin: list.contentInset + (rowScroll.visible ? rowScroll.width : 0)
             Layout.topMargin: 0
             spacing: list.gap
 
@@ -153,6 +155,7 @@ Item {
             }
             Item {
                 Layout.preferredWidth: Ui.Theme.controlHeight
+                visible: list.showActionColumn
             }
         }
 
@@ -190,9 +193,21 @@ Item {
 
                 readonly property bool selected: list.selectedIndex === row.sketch.sketchIndex
                 readonly property bool presented: list.presentedIndex === row.sketch.sketchIndex
+                readonly property string metadata: {
+                    const facts = [];
+                    if (!list.showFolder && row.sketch.folder)
+                        facts.push(row.sketch.folder);
+                    if (!list.showKind)
+                        facts.push(row.sketch.kind === "set" ? "3D scene" : "Canvas");
+                    if (!list.showCanvas && row.sketch.canvas)
+                        facts.push(row.sketch.canvas);
+                    if (row.presented && !list.showLines && row.sketch.lines > 0)
+                        facts.push(row.sketch.lines + " lines");
+                    return facts.join(" · ");
+                }
 
                 width: rowList.rowWidth
-                height: 92
+                height: 80
                 Accessible.role: Accessible.ListItem
                 Accessible.name: row.sketch.name
                 Accessible.description: (row.presented ? "On canvas. " : "") + (row.sketch.available ? row.sketch.blurb : row.sketch.reason)
@@ -212,23 +227,51 @@ Item {
                         anchors.fill: parent
                         anchors.leftMargin: 12
                         anchors.rightMargin: 12
-                        anchors.topMargin: 8
-                        anchors.bottomMargin: 8
+                        anchors.topMargin: Ui.Theme.smallSpacing
+                        anchors.bottomMargin: Ui.Theme.smallSpacing
                         spacing: list.gap
 
-                        PlateThumb {
+                        ColumnLayout {
                             Layout.preferredWidth: list.colThumb
-                            Layout.preferredHeight: 58
-                            plate: row.sketch.plate
-                            kind: row.sketch.kind
-                            catalog: list.catalog
-                            sketchIndex: row.sketch.sketchIndex
-                            decodeWidth: 320
+                            Layout.minimumWidth: list.colThumb
+                            Layout.maximumWidth: list.colThumb
+                            spacing: 2
+
+                            PlateThumb {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 48
+                                Layout.minimumHeight: 48
+                                plate: row.sketch.plate
+                                kind: row.sketch.kind
+                                catalog: list.catalog
+                                sketchIndex: row.sketch.sketchIndex
+                                decodeWidth: 320
+
+                                Ui.IconButton {
+                                    anchors.centerIn: parent
+                                    visible: !list.showActionColumn && (row.selected || rowHover.hovered)
+                                    text: "↗"
+                                    tooltip: "Present " + row.sketch.name
+                                    enabled: row.sketch.available
+                                    onClicked: list.activateRequested(row.sketch.sketchIndex)
+                                }
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 14
+                                Layout.minimumHeight: 14
+                                text: row.presented ? "On canvas" : !list.showLines && row.sketch.lines > 0 ? row.sketch.lines + " lines" : ""
+                                color: row.presented ? Ui.Theme.statusText : Ui.Theme.secondaryText
+                                font.pixelSize: Ui.Theme.captionSize
+                                font.weight: row.presented ? Font.DemiBold : Font.Normal
+                                horizontalAlignment: Text.AlignHCenter
+                                elide: Text.ElideRight
+                            }
                         }
                         ColumnLayout {
                             Layout.fillWidth: true
                             Layout.minimumWidth: 120
-                            spacing: Ui.Theme.smallSpacing
+                            spacing: 2
                             Label {
                                 text: row.sketch.name
                                 color: Ui.Theme.primaryText
@@ -245,12 +288,15 @@ Item {
                                 elide: Text.ElideRight
                             }
                             Label {
+                                id: metadataLabel
+
                                 Layout.fillWidth: true
-                                text: row.presented ? "On canvas" : row.sketch.kind === "set" ? "3D scene" : "Canvas"
-                                color: row.presented ? Ui.Theme.statusText : Ui.Theme.secondaryText
+                                text: row.metadata
+                                color: Ui.Theme.secondaryText
                                 font.pixelSize: Ui.Theme.captionSize
-                                font.weight: row.presented ? Font.DemiBold : Font.Normal
                                 elide: Text.ElideRight
+                                ToolTip.visible: rowHover.hovered && metadataLabel.truncated
+                                ToolTip.text: metadataLabel.text
                             }
                         }
                         Label {
@@ -302,6 +348,7 @@ Item {
                         Item {
                             Layout.preferredWidth: Ui.Theme.controlHeight
                             Layout.preferredHeight: Ui.Theme.controlHeight
+                            visible: list.showActionColumn
 
                             Ui.IconButton {
                                 anchors.fill: parent
