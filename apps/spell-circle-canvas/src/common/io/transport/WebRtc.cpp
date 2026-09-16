@@ -40,14 +40,12 @@
  * each other speak through nothing else, so a door whose signalling
  * socket has closed keeps every peer it has and only takes no new one.
  *
- * workaround: EVERY GUARD HERE IS A CATCH-ALL. A catch of
- * `const std::exception&` matches nothing the standard library throws in
- * an image that carries a hidden copy of that type's typeinfo — a static
- * dependency compiled without run-time type information emits one at
- * every throw site, the linker binds every other object's reference to
- * it, and the runtime holds that copy unequal to the unique one a throw
- * carries — so the guards name no type, and the two that report the
- * library's own sentence keep a nameless clause behind it.
+ * EVERY GUARD HERE NAMES NO TYPE. What the library underneath throws is
+ * its own, and what a guard makes of one is the same whatever it is: the
+ * call that failed is refused, and the peer that cannot say what state
+ * it stands in is let go of. The two that report the library's own
+ * sentence catch `const std::exception&` for that sentence and keep a
+ * nameless clause behind it, for a throw that carries none.
  */
 
 #include <atomic>

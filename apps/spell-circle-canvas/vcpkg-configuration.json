@@ -8,14 +8,15 @@
     {
       "kind": "git",
       "repository": "https://github.com/ryuuart/sigil-vcpkg-registry",
-      "baseline": "3b10a41a2974bf86e46e4dc6928abddb57b09aed",
+      "baseline": "e3fe4c230ae908be85cd0945f7a8edad84dca257",
       "packages": [
         "choreograph",
         "shader-slang",
         "skia",
         "diligent-engine",
         "syphon",
-        "libdatachannel"
+        "libdatachannel",
+        "yoga"
       ]
     }
   ]

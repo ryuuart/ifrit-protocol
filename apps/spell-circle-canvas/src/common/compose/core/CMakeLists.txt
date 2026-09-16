@@ -96,6 +96,7 @@ sigil_test(compose_test
           test/ComposeTestContent.cpp
           test/ComposeTestReconcile.cpp test/ComposeTestCaching.cpp
           test/ComposeTestPromotion.cpp test/ComposeTestMotion.cpp
+          test/StandardExceptionsTest.cpp
           test/ComposeTestEffects.cpp test/ComposeTestMaterial.cpp
           test/ComposeTestLiveMaterial.cpp test/ComposeTestWorldSpace.cpp
           test/ComposeTestMask.cpp test/ComposeTestFieldPins.cpp

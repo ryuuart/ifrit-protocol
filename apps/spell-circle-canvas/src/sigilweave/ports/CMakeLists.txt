@@ -22,3 +22,11 @@ sigil_test(weave_test
   LIBRARIES SigilWeavePorts
   LABELS fonts
   SUITES InstalledFonts Asks/HeldFace)
+
+# The platform's other half: the C++ runtime the whole binary's guards
+# are written against, which a linked archive can disable for every one
+# of them at once. It needs no font and no machine, so it carries no
+# label.
+sigil_test(weave_test
+  SOURCES test/StandardExceptionsTest.cpp
+  LIBRARIES SigilWeavePorts)

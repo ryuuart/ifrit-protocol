@@ -44,11 +44,6 @@ sigil_test(spellcircle_test
   SOURCES test/SceneTest.cpp
   LIBRARIES SpellCircleScene SpellCircleSchema)
 
-# The test observes box geometry through an SkCanvas subclass, and Skia is
-# built without RTTI — a derived class references its base's typeinfo, so
-# this TU must match or the link fails on typeinfo for SkCanvas.
-target_compile_options(spellcircle_test PRIVATE -fno-rtti)
-
 sigil_doc_probes(spellcircle
   NAMESPACE spellcircle
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/../../../../README.md

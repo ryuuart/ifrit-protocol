@@ -43,13 +43,6 @@ if(APPLE)
   target_link_libraries(SigilSkiaGraphite PRIVATE ${FOUNDATION_FRAMEWORK})
 endif()
 
-# Skia is compiled with RTTI off, so the typeinfo of a Skia class that has
-# a key function is never emitted. A translation unit deriving from one
-# must be compiled the same way, or its own vtable asks the linker for a
-# symbol that does not exist.
-set_source_files_properties(PaintOrder.cpp PROPERTIES COMPILE_OPTIONS
-                            -fno-rtti)
-
 # The Graphite readback every binary that draws on a device reads: this
 # target owns the context, so the one spelling of the snap-insert-read-
 # submit sequence lives beside it. Named so a consumer in another library
