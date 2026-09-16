@@ -213,6 +213,30 @@ std::vector<std::filesystem::path> unitsOf(const std::filesystem::path& entry) {
   return units;
 }
 
+std::vector<std::filesystem::path> pythonSourcesOf(
+    const std::filesystem::path& entry) {
+  std::set<std::filesystem::path> sources{entry.lexically_normal()};
+  std::vector<std::filesystem::path> pending{entry.parent_path()};
+  while (!pending.empty()) {
+    const auto dir = pending.back();
+    pending.pop_back();
+    std::error_code ec;
+    for (auto it = std::filesystem::directory_iterator(dir, ec);
+         !ec && it != std::filesystem::directory_iterator(); it.increment(ec)) {
+      const auto path = it->path();
+      std::error_code stat;
+      if (it->is_regular_file(stat) && path.extension() == ".py") {
+        sources.insert(path.lexically_normal());
+      } else if (!it->is_symlink(stat) && it->is_directory(stat) &&
+                 !path.filename().string().starts_with('.') &&
+                 std::filesystem::is_regular_file(path / "__init__.py", stat)) {
+        pending.push_back(path);
+      }
+    }
+  }
+  return {sources.begin(), sources.end()};
+}
+
 std::vector<std::filesystem::path> headersOf(
     const std::filesystem::path& entry) {
   std::vector<std::filesystem::path> pending = unitsOf(entry);

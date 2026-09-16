@@ -110,6 +110,10 @@ sigil_library(SigilSketch
   PUBLIC ${SIGIL_SKETCH_PUBLIC}
   PRIVATE ${SIGIL_SKETCH_PRIVATE})
 
+if(SIGIL_SKETCH_PYTHON)
+  add_subdirectory(python)
+endif()
+
 # Each directory's cases and benchmarks, declared beside the code they
 # cover, in the library's one test binary and one bench binary.
 add_subdirectory(core)

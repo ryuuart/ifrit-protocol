@@ -18,6 +18,11 @@ namespace {
  *  comfortably inside its budget and the compositor is merely uneven. */
 constexpr double kDefaultJitter = 0.35;
 
+bool isSketchPath(const std::string& text) {
+  const auto extension = std::filesystem::path(text).extension();
+  return extension == ".cpp" || extension == ".py";
+}
+
 }  // namespace
 
 std::optional<Arguments> parseArguments(int argc, char* argv[]) {
@@ -81,8 +86,7 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
       // another flag, or the file itself, is not the name.
       if (i + 1 < argc) {
         const std::string next = argv[i + 1];
-        if (!next.empty() && next[0] != '-' &&
-            !(next.size() > 4 && next.compare(next.size() - 4, 4, ".cpp") == 0))
+        if (!next.empty() && next[0] != '-' && !isSketchPath(next))
           args.publishName = argv[++i];
       }
     } else if (arg == "--thumbnails") {
@@ -149,8 +153,7 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
           ++i;
         }
       }
-    } else if (args.sketchFile.empty() && arg.size() > 4 &&
-               arg.compare(arg.size() - 4, 4, ".cpp") == 0) {
+    } else if (args.sketchFile.empty() && isSketchPath(arg)) {
       args.sketchFile = arg;
     } else {
       std::fprintf(stderr, "unknown argument \"%s\"\n", arg.c_str());

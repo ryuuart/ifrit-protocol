@@ -109,6 +109,12 @@
     "vulkan-headers",
     "yoga"
   ],
+  "features": {
+    "python": {
+      "description": "Python bindings and embedded sketch authoring",
+      "dependencies": ["pybind11"]
+    }
+  },
   "overrides": [
     {
       "$comment": [

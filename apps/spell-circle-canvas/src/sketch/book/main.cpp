@@ -258,16 +258,18 @@ int main(int argc, char* argv[]) {
 
   if (!args.capture.outputPath.empty() || args.capture.bench) {
     if (args.sketchFile.empty() || !std::filesystem::exists(args.sketchFile)) {
-      std::fprintf(stderr,
-                   "usage: Sketchbook <sketch.cpp> [--frame <out.png>] "
-                   "[--at <sec>] [--scale <n>]\n"
-                   "         [--frames <count>] [--fps <n>] [--bench] "
-                   "[--bench-frames <n>]\n"
-                   "         [--gpu] [--jitter-dt [amplitude]] "
-                   "[--deterministic | --no-deterministic]\n");
+      std::fprintf(
+          stderr,
+          "usage: Sketchbook <sketch.cpp|sketch.py> [--frame <out.png>] "
+          "[--at <sec>] [--scale <n>]\n"
+          "         [--frames <count>] [--fps <n>] [--bench] "
+          "[--bench-frames <n>]\n"
+          "         [--gpu] [--jitter-dt [amplitude]] "
+          "[--deterministic | --no-deterministic]\n");
       return 2;
     }
-    if (!std::filesystem::exists(options.flagsFile)) {
+    if (args.sketchFile.extension() != ".py" &&
+        !std::filesystem::exists(options.flagsFile)) {
       std::fprintf(stderr, "missing %s (rebuild Sketchbook)\n",
                    options.flagsFile.string().c_str());
       return 2;

@@ -15,12 +15,14 @@
 
 #include <boost/container/flat_map.hpp>
 #include <chrono>
+#include <exception>
 #include <filesystem>
 #include <functional>
 #include <future>
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 class SkImageInfo;
@@ -152,8 +154,9 @@ class Host {
    *  changes. Call once per frame. */
   void poll();
 
-  /** Ticks and draws one frame. Returns false while nothing has ever
-   *  loaded. A negative @p fixedDt uses wall time. */
+  /** Ticks and draws one frame. Returns false while nothing has loaded or
+   *  after a callback failure, until a fresh session opens successfully.
+   *  A negative @p fixedDt uses wall time. */
   bool frame(SkCanvas& canvas, double fixedDt = -1.0);
 
   [[nodiscard]] bool compiling() const { return m_compile.valid(); }
@@ -256,7 +259,8 @@ class Host {
   /** One line of state for a status bar. */
   [[nodiscard]] const std::string& status() const { return m_status; }
   /** Full compiler or loader output of the most recent failure; empty
-   *  when the latest build is good. */
+   *  when the latest build is good. Python import, setup and frame failures
+   *  include the traceback. */
   [[nodiscard]] const std::string& errorLog() const { return m_errorLog; }
 
   [[nodiscard]] const std::filesystem::path& sketchPath() const {
@@ -310,7 +314,10 @@ class Host {
 
   void startCompile();
   void adopt(const std::filesystem::path& library);
-  void openSession(const Kind& kind);
+  bool openSession(const Kind& kind);
+  void loadPython();
+  bool pythonChanged();
+  void sessionFailed(const std::exception& error);
   /** THE NEWEST WRITE ACROSS EVERYTHING THE SKETCH IS BUILT FROM, or
    *  nothing when the entry itself is not there.
    *
@@ -359,6 +366,11 @@ class Host {
   int m_unitsCompiled = 0;  // of the last adopted build, for its status line
   int m_unitsTotal = 0;
   bool m_everCompiled = false;
+  bool m_runtimeFailed = false;
+  std::filesystem::file_time_type m_pythonEntryStamp =
+      std::filesystem::file_time_type::min();
+  std::vector<std::pair<std::filesystem::path, std::filesystem::file_time_type>>
+      m_pythonInputs;
   int m_generation = 0;
   int m_frameIndex = -1;  // for the crash reporter's phase line
   /** How long this host has been running, in its own time — stated

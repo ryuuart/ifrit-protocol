@@ -57,6 +57,13 @@ struct SourceMetadata {
 [[nodiscard]] std::vector<std::filesystem::path> unitsOf(
     const std::filesystem::path& entry);
 
+/** The Python entry, sibling Python modules, and modules inside regular
+ *  Python packages beside them, recursively, in path order. A package has
+ *  an __init__.py file; unrelated directories and hidden directories are
+ *  excluded. The entry remains in the result even when missing. */
+[[nodiscard]] std::vector<std::filesystem::path> pythonSourcesOf(
+    const std::filesystem::path& entry);
+
 /** Local files reached by literal quoted includes from the sketch's units,
  *  recursively, in path order. Paths resolve beside the including file;
  *  angle includes and compiler include paths belong to the framework build.

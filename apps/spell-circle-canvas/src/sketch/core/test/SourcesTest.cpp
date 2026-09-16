@@ -110,4 +110,31 @@ TEST(SketchSources, LocalHeadersFollowOwnersAcrossDirectoriesAndCycles) {
   EXPECT_EQ(headersOf(scratch.path / "rain/rain.cpp"), expected);
 }
 
+TEST(SketchSources, PythonReloadWatchesSiblingsAndRegularPackages) {
+  const sigil::test::ScratchDir scratch("sigil_sketch_python_sources");
+  scratch.write("entry.py", "pass\n");
+  scratch.write("palette.py", "ink = 'red'\n");
+  scratch.write("shapes/__init__.py", "\n");
+  scratch.write("shapes/circles.py", "\n");
+  scratch.write("shapes/detail/__init__.py", "\n");
+  scratch.write("shapes/detail/arcs.py", "\n");
+  scratch.write("assets/helper.py", "\n");
+  scratch.write(".hidden/__init__.py", "\n");
+  scratch.write("other.cpp", "\n");
+  const std::vector<fs::path> expected{
+      scratch.path / "entry.py",
+      scratch.path / "palette.py",
+      scratch.path / "shapes/__init__.py",
+      scratch.path / "shapes/circles.py",
+      scratch.path / "shapes/detail/__init__.py",
+      scratch.path / "shapes/detail/arcs.py"};
+  EXPECT_EQ(pythonSourcesOf(scratch.path / "entry.py"), expected);
+}
+
+TEST(SketchSources, PythonReloadKeepsTheEntryWhenItIsMissing) {
+  const sigil::test::ScratchDir scratch("sigil_sketch_python_missing");
+  const fs::path entry = scratch.path / "absent.py";
+  EXPECT_EQ(pythonSourcesOf(entry), std::vector<fs::path>{entry});
+}
+
 }  // namespace

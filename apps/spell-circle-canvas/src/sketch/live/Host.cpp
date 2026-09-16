@@ -14,6 +14,9 @@
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/source/Sink.h>
 #include <sigilsketch/core/Sources.h>
+#ifdef SIGILSKETCH_PYTHON
+#include <sigilsketch/python/Python.h>
+#endif
 #include <signal.h>
 #include <unistd.h>
 
@@ -26,6 +29,7 @@
 #include <fstream>
 #include <mutex>
 #include <sstream>
+#include <stdexcept>
 #include <string_view>
 
 #include "BuildDirectory.h"
@@ -151,7 +155,7 @@ Host::Host(Options options, weave::FontContext& fonts)
   // does. A file the binary does not carry has to be built to be seen.
   if (m_options.compiledIn && m_options.compiledIn->kind) {
     m_kind = m_options.compiledIn->kind();
-    openSession(m_kind);
+    if (!openSession(m_kind)) return;
     if (const auto stamp = sourceStamp()) {
       m_compiledMtime = *stamp;
       m_everCompiled = true;
@@ -173,11 +177,10 @@ Host::~Host() {
   releaseBuildDirectory();
 }
 
-void Host::openSession(const Kind& kind) {
-  m_session.reset();
-  if (!kind) return;
+bool Host::openSession(const Kind& kind) {
+  if (!kind) return false;
   const measure::Stopwatch opened;
-  {
+  try {
     PhaseMark mark(Phase::Setup);
     // A compiled-in sketch is keyed by its entry; a workspace sketch by
     // its file's stem, with the files beside that file mounted as its own.
@@ -188,21 +191,33 @@ void Host::openSession(const Kind& kind) {
       key = m_options.sketchPath.stem().string();
       m_assets.mountSketch(key, m_options.sketchPath.parent_path());
     }
-    m_session = kind->open(m_fonts, m_assets, m_options.deterministic, key);
+    // Setup may fail after allocating retained descriptions or callbacks.
+    // Finish the candidate before releasing the last working session.
+    auto candidate =
+        kind->open(m_fonts, m_assets, m_options.deterministic, key);
+    if (!candidate) throw std::runtime_error("the sketch opened no session");
+    m_session = std::move(candidate);
+    m_kind = kind;
+  } catch (const std::exception& error) {
+    m_errorLog = error.what();
+    m_status =
+        live() ? "setup failed — keeping previous sketch" : "setup failed";
+    std::fprintf(stderr, "[sketch] %s\n%s\n", m_status.c_str(),
+                 m_errorLog.c_str());
+    return false;
   }
-  // WHAT THE SKETCH'S OWN SETUP COST, said beside the compile time: this
-  // call runs the body's setup on the caller's thread, which in a window
-  // is the thread that presents, so a setup that waits for anything is a
-  // window that does not draw until it is over.
   std::fprintf(stderr, "[sketch] set up in %.0f ms\n", opened.elapsedMs());
-  m_workMs.clear();  // fresh sketch, fresh numbers
+  m_runtimeFailed = false;
+  m_errorLog.clear();
+  m_workMs.clear();
   m_drawMs.clear();
   m_presentedFrames = 0;
+  return true;
 }
 
 bool Host::restartSession() {
   if (!m_kind) return false;
-  openSession(m_kind);
+  if (!openSession(m_kind)) return false;
   // The new Session owns its own fresh clock and ticker. Reset the host-side
   // clock as well so asset polling and crash-report frame coordinates describe
   // the same new run, not the session that was just released.
@@ -408,8 +423,7 @@ void Host::adopt(const std::filesystem::path& library) {
     return;
   }
   m_libraries.push_back(handle);
-  m_kind = entry->kind();
-  openSession(m_kind);
+  if (!openSession(entry->kind())) return;
   m_errorLog.clear();
   const double seconds = std::chrono::duration<double>(
                              std::chrono::steady_clock::now() - m_compileStart)
@@ -424,6 +438,70 @@ void Host::adopt(const std::filesystem::path& library) {
                   m_generation, seconds);
   m_status = line;
   std::fprintf(stderr, "[sketch] %s\n", m_status.c_str());
+}
+
+bool Host::pythonChanged() {
+  bool changed = !m_everCompiled;
+  const auto now = std::chrono::steady_clock::now();
+  if (m_lastSiblingScan.time_since_epoch().count() == 0 ||
+      now - m_lastSiblingScan >= m_options.siblingScanInterval) {
+    m_lastSiblingScan = now;
+    decltype(m_pythonInputs) inputs;
+    for (const auto& path : pythonSourcesOf(m_options.sketchPath)) {
+      if (path == m_options.sketchPath) continue;
+      std::error_code ec;
+      const auto stamp = std::filesystem::last_write_time(path, ec);
+      if (!ec) inputs.emplace_back(path, stamp);
+    }
+    changed = changed || inputs != m_pythonInputs;
+    m_pythonInputs = std::move(inputs);
+  }
+  // The entry is checked each frame; modules are checked on the directory
+  // cadence. Comparing the path set also catches added and deleted modules.
+  std::error_code ec;
+  auto stamp = std::filesystem::last_write_time(m_options.sketchPath, ec);
+  if (ec) stamp = std::filesystem::file_time_type::min();
+  changed = changed || stamp != m_pythonEntryStamp;
+  m_pythonEntryStamp = stamp;
+  return changed;
+}
+
+void Host::loadPython() {
+  m_everCompiled = true;
+  ++m_generation;
+#ifdef SIGILSKETCH_PYTHON
+  const measure::Stopwatch loaded;
+  try {
+    const Kind candidate = python::load(m_options.sketchPath);
+    if (!openSession(candidate)) return;
+  } catch (const std::exception& error) {
+    m_errorLog = error.what();
+    m_status =
+        live() ? "import failed — keeping previous sketch" : "import failed";
+    std::fprintf(stderr, "[sketch] %s\n%s\n", m_status.c_str(),
+                 m_errorLog.c_str());
+    return;
+  }
+  char line[160];
+  std::snprintf(line, sizeof line, "live · Python %d · loaded in %.0f ms",
+                m_generation, loaded.elapsedMs());
+  m_status = line;
+  std::fprintf(stderr, "[sketch] %s\n", m_status.c_str());
+#else
+  m_errorLog =
+      "Python sketches are disabled in this build. Configure with "
+      "-DSIGIL_SKETCH_PYTHON=ON and rebuild Sketchbook.";
+  m_status = "Python unavailable";
+  std::fprintf(stderr, "[sketch] %s\n", m_errorLog.c_str());
+#endif
+}
+
+void Host::sessionFailed(const std::exception& error) {
+  m_runtimeFailed = true;
+  m_errorLog = error.what();
+  m_status = "sketch failed — waiting for an edit";
+  std::fprintf(stderr, "[sketch] %s\n%s\n", m_status.c_str(),
+               m_errorLog.c_str());
 }
 
 void Host::poll() {
@@ -450,24 +528,35 @@ void Host::poll() {
   }
 
   // Source changed (or never built) → kick a compile.
-  if (!m_compile.valid()) {
+  if (m_options.sketchPath.extension() == ".py") {
+    if (pythonChanged()) loadPython();
+  } else if (!m_compile.valid()) {
     if (const auto stamp = sourceStamp();
         stamp && (!m_everCompiled || *stamp != m_compiledMtime))
       startCompile();
   }
 
   // Asset hot reload (twice a second is plenty for filesystem stats).
-  if (m_session && m_clock.elapsed() - m_lastAssetPoll > 0.5) {
+  if (m_session && !m_runtimeFailed &&
+      m_clock.elapsed() - m_lastAssetPoll > 0.5) {
     m_lastAssetPoll = m_clock.elapsed();
     if (m_assets.poll()) {
       PhaseMark mark(Phase::Setup);
-      m_session->redeclare();
+      if (m_options.sketchPath.extension() == ".py") {
+        loadPython();
+      } else {
+        try {
+          m_session->redeclare();
+        } catch (const std::exception& error) {
+          sessionFailed(error);
+        }
+      }
     }
   }
 }
 
 bool Host::frame(SkCanvas& canvas, double fixedDt) {
-  if (!m_session) return false;
+  if (!m_session || m_runtimeFailed) return false;
   const measure::Stopwatch watch;
   // A stated step and a wall-clock one are the same clock here as
   // everywhere else. It matters beyond tidiness: the asset poll below
@@ -480,7 +569,12 @@ bool Host::frame(SkCanvas& canvas, double fixedDt) {
   noteFrame(++m_frameIndex, m_clock.elapsed());
   {
     PhaseMark mark(Phase::Update);
-    m_session->frame(canvas, fixedDt);
+    try {
+      m_session->frame(canvas, fixedDt);
+    } catch (const std::exception& error) {
+      sessionFailed(error);
+      return false;
+    }
   }
   m_workMs.add(watch.elapsedMs());
   m_drawMs.add(m_session->timing().drawMs);
@@ -512,7 +606,7 @@ void Host::markPresented() {
 }
 
 bool Host::capture(const std::filesystem::path& out, float scale) {
-  if (!m_session) return false;
+  if (!m_session || m_runtimeFailed) return false;
   const CanvasSpecification& specification = m_session->canvas();
   const SkImageInfo info = SkImageInfo::MakeN32Premul(
       std::max(1, (int)(specification.size.width() * scale)),
@@ -526,7 +620,12 @@ bool Host::capture(const std::filesystem::path& out, float scale) {
   SkCanvas& canvas = through ? *through : *surface->getCanvas();
   canvas.clear(specification.background.toSkColor());
   canvas.scale(scale, scale);
-  m_session->repaint(canvas);
+  try {
+    m_session->repaint(canvas);
+  } catch (const std::exception& error) {
+    sessionFailed(error);
+    return false;
+  }
   SkBitmap bitmap;
   bitmap.allocPixels(surface->imageInfo());
   if (m_captureBackend.readback) {

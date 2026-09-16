@@ -2,8 +2,8 @@
 
 A **sketch** is a `.cpp` file that declares a scene — or a directory
 named for that file, with the file as its entry and the rest of the
-directory built with it. It is real C++ over the full drawing API — no
-scripting layer, no markup — and it is three things at once:
+directory built with it. The C++ form uses the full native drawing API,
+and it is three things at once:
 
 * an entry in **one registry**, addressed by its own file stem;
 * a **live-coding** subject: save the file and the running canvas
@@ -16,6 +16,14 @@ scripting layer, no markup — and it is three things at once:
 There is one application over all of it — **Sketchbook** — and one
 headless renderer, which is the same binary. Nothing else in this
 repository renders a catalogue.
+
+An optional Python authoring layer opens `.py` files as canvas sketches
+inside the same session. Enable `SIGIL_SKETCH_PYTHON` to build its native
+bindings and embedded interpreter. A save imports a fresh sketch without
+compiling C++; Python functions construct native descriptions or draw with
+the pen. `python/README.md` describes its supported vocabulary, examples,
+reload behavior and use from an ordinary Python interpreter. Python files
+open by path and do not yet join the compiled registry.
 
 ```sh
 cmake --build build --config Release --target Sketchbook

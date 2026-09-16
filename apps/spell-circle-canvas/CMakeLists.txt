@@ -3,6 +3,11 @@
 # visible in every directory.
 cmake_minimum_required(VERSION 3.31)
 
+option(SIGIL_SKETCH_PYTHON "Build the experimental Python sketch authoring layer" OFF)
+if(SIGIL_SKETCH_PYTHON)
+  list(APPEND VCPKG_MANIFEST_FEATURES python)
+endif()
+
 project(SpellCircleCanvas VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)

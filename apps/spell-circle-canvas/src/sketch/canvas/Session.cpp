@@ -69,13 +69,13 @@ class PainterScope {
  *  questions: what the BODY did, and what the runtime did with it. */
 class CanvasSession final : public Session {
  public:
-  CanvasSession(CanvasBody* sketch, weave::FontContext& fonts, Assets& assets,
-                bool deterministic,
+  CanvasSession(std::unique_ptr<CanvasBody> sketch, weave::FontContext& fonts,
+                Assets& assets, bool deterministic,
                 const geometry::mesh::render::Runtime& painter,
                 std::string_view key = {})
       : m_fonts(fonts),
         m_assets(assets),
-        m_sketch(sketch),
+        m_sketch(std::move(sketch)),
         m_painter(painter ? painter : geometry::mesh::render::Runtime::cpu()),
         m_key(key),
         m_deterministic(deterministic) {
@@ -365,8 +365,15 @@ std::unique_ptr<Session> CanvasKind::open(weave::FontContext& fonts,
                                           Assets& assets, bool deterministic,
                                           std::string_view key) const {
   return std::make_unique<CanvasSession>(
-      m_factory(), fonts, assets, deterministic,
+      std::unique_ptr<CanvasBody>(m_factory()), fonts, assets, deterministic,
       m_painter ? *m_painter : painterRuntime(), key);
+}
+
+std::unique_ptr<Session> openCanvas(std::unique_ptr<CanvasBody> body,
+                                    weave::FontContext& fonts, Assets& assets,
+                                    bool deterministic, std::string_view key) {
+  return std::make_unique<CanvasSession>(std::move(body), fonts, assets,
+                                         deterministic, painterRuntime(), key);
 }
 
 Kind onPainterRuntime(const Kind& kind,
