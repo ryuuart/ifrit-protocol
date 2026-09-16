@@ -1,4 +1,11 @@
-find_package(Python3 3.12 COMPONENTS Interpreter Development.Module Development.Embed REQUIRED)
+# workaround: vcpkg's Python wrapper forces its own headers and library even
+# when the build or wheel backend selected another interpreter. CMake's
+# discovery keeps the development artifacts matched to that interpreter.
+if(VCPKG_TARGET_TRIPLET AND COMMAND _find_package)
+  _find_package(Python3 3.12 COMPONENTS Interpreter Development.Module Development.Embed REQUIRED)
+else()
+  find_package(Python3 3.12 COMPONENTS Interpreter Development.Module Development.Embed REQUIRED)
+endif()
 set(PYBIND11_FINDPYTHON ON)
 find_package(pybind11 CONFIG REQUIRED)
 
