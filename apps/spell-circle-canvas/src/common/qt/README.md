@@ -108,6 +108,12 @@ set `resetEnabled` and `resetValue`, then handle `resetRequested`.
 `warning`, `error`) and `busy`. Text names the state as well as its colour;
 the component does not interpret a host's connection or rendering states.
 
+`Notice` places a wrapping plain-text message and a `StatusIndicator` inside
+one `Panel`. It takes `text`, `tone`, `busy` and `dismissible` (false by
+default). The optional close button emits `dismissed`; the host decides
+whether to hide the notice or clear its state. The message is exposed as
+an accessible alert, and its height follows the available width.
+
 ## The mental model
 
 **The theme is the system palette.** `Theme` is a QML singleton that derives
@@ -213,8 +219,9 @@ choices and model updates that must not emit user-edit signals. There are no
 assets.
 
 QML types provided: the `Theme` singleton, `Panel`, `SectionHeading`,
-`FactRow`, `StatusIndicator`, `IconButton`, `SegmentedControl`, `SearchField`,
-`SliderField`, `FontDatabase`, `Checkerboard`, `PanZoomCanvas`, `GlassPanel`,
+`FactRow`, `StatusIndicator`, `Notice`, `IconButton`, `SegmentedControl`,
+`SearchField`, `SliderField`, `FontDatabase`, `Checkerboard`, `PanZoomCanvas`,
+`GlassPanel`,
 `DimensionSpinBoxes`, `FontFamilyField`, `FontSelector`. The
 C++ side registers `WindowChrome` as a QML singleton with two invokable
 methods, `applyVibrancy(QQuickWindow *)` and

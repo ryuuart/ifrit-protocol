@@ -21,6 +21,7 @@ qt_add_qml_module(IfritQt
     SectionHeading.qml
     FactRow.qml
     StatusIndicator.qml
+    Notice.qml
     IconButton.qml
     SegmentedControl.qml
     SearchField.qml

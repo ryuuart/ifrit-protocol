@@ -6,7 +6,6 @@
 
 import QtQuick
 import Ifrit.Qt 1.0 as Ui
-import Sigil.Sketchbook
 
 Rectangle {
     id: thumb
@@ -35,8 +34,7 @@ Rectangle {
     // order rows asked, so keeping the queue to what is visible is what
     // makes it feel immediate.
     function askForThumbnail() {
-        if (thumb.catalog && thumb.sketchIndex >= 0
-            && String(thumb.plate).length === 0)
+        if (thumb.catalog && thumb.sketchIndex >= 0 && String(thumb.plate).length === 0)
             thumb.catalog.requestThumbnail(thumb.sketchIndex);
     }
     Component.onCompleted: thumb.askForThumbnail()
@@ -47,18 +45,19 @@ Rectangle {
     onSketchIndexChanged: thumb.askForThumbnail()
     onPlateChanged: thumb.askForThumbnail()
 
-    color: Ui.Theme.windowBackground
-    radius: 4
+    color: Ui.Theme.viewportBackground
+    radius: Ui.Theme.cornerRadius
     clip: true
 
     Image {
         id: image
 
         anchors.fill: parent
+        anchors.margins: Ui.Theme.smallSpacing
         source: thumb.plate
         asynchronous: true
         cache: true
-        fillMode: Image.PreserveAspectCrop
+        fillMode: Image.PreserveAspectFit
         sourceSize.width: thumb.decodeWidth
         visible: status === Image.Ready
     }
@@ -70,7 +69,7 @@ Rectangle {
         width: Math.min(thumb.width, thumb.height) * 0.42
         height: glyph.width
         visible: !image.visible
-        opacity: 0.5
+        opacity: 0.35
         onWidthChanged: glyph.requestPaint()
 
         onPaint: {

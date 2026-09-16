@@ -30,11 +30,11 @@ ApplicationWindow {
     minimumWidth: 900
     minimumHeight: 600
     visible: true
-    title: actions.workspaceName.length > 0
-        ? actions.workspaceName + " — Sketchbook" : "Sketchbook"
+    title: actions.workspaceName.length > 0 ? actions.workspaceName + " — Sketchbook" : "Sketchbook"
     color: Ui.Theme.windowBackground
 
     font.pixelSize: Ui.Theme.bodySize
+    background: null
 
     // ---- What the window remembers between runs --------------------------
     Settings {
@@ -42,8 +42,7 @@ ApplicationWindow {
 
         category: "browser"
         property string viewMode: "gallery"
-        property bool inspectorOpen: true
-        property real browserWidth: 540
+        property real browserWidth: 380
         property string sortKey: "name"
         property bool sortAscending: true
         property string groupMode: "subjects"
@@ -60,28 +59,33 @@ ApplicationWindow {
         galleryView: gallery
     }
 
-    property bool inspectorOpen: true
     property bool restoringSettings: true
     /** The sketch the canvas opens on — named on the command line, or the
      *  first row. */
     readonly property int openAt: catalog.openIndex
 
-    onInspectorOpenChanged: settings.inspectorOpen = window.inspectorOpen
     // What the reader last set is written back as it changes, so the
     // window comes up on the browser they left.
     Connections {
         target: browser
         function onGroupModeChanged() {
-            if (!window.restoringSettings) settings.groupMode = browser.groupMode;
+            if (!window.restoringSettings)
+                settings.groupMode = browser.groupMode;
         }
         function onGroupPathChanged() {
-            if (!window.restoringSettings) settings.groupPath = browser.groupPath;
+            if (!window.restoringSettings)
+                settings.groupPath = browser.groupPath;
         }
         function onExpandedGroupsChanged() {
-            if (!window.restoringSettings) settings.expandedGroups = browser.expandedGroups;
+            if (!window.restoringSettings)
+                settings.expandedGroups = browser.expandedGroups;
         }
-        function onViewModeChanged() { settings.viewMode = browser.viewMode; }
-        function onSortKeyChanged() { settings.sortKey = browser.sortKey; }
+        function onViewModeChanged() {
+            settings.viewMode = browser.viewMode;
+        }
+        function onSortKeyChanged() {
+            settings.sortKey = browser.sortKey;
+        }
         function onSortAscendingChanged() {
             settings.sortAscending = browser.sortAscending;
         }
@@ -128,8 +132,7 @@ ApplicationWindow {
         onTriggered: window.captureLine = ""
     }
     function showCapture(path) {
-        window.captureLine = path.length > 0
-            ? "saved " + path.split("/").pop() : "capture failed";
+        window.captureLine = path.length > 0 ? "saved " + path.split("/").pop() : "capture failed";
         captureHide.restart();
     }
 
@@ -171,6 +174,7 @@ ApplicationWindow {
     }
     Shortcut {
         sequence: "/"
+        enabled: !librarySearch.activeFocus && !view.canvasFocused
         onActivated: topBar.focusFilter()
     }
     Shortcut {
@@ -179,16 +183,26 @@ ApplicationWindow {
     }
     Shortcut {
         sequence: "Ctrl+I"
-        onActivated: window.inspectorOpen = !window.inspectorOpen
+        onActivated: detailsDrawer.visible ? detailsDrawer.close() : detailsDrawer.open()
     }
 
     // ---- Everything a sketch says about itself ----------------------------
-    SketchCatalog { id: catalog }
-    SketchActions { id: actions }
+    SketchCatalog {
+        id: catalog
+    }
+    SketchActions {
+        id: actions
+    }
     property bool openNoticeDismissed: false
+    property bool taskNoticeDismissed: false
     Connections {
         target: actions
-        function onOpenChanged() { window.openNoticeDismissed = false; }
+        function onOpenChanged() {
+            window.openNoticeDismissed = false;
+        }
+        function onTaskChanged() {
+            window.taskNoticeDismissed = false;
+        }
     }
 
     // A running session is the only thing that knows the canvas a sketch
@@ -202,10 +216,7 @@ ApplicationWindow {
             const stats = view.metrics;
             if (stats.sketchIndex === undefined)
                 return;
-            const learned = catalog.learn(
-                stats.sketchIndex, stats.canvas ?? "",
-                stats.moment ?? -1, stats.background ?? "",
-                stats.runtime ?? "");
+            const learned = catalog.learn(stats.sketchIndex, stats.canvas ?? "", stats.moment ?? -1, stats.background ?? "", stats.runtime ?? "");
             if (learned.sketchIndex === undefined)
                 return;
             browser.overlayRow(learned);
@@ -214,7 +225,8 @@ ApplicationWindow {
             if (browser.rowForSketch(view.sketchIndex) >= 0)
                 browser.selectedIndex = view.sketchIndex;
             const row = browser.sketchAt(view.sketchIndex);
-            if (row !== undefined) actions.noteSelection(row);
+            if (row !== undefined)
+                actions.noteSelection(row);
         }
     }
 
@@ -225,7 +237,9 @@ ApplicationWindow {
     // other thumbnail.
     Connections {
         target: catalog
-        function onThumbnailReady(index, row) { browser.overlayRow(row); }
+        function onThumbnailReady(index, row) {
+            browser.overlayRow(row);
+        }
         function onThumbnailNoted(name, why) {
             window.captureLine = name + " — " + why;
             captureHide.restart();
@@ -245,12 +259,13 @@ ApplicationWindow {
     // keeps the thumbnails current.
     Connections {
         target: view
-        function onThumbnailCaptured(index) { catalog.adoptThumbnail(index); }
+        function onThumbnailCaptured(index) {
+            catalog.adoptThumbnail(index);
+        }
     }
 
     Component.onCompleted: {
         browser.viewMode = settings.viewMode;
-        window.inspectorOpen = settings.inspectorOpen;
         browser.sortKey = settings.sortKey;
         browser.sortAscending = settings.sortAscending;
         browser.expandedGroups = settings.expandedGroups;
@@ -268,329 +283,39 @@ ApplicationWindow {
             window.activate(window.openAt);
     }
 
-    // ---- The window ------------------------------------------------------
-    ColumnLayout {
-        anchors.fill: parent
-        spacing: 0
-
-        TopBar {
-            id: topBar
-
-            Layout.fillWidth: true
-            total: catalog.sketches.length
-            shown: browser.cards.length
-            viewMode: browser.viewMode
-            inspectorOpen: inspector.visible
-            inspectorAvailable: window.width >= 1100
-            taskRunning: actions.taskRunning
-            opening: actions.opening
-            recents: actions.recents
-            filterText: browser.filterText
-            onFilterRequested: text => browser.filterText = text
-            onViewModeRequested: mode => browser.chooseView(mode)
-            onInspectorToggled: window.inspectorOpen = !window.inspectorOpen
-            onVideoRequested: window.exportVideo(-1)
-            onOpenFileRequested: sketchDialog.open()
-            onOpenWorkspaceRequested: workspaceDialog.open()
-            onRecentRequested: recent => actions.openRecent(recent)
-            onClearRecentsRequested: actions.clearRecents()
-            onRecentsRequested: actions.refreshRecents()
-            onSteppedOut: {
-                if (browser.viewMode === "gallery")
-                    gallery.focusRows();
-                else
-                    sketchList.focusRows();
-            }
+    // Browsing and drawing have independent space; details are summoned over
+    // the canvas only when the reader asks for them.
+    Drawer {
+        id: detailsDrawer
+        objectName: "sketchDetails"
+        edge: Qt.RightEdge
+        width: Math.min(380, window.width - 32)
+        height: window.height
+        padding: Ui.Theme.sectionSpacing
+        modal: false
+        focus: true
+        dim: false
+        background: Rectangle {
+            color: Ui.Theme.windowBackground
         }
-
-        Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: openNotice.implicitHeight + 16
-            visible: !window.openNoticeDismissed
-                && (actions.openStatus.length > 0 || actions.openError.length > 0)
-            color: Ui.Theme.solidPanelBackground
-
+        contentItem: ColumnLayout {
+            spacing: Ui.Theme.spacing
             RowLayout {
-                id: openNotice
-
-                anchors.fill: parent
-                anchors.margins: 8
-                spacing: 10
-
-                BusyIndicator {
-                    visible: actions.opening
-                    running: actions.opening
-                    implicitWidth: 24
-                    implicitHeight: 24
-                }
-                Label {
+                Layout.fillWidth: true
+                Ui.SectionHeading {
                     Layout.fillWidth: true
-                    text: actions.openError.length > 0 ? actions.openError : actions.openStatus
-                    color: actions.openError.length > 0 ? Ui.Theme.warningText : Ui.Theme.primaryText
-                    wrapMode: Text.Wrap
-                    font.pixelSize: 12
-                    Accessible.role: Accessible.AlertMessage
+                    text: "SKETCH DETAILS"
                 }
-                ToolButton {
+                Ui.IconButton {
                     text: "×"
-                    implicitWidth: 24
-                    implicitHeight: 24
-                    Accessible.name: "Dismiss opening status"
-                    onClicked: window.openNoticeDismissed = true
+                    tooltip: "Close sketch details"
+                    onClicked: detailsDrawer.close()
                 }
             }
-        }
-
-        SplitView {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            orientation: Qt.Horizontal
-
-            handle: Rectangle {
-                implicitWidth: 5
-                color: SplitHandle.pressed ? Ui.Theme.accent
-                     : (SplitHandle.hovered ? Ui.Theme.controlHoverBackground : Ui.Theme.separator)
-            }
-
-            GroupTree {
-                SplitView.preferredWidth: 200
-                SplitView.minimumWidth: 160
-                SplitView.maximumWidth: 320
-                rows: browser.navigationRows
-                mode: browser.groupMode
-                selectedPath: browser.groupPath
-                count: browser.matchingCount
-                onGroupRequested: path => browser.chooseGroup(path)
-                onModeRequested: mode => browser.chooseMode(mode)
-                onBranchToggled: path => browser.toggleGroup(path)
-            }
-
-            // ---- The browser ----
-            Rectangle {
-                id: browserPane
-
-                SplitView.preferredWidth: settings.browserWidth
-                SplitView.minimumWidth: 330
-                SplitView.maximumWidth: 1000
-                color: Ui.Theme.solidPanelBackground
-
-                // Remembered where it was LEFT, not wherever it passed
-                // through: a pane takes several widths while a window
-                // lays itself out, and any of those written down would
-                // be the width it opened at next time.
-                Component.onDestruction:
-                    settings.browserWidth = browserPane.width
-
-                Rectangle {
-                    id: groupHeading
-
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    height: 76
-                    color: Ui.Theme.solidPanelBackground
-
-                    RowLayout {
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        height: 38
-                        anchors.leftMargin: 14
-                        anchors.rightMargin: 10
-                        spacing: 8
-                        Label {
-                            Layout.fillWidth: true
-                            text: browser.groupPath.length
-                                ? browser.groupPath.split("/").join("  ›  ") : "All sketches"
-                            color: Ui.Theme.primaryText
-                            font.pixelSize: 12
-                            elide: Text.ElideRight
-                        }
-                        Label {
-                            text: browser.cards.length
-                            color: Ui.Theme.secondaryText
-                            font.family: Ui.Theme.monospaceFontFamily
-                            font.pixelSize: Ui.Theme.captionSize
-                        }
-                        ToolButton {
-                            visible: browser.groupPath.length > 0
-                            text: "×"
-                            implicitWidth: 24
-                            implicitHeight: 24
-                            Accessible.name: "Clear group"
-                            ToolTip.visible: hovered
-                            ToolTip.text: "Clear the group and keep the search"
-                            onClicked: browser.chooseGroup("")
-                        }
-                    }
-                    RowLayout {
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.bottom: parent.bottom
-                        anchors.leftMargin: 14
-                        anchors.rightMargin: 10
-                        anchors.bottomMargin: 6
-                        height: 28
-                        spacing: 6
-
-                        Label {
-                            text: "Sort"
-                            color: Ui.Theme.secondaryText
-                            font.pixelSize: 11
-                        }
-                        ComboBox {
-                            Layout.fillWidth: true
-                            Layout.maximumWidth: 170
-                            implicitHeight: 28
-                            model: browser.sortOptions
-                            textRole: "label"
-                            valueRole: "key"
-                            currentIndex: browser.sortOptions.findIndex(function(option) {
-                                return option.key === browser.sortKey;
-                            })
-                            font.pixelSize: 11
-                            Accessible.name: "Sort sketches by"
-                            onActivated: browser.sortKey = currentValue
-                        }
-                        ToolButton {
-                            text: browser.sortAscending ? "↑" : "↓"
-                            implicitWidth: 26
-                            implicitHeight: 28
-                            Accessible.name: browser.sortAscending ? "Sort descending" : "Sort ascending"
-                            ToolTip.visible: hovered
-                            ToolTip.text: browser.sortAscending ? "Ascending; click to reverse" : "Descending; click to reverse"
-                            onClicked: browser.sortAscending = !browser.sortAscending
-                        }
-                        Item { Layout.fillWidth: true }
-                        Button {
-                            text: "Clear filters"
-                            visible: browser.hasFilters
-                            implicitHeight: 28
-                            font.pixelSize: 11
-                            onClicked: browser.clearFilters()
-                        }
-                    }
-                    Rectangle {
-                        anchors.bottom: parent.bottom
-                        width: parent.width
-                        height: 1
-                        color: Ui.Theme.separator
-                    }
-                }
-
-                SketchList {
-                    id: sketchList
-
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: groupHeading.bottom
-                    anchors.bottom: selectionActions.top
-                    visible: browser.viewMode === "list"
-                    catalog: catalog
-                    rows: browser.cards
-                    learnedSketches: browser.learnedSketches
-                    selectedIndex: browser.selectedIndex
-                    presentedIndex: view.sketchIndex
-                    sortKey: browser.sortKey
-                    sortAscending: browser.sortAscending
-                    onSelectRequested: index => browser.select(index)
-                    onActivateRequested: index => window.activate(index)
-                    onSortRequested: key => browser.sortBy(key)
-                    onStepRequested: delta => browser.step(delta)
-                }
-
-                SketchGallery {
-                    id: gallery
-
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: groupHeading.bottom
-                    anchors.bottom: selectionActions.top
-                    visible: browser.viewMode === "gallery"
-                    catalog: catalog
-                    cards: browser.cards
-                    learnedSketches: browser.learnedSketches
-                    selectedIndex: browser.selectedIndex
-                    presentedIndex: view.sketchIndex
-                    onSelectRequested: index => browser.select(index)
-                    onActivateRequested: index => window.activate(index)
-                    onStepRequested: delta => browser.step(delta)
-                }
-                Rectangle {
-                    id: selectionActions
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    height: browser.cards.length ? 48 : 0
-                    color: Ui.Theme.toolbarBackground
-                    visible: height > 0
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 14
-                        anchors.rightMargin: 10
-                        spacing: 8
-                        Label {
-                            Layout.fillWidth: true
-                            text: browser.selectedSketch.name ?? "Select a sketch"
-                            color: Ui.Theme.secondaryText
-                            font.pixelSize: Ui.Theme.captionSize
-                            elide: Text.ElideRight
-                        }
-                        Button {
-                            text: browser.selectedIndex === view.sketchIndex ? "Replay" : "Open"
-                            enabled: browser.selectedIndex >= 0 && !!browser.selectedSketch.available
-                            implicitHeight: Ui.Theme.controlHeight
-                            Accessible.name: text + " selected sketch"
-                            onClicked: window.activate(browser.selectedIndex)
-                        }
-                    }
-                }
-                ColumnLayout {
-                    anchors.centerIn: parent
-                    width: parent.width - 40
-                    visible: browser.cards.length === 0
-                    spacing: Ui.Theme.spacing
-                    Label {
-                        Layout.fillWidth: true
-                        text: "No matching sketches"
-                        color: Ui.Theme.primaryText
-                        font.pixelSize: Ui.Theme.headingSize
-                        horizontalAlignment: Text.AlignHCenter
-                    }
-                    Label {
-                        Layout.fillWidth: true
-                        text: "Try a different search or clear the filters to see the catalogue."
-                        color: Ui.Theme.secondaryText
-                        font.pixelSize: Ui.Theme.bodySize
-                        wrapMode: Text.WordWrap
-                        horizontalAlignment: Text.AlignHCenter
-                    }
-                    Button {
-                        Layout.alignment: Qt.AlignHCenter
-                        text: "Clear filters"
-                        visible: browser.hasFilters
-                        onClicked: browser.clearFilters()
-                    }
-                }
-            }
-
-            // ---- The canvas, which keeps presenting while you browse ----
-            CanvasPane {
-                id: view
-                SplitView.fillWidth: true
-                SplitView.minimumWidth: 300
-                onCaptureReady: path => window.showCapture(path)
-                onThumbnailCaptured: index => catalog.adoptThumbnail(index)
-            }
-
-            // ---- The inspector ----
             Inspector {
                 id: inspector
-
-                SplitView.preferredWidth: 350
-                SplitView.minimumWidth: 280
-                SplitView.maximumWidth: 520
-                visible: window.inspectorOpen && window.width >= 1100
+                Layout.fillWidth: true
+                Layout.fillHeight: true
                 catalog: catalog
                 sketch: browser.selectedSketch
                 presented: browser.selectedIndex === view.sketchIndex
@@ -605,8 +330,333 @@ ApplicationWindow {
                 onTagRequested: path => {
                     browser.chooseMode("subjects");
                     browser.chooseGroup(path);
+                    detailsDrawer.close();
                 }
             }
+        }
+    }
+
+    ColumnLayout {
+        anchors.fill: parent
+        anchors.margins: Ui.Theme.sectionSpacing
+        spacing: Ui.Theme.sectionSpacing
+
+        TopBar {
+            id: topBar
+            Layout.fillWidth: true
+            workspaceName: actions.workspaceName
+            inspectorOpen: detailsDrawer.visible
+            taskRunning: actions.taskRunning
+            opening: actions.opening
+            recents: actions.recents
+            onInspectorToggled: detailsDrawer.visible ? detailsDrawer.close() : detailsDrawer.open()
+            onVideoRequested: window.exportVideo(-1)
+            onOpenFileRequested: sketchDialog.open()
+            onOpenWorkspaceRequested: workspaceDialog.open()
+            onRecentRequested: recent => actions.openRecent(recent)
+            onClearRecentsRequested: actions.clearRecents()
+            onRecentsRequested: actions.refreshRecents()
+            onSearchRequested: {
+                librarySearch.forceActiveFocus();
+                librarySearch.selectAll();
+            }
+        }
+
+        Ui.Notice {
+            Layout.fillWidth: true
+            visible: !window.openNoticeDismissed && (actions.openStatus.length > 0 || actions.openError.length > 0)
+            text: actions.openError.length > 0 ? actions.openError : actions.openStatus
+            tone: actions.openError.length > 0 ? "error" : "neutral"
+            busy: actions.opening
+            dismissible: !actions.opening
+            onDismissed: window.openNoticeDismissed = true
+        }
+
+        SplitView {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            orientation: Qt.Horizontal
+            handle: Item {
+                implicitWidth: Ui.Theme.sectionSpacing
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: 3
+                    height: 32
+                    radius: 1.5
+                    color: SplitHandle.pressed ? Ui.Theme.accent : SplitHandle.hovered ? Ui.Theme.secondaryText : Ui.Theme.border
+                }
+            }
+
+            Ui.Panel {
+                id: browserPane
+                objectName: "libraryPanel"
+                SplitView.preferredWidth: Math.min(settings.browserWidth, Math.max(320, window.width * 0.32), 500)
+                SplitView.minimumWidth: 320
+                SplitView.maximumWidth: 560
+                padding: 0
+                backgroundColor: Ui.Theme.panelBackground
+                Component.onDestruction: settings.browserWidth = browserPane.width
+
+                contentItem: ColumnLayout {
+                    spacing: 0
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.margins: Ui.Theme.sectionSpacing
+                        spacing: Ui.Theme.spacing
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label {
+                                text: "Library"
+                                color: Ui.Theme.primaryText
+                                font.pixelSize: Ui.Theme.headingSize
+                                font.weight: Font.DemiBold
+                                Layout.fillWidth: true
+                            }
+                            Label {
+                                text: browser.cards.length + (browser.cards.length === 1 ? " sketch" : " sketches")
+                                color: Ui.Theme.secondaryText
+                                font.pixelSize: Ui.Theme.captionSize
+                            }
+                        }
+                        Ui.SearchField {
+                            id: librarySearch
+                            objectName: "librarySearch"
+                            Layout.fillWidth: true
+                            text: browser.filterText
+                            placeholderText: "Search sketches or tags"
+                            onTextEdited: browser.filterText = text
+                            onSteppedOut: browser.viewMode === "gallery" ? gallery.focusRows() : sketchList.focusRows()
+                            onAccepted: browser.viewMode === "gallery" ? gallery.focusRows() : sketchList.focusRows()
+                            ToolTip.visible: hovered && !activeFocus
+                            ToolTip.delay: 900
+                            ToolTip.text: "Search names and descriptions, or use tag:, kind:, folder:"
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Ui.Theme.spacing
+                            Ui.IconButton {
+                                id: groupButton
+                                objectName: "groupPicker"
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 60
+                                text: (browser.groupPath.split("/").pop() || "All sketches") + " ▾"
+                                tooltip: "Browse subjects and collections"
+                                onClicked: groupPopup.open()
+                                Popup {
+                                    id: groupPopup
+                                    objectName: "groupPopup"
+                                    y: groupButton.height + Ui.Theme.spacing
+                                    width: 288
+                                    height: Math.min(560, window.height - 220)
+                                    padding: Ui.Theme.spacing
+                                    modal: false
+                                    focus: true
+                                    background: Rectangle {
+                                        radius: Ui.Theme.panelRadius
+                                        color: Ui.Theme.solidPanelBackground
+                                        border.color: Ui.Theme.border
+                                    }
+                                    contentItem: GroupTree {
+                                        rows: browser.navigationRows
+                                        mode: browser.groupMode
+                                        selectedPath: browser.groupPath
+                                        count: browser.matchingCount
+                                        onGroupRequested: path => {
+                                            browser.chooseGroup(path);
+                                            groupPopup.close();
+                                        }
+                                        onModeRequested: mode => browser.chooseMode(mode)
+                                        onBranchToggled: path => browser.toggleGroup(path)
+                                    }
+                                }
+                            }
+                            Ui.SegmentedControl {
+                                model: [
+                                    {
+                                        text: "Gallery"
+                                    },
+                                    {
+                                        text: "List"
+                                    }
+                                ]
+                                currentIndex: browser.viewMode === "gallery" ? 0 : 1
+                                Accessible.name: "Library view"
+                                onActivated: index => browser.chooseView(index === 0 ? "gallery" : "list")
+                            }
+                            Ui.IconButton {
+                                id: sortButton
+                                text: "↕"
+                                tooltip: "Sort sketches"
+                                onClicked: sortMenu.popup()
+                                Menu {
+                                    id: sortMenu
+                                    y: sortButton.height
+                                    Repeater {
+                                        model: browser.sortOptions
+                                        delegate: MenuItem {
+                                            required property var modelData
+                                            text: modelData.label
+                                            checkable: true
+                                            checked: browser.sortKey === modelData.key
+                                            onTriggered: browser.sortKey = modelData.key
+                                        }
+                                    }
+                                    MenuSeparator {}
+                                    MenuItem {
+                                        text: "Ascending"
+                                        checkable: true
+                                        checked: browser.sortAscending
+                                        onTriggered: browser.sortAscending = !browser.sortAscending
+                                    }
+                                }
+                            }
+                        }
+                        RowLayout {
+                            visible: browser.hasFilters
+                            Layout.fillWidth: true
+                            Label {
+                                Layout.fillWidth: true
+                                text: browser.groupPath.length ? browser.groupPath.split("/").join(" › ") : "Search results"
+                                color: Ui.Theme.secondaryText
+                                font.pixelSize: Ui.Theme.captionSize
+                                elide: Text.ElideRight
+                            }
+                            Ui.IconButton {
+                                text: "Clear"
+                                tooltip: "Clear search and group filters"
+                                onClicked: browser.clearFilters()
+                            }
+                        }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 1
+                        color: Ui.Theme.separator
+                    }
+                    Item {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        SketchList {
+                            id: sketchList
+                            anchors.fill: parent
+                            visible: browser.viewMode === "list"
+                            catalog: catalog
+                            rows: browser.cards
+                            learnedSketches: browser.learnedSketches
+                            selectedIndex: browser.selectedIndex
+                            presentedIndex: view.sketchIndex
+                            sortKey: browser.sortKey
+                            sortAscending: browser.sortAscending
+                            onSelectRequested: index => browser.select(index)
+                            onActivateRequested: index => window.activate(index)
+                            onSortRequested: key => browser.sortBy(key)
+                            onStepRequested: delta => browser.step(delta)
+                        }
+                        SketchGallery {
+                            id: gallery
+                            anchors.fill: parent
+                            visible: browser.viewMode === "gallery"
+                            catalog: catalog
+                            cards: browser.cards
+                            learnedSketches: browser.learnedSketches
+                            selectedIndex: browser.selectedIndex
+                            presentedIndex: view.sketchIndex
+                            onSelectRequested: index => browser.select(index)
+                            onActivateRequested: index => window.activate(index)
+                            onStepRequested: delta => browser.step(delta)
+                        }
+                        ColumnLayout {
+                            anchors.centerIn: parent
+                            width: parent.width - 48
+                            visible: browser.cards.length === 0
+                            spacing: Ui.Theme.spacing
+                            Label {
+                                Layout.fillWidth: true
+                                text: "No matching sketches"
+                                color: Ui.Theme.primaryText
+                                font.pixelSize: Ui.Theme.headingSize
+                                horizontalAlignment: Text.AlignHCenter
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                text: "Try another search or clear the filters."
+                                color: Ui.Theme.secondaryText
+                                font.pixelSize: Ui.Theme.bodySize
+                                background: null
+                                wrapMode: Text.WordWrap
+                                horizontalAlignment: Text.AlignHCenter
+                            }
+                            Button {
+                                Layout.alignment: Qt.AlignHCenter
+                                text: "Clear filters"
+                                visible: browser.hasFilters
+                                onClicked: browser.clearFilters()
+                            }
+                        }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 1
+                        color: Ui.Theme.separator
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.margins: Ui.Theme.sectionSpacing
+                        visible: browser.cards.length > 0
+                        spacing: Ui.Theme.spacing
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            spacing: Ui.Theme.smallSpacing
+                            Label {
+                                Layout.fillWidth: true
+                                text: (browser.selectedSketch.name ?? "Select a sketch").replace(/_/g, " ")
+                                color: Ui.Theme.primaryText
+                                font.pixelSize: Ui.Theme.bodySize
+                                background: null
+                                elide: Text.ElideRight
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                elide: Text.ElideRight
+                                text: browser.selectedIndex === view.sketchIndex ? "On canvas" : "Enter to open"
+                                color: Ui.Theme.secondaryText
+                                font.pixelSize: Ui.Theme.captionSize
+                            }
+                        }
+                        Ui.IconButton {
+                            text: "Details"
+                            tooltip: "Inspect selected sketch"
+                            onClicked: detailsDrawer.open()
+                        }
+                        Button {
+                            text: browser.selectedIndex === view.sketchIndex ? "Replay" : "Open"
+                            enabled: browser.selectedIndex >= 0 && !!browser.selectedSketch.available
+                            implicitHeight: Ui.Theme.controlHeight
+                            Accessible.name: text + " selected sketch"
+                            onClicked: window.activate(browser.selectedIndex)
+                        }
+                    }
+                }
+            }
+
+            CanvasPane {
+                id: view
+                SplitView.fillWidth: true
+                SplitView.minimumWidth: 380
+                onCaptureReady: path => window.showCapture(path)
+                onThumbnailCaptured: index => catalog.adoptThumbnail(index)
+            }
+        }
+
+        Ui.Notice {
+            objectName: "taskNotice"
+            Layout.fillWidth: true
+            visible: actions.taskLine.length > 0 && !window.taskNoticeDismissed
+            text: actions.taskLine
+            busy: actions.taskRunning
+            dismissible: !actions.taskRunning
+            onDismissed: window.taskNoticeDismissed = true
         }
 
         StatusStrip {
@@ -619,11 +669,7 @@ ApplicationWindow {
             fillNote: catalog.fillNote
             sketch: view.metrics.sketch ?? ""
             path: browser.sketchAt(view.sketchIndex)?.path ?? ""
-            hints: "↑↓ select · ⏎ open · / filter"
-                + (view.orbitable
-                    ? " · drag/wheel orbit · ctrl-wheel zoom"
-                    : " · wheel zoom · middle-drag pan")
-                + (view.canvasFocused ? " · keys go to the sketch" : "")
+            hints: "↑↓ select · ⏎ open · / filter" + (view.orbitable ? " · drag/wheel orbit · ctrl-wheel zoom" : " · wheel zoom · middle-drag pan") + (view.canvasFocused ? " · keys go to the sketch" : "")
             paused: view.paused
             timeScale: view.timeScale
             metrics: view.metrics

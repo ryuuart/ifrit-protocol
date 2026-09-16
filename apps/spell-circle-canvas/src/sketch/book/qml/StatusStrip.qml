@@ -1,15 +1,10 @@
-// THE ONE LINE THAT NEVER MOVES: what the canvas is presenting, how the
-// live host is doing with it, the clock controls, and the two numbers a
-// reader glances at rather than reads.
-
 import QtQuick
 import Ifrit.Qt 1.0 as Ui
 import QtQuick.Controls
 import QtQuick.Layouts
 
-Rectangle {
+Ui.Panel {
     id: strip
-
     /** "live", "compiling", "failed" or "waiting", and the host's own
      *  line beside it. */
     property string hostState: "waiting"
@@ -39,107 +34,59 @@ Rectangle {
     signal captureRequested
     signal timeScaleRequested(real scale)
 
-    implicitHeight: 40
-    color: Ui.Theme.solidPanelBackground
-
-    Rectangle {
-        width: parent.width
-        height: 1
-        color: Ui.Theme.separator
-    }
-
-    RowLayout {
-        anchors.fill: parent
-        anchors.leftMargin: 14
-        anchors.rightMargin: 12
-        spacing: 10
-
-        Label {
-            Layout.maximumWidth: 160
-            Layout.minimumWidth: 0
-            text: strip.filling
-                ? "thumbnails " + strip.fillDone + "/" + strip.fillTotal + " …"
-                : strip.sketch
-            color: Ui.Theme.primaryText
-            font.pixelSize: 12
-            visible: text.length > 0
-            elide: Text.ElideRight
-        }
+    padding: Ui.Theme.spacing
+    contentItem: RowLayout {
+        spacing: Ui.Theme.spacing
         Ui.StatusIndicator {
-            text: strip.capture || (strip.filling ? strip.fillNote : strip.status)
-            tone: strip.capture === "capture failed" ? "error"
-                : strip.capture.length > 0 ? "good"
-                : strip.filling || strip.hostState === "compiling" ? "warning"
-                : strip.hostState === "failed" ? "error"
-                : strip.hostState === "live" ? "good" : "neutral"
-            busy: strip.capture.length === 0
-                && (strip.filling || strip.hostState === "compiling")
             Layout.fillWidth: true
-            Layout.minimumWidth: 0
+            Layout.minimumWidth: 60
             Layout.maximumWidth: 280
+            text: strip.capture || (strip.filling ? "Preparing previews · " + strip.fillDone + " / " + strip.fillTotal : strip.hostState === "live" ? (strip.paused ? "Paused" : "Live") : strip.status || "Ready")
+            tone: strip.capture === "capture failed" ? "error" : strip.capture.length > 0 ? "good" : strip.filling || strip.hostState === "compiling" ? "warning" : strip.hostState === "failed" ? "error" : strip.hostState === "live" && !strip.paused ? "good" : "neutral"
+            busy: strip.capture.length === 0 && (strip.filling || strip.hostState === "compiling")
         }
-        // WHERE THE THING ON SCREEN LIVES: the file you would open to
-        // change what you are looking at. Elided from the left, because
-        // the end of a path is the part that identifies it.
         Label {
             Layout.fillWidth: true
             Layout.minimumWidth: 0
-            visible: strip.width >= 1100
+            visible: strip.width >= 1200
             text: strip.path
             color: Ui.Theme.secondaryText
-            font.family: Ui.Theme.monospaceFontFamily
             font.pixelSize: Ui.Theme.captionSize
             elide: Text.ElideLeft
+        }
+        Item {
+            Layout.fillWidth: true
         }
         Ui.IconButton {
             objectName: "publicationButton"
             action: strip.publishAction
-            tooltip: (checked ? "Stop frame publishing" : "Publish frames to other applications")
-                + " (" + (Qt.platform.os === "osx" ? "⌘P" : "Ctrl+P") + ")"
+            tooltip: (checked ? "Stop frame publishing" : "Publish frames to other applications") + " (" + (Qt.platform.os === "osx" ? "⌘P" : "Ctrl+P") + ")"
         }
         Ui.StatusIndicator {
             objectName: "publicationStatus"
-            Layout.preferredWidth: 175
-            Layout.maximumWidth: 220
+            visible: !!strip.publishAction?.checked || strip.publicationError.length > 0
+            Layout.maximumWidth: 210
             Layout.minimumWidth: 0
-            text: strip.publicationError.length > 0 ? "Publishing unavailable"
-                : !strip.publishAction || !strip.publishAction.checked ? "Publishing off"
-                : strip.publication.length > 0 ? "Publishing as " + strip.publication
-                : "Starting publication…"
-            tone: strip.publicationError.length > 0 ? "error"
-                : strip.publication.length > 0 && strip.publishAction?.checked ? "good" : "neutral"
+            text: strip.publicationError.length > 0 ? "Publishing unavailable" : !strip.publishAction || !strip.publishAction.checked ? "Publishing off" : strip.publication.length > 0 ? "Publishing as " + strip.publication : "Starting publication…"
+            tone: strip.publicationError.length > 0 ? "error" : strip.publication.length > 0 && strip.publishAction?.checked ? "good" : "neutral"
             busy: !!strip.publishAction?.checked && strip.publication.length === 0
         }
-        // The keys, beside what they act on rather than after the
-        // controls: this is the line a reader is already looking at
-        // when they wonder how to move.
-        Label {
-            Layout.maximumWidth: 210
-            visible: strip.width >= 1450
-            text: strip.hints
-            color: Ui.Theme.secondaryText
-            font.family: Ui.Theme.monospaceFontFamily
-            font.pixelSize: Ui.Theme.captionSize
-            elide: Text.ElideRight
+        Rectangle {
+            Layout.preferredWidth: 1
+            Layout.preferredHeight: 20
+            Layout.leftMargin: Ui.Theme.spacing
+            Layout.rightMargin: Ui.Theme.spacing
+            color: Ui.Theme.separator
         }
-
-        // ---- The clock ----
         Ui.IconButton {
             text: strip.paused ? "▶" : "❚❚"
             tooltip: strip.paused ? "Resume scene" : "Pause scene"
-            font.pixelSize: Ui.Theme.captionSize
             implicitWidth: Ui.Theme.controlHeight
-            implicitHeight: Ui.Theme.controlHeight
-            ToolTip.visible: hovered
-            ToolTip.delay: 700
-            ToolTip.text: strip.paused ? "Resume the scene clock"
-                                       : "Hold the scene clock"
             onClicked: strip.pauseToggled()
         }
         Slider {
             id: speed
-
-            implicitWidth: 84
+            implicitWidth: 80
             from: 0.1
             to: 4.0
             value: strip.timeScale
@@ -154,20 +101,13 @@ Rectangle {
         }
         Ui.IconButton {
             text: "Capture"
-            font.pixelSize: 11
-            implicitHeight: Ui.Theme.controlHeight
-            ToolTip.visible: hovered
-            ToolTip.delay: 700
-            ToolTip.text: "Save the frame on screen beside the sketch"
+            tooltip: "Save the frame on screen beside the sketch"
             onClicked: strip.captureRequested()
         }
-
         Label {
-            visible: strip.width >= 1200
-            text: (strip.metrics.backend ?? "")
-                + (strip.metrics.fps !== undefined
-                    ? " · " + strip.metrics.fps.toFixed(0) + " fps presented"
-                    : "")
+            visible: strip.width >= 1100
+            Layout.leftMargin: Ui.Theme.spacing
+            text: (strip.metrics.backend ?? "") + (strip.metrics.fps !== undefined ? " · " + strip.metrics.fps.toFixed(0) + " fps" : "")
             color: Ui.Theme.secondaryText
             font.family: Ui.Theme.monospaceFontFamily
             font.pixelSize: Ui.Theme.captionSize

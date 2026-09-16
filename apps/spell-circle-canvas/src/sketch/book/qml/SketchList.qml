@@ -33,38 +33,41 @@ Item {
     signal sortRequested(string key)
     signal stepRequested(int delta)
 
-    function focusRows() { rowList.forceActiveFocus(); }
+    function focusRows() {
+        rowList.forceActiveFocus();
+    }
     function positionAt(row) {
         if (row >= 0)
             rowList.positionViewAtIndex(row, ListView.Contain);
     }
-    function scrollPosition() { return rowList.contentY; }
+    function scrollPosition() {
+        return rowList.contentY;
+    }
     function restoreScrollPosition(position) {
         rowList.forceLayout();
         const first = rowList.originY;
-        const last = Math.max(
-            first, first + rowList.contentHeight - rowList.height);
+        const last = Math.max(first, first + rowList.contentHeight - rowList.height);
         rowList.contentY = Math.max(first, Math.min(position, last));
     }
 
     // The columns, stated once: a heading and its row are the same
     // grid, and a width that disagreed would show as a heading over the
     // wrong column rather than as a layout error.
-    readonly property int colThumb: 66
+    readonly property int colThumb: 80
     readonly property int colFolder: 128
     readonly property int colKind: 50
     readonly property int colCanvas: 78
     readonly property int colMoment: 58
     readonly property int colLines: 48
-    readonly property int gap: 10
+    readonly property int gap: 12
 
     // THE COLUMNS GIVE WAY FROM THE RIGHT as the pane narrows, and the
     // name never does: a row with no name is unreadable.
-    readonly property bool showFolder: list.width > 700
-    readonly property bool showCanvas: list.width > 520
-    readonly property bool showMoment: list.width > 460
-    readonly property bool showLines: list.width > 410
-    readonly property bool showKind: list.width > 380
+    readonly property bool showFolder: list.width > 940
+    readonly property bool showCanvas: list.width > 700
+    readonly property bool showMoment: list.width > 800
+    readonly property bool showLines: list.width > 880
+    readonly property bool showKind: list.width > 600
 
     /** One column heading: says what the column is, says whether the
      *  list is ordered by it, and asks for that ordering when clicked. */
@@ -75,7 +78,7 @@ Item {
         required property string label
         property int align: Text.AlignLeft
 
-        implicitHeight: 28
+        implicitHeight: Ui.Theme.controlHeight
         padding: 0
         Accessible.name: "Sort by " + label
         onClicked: list.sortRequested(heading.key)
@@ -88,14 +91,11 @@ Item {
         contentItem: Label {
             verticalAlignment: Text.AlignVCenter
             horizontalAlignment: heading.align
-            text: list.sortKey === heading.key
-                ? heading.label + (list.sortAscending ? " ▲" : " ▼")
-                : heading.label
+            text: list.sortKey === heading.key ? heading.label + (list.sortAscending ? " ▲" : " ▼") : heading.label
             color: list.sortKey === heading.key ? Ui.Theme.primaryText : Ui.Theme.secondaryText
-            font.family: Ui.Theme.monospaceFontFamily
+            font.weight: Font.DemiBold
             font.pixelSize: Ui.Theme.captionSize
-            font.letterSpacing: 0.6
-            font.capitalization: Font.AllUppercase
+            font.letterSpacing: 0.4
             elide: Text.ElideRight
         }
     }
@@ -106,48 +106,53 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
-            Layout.leftMargin: 12
-            Layout.rightMargin: 12 + (rowScroll.visible ? rowScroll.width : 0)
-            Layout.topMargin: 6
+            Layout.leftMargin: 16
+            Layout.rightMargin: 16 + (rowScroll.visible ? rowScroll.width : 0)
+            Layout.topMargin: 0
             spacing: list.gap
 
-            Item { Layout.preferredWidth: list.colThumb }
+            Item {
+                Layout.preferredWidth: list.colThumb
+            }
             Heading {
                 Layout.fillWidth: true
                 Layout.minimumWidth: 120
                 key: "name"
-                label: "sketch"
+                label: "Sketch"
             }
             Heading {
                 Layout.preferredWidth: list.colFolder
                 visible: list.showFolder
                 key: "folder"
-                label: "folder"
+                label: "Collection"
             }
             Heading {
                 Layout.preferredWidth: list.colKind
                 visible: list.showKind
                 key: "kind"
-                label: "kind"
+                label: "Kind"
             }
             Heading {
                 Layout.preferredWidth: list.colCanvas
                 visible: list.showCanvas
                 key: "canvas"
-                label: "canvas"
+                label: "Canvas"
             }
             Heading {
                 Layout.preferredWidth: list.colMoment
                 visible: list.showMoment
                 key: "moment"
-                label: "moment"
+                label: "Moment"
             }
             Heading {
                 Layout.preferredWidth: list.colLines
                 visible: list.showLines
                 key: "lines"
-                label: "lines"
+                label: "Lines"
                 align: Text.AlignRight
+            }
+            Item {
+                Layout.preferredWidth: Ui.Theme.controlHeight
             }
         }
 
@@ -170,57 +175,50 @@ Item {
             Keys.onReturnPressed: list.activateRequested(list.selectedIndex)
             Keys.onEnterPressed: list.activateRequested(list.selectedIndex)
 
-            ScrollBar.vertical: ScrollBar { id: rowScroll }
+            ScrollBar.vertical: ScrollBar {
+                id: rowScroll
+            }
 
-            readonly property real rowWidth:
-                rowList.width - (rowScroll.visible ? rowScroll.width : 0)
+            readonly property real rowWidth: rowList.width - (rowScroll.visible ? rowScroll.width : 0)
 
             delegate: Item {
                 id: row
 
                 required property var modelData
                 readonly property var recordedSketch: row.modelData
-                readonly property var sketch:
-                    list.learnedSketches[row.recordedSketch.sketchIndex]
-                        ?? row.recordedSketch
+                readonly property var sketch: list.learnedSketches[row.recordedSketch.sketchIndex] ?? row.recordedSketch
+
+                readonly property bool selected: list.selectedIndex === row.sketch.sketchIndex
+                readonly property bool presented: list.presentedIndex === row.sketch.sketchIndex
 
                 width: rowList.rowWidth
-                height: 56
+                height: 92
                 Accessible.role: Accessible.ListItem
                 Accessible.name: row.sketch.name
-                Accessible.description: row.sketch.available ? row.sketch.blurb : row.sketch.reason
+                Accessible.description: (row.presented ? "On canvas. " : "") + (row.sketch.available ? row.sketch.blurb : row.sketch.reason)
                 Accessible.selectable: true
-                Accessible.selected: list.selectedIndex === row.sketch.sketchIndex
+                Accessible.selected: row.selected
                 Accessible.onPressAction: list.activateRequested(row.sketch.sketchIndex)
 
-                // ---- A sketch ----
                 Rectangle {
                     anchors.fill: parent
-                    anchors.leftMargin: 6
-                    anchors.rightMargin: 6
-                    radius: 6
-                    color: list.selectedIndex === row.sketch.sketchIndex
-                        ? Ui.Theme.selectionBackground
-                        : (rowHover.hovered ? Ui.Theme.separator : "transparent")
-                    // The outline says which one the CANVAS is on, which
-                    // the fill cannot: browsing moves the selection over
-                    // a sketch that keeps presenting behind it.
+                    anchors.margins: Ui.Theme.smallSpacing
+                    radius: Ui.Theme.cornerRadius
+                    color: row.selected ? Ui.Theme.selectionBackground : (rowHover.hovered ? Ui.Theme.controlBackground : "transparent")
                     border.width: 1
-                    border.color: list.presentedIndex === row.sketch.sketchIndex
-                        ? Ui.Theme.accent : "transparent"
-                    opacity: 1.0
+                    border.color: row.selected ? Ui.Theme.accent : "transparent"
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 6
-                        anchors.rightMargin: 6
-                        anchors.topMargin: 4
-                        anchors.bottomMargin: 4
+                        anchors.leftMargin: 12
+                        anchors.rightMargin: 12
+                        anchors.topMargin: 8
+                        anchors.bottomMargin: 8
                         spacing: list.gap
 
                         PlateThumb {
                             Layout.preferredWidth: list.colThumb
-                            Layout.fillHeight: true
+                            Layout.preferredHeight: 58
                             plate: row.sketch.plate
                             kind: row.sketch.kind
                             catalog: list.catalog
@@ -230,24 +228,29 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true
                             Layout.minimumWidth: 120
-                            spacing: 1
+                            spacing: Ui.Theme.smallSpacing
                             Label {
                                 text: row.sketch.name
                                 color: Ui.Theme.primaryText
-                                font.pixelSize: 13
+                                font.pixelSize: Ui.Theme.bodySize
                                 font.weight: Font.DemiBold
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true
                             }
                             Label {
-                                text: row.sketch.available
-                                    ? row.sketch.blurb
-                                    : "unavailable — " + row.sketch.reason
-                                color: row.sketch.available ? Ui.Theme.secondaryText
-                                                            : Ui.Theme.warningText
-                                font.pixelSize: 11
-                                elide: Text.ElideRight
                                 Layout.fillWidth: true
+                                text: row.sketch.available ? row.sketch.blurb : "Unavailable · " + row.sketch.reason
+                                color: row.sketch.available ? Ui.Theme.secondaryText : Ui.Theme.warningText
+                                font.pixelSize: Ui.Theme.captionSize
+                                elide: Text.ElideRight
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                text: row.presented ? "On canvas" : row.sketch.kind === "set" ? "3D scene" : "Canvas"
+                                color: row.presented ? Ui.Theme.statusText : Ui.Theme.secondaryText
+                                font.pixelSize: Ui.Theme.captionSize
+                                font.weight: row.presented ? Font.DemiBold : Font.Normal
+                                elide: Text.ElideRight
                             }
                         }
                         Label {
@@ -255,7 +258,7 @@ Item {
                             visible: list.showFolder
                             text: row.sketch.folder
                             color: Ui.Theme.secondaryText
-                            font.pixelSize: 11
+                            font.pixelSize: Ui.Theme.captionSize
                             elide: Text.ElideRight
                         }
                         Label {
@@ -273,10 +276,8 @@ Item {
                             // its own setup, so the size is a fact of a
                             // session and not of a file. Blank until one
                             // has run.
-                            text: row.sketch.canvas.length > 0
-                                ? row.sketch.canvas : "—"
-                            color: row.sketch.canvas.length > 0 ? Ui.Theme.secondaryText
-                                                                : Ui.Theme.secondaryText
+                            text: row.sketch.canvas.length > 0 ? row.sketch.canvas : "—"
+                            color: Ui.Theme.secondaryText
                             font.family: Ui.Theme.monospaceFontFamily
                             font.pixelSize: Ui.Theme.captionSize
                             elide: Text.ElideRight
@@ -284,13 +285,8 @@ Item {
                         Label {
                             Layout.preferredWidth: list.colMoment
                             visible: list.showMoment
-                            text: row.sketch.moment > 0
-                                ? row.sketch.moment.toFixed(1) + " s"
-                                : (row.sketch.canvas.length > 0 ? "none" : "—")
-                            color: row.sketch.canvas.length === 0
-                                ? Ui.Theme.secondaryText
-                                : (row.sketch.moment > 0 ? Ui.Theme.secondaryText
-                                                         : Ui.Theme.warningText)
+                            text: row.sketch.moment > 0 ? row.sketch.moment.toFixed(1) + " s" : (row.sketch.canvas.length > 0 ? "none" : "—")
+                            color: row.sketch.canvas.length === 0 ? Ui.Theme.secondaryText : (row.sketch.moment > 0 ? Ui.Theme.secondaryText : Ui.Theme.warningText)
                             font.family: Ui.Theme.monospaceFontFamily
                             font.pixelSize: Ui.Theme.captionSize
                         }
@@ -303,16 +299,30 @@ Item {
                             font.family: Ui.Theme.monospaceFontFamily
                             font.pixelSize: Ui.Theme.captionSize
                         }
+                        Item {
+                            Layout.preferredWidth: Ui.Theme.controlHeight
+                            Layout.preferredHeight: Ui.Theme.controlHeight
+
+                            Ui.IconButton {
+                                anchors.fill: parent
+                                visible: row.selected || rowHover.hovered
+                                text: "↗"
+                                tooltip: "Present " + row.sketch.name
+                                enabled: row.sketch.available
+                                onClicked: list.activateRequested(row.sketch.sketchIndex)
+                            }
+                        }
                     }
 
-                    HoverHandler { id: rowHover }
+                    HoverHandler {
+                        id: rowHover
+                    }
                     TapHandler {
                         onTapped: {
                             list.selectRequested(row.sketch.sketchIndex);
                             rowList.forceActiveFocus();
                         }
-                        onDoubleTapped: list.activateRequested(
-                            row.sketch.sketchIndex)
+                        onDoubleTapped: list.activateRequested(row.sketch.sketchIndex)
                     }
                 }
             }

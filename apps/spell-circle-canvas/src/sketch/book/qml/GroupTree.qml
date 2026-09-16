@@ -4,7 +4,6 @@ import QtQuick
 import Ifrit.Qt 1.0 as Ui
 import QtQuick.Controls
 import QtQuick.Layouts
-import Sigil.Sketchbook
 
 Rectangle {
     id: navigation
@@ -18,36 +17,44 @@ Rectangle {
     signal modeRequested(string mode)
     signal branchToggled(string path)
 
-    color: Ui.Theme.panelBackground
+    color: "transparent"
 
     function toggle(path) {
         const y = tree.contentY;
         navigation.branchToggled(path);
-        Qt.callLater(function() {
+        Qt.callLater(function () {
             tree.forceLayout();
-            const index = navigation.rows.findIndex(function(row) { return row.path === path; });
+            const index = navigation.rows.findIndex(function (row) {
+                return row.path === path;
+            });
             if (index >= 0)
                 tree.currentIndex = index;
-            tree.contentY = Math.max(tree.originY,
-                Math.min(y, tree.originY + Math.max(0, tree.contentHeight - tree.height)));
+            tree.contentY = Math.max(tree.originY, Math.min(y, tree.originY + Math.max(0, tree.contentHeight - tree.height)));
         });
     }
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 8
-        spacing: 6
+        anchors.margins: Ui.Theme.spacing
+        spacing: Ui.Theme.spacing
 
-        ComboBox {
-            id: modeChoice
-
+        Ui.SectionHeading {
             Layout.fillWidth: true
-            implicitHeight: 30
-            model: ["Subjects", "Collections"]
+            text: "BROWSE BY"
+        }
+        Ui.SegmentedControl {
+            Layout.fillWidth: true
+            model: [
+                {
+                    text: "Subjects"
+                },
+                {
+                    text: "Collections"
+                }
+            ]
             currentIndex: navigation.mode === "collections" ? 1 : 0
-            font.pixelSize: 12
             Accessible.name: "Group sketches by"
-            onActivated: navigation.modeRequested(currentIndex === 1 ? "collections" : "subjects")
+            onActivated: index => navigation.modeRequested(index === 1 ? "collections" : "subjects")
         }
 
         ItemDelegate {
@@ -55,13 +62,13 @@ Rectangle {
 
             Layout.fillWidth: true
             Layout.rightMargin: scrollbar.visible ? scrollbar.width : 0
-            implicitHeight: 32
+            implicitHeight: 38
             topPadding: 0
             bottomPadding: 0
             rightPadding: 7
             text: "All sketches"
             highlighted: navigation.selectedPath.length === 0
-            font.pixelSize: 12
+            font.pixelSize: Ui.Theme.bodySize
             onClicked: navigation.groupRequested("")
 
             contentItem: RowLayout {
@@ -69,7 +76,8 @@ Rectangle {
                     Layout.fillWidth: true
                     text: "All sketches"
                     color: navigation.selectedPath.length ? Ui.Theme.secondaryText : Ui.Theme.primaryText
-                    font.pixelSize: 12
+                    font.pixelSize: Ui.Theme.bodySize
+                    font.weight: Font.DemiBold
                 }
                 Label {
                     text: navigation.count
@@ -79,9 +87,8 @@ Rectangle {
                 }
             }
             background: Rectangle {
-                radius: 5
-                color: allSketches.highlighted ? Ui.Theme.selectionBackground
-                     : (allSketches.hovered ? Ui.Theme.controlHoverBackground : "transparent")
+                radius: Ui.Theme.cornerRadius
+                color: allSketches.highlighted ? Ui.Theme.selectionBackground : (allSketches.hovered ? Ui.Theme.controlHoverBackground : "transparent")
                 border.width: 1
                 border.color: allSketches.visualFocus ? Ui.Theme.accent : "transparent"
             }
@@ -99,7 +106,9 @@ Rectangle {
             model: navigation.rows
             spacing: 2
             boundsBehavior: Flickable.StopAtBounds
-            ScrollBar.vertical: ScrollBar { id: scrollbar }
+            ScrollBar.vertical: ScrollBar {
+                id: scrollbar
+            }
 
             // Arrow keys explore a branch; Enter chooses its results.
             Keys.onRightPressed: {
@@ -116,7 +125,7 @@ Rectangle {
                     return;
                 }
                 const parentPath = row.path.substring(0, row.path.lastIndexOf("/"));
-                const parentIndex = navigation.rows.findIndex(function(candidate) {
+                const parentIndex = navigation.rows.findIndex(function (candidate) {
                     return candidate.path === parentPath;
                 });
                 if (parentIndex >= 0)
@@ -141,7 +150,7 @@ Rectangle {
                 readonly property bool selected: navigation.selectedPath === modelData.path
 
                 width: tree.width - (scrollbar.visible ? scrollbar.width : 0)
-                height: 32
+                height: 36
                 topPadding: 0
                 bottomPadding: 0
                 leftPadding: 4 + modelData.depth * 12
@@ -155,12 +164,10 @@ Rectangle {
                 }
 
                 background: Rectangle {
-                    radius: 5
-                    color: group.selected ? Ui.Theme.selectionBackground
-                         : (group.hovered || disclosure.hovered ? Ui.Theme.controlHoverBackground : "transparent")
+                    radius: Ui.Theme.cornerRadius
+                    color: group.selected ? Ui.Theme.selectionBackground : (group.hovered || disclosure.hovered ? Ui.Theme.controlHoverBackground : "transparent")
                     border.width: 1
-                    border.color: tree.activeFocus && tree.currentIndex === group.index
-                        ? Ui.Theme.accent : "transparent"
+                    border.color: tree.activeFocus && tree.currentIndex === group.index ? Ui.Theme.accent : "transparent"
                 }
 
                 contentItem: RowLayout {
@@ -193,9 +200,9 @@ Rectangle {
                     Label {
                         Layout.fillWidth: true
                         text: group.modelData.label
-                        color: group.selected ? Ui.Theme.primaryText
-                             : (group.modelData.count ? Ui.Theme.secondaryText : Ui.Theme.secondaryText)
-                        font.pixelSize: 11
+                        color: group.selected || group.modelData.depth === 0 ? Ui.Theme.primaryText : Ui.Theme.secondaryText
+                        font.pixelSize: Ui.Theme.bodySize
+                        font.weight: group.modelData.depth === 0 ? Font.Medium : Font.Normal
                         elide: Text.ElideRight
                     }
                     Label {

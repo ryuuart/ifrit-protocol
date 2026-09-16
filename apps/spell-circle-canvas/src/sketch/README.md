@@ -695,7 +695,8 @@ the sketch the run opens on; a subscriber binds to it, so it is the
 run's and does not follow the sketch on screen. The status bar's **Publish**
 button and Ctrl-P invoke the same action. A normal launch without `--publish`
 starts with publishing off and uses **Sketchbook** when enabled. The status
-line distinguishes off, starting and publishing under the server's name.
+button shows whether publishing is enabled; the status line names a starting
+or active publisher and reports failures.
 If publication cannot start, the button returns to off and the canvas shows
 the reason until the next attempt; CPU rendering cannot publish frames.
 
@@ -1016,7 +1017,9 @@ and thumbnails, `Browser` filters and selects those rows,
 `SketchActions` runs frame, video and benchmark commands from a supplied
 row. Selection does not launch work. Commands own their subprocess and
 status, so exporting a sketch does not change the catalog or the live
-canvas. An empty command row selects the full registry for video export.
+canvas. A shared notice keeps command progress and its result visible outside
+the details drawer until dismissed. An empty command row selects the full
+registry for video export.
 
 - `core/Sources.h` — `SourceMetadata` and `sourceMetadata` read author prose
   without Qt; `sourceOf`, `directorySketch`, `sourcesUnder` and `unitsOf`
@@ -1028,12 +1031,14 @@ marshals its results onto the GUI thread. Captures and device readback
 remain on the render thread, sharing the context that owns the live
 session's images.
 
-The app is a BROWSER BESIDE A CANVAS, and the canvas never gives up its
-half. Going through a hundred sketches is a matter of looking at one
-after another, so the two questions are kept apart:
+The library and canvas occupy two resizable panels. Search, grouping, view
+mode and sorting live together in the library; the canvas has explicit Fit
+and actual-size controls. Details opens a drawer over the right edge at any
+window size and closes on Escape or a click outside it. The drawer starts
+closed, leaving the artwork its space. Browsing and presentation stay separate:
 
 * **selection is a look.** Arrow keys move it, a click moves it, and all
-  it moves is the inspector on the right. Whatever the canvas was
+  it moves is the selection and its details. Whatever the canvas was
   presenting keeps presenting while you read.
 * **Enter presents.** So does a double click, the Open action beneath
   the results, and the inspector's Open. This is the only thing that changes what is drawn —
@@ -1047,14 +1052,14 @@ after another, so the two questions are kept apart:
   the arrows back. A sketch with nothing for a pointer to do ignores what
   arrives, and a drag over a set still orbits it.
 
-The navigation rail groups sketches by **subject**, using tags from each
+The library's group picker opens a navigation tree grouped by **subject**, using tags from each
 sketch's opening comment. Paths such as `Typography/Paragraph` make an
 expandable tree. Selecting a parent includes all its descendants; a sketch
 with several tags appears in several groups, while every count and result
 list includes that sketch only once. Expanding a branch changes the tree
 without rebuilding the result views or changing the canvas.
 
-The rail's **Collections** option builds a tree from registration categories:
+The tree's **Collections** option builds a tree from registration categories:
 `Study · Type` becomes Study → Type. These are logical groups independent of
 source directories. **All sketches** clears the group filter, and **Untagged**
 keeps sketches without subject tags reachable. The selected group, grouping
@@ -1063,8 +1068,8 @@ separate list and gallery scroll positions during the run. The inspector's
 tag buttons open the corresponding subject group.
 
 Two views share the selected group, search and sort order, with a toggle in
-the top bar. Both show the same sort selector and direction above their
-results. Switching views preserves the selection and each view's scroll
+the library header. The adjacent sort menu selects a field and direction for
+either view. Switching views preserves the selection and each view's scroll
 position; it does not jump to the selected sketch. Equal sort values,
 including unknown session facts, are ordered by name so narrowing a search
 does not reshuffle ties.
@@ -1077,7 +1082,8 @@ does not reshuffle ties.
 
 Sketchbook uses the shared `Ifrit.Qt` system-palette theme and controls.
 It follows the operating system's light or dark appearance; rendered
-sketches keep their own palettes. View controls and sortable headings are
+sketches keep their own palettes. Panels, headings, search, selection, status
+and buttons reuse the same controls as the SigilWeave gallery. View controls and sortable headings are
 keyboard controls, search has an accessible clear action, and an empty
 result offers to clear the filters. The selected sketch's Open action
 remains visible when the details panel is hidden; a presented sketch offers
@@ -1092,7 +1098,7 @@ so another branch says how many results selecting it would show. A selected
 group with no hits keeps its name and shows an empty-state message.
 `/` puts the cursor in the search field and Escape empties it. **Clear
 filters** clears both the search text and selected group in either view;
-the smaller clear controls remove only their own search or group.
+the search clear action removes only the search; All sketches clears only the group.
 
 **The thumbnails are the app's own.** Sketchbook keeps one store — one PNG
 per sketch, under the platform cache location (`--thumbnails-dir` and the
