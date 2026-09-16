@@ -12,8 +12,9 @@ standalone Python interpreter, including headless file rendering.
 
 ## Direct bindings and convenient authorship
 
-The public direct binding surface is `sigil.native`: its `compose`,
-`draw` and `motion` namespaces expose the bound native types and verbs.
+The public direct binding surface is `sigil.native`: its library namespaces
+expose the bound native types and verbs, including `compose`, `draw`,
+`material`, `geometry`, `image`, `weave`, `core`, `motion` and `skia`.
 The separate authoring layer in `sigil.compose` adds keyword properties
 and child normalization. It produces those same native elements, so an
 author can mix both styles within one component:
@@ -41,7 +42,85 @@ build, with tests checking shared types, mixed construction and lifecycle
 contracts. Expanding the surface means deciding and testing each new
 Python contract, rather than maintaining a second renderer.
 
-## Build and run
+## Install and render
+
+The distribution is named `sigil-sketch`; its import package is `sigil`.
+Install a wheel matching the interpreter and platform shown in its
+filename. For a CPython 3.14 wheel:
+
+```sh
+uv venv .venv --python 3.14
+uv pip install --python .venv/bin/python dist/sigil_sketch-*.whl
+.venv/bin/sigil render sketch.py --output preview.png --at 2
+```
+
+The wheel includes example sketches. List them with `sigil examples`,
+then render one directly:
+
+```sh
+.venv/bin/sigil render --example python_orbits --output orbits.png
+```
+
+The optional `studies` extra adds NumPy for the vectorized examples. The
+base package has no third-party Python runtime dependencies.
+
+The installed command renders directly through the native canvas session.
+It needs no Sketchbook window, display server, `PYTHONPATH`, or source
+checkout. `python -m sigil render ...` is the same command. The Python API
+is also available from the installed environment:
+
+```python
+from sigil.sketch import render_file
+
+render_file("sketch.py", "preview.png", at=2.0)
+```
+
+The renderer accepts strings and `pathlib.Path` objects. Omitting `at`
+uses the capture moment declared by the sketch. The headless host steps
+the scene clock from zero, so native entrances and pen history are
+present in a capture. The CLI creates output directories as needed and
+returns a nonzero status when import, setup or rendering fails.
+
+## Build a wheel
+
+The application root contains the package's `pyproject.toml`. Its PEP 517
+backend uses scikit-build-core to configure CMake, build `sigil_python`,
+and install only the Python component. On macOS, delocate then copies
+required non-system dynamic libraries into the wheel and rewrites their
+load paths. The wheel's platform tag reflects those libraries' minimum
+macOS versions. The extension uses its importing Python interpreter;
+it does not bundle or link another libpython. Licensed optional SDKs are
+disabled for wheel builds.
+
+A source build needs the native dependencies and toolchain configured for
+the application. A wheel installation needs the matching Python and
+operating system, with its native libraries already included. Wheels are
+specific to the Python ABI and target architecture; the initial packaging
+workflow bundles macOS runtimes.
+
+After normal build setup, reuse the configured native build directory:
+
+```sh
+uv build --wheel --out-dir dist -Cbuild-dir=build
+```
+
+Use the same interpreter and CMake generator that configured that build,
+or select a separate build directory and supply the native toolchain and
+dependency paths with `-Ccmake.define.NAME=VALUE`. The wheel build does not
+build the sketch catalogue or application bundles. A source distribution
+is available through `uv build --sdist`; building it still requires the
+native dependencies. No distribution is published by these commands.
+
+Verify a built wheel with a fresh uv environment outside the checkout:
+
+```sh
+python3 src/sketch/python/packaging/check_wheel.py dist/sigil_sketch-*.whl
+```
+
+The check installs offline, removes Python path overrides, and compares
+images rendered by the installed CLI and by Python's isolated mode.
+
+## Develop with Sketchbook
 
 After the application's normal build setup, enable the optional feature
 from `apps/spell-circle-canvas`:
@@ -72,26 +151,9 @@ modules remain process-scoped. An exception during update or drawing
 stops that session until the next edit; its canvas may include drawing
 performed before the exception.
 
-The built package and extension are in `build/python`. Use the Python
-interpreter selected by CMake, since an extension belongs to that
-interpreter's ABI:
-
-```sh
-PYTHONPATH=build/python python3 - <<'PY'
-from sigil.sketch import render_file
-
-render_file(
-    "src/sketch/sketches/python_dashboard.py",
-    "/tmp/python-dashboard.png",
-    at=2.0,
-)
-PY
-```
-
-The renderer accepts strings and `pathlib.Path` objects. Omitting `at`
-uses the capture moment declared by the sketch. The headless host steps
-the scene clock from zero, so native entrances and pen history are
-present in a capture.
+The developer build also places the package and extension in
+`build/python`. That directory is for tests and in-tree development;
+the wheel is the installation artifact.
 
 ## A drawing
 
@@ -180,15 +242,16 @@ Keyword properties spell the common native setters in Python form:
 | `gap`, `left`, `top`, `inset`, `grow` | numbers |
 | `padding` | one number or a tuple of two or four numbers |
 | `corners` | one number or four corner radii |
-| `fill`, `ink` | a hex color string or a normalized RGB/RGBA tuple |
+| `fill`, `ink` | a hex color string or a normalized RGB/RGBA tuple; `fill` also takes a native material paint |
 | `absolute` | boolean |
 | `align_items`, `justify` | a supported alignment name |
 | `key` | a stable string |
 | `font_size`, `font_weight` | numbers |
 | `opacity`, `rotate`, `scale`, `scale_x`, `scale_y`, `translate_x`, `translate_y` | numbers or native motion declarations |
 
-Text takes `text(value, size=16, color="#ffffff", **properties)`. Font
-selection follows the host's native font context. Explicit retained
+Text takes `text(value, size=None, color=None, **properties)`; omitted size
+and color inherit from its container. Font selection follows the host's
+native font context. Explicit retained
 drawings use `graphics(program, key="identity", **properties)`.
 The graphics key identifies its paint program as well as its node:
 reusing it across descriptions promises an equivalent program. A drawing
@@ -204,6 +267,110 @@ fresh component call or `copy()` before changing a reused description.
 Descriptions already submitted to the native composer retain its
 copy-on-write behavior.
 
+## Drawing beyond the basic pen
+
+The pen exposes the geometry, shape contours, curves, clipping, dash,
+color models, text, transforms, images, input state and loop controls used
+by the Draw collections. `PARITY.md` maps those sketches to their native
+requirements and distinguishes audited surfaces from rendered Python ports.
+Seeded pen streams and `sigil.core.chance` keep deterministic models in the
+same native random vocabulary.
+
+Use `pen.canvas().drawPath(...)` or `drawPoints(...)` to submit native
+batches. `sigil.skia` supplies paths, a path builder, path operations,
+points, rectangles, matrices, images and paints. The canvas expires with
+the drawing callback. `pen.fillPaint()` and `strokePaint()` return an owned
+paint copy, or `None` when that style is disabled. A four-number rectangle
+tuple means `(x, y, width, height)`.
+
+`Graphics(width, height)` from `sigil.draw` is an offscreen canvas. Call
+`buffer.draw(pen, function)` to open and close it around a callback;
+`buffer.begin(pen)` and `buffer.end()` are the explicit form. An unclosed
+buffer closes when the host pen's callback ends, including on exceptions.
+Its pixels survive resizing, and `pen.image(buffer, ...)` draws them.
+
+Material paints come from `sigil.material.skia` as an attribute namespace:
+
+```python
+from sigil.material import field, skia
+
+paper = skia.Paint.recipe(field.grain(0.02, seed=23))
+glass = skia.Paint.sksl(shader_source, {"uStrength": 42})
+glass.slot("uSource", paper)
+# Inside draw(self, pen): pen.fill(glass, CANVAS)
+```
+
+The paint factories include solid colors, gradients, images, native field
+recipes, shader programs and layered blends. Compile a shader once in setup
+and change a copy's uniforms when re-describing it. Native `uTime`,
+`uResolution` and `uContentScale` retain their frame meanings. A child paint
+fills a shader input through `slot`; it is the native material graph.
+
+`sigil.image.from_rgba(buffer, width, height)` copies a contiguous RGBA byte
+buffer into an immutable native image. It accepts `bytearray`, `memoryview`
+and compatible NumPy arrays. This is the bridge for Python simulations:
+compute with an array library, then hand the finished pixels to the pen in
+one call. `image.decode`/`encode` operate on bytes, and `load`/`save` provide
+ordinary Python file access. Native `weave.Type`, relative lengths and
+typefaces can be passed to `pen.textFont` or an element's `font` method.
+
+## Natural media
+
+`from sigil.draw import brush` exposes the native brush library: tools,
+pressure envelopes, stylus dynamics, samplers, fields, hatches, washes,
+masses, plots, the brush engine, and brush decoding/encoding from bytes.
+Algorithms such as dab spacing, field tracing and pigment deposition run
+in that library. Python custom tips and fields use the same callback
+lifetime checks as the pen.
+
+Brush records accept keyword arguments and expose mutable fields. An
+embedded record such as `tool.pressure` is part of its parent, so changing
+`tool.pressure.start` changes that tool. Optional records such as a shape,
+grain or dynamics response are returned as independent copies: edit the
+copy and assign it back, or construct a replacement. Engine and catalogue
+selection values are copies as well. These semantics let a Python value
+survive replacing or clearing its former native owner.
+
+```python
+from sigil.draw import brush
+
+tool = brush.Tool()
+tool.width = 18
+tool.pressure.start = 0.1
+tool.pressure.end = 0.05
+# Inside draw(self, pen): brush.line(pen, tool, (40, 80), (280, 160))
+```
+
+## Meshes and the example gallery
+
+`from sigil.geometry import mesh` exposes the native mesh currency, stock
+solids, extrusion, lathing and parametric grids. `mesh.camera` owns cameras
+and model transforms; `mesh.render` owns lights, surface styles and mesh
+drawing. A Python function can define the parametric surface for
+`mesh.grid`; native geometry computes its tessellation and normals. Mesh
+array properties are copied Python values: assign the changed array back
+to update the native mesh.
+
+The mesh painter runs on its native CPU executor and works without a
+display or GPU. This surface does not expose SigilWorld's device scene,
+frame graph, compute operators or full PBR material system.
+
+The wheel includes these examples; `sigil examples` lists their names.
+Render one with `sigil render --example NAME -o preview.png`.
+
+| Example | What it exercises |
+| --- | --- |
+| `python_mesh_observatory` | Parametric 3D knot, lathed vessel, regular solid, camera, native lighting |
+| `python_liquid_glass` | Shader-driven refraction, nested shader inputs, moving field uniforms, Bezier filaments |
+| `python_botanical_study` | Layered natural media, native hatching and dry pigment |
+| `python_liquid_layers` | Pressure-shaped ribbons, wet fibres, pigment blooms and pattern materials |
+| `python_observable_flowfield` | Persistent particles and native batched line drawing |
+| `python_observable_l_system` | Python string rewriting, turtle stack and native geometry |
+| `python_observable_reynolds` | Stateful flocking, seeded initialization and transforms |
+| `python_observable_reaction_diffusion` | NumPy Gray–Scott simulation and bulk pixel transfer; needs the `studies` extra |
+| `python_dashboard` | Functions and iterables constructing retained native elements |
+| `python_orbits` | An animated immediate drawing with retained trails |
+
 ## Scope
 
 Imports follow library ownership: composition comes from `sigil.compose`,
@@ -216,9 +383,11 @@ delay=...)` and `transition(target, duration=..., delay=...)`, with times
 in seconds. The declarations carry their values into native composition;
 authors do not keep raw output pointers alive.
 
-The pen exposes basic geometry, paths, colors, text, transforms and the
-seeded random and noise functions. The experiment does not yet bind the
-complete typography, geometry, material, image, world or brush APIs.
+The experiment does not bind every API of every native library. Complete
+typography, world rendering, media pipelines and networking remain separate
+coverage decisions. The native brush `weightedChoice` template and generic
+byte-source loading are not exposed; Python can choose values and supply
+the brush decoder with bytes.
 Repeated drawing calls still cross into native code individually; a
 larger geometry operation should use a native batch API when one is
 available. Python supports experimentation and higher-level components

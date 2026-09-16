@@ -267,7 +267,11 @@ class Pen {
    *  which is a disc and not a stroke. A run with a negative length or
    *  no length at all is no dash. It is style, so `push` saves it and
    *  `pop` puts it back. */
-  void strokeDash(std::initializer_list<float> intervals, float phase = 0);
+  void strokeDash(std::span<const float> intervals, float phase = 0);
+  void strokeDash(std::initializer_list<float> intervals, float phase = 0) {
+    strokeDash(std::span<const float>{intervals.begin(), intervals.size()},
+               phase);
+  }
   void noDash();
 
   // ---- blending ------------------------------------------------------------
@@ -676,9 +680,10 @@ class Pen {
  *
  *  The pen lives for the call and no longer: nothing is kept between
  *  bakes, which is what separates this from `Graphics`. It has no clock —
- *  a picture drawn once has no time in it — so `millis()`, `frameCount`
- *  and `deltaTime` read zero; a drawing that moves is a node's program
- *  and not a bake. @p fonts is what text is shaped with; a bake with none
+ *  a picture drawn once has no time in it — so `millis()` and `deltaTime`
+ *  read zero. `frameCount` is one, so first-frame setup runs on the bake.
+ *  A drawing that moves is a node's program and not a bake.
+ *  @p fonts is what text is shaped with; a bake with none
  *  sets none. */
 void on(SkCanvas& canvas, SkSize size, const std::function<void(Pen&)>& program,
         weave::FontContext* fonts = nullptr);

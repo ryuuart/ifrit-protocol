@@ -2,8 +2,16 @@ find_package(Python3 3.12 COMPONENTS Interpreter Development.Module Development.
 set(PYBIND11_FINDPYTHON ON)
 find_package(pybind11 CONFIG REQUIRED)
 
-target_sources(SigilSketch PRIVATE Python.cpp Bindings.cpp Module.cpp)
-target_link_libraries(SigilSketch PRIVATE pybind11::embed)
+target_sources(SigilSketch PRIVATE Python.cpp Bindings.cpp Module.cpp
+  PenBindings.cpp ValueBindings.cpp GeometryBindings.cpp BrushBindings.cpp)
+target_link_libraries(SigilSketch PRIVATE pybind11::headers
+  SigilGeometryMeshRender SigilGeometryKit SigilMaterialPattern SigilMaterialField
+  SigilImageDecode SigilImageEncode SigilDrawBrush SigilDrawBrushFormat)
+target_include_directories(SigilSketch PRIVATE ${Python3_INCLUDE_DIRS})
+# Executable consumers embed Python; an extension resolves Python's symbols
+# from its importing interpreter and must not load another libpython.
+target_link_libraries(SigilSketch INTERFACE
+  "$<$<NOT:$<BOOL:$<TARGET_PROPERTY:SIGIL_PYTHON_EXTENSION>>>:Python3::Python>")
 target_compile_definitions(SigilSketch PUBLIC SIGILSKETCH_PYTHON)
 target_compile_definitions(SigilSketch PRIVATE
   SIGIL_PYTHON_PACKAGE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
@@ -14,11 +22,36 @@ pybind11_add_module(sigil_python NO_EXTRAS Module.cpp)
 target_link_libraries(sigil_python PRIVATE SigilSketch)
 set_target_properties(sigil_python PROPERTIES
   OUTPUT_NAME _sigil
+  SIGIL_PYTHON_EXTENSION ON
+  INSTALL_RPATH_USE_LINK_PATH ON
   LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python/$<0:>")
+if(APPLE)
+  target_link_options(sigil_python PRIVATE "LINKER:-dead_strip_dylibs")
+endif()
 add_custom_target(sigil_python_package
   COMMAND ${CMAKE_COMMAND} -E copy_directory
     "${CMAKE_CURRENT_SOURCE_DIR}/sigil" "${CMAKE_BINARY_DIR}/python/sigil")
 add_dependencies(sigil_python sigil_python_package)
+
+install(TARGETS sigil_python
+  LIBRARY DESTINATION . COMPONENT SigilPython
+  RUNTIME DESTINATION . COMPONENT SigilPython)
+install(DIRECTORY sigil DESTINATION . COMPONENT SigilPython
+  FILES_MATCHING PATTERN "*.py" PATTERN "__pycache__" EXCLUDE)
+file(GLOB SIGIL_PYTHON_EXAMPLES CONFIGURE_DEPENDS
+  "${CMAKE_CURRENT_SOURCE_DIR}/../sketches/python_*.py")
+install(FILES ${SIGIL_PYTHON_EXAMPLES}
+  DESTINATION sigil/examples COMPONENT SigilPython)
+if(DEFINED VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET)
+  file(GLOB SIGIL_PYTHON_DEPENDENCY_LICENSES
+    "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/share/*/copyright")
+  foreach(license IN LISTS SIGIL_PYTHON_DEPENDENCY_LICENSES)
+    get_filename_component(package "${license}" DIRECTORY)
+    get_filename_component(package "${package}" NAME)
+    install(FILES "${license}" DESTINATION "sigil/_licenses/${package}"
+      COMPONENT SigilPython)
+  endforeach()
+endif()
 
 sigil_test(sketch_test
   SOURCES test/PythonTest.cpp
@@ -27,4 +60,5 @@ sigil_test(sketch_test
 add_test(NAME sketch_python_authoring
   COMMAND ${CMAKE_COMMAND} -E env
     "PYTHONPATH=${CMAKE_BINARY_DIR}/python"
-    ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/test/test_authoring.py")
+    ${Python3_EXECUTABLE} -m unittest discover
+      -s "${CMAKE_CURRENT_SOURCE_DIR}/test" -p "test_*.py")

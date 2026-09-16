@@ -5,6 +5,25 @@ intended to do, and what a test should assert once intent is restored.
 Entries are deleted as they are fixed, and the file is deleted when it is
 empty.
 
+## Sketch documentation probes include web headers when Ultralight is disabled
+
+**What the code does.** Configuring with
+`CMAKE_DISABLE_FIND_PACKAGE_Ultralight=ON` and building Sketchbook and
+`sketch_test` fails while including `sigilsketch/scry/SettledPage.h`, whose
+`sigilscry/engine/WebView.h` dependency is unavailable. The generated sketch
+documentation probe includes the web headers even though the library omits
+its web sources, public headers and tests when `SigilScry` is absent.
+
+**What it was evidently intended to do.** The native host and its non-web
+tests build without the optional web SDK. Documentation probes should check
+the API surface present in that configuration. The Python extension target
+can already build with the SDK disabled.
+
+**What a test should assert.** Configure without Ultralight and build
+Sketchbook, `sketch_test` and the sketch documentation probes successfully;
+then configure with the SDK and verify that web API documentation is still
+checked.
+
 ## live_settling's plate disagrees with itself: a line-break budget spent against a clock decides what is drawn
 
 **What the code does.** `live_settling` renders to one of two plates

@@ -100,8 +100,8 @@ def column(*children, **properties):
     return box(*children, **properties).column()
 
 
-def text(value, *, size=16.0, color="#ffffff", **properties):
-    """Build native text with its initial font size and color."""
+def text(value, *, size=None, color=None, **properties):
+    """Build native text; omitted size and color inherit from its container."""
     if not isinstance(value, str):
         raise TypeError("text content must be a string")
     return _style(_native.text(value, size=size, color=color), properties)

@@ -3,6 +3,7 @@
 build/
 build-*/
 CMakeUserPresets.json
+dist/
 
 ## Qt
 .qmlls.ini

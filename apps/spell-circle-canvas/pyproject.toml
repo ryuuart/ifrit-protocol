@@ -1,0 +1,42 @@
+[build-system]
+requires = [
+  "scikit-build-core>=0.12",
+  "pybind11>=3.0",
+  "delocate>=0.13; sys_platform == 'darwin'",
+]
+build-backend = "backend"
+backend-path = ["src/sketch/python/packaging"]
+
+[project]
+name = "sigil-sketch"
+version = "0.1.0a1"
+description = "Native Sigil drawing libraries and headless Python sketches"
+readme = "src/sketch/python/README.md"
+requires-python = ">=3.12"
+license-files = ["COPYING", "COPYING.LESSER"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: C++",
+  "Topic :: Multimedia :: Graphics",
+]
+
+[project.scripts]
+sigil = "sigil.cli:main"
+
+[project.optional-dependencies]
+studies = ["numpy>=2.0"]
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+cmake.version = ">=3.31"
+cmake.build-type = "Release"
+build.targets = ["sigil_python"]
+install.components = ["SigilPython"]
+wheel.packages = []
+sdist.exclude = ["build*", "dist", ".venv*", "CMakeUserPresets.json"]
+
+[tool.scikit-build.cmake.define]
+SIGIL_SKETCH_PYTHON = true
+CMAKE_DISABLE_FIND_PACKAGE_Ultralight = true
+CMAKE_DISABLE_FIND_PACKAGE_Substance = true

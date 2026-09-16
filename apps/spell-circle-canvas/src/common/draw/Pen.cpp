@@ -351,7 +351,7 @@ void Pen::strokeJoin(Constant join) {
   m_style.join = joinOf(join);
   m_strokePaint.setStrokeJoin(m_style.join);
 }
-void Pen::strokeDash(std::initializer_list<float> intervals, float phase) {
+void Pen::strokeDash(std::span<const float> intervals, float phase) {
   std::vector<SkScalar> run(intervals.begin(), intervals.end());
   // An odd run repeats itself, so {6} is six drawn and six skipped —
   // which is what a line dash of an odd length means everywhere else.

@@ -30,14 +30,17 @@ void interpreter() {
   // interpreter belongs to the process and outlives all such callbacks.
   // An ordinary Python process already owns its interpreter.
   static std::once_flag initialized;
+  static bool embedded = false;
   std::call_once(initialized, [] {
     if (!Py_IsInitialized()) {
       if (PyImport_AppendInittab("_sigil", &PyInit__sigil) == -1)
         throw std::runtime_error("Could not register the Sigil Python module");
       py::initialize_interpreter(false, 0, nullptr, false);
+      embedded = true;
       PyEval_SaveThread();
     }
   });
+  if (!embedded) return;
   const py::gil_scoped_acquire lock;
   py::list path = py::module_::import("sys").attr("path");
   const py::str packageRoot(SIGIL_PYTHON_PACKAGE_DIR);

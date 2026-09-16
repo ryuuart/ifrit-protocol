@@ -3,13 +3,55 @@
 #include <include/core/SkColor.h>
 #include <pybind11/pybind11.h>
 
+#include <functional>
 #include <memory>
+#include <thread>
+#include <vector>
+
+namespace sigil::draw {
+class Pen;
+}
 
 namespace sigil::sketch::python {
 
 /** Reads a native color from a string or an RGB or RGBA sequence whose
  *  channels are between zero and one. Requires the interpreter lock. */
 SkColor4f color(pybind11::handle value);
+
+/** A callback-scoped pen. Native extensions pass this same checked wrapper
+ *  through every binding that draws, including offscreen and brush calls. */
+class BorrowedPen {
+ public:
+  explicit BorrowedPen(draw::Pen& pen);
+  draw::Pen& get() const;
+  void invalidate();
+  void whenClosed(std::function<void()> cleanup);
+
+ private:
+  const std::thread::id m_thread;
+  draw::Pen* m_pen;
+  std::vector<std::function<void()>> m_cleanup;
+};
+
+draw::Pen& pen(pybind11::handle value);
+void invokePen(const pybind11::function& function, draw::Pen& pen);
+
+/** A callable held by native values, released when its session closes.
+ *  get() requires the interpreter lock and returns an owning reference. */
+class PythonCallback {
+ public:
+  explicit PythonCallback(pybind11::function function);
+  ~PythonCallback();
+  PythonCallback(const PythonCallback&) = delete;
+  PythonCallback& operator=(const PythonCallback&) = delete;
+  pybind11::function get() const;
+  void clear();
+
+ private:
+  PyObject* m_callable;
+};
+
+std::shared_ptr<PythonCallback> retainCallback(pybind11::function function);
 
 /** A session's weak registry of native drawing callbacks. Closing the
  *  session releases their Python callables even when an author retains an
@@ -26,7 +68,7 @@ class CallbackLifetime {
  private:
   struct Impl;
   std::unique_ptr<Impl> m_impl;
-  friend void bindDrawing(pybind11::module_& module);
+  friend std::shared_ptr<PythonCallback> retainCallback(pybind11::function);
 };
 
 /** Associates callbacks constructed on this thread with a session. The

@@ -133,8 +133,9 @@ on(*surface->getCanvas(), {120, 80}, [&](Pen& pen) {
 ```
 
 The pen lives for the call and nothing is kept between bakes, which is
-what separates it from `Graphics`; `millis()`, `frameCount` and
-`deltaTime` read zero, because a picture drawn once has no time in it.
+what separates it from `Graphics`; `millis()` and `deltaTime` read zero,
+because a picture drawn once has no time in it. `frameCount` is one, so
+first-frame drawing setup runs on a bake as it does on a live pen.
 
 ## p5's semantics, kept
 
