@@ -45,6 +45,7 @@ GridLayout {
         Layout.preferredWidth: root.labelWidth
     }
     ComboBox {
+        Accessible.name: "Font Style"
         Layout.preferredWidth: root.fieldWidth
         model: root.fontDatabase.styles(root.selectedFont.family)
         currentIndex: model.indexOf(root.fontDatabase.styleForFont(root.selectedFont))
@@ -56,6 +57,7 @@ GridLayout {
         Layout.preferredWidth: root.labelWidth
     }
     SpinBox {
+        Accessible.name: "Font Size"
         from: root.minimumPointSize
         to: root.maximumPointSize
         editable: true

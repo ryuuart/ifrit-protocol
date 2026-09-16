@@ -72,6 +72,9 @@ class SketchbookView : public QQuickRhiItem {
    *  saved path (or an empty string on failure) arrives via
    *  captureReady(). Writes beside the sketch, under captures/. */
   Q_INVOKABLE void capture();
+  /** Starts the presented sketch's session from zero on the render thread,
+   *  preserving its resident host, source watcher and build state. */
+  Q_INVOKABLE void replay();
   /** Offers every frame drawn from here on to other applications, or
    *  stops offering them. Render-thread work, so it travels the way a
    *  capture request does: the renderer reads it on the next
@@ -229,4 +232,5 @@ class SketchbookView : public QQuickRhiItem {
   QString m_errorLog;
   QString m_state = QStringLiteral("waiting");
   int m_captureRequests = 0;  // consumed by the renderer in synchronize()
+  int m_replayIndex = -1;     // consumed by the renderer in synchronize()
 };

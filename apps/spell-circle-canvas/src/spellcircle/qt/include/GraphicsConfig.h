@@ -1,6 +1,7 @@
 #pragma once
 #include <QColor>
 #include <QFont>
+#include <QJsonObject>
 #include <QObject>
 
 /** Geometry of the labelled boxes a scene can attach to its points, exposed as
@@ -127,7 +128,16 @@ class GraphicsConfig : public QObject {
   Q_PROPERTY(int generation READ generation NOTIFY generationChanged)
 
  public:
-  explicit GraphicsConfig(QObject* parent = nullptr);
+  /** Uses the supplied settings directory when present. If it has no
+   *  graphics file, reads the import directory before the executable's
+   *  adjacent file. Saving always writes to the settings directory. */
+  explicit GraphicsConfig(QObject* parent = nullptr,
+                          QString storageDirectory = {},
+                          QString importDirectory = {});
+
+  /** A value snapshot for a settings editor's explicit accept/cancel. */
+  QJsonObject snapshot() const;
+  void restore(const QJsonObject& values);
 
   /** The single color a scene is drawn in: circles, edges, box borders, and
    *  label text, with fills using the same color at a per-item alpha. A scene
@@ -211,7 +221,7 @@ class GraphicsConfig : public QObject {
    *  the per-user application config directory
    *  (QStandardPaths::AppConfigLocation) — writable, outside the application
    *  bundle, and surviving a reinstall of the app. */
-  static QString configFilePath();
+  QString configFilePath() const;
   /** graphics_config.json in the directory holding the running executable,
    *  which on macOS is inside the .app bundle. Read only, and only when
    *  configFilePath() does not exist yet: a file that ended up here keeps
@@ -223,6 +233,8 @@ class GraphicsConfig : public QObject {
    *  grouped objects' changed() signals are connected to it. */
   void bumpGeneration();
 
+  QString m_storageDirectory;
+  QString m_importDirectory;
   QColor m_color{"#ff0000"};
   qreal m_strokeWidth = 4.0;
   qreal m_scale = 1.0;

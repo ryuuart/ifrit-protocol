@@ -23,9 +23,9 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
-import Ifrit.Ui 1.0 as Ui
+import Ifrit.Qt 1.0 as Ui
 
-Ui.GlassPanel {
+Ui.Panel {
     id: pane
 
     required property var session
@@ -40,30 +40,14 @@ Ui.GlassPanel {
     }
 
     radius: 12
+    padding: 14
 
-    // The ground the pane stands on, rounded to the panel's own corners
-    // and outlined, so a pane reads as a pane on a window wearing the
-    // machine's glass and on one painting its own opaque colour alike.
-    Rectangle {
-        anchors.fill: parent
-        color: Ui.Theme.panelBackground
-        radius: pane.radius
-        border.width: 1
-        border.color: Ui.Theme.border
-    }
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 14
         spacing: 10
 
-        Label {
-            text: "CONNECTIONS"
-            color: Ui.Theme.secondaryText
-            font.pixelSize: 11
-            font.letterSpacing: 1.5
-            font.weight: Font.DemiBold
-        }
+        Ui.SectionHeading { text: "Connections" }
 
         RowLayout {
             Layout.fillWidth: true
@@ -102,9 +86,15 @@ Ui.GlassPanel {
                 text: pane.session.schemaRoot.length > 0 ? pane.session.schemaRoot : "no schema"
                 color: pane.session.schemaRoot.length > 0 ? Ui.Theme.primaryText : Ui.Theme.disabledText
                 font.family: Ui.Theme.monospaceFontFamily
-                font.pixelSize: 11
+                font.pixelSize: Ui.Theme.captionSize
                 elide: Text.ElideMiddle
             }
+        }
+
+        Button {
+            Layout.fillWidth: true
+            text: "Open Receiver"
+            onClicked: pane.session.openReceiver()
         }
 
         ListView {
@@ -170,7 +160,7 @@ Ui.GlassPanel {
                             Layout.fillWidth: true
                             text: wire.error.length > 0 ? wire.error : wire.address.length > 0 ? wire.address : "not bound"
                             color: wire.error.length > 0 ? Ui.Theme.primaryText : Ui.Theme.secondaryText
-                            font.pixelSize: 11
+                            font.pixelSize: Ui.Theme.captionSize
                             elide: Text.ElideRight
                         }
 
@@ -185,7 +175,7 @@ Ui.GlassPanel {
                             text: wire.dialect.length === 0 ? "from " + wire.lastFrom : wire.lastFrom.length === 0 ? wire.dialect : wire.dialect + " · from " + wire.lastFrom
                             color: Ui.Theme.disabledText
                             font.family: Ui.Theme.monospaceFontFamily
-                            font.pixelSize: 11
+                            font.pixelSize: Ui.Theme.captionSize
                             elide: Text.ElideMiddle
                         }
                     }
@@ -199,7 +189,7 @@ Ui.GlassPanel {
                             text: wire.arrivalsPerSecond >= 0.05 ? wire.arrivalsPerSecond.toFixed(1) + "/s" : "—"
                             color: Ui.Theme.primaryText
                             font.family: Ui.Theme.monospaceFontFamily
-                            font.pixelSize: 11
+                            font.pixelSize: Ui.Theme.captionSize
                         }
 
                         Label {
@@ -207,13 +197,13 @@ Ui.GlassPanel {
                             text: wire.dropped > 0 ? wire.generation + " · " + wire.dropped + " lost" : String(wire.generation)
                             color: Ui.Theme.secondaryText
                             font.family: Ui.Theme.monospaceFontFamily
-                            font.pixelSize: 11
+                            font.pixelSize: Ui.Theme.captionSize
                         }
                     }
 
                     ToolButton {
                         text: "Close"
-                        font.pixelSize: 11
+                        font.pixelSize: Ui.Theme.captionSize
                         onClicked: pane.session.close(wire.index)
                     }
                 }
@@ -223,7 +213,7 @@ Ui.GlassPanel {
                 anchors.centerIn: parent
                 text: "No wires open"
                 color: Ui.Theme.disabledText
-                font.pixelSize: 13
+                font.pixelSize: Ui.Theme.bodySize
                 visible: wireView.count === 0
             }
         }

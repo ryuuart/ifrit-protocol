@@ -1,5 +1,5 @@
 # SpellCircleMac — the native macOS SwiftUI companion app. A separate
-# executable from the Qt `SpellCircle` receiver: same UDP wire protocol,
+# executable from Seer's Qt receiver: same UDP wire protocol,
 # same shared C++ core (SpellCircleScene decode/resolve/draw +
 # SigilSkia Metal/Graphite plumbing), same Syphon server name — but
 # AppKit/SwiftUI chrome with Liquid Glass panels instead of Qt Quick. The

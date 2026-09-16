@@ -3,7 +3,8 @@
 // reader glances at rather than reads.
 
 import QtQuick
-import QtQuick.Controls.Basic
+import Ifrit.Qt 1.0 as Ui
+import QtQuick.Controls
 import QtQuick.Layouts
 import Sigil.Sketchbook
 
@@ -39,13 +40,13 @@ Rectangle {
     signal captureRequested
     signal timeScaleRequested(real scale)
 
-    implicitHeight: 32
-    color: Theme.panel
+    implicitHeight: 40
+    color: Ui.Theme.solidPanelBackground
 
     Rectangle {
         width: parent.width
         height: 1
-        color: Theme.ruleSoft
+        color: Ui.Theme.separator
     }
 
     RowLayout {
@@ -54,43 +55,28 @@ Rectangle {
         anchors.rightMargin: 12
         spacing: 10
 
-        // Green live, amber compiling (pulsing), red failed, grey
-        // waiting.
-        Rectangle {
-            id: dot
-
-            Layout.preferredWidth: 8
-            Layout.preferredHeight: 8
-            radius: 4
-            color: strip.filling ? Theme.warn
-                 : strip.hostState === "live" ? Theme.good
-                 : strip.hostState === "compiling" ? Theme.warn
-                 : strip.hostState === "failed" ? "#ff5a6e"
-                 : "#5a5f73"
-            SequentialAnimation on opacity {
-                running: strip.filling || strip.hostState === "compiling"
-                loops: Animation.Infinite
-                NumberAnimation { to: 0.25; duration: 350 }
-                NumberAnimation { to: 1.0; duration: 350 }
-                onRunningChanged: if (!running) dot.opacity = 1
-            }
-        }
         Label {
+            Layout.maximumWidth: 160
+            Layout.minimumWidth: 0
             text: strip.filling
                 ? "thumbnails " + strip.fillDone + "/" + strip.fillTotal + " …"
                 : strip.sketch
-            color: Theme.text
+            color: Ui.Theme.primaryText
             font.pixelSize: 12
             visible: text.length > 0
-        }
-        Label {
-            text: strip.filling ? strip.fillNote : strip.status
-            color: strip.filling ? Theme.muted
-                 : strip.hostState === "failed" ? Theme.bad
-                 : strip.hostState === "compiling" ? "#ffd9a0" : Theme.good
-            font.family: Theme.mono
-            font.pixelSize: 11
             elide: Text.ElideRight
+        }
+        Ui.StatusIndicator {
+            text: strip.capture || (strip.filling ? strip.fillNote : strip.status)
+            tone: strip.capture === "capture failed" ? "error"
+                : strip.capture.length > 0 ? "good"
+                : strip.filling || strip.hostState === "compiling" ? "warning"
+                : strip.hostState === "failed" ? "error"
+                : strip.hostState === "live" ? "good" : "neutral"
+            busy: strip.capture.length === 0
+                && (strip.filling || strip.hostState === "compiling")
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
             Layout.maximumWidth: 280
         }
         // WHERE THE THING ON SCREEN LIVES: the file you would open to
@@ -99,44 +85,46 @@ Rectangle {
         Label {
             Layout.fillWidth: true
             Layout.minimumWidth: 0
+            visible: strip.width >= 1100
             text: strip.path
-            color: Theme.faintest
-            font.family: Theme.mono
-            font.pixelSize: 10
+            color: Ui.Theme.secondaryText
+            font.family: Ui.Theme.monospaceFontFamily
+            font.pixelSize: Ui.Theme.captionSize
             elide: Text.ElideLeft
         }
         Label {
-            text: strip.capture
-            color: Theme.good
-            font.family: Theme.mono
-            font.pixelSize: 10
-            visible: text.length > 0
-        }
-        Label {
+            Layout.maximumWidth: 160
+            Layout.minimumWidth: 0
             text: "◉ publishing · " + strip.publication
-            color: Theme.good
-            font.family: Theme.mono
-            font.pixelSize: 10
+            color: Ui.Theme.statusText
+            font.family: Ui.Theme.monospaceFontFamily
+            font.pixelSize: Ui.Theme.captionSize
             visible: strip.publication.length > 0
+            elide: Text.ElideMiddle
+            ToolTip.visible: publicationHover.hovered
+            ToolTip.text: "Publishing as " + strip.publication
+            HoverHandler { id: publicationHover }
         }
         // The keys, beside what they act on rather than after the
         // controls: this is the line a reader is already looking at
         // when they wonder how to move.
         Label {
             Layout.maximumWidth: 210
+            visible: strip.width >= 1450
             text: strip.hints
-            color: Theme.faintest
-            font.family: Theme.mono
-            font.pixelSize: 10
+            color: Ui.Theme.secondaryText
+            font.family: Ui.Theme.monospaceFontFamily
+            font.pixelSize: Ui.Theme.captionSize
             elide: Text.ElideRight
         }
 
         // ---- The clock ----
-        ToolButton {
+        Ui.IconButton {
             text: strip.paused ? "▶" : "❚❚"
-            font.pixelSize: 10
-            implicitWidth: 26
-            implicitHeight: 22
+            tooltip: strip.paused ? "Resume scene" : "Pause scene"
+            font.pixelSize: Ui.Theme.captionSize
+            implicitWidth: Ui.Theme.controlHeight
+            implicitHeight: Ui.Theme.controlHeight
             ToolTip.visible: hovered
             ToolTip.delay: 700
             ToolTip.text: strip.paused ? "Resume the scene clock"
@@ -150,18 +138,19 @@ Rectangle {
             from: 0.1
             to: 4.0
             value: strip.timeScale
+            Accessible.name: "Scene speed"
             onMoved: strip.timeScaleRequested(speed.value)
         }
         Label {
             text: speed.value.toFixed(2) + "×"
-            color: Theme.muted
-            font.family: Theme.mono
-            font.pixelSize: 10
+            color: Ui.Theme.secondaryText
+            font.family: Ui.Theme.monospaceFontFamily
+            font.pixelSize: Ui.Theme.captionSize
         }
-        ToolButton {
+        Ui.IconButton {
             text: "Capture"
             font.pixelSize: 11
-            implicitHeight: 22
+            implicitHeight: Ui.Theme.controlHeight
             ToolTip.visible: hovered
             ToolTip.delay: 700
             ToolTip.text: "Save the frame on screen beside the sketch"
@@ -169,13 +158,14 @@ Rectangle {
         }
 
         Label {
+            visible: strip.width >= 1200
             text: (strip.metrics.backend ?? "")
                 + (strip.metrics.fps !== undefined
                     ? " · " + strip.metrics.fps.toFixed(0) + " fps presented"
                     : "")
-            color: Theme.faint
-            font.family: Theme.mono
-            font.pixelSize: 10
+            color: Ui.Theme.secondaryText
+            font.family: Ui.Theme.monospaceFontFamily
+            font.pixelSize: Ui.Theme.captionSize
         }
     }
 }

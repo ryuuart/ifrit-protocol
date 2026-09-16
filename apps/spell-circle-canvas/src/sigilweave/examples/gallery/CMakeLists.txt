@@ -73,6 +73,8 @@ target_include_directories(WeaveGallery PRIVATE include
 
 target_link_libraries(WeaveGallery
   PRIVATE
+    IfritQt
+    IfritQtplugin
     Qt6::Quick
     Qt6::QuickControls2
     Qt6::GuiPrivate # QRhi API (rhi/qrhi.h) used by the QQuickRhiItem renderer

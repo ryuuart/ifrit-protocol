@@ -1025,8 +1025,8 @@ after another, so the two questions are kept apart:
 * **selection is a look.** Arrow keys move it, a click moves it, and all
   it moves is the inspector on the right. Whatever the canvas was
   presenting keeps presenting while you read.
-* **Enter presents.** So does a double click, and so does the
-  inspector's Open. This is the only thing that changes what is drawn —
+* **Enter presents.** So does a double click, the Open action beneath
+  the results, and the inspector's Open. This is the only thing that changes what is drawn —
   and the resident set is what makes it cheap, because a sketch already
   opened comes back without being built again. It is also what ends the
   thumbnail fill: from there on the canvas is what draws.
@@ -1059,10 +1059,19 @@ position; it does not jump to the selected sketch. Equal sort values,
 including unknown session facts, are ordered by name so narrowing a search
 does not reshuffle ties.
 
-* **the list** (the default) — one row per sketch, with the thumbnail,
+* **the list** — one row per sketch, with the thumbnail,
   blurb, collection, runtime, canvas, declared moment and line count in
   columns. Clicking a column heading orders by it; clicking again reverses.
-* **the gallery** — every matching sketch as its own still.
+* **the gallery** (the default when no view preference is saved) — every
+  matching sketch as its own still, a short description and an Open action.
+
+Sketchbook uses the shared `Ifrit.Qt` system-palette theme and controls.
+It follows the operating system's light or dark appearance; rendered
+sketches keep their own palettes. View controls and sortable headings are
+keyboard controls, search has an accessible clear action, and an empty
+result offers to clear the filters. The selected sketch's Open action
+remains visible when the details panel is hidden; a presented sketch offers
+Replay to restart its animation.
 
 The filter takes free words and field words together, and every word has
 to match. Free words search names, categories, tags, blurbs and file stems;

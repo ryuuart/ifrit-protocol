@@ -28,6 +28,7 @@
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
+#include <future>
 #include <locale>
 #include <memory>
 #include <optional>
@@ -220,10 +221,24 @@ void Door::receive() {
 
 void Door::close() {
   closed.store(true, std::memory_order_release);
-  boost::asio::post(strand, [self = shared_from_this()] {
+  // One worker owns this context. Closing on that worker is already
+  // serialized; an outside caller waits until the strand returns the port.
+  // The door holds the context's owner, so it cannot stop during this wait.
+  if (io->context().get_executor().running_in_this_thread() ||
+      io->context().stopped()) {
+    error_code ignored;
+    socket.close(ignored);
+    return;
+  }
+  std::promise<void> completed;
+  auto finished = completed.get_future();
+  boost::asio::post(strand, [self = shared_from_this(),
+                             completed = std::move(completed)]() mutable {
     error_code ignored;
     self->socket.close(ignored);
+    completed.set_value();
   });
+  finished.get();
 }
 
 bool Door::send(const Bytes& datagram) {

@@ -75,7 +75,7 @@ if(COMMAND sigil_finalize_sketch_link_surfaces)
 endif()
 
 include(GNUInstallDirs)
-install(TARGETS SpellCircle
+install(TARGETS Seer
     BUNDLE DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

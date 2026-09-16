@@ -16,8 +16,10 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 QStringList SeerSession::opensOn;
+QString SeerSession::receivesOn;
 QString SeerSession::readsThrough;
 QString SeerSession::sendsTo;
 std::optional<QString> SeerSession::says;
@@ -36,7 +38,18 @@ std::filesystem::path pathOf(const QUrl& url) {
 
 }  // namespace
 
-SeerSession::SeerSession(QObject* parent) : QObject(parent) {
+SeerSession::SeerSession(QObject* parent, QString settingsDirectory,
+                         QString importDirectory)
+    : QObject(parent),
+      m_receiver(m_wires, this, std::move(settingsDirectory),
+                 std::move(importDirectory),
+                 [this](std::function<void()> action) {
+                   return deferWireChange(std::move(action));
+                 }) {
+  connect(&m_receiver, &Receiver::wiresChanged, this, [this] {
+    m_wires.tick(elapsed());
+    publish();
+  });
   connect(&m_frame, &QTimer::timeout, this, &SeerSession::tick);
   m_frame.setInterval(kFrameMilliseconds);
   m_frame.start();
@@ -64,6 +77,7 @@ SeerSession::SeerSession(QObject* parent) : QObject(parent) {
   // then: an editor reads what it holds as it is built and is the
   // reader's to type into afterwards.
   if (says) m_unsaid = m_sendForm.fill(*says);
+  if (!receivesOn.isEmpty()) openReceiver(receivesOn);
 }
 
 SeerSession::~SeerSession() = default;
@@ -89,7 +103,14 @@ std::shared_ptr<sigil::io::Feed> SeerSession::selectedFeed() const {
   return m_wires.feed(m_selectedUri.toStdString());
 }
 
+bool SeerSession::deferWireChange(std::function<void()> action) {
+  if (!m_draining) return false;
+  m_afterDrain.push_back(std::move(action));
+  return true;
+}
+
 void SeerSession::tick() {
+  if (m_draining) return;
   const double seconds = elapsed();
   // The recordings move first, so what one of them delivered this frame
   // is read by the tick below rather than a frame later.
@@ -105,20 +126,44 @@ void SeerSession::tick() {
     m_sendForm.sendOnce();
   }
 
-  if (const std::shared_ptr<sigil::io::Feed> feed = selectedFeed()) {
-    const size_t taken = m_log.drain(*feed);
-    // Echoing takes the messages out of the log rather than off the
-    // feed: a feed hands a message out once, and the log is where it
-    // is after that.
-    const std::deque<sigil::seer::LogEntry>& entries = m_log.entries();
-    const size_t echoed = taken < entries.size() ? taken : entries.size();
-    for (size_t at = entries.size() - echoed; at != entries.size(); ++at)
-      if (entries[at].bytes) m_sendForm.echo(*entries[at].bytes);
+  std::vector<std::shared_ptr<const sigil::io::Bytes>> echoes;
+  m_draining = true;
+  {
+    const auto inspected = selectedFeed();
+    if (inspected != m_loggedFeed.lock()) {
+      m_log.clear();
+      m_messages.clear();
+      m_loggedFeed = inspected;
+    }
+    const auto received = m_receiver.opened()
+                              ? m_wires.feed(m_receiver.uri().toStdString())
+                              : nullptr;
+    const auto drain = [&](const std::shared_ptr<sigil::io::Feed>& feed) {
+      if (!feed) return;
+      while (m_afterDrain.empty() && m_wires.feed(feed->uri()) == feed) {
+        const auto arrival = feed->receive();
+        if (!arrival) break;
+        if (feed == received && m_receiver.uri().toStdString() == feed->uri())
+          m_receiver.accept(*feed, *arrival);
+        if (feed == inspected && m_selectedUri.toStdString() == feed->uri()) {
+          m_log.append(*arrival);
+          if (arrival->bytes) echoes.push_back(arrival->bytes);
+        }
+      }
+    };
+    drain(inspected);
+    if (received != inspected) drain(received);
   }
+  m_draining = false;
+  auto pending = std::move(m_afterDrain);
+  m_afterDrain.clear();
+  for (auto& action : pending) action();
+  for (const auto& bytes : echoes) m_sendForm.echo(*bytes);
   publish();
 }
 
 void SeerSession::publish() {
+  m_receiver.refresh();
   m_wireList.refresh(m_wires.vitals());
   m_messages.refresh(m_log);
   m_detail.show(m_selectedUri.isEmpty()
@@ -141,20 +186,29 @@ void SeerSession::publish() {
 }
 
 void SeerSession::open(const QString& uri) {
+  if (deferWireChange([this, uri] { open(uri); })) return;
   const QString named = uri.trimmed();
   if (named.isEmpty()) return;
-  const std::shared_ptr<sigil::io::Feed> feed =
-      m_wires.open(named.toStdString());
+  const QString error =
+      QString::fromStdString(m_wires.open(named.toStdString())->error());
   m_wires.tick(elapsed());
   m_wireList.refresh(m_wires.vitals());
-  setNote(QString::fromStdString(feed->error()));
+  setNote(error);
   // A wire that was just asked for is the wire to look at.
   select(m_wireList.rowOf(named));
+}
+
+void SeerSession::openReceiver(const QString& uri) {
+  if (deferWireChange([this, uri] { openReceiver(uri); })) return;
+  if (!uri.trimmed().isEmpty()) m_receiver.setUri(uri);
+  m_receiver.start();
+  select(m_wireList.rowOf(m_receiver.uri()));
 }
 
 void SeerSession::close(int row) {
   const QString uri = m_wireList.uriAt(row);
   if (uri.isEmpty()) return;
+  if (deferWireChange([this, uri] { close(m_wireList.rowOf(uri)); })) return;
   m_wires.close(uri.toStdString());
   if (uri == m_selectedUri) select(-1);
   m_wires.tick(elapsed());
@@ -172,12 +226,11 @@ void SeerSession::select(int row) {
 }
 
 void SeerSession::recordTo(const QUrl& file) {
-  const std::shared_ptr<sigil::io::Feed> feed = selectedFeed();
-  if (!feed) {
+  if (!selectedFeed()) {
     setNote(QStringLiteral("nothing to record: no wire is being read"));
     return;
   }
-  if (!m_recorder.record(feed, pathOf(file))) {
+  if (!m_recorder.record(selectedFeed(), pathOf(file))) {
     setNote(QStringLiteral("the recording could not be started"));
     return;
   }
@@ -191,17 +244,18 @@ void SeerSession::stopRecording() {
 }
 
 void SeerSession::replay(const QString& uri, const QUrl& file) {
+  if (deferWireChange([this, uri, file] { replay(uri, file); })) return;
   const QString named = uri.trimmed();
   if (named.isEmpty()) {
     setNote(
         QStringLiteral("a replay needs the URI to open the recording onto"));
     return;
   }
-  const std::shared_ptr<sigil::io::Feed> feed =
-      m_recorder.replay(named.toStdString(), pathOf(file));
+  const QString error = QString::fromStdString(
+      m_recorder.replay(named.toStdString(), pathOf(file))->error());
   m_wires.tick(elapsed());
   m_wireList.refresh(m_wires.vitals());
-  setNote(QString::fromStdString(feed->error()));
+  setNote(error);
   // The wire that was there was closed to make room for the file, so
   // what the reader was looking at is this.
   m_selectedUri.clear();

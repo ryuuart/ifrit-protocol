@@ -16,7 +16,8 @@ pragma ComponentBehavior: Bound
 
 import QtCore
 import QtQuick
-import QtQuick.Controls.Basic
+import Ifrit.Qt 1.0 as Ui
+import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
 import Sigil.Sketchbook
@@ -31,29 +32,16 @@ ApplicationWindow {
     visible: true
     title: actions.workspaceName.length > 0
         ? actions.workspaceName + " — Sketchbook" : "Sketchbook"
-    color: Theme.ground
+    color: Ui.Theme.windowBackground
 
-    // The Basic style paints its controls straight from the palette;
-    // without this a light-grey Button and Slider sit in the middle of a
-    // dark panel.
-    palette.window: Theme.panel
-    palette.windowText: Theme.text
-    palette.button: "#241f3d"
-    palette.buttonText: Theme.text
-    palette.mid: "#2f2951"
-    palette.midlight: Theme.border
-    palette.dark: Theme.ground
-    palette.light: Theme.border
-    palette.highlight: Theme.accent
-    palette.text: Theme.text
-    palette.base: Theme.ground
+    font.pixelSize: Ui.Theme.bodySize
 
     // ---- What the window remembers between runs --------------------------
     Settings {
         id: settings
 
         category: "browser"
-        property string viewMode: "list"
+        property string viewMode: "gallery"
         property bool inspectorOpen: true
         property real browserWidth: 540
         property string sortKey: "name"
@@ -107,7 +95,10 @@ ApplicationWindow {
         if (index < 0)
             return;
         catalog.endFill();
-        view.sketchIndex = index;
+        if (view.sketchIndex === index)
+            view.replay();
+        else
+            view.sketchIndex = index;
     }
 
     FileDialog {
@@ -316,7 +307,7 @@ ApplicationWindow {
             implicitHeight: openNotice.implicitHeight + 16
             visible: !window.openNoticeDismissed
                 && (actions.openStatus.length > 0 || actions.openError.length > 0)
-            color: Theme.panel
+            color: Ui.Theme.solidPanelBackground
 
             RowLayout {
                 id: openNotice
@@ -334,7 +325,7 @@ ApplicationWindow {
                 Label {
                     Layout.fillWidth: true
                     text: actions.openError.length > 0 ? actions.openError : actions.openStatus
-                    color: actions.openError.length > 0 ? Theme.warn : Theme.text
+                    color: actions.openError.length > 0 ? Ui.Theme.warningText : Ui.Theme.primaryText
                     wrapMode: Text.Wrap
                     font.pixelSize: 12
                     Accessible.role: Accessible.AlertMessage
@@ -356,8 +347,8 @@ ApplicationWindow {
 
             handle: Rectangle {
                 implicitWidth: 5
-                color: SplitHandle.pressed ? "#4a3d85"
-                     : (SplitHandle.hovered ? "#2a2350" : Theme.rule)
+                color: SplitHandle.pressed ? Ui.Theme.accent
+                     : (SplitHandle.hovered ? Ui.Theme.controlHoverBackground : Ui.Theme.separator)
             }
 
             GroupTree {
@@ -380,7 +371,7 @@ ApplicationWindow {
                 SplitView.preferredWidth: settings.browserWidth
                 SplitView.minimumWidth: 330
                 SplitView.maximumWidth: 1000
-                color: Theme.panel
+                color: Ui.Theme.solidPanelBackground
 
                 // Remembered where it was LEFT, not wherever it passed
                 // through: a pane takes several widths while a window
@@ -396,7 +387,7 @@ ApplicationWindow {
                     anchors.right: parent.right
                     anchors.top: parent.top
                     height: 76
-                    color: Theme.panel
+                    color: Ui.Theme.solidPanelBackground
 
                     RowLayout {
                         anchors.left: parent.left
@@ -410,15 +401,15 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             text: browser.groupPath.length
                                 ? browser.groupPath.split("/").join("  ›  ") : "All sketches"
-                            color: Theme.text
+                            color: Ui.Theme.primaryText
                             font.pixelSize: 12
                             elide: Text.ElideRight
                         }
                         Label {
                             text: browser.cards.length
-                            color: Theme.muted
-                            font.family: Theme.mono
-                            font.pixelSize: 10
+                            color: Ui.Theme.secondaryText
+                            font.family: Ui.Theme.monospaceFontFamily
+                            font.pixelSize: Ui.Theme.captionSize
                         }
                         ToolButton {
                             visible: browser.groupPath.length > 0
@@ -443,7 +434,7 @@ ApplicationWindow {
 
                         Label {
                             text: "Sort"
-                            color: Theme.muted
+                            color: Ui.Theme.secondaryText
                             font.pixelSize: 11
                         }
                         ComboBox {
@@ -482,7 +473,7 @@ ApplicationWindow {
                         anchors.bottom: parent.bottom
                         width: parent.width
                         height: 1
-                        color: Theme.rule
+                        color: Ui.Theme.separator
                     }
                 }
 
@@ -492,7 +483,7 @@ ApplicationWindow {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.top: groupHeading.bottom
-                    anchors.bottom: parent.bottom
+                    anchors.bottom: selectionActions.top
                     visible: browser.viewMode === "list"
                     catalog: catalog
                     rows: browser.cards
@@ -513,7 +504,7 @@ ApplicationWindow {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.top: groupHeading.bottom
-                    anchors.bottom: parent.bottom
+                    anchors.bottom: selectionActions.top
                     visible: browser.viewMode === "gallery"
                     catalog: catalog
                     cards: browser.cards
@@ -524,18 +515,61 @@ ApplicationWindow {
                     onActivateRequested: index => window.activate(index)
                     onStepRequested: delta => browser.step(delta)
                 }
-                Label {
+                Rectangle {
+                    id: selectionActions
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    height: browser.cards.length ? 48 : 0
+                    color: Ui.Theme.toolbarBackground
+                    visible: height > 0
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 14
+                        anchors.rightMargin: 10
+                        spacing: 8
+                        Label {
+                            Layout.fillWidth: true
+                            text: browser.selectedSketch.name ?? "Select a sketch"
+                            color: Ui.Theme.secondaryText
+                            font.pixelSize: Ui.Theme.captionSize
+                            elide: Text.ElideRight
+                        }
+                        Button {
+                            text: browser.selectedIndex === view.sketchIndex ? "Replay" : "Open"
+                            enabled: browser.selectedIndex >= 0 && !!browser.selectedSketch.available
+                            implicitHeight: Ui.Theme.controlHeight
+                            Accessible.name: text + " selected sketch"
+                            onClicked: window.activate(browser.selectedIndex)
+                        }
+                    }
+                }
+                ColumnLayout {
                     anchors.centerIn: parent
                     width: parent.width - 40
                     visible: browser.cards.length === 0
-                    text: browser.filterText.length
-                        ? "No sketches match this search in "
-                          + (browser.groupPath || "All sketches") + "."
-                        : "No sketches in this group."
-                    color: Theme.muted
-                    font.pixelSize: 12
-                    wrapMode: Text.WordWrap
-                    horizontalAlignment: Text.AlignHCenter
+                    spacing: Ui.Theme.spacing
+                    Label {
+                        Layout.fillWidth: true
+                        text: "No matching sketches"
+                        color: Ui.Theme.primaryText
+                        font.pixelSize: Ui.Theme.headingSize
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: "Try a different search or clear the filters to see the catalogue."
+                        color: Ui.Theme.secondaryText
+                        font.pixelSize: Ui.Theme.bodySize
+                        wrapMode: Text.WordWrap
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+                    Button {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: "Clear filters"
+                        visible: browser.hasFilters
+                        onClicked: browser.clearFilters()
+                    }
                 }
             }
 

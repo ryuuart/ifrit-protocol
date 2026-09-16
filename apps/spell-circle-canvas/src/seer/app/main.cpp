@@ -43,28 +43,18 @@
  * would photograph a window with nothing in it.
  */
 
+#include <WindowCapture.h>
+#include <WindowChrome.h>
+
 #include <QtCore/QCoreApplication>
 #include <QtCore/QString>
-#include <QtCore/QTimer>
 #include <QtGui/QGuiApplication>
-#include <QtGui/QImage>
 #include <QtQml/QQmlApplicationEngine>
 #include <QtQuick/QQuickWindow>
 #include <cstdio>
 #include <cstring>
-#include <memory>
 
 #include "SeerSession.h"
-
-namespace {
-
-/** How many frames a photographed run is driven for before the picture
- *  is taken: long enough that a wire opened as the window came up has
- *  been read, drained and drawn, and that a message this run said has
- *  gone out and come back onto the wire it is read on. */
-constexpr int kShotFrames = 90;
-
-}  // namespace
 
 int main(int argc, char* argv[]) {
   // Set before anything asks where this application's settings live: the
@@ -78,8 +68,16 @@ int main(int argc, char* argv[]) {
     if (std::strcmp(argv[at], "--help") == 0) {
       std::printf(
           "usage: Seer [--schema <bfbs>] [--peer <uri>] [--say <message>] "
-          "[--shot <png>] [<uri>…]\n");
+          "[--receiver <uri>] [--shot <png>] [<uri>…]\n");
       return 0;
+    }
+    if (std::strcmp(argv[at], "--receiver") == 0) {
+      if (at + 1 == argc || argv[at + 1][0] == '-') {
+        std::fprintf(stderr, "--receiver: name the scene source URI\n");
+        return 2;
+      }
+      SeerSession::receivesOn = QString::fromLocal8Bit(argv[++at]);
+      continue;
     }
     if (std::strcmp(argv[at], "--schema") == 0) {
       if (at + 1 == argc) {
@@ -117,7 +115,7 @@ int main(int argc, char* argv[]) {
       std::fprintf(
           stderr,
           "%s: Seer takes the URIs to open, --schema, --peer, --say and "
-          "--shot\n",
+          "--receiver and --shot\n",
           argv[at]);
       return 2;
     }
@@ -135,12 +133,25 @@ int main(int argc, char* argv[]) {
 
   QGuiApplication application(argc, argv);
 
+  QQuickWindow::setDefaultAlphaBuffer(true);
+  SeerSession session;
   QQmlApplicationEngine engine;
+  engine.setInitialProperties({{"session", QVariant::fromValue(&session)}});
   QObject::connect(
       &engine, &QQmlApplicationEngine::objectCreationFailed, &application,
       [] { QCoreApplication::exit(1); }, Qt::QueuedConnection);
   engine.loadFromModule("Sigil.Seer", "Main");
   if (engine.rootObjects().isEmpty()) return 1;
+
+  auto* receiverWindow =
+      qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+  const auto keepReceiverRunning = [receiverWindow, &session] {
+    if (!receiverWindow || !session.receiver()->opened()) return;
+    WindowChrome::keepRendering(receiverWindow);
+  };
+  QObject::connect(session.receiver(), &Receiver::changed, &application,
+                   keepReceiverRunning);
+  keepReceiverRunning();
 
   if (!shotPath.isEmpty()) {
     auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
@@ -148,31 +159,7 @@ int main(int argc, char* argv[]) {
       std::fprintf(stderr, "--shot: no window to photograph\n");
       return 1;
     }
-    // Drive real frames rather than waiting for them. A window nobody is
-    // looking at gets no render loop from the compositor, so the grab is
-    // what makes the thing run.
-    auto* warm = new QTimer(&application);
-    auto framesLeft = std::make_shared<int>(kShotFrames);
-    warm->setInterval(16);
-    QObject::connect(warm, &QTimer::timeout, &application,
-                     [window, shotPath, warm, framesLeft] {
-                       if (--*framesLeft > 0) {
-                         window->grabWindow();
-                         return;
-                       }
-                       warm->stop();
-                       const QImage picture = window->grabWindow();
-                       if (picture.isNull() || !picture.save(shotPath, "PNG")) {
-                         std::fprintf(stderr, "--shot: grab failed\n");
-                         QCoreApplication::exit(1);
-                         return;
-                       }
-                       std::printf("wrote %s (%dx%d)\n",
-                                   shotPath.toLocal8Bit().constData(),
-                                   picture.width(), picture.height());
-                       QCoreApplication::quit();
-                     });
-    warm->start();
+    ifrit::qt::captureWindow(*window, shotPath);
   }
 
   return QGuiApplication::exec();

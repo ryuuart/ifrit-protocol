@@ -103,7 +103,7 @@ class Sender {
   std::shared_ptr<io::Feed> openPeer(std::string_view uri);
 
   /** The peer, or null before one is opened. */
-  const std::shared_ptr<io::Feed>& peer() const { return m_peer; }
+  std::shared_ptr<io::Feed> peer() const;
 
   /** The URI the peer was opened on; empty before one is opened. */
   const std::string& peerUri() const { return m_peerUri; }
@@ -135,7 +135,6 @@ class Sender {
 
  private:
   Wires& m_wires;
-  std::shared_ptr<io::Feed> m_peer;
   std::string m_peerUri;
   io::Bytes m_message;
   bool m_repeating = false;

@@ -28,4 +28,10 @@ class WindowChrome : public QObject {
    *  subtitles are unavailable so callers can fall back to a composite
    *  window title. */
   Q_INVOKABLE bool setSubtitle(QQuickWindow* window, const QString& subtitle);
+
+  /** Keeps graphics resources resident and requests background rendering.
+   *  On macOS this prevents App Nap and preserves rendering while another
+   *  window covers this one. Returns false if the native window cannot be
+   *  configured; Qt resource persistence is still enabled. GUI thread only. */
+  static bool keepRendering(QQuickWindow* window);
 };

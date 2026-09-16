@@ -22,7 +22,7 @@ class TexturePublisher {
 
   /**
    * Appends the publish work for @p texture to the still-open
-   * @p commandBuffer. No-op when no clients are connected.
+   * @p commandBuffer. The published image remains available to new clients.
    */
   virtual void publishFrame(QRhiTexture* texture,
                             QRhiCommandBuffer* commandBuffer, int width,

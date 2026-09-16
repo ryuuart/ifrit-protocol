@@ -1,15 +1,8 @@
 # Seer — the one window over the wires.
 #
-# The C++ here is view-models and nothing else: two list models, two
-# objects a pane binds to, and one session that owns the library's values
-# and drives them from a timer. Every claim about what a wire DOES is
-# asserted in the library's own test binary, which has no toolkit in it;
-# what is left here is which pane shows what.
-#
-# The controls are Ifrit.Ui's — the theme derived from the system
-# palette, the glass panel, the native window dressing — so this window
-# follows the light and dark appearance of the machine and invents no
-# look of its own.
+# The wire library stays toolkit-free. This application owns its view models
+# and one scene consumer over the same feeds, using the shared receiver canvas.
+# Ifrit.Qt supplies the palette, controls and native window dressing.
 find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 QuickLayouts
                                      QuickDialogs2)
 qt_standard_project_setup(REQUIRES 6.11)
@@ -32,7 +25,7 @@ set_target_properties(Seer PROPERTIES
 # root beside the generated qmldir. The property is read when the module
 # is declared, so it is set before it.
 foreach(seer_qml IN ITEMS
-    Main ConnectionsPane ReceivePane SendPane RecordStrip)
+    Main ConnectionsPane ReceivePane SendPane RecordStrip ReceiverPane ReceiverSettings)
   set_source_files_properties(qml/${seer_qml}.qml
     PROPERTIES QT_RESOURCE_ALIAS ${seer_qml}.qml)
 endforeach()
@@ -46,8 +39,11 @@ qt_add_qml_module(Seer
     qml/ReceivePane.qml
     qml/SendPane.qml
     qml/RecordStrip.qml
+    qml/ReceiverPane.qml
+    qml/ReceiverSettings.qml
   SOURCES
     SeerSession.cpp SeerSession.h
+    Receiver.cpp Receiver.h
     WireList.cpp WireList.h
     MessageList.cpp MessageList.h
     WireDetail.cpp WireDetail.h
@@ -59,6 +55,16 @@ qt_add_qml_module(Seer
 # this target spells that vocabulary itself.
 target_include_directories(Seer PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(Seer PRIVATE
-  SigilSeerWire SigilDataDecode
-  IfritUiplugin Qt6::Gui Qt6::Quick Qt6::QuickControls2 Qt6::QuickLayouts
+  SigilSeerWire SigilDataDecode SpellCircleModels SpellCircleCanvas
+  SpellCircleModelsplugin SpellCircleCanvasplugin
+  IfritQt IfritQtplugin Qt6::Gui Qt6::Quick Qt6::QuickControls2 Qt6::QuickLayouts
   Qt6::QuickDialogs2)
+
+
+sigil_test(seer_qt_test
+  SOURCES SeerSession.cpp Receiver.cpp WireList.cpp MessageList.cpp
+          WireDetail.cpp SendForm.cpp test/ReceiverTest.cpp
+  LIBRARIES SigilSeerWire SigilDataDecode SpellCircleModels SpellCircleSchema
+            Qt6::Gui Qt6::Qml)
+sigil_qt_target(seer_qt_test)
+target_include_directories(seer_qt_test PRIVATE ${CMAKE_CURRENT_LIST_DIR})

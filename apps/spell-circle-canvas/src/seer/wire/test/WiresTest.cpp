@@ -433,3 +433,16 @@ TEST(SeerRendering, AJsonMessageIsShownIndentedAndAnythingElseIsNot) {
   EXPECT_TRUE(sigil::seer::indentedJson(bytesOf("a scene arrives")).empty());
   EXPECT_TRUE(sigil::seer::indentedJson(bytesOf("")).empty());
 }
+
+TEST(SeerSender, ClosingThePeerReleasesItAndReopeningResolvesTheNewFeed) {
+  sigil::seer::Wires wires;
+  sigil::seer::Sender sender(wires);
+  std::weak_ptr<sigil::io::Feed> previous = sender.openPeer("udp://:0");
+  ASSERT_FALSE(previous.expired());
+  ASSERT_TRUE(wires.close("udp://:0"));
+  EXPECT_TRUE(previous.expired());
+  EXPECT_FALSE(sender.peer());
+  const auto reopened = wires.open("udp://:0");
+  EXPECT_EQ(sender.peer(), reopened);
+  EXPECT_FALSE(reopened->closed());
+}

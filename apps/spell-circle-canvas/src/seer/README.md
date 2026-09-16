@@ -7,7 +7,8 @@ message seven ways, keeps the ones before it, sends a message back,
 writes a wire down to a file, and opens that file again as if it were the
 port.
 
-It stands on SigilIO's feeds and on nothing else that draws. What
+The wire library stands on SigilIO's feeds. The application also hosts the
+SpellCircle scene receiver, using its shared native scene model and canvas. What
 travels a wire is bytes, and what those bytes mean belongs to whoever is
 at the other end — so a tool for looking at the wire itself can be
 pointed at a wire whose format it has never heard of, which is the only
@@ -17,6 +18,7 @@ way it is useful while that format is still being decided.
 cmake --build build --config Release --target Seer
 open build/bin/Release/Seer.app                          # the window
 build/bin/Release/Seer.app/Contents/MacOS/Seer udp://:27020
+build/bin/Release/Seer.app/Contents/MacOS/Seer --receiver udp://:27015
 build/bin/Release/Seer.app/Contents/MacOS/Seer osc://:27050 ws://:27060/sky
 build/bin/Release/Seer.app/Contents/MacOS/Seer midi://in/Launchpad artnet://:6454
 build/bin/Release/Seer.app/Contents/MacOS/Seer --schema feed_sky.bfbs udp://:27020
@@ -38,7 +40,7 @@ carries messages with nothing added here. What a scheme is named for is
 the WORD it speaks in and the reading a wire of it opens on, and a
 scheme with no word simply has none.
 
-## Two targets
+## Targets
 
 | target | what it is |
 | --- | --- |
@@ -46,8 +48,7 @@ scheme with no word simply has none.
 | `Seer` | the application: one window over that archive, a macOS bundle, its QML module `Sigil.Seer` |
 
 Everything a wire DOES is in the archive, and it is asserted with no
-application in the process. What is left in the application is which
-pane shows what.
+application in the process. The application owns the Qt scene consumer, settings and pane composition.
 
 ## The wires
 
@@ -198,7 +199,7 @@ there already.
 
 ## The window
 
-Four panes, and one session behind all of them. Every pane reads what
+The wire panes and an optional receiver share one session. Every pane reads what
 the last frame wrote, so the list, the readings and the log are one
 frame's answer rather than three asks a moment apart.
 
@@ -250,8 +251,32 @@ frame's answer rather than three asks a moment apart.
   opening a file back onto a URI. What is above then reads the file
   exactly as it read the port.
 
-The controls are Ifrit.Ui's — the theme derived from the system palette,
-the glass panel, the native window dressing — so the window follows the
+**Receiver** opens a persistent scene preview, either through **Open Receiver**
+or `--receiver <uri>`. The source is pinned independently of the selected wire.
+The session drains each source once and passes the same arrivals to its trace,
+echo and scene consumers. Invalid scene packets remain visible in the raw trace
+and preserve the last accepted scene. Repeated valid packets count as activity
+without rebuilding geometry. Receiver activity shows accepted packets newest
+first; the raw trace retains all drained messages oldest first.
+
+The receiver exposes its source URI, start/stop, fit, actual-size, clear, valid
+scene rate and graphics settings. Stopping retains the last rendered scene.
+Replaying onto the receiver URI replaces its live source; the status labels the
+recording, and Start restarts that recording. The scene preview stays mounted
+while another wire is inspected, keeping the render-side texture publisher alive.
+On macOS it publishes a transparent native-size texture as `SpellCircle` and
+keeps rendering while another window covers Seer. D3D11 builds with the Spout
+package retain the corresponding publisher.
+
+Graphics and source settings are committed together in one atomic file only by
+**Done** in Receiver Settings. Opening settings does not start a source.
+Cancel restores the editor's opening snapshot. The receiver imports existing
+SpellCircle graphics and port settings when no receiver settings have been
+saved beneath Seer's configuration directory. A normal launch opens no ports;
+the saved source is used only after **Open Receiver** is requested.
+
+The controls are Ifrit.Qt's — the theme derived from the system palette,
+shared panels and controls, and native window dressing — so the window follows the
 machine's light and dark appearance and invents no look of its own.
 
 Every URI on the command line is opened before the window comes up and
@@ -300,13 +325,18 @@ transports stay private — no header here names one, a scheme being a
 string. What every reading ANSWERS is still a string and what a spelled
 message answers is still bytes, so nobody who links this is made to
 speak in document types, even where the schema puts them within reach.
-Nothing of SigilSketch is here, and nothing that draws.
+The wire archive has no drawing or Qt dependencies. The Seer executable links
+SpellCircle's Qt models and canvas for its receiver; neither consumes
+SigilSketch.
 
 ## Building
 
 One archive and one application, both always configured. The cases are
 in `seer_test` under `build/bin/<config>/tests/`, and every one of them
-runs with no application in the process. The codecs are linked there
+runs with no application in the process. `seer_qt_test` hosts the Qt scene
+consumer and covers shared delivery, source pinning, port failures, replay,
+and settings persistence. GPU publication additionally needs a real window
+and a Syphon or Spout consumer. The codecs are linked there
 beside the library, because what the dialect cases assert is that a
 reading and a spelling agree with the bytes a sender writes; the build
 also

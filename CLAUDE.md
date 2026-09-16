@@ -66,7 +66,7 @@ guard checks and what it cannot see.
   someone else owns
 - `src/common/substance/README.md`, `src/common/usd/README.md` —
   optional SDK integrations
-- `src/common/ui/README.md` — reusable Qt Quick controls
+- `src/common/qt/README.md` — reusable Qt Quick controls
 - `apps/spell-circle-canvas/scripts/README.md` — `sigil.py` and its
   verbs: the checks and the ledgers
 - `docs/README.md` — the generated C++ API reference

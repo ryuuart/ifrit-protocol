@@ -19,6 +19,7 @@ RowLayout {
     spacing: 6
 
     SpinBox {
+        Accessible.name: "Width"
         from: root.from
         to: root.to
         stepSize: root.stepSize
@@ -33,6 +34,7 @@ RowLayout {
     }
 
     SpinBox {
+        Accessible.name: "Height"
         from: root.from
         to: root.to
         stepSize: root.stepSize

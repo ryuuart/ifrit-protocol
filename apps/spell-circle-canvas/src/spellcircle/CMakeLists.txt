@@ -1,9 +1,9 @@
-# SpellCircle — the scene receiver product. Two executables share one core:
+# SpellCircle — scene receiver libraries shared by Seer and the native app:
 #
 #   shared/  Qt-free code both frontends embed: the wire schema and the
 #            scene core (decode/resolve/draw). The port each frontend
 #            listens on is a door it opens on a resource hub of its own.
-#   qt/      The cross-platform Qt Quick receiver (executable SpellCircle).
+#   qt/      The reusable Qt Quick receiver canvas and models hosted by Seer.
 #   mac/     The native SwiftUI receiver (executable SpellCircleMac,
 #            macOS + Swift toolchain only).
 add_subdirectory(shared/schema)

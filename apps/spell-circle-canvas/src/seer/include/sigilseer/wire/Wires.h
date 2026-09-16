@@ -27,6 +27,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <vector>
 
 namespace sigil::seer {
@@ -110,6 +111,9 @@ class Wires {
    *  given, so it is closed first by whoever wants the file. */
   void mountRecording(std::string_view uri, const std::filesystem::path& path);
 
+  /** Whether opens on this URI use a recording mounted through this object. */
+  bool recorded(std::string_view uri) const;
+
   /** Moves every replayed recording to @p seconds on the caller's clock,
    *  delivering each arrival the file stamped at or before it. A live
    *  wire is unaffected — its transport delivers on its own. */
@@ -163,6 +167,7 @@ class Wires {
   std::vector<Watch> m_watches;
   std::vector<Vitals> m_vitals;
   data::Schema m_schema;
+  std::unordered_set<std::string> m_recorded;
 };
 
 }  // namespace sigil::seer

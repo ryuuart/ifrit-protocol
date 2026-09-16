@@ -6,7 +6,8 @@ pragma ComponentBehavior: Bound
 // The selected group as rows with sortable columns.
 
 import QtQuick
-import QtQuick.Controls.Basic
+import Ifrit.Qt 1.0 as Ui
+import QtQuick.Controls
 import QtQuick.Layouts
 import Sigil.Sketchbook
 
@@ -67,31 +68,36 @@ Item {
 
     /** One column heading: says what the column is, says whether the
      *  list is ordered by it, and asks for that ordering when clicked. */
-    component Heading: Item {
+    component Heading: ToolButton {
         id: heading
 
         required property string key
         required property string label
         property int align: Text.AlignLeft
 
-        implicitHeight: 24
+        implicitHeight: 28
+        padding: 0
+        Accessible.name: "Sort by " + label
+        onClicked: list.sortRequested(heading.key)
+        background: Rectangle {
+            color: heading.hovered ? Ui.Theme.controlHoverBackground : "transparent"
+            radius: Ui.Theme.cornerRadius
+            border.color: heading.visualFocus ? Ui.Theme.accent : "transparent"
+        }
 
-        Label {
-            anchors.fill: parent
+        contentItem: Label {
             verticalAlignment: Text.AlignVCenter
             horizontalAlignment: heading.align
             text: list.sortKey === heading.key
                 ? heading.label + (list.sortAscending ? " ▲" : " ▼")
                 : heading.label
-            color: list.sortKey === heading.key ? Theme.label : Theme.faintest
-            font.family: Theme.mono
-            font.pixelSize: 9
+            color: list.sortKey === heading.key ? Ui.Theme.primaryText : Ui.Theme.secondaryText
+            font.family: Ui.Theme.monospaceFontFamily
+            font.pixelSize: Ui.Theme.captionSize
             font.letterSpacing: 0.6
             font.capitalization: Font.AllUppercase
             elide: Text.ElideRight
         }
-        TapHandler { onTapped: list.sortRequested(heading.key) }
-        HoverHandler { cursorShape: Qt.PointingHandCursor }
     }
 
     ColumnLayout {
@@ -179,7 +185,13 @@ Item {
                         ?? row.recordedSketch
 
                 width: rowList.rowWidth
-                height: 48
+                height: 56
+                Accessible.role: Accessible.ListItem
+                Accessible.name: row.sketch.name
+                Accessible.description: row.sketch.available ? row.sketch.blurb : row.sketch.reason
+                Accessible.selectable: true
+                Accessible.selected: list.selectedIndex === row.sketch.sketchIndex
+                Accessible.onPressAction: list.activateRequested(row.sketch.sketchIndex)
 
                 // ---- A sketch ----
                 Rectangle {
@@ -188,15 +200,15 @@ Item {
                     anchors.rightMargin: 6
                     radius: 6
                     color: list.selectedIndex === row.sketch.sketchIndex
-                        ? Theme.hover
-                        : (rowHover.hovered ? Theme.ruleSoft : "transparent")
+                        ? Ui.Theme.selectionBackground
+                        : (rowHover.hovered ? Ui.Theme.separator : "transparent")
                     // The outline says which one the CANVAS is on, which
                     // the fill cannot: browsing moves the selection over
                     // a sketch that keeps presenting behind it.
                     border.width: 1
                     border.color: list.presentedIndex === row.sketch.sketchIndex
-                        ? Theme.accent : "transparent"
-                    opacity: row.sketch.available ? 1.0 : 0.45
+                        ? Ui.Theme.accent : "transparent"
+                    opacity: 1.0
 
                     RowLayout {
                         anchors.fill: parent
@@ -221,7 +233,7 @@ Item {
                             spacing: 1
                             Label {
                                 text: row.sketch.name
-                                color: Theme.text
+                                color: Ui.Theme.primaryText
                                 font.pixelSize: 13
                                 font.weight: Font.DemiBold
                                 elide: Text.ElideRight
@@ -231,8 +243,8 @@ Item {
                                 text: row.sketch.available
                                     ? row.sketch.blurb
                                     : "unavailable — " + row.sketch.reason
-                                color: row.sketch.available ? Theme.muted
-                                                            : Theme.warn
+                                color: row.sketch.available ? Ui.Theme.secondaryText
+                                                            : Ui.Theme.warningText
                                 font.pixelSize: 11
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true
@@ -242,7 +254,7 @@ Item {
                             Layout.preferredWidth: list.colFolder
                             visible: list.showFolder
                             text: row.sketch.folder
-                            color: Theme.muted
+                            color: Ui.Theme.secondaryText
                             font.pixelSize: 11
                             elide: Text.ElideRight
                         }
@@ -250,9 +262,9 @@ Item {
                             Layout.preferredWidth: list.colKind
                             visible: list.showKind
                             text: row.sketch.kind
-                            color: Theme.label
-                            font.family: Theme.mono
-                            font.pixelSize: 10
+                            color: Ui.Theme.secondaryText
+                            font.family: Ui.Theme.monospaceFontFamily
+                            font.pixelSize: Ui.Theme.captionSize
                         }
                         Label {
                             Layout.preferredWidth: list.colCanvas
@@ -263,10 +275,10 @@ Item {
                             // has run.
                             text: row.sketch.canvas.length > 0
                                 ? row.sketch.canvas : "—"
-                            color: row.sketch.canvas.length > 0 ? Theme.label
-                                                                : Theme.faintest
-                            font.family: Theme.mono
-                            font.pixelSize: 10
+                            color: row.sketch.canvas.length > 0 ? Ui.Theme.secondaryText
+                                                                : Ui.Theme.secondaryText
+                            font.family: Ui.Theme.monospaceFontFamily
+                            font.pixelSize: Ui.Theme.captionSize
                             elide: Text.ElideRight
                         }
                         Label {
@@ -276,20 +288,20 @@ Item {
                                 ? row.sketch.moment.toFixed(1) + " s"
                                 : (row.sketch.canvas.length > 0 ? "none" : "—")
                             color: row.sketch.canvas.length === 0
-                                ? Theme.faintest
-                                : (row.sketch.moment > 0 ? Theme.label
-                                                         : Theme.warn)
-                            font.family: Theme.mono
-                            font.pixelSize: 10
+                                ? Ui.Theme.secondaryText
+                                : (row.sketch.moment > 0 ? Ui.Theme.secondaryText
+                                                         : Ui.Theme.warningText)
+                            font.family: Ui.Theme.monospaceFontFamily
+                            font.pixelSize: Ui.Theme.captionSize
                         }
                         Label {
                             Layout.preferredWidth: list.colLines
                             visible: list.showLines
                             horizontalAlignment: Text.AlignRight
                             text: row.sketch.lines
-                            color: Theme.faint
-                            font.family: Theme.mono
-                            font.pixelSize: 10
+                            color: Ui.Theme.secondaryText
+                            font.family: Ui.Theme.monospaceFontFamily
+                            font.pixelSize: Ui.Theme.captionSize
                         }
                     }
 

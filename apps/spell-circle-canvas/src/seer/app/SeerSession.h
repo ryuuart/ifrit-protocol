@@ -24,16 +24,18 @@
 #include <QtCore/QTimer>
 #include <QtCore/QUrl>
 #include <chrono>
+#include <functional>
 #include <memory>
 #include <optional>
+#include <vector>
 
 #include "MessageList.h"
+#include "Receiver.h"
 #include "SendForm.h"
 #include "WireDetail.h"
 #include "WireList.h"
 
-/** What the window is built around: one of these, made by the QML that
- *  declares the window. */
+/** The native-owned session injected into the window. */
 class SeerSession : public QObject {
   Q_OBJECT
   QML_ELEMENT
@@ -41,6 +43,7 @@ class SeerSession : public QObject {
   /** The four things the panes are drawn from. Constant: the objects
    *  stand for the life of the session and it is their contents that
    *  move. */
+  Q_PROPERTY(Receiver* receiver READ receiver CONSTANT)
   Q_PROPERTY(WireList* wires READ wires CONSTANT)
   Q_PROPERTY(MessageList* messages READ messages CONSTANT)
   Q_PROPERTY(WireDetail* reading READ reading CONSTANT)
@@ -70,15 +73,17 @@ class SeerSession : public QObject {
   static constexpr int kFrameMilliseconds = 16;
   static constexpr double kFrameSeconds = kFrameMilliseconds / 1000.0;
 
-  explicit SeerSession(QObject* parent = nullptr);
+  explicit SeerSession(QObject* parent = nullptr,
+                       QString settingsDirectory = {},
+                       QString importDirectory = {});
   ~SeerSession() override;
 
   /** The wires a run opens before the window comes up: every URI the
    *  command line named, in the order it named them, the first of which
-   *  is the one read. A static because the session is made by the QML
-   *  that declares the window, which the command line is out of reach
-   *  of. */
+   *  is the one read. The launcher fills these before constructing the session.
+   */
   static QStringList opensOn;
+  static QString receivesOn;
 
   /** The schema file a run is handed before the window comes up: what
    *  `--schema` named, loaded into the wires so the first message to
@@ -106,6 +111,7 @@ class SeerSession : public QObject {
    *  to be looked at as a picture keeps its opaque ground instead. */
   static bool photographed;
 
+  Receiver* receiver() { return &m_receiver; }
   [[nodiscard]] WireList* wires() { return &m_wireList; }
   [[nodiscard]] MessageList* messages() { return &m_messages; }
   [[nodiscard]] WireDetail* reading() { return &m_detail; }
@@ -120,6 +126,9 @@ class SeerSession : public QObject {
   /** Opens @p uri as a wire and reads it. A URI nothing can open is a
    *  wire all the same, with the note saying why. */
   Q_INVOKABLE void open(const QString& uri);
+  Q_INVOKABLE void openReceiver(const QString& uri = {});
+  /** Drains each observed source once and publishes one coherent UI frame. */
+  void tick();
 
   /** Closes the wire in row @p row and drops it from the list. */
   Q_INVOKABLE void close(int row);
@@ -151,11 +160,6 @@ class SeerSession : public QObject {
   void schemaChanged();
 
  private:
-  /** One frame: the recordings are moved forward, every wire is read,
-   *  the repeat sends what is due, the wire being read is drained into
-   *  the log, and every pane is handed the result. */
-  void tick();
-
   /** Seconds since the session was made — the clock every wire is moved
    *  and measured against. */
   [[nodiscard]] double elapsed() const;
@@ -168,8 +172,15 @@ class SeerSession : public QObject {
 
   void setNote(const QString& note);
 
+  /** Source replacement waits until the drain releases every old feed. */
+  bool deferWireChange(std::function<void()> action);
+  bool m_draining = false;
+  std::vector<std::function<void()>> m_afterDrain;
+
   sigil::seer::Wires m_wires;
+  Receiver m_receiver;
   sigil::seer::Log m_log;
+  std::weak_ptr<sigil::io::Feed> m_loggedFeed;
   sigil::seer::Sender m_sender{m_wires};
   sigil::seer::Recorder m_recorder{m_wires};
 

@@ -29,6 +29,8 @@
  *     larger alpha is a shorter one.
  */
 
+// TAGS: Typography/Styles, Runtime/Composition
+
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>

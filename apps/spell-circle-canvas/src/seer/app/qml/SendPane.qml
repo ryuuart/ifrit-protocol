@@ -17,9 +17,9 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import Ifrit.Ui 1.0 as Ui
+import Ifrit.Qt 1.0 as Ui
 
-Ui.GlassPanel {
+Ui.Panel {
     id: pane
 
     required property var session
@@ -31,34 +31,18 @@ Ui.GlassPanel {
     readonly property bool plainEditor: pane.sending.dialect !== "osc" && pane.sending.dialect !== "midi" && pane.sending.dialect !== "dmx"
 
     radius: 12
+    padding: 14
 
-    // The ground the pane stands on, rounded to the panel's own corners
-    // and outlined, so a pane reads as a pane on a window wearing the
-    // machine's glass and on one painting its own opaque colour alike.
-    Rectangle {
-        anchors.fill: parent
-        color: Ui.Theme.panelBackground
-        radius: pane.radius
-        border.width: 1
-        border.color: Ui.Theme.border
-    }
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 14
         spacing: 10
 
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
 
-            Label {
-                text: "SEND"
-                color: Ui.Theme.secondaryText
-                font.pixelSize: 11
-                font.letterSpacing: 1.5
-                font.weight: Font.DemiBold
-            }
+            Ui.SectionHeading { text: "Send" }
 
             TextField {
                 Layout.fillWidth: true
@@ -88,7 +72,7 @@ Ui.GlassPanel {
                 visible: pane.sending.dialect === "dmx"
                 text: "Universe"
                 color: Ui.Theme.secondaryText
-                font.pixelSize: 11
+                font.pixelSize: Ui.Theme.captionSize
             }
 
             SpinBox {
@@ -141,7 +125,7 @@ Ui.GlassPanel {
             Label {
                 text: "Channel"
                 color: Ui.Theme.secondaryText
-                font.pixelSize: 11
+                font.pixelSize: Ui.Theme.captionSize
             }
 
             // The channel a desk prints, 1 to 16, and not the four bits
@@ -158,7 +142,7 @@ Ui.GlassPanel {
             Label {
                 text: pane.sending.midiFirstName
                 color: Ui.Theme.secondaryText
-                font.pixelSize: 11
+                font.pixelSize: Ui.Theme.captionSize
             }
 
             // What the wire holds for this number and nothing wider: a
@@ -179,7 +163,7 @@ Ui.GlassPanel {
                 visible: pane.sending.midiSecondName.length > 0
                 text: pane.sending.midiSecondName
                 color: Ui.Theme.secondaryText
-                font.pixelSize: 11
+                font.pixelSize: Ui.Theme.captionSize
             }
 
             SpinBox {
@@ -252,7 +236,7 @@ Ui.GlassPanel {
                 Layout.fillWidth: true
                 text: pane.sending.note
                 color: Ui.Theme.primaryText
-                font.pixelSize: 11
+                font.pixelSize: Ui.Theme.captionSize
                 elide: Text.ElideRight
             }
 
@@ -260,7 +244,7 @@ Ui.GlassPanel {
                 text: pane.sending.sent + " sent"
                 color: Ui.Theme.secondaryText
                 font.family: Ui.Theme.monospaceFontFamily
-                font.pixelSize: 11
+                font.pixelSize: Ui.Theme.captionSize
             }
         }
     }

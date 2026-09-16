@@ -29,7 +29,8 @@ class SyphonBridge final : public TexturePublisher {
 
   /**
    * Appends a Syphon blit to the still-open @p commandBuffer for the given
-   * texture region. No-op when stopped or no Syphon clients are connected.
+   * texture region. No-op when stopped. The server retains the current image
+   * for clients that subscribe after a static scene was drawn.
    * A subscriber receives the frame as it was drawn: its rows in the order
    * the texture holds them, the first of them the top of the picture.
    */

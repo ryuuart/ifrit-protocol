@@ -254,17 +254,24 @@ TEST_F(IOUdp, DroppingTheLastHolderOfAFeedGivesUpItsPort) {
     ASSERT_NE(port, 0);
   }
 
-  // The close travels to the transport's thread, so the port comes back
-  // a moment after the last holder lets go rather than within it.
   const std::string uri = "udp://:" + std::to_string(port);
-  std::shared_ptr<Feed> again;
-  ASSERT_TRUE(waitUntil([&] {
-    again = hub.feed(uri);
-    if (again->error().empty()) return true;
-    again.reset();
-    return false;
-  }));
+  const auto again = hub.feed(uri);
+  ASSERT_TRUE(again->error().empty()) << again->error();
   EXPECT_EQ(portOf(again->address()), port);
+}
+
+TEST_F(IOUdp, CloseReturnsThePortBeforeTheFeedObjectIsReleased) {
+  const auto listener = hub.feed("udp://:0");
+  ASSERT_TRUE(listener->error().empty()) << listener->error();
+  const uint16_t port = portOf(listener->address());
+  ASSERT_NE(port, 0);
+  listener->close();
+  EXPECT_TRUE(listener->closed());
+  udp::socket holder(context, udp::v6());
+  holder.set_option(boost::asio::ip::v6_only(false));
+  boost::system::error_code error;
+  holder.bind(udp::endpoint(udp::v6(), port), error);
+  EXPECT_FALSE(error) << error.message();
 }
 
 TEST_F(IOUdp, TwoAsksForOneUriAnswerOneFeed) {

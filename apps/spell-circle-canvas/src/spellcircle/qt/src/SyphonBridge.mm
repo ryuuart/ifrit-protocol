@@ -30,7 +30,10 @@ void SyphonBridge::start(QRhi *rhi) {
 
 void SyphonBridge::publishFrame(QRhiTexture *texture, QRhiCommandBuffer *commandBuffer, int width,
                                 int height) {
-  if (!m_private->server || !m_private->server.hasClients) return;
+  if (!m_private->server) return;
+
+  // A server retains its published image for clients that subscribe later.
+  // Static geometry must publish even before the first client is attached.
 
   auto nativeTex = texture->nativeTexture();
   // Qt packs the id<MTLTexture> pointer into a quint64 on Metal.

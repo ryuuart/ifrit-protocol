@@ -12,30 +12,20 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
-import Ifrit.Ui 1.0 as Ui
+import Ifrit.Qt 1.0 as Ui
 
-Ui.GlassPanel {
+Ui.Panel {
     id: strip
 
     required property var session
 
     radius: 12
+    padding: 7
+    backgroundColor: Ui.Theme.toolbarBackground
 
-    // The ground the pane stands on, rounded to the panel's own corners
-    // and outlined, so a pane reads as a pane on a window wearing the
-    // machine's glass and on one painting its own opaque colour alike.
-    Rectangle {
-        anchors.fill: parent
-        color: Ui.Theme.toolbarBackground
-        radius: strip.radius
-        border.width: 1
-        border.color: Ui.Theme.border
-    }
 
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: 14
-        anchors.rightMargin: 14
         spacing: 8
 
         Button {
@@ -71,7 +61,7 @@ Ui.GlassPanel {
             horizontalAlignment: Text.AlignRight
             text: strip.session.recording ? "recording → " + strip.session.recordingPath : strip.session.note
             color: strip.session.recording ? Ui.Theme.statusText : Ui.Theme.secondaryText
-            font.pixelSize: 11
+            font.pixelSize: Ui.Theme.captionSize
             elide: Text.ElideMiddle
         }
     }

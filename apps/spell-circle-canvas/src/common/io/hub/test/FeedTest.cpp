@@ -15,6 +15,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <string>
@@ -489,4 +490,53 @@ TEST_F(IOFeed, ACallbackSeesWhatTheSameDispatchDelivered) {
   // a reader is driven for is already there when it is driven.
   const std::vector<std::string> one = {"at zero"};
   EXPECT_EQ(seen, one);
+}
+
+TEST_F(IOFeed, LiveArrivalTimeIsIndependentOfQueueDrainTime) {
+  using Clock = std::chrono::steady_clock;
+  Feed feed("test://clock");
+  const auto before = Clock::now();
+  feed.deliver(message("one"));
+  const auto after = Clock::now();
+  const auto arrival = feed.receive();
+  ASSERT_TRUE(arrival);
+  const auto received = feed.receivedAt(*arrival);
+  EXPECT_GE(received, before);
+  EXPECT_LE(received, after);
+  EXPECT_EQ(received, feed.receivedAt(*arrival));
+}
+
+TEST_F(IOFeed, ReplayArrivalTimeUsesFirstAdvanceAndRecordedSpacing) {
+  using Clock = std::chrono::steady_clock;
+  using namespace std::chrono_literals;
+  Feed feed("test://clock");
+  feed.replay({{1, 0.0, shared("one"), {}}, {2, 0.25, shared("two"), {}}});
+  const auto before = Clock::now();
+  feed.advance(900.0);
+  const auto after = Clock::now();
+  const auto first = feed.receive();
+  ASSERT_TRUE(first);
+  const auto origin = feed.receivedAt(*first);
+  EXPECT_GE(origin, before);
+  EXPECT_LE(origin, after);
+  feed.advance(900.25);
+  const auto second = feed.receive();
+  ASSERT_TRUE(second);
+  EXPECT_EQ(feed.receivedAt(*second) - origin, 250ms);
+}
+
+TEST_F(IOFeed, InvalidOrUnrepresentableArrivalTimesMapToTheClockOrigin) {
+  using Clock = std::chrono::steady_clock;
+  Feed feed("test://clock");
+  Arrival arrival{};
+  const auto origin = feed.receivedAt(arrival);
+  for (const double invalid :
+       {-1.0, -std::numeric_limits<double>::infinity(),
+        std::numeric_limits<double>::infinity(),
+        std::numeric_limits<double>::quiet_NaN(),
+        std::numeric_limits<double>::max(),
+        std::chrono::duration<double>(Clock::duration::max()).count()}) {
+    arrival.at = invalid;
+    EXPECT_EQ(feed.receivedAt(arrival), origin);
+  }
 }

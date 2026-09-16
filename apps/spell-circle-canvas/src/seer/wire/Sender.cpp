@@ -144,13 +144,17 @@ io::Bytes dmxMessage(int universe, std::string_view channels) {
 Sender::Sender(Wires& wires) : m_wires(wires) {}
 
 std::shared_ptr<io::Feed> Sender::openPeer(std::string_view uri) {
-  m_peer = m_wires.open(uri);
   m_peerUri = std::string(uri);
-  return m_peer;
+  return m_wires.open(uri);
+}
+
+std::shared_ptr<io::Feed> Sender::peer() const {
+  return m_wires.feed(m_peerUri);
 }
 
 bool Sender::send(const io::Bytes& bytes) {
-  if (!m_peer || !m_peer->send(bytes)) return false;
+  const auto destination = peer();
+  if (!destination || !destination->send(bytes)) return false;
   ++m_sent;
   return true;
 }

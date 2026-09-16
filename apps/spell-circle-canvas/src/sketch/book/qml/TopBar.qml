@@ -7,7 +7,8 @@ pragma ComponentBehavior: Bound
 // of the two ways of looking at it is on.
 
 import QtQuick
-import QtQuick.Controls.Basic
+import Ifrit.Qt 1.0 as Ui
+import QtQuick.Controls
 import QtQuick.Layouts
 import QtQml.Models
 import Sigil.Sketchbook
@@ -45,51 +46,33 @@ Rectangle {
         field.selectAll();
     }
 
-    implicitHeight: 52
-    color: Theme.panel
-
-    /** One half of the view toggle: a target the size of a click, lit
-     *  when its mode is the one on. */
-    component ModeButton: Rectangle {
-        id: modeButton
-
-        required property string mode
-
-        width: 30
-        height: 24
-        radius: 5
-        color: bar.viewMode === modeButton.mode ? Theme.border : "transparent"
-
-        TapHandler {
-            onTapped: bar.viewModeRequested(modeButton.mode)
-        }
-    }
+    implicitHeight: 56
+    color: Ui.Theme.toolbarBackground
 
     Rectangle {
         anchors.bottom: parent.bottom
         width: parent.width
         height: 1
-        color: Theme.rule
+        color: Ui.Theme.separator
     }
 
     RowLayout {
         anchors.fill: parent
         anchors.leftMargin: 16
-        anchors.rightMargin: 14
-        spacing: 14
+        anchors.rightMargin: 12
+        spacing: 12
 
         Label {
-            text: "SKETCHBOOK"
-            color: Theme.warn
-            font.pixelSize: 14
-            font.bold: true
-            font.letterSpacing: 1.1
+            text: "Sketchbook"
+            color: Ui.Theme.primaryText
+            font.pixelSize: Ui.Theme.headingSize
+            font.weight: Font.DemiBold
         }
         Button {
             id: openButton
 
             text: "Open ▾"
-            implicitHeight: 28
+            implicitHeight: Ui.Theme.controlHeight
             enabled: !bar.opening
             Accessible.name: "Open sketch or workspace"
             onClicked: openMenu.popup()
@@ -143,147 +126,48 @@ Rectangle {
                 }
             }
         }
-        Label {
-            // The second number appears only when it differs, so the
-            // line reads as a count until a filter makes it a fraction.
-            text: bar.shown === bar.total
-                ? bar.total + " sketches"
-                : bar.total + " sketches · showing " + bar.shown
-            color: Theme.faint
-            font.family: Theme.mono
-            font.pixelSize: 11
-        }
-
-        Rectangle {
-            Layout.preferredWidth: 380
-            Layout.maximumWidth: 380
-            Layout.minimumWidth: 140
+        Ui.SearchField {
+            id: field
             Layout.fillWidth: true
-            Layout.preferredHeight: 30
-            radius: 7
-            color: Theme.ground
-            border.width: 1
-            border.color: field.activeFocus ? Theme.accent : Theme.selection
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 9
-                anchors.rightMargin: 5
-                spacing: 5
-
-                Label {
-                    text: "⌕"
-                    color: Theme.faint
-                    font.pixelSize: 14
-                }
-                TextField {
-                    id: field
-
-                    Layout.fillWidth: true
-                    text: bar.filterText
-                    onTextEdited: bar.filterRequested(text)
-                    placeholderText: "Search sketches, tags…  tag:  kind:  folder:"
-                    color: Theme.text
-                    placeholderTextColor: Theme.faintest
-                    font.pixelSize: 12
-                    background: null
-                    padding: 0
-                    // Escape clears rather than losing focus: the filter
-                    // is a lens, and putting it down should be one key
-                    // rather than select-all-delete.
-                    Keys.onEscapePressed: bar.filterRequested("")
-                    Keys.onDownPressed: bar.steppedOut()
-                    Keys.onReturnPressed: bar.steppedOut()
-                }
-                ToolButton {
-                    visible: field.text.length > 0
-                    text: "×"
-                    font.pixelSize: 15
-                    implicitWidth: 22
-                    implicitHeight: 22
-                    Accessible.name: "Clear search"
-                    onClicked: bar.filterRequested("")
-                }
-            }
+            Layout.minimumWidth: 160
+            Layout.maximumWidth: 460
+            text: bar.filterText
+            placeholderText: "Search sketches or tags"
+            onTextEdited: bar.filterRequested(text)
+            onSteppedOut: bar.steppedOut()
+            onAccepted: bar.steppedOut()
+            ToolTip.visible: hovered && !activeFocus
+            ToolTip.delay: 900
+            ToolTip.text: "Search names and descriptions, or use tag:, kind:, folder:"
         }
-
+        Label {
+            visible: bar.width >= 1150
+            text: bar.shown === bar.total ? bar.total + " sketches"
+                : bar.shown + " of " + bar.total
+            color: Ui.Theme.secondaryText
+            font.pixelSize: Ui.Theme.captionSize
+        }
         Item { Layout.fillWidth: true }
-
         Button {
-            text: "Export video"
+            text: "Export all…"
             enabled: !bar.taskRunning
-            implicitHeight: 28
+            implicitHeight: Ui.Theme.controlHeight
             ToolTip.visible: hovered
             ToolTip.delay: 700
             ToolTip.text: "Export every available sketch as a vertical MP4"
             onClicked: bar.videoRequested()
         }
-
-        // The two ways of looking at the same registry. A gallery
-        // answers "which one was that", a list answers "what is here" —
-        // and neither answers the other, which is why both are here.
-        Rectangle {
-            Layout.preferredWidth: 66
-            Layout.preferredHeight: 28
-            radius: 7
-            color: Theme.ground
-            border.width: 1
-            border.color: Theme.selection
-
-            Row {
-                anchors.centerIn: parent
-                spacing: 2
-
-                ModeButton {
-                    mode: "gallery"
-                    Grid {
-                        anchors.centerIn: parent
-                        columns: 2
-                        spacing: 3
-                        Repeater {
-                            model: 4
-                            Rectangle {
-                                width: 5
-                                height: 5
-                                color: bar.viewMode === "gallery"
-                                    ? Theme.text : Theme.faint
-                            }
-                        }
-                    }
-                }
-                ModeButton {
-                    mode: "list"
-
-                    Column {
-                        anchors.centerIn: parent
-                        spacing: 3
-                        Repeater {
-                            model: 3
-                            Rectangle {
-                                width: 13
-                                height: 1.5
-                                color: bar.viewMode === "list"
-                                    ? Theme.text : Theme.faint
-                            }
-                        }
-                    }
-                }
-            }
+        Ui.SegmentedControl {
+            model: [{text: "Gallery"}, {text: "List"}]
+            currentIndex: bar.viewMode === "gallery" ? 0 : 1
+            onActivated: index => bar.viewModeRequested(index === 0 ? "gallery" : "list")
         }
-
-        // The rail is a reading aid, not a fixture: a narrow window is
-        // better spent on the canvas than on a column of facts already
-        // read.
-        ToolButton {
-            text: bar.inspectorOpen ? "❯" : "❮"
+        Ui.IconButton {
+            text: "ⓘ"
+            checked: bar.inspectorOpen
             enabled: bar.inspectorAvailable
-            font.pixelSize: 11
-            implicitWidth: 26
-            implicitHeight: 26
-            ToolTip.visible: hovered
-            ToolTip.delay: 700
-            ToolTip.text: !bar.inspectorAvailable ? "Widen the window to show the inspector"
-                : (bar.inspectorOpen ? "Close the inspector" : "Open the inspector")
+            tooltip: !bar.inspectorAvailable ? "Widen the window to show details"
+                : bar.inspectorOpen ? "Hide sketch details" : "Show sketch details"
             onClicked: bar.inspectorToggled()
         }
     }

@@ -1,6 +1,6 @@
 # The FlatBuffers wire schema (SpellCircle.fbs) and the C++ header
 # generated from it, shared by every decoder: the Qt-free SceneModel and
-# the Qt NetworkManager verifier.
+# the receiver document verifier.
 #
 # The header is a BUILD ARTIFACT, generated into the build tree and never
 # committed. flatc comes from the same vcpkg manifest as the runtime

@@ -8,9 +8,10 @@ datagram over UDP. SpellCircle receives it, draws it with Skia on the
 GPU, and publishes the result as a transparent-background texture over
 Syphon, where a VJ or compositing tool picks it up.
 
-The app only receives. Nothing is authored inside it. Scenes typically
-arrive at animation frame rates, so the sender is free to treat it as a
-live output surface rather than a document viewer.
+Seer hosts the Qt receiver beside its wire inspector, sender and recorder.
+The receiver accepts externally authored scenes; Sketchbook is the authoring
+application. Scenes may arrive at animation frame rates, so a sender can use
+the receiver as a live output surface.
 
 What you get on screen is a viewer and a control surface: a canvas you
 pan and zoom, a timestamped feed of arriving packets, a packets-per-second
@@ -20,8 +21,22 @@ zooming never redraw the scene — they move an already-rendered image.
 
 ## Getting a picture on screen
 
-Build (see [Build and test](#build-and-test)), start the app, then send
-it something:
+Build (see [Build and test](#build-and-test)), open the Receiver in Seer,
+then send it something:
+
+```sh
+build/bin/Release/Seer.app/Contents/MacOS/Seer --receiver udp://:27015
+```
+
+A plain Seer launch opens no ports. **Open Receiver** uses the saved source,
+or UDP port 27015 when there are no saved settings. Its source stays pinned
+while another wire is inspected. The receiver panel has start/stop, fit,
+actual-size, clear, activity, and graphics settings controls. Graphics and
+source settings save together under Seer's `receiver` configuration directory
+and import existing
+SpellCircle graphics and port settings when no Seer receiver settings exist.
+Cancel restores the values present when settings opened. Syphon continues to
+publish under the server name `SpellCircle`.
 
 ```sh
 python3 apps/python/SpellCircle/test/send_spell_circles.py --seed 1
@@ -74,8 +89,9 @@ Python  ──FlatBuffers──▶  UDP :27015  ──▶  drain  ──▶  ver
 The port is a door on a resource hub: `sigil::io::Hub::feed()` on a
 `udp://:27015` URI binds a dual-stack socket and takes every datagram
 that reaches it on a thread of its own. Each front end drains that door
-on its own thread at the render frame — `readArrivals()` in the Qt
-adapter, `-[SCKEngine readArrivals]` on macOS — and hands each arrival to
+on its owner thread. Seer drains each observed wire once and shares arrivals
+with raw inspection and its pinned receiver; `-[SCKEngine readArrivals]`
+drains the native macOS frontend. Each hands accepted input to
 `SceneSession`, which verifies and decodes a changed payload into an
 `entt` registry. Malformed packets leave the current scene
 intact. Byte-identical packets count toward the arrival rate without
@@ -83,10 +99,10 @@ decoding or invalidating the scene again.
 
 Nothing is delivered onto the user interface thread from outside it: the
 transport puts arrivals in the door and the frame takes them out, in
-order. `sigil::io::Arrival::at` is the seconds since the door was opened,
-so a receive time is that origin plus those seconds — measured where the
-datagram landed, not where it was read, which is what keeps the frame an
-arrival waited for out of the reported rate.
+order. `sigil::io::Feed::receivedAt()` converts the arrival's timestamp onto the
+steady clock, so arrival rates retain transport timing independently of
+when the queue is drained. Replayed arrivals preserve their recorded spacing
+relative to the first playback advance.
 
 Binding is synchronous: when the door is asked for,
 `sigil::io::Feed::error()` says whether the port was free and
@@ -124,7 +140,6 @@ resolution and drawing.
 sigil::io::Hub hub;
 sigil::io::registerUdp(hub);          // only UDP: the product speaks nothing else
 
-const auto openedAt = spellcircle::SceneSession::Clock::now();
 const std::shared_ptr<sigil::io::Feed> door =
     hub.feed("udp://:27015", {.capacity = 64});
 if (!door->error().empty()) std::cerr << door->error() << '\n';
@@ -133,9 +148,7 @@ spellcircle::SceneSession scene;
 for (;;) {                            // once a frame, on the thread that draws
   while (const std::optional<sigil::io::Arrival> arrival = door->receive()) {
     scene.ingest(arrival->bytes->bytes.data(), arrival->bytes->bytes.size(),
-                 openedAt + std::chrono::duration_cast<
-                                spellcircle::SceneSession::Clock::duration>(
-                                std::chrono::duration<double>(arrival->at)));
+                 door->receivedAt(*arrival));
   }
 }
 ```
@@ -150,7 +163,7 @@ names the sender, spelled `udp://127.0.0.1:52341`; both front ends show
 it with the scheme taken off.
 
 `SceneSession` is synchronous and belongs to one owner thread — the one
-that drains the door, which in both apps is the thread that draws. A host
+that drains the door. The Qt renderer copies scene state during synchronization. A host
 can also feed the session from anything else that produces bytes. Its
 generation changes only when the accepted document changes or is cleared.
 Arrival rates use the datagram's receive time, so a busy frame cannot
@@ -166,7 +179,8 @@ The Qt-free core is shared; the two front ends are not.
 | --- | --- |
 | `src/spellcircle/shared/schema/` | `SpellCircle.fbs` and its generated header — the wire format |
 | `src/spellcircle/shared/scene/` | `SpellCircleDocument`: verified ingestion and session state; `SpellCircleScene`: resolve, draw, ring-label geometry |
-| `src/spellcircle/qt/` | The Qt app — QML front end, cross-platform target |
+| `src/spellcircle/qt/` | Reusable scene models, canvas, graphics form and texture publisher hosted by Seer |
+| `src/seer/app/` | The Qt application: wire inspection and the pinned scene receiver |
 | `src/spellcircle/mac/` | `SpellCircleMac` — SwiftUI over an ObjC++ bridge, macOS only |
 
 `SceneRenderer` is not thread-safe. It builds its font context lazily on
@@ -179,10 +193,10 @@ side — scene core, Skia, SigilWeave, ICU, HarfBuzz, Syphon — so the whole
 of it links through the clang++ driver and the Swift executable links one
 dylib.
 
-The Qt executable injects `Models` into the QML root; the Swift app's
-`EngineModel` owns one `SCKEngine`. Each of them holds a hub and opens
-one door on it, so neither frontend needs an event loop of its own and
-nothing is shared between them but the wire format.
+Seer owns a session with one resource hub, a scene model and graphics
+settings. Its QML root receives that session; raw inspection and scene
+ingestion share each drained arrival. The Swift app's `EngineModel` owns one
+`SCKEngine`. Both frontends reuse the verified document and scene renderer.
 
 ## Libraries
 
@@ -193,7 +207,7 @@ The app is thin. Most of the code is in libraries under `src/common/`,
 | --- | --- |
 | [SigilCore](src/common/core/README.md) | The kernels a retained runtime hosts: the reconciler, the caching proof, the hardware device seam, and the compute values a drawing is drawn from |
 | [SigilSkia](src/common/skia/README.md) | Skia Graphite on a device someone else owns |
-| [Ifrit.Ui](src/common/ui/README.md) | Reusable Qt Quick controls |
+| [Ifrit.Qt](src/common/qt/README.md) | Reusable Qt Quick controls |
 | [SigilImage](src/common/image/README.md) | Still-image and animated-image decoding and encoding, and signed distance fields over a coverage mask |
 | [SigilVideo](src/common/video/README.md) | Streaming video decoding, GPU composition, and MP4 encoding |
 | [SigilIO](src/common/io/README.md) | Resource access and export: URIs, mounts, caching, hot reload, byte sinks |
@@ -234,9 +248,9 @@ The test suite covers the libraries and the receiver layers:
   input, deduplication, clearing, and receive-time arrival rates.
 - `spellcircle_test` builds wire payloads and checks decode, resolution,
   box placement, and ring-label geometry.
-- `spellcircle_qt_test` sends loopback datagrams through the Qt adapter's
-  door and checks what opening, draining and closing it report, and what
-  reaches the scene model.
+- `seer_qt_test` checks shared trace/scene delivery, pinned-source independence,
+  malformed and duplicate packets, rebind/stop/retry, recording replay, and
+  settings import/save/cancel.
 - `spellcircle_mac_test` does the same through the ObjC++ engine, down to
   the feed entry a changed scene appends and the source it names.
 

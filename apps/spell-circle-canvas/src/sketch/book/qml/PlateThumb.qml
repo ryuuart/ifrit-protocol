@@ -5,6 +5,7 @@
 // an unphotographed sketch worth seeing from across a list.
 
 import QtQuick
+import Ifrit.Qt 1.0 as Ui
 import Sigil.Sketchbook
 
 Rectangle {
@@ -46,7 +47,7 @@ Rectangle {
     onSketchIndexChanged: thumb.askForThumbnail()
     onPlateChanged: thumb.askForThumbnail()
 
-    color: Theme.ground
+    color: Ui.Theme.windowBackground
     radius: 4
     clip: true
 
@@ -75,7 +76,7 @@ Rectangle {
         onPaint: {
             const context = glyph.getContext("2d");
             context.reset();
-            context.strokeStyle = Theme.faint;
+            context.strokeStyle = Ui.Theme.secondaryText;
             context.lineWidth = Math.max(1, glyph.width * 0.06);
             const w = glyph.width;
             const h = glyph.height;

@@ -1,14 +1,16 @@
+pragma ComponentBehavior: Bound
+
 import QtCore
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Qt.labs.platform as Platform
-import Ifrit.Ui 1.0 as Ui
+import Ifrit.Qt 1.0 as Ui
 import SigilWeave.Gallery
 
 /** Top-level composition for the interactive SigilWeave gallery. */
 ApplicationWindow {
-    id: window
+    id: galleryWindow
 
     required property int initialScene
     required property string initialText
@@ -21,27 +23,29 @@ ApplicationWindow {
 
     width: 1360
     height: 860
+    minimumWidth: 860
+    minimumHeight: 540
     visible: true
     title: nativeSubtitle ? "SigilWeave Gallery" : "SigilWeave Gallery — " + sceneName
     color: Ui.Theme.windowBackground
 
     onSceneNameChanged: {
         if (nativeSubtitle)
-            Ui.WindowChrome.setSubtitle(window, sceneName);
+            Ui.WindowChrome.setSubtitle(galleryWindow, sceneName);
     }
 
     Component.onCompleted: {
-        if (Ui.WindowChrome.applyVibrancy(window))
-            window.color = "transparent";
-        nativeSubtitle = Ui.WindowChrome.setSubtitle(window, sceneName);
+        if (Ui.WindowChrome.applyVibrancy(galleryWindow))
+            galleryWindow.color = "transparent";
+        nativeSubtitle = Ui.WindowChrome.setSubtitle(galleryWindow, sceneName);
     }
 
     Settings {
         category: "GalleryWindow"
-        property alias x: window.x
-        property alias y: window.y
-        property alias width: window.width
-        property alias height: window.height
+        property alias x: galleryWindow.x
+        property alias y: galleryWindow.y
+        property alias width: galleryWindow.width
+        property alias height: galleryWindow.height
     }
 
     // The style's default background would paint over the vibrancy glass.
@@ -60,7 +64,7 @@ ApplicationWindow {
                 Action {
                     text: "Close Window"
                     shortcut: StandardKey.Close
-                    onTriggered: window.close()
+                    onTriggered: galleryWindow.close()
                 }
                 MenuSeparator {}
                 Action {
@@ -88,7 +92,7 @@ ApplicationWindow {
                 Platform.MenuItem {
                     text: "Close Window"
                     shortcut: StandardKey.Close
-                    onTriggered: window.close()
+                    onTriggered: galleryWindow.close()
                 }
             }
             Platform.Menu {
@@ -97,11 +101,11 @@ ApplicationWindow {
                 Platform.MenuItem {
                     text: "Minimize"
                     shortcut: "Meta+M"
-                    onTriggered: window.showMinimized()
+                    onTriggered: galleryWindow.showMinimized()
                 }
                 Platform.MenuItem {
                     text: "Zoom"
-                    onTriggered: window.visibility === Window.Maximized ? window.showNormal() : window.showMaximized()
+                    onTriggered: galleryWindow.visibility === Window.Maximized ? galleryWindow.showNormal() : galleryWindow.showMaximized()
                 }
             }
         }
@@ -109,21 +113,25 @@ ApplicationWindow {
 
     RowLayout {
         anchors.fill: parent
-        anchors.margins: 12
-        spacing: 12
+        anchors.margins: Ui.Theme.sectionSpacing
+        spacing: Ui.Theme.sectionSpacing
 
-        GallerySidebar {
-            Layout.preferredWidth: 320
-            Layout.minimumWidth: 320
-            Layout.maximumWidth: 320
+        Ui.Panel {
+            Layout.preferredWidth: 356
+            Layout.minimumWidth: 356
+            Layout.maximumWidth: 356
             Layout.fillHeight: true
-            view: galleryView
+
+            GallerySidebar {
+                anchors.fill: parent
+                view: galleryView
+            }
         }
 
         Ui.GlassPanel {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            radius: 12
+            radius: Ui.Theme.panelRadius
 
             Rectangle {
                 anchors.fill: parent
@@ -135,9 +143,9 @@ ApplicationWindow {
                 anchors.fill: parent
 
                 Component.onCompleted: {
-                    sceneIndex = window.initialScene;
-                    if (window.initialText.length > 0)
-                        sceneText = window.initialText;
+                    sceneIndex = galleryWindow.initialScene;
+                    if (galleryWindow.initialText.length > 0)
+                        sceneText = galleryWindow.initialText;
                 }
             }
         }

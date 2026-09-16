@@ -4,6 +4,7 @@
 
 #include "SketchbookView.h"
 
+#include <WindowChrome.h>
 #include <sigilsketch/core/Fit.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/live/Host.h>
@@ -121,6 +122,8 @@ void SketchbookView::geometryChange(const QRectF& newGeometry,
 
 void SketchbookView::itemChange(ItemChange change, const ItemChangeData& data) {
   QQuickRhiItem::itemChange(change, data);
+  if (change == ItemSceneChange && data.window && m_publishing)
+    WindowChrome::keepRendering(data.window);
   if (change == ItemDevicePixelRatioHasChanged ||
       (change == ItemSceneChange && data.window))
     settleRenderSize();
@@ -157,9 +160,16 @@ void SketchbookView::capture() {
   update();
 }
 
+void SketchbookView::replay() {
+  if (m_sketchIndex < 0) return;
+  m_replayIndex = m_sketchIndex;
+  update();
+}
+
 void SketchbookView::setPublishing(bool publishing) {
   if (publishing == m_publishing) return;
   m_publishing = publishing;
+  if (publishing && window()) WindowChrome::keepRendering(window());
   emit publishingChanged();
   update();  // the renderer reads it on the synchronize this asks for
 }

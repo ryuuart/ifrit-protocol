@@ -3,131 +3,148 @@
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/hello.cpp
 //
-// Then EDIT THIS FILE AND SAVE — the canvas reloads in a couple of
-// seconds. Drop an image beside this file and load it with
-// ctx.assets.image(ctx.local("name.png")) (a magenta checker shows until
-// the file exists; editing the file on disk hot-swaps it too).
-
+// Edit a card's words or colour and save to reload. The cards are retained
+// elements, the wave is an immediate pen program, and the counter is data
+// re-described only when it changes. All three share one composition.
 // TAGS: Runtime/Starter
 
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigildraw/Pen.h>
+#include <sigilmotion/bind/Bound.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
+#include <string>
+#include <utility>
 
 namespace sketch = sigil::sketch;
 namespace draw = sigil::draw;
+namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using namespace std::chrono_literals;
 
-// The three ways things move here (retained-mode, not p5's redraw
-// loop):
-//  1. setup() DECLARES the scene once — including its motion: bound
-//     Outputs, transitions, ticker steppables. The runtime animates
-//     them every frame without re-describing anything.
-//  2. a pen() leaf is the immediate-mode floor — its program runs every
-//     frame, in p5's own verbs (see the wave below).
-//  3. update(elapsed, ctx) is for DATA changes: mutate state, call
-//     composer.render(describe()) again, and the reconciler diffs it
-//     (see the score counter below).
+namespace {
+
+sketch::kit::Theme sheetTheme() {
+  auto look = sketch::kit::houseTheme();
+  look.palette.ground = hexColor(0xf6f2e9);
+  look.palette.ink = hexColor(0x253b40);
+  look.palette.ash = hexColor(0x63777a);
+  look.palette.rule = hexColor(0xd5dcd5);
+  look.type.title = {.size = 42};
+  look.type.subtitle = {.size = 16};
+  look.type.footer = {.size = 12};
+  look.type.captionNote = {.size = 14};
+  look.spacing.marginX = 48;
+  look.spacing.marginTop = 42;
+  look.spacing.marginBottom = 32;
+  look.spacing.contentGap = 32;
+  return look;
+}
+
+Element card(Utf8 step, Utf8 title, Utf8 note, SkColor4f color) {
+  return box()
+      .column()
+      .gap(10)
+      .grow()
+      .height(150)
+      .padding(24)
+      .corners({18})
+      .fill(Fill::color(color))
+      .children({text(std::move(step)).styleClass("eyebrow"),
+                 text(std::move(title)).font({.size = 28}),
+                 text(std::move(note))});
+}
+
+}  // namespace
+
 struct HelloSketch {
   choreograph::Output<float> wave{0.0f};
   int score = 0;
-  double nextScoreAt = 0.0;
+  double nextScoreAt = 1.0;
 
-  Element describe(sketch::SketchContext& ctx) {
-    auto card = [](Utf8 label, SkColor4f color) {
-      return kit::centred()
-          .width(150)
-          .height(90)
-          .corners({16})
-          .fill(Fill::color(color))
-          .background(shadow({0, 0, 0, 0.4f}, {3, 4}, 10))
-
-          .children({text(std::move(label)).font({.size = 20})});
-    };
-
-    // The type is white unless a line says otherwise: the ink and the
-    // font flow down the tree, and a leaf names only what differs.
-    return stack()
-        .ink(hexColor(0xffffff))
-        .fill(linearGradient(
-            {0, 0}, {0, ctx.size.height()},
-            {{0.08f, 0.06f, 0.18f, 1}, {0.03f, 0.10f, 0.16f, 1}}))
-        // A row of cards — try changing colors, sizes, corners…
-        .children(
-            {box()
-                 .row()
-                 .gap(24)
-                 .inset(90, 120, 90, 330)
-                 .children({card("edit", {0.86f, 0.30f, 0.40f, 1}),
-                            card("save", {0.30f, 0.56f, 0.95f, 1}),
-                            card("reloads", {0.35f, 0.72f, 0.45f, 1})}),
-             // An image from the assets directory (magenta checker
-             // until you drop a real file in).
-             image(ctx.assets.image("logo.png"))
-                 .width(120)
-                 .height(120)
-                 .corners({20})
-                 .clip()
-                 .inset(90, 280, 690, 240),
-             // A PEN LEAF riding the bound Output: p5's verbs inside a
-             // node of the tree, run every frame.
-             // KEYLESS: the wave reads the pen's clock and a bound Output.
-             pen([this](draw::Pen& pen) {
-               pen.noFill();
-               pen.stroke(0, 255, 255);
-               pen.strokeWeight(3);
-               pen.beginShape();
-               // the loop walks a distance; the accumulated float is the
-               // position
-               // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
-               for (float x = 0; x <= pen.width; x += 6)
-                 pen.vertex(
-                     x, pen.height / 2 +
-                            std::sin(x * 0.03f + (float)pen.millis() * 0.002f) *
-                                pen.height * 0.32f * wave.value());
-               pen.endShape();
-             }).inset(240, 300, 90, 180),
-             // Re-rendered by update() whenever the score changes —
-             // the keyed text keeps its identity across renders.
-             text("score " + std::to_string(score))
-                 .font({.size = 24})
-                 .ink(hexColor(0xffd9a0))
-                 .key("score")
-                 .inset(650, 120, 90, 480),
-             text(u8"Sketchbook — edit hello.cpp and save")
-                 .font({.size = 17})
-                 .ink(hexColor(0x9aa4bb))
-                 .inset(90, 560, 90, 40)});
+  Element describe() {
+    const sketch::kit::Provide look(sheetTheme());
+    return sketch::kit::page(
+        {.title = "Hello, Sketchbook.",
+         .subtitle = "Start with a shape. Give it a rhythm. Make it your own.",
+         .footer =
+             "Open hello.cpp  ·  change a colour or a word  ·  save to reload"},
+        box().column().gap(28).children(
+            {box().row().gap(18).children(
+                 {card("01 / MAKE", "Edit", "A colour, a curve, a word.",
+                       hexColor(0xf4baa5)),
+                  card("02 / TRY", "Save", "Your canvas follows along.",
+                       hexColor(0xbfdadf))
+                      .translateY(motion::bind(&wave).scale(-3)),
+                  card("03 / PLAY", "Repeat", "Keep the part you love.",
+                       hexColor(0xdbe6b4))}),
+             box().row().gap(24).children(
+                 {box().column().grow().gap(12).children(
+                      {text("A line with a little life.").font({.size = 20}),
+                       // This keyless program reads the clock and runs each
+                       // frame.
+                       pen([this](draw::Pen& pen) {
+                         pen.noFill();
+                         pen.stroke(88, 112, 117);
+                         pen.strokeWeight(1);
+                         pen.line(24, pen.height / 2, pen.width - 24,
+                                  pen.height / 2);
+                         pen.stroke(190, 225, 213);
+                         pen.strokeWeight(3);
+                         pen.beginShape();
+                         for (int x = 24; x <= static_cast<int>(pen.width) - 24;
+                              x += 4)
+                           pen.vertex(
+                               static_cast<float>(x),
+                               pen.height / 2 +
+                                   std::sin(x * 0.03f + pen.millis() * 0.002f) *
+                                       pen.height * 0.28f * wave.value());
+                         pen.endShape();
+                       })
+                           .height(174)
+                           .corners({18})
+                           .fill(Fill::color(hexColor(0x253b40)))
+                           .clip(),
+                       text("Draw every frame with the pen.")
+                           .ink(hexColor(0x63777a))}),
+                  box().column().width(240).gap(12).children(
+                      {text("A value that changes.").font({.size = 20}),
+                       kit::centred()
+                           .column()
+                           .gap(8)
+                           .height(174)
+                           .corners({18})
+                           .fill(Fill::color(hexColor(0xe5e9df)))
+                           .children(
+                               {text(std::to_string(score))
+                                    .font({.size = 64})
+                                    .key("score"),
+                                text("and counting").styleClass("eyebrow")}),
+                       text("Update only when data changes.")
+                           .ink(hexColor(0x63777a))})})}));
   }
 
   void setup(sketch::SketchContext& ctx) {
-    // p5's createCanvas/background: declare the canvas you want —
-    // the window letterboxes to it, headless captures honor it.
-    sketch::kit::stage(ctx, {.size = {1000, 700},
-                             .background = SkColor4f{0.05f, 0.04f, 0.10f, 1}});
+    const sketch::kit::Provide look(sheetTheme());
+    sketch::kit::stage(ctx, {.size = {1000, 700}, .captureAt = 1.0});
+    ctx.composer.render(describe());
 
-    // Declared motion: a steppable drives the bound Output every
-    // frame from here on — no per-frame describes needed.
+    // One output animates a retained card and feeds the immediate wave.
     ctx.ticker.add([this, &ticker = ctx.ticker] {
-      const double t = ticker.elapsed();
-      wave = (float)std::sin(t * 1.6);
+      wave = static_cast<float>(std::sin(ticker.elapsed() * 1.6));
     });
   }
 
   void update(double elapsed, sketch::SketchContext& ctx) {
-    // Data path: when state changes, describe again and let the
-    // reconciler diff. Everything unchanged stays cached.
     if (elapsed < nextScoreAt) return;
     nextScoreAt = elapsed + 1.0;
     score += 25;
-    ctx.composer.render(describe(ctx));
+    // The keyed counter changes; the other retained elements keep their state.
+    ctx.composer.render(describe());
   }
 };
 

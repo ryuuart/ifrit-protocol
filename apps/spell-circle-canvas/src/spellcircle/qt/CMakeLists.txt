@@ -2,10 +2,9 @@
 # include/ and qml/ tree, several targets kept separate so concerns stay
 # layered:
 #
-#   SpellCircleNetwork  Qt adapter over a resource hub's UDP door
 #   SpellCircleModels   QML-facing models (SpellCircle.Models)
 #   SpellCircleCanvas   the canvas item + Skia backend (SpellCircle.Canvas)
-#   SpellCircle         the executable + application QML (SpellCircle.App)
+#   Seer hosts the scene consumer, transport and settings window.
 #
 # QuickDialogs2 is named for the QML import in GraphicsSettingsForm.qml
 # rather than a C++ link.
@@ -17,53 +16,29 @@ find_package(EnTT CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(Threads REQUIRED)
 
-# ── Network: the Qt face of the UDP door ─────────────────────────────────
-# Opens the port on a hub of its own and drains what arrives there on the
-# frame, so a scene reaches the QObject's thread without being delivered
-# onto it. The scene model verifies payloads.
-qt_add_library(SpellCircleNetwork SHARED
-  src/NetworkManager.cpp include/NetworkManager.h
-)
-sigil_qt_target(SpellCircleNetwork)
-
-target_link_libraries(SpellCircleNetwork
-    PUBLIC
-      Qt6::Core
-    PRIVATE
-      spdlog::spdlog
-      SigilIOHub          # the hub, and the feed the port is opened as
-      SigilIOTransport    # registerUdp: the scheme that port speaks
-)
-
-target_include_directories(SpellCircleNetwork
-    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
 # ── Models: the QML-facing application state ─────────────────────────────
-# The entt-backed SpellCircleModel decoded from the wire format, graphics
-# configuration, the QML-facing Models aggregate, and the font database.
+# The entt-backed SpellCircleModel decoded from the wire format and
+# graphics configuration.
 #
 # The library is spelled out rather than left to qt_add_qml_module() to
 # create, here and for the canvas below, because a QML module registers
 # its types out of moc's JSON output: the scan has to be on for the
 # backing target before the module is declared.
-qt_add_library(SpellCircleModels SHARED)
+qt_add_library(SpellCircleModels STATIC)
 sigil_qt_target(SpellCircleModels)
 
 qt_add_qml_module(SpellCircleModels
     URI SpellCircle.Models
     VERSION 1.0
     SOURCES
+      include/ModelTypes.h
       src/SpellCircleModel.cpp include/SpellCircleModel.h
       src/GraphicsConfig.cpp include/GraphicsConfig.h
-      src/Models.cpp include/Models.h
-      src/FontDatabase.cpp include/FontDatabase.h
 )
 
 target_link_libraries(SpellCircleModels
   PUBLIC
     Qt6::Gui
-    SpellCircleNetwork # NetworkManager transport
     SpellCircleDocument # accepted scene state and document
     EnTT::EnTT
   PRIVATE
@@ -72,12 +47,6 @@ target_link_libraries(SpellCircleModels
 
 target_include_directories(SpellCircleModels
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-sigil_test(spellcircle_qt_test
-  SOURCES test/ReceiverTest.cpp
-  LIBRARIES SpellCircleNetwork SpellCircleModels SpellCircleSchema
-            Qt6::Core Threads::Threads
 )
 
 # ── Canvas: the scene item, Skia backend, and texture publishing ─────────
@@ -101,12 +70,18 @@ elseif(WIN32)
   endif()
 endif()
 
-qt_add_library(SpellCircleCanvas SHARED)
+qt_add_library(SpellCircleCanvas STATIC)
 sigil_qt_target(SpellCircleCanvas)
 
+foreach(receiver_qml IN ITEMS PreviewPane GraphicsSettingsForm)
+  set_source_files_properties(qml/components/${receiver_qml}.qml
+    PROPERTIES QT_RESOURCE_ALIAS ${receiver_qml}.qml)
+endforeach()
 qt_add_qml_module(SpellCircleCanvas
     URI SpellCircle.Canvas
     VERSION 1.0
+    IMPORTS SpellCircle.Models
+    QML_FILES qml/components/PreviewPane.qml qml/components/GraphicsSettingsForm.qml
     SOURCES
       src/TexturePublisherFactory.cpp include/TexturePublisher.h
       ${SPELLCIRCLE_PUBLISHER_SOURCES}
@@ -123,8 +98,9 @@ target_link_libraries(SpellCircleCanvas
       Qt6::CanvasPainter
     PRIVATE
       spdlog::spdlog
+      IfritQtplugin Qt6::QuickControls2 Qt6::QuickLayouts Qt6::QuickDialogs2
       SigilMeasure # the record/submit frame timer in SkiaSceneBackend.cpp
-      SpellCircleModels # SpellCircleModel/GraphicsConfig (carries network)
+      SpellCircleModels
       SpellCircleScene # shared resolve/draw core (also used by ../mac)
       EnTT::EnTT
       Qt::GuiPrivate
@@ -153,78 +129,4 @@ target_link_libraries(SpellCircleCanvas PRIVATE SigilSkiaQt SigilWeaveQt
 
 target_include_directories(SpellCircleCanvas PUBLIC
   ${CMAKE_CURRENT_LIST_DIR}/include
-)
-
-# ── The executable ───────────────────────────────────────────────────────
-qt_add_executable(SpellCircle
-    src/main.cpp
-)
-sigil_qt_target(SpellCircle)
-
-# App Nap suppression is a main.cpp concern, not a library: fold the one
-# ObjC++ TU straight into the executable on macOS.
-if(APPLE)
-  sigil_frameworks(app_frameworks Foundation AppKit)
-  target_sources(SpellCircle PRIVATE src/AppNap.mm include/AppNap.h)
-  target_link_libraries(SpellCircle PRIVATE ${app_frameworks})
-endif()
-
-target_include_directories(SpellCircle PRIVATE include)
-
-# Keep application QML organized by concern while exposing its types at the
-# executable module root. Reusable controls live in Ifrit.Ui (src/common/ui).
-set_source_files_properties(
-    qml/Main.qml
-    PROPERTIES QT_RESOURCE_ALIAS Main.qml
-)
-set_source_files_properties(
-    qml/SettingsWindow.qml
-    PROPERTIES QT_RESOURCE_ALIAS SettingsWindow.qml
-)
-set_source_files_properties(
-    qml/components/LogSidebar.qml
-    PROPERTIES QT_RESOURCE_ALIAS LogSidebar.qml
-)
-set_source_files_properties(
-    qml/components/PreviewPane.qml
-    PROPERTIES QT_RESOURCE_ALIAS PreviewPane.qml
-)
-set_source_files_properties(
-    qml/components/GraphicsSettingsForm.qml
-    PROPERTIES QT_RESOURCE_ALIAS GraphicsSettingsForm.qml
-)
-set_source_files_properties(
-    qml/components/NetworkSettingsForm.qml
-    PROPERTIES QT_RESOURCE_ALIAS NetworkSettingsForm.qml
-)
-
-qt_add_qml_module(SpellCircle
-    URI SpellCircle.App
-    VERSION 1.0
-    QML_FILES
-        qml/Main.qml
-        qml/SettingsWindow.qml
-        qml/components/LogSidebar.qml
-        qml/components/PreviewPane.qml
-        qml/components/GraphicsSettingsForm.qml
-        qml/components/NetworkSettingsForm.qml
-)
-
-set_target_properties(SpellCircle PROPERTIES
-    MACOSX_BUNDLE_GUI_IDENTIFIER "dev.sigil.SpellCircle"
-    MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
-    MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
-    MACOSX_BUNDLE TRUE
-)
-
-target_link_libraries(SpellCircle
-    PRIVATE
-      Qt6::Quick
-      Qt6::QuickControls2
-      Qt6::QuickLayouts
-      Qt6::CanvasPainter
-      spdlog::spdlog
-      SpellCircleCanvas
-      SpellCircleModels
-      Threads::Threads
 )

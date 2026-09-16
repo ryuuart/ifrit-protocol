@@ -85,9 +85,7 @@
 #include <QtCore/QProcessEnvironment>
 #include <QtCore/QSettings>
 #include <QtCore/QSysInfo>
-#include <QtCore/QTimer>
 #include <QtGui/QGuiApplication>
-#include <QtGui/QImage>
 #include <QtQml/QQmlApplicationEngine>
 #include <QtQuick/QQuickItem>
 #include <QtQuick/QQuickWindow>
@@ -97,7 +95,6 @@
 #include <exception>
 #include <filesystem>
 #include <future>
-#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -113,6 +110,7 @@
 #include "ThumbnailWarm.h"
 #include "VideoLane.h"
 #include "WindowBench.h"
+#include "WindowCapture.h"
 #include "Workspace.h"
 
 namespace sketch = sigil::sketch;
@@ -606,54 +604,19 @@ int main(int argc, char* argv[]) {
       std::fprintf(stderr, "--shot: no window to grab\n");
       return 1;
     }
-    // Drive real frames rather than waiting for them. An unfocused
-    // window gets no render loop from the compositor, so a single
-    // delayed grab catches a sketch that has not started — grabWindow()
-    // is what makes the thing run. Marking the item dirty first is the
-    // part that is easy to miss: without it the grab re-renders the
-    // existing scene-graph node and never synchronizes, so the metrics
-    // panel keeps showing what it had before anything was activated.
-    auto* warm = new QTimer(&application);
-    auto framesLeft = std::make_shared<int>(90);
-    auto patience = std::make_shared<int>(900);
-    warm->setInterval(16);
-    QObject::connect(
-        warm, &QTimer::timeout, &application,
-        [window, view, shotPath = args.shotPath, warm, framesLeft, patience] {
-          if (auto* item = qobject_cast<QQuickItem*>(view)) item->update();
-          // A SKETCH THIS BINARY DOES NOT CARRY HAS TO BE BUILT TO BE
-          // SEEN, which takes longer than the warm-up does. So the
-          // warm-up does not begin until something is live: otherwise a
-          // grab of a file opened by path is always a picture of a
-          // window compiling. The patience is bounded, because a file
-          // that will never compile still has to be photographed —
-          // the error overlay is what there is to look at.
-          bool live = false;
-          {
-            QMutexLocker lock(&SketchbookView::hostMutex);
-            live = SketchbookView::host && SketchbookView::host->live();
-          }
-          if (!live && --*patience > 0) {
-            window->grabWindow();
-            return;
-          }
-          if (--*framesLeft > 0) {
-            window->grabWindow();
-            return;
-          }
-          warm->stop();
-          const QImage image = window->grabWindow();
-          if (image.isNull() ||
-              !image.save(QString::fromStdString(shotPath), "PNG")) {
-            std::fprintf(stderr, "--shot: grab failed\n");
-            QCoreApplication::exit(1);
-            return;
-          }
-          std::printf("wrote %s (%dx%d)\n", shotPath.c_str(), image.width(),
-                      image.height());
-          QCoreApplication::quit();
-        });
-    warm->start();
+    // Synchronize the live host before each forced frame. A file may still
+    // be compiling, so warm-up waits for its session before capturing.
+    ifrit::qt::captureWindow(
+        *window, QString::fromStdString(args.shotPath),
+        {.prepareFrame =
+             [view] {
+               if (auto* item = qobject_cast<QQuickItem*>(view)) item->update();
+             },
+         .ready =
+             [] {
+               QMutexLocker lock(&SketchbookView::hostMutex);
+               return SketchbookView::host && SketchbookView::host->live();
+             }});
   }
   const int status = QGuiApplication::exec();
   // The device outlives every frame that used it and must go before the

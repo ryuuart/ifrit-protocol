@@ -630,3 +630,13 @@ through a `QQuickRhiItem` — Skia Graphite on Qt's own Metal queue, with a CPU
 raster fallback and a live GPU/CPU switch — and displays a
 reshaped-words-per-frame counter, which sits at zero while everything moves
 when the shape cache is doing its job. Judge any of it on a Release build.
+
+The gallery uses the shared desktop controls for its sidebar. Scene selection
+and rendering status stay visible while typography, variable axes, scene
+options and live text scroll. Numeric controls write back on user edits;
+each variable axis has a reset to its font default. Alignment, line breaking
+and CPU/GPU selection use compact segmented choices.
+
+`WeaveGallery --scene 0 --shot gallery.png` drives the real window renderer,
+writes a PNG with an opaque background, and exits. `--text file.txt` preloads
+the live text editor for an editable specimen or a larger text sample.

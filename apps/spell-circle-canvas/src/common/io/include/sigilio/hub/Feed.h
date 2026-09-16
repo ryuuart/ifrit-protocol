@@ -95,6 +95,13 @@ class Feed {
  public:
   using Policy = FeedPolicy;
 
+  /** Maps an arrival from this feed onto the steady clock. Live arrivals
+   *  retain their transport receive time; replay times are relative to the
+   *  first advance() call, preserving recorded spacing across queued reads.
+   *  Negative, nonfinite or unrepresentable times map to that clock origin. */
+  std::chrono::steady_clock::time_point receivedAt(
+      const Arrival& arrival) const;
+
   Feed(std::string uri, Policy policy = {});
   /** Closes the opened end. */
   ~Feed();
@@ -250,6 +257,7 @@ class Feed {
   size_t m_replayed = 0;
   bool m_replaying = false;
   std::optional<double> m_origin;
+  std::optional<std::chrono::steady_clock::time_point> m_replayOrigin;
 };
 
 }  // namespace sigil::io

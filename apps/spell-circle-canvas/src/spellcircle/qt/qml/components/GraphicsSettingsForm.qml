@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
-import Ifrit.Ui 1.0 as Ui
+import Ifrit.Qt 1.0 as Ui
 
 /** Editable graphics settings grouped independently from their window shell. */
 ColumnLayout {

@@ -15,9 +15,9 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import Ifrit.Ui 1.0 as Ui
+import Ifrit.Qt 1.0 as Ui
 
-Ui.GlassPanel {
+Ui.Panel {
     id: pane
 
     required property var session
@@ -40,34 +40,18 @@ Ui.GlassPanel {
     }
 
     radius: 12
+    padding: 14
 
-    // The ground the pane stands on, rounded to the panel's own corners
-    // and outlined, so a pane reads as a pane on a window wearing the
-    // machine's glass and on one painting its own opaque colour alike.
-    Rectangle {
-        anchors.fill: parent
-        color: Ui.Theme.panelBackground
-        radius: pane.radius
-        border.width: 1
-        border.color: Ui.Theme.border
-    }
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 14
         spacing: 10
 
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
 
-            Label {
-                text: "RECEIVE"
-                color: Ui.Theme.secondaryText
-                font.pixelSize: 11
-                font.letterSpacing: 1.5
-                font.weight: Font.DemiBold
-            }
+            Ui.SectionHeading { text: "Receive" }
 
             Label {
                 Layout.fillWidth: true
@@ -82,7 +66,7 @@ Ui.GlassPanel {
                 text: pane.reading.present ? pane.reading.generation + " received · " + pane.reading.byteSize + " B" : ""
                 color: Ui.Theme.secondaryText
                 font.family: Ui.Theme.monospaceFontFamily
-                font.pixelSize: 11
+                font.pixelSize: Ui.Theme.captionSize
             }
         }
 
@@ -93,85 +77,20 @@ Ui.GlassPanel {
         // row at the narrowest the pane goes. They stand in the order
         // the wire detail numbers them, so the reading it calls natural
         // is this index.
-        TabBar {
+        Ui.SegmentedControl {
             id: readings
-
-            /** Whether the reader picked this tab themselves. Until they
-             *  do, the wire's own scheme chooses; once they have, their
-             *  choice stands until another wire is chosen, so a message
-             *  arriving a second does not take the pane off what they
-             *  are reading. */
             property bool picked: false
-
             Layout.alignment: Qt.AlignLeft
-
-            // A reading the message does not have is dimmed as well as
-            // dead. The controls of this machine's own tab bar are drawn
-            // the same whether or not they can be hit, so a tab that was
-            // only dead would read as a tab the reader has not hit yet,
-            // and the pane would have no way of saying what the message
-            // is not.
-            TabButton {
-                text: "Hex"
-                width: implicitWidth
-                font.pixelSize: 11
-                opacity: enabled ? 1 : 0.45
-                onClicked: readings.picked = true
-            }
-
-            TabButton {
-                text: "Text"
-                width: implicitWidth
-                font.pixelSize: 11
-                opacity: enabled ? 1 : 0.45
-                enabled: pane.reading.text.length > 0
-                onClicked: readings.picked = true
-            }
-
-            TabButton {
-                text: "JSON"
-                width: implicitWidth
-                font.pixelSize: 11
-                opacity: enabled ? 1 : 0.45
-                enabled: pane.reading.json.length > 0
-                onClicked: readings.picked = true
-            }
-
-            TabButton {
-                text: "OSC"
-                width: implicitWidth
-                font.pixelSize: 11
-                opacity: enabled ? 1 : 0.45
-                enabled: pane.reading.osc.length > 0
-                onClicked: readings.picked = true
-            }
-
-            TabButton {
-                text: "MIDI"
-                width: implicitWidth
-                font.pixelSize: 11
-                opacity: enabled ? 1 : 0.45
-                enabled: pane.reading.midi.length > 0
-                onClicked: readings.picked = true
-            }
-
-            TabButton {
-                text: "DMX"
-                width: implicitWidth
-                font.pixelSize: 11
-                opacity: enabled ? 1 : 0.45
-                enabled: pane.reading.dmx.length > 0
-                onClicked: readings.picked = true
-            }
-
-            TabButton {
-                text: "Schema"
-                width: implicitWidth
-                font.pixelSize: 11
-                opacity: enabled ? 1 : 0.45
-                enabled: pane.reading.schema.length > 0
-                onClicked: readings.picked = true
-            }
+            model: [
+                {text: "Hex"},
+                {text: "Text", enabled: pane.reading.text.length > 0},
+                {text: "JSON", enabled: pane.reading.json.length > 0},
+                {text: "OSC", enabled: pane.reading.osc.length > 0},
+                {text: "MIDI", enabled: pane.reading.midi.length > 0},
+                {text: "DMX", enabled: pane.reading.dmx.length > 0},
+                {text: "Schema", enabled: pane.reading.schema.length > 0}
+            ]
+            onActivated: index => { currentIndex = index; picked = true; }
         }
 
         // Why the schema reading is not there: no schema handed over, or
@@ -184,7 +103,7 @@ Ui.GlassPanel {
             visible: pane.reading.schemaNote.length > 0
             text: pane.reading.schemaNote
             color: Ui.Theme.secondaryText
-            font.pixelSize: 11
+            font.pixelSize: Ui.Theme.captionSize
             elide: Text.ElideRight
         }
 
@@ -222,7 +141,7 @@ Ui.GlassPanel {
                 placeholderText: "Nothing has arrived yet"
                 color: Ui.Theme.primaryText
                 font.family: Ui.Theme.monospaceFontFamily
-                font.pixelSize: 11
+                font.pixelSize: Ui.Theme.captionSize
                 // At a word boundary, which for the hexadecimal reading is
                 // between two pairs: a byte broken across two lines is a
                 // byte a reader has to reassemble. A document with no
@@ -232,13 +151,7 @@ Ui.GlassPanel {
             }
         }
 
-        Label {
-            text: "MESSAGES"
-            color: Ui.Theme.secondaryText
-            font.pixelSize: 11
-            font.letterSpacing: 1.5
-            font.weight: Font.DemiBold
-        }
+        Ui.SectionHeading { text: "Messages" }
 
         ListView {
             id: logView
@@ -278,7 +191,7 @@ Ui.GlassPanel {
                         text: message.generation
                         color: Ui.Theme.disabledText
                         font.family: Ui.Theme.monospaceFontFamily
-                        font.pixelSize: 11
+                        font.pixelSize: Ui.Theme.captionSize
                         horizontalAlignment: Text.AlignRight
                         Layout.preferredWidth: 44
                     }
@@ -287,7 +200,7 @@ Ui.GlassPanel {
                         text: message.at.toFixed(2) + " s"
                         color: Ui.Theme.secondaryText
                         font.family: Ui.Theme.monospaceFontFamily
-                        font.pixelSize: 11
+                        font.pixelSize: Ui.Theme.captionSize
                         horizontalAlignment: Text.AlignRight
                         Layout.preferredWidth: 64
                     }
@@ -300,7 +213,7 @@ Ui.GlassPanel {
                         text: message.from
                         color: Ui.Theme.disabledText
                         font.family: Ui.Theme.monospaceFontFamily
-                        font.pixelSize: 11
+                        font.pixelSize: Ui.Theme.captionSize
                         elide: Text.ElideRight
                         Layout.preferredWidth: 124
                     }
@@ -309,7 +222,7 @@ Ui.GlassPanel {
                         text: message.size + " B"
                         color: Ui.Theme.secondaryText
                         font.family: Ui.Theme.monospaceFontFamily
-                        font.pixelSize: 11
+                        font.pixelSize: Ui.Theme.captionSize
                         horizontalAlignment: Text.AlignRight
                         Layout.preferredWidth: 56
                     }
@@ -319,7 +232,7 @@ Ui.GlassPanel {
                         text: message.preview
                         color: Ui.Theme.primaryText
                         font.family: Ui.Theme.monospaceFontFamily
-                        font.pixelSize: 11
+                        font.pixelSize: Ui.Theme.captionSize
                         elide: Text.ElideRight
                     }
                 }
@@ -329,7 +242,7 @@ Ui.GlassPanel {
                 anchors.centerIn: parent
                 text: "Waiting for data…"
                 color: Ui.Theme.disabledText
-                font.pixelSize: 13
+                font.pixelSize: Ui.Theme.bodySize
                 visible: logView.count === 0
             }
         }

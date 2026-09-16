@@ -1,7 +1,8 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls.Basic
+import Ifrit.Qt 1.0 as Ui
+import QtQuick.Controls
 import QtQuick.Layouts
 import Sigil.Sketchbook
 
@@ -17,7 +18,7 @@ Rectangle {
     signal modeRequested(string mode)
     signal branchToggled(string path)
 
-    color: Theme.rail
+    color: Ui.Theme.panelBackground
 
     function toggle(path) {
         const y = tree.contentY;
@@ -67,22 +68,22 @@ Rectangle {
                 Label {
                     Layout.fillWidth: true
                     text: "All sketches"
-                    color: navigation.selectedPath.length ? Theme.label : Theme.text
+                    color: navigation.selectedPath.length ? Ui.Theme.secondaryText : Ui.Theme.primaryText
                     font.pixelSize: 12
                 }
                 Label {
                     text: navigation.count
-                    color: Theme.muted
-                    font.family: Theme.mono
-                    font.pixelSize: 10
+                    color: Ui.Theme.secondaryText
+                    font.family: Ui.Theme.monospaceFontFamily
+                    font.pixelSize: Ui.Theme.captionSize
                 }
             }
             background: Rectangle {
                 radius: 5
-                color: allSketches.highlighted ? Theme.selection
-                     : (allSketches.hovered ? Theme.hover : "transparent")
+                color: allSketches.highlighted ? Ui.Theme.selectionBackground
+                     : (allSketches.hovered ? Ui.Theme.controlHoverBackground : "transparent")
                 border.width: 1
-                border.color: allSketches.visualFocus ? Theme.accent : "transparent"
+                border.color: allSketches.visualFocus ? Ui.Theme.accent : "transparent"
             }
         }
 
@@ -155,11 +156,11 @@ Rectangle {
 
                 background: Rectangle {
                     radius: 5
-                    color: group.selected ? Theme.selection
-                         : (group.hovered || disclosure.hovered ? Theme.hover : "transparent")
+                    color: group.selected ? Ui.Theme.selectionBackground
+                         : (group.hovered || disclosure.hovered ? Ui.Theme.controlHoverBackground : "transparent")
                     border.width: 1
                     border.color: tree.activeFocus && tree.currentIndex === group.index
-                        ? Theme.accent : "transparent"
+                        ? Ui.Theme.accent : "transparent"
                 }
 
                 contentItem: RowLayout {
@@ -179,9 +180,9 @@ Rectangle {
                         Accessible.name: (group.modelData.expanded ? "Collapse " : "Expand ") + group.modelData.label
                         background: Rectangle {
                             radius: 3
-                            color: disclosure.down ? Theme.selection : "transparent"
+                            color: disclosure.down ? Ui.Theme.selectionBackground : "transparent"
                             border.width: 1
-                            border.color: disclosure.visualFocus ? Theme.accent : "transparent"
+                            border.color: disclosure.visualFocus ? Ui.Theme.accent : "transparent"
                         }
                         onClicked: {
                             tree.currentIndex = group.index;
@@ -192,16 +193,16 @@ Rectangle {
                     Label {
                         Layout.fillWidth: true
                         text: group.modelData.label
-                        color: group.selected ? Theme.text
-                             : (group.modelData.count ? Theme.label : Theme.faint)
+                        color: group.selected ? Ui.Theme.primaryText
+                             : (group.modelData.count ? Ui.Theme.secondaryText : Ui.Theme.secondaryText)
                         font.pixelSize: 11
                         elide: Text.ElideRight
                     }
                     Label {
                         text: group.modelData.count
-                        color: Theme.muted
-                        font.family: Theme.mono
-                        font.pixelSize: 10
+                        color: Ui.Theme.secondaryText
+                        font.family: Ui.Theme.monospaceFontFamily
+                        font.pixelSize: Ui.Theme.captionSize
                     }
                 }
 

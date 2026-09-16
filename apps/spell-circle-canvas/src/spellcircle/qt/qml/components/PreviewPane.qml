@@ -1,22 +1,13 @@
 import QtQuick
-import Ifrit.Ui 1.0 as Ui
+import Ifrit.Qt 1.0 as Ui
 import SpellCircle.Canvas 1.0
 
-/**
- * The canvas viewport, rendered full-bleed behind the floating chrome. The
- * fit view keeps the canvas in full view right of the activity panel (via
- * leftContentInset), so nothing obstructs it. Zoom state and view actions
- * are exposed for the activity panel's readouts and buttons, mirroring the
- * native macOS app.
- */
+/** The scene viewport, with fit and actual-size actions over shared pan/zoom. */
 Item {
     id: root
 
     required property var model
     required property var config
-    /** Width covered by the floating activity panel, handed through to the
-     *  viewport's fit/centering math. */
-    property real leftContentInset: 0
     readonly property real viewScale: canvasViewport.viewScale
 
     function fitView() {
@@ -32,9 +23,7 @@ Item {
         anchors.fill: parent
         canvasWidth: root.config.canvas.width
         canvasHeight: root.config.canvas.height
-        leftContentInset: root.leftContentInset
-        // Zoom and canvas size are shown in the activity panel instead;
-        // the viewport itself stays unobstructed.
+        // Zoom and canvas size are shown in the receiver controls.
         showOverlays: false
 
         SpellCircle {

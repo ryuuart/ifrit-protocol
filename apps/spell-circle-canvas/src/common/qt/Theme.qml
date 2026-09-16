@@ -37,6 +37,13 @@ QtObject {
     readonly property color secondaryText: Qt.rgba(root.system.windowText.r, root.system.windowText.g, root.system.windowText.b, 0.6)
     readonly property color disabledText: Qt.rgba(root.system.windowText.r, root.system.windowText.g, root.system.windowText.b, 0.35)
     readonly property color statusText: root.darkMode ? "#6fbf8e" : "#1e7a45"
+    readonly property color warningText: root.darkMode ? "#edbd79" : "#8a510c"
+    readonly property color errorText: root.darkMode ? "#ff9a9a" : "#b12635"
+    readonly property color accent: root.system.highlight
+    readonly property color selectionText: root.system.highlightedText
+    readonly property color selectionBackground: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, root.darkMode ? 0.28 : 0.14)
+    readonly property color solidPanelBackground: root.system.base
+    readonly property color separator: Qt.rgba(root.system.windowText.r, root.system.windowText.g, root.system.windowText.b, 0.09)
 
     /** Subtle interactive-surface tints (hoverable chips, toolbar buttons). */
     readonly property color controlBackground: Qt.rgba(root.system.windowText.r, root.system.windowText.g, root.system.windowText.b, 0.07)
@@ -52,5 +59,14 @@ QtObject {
         }
         return Qt.application.font.family;
     }
-    readonly property int toolbarHeight: 38
+    readonly property int bodySize: 13
+    readonly property int captionSize: 11
+    readonly property int headingSize: 16
+    readonly property int smallSpacing: 4
+    readonly property int spacing: 8
+    readonly property int sectionSpacing: 16
+    readonly property int controlHeight: 32
+    readonly property int cornerRadius: 7
+    readonly property int panelRadius: 12
+    readonly property int toolbarHeight: 48
 }

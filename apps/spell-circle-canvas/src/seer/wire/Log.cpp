@@ -15,23 +15,23 @@ size_t Log::drain(io::Feed& feed) {
   size_t taken = 0;
   while (std::optional<io::Arrival> arrival = feed.receive()) {
     ++taken;
-    if (m_capacity == 0) {
-      ++m_forgotten;
-      continue;
-    }
-    LogEntry entry;
-    entry.at = arrival->at;
-    entry.generation = arrival->generation;
-    entry.size = arrival->bytes ? arrival->bytes->bytes.size() : 0;
-    entry.bytes = std::move(arrival->bytes);
-    entry.from = std::move(arrival->from);
-    m_entries.push_back(std::move(entry));
-    if (m_entries.size() > m_capacity) {
-      m_entries.pop_front();
-      ++m_forgotten;
-    }
+    append(*arrival);
   }
   return taken;
+}
+
+void Log::append(const io::Arrival& arrival) {
+  if (m_capacity == 0) {
+    ++m_forgotten;
+    return;
+  }
+  m_entries.push_back({arrival.at, arrival.generation,
+                       arrival.bytes ? arrival.bytes->bytes.size() : 0,
+                       arrival.bytes, arrival.from});
+  if (m_entries.size() > m_capacity) {
+    m_entries.pop_front();
+    ++m_forgotten;
+  }
 }
 
 void Log::clear() { m_entries.clear(); }

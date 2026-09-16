@@ -7,7 +7,8 @@ pragma ComponentBehavior: Bound
 // top of its own file are most of it.
 
 import QtQuick
-import QtQuick.Controls.Basic
+import Ifrit.Qt 1.0 as Ui
+import QtQuick.Controls
 import QtQuick.Layouts
 import Sigil.Sketchbook
 
@@ -32,47 +33,21 @@ Rectangle {
     signal revealRequested
     signal tagRequested(string path)
 
-    color: Theme.rail
+    color: Ui.Theme.panelBackground
 
     Rectangle {
         width: 1
         height: parent.height
-        color: Theme.rule
+        color: Ui.Theme.separator
     }
 
-    /** A heading over a block: small, quiet, and the same everywhere. */
-    component Tag: Label {
-        color: Theme.label
-        font.pixelSize: 9
-        font.letterSpacing: 0.6
-        font.capitalization: Font.AllUppercase
-    }
+    component Tag: Ui.SectionHeading {}
 
-    /** One "name   value" fact. The name gives up width by eliding
-     *  rather than by painting past the rail. */
-    component Fact: RowLayout {
-        id: fact
-
+    component Fact: Ui.FactRow {
         required property string name
-        required property string value
-        property color tone: Theme.value
-
-        spacing: 8
-        Label {
-            Layout.preferredWidth: 78
-            text: fact.name
-            color: Theme.faint
-            font.pixelSize: 11
-            elide: Text.ElideRight
-        }
-        Label {
-            Layout.fillWidth: true
-            text: fact.value
-            color: fact.tone
-            font.family: Theme.mono
-            font.pixelSize: 10
-            elide: Text.ElideMiddle
-        }
+        property color tone: Ui.Theme.primaryText
+        label: name
+        valueColor: tone
     }
 
     Flickable {
@@ -115,7 +90,7 @@ Rectangle {
                 Label {
                     Layout.fillWidth: true
                     text: rail.sketch.name
-                    color: Theme.text
+                    color: Ui.Theme.primaryText
                     font.pixelSize: 17
                     font.weight: Font.DemiBold
                     wrapMode: Text.WordWrap
@@ -123,7 +98,7 @@ Rectangle {
                 Label {
                     Layout.fillWidth: true
                     text: rail.sketch.blurb
-                    color: Theme.muted
+                    color: Ui.Theme.secondaryText
                     font.pixelSize: 12
                     wrapMode: Text.WordWrap
                 }
@@ -138,7 +113,7 @@ Rectangle {
                     Button {
                         required property string modelData
                         text: modelData.split("/").join(" › ")
-                        font.pixelSize: 10
+                        font.pixelSize: Ui.Theme.captionSize
                         implicitHeight: 26
                         onClicked: rail.tagRequested(modelData)
                     }
@@ -209,9 +184,9 @@ Rectangle {
                 Layout.fillWidth: true
                 visible: rail.taskLine.length > 0
                 text: rail.taskLine
-                color: rail.taskRunning ? Theme.warn : Theme.good
-                font.family: Theme.mono
-                font.pixelSize: 10
+                color: rail.taskRunning ? Ui.Theme.warningText : Ui.Theme.statusText
+                font.family: Ui.Theme.monospaceFontFamily
+                font.pixelSize: Ui.Theme.captionSize
                 wrapMode: Text.WrapAnywhere
             }
 
@@ -224,7 +199,7 @@ Rectangle {
                 Label {
                     Layout.fillWidth: true
                     text: rail.sketch.subject
-                    color: Theme.value
+                    color: Ui.Theme.primaryText
                     font.pixelSize: 12
                     lineHeight: 1.25
                     wrapMode: Text.WordWrap
@@ -238,9 +213,9 @@ Rectangle {
                 Label {
                     Layout.fillWidth: true
                     text: rail.sketch.editFirst
-                    color: Theme.label
-                    font.family: Theme.mono
-                    font.pixelSize: 10
+                    color: Ui.Theme.secondaryText
+                    font.family: Ui.Theme.monospaceFontFamily
+                    font.pixelSize: Ui.Theme.captionSize
                     lineHeight: 1.3
                     wrapMode: Text.WordWrap
                 }
@@ -266,8 +241,8 @@ Rectangle {
                     value: rail.sketch.canvas.length > 0
                         ? rail.sketch.canvas + " · " + rail.sketch.background
                         : "declared when it runs"
-                    tone: rail.sketch.canvas.length > 0 ? Theme.value
-                                                        : Theme.faintest
+                    tone: rail.sketch.canvas.length > 0 ? Ui.Theme.primaryText
+                                                        : Ui.Theme.secondaryText
                 }
                 Fact {
                     Layout.fillWidth: true
@@ -277,9 +252,9 @@ Rectangle {
                         : (rail.sketch.canvas.length > 0
                             ? "none declared" : "declared when it runs")
                     tone: rail.sketch.moment > 0
-                        ? Theme.value
-                        : (rail.sketch.canvas.length > 0 ? Theme.warn
-                                                         : Theme.faintest)
+                        ? Ui.Theme.primaryText
+                        : (rail.sketch.canvas.length > 0 ? Ui.Theme.warningText
+                                                         : Ui.Theme.secondaryText)
                 }
                 Fact {
                     Layout.fillWidth: true
@@ -296,7 +271,7 @@ Rectangle {
                     visible: !rail.sketch.available
                     name: "unavailable"
                     value: rail.sketch.reason
-                    tone: Theme.warn
+                    tone: Ui.Theme.warningText
                 }
             }
 
@@ -306,9 +281,9 @@ Rectangle {
                 Layout.preferredHeight: frameBody.implicitHeight + 22
                 visible: rail.presented
                 radius: 9
-                color: Theme.ground
+                color: Ui.Theme.windowBackground
                 border.width: 1
-                border.color: Theme.selection
+                border.color: Ui.Theme.selectionBackground
 
                 ColumnLayout {
                     id: frameBody
@@ -323,7 +298,7 @@ Rectangle {
                         Label {
                             text: rail.metrics.fps !== undefined
                                 ? rail.metrics.fps.toFixed(0) : "—"
-                            color: "#7ee8ff"
+                            color: Ui.Theme.accent
                             font.pixelSize: 26
                             font.bold: true
                         }
@@ -333,14 +308,14 @@ Rectangle {
                             Label {
                                 Layout.fillWidth: true
                                 text: "fps presented"
-                                color: Theme.muted
+                                color: Ui.Theme.secondaryText
                                 font.pixelSize: 11
                                 elide: Text.ElideRight
                             }
                             Label {
                                 Layout.fillWidth: true
                                 text: rail.metrics.backend ?? ""
-                                color: Theme.warn
+                                color: Ui.Theme.warningText
                                 font.pixelSize: 11
                                 elide: Text.ElideRight
                             }
@@ -381,9 +356,9 @@ Rectangle {
                         Layout.fillWidth: true
                         text: rail.metrics.counters ?? ""
                         visible: text.length > 0
-                        color: Theme.muted
-                        font.family: Theme.mono
-                        font.pixelSize: 10
+                        color: Ui.Theme.secondaryText
+                        font.family: Ui.Theme.monospaceFontFamily
+                        font.pixelSize: Ui.Theme.captionSize
                         wrapMode: Text.WordWrap
                     }
                 }

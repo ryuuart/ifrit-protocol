@@ -308,8 +308,9 @@ and in every sender it names, so a reader picks the decoding off the URI
 rather than out of the bytes. `artnet://` is that same socket once more,
 for a port whose datagrams are a lighting desk's universes of dimmers —
 `artnet://:6454` listens for them and `artnet://HOST:6454` is a desk to
-send them to. Every socket runs on one thread of its own, private to the
-transport.
+send them to. Sockets in one UDP registration share a private IO thread.
+Closing a feed releases its socket before returning, so its port can be
+rebound immediately even while the closed feed object remains held.
 
 `registerWebSocket()` takes `ws://`. `ws://:PORT/PATH` listens on every
 interface for peers reaching that path — an omitted PATH being the root —
@@ -733,6 +734,12 @@ every connection and lets the signalling door go with it, and the last
 conversation crossing one is what gives that port back. NO THREAD IS
 STARTED for any of this: the library underneath runs its own and calls
 back onto them.
+
+`Feed::receivedAt()` maps an arrival onto the steady clock (negative, nonfinite
+or unrepresentable times use that clock's origin): live packets
+keep their transport receive time and replayed packets keep their recorded
+spacing relative to the first `advance()` call. Use it when elapsed-time
+accounting must remain independent of when the host drains the queue.
 
 A **recording** is a feed written down: `record(path)` appends every
 arrival from then on, with the seconds since the feed was made, in the

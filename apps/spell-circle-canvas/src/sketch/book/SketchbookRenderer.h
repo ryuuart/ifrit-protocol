@@ -49,7 +49,11 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
    *  room, for the caller to let go of once the lock is released:
    *  ~Host waits on the build it may be in the middle of. */
   [[nodiscard]] std::unique_ptr<sigil::sketch::Host> openSketch(int index);
-  void publishMetrics();  // hostMutex must be held
+  /** Applies selection or replay requests with hostMutex held. A request
+   *  for a selection that has since changed is discarded. */
+  [[nodiscard]] std::unique_ptr<sigil::sketch::Host> updateSession();
+  void resetPresentation();  // hostMutex must be held
+  void publishMetrics();     // hostMutex must be held
   /** Stands the publisher up, or says why this window has nothing to
    *  offer and leaves publishing off. */
   void startPublishing();
@@ -94,6 +98,7 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
    *  rather than off the frame's own scale, which is what a zoom moves. */
   float m_deviceRatio = 1.0f;
   int m_requestedIndex = 0;
+  int m_replayIndex = -1;
   int m_index = -1;
   int m_pendingCaptures = 0;
   int m_frameCount = 0;

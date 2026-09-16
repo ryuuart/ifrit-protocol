@@ -1,9 +1,9 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls.Basic
+import QtQuick.Controls
 import QtQuick.Layouts
-import Ifrit.Ui 1.0 as Ui
+import Ifrit.Qt 1.0 as Ui
 import Sigil.Sketchbook
 
 ColumnLayout {
@@ -23,6 +23,7 @@ ColumnLayout {
     signal thumbnailCaptured(int index)
 
     function capture() { view.capture(); }
+    function replay() { view.replay(); }
 
     Ui.PanZoomCanvas {
         id: canvasViewport
@@ -167,7 +168,7 @@ ColumnLayout {
     Rectangle {
         Layout.fillWidth: true
         visible: view.errorLog.length > 0
-        color: "#2a0c12"
+        color: Ui.Theme.solidPanelBackground
         Layout.preferredHeight: Math.min(
             errorText.implicitHeight + 20, pane.height * 0.4)
         ScrollView {
@@ -179,8 +180,8 @@ ColumnLayout {
                 id: errorText
 
                 text: view.errorLog
-                color: Theme.bad
-                font.family: Theme.mono
+                color: Ui.Theme.errorText
+                font.family: Ui.Theme.monospaceFontFamily
                 font.pixelSize: 12
                 textFormat: Text.PlainText
                 wrapMode: Text.WrapAnywhere

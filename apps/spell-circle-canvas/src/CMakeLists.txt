@@ -2,7 +2,7 @@
 #
 #   common/      libraries shared across products, in the order they are
 #                added below: core/ (SigilCore), skia/ (SigilSkia,
-#                Graphite bring-up), ui/ (Ifrit.Ui Qt Quick controls),
+#                Graphite bring-up), qt/ (Ifrit.Qt desktop components and services),
 #                image/ (SigilImage), video/ (SigilVideo), io/ (SigilIO),
 #                data/ (SigilData), scry/ (SigilScry), measure/
 #                (SigilMeasure), motion/ (SigilMotion), geometry/
@@ -39,7 +39,7 @@ set(SIGIL_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test)
 # below stands on.
 add_subdirectory(common/core)
 add_subdirectory(common/skia)
-add_subdirectory(common/ui)
+add_subdirectory(common/qt)
 add_subdirectory(common/image)
 add_subdirectory(common/video)
 add_subdirectory(common/io)
@@ -62,8 +62,7 @@ add_subdirectory(common/compose)
 # Above both drawing libraries, and the only place they meet: a sketch may
 # describe a compose Element tree or a world Frame, so this links both.
 add_subdirectory(sketch)
-# Seer stands on the io library alone: the tool that watches the wires
-# a sketch listens on, with no sketch library in it.
-add_subdirectory(seer)
 add_subdirectory(sigilweave)
 add_subdirectory(spellcircle)
+# Seer hosts wire inspection and the shared receiver frontend.
+add_subdirectory(seer)

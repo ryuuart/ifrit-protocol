@@ -64,6 +64,11 @@ std::shared_ptr<io::Feed> Wires::feed(std::string_view uri) const {
 void Wires::mountRecording(std::string_view uri,
                            const std::filesystem::path& path) {
   m_hub.mount(std::string(uri), path);
+  m_recorded.emplace(uri);
+}
+
+bool Wires::recorded(std::string_view uri) const {
+  return m_recorded.contains(std::string(uri));
 }
 
 void Wires::dispatch(double seconds) { m_hub.dispatch(seconds); }

@@ -54,16 +54,11 @@ set_target_properties(Sketchbook PROPERTIES
 # they are set before it.
 foreach(sketchbook_qml IN ITEMS
     Main CanvasPane Browser GroupTree TopBar SketchList SketchGallery PlateThumb Inspector
-    StatusStrip Theme)
+    StatusStrip)
   set_source_files_properties(qml/${sketchbook_qml}.qml
     PROPERTIES QT_RESOURCE_ALIAS ${sketchbook_qml}.qml)
 endforeach()
 set_source_files_properties(qml/Groups.js PROPERTIES QT_RESOURCE_ALIAS Groups.js)
-# The palette is one object the whole window paints from, so it is
-# registered as a singleton rather than instantiated per panel.
-set_source_files_properties(qml/Theme.qml
-  PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
-
 qt_add_qml_module(Sketchbook
   URI Sigil.Sketchbook
   VERSION 1.0
@@ -79,7 +74,6 @@ qt_add_qml_module(Sketchbook
     qml/PlateThumb.qml
     qml/Inspector.qml
     qml/StatusStrip.qml
-    qml/Theme.qml
   SOURCES
     SketchbookView.cpp SketchbookView.h
     SketchCatalog.cpp SketchCatalog.h
@@ -93,7 +87,7 @@ target_include_directories(Sketchbook PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(Sketchbook PRIVATE
   SigilSketch SigilSketchPython SigilSketches SigilSketchesPython
   SigilMeasure SigilWeavePorts SigilMaterial
-  IfritUiplugin Qt6::Gui Qt6::GuiPrivate Qt6::Quick Qt6::QuickControls2
+  IfritQt IfritQtplugin Qt6::Gui Qt6::GuiPrivate Qt6::Quick Qt6::QuickControls2
   Qt6::QuickDialogs2)
 
 sigil_test(sketch_test

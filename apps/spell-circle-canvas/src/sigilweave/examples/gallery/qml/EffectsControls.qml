@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import Ifrit.Ui 1.0 as Ui
+import Ifrit.Qt 1.0 as Ui
 
 /**
  * Scene-owned controls for the merged "Effects & shaders" scene — the
@@ -18,14 +18,31 @@ ColumnLayout {
     readonly property var values: view ? view.sceneParameterValues : ({})
     readonly property int mode: Number(values["mode"] ?? 0)
 
-    spacing: 8
+    spacing: Ui.Theme.spacing
     Layout.fillWidth: true
 
-    ComboBox {
+    Ui.SegmentedControl {
         Layout.fillWidth: true
-        model: ["Layer showcase", "Loud shaders", "2,000-word stress"]
+        model: [
+            {
+                text: "Layers"
+            },
+            {
+                text: "Shaders"
+            },
+            {
+                text: "Stress"
+            }
+        ]
         currentIndex: controls.mode
+        Accessible.name: "Effect mode"
         onActivated: index => controls.view.setSceneParameter("mode", index)
+    }
+    Label {
+        Layout.fillWidth: true
+        text: ["Layer showcase", "Loud shaders", "2,000-word stress"][controls.mode]
+        color: Ui.Theme.secondaryText
+        font.pixelSize: Ui.Theme.captionSize
     }
 
     // Shader-pass toggles apply to the stress wall; the other modes manage
@@ -33,12 +50,12 @@ ColumnLayout {
     RowLayout {
         visible: controls.mode === 2
 
-        Switch {
+        CheckBox {
             text: "Glow"
             checked: controls.values["glow"] === true
             onToggled: controls.view.setSceneParameter("glow", checked)
         }
-        Switch {
+        CheckBox {
             text: "Outline"
             checked: controls.values["outline"] === true
             onToggled: controls.view.setSceneParameter("outline", checked)
@@ -47,55 +64,35 @@ ColumnLayout {
     RowLayout {
         visible: controls.mode === 2
 
-        Switch {
+        CheckBox {
             text: "Shader"
             checked: controls.values["shader"] === true
             onToggled: controls.view.setSceneParameter("shader", checked)
         }
-        Switch {
+        CheckBox {
             text: "Stars"
             checked: controls.values["stars"] === true
             onToggled: controls.view.setSceneParameter("stars", checked)
         }
     }
-    RowLayout {
+    Ui.SliderField {
+        Layout.fillWidth: true
         visible: controls.mode === 2
-
-        Label {
-            text: "Glow spread"
-            color: Ui.Theme.secondaryText
-        }
-        Slider {
-            id: spreadSlider
-            Layout.fillWidth: true
-            from: 0
-            to: 8
-            value: Number(controls.values["glowSpread"] ?? 0.6)
-            onMoved: controls.view.setSceneParameter("glowSpread", value)
-        }
-        Label {
-            text: spreadSlider.value.toFixed(1) + "px"
-            color: Ui.Theme.secondaryText
-        }
+        label: "Glow spread"
+        from: 0
+        to: 8
+        suffix: " px"
+        value: Number(controls.values["glowSpread"] ?? 0.6)
+        onValueEdited: value => controls.view.setSceneParameter("glowSpread", value)
     }
-    RowLayout {
+    Ui.SliderField {
+        Layout.fillWidth: true
         visible: controls.mode === 2
-
-        Label {
-            text: "Glow intensity"
-            color: Ui.Theme.secondaryText
-        }
-        Slider {
-            id: intensitySlider
-            Layout.fillWidth: true
-            from: 0.2
-            to: 3.0
-            value: Number(controls.values["glowIntensity"] ?? 1.3)
-            onMoved: controls.view.setSceneParameter("glowIntensity", value)
-        }
-        Label {
-            text: intensitySlider.value.toFixed(1) + "×"
-            color: Ui.Theme.secondaryText
-        }
+        label: "Glow intensity"
+        from: 0.2
+        to: 3.0
+        suffix: "×"
+        value: Number(controls.values["glowIntensity"] ?? 1.3)
+        onValueEdited: value => controls.view.setSceneParameter("glowIntensity", value)
     }
 }

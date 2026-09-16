@@ -171,6 +171,8 @@ void SketchbookRenderer::synchronize(QQuickRhiItem* item) {
   m_clock.setPaused(m_paused);
   m_clock.setTimeScale(m_timeScale);
   m_requestedIndex = view->m_sketchIndex;
+  if (view->m_replayIndex >= 0)
+    m_replayIndex = std::exchange(view->m_replayIndex, -1);
   m_pendingCaptures += view->m_captureRequests;
   view->m_captureRequests = 0;
   if (m_publishing != view->m_publishing) {
@@ -235,6 +237,23 @@ std::unique_ptr<sketch::Host> SketchbookRenderer::openSketch(int index) {
   // already finished; merely resuming it makes entrance-heavy sketches look
   // inert when revisited.
   if (!presented.opened) SketchbookView::host->restartSession();
+  resetPresentation();
+  return std::move(presented.evicted);
+}
+
+std::unique_ptr<sketch::Host> SketchbookRenderer::updateSession() {
+  const int replayIndex = std::exchange(m_replayIndex, -1);
+  if (m_index != m_requestedIndex) {
+    m_index = m_requestedIndex;
+    return openSketch(m_index);
+  }
+  if (replayIndex >= 0 && replayIndex == m_index && SketchbookView::host &&
+      SketchbookView::host->restartSession())
+    resetPresentation();
+  return nullptr;
+}
+
+void SketchbookRenderer::resetPresentation() {
   m_frameCount = 0;
   m_sceneSeconds = 0.0;
   m_thumbnailTaken = false;
@@ -259,7 +278,6 @@ std::unique_ptr<sketch::Host> SketchbookRenderer::openSketch(int index) {
           emit view->sketchIndexChanged();
         },
         Qt::QueuedConnection);
-  return std::move(presented.evicted);
 }
 
 void SketchbookRenderer::installCaptureBackend(sketch::Host& host) {
@@ -645,10 +663,7 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
           sigil::skia::wrapTexture(*m_graphiteContext, texture, pixelSize);
       if (SkCanvas* canvas = surface.canvas()) {
         QMutexLocker lock(&SketchbookView::hostMutex);
-        if (m_index != m_requestedIndex) {
-          m_index = m_requestedIndex;
-          evicted = openSketch(m_index);
-        }
+        evicted = updateSession();
         drawSketch(*canvas, pixelSize);
         const sigil::measure::Stopwatch submitWatch;
         surface.submit();
@@ -713,10 +728,7 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
   std::unique_ptr<sketch::Host> evicted;
   {
     QMutexLocker lock(&SketchbookView::hostMutex);
-    if (m_index != m_requestedIndex) {
-      m_index = m_requestedIndex;
-      evicted = openSketch(m_index);
-    }
+    evicted = updateSession();
     drawSketch(*surface->getCanvas(), pixelSize);
     refreshThumbnail();
     runPendingCaptures();

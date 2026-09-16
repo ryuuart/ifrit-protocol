@@ -36,7 +36,7 @@ flag "--config <config>" help="build configuration" default="Release" {
 run = 'python3 scripts/sigil.py setup --config "${usage_config:-Release}"'
 
 [tasks.app]
-description = "Build and launch SpellCircle (--config Release|Debug|RelWithDebInfo)"
+description = "Build and launch Seer Receiver (--config Release|Debug|RelWithDebInfo)"
 dir = "apps/spell-circle-canvas"
 usage = '''
 flag "--config <config>" help="build configuration" default="Release" {
@@ -49,7 +49,8 @@ config="${usage_config:-Release}"
 python3 scripts/sigil.py setup --config "$config"
 # A macOS bundle: `open` gives it a proper application activation rather
 # than the console-app treatment the bare binary gets.
-open "build/bin/$config/SpellCircle.app"
+cmake --build build --config "$config" --target Seer
+open "build/bin/$config/Seer.app" --args --receiver udp://:27015
 '''
 
 # ---------------------------------------------------------------------------

@@ -1,8 +1,10 @@
 #import <AppKit/AppKit.h>
 #import <objc/runtime.h>
 
+#include <QCoreApplication>
+#include <QGuiApplication>
 #include <QWindow>
-#include "AppNap.h"
+#include "WindowChrome.h"
 
 namespace {
 // Retained for the lifetime of the process to keep the activity active.
@@ -12,7 +14,7 @@ OcclusionStateImplementation g_originalOcclusionState = nullptr;
 
 // Qt's Cocoa platform plugin responds to
 // NSWindowDidChangeOcclusionStateNotification by querying -occlusionState.
-// Returning NSWindowOcclusionStateVisible for SpellCircle's main window keeps
+// Returning NSWindowOcclusionStateVisible for the window keeps
 // its render thread alive without changing the window's ordering or level.
 // The dynamically-created class inherits from Qt's private QNSWindow class so
 // all of Qt's native window behavior is retained.
@@ -22,9 +24,12 @@ NSWindowOcclusionState continuousOcclusionState(id self, SEL selector) {
 
 Class continuousWindowClass(Class nativeWindowClass) {
   static Class subclass = Nil;
-  if (subclass) return subclass;
+  if (subclass)
+    return nativeWindowClass == subclass || nativeWindowClass == class_getSuperclass(subclass)
+               ? subclass
+               : Nil;
 
-  constexpr const char *className = "dev_sigil_SpellCircle_ContinuousRenderingNativeWindow";
+  constexpr const char *className = "dev_ifrit_Qt_ContinuousRenderingNativeWindow";
   subclass = objc_lookUpClass(className);
   if (subclass) {
     if (class_getSuperclass(subclass) != nativeWindowClass) {
@@ -66,15 +71,19 @@ Class continuousWindowClass(Class nativeWindowClass) {
 }
 }  // namespace
 
-namespace AppNap {
+namespace {
 
 void disable() {
   if (g_activityToken) return;
 
-  g_activityToken = [[NSProcessInfo processInfo]
+  g_activityToken = [[[NSProcessInfo processInfo]
       beginActivityWithOptions:NSActivityUserInitiated | NSActivityLatencyCritical
-                        reason:@"Continuous Syphon publishing and UDP "
-                               @"scene updates require full-rate execution"];
+                        reason:@"Continuous rendering and background frame publication"] retain];
+  QObject::connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, [] {
+    [[NSProcessInfo processInfo] endActivity:g_activityToken];
+    [g_activityToken release];
+    g_activityToken = nil;
+  });
 }
 
 bool keepRenderingWhileOccluded(QWindow *window) {
@@ -96,4 +105,13 @@ bool keepRenderingWhileOccluded(QWindow *window) {
   return true;
 }
 
-}  // namespace AppNap
+}  // namespace
+
+bool WindowChrome::keepRendering(QQuickWindow *window) {
+  if (!window) return false;
+  window->setPersistentGraphics(true);
+  window->setPersistentSceneGraph(true);
+  if (QGuiApplication::platformName() != "cocoa") return false;
+  disable();
+  return keepRenderingWhileOccluded(window);
+}

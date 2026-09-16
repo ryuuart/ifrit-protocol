@@ -294,9 +294,10 @@ bool SendForm::reachPeer() {
   }
   const std::string uri = m_peerUri.toStdString();
   if (!m_sender.peer() || m_sender.peerUri() != uri) {
-    const std::shared_ptr<sigil::io::Feed> peer = m_sender.openPeer(uri);
-    if (!peer->error().empty()) {
-      setNote(QString::fromStdString(peer->error()));
+    const QString error =
+        QString::fromStdString(m_sender.openPeer(uri)->error());
+    if (!error.isEmpty()) {
+      setNote(error);
       return false;
     }
     setNote({});

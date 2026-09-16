@@ -54,5 +54,5 @@ sigil_doc_probes(spellcircle
            "\"SceneRenderer.h\"" "<sigilio/hub/Hub.h>"
            "<sigilio/hub/Feed.h>" "<sigilio/transport/Transport.h>"
            "<iostream>"
-  FLOORS 8,3,5,0,0
+  FLOORS 8,1,8,0,0
   LIBRARIES SpellCircleScene SigilIOHub SigilIOTransport)

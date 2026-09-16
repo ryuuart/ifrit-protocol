@@ -7,6 +7,8 @@
 
 #include "sigilio/hub/Feed.h"
 
+#include <cmath>
+#include <limits>
 #include <utility>
 
 #include "sigilio/hub/Recording.h"
@@ -219,6 +221,7 @@ void Feed::replay(std::vector<Arrival> recording) {
   m_replayed = 0;
   m_replaying = true;
   m_origin.reset();
+  m_replayOrigin.reset();
   // The recording IS this feed's door: a later ask for the same URI is
   // handed the feed as it stands rather than reading the file again
   // over a playback that is already running.
@@ -234,7 +237,10 @@ void Feed::advance(double seconds) {
     // is first moved forward, whatever the caller's clock reads then,
     // so a feed opened in the middle of a run still plays from its
     // first frame.
-    if (!m_origin) m_origin = seconds;
+    if (!m_origin) {
+      m_origin = seconds;
+      m_replayOrigin = std::chrono::steady_clock::now();
+    }
     const double elapsed = seconds - *m_origin;
     while (m_replayed != m_recording.size() &&
            m_recording[m_replayed].at <= elapsed) {
@@ -249,6 +255,23 @@ void Feed::advance(double seconds) {
     ending = closeLocked();
   }
   if (ending) ending();
+}
+
+std::chrono::steady_clock::time_point Feed::receivedAt(
+    const Arrival& arrival) const {
+  const std::lock_guard lock(m_mutex);
+  using Clock = std::chrono::steady_clock;
+  using Duration = Clock::duration;
+  const auto origin = m_replayOrigin.value_or(m_made);
+  const double ticks = std::chrono::duration<double, Duration::period>(
+                           std::chrono::duration<double>(arrival.at))
+                           .count();
+  if (!std::isfinite(ticks) || ticks < 0 ||
+      ticks >= static_cast<double>(std::numeric_limits<Duration::rep>::max()))
+    return origin;
+  const Duration offset(static_cast<Duration::rep>(ticks));
+  if (origin > Clock::time_point::max() - offset) return origin;
+  return origin + offset;
 }
 
 }  // namespace sigil::io
