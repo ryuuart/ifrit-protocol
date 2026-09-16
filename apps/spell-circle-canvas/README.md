@@ -48,7 +48,9 @@ one. Both default to `127.0.0.1:27015`.
 
 ## Authoring a scene
 
-The Python package builds and sends scenes:
+The lightweight `ifrit-protocol-apps` package under `apps/python/` builds and
+sends scenes. It requires Python 3.11 or newer and FlatBuffers, with no native
+drawing extension:
 
 ```python
 from SpellCircle import SpellCircleCanvas, SceneSender
@@ -77,6 +79,14 @@ The package exports `SpellCircleCanvas`, `PointReference`,
 `CircleDefinition`, `SceneBuilder`, `SceneSender`, and `send_once`.
 `SceneBuilder` is the lower-level path if you want to emit FlatBuffers
 tables yourself.
+
+For Python that draws directly through the native libraries, the same Python
+workspace contains the separate `sigil-sketch` distribution in `apps/python/sigil/`.
+It imports as `sigil`, renders headless with `sigil render`, and opens the live
+native application with `sigil open`. Sketchbook also opens Python sketches
+directly through its file picker. Installing the SpellCircle transport package
+does not install these native bindings or change TouchDesigner's interpreter
+requirements.
 
 ## How a packet becomes pixels
 
@@ -223,6 +233,7 @@ The app is thin. Most of the code is in libraries under `src/common/`,
 | [SigilSubstance](src/common/substance/README.md) | Adobe Substance 3D materials rendered to images, where the SDK is installed |
 | [SigilUsd](src/common/usd/README.md) | OpenUSD read and write, where the package is installed |
 | [SigilCompose](src/common/compose/README.md) | Data-driven drawable components — layout, caching, animation |
+| [SigilPython](src/common/python/README.md) | Reusable Python bindings over the native libraries; callback and value ownership shared with host integrations |
 | [SigilSketch](src/sketch/README.md) | Every renderable thing as one sketch, with Sketchbook over them |
 | [SigilWeave](src/sigilweave/README.md) | Text shaping and layout on HarfBuzz, ICU and Skia |
 
@@ -231,6 +242,14 @@ The app is thin. Most of the code is in libraries under `src/common/`,
 The build requires Python 3.12 or newer with development headers and an
 embedding library. The dependency manifest supplies pybind11, and every
 Sketchbook build supports Python sketches alongside C++ sketches.
+
+Reusable native bindings live in `src/common/python/`. The sketch-specific
+adapter lives in `src/sketch/python/`; the import package, type declarations,
+Python tests and wheel tooling live in the `apps/python/sigil/` workspace member.
+From `apps/python`, `uv build --package sigil-sketch` selects that distribution;
+wheel builds need the explicit toolchain and dependency settings in
+[`apps/python/sigil/README.md`](../python/sigil/README.md) and a separate package
+build directory. Native application builds remain rooted here.
 
 ```sh
 cd apps/spell-circle-canvas

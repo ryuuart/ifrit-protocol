@@ -24,8 +24,10 @@ collection, and their subject tags join the normal browser tree. Listing
 does not import sketch code; opening a session imports its current source.
 A save imports a fresh sketch without
 compiling C++; Python functions construct native descriptions or draw with
-the pen. `python/README.md` describes its supported vocabulary, examples,
-reload behavior and use from an ordinary Python interpreter. Files outside
+the pen. The public package, typing and wheel tooling live in
+`apps/python/sigil/`. Reusable bindings belong to `SigilPython`; the
+`SigilSketchPython` adapter adds native sketch sessions and SketchKit, without
+making the core sketch library depend on Python. Files outside
 the catalogue also open by path. `uv run sigil open sketch.py` launches this
 same application with the uv project's Python dependencies; the launcher
 checks that the environment matches the host's Python ABI first.

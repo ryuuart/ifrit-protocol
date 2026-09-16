@@ -54,14 +54,30 @@ add_custom_target(benches)
 # during a normal build, and configuring never touches the network.
 set(SIGIL_ASSET_DIR "${CMAKE_BINARY_DIR}/assets" CACHE PATH
     "Where fetch_assets writes downloaded demo assets")
-find_package(Python3 3.12 COMPONENTS Interpreter REQUIRED)
+# workaround: vcpkg's Python wrapper selects its own development artifacts.
+# Keep the headers and embedding library matched to the build interpreter.
+if(VCPKG_TARGET_TRIPLET AND COMMAND _find_package)
+  _find_package(Python3 3.12 COMPONENTS Interpreter Development.Module Development.Embed REQUIRED)
+else()
+  find_package(Python3 3.12 COMPONENTS Interpreter Development.Module Development.Embed REQUIRED)
+endif()
+set(PYBIND11_FINDPYTHON ON)
+find_package(pybind11 CONFIG REQUIRED)
 add_custom_target(fetch_assets
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/scripts/sigil.py assets
           --out ${SIGIL_ASSET_DIR}
   COMMENT "Fetching demo assets into ${SIGIL_ASSET_DIR}"
   VERBATIM)
 
+# The native libraries consume the package from its Python project. A source
+# distribution supplies this path explicitly beside its bundled native sources.
+get_filename_component(SIGIL_PYTHON_PACKAGE_DEFAULT
+  "${CMAKE_CURRENT_SOURCE_DIR}/../python/sigil" ABSOLUTE)
+set(SIGIL_PYTHON_PACKAGE_DIR "${SIGIL_PYTHON_PACKAGE_DEFAULT}" CACHE PATH
+  "Python package project containing sigil, stubs, and packaging rules")
+
 add_subdirectory(src)
+add_subdirectory("${SIGIL_PYTHON_PACKAGE_DIR}" "python-package")
 
 # Every library root, every test binary and every hot-reload host has
 # registered by now: the first lets each Doxyfile name all the others,

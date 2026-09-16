@@ -6,6 +6,10 @@
 #include <sigildata/decode/Json.h>
 #include <sigildata/table/Table.h>
 #include <sigilmotion/bind/Bound.h>
+#include <sigilpython/Bindings.h>
+#include <sigilpython/DataBindings.h>
+#include <sigilpython/IOBindings.h>
+#include <sigilpython/ValueBindings.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/live/Host.h>
@@ -22,11 +26,7 @@
 #include <thread>
 #include <unordered_map>
 
-#include "Bindings.h"
-#include "DataBindings.h"
-#include "IOBindings.h"
 #include "KitBindings.h"
-#include "ValueBindings.h"
 
 extern "C" PyObject* PyInit__sigil();
 
@@ -123,7 +123,7 @@ class Object {
 };
 
 struct Generation {
-  CallbackLifetime callbacks;
+  sigil::python::CallbackLifetime callbacks;
   std::shared_ptr<Object> body;
   std::string package;
 
@@ -145,7 +145,7 @@ struct Generation {
 };
 
 struct State {
-  CallbackLifetime callbacks;
+  sigil::python::CallbackLifetime callbacks;
   compose::Composer* composer = nullptr;
   CanvasSpecification* specification = nullptr;
   motion::Ticker* ticker = nullptr;
@@ -163,7 +163,8 @@ struct State {
   void retainFeed(std::shared_ptr<io::Feed> feed) {
     auto* identity = feed.get();
     if (!feedLeases.contains(identity))
-      feedLeases.emplace(identity, retainSessionFeed(std::move(feed)));
+      feedLeases.emplace(identity,
+                         sigil::python::retainSessionFeed(std::move(feed)));
   }
 
   void close() {
@@ -227,7 +228,7 @@ class AssetsView : public Context {
   using Context::Context;
 };
 int callbackArity(const py::function& fn, int maximum) {
-  return py::module_::import("sigil._loader")
+  return py::module_::import("sigil._callbacks")
       .attr("arity")(fn, maximum)
       .cast<int>();
 }
@@ -239,11 +240,11 @@ bool continueTick(py::object result) {
 void addTick(const TickerView& view, py::function fn) {
   const auto state = view.state();
   const int arity = callbackArity(fn, 2);
-  const CallbackScope scope(state->callbacks);
-  auto retained = retainCallback(std::move(fn));
+  const sigil::python::CallbackScope scope(state->callbacks);
+  auto retained = sigil::python::retainCallback(std::move(fn));
   state->ticker->add([retained, arity](double dt, double elapsed) {
     const py::gil_scoped_acquire lock;
-    const KitScopeBoundary themes;
+    const sigil::python::CallbackBoundary themes;
     try {
       auto callback = retained->get();
       if (arity == 0) return continueTick(callback());
@@ -264,13 +265,13 @@ void addFixedTick(const TickerView& view, double hz, py::function fn,
         "Fixed-step rate and catch-up limit must be positive");
   callbackArity(fn, 0);
   const auto state = view.state();
-  const CallbackScope scope(state->callbacks);
-  auto retained = retainCallback(std::move(fn));
+  const sigil::python::CallbackScope scope(state->callbacks);
+  auto retained = sigil::python::retainCallback(std::move(fn));
   state->ticker->addFixed(
       hz,
       [retained] {
         const py::gil_scoped_acquire lock;
-        const KitScopeBoundary themes;
+        const sigil::python::CallbackBoundary themes;
         try {
           return continueTick(retained->get()());
         } catch (const py::error_already_set& error) {
@@ -298,10 +299,11 @@ class Body final : public CanvasBody {
   Body(const std::shared_ptr<Generation>& generation,
        const std::shared_ptr<State>& state)
       : m_generation(generation), m_state(state) {
-    const KitScopeBoundary themes;
+    const sigil::python::CallbackBoundary themes;
     const py::object instance = generation->body->get()();
     m_instance = std::make_shared<Object>(instance);
-    const py::object arity = py::module_::import("sigil._loader").attr("arity");
+    const py::object arity =
+        py::module_::import("sigil._callbacks").attr("arity");
     const py::object setup = instance.attr("setup");
     m_setup = std::make_shared<Object>(setup);
     m_setupArity = arity(setup, 1).cast<int>();
@@ -321,7 +323,7 @@ class Body final : public CanvasBody {
     // Feeds omitted by this declaration close when its previous leases leave.
     const auto previousFeeds = std::move(m_state->feedLeases);
     m_state->feedLeases.clear();
-    const KitScopeBoundary themes;
+    const sigil::python::CallbackBoundary themes;
     try {
       if (m_setupArity == 0)
         m_setup->get()();
@@ -335,7 +337,7 @@ class Body final : public CanvasBody {
 
   void update(double elapsed, SketchContext& ctx) override {
     m_state->update(ctx);
-    const KitScopeBoundary themes;
+    const sigil::python::CallbackBoundary themes;
     if (!m_update) return;
     if (m_updateArity == 0)
       m_update->get()();
@@ -420,8 +422,8 @@ class PythonSession final : public Session {
   void invoke(Function&& function) {
     const py::gil_scoped_acquire lock;
     if (m_state->failed) throw std::runtime_error(m_error);
-    const CallbackScope callbacks(m_state->callbacks);
-    const KitScopeBoundary themes;
+    const sigil::python::CallbackScope callbacks(m_state->callbacks);
+    const sigil::python::CallbackBoundary themes;
     try {
       function();
     } catch (const py::error_already_set& error) {
@@ -456,8 +458,8 @@ class PythonKind final : public KindOperations {
     const py::gil_scoped_acquire lock;
     try {
       const auto state = std::make_shared<State>();
-      const CallbackScope callbacks(state->callbacks);
-      const KitScopeBoundary themes;
+      const sigil::python::CallbackScope callbacks(state->callbacks);
+      const sigil::python::CallbackBoundary themes;
       auto body = std::make_unique<Body>(m_generation, state);
       auto session =
           openCanvas(std::move(body), fonts, assets, deterministic, key);
@@ -576,8 +578,8 @@ Kind load(const std::filesystem::path& source) {
   try {
     py::module_::import("_sigil");
     auto generation = std::make_shared<Generation>();
-    const CallbackScope callbacks(generation->callbacks);
-    const KitScopeBoundary themes;
+    const sigil::python::CallbackScope callbacks(generation->callbacks);
+    const sigil::python::CallbackBoundary themes;
     const py::tuple result =
         py::module_::import("sigil._loader").attr("load")(source.string());
     generation->body = std::make_shared<Object>(result[0]);
@@ -598,19 +600,6 @@ void bindRuntime(py::module_& module) {
   auto composition = module.attr("compose").cast<py::module_>();
   auto clocks = module.attr("motion").cast<py::module_>();
   auto sketches = module.def_submodule("sketch");
-  py::class_<compose::Composer::Stats>(composition, "ComposerStats")
-#define SIGIL_STAT(name) .def_readonly(#name, &compose::Composer::Stats::name)
-      SIGIL_STAT(instances) SIGIL_STAT(yogaNodes) SIGIL_STAT(describedNodes)
-          SIGIL_STAT(memoHits) SIGIL_STAT(patchedNodes) SIGIL_STAT(picturesLive)
-              SIGIL_STAT(texturesLive) SIGIL_STAT(picturesRecorded)
-                  SIGIL_STAT(texturesBaked) SIGIL_STAT(nodesPainted)
-                      SIGIL_STAT(reconcileMs) SIGIL_STAT(layoutMs)
-                          SIGIL_STAT(volatileMs) SIGIL_STAT(paintMs);
-#undef SIGIL_STAT
-  py::class_<compose::TextSettling>(composition, "TextSettling")
-      .def_readonly("live", &compose::TextSettling::live)
-      .def_readonly("reused", &compose::TextSettling::reused)
-      .def_readonly("degraded", &compose::TextSettling::degraded);
   py::class_<ComposerView>(composition, "Composer")
       .def("render",
            [](const ComposerView& v, const compose::Element& e) {
@@ -627,7 +616,7 @@ void bindRuntime(py::module_& module) {
            })
       .def("hitTest",
            [](const ComposerView& v, py::handle at) {
-             return v.state()->composer->hitTest(point(at));
+             return v.state()->composer->hitTest(sigil::python::point(at));
            })
       .def("routesAt",
            [](const ComposerView& v, const std::string& key) {
@@ -645,12 +634,6 @@ void bindRuntime(py::module_& module) {
            [](const ComposerView& v) { v.state()->composer->purgeCaches(); })
       .def("stats",
            [](const ComposerView& v) { return v.state()->composer->stats(); });
-  py::class_<motion::Ticker::FixedStatus,
-             std::shared_ptr<motion::Ticker::FixedStatus>>(clocks,
-                                                           "FixedStatus")
-      .def(py::init<>())
-      .def_readonly("stepsRun", &motion::Ticker::FixedStatus::stepsRun)
-      .def_readonly("clamped", &motion::Ticker::FixedStatus::clamped);
   py::class_<TickerView>(clocks, "Ticker")
       .def("add", &addTick, py::arg("function"))
       .def("addFixed", &addFixedTick, py::arg("hz"), py::arg("function"),
@@ -682,12 +665,13 @@ void bindRuntime(py::module_& module) {
            })
       .def("database",
            [](const AssetsView& v, const std::string& uri) {
-             return dataDatabase(v.state()->assets->database(uri));
+             return sigil::python::dataDatabase(
+                 v.state()->assets->database(uri));
            })
       .def("hub",
            [](const AssetsView& v) {
              v.state();
-             return HubHandle(
+             return sigil::python::HubHandle(
                  [v]() -> io::Hub& { return v.state()->assets->hub(); },
                  [v](std::shared_ptr<io::Feed> feed) {
                    v.state()->retainFeed(std::move(feed));
@@ -706,7 +690,8 @@ void bindRuntime(py::module_& module) {
            })
       .def("background",
            [](const Context& ctx, py::handle value) {
-             ctx.state()->specification->background = color(value);
+             ctx.state()->specification->background =
+                 sigil::python::color(value);
            })
       .def("captureAt",
            [](const Context& ctx, double seconds) {

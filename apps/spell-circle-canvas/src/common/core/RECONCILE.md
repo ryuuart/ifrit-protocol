@@ -16,7 +16,7 @@ is the leaf the erased seam value on a description comes from.
 | `reconcile/Host.h` | the `ReconcileHost` concept — the operations a host implements — and `DescriptionValue` |
 | `reconcile/Node.h` | `Node<Derived, Description>` — the tree skeleton a host's node derives from: `parent`, `description`, `memoShell`, `children` |
 | `reconcile/Memo.h` | `Memo<Produced>` — a deferred describe and its key: `properties`, `equal`, `invoke`, `environment` |
-| `reconcile/Environment.h` | `environment::Provide`, `environment::inherited`, `environment::inheritedOr`, `environment::bound`, and the `environment::Snapshot`, `environment::capture`, `environment::Restore` a memo is built on |
+| `reconcile/Environment.h` | `environment::Provide`, `environment::inherited`, `environment::inheritedOr`, `environment::bound`, and the `environment::Snapshot`, `environment::capture`, `environment::Restore`, `environment::restoreIdentity` a memo is built on |
 | `reconcile/Phases.h` | `Phase<Impl>` and `runPhases` — a host's declared pass list with its converging group |
 | `reconcile/Reads.h` | `Facet`, `Read`, `orderByReads` — what one node reads off another, and the order that puts every reader after what it read |
 | `reconcile/Stats.h` | `ReconcileStats` — the pass counts, and `report()` into `sigil::measure::Counters` |
@@ -142,6 +142,12 @@ node's payload stands and the describe is skipped, on a miss the describe
 runs under the environment its author had (`environment::Restore`) and the result
 becomes the payload. The shell rides on the node as `memoShell`; the
 payload is `description`.
+
+Each restoration has its own thread-local `environment::restoreIdentity`,
+even when its snapshot equals the surrounding one. It returns to the enclosing
+identity on exit and is zero outside any restoration. Scope adapters use it to
+prevent a binding from closing through a restored copy of its environment;
+the identity does not participate in snapshot equality or memo keys.
 
 **An inherited value lands in the description.** `environment::Provide<T>` binds a
 value for a describe scope and `environment::inherited<T>()` reads it four levels

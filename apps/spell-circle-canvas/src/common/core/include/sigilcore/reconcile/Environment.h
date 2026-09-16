@@ -129,6 +129,12 @@ namespace environment {
  *  run the deferred describe the author's scope is gone. */
 Snapshot capture();
 
+/** Identity of the active Restore on this thread, or zero outside one.
+ *  Each restoration has a distinct identity even for the same snapshot;
+ *  leaving it reinstates the enclosing identity. Scope adapters can use this
+ *  to require that a binding closes in the environment where it was opened. */
+[[nodiscard]] std::uint64_t restoreIdentity() noexcept;
+
 /** Re-establishes a captured stack around a DEFERRED describe (the memo
  *  invoke). Swaps rather than pushes: a deferred call must see exactly
  *  what its author's scope had, not that stack plus whatever the current
@@ -142,6 +148,7 @@ class Restore {
 
  private:
   Snapshot m_saved;
+  std::uint64_t m_savedIdentity = 0;
 };
 
 }  // namespace environment

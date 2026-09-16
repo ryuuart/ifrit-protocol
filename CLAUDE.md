@@ -23,6 +23,10 @@ guard checks and what it cannot see.
 
 - `apps/spell-circle-canvas/README.md` — the product: the data path,
   authoring scenes in Python, building and running
+- `apps/python/README.md` — the Python workspace: independent SpellCircle
+  transport and native Sigil authoring distributions
+  - `apps/python/sigil/README.md` — Python bindings, authoring, installation
+    and live sketches, with `PARITY.md` beside it for supported coverage
 - `src/sigilweave/README.md` — text shaping and layout, with
   `src/sigilweave/FEATURES.md` beside it for the feature catalogue and
   `src/sigilweave/PARITY.md` for the control-by-control table; the
@@ -69,6 +73,8 @@ guard checks and what it cannot see.
 - `src/common/substance/README.md`, `src/common/usd/README.md` —
   optional SDK integrations
 - `src/common/qt/README.md` — reusable Qt Quick controls
+- `src/common/python/README.md` — reusable native Python bindings and
+  callback ownership; the sketch session adapter stays under `src/sketch/python/`
 - `apps/spell-circle-canvas/scripts/README.md` — `sigil.py` and its
   verbs: the checks and the ledgers
 - `docs/README.md` — the generated C++ API reference
@@ -249,7 +255,8 @@ apps/spell-circle-canvas/src/
   spellcircle/     the product: shared/ core embedded by qt/ and mac/
   test/            test support belonging to no library, and the
                    instrument faces every binary shapes against
-apps/python/       scene authoring and UDP transport
+apps/python/       Python workspace; SpellCircle/ holds the lightweight transport
+  sigil/           native Sigil package, typing, tests and wheel tooling
 touchdesigner/     TouchDesigner project and editor tooling
 ```
 
@@ -270,3 +277,8 @@ Edge,Box,Scene}.py` are imported without a build in reach, so after
 editing the schema run `mise run flatbuffers` and commit what it writes;
 the script copies only the schema modules, since the hand-written
 `SpellCircle/__init__.py` is the public API.
+
+The native `_sigil` declarations in `apps/python/sigil/stubs/` are generated
+from the compiled bindings and typed refinements. Edit the bindings or
+`apps/python/sigil/typing/refinements.py`, then run that directory's
+`generate.py` against the matching extension; do not edit generated stubs.

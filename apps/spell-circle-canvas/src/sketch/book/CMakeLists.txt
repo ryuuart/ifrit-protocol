@@ -96,7 +96,7 @@ sigil_test(sketch_test
 
 target_compile_definitions(Sketchbook PRIVATE
   SIGIL_PYTHON_EXECUTABLE="${Python3_EXECUTABLE}"
-  SIGIL_PYTHON_ENVIRONMENT_SCRIPT="${CMAKE_CURRENT_LIST_DIR}/../python/sigil/environment.py")
+  SIGIL_PYTHON_ENVIRONMENT_SCRIPT="${SIGIL_PYTHON_PACKAGE_DIR}/sigil/environment.py")
 
 # Sharing the sole Ultralight renderer is an opt-in property of this host,
 # separate from SigilScry's ordinary explicitly owned WebEngine path.

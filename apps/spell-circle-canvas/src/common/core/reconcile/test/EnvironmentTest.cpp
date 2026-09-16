@@ -113,3 +113,32 @@ TEST(Environment, RestoreSwapsACapturedStackInAndBackOut) {
   EXPECT_FALSE(environment::bound<Palette>());
   EXPECT_EQ(environment::inherited<Other>()->v, 1);
 }
+
+TEST(Environment, EqualRestoredSnapshotsHaveDistinctScopeIdentities) {
+  environment::Provide<Palette> ambient(Palette{3});
+  const auto captured = environment::capture();
+  const auto original = environment::restoreIdentity();
+  EXPECT_EQ(original, 0);
+  std::uint64_t outerIdentity = 0;
+  {
+    environment::Restore outer(captured);
+    outerIdentity = environment::restoreIdentity();
+    EXPECT_NE(outerIdentity, original);
+    EXPECT_EQ(environment::capture(), captured);
+    {
+      environment::Restore inner(captured);
+      EXPECT_NE(environment::restoreIdentity(), original);
+      EXPECT_NE(environment::restoreIdentity(), outerIdentity);
+      EXPECT_EQ(environment::capture(), captured);
+    }
+    EXPECT_EQ(environment::restoreIdentity(), outerIdentity);
+  }
+  EXPECT_EQ(environment::restoreIdentity(), original);
+  EXPECT_EQ(environment::capture(), captured);
+  {
+    environment::Restore another(captured);
+    EXPECT_NE(environment::restoreIdentity(), original);
+    EXPECT_NE(environment::restoreIdentity(), outerIdentity);
+  }
+  EXPECT_EQ(environment::restoreIdentity(), original);
+}

@@ -60,6 +60,7 @@ add_subdirectory(common/world)
 add_subdirectory(common/substance)
 add_subdirectory(common/usd)
 add_subdirectory(common/compose)
+add_subdirectory(common/python)
 # Above both drawing libraries, and the only place they meet: a sketch may
 # describe a compose Element tree or a world Frame, so this links both.
 add_subdirectory(sketch)

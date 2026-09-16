@@ -18,16 +18,29 @@ environment::Snapshot& environmentStack() {
 }  // namespace detail
 
 namespace environment {
+namespace {
+
+thread_local std::uint64_t currentRestore = 0;
+thread_local std::uint64_t nextRestore = 0;
+
+}  // namespace
 
 Snapshot capture() { return detail::environmentStack(); }
+
+std::uint64_t restoreIdentity() noexcept { return currentRestore; }
 
 Restore::Restore(const Snapshot& snapshot) {
   Snapshot next = snapshot;  // copied first: `snapshot` may alias the stack
   m_saved = std::move(detail::environmentStack());
   detail::environmentStack() = std::move(next);
+  m_savedIdentity = currentRestore;
+  currentRestore = ++nextRestore;
 }
 
-Restore::~Restore() { detail::environmentStack() = std::move(m_saved); }
+Restore::~Restore() {
+  detail::environmentStack() = std::move(m_saved);
+  currentRestore = m_savedIdentity;
+}
 
 }  // namespace environment
 
