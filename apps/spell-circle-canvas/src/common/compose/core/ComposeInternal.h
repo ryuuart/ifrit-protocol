@@ -70,6 +70,12 @@ struct LayoutProps {
   Justify justify = Justify::Start;
   bool absolute = false;
   bool hasInsets = false;
+  /** Set by cover() alone: the node was taken out of the flow to fill
+   *  its parent's box, and nothing else placed it. A size stated after
+   *  that puts it back in the flow, since a box of its own is the one
+   *  other thing a covering node can be; a pin or an inset stated after
+   *  it is a placement, and stands. */
+  bool covering = false;
   /** positioned() container: children (and their subtrees) get NO Yoga
    *  nodes; instanceRect() resolves their rects straight from these
    *  properties. */

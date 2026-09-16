@@ -278,3 +278,39 @@ TEST(ComposeLayout, APaddedTextLeafSetsItsWordsInsideItsPadding) {
   EXPECT_NEAR(padded.bottom() - (float)paddedInk.bottom(),
               bare.bottom() - (float)bareInk.bottom() + pad, 1.0f);
 }
+
+TEST(ComposeLayout, ACoveringNodeGivenASizeStandsInTheFlowAgain) {
+  // A canvas fills the box it stands in, and a canvas given a box of its
+  // own stands in the flow at that box: what follows it lands after it
+  // rather than on top of it, which is what a captioned drawing on a
+  // sheet asks for.
+  Host host(400, 400);
+  host.composer.render(box().column().gap(10).children(
+      {custom([](SkCanvas&) {}).cover().width(100).height(60).key("drawing"),
+       box().key("after").width(100).height(20).fill(red())}));
+  host.frame();
+  const auto drawing = host.composer.bounds("drawing");
+  const auto after = host.composer.bounds("after");
+  ASSERT_TRUE(drawing.has_value());
+  ASSERT_TRUE(after.has_value());
+  EXPECT_FLOAT_EQ(drawing->height(), 60.0f);
+  EXPECT_FLOAT_EQ(after->top(), 70.0f) << "the drawing took its 60 and the gap";
+  // A pin stated after the size is a placement, and the node leaves the
+  // flow again: what follows it lands where it would have without it.
+  host.composer.render(box().column().gap(10).children(
+      {custom([](SkCanvas&) {})
+           .cover()
+           .width(100)
+           .height(60)
+           .top(5)
+           .key("pinned"),
+       box().key("next").width(100).height(20).fill(red())}));
+  host.frame();
+  const auto pinned = host.composer.bounds("pinned");
+  const auto next = host.composer.bounds("next");
+  ASSERT_TRUE(pinned.has_value());
+  ASSERT_TRUE(next.has_value());
+  EXPECT_FLOAT_EQ(pinned->top(), 5.0f);
+  EXPECT_FLOAT_EQ(next->top(), 0.0f)
+      << "a pinned node holds no place in the flow";
+}

@@ -61,13 +61,30 @@ Element& Element::margin(Dimension l, Dimension t, Dimension r, Dimension b) {
   return *this;
 }
 
+namespace {
+
+/** A covering node given a size is put back in the flow at that size:
+ *  filling the parent's box and holding a box of its own are the two
+ *  things it can be, and the size said which. */
+void flowFromCover(detail::LayoutProps& layout) {
+  if (!layout.covering) return;
+  layout.absolute = false;
+  layout.hasInsets = false;
+  layout.insets = detail::EdgeDims{};
+  layout.covering = false;
+}
+
+}  // namespace
+
 Element& Element::width(Dimension d) {
   m_node->layout.width = d;
+  flowFromCover(m_node->layout);
   return *this;
 }
 
 Element& Element::height(Dimension d) {
   m_node->layout.height = d;
+  flowFromCover(m_node->layout);
   return *this;
 }
 
@@ -128,10 +145,15 @@ Element& Element::justify(Justify j) {
 
 Element& Element::absolute() {
   m_node->layout.absolute = true;
+  m_node->layout.covering = false;
   return *this;
 }
 
-Element& Element::cover() { return inset(0.0f); }
+Element& Element::cover() {
+  inset(0.0f);
+  m_node->layout.covering = true;
+  return *this;
+}
 
 Element& Element::inset(float all) { return inset(all, all, all, all); }
 
@@ -141,6 +163,7 @@ Element& Element::inset(float l, float t, float r, float b) {
 
 Element& Element::inset(Dimension l, Dimension t, Dimension r, Dimension b) {
   m_node->layout.absolute = true;
+  m_node->layout.covering = false;
   m_node->layout.hasInsets = true;
   m_node->layout.insets = {l, t, r, b};
   return *this;
@@ -148,6 +171,7 @@ Element& Element::inset(Dimension l, Dimension t, Dimension r, Dimension b) {
 
 Element& Element::left(Dimension d) {
   m_node->layout.absolute = true;
+  m_node->layout.covering = false;
   m_node->layout.hasInsets = true;
   m_node->layout.insets.left = d;
   return *this;
@@ -155,6 +179,7 @@ Element& Element::left(Dimension d) {
 
 Element& Element::top(Dimension d) {
   m_node->layout.absolute = true;
+  m_node->layout.covering = false;
   m_node->layout.hasInsets = true;
   m_node->layout.insets.top = d;
   return *this;
@@ -162,6 +187,7 @@ Element& Element::top(Dimension d) {
 
 Element& Element::right(Dimension d) {
   m_node->layout.absolute = true;
+  m_node->layout.covering = false;
   m_node->layout.hasInsets = true;
   m_node->layout.insets.right = d;
   return *this;
@@ -169,6 +195,7 @@ Element& Element::right(Dimension d) {
 
 Element& Element::bottom(Dimension d) {
   m_node->layout.absolute = true;
+  m_node->layout.covering = false;
   m_node->layout.hasInsets = true;
   m_node->layout.insets.bottom = d;
   return *this;
@@ -176,6 +203,7 @@ Element& Element::bottom(Dimension d) {
 
 Element& Element::centerAt(SkPoint p) {
   m_node->layout.absolute = true;
+  m_node->layout.covering = false;
   m_node->layout.centerAt = p;
   return *this;
 }
@@ -193,6 +221,7 @@ Element& Element::cells(int column, int row, int columns, int rows) {
 
 Element& Element::tether(Tether t) {
   m_node->layout.absolute = true;
+  m_node->layout.covering = false;
   detail::DeriveData& derive = m_node->deriveData.ensure();
   // LAST-WINS, so the previous tether's reads go with it: a box hangs off
   // exactly one anchor at a time, and one re-tethered would otherwise keep

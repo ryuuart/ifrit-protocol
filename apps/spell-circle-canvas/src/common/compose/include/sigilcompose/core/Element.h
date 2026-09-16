@@ -144,7 +144,11 @@ class Element {
    *
    *  A node that must fill only part of the box states that part with
    *  `inset()` instead; a node that must stand in the flow states its
-   *  size and says nothing here. */
+   *  size and says nothing here — or says this first and its size
+   *  after, which puts it back in the flow at that size: a covering
+   *  node is a canvas filling its box by nature, and a box of its own
+   *  is the one other thing it can be. A pin or an inset stated after
+   *  this is a placement, and stands. */
   Element& cover();
   Element& inset(float all);
   Element& inset(float left, float top, float right, float bottom);
