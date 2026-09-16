@@ -89,12 +89,9 @@ qt_add_qml_module(Sketchbook
 # and the SIGIL_SKETCHBOOK_THUMBNAILS environment variable name another.
 target_include_directories(Sketchbook PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(Sketchbook PRIVATE
-  SigilSketch SigilSketches SigilMeasure SigilWeavePorts SigilMaterial
+  SigilSketch SigilSketchPython SigilSketches SigilMeasure SigilWeavePorts SigilMaterial
   IfritUiplugin Qt6::Gui Qt6::GuiPrivate Qt6::Quick Qt6::QuickControls2
   Qt6::QuickDialogs2)
-if(TARGET SigilSketchPython)
-  target_link_libraries(Sketchbook PRIVATE SigilSketchPython)
-endif()
 
 # Sharing the sole Ultralight renderer is an opt-in property of this host,
 # separate from SigilScry's ordinary explicitly owned WebEngine path.

@@ -17,9 +17,10 @@ There is one application over all of it — **Sketchbook** — and one
 headless renderer, which is the same binary. Nothing else in this
 repository renders a catalogue.
 
-An optional Python authoring layer opens `.py` files as canvas sketches
-inside the same session. Enable `SIGIL_SKETCH_PYTHON` to build its native
-bindings and embedded interpreter. A save imports a fresh sketch without
+Sketchbook includes a Python authoring layer that opens `.py` files as
+canvas sketches inside the same session. Its bindings build with the
+application, and the interpreter initializes when a Python sketch opens.
+A save imports a fresh sketch without
 compiling C++; Python functions construct native descriptions or draw with
 the pen. `python/README.md` describes its supported vocabulary, examples,
 reload behavior and use from an ordinary Python interpreter. Python files

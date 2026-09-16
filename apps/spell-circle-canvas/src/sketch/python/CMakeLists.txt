@@ -24,7 +24,6 @@ target_include_directories(SigilSketchPython PRIVATE ${Python3_INCLUDE_DIRS})
 # from its importing interpreter and must not load another libpython.
 target_link_libraries(SigilSketchPython INTERFACE
   "$<$<NOT:$<BOOL:$<TARGET_PROPERTY:SIGIL_PYTHON_EXTENSION>>>:Python3::Python>")
-target_compile_definitions(SigilSketchPython PUBLIC SIGILSKETCH_PYTHON)
 target_compile_definitions(SigilSketchPython PRIVATE
   SIGIL_PYTHON_PACKAGE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 

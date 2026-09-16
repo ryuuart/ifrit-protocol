@@ -54,6 +54,7 @@
     "minizip-ng",
     "msquic",
     "openimageio",
+    "pybind11",
     "rtmidi",
     "shader-slang",
     {
@@ -109,12 +110,6 @@
     "vulkan-headers",
     "yoga"
   ],
-  "features": {
-    "python": {
-      "description": "Python bindings and embedded sketch authoring",
-      "dependencies": ["pybind11"]
-    }
-  },
   "overrides": [
     {
       "$comment": [

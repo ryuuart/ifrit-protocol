@@ -468,8 +468,8 @@ void Host::loadPython() {
   ++m_generation;
   if (!m_options.pythonLoader) {
     m_errorLog =
-        "Python sketches require a Python importer on this host. Configure "
-        "with -DSIGIL_SKETCH_PYTHON=ON, link SigilSketchPython and set "
+        "Python sketches require a Python importer on this host. "
+        "Link SigilSketchPython and set "
         "Host::Options::pythonLoader.";
     m_status = "Python unavailable";
     std::fprintf(stderr, "[sketch] %s\n", m_errorLog.c_str());

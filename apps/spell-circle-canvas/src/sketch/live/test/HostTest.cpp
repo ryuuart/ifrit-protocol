@@ -151,7 +151,8 @@ TEST(SketchHost, MissingPythonImporterReportsTheConfigurationWithoutCompiling) {
   host.poll();
   EXPECT_FALSE(host.compiling());
   EXPECT_FALSE(host.live());
-  EXPECT_NE(host.errorLog().find("SIGIL_SKETCH_PYTHON=ON"), std::string::npos);
+  EXPECT_NE(host.errorLog().find("Host::Options::pythonLoader"),
+            std::string::npos);
 }
 
 TEST(SketchHost,

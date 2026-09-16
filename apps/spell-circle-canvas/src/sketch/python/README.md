@@ -1,6 +1,7 @@
 # Python sketches
 
-Python is an optional authoring language for the native canvas session.
+Python is an alternative authoring language for the native canvas session,
+included in every Sketchbook build.
 A saved `.py` file is imported into a fresh sketch instance without a C++
 compile or link. Composition, layout, text, motion and drawing still run
 through the same native libraries as a C++ canvas sketch.
@@ -93,15 +94,18 @@ macOS versions. The extension uses its importing Python interpreter;
 it does not bundle or link another libpython. Licensed optional SDKs are
 disabled for wheel builds.
 
-The optional `SigilSketchPython` target is a leaf integration library. It
+The `SigilSketchPython` target is a leaf integration library. It
 links the native sketch runtime and kits; the `SigilSketch` core does not
 link Python. A native live host opts in by supplying its Python loader
 through `Host::Options::pythonLoader`. Sketchbook and the standalone
-renderer supply that function when the feature is enabled. Both use the
-same module registration and canvas-session implementation.
+renderer always supply that function. Both use the same module registration
+and canvas-session implementation. Sketchbook initializes the interpreter
+when it first loads a Python sketch.
 
 A source build needs the native dependencies and toolchain configured for
-the application. A wheel installation needs the matching Python and
+the application, plus Python 3.12 or newer with development headers and
+an embedding library. The dependency manifest supplies pybind11. A wheel
+installation needs the matching Python and
 operating system, with its native libraries already included. Wheels are
 specific to the Python ABI and target architecture; the initial packaging
 workflow bundles macOS runtimes.
@@ -130,12 +134,10 @@ images rendered by the installed CLI and by Python's isolated mode.
 
 ## Develop with Sketchbook
 
-After the application's normal build setup, enable the optional feature
-from `apps/spell-circle-canvas`:
+The application's normal build setup includes Python support. From
+`apps/spell-circle-canvas`, build the host and standalone extension:
 
 ```sh
-cmake -S . -B build \
-  -DSIGIL_SKETCH_PYTHON=ON -DVCPKG_MANIFEST_FEATURES=python
 cmake --build build --config Release --target Sketchbook sigil_python
 ```
 

@@ -3,11 +3,6 @@
 # visible in every directory.
 cmake_minimum_required(VERSION 3.31)
 
-option(SIGIL_SKETCH_PYTHON "Build the experimental Python sketch authoring layer" OFF)
-if(SIGIL_SKETCH_PYTHON)
-  list(APPEND VCPKG_MANIFEST_FEATURES python)
-endif()
-
 project(SpellCircleCanvas VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -59,7 +54,7 @@ add_custom_target(benches)
 # during a normal build, and configuring never touches the network.
 set(SIGIL_ASSET_DIR "${CMAKE_BINARY_DIR}/assets" CACHE PATH
     "Where fetch_assets writes downloaded demo assets")
-find_package(Python3 COMPONENTS Interpreter REQUIRED)
+find_package(Python3 3.12 COMPONENTS Interpreter REQUIRED)
 add_custom_target(fetch_assets
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/scripts/sigil.py assets
           --out ${SIGIL_ASSET_DIR}

@@ -37,6 +37,5 @@ wheel.packages = []
 sdist.exclude = ["build*", "dist", ".venv*", "CMakeUserPresets.json"]
 
 [tool.scikit-build.cmake.define]
-SIGIL_SKETCH_PYTHON = true
 CMAKE_DISABLE_FIND_PACKAGE_Ultralight = true
 CMAKE_DISABLE_FIND_PACKAGE_Substance = true

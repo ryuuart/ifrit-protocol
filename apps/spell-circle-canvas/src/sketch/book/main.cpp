@@ -67,9 +67,7 @@
 #include <sigilsketch/core/Sources.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/plate/Compare.h>
-#ifdef SIGILSKETCH_PYTHON
 #include <sigilsketch/python/Python.h>
-#endif
 #include <unistd.h>
 
 #include <QtCore/QCoreApplication>
@@ -240,9 +238,7 @@ int main(int argc, char* argv[]) {
         sketch::sourceOf(sketchDirectory, sketch::registry()[chosen].key);
 
   sketch::Host::Options options;
-#ifdef SIGILSKETCH_PYTHON
   options.pythonLoader = &sketch::python::load;
-#endif
   // DETERMINISTIC BY DEFAULT WHEN CAPTURING. A capture exists to be
   // looked at or diffed, and a sketch that draws its own bake time into
   // its own plate differs from itself between two runs — so a pixel

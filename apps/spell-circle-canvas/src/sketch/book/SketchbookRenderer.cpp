@@ -29,9 +29,7 @@
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/plate/Thumbnails.h>
 #include <sigilsketch/publish/Publisher.h>
-#ifdef SIGILSKETCH_PYTHON
 #include <sigilsketch/python/Python.h>
-#endif
 #include <sigilweave/fonts/FontContext.h>
 
 #include <QtCore/QByteArray>
@@ -196,9 +194,7 @@ void SketchbookRenderer::synchronize(QQuickRhiItem* item) {
 std::unique_ptr<sketch::Host> SketchbookRenderer::openSketch(int index) {
   const auto& entries = sketch::registry();
   sketch::Host::Options options;
-#ifdef SIGILSKETCH_PYTHON
   options.pythonLoader = &sketch::python::load;
-#endif
   if (index >= 0 && index < (int)entries.size()) {
     // A sketch this binary carries opens instantly: the host starts from
     // the compiled-in entry and builds only once the file changes.
