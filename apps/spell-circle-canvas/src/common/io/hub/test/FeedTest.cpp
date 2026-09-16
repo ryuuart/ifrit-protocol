@@ -2,9 +2,10 @@
  * Feeds: what a reader sees of what a transport delivers — the newest
  * message as bytes and whole, the ones it has not drained, the sender
  * each one names, and the ones a feed too full to hold them dropped —
- * the one door a hub opens per URI and closes when nobody holds it any
- * more, what goes back out of it to everybody or to one named sender,
- * and the recording a feed writes as it runs and plays back afterwards.
+ * the one door a hub opens per URI, closes when nobody holds it any
+ * more and opens again when it could not be opened, what goes back out
+ * of it to everybody or to one named sender, and the recording a feed
+ * writes as it runs and plays back afterwards.
  */
 
 #include <gtest/gtest.h>
@@ -181,6 +182,44 @@ TEST_F(IOFeed, AHubHoldsOneFeedPerUriWhileSomebodyHoldsItAndOpensAgainAfter) {
   // Nobody was holding that URI any more, so it is a new door.
   ASSERT_EQ(opened.size(), 3u);
   EXPECT_EQ(opened.back(), "udp://:27020");
+}
+
+TEST_F(IOFeed, ADoorThatCouldNotBeOpenedIsOpenedAgainByTheNextAskForItsUri) {
+  int opens = 0;
+  hub.setFeedTransport("udp",
+                       [&opens](std::string_view, std::weak_ptr<Feed> into) {
+                         OpenedFeed opened;
+                         // The first ask finds the outside world in the way and
+                         // says so with nothing to hand back; by the second it
+                         // is clear.
+                         if (++opens == 1) {
+                           if (const std::shared_ptr<Feed> feed = into.lock())
+                             feed->fail("the port is taken");
+                           return opened;
+                         }
+                         opened.address = "udp://[::]:27020";
+                         return opened;
+                       });
+
+  const std::shared_ptr<Feed> refused = hub.feed("udp://:27020");
+  ASSERT_NE(refused, nullptr);
+  EXPECT_EQ(refused->error(), "the port is taken");
+  EXPECT_FALSE(refused->opened());
+  EXPECT_TRUE(refused->address().empty());
+
+  const std::shared_ptr<Feed> again = hub.feed("udp://:27020");
+  // The same feed, opened this time: a reader that held it through the
+  // failure is reading the door that opened, with the reason gone.
+  EXPECT_EQ(again, refused);
+  EXPECT_EQ(opens, 2);
+  EXPECT_TRUE(again->opened());
+  EXPECT_TRUE(again->error().empty()) << again->error();
+  EXPECT_EQ(again->address(), "udp://[::]:27020");
+
+  // A feed that has a door is handed back as it stands: asking twice
+  // for a URI that opened is one socket and not two.
+  EXPECT_EQ(hub.feed("udp://:27020"), refused);
+  EXPECT_EQ(opens, 2);
 }
 
 TEST_F(IOFeed, AUriWithNoSchemeIsAFeedWhoseErrorSaysSo) {

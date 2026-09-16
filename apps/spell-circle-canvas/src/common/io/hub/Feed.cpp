@@ -103,8 +103,21 @@ void Feed::opened(OpenedFeed opened) {
   {
     const std::lock_guard lock(m_mutex);
     if (!m_wasOpened && !m_closed) {
+      // AN END WITH NOTHING IN IT, HANDED TO A FEED CARRYING A REASON,
+      // IS NO END: a transport that could not open the URI left the
+      // reason here and has nothing to give back. The feed stays
+      // unopened with that reason standing, which is what tells the
+      // next ask for this URI to open it again, and there is nothing
+      // to close.
+      const bool nothing = !opened.close && !opened.send && !opened.sendTo &&
+                           opened.address.empty();
+      if (nothing && !m_error.empty()) return;
       m_wasOpened = true;
       m_openedEnd = std::move(opened);
+      // What a door says about itself as it opens is left standing: a
+      // transport that answered from one thread and failed on another
+      // before this ran is a door with a reason, and the reason an
+      // earlier ask left was taken off before this open began.
       return;
     }
     // A feed takes one end. A second one, and one handed to a feed that
@@ -146,6 +159,11 @@ uint64_t Feed::dropped() const {
 bool Feed::closed() const {
   const std::lock_guard lock(m_mutex);
   return m_closed;
+}
+
+bool Feed::opened() const {
+  const std::lock_guard lock(m_mutex);
+  return m_wasOpened;
 }
 
 std::string Feed::error() const {
@@ -201,6 +219,10 @@ void Feed::replay(std::vector<Arrival> recording) {
   m_replayed = 0;
   m_replaying = true;
   m_origin.reset();
+  // The recording IS this feed's door: a later ask for the same URI is
+  // handed the feed as it stands rather than reading the file again
+  // over a playback that is already running.
+  m_wasOpened = true;
 }
 
 void Feed::advance(double seconds) {

@@ -75,6 +75,7 @@ std::vector<std::shared_ptr<Feed>> Hub::feeds() const {
 
 std::shared_ptr<Feed> Hub::feed(std::string_view uri, Feed::Policy policy) {
   std::shared_ptr<Feed> made;
+  bool again = false;
   {
     const std::lock_guard lock(m_mutex);
     // The list is pruned as it is walked, so a URI whose feed nobody
@@ -86,15 +87,35 @@ std::shared_ptr<Feed> Hub::feed(std::string_view uri, Feed::Policy policy) {
         entry = m_feeds.erase(entry);
         continue;
       }
-      if (entry->first == uri) return held;
+      if (entry->first == uri) {
+        // A DOOR THAT COULD NOT BE OPENED IS OPENED AGAIN HERE. The
+        // feed stands, carrying the reason its transport left on it,
+        // and what was in the way — a port another program held, a
+        // device not plugged in yet — may be gone by now; the ask is
+        // what tries it again, into the same feed every reader is
+        // already holding. One that has a door is handed back as it
+        // stands, and so is one that has closed.
+        if (held->opened() || held->closed()) return held;
+        made = std::move(held);
+        again = true;
+        break;
+      }
       ++entry;
     }
     // Made under the lock, which costs a string and a policy, so two
     // threads asking for one URI at once cannot open two doors onto it.
     // What OPENS it runs below, with the lock released.
-    made = std::make_shared<Feed>(std::string(uri), policy);
-    m_feeds.emplace_back(std::string(uri), made);
+    if (!made) {
+      made = std::make_shared<Feed>(std::string(uri), policy);
+      m_feeds.emplace_back(std::string(uri), made);
+    }
   }
+
+  // The reason the ask before this one left is taken off before this
+  // one tries: it is about a door being opened again, and either what
+  // follows leaves a reason of its own or there is nothing wrong with
+  // the feed.
+  if (again) made->fail({});
 
   // A URI that names a file is a recording: this feed plays that file
   // back instead of listening at a door.
