@@ -14,12 +14,16 @@
  *
  * A view paints on the engine's thread at the engine's cadence, so a
  * still of a page is a race unless something says when the page is
- * there. TWO ENGINE EVENTS SAY IT. The load callback fires when the main
- * frame has finished loading — the document and everything it pulled in
- * are present. The frame callback fires once per repaint handed over, so
- * counting those counts the engine's own ticks. A machine that runs the
- * engine slowly reaches both later and draws the same picture; a machine
- * that runs it fast reaches them sooner and draws the same picture.
+ * there. THREE ENGINE EVENTS SAY IT. The load callback fires when the
+ * main frame has finished loading — the document and everything it
+ * pulled in are present. The frame callback fires once per repaint
+ * handed over, so counting those counts the pictures of the page. The
+ * render-pass callback fires once per pass the engine makes over its
+ * pages, published or not, so counting those counts the engine's own
+ * ticks — and a stretch with no repaint in it is a number of them. A
+ * machine that runs the engine slowly reaches all three later and draws
+ * the same picture; a machine that runs it fast reaches them sooner and
+ * draws the same picture.
  *
  * WHY THIS IS NOT A DEADLINE. There is one, and it decides nothing about
  * the drawing: it bounds a machine whose engine never loads at all, so a
@@ -63,20 +67,45 @@ namespace sigil::sketch::scry {
  *  and a machine that reaches it has drawn no page at all. */
 inline constexpr std::chrono::seconds kUnresponsive{60};
 
-/** How long a view is watched for one more repaint before its page is
- *  called STILL — see `awaitQuiet`, which is the only thing that reads
- *  it. Long enough that no machine which gets a page at all reaches it
- *  while the page is still painting. */
-inline constexpr std::chrono::milliseconds kQuiet{1000};
+/** How many passes the engine must make over a view with nothing to
+ *  publish before its page is called STILL — see `Events::quietFor`,
+ *  which is the only thing that reads it. Long enough that no page which
+ *  is still coming is called still, and A COUNT RATHER THAN A STRETCH OF
+ *  CLOCK: a loaded machine makes the same passes an idle one does, only
+ *  later, so both call the same page still on the same repaint. */
+inline constexpr uint64_t kQuietPasses = 60;
+
+/** How long a settle that is BLOCKED holds its thread on one engine
+ *  event before it looks again. It decides nothing about the drawing —
+ *  every stage's condition is counted, and a look that finds nothing new
+ *  simply looks again — it only bounds how promptly a page that has
+ *  stopped saying anything reaches the deadline above. */
+inline constexpr std::chrono::milliseconds kLook{250};
+
+/** THE SETTLE'S QUIET RULE, AS A VALUE: whether a view that has handed
+ *  @p repaints frames over and has seen @p passesSinceRepaint engine
+ *  passes since the newest of them has stopped painting. False before
+ *  any frame at all, a page that has published nothing being one that
+ *  has not finished rather than one at rest.
+ *
+ *  A COUNT AND NOT A CLOCK, which is the whole of why a still is the
+ *  same still on a machine under load: the rule reads what the engine
+ *  DID and never how long it took to do it, so the same events in the
+ *  same order answer the same way however slowly they arrive. */
+[[nodiscard]] inline bool goneQuiet(uint64_t repaints,
+                                    uint64_t passesSinceRepaint,
+                                    uint64_t window = kQuietPasses) {
+  return repaints > 0 && passesSinceRepaint >= window;
+}
 
 /**
  * The engine's events for one view, latched.
  *
- * Constructed before the page is loaded, it installs the view's load and
- * frame callbacks and is what every stage of driving that page waits on.
- * The callbacks fire on the engine's thread and write through a state
- * block held by shared_ptr, so one still in flight when this object goes
- * away has somewhere valid to write.
+ * Constructed before the page is loaded, it installs the view's load,
+ * frame and render-pass callbacks and is what every stage of driving
+ * that page waits on. The callbacks fire on the engine's thread and
+ * write through a state block held by shared_ptr, so one still in
+ * flight when this object goes away has somewhere valid to write.
  */
 class Events {
  public:
@@ -96,7 +125,19 @@ class Events {
         const std::lock_guard<std::mutex> lock(state->mutex);
         ++state->repaints;
         state->latest = frame;
-        state->painted = std::chrono::steady_clock::now();
+        state->passesAtRepaint = state->passes;
+      }
+      state->changed.notify_all();
+    });
+    // COUNTED HERE RATHER THAN TAKEN FROM THE ENGINE: the engine's count
+    // is the runtime's and stands wherever the pages before this one left
+    // it, while what every reading below asks is how many passes have
+    // gone by SINCE something — which is a count that has to start at
+    // nothing when this latch does.
+    view.setRenderPassCallback([state](uint64_t) {
+      {
+        const std::lock_guard<std::mutex> lock(state->mutex);
+        ++state->passes;
       }
       state->changed.notify_all();
     });
@@ -105,6 +146,7 @@ class Events {
   ~Events() {
     m_view->setLoadCallback({});
     m_view->setFrameCallback({});
+    m_view->setRenderPassCallback({});
   }
 
   Events(const Events&) = delete;
@@ -132,15 +174,43 @@ class Events {
 
   /** Returns once more than @p since repaints have been handed over —
    *  the picture a script, a wheel or a press asked for. @p within is
-   *  how long that is waited for; the default is the deadline that says
-   *  a page is broken, and a SHORTER one is how a caller asks whether
-   *  the view has stopped painting at all. */
+   *  how long that is waited for, and the default is the deadline that
+   *  says a page is broken. Whether the view has stopped painting at all
+   *  is a different question and `quietFor` is where it is asked: a
+   *  shorter wait here would answer it with how fast the machine ran. */
   [[nodiscard]] bool awaitRepaint(
       uint64_t since, std::chrono::milliseconds within = kUnresponsive) const {
     const std::shared_ptr<State> state = m_state;
     std::unique_lock<std::mutex> lock(state->mutex);
     return state->changed.wait_for(
         lock, within, [&state, since] { return state->repaints > since; });
+  }
+
+  /** How many passes the engine has made over this view since the latch
+   *  was installed — the engine's own tick, counted whether or not the
+   *  page had anything to publish. */
+  [[nodiscard]] uint64_t passes() const {
+    const std::lock_guard<std::mutex> lock(m_state->mutex);
+    return m_state->passes;
+  }
+
+  /** How many passes the engine has made since @p mark. */
+  [[nodiscard]] uint64_t passesSince(uint64_t mark) const {
+    const std::lock_guard<std::mutex> lock(m_state->mutex);
+    return m_state->passes > mark ? m_state->passes - mark : 0;
+  }
+
+  /** Returns once the engine has made more than @p since passes — THE
+   *  TICK EVERY BLOCKED LOOK IS HELD ON, because a pass happens whether
+   *  or not the page repaints, so a stage waiting for the page to stop
+   *  is woken by the very passes it is counting. @p within bounds the
+   *  wait; the default is the deadline that says a page is broken. */
+  [[nodiscard]] bool awaitPass(
+      uint64_t since, std::chrono::milliseconds within = kUnresponsive) const {
+    const std::shared_ptr<State> state = m_state;
+    std::unique_lock<std::mutex> lock(state->mutex);
+    return state->changed.wait_for(
+        lock, within, [&state, since] { return state->passes > since; });
   }
 
   /** Whether the engine ever said the document arrived. */
@@ -167,18 +237,21 @@ class Events {
   }
 
   /** THE READING THE TAIL OF `awaitQuiet` WAITS FOR: a frame has been
-   *  handed over and the newest one is older than @p window, so the
-   *  view has stopped painting. False before any frame at all, a page
-   *  that has published nothing being one that has not finished rather
-   *  than one at rest.
+   *  handed over and the engine has made @p renderPasses over this view
+   *  since, with nothing to publish in any of them, so the view has
+   *  stopped painting. False before any frame at all, a page that has
+   *  published nothing being one that has not finished rather than one
+   *  at rest.
    *
-   *  This is the one reading here decided by a clock, exactly as the
-   *  wait it answers for is: what is quiet is a stretch with no event in
-   *  it, and there is no event that says one has begun. */
-  [[nodiscard]] bool quietFor(std::chrono::milliseconds window) const {
+   *  WHAT IS QUIET IS A STRETCH WITH NO EVENT IN IT, and the stretch is
+   *  measured in the engine's own passes rather than in elapsed time —
+   *  which is what makes the frame a settle stops on the page's answer
+   *  instead of the machine's. Load slows the passes down; it does not
+   *  change how many of them carried a repaint. */
+  [[nodiscard]] bool quietFor(uint64_t renderPasses) const {
     const std::lock_guard<std::mutex> lock(m_state->mutex);
-    return m_state->repaints > 0 &&
-           std::chrono::steady_clock::now() - m_state->painted >= window;
+    return goneQuiet(m_state->repaints,
+                     m_state->passes - m_state->passesAtRepaint, renderPasses);
   }
 
   /** KEEPS THE FRAME STANDING NOW as the one the still is of. Called by
@@ -209,9 +282,10 @@ class Events {
     bool loaded = false;
     uint64_t repaints = 0;               // handed over so far
     uint64_t repaintsAtLoad = 0;         // the count when the document arrived
+    uint64_t passes = 0;                 // engine passes seen since the latch
+    uint64_t passesAtRepaint = 0;        // …and the count at the newest frame
     sigil::scry::WebView::Frame latest;  // the newest handed over
     sigil::scry::WebView::Frame accepted;  // the one a settle stopped on
-    std::chrono::steady_clock::time_point painted;  // when the newest landed
   };
 
   sigil::scry::WebView* m_view;
@@ -348,11 +422,11 @@ inline std::string answer(sigil::scry::WebView& view,
  * it is not for `awaitAnswer`: whatever frame stood at that moment, the
  * still is the last one of the tail.
  *
- * THE QUIET WINDOW IS A BOUND, AND IT IS THE ONE PLACE IN THIS HEADER
- * WHERE A CLOCK CAN DECIDE A DRAWING: a machine so loaded that the
- * engine cannot publish the tail of a walk inside `kQuiet` photographs
- * that walk one frame early. Everything else here is decided by the
- * engine's own events.
+ * THE QUIET WINDOW IS COUNTED IN THE ENGINE'S OWN PASSES, so nothing in
+ * this header lets a clock decide a drawing: a machine so loaded that
+ * the tail of a walk takes twice as long to publish makes the engine's
+ * passes twice as slow with it, and the pass the last frame of that walk
+ * lands on is the same pass either way.
  *
  * A page that never goes still — a caret, a transition, a loop — wants
  * `awaitAnswer` instead, which stops on the frame its answer describes.
@@ -375,10 +449,11 @@ inline std::string answer(sigil::scry::WebView& view,
   }
   if (!arrived) return false;
   // The tail: every frame that still arrives is a later picture of the
-  // same document, until a whole quiet window passes without one.
+  // same document, until the engine has made a whole window of passes
+  // with none in them.
   for (int tick = 0; tick <= repaints; ++tick) {
-    const uint64_t mark = events.repaints();
-    if (!events.awaitRepaint(mark, kQuiet)) break;
+    if (events.quietFor(kQuietPasses)) break;
+    if (!events.awaitPass(events.passes())) return false;
   }
   events.accept();
   // …and the document the still is of is still the one that was asked

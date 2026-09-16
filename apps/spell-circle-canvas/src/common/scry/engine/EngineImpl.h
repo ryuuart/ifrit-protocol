@@ -100,6 +100,9 @@ class WebEngine::Impl {
 
   ultralight::RefPtr<ultralight::Renderer> m_renderer;  // web thread only
   std::vector<std::weak_ptr<WebView::Impl>> m_views;    // web thread only
+  // How many passes over the pages this runtime has made — the engine's
+  // own tick, which every page's stillness is counted in. Web thread only.
+  uint64_t m_renderPasses = 0;
 
   std::unique_ptr<PrefixFileSystem> m_fileSystem;
   std::unique_ptr<CallbackLogger> m_logger;

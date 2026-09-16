@@ -224,11 +224,22 @@ bool WebEngine::Impl::renderOnce() {
     const boost::unordered_flat_set<uint32_t> dirty = m_gpuDriver->flush();
     for (const std::shared_ptr<WebView::Impl>& page : pages)
       published = page->publishGpuIfDirty(*m_gpuDriver, dirty) || published;
-    return published;
+  } else {
+    for (const std::shared_ptr<WebView::Impl>& page : pages)
+      published = page->publishIfDirty() || published;
   }
 
+  // EVERY PASS IS A TICK, WHETHER OR NOT IT PUBLISHED, and it is told
+  // after the frames it published: a consumer counting how long a page
+  // has gone without repainting counts the passes with nothing in them,
+  // and the pass that carried a repaint has already handed that repaint
+  // over by the time this says so. Through a copy, and over the pages
+  // this pass held rather than over the registry, for the reason the
+  // publish above walks them that way.
+  ++m_renderPasses;
   for (const std::shared_ptr<WebView::Impl>& page : pages)
-    published = page->publishIfDirty() || published;
+    if (const std::function<void(uint64_t)> notify = page->renderPassCallback)
+      notify(m_renderPasses);
   return published;
 }
 

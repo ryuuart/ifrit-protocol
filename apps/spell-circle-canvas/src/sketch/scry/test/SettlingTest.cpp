@@ -17,10 +17,13 @@
 #include <sigilsketch/scry/SettledPage.h>
 #include <sigilsketch/scry/Settling.h>
 
+#include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <memory>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "support/Pixels.h"
 
@@ -76,6 +79,35 @@ std::shared_ptr<WebEngine> engine() {
   static std::shared_ptr<WebEngine> held = WebEngine::create(WebEngineConfig{});
   return held;
 }
+
+/** EVERY CORE OF THIS MACHINE SPUN for as long as this stands — the
+ *  parallel load a sweep of several scenes at once puts a settle under,
+ *  and what a settle judged on elapsed time would read as the page
+ *  having stopped. */
+class Load {
+ public:
+  Load() {
+    const unsigned cores = std::max(2u, std::thread::hardware_concurrency());
+    for (unsigned core = 0; core < cores; ++core)
+      m_hands.emplace_back([this] {
+        while (!m_done.load(std::memory_order_relaxed)) {
+          volatile double spun = 0;
+          for (int turn = 0; turn < 4096; ++turn) spun = spun + turn;
+        }
+      });
+  }
+  ~Load() {
+    m_done.store(true, std::memory_order_relaxed);
+    for (std::thread& hand : m_hands) hand.join();
+  }
+
+  Load(const Load&) = delete;
+  Load& operator=(const Load&) = delete;
+
+ private:
+  std::atomic<bool> m_done{false};
+  std::vector<std::thread> m_hands;
+};
 
 /** Advances @p settling the way a window's per-frame call does, until it
  *  reports its end — and holds it to the still's rule on the way: the
@@ -213,6 +245,40 @@ TEST(SketchSettling, ADrivenPageStopsOnTheSamePictureWhicheverDriveTakesIt) {
   EXPECT_TRUE(samePicture(pixelsOf(capture->still().image),
                           pixelsOf(window->still().image)))
       << "the two drives stopped on different pictures of one walk";
+}
+
+TEST(SketchSettling, AWalkUnderAParallelLoadStopsOnThePictureAnIdleOneDoes) {
+  const std::shared_ptr<WebEngine> web = engine();
+  if (!web) GTEST_SKIP() << "no web engine on this machine";
+  const std::shared_ptr<WebView> alone = web->createView(160, 120);
+  const std::shared_ptr<WebView> crowded = web->createView(160, 120);
+  ASSERT_NE(alone, nullptr);
+  ASSERT_NE(crowded, nullptr);
+
+  // WHAT A SWEEP DOES TO A CAPTURE. The engine walks a wheel over several
+  // frames, and under a loaded machine every one of those frames is
+  // handed over later — so a settle that ended on a stretch of CLOCK with
+  // no repaint in it would call the walk over while it was still being
+  // painted, and photograph it one frame short. The window is counted in
+  // the engine's own passes instead, and the passes a walk takes are the
+  // same passes whatever else the machine is doing.
+  const std::unique_ptr<sigil::sketch::scry::Settling> idle =
+      sigil::sketch::scry::settle(*alone, walked(), true);
+  ASSERT_TRUE(idle->arrived()) << "the idle capture never arrived";
+
+  std::unique_ptr<sigil::sketch::scry::Settling> busy;
+  {
+    const Load load;
+    busy = sigil::sketch::scry::settle(*crowded, walked(), true);
+  }
+  ASSERT_TRUE(busy->arrived()) << "the loaded capture never arrived";
+
+  ASSERT_TRUE(idle->still().image);
+  ASSERT_TRUE(busy->still().image);
+  EXPECT_TRUE(
+      samePicture(pixelsOf(idle->still().image), pixelsOf(busy->still().image)))
+      << "the loaded capture stopped on a different frame of the walk, so "
+         "how busy the machine was is part of what was drawn";
 }
 
 }  // namespace

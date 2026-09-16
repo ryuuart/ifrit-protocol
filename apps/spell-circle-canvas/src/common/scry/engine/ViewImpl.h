@@ -70,6 +70,7 @@ class WebView::Impl final : public ultralight::LoadListener,
   // Web-thread-only state (set via posted tasks, invoked on the web thread).
   std::function<void(const WebView::Frame&)> frameCallback;
   std::function<void()> loadCallback;
+  std::function<void(uint64_t)> renderPassCallback;
 
   /** Web thread: snapshots the surface into an immutable SkImage if the
    *  page repainted since the last publish. Returns true on publish. */

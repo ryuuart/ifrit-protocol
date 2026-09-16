@@ -132,6 +132,44 @@ TEST(SketchSettledPage,
   EXPECT_EQ(corner(whole.image), SK_ColorBLUE);
 }
 
+TEST(SketchSettledPage, TheQuietRuleStopsOnTheSamePassHoweverSlowlyEventsCome) {
+  namespace shared = sigil::sketch::scry;
+  // THE RULE A SETTLE ENDS ON, FED THE SAME ENGINE EVENTS TWICE: once as
+  // fast as this thread can deliver them, and once with every event held
+  // back so the whole run takes orders of magnitude longer. A rule made
+  // of elapsed time would call the page still somewhere in the second
+  // run's waiting; this one reads what the engine DID, so both stop on
+  // the same pass.
+  const auto firstQuietPass = [](std::chrono::microseconds between) {
+    uint64_t repaints = 0;
+    uint64_t passesSinceRepaint = 0;
+    const int painting = 5;  // passes with a repaint in each
+    const int bound = painting + 4 * static_cast<int>(shared::kQuietPasses);
+    for (int pass = 1; pass <= bound; ++pass) {
+      if (pass <= painting) {
+        ++repaints;
+        passesSinceRepaint = 0;
+      } else {
+        ++passesSinceRepaint;
+      }
+      std::this_thread::sleep_for(between);
+      if (shared::goneQuiet(repaints, passesSinceRepaint)) return pass;
+    }
+    return 0;
+  };
+
+  const int hurried = firstQuietPass(std::chrono::microseconds(0));
+  const int held = firstQuietPass(std::chrono::microseconds(500));
+  EXPECT_EQ(hurried, held)
+      << "the same events in the same order ended the settle on different "
+         "passes, so something other than the events decided it";
+  EXPECT_EQ(hurried, 5 + static_cast<int>(shared::kQuietPasses))
+      << "the window is counted from the last repaint";
+  // …and a page that has published nothing at all is one that has not
+  // finished rather than one at rest, however many passes have gone by.
+  EXPECT_FALSE(shared::goneQuiet(0, 4 * shared::kQuietPasses));
+}
+
 TEST(SketchSettledPage, TheStillIsTheFrameTheSettleAcceptedAndNotALaterOne) {
   const std::shared_ptr<WebEngine> web = engine();
   if (!web) GTEST_SKIP() << "no web engine on this machine";

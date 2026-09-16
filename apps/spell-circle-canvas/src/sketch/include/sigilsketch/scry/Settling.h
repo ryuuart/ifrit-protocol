@@ -152,7 +152,7 @@ class Settling {
   enum class Stage {
     Loading,      // the document and a repaint carrying it
     Watching,     // the page's own answer that the driving landed
-    Quieting,     // every later frame, until the view stops publishing
+    Quieting,     // every later frame, until the engine's passes run dry
     Confirming,   // …and the document is still the one that was asked for
     PaintTaller,  // a whole painting: one pixel taller…
     PaintBack,    // …and back at the size the page was standing at
@@ -205,8 +205,8 @@ class Settling {
   uint64_t m_mark =
       0;  // the repaint count the outstanding question was asked at
   std::chrono::steady_clock::time_point m_moved;  // when the stage last did
-  std::chrono::steady_clock::time_point m_entered;  // when a quiet watch began
-  SkISize m_size{0, 0};  // the view's own pixels, while it paints whole
+  uint64_t m_entered = 0;  // the engine's pass count a quiet watch began at
+  SkISize m_size{0, 0};    // the view's own pixels, while it paints whole
   Stage m_stage = Stage::Loading;
 };
 

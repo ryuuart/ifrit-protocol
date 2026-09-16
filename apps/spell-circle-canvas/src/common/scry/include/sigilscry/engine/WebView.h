@@ -112,6 +112,20 @@ class WebView {
    *  their own render thread. */
   void setFrameCallback(std::function<void(const Frame&)> callback);
 
+  /** Fires on the web thread at the END of every pass the engine makes
+   *  over its pages — the pass that published a repaint of this one and
+   *  the pass that found nothing to publish alike — carrying how many
+   *  passes the engine has made. The count is the ENGINE'S own tick,
+   *  the same number for every view over it, and a frame callback for
+   *  the same pass has already run when this one does.
+   *
+   *  It is what a page's STILLNESS is counted in: a stretch with no
+   *  repaint in it is a number of passes rather than a stretch of clock,
+   *  so a machine that runs the engine slowly and one that runs it fast
+   *  call the same page still on the same repaint. */
+  void setRenderPassCallback(
+      std::function<void(uint64_t renderPasses)> callback);
+
   /**
    * Acquires the latest published frame. Falsy until the first repaint.
    *

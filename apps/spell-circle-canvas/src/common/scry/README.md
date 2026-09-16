@@ -149,6 +149,11 @@ still orders everything, at the price of a second context's caches.
 everything about the latest repaint in one value — image, native texture,
 size, dirty bounds, and a version that increases by one per repaint.
 `frameVersion()` is the cheap poll for consumers that want to skip work.
+A repaint is the only thing `setFrameCallback` says anything about, so a
+consumer asking how long a page has gone WITHOUT one takes
+`setRenderPassCallback` beside it: that fires once per pass the engine
+makes over its pages, published or not, and counting those counts the
+engine's own ticks rather than a clock.
 On GPU engines the wrap handed out by `frame(recorder)` is cached per
 (version, recorder), so the `SkImage` identity is stable across draws of
 one frame and Skia's caches keyed on it stay warm.

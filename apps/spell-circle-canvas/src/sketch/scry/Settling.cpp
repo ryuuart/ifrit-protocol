@@ -44,16 +44,17 @@ Settling::~Settling() { restore(); }
 bool Settling::complete() {
   // THE SAME LOOKS A WINDOW TAKES, with this thread held between them on
   // what the stage waits for: the page's answer where one is outstanding,
-  // otherwise the next repaint or a whole quiet window, whichever comes
-  // first — and then the next look.
+  // otherwise the engine's next pass — which is the tick a repaint
+  // arrives on and the tick a stretch without one is counted in, so one
+  // wait serves both — and then the next look.
   while (!finished(m_stage)) {
     if (step()) continue;
     if (m_asked)
-      (void)m_asked.await(kQuiet);
+      (void)m_asked.await(kLook);
     else if (m_stage == Stage::Answering)
-      (void)m_reply.await(kQuiet);
+      (void)m_reply.await(kLook);
     else
-      (void)m_events.awaitRepaint(m_events.repaints(), kQuiet);
+      (void)m_events.awaitPass(m_events.passes(), kLook);
   }
   return m_stage == Stage::Arrived;
 }
@@ -135,12 +136,12 @@ bool Settling::step() {
     }
     case Stage::Quieting:
       // TWO CONDITIONS, AND THE SECOND IS NOT REDUNDANT. A page whose
-      // newest frame is already older than the window is one that
-      // stopped painting BEFORE this watch began — the call it is
+      // newest frame is already a whole window of passes behind is one
+      // that stopped painting BEFORE this watch began — the call it is
       // watching for has not been drawn yet — so the window is only
-      // quiet once a whole one has passed under the watch itself.
-      if (!m_events.quietFor(kQuiet) ||
-          std::chrono::steady_clock::now() - m_entered < kQuiet)
+      // quiet once a whole one has been made under the watch itself.
+      if (!m_events.quietFor(kQuietPasses) ||
+          m_events.passesSince(m_entered) < kQuietPasses)
         break;
       m_events.accept();
       return reach(next(Stage::Quieting));
@@ -228,7 +229,7 @@ void Settling::enter() {
       if (m_sequence.quiet) ask();
       return;
     case Stage::Quieting:
-      m_entered = std::chrono::steady_clock::now();
+      m_entered = m_events.passes();
       return;
     case Stage::PaintTaller:
       // workaround: the engine's own "paint this again" flag marks a

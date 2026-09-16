@@ -5,24 +5,50 @@ intended to do, and what a test should assert once intent is restored.
 Entries are deleted as they are fixed, and the file is deleted when it is
 empty.
 
-## live_settling's plate moves under a full sweep and holds alone
+## live_settling's plate disagrees with itself: a line-break budget spent against a clock decides what is drawn
 
-**What the code does.** In one whole-registry sweep, five jobs at once,
-`live_settling` rendered with a different hash from its baseline; rendered
-alone twice afterwards it was byte-identical to that baseline both times.
-The sketch settles a web page through the settle machine, whose quiet
-stage is a stretch of time with no repaint in it, and under the load of a
-sweep the engine's repaints land later, so the frame the settle stops on
-is not always the same frame.
+**What the code does.** `live_settling` renders to one of two plates
+whether it is rendered alone or under a five-job sweep, and the ledger's
+own stability pass — `plates --sketch live_settling --stability 4` —
+reports it as disagreeing with ITSELF across five renders. One cell
+differs, the fourth, the study declared `live(true, 1)`: it reads
+`reused 0 degraded 1` in one plate and `reused 1 degraded 0` in the
+other, and its passage is filled greedily in the first and set
+optimally in the second. The floor under a live block is spent against
+`std::chrono::steady_clock` in `knuthPlassBlock`
+(`src/sigilweave/layout/KnuthPlass.cpp`), read once every eighth of the
+block's words, so whether the first few break candidates take more or
+less than the declared microsecond is a race with whatever else the
+machine is doing. A block that finishes inside the floor puts its break
+decisions in the per-thread store, and every later step of the swell at
+that measure is answered from the store rather than composed — so one
+won race changes the whole report and the whole setting, and the
+sequence is not driven by a web page at all.
 
 **What it was intended to do.** A capture is a function of the
-declaration alone; the settle's stages are judged on the page's own
-events, and the quiet window was meant to be the one clock, long enough
-that load does not move the frame it stops on.
+declaration alone. The runtime's other stopwatch decision — the
+composer's automatic texture promotion, which re-bakes by a measured
+per-frame cost — is held off in a deterministic session for exactly
+this reason, and `SketchContext::measured` pins the numbers a sketch
+measured about its own execution; the line-break floor is the same
+shape as the first and is held off by nothing. Either it joins the
+promotion pin, which costs the fourth study its degrade and makes the
+cell's note untrue of the plate, or the floor stops being a stretch of
+clock and becomes a count of the work the breaker does — break
+candidates examined — which is the same number on a loaded machine as
+on an idle one and leaves every one of the four studies saying what it
+says today. The second is a change to `Element::live`'s and
+`KnuthPlassOptions`'s spelling, which is a naming call.
 
-**What a test should assert.** A settle on the same page, run under a
-parallel load, stops on the same frame; the plate ledger's full sweep
-and a single render of `live_settling` agree.
+**What a test should assert.** Five renders of `live_settling` running
+hash the same five times, which is what the ledger's stability pass
+asks. At the unit level,
+`ComposeSettling.ABudgetNothingCanMeetDegradesAndSaysSo` in
+`src/common/compose/typography/test/ComposeTestParagraphs.cpp` asserts a
+degrade out of a one-microsecond floor and is the same race in a test:
+it should assert the degrade from a floor the breaker cannot meet by
+count, and a second case should assert that the same swell run twice
+reports the same settling.
 
 ## A base-class catch of a standard exception matches nothing in a binary that links Yoga or Skia
 

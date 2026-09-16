@@ -58,6 +58,7 @@ WebView::~WebView() {
     // would reach whatever it captured.
     impl->frameCallback = nullptr;
     impl->loadCallback = nullptr;
+    impl->renderPassCallback = nullptr;
 #ifdef __APPLE__
     impl->releaseGpuTextures();
 #endif
@@ -120,6 +121,13 @@ void WebView::setFrameCallback(std::function<void(const Frame&)> callback) {
   auto impl = m_impl;
   m_impl->engine->post([impl, callback = std::move(callback)]() mutable {
     impl->frameCallback = std::move(callback);
+  });
+}
+
+void WebView::setRenderPassCallback(std::function<void(uint64_t)> callback) {
+  auto impl = m_impl;
+  m_impl->engine->post([impl, callback = std::move(callback)]() mutable {
+    impl->renderPassCallback = std::move(callback);
   });
 }
 
