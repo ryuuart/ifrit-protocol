@@ -124,7 +124,7 @@ TEST_F(LiveComposer, AChangeOfContentIsAMissAndNotAStaleAnswer) {
   EXPECT_FALSE(after.runs.empty());
 }
 
-TEST_F(LiveComposer, ABudgetTooShortLeavesTheBlockToTheGreedyBreaker) {
+TEST_F(LiveComposer, AFloorTooLowLeavesTheBlockToTheGreedyBreaker) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(
       makePooledText(

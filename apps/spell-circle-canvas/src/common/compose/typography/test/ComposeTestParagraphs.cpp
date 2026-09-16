@@ -1098,7 +1098,7 @@ TEST(ComposeSettling, APassageThatNeverSaidItMovesStoresNothing) {
   EXPECT_EQ(settled.degraded, 0);
 }
 
-TEST(ComposeSettling, ABudgetNothingCanMeetDegradesAndSaysSo) {
+TEST(ComposeSettling, AFloorNothingCanMeetDegradesAndSaysSo) {
   // The floor under a frame the optimizing breaker cannot finish: the
   // block is filled greedily for that frame and counted. The floor is
   // tested DURING the search, at each break position, so a block of one
