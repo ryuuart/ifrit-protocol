@@ -20,6 +20,9 @@
 #include <utility>
 #include <vector>
 
+#include "ComposeBindings.h"
+#include "KitBindings.h"
+#include "MotionBindings.h"
 #include "PenBindings.h"
 
 namespace sigil::sketch::python {
@@ -49,42 +52,13 @@ namespace {
 
 using compose::Element;
 using draw::Pen;
-using Animated = motion::Transitioned<float>;
 constexpr auto kFluent = py::return_value_policy::reference_internal;
 thread_local CallbackLifetime* currentLifetime = nullptr;
-
-compose::Dimension dimension(py::handle value) {
-  if (!py::isinstance<py::str>(value))
-    return compose::Dimension{py::cast<float>(value)};
-  const auto text = py::cast<std::string>(value);
-  if (text == "auto") return compose::autoDimension();
-  if (text.size() > 1 && text.back() == '%') {
-    std::size_t end = 0;
-    const float amount = std::stof(text, &end);
-    if (end == text.size() - 1 && std::isfinite(amount))
-      return compose::pct(amount);
-  }
-  throw py::value_error(
-      "A dimension is a number, a percentage string, or 'auto'.");
-}
-
-motion::Animatable<float> animatable(py::handle value) {
-  if (py::isinstance<Animated>(value)) return py::cast<Animated>(value);
-  return py::cast<float>(value);
-}
-
-std::chrono::milliseconds milliseconds(double seconds) {
-  if (!std::isfinite(seconds) || seconds < 0 || seconds > 1e12)
-    throw py::value_error(
-        "Animation time must be finite, nonnegative seconds.");
-  return std::chrono::milliseconds{
-      static_cast<std::chrono::milliseconds::rep>(seconds * 1000)};
-}
 
 }  // namespace
 
 struct CallbackLifetime::Impl {
-  std::vector<std::weak_ptr<PythonCallback>> callbacks;
+  std::vector<std::weak_ptr<PythonValue>> callbacks;
   bool closed = false;
 };
 
@@ -126,30 +100,42 @@ void invokePen(const py::function& function, draw::Pen& native) {
     ~Invalidate() { value.invalidate(); }
   } invalidate{*borrowed};
   try {
+    const KitScopeBoundary boundary;
     function(borrowed);
   } catch (const py::error_already_set& error) {
     throw std::runtime_error(error.what());
   }
 }
 
-PythonCallback::PythonCallback(py::function function)
-    : m_callable(function.release().ptr()) {}
-PythonCallback::~PythonCallback() { clear(); }
+PythonValue::PythonValue(py::object value) : m_value(value.release().ptr()) {}
+PythonValue::~PythonValue() { clear(); }
 
-py::function PythonCallback::get() const {
-  if (!m_callable)
-    throw std::runtime_error(
-        "This drawing callback's sketch session has ended.");
-  return py::reinterpret_borrow<py::function>(m_callable);
+py::object PythonValue::get() const {
+  if (!m_value)
+    throw std::runtime_error("This Python value's sketch session has ended.");
+  return py::reinterpret_borrow<py::object>(m_value);
 }
 
-void PythonCallback::clear() {
+void PythonValue::clear() {
   if (!Py_IsInitialized()) {
-    m_callable = nullptr;
+    m_value = nullptr;
     return;
   }
   const py::gil_scoped_acquire lock;
-  Py_XDECREF(std::exchange(m_callable, nullptr));
+  Py_XDECREF(std::exchange(m_value, nullptr));
+}
+
+std::shared_ptr<PythonValue> retainValue(py::object value) {
+  auto retained = std::make_shared<PythonValue>(std::move(value));
+  if (currentLifetime) {
+    if (currentLifetime->m_impl->closed)
+      throw std::runtime_error("This sketch session has ended.");
+    auto& callbacks = currentLifetime->m_impl->callbacks;
+    callbacks.push_back(retained);
+    if (callbacks.size() % 64 == 0)
+      std::erase_if(callbacks, [](const auto& weak) { return weak.expired(); });
+  }
+  return retained;
 }
 
 std::shared_ptr<PythonCallback> retainCallback(py::function function) {
@@ -231,28 +217,6 @@ void bindDrawing(py::module_& module) {
   auto drawing = module.def_submodule("draw");
   bindConstants(drawing);
 
-  auto movement = module.def_submodule("motion");
-  py::class_<Animated>(movement, "Transitioned");
-  movement.def(
-      "entrance",
-      [](float start, float stop, double duration, double delay) {
-        motion::Transition spec;
-        spec.duration = milliseconds(duration);
-        spec.delay = milliseconds(delay);
-        return motion::animate(motion::from(start).to(stop), spec);
-      },
-      py::arg("start"), py::arg("stop"), py::arg("duration") = 0.25,
-      py::arg("delay") = 0.0);
-  movement.def(
-      "transition",
-      [](float target, double duration, double delay) {
-        motion::Transition spec;
-        spec.duration = milliseconds(duration);
-        spec.delay = milliseconds(delay);
-        return motion::animate(motion::to(target), spec);
-      },
-      py::arg("target"), py::arg("duration") = 0.25, py::arg("delay") = 0.0);
-
   auto composition = module.def_submodule("compose");
   py::enum_<compose::Cache>(composition, "Cache")
       .value("Auto", compose::Cache::Auto)
@@ -286,28 +250,38 @@ void bindDrawing(py::module_& module) {
       .def(
           "fill",
           [](Element& self, py::object value) -> Element& {
+            if (py::isinstance<compose::SurfacePaint>(value))
+              return value.cast<compose::SurfacePaint>().apply(self);
             if (py::isinstance<material::skia::Paint>(value))
-              return self.fill(py::cast<material::skia::Paint>(value));
-            return self.fill(color(value));
+              return self.fill(value.cast<material::skia::Paint>());
+            return self.fill(motionFill(value));
           },
           kFluent)
       .def(
           "ink",
           [](Element& self, py::object value) -> Element& {
+            if (py::isinstance<compose::VarRef>(value))
+              return self.ink(value.cast<compose::VarRef>());
             return self.ink(color(value));
           },
           kFluent)
       .def("font", &Element::font, kFluent)
       .def(
           "fontTrack",
-          [](Element& self, float value) -> Element& {
-            return self.font({.track = value});
+          [](Element& self, py::object value) -> Element& {
+            return self.font(
+                {.track = py::isinstance<weave::Length>(value)
+                              ? value.cast<weave::Length>()
+                              : weave::Length{value.cast<float>()}});
           },
           kFluent)
       .def(
           "fontSize",
-          [](Element& self, float value) -> Element& {
-            return self.font({.size = value});
+          [](Element& self, py::object value) -> Element& {
+            return self.font(
+                {.size = py::isinstance<weave::Length>(value)
+                             ? value.cast<weave::Length>()
+                             : weave::Length{value.cast<float>()}});
           },
           kFluent)
       .def(
@@ -408,7 +382,7 @@ void bindDrawing(py::module_& module) {
         element.def(
             name,
             [setter](Element& self, py::object value) -> Element& {
-              return (self.*setter)(animatable(value));
+              return (self.*setter)(motionAnimatable(value));
             },
             kFluent);
       };
@@ -425,7 +399,10 @@ void bindDrawing(py::module_& module) {
       "text",
       [](const std::string& value, py::object size, py::object ink) {
         auto element = compose::text(value);
-        if (!size.is_none()) element.font({.size = py::cast<float>(size)});
+        if (!size.is_none())
+          element.font({.size = py::isinstance<weave::Length>(size)
+                                    ? size.cast<weave::Length>()
+                                    : weave::Length{size.cast<float>()}});
         if (!ink.is_none()) element.ink(color(ink));
         return element;
       },

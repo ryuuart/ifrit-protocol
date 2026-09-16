@@ -92,6 +92,9 @@ target_link_libraries(Sketchbook PRIVATE
   SigilSketch SigilSketches SigilMeasure SigilWeavePorts SigilMaterial
   IfritUiplugin Qt6::Gui Qt6::GuiPrivate Qt6::Quick Qt6::QuickControls2
   Qt6::QuickDialogs2)
+if(TARGET SigilSketchPython)
+  target_link_libraries(Sketchbook PRIVATE SigilSketchPython)
+endif()
 
 # Sharing the sole Ultralight renderer is an opt-in property of this host,
 # separate from SigilScry's ordinary explicitly owned WebEngine path.

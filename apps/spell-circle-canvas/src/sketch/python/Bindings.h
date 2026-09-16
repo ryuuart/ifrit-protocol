@@ -6,6 +6,7 @@
 #include <functional>
 #include <memory>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace sigil::draw {
@@ -36,24 +37,35 @@ class BorrowedPen {
 draw::Pen& pen(pybind11::handle value);
 void invokePen(const pybind11::function& function, draw::Pen& pen);
 
-/** A callable held by native values, released when its session closes.
- *  get() requires the interpreter lock and returns an owning reference. */
-class PythonCallback {
+/** A Python value held by native descriptions, released when its session
+ * closes. get() requires the interpreter lock and returns an owning reference.
+ */
+class PythonValue {
  public:
-  explicit PythonCallback(pybind11::function function);
-  ~PythonCallback();
-  PythonCallback(const PythonCallback&) = delete;
-  PythonCallback& operator=(const PythonCallback&) = delete;
-  pybind11::function get() const;
+  explicit PythonValue(pybind11::object value);
+  virtual ~PythonValue();
+  PythonValue(const PythonValue&) = delete;
+  PythonValue& operator=(const PythonValue&) = delete;
+  pybind11::object get() const;
   void clear();
 
  private:
-  PyObject* m_callable;
+  PyObject* m_value;
+};
+
+class PythonCallback final : public PythonValue {
+ public:
+  explicit PythonCallback(pybind11::function function)
+      : PythonValue(std::move(function)) {}
+  pybind11::function get() const {
+    return PythonValue::get().cast<pybind11::function>();
+  }
 };
 
 std::shared_ptr<PythonCallback> retainCallback(pybind11::function function);
+std::shared_ptr<PythonValue> retainValue(pybind11::object value);
 
-/** A session's weak registry of native drawing callbacks. Closing the
+/** A session's weak registry of retained Python values. Closing the
  *  session releases their Python callables even when an author retains an
  *  Element containing a bound method of the authoring object itself. */
 class CallbackLifetime {
@@ -69,6 +81,7 @@ class CallbackLifetime {
   struct Impl;
   std::unique_ptr<Impl> m_impl;
   friend std::shared_ptr<PythonCallback> retainCallback(pybind11::function);
+  friend std::shared_ptr<PythonValue> retainValue(pybind11::object);
 };
 
 /** Associates callbacks constructed on this thread with a session. The

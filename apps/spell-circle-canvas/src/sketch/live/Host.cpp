@@ -14,9 +14,6 @@
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/source/Sink.h>
 #include <sigilsketch/core/Sources.h>
-#ifdef SIGILSKETCH_PYTHON
-#include <sigilsketch/python/Python.h>
-#endif
 #include <signal.h>
 #include <unistd.h>
 
@@ -469,10 +466,18 @@ bool Host::pythonChanged() {
 void Host::loadPython() {
   m_everCompiled = true;
   ++m_generation;
-#ifdef SIGILSKETCH_PYTHON
+  if (!m_options.pythonLoader) {
+    m_errorLog =
+        "Python sketches require a Python importer on this host. Configure "
+        "with -DSIGIL_SKETCH_PYTHON=ON, link SigilSketchPython and set "
+        "Host::Options::pythonLoader.";
+    m_status = "Python unavailable";
+    std::fprintf(stderr, "[sketch] %s\n", m_errorLog.c_str());
+    return;
+  }
   const measure::Stopwatch loaded;
   try {
-    const Kind candidate = python::load(m_options.sketchPath);
+    const Kind candidate = m_options.pythonLoader(m_options.sketchPath);
     if (!openSession(candidate)) return;
   } catch (const std::exception& error) {
     m_errorLog = error.what();
@@ -487,13 +492,6 @@ void Host::loadPython() {
                 m_generation, loaded.elapsedMs());
   m_status = line;
   std::fprintf(stderr, "[sketch] %s\n", m_status.c_str());
-#else
-  m_errorLog =
-      "Python sketches are disabled in this build. Configure with "
-      "-DSIGIL_SKETCH_PYTHON=ON and rebuild Sketchbook.";
-  m_status = "Python unavailable";
-  std::fprintf(stderr, "[sketch] %s\n", m_errorLog.c_str());
-#endif
 }
 
 void Host::sessionFailed(const std::exception& error) {

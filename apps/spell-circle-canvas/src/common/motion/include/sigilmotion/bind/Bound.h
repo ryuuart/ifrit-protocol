@@ -10,6 +10,7 @@
 #include <choreograph/Choreograph.h>
 
 #include <cstdint>
+#include <memory>
 #include <utility>
 
 #include "sigilmotion/bind/BoundFloat.h"
@@ -24,6 +25,13 @@ class Bound {
   // stage name on this class, and a parameter of that name would shadow
   // it inside the constructor.
   explicit Bound(const choreograph::Output<float>* out) { m_b.source = out; }
+  /** A shared source stays alive with the chain and with any animatable
+   *  description constructed from it. Ownership does not change the source's
+   *  identity or the arithmetic of the binding. */
+  explicit Bound(std::shared_ptr<const choreograph::Output<float>> out)
+      : m_owner(std::move(out)) {
+    m_b.source = m_owner.get();
+  }
 
   /** Normalise the SOURCE's own range onto [0,1] before everything else.
    *  `bind(&hp).source(0, maxHp)` is the health-bar spelling.
@@ -224,14 +232,25 @@ class Bound {
   Bound& clamp(float lo, float hi);
 
   const BoundFloat& value() const { return m_b; }
+  const std::shared_ptr<const choreograph::Output<float>>& owner() const {
+    return m_owner;
+  }
 
  private:
   BoundFloat m_b;
+  std::shared_ptr<const choreograph::Output<float>> m_owner;
 };
 
 /** `bind(&output)` — a binding you can shape. `&output` on its own still
  *  works and stays the zero-overhead form. */
 Bound bind(const choreograph::Output<float>* source);
+/** A shared source is retained by the chain and any animatable made from it. */
+inline Bound bind(std::shared_ptr<const choreograph::Output<float>> source) {
+  return Bound(std::move(source));
+}
+inline Bound bind(std::shared_ptr<choreograph::Output<float>> source) {
+  return Bound(std::move(source));
+}
 /** PURE NOISE around rest — `bind(&out).scale(0).wiggle(…)`, named.
  *
  *  For a shake rig the bound Output is a SCHEDULE, not a value: the

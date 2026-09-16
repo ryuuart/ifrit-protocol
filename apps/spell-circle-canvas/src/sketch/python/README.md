@@ -5,7 +5,7 @@ A saved `.py` file is imported into a fresh sketch instance without a C++
 compile or link. Composition, layout, text, motion and drawing still run
 through the same native libraries as a C++ canvas sketch.
 
-This is an experiment with two authoring paths: ordinary Python functions
+The Python frontend has two authoring paths: ordinary Python functions
 that produce retained native elements, and an immediate drawing method
 that receives the native pen. The package also imports in a matching
 standalone Python interpreter, including headless file rendering.
@@ -14,7 +14,8 @@ standalone Python interpreter, including headless file rendering.
 
 The public direct binding surface is `sigil.native`: its library namespaces
 expose the bound native types and verbs, including `compose`, `draw`,
-`material`, `geometry`, `image`, `weave`, `core`, `motion` and `skia`.
+`material`, `geometry`, `image`, `weave`, `core`, `motion`, `sketch`,
+`data`, `io` and `skia`.
 The separate authoring layer in `sigil.compose` adds keyword properties
 and child normalization. It produces those same native elements, so an
 author can mix both styles within one component:
@@ -91,6 +92,13 @@ load paths. The wheel's platform tag reflects those libraries' minimum
 macOS versions. The extension uses its importing Python interpreter;
 it does not bundle or link another libpython. Licensed optional SDKs are
 disabled for wheel builds.
+
+The optional `SigilSketchPython` target is a leaf integration library. It
+links the native sketch runtime and kits; the `SigilSketch` core does not
+link Python. A native live host opts in by supplying its Python loader
+through `Host::Options::pythonLoader`. Sketchbook and the standalone
+renderer supply that function when the feature is enabled. Both use the
+same module registration and canvas-session implementation.
 
 A source build needs the native dependencies and toolchain configured for
 the application. A wheel installation needs the matching Python and
@@ -182,14 +190,43 @@ An optional `setup(self, ctx)` can initialize ordinary Python state. It
 runs after the decorator configures the canvas and installs the drawing
 element. If setup explicitly calls `ctx.render(...)`, that tree replaces
 the default drawing element. An optional `update(self, elapsed, ctx)`
-reads elapsed scene seconds before the next frame. These methods use the
-signatures shown here.
+reads elapsed scene seconds before the next frame. Methods may omit trailing arguments: `setup()` or `setup(ctx)`,
+`update()`, `update(elapsed)` or `update(elapsed, ctx)`, and `draw()`,
+`draw(pen)` or `draw(pen, ctx)`. The adapter resolves each signature when
+the instance or drawing program is created. A drawing with two arguments
+receives the same checked session context as setup.
 
 The host owns scheduling and teardown. Keep model data freely on the
 sketch, and use a pen during the drawing callback that supplied it.
 Access through a pen after its callback, or a context after its session
 ends, raises an exception. Context and pen operations run on the
 session's owning thread.
+
+## Session services
+
+The context exposes checked views of the native services:
+
+- `ctx.composer` renders trees and named slots, reads keyed bounds and hit
+  tests, reports settling and cache statistics, and purges caches.
+- `ctx.ticker` schedules callbacks with `add`, fixed steps with `addFixed`,
+  and a bound chain with `derive`. A regular callback may take no arguments,
+  `dt`, or `dt, elapsed`; returning `False` removes it and returning `None`
+  keeps it. Fixed callbacks take no arguments. Their catch-up limit and
+  optional interpolation output are the native scheduler's.
+- `ctx.assets.image(uri)` reads an owned native image asset; `frameAt`
+  supplies its image. `json` and `table` return owned data snapshots, and
+  `database` returns a native query view. `ctx.assets.hub()` provides
+  mounts, URI resolution, text, bytes, resource metadata and selection.
+  `ctx.local(name)` creates a URI for a file beside the sketch.
+- `ctx.measure(element, maxSize)` and `ctx.snapshot(element, maxSize)` use
+  the session's font context. `ctx.measured(value, pinned=0)` supplies the
+  pinned value in a deterministic session.
+
+`width`, `height`, `size`, `elapsed` and `deterministic` are current session
+readings. The context and all service views reject use after teardown or
+on a different thread. Keeping a view in Python therefore keeps a checked
+handle, not a stack-allocated native context. Native images and motion
+outputs are owned values and can outlive the session that produced them.
 
 ## A retained composition
 
@@ -266,6 +303,114 @@ description value. Python assignment aliases the same wrapper: use a
 fresh component call or `copy()` before changing a reused description.
 Descriptions already submitted to the native composer retain its
 copy-on-write behavior.
+
+## Memo, layouts and specimen kits
+
+`memo(properties, describe, key=...)` uses the native reconciler. Its
+properties must support `copy.deepcopy` and equality; the description
+captures a copied model and the current native environment. The builder
+is a pure function of those values. A changed closure alone does not
+invalidate the memo. Style the element the builder returns, rather than
+the memo's description shell.
+
+Stock layouts are native values from `sigil.compose.layouts`: `Grid`,
+`Radial`, `AlongPath`, `Diagonal`, `BaselineGrid` and `Jittered`. Pass one to
+`layout(scheme, *children, **properties)`. Grid tracks use `px`, `content`,
+`fr` and `minmax`, with named areas or child-owned cells. Relative text
+lengths belong to `sigil.weave`; parent and percentage dimensions belong
+to `sigil.compose`.
+
+The specimen kit supplies the native page furniture and theme:
+
+```python
+from sigil.compose import text
+from sigil.sketch import kit
+
+look = kit.house_theme()
+look.palette.ground = "#f4f0e6"
+look.palette.ink = "#30372f"
+look.type.title.size = 28
+
+# Inside setup(self, ctx):
+with kit.provide(look):
+    kit.stage(ctx, size=(640, 360), capture_at=0)
+    picture = kit.well(width=240, height=160).children([text("A specimen")])
+    content = kit.caption(picture, label="Native type", note="One shared theme")
+    page = kit.page(content, title="A specimen sheet", footer="Sigil")
+ctx.render(page)
+```
+
+`stage`, `page`, `well`, `caption`, `cell`, `cells` and `panel_grid` call
+SigilSketchKit. The neutral `sigil.compose.kit` supplies native wells,
+captioned cells, sheets, panels, boards, construction circles, lines and
+ladders. Both return the same native `Element`. Python normalizes keyword
+fields and ordered children; native components own arrangement and
+painting. Lowercase wrappers accept snake_case properties; native record
+classes such as `Page`, `Well` and `Spacing` retain their native field names.
+
+`house_theme()` and `theme()` return owned native values. Their embedded
+palette, type and spacing fields are editable parts of the value.
+`with kit.provide(look):` installs a snapshot in the native inherited
+scope; nested scopes restore the enclosing theme. Close a provider in
+reverse nesting order on its owning thread. Callback boundaries close a
+provider accidentally left open. Bind around every function that
+**describes** the tree, including a later update. A memo restores the
+environment it captured when its builder runs after the authoring scope
+has ended; an ordinary drawing callback should capture the needed colors
+as values.
+
+Optional nested records, such as `Well.content`, `recess` and `relief`,
+return owned copies. Edit the copy and reassign it to change its parent.
+A neutral `Caption` or `Sheet` can replace its native line part with a
+Python callable accepting no arguments, the text, or the text and props.
+The props passed to that callable are an owned native copy.
+
+## Motion and type values
+
+`Output(value)` is a shared native cell. Set its `.value` from model logic
+or a scene ticker, then feed `bind(output)` into native element properties.
+The native binding chain supports domain mapping, wrapping, ping-pong,
+wave forms, easing, quantization and seeded wiggle. A chain is mutable;
+use `.copy()` before branching it. Descriptions retain shared ownership
+of their source outputs, so collecting the Python wrapper does not leave
+a pointer dangling in a retained tree.
+
+`animate(from_(start).to(end), Transition(...))` declares an entrance;
+`animate(to(target), Transition(...))` declares a transition.
+`through([(time, value), ...])` declares keyframes. Python durations,
+delays and keyframe times are **seconds**. Native easing values live in
+`sigil.motion.ease`. The existing `entrance` and `transition` functions
+remain concise wrappers over native declarations.
+
+`sigil.weave` supplies native `Type`, `TextStyle`, `Block`, `StyleSheet`
+and `rule` values. A partial type inherits unspecified fields; a complete
+text style describes its own look. A page states its theme's stylesheet
+on its root, and `styleClass` on a native element selects a class from
+that cascade. Coverage is curated; rich text stories and every native
+text effect are not implied by exposing these value types.
+
+## Data values and native resources
+
+`sigil.data` supplies native `Json`, `Column`, `Table`, `Scale` and database
+query values. Ordinary Python dictionaries and lists can construct JSON;
+`to_python()` returns ordinary Python data. Native decoders read JSON and
+CSV, and a table's cells are Python numbers, strings, booleans or native
+`Instant` values. JSON members and table columns are detached native copies.
+
+```python
+from sigil.data import Scale, decodeCsv
+
+readings = decodeCsv("name,value\nnorth,12\nsouth,28\n")
+height = Scale(domain=(0, 40), range=(0, 120))
+bar_height = height.apply(readings.cell("value", 0))
+```
+
+A scale owns native domain mapping, transforms, overflow, ticks and band
+placement. A database query view retains its connection and returns owned
+tables. The bindings expose query access, not native database write methods
+or live connection/feed APIs. `ctx.assets` routes resource loading through
+the session's existing native services; the data values can also be used
+from an ordinary installed Python process.
 
 ## Drawing beyond the basic pen
 
@@ -360,6 +505,10 @@ Render one with `sigil render --example NAME -o preview.png`.
 
 | Example | What it exercises |
 | --- | --- |
+| `python_kit_specimen` | Native page and captions, stock layouts, scoped theme and deferred memo |
+| `python_motion_signals` | Shared native outputs, ticker callbacks, binding chains and keyframe entrance |
+| `python_memo_station` | Retained model descriptions, memo invalidation and native motion |
+| `python_data_garden` | Native CSV tables, sorting, and linear, band and square-root scales |
 | `python_mesh_observatory` | Parametric 3D knot, lathed vessel, regular solid, camera, native lighting |
 | `python_liquid_glass` | Shader-driven refraction, nested shader inputs, moving field uniforms, Bezier filaments |
 | `python_botanical_study` | Layered natural media, native hatching and dry pigment |
@@ -378,14 +527,10 @@ motion from `sigil.motion`, drawing from `sigil.draw`, and sketch
 declarations and rendering from `sigil.sketch`. Direct bindings preserve
 those library namespaces under `sigil.native`.
 
-The initial motion surface is `entrance(start, stop, duration=...,
-delay=...)` and `transition(target, duration=..., delay=...)`, with times
-in seconds. The declarations carry their values into native composition;
-authors do not keep raw output pointers alive.
-
-The experiment does not bind every API of every native library. Complete
-typography, world rendering, media pipelines and networking remain separate
-coverage decisions. The native brush `weightedChoice` template and generic
+The package is an alpha Python frontend with selected first-tier authoring
+surfaces. It is not a complete verb-for-verb implementation of the broader
+Python proposal. Complete typography, world rendering, media pipelines and
+networking remain separate coverage decisions. The native brush `weightedChoice` template and generic
 byte-source loading are not exposed; Python can choose values and supply
 the brush decoder with bytes.
 Repeated drawing calls still cross into native code individually; a

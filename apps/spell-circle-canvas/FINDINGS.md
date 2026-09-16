@@ -5,24 +5,20 @@ intended to do, and what a test should assert once intent is restored.
 Entries are deleted as they are fixed, and the file is deleted when it is
 empty.
 
-## Sketch documentation probes include web headers when Ultralight is disabled
+## Opening an absent SQLite file creates it despite the absent-file contract
 
-**What the code does.** Configuring with
-`CMAKE_DISABLE_FIND_PACKAGE_Ultralight=ON` and building Sketchbook and
-`sketch_test` fails while including `sigilsketch/scry/SettledPage.h`, whose
-`sigilscry/engine/WebView.h` dependency is unavailable. The generated sketch
-documentation probe includes the web headers even though the library omits
-its web sources, public headers and tests when `SigilScry` is absent.
+**What the code does.** `data::Database::open` delegates SQLite file opening
+with `SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE`, so a missing `.sqlite`,
+`.sqlite3` or `.db` path creates a new file and returns a database.
 
-**What it was evidently intended to do.** The native host and its non-web
-tests build without the optional web SDK. Documentation probes should check
-the API surface present in that configuration. The Python extension target
-can already build with the SDK disabled.
+**What it was evidently intended to do.** The public opening contract says
+an absent resource returns `nullopt`. Explicit memory construction and database
+writing are separate API operations. Python bindings currently preserve the
+native opening behavior; asset lookup still rejects an absent resource.
 
-**What a test should assert.** Configure without Ultralight and build
-Sketchbook, `sketch_test` and the sketch documentation probes successfully;
-then configure with the SDK and verify that web API documentation is still
-checked.
+**What a test should assert.** Opening a missing database path returns
+`nullopt`, reports absence and creates no file. Opening an existing store
+continues to support its documented query and writing operations.
 
 ## live_settling's plate disagrees with itself: a line-break budget spent against a clock decides what is drawn
 

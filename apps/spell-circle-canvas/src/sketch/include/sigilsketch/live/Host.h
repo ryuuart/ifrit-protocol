@@ -77,6 +77,11 @@ class Host {
      *  and every other `.cpp` in that directory is a unit of it; any
      *  other file is a sketch of one unit. */
     std::filesystem::path sketchPath;
+    /** Optional importer for Python entries. The host owns watching and
+     *  adoption; the importer returns a native kind and owns its interpreter.
+     *  Null leaves Python files unavailable without adding an interpreter
+     *  dependency to the C++ host. */
+    Kind (*pythonLoader)(const std::filesystem::path&) = nullptr;
     /** What mounts at `res://`. For a file opened by path it defaults to
      *  `assets` beside that file; for a sketch this binary carries the
      *  process states its root, and empty mounts nothing. */

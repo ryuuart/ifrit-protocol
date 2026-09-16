@@ -140,8 +140,7 @@ TEST(SketchHost, FailedFramesStopCallbacksAndRefuseCaptureUntilReload) {
   EXPECT_TRUE(host.errorLog().empty());
 }
 
-#ifndef SIGILSKETCH_PYTHON
-TEST(SketchHost, DisabledPythonReportsTheBuildOptionWithoutCompiling) {
+TEST(SketchHost, MissingPythonImporterReportsTheConfigurationWithoutCompiling) {
   const Watched file("sigil_sketch_host_python_disabled");
   auto python = file.path;
   python.replace_extension(".py");
@@ -154,7 +153,29 @@ TEST(SketchHost, DisabledPythonReportsTheBuildOptionWithoutCompiling) {
   EXPECT_FALSE(host.live());
   EXPECT_NE(host.errorLog().find("SIGIL_SKETCH_PYTHON=ON"), std::string::npos);
 }
-#endif
+
+TEST(SketchHost,
+     PythonImporterProvidesANativeKindWithoutCompilerOrInterpreter) {
+  const Watched file("sigil_sketch_host_python_importer");
+  auto python = file.path;
+  python.replace_extension(".py");
+  std::ofstream(python) << "source handled by importer\n";
+  Host::Options opts = options(python);
+  opts.compiledIn = nullptr;
+  opts.pythonLoader = [](const std::filesystem::path& source) {
+    if (source.extension() != ".py") throw std::runtime_error("wrong source");
+    return kindOf<Restarted>();
+  };
+  Restarted::setups = 0;
+  Restarted::failSetup = false;
+  Host host(std::move(opts), fonts());
+  host.poll();
+  EXPECT_FALSE(host.compiling());
+  EXPECT_TRUE(host.live());
+  EXPECT_EQ(Restarted::setups, 1);
+  EXPECT_EQ(host.canvasSize(), SkSize::Make(120, 90));
+  EXPECT_TRUE(host.errorLog().empty());
+}
 
 TEST(SketchHost, ReportsTheMomentTheSketchDeclared) {
   // A capture with no moment named on the command line steps to this

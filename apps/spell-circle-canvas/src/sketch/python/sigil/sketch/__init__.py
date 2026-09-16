@@ -30,7 +30,8 @@ def sketch(*, size=(960, 640), background="#121720", capture_at=1.0):
 
     ``setup(self, ctx)`` initializes state and may render a native element.
     ``update(self, elapsed, ctx)`` runs on the session clock when present.
-    ``draw(self, pen)`` supplies a full-canvas drawing program when present.
+    ``draw(self, pen, ctx)`` supplies a full-canvas drawing program when present.
+    Methods may omit trailing arguments, including all context arguments.
     An explicit render in setup replaces that default drawing node.
     """
     if not isinstance(size, (tuple, list)) or len(size) != 2:
@@ -58,17 +59,34 @@ def sketch(*, size=(960, 640), background="#121720", capture_at=1.0):
             raise ValueError("a module can export only one @sketch class")
 
         def configure(self, ctx):
+            from .._loader import arity
+
             ctx.canvas(width, height)
             ctx.background(background)
             ctx.captureAt(capture_at)
             if draw is not None:
-                from .compose import graphics
+                from ..compose import graphics
 
-                ctx.render(
-                    graphics(self.draw, key="sketch.draw", absolute=True, inset=0)
-                )
+                paint = draw.__get__(self, cls)
+                count = arity(paint, 2)
+                if count == 0:
+
+                    def program(pen):
+                        paint()
+                elif count == 1:
+                    program = paint
+                else:
+
+                    def program(pen):
+                        paint(pen, ctx)
+
+                ctx.render(graphics(program, key="sketch.draw", absolute=True, inset=0))
             if setup is not None:
-                setup(self, ctx)
+                initialize = setup.__get__(self, cls)
+                if arity(initialize, 1) == 0:
+                    initialize()
+                else:
+                    initialize(ctx)
 
         if setup is not None:
             configure = wraps(setup)(configure)

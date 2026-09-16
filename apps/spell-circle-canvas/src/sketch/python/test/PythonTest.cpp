@@ -38,6 +38,7 @@ class PythonSource {
 
   [[nodiscard]] sketch::Host::Options options() const {
     sketch::Host::Options result;
+    result.pythonLoader = &sketch::python::load;
     result.sketchPath = entry();
     result.assetsDirectory = scratch.path;
     result.siblingScanInterval = std::chrono::milliseconds(0);

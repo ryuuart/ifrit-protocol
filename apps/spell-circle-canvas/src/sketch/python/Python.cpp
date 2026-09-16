@@ -2,7 +2,13 @@
 #include <include/utils/SkNoDrawCanvas.h>
 #include <pybind11/embed.h>
 #include <pybind11/stl.h>
+#include <pybind11/stl/filesystem.h>
+#include <sigilcompose/core/Measure.h>
+#include <sigildata/decode/Json.h>
+#include <sigildata/table/Table.h>
+#include <sigilmotion/bind/Bound.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/python/Python.h>
 #include <sigilweave/fonts/FontContext.h>
@@ -17,6 +23,9 @@
 #include <thread>
 
 #include "Bindings.h"
+#include "DataBindings.h"
+#include "KitBindings.h"
+#include "ValueBindings.h"
 
 extern "C" PyObject* PyInit__sigil();
 
@@ -94,20 +103,34 @@ struct State {
   CallbackLifetime callbacks;
   compose::Composer* composer = nullptr;
   CanvasSpecification* specification = nullptr;
+  motion::Ticker* ticker = nullptr;
+  Assets* assets = nullptr;
+  weave::FontContext* fonts = nullptr;
+  std::vector<std::shared_ptr<compose::TextureScene>>* scenes = nullptr;
+  std::vector<std::shared_ptr<const void>> tickerOwners;
   std::thread::id thread;
   std::string key;
-  double elapsed = 0;
   bool deterministic = false;
   bool valid = false;
   bool failed = false;
 
   void update(SketchContext& ctx) {
     composer = &ctx.composer;
+    ticker = &ctx.ticker;
+    assets = &ctx.assets;
+    fonts = ctx.fonts;
+    scenes = ctx.scenes;
     specification = ctx.specification;
     thread = std::this_thread::get_id();
     key = ctx.key;
     deterministic = ctx.deterministic;
     valid = true;
+  }
+
+  SketchContext context() const {
+    return {*composer,           *ticker,       *assets,
+            specification->size, specification, fonts,
+            deterministic,       scenes,        key};
   }
 };
 
@@ -133,11 +156,96 @@ class Context {
   std::weak_ptr<State> m_state;
 };
 
+class ComposerView : public Context {
+ public:
+  using Context::Context;
+};
+class TickerView : public Context {
+ public:
+  using Context::Context;
+};
+class AssetsView : public Context {
+ public:
+  using Context::Context;
+};
+class HubView : public Context {
+ public:
+  using Context::Context;
+};
+
+int callbackArity(const py::function& fn, int maximum) {
+  return py::module_::import("sigil._loader")
+      .attr("arity")(fn, maximum)
+      .cast<int>();
+}
+
+bool continueTick(py::object result) {
+  return result.is_none() || result.cast<bool>();
+}
+
+void addTick(const TickerView& view, py::function fn) {
+  const auto state = view.state();
+  const int arity = callbackArity(fn, 2);
+  const CallbackScope scope(state->callbacks);
+  auto retained = retainCallback(std::move(fn));
+  state->ticker->add([retained, arity](double dt, double elapsed) {
+    const py::gil_scoped_acquire lock;
+    const KitScopeBoundary themes;
+    try {
+      auto callback = retained->get();
+      if (arity == 0) return continueTick(callback());
+      if (arity == 1) return continueTick(callback(dt));
+      return continueTick(callback(dt, elapsed));
+    } catch (const py::error_already_set& error) {
+      throw std::runtime_error(error.what());
+    }
+  });
+}
+
+void addFixedTick(const TickerView& view, double hz, py::function fn,
+                  int maxCatchUp,
+                  std::shared_ptr<choreograph::Output<float>> alpha,
+                  std::shared_ptr<motion::Ticker::FixedStatus> status) {
+  if (!std::isfinite(hz) || hz <= 0 || maxCatchUp <= 0)
+    throw py::value_error(
+        "Fixed-step rate and catch-up limit must be positive");
+  callbackArity(fn, 0);
+  const auto state = view.state();
+  const CallbackScope scope(state->callbacks);
+  auto retained = retainCallback(std::move(fn));
+  state->ticker->addFixed(
+      hz,
+      [retained] {
+        const py::gil_scoped_acquire lock;
+        const KitScopeBoundary themes;
+        try {
+          return continueTick(retained->get()());
+        } catch (const py::error_already_set& error) {
+          throw std::runtime_error(error.what());
+        }
+      },
+      maxCatchUp, alpha.get(), status.get());
+  if (alpha) state->tickerOwners.push_back(std::move(alpha));
+  if (status) state->tickerOwners.push_back(std::move(status));
+}
+
+bool deriveTick(const TickerView& view,
+                std::shared_ptr<choreograph::Output<float>> destination,
+                const motion::Bound& chain) {
+  if (!destination) throw py::type_error("A derived output must be an Output");
+  const auto state = view.state();
+  if (!state->ticker->derive(destination.get(), chain)) return false;
+  state->tickerOwners.push_back(std::move(destination));
+  if (chain.owner()) state->tickerOwners.push_back(chain.owner());
+  return true;
+}
+
 class Body final : public CanvasBody {
  public:
   Body(const std::shared_ptr<Generation>& generation,
        const std::shared_ptr<State>& state)
       : m_generation(generation), m_state(state) {
+    const KitScopeBoundary themes;
     const py::object instance = generation->body->get()();
     m_instance = std::make_shared<Object>(instance);
     const py::object arity = py::module_::import("sigil._loader").attr("arity");
@@ -159,6 +267,7 @@ class Body final : public CanvasBody {
 
   void setup(SketchContext& ctx) override {
     m_state->update(ctx);
+    const KitScopeBoundary themes;
     try {
       if (m_setupArity == 0)
         m_setup->get()();
@@ -172,7 +281,7 @@ class Body final : public CanvasBody {
 
   void update(double elapsed, SketchContext& ctx) override {
     m_state->update(ctx);
-    m_state->elapsed = elapsed;
+    const KitScopeBoundary themes;
     if (!m_update) return;
     if (m_updateArity == 0)
       m_update->get()();
@@ -259,6 +368,7 @@ class PythonSession final : public Session {
     const py::gil_scoped_acquire lock;
     if (m_state->failed) throw std::runtime_error(m_error);
     const CallbackScope callbacks(m_state->callbacks);
+    const KitScopeBoundary themes;
     try {
       function();
     } catch (const py::error_already_set& error) {
@@ -292,6 +402,7 @@ class PythonKind final : public KindOperations {
     try {
       const auto state = std::make_shared<State>();
       const CallbackScope callbacks(state->callbacks);
+      const KitScopeBoundary themes;
       auto body = std::make_unique<Body>(m_generation, state);
       auto session =
           openCanvas(std::move(body), fonts, assets, deterministic, key);
@@ -310,6 +421,7 @@ std::string renderFile(const std::string& source, const std::string& output,
   const auto path = std::filesystem::absolute(source);
   weave::FontContext fonts(weave::ports::systemFontManager());
   Host::Options options;
+  options.pythonLoader = &load;
   options.sketchPath = path;
   options.assetsDirectory = path.parent_path() / "assets";
   options.deterministic = true;
@@ -317,7 +429,7 @@ std::string renderFile(const std::string& source, const std::string& output,
   host.poll();
   if (!host.live()) throw std::runtime_error(host.errorLog());
   const double seconds =
-      at.value_or(host.captureSeconds() > 0 ? host.captureSeconds() : 1.5);
+      at.value_or(host.captureSeconds() >= 0 ? host.captureSeconds() : 1.5);
   const auto dimensions = [&] {
     const auto size = host.canvasSize();
     const double width = std::ceil(size.width());
@@ -332,10 +444,13 @@ std::string renderFile(const std::string& source, const std::string& output,
     throw std::runtime_error("Capture time is invalid");
   const auto size = dimensions();
   SkNoDrawCanvas scratch(size.width(), size.height());
-  const int frames = std::max(1, int(std::lround(seconds * 60)));
+  const int frames = int(std::floor(seconds * 60));
   for (int frame = 0; frame < frames; ++frame)
     if (!host.frame(scratch, 1.0 / 60.0))
       throw std::runtime_error(host.errorLog());
+  const double remainder = seconds - double(frames) / 60;
+  if ((frames == 0 || remainder > 1e-12) && !host.frame(scratch, remainder))
+    throw std::runtime_error(host.errorLog());
   dimensions();
   const auto destination = std::filesystem::absolute(output);
   if (!host.capture(destination))
@@ -354,6 +469,7 @@ Kind load(const std::filesystem::path& source) {
     py::module_::import("_sigil");
     auto generation = std::make_shared<Generation>();
     const CallbackScope callbacks(generation->callbacks);
+    const KitScopeBoundary themes;
     const py::tuple result =
         py::module_::import("sigil._loader").attr("load")(source.string());
     generation->body = std::make_shared<Object>(result[0]);
@@ -364,7 +480,138 @@ Kind load(const std::filesystem::path& source) {
   }
 }
 
+void stageContext(py::handle value, const kit::Stage& stage) {
+  const auto state = value.cast<const Context&>().state();
+  auto context = state->context();
+  kit::stage(context, stage);
+}
+
 void bindRuntime(py::module_& module) {
+  auto composition = module.attr("compose").cast<py::module_>();
+  auto clocks = module.attr("motion").cast<py::module_>();
+  auto sketches = module.def_submodule("sketch");
+  auto resources = module.def_submodule("io");
+  py::class_<compose::Composer::Stats>(composition, "ComposerStats")
+#define SIGIL_STAT(name) .def_readonly(#name, &compose::Composer::Stats::name)
+      SIGIL_STAT(instances) SIGIL_STAT(yogaNodes) SIGIL_STAT(describedNodes)
+          SIGIL_STAT(memoHits) SIGIL_STAT(patchedNodes) SIGIL_STAT(picturesLive)
+              SIGIL_STAT(texturesLive) SIGIL_STAT(picturesRecorded)
+                  SIGIL_STAT(texturesBaked) SIGIL_STAT(nodesPainted)
+                      SIGIL_STAT(reconcileMs) SIGIL_STAT(layoutMs)
+                          SIGIL_STAT(volatileMs) SIGIL_STAT(paintMs);
+#undef SIGIL_STAT
+  py::class_<compose::TextSettling>(composition, "TextSettling")
+      .def_readonly("live", &compose::TextSettling::live)
+      .def_readonly("reused", &compose::TextSettling::reused)
+      .def_readonly("degraded", &compose::TextSettling::degraded);
+  py::class_<ComposerView>(composition, "Composer")
+      .def("render",
+           [](const ComposerView& v, const compose::Element& e) {
+             v.state()->composer->render(e);
+           })
+      .def("renderSlot",
+           [](const ComposerView& v, const std::string& key,
+              const compose::Element& e) {
+             v.state()->composer->renderSlot(key, e);
+           })
+      .def("bounds",
+           [](const ComposerView& v, const std::string& key) {
+             return v.state()->composer->bounds(key);
+           })
+      .def("hitTest",
+           [](const ComposerView& v, py::handle at) {
+             return v.state()->composer->hitTest(point(at));
+           })
+      .def("routesAt",
+           [](const ComposerView& v, const std::string& key) {
+             return v.state()->composer->routesAt(key);
+           })
+      .def("settling",
+           [](const ComposerView& v, const std::string& key) {
+             return v.state()->composer->settling(key);
+           })
+      .def("active",
+           [](const ComposerView& v) { return v.state()->composer->active(); })
+      .def("dirty",
+           [](const ComposerView& v) { return v.state()->composer->dirty(); })
+      .def("purgeCaches",
+           [](const ComposerView& v) { v.state()->composer->purgeCaches(); })
+      .def("stats",
+           [](const ComposerView& v) { return v.state()->composer->stats(); });
+  py::class_<motion::Ticker::FixedStatus,
+             std::shared_ptr<motion::Ticker::FixedStatus>>(clocks,
+                                                           "FixedStatus")
+      .def(py::init<>())
+      .def_readonly("stepsRun", &motion::Ticker::FixedStatus::stepsRun)
+      .def_readonly("clamped", &motion::Ticker::FixedStatus::clamped);
+  py::class_<TickerView>(clocks, "Ticker")
+      .def("add", &addTick, py::arg("function"))
+      .def("addFixed", &addFixedTick, py::arg("hz"), py::arg("function"),
+           py::arg("maxCatchUp") = 8, py::arg("alphaOut") = nullptr,
+           py::arg("statusOut") = nullptr)
+      .def("derive", &deriveTick, py::arg("destination"), py::arg("chain"))
+      .def("active",
+           [](const TickerView& v) { return v.state()->ticker->active(); })
+      .def("elapsed",
+           [](const TickerView& v) { return v.state()->ticker->elapsed(); });
+  py::class_<io::ResourceInfo>(resources, "ResourceInfo")
+      .def_readonly("byteSize", &io::ResourceInfo::byteSize)
+      .def_readonly("path", &io::ResourceInfo::path);
+  py::class_<HubView>(resources, "Hub")
+      .def(
+          "mount",
+          [](const HubView& v, std::string prefix, std::filesystem::path path) {
+            v.state()->assets->hub().mount(std::move(prefix), std::move(path));
+          })
+      .def("resolve",
+           [](const HubView& v, const std::string& uri) {
+             return v.state()->assets->hub().resolve(uri);
+           })
+      .def("text",
+           [](const HubView& v, const std::string& uri) {
+             return v.state()->assets->hub().text(uri);
+           })
+      .def("blob",
+           [](const HubView& v, const std::string& uri) -> py::object {
+             const auto bytes = v.state()->assets->hub().blob(uri);
+             if (!bytes) return py::none();
+             return py::bytes(
+                 reinterpret_cast<const char*>(bytes->bytes.data()),
+                 bytes->bytes.size());
+           })
+      .def("probe",
+           [](const HubView& v, const std::string& uri) {
+             return v.state()->assets->hub().probe(uri);
+           })
+      .def("select", [](const HubView& v, const std::string& selector) {
+        return v.state()->assets->hub().select(selector);
+      });
+  py::class_<AssetsView>(sketches, "Assets")
+      .def("image",
+           [](const AssetsView& v, const std::string& uri) {
+             return *v.state()->assets->image(uri);
+           })
+      .def("json",
+           [](const AssetsView& v,
+              const std::string& uri) -> std::optional<data::Json> {
+             const auto value = v.state()->assets->json(uri);
+             if (value) return *value;
+             return {};
+           })
+      .def("table",
+           [](const AssetsView& v,
+              const std::string& uri) -> std::optional<data::Table> {
+             const auto value = v.state()->assets->table(uri);
+             if (value) return *value;
+             return {};
+           })
+      .def("database",
+           [](const AssetsView& v, const std::string& uri) {
+             return dataDatabase(v.state()->assets->database(uri));
+           })
+      .def("hub", [](const AssetsView& v) { return HubView(v.state()); })
+      .def("root",
+           [](const AssetsView& v) { return v.state()->assets->root(); });
   py::class_<Context, std::shared_ptr<Context>>(module, "Context")
       .def("canvas",
            [](const Context& ctx, float width, float height) {
@@ -389,12 +636,49 @@ void bindRuntime(py::module_& module) {
            [](const Context& ctx, const compose::Element& element) {
              ctx.state()->composer->render(element);
            })
+      .def_property_readonly(
+          "composer",
+          [](const Context& ctx) { return ComposerView(ctx.state()); })
+      .def_property_readonly(
+          "ticker", [](const Context& ctx) { return TickerView(ctx.state()); })
+      .def_property_readonly(
+          "assets", [](const Context& ctx) { return AssetsView(ctx.state()); })
+      .def(
+          "measured",
+          [](const Context& ctx, double value, double pinned) {
+            return ctx.state()->context().measured(value, pinned);
+          },
+          py::arg("value"), py::arg("pinned") = 0)
+      .def("oversample",
+           [](const Context& ctx, int samples) {
+             ctx.state()->context().oversample(samples);
+           })
+      .def("plate", [](const Context& ctx) { ctx.state()->context().plate(); })
+      .def(
+          "nonlinearPicture",
+          [](const Context& ctx) { ctx.state()->context().nonlinearPicture(); })
+      .def(
+          "measure",
+          [](const Context& ctx, const compose::Element& element,
+             SkSize maximum) {
+            return ctx.state()->context().measure(element, maximum);
+          },
+          py::arg("element"), py::arg("maxSize") = SkSize::MakeEmpty())
+      .def(
+          "snapshot",
+          [](const Context& ctx, const compose::Element& element,
+             SkSize maximum) {
+            const auto state = ctx.state();
+            return compose::snapshot(element, *state->fonts, maximum);
+          },
+          py::arg("element"), py::arg("maxSize") = SkSize::MakeEmpty())
       .def("local",
            [](const Context& ctx, const std::string& name) {
              return "sketch://" + ctx.state()->key + "/" + name;
            })
       .def_property_readonly(
-          "elapsed", [](const Context& ctx) { return ctx.state()->elapsed; })
+          "elapsed",
+          [](const Context& ctx) { return ctx.state()->ticker->elapsed(); })
       .def_property_readonly("width",
                              [](const Context& ctx) {
                                return ctx.state()->specification->size.width();
@@ -413,6 +697,7 @@ void bindRuntime(py::module_& module) {
       .def_property_readonly("deterministic", [](const Context& ctx) {
         return ctx.state()->deterministic;
       });
+  sketches.attr("Context") = module.attr("Context");
   module.def("render_file", &renderFile, py::arg("source"), py::arg("output"),
              py::arg("at") = py::none());
 }

@@ -6,7 +6,9 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
+#include <include/core/SkPicture.h>
 #include <include/core/SkPixmap.h>
+#include <include/core/SkSamplingOptions.h>
 #include <include/core/SkVertices.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/pathops/SkPathOps.h>
@@ -16,11 +18,13 @@
 #include <sigilimage/encode/Encode.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
 #include "Bindings.h"
+#include "MotionBindings.h"
 
 namespace sigil::sketch::python {
 namespace py = pybind11;
@@ -93,6 +97,21 @@ SkRect rect(py::handle value) {
 
 void bindValues(py::module_& module) {
   auto skia = module.def_submodule("skia");
+  py::class_<SkPicture, sk_sp<SkPicture>>(skia, "Picture")
+      .def("cullRect", &SkPicture::cullRect)
+      .def("uniqueID", &SkPicture::uniqueID);
+  py::enum_<SkFilterMode>(skia, "FilterMode")
+      .value("Nearest", SkFilterMode::kNearest)
+      .value("Linear", SkFilterMode::kLinear);
+  py::enum_<SkMipmapMode>(skia, "MipmapMode")
+      .value("None_", SkMipmapMode::kNone)
+      .value("Nearest", SkMipmapMode::kNearest)
+      .value("Linear", SkMipmapMode::kLinear);
+  py::class_<SkSamplingOptions>(skia, "SamplingOptions")
+      .def(py::init<>())
+      .def(py::init<SkFilterMode>())
+      .def(py::init<SkFilterMode, SkMipmapMode>());
+
   py::class_<SkPoint>(skia, "Point")
       .def(py::init([](float x, float y) { return SkPoint{x, y}; }),
            py::arg("x") = 0, py::arg("y") = 0)
@@ -463,6 +482,42 @@ void bindValues(py::module_& module) {
              py::arg("octaves") = 4, py::arg("seed") = 1,
              py::arg("contrast") = 1, py::arg("stretch") = 1);
   auto nativePaint = materials.def_submodule("skia");
+  py::class_<mskia::Effect>(nativePaint, "Effect")
+      .def_static("recipe", py::overload_cast<const material::Material&>(
+                                &mskia::Effect::recipe))
+      .def_static("glow",
+                  [](py::object ink, float sigma) {
+                    return mskia::Effect::glow(color(ink), sigma);
+                  })
+      .def_static("brightPass", &mskia::Effect::brightPass,
+                  py::arg("threshold") = 0.68f, py::arg("knee") = 0.30f)
+      .def_static("phosphorBloom", &mskia::Effect::phosphorBloom,
+                  py::arg("radius") = 9.0f, py::arg("threshold") = 0.52f,
+                  py::arg("intensity") = 0.46f, py::arg("chroma") = 0.80f,
+                  py::arg("hueDrift") = 0.0f, py::arg("tail") = 0.0f)
+      .def_static(
+          "shader", &mskia::Effect::shader, py::arg("effect"),
+          py::arg("uniforms") = std::vector<std::pair<std::string, float>>{})
+      .def_static("directionalBlur", &mskia::Effect::directionalBlur,
+                  py::arg("sigma"), py::arg("angleDeg"),
+                  py::arg("across") = 0.0f)
+      .def_static("blur", &mskia::Effect::blur)
+      .def("slot", &mskia::Effect::slot, fluent)
+      .def(
+          "uniform",
+          [](mskia::Effect& self, const std::string& name,
+             py::object value) -> mskia::Effect& {
+            if (py::isinstance<py::list>(value) ||
+                py::isinstance<py::tuple>(value))
+              return self.uniform(name, value.cast<std::vector<float>>());
+            return self.uniform(name, motionAnimatable(value));
+          },
+          fluent)
+      .def("then", &mskia::Effect::then)
+      .def("isAnimated", &mskia::Effect::isAnimated)
+      .def("usesWorldSpace", &mskia::Effect::usesWorldSpace)
+      .def(py::self == py::self);
+
   py::enum_<mskia::Fit>(nativePaint, "Fit")
       .value("Contain", mskia::Fit::Contain)
       .value("Cover", mskia::Fit::Cover)
@@ -579,22 +634,79 @@ void bindValues(py::module_& module) {
                                                : SkFontStyle::kUpright_Slant));
       },
       py::arg("family"), py::arg("weight") = 400, py::arg("italic") = false);
-  py::class_<weave::Length>(weave, "Length")
+  auto length = py::class_<weave::Length>(weave, "Length");
+  py::enum_<weave::Length::Unit>(length, "Unit")
+      .value("Px", weave::Length::Unit::Px)
+      .value("Em", weave::Length::Unit::Em)
+      .value("Rem", weave::Length::Unit::Rem)
+      .value("Lh", weave::Length::Unit::Lh);
+  length.def(py::init<>())
       .def(py::init<float>())
-      .def_readwrite("value", &weave::Length::value);
+      .def(py::init<float, weave::Length::Unit>())
+      .def_readwrite("value", &weave::Length::value)
+      .def_readwrite("unit", &weave::Length::unit)
+      .def("relative", &weave::Length::relative)
+      .def(py::self == py::self);
   py::implicitly_convertible<py::float_, weave::Length>();
   py::implicitly_convertible<py::int_, weave::Length>();
   weave.def("em", &weave::em).def("rem", &weave::rem).def("lh", &weave::lh);
   py::class_<weave::Type>(weave, "Type")
-      .def(py::init<>())
+      .def(py::init([](py::kwargs kwargs) {
+        auto object = py::cast(weave::Type{});
+        for (const auto& [key, value] : kwargs) {
+          const auto name = key.cast<std::string>();
+          if (!py::hasattr(object, name.c_str()))
+            throw py::type_error("Unknown Type field: " + name);
+          py::setattr(object, name.c_str(), value);
+        }
+        return object.cast<weave::Type>();
+      }))
       .def_readwrite("face", &weave::Type::face)
-      .def_readwrite("size", &weave::Type::size)
-      .def_readwrite("track", &weave::Type::track)
-      .def_readwrite("color", &weave::Type::color)
+      .def_property(
+          "size", [](const weave::Type& self) { return self.size; },
+          [](weave::Type& self, std::optional<weave::Length> value) {
+            self.size = std::move(value);
+          })
+      .def_property(
+          "track", [](const weave::Type& self) { return self.track; },
+          [](weave::Type& self, std::optional<weave::Length> value) {
+            self.track = std::move(value);
+          })
+      .def_property(
+          "color", [](const weave::Type& self) { return self.color; },
+          [](weave::Type& self, py::object value) {
+            self.color =
+                value.is_none() ? std::nullopt : std::optional{color(value)};
+          })
       .def_readwrite("condense", &weave::Type::condense)
       .def_readwrite("weight", &weave::Type::weight)
       .def_readwrite("slant", &weave::Type::slant)
       .def_readwrite("aliased", &weave::Type::aliased)
-      .def_readwrite("antiAlias", &weave::Type::antiAlias);
+      .def_readwrite("antiAlias", &weave::Type::antiAlias)
+      .def_readwrite("color8", &weave::Type::color8)
+      .def_property(
+          "variations", [](const weave::Type& self) { return self.variations; },
+          [](weave::Type& self, std::vector<weave::FontVariation> value) {
+            self.variations = std::move(value);
+          })
+      .def_readwrite("language", &weave::Type::language)
+      .def_property(
+          "features", [](const weave::Type& self) { return self.features; },
+          [](weave::Type& self,
+             std::optional<std::vector<weave::FontFeature>> value) {
+            self.features = std::move(value);
+          })
+      .def_readwrite("opticalKerning", &weave::Type::opticalKerning)
+      .def_property(
+          "wordSpacing",
+          [](const weave::Type& self) { return self.wordSpacing; },
+          [](weave::Type& self, std::optional<weave::Length> value) {
+            self.wordSpacing = std::move(value);
+          })
+      .def_readwrite("textTransform", &weave::Type::textTransform)
+      .def_readwrite("verticalForm", &weave::Type::verticalForm)
+      .def("empty", &weave::Type::empty)
+      .def("copy", [](const weave::Type& self) { return self; })
+      .def(py::self == py::self);
 }
 }  // namespace sigil::sketch::python

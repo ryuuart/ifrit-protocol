@@ -8,17 +8,31 @@ import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-SKETCH = """from sigil.compose import box, column, text
+SKETCH = """from sigil.compose import box, column, memo, text
+from sigil.compose import kit as marks
+from sigil.motion import Output, bind
+from sigil.sketch import kit
 from sigil.sketch import sketch
+
+def content(words):
+    look = kit.theme()
+    return kit.well(column(
+        text(words[0], size=22, color=look.palette.ink),
+        marks.line(length=160, thickness=24, fill=look.palette.figure),
+        gap=16,
+    ), width=208, height=128, padding=16)
 
 @sketch(size=(240, 160), background="#142333", capture_at=0.5)
 class InstalledSketch:
     def setup(self, ctx):
-        ctx.render(column(
-            text("Installed Sigil", size=22, color="#e8eef2"),
-            box(width=160, height=24, fill="#8bd0bd", corners=6),
-            padding=24, gap=16, absolute=True, inset=0,
-        ))
+        look = kit.house_theme()
+        look.palette.cellGround = "#142333"
+        look.palette.ink = "#e8eef2"
+        look.palette.figure = "#8bd0bd"
+        alpha = Output(1)
+        with kit.provide(look):
+            tree = memo(("Installed Sigil",), content)
+        ctx.render(box(tree, absolute=True, inset=16, opacity=bind(alpha)))
 """
 
 
@@ -91,10 +105,24 @@ def main():
         program = """import pathlib, sys
 import sigil, _sigil
 from importlib.metadata import version
+from sigil import data
+from sigil.compose import kit as compose_kit
+from sigil.motion import Output
+from sigil.native import compose, data as native_data, motion, sketch
+from sigil.sketch import kit as sketch_kit
 from sigil.sketch import render_file
 root = pathlib.Path(sys.prefix).resolve()
 assert pathlib.Path(sigil.__file__).resolve().is_relative_to(root)
 assert pathlib.Path(_sigil.__file__).resolve().is_relative_to(root)
+assert compose_kit.__name__ == "sigil.compose.kit"
+assert compose_kit.Well is compose.kit.Well
+assert sketch_kit.Theme is sketch.kit.Theme
+assert Output is motion.Output
+assert data.Json is native_data.Json
+payload = {"values": [1, 2, 3], "label": "installed"}
+assert data.decodeJson(data.encodeJson(payload)).to_python() == payload
+assert data.Scale(domain=(0, 100), range=(20, 420))(25) == 120
+assert compose_kit.line(length=24, thickness=2).__class__ is compose.Element
 search_path = tuple(sys.path)
 render_file(sys.argv[1], sys.argv[2])
 assert tuple(sys.path) == search_path, "Rendering changed Python's package search path"

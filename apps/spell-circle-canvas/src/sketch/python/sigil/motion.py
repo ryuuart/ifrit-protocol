@@ -1,5 +1,8 @@
-"""Native motion declarations evaluated by the host's scene clock."""
+"""Native motion values, shared live outputs, and retained animation descriptions.
 
-from _sigil.motion import entrance, transition
+Times are seconds, including Transition duration/delay and through() waypoints.
+Output values survive Python wrapper collection while a native description or
+binding still references them. The sketch ticker owns the scene clock.
+"""
 
-__all__ = ["entrance", "transition"]
+from _sigil.motion import *

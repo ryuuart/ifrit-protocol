@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -21,6 +22,60 @@
 using namespace sigil::motion;
 namespace ch = choreograph;
 using namespace std::chrono_literals;
+
+TEST(Values, ASharedBindingRetainsItsSourceThroughDescriptionCopies) {
+  auto output = std::make_shared<ch::Output<float>>(0.25f);
+  std::weak_ptr<ch::Output<float>> weak = output;
+  Animatable<float> owned(output);
+  const Animatable<float> borrowed(output.get());
+  EXPECT_TRUE(propertyEqual(owned, borrowed));
+  Animatable<float> copy = owned;
+  owned = 0.0f;
+  output.reset();
+  ASSERT_FALSE(weak.expired());
+  EXPECT_FLOAT_EQ(copy.binding()->value(), 0.25f);
+  copy = 1.0f;
+  EXPECT_TRUE(weak.expired());
+}
+
+TEST(Values, ASharedShapedBindingKeepsOwnershipWithoutChangingItsIdentity) {
+  auto output = std::make_shared<ch::Output<float>>(0.5f);
+  std::weak_ptr<ch::Output<float>> weak = output;
+  Animatable<float> shaped;
+  {
+    const Bound chain = bind(output).target(10.0f, 30.0f);
+    shaped = chain;
+    const Animatable<float> raw = bind(output.get()).target(10.0f, 30.0f);
+    EXPECT_TRUE(propertyEqual(shaped, raw));
+    output.reset();
+  }
+  ASSERT_FALSE(weak.expired());
+  EXPECT_FLOAT_EQ(shaped.boundMap()->apply(shaped.binding()->value()), 20.0f);
+  Animatable<float> moved = std::move(shaped);
+  EXPECT_FALSE(weak.expired());
+  moved = 0.0f;
+  EXPECT_TRUE(weak.expired());
+}
+
+TEST(Values, ReleasingTheLastOwnedDescriptionDisconnectsItsMotion) {
+  Ticker ticker;
+  auto output = std::make_shared<ch::Output<float>>(0.0f);
+  Animatable<float> owned(output);
+  ticker.timeline().apply(output.get()).then<ch::RampTo>(1.0f, 1.0f);
+  output.reset();
+  ticker.tick(0.25);
+  EXPECT_GT(owned.binding()->value(), 0.0f);
+  owned = 0.0f;
+  EXPECT_FALSE(ticker.tick(0.25));
+}
+
+TEST(Values, ANullSharedOutputIsAPlainValue) {
+  const Animatable<float> empty(std::shared_ptr<const ch::Output<float>>{});
+  EXPECT_EQ(empty.index(), 0);
+  EXPECT_EQ(empty.binding(), nullptr);
+  ASSERT_NE(empty.plain(), nullptr);
+  EXPECT_FLOAT_EQ(*empty.plain(), 0.0f);
+}
 
 // ---------------------------------------------------------------------------
 // The values themselves: what a Transition, an animate() builder and an

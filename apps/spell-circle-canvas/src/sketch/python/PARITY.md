@@ -1,4 +1,39 @@
-# SigilDraw authoring coverage
+# Python authoring coverage
+
+The package is an alpha authoring surface over the native libraries. Coverage
+is explicit rather than inferred from a module name. The raw bindings and
+convenience builders share native values; neither is a second scene model.
+
+## Retained authoring
+
+| Surface | Bound contract | Remaining boundary |
+| --- | --- | --- |
+| Canvas hosting | Setup, update and draw argument prefixes; checked context services; fresh local import generations | Python entries are opened by path, not compiled catalogue entries; model state is replaced on reload |
+| Composition | Native factories, dimensions and units, layout and placement, 2D/3D transforms, fills, typography and style classes | The full native Element and feature catalogue is not claimed |
+| Memo | Deep-copied model, Python equality, native reconciliation and captured inherited environment | Builder must be pure in its model and environment; closure mutation is not a dependency |
+| Motion | Shared outputs, binding chains, easing values, entrances, transitions and keyframe paths | Python times use seconds; scheduling comes from the native session ticker |
+| Typography | Native partial Type, TextStyle, Block, StyleSheet and Rule | Full rich runs, stories and per-glyph effects are not bound |
+| Composer | Render, named slots, bounds, hit tests, routes, settling and owned statistics | Checked session view; manual native frame driving is not exposed |
+| Ticker | Regular and fixed callbacks, derivation, elapsed and activity | Checked session view; removal follows a callback's return value |
+| Data and assets | Native JSON, tables, scales, database queries and checked resource loading | Network feeds and database write methods are not exposed |
+| Specimen kit | Stage, page, well, caption, cell, cells, panel grid, comparable theme and native Provide | Other sketch-kit components remain separate coverage decisions |
+| Compose kit | Neutral sheets, panels, boards, wells, captions, rules, circles, and native Grid plus free-form layouts | Stock routers, feeds, pools and every decoration scheme are not implied |
+
+`python_kit_specimen.py` combines native layout schemes, page furniture and a
+memo that restores its scoped theme. `python_motion_signals.py` combines
+shared outputs, native bindings and keyframe motion. `python_memo_station.py`
+combines retained model descriptions and native motion. These are authoring
+studies rather than ports claiming pixel identity with C++ originals.
+`python_data_garden.py` uses native table sorting and domain scales to draw
+two views of one illustrative CSV dataset.
+
+The `SigilSketchPython` leaf target owns embedding and binding code and links
+the native runtime and kits. Native hosts supply `Host::Options::pythonLoader`
+when they opt into `.py` entries; the core sketch library does not require
+Python. Python value ownership and callback cleanup are exercised separately
+from composition's native rendering contracts.
+
+## Draw collection
 
 This table audits the native operations used by the sketches registered in
 the Draw collection and its subcollections. Ordinary model logic, arithmetic,
@@ -56,13 +91,12 @@ may differ. NumPy is an optional dependency for the reaction-diffusion study.
 - Full frame pointer/key state, loop control, seeded pen noise and random streams, pure math, and copyable native Chance streams.
 - Native brush tools and callbacks registered with the session callback lifetime.
 
-Some source spellings use an adapter: stage metadata becomes decorator or
-context arguments; alpha replacement uses color components; rectangle sorting
+Some source spellings use an adapter: stage metadata can use the native
+`sigil.sketch.kit.stage` or the decorator; alpha replacement uses color components; rectangle sorting
 uses Python `min` and `max`; bitmap population uses `image.from_rgba`; and a
 pattern tile's texture shader becomes `Tile.paint()`. The fixed scheduler used
-by `bristle_current` is not bound: its model can advance from Python
-`update(elapsed)` using `floor(elapsed * 60 + 1e-9)`, with the native scheduler's
-eight-step catch-up limit and discarded excess backlog. Optional brush records
+by `bristle_current` is exposed through `ctx.ticker.addFixed`, including the
+native catch-up limit, interpolation output and status. Optional brush records
 are copied when read; edits are assigned back to the tool.
 
 ## Verification boundaries
@@ -72,6 +106,9 @@ drawing, offscreen pixel retention across resize, reopening buffers under a
 different host, exception cleanup, distinct retained guest call sites, color
 models, dynamic dashes and seeded stream copies.
 The value and brush contract suites exercise their own boundary types.
+Retained composition, motion, kit and runtime suites exercise model equality,
+native theme capture, scoped cleanup, shared output ownership, callback
+argument prefixes and checked service lifetimes.
 
 The four Observable ports, the liquid-glass port, and the botanical and
 liquid-layer adaptations have been rendered through the standalone extension

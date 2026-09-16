@@ -83,7 +83,7 @@ def load(source):
 
 def arity(function, maximum):
     """Resolve the supported positional prefix once, before frame callbacks."""
-    signature = inspect.signature(function)
+    signature = inspect.signature(function, follow_wrapped=False)
     arguments = [None] * maximum
     for count in range(maximum, -1, -1):
         try:
