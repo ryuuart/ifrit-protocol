@@ -178,14 +178,9 @@ int main(int argc, char* argv[]) {
     }
     args.workspace = std::filesystem::weakly_canonical(args.workspace);
     workspaceSources = sketchbook::workspaceFiles(args.workspace);
-    if (args.sketchFile.empty() && args.selected.empty()) {
-      const auto previous = history.forRoot(args.workspace);
-      if (std::find(workspaceSources.begin(), workspaceSources.end(),
-                    previous) != workspaceSources.end())
-        args.sketchFile = previous;
-      else if (!workspaceSources.empty())
-        args.sketchFile = workspaceSources.front();
-    }
+    if (args.sketchFile.empty() && args.selected.empty())
+      args.sketchFile = sketchbook::workspaceEntry(
+          workspaceSources, history.forRoot(args.workspace));
   }
   if (!args.sketchFile.empty()) {
     std::error_code error;
@@ -544,7 +539,7 @@ int main(int argc, char* argv[]) {
   // for exactly as long as nothing is being presented. A run that named
   // a sketch, or that is here to photograph or measure one, is not
   // browsing: it opens at once and no fill starts.
-  SketchCatalog::opensAt = openAt >= 0 ? openAt : 0;
+  SketchCatalog::opensAt = openAt >= 0 || !args.workspace.empty() ? openAt : 0;
   SketchCatalog::opensWithoutFill =
       !args.shotPath.empty() || args.windowBench.seconds > 0.0 || fileGiven ||
       !args.workspace.empty() || chosen >= 0;
@@ -614,6 +609,7 @@ int main(int argc, char* argv[]) {
              },
          .ready =
              [] {
+               if (SketchCatalog::opensAt < 0) return true;
                QMutexLocker lock(&SketchbookView::hostMutex);
                return SketchbookView::host && SketchbookView::host->live();
              }});

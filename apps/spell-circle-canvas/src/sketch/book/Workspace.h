@@ -20,8 +20,9 @@ struct WorkspaceLocation {
   std::filesystem::path file;
 };
 
-/** Finds C++ and Python entry files without executing source. Entries declare
- *  SIGIL_SKETCH or a sketch decorator, or share their enclosing folder's stem.
+/** Finds C++ and Python entry files without executing source. Python entries
+ *  declare a sketch decorator; C++ entries declare SIGIL_SKETCH or share their
+ *  enclosing folder's stem. Python package initializers have no special role.
  *  Results are unique canonical paths in lexical order. Child symlinks, hidden
  *  folders, build/dependency trees and nested Python projects are skipped.
  *  A nested pyproject.toml or .venv/pyvenv.cfg marks a separate project.
@@ -30,6 +31,12 @@ struct WorkspaceLocation {
  *  a missing or unreadable root produces an empty list. */
 std::vector<std::filesystem::path> workspaceFiles(
     const std::filesystem::path& root);
+
+/** Restores an existing selection or opens the sole sketch. An empty answer
+ *  leaves the choice to the reader; ordering never chooses among sketches. */
+std::filesystem::path workspaceEntry(
+    const std::vector<std::filesystem::path>& files,
+    const std::filesystem::path& previous);
 
 /** The supplied settings outlive this object. Writes preserve unrelated keys
  *  and are flushed before returning. At most 12 locations are retained. */

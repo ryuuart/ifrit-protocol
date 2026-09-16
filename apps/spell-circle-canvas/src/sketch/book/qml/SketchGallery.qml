@@ -155,10 +155,12 @@ Item {
                         spacing: Ui.Theme.spacing
                         Label {
                             Layout.fillWidth: true
-                            text: cell.sketch.folder
+                            text: cell.sketch.external ? cell.sketch.entryPath : cell.sketch.folder
                             color: Ui.Theme.secondaryText
                             font.pixelSize: Ui.Theme.captionSize
                             elide: Text.ElideRight
+                            ToolTip.visible: cardHover.hovered && truncated
+                            ToolTip.text: text
                         }
                         Label {
                             text: cell.sketch.lines + " lines"

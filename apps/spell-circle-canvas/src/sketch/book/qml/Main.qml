@@ -60,8 +60,7 @@ ApplicationWindow {
     }
 
     property bool restoringSettings: true
-    /** The sketch the canvas opens on — named on the command line, or the
-     *  first row. */
+    /** A negative index leaves the workspace's entry choice to the reader. */
     readonly property int openAt: catalog.openIndex
 
     // What the reader last set is written back as it changes, so the
@@ -271,7 +270,10 @@ ApplicationWindow {
         browser.expandedGroups = settings.expandedGroups;
         browser.groupMode = settings.groupMode;
         browser.groupPath = settings.groupPath;
-        browser.openOn(window.openAt);
+        if (actions.workspacePath.length > 0)
+            browser.openWorkspace(window.openAt);
+        else
+            browser.openOn(window.openAt);
         window.restoringSettings = false;
         // THE LOADING PHASE. Every sketch with no still gets one while
         // nothing is being presented, which is the only stretch in which
@@ -564,14 +566,14 @@ ApplicationWindow {
                             spacing: Ui.Theme.spacing
                             Label {
                                 Layout.fillWidth: true
-                                text: "No matching sketches"
+                                text: actions.workspacePath.length > 0 && browser.workspaceSketches.length === 0 && browser.groupPath === "Workspace" ? "No workspace sketches" : "No matching sketches"
                                 color: Ui.Theme.primaryText
                                 font.pixelSize: Ui.Theme.headingSize
                                 horizontalAlignment: Text.AlignHCenter
                             }
                             Label {
                                 Layout.fillWidth: true
-                                text: "Try another search or clear the filters."
+                                text: actions.workspacePath.length > 0 && browser.workspaceSketches.length === 0 && browser.groupPath === "Workspace" ? "A Python entry declares a @sketch class. Reopen the workspace after adding one." : "Try another search or clear the filters."
                                 color: Ui.Theme.secondaryText
                                 font.pixelSize: Ui.Theme.bodySize
                                 background: null
@@ -637,6 +639,13 @@ ApplicationWindow {
                 SplitView.fillWidth: true
                 SplitView.minimumWidth: 380
                 sketch: browser.sketchAt(view.sketchIndex) ?? ({})
+                workspacePath: actions.workspacePath
+                workspaceSketchCount: browser.workspaceSketches.length
+                selectedSketch: browser.selectedSketch
+                onOpenRequested: index => window.activate(index)
+                onOpenFileRequested: sketchDialog.open()
+                onRevealRequested: actions.reveal(browser.selectedSketch)
+                onRevealEntryRequested: actions.reveal(browser.sketchAt(view.sketchIndex))
                 onCaptureReady: path => window.showCapture(path)
                 onThumbnailCaptured: index => catalog.adoptThumbnail(index)
             }

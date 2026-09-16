@@ -145,6 +145,10 @@ QString SketchActions::workspaceName() const {
                                : pathString(workspaceRoot.filename());
 }
 
+QString SketchActions::workspacePath() const {
+  return pathString(workspaceRoot);
+}
+
 QUrl SketchActions::openFolder() const {
   return QUrl::fromLocalFile(
       workspaceRoot.empty()
@@ -235,9 +239,8 @@ void SketchActions::open(sketchbook::WorkspaceLocation location) {
   bool python = target.extension() == ".py";
   if (folder) {
     const auto files = sketchbook::workspaceFiles(target);
-    location.file = m_history.forRoot(location.root);
-    if (std::ranges::find(files, location.file) == files.end())
-      location.file.clear();
+    location.file =
+        sketchbook::workspaceEntry(files, m_history.forRoot(location.root));
     python = std::ranges::any_of(
         files, [](const fs::path& file) { return file.extension() == ".py"; });
   }

@@ -195,7 +195,9 @@ Item {
                 readonly property bool presented: list.presentedIndex === row.sketch.sketchIndex
                 readonly property string metadata: {
                     const facts = [];
-                    if (!list.showFolder && row.sketch.folder)
+                    if (row.sketch.external)
+                        facts.push(row.sketch.entryPath);
+                    else if (!list.showFolder && row.sketch.folder)
                         facts.push(row.sketch.folder);
                     if (!list.showKind)
                         facts.push(row.sketch.kind === "set" ? "3D scene" : "Canvas");

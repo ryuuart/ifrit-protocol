@@ -181,8 +181,15 @@ Ui.Panel {
                     text: "SOURCE"
                 }
                 Fact {
-                    label: "File"
+                    label: "Entry file"
                     value: rail.sketch.path
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: "Sketchbook loads this file. Its imports provide helpers and shared components."
+                    color: Ui.Theme.secondaryText
+                    font.pixelSize: Ui.Theme.captionSize
+                    wrapMode: Text.WordWrap
                 }
                 Fact {
                     label: "Runtime"

@@ -89,6 +89,10 @@ class Scene:
             'SIGIL_SKETCH(Second, "Study", "A study");\n'
         )
         (self.root / "helper.py").write_text("COLORS = []\n")
+        package = self.root / "src" / "art"
+        package.mkdir(parents=True)
+        (package / "art.py").write_text("COLORS = []\n")
+        (package / "__init__.py").write_text("from .art import COLORS\n")
         separate = self.root / "another project"
         separate.mkdir()
         (separate / "pyproject.toml").write_text(
@@ -107,6 +111,11 @@ class Scene:
             {Path(row["path"]).name for row in external}, {"first.py", "second.cpp"}
         )
         self.assertEqual(len(external), 2)
+        self.assertEqual(
+            {row["entryPath"] for row in external},
+            {"first.py", "studies/second.cpp"},
+        )
+        self.assertTrue(all(row["external"] for row in external))
         self.assertTrue(any(row["folder"] == "Python" for row in rows))
 
 

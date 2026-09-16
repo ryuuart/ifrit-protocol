@@ -151,7 +151,7 @@ std::string declarations(std::string source, bool python) {
 bool entrySource(const fs::path& path, size_t& bytesLeft) {
   const bool python = path.extension() == ".py";
   if (!python && path.extension() != ".cpp") return false;
-  if (path.stem() == path.parent_path().filename()) return true;
+  if (!python && path.stem() == path.parent_path().filename()) return true;
   if (bytesLeft == 0) return false;
   std::ifstream stream(path, std::ios::binary);
   if (!stream) return false;
@@ -163,9 +163,19 @@ bool entrySource(const fs::path& path, size_t& bytesLeft) {
       QString::fromStdString(declarations(std::move(source), python));
   static const QRegularExpression cpp(
       QStringLiteral(R"(\bSIGIL_SKETCH(?:_AS)?\s*\()"));
-  static const QRegularExpression py(QStringLiteral(
-      R"((?m)^[ \t]*@(?:[A-Za-z_]\w*[ \t]*\.[ \t]*)*sketch\b[ \t]*(?:\(|$))"));
-  return (python ? py : cpp).match(code).hasMatch();
+  if (!python) return cpp.match(code).hasMatch();
+  static const QRegularExpression decorator(QStringLiteral(
+      R"((?m)^@(?:[A-Za-z_]\w*[ \t]*\.[ \t]*)*sketch\b[ \t]*(?:\(|$))"));
+  static const QRegularExpression declaration(QStringLiteral(
+      R"((?m)^(class|(?:async[ \t]+)?def)[ \t]+[A-Za-z_]\w*\b)"));
+  auto markers = decorator.globalMatch(code);
+  while (markers.hasNext()) {
+    const auto marker = markers.next();
+    const auto body = declaration.match(code, marker.capturedEnd());
+    if (body.hasMatch() && body.captured(1) == QStringLiteral("class"))
+      return true;
+  }
+  return false;
 }
 
 struct Discovery {
@@ -208,6 +218,12 @@ std::vector<fs::path> workspaceFiles(const fs::path& root) {
   Discovery discovery;
   discovery.visit(normalized(root), 0);
   return {discovery.files.begin(), discovery.files.end()};
+}
+
+fs::path workspaceEntry(const std::vector<fs::path>& files,
+                        const fs::path& previous) {
+  if (std::ranges::find(files, previous) != files.end()) return previous;
+  return files.size() == 1 ? files.front() : fs::path{};
 }
 
 WorkspaceHistory::WorkspaceHistory(QSettings& settings)

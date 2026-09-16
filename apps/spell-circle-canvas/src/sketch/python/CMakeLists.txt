@@ -13,3 +13,6 @@ target_compile_definitions(SigilSketchPython PRIVATE
 sigil_test(sketch_test
   SOURCES test/PythonTest.cpp
   LIBRARIES SigilSketchPython SigilPython)
+
+add_test(NAME sketch_python_registration
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/test/registration.py)

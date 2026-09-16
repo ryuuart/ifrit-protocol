@@ -24,6 +24,7 @@ class SketchActions : public QObject {
   Q_PROPERTY(QString openStatus READ openStatus NOTIFY openChanged)
   Q_PROPERTY(QString openError READ openError NOTIFY openChanged)
   Q_PROPERTY(QString workspaceName READ workspaceName CONSTANT)
+  Q_PROPERTY(QString workspacePath READ workspacePath CONSTANT)
   Q_PROPERTY(QUrl openFolder READ openFolder CONSTANT)
 
  public:
@@ -45,6 +46,7 @@ class SketchActions : public QObject {
   [[nodiscard]] QString openStatus() const { return m_openStatus; }
   [[nodiscard]] QString openError() const { return m_openError; }
   [[nodiscard]] QString workspaceName() const;
+  [[nodiscard]] QString workspacePath() const;
   [[nodiscard]] QUrl openFolder() const;
 
   Q_INVOKABLE void openFile(const QUrl& file);

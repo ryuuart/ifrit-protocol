@@ -6,8 +6,23 @@ import json
 from pathlib import Path
 
 
-def registration(path, index):
-    source = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+def declares_sketch(source):
+    for statement in source.body:
+        if not isinstance(statement, ast.ClassDef):
+            continue
+        for decorator in statement.decorator_list:
+            target = decorator.func if isinstance(decorator, ast.Call) else decorator
+            if (
+                isinstance(target, ast.Name)
+                and target.id == "sketch"
+                or isinstance(target, ast.Attribute)
+                and target.attr == "sketch"
+            ):
+                return True
+    return False
+
+
+def registration(path, index, source):
     description = ast.get_docstring(source) or ""
     blurb = " ".join(description.split("\n\n", 1)[0].split())
     requirements = ()
@@ -55,8 +70,12 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("sources", nargs="*", type=Path)
     args = parser.parse_args()
-    sources = sorted(path.resolve() for path in args.sources)
-    names = [path.stem for path in sources]
+    sources = []
+    for path in sorted(path.resolve() for path in args.sources):
+        source = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        if declares_sketch(source):
+            sources.append((path, source))
+    names = [path.stem for path, _ in sources]
     if len(names) != len(set(names)):
         parser.error("Python sketch stems must be unique")
     content = (
@@ -64,7 +83,10 @@ def main():
         "#include <sigilsketch/core/Registry.h>\n"
         "#include <sigilsketch/python/Python.h>\n\n"
         "namespace {\n"
-        + "".join(registration(path, index) for index, path in enumerate(sources))
+        + "".join(
+            registration(path, index, source)
+            for index, (path, source) in enumerate(sources)
+        )
         + "}  // namespace\n"
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)

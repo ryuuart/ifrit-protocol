@@ -53,6 +53,16 @@ QVariantMap rowFor(int index, const std::string& name, const std::string& key,
   row.insert(QStringLiteral("folder"), folder);
   row.insert(QStringLiteral("blurb"), blurb);
   row.insert(QStringLiteral("path"), QString::fromStdString(file.string()));
+  const fs::path root = SketchCatalog::workspaceRoot.empty()
+                            ? SketchCatalog::sketchDirectory
+                            : SketchCatalog::workspaceRoot;
+  const auto relative = file.lexically_relative(root);
+  row.insert(
+      QStringLiteral("entryPath"),
+      QString::fromStdString(
+          (!relative.empty() && *relative.begin() != ".." ? relative : file)
+              .string()));
+  row.insert(QStringLiteral("external"), false);
   row.insert(QStringLiteral("lines"), header.lines);
   row.insert(QStringLiteral("subject"), QString::fromStdString(header.subject));
   row.insert(QStringLiteral("editFirst"),
@@ -139,6 +149,7 @@ SketchCatalog::SketchCatalog(QObject* parent) : QObject(parent) {
     row.insert(QStringLiteral("available"), true);
     row.insert(QStringLiteral("reason"), QString());
     row.insert(QStringLiteral("videoExportable"), false);
+    row.insert(QStringLiteral("external"), true);
     m_rows.push_back(row);
   }
 

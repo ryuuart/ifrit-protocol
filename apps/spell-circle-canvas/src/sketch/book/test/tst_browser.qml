@@ -30,7 +30,8 @@ TestCase {
         { sketchIndex: 2, name: "Letter", key: "letter", folder: "Catalog · Type",
           kind: "canvas", blurb: "A letter", tags: ["Typography/Lettering"] },
         { sketchIndex: 3, name: "Draft", key: "draft", folder: "Workspace",
-          kind: "", blurb: "An external file", tags: [] }
+          kind: "", blurb: "An external file", tags: [], external: true,
+          entryPath: "src/art/scene.py" }
     ]
 
     function init() {
@@ -65,6 +66,29 @@ TestCase {
         compare(browser.cards.length, 1);
         compare(browser.cards[0].sketchIndex, 0);
         verify(node("Motion/Text") !== undefined);
+    }
+
+    function test_workspaceStartsOnItsEntriesAndSearchesTheirPaths() {
+        browser.openWorkspace(-1);
+        settle();
+        compare(browser.groupMode, "collections");
+        compare(browser.groupPath, "Workspace");
+        compare(browser.workspaceSketches.length, 1);
+        compare(browser.cards.length, 1);
+        compare(browser.selectedIndex, 3);
+        browser.filterText = "src/art/scene.py";
+        settle();
+        compare(browser.cards.length, 1);
+    }
+
+    function test_emptyWorkspaceDoesNotFallBackToBundledSketches() {
+        browser.catalog = { sketches: test.sketches.slice(0, 3) };
+        browser.openWorkspace(-1);
+        settle();
+        compare(browser.groupPath, "Workspace");
+        compare(browser.workspaceSketches.length, 0);
+        compare(browser.cards.length, 0);
+        compare(browser.selectedIndex, -1);
     }
 
     function test_expansionAndLearningKeepResultModelsStable() {

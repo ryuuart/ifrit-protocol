@@ -35,6 +35,7 @@ QtObject {
      *  someone starts browsing. */
     property int selectedIndex: -1
     property var cards: []
+    readonly property var workspaceSketches: browser.catalog.sketches.filter(sketch => sketch.external === true)
     /** Session-only facts keyed by registry index. They overlay the stable
      *  browser models so learning one canvas does not remount every thumbnail. */
     property var learnedSketches: ({})
@@ -50,7 +51,7 @@ QtObject {
         sketchIndex: -1, name: "", key: "", folder: "", blurb: "", path: "",
         kind: "", available: true, reason: "", lines: 0, subject: "",
         editFirst: "", plate: "", canvas: "", background: "", moment: -1,
-        videoExportable: false, tags: []
+        videoExportable: false, tags: [], entryPath: "", external: false
     })
 
     readonly property var selectedSketch:
@@ -93,7 +94,8 @@ QtObject {
 
     function matches(sketch, terms) {
         const hay = (sketch.name + " " + sketch.folder + " " + sketch.blurb
-                     + " " + sketch.key + " " + (sketch.tags ?? []).join(" ")).toLowerCase();
+                     + " " + sketch.key + " " + (sketch.entryPath ?? "")
+                     + " " + (sketch.tags ?? []).join(" ")).toLowerCase();
         for (let i = 0; i < terms.free.length; ++i)
             if (hay.indexOf(terms.free[i]) < 0)
                 return false;
@@ -282,6 +284,14 @@ QtObject {
             return Groups.contains(sketch, browser.groupMode, browser.groupPath);
         }))
             browser.groupPath = "";
+        browser.selectedIndex = index;
+        browser.rebuild();
+    }
+
+    function openWorkspace(index) {
+        browser.filterText = "";
+        browser.groupMode = "collections";
+        browser.groupPath = "Workspace";
         browser.selectedIndex = index;
         browser.rebuild();
     }

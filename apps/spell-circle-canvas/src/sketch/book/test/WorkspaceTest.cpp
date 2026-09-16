@@ -12,6 +12,7 @@
 namespace {
 
 namespace fs = std::filesystem;
+using sketchbook::workspaceEntry;
 using sketchbook::workspaceFiles;
 using sketchbook::WorkspaceHistory;
 
@@ -46,7 +47,8 @@ TEST_F(SketchbookWorkspace,
             "constexpr int pixels = 1'000;\nSIGIL_SKETCH_AS(Alpha, \"alpha\", "
             "\"Art\", \"A\")\n");
   const auto bare = write("bare.py", "@sketch\nclass Bare: pass\n");
-  const auto pythonDirectory = write("plant/plant.py", "class Plant: pass\n");
+  const auto pythonDirectory =
+      write("plant/plant.py", "@sketch()\nclass Plant: pass\n");
   const auto cppDirectory = write("room/room.cpp", "struct Room {};\n");
   write("plant/palette.py", "COLORS = ['red', 'green']\n");
   write("room/Geometry.cpp", "void geometry() {}\n");
@@ -76,6 +78,34 @@ SIGIL_SKETCH(No)
                             "'''An example says @sketch.'''\n@api . sketch(\n "
                             "size=(10, 10),\n)\nclass Real: pass\n");
   EXPECT_EQ(workspaceFiles(root), std::vector<fs::path>{actual});
+}
+
+TEST_F(SketchbookWorkspace, PythonNamesDoNotTurnModulesIntoSketches) {
+  write("library/library.py", "class Helper: pass\n");
+  write("library/__init__.py", "from .library import Helper\n");
+  write("library/__main__.py", "print('command line program')\n");
+  write("function.py", "@sketch()\ndef helper(): pass\nclass Other: pass\n");
+  write("nested.py", "def helper():\n    @sketch()\n    class Inner: pass\n");
+  const auto entry =
+      write("src/library/scene.py", "@sketch()\nclass Scene: pass\n");
+  EXPECT_EQ(workspaceFiles(root), std::vector<fs::path>{entry});
+}
+
+TEST_F(SketchbookWorkspace, APackageInitializerCanExplicitlyDeclareASketch) {
+  const auto entry =
+      write("src/art/__init__.py", "@sketch()\nclass Art: pass\n");
+  EXPECT_EQ(workspaceFiles(root), std::vector<fs::path>{entry});
+}
+
+TEST_F(SketchbookWorkspace, MultipleEntriesWaitForAChoiceAndRememberIt) {
+  const auto first = write("first.py", "@sketch()\nclass First: pass\n");
+  const auto second = write("second.py", "@sketch()\nclass Second: pass\n");
+  EXPECT_TRUE(workspaceEntry({}, {}).empty());
+  EXPECT_EQ(workspaceEntry({first}, {}), first);
+  EXPECT_TRUE(workspaceEntry({first, second}, {}).empty());
+  EXPECT_EQ(workspaceEntry({first, second}, second), second);
+  EXPECT_TRUE(workspaceEntry({first, second}, root / "removed.py").empty());
+  EXPECT_EQ(workspaceEntry({first}, root / "removed.py"), first);
 }
 
 TEST_F(SketchbookWorkspace, SkipsBuildDependencyHiddenAndSymlinkTrees) {

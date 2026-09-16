@@ -234,6 +234,40 @@ recent files, workspace folders and each workspace's selected sketch; a
 normal launch restores the last opened location. A folder is the workspace,
 so there is no separate workspace document to create.
 
+**The entry is a file, chosen explicitly.** Open Sketch loads that file.
+Open Workspace restores its last selected entry, opens its only sketch, or
+shows a chooser when several sketches exist. The Library starts in the
+Workspace collection and shows each entry's relative path. The canvas names
+the file it is running; Details exposes the full path and can reveal it in
+the file manager. A workspace without sketches explains how to add one.
+
+Every `.py` file is a Python module. A module declaring a `@sketch` class
+is discoverable as a sketch. A file called `__init__.py` initializes an
+imported package; its name alone does not make it a sketch. The same holds
+for `__main__.py` and a file named after its enclosing folder. Helper modules
+and assets are loaded by the entry. Workspace discovery reads source without
+importing these files, and leaves nested Python projects for their own windows.
+Directly opened legacy files may still export one class with `setup(ctx)`;
+use the decorator to make an entry discoverable in a workspace.
+
+For a project with a source-layout package:
+
+```text
+spell_circle/
+  pyproject.toml              Python version and dependencies
+  spell_circle.py             @sketch class: the entry file
+  src/spell_circle/
+    __init__.py              package initialization
+    components.py            reusable components imported by the entry
+  assets/                    images, fonts and data
+```
+
+Open the outer `spell_circle` directory as the workspace. `pyproject.toml`
+does not select an entry, and `[project.scripts]` defines terminal commands
+that Sketchbook does not invoke. Several `.py` entries can share the same
+project and package. Adding an entry requires reopening the workspace;
+editing an already open entry reloads its running sketch.
+
 For a Python project, Sketchbook finds its nearest `pyproject.toml` or
 `.venv`. It uses uv to synchronize a project's dependencies, or reuses an
 existing plain virtual environment. Preparation reports progress and errors
@@ -251,7 +285,8 @@ own windows and skips environment, cache and build directories.
 Bundled Python sketches appear in the Python collection and in the subject
 tree beside C++ sketches. Their module docstring supplies the description;
 `# TAGS:` lines supply subject paths. A root `.py` file or a directory
-entry `<name>/<name>.py` joins the registry on the next build. Registration
+entry `<name>/<name>.py` declaring a `@sketch` class joins the registry on
+the next build. Helpers without a declaration stay out of the catalogue. Registration
 reads metadata without executing the sketch; every session imports current
 source, including thumbnail and headless sessions.
 

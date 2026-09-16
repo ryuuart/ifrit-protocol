@@ -40,6 +40,12 @@ projects. Reopening a folder discovers added or removed sketches.
 Recent files and folders persist in application settings, including the
 last selected sketch in each workspace. A normal launch restores the last
 opened location, falling back to the bundled catalogue if it is missing.
+Opening a workspace restores its last selected entry when that file still
+exists. A workspace with one sketch opens it directly. Several sketches
+start on a chooser, with the Library showing the Workspace collection;
+alphabetical order never chooses which of them runs. An empty workspace
+explains how to declare a sketch. The canvas labels the exact entry file,
+workspace rows show its relative path, and Details shows its full path.
 Missing recent entries remain visible until the history is cleared.
 `--no-restore` opens the bundled catalogue directly.
 
@@ -49,6 +55,15 @@ window uses one Python environment. C++ sketches and standalone Python
 files need no project configuration. `--workspace <directory>` opens the
 same workspace from the command line; an optional sketch path selects its
 initial source.
+
+A Python module is a `.py` file. A discoverable Python sketch is a module
+declaring a `@sketch` class; its filename is unrestricted. `__init__.py`
+initializes a package when it is imported, and only becomes a sketch entry
+if it explicitly declares a sketch too. Matching the enclosing folder's
+name does not make a Python helper a sketch. `pyproject.toml` supplies the
+Python environment and dependencies, not the entry file, and console-script
+declarations do not select what Sketchbook loads. Modules and assets used
+by an entry stay ordinary imports and resources.
 
 ```sh
 cmake --build build --config Release --target Sketchbook

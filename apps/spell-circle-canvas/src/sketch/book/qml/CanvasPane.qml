@@ -11,6 +11,10 @@ Ui.Panel {
     padding: 0
 
     property var sketch: ({})
+    property string workspacePath: ""
+    property int workspaceSketchCount: 0
+    property var selectedSketch: ({})
+    readonly property bool choosingEntry: workspacePath.length > 0 && sketchIndex < 0
     property alias sketchIndex: view.sketchIndex
     property alias paused: view.paused
     property alias publishing: view.publishing
@@ -23,6 +27,10 @@ Ui.Panel {
     readonly property bool canvasFocused: view.activeFocus
     signal captureReady(string path)
     signal thumbnailCaptured(int index)
+    signal openRequested(int index)
+    signal openFileRequested
+    signal revealRequested
+    signal revealEntryRequested
 
     function capture() {
         view.capture();
@@ -36,20 +44,53 @@ Ui.Panel {
         Ui.PanelHeading {
             Layout.fillWidth: true
             Layout.margins: Ui.Theme.sectionSpacing
-            title: (pane.metrics.sketch ?? "Open a sketch").replace(/_/g, " ")
-            detail: [pane.sketch.folder ?? "", pane.sketch.path ? (pane.sketch.path.endsWith(".py") ? "Python" : "C++") : "", (pane.metrics.canvas ?? "").replace("x", " × ")].filter(value => value.length > 0).join(" · ")
+            title: pane.choosingEntry ? "Workspace" : (pane.metrics.sketch ?? "Open a sketch").replace(/_/g, " ")
+            detail: pane.choosingEntry ? "No entry loaded" : [pane.sketch.folder ?? "", pane.sketch.path ? (pane.sketch.path.endsWith(".py") ? "Python" : "C++") : "", (pane.metrics.canvas ?? "").replace("x", " × ")].filter(value => value.length > 0).join(" · ")
             Ui.IconButton {
+                visible: !pane.choosingEntry
                 text: "Fit"
                 tooltip: "Fit the whole sketch in the canvas"
                 onClicked: canvasViewport.fitView()
             }
             Ui.IconButton {
+                visible: !pane.choosingEntry
                 text: Math.round(canvasViewport.viewScale * 100) + "%"
                 tooltip: "View at actual size (100%)"
                 onClicked: canvasViewport.zoomToActualSize()
             }
         }
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: Ui.Theme.sectionSpacing
+            Layout.rightMargin: Ui.Theme.sectionSpacing
+            Layout.bottomMargin: Ui.Theme.spacing
+            visible: (pane.sketch.path ?? "").length > 0
+            Ui.FactRow {
+                objectName: "canvasEntryPath"
+                Layout.fillWidth: true
+                label: "Entry file"
+                labelWidth: 56
+                value: pane.sketch.entryPath ?? pane.sketch.path ?? ""
+            }
+            Ui.IconButton {
+                text: "Show file"
+                tooltip: "Reveal the entry file on the canvas"
+                onClicked: pane.revealEntryRequested()
+            }
+        }
+        WorkspaceWelcome {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            visible: pane.choosingEntry
+            workspacePath: pane.workspacePath
+            sketchCount: pane.workspaceSketchCount
+            selectedSketch: pane.selectedSketch
+            onOpenRequested: index => pane.openRequested(index)
+            onOpenFileRequested: pane.openFileRequested()
+            onRevealRequested: pane.revealRequested()
+        }
         Ui.GlassPanel {
+            visible: !pane.choosingEntry
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.margins: Ui.Theme.sectionSpacing

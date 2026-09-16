@@ -42,6 +42,13 @@ add_test(NAME sketch_publication_controls
 set_tests_properties(sketch_publication_controls PROPERTIES
   ENVIRONMENT "QT_QUICK_BACKEND=software" TIMEOUT 30)
 
+add_test(NAME sketch_workspace_controls
+  COMMAND qt_qml_test
+    -input ${CMAKE_CURRENT_LIST_DIR}/test/tst_workspace.qml
+    -platform offscreen)
+set_tests_properties(sketch_workspace_controls PROPERTIES
+  ENVIRONMENT "QT_QUICK_BACKEND=software" TIMEOUT 30)
+
 # A real .app: a bare Mach-O in bin/ gets no bundle identity, so macOS
 # gives it the executable's name in the menu bar and treats activation as
 # a plain process. `--headless` still works through the inner binary
@@ -60,7 +67,7 @@ set_target_properties(Sketchbook PROPERTIES
 # module. Both properties are read when the module is declared, so
 # they are set before it.
 foreach(sketchbook_qml IN ITEMS
-    Main CanvasPane Browser GroupTree TopBar SketchList SketchGallery PlateThumb Inspector
+    Main CanvasPane WorkspaceWelcome Browser GroupTree TopBar SketchList SketchGallery PlateThumb Inspector
     StatusStrip)
   set_source_files_properties(qml/${sketchbook_qml}.qml
     PROPERTIES QT_RESOURCE_ALIAS ${sketchbook_qml}.qml)
@@ -72,6 +79,7 @@ qt_add_qml_module(Sketchbook
   QML_FILES
     qml/Main.qml
     qml/CanvasPane.qml
+    qml/WorkspaceWelcome.qml
     qml/Browser.qml
     qml/GroupTree.qml
     qml/Groups.js
