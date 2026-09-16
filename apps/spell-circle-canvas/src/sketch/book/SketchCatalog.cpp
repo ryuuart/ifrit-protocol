@@ -82,6 +82,15 @@ QVariantMap rowFor(int index, const std::string& name, const std::string& key,
 
 }  // namespace
 
+QVariantList SketchCatalog::sketches() const {
+  if (workspaceRoot.empty() && externals.empty()) return m_rows;
+  QVariantList rows;
+  for (const auto& row : m_rows)
+    if (row.toMap().value(QStringLiteral("external")).toBool())
+      rows.push_back(row);
+  return rows;
+}
+
 SketchCatalog::SketchCatalog(QObject* parent) : QObject(parent) {
   const auto& entries = sketch::registry();
   m_rows.reserve((qsizetype)entries.size() +

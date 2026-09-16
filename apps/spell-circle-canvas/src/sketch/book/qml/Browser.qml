@@ -278,11 +278,13 @@ QtObject {
         browser.learnedSketches = next;
     }
 
-    function openOn(index) {
+    function openOn(index, reveal = true) {
         // A removed tag must not leave a remembered group hiding the catalog.
-        if (!browser.catalog.sketches.some(function(sketch) {
-            return Groups.contains(sketch, browser.groupMode, browser.groupPath);
-        }))
+        const requested = browser.sketchAt(index);
+        if ((reveal && requested && !Groups.contains(requested, browser.groupMode, browser.groupPath))
+                || !browser.catalog.sketches.some(function(sketch) {
+                    return Groups.contains(sketch, browser.groupMode, browser.groupPath);
+                }))
             browser.groupPath = "";
         browser.selectedIndex = index;
         browser.rebuild();

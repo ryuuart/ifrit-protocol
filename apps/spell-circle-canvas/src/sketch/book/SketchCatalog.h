@@ -78,7 +78,7 @@ class SketchCatalog : public QObject {
   explicit SketchCatalog(QObject* parent = nullptr);
   ~SketchCatalog() override;
 
-  [[nodiscard]] QVariantList sketches() const { return m_rows; }
+  [[nodiscard]] QVariantList sketches() const;
   [[nodiscard]] bool filling() const { return m_filling; }
   [[nodiscard]] int fillTotal() const { return m_fillTotal; }
   [[nodiscard]] int fillDone() const { return m_fillDone; }

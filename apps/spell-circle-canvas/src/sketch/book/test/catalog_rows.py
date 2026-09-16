@@ -43,19 +43,17 @@ def main() -> None:
     if not rows:
         sys.exit("--catalog printed no rows")
 
-    by_key = {row["key"]: row for row in rows}
+    if len(rows) != 1 or not rows[0]["external"]:
+        sys.exit("a source window must contain only its own sketch")
+    examples = subprocess.run(
+        [str(args.sketchbook), "--catalog"], capture_output=True, text=True, check=True
+    )
+    by_key = {row["key"]: row for row in map(json.loads, examples.stdout.splitlines())}
     compiled_in = by_key.get(args.canvas)
-    if compiled_in is None:
-        sys.exit(f"no row for the registry sketch {args.canvas}")
-    if compiled_in["kind"] != "canvas":
-        sys.exit(
-            f"{args.canvas} is a canvas sketch and its row says "
-            f"{compiled_in['kind']!r} — the row must name the runtime read "
-            "off the kind"
-        )
+    if compiled_in is None or compiled_in["kind"] != "canvas":
+        sys.exit(f"the examples must include canvas sketch {args.canvas}")
 
-    # The externals are appended after every compiled-in entry, so the
-    # draft is the last row.
+    # The standalone file is the only row in its window.
     last = rows[-1]
     if last["key"] != draft.stem:
         sys.exit(f"the last row is {last['key']!r}, not the draft {draft.stem!r}")

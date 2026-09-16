@@ -9,11 +9,14 @@ import QtQml.Models
 Item {
     id: bar
     property string workspaceName: ""
+    property bool examples: true
     property bool inspectorOpen: false
     property bool taskRunning: false
     property bool opening: false
     property var recents: []
 
+    signal closeWorkspaceRequested
+    signal examplesRequested
     signal inspectorToggled
     signal videoRequested
     signal openFileRequested
@@ -71,6 +74,16 @@ Item {
                     text: "Open Workspace…"
                     onTriggered: bar.openWorkspaceRequested()
                 }
+                MenuItem {
+                    text: "Browse Examples"
+                    onTriggered: bar.examplesRequested()
+                }
+                MenuItem {
+                    text: "Close Workspace"
+                    enabled: !bar.opening && !bar.taskRunning
+                    onTriggered: bar.closeWorkspaceRequested()
+                }
+                MenuSeparator {}
                 Menu {
                     id: recentMenu
 
@@ -107,6 +120,7 @@ Item {
             }
         }
         Ui.IconButton {
+            visible: bar.examples
             text: "Export all…"
             enabled: !bar.taskRunning
             tooltip: "Export every available sketch as a vertical MP4"

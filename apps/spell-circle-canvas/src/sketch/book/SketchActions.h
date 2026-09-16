@@ -23,6 +23,7 @@ class SketchActions : public QObject {
   Q_PROPERTY(bool opening READ opening NOTIFY openChanged)
   Q_PROPERTY(QString openStatus READ openStatus NOTIFY openChanged)
   Q_PROPERTY(QString openError READ openError NOTIFY openChanged)
+  Q_PROPERTY(bool welcome READ welcome CONSTANT)
   Q_PROPERTY(QString workspaceName READ workspaceName CONSTANT)
   Q_PROPERTY(QString workspacePath READ workspacePath CONSTANT)
   Q_PROPERTY(QUrl openFolder READ openFolder CONSTANT)
@@ -33,6 +34,10 @@ class SketchActions : public QObject {
   static QString pythonAbi;
   static QString startupError;
   static bool rememberSelections;
+  static bool startsAtWelcome;
+  [[nodiscard]] bool welcome() const { return startsAtWelcome; }
+  Q_INVOKABLE void closeWorkspace();
+  Q_INVOKABLE void browseExamples();
 
   explicit SketchActions(QObject* parent = nullptr);
   ~SketchActions() override;
@@ -81,6 +86,7 @@ class SketchActions : public QObject {
   QProcess m_prepare;
   sketchbook::WorkspaceLocation m_pending;
   bool m_opening = false;
+  bool m_pendingExamples = false;
   QString m_openStatus;
   QString m_openError;
   QProcess m_task;

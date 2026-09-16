@@ -57,7 +57,7 @@ set(SIGIL_SKETCH_SOURCES
   core/Sources.cpp
   canvas/Context.cpp canvas/Guest.cpp canvas/Session.cpp
   set/Context.cpp set/Session.cpp
-  live/BuildDirectory.cpp live/Host.cpp live/Residency.cpp live/SkewGuard.cpp
+  live/BuildDirectory.cpp live/BuildCache.cpp live/Host.cpp live/Residency.cpp live/SkewGuard.cpp
   plate/Compare.cpp plate/Graphite.cpp plate/Story.cpp plate/Sweep.cpp
   plate/ThumbnailQueue.cpp plate/Thumbnails.cpp)
 set(SIGIL_SKETCH_HEADERS

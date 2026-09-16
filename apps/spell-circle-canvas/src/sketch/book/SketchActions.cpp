@@ -20,6 +20,7 @@ fs::path SketchActions::pythonExecutable;
 QString SketchActions::pythonAbi;
 QString SketchActions::startupError;
 bool SketchActions::rememberSelections = true;
+bool SketchActions::startsAtWelcome = false;
 
 namespace {
 
@@ -219,6 +220,7 @@ void SketchActions::failOpen(const QString& message) {
 
 void SketchActions::open(sketchbook::WorkspaceLocation location) {
   if (m_opening) return;
+  m_pendingExamples = false;
   std::error_code error;
   const bool folder = !location.root.empty();
   const fs::path target = folder ? location.root : location.file;
@@ -268,6 +270,7 @@ void SketchActions::open(sketchbook::WorkspaceLocation location) {
 void SketchActions::launch(const sketchbook::WorkspaceLocation& location,
                            const fs::path& executable, const QString& abi) {
   QStringList arguments;
+  if (m_pendingExamples) arguments << QStringLiteral("--examples");
   if (!location.file.empty()) arguments << pathString(location.file);
   if (!location.root.empty())
     arguments << QStringLiteral("--workspace") << pathString(location.root);
@@ -277,7 +280,9 @@ void SketchActions::launch(const sketchbook::WorkspaceLocation& location,
   child.setArguments(arguments);
   child.setProcessEnvironment(childEnvironment(executable));
   child.setWorkingDirectory(pathString(
-      location.root.empty() ? location.file.parent_path() : location.root));
+      m_pendingExamples ? fs::path(SIGIL_SKETCH_DIR)
+                        : (location.root.empty() ? location.file.parent_path()
+                                                 : location.root)));
   if (!child.startDetached()) {
     failOpen(QStringLiteral("Could not open Sketchbook: %1")
                  .arg(child.errorString()));
@@ -285,12 +290,42 @@ void SketchActions::launch(const sketchbook::WorkspaceLocation& location,
   }
   m_history.remember(location);
   emit recentsChanged();
+  if (startsAtWelcome) QCoreApplication::quit();
   m_opening = false;
-  m_openStatus = QStringLiteral("Opened %1 in a new window.")
-                     .arg(pathString(
-                         (location.root.empty() ? location.file : location.root)
-                             .filename()));
+  m_openStatus =
+      m_pendingExamples
+          ? QStringLiteral("Opened examples in a new window.")
+          : QStringLiteral("Opened %1 in a new window.")
+                .arg(pathString(
+                    (location.root.empty() ? location.file : location.root)
+                        .filename()));
   emit openChanged();
+}
+
+void SketchActions::closeWorkspace() {
+  QProcess child;
+  child.setProgram(QCoreApplication::applicationFilePath());
+  child.setProcessEnvironment(childEnvironment());
+  if (child.startDetached())
+    QCoreApplication::quit();
+  else
+    failOpen(QStringLiteral("Could not return to Welcome: %1")
+                 .arg(child.errorString()));
+}
+
+void SketchActions::browseExamples() {
+  if (m_opening) return;
+  m_pendingExamples = true;
+  m_pending = {};
+  m_opening = true;
+  m_openError.clear();
+  m_openStatus =
+      QStringLiteral("Preparing Python dependencies for the examples…");
+  emit openChanged();
+  m_prepare.setProcessEnvironment(childEnvironment());
+  m_prepare.setWorkingDirectory(QStringLiteral(SIGIL_SKETCH_DIR));
+  m_prepare.start(QString::fromUtf8(SIGIL_PYTHON_EXECUTABLE),
+                  sketchbook::pythonEnvironmentArguments(SIGIL_SKETCH_DIR));
 }
 
 void SketchActions::frame(const QVariantMap& row) {

@@ -21,7 +21,9 @@ Usage (invoked by the build; the paths are all absolute):
 """
 
 import argparse
+import os
 import re
+import shutil
 import struct
 import subprocess
 import sys
@@ -65,9 +67,7 @@ def corner_pixel(png: Path) -> tuple[int, int, int, int]:
         chunk = data[offset + 4 : offset + 8]
         body = data[offset + 8 : offset + 8 + length]
         if chunk == b"IHDR":
-            _, _, depth, colour_type, _, _, interlace = struct.unpack(
-                ">IIBBBBB", body
-            )
+            _, _, depth, colour_type, _, _, interlace = struct.unpack(">IIBBBBB", body)
             if (depth, colour_type, interlace) != (8, 6, 0):
                 sys.exit(
                     f"{png}: expected a non-interlaced 8-bit RGBA PNG, got "
@@ -83,13 +83,14 @@ def corner_pixel(png: Path) -> tuple[int, int, int, int]:
     return tuple(raw[1:5])
 
 
-def run(command: list[str]) -> None:
+def run(command: list[str]) -> str:
     print("$ " + " ".join(command), flush=True)
     result = subprocess.run(command, capture_output=True, text=True)
     sys.stdout.write(result.stdout)
     sys.stderr.write(result.stderr)
     if result.returncode != 0:
         sys.exit(f"exited {result.returncode}")
+    return result.stderr
 
 
 def main() -> None:
@@ -100,6 +101,9 @@ def main() -> None:
     args = parser.parse_args()
 
     work = args.work
+    cache = work / "cache"
+    shutil.rmtree(cache, ignore_errors=True)
+    os.environ["SIGIL_SKETCH_CACHE"] = str(cache)
     plates = work / "plates"
     plates.mkdir(parents=True, exist_ok=True)
 
@@ -116,7 +120,14 @@ def main() -> None:
             "ground"
         )
     fixture = work / args.source.name
-    fixture.write_text(fixture_text)
+    header = work / "ground.h"
+    header.write_text("#define FIXTURE_RED 1\n")
+    fixture.write_text(
+        '#include "ground.h"\n'
+        + fixture_text.replace(
+            "palette.ground = {1, 0, 0, 1}", "palette.ground = {FIXTURE_RED, 0, 0, 1}"
+        )
+    )
 
     # THE RELOADED PICTURE: compiled from the copy, dlopened, drawn.
     reloaded = work / "reloaded.png"
@@ -128,6 +139,16 @@ def main() -> None:
             f"{FIXTURE_RGBA} — the host's own copy of this sketch ran instead "
             "of the one that was just compiled"
         )
+
+    cached = work / "cached.png"
+    output = run([str(args.sketchbook), str(fixture), "--frame", str(cached)])
+    if "live · cached build" not in output or corner_pixel(cached) != FIXTURE_RGBA:
+        sys.exit("an unchanged sketch did not reuse its build across processes")
+    header.write_text("#define FIXTURE_RED 0\n")
+    changed = work / "changed.png"
+    output = run([str(args.sketchbook), str(fixture), "--frame", str(changed)])
+    if "live · cached build" in output or corner_pixel(changed) != (0, 0, 0, 255):
+        sys.exit("a changed included header did not invalidate the cached build")
 
     # THE CONTROL: the same sketch out of the registry, which the fixture
     # cannot have touched.

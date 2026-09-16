@@ -34,12 +34,13 @@ checks that the environment matches the host's Python ABI first.
 
 The **Open** menu uses native pickers for a sketch file or a workspace
 folder. A workspace is an ordinary directory: its C++ and Python sketches
-join the bundled catalogue in the Workspace collection. Discovery skips
+appear in their own Workspace collection, without the bundled catalogue. Discovery skips
 helper sources, build products, virtual environments and nested Python
 projects. Reopening a folder discovers added or removed sketches.
 Recent files and folders persist in application settings, including the
-last selected sketch in each workspace. A normal launch restores the last
-opened location, falling back to the bundled catalogue if it is missing.
+last selected sketch in each workspace. A normal launch shows Welcome with Open Workspace, Open Sketch, recent
+locations, and Browse Examples. Close Workspace returns to Welcome and
+releases the window's sessions and Python environment; recents remain.
 Opening a workspace restores its last selected entry when that file still
 exists. A workspace with one sketch opens it directly. Several sketches
 start on a chooser, with the Library showing the Workspace collection;
@@ -47,9 +48,17 @@ alphabetical order never chooses which of them runs. An empty workspace
 explains how to declare a sketch. The canvas labels the exact entry file,
 workspace rows show its relative path, and Details shows its full path.
 Missing recent entries remain visible until the history is cleared.
-`--no-restore` opens the bundled catalogue directly.
+`--examples` (or `--no-restore`) opens the bundled catalogue directly.
 
-Opening a file or folder creates another Sketchbook window. Python project
+Bundled Python examples share the uv project and lockfile in `sketches/`.
+Browse Examples prepares that environment, including NumPy, before opening
+its window. Opening those examples by path, or rendering them headlessly,
+uses the same environment. The native host supplies Sigil itself; uv installs
+the examples' third-party dependencies. A nested project keeps its own
+environment. No terminal preparation is required.
+
+Opening a file or folder creates another Sketchbook window. From Welcome,
+the new window replaces Welcome; from a workspace, it opens alongside it. Python project
 dependencies are prepared automatically before that window starts, and each
 window uses one Python environment. C++ sketches and standalone Python
 files need no project configuration. `--workspace <directory>` opens the
@@ -1341,9 +1350,9 @@ embedding a scripting language — so a sketch never leaves the real API.
   static libraries. The units — the entry, the sources beside it when
   the sketch is a directory — compile side by side
   into cached objects and link once; a unit is compiled again only when
-  its own source or a local header has been written since. Literal quoted
-  includes resolve relative to their including file and are followed
-  recursively; framework includes remain part of the framework build.
+  its preprocessed contents, compiler settings, or native host build differ.
+  The live watcher follows literal quoted local includes recursively;
+  the cache lookup resolves all includes through the compiler.
 * **The guest compiles hidden**, with `-fvisibility=hidden
   -fvisibility-inlines-hidden` on top of the flags the build captured,
   and that is what makes the file on disk the thing that runs. A sketch
@@ -1378,12 +1387,24 @@ embedding a scripting language — so a sketch never leaves the real API.
   `--headless` sweep walks the compiled-in registry, hosts nothing and
   makes none. Removing it disturbs nothing: no dylib is ever dlclosed,
   and an unlinked file that is mapped stays readable until the last
-  mapping goes. Nothing on disk is read across runs anyway — the
-  freshness table that decides a rebuild is in memory. A run that was
+  mapping goes. Reusable builds live separately in the persistent cache.
+  A run that was
   killed or that faulted never reached that removal, so before a host
   makes its own directory it removes the sibling ones whose pid no
   process holds; a live pid's directory is never touched, this process's
   own least of all.
+* **Successful C++ builds survive session eviction and application restarts.**
+  The persistent cache lives in `~/Library/Caches/SigilSketch/builds` on macOS,
+  or `SigilSketch/builds` under the XDG cache directory on other platforms.
+  `SIGIL_SKETCH_CACHE` selects another directory; an empty value disables it.
+  The compiler preprocesses each unit to validate all resolved includes and
+  macros. Compiler version, flags, and the running native image's path and
+  pinned build timestamp also participate in the key. A matching artifact
+  is copied into a unique runtime path before loading, so sessions do not
+  share sketch-owned static state merely because they share a cached build.
+  Missing artifacts compile normally; failed builds do not populate the cache.
+  Unchanged C++ source still needs preprocessing on a cache lookup, but no
+  code generation or link. Bundled examples open their compiled-in bodies.
 * **A build is named for the host that made it** —
   `sketch_<host>_<build>.dylib` — because every host in a process links
   into that one directory. Named by

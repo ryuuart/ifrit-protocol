@@ -32,6 +32,7 @@
 #include <stdexcept>
 #include <string_view>
 
+#include "BuildCache.h"
 #include "BuildDirectory.h"
 #include "SkewGuard.h"
 #include "sigilsketch/core/Crash.h"
@@ -82,6 +83,56 @@ int run(const std::string& command, std::string& output) {
   return pclose(pipe);
 }
 
+// Compiler paths and authored paths are shell arguments, including apostrophes.
+std::string shellArgument(std::string_view value) {
+  std::string result = "'";
+  for (char ch : value) result += ch == '\'' ? "'\"'\"'" : std::string(1, ch);
+  return result + "'";
+}
+
+// Preprocessing asks the compiler itself to resolve every include and macro.
+// A content key therefore covers angle includes, conditional includes, flags,
+// and the native image this guest resolves its framework symbols from.
+struct BuildInputs {
+  std::string key;
+  std::vector<std::string> units;
+};
+
+BuildInputs cacheInputs(const Host::Options& options,
+                        const std::vector<std::filesystem::path>& sources) {
+  if (options.hostStamp == std::filesystem::file_time_type{}) return {};
+  std::string version;
+  if (run(shellArgument(options.compiler) + " --version", version) != 0)
+    return {};
+  Dl_info image{};
+  dladdr(reinterpret_cast<const void*>(&hostBinaryTime), &image);
+  std::ifstream flags(options.flagsFile);
+  if (!flags) return {};
+  std::string identity =
+      "sigil-build-2\n" + options.compiler + "\n" + version + "\n" +
+      (image.dli_fname ? image.dli_fname : "") + "\n" +
+      std::to_string(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                         options.hostStamp.time_since_epoch())
+                         .count()) +
+      "\n" + std::string(std::istreambuf_iterator<char>(flags), {});
+  BuildInputs inputs;
+  std::string linked = identity;
+  for (const auto& unit : sources) {
+    std::string preprocessed;
+    if (run(shellArgument(options.compiler) + " @" +
+                shellArgument(options.flagsFile.string()) +
+                " -fvisibility=hidden -fvisibility-inlines-hidden -E " +
+                shellArgument(unit.string()),
+            preprocessed) != 0)
+      return {};
+    inputs.units.push_back(
+        buildDigest(identity + "\n" + unit.string() + "\n" + preprocessed));
+    linked += "\n" + inputs.units.back();
+  }
+  inputs.key = buildDigest(linked);
+  return inputs;
+}
+
 /** Where a unit's object goes: named for the unit, and for the whole of
  *  its path, so two units of one stem in different directories — two
  *  sketches' `tables.cpp` files — do not share one. */
@@ -121,9 +172,11 @@ std::string compileLine(const Host::Options& options,
                         const std::filesystem::path& source,
                         const std::filesystem::path& object) {
   std::ostringstream cmd;
-  cmd << options.compiler << " @" << options.flagsFile
-      << " -fvisibility=hidden -fvisibility-inlines-hidden -c -o " << object
-      << ' ' << source;
+  cmd << shellArgument(options.compiler) << " @"
+      << shellArgument(options.flagsFile.string())
+      << " -fvisibility=hidden -fvisibility-inlines-hidden -c -o "
+      << shellArgument(object.string()) << ' '
+      << shellArgument(source.string());
   return cmd.str();
 }
 
@@ -134,14 +187,15 @@ std::string linkLine(const Host::Options& options,
                      const std::vector<std::filesystem::path>& objects,
                      const std::filesystem::path& out) {
   std::ostringstream cmd;
-  cmd << options.compiler
+  cmd << shellArgument(options.compiler)
 #ifdef __APPLE__
       << " -shared -undefined dynamic_lookup -Wl,-dead_strip"
 #else
       << " -shared"
 #endif
-      << " -o " << out;
-  for (const std::filesystem::path& object : objects) cmd << ' ' << object;
+      << " -o " << shellArgument(out.string());
+  for (const std::filesystem::path& object : objects)
+    cmd << ' ' << shellArgument(object.string());
   return cmd.str();
 }
 
@@ -348,26 +402,17 @@ void Host::startCompile() {
   const std::filesystem::path out =
       m_buildDirectory / ("sketch_" + std::to_string(m_hostId) + "_" +
                           std::to_string(++m_generation) + ".dylib");
-  // Every unit is on the link line; only the stale ones are compiled. A
-  // unit is stale when it has never been built, when its source is not
-  // the one its object came from, or when any header around the sketch
-  // has been written since — the one conservative rule that needs no
-  // dependency scan, and the one that makes a table in its own unit
-  // free to every edit of the entry.
+  // Each host owns its scratch objects; persistent objects are copied in.
   std::vector<std::filesystem::path> objects;
   std::vector<Unit> stale;
-  const std::filesystem::file_time_type headers = m_headerStamp;
-  for (const std::filesystem::path& source : units()) {
-    std::error_code ec;
-    const auto sourceTime = std::filesystem::last_write_time(source, ec);
-    const std::filesystem::path object = objectFor(m_buildDirectory, source);
+  auto sources = units();
+  for (const std::filesystem::path& source : sources) {
+    const auto object =
+        m_buildDirectory /
+        (std::to_string(m_hostId) + "_" +
+         objectFor(m_buildDirectory, source).filename().string());
     objects.push_back(object);
-    const auto built = m_built.find(source);
-    const bool fresh = !ec && built != m_built.end() &&
-                       built->second.source == sourceTime &&
-                       built->second.headers == headers &&
-                       std::filesystem::exists(built->second.object, ec);
-    if (!fresh) stale.push_back({source, object, sourceTime});
+    stale.push_back({source, object});
   }
   std::vector<std::string> compiles;
   compiles.reserve(stale.size());
@@ -380,12 +425,20 @@ void Host::startCompile() {
       // copying the captures can fail only on allocation
       // NOLINTNEXTLINE(bugprone-exception-escape)
       [compiles = std::move(compiles), link = std::move(link),
-       stale = std::move(stale), headers, total = (int)objects.size(),
-       out]() -> CompileResult {
+       stale = std::move(stale), total = (int)objects.size(), out,
+       options = m_options, sources = std::move(sources)]() -> CompileResult {
         CompileResult result;
         result.library = out;
-        result.compiled = stale;
-        result.headers = headers;
+        const auto cache = buildCacheDirectory();
+        const auto inputs =
+            cache.empty() ? BuildInputs{} : cacheInputs(options, sources);
+        result.cacheKey = inputs.key;
+        if (restoreBuild(cache, inputs.key, out)) {
+          result.ok = true;
+          result.cached = true;
+          return result;
+        }
+
         result.units = total;
         // The stale units compile side by side, so a sketch of several
         // units takes as long as its slowest one — which is the entry
@@ -393,16 +446,33 @@ void Host::startCompile() {
         // than work this process does, so it goes to the fan-out that
         // exists for waiting, and each unit writes only its own two
         // elements.
+        std::vector<unsigned char> restored(compiles.size(), 0);
         std::vector<std::string> outputs(compiles.size());
         std::vector<int> codes(compiles.size(), 0);
         core::schedule::concurrentIo(compiles.size(), [&](size_t unit) {
-          codes[unit] = run(compiles[unit], outputs[unit]);
+          if (!inputs.key.empty() &&
+              restoreBuild(cache / "objects", inputs.units[unit],
+                           stale[unit].object))
+            restored[unit] = 1;
+          else
+            codes[unit] = run(compiles[unit], outputs[unit]);
         });
         // Failures in unit order, so the entry's errors read first.
         for (size_t i = 0; i < compiles.size(); ++i)
           if (codes[i] != 0) result.output += outputs[i];
-        if (!result.output.empty()) return result;
+        if (std::any_of(codes.begin(), codes.end(),
+                        [](int code) { return code != 0; }))
+          return result;
+        for (size_t i = 0; i < stale.size(); ++i)
+          if (!restored[i]) ++result.compiled;
         result.ok = run(link, result.output) == 0;
+        if (result.ok && !inputs.key.empty() &&
+            cacheInputs(options, sources).key == inputs.key) {
+          for (size_t i = 0; i < stale.size(); ++i)
+            if (!restored[i])
+              storeBuild(cache / "objects", inputs.units[i], stale[i].object);
+          storeBuild(cache, inputs.key, out);
+        }
         return result;
       });
 }
@@ -526,12 +596,21 @@ void Host::poll() {
                                std::future_status::ready) {
     CompileResult result = m_compile.get();
     if (result.ok) {
-      for (const Unit& unit : result.compiled)
-        m_built[unit.source] =
-            Built{unit.object, unit.sourceTime, result.headers};
-      m_unitsCompiled = (int)result.compiled.size();
+      m_unitsCompiled = result.compiled;
       m_unitsTotal = result.units;
       adopt(result.library);
+      if (result.cached) {
+        if (m_errorLog.empty()) {
+          m_status = "live · cached build";
+          std::fprintf(stderr, "[sketch] %s\n", m_status.c_str());
+        } else {
+          // An unreadable artifact is disposable. Compile again without it.
+          std::error_code error;
+          std::filesystem::remove(
+              buildCacheDirectory() / (result.cacheKey + ".bin"), error);
+          m_everCompiled = false;
+        }
+      }
     } else {
       m_errorLog = result.output;
       m_status = live() ? "build " + std::to_string(m_generation) +

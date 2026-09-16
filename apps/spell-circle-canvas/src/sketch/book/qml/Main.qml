@@ -161,27 +161,31 @@ ApplicationWindow {
         // The plural form: Save is more than one binding on some
         // platforms, and binding the first silently drops the rest.
         sequences: [StandardKey.Save]
+        enabled: !actions.welcome
         onActivated: view.capture()
     }
     Action {
         id: publicationAction
         text: "Publish"
         shortcut: "Ctrl+P"
+        enabled: !actions.welcome
         checkable: true
         checked: view.publishing
         onTriggered: view.publishing = checked
     }
     Shortcut {
         sequence: "/"
-        enabled: !librarySearch.activeFocus && !view.canvasFocused
+        enabled: !actions.welcome && !librarySearch.activeFocus && !view.canvasFocused
         onActivated: topBar.focusFilter()
     }
     Shortcut {
         sequences: [StandardKey.Find]
+        enabled: !actions.welcome
         onActivated: topBar.focusFilter()
     }
     Shortcut {
         sequence: "Ctrl+I"
+        enabled: !actions.welcome
         onActivated: detailsDrawer.visible ? detailsDrawer.close() : detailsDrawer.open()
     }
 
@@ -273,7 +277,7 @@ ApplicationWindow {
         if (actions.workspacePath.length > 0)
             browser.openWorkspace(window.openAt);
         else
-            browser.openOn(window.openAt);
+            browser.openOn(window.openAt, catalog.openAtOnce);
         window.restoringSettings = false;
         // THE LOADING PHASE. Every sketch with no still gets one while
         // nothing is being presented, which is the only stretch in which
@@ -338,7 +342,21 @@ ApplicationWindow {
         }
     }
 
+    Welcome {
+        anchors.fill: parent
+        visible: actions.welcome
+        recents: actions.recents
+        opening: actions.opening
+        status: actions.openError || actions.openStatus
+        onOpenFileRequested: sketchDialog.open()
+        onOpenWorkspaceRequested: workspaceDialog.open()
+        onExamplesRequested: actions.browseExamples()
+        onRecentRequested: recent => actions.openRecent(recent)
+        onClearRecentsRequested: actions.clearRecents()
+    }
+
     ColumnLayout {
+        visible: !actions.welcome
         anchors.fill: parent
         anchors.margins: Ui.Theme.sectionSpacing
         spacing: Ui.Theme.sectionSpacing
@@ -346,6 +364,7 @@ ApplicationWindow {
         TopBar {
             id: topBar
             Layout.fillWidth: true
+            examples: actions.workspacePath.length === 0 && browser.workspaceSketches.length === 0
             workspaceName: actions.workspaceName
             inspectorOpen: detailsDrawer.visible
             taskRunning: actions.taskRunning
@@ -353,6 +372,8 @@ ApplicationWindow {
             recents: actions.recents
             onInspectorToggled: detailsDrawer.visible ? detailsDrawer.close() : detailsDrawer.open()
             onVideoRequested: window.exportVideo(-1)
+            onCloseWorkspaceRequested: actions.closeWorkspace()
+            onExamplesRequested: actions.browseExamples()
             onOpenFileRequested: sketchDialog.open()
             onOpenWorkspaceRequested: workspaceDialog.open()
             onRecentRequested: recent => actions.openRecent(recent)

@@ -239,7 +239,8 @@ Python version.
 Use Sketchbook's **Open → Open Sketch…** or **Open → Open Workspace…**
 picker to open sources outside the bundled catalogue. The app remembers
 recent files, workspace folders and each workspace's selected sketch; a
-normal launch restores the last opened location. A folder is the workspace,
+normal launch shows Welcome with recent locations and Browse Examples.
+Close Workspace returns there without forgetting recent locations. A folder is the workspace,
 so there is no separate workspace document to create.
 
 **The entry is a file, chosen explicitly.** Open Sketch loads that file.
@@ -297,6 +298,13 @@ entry `<name>/<name>.py` declaring a `@sketch` class joins the registry on
 the next build. Helpers without a declaration stay out of the catalogue. Registration
 reads metadata without executing the sketch; every session imports current
 source, including thumbnail and headless sessions.
+
+The bundled catalogue shares the uv project and lockfile under
+`apps/spell-circle-canvas/src/sketch/sketches/`. Browse Examples prepares its
+interpreter and declared dependencies, including NumPy, automatically before
+opening the catalogue. Direct file opens and headless rendering use that same
+project. Independent sketches still use their nearest project or virtual
+environment. The standalone wheel keeps NumPy in its optional `studies` extra.
 
 A sketch with optional installed modules can declare a literal tuple such
 as `REQUIRES = ("numpy",)`. The browser keeps the entry visible and marks

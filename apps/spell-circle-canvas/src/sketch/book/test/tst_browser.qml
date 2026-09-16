@@ -56,6 +56,16 @@ TestCase {
         return browser.navigationRows.find(function(row) { return row.path === path; });
     }
 
+    function test_openingAnExplicitSketchClearsAGroupThatHidesIt() {
+        browser.chooseGroup("Typography");
+        settle();
+        browser.openOn(1);
+        settle();
+        compare(browser.groupPath, "");
+        compare(browser.selectedIndex, 1);
+        verify(browser.rowForSketch(1) >= 0);
+    }
+
     function test_overlappingTagsCountSketchesOnce() {
         compare(node("Typography").count, 2);
         browser.chooseGroup("Typography");

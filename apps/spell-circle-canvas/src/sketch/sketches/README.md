@@ -8,6 +8,12 @@ page is about what is in the directory.
 [Feature coverage](COVERAGE.md) maps public visual feature families to
 examples and distinguishes sketch demonstrations from tests and host lanes.
 
+The Python examples share this directory's `pyproject.toml` and `uv.lock`.
+Sketchbook prepares the matching `.venv` automatically, including NumPy for
+the flow-field and reaction-diffusion studies. The native host supplies Sigil;
+this project declares third-party dependencies. A sketch with its own nested
+Python project opens independently with that project's environment.
+
 Most of these are **studies**: each rebuilds something that actually
 existed — a shipped game screen, a real website, a published plate, a
 paving you can walk on, a lit set — out of nothing but this repository's

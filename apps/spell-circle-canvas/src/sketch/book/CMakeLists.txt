@@ -67,7 +67,7 @@ set_target_properties(Sketchbook PROPERTIES
 # module. Both properties are read when the module is declared, so
 # they are set before it.
 foreach(sketchbook_qml IN ITEMS
-    Main CanvasPane WorkspaceWelcome Browser GroupTree TopBar SketchList SketchGallery PlateThumb Inspector
+    Main Welcome CanvasPane WorkspaceWelcome Browser GroupTree TopBar SketchList SketchGallery PlateThumb Inspector
     StatusStrip)
   set_source_files_properties(qml/${sketchbook_qml}.qml
     PROPERTIES QT_RESOURCE_ALIAS ${sketchbook_qml}.qml)
@@ -78,6 +78,7 @@ qt_add_qml_module(Sketchbook
   VERSION 1.0
   QML_FILES
     qml/Main.qml
+    qml/Welcome.qml
     qml/CanvasPane.qml
     qml/WorkspaceWelcome.qml
     qml/Browser.qml

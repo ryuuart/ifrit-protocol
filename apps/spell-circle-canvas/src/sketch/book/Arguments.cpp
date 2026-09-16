@@ -45,7 +45,7 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
         return std::nullopt;
       }
       args.workspace = argv[++i];
-    } else if (arg == "--no-restore") {
+    } else if (arg == "--no-restore" || arg == "--examples") {
       args.noRestore = true;
     } else if (arg == "--python-info") {
       args.pythonInfo = true;

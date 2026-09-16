@@ -13,7 +13,6 @@
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
 
-#include <boost/container/flat_map.hpp>
 #include <chrono>
 #include <exception>
 #include <filesystem>
@@ -99,7 +98,7 @@ class Host {
     bool deterministic = false;
     /** Start from the sketch already compiled into this binary rather
      *  than by building the file, and compile only once the file
-     *  changes. Null means always build. */
+     *  changes. Null loads a matching cached build or compiles the source. */
     const Entry* compiledIn = nullptr;
     /** THE IMAGE THIS HOST IS PART OF, as the skew guard's reference
      *  point: a dylib built against a framework header newer than this
@@ -307,30 +306,15 @@ class Host {
   struct Unit {
     std::filesystem::path source;
     std::filesystem::path object;
-    std::filesystem::file_time_type sourceTime;
   };
   struct CompileResult {
     bool ok = false;
+    bool cached = false;
+    std::string cacheKey;
     std::filesystem::path library;
     std::string output;
-    /** The units this build compiled — recorded as built once the
-     *  build is adopted, under the header stamp they were compiled
-     *  against — and how many the sketch has in all. */
-    std::vector<Unit> compiled;
-    std::filesystem::file_time_type headers;
+    int compiled = 0;
     int units = 0;
-  };
-  /** WHAT A UNIT WAS LAST COMPILED FROM. Its object is reused while its
-   *  source and the headers around the sketch are the ones it was
-   *  compiled against. The headers are ONE stamp for every unit rather
-   *  than a dependency list per unit: any header beside the sketch or
-   *  owned by another sketch may be included by any unit, and re-reading
-   *  two small directories is cheaper than asking the compiler which
-   *  unit includes what. */
-  struct Built {
-    std::filesystem::path object;
-    std::filesystem::file_time_type source;
-    std::filesystem::file_time_type headers;
   };
 
   void startCompile();
@@ -383,7 +367,6 @@ class Host {
   std::filesystem::file_time_type m_headerStamp;
   std::filesystem::file_time_type m_unitStamp;
   std::chrono::steady_clock::time_point m_lastSiblingScan;
-  boost::container::flat_map<std::filesystem::path, Built> m_built;
   int m_unitsCompiled = 0;  // of the last adopted build, for its status line
   int m_unitsTotal = 0;
   bool m_everCompiled = false;

@@ -1,14 +1,14 @@
 /** @file
  * Sketchbook: the one live application, and the one headless renderer.
  *
- *   Sketchbook [--no-gpu]                      the app, on the last sketch
+ *   Sketchbook [--no-gpu]                      the Welcome screen
  *   Sketchbook --sketch <name>                 the app, on that one
  *   Sketchbook --list [--kind canvas|set]     the registry, one per line
  *   Sketchbook --catalog [<file.cpp>]          the browser's rows, one JSON
  *                                              object per line
  *   Sketchbook --python-info                  Python ABI as JSON
  *   Sketchbook --workspace <directory>        a saved folder selection
- *   Sketchbook --no-restore                   the bundled catalogue
+ *   Sketchbook --examples                     the bundled catalogue
  *   Sketchbook --compare <dir-a> <dir-b>       compare two plate sweeps
  *   Sketchbook --headless <outdir> [--gpu] [--sketch <name>]
  *              [--kind <k>]
@@ -156,18 +156,6 @@ int main(int argc, char* argv[]) {
       windowRun && args.shotPath.empty() && args.windowBench.seconds <= 0;
   QSettings workspaceSettings;
   sketchbook::WorkspaceHistory history(workspaceSettings);
-  if (remembersWindow && !args.noRestore && args.workspace.empty() &&
-      args.sketchFile.empty() && args.selected.empty()) {
-    const auto previous = history.restore();
-    std::error_code error;
-    if (!previous.root.empty() &&
-        std::filesystem::is_directory(previous.root, error)) {
-      args.workspace = previous.root;
-    } else if (previous.root.empty() && !previous.file.empty() &&
-               std::filesystem::is_regular_file(previous.file, error)) {
-      args.sketchFile = previous.file;
-    }
-  }
   std::vector<std::filesystem::path> workspaceSources;
   if (!args.workspace.empty()) {
     std::error_code error;
@@ -205,13 +193,25 @@ int main(int argc, char* argv[]) {
   // Environment selection precedes catalogue probes and thumbnail workers.
   // A picker supplies an already prepared interpreter; direct file opens and
   // restored workspaces resolve theirs here before any Python module runs.
+  const bool examples =
+      args.workspace.empty() && args.sketchFile.empty() &&
+      (args.noRestore || !args.selected.empty() || args.headless ||
+       args.warmThumbnails || !args.storyOptions.outputPath.empty() ||
+       args.windowBench.seconds > 0);
+  const bool pythonExamples =
+      examples &&
+      (args.selected.empty() ||
+       sketch::sourceOf(SIGIL_SKETCH_DIR, args.selected).extension() == ".py");
   const bool hasPython =
+      pythonExamples ||
       std::any_of(workspaceSources.begin(), workspaceSources.end(),
                   [](const auto& path) { return path.extension() == ".py"; });
   if (args.pythonExecutable.empty() && hasPython && !args.catalog &&
       !args.list) {
     const auto source =
-        args.workspace.empty() ? args.sketchFile : args.workspace;
+        pythonExamples
+            ? std::filesystem::path(SIGIL_SKETCH_DIR)
+            : (args.workspace.empty() ? args.sketchFile : args.workspace);
     QProcess prepare;
     auto prepareEnvironment = QProcessEnvironment::systemEnvironment();
     prepareEnvironment.remove(QStringLiteral("PYTHONEXECUTABLE"));
@@ -243,6 +243,8 @@ int main(int argc, char* argv[]) {
       args.workspace.clear();
       args.sketchFile.clear();
       workspaceSources.clear();
+      args.noRestore = false;
+      args.selected.clear();
     } else {
       args.pythonExecutable = environment.executable;
       args.pythonAbi = environment.abi;
@@ -490,6 +492,10 @@ int main(int argc, char* argv[]) {
   SketchCatalog::sketchDirectory = sketchDirectory;
   SketchCatalog::workspaceRoot = args.workspace;
   SketchActions::workspaceRoot = args.workspace;
+  SketchActions::startsAtWelcome =
+      windowRun && !args.noRestore && args.workspace.empty() &&
+      args.sketchFile.empty() && args.selected.empty() &&
+      args.windowBench.seconds <= 0;
   SketchActions::pythonExecutable = args.pythonExecutable;
   SketchActions::pythonAbi = QString::fromStdString(args.pythonAbi);
   SketchActions::rememberSelections = remembersWindow;
@@ -539,10 +545,14 @@ int main(int argc, char* argv[]) {
   // for exactly as long as nothing is being presented. A run that named
   // a sketch, or that is here to photograph or measure one, is not
   // browsing: it opens at once and no fill starts.
-  SketchCatalog::opensAt = openAt >= 0 || !args.workspace.empty() ? openAt : 0;
+  SketchCatalog::opensAt =
+      SketchActions::startsAtWelcome
+          ? -1
+          : (openAt >= 0 || !args.workspace.empty() ? openAt : 0);
   SketchCatalog::opensWithoutFill =
-      !args.shotPath.empty() || args.windowBench.seconds > 0.0 || fileGiven ||
-      !args.workspace.empty() || chosen >= 0;
+      SketchActions::startsAtWelcome || !args.shotPath.empty() ||
+      args.windowBench.seconds > 0.0 || fileGiven || !args.workspace.empty() ||
+      chosen >= 0;
   // A FRAME-RATE SWEEP MEASURES THE FRAMES AND NOTHING BESIDE THEM. The
   // browser photographs each sketch it opens for its own store, on the
   // render thread and inside a frame; here that still would be taken in

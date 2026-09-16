@@ -108,6 +108,12 @@ TEST(SketchbookArguments, PythonPathsAndPublishingKeepTheirOwnArguments) {
   EXPECT_TRUE(plain->pythonAbi.empty());
 }
 
+TEST(SketchbookArguments, ExamplesCanBeOpenedExplicitly) {
+  const auto args = parse({"--examples"});
+  ASSERT_TRUE(args);
+  EXPECT_TRUE(args->noRestore);
+}
+
 TEST(SketchbookArguments, WorkspaceSelectionAndRestoreCanBeExplicit) {
   const auto args =
       parse({"--workspace", "/tmp/my sketches", "--no-restore", "scene.py"});
