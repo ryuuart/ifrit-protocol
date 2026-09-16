@@ -9,6 +9,7 @@ from sigil.native import (
     data,
     draw,
     geometry,
+    io,
     material,
     motion,
     sketch,
@@ -91,3 +92,20 @@ def setup(ctx: sketch.Context) -> None:
     ctx.render(compose.graphics("ink", paint))
     ctx.ticker.add(lambda dt, elapsed: elapsed < 2)
     ctx.ticker.addFixed(60, lambda: None)
+    hub = ctx.assets.hub()
+    assert_type(hub, io.Hub)
+    feed = hub.feed("udp://:27021", io.FeedPolicy(capacity=64))
+    assert_type(feed, io.Feed)
+    assert_type(feed.latest(), bytes | None)
+    assert_type(feed.receive(), io.Arrival | None)
+    if (arrival := feed.newest()) is not None:
+        assert_type(arrival.bytes, bytes)
+        assert_type(arrival.from_, str)
+        assert_type(feed.sendTo(arrival.from_, memoryview(arrival.bytes)), bool)
+    assert_type(hub.write("output.json", b"{}"), bool)
+
+
+standalone = io.Hub()
+io.registerUdp(standalone)
+assert_type(standalone.poll(), bool)
+standalone.dispatch(0.5)

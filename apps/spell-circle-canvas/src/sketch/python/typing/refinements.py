@@ -40,10 +40,20 @@ erased("_sigil.skia.Paint", "setColor", "_t.ColorLike")
 erased("_sigil.skia.Path", "Oval Rect", "_t.RectLike")
 erased("_sigil.skia.PathBuilder", "addArc addOval addRect", "_t.RectLike")
 erased("_sigil.weave.Type", "color", "_t.ColorLike | None")
-returns("_sigil.io.Hub", "blob", "bytes | None")
-PARAMETERS["_sigil.io.Hub.mount"] = {
-    "arg1": "os.PathLike[str] | os.PathLike[bytes] | str | bytes"
-}
+returns("_sigil.io.Hub", "blob fetch", "bytes | None")
+returns("_sigil.io.Feed", "latest", "bytes | None")
+erased("_sigil.io.Hub", "write", "collections.abc.Buffer")
+erased("_sigil.io.Arrival", "__init__ bytes", "collections.abc.Buffer")
+erased("_sigil.io.Feed", "deliver send sendTo", "collections.abc.Buffer")
+erased("_sigil.io.SharedMemoryWriter", "write", "collections.abc.Buffer")
+for path in (
+    "_sigil.io.Hub.mount",
+    "_sigil.io.Hub.setNetworkCacheDirectory",
+    "_sigil.io.Feed.record",
+    "_sigil.io.RecordingWriter.__init__",
+    "_sigil.io.readRecording",
+):
+    PARAMETERS[path] = {"path": "os.PathLike[str] | os.PathLike[bytes] | str | bytes"}
 returns("_sigil.skia.Path", "getBounds", "_sigil.skia.Rect")
 returns("_sigil.skia.Picture", "cullRect", "_sigil.skia.Rect")
 PARAMETERS["_sigil.skia.Point.__init__"] = {

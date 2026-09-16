@@ -73,6 +73,7 @@ def generate(destination: pathlib.Path) -> dict[str, str]:
             "__hash__: typing.ClassVar[None] = None",
             "__hash__: typing.ClassVar[None] = None  # type: ignore[assignment]",
         )
+        result = "\n".join(line.rstrip() for line in result.splitlines()) + "\n"
         ast.parse(result)
         outputs[str(relative)] = result
     refinements.validate()

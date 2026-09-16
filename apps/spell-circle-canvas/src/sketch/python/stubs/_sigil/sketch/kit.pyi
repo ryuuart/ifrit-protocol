@@ -814,11 +814,11 @@ class TypeScale:
 class Voice:
     """
     Members:
-    
+
       Book
-    
+
       Terminal
-    
+
       Interface
     """
     Book: typing.ClassVar[Voice]

@@ -11,12 +11,12 @@ find_package(pybind11 CONFIG REQUIRED)
 
 sigil_library(SigilSketchPython
   SOURCES Python.cpp Bindings.cpp Module.cpp ComposeBindings.cpp MotionBindings.cpp
-          KitBindings.cpp DataBindings.cpp PenBindings.cpp ValueBindings.cpp GeometryBindings.cpp
+          KitBindings.cpp DataBindings.cpp IOBindings.cpp PenBindings.cpp ValueBindings.cpp GeometryBindings.cpp
           BrushBindings.cpp
   HEADERS Python.h
   PUBLIC SigilSketch
   PRIVATE pybind11::headers SigilSketchKit
-          SigilDataDecode SigilDataQuery SigilDataScale
+          SigilDataDecode SigilDataQuery SigilDataScale SigilIOTransport
           SigilGeometryMeshRender SigilGeometryKit SigilMaterialPattern SigilMaterialField
           SigilImageDecode SigilImageEncode SigilDrawBrush SigilDrawBrushFormat)
 target_include_directories(SigilSketchPython PRIVATE ${Python3_INCLUDE_DIRS})
@@ -126,7 +126,9 @@ if(SIGIL_BASEDPYRIGHT)
       --python "${Python3_EXECUTABLE}" --checker "${SIGIL_BASEDPYRIGHT}"
       --extra-path "${CMAKE_BINARY_DIR}/python"
       --example "${CMAKE_CURRENT_SOURCE_DIR}/../sketches/python_hello.py"
-      --example "${CMAKE_CURRENT_SOURCE_DIR}/../sketches/python_hello_compose.py")
+      --example "${CMAKE_CURRENT_SOURCE_DIR}/../sketches/python_hello_compose.py"
+      --example "${CMAKE_CURRENT_SOURCE_DIR}/../sketches/python_live_signals.py"
+      --example "${CMAKE_CURRENT_SOURCE_DIR}/sigil/examples/tools/send_live_signals.py")
 endif()
 if(SIGIL_TYPING_PYTHON)
   add_test(NAME sketch_python_stub_drift

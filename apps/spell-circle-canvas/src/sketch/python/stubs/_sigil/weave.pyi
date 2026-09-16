@@ -116,13 +116,13 @@ class Leading:
     class Kind:
         """
         Members:
-        
+
           Face
-        
+
           Multiple
-        
+
           Absolute
-        
+
           Grid
         """
         Absolute: typing.ClassVar[Leading.Kind]
@@ -206,13 +206,13 @@ class Length:
     class Unit:
         """
         Members:
-        
+
           Px
-        
+
           Em
-        
+
           Rem
-        
+
           Lh
         """
         Em: typing.ClassVar[Length.Unit]
@@ -290,9 +290,9 @@ class Length:
 class LineBreakStrategy:
     """
     Members:
-    
+
       Greedy
-    
+
       KnuthPlass
     """
     Greedy: typing.ClassVar[LineBreakStrategy]
@@ -511,13 +511,13 @@ class StyleSheet:
 class TextAlignment:
     """
     Members:
-    
+
       Start
-    
+
       Center
-    
+
       End
-    
+
       Justify
     """
     Center: typing.ClassVar[TextAlignment]
@@ -590,13 +590,13 @@ class TextStyle:
 class TextTransform:
     """
     Members:
-    
+
       None_
-    
+
       Uppercase
-    
+
       Lowercase
-    
+
       Capitalize
     """
     Capitalize: typing.ClassVar[TextTransform]
@@ -720,13 +720,13 @@ class Type:
 class VerticalForm:
     """
     Members:
-    
+
       Auto
-    
+
       Upright
-    
+
       Rotated
-    
+
       TateChuYoko
     """
     Auto: typing.ClassVar[VerticalForm]
@@ -776,9 +776,9 @@ class VerticalForm:
 class WritingMode:
     """
     Members:
-    
+
       Horizontal
-    
+
       VerticalRL
     """
     Horizontal: typing.ClassVar[WritingMode]

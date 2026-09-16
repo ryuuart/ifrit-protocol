@@ -106,15 +106,15 @@ class Mesh:
 class Platonic:
     """
     Members:
-    
+
       Tetrahedron
-    
+
       Cube
-    
+
       Octahedron
-    
+
       Dodecahedron
-    
+
       Icosahedron
     """
     Cube: typing.ClassVar[Platonic]

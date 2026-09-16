@@ -22,9 +22,11 @@
 #include <stdexcept>
 #include <system_error>
 #include <thread>
+#include <unordered_map>
 
 #include "Bindings.h"
 #include "DataBindings.h"
+#include "IOBindings.h"
 #include "KitBindings.h"
 #include "ValueBindings.h"
 
@@ -153,11 +155,24 @@ struct State {
   weave::FontContext* fonts = nullptr;
   std::vector<std::shared_ptr<compose::TextureScene>>* scenes = nullptr;
   std::vector<std::shared_ptr<const void>> tickerOwners;
+  std::unordered_map<io::Feed*, std::shared_ptr<void>> feedLeases;
   std::thread::id thread;
   std::string key;
   bool deterministic = false;
   bool valid = false;
   bool failed = false;
+
+  void retainFeed(std::shared_ptr<io::Feed> feed) {
+    auto* identity = feed.get();
+    if (!feedLeases.contains(identity))
+      feedLeases.emplace(identity, retainSessionFeed(std::move(feed)));
+  }
+
+  void close() {
+    valid = false;
+    callbacks.clear();
+    feedLeases.clear();
+  }
 
   void update(SketchContext& ctx) {
     composer = &ctx.composer;
@@ -213,11 +228,6 @@ class AssetsView : public Context {
  public:
   using Context::Context;
 };
-class HubView : public Context {
- public:
-  using Context::Context;
-};
-
 int callbackArity(const py::function& fn, int maximum) {
   return py::module_::import("sigil._loader")
       .attr("arity")(fn, maximum)
@@ -305,13 +315,14 @@ class Body final : public CanvasBody {
     m_context = std::make_shared<Context>(state);
   }
 
-  ~Body() override {
-    m_state->valid = false;
-    m_state->callbacks.clear();
-  }
+  ~Body() override { m_state->close(); }
 
   void setup(SketchContext& ctx) override {
     m_state->update(ctx);
+    // Keep existing transports open while setup reacquires its declarations.
+    // Feeds omitted by this declaration close when its previous leases leave.
+    const auto previousFeeds = std::move(m_state->feedLeases);
+    m_state->feedLeases.clear();
     const KitScopeBoundary themes;
     try {
       if (m_setupArity == 0)
@@ -354,8 +365,7 @@ class PythonSession final : public Session {
 
   ~PythonSession() override {
     const py::gil_scoped_acquire lock;
-    m_state->valid = false;
-    m_state->callbacks.clear();
+    m_state->close();
     m_session.reset();
   }
 
@@ -418,10 +428,12 @@ class PythonSession final : public Session {
       function();
     } catch (const py::error_already_set& error) {
       m_state->failed = true;
+      m_state->feedLeases.clear();
       m_error = error.what();
       throw std::runtime_error(m_error);
     } catch (const std::exception& error) {
       m_state->failed = true;
+      m_state->feedLeases.clear();
       m_error = error.what();
       throw;
     }
@@ -611,7 +623,6 @@ void bindRuntime(py::module_& module) {
   auto composition = module.attr("compose").cast<py::module_>();
   auto clocks = module.attr("motion").cast<py::module_>();
   auto sketches = module.def_submodule("sketch");
-  auto resources = module.def_submodule("io");
   py::class_<compose::Composer::Stats>(composition, "ComposerStats")
 #define SIGIL_STAT(name) .def_readonly(#name, &compose::Composer::Stats::name)
       SIGIL_STAT(instances) SIGIL_STAT(yogaNodes) SIGIL_STAT(describedNodes)
@@ -675,38 +686,6 @@ void bindRuntime(py::module_& module) {
            [](const TickerView& v) { return v.state()->ticker->active(); })
       .def("elapsed",
            [](const TickerView& v) { return v.state()->ticker->elapsed(); });
-  py::class_<io::ResourceInfo>(resources, "ResourceInfo")
-      .def_readonly("byteSize", &io::ResourceInfo::byteSize)
-      .def_readonly("path", &io::ResourceInfo::path);
-  py::class_<HubView>(resources, "Hub")
-      .def(
-          "mount",
-          [](const HubView& v, std::string prefix, std::filesystem::path path) {
-            v.state()->assets->hub().mount(std::move(prefix), std::move(path));
-          })
-      .def("resolve",
-           [](const HubView& v, const std::string& uri) {
-             return v.state()->assets->hub().resolve(uri);
-           })
-      .def("text",
-           [](const HubView& v, const std::string& uri) {
-             return v.state()->assets->hub().text(uri);
-           })
-      .def("blob",
-           [](const HubView& v, const std::string& uri) -> py::object {
-             const auto bytes = v.state()->assets->hub().blob(uri);
-             if (!bytes) return py::none();
-             return py::bytes(
-                 reinterpret_cast<const char*>(bytes->bytes.data()),
-                 bytes->bytes.size());
-           })
-      .def("probe",
-           [](const HubView& v, const std::string& uri) {
-             return v.state()->assets->hub().probe(uri);
-           })
-      .def("select", [](const HubView& v, const std::string& selector) {
-        return v.state()->assets->hub().select(selector);
-      });
   py::class_<AssetsView>(sketches, "Assets")
       .def("image",
            [](const AssetsView& v, const std::string& uri) {
@@ -730,7 +709,15 @@ void bindRuntime(py::module_& module) {
            [](const AssetsView& v, const std::string& uri) {
              return dataDatabase(v.state()->assets->database(uri));
            })
-      .def("hub", [](const AssetsView& v) { return HubView(v.state()); })
+      .def("hub",
+           [](const AssetsView& v) {
+             v.state();
+             return HubHandle(
+                 [v]() -> io::Hub& { return v.state()->assets->hub(); },
+                 [v](std::shared_ptr<io::Feed> feed) {
+                   v.state()->retainFeed(std::move(feed));
+                 });
+           })
       .def("root",
            [](const AssetsView& v) { return v.state()->assets->root(); });
   py::class_<Context, std::shared_ptr<Context>>(module, "Context")

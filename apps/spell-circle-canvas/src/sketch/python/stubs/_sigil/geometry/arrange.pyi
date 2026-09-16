@@ -30,9 +30,9 @@ class Cell:
 class Turn:
     """
     Members:
-    
+
       Open
-    
+
       Closed
     """
     Closed: typing.ClassVar[Turn]

@@ -88,7 +88,7 @@ def main():
         examples = subprocess.check_output(
             [str(command), "examples"], cwd=root, env=environment, text=True
         )
-        if "python_orbits" not in examples.splitlines():
+        if not {"python_orbits", "python_live_signals"}.issubset(examples.splitlines()):
             raise RuntimeError(
                 "The installed package does not include its example sketches"
             )
@@ -107,6 +107,32 @@ def main():
             env=environment,
             check=True,
         )
+        subprocess.run(
+            [
+                str(command),
+                "render",
+                "--example",
+                "python_live_signals",
+                "-o",
+                str(root / "signals.png"),
+            ],
+            cwd=root,
+            env=environment,
+            check=True,
+        )
+        subprocess.run(
+            [
+                str(python),
+                "-I",
+                "-m",
+                "sigil.examples.tools.send_live_signals",
+                "--help",
+            ],
+            cwd=root,
+            env=environment,
+            check=True,
+            stdout=subprocess.DEVNULL,
+        )
         first, second = root / "command.png", root / "api.png"
         subprocess.run(
             [str(command), "render", str(source), "-o", str(first)],
@@ -114,13 +140,13 @@ def main():
             env=environment,
             check=True,
         )
-        program = """import pathlib, sys
+        program = """import pathlib, sys, time
 import sigil, _sigil
 from importlib.metadata import version
-from sigil import data
+from sigil import data, io
 from sigil.compose import kit as compose_kit
 from sigil.motion import Output
-from sigil.native import compose, data as native_data, motion, sketch
+from sigil.native import compose, data as native_data, io as native_io, motion, sketch
 from sigil.sketch import kit as sketch_kit
 from sigil.sketch import render_file
 root = pathlib.Path(sys.prefix).resolve()
@@ -136,10 +162,37 @@ assert compose_kit.Well is compose.kit.Well
 assert sketch_kit.Theme is sketch.kit.Theme
 assert Output is motion.Output
 assert data.Json is native_data.Json
+assert io.Hub is native_io.Hub
 payload = {"values": [1, 2, 3], "label": "installed"}
 assert data.decodeJson(data.encodeJson(payload)).to_python() == payload
 assert data.Scale(domain=(0, 100), range=(20, 420))(25) == 120
 assert compose_kit.line(length=24, thickness=2).__class__ is compose.Element
+hub = io.Hub()
+hub.mount("out://", pathlib.Path.cwd() / "output")
+encoded = data.encodeJson(payload).encode("utf-8")
+assert hub.write("out://readings.json", encoded)
+assert hub.blob("out://readings.json") == encoded
+io.registerUdp(hub)
+listener = hub.feed("udp://:0")
+assert listener.opened(), listener.error()
+peer = hub.feed("udp://127.0.0.1:" + listener.address().rsplit(":", 1)[1])
+def receive(feed):
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        arrival = feed.receive()
+        if arrival is not None:
+            return arrival
+        time.sleep(0.005)
+    raise AssertionError("Installed SigilIO loopback did not receive its message")
+try:
+    assert peer.send(encoded), peer.error()
+    arrival = receive(listener)
+    assert arrival.bytes == encoded
+    assert listener.sendTo(arrival.from_, b"ack")
+    assert receive(peer).bytes == b"ack"
+finally:
+    peer.close()
+    listener.close()
 search_path = tuple(sys.path)
 render_file(sys.argv[1], sys.argv[2])
 assert tuple(sys.path) == search_path, "Rendering changed Python's package search path"

@@ -7,19 +7,19 @@ __all__: list[str] = ['Source', 'Stream']
 class Source:
     """
     Members:
-    
+
       Pcg
-    
+
       Mix64
-    
+
       Xorshift
-    
+
       Halton
-    
+
       Sobol
-    
+
       Golden
-    
+
       Stratified
     """
     Golden: typing.ClassVar[Source]

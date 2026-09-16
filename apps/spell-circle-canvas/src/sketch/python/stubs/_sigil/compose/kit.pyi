@@ -140,11 +140,11 @@ class Caption:
 class CaptionWhere:
     """
     Members:
-    
+
       Split
-    
+
       Above
-    
+
       Below
     """
     Above: typing.ClassVar[CaptionWhere]

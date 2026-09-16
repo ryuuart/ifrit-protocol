@@ -36,6 +36,12 @@ def _seconds(value):
     return seconds
 
 
+def _publication(value):
+    if not value.strip():
+        raise argparse.ArgumentTypeError("publication name must not be empty")
+    return value
+
+
 def _executable(path, label):
     path = Path(os.path.abspath(os.path.expanduser(path)))
     if not path.is_file() or not os.access(path, os.X_OK):
@@ -217,6 +223,14 @@ def main(argv=None):
     live = commands.add_parser("open", help="open a sketch in the live Sketchbook host")
     live.add_argument("source", type=Path, help="Python sketch file")
     live.add_argument("--sketchbook", type=Path, help="native Sketchbook executable")
+    live.add_argument(
+        "--publish",
+        nargs="?",
+        const=True,
+        type=_publication,
+        metavar="NAME",
+        help="publish the live canvas over Syphon on macOS; defaults to the sketch name",
+    )
     arguments = list(sys.argv[1:] if argv is None else argv)
     forwarded = []
     if arguments[:1] == ["open"] and "--" in arguments:
@@ -230,6 +244,14 @@ def main(argv=None):
         return 0
     if options.command == "open":
         try:
+            if options.publish is not None:
+                if any(arg.split("=", 1)[0] == "--publish" for arg in forwarded):
+                    raise ValueError("--publish must be supplied only once")
+                forwarded.append(
+                    "--publish"
+                    if options.publish is True
+                    else f"--publish={options.publish}"
+                )
             _open(options.source, options.sketchbook, forwarded)
         except (OSError, RuntimeError, ValueError) as error:
             parser.exit(1, f"sigil: {error}\n")

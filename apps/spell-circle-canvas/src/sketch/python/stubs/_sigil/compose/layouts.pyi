@@ -108,9 +108,9 @@ class Diagonal:
 class DiagonalAnchor:
     """
     Members:
-    
+
       Start
-    
+
       End
     """
     End: typing.ClassVar[DiagonalAnchor]
@@ -334,11 +334,11 @@ class Track:
 class TrackKind:
     """
     Members:
-    
+
       Fixed
-    
+
       Content
-    
+
       Fraction
     """
     Content: typing.ClassVar[TrackKind]

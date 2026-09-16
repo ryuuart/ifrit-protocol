@@ -10,13 +10,13 @@ __all__: list[str] = ['Format', 'ImageAsset', 'decode', 'decodeAsset', 'encode',
 class Format:
     """
     Members:
-    
+
       Png
-    
+
       Jpeg
-    
+
       Webp
-    
+
       Exr
     """
     Exr: typing.ClassVar[Format]

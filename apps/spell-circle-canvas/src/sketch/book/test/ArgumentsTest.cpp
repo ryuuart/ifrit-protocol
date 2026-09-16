@@ -108,4 +108,15 @@ TEST(SketchbookArguments, WorkspaceSelectionAndRestoreCanBeExplicit) {
   EXPECT_FALSE(parse({"--workspace", "--no-restore"}));
 }
 
+TEST(SketchbookArguments, ExplicitPublicationNamesCannotBecomeSketchPaths) {
+  for (const char* flag : {"--publish=scene.py", "--publish=--named"}) {
+    const auto args = parse({"selected.py", flag});
+    ASSERT_TRUE(args);
+    EXPECT_TRUE(args->publish);
+    EXPECT_EQ(args->publishName, std::string(flag).substr(10));
+    EXPECT_EQ(args->sketchFile, "selected.py");
+  }
+  EXPECT_FALSE(parse({"selected.py", "--publish="}));
+}
+
 }  // namespace

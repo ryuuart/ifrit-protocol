@@ -4,6 +4,7 @@
 #include "BrushBindings.h"
 #include "ComposeBindings.h"
 #include "DataBindings.h"
+#include "IOBindings.h"
 #include "KitBindings.h"
 #include "MotionBindings.h"
 #include "ValueBindings.h"
@@ -22,6 +23,7 @@ PYBIND11_MODULE(_sigil, module) {
   sigil::sketch::python::bindBrush(module);
   sigil::sketch::python::bindGeometry(module);
   sigil::sketch::python::bindData(module);
+  sigil::sketch::python::bindIO(module);
   sigil::sketch::python::bindRuntime(module);
   sigil::sketch::python::bindKits(module);
 }

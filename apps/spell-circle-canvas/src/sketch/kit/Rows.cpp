@@ -110,11 +110,11 @@ compose::Element table(std::vector<Row> rows, const Table& how) {
       .gap = how.gap.value_or(look.spacing.labelGap),
       .rowGap = look.spacing.rowGap,
       .divider = how.ruled ? Fill::color(look.palette.rule) : Fill{},
+      .headRuled = how.headRuled,
       .swatches = swatches,
       .swatchSide = how.swatchSide.value_or(look.spacing.swatchSide),
       .swatchCorners = how.swatchCorners,
-      .keys = keys,
-      .headRuled = how.headRuled};
+      .keys = keys};
   specification.headLine = [look](const Utf8& words) {
     return compose::text(words,
                          look.style(look.type.section, look.palette.ink));

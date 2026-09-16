@@ -60,13 +60,13 @@ class Column:
 class ColumnType:
     """
     Members:
-    
+
       Number
-    
+
       Text
-    
+
       Boolean
-    
+
       Time
     """
     Boolean: typing.ClassVar[ColumnType]
@@ -150,9 +150,9 @@ class Database:
 class Engine:
     """
     Members:
-    
+
       Sqlite
-    
+
       Duck
     """
     Duck: typing.ClassVar[Engine]
@@ -324,17 +324,17 @@ class Json:
 class JsonKind:
     """
     Members:
-    
+
       Null
-    
+
       Boolean
-    
+
       Number
-    
+
       Text
-    
+
       List
-    
+
       Record
     """
     Boolean: typing.ClassVar[JsonKind]
@@ -386,9 +386,9 @@ class JsonKind:
 class Order:
     """
     Members:
-    
+
       Ascending
-    
+
       Descending
     """
     Ascending: typing.ClassVar[Order]
@@ -436,13 +436,13 @@ class Order:
 class Overflow:
     """
     Members:
-    
+
       Extend
-    
+
       Clamp
-    
+
       Wrap
-    
+
       PingPong
     """
     Clamp: typing.ClassVar[Overflow]
@@ -676,27 +676,27 @@ class Table:
 class Transform:
     """
     Members:
-    
+
       Linear
-    
+
       Log
-    
+
       Pow
-    
+
       Sqrt
-    
+
       Symlog
-    
+
       Time
-    
+
       Quantize
-    
+
       Threshold
-    
+
       Ordinal
-    
+
       Band
-    
+
       Point
     """
     Band: typing.ClassVar[Transform]

@@ -10,63 +10,63 @@ __all__: list[str] = ['BlendMode', 'Color', 'FilterMode', 'Image', 'Matrix', 'Mi
 class BlendMode:
     """
     Members:
-    
+
       Clear
-    
+
       Src
-    
+
       Dst
-    
+
       SrcOver
-    
+
       DstOver
-    
+
       SrcIn
-    
+
       DstIn
-    
+
       SrcOut
-    
+
       DstOut
-    
+
       SrcATop
-    
+
       DstATop
-    
+
       Xor
-    
+
       Plus
-    
+
       Modulate
-    
+
       Screen
-    
+
       Overlay
-    
+
       Darken
-    
+
       Lighten
-    
+
       ColorDodge
-    
+
       ColorBurn
-    
+
       HardLight
-    
+
       SoftLight
-    
+
       Difference
-    
+
       Exclusion
-    
+
       Multiply
-    
+
       Hue
-    
+
       Saturation
-    
+
       Color
-    
+
       Luminosity
     """
     Clear: typing.ClassVar[BlendMode]
@@ -183,9 +183,9 @@ class Color:
 class FilterMode:
     """
     Members:
-    
+
       Nearest
-    
+
       Linear
     """
     Linear: typing.ClassVar[FilterMode]
@@ -270,11 +270,11 @@ class Matrix:
 class MipmapMode:
     """
     Members:
-    
+
       None_
-    
+
       Nearest
-    
+
       Linear
     """
     Linear: typing.ClassVar[MipmapMode]
@@ -357,11 +357,11 @@ class Paint:
 class PaintStyle:
     """
     Members:
-    
+
       Fill
-    
+
       Stroke
-    
+
       StrokeAndFill
     """
     Fill: typing.ClassVar[PaintStyle]
@@ -519,9 +519,9 @@ class PathBuilder:
 class PathDirection:
     """
     Members:
-    
+
       CW
-    
+
       CCW
     """
     CCW: typing.ClassVar[PathDirection]
@@ -569,13 +569,13 @@ class PathDirection:
 class PathFillType:
     """
     Members:
-    
+
       Winding
-    
+
       EvenOdd
-    
+
       InverseWinding
-    
+
       InverseEvenOdd
     """
     EvenOdd: typing.ClassVar[PathFillType]
@@ -625,15 +625,15 @@ class PathFillType:
 class PathOp:
     """
     Members:
-    
+
       Difference
-    
+
       Intersect
-    
+
       Union
-    
+
       Xor
-    
+
       ReverseDifference
     """
     Difference: typing.ClassVar[PathOp]
@@ -825,11 +825,11 @@ class Size:
 class StrokeCap:
     """
     Members:
-    
+
       Butt
-    
+
       Round
-    
+
       Square
     """
     Butt: typing.ClassVar[StrokeCap]
@@ -878,11 +878,11 @@ class StrokeCap:
 class StrokeJoin:
     """
     Members:
-    
+
       Miter
-    
+
       Round
-    
+
       Bevel
     """
     Bevel: typing.ClassVar[StrokeJoin]
@@ -931,13 +931,13 @@ class StrokeJoin:
 class TileMode:
     """
     Members:
-    
+
       Clamp
-    
+
       Repeat
-    
+
       Mirror
-    
+
       Decal
     """
     Clamp: typing.ClassVar[TileMode]
@@ -992,11 +992,11 @@ class Typeface:
 class VertexMode:
     """
     Members:
-    
+
       Triangles
-    
+
       TriangleStrip
-    
+
       TriangleFan
     """
     TriangleFan: typing.ClassVar[VertexMode]

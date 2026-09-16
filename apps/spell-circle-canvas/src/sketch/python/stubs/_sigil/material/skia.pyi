@@ -61,13 +61,13 @@ class Effect:
 class Fit:
     """
     Members:
-    
+
       Contain
-    
+
       Cover
-    
+
       Stretch
-    
+
       Native
     """
     Contain: typing.ClassVar[Fit]

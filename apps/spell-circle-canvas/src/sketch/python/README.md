@@ -249,7 +249,7 @@ launch the same native application:
 uv init my-sketches
 cd my-sketches
 uv python pin 3.14
-uv add /path/to/sigil_sketch-0.1.0a4-cp314-cp314-macosx_26_0_arm64.whl
+uv add /path/to/sigil_sketch-0.1.0a5-cp314-cp314-macosx_26_0_arm64.whl
 uv add numpy
 uv run sigil open sketch.py --sketchbook /path/to/Sketchbook
 ```
@@ -344,7 +344,8 @@ The context exposes checked views of the native services:
 - `ctx.assets.image(uri)` reads an owned native image asset; `frameAt`
   supplies its image. `json` and `table` return owned data snapshots, and
   `database` returns a native query view. `ctx.assets.hub()` provides
-  mounts, URI resolution, text, bytes, resource metadata and selection.
+  mounts, URI resolution, text, bytes, resource metadata, selection,
+  live feeds and byte output.
   `ctx.local(name)` creates a URI for a file beside the sketch.
 - `ctx.measure(element, maxSize)` and `ctx.snapshot(element, maxSize)` use
   the session's font context. `ctx.measured(value, pinned=0)` supplies the
@@ -355,6 +356,132 @@ readings. The context and all service views reject use after teardown or
 on a different thread. Keeping a view in Python therefore keeps a checked
 handle, not a stack-allocated native context. Native images and motion
 outputs are owned values and can outlive the session that produced them.
+
+## Live data and output
+
+`sigil.io` exposes the native SigilIO types directly, also available through
+`sigil.native.io`. A sketch uses its existing resource hub; transports are
+already registered, and the host advances recorded feeds before `update`.
+Receive and decode messages on the sketch thread, without authoring a worker
+thread or calling back into Python from a transport:
+
+```python
+from sigil.data import decodeJson, encodeJson
+from sigil.sketch import SketchContext
+
+def setup(self, ctx: SketchContext) -> None:
+    self.input = ctx.assets.hub().feed("udp://:27021")
+    if not self.input.opened():
+        raise RuntimeError(self.input.error())
+    self.level = 0.0
+
+def update(self, elapsed: float, ctx: SketchContext) -> None:
+    while (arrival := self.input.receive()) is not None:
+        document = decodeJson(arrival.bytes.decode("utf-8"))
+        if document is not None:
+            self.level = document["level"].number(self.level)
+            reply = encodeJson({"level": self.level}).encode("utf-8")
+            self.input.sendTo(arrival.from_, reply)
+```
+
+`receive()` takes the next queued arrival and returns `None` immediately when
+the queue is empty. `newest()` reads the latest arrival without draining the
+queue, and `latest()` reads just its bytes. Arrivals own their bytes and carry
+`generation`, `at` and `from_`; they remain readable after the feed closes.
+`FeedPolicy(capacity=...)` bounds the queue, and `dropped()` reports overflow.
+Check `opened()`, `closed()` and `error()` when presenting connection status.
+
+Feeds opened through a sketch context belong to that session. Successful
+reloads retain connections that the replacement sketch still uses and release
+those it drops; a failed replacement leaves the current session's feeds intact.
+Escaped hub and feed handles reject calls after their session ends. Standalone
+feeds have ordinary owned lifetimes and can be closed explicitly with `close`.
+Reacquire desired feeds in each `setup`; a redeclaration releases omitted feeds.
+As in C++, a URI names the same feed while it is owned, even after `close`.
+Closing is terminal for that feed: end its owning session, or release all
+standalone references, before opening that URI anew. Queue policy is selected
+when a feed is first created.
+
+A listening UDP feed replies to the sender named by an arrival with `sendTo`.
+A peer feed such as `hub.feed("udp://127.0.0.1:27021")` uses `send` to reach
+its configured destination. A WebSocket listener broadcasts with `send` or
+addresses one peer with `sendTo`. These calls return whether the transport
+accepted the send; acceptance is not a delivery acknowledgement. Payloads are
+bytes or Python buffer objects. SigilIO transports bytes; the sketch chooses
+JSON, CSV, FlatBuffers or another data format.
+
+File output goes through the same URI mounts as input:
+
+```python
+from pathlib import Path
+from sigil.data import encodeJson
+
+hub = ctx.assets.hub()
+hub.mount("out://", Path.cwd() / "output")
+payload = encodeJson({"level": self.level}).encode("utf-8")
+if not hub.write("out://readings.json", payload):
+    raise OSError("Could not write readings.json")
+```
+
+`write` creates parent directories and invalidates the resource's cached reads.
+It is a local byte sink, not an HTTP upload or a database transaction.
+Export in response to an explicit action or output configuration; ordinary
+rendering and catalogue thumbnails should not write application data.
+
+Standalone Python uses the same bindings without a Sketchbook process:
+
+```python
+from sigil.io import Hub, registerUdp
+
+hub = Hub()
+registerUdp(hub)
+peer = hub.feed("udp://127.0.0.1:27021")
+try:
+    if not peer.send(b'{"sequence": 1, "pressure": 0.6, "flow": 0.4}'):
+        raise RuntimeError(peer.error() or "Could not send readings")
+finally:
+    peer.close()
+```
+
+Register only the transports needed, or call `registerTransports(hub)` for
+the complete native set. A standalone program calls `hub.dispatch(seconds)`
+when replaying recordings. Sketches leave that call to their host.
+`feed.record(path)` writes arrivals for later playback; an empty path stops
+recording. Mount a feed URI onto that file before opening it to replay the
+same input through the same authoring code. `RecordingWriter`, `readRecording`
+and `Feed.replay` also expose the recording format for generated fixtures.
+Use a recording or explicit sample data when `ctx.deterministic` is true.
+
+The bundled `python_live_signals.py` sketch shows received pressure and flow,
+acknowledges accepted packets and distinguishes live input from sample data.
+Its packaged companion sends through a standalone SigilIO hub and can export
+received acknowledgements when requested:
+
+```sh
+uv run python -m sigil.examples.tools.send_live_signals
+uv run python -m sigil.examples.tools.send_live_signals --export output/readings.json
+```
+
+### Publish the rendered canvas
+
+Python sketches use Sketchbook's existing frame output. In a matching Python
+environment, open the sketch with a named publication:
+
+```sh
+uv run sigil open sketch.py --publish "Live Sketch"
+```
+
+On macOS, a Syphon client such as Receiver subscribes to `Live Sketch` and
+receives the canvas directly from Sketchbook's rendered GPU texture.
+`--publish` without a name uses the host's default name. Ctrl-P toggles output
+in the window, and the status line shows the publication name. Drawing with
+either Python or C++ uses this same path.
+
+Frame publication belongs to the host that owns the GPU. SigilIO handles
+resource and data bytes; it does not turn image bytes into a Syphon stream.
+Sketchbook must be running on its Metal/Graphite backend to publish. The
+standalone `sigil render` command remains a headless PNG renderer and does
+not start a persistent GPU publisher.
 
 ## A retained composition
 
@@ -572,8 +699,9 @@ bar_height = height.apply(readings.cell("value", 0))
 
 A scale owns native domain mapping, transforms, overflow, ticks and band
 placement. A database query view retains its connection and returns owned
-tables. The bindings expose query access, not native database write methods
-or live connection/feed APIs. `ctx.assets` routes resource loading through
+tables. The database bindings expose query access, not native database write
+methods. Live byte feeds and file output are supplied by `sigil.io`.
+`ctx.assets` routes resource loading through
 the session's existing native services; the data values can also be used
 from an ordinary installed Python process.
 

@@ -253,6 +253,26 @@ class OpenCommand(unittest.TestCase):
                 )
         self.query.assert_not_called()
 
+    def test_publication_is_a_first_class_live_option(self):
+        for name in ("Live Study", "scene.py", "--named", None):
+            with self.subTest(name=name):
+                flag = f"--publish={name}" if name is not None else "--publish"
+                _, arguments, _ = self.launch("--sketchbook", str(self.host), flag)
+                self.assertEqual(arguments[-1], flag)
+                self.assertEqual(arguments[1], str(self.source))
+                self.assertEqual(arguments.count("--python-executable"), 1)
+                self.execute.reset_mock()
+
+    def test_empty_and_conflicting_publication_names_are_rejected(self):
+        for arguments, message in (
+            (["--publish="], "publication name must not be empty"),
+            (["--publish", " "], "publication name must not be empty"),
+            (["--publish", "live", "--", "--publish", "other"], "only once"),
+        ):
+            with self.subTest(arguments=arguments):
+                self.assert_error(["open", str(self.source), *arguments], message)
+        self.query.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

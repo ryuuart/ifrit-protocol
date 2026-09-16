@@ -66,6 +66,15 @@ one `draw` method; edit `COLOR`, `SPEED` or the greeting.
 component, a gradient paint factory, a native themed page and native entrance
 motion. Edit `TITLE`, `CARDS` or `card`, then save either file to reload it.
 
+`python_live_signals.py` is a live JSON signal observatory: native UDP feeds
+receive normalized pressure and flow, retained cards report the latest values,
+and native paths draw their history. Each valid message gets a JSON reply.
+Run `python -m sigil.examples.tools.send_live_signals --export reply.json`
+with the matching installed package to send signals and explicitly save the
+last acknowledgment. Headless captures replay synthetic arrivals without
+opening a socket or writing a file; the live waiting state labels its
+reference traces until a sender arrives.
+
 The table below is every sketch filed under a `Study ·` category — the
 studies that rebuild a REFERENCE — with what each one puts under load.
 Every other sketch here carries its own line in its own `SIGIL_SKETCH`

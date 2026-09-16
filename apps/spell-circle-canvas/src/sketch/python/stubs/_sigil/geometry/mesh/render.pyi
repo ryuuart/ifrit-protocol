@@ -97,11 +97,11 @@ class MeshStyle:
 class Mode:
     """
     Members:
-    
+
       Lit
-    
+
       Normals
-    
+
       Uv
     """
     Lit: typing.ClassVar[Mode]

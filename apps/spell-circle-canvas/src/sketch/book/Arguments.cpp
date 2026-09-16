@@ -109,6 +109,10 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
       args.shotPath = argv[++i];
     } else if (arg == "--assets" && i + 1 < argc) {
       args.assetsOverride = argv[++i];
+    } else if (arg.starts_with("--publish=")) {
+      args.publishName = arg.substr(10);
+      if (args.publishName.empty()) return std::nullopt;
+      args.publish = true;
     } else if (arg == "--publish") {
       args.publish = true;
       // The name is optional, and the one positional argument this

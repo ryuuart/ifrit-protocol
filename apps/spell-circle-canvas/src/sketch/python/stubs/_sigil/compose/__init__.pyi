@@ -17,17 +17,17 @@ __all__: list[str] = ['Align', 'Backface', 'Boundary', 'Cache', 'CellSpan', 'Com
 class Align:
     """
     Members:
-    
+
       Auto
-    
+
       Start
-    
+
       Center
-    
+
       End
-    
+
       Stretch
-    
+
       Baseline
     """
     Auto: typing.ClassVar[Align]
@@ -79,9 +79,9 @@ class Align:
 class Backface:
     """
     Members:
-    
+
       Visible
-    
+
       Hidden
     """
     Hidden: typing.ClassVar[Backface]
@@ -129,13 +129,13 @@ class Backface:
 class Boundary:
     """
     Members:
-    
+
       Auto
-    
+
       Outline
-    
+
       Glyphs
-    
+
       Coverage
     """
     Auto: typing.ClassVar[Boundary]
@@ -185,15 +185,15 @@ class Boundary:
 class Cache:
     """
     Members:
-    
+
       Auto
-    
+
       Picture
-    
+
       Texture
-    
+
       Group
-    
+
       None_
     """
     Auto: typing.ClassVar[Cache]
@@ -445,23 +445,23 @@ class Dimension:
     class Unit:
         """
         Members:
-        
+
           Px
-        
+
           Pct
-        
+
           Auto
-        
+
           Em
-        
+
           Rem
-        
+
           Lh
-        
+
           Var
-        
+
           Pw
-        
+
           Ph
         """
         Auto: typing.ClassVar[Dimension.Unit]
@@ -946,11 +946,11 @@ class Fill:
 class Fit:
     """
     Members:
-    
+
       Stretch
-    
+
       Contain
-    
+
       Cover
     """
     Contain: typing.ClassVar[Fit]
@@ -999,17 +999,17 @@ class Fit:
 class Justify:
     """
     Members:
-    
+
       Start
-    
+
       Center
-    
+
       End
-    
+
       SpaceBetween
-    
+
       SpaceAround
-    
+
       SpaceEvenly
     """
     Center: typing.ClassVar[Justify]
@@ -1106,11 +1106,11 @@ class PathFormat:
     class Align:
         """
         Members:
-        
+
           Center
-        
+
           Inner
-        
+
           Outer
         """
         Center: typing.ClassVar[PathFormat.Align]

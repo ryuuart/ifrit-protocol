@@ -13,9 +13,9 @@ __all__: list[str] = ['BleedDirection', 'Catalogue', 'Curl', 'Curve', 'Dab', 'De
 class BleedDirection:
     """
     Members:
-    
+
       Out
-    
+
       In
     """
     In: typing.ClassVar[BleedDirection]
@@ -266,11 +266,11 @@ class Direction:
 class Drive:
     """
     Members:
-    
+
       Pressure
-    
+
       Velocity
-    
+
       Tilt
     """
     Pressure: typing.ClassVar[Drive]
@@ -681,9 +681,9 @@ class Grain:
 class GrainSpace:
     """
     Members:
-    
+
       Stroke
-    
+
       Dab
     """
     Dab: typing.ClassVar[GrainSpace]
@@ -779,9 +779,9 @@ class Hatch:
 class ImageMask:
     """
     Members:
-    
+
       InvertedLuminance
-    
+
       Alpha
     """
     Alpha: typing.ClassVar[ImageMask]
@@ -1071,9 +1071,9 @@ class Plot:
 class PlotType:
     """
     Members:
-    
+
       Curve
-    
+
       Segments
     """
     Curve: typing.ClassVar[PlotType]
@@ -1320,13 +1320,13 @@ class Response:
 class Rotation:
     """
     Members:
-    
+
       Fixed
-    
+
       Natural
-    
+
       Random
-    
+
       Tilt
     """
     Fixed: typing.ClassVar[Rotation]
@@ -1476,17 +1476,17 @@ class Shape:
 class Tip:
     """
     Members:
-    
+
       Dust
-    
+
       Fibres
-    
+
       Nib
-    
+
       Scatter
-    
+
       Image
-    
+
       Custom
     """
     Custom: typing.ClassVar[Tip]
