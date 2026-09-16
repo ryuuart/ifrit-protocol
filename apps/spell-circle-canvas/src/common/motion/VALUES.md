@@ -25,6 +25,13 @@ Those are the four forms it holds, discriminated by `index()`: `0` plain
 constant, `1` `Transitioned<T>`, `2` bare `Output<T>*`, `3` shaped
 binding. `BIND.md` is the chapter on the fourth.
 
+A raw Output pointer is borrowed and must outlive the description. An
+`Animatable<T>` constructed from a shared Output retains that source through
+description copies. A chain built by `bind(sharedOutput)` transfers the same
+ownership into any animatable made from it. Both spellings compare by the
+Output's identity; ownership does not change the value or its pruning rule.
+Plain values and raw bindings allocate no ownership storage.
+
 ## The held motion
 
 A moving `Animatable<float>` has a second half: the motion a ticker is

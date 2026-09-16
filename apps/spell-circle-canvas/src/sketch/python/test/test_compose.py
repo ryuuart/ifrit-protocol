@@ -1,0 +1,270 @@
+"""Native composition, model reconciliation, and typography contracts."""
+
+import builtins
+import tempfile
+import unittest
+from pathlib import Path
+
+from sigil import image, skia, weave
+from sigil.compose import Align, Dimension, Fill, box, pct, stroke
+from sigil.motion import Output
+from sigil.native import compose as raw
+from sigil.sketch import render_file
+
+
+class Compose(unittest.TestCase):
+    def render(self, body, *, at=0.08):
+        with tempfile.TemporaryDirectory() as folder:
+            source, output = Path(folder) / "scene.py", Path(folder) / "scene.png"
+            source.write_text(body)
+            render_file(source, output, at=at)
+            return image.load(output).rgba()
+
+    def setUp(self):
+        builtins._sigil_compose_contract = []
+        self.addCleanup(delattr, builtins, "_sigil_compose_contract")
+
+    def test_native_relative_dimensions_and_kwargs_types(self):
+        self.assertEqual(Dimension(weave.em(2)).unit, Dimension.Unit.Em)
+        self.assertEqual(Dimension("45%"), pct(45))
+        self.assertEqual(Dimension("auto").unit, Dimension.Unit.Auto)
+        font = weave.Type(size=24, color="#aa2211", track=weave.em(0.1))
+        self.assertEqual(font.size.value, 24)
+        self.assertEqual(font.track.unit, weave.Length.Unit.Em)
+        self.assertIsInstance(
+            box(width=pct(50), padding=weave.em(1), align_items=Align.End).stroke(
+                stroke(2)
+            ),
+            raw.Element,
+        )
+        self.assertIsInstance(raw.box().fill(Fill.currentInk()), raw.Element)
+        with self.assertRaisesRegex(TypeError, "Unknown Type field"):
+            weave.Type(szie=10)
+
+    def test_animatable_fields_roundtrip_without_losing_live_output(self):
+        source = Output(0.25)
+        path = raw.MotionPath(skia.Path.Circle(0, 0, 40), t=source)
+        retained = path.t
+        path.t = retained
+        mark = stroke(2, "#ff0000")
+        mark.trimPhase = retained
+        mark.dashPhaseBinding = path.t
+        source.set(0.75)
+        self.assertAlmostEqual(mark.trimPhase.value, 0.75)
+        self.assertEqual(mark.dashPhaseBinding, retained)
+        del source, path
+        self.assertAlmostEqual(mark.trimPhase.value, 0.75)
+        self.assertTrue(mark.isAnimated())
+
+    def test_rules_merge_native_partials_without_resetting_other_fields(self):
+        sheet = weave.StyleSheet(
+            [
+                weave.rule("title").font(weave.Type(size=32, color="#ff3300")),
+                weave.rule("title").font(weave.Type(track=2)),
+            ]
+        )
+        self.assertEqual(len(sheet), 1)
+        self.assertEqual(sheet["title"].shaping.fontSize, 32)
+        self.assertEqual(sheet["title"].shaping.letterSpacing, 2)
+        copy = sheet.find("title")
+        copy.font(weave.Type(size=50))
+        self.assertEqual(sheet["title"].shaping.fontSize, 32)
+        block = weave.Block(
+            leading=weave.Leading.multiple(1.5), alignment=weave.TextAlignment.Center
+        )
+        self.assertEqual(block.leading.value, 1.5)
+
+    def test_saved_optional_and_vector_style_values_survive_replacement(self):
+        font = weave.Type(
+            size=20,
+            track=2,
+            wordSpacing=3,
+            variations=[weave.FontVariation("wght", 600)],
+            features=[weave.FontFeature("liga", 0)],
+        )
+        size, track, space = font.size, font.track, font.wordSpacing
+        axis, feature = font.variations[0], font.features[0]
+        font.size = None
+        font.track = 7
+        font.wordSpacing = None
+        font.variations = []
+        font.features = None
+        del font
+        self.assertEqual((size.value, track.value, space.value), (20, 2, 3))
+        self.assertEqual(
+            (axis.tag, axis.value, feature.tag, feature.value), ("wght", 600, "liga", 0)
+        )
+        block = weave.Block(leading=weave.Leading.multiple(1.5))
+        leading = block.leading
+        block.leading = None
+        del block
+        self.assertEqual(leading.value, 1.5)
+        style = weave.ShapingStyle(variations=[axis], fontFeatures=[feature])
+        saved = style.variations[0]
+        style.variations = []
+        del style
+        self.assertEqual(saved.value, 600)
+        layers = raw.LayerStyle()
+        layers.over = [raw.Decoration(stroke(2, "#ffaa88"))]
+        mark = layers.over[0]
+        layers.over = []
+        del layers
+        self.assertFalse(mark.isAnimated())
+
+    def test_abandoned_constructor_theme_closes_before_setup(self):
+        self.render(
+            """import builtins
+from sigil.compose import box
+from sigil.sketch import sketch, kit
+@sketch(size=(8, 8))
+class Scene:
+    def __init__(self):
+        self.initial = kit.theme().type.title.size
+        custom = kit.house_theme()
+        custom.type.title.size = 99
+        self.abandoned = kit.provide(custom)
+        self.abandoned.__enter__()
+    def setup(self, ctx):
+        builtins._sigil_compose_contract.append((self.initial, kit.theme().type.title.size))
+        ctx.render(box(width=8, height=8))
+""",
+            at=0,
+        )
+        before, after = builtins._sigil_compose_contract[0]
+        self.assertEqual(before, after)
+        self.assertNotEqual(after, 99)
+
+    def test_memo_equal_models_prune_and_changed_models_rebuild(self):
+        self.render("""from dataclasses import dataclass
+import builtins
+from sigil.compose import box, memo
+from sigil.sketch import sketch
+@dataclass(frozen=True)
+class Model:
+    color: str
+@sketch(size=(32, 32), background="#000000")
+class Scene:
+    def setup(self, ctx):
+        self.frame = 0
+    def update(self, elapsed, ctx):
+        self.frame += 1
+        color = "#ff0000" if self.frame < 3 else "#00ff00"
+        def describe(model):
+            builtins._sigil_compose_contract.append(model.color)
+            return box(width=32, height=32, fill=model.color)
+        ctx.render(memo(Model(color), describe, key="subject"))
+""")
+        self.assertEqual(builtins._sigil_compose_contract, ["#ff0000", "#00ff00"])
+
+    def test_memo_copies_model_before_author_mutation(self):
+        pixels = self.render(
+            """from sigil.compose import box, memo
+from sigil.sketch import sketch
+@sketch(size=(8, 8), background="#000000")
+class Scene:
+    def setup(self, ctx):
+        model = {"color": "#ff0000"}
+        node = memo(model, lambda value: box(width=8, height=8, fill=value["color"]))
+        model["color"] = "#00ff00"
+        ctx.render(node)
+""",
+            at=0,
+        )
+        self.assertEqual(pixels[:4], bytes((255, 0, 0, 255)))
+
+    def test_memo_builder_traceback_recovers_on_next_render(self):
+        with self.assertRaisesRegex(RuntimeError, "component exploded"):
+            self.render(
+                """from sigil.compose import memo
+from sigil.sketch import sketch
+@sketch(size=(8, 8))
+class Scene:
+    def setup(self, ctx):
+        def describe(model):
+            raise ValueError("component exploded")
+        ctx.render(memo(1, describe))
+""",
+                at=0,
+            )
+        pixels = self.render(
+            """from sigil.compose import box
+from sigil.sketch import sketch
+@sketch(size=(8, 8))
+class Scene:
+    def setup(self, ctx):
+        ctx.render(box(width=8, height=8, fill="#223344"))
+""",
+            at=0,
+        )
+        self.assertEqual(pixels[:4], bytes((34, 51, 68, 255)))
+
+    def test_retained_model_and_bound_builder_release_session_cycles(self):
+        import gc
+
+        self.render(
+            """import builtins
+import weakref
+from sigil.compose import box, memo
+from sigil.sketch import sketch
+class Model:
+    def __init__(self, owner):
+        self.owner = owner
+    def __deepcopy__(self, memo):
+        return self
+    def __eq__(self, other):
+        return self is other
+@sketch(size=(8, 8))
+class Scene:
+    def setup(self, ctx):
+        builtins._sigil_compose_contract.append(weakref.ref(self))
+        self.node = memo(Model(self), self.describe)
+        ctx.render(self.node)
+    def describe(self, model):
+        return box(width=8, height=8, fill="#cc8844")
+""",
+            at=0,
+        )
+        gc.collect()
+        self.assertIsNone(builtins._sigil_compose_contract[0]())
+
+    def test_model_equality_exception_reaches_the_host_with_traceback(self):
+        with self.assertRaisesRegex(RuntimeError, "model equality exploded"):
+            self.render("""from sigil.compose import box, memo
+from sigil.sketch import sketch
+class Model:
+    def __eq__(self, other):
+        raise ValueError("model equality exploded")
+@sketch(size=(8, 8))
+class Scene:
+    def setup(self, ctx):
+        pass
+    def update(self, elapsed, ctx):
+        ctx.render(memo(Model(), lambda value: box(width=8, height=8)))
+""")
+
+    def test_native_styles_and_explicit_total_style_render_identically(self):
+        pixels = self.render(
+            """from sigil.compose import box, text
+from sigil.native import compose
+from sigil.sketch import sketch
+from sigil.weave import Type, StyleSheet, rule, textStyle
+@sketch(size=(128, 48), background="#000000")
+class Scene:
+    def setup(self, ctx):
+        style = Type(size=30, color="#ff0000")
+        sheet = StyleSheet([rule("title").font(style)])
+        children = [text("HI", style_class="title"), compose.text("HI", textStyle(style))]
+        ctx.render(box(*(box(child, width=64, height=48) for child in children), style_sheet=sheet).row())
+""",
+            at=0,
+        )
+        left = b"".join(pixels[y * 128 * 4 : (y * 128 + 64) * 4] for y in range(48))
+        right = b"".join(
+            pixels[(y * 128 + 64) * 4 : (y + 1) * 128 * 4] for y in range(48)
+        )
+        self.assertEqual(left, right)
+        self.assertTrue(any(left[::4]))
+
+
+if __name__ == "__main__":
+    unittest.main()

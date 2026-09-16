@@ -104,9 +104,11 @@ TEST(DrawNode, ARetainedGuestRunsUnderItsHostsPromotionPolicy) {
   PromotionPolicy byPen = PromotionPolicy::ByCost;
   PromotionPolicy byGraphics = PromotionPolicy::ByCost;
   const auto probe = [](PromotionPolicy& seen) {
-    return custom("probe", [&seen](SkCanvas&, const PaintContext& ctx) {
-             seen = ctx.promotion;
-           }).cache(Cache::None);
+    return custom("probe",
+                  [&seen](SkCanvas&, const PaintContext& ctx) {
+                    seen = ctx.promotion;
+                  })
+        .cache(Cache::None);
   };
   const Element penGuest = probe(byPen);
   const Element graphicsGuest = probe(byGraphics);
@@ -200,6 +202,50 @@ TEST(DrawNode, ThePenHoldsItsStyleFromFrameToFrame) {
   host.frame(1.0 / 60.0);
   EXPECT_EQ(host.pixel(10, 10), SK_ColorBLUE);
 }
+
+class DrawProgramRecovery : public testing::TestWithParam<bool> {};
+
+TEST_P(DrawProgramRecovery, ClosesAThrowingFrameAndCanDrawAgain) {
+  Host host;
+  Pen* borrowed = nullptr;
+  int runs = 0;
+  const PenProgram program = [&](Pen& pen) {
+    borrowed = &pen;
+    if (++runs == 1) {
+      pen.noStroke();
+      pen.fill(255, 0, 0);
+      pen.push();
+      pen.fill(0, 255, 0);
+      pen.translate(40, 40);
+      throw std::runtime_error("Drawing program failed.");
+    }
+    pen.rect(0, 0, 10, 10);
+  };
+  auto drawing = GetParam() ? graphics(program) : pen(program);
+  host.composer.render(
+      stack().children({drawing.width(50).height(50).left(20).top(30)}));
+  {
+    // The caller owns the canvas around a failed composer draw; the
+    // node owns closing its pen and unwinding the program's saved style.
+    const SkAutoCanvasRestore restore(host.surface->getCanvas(), true);
+    EXPECT_THROW(host.frame(), std::runtime_error);
+  }
+  ASSERT_NE(borrowed, nullptr);
+  ASSERT_EQ(borrowed->canvas(), nullptr);
+
+  // A resumed draw may use another surface. A pen retaining the previous
+  // canvas would try to end its old frame against a destroyed surface.
+  host.surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 200));
+  host.frame(1.0 / 60.0);
+  EXPECT_EQ(runs, 2);
+  EXPECT_EQ(host.pixel(25, 35), SK_ColorRED);
+  EXPECT_EQ(host.pixel(65, 75), SK_ColorBLACK);
+}
+
+INSTANTIATE_TEST_SUITE_P(PenAndGraphics, DrawProgramRecovery, testing::Bool(),
+                         [](const testing::TestParamInfo<bool>& info) {
+                           return info.param ? "Graphics" : "Pen";
+                         });
 
 TEST(DrawNode, TheTransformStartsAtTheBox) {
   Host host;

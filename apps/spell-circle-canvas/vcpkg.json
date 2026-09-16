@@ -54,6 +54,7 @@
     "minizip-ng",
     "msquic",
     "openimageio",
+    "pybind11",
     "rtmidi",
     "shader-slang",
     {

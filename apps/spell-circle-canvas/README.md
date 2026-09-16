@@ -213,6 +213,10 @@ The app is thin. Most of the code is in libraries under `src/common/`,
 
 ## Build and test
 
+The build requires Python 3.12 or newer with development headers and an
+embedding library. The dependency manifest supplies pybind11, and every
+Sketchbook build supports Python sketches alongside C++ sketches.
+
 ```sh
 cd apps/spell-circle-canvas
 python3 scripts/sigil.py setup --config Release

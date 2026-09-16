@@ -29,7 +29,8 @@ ApplicationWindow {
     minimumWidth: 900
     minimumHeight: 600
     visible: true
-    title: "Sketchbook"
+    title: actions.workspaceName.length > 0
+        ? actions.workspaceName + " — Sketchbook" : "Sketchbook"
     color: Theme.ground
 
     // The Basic style paints its controls straight from the palette;
@@ -109,6 +110,24 @@ ApplicationWindow {
         view.sketchIndex = index;
     }
 
+    FileDialog {
+        id: sketchDialog
+
+        title: "Open Sketch"
+        fileMode: FileDialog.OpenFile
+        nameFilters: ["Sketch files (*.cpp *.py)", "C++ sketches (*.cpp)", "Python sketches (*.py)"]
+        currentFolder: actions.openFolder
+        onAccepted: actions.openFile(selectedFile)
+    }
+
+    FolderDialog {
+        id: workspaceDialog
+
+        title: "Open Workspace"
+        currentFolder: actions.openFolder
+        onAccepted: actions.openWorkspace(selectedFolder)
+    }
+
     // ---- Captures --------------------------------------------------------
     property string captureLine: ""
     Timer {
@@ -141,6 +160,11 @@ ApplicationWindow {
     }
 
     Shortcut {
+        sequences: [StandardKey.Open]
+        enabled: !actions.opening
+        onActivated: sketchDialog.open()
+    }
+    Shortcut {
         // The plural form: Save is more than one binding on some
         // platforms, and binding the first silently drops the rest.
         sequences: [StandardKey.Save]
@@ -169,6 +193,11 @@ ApplicationWindow {
     // ---- Everything a sketch says about itself ----------------------------
     SketchCatalog { id: catalog }
     SketchActions { id: actions }
+    property bool openNoticeDismissed: false
+    Connections {
+        target: actions
+        function onOpenChanged() { window.openNoticeDismissed = false; }
+    }
 
     // A running session is the only thing that knows the canvas a sketch
     // declared, the ground behind it and the moment it names — those are
@@ -192,6 +221,8 @@ ApplicationWindow {
         function onSketchIndexChanged() {
             if (browser.rowForSketch(view.sketchIndex) >= 0)
                 browser.selectedIndex = view.sketchIndex;
+            const row = browser.sketchAt(view.sketchIndex);
+            if (row !== undefined) actions.noteSelection(row);
         }
     }
 
@@ -260,16 +291,61 @@ ApplicationWindow {
             inspectorOpen: inspector.visible
             inspectorAvailable: window.width >= 1100
             taskRunning: actions.taskRunning
+            opening: actions.opening
+            recents: actions.recents
             filterText: browser.filterText
             onFilterRequested: text => browser.filterText = text
             onViewModeRequested: mode => browser.chooseView(mode)
             onInspectorToggled: window.inspectorOpen = !window.inspectorOpen
             onVideoRequested: window.exportVideo(-1)
+            onOpenFileRequested: sketchDialog.open()
+            onOpenWorkspaceRequested: workspaceDialog.open()
+            onRecentRequested: recent => actions.openRecent(recent)
+            onClearRecentsRequested: actions.clearRecents()
+            onRecentsRequested: actions.refreshRecents()
             onSteppedOut: {
                 if (browser.viewMode === "gallery")
                     gallery.focusRows();
                 else
                     sketchList.focusRows();
+            }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: openNotice.implicitHeight + 16
+            visible: !window.openNoticeDismissed
+                && (actions.openStatus.length > 0 || actions.openError.length > 0)
+            color: Theme.panel
+
+            RowLayout {
+                id: openNotice
+
+                anchors.fill: parent
+                anchors.margins: 8
+                spacing: 10
+
+                BusyIndicator {
+                    visible: actions.opening
+                    running: actions.opening
+                    implicitWidth: 24
+                    implicitHeight: 24
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: actions.openError.length > 0 ? actions.openError : actions.openStatus
+                    color: actions.openError.length > 0 ? Theme.warn : Theme.text
+                    wrapMode: Text.Wrap
+                    font.pixelSize: 12
+                    Accessible.role: Accessible.AlertMessage
+                }
+                ToolButton {
+                    text: "×"
+                    implicitWidth: 24
+                    implicitHeight: 24
+                    Accessible.name: "Dismiss opening status"
+                    onClicked: window.openNoticeDismissed = true
+                }
             }
         }
 

@@ -110,6 +110,8 @@ sigil_library(SigilSketch
   PUBLIC ${SIGIL_SKETCH_PUBLIC}
   PRIVATE ${SIGIL_SKETCH_PRIVATE})
 
+add_subdirectory(python)
+
 # Each directory's cases and benchmarks, declared beside the code they
 # cover, in the library's one test binary and one bench binary.
 add_subdirectory(core)
@@ -174,8 +176,20 @@ add_test(NAME sketch_readme_stems_self_test
 # The web panel's page names the runtime probe SigilScry answers, which
 # is only there where the SDK was found.
 set(SIGIL_SKETCH_DOC_SCRY_PRELUDE)
+set(SIGIL_SKETCH_DOC_SCRY_ALIASES)
+set(SIGIL_SKETCH_DOC_SKIP_HEADERS)
+set(SIGIL_SKETCH_DOC_EXCLUDE)
 if(TARGET SigilScry)
   set(SIGIL_SKETCH_DOC_SCRY_PRELUDE "<sigilscry/platform/Runtime.h>")
+  set(SIGIL_SKETCH_DOC_SCRY_ALIASES scry=::sigil::scry)
+else()
+  set(SIGIL_SKETCH_DOC_SKIP_HEADERS SettledPage.h Settling.h SharedEngine.h)
+  set(SIGIL_SKETCH_DOC_EXCLUDE
+    "scry::available=the optional web SDK is not configured"
+    "sigil::scry::WebEngine=the optional web SDK is not configured"
+    "sketch::scry::sharedEngine=the optional web SDK is not configured"
+    "sketch::scry::Sequence=the optional web SDK is not configured"
+    "sketch::scry::settle=the optional web SDK is not configured")
 endif()
 
 # Every API name the prose spells, compiled against the headers that own
@@ -213,6 +227,8 @@ sigil_doc_probes(sketch
            "<sigilworld/diligent/Import.h>"
            "<sigilweave/SigilWeave.h>"
            "<sigilweave/ports/SystemFontManager.h>"
-  ALIASES scry=::sigil::scry
+  ALIASES ${SIGIL_SKETCH_DOC_SCRY_ALIASES}
+  SKIP_HEADERS ${SIGIL_SKETCH_DOC_SKIP_HEADERS}
+  EXCLUDE ${SIGIL_SKETCH_DOC_EXCLUDE}
   FLOORS 50,10,10,0,0
   LIBRARIES SigilSketch SigilSketchPublish SigilDataDecode SigilDataScale)

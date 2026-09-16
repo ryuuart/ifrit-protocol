@@ -146,6 +146,7 @@ class SketchCatalog : public QObject {
    *  read them and neither should reach into the other. */
   static std::filesystem::path sketchDirectory;
   static std::vector<std::filesystem::path> externals;
+  static std::filesystem::path workspaceRoot;
 
   /** THE THUMBNAIL STORE: one directory this app owns, under the platform
    *  cache location unless the command line or an environment variable

@@ -121,9 +121,10 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
     sk.clear(background);
     sk.save();
     sk.scale(options.scale, options.scale);
-    host.frame(sk, nextDt());
+    const bool ok = host.frame(sk, nextDt());
     sk.restore();
-    flush();
+    if (ok) flush();
+    return ok;
   };
 
   // A warm-up, not a capture: what it has to reach is the state where
@@ -133,7 +134,8 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
   // whatever moment the author chose to photograph.
   const double warmSeconds = options.at >= 0.0 ? options.at : kFallbackMoment;
   const int warmup = std::max(1, (int)std::lround(warmSeconds / dt));
-  for (int i = 0; i < warmup; ++i) step();
+  for (int i = 0; i < warmup; ++i)
+    if (!step()) return 1;
 
   // One profiled frame BEFORE the timed run, so a failure can name the
   // node instead of only the phase. Profiling costs a little, so it does
@@ -141,7 +143,7 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
   std::vector<std::string> hot;
   if (sketch::Session* session = host.session()) {
     session->setProfiling(true);
-    step();
+    if (!step()) return 1;
     hot = session->costs(12);
     session->setProfiling(false);
   }
@@ -152,7 +154,7 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
   frames.reserve((size_t)options.benchFrames);
   for (int i = 0; i < options.benchFrames; ++i) {
     const sigil::measure::Stopwatch watch;
-    step();
+    if (!step()) return 1;
     frames.push_back(watch.elapsedMs());
     if (sketch::Session* session = host.session()) {
       const sketch::Timing timing = session->timing();
@@ -283,7 +285,8 @@ int runFrames(sketch::Host& host, const CaptureOptions& options) {
   SkNoDrawCanvas scratch((int)std::ceil(size.width()),
                          (int)std::ceil(size.height()));
   const int warmup = std::max(1, (int)std::lround(at / dt));
-  for (int i = 0; i < warmup; ++i) host.frame(scratch, dt);
+  for (int i = 0; i < warmup; ++i)
+    if (!host.frame(scratch, dt)) return 1;
 
   for (int index = 0; index < options.frames; ++index) {
     const std::string path = options.frames > 1
@@ -296,7 +299,7 @@ int runFrames(sketch::Host& host, const CaptureOptions& options) {
         return 1;
       }
     }
-    if (index + 1 < options.frames) host.frame(scratch, dt);
+    if (index + 1 < options.frames && !host.frame(scratch, dt)) return 1;
   }
   std::printf(
       "wrote %s (%d frame%s at %.3gx, t=%.3gs %s, build %d, work %.2f ms "

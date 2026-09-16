@@ -54,6 +54,8 @@ import argparse
 import os
 import re
 import sys
+import tempfile
+from pathlib import Path
 
 # A registry stem: lower case, at least one underscore, digits allowed.
 STEM = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)+$")
@@ -93,9 +95,27 @@ EXEMPT = {
 
 
 CARDINAL_WORDS = [
-    "zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
-    "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen",
-    "sixteen", "seventeen", "eighteen", "nineteen", "twenty",
+    "zero",
+    "one",
+    "two",
+    "three",
+    "four",
+    "five",
+    "six",
+    "seven",
+    "eight",
+    "nine",
+    "ten",
+    "eleven",
+    "twelve",
+    "thirteen",
+    "fourteen",
+    "fifteen",
+    "sixteen",
+    "seventeen",
+    "eighteen",
+    "nineteen",
+    "twenty",
 ]
 
 
@@ -108,15 +128,15 @@ def cardinal(word):
 
 
 def sketch_stems(sketch_dir):
-    """Every stem the registry can address: one .cpp file, or one directory
+    """Every stem the registry can address: one .cpp or .py file, or one directory
     holding a sketch's own unit files."""
     stems = set()
     if not os.path.isdir(sketch_dir):
         return stems
     for entry in os.listdir(sketch_dir):
         path = os.path.join(sketch_dir, entry)
-        if entry.endswith(".cpp"):
-            stems.add(entry[: -len(".cpp")])
+        if os.path.isfile(path) and entry.endswith((".cpp", ".py")):
+            stems.add(os.path.splitext(entry)[0])
         elif os.path.isdir(path) and not entry.startswith("."):
             stems.add(entry)
     return stems
@@ -193,7 +213,10 @@ def report(check, out=sys.stdout):
     def w(text):
         out.write(text + "\n")
 
-    w("sketch stems: %d resolved, %d exempt" % (len(check.resolved), len(check.excluded)))
+    w(
+        "sketch stems: %d resolved, %d exempt"
+        % (len(check.resolved), len(check.excluded))
+    )
     for doc, line, token, reason in check.excluded:
         w("  exempt   %s:%d  `%s` — %s" % (doc, line, token, reason))
     for doc, line, token in check.unresolved:
@@ -228,6 +251,18 @@ def self_test():
 
     print("readme_sketch_stems --self-test")
 
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        (root / "native_sketch.cpp").touch()
+        (root / "python_sketch.py").touch()
+        (root / "notes.md").touch()
+        (root / "directory_sketch").mkdir()
+        check(
+            sketch_stems(root)
+            == {"native_sketch", "python_sketch", "directory_sketch"},
+            "native, Python and directory sketch stems are discovered",
+        )
+
     c = fixture_check("The `blur_falloff` study draws the falloff.\n")
     check(
         [s for _, _, s in c.resolved] == ["blur_falloff"] and not c.unresolved,
@@ -248,8 +283,7 @@ def self_test():
 
     c = fixture_check("The `compose_test` case covers the sketch.\n")
     check(
-        any(t == "compose_test" for _, _, t, _ in c.excluded)
-        and not c.unresolved,
+        any(t == "compose_test" for _, _, t, _ in c.excluded) and not c.unresolved,
         "a test target is exempted with a recorded reason",
     )
 
@@ -284,11 +318,16 @@ def self_test():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--doc", action="append", default=[],
-                        help="a markdown document to read; repeatable")
+    parser.add_argument(
+        "--doc",
+        action="append",
+        default=[],
+        help="a markdown document to read; repeatable",
+    )
     parser.add_argument("--sketch-dir", help="the directory the registry addresses")
-    parser.add_argument("--self-test", action="store_true",
-                        help="run the in-script fixtures and exit")
+    parser.add_argument(
+        "--self-test", action="store_true", help="run the in-script fixtures and exit"
+    )
     args = parser.parse_args()
 
     if args.self_test:

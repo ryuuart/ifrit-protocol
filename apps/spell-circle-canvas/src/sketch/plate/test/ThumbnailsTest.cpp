@@ -5,9 +5,11 @@
  */
 
 #include <gtest/gtest.h>
+#include <include/core/SkCanvas.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/core/Session.h>
 #include <sigilsketch/core/Sources.h>
 #include <sigilsketch/plate/Thumbnails.h>
 #include <sigilsketch/set/Set.h>
@@ -19,6 +21,7 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <stdexcept>
 #include <string>
 #include <utility>
 
@@ -186,6 +189,47 @@ ThumbnailRun runInto(const std::filesystem::path& out, std::string stem) {
   return run;
 }
 
+enum class Fault { None, Factory, Open, Frame, Still };
+std::atomic_int g_openSessions{0};
+
+template <Fault fault>
+struct ThrowingSession final : Session {
+  ThrowingSession() { ++g_openSessions; }
+  ~ThrowingSession() override { --g_openSessions; }
+  CanvasSpecification specification{.size = {48, 32}, .captureSeconds = 0.05};
+  const CanvasSpecification& canvas() const override { return specification; }
+  void frame(SkCanvas& canvas, double) override {
+    if constexpr (fault == Fault::Frame)
+      throw std::logic_error("thumbnail frame failed");
+    canvas.clear(SK_ColorGREEN);
+  }
+  void repaint(SkCanvas& canvas) override { canvas.clear(SK_ColorGREEN); }
+  void still(SkCanvas& canvas) override {
+    if constexpr (fault == Fault::Still)
+      throw std::out_of_range("thumbnail still failed");
+    repaint(canvas);
+  }
+  Timing timing() const override { return {}; }
+};
+
+template <Fault fault>
+struct ThrowingKind final : KindOperations {
+  std::string_view runtime() const override { return "canvas"; }
+  std::unique_ptr<Session> open(sigil::weave::FontContext&, Assets&, bool,
+                                std::string_view) const override {
+    if constexpr (fault == Fault::Open)
+      throw std::runtime_error("thumbnail open failed");
+    return std::make_unique<ThrowingSession<fault>>();
+  }
+};
+
+template <Fault fault>
+Kind throwingKind() {
+  if constexpr (fault == Fault::Factory)
+    throw std::runtime_error("thumbnail factory failed");
+  return Kind(ThrowingKind<fault>{});
+}
+
 /** A STILL IS CPU-ONLY WHATEVER THE PROCESS HOLDS. The worker that draws
  *  one runs beside a window that is presenting, and a device is one
  *  device and one queue: a background walk driving the queue the render
@@ -325,6 +369,46 @@ TEST(ThumbnailStore, OwnedHeadersInvalidateBareAndDirectoryThumbnails) {
   }
 }
 
+TEST(ThumbnailStore, PythonHelpersAndPackagesInvalidateTheKey) {
+  const ScratchDir dir("sigil_thumbnail_python");
+  const auto entry = dir.path / "scene.py";
+  const auto helper = dir.path / "palette.py";
+  const auto package = dir.path / "shapes";
+  std::filesystem::create_directories(package);
+  write(entry, "from .palette import ink\nfrom .shapes import leaf\n");
+  write(helper, "ink = '#ff0000'\n");
+  write(package / "__init__.py", "from .leaf import leaf\n");
+  write(package / "leaf.py", "leaf = 1\n");
+  const auto first = thumbnailKey(entry);
+  EXPECT_EQ(first, thumbnailKey(entry));
+
+  const auto when = std::filesystem::last_write_time(helper);
+  write(helper, "ink = '#00ff00'\n");
+  std::filesystem::last_write_time(helper, when + std::chrono::seconds(1));
+  const auto siblingEdit = thumbnailKey(entry);
+  EXPECT_NE(first, siblingEdit);
+
+  write(package / "leaf.py", "leaf = 100\n");
+  const auto packageEdit = thumbnailKey(entry);
+  EXPECT_NE(siblingEdit, packageEdit);
+
+  std::filesystem::rename(package, dir.path / "renamed");
+  const auto renamed = thumbnailKey(entry);
+  EXPECT_NE(packageEdit, renamed)
+      << "a package's path matters even when its files keep size and time";
+
+  write(dir.path / "notes.txt", "not a Python source");
+  write(dir.path / "neighbor.cpp", "// a separate native sketch");
+  std::filesystem::create_directories(dir.path / "__pycache__");
+  write(dir.path / "__pycache__" / "cached.pyc", "compiled bytecode");
+  std::filesystem::create_directories(dir.path / "unrelated");
+  write(dir.path / "unrelated" / "elsewhere.py", "unrelated = True\n");
+  EXPECT_EQ(renamed, thumbnailKey(entry));
+
+  std::filesystem::remove(helper);
+  EXPECT_NE(renamed, thumbnailKey(entry));
+}
+
 TEST(ThumbnailStore, AStillIsFreshOnlyUnderTheKeyItWasWrittenAt) {
   const ScratchDir dir("sigil_thumbnail_fresh");
   EXPECT_TRUE(freshThumbnail(dir.path, "probe", "aaaa").empty())
@@ -363,6 +447,39 @@ TEST(ThumbnailStore, WhatTheKeyNoLongerNamesIsRemoved) {
 
 // ---------------------------------------------------------------------------
 // What one render does with a sketch it cannot draw in the time it has
+
+TEST(ThumbnailRender, ExceptionsFailOneSketchAndTheNextRenderStillSucceeds) {
+  const ScratchDir dir("sigil_thumbnail_exception");
+  const Entry failures[] = {
+      {"factory", "factory", "Test", "", &throwingKind<Fault::Factory>},
+      {"open", "open", "Test", "", &throwingKind<Fault::Open>},
+      {"frame", "frame", "Test", "", &throwingKind<Fault::Frame>},
+      {"still", "still", "Test", "", &throwingKind<Fault::Still>},
+  };
+  const Entry healthy{"healthy", "healthy", "Test", "",
+                      &throwingKind<Fault::None>};
+  for (const auto& entry : failures) {
+    SCOPED_TRACE(entry.key);
+    auto run = runInto(thumbnailFile(dir.path, entry.key, "broken"), entry.key);
+    run.budget = std::chrono::milliseconds::zero();
+    ThumbnailOutcome outcome = ThumbnailOutcome::Wrote;
+    testing::internal::CaptureStderr();
+    EXPECT_NO_THROW(outcome = renderThumbnail(entry, fonts(), assets(), run));
+    const auto diagnostic = testing::internal::GetCapturedStderr();
+    EXPECT_EQ(outcome, ThumbnailOutcome::Failed);
+    EXPECT_NE(diagnostic.find(std::string("[thumbnail] ") + entry.key),
+              std::string::npos);
+    EXPECT_NE(diagnostic.find("failed"), std::string::npos);
+    EXPECT_EQ(g_openSessions.load(), 0);
+    EXPECT_FALSE(std::filesystem::exists(run.outputPath));
+
+    run.outputPath = thumbnailFile(dir.path, entry.key, "recovered");
+    EXPECT_EQ(renderThumbnail(healthy, fonts(), assets(), run),
+              ThumbnailOutcome::Wrote);
+    EXPECT_EQ(g_openSessions.load(), 0);
+    EXPECT_TRUE(std::filesystem::exists(run.outputPath));
+  }
+}
 
 TEST(ThumbnailRender, AWalkLetGoAnswersWithoutFinishingIt) {
   const ScratchDir dir("sigil_thumbnail_stopped");

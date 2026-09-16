@@ -7,6 +7,9 @@
 #include <sigilsketch/core/Crash.h>
 #include <sigilsketch/plate/Sweep.h>
 
+#include <cstdio>
+#include <exception>
+
 #include "Arguments.h"
 #include "Startup.h"
 
@@ -35,7 +38,12 @@ int runSweep(const Arguments& args, int chosen,
   // one file to name here — the sweep names the entry it is on.
   sketch::installCrashReporter({});
   finishMaterialWarmup(materialWarmup);
-  const int result = sketch::sweep(options, fonts(), assets());
+  int result = 1;
+  try {
+    result = sketch::sweep(options, fonts(), assets());
+  } catch (const std::exception& error) {
+    std::fprintf(stderr, "sketch sweep failed: %s\n", error.what());
+  }
   sharedWebEngine.shutdown();
   releaseDevice();
   return result;

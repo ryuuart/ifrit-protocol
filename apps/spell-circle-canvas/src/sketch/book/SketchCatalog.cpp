@@ -26,6 +26,7 @@ namespace sketch = sigil::sketch;
 // Set by main() before QML loads, and before the rows are printed.
 fs::path SketchCatalog::sketchDirectory;
 std::vector<fs::path> SketchCatalog::externals;
+fs::path SketchCatalog::workspaceRoot;
 fs::path SketchCatalog::thumbnailDirectory;
 std::chrono::milliseconds SketchCatalog::thumbnailBudget =
     sketch::kThumbnailBudget;
@@ -116,12 +117,25 @@ SketchCatalog::SketchCatalog(QObject* parent) : QObject(parent) {
   for (int i = 0; i < (int)SketchCatalog::externals.size(); ++i) {
     const fs::path& file = SketchCatalog::externals[i];
     const std::string stem = file.stem().string();
+    QString group = QStringLiteral("Workspace");
+    if (!workspaceRoot.empty()) {
+      group += QStringLiteral(" · ") +
+               QString::fromStdString(workspaceRoot.filename().string());
+      const auto relative =
+          file.parent_path().lexically_relative(workspaceRoot);
+      if (!relative.empty() && relative != "." && *relative.begin() != "..")
+        for (const auto& part : relative)
+          group +=
+              QStringLiteral(" · ") + QString::fromStdString(part.string());
+    }
     QVariantMap row =
-        rowFor((int)entries.size() + i, stem, stem, QStringLiteral("Workspace"),
+        rowFor((int)entries.size() + i, stem, stem, group,
                QString::fromStdString(file.parent_path().string()), file);
     // A file opened by path is compiled when it is opened, so which
     // runtime it draws through is not known until it has been.
-    row.insert(QStringLiteral("kind"), QString());
+    row.insert(QStringLiteral("kind"), file.extension() == ".py"
+                                           ? QStringLiteral("canvas")
+                                           : QString());
     row.insert(QStringLiteral("available"), true);
     row.insert(QStringLiteral("reason"), QString());
     row.insert(QStringLiteral("videoExportable"), false);

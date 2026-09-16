@@ -15,6 +15,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <stdexcept>
 #include <string>
 #include <system_error>
 #include <thread>
@@ -34,9 +35,11 @@ using sigil::sketch::test::Watched;
 /** A body whose setup count makes a runtime-session restart observable. */
 struct Restarted {
   static inline int setups = 0;
+  static inline bool failSetup = false;
 
   void setup(SketchContext& ctx) {
     ++setups;
+    if (failSetup) throw std::runtime_error("setup rejected the candidate");
     ctx.canvas(120, 90);
     ctx.composer.render(sigil::compose::box().width(20).height(20));
   }
@@ -85,6 +88,94 @@ TEST(SketchHost, RestartsTheRuntimeSessionWithoutBuildingAgain) {
   EXPECT_EQ(Restarted::setups, 2);
   EXPECT_EQ(host.workMsAverage(), 0.0);
   EXPECT_FALSE(host.compiling());
+}
+
+TEST(SketchHost, FailedSetupPreservesTheRunningSession) {
+  const Watched file("sigil_sketch_host_failed_setup");
+  Host::Options opts = options(file.path);
+  opts.compiledIn = &kRestarted;
+  Restarted::failSetup = false;
+  Host host(std::move(opts), fonts());
+  Session* previous = host.session();
+  ASSERT_NE(previous, nullptr);
+
+  Restarted::failSetup = true;
+  EXPECT_FALSE(host.restartSession());
+  Restarted::failSetup = false;
+  EXPECT_EQ(host.session(), previous);
+  EXPECT_TRUE(host.live());
+  EXPECT_NE(host.errorLog().find("setup rejected"), std::string::npos);
+  EXPECT_TRUE(host.restartSession());
+  EXPECT_TRUE(host.errorLog().empty());
+}
+
+struct FailingFrame {
+  static inline int updates = 0;
+  void setup(SketchContext& ctx) { ctx.canvas(120, 90); }
+  void update() {
+    ++updates;
+    throw std::runtime_error("the frame callback failed");
+  }
+};
+Kind failingFrameKind() { return kindOf<FailingFrame>(); }
+const Entry kFailingFrame{"failed_frame", "failed_frame", "Test", "",
+                          &failingFrameKind};
+
+TEST(SketchHost, FailedFramesStopCallbacksAndRefuseCaptureUntilReload) {
+  const Watched file("sigil_sketch_host_failed_frame");
+  Host::Options opts = options(file.path);
+  opts.compiledIn = &kFailingFrame;
+  FailingFrame::updates = 0;
+  Host host(std::move(opts), fonts());
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(120, 90));
+  EXPECT_FALSE(host.frame(*surface->getCanvas(), 1.0 / 60.0));
+  EXPECT_NE(host.errorLog().find("frame callback failed"), std::string::npos);
+  EXPECT_FALSE(host.frame(*surface->getCanvas(), 1.0 / 60.0));
+  EXPECT_EQ(FailingFrame::updates, 1);
+  const auto capture = file.dir.path / "failed.png";
+  EXPECT_FALSE(host.capture(capture));
+  EXPECT_FALSE(std::filesystem::exists(capture));
+  EXPECT_TRUE(host.restartSession());
+  EXPECT_TRUE(host.errorLog().empty());
+}
+
+TEST(SketchHost, MissingPythonImporterReportsTheConfigurationWithoutCompiling) {
+  const Watched file("sigil_sketch_host_python_disabled");
+  auto python = file.path;
+  python.replace_extension(".py");
+  std::ofstream(python) << "pass\n";
+  Host::Options opts = options(python);
+  opts.compiledIn = nullptr;
+  Host host(std::move(opts), fonts());
+  host.poll();
+  EXPECT_FALSE(host.compiling());
+  EXPECT_FALSE(host.live());
+  EXPECT_NE(host.errorLog().find("Host::Options::pythonLoader"),
+            std::string::npos);
+}
+
+TEST(SketchHost,
+     PythonImporterProvidesANativeKindWithoutCompilerOrInterpreter) {
+  const Watched file("sigil_sketch_host_python_importer");
+  auto python = file.path;
+  python.replace_extension(".py");
+  std::ofstream(python) << "source handled by importer\n";
+  Host::Options opts = options(python);
+  opts.compiledIn = nullptr;
+  opts.pythonLoader = [](const std::filesystem::path& source) {
+    if (source.extension() != ".py") throw std::runtime_error("wrong source");
+    return kindOf<Restarted>();
+  };
+  Restarted::setups = 0;
+  Restarted::failSetup = false;
+  Host host(std::move(opts), fonts());
+  host.poll();
+  EXPECT_FALSE(host.compiling());
+  EXPECT_TRUE(host.live());
+  EXPECT_EQ(Restarted::setups, 1);
+  EXPECT_EQ(host.canvasSize(), SkSize::Make(120, 90));
+  EXPECT_TRUE(host.errorLog().empty());
 }
 
 TEST(SketchHost, ReportsTheMomentTheSketchDeclared) {

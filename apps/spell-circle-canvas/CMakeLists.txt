@@ -54,7 +54,7 @@ add_custom_target(benches)
 # during a normal build, and configuring never touches the network.
 set(SIGIL_ASSET_DIR "${CMAKE_BINARY_DIR}/assets" CACHE PATH
     "Where fetch_assets writes downloaded demo assets")
-find_package(Python3 COMPONENTS Interpreter REQUIRED)
+find_package(Python3 3.12 COMPONENTS Interpreter REQUIRED)
 add_custom_target(fetch_assets
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/scripts/sigil.py assets
           --out ${SIGIL_ASSET_DIR}

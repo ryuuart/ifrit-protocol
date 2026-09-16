@@ -29,8 +29,9 @@ namespace sigil::motion {
  * through `bind()`. A constant is animatable too; the name says what the
  * slot CAN hold, not what it is doing.
  *
- * The caller owns any bound `Output` and the clock that steps it. A slot
- * outliving the Output it points at dangles.
+ * A raw bound `Output` belongs to the caller and must outlive the slot.
+ * A shared Output is retained by the slot and its copies. The caller owns
+ * the clock that steps either form.
  *
  * Stored compactly rather than as a variant: `Transitioned<T>` is the fat
  * form — spec, entrance value and waypoint list — while most properties
@@ -52,6 +53,13 @@ class Animatable {
    *  at nothing — has no value to answer with at all. */
   Animatable(const choreograph::Output<T>* bound)
       : m_kind(bound ? Kind::kBound : Kind::kPlain), m_bound(bound) {}
+  /** Retains the source for the lifetime of this description and its copies.
+   *  The owner uses the existing out-of-line payload: plain values and raw
+   *  bindings allocate no storage for ownership. A null owner is plain. */
+  Animatable(std::shared_ptr<const choreograph::Output<T>> bound)
+      : Animatable(bound.get()) {
+    if (bound) extra().owner = std::move(bound);
+  }
   /** bind(&out).…  — a shaped binding. Float properties only; the extra
    *  block is the same one the transitioned form allocates, so this adds
    *  nothing to sizeof(Animatable) and nothing to a slot that never uses
@@ -59,6 +67,7 @@ class Animatable {
   Animatable(const Bound& b) : m_kind(Kind::kBoundMapped) {
     m_bound = b.value().source;
     extra().bound = b.value();
+    extra().owner = b.owner();
   }
   Animatable(const Animatable& other) { *this = other; }
   Animatable(Animatable&&) noexcept = default;
@@ -105,6 +114,7 @@ class Animatable {
   struct Extra {
     Transitioned<T> anim{};
     BoundFloat bound{};
+    std::shared_ptr<const choreograph::Output<T>> owner;
   };
   Extra& extra() {
     if (!m_extra) m_extra = std::make_unique<Extra>();

@@ -18,6 +18,11 @@ namespace {
  *  comfortably inside its budget and the compositor is merely uneven. */
 constexpr double kDefaultJitter = 0.35;
 
+bool isSketchPath(const std::string& text) {
+  const auto extension = std::filesystem::path(text).extension();
+  return extension == ".cpp" || extension == ".py";
+}
+
 }  // namespace
 
 std::optional<Arguments> parseArguments(int argc, char* argv[]) {
@@ -32,6 +37,36 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
       args.list = true;
     } else if (arg == "--catalog") {
       args.catalog = true;
+    } else if (arg == "--workspace") {
+      if (i + 1 >= argc || argv[i + 1][0] == '\0' || argv[i + 1][0] == '-' ||
+          !args.workspace.empty()) {
+        std::fprintf(stderr, "--workspace requires one directory\n");
+        return std::nullopt;
+      }
+      args.workspace = argv[++i];
+    } else if (arg == "--no-restore") {
+      args.noRestore = true;
+    } else if (arg == "--python-info") {
+      args.pythonInfo = true;
+    } else if (arg == "--python-executable" || arg == "--python-abi") {
+      if (i + 1 >= argc || argv[i + 1][0] == '\0' || argv[i + 1][0] == '-') {
+        std::fprintf(stderr, "%s requires a value\n", arg.c_str());
+        return std::nullopt;
+      }
+      if (arg == "--python-executable") {
+        if (!args.pythonExecutable.empty()) {
+          std::fprintf(stderr,
+                       "--python-executable can be supplied only once\n");
+          return std::nullopt;
+        }
+        args.pythonExecutable = argv[++i];
+      } else {
+        if (!args.pythonAbi.empty()) {
+          std::fprintf(stderr, "--python-abi can be supplied only once\n");
+          return std::nullopt;
+        }
+        args.pythonAbi = argv[++i];
+      }
     } else if (arg == "--compare" && i + 2 < argc) {
       args.compareOptions.first = argv[++i];
       args.compareOptions.second = argv[++i];
@@ -81,8 +116,7 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
       // another flag, or the file itself, is not the name.
       if (i + 1 < argc) {
         const std::string next = argv[i + 1];
-        if (!next.empty() && next[0] != '-' &&
-            !(next.size() > 4 && next.compare(next.size() - 4, 4, ".cpp") == 0))
+        if (!next.empty() && next[0] != '-' && !isSketchPath(next))
           args.publishName = argv[++i];
       }
     } else if (arg == "--thumbnails") {
@@ -149,13 +183,22 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
           ++i;
         }
       }
-    } else if (args.sketchFile.empty() && arg.size() > 4 &&
-               arg.compare(arg.size() - 4, 4, ".cpp") == 0) {
+    } else if (args.sketchFile.empty() && isSketchPath(arg)) {
       args.sketchFile = arg;
     } else {
       std::fprintf(stderr, "unknown argument \"%s\"\n", arg.c_str());
       return std::nullopt;
     }
+  }
+  if (args.pythonInfo && argc != 2) {
+    std::fprintf(stderr, "--python-info must be used on its own\n");
+    return std::nullopt;
+  }
+  if (args.pythonExecutable.empty() != args.pythonAbi.empty()) {
+    std::fprintf(
+        stderr,
+        "--python-executable and --python-abi must be supplied together\n");
+    return std::nullopt;
   }
   return args;
 }

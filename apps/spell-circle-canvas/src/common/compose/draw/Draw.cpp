@@ -10,6 +10,7 @@
 #include <sigildraw/Graphics.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
+#include <src/core/SkScopeExit.h>
 
 #include <algorithm>
 #include <any>
@@ -76,10 +77,10 @@ PaintProgram over(PenProgram program) {
   return [held, program = std::move(program)](SkCanvas& canvas,
                                               const PaintContext& ctx) {
     held->pen.begin(canvas, held->frameIn(ctx));
+    const SkScopeExit endFrame([&] { held->pen.end(); });
     held->pen.inherit(ctx.ink, ctx.font);
     lendPolicy(held->pen, ctx.promotion);
     program(held->pen, ctx);
-    held->pen.end();
   };
 }
 
@@ -123,6 +124,7 @@ PaintProgram onto(PenProgram program) {
     const draw::Frame frame = held->host.frameIn(ctx);
     held->sinceDraw += frame.deltaSeconds;
     held->host.pen.begin(canvas, frame);
+    const SkScopeExit endHost([&] { held->host.pen.end(); });
     held->host.pen.inherit(ctx.ink, ctx.font);
     // The buffer is the node's box. It is formed on its first `begin`, at
     // the host pen's own density, and a box that has changed resizes it
@@ -135,22 +137,23 @@ PaintProgram onto(PenProgram program) {
     // picture the host means to photograph finer than it steps it is
     // drawn finer from the first frame rather than magnified at the still.
     held->surface->setDensityFloor(ctx.bakeDensity);
-    draw::Pen& g = held->surface->begin(held->host.pen);
-    g.inherit(ctx.ink, ctx.font);
-    lendPolicy(g, ctx.promotion);
-    if (shouldRun(g, *held)) {
-      // The program's own clock, as p5 keeps it: the count counts runs,
-      // and the step is the time since the last one, so a program under
-      // `frameRate(30)` that divides by `deltaTime` divides by a
-      // thirtieth and not by the node's sixtieth.
-      g.frameCount = ++held->runs;
-      g.deltaTime = held->sinceDraw * 1000.0;
-      program(g, ctx);
-      held->sinceDraw = 0.0;
+    {
+      draw::Pen& g = held->surface->begin(held->host.pen);
+      const SkScopeExit endSurface([&] { held->surface->end(); });
+      g.inherit(ctx.ink, ctx.font);
+      lendPolicy(g, ctx.promotion);
+      if (shouldRun(g, *held)) {
+        // The program's own clock, as p5 keeps it: the count counts runs,
+        // and the step is the time since the last one, so a program under
+        // `frameRate(30)` that divides by `deltaTime` divides by a
+        // thirtieth and not by the node's sixtieth.
+        g.frameCount = ++held->runs;
+        g.deltaTime = held->sinceDraw * 1000.0;
+        program(g, ctx);
+        held->sinceDraw = 0.0;
+      }
     }
-    held->surface->end();
     held->host.pen.image(*held->surface, 0, 0);
-    held->host.pen.end();
   };
 }
 

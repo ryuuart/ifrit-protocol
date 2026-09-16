@@ -19,6 +19,8 @@
 file(GLOB SIGIL_SKETCH_FILES CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_LIST_DIR}/*.cpp)
 list(REMOVE_ITEM SIGIL_SKETCH_FILES ${CMAKE_CURRENT_LIST_DIR}/Anchor.cpp)
+file(GLOB SIGIL_SKETCH_PYTHON_FILES CONFIGURE_DEPENDS
+     ${CMAKE_CURRENT_LIST_DIR}/*.py)
 
 # The directory sketches: a source one level down whose stem is the name
 # of the directory it stands in is an entry, and the other sources in
@@ -34,6 +36,16 @@ foreach(nested_file IN LISTS SIGIL_SKETCH_NESTED_FILES)
     file(GLOB sketch_units CONFIGURE_DEPENDS ${sketch_dir}/*.cpp)
     list(REMOVE_ITEM sketch_units ${nested_file})
     list(APPEND SIGIL_SKETCH_UNITS ${sketch_units})
+  endif()
+endforeach()
+
+file(GLOB SIGIL_SKETCH_PYTHON_NESTED_FILES CONFIGURE_DEPENDS
+     ${CMAKE_CURRENT_LIST_DIR}/*/*.py)
+foreach(nested_file IN LISTS SIGIL_SKETCH_PYTHON_NESTED_FILES)
+  get_filename_component(sketch_dir ${nested_file} DIRECTORY)
+  get_filename_component(sketch_stem ${sketch_dir} NAME)
+  if(nested_file STREQUAL "${sketch_dir}/${sketch_stem}.py")
+    list(APPEND SIGIL_SKETCH_PYTHON_FILES ${nested_file})
   endif()
 endforeach()
 
@@ -92,10 +104,11 @@ endforeach()
 set(SIGIL_SKETCH_ONLY "" CACHE STRING
   "Stems of the sketches to compile in; empty for every one")
 if(SIGIL_SKETCH_ONLY)
-  foreach(sketch_file IN LISTS SIGIL_SKETCH_FILES)
+  foreach(sketch_file IN LISTS SIGIL_SKETCH_FILES SIGIL_SKETCH_PYTHON_FILES)
     get_filename_component(sketch_stem ${sketch_file} NAME_WE)
     if(NOT sketch_stem IN_LIST SIGIL_SKETCH_ONLY)
       list(REMOVE_ITEM SIGIL_SKETCH_FILES ${sketch_file})
+      list(REMOVE_ITEM SIGIL_SKETCH_PYTHON_FILES ${sketch_file})
       list(FILTER SIGIL_SKETCH_UNITS EXCLUDE
            REGEX "/${sketch_stem}/[^/]+\\.cpp$")
     endif()
@@ -115,6 +128,23 @@ add_library(SigilSketches OBJECT
   ${SIGIL_SKETCH_FILES}
   ${SIGIL_SKETCH_UNITS}
 )
+
+# Python entries share the native registry. Only their names, descriptions
+# and declared package requirements are read at build time; session opening
+# imports the current source. Separate objects keep Python out of the C++
+# sketch compilation surface and its hot-reload flags.
+set(SIGIL_SKETCH_PYTHON_REGISTRY ${CMAKE_CURRENT_BINARY_DIR}/PythonSketches.cpp)
+set(SIGIL_SKETCH_PYTHON_GENERATOR
+    ${CMAKE_CURRENT_LIST_DIR}/../python/cmake/register_sketches.py)
+add_custom_command(
+  OUTPUT ${SIGIL_SKETCH_PYTHON_REGISTRY}
+  COMMAND ${Python3_EXECUTABLE} ${SIGIL_SKETCH_PYTHON_GENERATOR}
+          --output ${SIGIL_SKETCH_PYTHON_REGISTRY} ${SIGIL_SKETCH_PYTHON_FILES}
+  DEPENDS ${SIGIL_SKETCH_PYTHON_GENERATOR} ${SIGIL_SKETCH_PYTHON_FILES}
+  COMMENT "Registering Python sketches"
+  VERBATIM)
+add_library(SigilSketchesPython OBJECT ${SIGIL_SKETCH_PYTHON_REGISTRY})
+target_link_libraries(SigilSketchesPython PRIVATE SigilSketchPython)
 # THE SKETCH API SURFACE, stated once. What a sketch may #include is
 # exactly this target's PUBLIC dependencies, and the flags a hot-reloaded
 # sketch compiles with are lifted from Anchor.cpp's entry in the

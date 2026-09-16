@@ -76,6 +76,11 @@ to its own range, which is the one thing outside this library that may.
 
 ## Gotchas
 
+A chain made from a raw Output pointer borrows that source. A chain made
+from a shared Output retains it, and descriptions constructed from that
+chain retain it too. `Bound::owner()` exposes that shared owner to a host
+that stores the chain's evaluator separately from the description.
+
 A binding carries ONE envelope. `pingPong`, `cosine`, `trapezoid`,
 `square` and `wave` write the same slot, so naming a second replaces the
 first exactly as a second `map()` replaces the first curve — there is no

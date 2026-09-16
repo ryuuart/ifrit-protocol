@@ -302,6 +302,13 @@ class CanvasBody {
   virtual void update(double elapsed, SketchContext& ctx) = 0;
 };
 
+/** Opens an owned body on the native canvas runtime. Setup runs before the
+ *  session is returned; a failed setup destroys the candidate body and its
+ *  retained descriptions. The body must not be null. */
+[[nodiscard]] std::unique_ptr<Session> openCanvas(
+    std::unique_ptr<CanvasBody> body, weave::FontContext& fonts, Assets& assets,
+    bool deterministic = false, std::string_view key = {});
+
 /** ONE SKETCH OF TYPE @p SketchType, OWNED, answering those calls with
  *  the parameters it named — so a body spelling `setup()` is set up with
  *  nothing, and one spelling no `update` at all is stepped by doing

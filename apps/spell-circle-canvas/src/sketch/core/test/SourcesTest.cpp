@@ -54,6 +54,26 @@ TEST(SketchSources, AKeyNamesTheDirectoryFormWhenItStands) {
   EXPECT_EQ(sourceOf(scratch.path, "absent"), scratch.path / "absent.cpp");
 }
 
+TEST(SketchSources, PythonKeysResolveBareAndDirectoryEntries) {
+  const sigil::test::ScratchDir scratch("sigil_sketch_python_keys");
+  scratch.write("orbits.py", "pass\n");
+  scratch.write("rain.py", "pass\n");
+  scratch.write("rain/rain.py", "pass\n");
+  EXPECT_EQ(sourceOf(scratch.path, "orbits"), scratch.path / "orbits.py");
+  EXPECT_EQ(sourceOf(scratch.path, "rain"), scratch.path / "rain/rain.py");
+  EXPECT_EQ(sourceOf(scratch.path, "absent"), scratch.path / "absent.cpp");
+}
+
+TEST(SketchSources, CppEntriesTakePrecedenceOverPythonEntries) {
+  const sigil::test::ScratchDir scratch("sigil_sketch_mixed_keys");
+  scratch.write("rain.py", "pass\n");
+  scratch.write("rain/rain.py", "pass\n");
+  scratch.write("rain.cpp", "// bare entry\n");
+  EXPECT_EQ(sourceOf(scratch.path, "rain"), scratch.path / "rain.cpp");
+  scratch.write("rain/rain.cpp", "// directory entry\n");
+  EXPECT_EQ(sourceOf(scratch.path, "rain"), scratch.path / "rain/rain.cpp");
+}
+
 TEST(SketchSources, AHelperDirectoryWithoutAnEntryIsNotASketch) {
   const sigil::test::ScratchDir scratch("sigil_sketch_sources_helper");
   scratch.write("helpers/palette.cpp", "// a module\n");
@@ -95,6 +115,106 @@ TEST(SketchSources, TagsArePathsAndDoNotBecomeSubjectOrKnobs) {
   EXPECT_TRUE(sourceMetadata(scratch.path / "absent.cpp").tags.empty());
 }
 
+TEST(SketchSources, PythonDocstringsSupplySubjectTagsAndKnobs) {
+  const sigil::test::ScratchDir scratch("sigil_sketch_python_metadata");
+  scratch.write("example.py",
+                "#!/usr/bin/env python3\n# -*- coding: utf-8 -*-\n"
+                "# TAGS: Motion / Animation\n"
+                "r\"\"\"A retained view.\n\n"
+                "EDIT THESE FIRST\n  spacing — width\n    in pixels\n"
+                "  ink — color\n"
+                "TAGS: Typography / Interface, Motion/Animation\n\"\"\"\n"
+                "from math import sin\n# TAGS: Ignored\n"
+                "\"\"\"An unrelated literal.\"\"\"\n");
+  const SourceMetadata metadata = sourceMetadata(scratch.path / "example.py");
+  EXPECT_EQ(metadata.subject, "A retained view.");
+  EXPECT_EQ(metadata.editFirst, "spacing — width in pixels\nink — color");
+  EXPECT_EQ(metadata.tags, (std::vector<std::string>{"Motion/Animation",
+                                                     "Typography/Interface"}));
+  EXPECT_EQ(metadata.lines, 14);
+}
+
+TEST(SketchSources, PythonDocstringUsesItsOpeningParagraphWithoutATitle) {
+  const sigil::test::ScratchDir scratch("sigil_sketch_python_summary");
+  for (const std::string quote : {"\"\"\"", "'''"}) {
+    scratch.write("example.py", quote + "A compact summary" + quote +
+                                    "\n# TAGS: Drawing/Pen\nimport math\n");
+    auto metadata = sourceMetadata(scratch.path / "example.py");
+    EXPECT_EQ(metadata.subject, "A compact summary");
+    EXPECT_EQ(metadata.tags, (std::vector<std::string>{"Drawing/Pen"}));
+    scratch.write("example.py", "# A header before the module\n" + quote +
+                                    "A summary spread\nover two lines\n\n"
+                                    "A longer explanation.\n" +
+                                    quote + "\npass\n");
+    metadata = sourceMetadata(scratch.path / "example.py");
+    EXPECT_EQ(metadata.subject, "A summary spread over two lines");
+  }
+}
+
+TEST(SketchSources, PythonCommentHeadersKeepTheTitleAndSubjectConvention) {
+  const sigil::test::ScratchDir scratch("sigil_sketch_python_comments");
+  scratch.write("example.py",
+                "# example — a title\n# A coding study\n#\n"
+                "# A shared description.\n# TAGS: Drawing/Pen\n#\n"
+                "# EDIT THESE FIRST\n#   radius — size\n"
+                "radius = 12\n# TAGS: Ignored\n");
+  const SourceMetadata metadata = sourceMetadata(scratch.path / "example.py");
+  EXPECT_EQ(metadata.subject, "A shared description.");
+  EXPECT_EQ(metadata.editFirst, "radius — size");
+  EXPECT_EQ(metadata.tags, (std::vector<std::string>{"Drawing/Pen"}));
+  EXPECT_EQ(metadata.lines, 10);
+}
+
+TEST(SketchSources, PythonCodePreventsLaterCommentsAndStringsBecomingMetadata) {
+  const sigil::test::ScratchDir scratch("sigil_sketch_python_boundary");
+  for (const std::string code :
+       {"import math", "REQUIRES = ('numpy',)", "def draw(pen):", "@sketch()",
+        "f\"\"\"An expression.\"\"\"", "b\"\"\"Bytes.\"\"\""}) {
+    SCOPED_TRACE(code);
+    scratch.write("example.py", code +
+                                    "\n\"\"\"A later string.\n"
+                                    "TAGS: Ignored\n\"\"\"\n"
+                                    "# TAGS: Also/Ignored\n");
+    const SourceMetadata metadata = sourceMetadata(scratch.path / "example.py");
+    EXPECT_TRUE(metadata.subject.empty());
+    EXPECT_TRUE(metadata.tags.empty());
+    EXPECT_EQ(metadata.lines, 5);
+  }
+}
+
+TEST(SketchSources, PythonCodeAfterClosingQuotesEndsTheHeader) {
+  const sigil::test::ScratchDir scratch("sigil_sketch_python_inline_code");
+  scratch.write("example.py",
+                "\"\"\"The module summary.\"\"\"; value = 1\n"
+                "# TAGS: Ignored\n\"\"\"Another literal.\"\"\"\n");
+  const SourceMetadata metadata = sourceMetadata(scratch.path / "example.py");
+  EXPECT_EQ(metadata.subject, "The module summary.");
+  EXPECT_TRUE(metadata.tags.empty());
+}
+
+TEST(SketchSources, EscapedPythonQuotesDoNotEndTheDocstring) {
+  const sigil::test::ScratchDir scratch("sigil_sketch_python_escaped_quotes");
+  scratch.write("example.py", R"py("""A quoted \"\"\" marker.
+TAGS: Drawing/Pen
+"""
+import math
+)py");
+  const SourceMetadata metadata = sourceMetadata(scratch.path / "example.py");
+  EXPECT_EQ(metadata.subject, R"(A quoted \"\"\" marker.)");
+  EXPECT_EQ(metadata.tags, (std::vector<std::string>{"Drawing/Pen"}));
+}
+
+TEST(SketchSources, OnlyTheFirstPythonStringIsAModuleDocstring) {
+  const sigil::test::ScratchDir scratch("sigil_sketch_python_later_string");
+  scratch.write("example.py",
+                "u'''The module summary.'''\n\n"
+                "'''A second string.\nTAGS: Ignored\n'''\n"
+                "# TAGS: Also/Ignored\n");
+  const SourceMetadata metadata = sourceMetadata(scratch.path / "example.py");
+  EXPECT_EQ(metadata.subject, "The module summary.");
+  EXPECT_TRUE(metadata.tags.empty());
+}
+
 TEST(SketchSources, LocalHeadersFollowOwnersAcrossDirectoriesAndCycles) {
   const sigil::test::ScratchDir scratch("sigil_sketch_header_owners");
   scratch.write("rain/rain.cpp", "#include \"../cloud/Palette.h\"\n");
@@ -108,6 +228,33 @@ TEST(SketchSources, LocalHeadersFollowOwnersAcrossDirectoriesAndCycles) {
                                        scratch.path / "cloud/Palette.h",
                                        scratch.path / "rain/Drops.h"};
   EXPECT_EQ(headersOf(scratch.path / "rain/rain.cpp"), expected);
+}
+
+TEST(SketchSources, PythonReloadWatchesSiblingsAndRegularPackages) {
+  const sigil::test::ScratchDir scratch("sigil_sketch_python_sources");
+  scratch.write("entry.py", "pass\n");
+  scratch.write("palette.py", "ink = 'red'\n");
+  scratch.write("shapes/__init__.py", "\n");
+  scratch.write("shapes/circles.py", "\n");
+  scratch.write("shapes/detail/__init__.py", "\n");
+  scratch.write("shapes/detail/arcs.py", "\n");
+  scratch.write("assets/helper.py", "\n");
+  scratch.write(".hidden/__init__.py", "\n");
+  scratch.write("other.cpp", "\n");
+  const std::vector<fs::path> expected{
+      scratch.path / "entry.py",
+      scratch.path / "palette.py",
+      scratch.path / "shapes/__init__.py",
+      scratch.path / "shapes/circles.py",
+      scratch.path / "shapes/detail/__init__.py",
+      scratch.path / "shapes/detail/arcs.py"};
+  EXPECT_EQ(pythonSourcesOf(scratch.path / "entry.py"), expected);
+}
+
+TEST(SketchSources, PythonReloadKeepsTheEntryWhenItIsMissing) {
+  const sigil::test::ScratchDir scratch("sigil_sketch_python_missing");
+  const fs::path entry = scratch.path / "absent.py";
+  EXPECT_EQ(pythonSourcesOf(entry), std::vector<fs::path>{entry});
 }
 
 }  // namespace
