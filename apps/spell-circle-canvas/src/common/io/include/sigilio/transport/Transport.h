@@ -111,9 +111,7 @@ void registerWebSocketClient(Hub& hub);
  *  into it: odd while one is being written and even once it is whole.
  *  So a read that brackets its copy between two equal even numbers took
  *  a message nobody was writing over, and one that does not is dropped
- *  and read again at the next look. A region no writer has made, and
- *  one whose first bytes are not this layout's, opens nothing and
- *  leaves the reason on the feed.
+ *  and read again at the next look.
  *
  *  NOTHING PUSHES, SO THE FEED LOOKS: shm://NAME?rate=HERTZ reads the
  *  region a whole number of times a second, 120 times where the URI
@@ -125,7 +123,24 @@ void registerWebSocketClient(Hub& hub);
  *  region, so send() and sendTo() are false on such a feed: a scene
  *  that must answer holds another door for that. The looks of every
  *  feed opened through one registration run on one thread, made when
- *  the first of them opens. */
+ *  the first of them opens.
+ *
+ *  WHAT A LOOK LOOKS AT IS THE NAME, so THE TWO ENDS MAY START IN
+ *  EITHER ORDER. A feed opened on a name nobody has made a region under
+ *  is a door onto nothing rather than one that failed — it reports that
+ *  region as its address(), nothing as its error(), and delivers the
+ *  moment a writer makes one. A door that has a mapping maps whatever
+ *  stands under the name afresh about once a second — a region made
+ *  again under a name is another object wearing that word, which is
+ *  what a writer started again leaves behind it — and lets its mapping
+ *  go where the name is gone. A shared memory object carries no
+ *  identity a reader could ask for, so what a door compares is the
+ *  message: one that is not the message it last delivered is one to
+ *  deliver, whatever count it stands under, which is what the first
+ *  message of a region made again is. A region that stands but is not
+ *  one to read, one whose first bytes are not this layout's among them,
+ *  is left where it is with the reason on the feed and the door still
+ *  standing. Only a URI naming no region at all opens nothing. */
 void registerSharedMemory(Hub& hub);
 
 /** THE OTHER END OF A shm:// REGION: the one process that puts the
@@ -137,13 +152,13 @@ void registerSharedMemory(Hub& hub);
  *  ONE WRITER PER REGION: a region carries one count of its messages
  *  and not one per writer, so two writers on a name would write over
  *  each other. Destruction unmaps the region and takes the name back,
- *  after which a reader opening that name finds nothing and says so,
- *  while a reader that already mapped it goes on reading the message it
- *  holds.
+ *  after which a reader of that name has nothing to read until another
+ *  region is made under it.
  *
- *  A WRITER STANDS BEFORE ITS READERS. A reader maps what is there when
- *  it opens, so a region made after the feed was opened is a region
- *  that feed never sees.
+ *  EITHER END MAY START FIRST. A reader holds the name rather than the
+ *  memory: a region made after a feed was opened on its name is one
+ *  that feed reads, and so is one made again under a name this writer
+ *  took back — a reader started once follows a writer started again.
  *
  *  A writer in another language needs nothing of this class: the layout
  *  and the count are the whole of what the two ends share. */

@@ -6,9 +6,12 @@ Two modes, one sky:
     python3 sender.py
         makes the shared memory region named `shared_sky` and writes one
         JSON message into it 30 times a second until interrupted, which
-        is what makes the sketch move in a window. Start this BEFORE the
-        window: a reader maps what is there when it opens, so a region
-        made afterwards is one that reader never sees.
+        is what makes the sketch move in a window. EITHER END MAY START
+        FIRST: a reader holds the region's name rather than the memory
+        behind it, so a region made after the window opened is one it
+        reads, and a sender stopped and started again — which takes the
+        name back and makes its region afresh — is read as the region it
+        made, from its own first message on.
 
     python3 sender.py --record data/sky.feed --seconds 6 --rate 4
         writes those same messages to a file in the feed recording

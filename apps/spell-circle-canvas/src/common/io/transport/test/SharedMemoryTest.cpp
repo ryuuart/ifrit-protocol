@@ -2,9 +2,10 @@
  * The shared memory transport: the messages a writer leaves in a region
  * and the arrivals a feed reading that region makes of them, the region
  * a feed names itself by and the way back it does not have, what a
- * writer does with a message too large for the region it made, what a
- * region nobody made leaves on its feed, and the promise the whole
- * layout stands on — that a message is never read half written.
+ * writer does with a message too large for the region it made, the
+ * name a feed waits at until somebody makes a region under it and the
+ * one it follows to the region made under it next, and the promise the
+ * whole layout stands on — that a message is never read half written.
  */
 
 #include <gtest/gtest.h>
@@ -172,11 +173,58 @@ TEST_F(IOSharedMemory, AMessageLargerThanTheRegionIsRefusedByTheWriter) {
   EXPECT_EQ(region->latest()->asText(), "still sixteen!!!");
 }
 
-TEST_F(IOSharedMemory, ARegionNobodyMadeOpensNothingAndSaysWhy) {
-  const std::shared_ptr<Feed> region = hub.feed("shm://" + regionName("e"));
-  EXPECT_FALSE(region->error().empty());
-  EXPECT_TRUE(region->address().empty());
+TEST_F(IOSharedMemory,
+       ARegionNobodyHasMadeYetIsADoorOntoNothingAndNotAFailure) {
+  const std::string name = regionName("e");
+  const std::shared_ptr<Feed> region = hub.feed("shm://" + name + kFast);
+  // A door holds the name and not the memory behind it, so a name
+  // nothing stands under is a door waiting rather than one that failed:
+  // it names the region it is waiting for and nothing is wrong with it.
+  EXPECT_TRUE(region->error().empty()) << region->error();
+  EXPECT_EQ(region->address(), "shm://" + name);
   EXPECT_EQ(region->latest(), nullptr);
+  EXPECT_FALSE(region->closed());
+}
+
+TEST_F(IOSharedMemory, AWriterThatStartsAfterTheFeedIsOneTheFeedReads) {
+  const std::string name = regionName("h");
+  const std::shared_ptr<Feed> region = hub.feed("shm://" + name + kFast);
+  ASSERT_TRUE(region->error().empty()) << region->error();
+
+  // THE TWO ENDS MAY START IN EITHER ORDER: the door looks for the name
+  // again at every look it has nothing mapped for, so the region this
+  // writer makes now is the region it reads.
+  SharedMemoryWriter writer(name, kRoom);
+  ASSERT_TRUE(writer.open());
+  ASSERT_TRUE(writer.write(bytesOf("the sky that came late")));
+
+  ASSERT_TRUE(waitUntil([&] { return region->generation() == 1; }))
+      << "a region made after the feed opened was never read";
+  EXPECT_EQ(region->latest()->asText(), "the sky that came late");
+  EXPECT_TRUE(region->error().empty()) << region->error();
+}
+
+TEST_F(IOSharedMemory, ARegionMadeAgainUnderTheSameNameIsTheOneReadFromThenOn) {
+  const std::string name = regionName("i");
+  auto first = std::make_unique<SharedMemoryWriter>(name, kRoom);
+  ASSERT_TRUE(first->open());
+
+  const std::shared_ptr<Feed> region = hub.feed("shm://" + name + kFast);
+  ASSERT_TRUE(first->write(bytesOf("the writer that was here first")));
+  ASSERT_TRUE(waitUntil([&] { return region->generation() == 1; }));
+
+  // A writer started again takes the name back and makes its own region
+  // under it, which is another object wearing that word. What the
+  // reader holds is the name, so it maps the one standing now and reads
+  // that region's messages rather than the unlinked one's.
+  first.reset();
+  SharedMemoryWriter second(name, kRoom);
+  ASSERT_TRUE(second.open());
+  ASSERT_TRUE(second.write(bytesOf("the writer that came after it")));
+
+  ASSERT_TRUE(waitUntil([&] { return region->generation() == 2; }))
+      << "the region made again was never read";
+  EXPECT_EQ(region->latest()->asText(), "the writer that came after it");
 }
 
 TEST_F(IOSharedMemory, AUriThatNamesNoRegionOpensNothingAndSaysWhy) {

@@ -29,9 +29,11 @@
  * is made once per URI and every later ask answers that same one.
  *
  * `sender.py` beside this file is both ends of it: it writes the sky
- * into the region, and it writes the recording a capture replays. A
- * WRITER STANDS FIRST — the door maps what is there when it opens, so
- * the sender runs before the window does.
+ * into the region, and it writes the recording a capture replays.
+ * EITHER END MAY START FIRST — the door holds the region's NAME rather
+ * than the memory behind it, so a sender started after the window is
+ * read as soon as it makes the region, and a sender stopped and started
+ * again is read as the region it makes afresh.
  *
  *     python3 sender.py                                   # a window moves
  *     python3 sender.py --record data/sky.feed --seconds 6 --rate 4
@@ -239,9 +241,9 @@ struct SharedSky {
   }
 
   /** WHAT THE DOOR IS DOING, in one line, for the canvas that has no sky
-   *  to draw yet. A region nobody made is the ordinary case of it: the
-   *  sender was not started, and the door says so in the system's own
-   *  words. */
+   *  to draw yet. A region nobody has made is the ordinary case of it:
+   *  nothing is wrong, the door names the region it is waiting at, and
+   *  the line says nothing has been written there. */
   std::string state() const {
     if (!shown.trouble.empty()) return shown.trouble;
     if (shown.undecodable != 0)

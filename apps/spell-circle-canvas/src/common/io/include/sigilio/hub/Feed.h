@@ -113,8 +113,14 @@ class Feed {
   /** The same, with a recording's own time instead of the clock's. */
   void deliver(Bytes bytes, double at);
 
-  /** Says what went wrong, which error() answers from then on. The feed
-   *  stays open: a transport that lost one message still has a door. */
+  /** Says what went wrong, which error() answers from then on; an empty
+   *  reason is nothing wrong, and takes off what stood there. The feed
+   *  stays open: a transport that lost one message still has a door.
+   *
+   *  A TRANSPORT THAT OPENED NOTHING SAYS SO HERE, before it hands back
+   *  the end it has none of, and the feed is then one that was never
+   *  opened rather than one with a door — which is what lets the next
+   *  ask for its URI open it again. */
   void fail(std::string why);
 
   /** No more arrivals are taken. What was received stays readable, and
@@ -143,6 +149,12 @@ class Feed {
 
   bool closed() const;
 
+  /** Whether a door stands on this feed: an end its transport opened,
+   *  or the recording it plays back instead of one. False before either
+   *  is handed over and on a feed whose transport opened nothing, which
+   *  carries the reason as its error(). */
+  bool opened() const;
+
   /** What went wrong; empty when nothing did. */
   std::string error() const;
 
@@ -169,11 +181,21 @@ class Feed {
 
   /** Hands the feed the end its transport opened. Once: a second end,
    *  and one handed to a feed that is already closed, is closed rather
-   *  than kept. */
+   *  than kept.
+   *
+   *  AN END WITH NOTHING IN IT, HANDED TO A FEED CARRYING A REASON, IS
+   *  NO END — a transport that could not open the URI says why through
+   *  fail() and has nothing to give back. The feed stays unopened with
+   *  that reason standing, so the next ask for its URI opens it again
+   *  into this same feed, and every reader holding it is reading the
+   *  door that opened. An end that stands is kept with whatever the
+   *  transport has said about it by then: the reason an earlier ask
+   *  left is taken off before the open that follows it, not after. */
   void opened(OpenedFeed opened);
 
   /** This feed reads @p recording instead of a transport: advance() is
-   *  then what delivers. */
+   *  then what delivers, and the recording is the door this feed
+   *  opened. */
   void replay(std::vector<Arrival> recording);
 
   /** Moves a replayed recording's time to @p seconds on the caller's

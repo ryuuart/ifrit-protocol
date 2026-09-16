@@ -18,6 +18,26 @@
  * one of them has missed it rather than queued it: a region holds the
  * message that stands now.
  *
+ * A DOOR HOLDS THE NAME, NOT THE MAPPING. A name nothing stands under
+ * is a door onto nothing rather than a door that failed: a look with no
+ * mapping looks for the name again, so a region made after the door
+ * opened is one the feed reads and the two ends may start in either
+ * order. A door that has a mapping maps whatever stands under the name
+ * afresh about once a second — a region unlinked and made again under
+ * that name is another object wearing the same word, which is what a
+ * writer started again leaves behind it — and lets go of what it held
+ * where the name is gone. A region that stands but is not one to read
+ * is refused at that look and left where it is: the reason goes on the
+ * feed and the door is still a door.
+ *
+ * WHICH MESSAGE, NOT WHICH OBJECT, is what a door compares, because a
+ * shared memory object carries no identity a reader could ask for. A
+ * door that has just mapped the name holds the count and the written-at
+ * nanosecond of the message it last delivered; a message in the new
+ * mapping that is not that one is a message to deliver, whatever count
+ * it stands under, which is what the first message of a region made
+ * again is.
+ *
  * POSIX IS THE PLATFORM HERE: shm_open, ftruncate and mmap are what a
  * region is made of and mapped with. Windows names the same things
  * differently and would carry a file of its own behind this same door,
@@ -126,6 +146,14 @@ std::string objectName(std::string_view name) {
   return "/" + std::string(name);
 }
 
+/** How often a door that has a mapping maps the NAME again rather than
+ *  reading the memory it already holds. Often enough that a writer
+ *  started again is picked up while somebody is still watching, and
+ *  seldom enough that reading a region standing still is memory and no
+ *  system call. A door with no mapping looks for the name at every look
+ *  instead, having nothing to read until it finds one. */
+constexpr std::chrono::seconds kNameEvery{1};
+
 /** Now, against the clock that means the same thing in two processes. */
 std::uint64_t nowNanoseconds() {
   return (std::uint64_t)std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -172,8 +200,9 @@ std::optional<Region> parseRegion(std::string_view uri) {
   return region;
 }
 
-/** THE READER'S END OF ONE FEED: the mapping, the timer that looks at
- *  it, and the feed each message goes to.
+/** THE READER'S END OF ONE FEED: the name it stands on, the mapping it
+ *  has of whatever object wears that name, the timer that looks at both,
+ *  and the feed each message goes to.
  *
  *  Every callback holds this, so the mapping stands for as long as
  *  anything could still read it and is unmapped once the last callback
@@ -186,19 +215,28 @@ struct Door : std::enable_shared_from_this<Door> {
       : io(std::move(thread)),
         strand(boost::asio::make_strand(io->context())),
         timer(strand),
-        address(std::move(named)),
+        name(std::move(named)),
+        address("shm://" + name),
         interval(every),
         feed(std::move(feed)) {}
 
-  ~Door() {
-    if (region != nullptr) ::munmap(region, length);
-  }
+  ~Door() { release(); }
 
   Door(const Door&) = delete;
   Door& operator=(const Door&) = delete;
 
   /** Arms one look, which arms the next. */
   void look();
+  /** THE NAME, not the memory: whatever object stands under the name
+   *  now, mapped afresh, and let go of where nothing stands there. */
+  void resolve(Feed& into);
+  /** Lets the mapping go. A door with none reads nothing and waits for
+   *  the name to be made again. */
+  void release();
+  /** Puts @p why on the feed, an empty one being nothing wrong, where
+   *  that differs from what this door said last: a door looks a hundred
+   *  times a second and says a thing once. */
+  void say(Feed& into, std::string why);
   /** One look at the region: the message standing there, where it is
    *  whole and this feed has not had it. */
   void read(Feed& into);
@@ -209,6 +247,10 @@ struct Door : std::enable_shared_from_this<Door> {
   std::shared_ptr<detail::IoThread> io;
   boost::asio::strand<boost::asio::io_context::executor_type> strand;
   boost::asio::steady_timer timer;
+  /** The shared memory object this door stands on, which is the whole
+   *  of what it holds: what wears that name is looked for again and
+   *  again, and may be nothing for as long as it is nothing. */
+  std::string name;
   /** What the feed reports and every arrival is named by: the region,
    *  spelled as a URI of this scheme, without the rate — which is this
    *  reader's own arrangement and no part of what the region is
@@ -216,8 +258,10 @@ struct Door : std::enable_shared_from_this<Door> {
   std::string address;
   std::chrono::nanoseconds interval;
   std::weak_ptr<Feed> feed;
-  /** The mapping. It is read-only, so nothing here may store through
-   *  it: a reader of a region cannot disturb the writer of one. */
+  /** The mapping, of whichever object wore the name when it was made,
+   *  and null where nothing did. It is read-only, so nothing here may
+   *  store through it: a reader of a region cannot disturb the writer
+   *  of one. */
   Header* region = nullptr;
   size_t length = 0;
   /** What the region was made to hold, read once as it was mapped. The
@@ -225,8 +269,19 @@ struct Door : std::enable_shared_from_this<Door> {
    *  the region's own field, so a claim can name no byte outside the
    *  mapping however the region is written to meanwhile. */
   size_t capacity = 0;
-  /** The count the last delivered message was written under. */
+  /** When the name is mapped again, on a door that has a mapping. */
+  std::chrono::steady_clock::time_point askAt{};
+  /** The reason this door last put on the feed, so a look that finds
+   *  what the one before it found leaves the feed alone. */
+  std::string said;
+  /** The count the last delivered message was written under, and the
+   *  nanosecond it was written at. The pair is what a door mapping the
+   *  name afresh asks the memory it just mapped: a message that is not
+   *  the one this door delivered is one to deliver, whichever object it
+   *  came out of, and a region made again under the name holds exactly
+   *  that. */
   std::uint64_t delivered = 0;
+  std::uint64_t deliveredAt = 0;
   /** Raised before the close is posted, so a callback the strand has
    *  already entered stops instead of arming another look on its way
    *  out. */
@@ -253,6 +308,12 @@ void Door::read(Feed& into) {
     const size_t claimed = (size_t)std::atomic_ref<std::uint64_t>(region->size)
                                .load(std::memory_order_relaxed);
     if (claimed > capacity) return;
+    // Read inside the bracket, as the payload is: it is the message's
+    // own, and what it is for is telling the message standing in a
+    // mapping made a moment ago from the one this door has had.
+    const std::uint64_t stamp =
+        std::atomic_ref<std::uint64_t>(region->writtenAtNanoseconds)
+            .load(std::memory_order_relaxed);
     Bytes message;
     message.bytes.resize(claimed);
     if (claimed != 0)
@@ -264,9 +325,107 @@ void Door::read(Feed& into) {
     std::atomic_thread_fence(std::memory_order_acquire);
     if (written.load(std::memory_order_relaxed) != before) continue;
     delivered = before;
+    deliveredAt = stamp;
     into.deliver(std::move(message), address);
     return;
   }
+}
+
+void Door::release() {
+  if (region == nullptr) return;
+  ::munmap(region, length);
+  region = nullptr;
+  length = 0;
+  capacity = 0;
+}
+
+void Door::say(Feed& into, std::string why) {
+  if (why == said) return;
+  said = why;
+  into.fail(std::move(why));
+}
+
+void Door::resolve(Feed& into) {
+  const int descriptor = ::shm_open(objectName(name).c_str(), O_RDONLY);
+  if (descriptor < 0) {
+    // NOTHING STANDS UNDER THE NAME: a region nobody has made yet, or
+    // one whose writer has taken it back. Either way there is nothing
+    // to read and nothing wrong — a door onto nothing delivers as soon
+    // as a writer makes one.
+    release();
+    say(into, {});
+    return;
+  }
+
+  struct stat status = {};
+  if (::fstat(descriptor, &status) != 0) {
+    const std::string why = systemMessage(errno);
+    ::close(descriptor);
+    say(into, "could not measure " + address + ": " + why);
+    return;
+  }
+
+  // workaround: fstat answers for a shared memory object with neither a
+  // device nor an inode, so there is no identity by which one object
+  // under a name could be told from the next. What stands under the
+  // name is therefore mapped afresh, and what a message is measured
+  // against is the message this door delivered rather than the object
+  // it came out of.
+  release();
+  const size_t room = status.st_size > 0 ? (size_t)status.st_size : 0;
+  if (room < sizeof(Header)) {
+    ::close(descriptor);
+    // Which is also what a region caught between being made and being
+    // sized looks like: the next look reads it again.
+    say(into, address +
+                  " is smaller than the header a region opens with, so "
+                  "there is no message in it to read");
+    return;
+  }
+
+  void* const mapped =
+      ::mmap(nullptr, room, PROT_READ, MAP_SHARED, descriptor, 0);
+  const std::string trouble =
+      mapped == MAP_FAILED ? systemMessage(errno) : std::string();
+  // The mapping holds the region on its own, so the descriptor has
+  // nothing left to do the moment the mapping is made.
+  ::close(descriptor);
+  if (mapped == MAP_FAILED) {
+    say(into, "could not map " + address + ": " + trouble);
+    return;
+  }
+
+  auto* const opened = static_cast<Header*>(mapped);
+  if (std::memcmp(opened->magic, kMagic, sizeof(kMagic)) != 0) {
+    ::munmap(mapped, room);
+    say(into, address +
+                  " does not open with the bytes a shared memory region "
+                  "opens with, so it holds something else");
+    return;
+  }
+  const size_t claimed = opened->capacity;
+  if (claimed > room - sizeof(Header)) {
+    ::munmap(mapped, room);
+    say(into, address +
+                  " says it holds more payload than there is room for in "
+                  "it, so it is not a region to read");
+    return;
+  }
+
+  region = opened;
+  length = room;
+  capacity = claimed;
+  // A COUNT BELONGS TO THE OBJECT IT WAS READ FROM, and this mapping
+  // may be of another: the message standing in it is compared with the
+  // one this door delivered, and a message that is not that one is
+  // taken as undelivered however far the count it stands under has got.
+  // A region made again under the name counts from its own start, so
+  // its first message is an arrival rather than a number already
+  // passed.
+  if (std::atomic_ref<std::uint64_t>(region->writtenAtNanoseconds)
+          .load(std::memory_order_relaxed) != deliveredAt)
+    delivered = 0;
+  say(into, {});
 }
 
 void Door::look() {
@@ -279,7 +438,17 @@ void Door::look() {
     // rather than reading a region for no one.
     const std::shared_ptr<Feed> into = self->feed.lock();
     if (!into) return;
-    self->read(*into);
+    // THE NAME FIRST, THE MEMORY AFTER. A door with nothing mapped asks
+    // about the name at every look, which is what picks up a writer
+    // that started after it did; a door that has a mapping asks on a
+    // timer and reads memory the rest of the time.
+    const std::chrono::steady_clock::time_point now =
+        std::chrono::steady_clock::now();
+    if (self->region == nullptr || now >= self->askAt) {
+      self->resolve(*into);
+      self->askAt = now + kNameEvery;
+    }
+    if (self->region != nullptr) self->read(*into);
     self->look();
   });
 }
@@ -300,9 +469,13 @@ OpenedFeed refuse(const std::weak_ptr<Feed>& into, std::string why) {
   return {};
 }
 
-/** Opens one feed's region: the object the URI names, mapped read-only,
- *  checked for the bytes a region of this layout opens with, and looked
- *  at from then on at the rate the URI asked for. */
+/** Opens one feed onto a region: the name the URI carries, looked for
+ *  at the rate the URI asked for from here on. NOTHING IS MAPPED HERE.
+ *  A door is the name and not the memory behind it, so a feed opened on
+ *  a name nothing stands under is a door onto nothing and the region a
+ *  writer makes afterwards is one it reads. Only a URI that names no
+ *  region at all — which no writer could ever make one under — opens
+ *  nothing. */
 OpenedFeed openFeed(const std::shared_ptr<detail::IoThread>& io,
                     std::string_view uri, const std::weak_ptr<Feed>& into) {
   const std::optional<Region> named = parseRegion(uri);
@@ -313,52 +486,9 @@ OpenedFeed openFeed(const std::shared_ptr<detail::IoThread>& io,
                       "shm://name, and on shm://name?rate=hertz to look at "
                       "that region a whole number of times a second");
 
-  // A region is read where its writer made it, so a name nothing has
-  // written under is a door with nothing behind it.
-  const int descriptor = ::shm_open(objectName(named->name).c_str(), O_RDONLY);
-  if (descriptor < 0)
-    return refuse(into, "could not open " + std::string(uri) + ": " +
-                            systemMessage(errno));
-
-  struct stat status = {};
-  if (::fstat(descriptor, &status) != 0) {
-    const std::string why = systemMessage(errno);
-    ::close(descriptor);
-    return refuse(into, "could not measure " + std::string(uri) + ": " + why);
-  }
-  const size_t length = status.st_size > 0 ? (size_t)status.st_size : 0;
-  if (length < sizeof(Header)) {
-    ::close(descriptor);
-    return refuse(into, std::string(uri) +
-                            " is smaller than the header a region opens with, "
-                            "so there is no message in it to read");
-  }
-
-  void* const mapped =
-      ::mmap(nullptr, length, PROT_READ, MAP_SHARED, descriptor, 0);
-  const std::string trouble =
-      mapped == MAP_FAILED ? systemMessage(errno) : std::string();
-  // The mapping holds the region on its own, so the descriptor has
-  // nothing left to do the moment the mapping is made.
-  ::close(descriptor);
-  if (mapped == MAP_FAILED)
-    return refuse(into, "could not map " + std::string(uri) + ": " + trouble);
-
   const auto door = std::make_shared<Door>(
-      io, "shm://" + named->name,
+      io, named->name,
       std::chrono::nanoseconds(std::chrono::seconds(1)) / named->rate, into);
-  // Kept from here on, so every way out of this function unmaps it.
-  door->region = static_cast<Header*>(mapped);
-  door->length = length;
-  if (std::memcmp(door->region->magic, kMagic, sizeof(kMagic)) != 0)
-    return refuse(into, std::string(uri) +
-                            " does not open with the bytes a shared memory "
-                            "region opens with, so it holds something else");
-  door->capacity = door->region->capacity;
-  if (door->capacity > length - sizeof(Header))
-    return refuse(into, std::string(uri) +
-                            " says it holds more payload than there is room "
-                            "for in it, so it is not a region to read");
 
   OpenedFeed opened;
   opened.address = door->address;

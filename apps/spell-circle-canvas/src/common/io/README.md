@@ -265,6 +265,15 @@ opened — no scheme, no transport for it, a port already taken — and the
 feed still exists, so a program that opened the wrong URI sees the
 sentence rather than a null.
 
+A feed whose door could NOT be opened is opened again by the next ask for
+its URI, into that same feed: what stood in the way — a port another
+program held, a device plugged in late, a transport registered after the
+first ask — may be gone by the time somebody asks again, and every reader
+holding the feed is then reading the door that opened, with the reason
+taken off it. A feed that has a door is handed back as it stands, and so
+is one that has closed, so asking twice for a URI that opened is one
+socket and not two.
+
 A scheme opens through the `FeedTransport` registered for it, called
 outside the hub's lock; the transport hands back an `OpenedFeed`: how the
 feed closes it, how `send()` goes back through it when the way is two-way,
@@ -393,10 +402,28 @@ reports is, the rate being the reader's own arrangement and no part of
 what the region is called, as a listener's pages are no part of the path
 its peers reach. The mapping is read-only and there is no way back
 through it, so `send()` and `Feed::sendTo()` are both false on such a
-feed: a scene that must answer holds another door for that. A region no
-writer has made, one smaller than its own header, one whose first bytes
-are not this layout's, and one claiming more payload than it has room
-for, open nothing and leave the reason on the feed.
+feed: a scene that must answer holds another door for that.
+
+WHAT A LOOK LOOKS AT IS THE NAME. A door with nothing mapped looks for
+the name at every look, so THE TWO ENDS MAY START IN EITHER ORDER: a
+feed opened on a name nobody has made a region under waits there,
+carrying that region as its `address()` and nothing as its `error()`,
+and delivers the moment a writer makes one. A door that has a mapping
+maps whatever stands under the name afresh about once a second — a
+region unlinked and made again under that name, which is what a writer
+started again leaves behind it, is another object wearing the same word
+— and lets its mapping go where the name is gone. A shared memory object
+carries no identity a reader could ask for, so what a door compares is
+the MESSAGE and not the object: it holds the count and the written-at
+nanosecond of the one it last delivered, and a message in a mapping just
+made that is not that one is a message to deliver, whatever count it
+stands under — which is what the first message of a region made again
+is. A region that stands under the name but is not one to read — one
+smaller than its own header, one whose first bytes are not this
+layout's, one claiming more payload than it has room for — is left where
+it is with the reason on the feed, the door still standing, and is
+looked at again when it changes. Only a URI naming no region at all,
+which no writer could make one under, opens nothing.
 
 `SharedMemoryWriter` is the other end, for a tool or a test written in
 this language — a writer in any other needs the layout and nothing else.
@@ -407,11 +434,12 @@ payload bytes;
 message larger than that capacity, a message being written whole or not
 at all; `SharedMemoryWriter::open` says whether the region stands; and
 destruction unmaps the region and takes the name back, after which a
-reader opening that name finds nothing while one that already mapped it
-goes on reading the message it holds. ONE WRITER PER REGION, a region
-carrying one count and not one per writer. And a writer stands BEFORE
-its readers: a feed maps what is there when it opens, so a region made
-afterwards is a region that feed never sees.
+reader of that name has nothing to read until another region is made
+under it. ONE WRITER PER REGION, a region carrying one count and not one
+per writer. And EITHER END MAY START FIRST, a reader holding the name
+rather than the memory: a region made after a feed was opened on its
+name is one that feed reads, and so is the one a writer started again
+makes under a name it took back.
 
 `registerMidi()` takes `midi://`, and what stands behind it is not a
 network either: it is the controller on the desk beside the screen, its
