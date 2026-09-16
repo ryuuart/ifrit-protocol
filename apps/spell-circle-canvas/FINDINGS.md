@@ -84,3 +84,33 @@ which its own build turns off, and Skia's raw codec likewise or left out
 of the build, with the baseline bumped. Until then the WebRTC door's
 guards are catch-alls, and every other base-class catch of a standard
 exception in the tree is inert.
+
+## A webrtc case that starts a peer process fails about once in twenty, at its own deadline to the millisecond
+
+**What the code does.** The `IOWebRtc` cases that want a peer —
+`APeersMessageArrivesOnTheOneWaitingNamingThePeerItCameFrom`,
+`TheOneWaitingReachesThePeerWithOneSend`,
+`SendToReachesTheOnePeerItNamesAndNoOther` and
+`DroppingTheLastHolderOfAFeedGivesUpItsSignallingPort` — start this
+binary again as a peer and then give the whole of it, the process start
+and the handshake together, one deadline of ten seconds. Run as the
+suite, in one process, on a machine with other work on it, one of them
+fails about once in twenty runs and always at that deadline to the
+millisecond: eighteen of twenty whole-suite runs passed with the ports
+the doors now answer and seventeen of twenty with the ports the suite
+picked for itself before, while those four cases run on their own
+passed ten of ten either way. The peer process is running when it
+happens — its own banner stands in the output and its own assertions
+hold — so what has not happened is the pairing, which otherwise takes a
+tenth of a second.
+
+**What it was evidently intended to do.** The deadline covers a
+handshake with room to spare, so a case fails when two ends cannot find
+each other and never because the machine was busy.
+
+**What a test should assert.** That the peer is UP is one wait and that
+the two ends PAIRED is another: the peer says when it has opened its
+feed, the case waits for that without a verdict attached, and only the
+pairing after it is what the case passes or fails on. A case that
+cannot pair once the peer is up is the transport failing and says so;
+one whose peer never got going says that instead.
