@@ -145,7 +145,7 @@ class Color:
         ...
 
     @typing.overload
-    def __init__(self, arg0: _t.ColorLike) -> None:
+    def __init__(self, value: _t.ColorLike) -> None:
         ...
 
     @property
@@ -153,7 +153,7 @@ class Color:
         ...
 
     @a.setter
-    def a(self, arg0: typing.SupportsFloat) -> None:
+    def a(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -161,7 +161,7 @@ class Color:
         ...
 
     @b.setter
-    def b(self, arg0: typing.SupportsFloat) -> None:
+    def b(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -169,7 +169,7 @@ class Color:
         ...
 
     @g.setter
-    def g(self, arg0: typing.SupportsFloat) -> None:
+    def g(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -177,7 +177,7 @@ class Color:
         ...
 
     @r.setter
-    def r(self, arg0: typing.SupportsFloat) -> None:
+    def r(self, value: typing.SupportsFloat, /) -> None:
         ...
 
 class FilterMode:
@@ -244,27 +244,27 @@ class Image:
 class Matrix:
 
     @staticmethod
-    def RotateDeg(arg0: typing.SupportsFloat) -> Matrix:
+    def RotateDeg(degrees: typing.SupportsFloat) -> Matrix:
         ...
 
     @staticmethod
-    def Scale(arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> Matrix:
+    def Scale(x: typing.SupportsFloat, y: typing.SupportsFloat) -> Matrix:
         ...
 
     @staticmethod
-    def Translate(arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> Matrix:
+    def Translate(x: typing.SupportsFloat, y: typing.SupportsFloat) -> Matrix:
         ...
 
     def __init__(self) -> None:
         ...
 
-    def postRotate(self, arg0: typing.SupportsFloat) -> Matrix:
+    def postRotate(self, degrees: typing.SupportsFloat) -> Matrix:
         ...
 
-    def postScale(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> Matrix:
+    def postScale(self, x: typing.SupportsFloat, y: typing.SupportsFloat) -> Matrix:
         ...
 
-    def postTranslate(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> Matrix:
+    def postTranslate(self, x: typing.SupportsFloat, y: typing.SupportsFloat) -> Matrix:
         ...
 
 class MipmapMode:
@@ -327,31 +327,31 @@ class Paint:
         ...
 
     @typing.overload
-    def __init__(self, arg0: Paint) -> None:
+    def __init__(self, paint: Paint) -> None:
         ...
 
-    def setAlphaf(self, arg0: typing.SupportsFloat) -> None:
+    def setAlphaf(self, alpha: typing.SupportsFloat) -> None:
         ...
 
-    def setAntiAlias(self, arg0: bool) -> None:
+    def setAntiAlias(self, enabled: bool) -> None:
         ...
 
-    def setBlendMode(self, arg0: BlendMode) -> None:
+    def setBlendMode(self, mode: BlendMode) -> None:
         ...
 
-    def setColor(self, arg0: _t.ColorLike) -> None:
+    def setColor(self, color: _t.ColorLike) -> None:
         ...
 
-    def setStrokeCap(self, arg0: StrokeCap) -> None:
+    def setStrokeCap(self, cap: StrokeCap) -> None:
         ...
 
-    def setStrokeJoin(self, arg0: StrokeJoin) -> None:
+    def setStrokeJoin(self, join: StrokeJoin) -> None:
         ...
 
-    def setStrokeWidth(self, arg0: typing.SupportsFloat) -> None:
+    def setStrokeWidth(self, width: typing.SupportsFloat) -> None:
         ...
 
-    def setStyle(self, arg0: PaintStyle) -> None:
+    def setStyle(self, style: PaintStyle) -> None:
         ...
 
 class PaintStyle:
@@ -410,21 +410,21 @@ class PaintStyle:
 class Path:
 
     @staticmethod
-    def Circle(arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat) -> Path:
+    def Circle(x: typing.SupportsFloat, y: typing.SupportsFloat, radius: typing.SupportsFloat) -> Path:
         ...
 
     @staticmethod
-    def Oval(arg0: _t.RectLike) -> Path:
+    def Oval(rect: _t.RectLike) -> Path:
         ...
 
     @staticmethod
-    def Rect(arg0: _t.RectLike) -> Path:
+    def Rect(rect: _t.RectLike) -> Path:
         ...
 
     def __init__(self) -> None:
         ...
 
-    def contains(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> bool:
+    def contains(self, x: typing.SupportsFloat, y: typing.SupportsFloat) -> bool:
         ...
 
     def getBounds(self) -> _sigil.skia.Rect:
@@ -433,10 +433,10 @@ class Path:
     def isEmpty(self) -> bool:
         ...
 
-    def offset(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> Path:
+    def offset(self, x: typing.SupportsFloat, y: typing.SupportsFloat) -> Path:
         ...
 
-    def transform(self, arg0: Matrix) -> Path:
+    def transform(self, matrix: Matrix) -> Path:
         ...
 
 class PathBuilder:
@@ -446,19 +446,19 @@ class PathBuilder:
         ...
 
     @typing.overload
-    def __init__(self, arg0: Path) -> None:
+    def __init__(self, path: Path) -> None:
         ...
 
-    def addArc(self, arg0: _t.RectLike, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat) -> PathBuilder:
+    def addArc(self, rect: _t.RectLike, start: typing.SupportsFloat, sweep: typing.SupportsFloat) -> PathBuilder:
         ...
 
-    def addCircle(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat) -> PathBuilder:
+    def addCircle(self, x: typing.SupportsFloat, y: typing.SupportsFloat, radius: typing.SupportsFloat) -> PathBuilder:
         ...
 
-    def addOval(self, arg0: _t.RectLike) -> PathBuilder:
+    def addOval(self, rect: _t.RectLike) -> PathBuilder:
         ...
 
-    def addPath(self, arg0: Path) -> PathBuilder:
+    def addPath(self, path: Path) -> PathBuilder:
         ...
 
     def addPolygon(self, points: collections.abc.Sequence[Point], close: bool=True) -> PathBuilder:
@@ -470,50 +470,50 @@ class PathBuilder:
     def close(self) -> PathBuilder:
         ...
 
-    def conicTo(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat, arg4: typing.SupportsFloat) -> PathBuilder:
+    def conicTo(self, x1: typing.SupportsFloat, y1: typing.SupportsFloat, x2: typing.SupportsFloat, y2: typing.SupportsFloat, weight: typing.SupportsFloat) -> PathBuilder:
         ...
 
-    def cubicTo(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat, arg4: typing.SupportsFloat, arg5: typing.SupportsFloat) -> PathBuilder:
+    def cubicTo(self, x1: typing.SupportsFloat, y1: typing.SupportsFloat, x2: typing.SupportsFloat, y2: typing.SupportsFloat, x3: typing.SupportsFloat, y3: typing.SupportsFloat) -> PathBuilder:
         ...
 
     def detach(self) -> Path:
         ...
 
     @typing.overload
-    def lineTo(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> PathBuilder:
+    def lineTo(self, x: typing.SupportsFloat, y: typing.SupportsFloat) -> PathBuilder:
         ...
 
     @typing.overload
-    def lineTo(self, arg0: Point) -> PathBuilder:
+    def lineTo(self, point: Point) -> PathBuilder:
         ...
 
     @typing.overload
-    def moveTo(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> PathBuilder:
+    def moveTo(self, x: typing.SupportsFloat, y: typing.SupportsFloat) -> PathBuilder:
         ...
 
     @typing.overload
-    def moveTo(self, arg0: Point) -> PathBuilder:
+    def moveTo(self, point: Point) -> PathBuilder:
         ...
 
-    def offset(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> PathBuilder:
+    def offset(self, x: typing.SupportsFloat, y: typing.SupportsFloat) -> PathBuilder:
         ...
 
-    def quadTo(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat) -> PathBuilder:
+    def quadTo(self, x1: typing.SupportsFloat, y1: typing.SupportsFloat, x2: typing.SupportsFloat, y2: typing.SupportsFloat) -> PathBuilder:
         ...
 
     def reset(self) -> PathBuilder:
         ...
 
-    def setFillType(self, arg0: PathFillType) -> PathBuilder:
+    def setFillType(self, fillType: PathFillType) -> PathBuilder:
         ...
 
-    def setIsVolatile(self, arg0: bool) -> PathBuilder:
+    def setIsVolatile(self, isVolatile: bool) -> PathBuilder:
         ...
 
     def snapshot(self) -> Path:
         ...
 
-    def transform(self, arg0: Matrix) -> PathBuilder:
+    def transform(self, matrix: Matrix) -> PathBuilder:
         ...
 
 class PathDirection:
@@ -691,7 +691,7 @@ class Picture:
 
 class Point:
 
-    def __add__(self, arg0: Point) -> Point:
+    def __add__(self, other: Point) -> Point:
         ...
 
     @typing.overload
@@ -699,16 +699,16 @@ class Point:
         ...
 
     @typing.overload
-    def __init__(self, arg0: collections.abc.Sequence[_t.FloatLike]) -> None:
+    def __init__(self, coordinates: collections.abc.Sequence[_t.FloatLike]) -> None:
         ...
 
-    def __mul__(self, arg0: typing.SupportsFloat) -> Point:
+    def __mul__(self, factor: typing.SupportsFloat) -> Point:
         ...
 
-    def __sub__(self, arg0: Point) -> Point:
+    def __sub__(self, other: Point) -> Point:
         ...
 
-    def __truediv__(self, arg0: typing.SupportsFloat) -> Point:
+    def __truediv__(self, factor: typing.SupportsFloat) -> Point:
         ...
 
     def length(self) -> float:
@@ -719,7 +719,7 @@ class Point:
         ...
 
     @x.setter
-    def x(self, arg0: typing.SupportsFloat) -> None:
+    def x(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -727,7 +727,7 @@ class Point:
         ...
 
     @y.setter
-    def y(self, arg0: typing.SupportsFloat) -> None:
+    def y(self, value: typing.SupportsFloat, /) -> None:
         ...
 
 class Rect:
@@ -737,15 +737,15 @@ class Rect:
         ...
 
     @staticmethod
-    def MakeLTRB(arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat) -> Rect:
+    def MakeLTRB(left: typing.SupportsFloat, top: typing.SupportsFloat, right: typing.SupportsFloat, bottom: typing.SupportsFloat) -> Rect:
         ...
 
     @staticmethod
-    def MakeWH(arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> Rect:
+    def MakeWH(width: typing.SupportsFloat, height: typing.SupportsFloat) -> Rect:
         ...
 
     @staticmethod
-    def MakeXYWH(arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat) -> Rect:
+    def MakeXYWH(x: typing.SupportsFloat, y: typing.SupportsFloat, width: typing.SupportsFloat, height: typing.SupportsFloat) -> Rect:
         ...
 
     @typing.overload
@@ -753,7 +753,7 @@ class Rect:
         ...
 
     @typing.overload
-    def __init__(self, arg0: collections.abc.Sequence[_t.FloatLike]) -> None:
+    def __init__(self, coordinates: collections.abc.Sequence[_t.FloatLike]) -> None:
         ...
 
     def bottom(self) -> float:
@@ -765,13 +765,13 @@ class Rect:
     def centerY(self) -> float:
         ...
 
-    def contains(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> bool:
+    def contains(self, x: typing.SupportsFloat, y: typing.SupportsFloat) -> bool:
         ...
 
     def height(self) -> float:
         ...
 
-    def join(self, arg0: Rect) -> None:
+    def join(self, rect: Rect) -> None:
         ...
 
     def left(self) -> float:
@@ -789,7 +789,7 @@ class Rect:
 class RuntimeEffect:
 
     @staticmethod
-    def MakeForShader(arg0: str) -> RuntimeEffect:
+    def MakeForShader(source: str) -> RuntimeEffect:
         ...
 
 class SamplingOptions:
@@ -799,21 +799,21 @@ class SamplingOptions:
         ...
 
     @typing.overload
-    def __init__(self, arg0: FilterMode) -> None:
+    def __init__(self, filter: FilterMode) -> None:
         ...
 
     @typing.overload
-    def __init__(self, arg0: FilterMode, arg1: MipmapMode) -> None:
+    def __init__(self, filter: FilterMode, mipmap: MipmapMode) -> None:
         ...
 
 class Size:
 
     @typing.overload
-    def __init__(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> None:
+    def __init__(self, width: typing.SupportsFloat, height: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def __init__(self, arg0: typing.Annotated[collections.abc.Sequence[typing.SupportsFloat], 'FixedSize(2)']) -> None:
+    def __init__(self, dimensions: typing.Annotated[collections.abc.Sequence[typing.SupportsFloat], 'FixedSize(2)']) -> None:
         ...
 
     def height(self) -> float:
@@ -1048,5 +1048,5 @@ class Vertices:
     def MakeCopy(mode: VertexMode, positions: collections.abc.Sequence[Point], texCoords: collections.abc.Sequence[Point]=[], colors: collections.abc.Sequence[Color]=[], indices: collections.abc.Sequence[typing.SupportsInt]=[]) -> Vertices:
         ...
 
-def pathOp(arg0: Path, arg1: Path, arg2: PathOp) -> Path:
+def pathOp(a: Path, b: Path, operation: PathOp) -> Path:
     ...

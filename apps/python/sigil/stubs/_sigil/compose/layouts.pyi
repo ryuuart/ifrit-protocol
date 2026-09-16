@@ -22,7 +22,7 @@ class AlongPath:
         ...
 
     @endFraction.setter
-    def endFraction(self, arg1: _t.FloatLike) -> None:
+    def endFraction(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -30,7 +30,7 @@ class AlongPath:
         ...
 
     @path.setter
-    def path(self, arg1: _t.ShapeLike) -> None:
+    def path(self, value: _t.ShapeLike, /) -> None:
         ...
 
     @property
@@ -38,7 +38,7 @@ class AlongPath:
         ...
 
     @startFraction.setter
-    def startFraction(self, arg1: _t.FloatLike) -> None:
+    def startFraction(self, value: _t.FloatLike, /) -> None:
         ...
 
 class BaselineGrid:
@@ -54,7 +54,7 @@ class BaselineGrid:
         ...
 
     @gap.setter
-    def gap(self, arg1: _t.FloatLike) -> None:
+    def gap(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -62,7 +62,7 @@ class BaselineGrid:
         ...
 
     @offset.setter
-    def offset(self, arg1: _t.FloatLike) -> None:
+    def offset(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -70,7 +70,7 @@ class BaselineGrid:
         ...
 
     @rhythm.setter
-    def rhythm(self, arg1: _t.FloatLike) -> None:
+    def rhythm(self, value: _t.FloatLike, /) -> None:
         ...
 
 class Diagonal:
@@ -86,7 +86,7 @@ class Diagonal:
         ...
 
     @anchor.setter
-    def anchor(self, arg1: DiagonalAnchor) -> None:
+    def anchor(self, value: DiagonalAnchor, /) -> None:
         ...
 
     @property
@@ -94,7 +94,7 @@ class Diagonal:
         ...
 
     @gap.setter
-    def gap(self, arg1: _t.FloatLike) -> None:
+    def gap(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -102,7 +102,7 @@ class Diagonal:
         ...
 
     @skewDeg.setter
-    def skewDeg(self, arg1: _t.FloatLike) -> None:
+    def skewDeg(self, value: _t.FloatLike, /) -> None:
         ...
 
 class DiagonalAnchor:
@@ -158,7 +158,7 @@ class DiagonalAnchor:
 class Grid:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     def __init__(self, *, across: _t.AlignLike=..., areas: collections.abc.Sequence[str]=..., columns: collections.abc.Sequence[Track]=..., dense: bool=..., down: _t.AlignLike=..., gap: _t.SizeLike=..., rows: collections.abc.Sequence[Track]=...) -> None:
@@ -172,7 +172,7 @@ class Grid:
         ...
 
     @across.setter
-    def across(self, arg1: _t.AlignLike) -> None:
+    def across(self, value: _t.AlignLike, /) -> None:
         ...
 
     @property
@@ -180,7 +180,7 @@ class Grid:
         ...
 
     @areas.setter
-    def areas(self, arg1: collections.abc.Sequence[str]) -> None:
+    def areas(self, value: collections.abc.Sequence[str], /) -> None:
         ...
 
     @property
@@ -188,7 +188,7 @@ class Grid:
         ...
 
     @columns.setter
-    def columns(self, arg1: collections.abc.Sequence[Track]) -> None:
+    def columns(self, value: collections.abc.Sequence[Track], /) -> None:
         ...
 
     @property
@@ -196,7 +196,7 @@ class Grid:
         ...
 
     @dense.setter
-    def dense(self, arg1: bool) -> None:
+    def dense(self, value: bool, /) -> None:
         ...
 
     @property
@@ -204,7 +204,7 @@ class Grid:
         ...
 
     @down.setter
-    def down(self, arg1: _t.AlignLike) -> None:
+    def down(self, value: _t.AlignLike, /) -> None:
         ...
 
     @property
@@ -212,7 +212,7 @@ class Grid:
         ...
 
     @gap.setter
-    def gap(self, arg1: _t.SizeLike) -> None:
+    def gap(self, value: _t.SizeLike, /) -> None:
         ...
 
     @property
@@ -220,7 +220,7 @@ class Grid:
         ...
 
     @rows.setter
-    def rows(self, arg1: collections.abc.Sequence[Track]) -> None:
+    def rows(self, value: collections.abc.Sequence[Track], /) -> None:
         ...
 
 class Jittered:
@@ -236,7 +236,7 @@ class Jittered:
         ...
 
     @jitter.setter
-    def jitter(self, arg1: _t.FloatLike) -> None:
+    def jitter(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -244,7 +244,7 @@ class Jittered:
         ...
 
     @seed.setter
-    def seed(self, arg1: typing.SupportsInt) -> None:
+    def seed(self, value: typing.SupportsInt, /) -> None:
         ...
 
 class Radial:
@@ -260,7 +260,7 @@ class Radial:
         ...
 
     @radiusAt.setter
-    def radiusAt(self, arg1: collections.abc.Sequence[float]) -> None:
+    def radiusAt(self, value: collections.abc.Sequence[float], /) -> None:
         ...
 
     @property
@@ -268,7 +268,7 @@ class Radial:
         ...
 
     @radiusFraction.setter
-    def radiusFraction(self, arg1: _t.FloatLike) -> None:
+    def radiusFraction(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -276,7 +276,7 @@ class Radial:
         ...
 
     @startDeg.setter
-    def startDeg(self, arg1: _t.FloatLike) -> None:
+    def startDeg(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -284,13 +284,13 @@ class Radial:
         ...
 
     @sweepDeg.setter
-    def sweepDeg(self, arg1: _t.FloatLike) -> None:
+    def sweepDeg(self, value: _t.FloatLike, /) -> None:
         ...
 
 class Track:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     def __init__(self, *, maxKind: TrackKind=..., maxValue: _t.FloatLike=..., minKind: TrackKind=..., minValue: _t.FloatLike=...) -> None:
@@ -304,7 +304,7 @@ class Track:
         ...
 
     @maxKind.setter
-    def maxKind(self, arg1: TrackKind) -> None:
+    def maxKind(self, value: TrackKind, /) -> None:
         ...
 
     @property
@@ -312,7 +312,7 @@ class Track:
         ...
 
     @maxValue.setter
-    def maxValue(self, arg1: _t.FloatLike) -> None:
+    def maxValue(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -320,7 +320,7 @@ class Track:
         ...
 
     @minKind.setter
-    def minKind(self, arg1: TrackKind) -> None:
+    def minKind(self, value: TrackKind, /) -> None:
         ...
 
     @property
@@ -328,7 +328,7 @@ class Track:
         ...
 
     @minValue.setter
-    def minValue(self, arg1: _t.FloatLike) -> None:
+    def minValue(self, value: _t.FloatLike, /) -> None:
         ...
 
 class TrackKind:
@@ -390,11 +390,11 @@ def content() -> Track:
 def fr(weight: typing.SupportsFloat=1.0) -> Track:
     ...
 
-def minmax(arg0: Track, arg1: Track) -> Track:
+def minmax(minimum: Track, maximum: Track) -> Track:
     ...
 
-def px(arg0: typing.SupportsFloat) -> Track:
+def px(pixels: typing.SupportsFloat) -> Track:
     ...
 
-def repeatTrack(arg0: typing.SupportsInt, arg1: Track) -> list[Track]:
+def repeatTrack(count: typing.SupportsInt, track: Track) -> list[Track]:
     ...

@@ -91,10 +91,8 @@ def diagonal():
                     .alignItems("center")
                     .fill(TEAL)
                     .children(
-                        [
-                            (box().width(4).height(19).fill(RUST)),
-                            text(word, size=11, color="#f7f1e5"),
-                        ]
+                        (box().width(4).height(19).fill(RUST)),
+                        text(word, size=11, color="#f7f1e5"),
                     )
                 )
                 for word in ("ORIGIN", "MEASURE", "OFFSET", "REPEAT", "RESOLVE")
@@ -128,11 +126,9 @@ def baseline():
         .width(296)
         .height(154)
         .children(
-            [
-                text("Light", size=30, color=TEAL),
-                text("through the", size=16, color="#72766c"),
-                text("leaves.", size=29, color=RUST),
-            ]
+            text("Light", size=30, color=TEAL),
+            text("through the", size=16, color="#72766c"),
+            text("leaves.", size=29, color=RUST),
         )
     )
     return board(marks.at(guides, 28, 28, 296, 140), marks.at(verse, 28, 28, 296, 154))
@@ -163,10 +159,8 @@ def captured_palette(properties):
             column()
             .gap(18)
             .children(
-                [
-                    swatches,
-                    text(properties[0], size=11, color=look.palette.ink),
-                ]
+                swatches,
+                text(properties[0], size=11, color=look.palette.ink),
             )
         )
         .width(WIDTH)
@@ -176,7 +170,7 @@ def captured_palette(properties):
 
 
 def specimen(picture, index, label, note):
-    surface = kit.well(width=WIDTH, height=HEIGHT, corners=6).children([picture])
+    surface = kit.well(width=WIDTH, height=HEIGHT, corners=6).children(picture)
     return kit.caption(
         surface, measure=WIDTH, label=f"{index:02} / {label}", note=note
     ).opacity(entrance(0, 1, duration=0.45, delay=index * 0.05))

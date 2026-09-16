@@ -19,7 +19,7 @@ expose the bound native types and verbs, including `compose`, `draw`,
 `data`, `io` and `skia`.
 `sigil.compose` exposes those same native factories and types, with `row()`
 and `column()` as small shortcuts for a box's flow direction. Properties
-use native fluent methods; `.children([...])` supplies composed elements:
+use native fluent methods; `.children(...)` supplies composed elements:
 
 ```python
 from sigil.native import compose as raw
@@ -27,17 +27,7 @@ from sigil.compose import row, text
 
 mark = raw.box().width(12).height(12).fill("#8bd0bd")
 caption = text("Observing", size=14)
-panel = (
-    row()
-    .gap(8)
-    .alignItems("center")
-    .children(
-        [
-            mark,
-            caption,
-        ]
-    )
-)
+panel = row().gap(8).alignItems("center").children(mark, caption)
 ```
 
 There is one element type and no separate Python node model to keep in
@@ -62,6 +52,12 @@ helpers, with a `py.typed` marker for editors. Builders return native
 forms use unions and overloads, fluent methods retain their native signatures,
 and memo builders preserve the type of their model. Decorating a sketch retains
 its class type.
+
+Bound callables name their inputs in both runtime help and editor signatures:
+for example, `pen.line(x1, y1, x2, y2)` and
+`element.size(width, height)`. These names also support keyword calls.
+Positional APIs, such as `.children(*children)`, declare that distinction in
+their overloads.
 
 Annotate the parameters of your own callbacks so an editor knows which
 native service you receive:
@@ -333,7 +329,7 @@ launch the same native application:
 uv init my-sketches
 cd my-sketches
 uv python pin 3.14
-uv add /path/to/sigil_sketch-0.1.0a8-cp314-cp314-macosx_26_0_arm64.whl
+uv add /path/to/sigil_sketch-0.1.0a9-cp314-cp314-macosx_26_0_arm64.whl
 uv add numpy
 uv run sigil open sketch.py --sketchbook /path/to/Sketchbook
 ```
@@ -453,11 +449,13 @@ thread or calling back into Python from a transport:
 from sigil.data import decodeJson, encodeJson
 from sigil.sketch import SketchContext
 
+
 def setup(self, ctx: SketchContext) -> None:
     self.input = ctx.assets.hub().feed("udp://:27021")
     if not self.input.opened():
         raise RuntimeError(self.input.error())
     self.level = 0.0
+
 
 def update(self, elapsed: float, ctx: SketchContext) -> None:
     while (arrival := self.input.receive()) is not None:
@@ -587,10 +585,8 @@ def metric(label, value, accent):
         .grow(1)
         .opacity(entrance(0, 1, duration=0.6))
         .children(
-            [
-                text(label, size=13, color="#92a4b6"),
-                text(value, size=42, color=accent),
-            ]
+            text(label, size=13, color="#92a4b6"),
+            text(value, size=42, color=accent),
         )
     )
 
@@ -607,14 +603,12 @@ class Metrics:
                 .absolute()
                 .inset(0)
                 .children(
-                    [
-                        text("Field observations", size=28),
-                        (
-                            row()
-                            .gap(16)
-                            .children([metric(*reading) for reading in readings])
-                        ),
-                    ]
+                    text("Field observations", size=28),
+                    (
+                        row()
+                        .gap(16)
+                        .children([metric(*reading) for reading in readings])
+                    ),
                 )
             )
         )
@@ -627,15 +621,19 @@ across those descriptions, and native transition declarations animate a
 property when its described target changes.
 
 Create an element, state its properties, then give it children:
-`column().gap(12).children([heading(), body()])`. `row()` is
+`column().gap(12).children(heading(), body())`. `row()` is
 `box().row()` and `column()` is `box().column()`. Constructors do not take
 layout or styling keywords. Fluent methods keep their native names, such
 as `.alignItems("center")`, `.fontSize(18)` and `.translateY(12)`.
 
-Children are an ordered sequence of native elements. Use a list comprehension
-for repeated children, `*items` to include another list, and ordinary Python
-conditions to include optional content. Strings become elements explicitly
-with `text(...)`; nested lists and `None` are not children. Components remain
+Children accept individual native elements or one sequence of elements:
+`.children(a, b)`, `.children([a, b])` and `.children((a, b))` are equivalent.
+Pass a list comprehension directly for repeated content, or expand a sequence
+with `*items` alongside other elements: `.children(heading(), *items, footer())`.
+Generators and iterators work as a single iterable too.
+Each call appends in order and returns the same element; `.children()` adds
+nothing. Use ordinary Python conditions for optional content and `text(...)`
+for strings. Nested sequences and `None` are not children. Components remain
 ordinary functions returning an `Element`.
 
 Text supports `text(value, size=None, color=None)` and `text(value, style)`
@@ -666,7 +664,7 @@ its own layout and motion state across frames.
 from sigil.compose import box, text
 from sigil.draw import Pen
 
-stamp = box().padding(8).fill("#356c69").children([text("Aa", size=24)])
+stamp = box().padding(8).fill("#356c69").children(text("Aa", size=24))
 
 
 def paint(pen: Pen) -> None:
@@ -690,7 +688,7 @@ the memo's description shell.
 
 Stock layouts are native values from `sigil.compose.layouts`: `Grid`,
 `Radial`, `AlongPath`, `Diagonal`, `BaselineGrid` and `Jittered`. Pass one to
-`layout(scheme).children([...])`. Grid tracks use `px`, `content`,
+`layout(scheme).children(...)`. Grid tracks use `px`, `content`,
 `fr` and `minmax`, with named areas or child-owned cells. Relative text
 lengths belong to `sigil.weave`; parent and percentage dimensions belong
 to `sigil.compose`.
@@ -709,7 +707,7 @@ look.type.title.size = 28
 # Inside setup(self, ctx):
 with kit.provide(look):
     kit.stage(ctx, size=(640, 360), capture_at=0)
-    picture = kit.well(width=240, height=160).children([text("A specimen")])
+    picture = kit.well(width=240, height=160).children(text("A specimen"))
     content = kit.caption(picture, label="Native type", note="One shared theme")
     page = kit.page(content, title="A specimen sheet", footer="Sigil")
 ctx.render(page)
@@ -766,10 +764,8 @@ def card(title, detail, accent):
         .ink("#ffffff")
         .fill(wash(accent))
         .children(
-            [
-                text(title, size=26),
-                text(detail, size=14),
-            ]
+            text(title, size=26),
+            text(detail, size=14),
         )
     )
 ```

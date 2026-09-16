@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import ast
 import copy
+import re
 
 ERASED: dict[str, list[str]] = {}
 RETURNS: dict[str, str] = {}
@@ -57,10 +58,10 @@ for path in (
 returns("_sigil.skia.Path", "getBounds", "_sigil.skia.Rect")
 returns("_sigil.skia.Picture", "cullRect", "_sigil.skia.Rect")
 PARAMETERS["_sigil.skia.Point.__init__"] = {
-    "arg0": "collections.abc.Sequence[_t.FloatLike]"
+    "coordinates": "collections.abc.Sequence[_t.FloatLike]"
 }
 PARAMETERS["_sigil.skia.Rect.__init__"] = {
-    "arg0": "collections.abc.Sequence[_t.FloatLike]"
+    "coordinates": "collections.abc.Sequence[_t.FloatLike]"
 }
 returns("_sigil.sketch.Assets", "database", "_sigil.data.Database | None")
 ATTRIBUTES["_sigil.weave.Type.textTransform"] = "TextTransform | None"
@@ -78,14 +79,23 @@ def {field}(self, value: Length | float | int | None) -> None: ...
 """,
     )
 PARAMETERS["_sigil.weave.Type.features"] = {
-    "arg1": "collections.abc.Sequence[FontFeature] | None"
+    "value": "collections.abc.Sequence[FontFeature] | None"
 }
 PARAMETERS["_sigil.weave.Type.variations"] = {
-    "arg1": "collections.abc.Sequence[FontVariation]"
+    "value": "collections.abc.Sequence[FontVariation]"
 }
 
 # Retained declarations.
 element = "_sigil.compose.Element"
+signatures(
+    element,
+    "children",
+    """@typing.overload
+def children(self, children: collections.abc.Iterable[Element], /) -> Element: ...
+@typing.overload
+def children(self, *children: Element) -> Element: ...
+""",
+)
 erased(
     element,
     "width height minWidth minHeight maxWidth maxHeight basis left top right bottom gap",
@@ -172,7 +182,7 @@ erased("_sigil.draw.Pen", "element", "_t.RectLike")
 erased("_sigil.draw.Pen", "inherit", "_t.ColorLike")
 erased("_sigil.draw.Pen", "shape", "_sigil.skia.Path")
 PARAMETERS["_sigil.draw.Pen.clip"] = {"shape": "_t.DrawCallback"}
-PARAMETERS["_sigil.draw.Pen.image"] = {"arg0": "Graphics"}
+PARAMETERS["_sigil.draw.Pen.image"] = {"image": "Graphics"}
 for method in ("background", "fill", "stroke", "color"):
     result = "_sigil.skia.Color" if method == "color" else "None"
     paint = " | _sigil.material.skia.Paint" if method in ("fill", "stroke") else ""
@@ -190,7 +200,7 @@ def {method}(self, red: _t.FloatLike, green: _t.FloatLike, blue: _t.FloatLike, a
 
 # Material recipes keep value uniforms distinct from animated effects.
 erased("_sigil.material.skia.Effect", "glow", "_t.ColorLike")
-PARAMETERS["_sigil.material.skia.Effect.blur"] = {"arg0": "Paint"}
+PARAMETERS["_sigil.material.skia.Effect.blur"] = {"sigmaMap": "Paint"}
 erased(
     "_sigil.material.skia.Effect",
     "uniform",
@@ -201,16 +211,16 @@ erased(paint, "solid", "_t.ColorLike")
 erased(paint, "uniform", "_t.UniformValue")
 erased(paint, "sksl", "str | _sigil.skia.RuntimeEffect")
 PARAMETERS[paint + ".sksl"] = {"uniforms": "dict[str, _t.UniformValue]"}
-PARAMETERS["_sigil.material.skia.Effect.slot"] = {"arg1": "Paint"}
+PARAMETERS["_sigil.material.skia.Effect.slot"] = {"paint": "Paint"}
 erased(paint, "conical linear linearUnit", "_t.PointLike", "_t.PointLike")
 erased(paint, "glowUnit radial radialUnit sweep", "_t.PointLike")
 for name, arg in (
-    ("conical", "arg4"),
+    ("conical", "stops"),
     ("linear", "stops"),
-    ("linearUnit", "arg2"),
-    ("glowUnit", "arg2"),
+    ("linearUnit", "stops"),
+    ("glowUnit", "stops"),
     ("radial", "stops"),
-    ("radialUnit", "arg2"),
+    ("radialUnit", "stops"),
     ("sweep", "stops"),
 ):
     PARAMETERS[paint + "." + name] = {arg: "_t.GradientStops"}
@@ -227,15 +237,15 @@ returns("_sigil.data.Column", "values", "list[_t.CellValue]")
 returns("_sigil.data.Group", "key", "_t.CellValue")
 returns("_sigil.data.Database", "open fromBytes", "Database | None")
 PARAMETERS["_sigil.data.Database.open"] = {
-    "arg0": "os.PathLike[str] | os.PathLike[bytes] | str | bytes"
+    "path": "os.PathLike[str] | os.PathLike[bytes] | str | bytes"
 }
 PARAMETERS["_sigil.data.engineOf"] = {
-    "arg0": "os.PathLike[str] | os.PathLike[bytes] | str | bytes"
+    "uri": "os.PathLike[str] | os.PathLike[bytes] | str | bytes"
 }
 erased("_sigil.data.Json", "__init__", "_t.JsonInput")
 erased("_sigil.data.Json", "__getitem__", "str | typing.SupportsInt")
 PARAMETERS["_sigil.data.Json.object"] = {
-    "arg0": "collections.abc.Iterable[tuple[str, _t.JsonInput]]"
+    "items": "collections.abc.Iterable[tuple[str, _t.JsonInput]]"
 }
 returns("_sigil.data.Json", "to_python", "_t.JsonValue")
 erased("_sigil.data", "encodeJson tableFromJson", "_t.JsonInput")
@@ -248,7 +258,7 @@ PARAMETERS["_sigil.data.Table.derive"] = {
     "value": "collections.abc.Callable[[int], _t.CellInput]"
 }
 PARAMETERS["_sigil.data.Table.filter"] = {
-    "arg0": "collections.abc.Callable[[int], bool]"
+    "predicate": "collections.abc.Callable[[int], bool]"
 }
 returns("_sigil.data.Table", "cell", "_t.CellValue")
 returns("_sigil.data.Table", "row", "dict[str, _t.CellValue]")
@@ -260,7 +270,7 @@ erased(
 signatures(
     "_sigil.data.Scale",
     "through",
-    "def through[Result](self, arg0: _t.FloatLike, arg1: collections.abc.Callable[[float], Result]) -> Result: ...",
+    "def through[Result](self, input: _t.FloatLike, interpolate: collections.abc.Callable[[float], Result]) -> Result: ...",
 )
 
 # Kit fields reuse the conversion policy implemented by field<T>.
@@ -322,11 +332,11 @@ erased(brush, "warp", "_t.DirectionLike")
 returns(brush, "stockFields", "dict[str, Direction]")
 for key, parameter, value in [
     ("Polygon.__init__", "vertices", "collections.abc.Iterable[_t.PointLike]"),
-    ("Polygon.vertices", "arg1", "collections.abc.Iterable[_t.PointLike]"),
-    ("Engine.paint", "arg1", "collections.abc.Iterable[_t.SampleLike]"),
-    ("Engine.polygon", "arg1", "collections.abc.Iterable[_t.PointLike]"),
-    ("paint", "arg2", "collections.abc.Iterable[_t.SampleLike]"),
-    ("wash", "arg2", "collections.abc.Iterable[_t.PointLike]"),
+    ("Polygon.vertices", "value", "collections.abc.Iterable[_t.PointLike]"),
+    ("Engine.paint", "path", "collections.abc.Iterable[_t.SampleLike]"),
+    ("Engine.polygon", "vertices", "collections.abc.Iterable[_t.PointLike]"),
+    ("paint", "stroke", "collections.abc.Iterable[_t.SampleLike]"),
+    ("wash", "polygon", "collections.abc.Iterable[_t.PointLike]"),
     ("warp", "polygon", "collections.abc.Iterable[_t.PointLike]"),
 ]:
     PARAMETERS[brush + "." + key] = {parameter: value}
@@ -340,7 +350,7 @@ for name in ("hatch", "mass"):
         "polygon": "collections.abc.Iterable[_t.PointLike]"
     }
 for name in ("draw", "fill", "hatch", "mass", "show", "wash"):
-    PARAMETERS[brush + ".Polygon." + name] = {"arg1": "Engine"}
+    PARAMETERS[brush + ".Polygon." + name] = {"engine": "Engine"}
     PARAMETERS[brush + ".Plot." + name] = {"engine": "Engine"}
 ATTRIBUTES[brush + ".Tool.customTip"] = (
     "collections.abc.Callable[[], None] | _t.DrawCallback | collections.abc.Callable[[_sigil.draw.Pen, Dab], None] | None"
@@ -386,9 +396,9 @@ for name in ("from_", "to", "entrance", "transition", "through", "animate"):
     ):
         timing = "duration: _t.FloatLike = 0.25, delay: _t.FloatLike = 0.0, ease: _t.EaseLike = None"
         if name == "from_":
-            args, result = f"arg0: {value}, /", prefix + "From"
+            args, result = f"value: {value}", prefix + "From"
         elif name == "to":
-            args, result = f"arg0: {value}, /", prefix + "To"
+            args, result = f"value: {value}", prefix + "To"
         elif name == "entrance":
             stop = "_t.FillLike" if prefix == "Fill" else value
             args, result = (
@@ -399,7 +409,7 @@ for name in ("from_", "to", "entrance", "transition", "through", "animate"):
             args, result = f"target: {value}, {timing}", prefix + "Transitioned"
         elif name == "through":
             args, result = (
-                f"arg0: collections.abc.Iterable[tuple[_t.FloatLike, {value}]], /",
+                f"frames: collections.abc.Iterable[tuple[_t.FloatLike, {value}]]",
                 prefix + "Waypoints",
             )
         else:
@@ -420,9 +430,9 @@ returns(mesh + ".Mesh", "bounds", "tuple[_t.Vec3, _t.Vec3]")
 for name, dim in (("colors", 4), ("normals", 3), ("positions", 3), ("uvs", 2)):
     returns(mesh + ".Mesh", name, f"list[_t.Vec{dim}]")
     PARAMETERS[mesh + ".Mesh." + name] = {
-        "arg0": f"collections.abc.Sequence[_t.Vec{dim}Like]"
+        "value": f"collections.abc.Sequence[_t.Vec{dim}Like]"
     }
-PARAMETERS[mesh + ".camera.Camera.project"] = {"arg0": "_t.Vec3Like"}
+PARAMETERS[mesh + ".camera.Camera.project"] = {"point": "_t.Vec3Like"}
 PARAMETERS[mesh + ".camera.faceCamera"] = {
     x: "_t.Vec3Like" for x in ("eye", "at", "up")
 }
@@ -548,6 +558,32 @@ def refine(module: str, tree: ast.Module) -> None:
                     *node.args.args,
                     *node.args.kwonlyargs,
                 ]
+                anonymous = any(re.fullmatch(r"arg\d+", a.arg) for a in all_args)
+                # Property access and Python protocols pass these inputs
+                # positionally; pybind11 supplies no author-chosen names.
+                if any(show(d).endswith(".setter") for d in node.decorator_list):
+                    all_args[-1].arg = "value"
+                elif node.name in {"__eq__", "__ne__"}:
+                    all_args[-1].arg = "other"
+                elif node.name == "__setstate__":
+                    all_args[-1].arg = "state"
+                elif (
+                    node.name == "__init__"
+                    and any(
+                        isinstance(n, ast.FunctionDef)
+                        and n.name == "__members__"
+                        or isinstance(n, ast.AnnAssign)
+                        and show(n.target) == "__members__"
+                        for n in body
+                    )
+                    and len(all_args) == 2
+                ):
+                    all_args[-1].arg = "value"
+                if anonymous and not any(
+                    re.fullmatch(r"arg\d+", a.arg) for a in all_args
+                ):
+                    node.args.posonlyargs.extend(node.args.args)
+                    node.args.args.clear()
                 unknown = [a for a in all_args if show(a.annotation) == "typing.Any"]
                 if node.name in {"__eq__", "__ne__"}:
                     for arg in all_args:
@@ -607,7 +643,7 @@ def refine(module: str, tree: ast.Module) -> None:
         }
         setters.update(
             {
-                n.name: n.args.args[-1].annotation
+                n.name: [*n.args.posonlyargs, *n.args.args][-1].annotation
                 for n in body
                 if isinstance(n, ast.FunctionDef)
                 and any(show(d).endswith(".setter") for d in n.decorator_list)

@@ -10,14 +10,14 @@ def assembleBrush(description: bytes=b'', shape: bytes=b'', grain: bytes=b'') ->
 def decodeBrush(bytes: bytes, hint: str='') -> _sigil.draw.brush.Tool | None:
     ...
 
-def decodePhotoshopBrushes(arg0: bytes) -> list[_sigil.draw.brush.Tool]:
+def decodePhotoshopBrushes(content: bytes) -> list[_sigil.draw.brush.Tool]:
     ...
 
-def decodeProcreateBrush(arg0: bytes) -> _sigil.draw.brush.Tool | None:
+def decodeProcreateBrush(content: bytes) -> _sigil.draw.brush.Tool | None:
     ...
 
-def encodeBrush(arg0: _sigil.draw.brush.Tool) -> str:
+def encodeBrush(tool: _sigil.draw.brush.Tool) -> str:
     ...
 
-def isPhotoshopBrushes(arg0: bytes) -> bool:
+def isPhotoshopBrushes(content: bytes) -> bool:
     ...

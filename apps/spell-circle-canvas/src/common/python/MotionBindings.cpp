@@ -59,8 +59,12 @@ void outputType(py::module_& module, const char* name, Convert convert) {
           [convert](Output& output, py::handle value) {
             output = convert(value);
           })
-      .def("set", [convert](Output& output,
-                            py::handle value) { output = convert(value); })
+      .def(
+          "set",
+          [convert](Output& output, py::handle value) {
+            output = convert(value);
+          },
+          py::arg("value"))
       .def("get", [](const Output& value) -> T { return value.value(); })
       .def("__call__", [](const Output& value) -> T { return value.value(); })
       .def("isConnected", &Output::isConnected)
@@ -72,9 +76,12 @@ template <class T, class Convert>
 void frameTypes(py::module_& module, const char* prefix, Convert convert) {
   const std::string p(prefix);
   py::class_<motion::From<T>>(module, (p + "From").c_str())
-      .def("to", [convert](const motion::From<T>& start, py::handle value) {
-        return motion::FromTo<T>{start.value, convert(value)};
-      });
+      .def(
+          "to",
+          [convert](const motion::From<T>& start, py::handle value) {
+            return motion::FromTo<T>{start.value, convert(value)};
+          },
+          py::arg("value"));
   py::class_<motion::FromTo<T>>(module, (p + "FromTo").c_str());
   py::class_<motion::To<T>>(module, (p + "To").c_str());
   py::class_<motion::Waypoints<T>>(module, (p + "Waypoints").c_str());
@@ -210,7 +217,8 @@ void bindMotion(py::module_& root) {
       .def_readonly("clamped", &motion::Ticker::FixedStatus::clamped);
 
   py::class_<motion::Animatable<float>>(module, "Animatable")
-      .def(py::init([](py::handle value) { return motionAnimatable(value); }))
+      .def(py::init([](py::handle value) { return motionAnimatable(value); }),
+           py::arg("value"))
       .def("copy", [](const motion::Animatable<float>& value) { return value; })
       .def_property_readonly("index", &motion::Animatable<float>::index)
       .def_property_readonly(
@@ -223,22 +231,36 @@ void bindMotion(py::module_& root) {
                                     : current;
           },
           "The constant, transition target, or current bound source value.")
-      .def("__eq__", [](const motion::Animatable<float>& a,
-                        const motion::Animatable<float>& b) {
-        return motion::propertyEqual(a, b);
-      });
+      .def(
+          "__eq__",
+          [](const motion::Animatable<float>& a,
+             const motion::Animatable<float>& b) {
+            return motion::propertyEqual(a, b);
+          },
+          py::arg("other"));
   py::class_<Easing>(module, "Easing")
-      .def("__call__", [](const Easing& ease,
-                          float progress) { return ease.value(progress); })
-      .def("__eq__", [](const Easing& a, const Easing& b) {
-        return motion::easeEqual(a.value, b.value);
-      });
+      .def(
+          "__call__",
+          [](const Easing& ease, float progress) {
+            return ease.value(progress);
+          },
+          py::arg("progress"))
+      .def(
+          "__eq__",
+          [](const Easing& a, const Easing& b) {
+            return motion::easeEqual(a.value, b.value);
+          },
+          py::arg("other"));
   py::class_<motion::ease::Curve>(module, "Curve")
       .def(py::init<>())
-      .def("at", &motion::ease::Curve::at)
-      .def("__call__", &motion::ease::Curve::at)
-      .def("__eq__", [](const motion::ease::Curve& a,
-                        const motion::ease::Curve& b) { return a == b; });
+      .def("at", &motion::ease::Curve::at, py::arg("progress"))
+      .def("__call__", &motion::ease::Curve::at, py::arg("progress"))
+      .def(
+          "__eq__",
+          [](const motion::ease::Curve& a, const motion::ease::Curve& b) {
+            return a == b;
+          },
+          py::arg("other"));
   auto ease = module.def_submodule("ease");
   const auto named = [&](const char* name, float (*function)(float)) {
     ease.attr(name) = py::cast(Easing{function});
@@ -301,7 +323,7 @@ void bindMotion(py::module_& root) {
             spec.ease = motionEase(value);
           })
       .def("copy", [](const motion::Transition& spec) { return spec; })
-      .def("__eq__", &motion::transitionEqual);
+      .def("__eq__", &motion::transitionEqual, py::arg("other"));
   outputType<float>(module, "Output",
                     [](py::handle value) { return py::cast<float>(value); });
   outputType<SkColor4f>(module, "ColorOutput", &color);
@@ -311,31 +333,41 @@ void bindMotion(py::module_& root) {
   frameTypes<SkColor4f>(module, "Color", &color);
   frameTypes<compose::Fill>(module, "Fill", &fill);
 
-  module.def("from_", [](py::handle value) -> py::object {
-    if (numeric(value)) return py::cast(motion::from(py::cast<float>(value)));
-    if (py::isinstance<compose::Fill>(value))
-      return py::cast(motion::from(fill(value)));
-    return py::cast(motion::from(color(value)));
-  });
-  module.def("to", [](py::handle value) -> py::object {
-    if (numeric(value)) return py::cast(motion::to(py::cast<float>(value)));
-    if (py::isinstance<compose::Fill>(value))
-      return py::cast(motion::to(fill(value)));
-    return py::cast(motion::to(color(value)));
-  });
-  module.def("through", [](py::iterable input) -> py::object {
-    py::list frames(input);
-    if (frames.empty()) return py::cast(motion::Waypoints<float>{});
-    const auto first = py::cast<py::sequence>(frames[0]);
-    if (first.size() != 2)
-      throw py::value_error("A waypoint needs a time and a value.");
-    if (numeric(first[1]))
-      return py::cast(waypoints<float>(
-          frames, [](py::handle v) { return py::cast<float>(v); }));
-    if (py::isinstance<compose::Fill>(first[1]))
-      return py::cast(waypoints<compose::Fill>(frames, &fill));
-    return py::cast(waypoints<SkColor4f>(frames, &color));
-  });
+  module.def(
+      "from_",
+      [](py::handle value) -> py::object {
+        if (numeric(value))
+          return py::cast(motion::from(py::cast<float>(value)));
+        if (py::isinstance<compose::Fill>(value))
+          return py::cast(motion::from(fill(value)));
+        return py::cast(motion::from(color(value)));
+      },
+      py::arg("value"));
+  module.def(
+      "to",
+      [](py::handle value) -> py::object {
+        if (numeric(value)) return py::cast(motion::to(py::cast<float>(value)));
+        if (py::isinstance<compose::Fill>(value))
+          return py::cast(motion::to(fill(value)));
+        return py::cast(motion::to(color(value)));
+      },
+      py::arg("value"));
+  module.def(
+      "through",
+      [](py::iterable input) -> py::object {
+        py::list frames(input);
+        if (frames.empty()) return py::cast(motion::Waypoints<float>{});
+        const auto first = py::cast<py::sequence>(frames[0]);
+        if (first.size() != 2)
+          throw py::value_error("A waypoint needs a time and a value.");
+        if (numeric(first[1]))
+          return py::cast(waypoints<float>(
+              frames, [](py::handle v) { return py::cast<float>(v); }));
+        if (py::isinstance<compose::Fill>(first[1]))
+          return py::cast(waypoints<compose::Fill>(frames, &fill));
+        return py::cast(waypoints<SkColor4f>(frames, &color));
+      },
+      py::arg("frames"));
   module.def(
       "animate",
       [](py::handle path, py::handle options, py::handle easing) {
@@ -384,52 +416,68 @@ void bindMotion(py::module_& root) {
   constexpr auto fluent = py::return_value_policy::reference_internal;
   py::class_<motion::Bound>(module, "Bound")
       .def(py::init([](std::shared_ptr<choreograph::Output<float>> output) {
-        if (!output) throw py::type_error("A binding needs an Output.");
-        return motion::bind(std::move(output));
-      }))
+             if (!output) throw py::type_error("A binding needs an Output.");
+             return motion::bind(std::move(output));
+           }),
+           py::arg("output"))
       .def("copy", [](const motion::Bound& value) { return value; })
-      .def("source", &motion::Bound::source, fluent)
-      .def("window", &motion::Bound::window, fluent)
+      .def("source", &motion::Bound::source, py::arg("low"), py::arg("high"),
+           fluent)
+      .def("window", &motion::Bound::window, py::arg("low"), py::arg("high"),
+           fluent)
       .def("pingPong", &motion::Bound::pingPong, fluent)
       .def("cosine", &motion::Bound::cosine, fluent)
-      .def("trapezoid", &motion::Bound::trapezoid, fluent)
+      .def("trapezoid", &motion::Bound::trapezoid, py::arg("riseStart"),
+           py::arg("holdStart"), py::arg("holdEnd"), py::arg("fallEnd"), fluent)
       .def("square", &motion::Bound::square, py::arg("duty") = 0.5f, fluent)
       .def(
           "wave",
           [](motion::Bound& chain, py::handle easing) -> motion::Bound& {
             return chain.wave(motionEase(easing));
           },
-          fluent)
+          py::arg("easing"), fluent)
       .def(
           "map",
           [](motion::Bound& chain, py::handle easing) -> motion::Bound& {
             return chain.map(motionEase(easing));
           },
-          fluent)
-      .def("scale", &motion::Bound::scale, fluent)
-      .def("offset", &motion::Bound::offset, fluent)
-      .def("target", &motion::Bound::target, fluent)
+          py::arg("function"), fluent)
+      .def("scale", &motion::Bound::scale, py::arg("factor"), fluent)
+      .def("offset", &motion::Bound::offset, py::arg("amount"), fluent)
+      .def("target", &motion::Bound::target, py::arg("low"), py::arg("high"),
+           fluent)
       .def("invert", &motion::Bound::invert, fluent)
-      .def("quantize", &motion::Bound::quantize, fluent)
-      .def("wrap", &motion::Bound::wrap, fluent)
+      .def("quantize", &motion::Bound::quantize, py::arg("steps"), fluent)
+      .def("wrap", &motion::Bound::wrap, py::arg("period"), fluent)
       .def("wiggle", &motion::Bound::wiggle, py::arg("amount") = 1.0f,
            py::arg("frequency") = 2.0f, py::arg("seed") = 0,
            py::arg("octaves") = 1, py::arg("falloff") = 0.5f, fluent)
-      .def("clamp", &motion::Bound::clamp, fluent)
+      .def("clamp", &motion::Bound::clamp, py::arg("low"), py::arg("high"),
+           fluent)
       .def("sample",
            [](const motion::Bound& chain) {
              return chain.value().apply(
                  chain.value().source ? chain.value().source->value() : 0.0f);
            })
-      .def("apply", [](const motion::Bound& chain,
-                       float input) { return chain.value().apply(input); })
-      .def("__eq__", [](const motion::Bound& a, const motion::Bound& b) {
-        return motion::boundMapEqual(a.value(), b.value());
-      });
-  module.def("bind", [](std::shared_ptr<choreograph::Output<float>> output) {
-    if (!output) throw py::type_error("A binding needs an Output.");
-    return motion::bind(std::move(output));
-  });
+      .def(
+          "apply",
+          [](const motion::Bound& chain, float input) {
+            return chain.value().apply(input);
+          },
+          py::arg("input"))
+      .def(
+          "__eq__",
+          [](const motion::Bound& a, const motion::Bound& b) {
+            return motion::boundMapEqual(a.value(), b.value());
+          },
+          py::arg("other"));
+  module.def(
+      "bind",
+      [](std::shared_ptr<choreograph::Output<float>> output) {
+        if (!output) throw py::type_error("A binding needs an Output.");
+        return motion::bind(std::move(output));
+      },
+      py::arg("output"));
   module.def(
       "wiggle",
       [](std::shared_ptr<choreograph::Output<float>> output, float amount,
@@ -441,13 +489,15 @@ void bindMotion(py::module_& root) {
       },
       py::arg("output"), py::arg("amount") = 1.0f, py::arg("frequency") = 2.0f,
       py::arg("seed") = 0, py::arg("octaves") = 1, py::arg("falloff") = 0.5f);
-  module.def("phase", &motion::phase);
-  module.def("quantizeTime", &motion::quantizeTime<double>);
-  module.def("stepIndex", &motion::stepIndex);
-  module.def("decay", &motion::decay);
+  module.def("phase", &motion::phase, py::arg("seconds"), py::arg("period"));
+  module.def("quantizeTime", &motion::quantizeTime<double>, py::arg("seconds"),
+             py::arg("hz"));
+  module.def("stepIndex", &motion::stepIndex, py::arg("seconds"),
+             py::arg("hz"));
+  module.def("decay", &motion::decay, py::arg("age"), py::arg("tau"));
   module.def("flash", &motion::flash, py::arg("age"), py::arg("attack"),
              py::arg("tau"), py::arg("rest") = 0.0f);
-  module.def("clamp01", &motion::clamp01);
+  module.def("clamp01", &motion::clamp01, py::arg("value"));
   module.def(
       "ramp",
       [](double delay, double duration, py::handle easing) {

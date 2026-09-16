@@ -39,10 +39,8 @@ def card(title: str, detail: str, accent: str, delay: float = 0) -> Element:
         .opacity(entrance(0, 1, duration=0.6, delay=delay))
         .translateY(entrance(16, 0, duration=0.6, delay=delay))
         .children(
-            [
-                text(title, size=26),
-                text(detail, size=14, color="#dce6e9"),
-            ]
+            text(title, size=26),
+            text(detail, size=14, color="#dce6e9"),
         )
     )
 

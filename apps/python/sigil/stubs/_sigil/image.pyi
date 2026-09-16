@@ -68,7 +68,7 @@ class ImageAsset:
     def animated(self) -> bool:
         ...
 
-    def frameAt(self, arg0: typing.SupportsFloat) -> _sigil.skia.Image:
+    def frameAt(self, milliseconds: typing.SupportsFloat) -> _sigil.skia.Image:
         ...
 
     def height(self) -> int:

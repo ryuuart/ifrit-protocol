@@ -255,7 +255,7 @@ class CellSpan:
         ...
 
     @column.setter
-    def column(self, arg0: typing.SupportsInt) -> None:
+    def column(self, value: typing.SupportsInt, /) -> None:
         ...
 
     @property
@@ -263,7 +263,7 @@ class CellSpan:
         ...
 
     @columns.setter
-    def columns(self, arg0: typing.SupportsInt) -> None:
+    def columns(self, value: typing.SupportsInt, /) -> None:
         ...
 
     @property
@@ -271,7 +271,7 @@ class CellSpan:
         ...
 
     @row.setter
-    def row(self, arg0: typing.SupportsInt) -> None:
+    def row(self, value: typing.SupportsInt, /) -> None:
         ...
 
     @property
@@ -279,7 +279,7 @@ class CellSpan:
         ...
 
     @rows.setter
-    def rows(self, arg0: typing.SupportsInt) -> None:
+    def rows(self, value: typing.SupportsInt, /) -> None:
         ...
 
 class Composer:
@@ -287,28 +287,28 @@ class Composer:
     def active(self) -> bool:
         ...
 
-    def bounds(self, arg0: str) -> _sigil.skia.Rect | None:
+    def bounds(self, key: str) -> _sigil.skia.Rect | None:
         ...
 
     def dirty(self) -> bool:
         ...
 
-    def hitTest(self, arg0: _t.PointLike) -> str | None:
+    def hitTest(self, at: _t.PointLike) -> str | None:
         ...
 
     def purgeCaches(self) -> None:
         ...
 
-    def render(self, arg0: Element) -> None:
+    def render(self, element: Element) -> None:
         ...
 
-    def renderSlot(self, arg0: str, arg1: Element) -> None:
+    def renderSlot(self, name: str, element: Element) -> None:
         ...
 
-    def routesAt(self, arg0: str) -> list[str]:
+    def routesAt(self, key: str) -> list[str]:
         ...
 
-    def settling(self, arg0: str) -> TextSettling:
+    def settling(self, key: str) -> TextSettling:
         ...
 
     def stats(self) -> ComposerStats:
@@ -375,7 +375,7 @@ class ComposerStats:
 class Corners:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     @typing.overload
@@ -383,11 +383,11 @@ class Corners:
         ...
 
     @typing.overload
-    def __init__(self, arg0: typing.SupportsFloat) -> None:
+    def __init__(self, radius: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def __init__(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat) -> None:
+    def __init__(self, topLeft: typing.SupportsFloat, topRight: typing.SupportsFloat, bottomRight: typing.SupportsFloat, bottomLeft: typing.SupportsFloat) -> None:
         ...
 
     def any(self) -> bool:
@@ -398,7 +398,7 @@ class Corners:
         ...
 
     @bottomLeft.setter
-    def bottomLeft(self, arg0: typing.SupportsFloat) -> None:
+    def bottomLeft(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -406,7 +406,7 @@ class Corners:
         ...
 
     @bottomRight.setter
-    def bottomRight(self, arg0: typing.SupportsFloat) -> None:
+    def bottomRight(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -414,7 +414,7 @@ class Corners:
         ...
 
     @topLeft.setter
-    def topLeft(self, arg0: typing.SupportsFloat) -> None:
+    def topLeft(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -422,16 +422,16 @@ class Corners:
         ...
 
     @topRight.setter
-    def topRight(self, arg0: typing.SupportsFloat) -> None:
+    def topRight(self, value: typing.SupportsFloat, /) -> None:
         ...
 
 class Decoration:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
-    def __init__(self, arg0: _t.DecorationLike) -> None:
+    def __init__(self, value: _t.DecorationLike) -> None:
         ...
 
     def blends(self) -> bool:
@@ -515,7 +515,7 @@ class Dimension:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
     unit: Dimension.Unit
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     @typing.overload
@@ -523,7 +523,7 @@ class Dimension:
         ...
 
     @typing.overload
-    def __init__(self, arg0: _t.DimensionLike) -> None:
+    def __init__(self, value: _t.DimensionLike) -> None:
         ...
 
     def reference(self) -> VarRef:
@@ -537,7 +537,7 @@ class Dimension:
         ...
 
     @value.setter
-    def value(self, arg0: typing.SupportsFloat) -> None:
+    def value(self, value: typing.SupportsFloat, /) -> None:
         ...
 
 class Element:
@@ -548,31 +548,31 @@ class Element:
     def absolute(self) -> Element:
         ...
 
-    def alignItems(self, arg0: _t.AlignLike) -> Element:
+    def alignItems(self, alignment: _t.AlignLike) -> Element:
         ...
 
-    def alignSelf(self, arg0: _t.AlignLike) -> Element:
+    def alignSelf(self, alignment: _t.AlignLike) -> Element:
         ...
 
-    def appear(self, arg0: _sigil.motion.Transition) -> Element:
+    def appear(self, entrance: _sigil.motion.Transition) -> Element:
         ...
 
-    def area(self, arg0: str) -> Element:
+    def area(self, name: str) -> Element:
         ...
 
-    def aspect(self, arg0: typing.SupportsFloat) -> Element:
+    def aspect(self, ratio: typing.SupportsFloat) -> Element:
         ...
 
-    def at(self, arg0: _t.PointLike) -> Element:
+    def at(self, point: _t.PointLike) -> Element:
         ...
 
     def atRest(self) -> Element:
         ...
 
-    def backdrop(self, arg0: _sigil.material.skia.Effect) -> Element:
+    def backdrop(self, effect: _sigil.material.skia.Effect) -> Element:
         ...
 
-    def backface(self, arg0: Backface) -> Element:
+    def backface(self, visibility: Backface) -> Element:
         ...
 
     @typing.overload
@@ -583,28 +583,28 @@ class Element:
     def background(self, spans: Spans, decoration: _t.DecorationLike, name: str='') -> Element:
         ...
 
-    def bakeScale(self, arg0: typing.SupportsFloat) -> Element:
+    def bakeScale(self, scale: typing.SupportsFloat) -> Element:
         ...
 
-    def basis(self, arg0: _t.DimensionLike) -> Element:
+    def basis(self, value: _t.DimensionLike) -> Element:
         ...
 
-    def blend(self, arg0: _sigil.skia.BlendMode) -> Element:
+    def blend(self, mode: _sigil.skia.BlendMode) -> Element:
         ...
 
-    def block(self, arg0: _sigil.weave.Block) -> Element:
+    def block(self, block: _sigil.weave.Block) -> Element:
         ...
 
-    def bottom(self, arg0: _t.DimensionLike) -> Element:
+    def bottom(self, value: _t.DimensionLike) -> Element:
         ...
 
-    def boundary(self, arg0: Boundary) -> Element:
+    def boundary(self, boundary: Boundary) -> Element:
         ...
 
-    def cache(self, arg0: Cache) -> Element:
+    def cache(self, policy: Cache) -> Element:
         ...
 
-    def cellAlign(self, arg0: _t.AlignLike, arg1: _t.AlignLike) -> Element:
+    def cellAlign(self, horizontal: _t.AlignLike, vertical: _t.AlignLike) -> Element:
         ...
 
     @typing.overload
@@ -612,16 +612,21 @@ class Element:
         ...
 
     @typing.overload
-    def cells(self, arg0: CellSpan) -> Element:
+    def cells(self, span: CellSpan) -> Element:
         ...
 
-    def centerAt(self, arg0: _t.PointLike) -> Element:
+    def centerAt(self, point: _t.PointLike) -> Element:
         ...
 
     def centered(self) -> Element:
         ...
 
-    def children(self, arg0: collections.abc.Sequence[Element]) -> Element:
+    @typing.overload
+    def children(self, children: collections.abc.Iterable[Element], /) -> Element:
+        ...
+
+    @typing.overload
+    def children(self, *children: Element) -> Element:
         ...
 
     def clip(self, clip: bool=True) -> Element:
@@ -634,83 +639,83 @@ class Element:
         ...
 
     @typing.overload
-    def corners(self, arg0: typing.SupportsFloat) -> Element:
+    def corners(self, all: typing.SupportsFloat) -> Element:
         ...
 
     @typing.overload
-    def corners(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat) -> Element:
+    def corners(self, topLeft: typing.SupportsFloat, topRight: typing.SupportsFloat, bottomRight: typing.SupportsFloat, bottomLeft: typing.SupportsFloat) -> Element:
         ...
 
     @typing.overload
-    def corners(self, arg0: Corners) -> Element:
+    def corners(self, radii: Corners) -> Element:
         ...
 
     def cover(self) -> Element:
         ...
 
-    def echo(self, arg0: _t.PointLike, arg1: _t.ColorLike) -> Element:
+    def echo(self, offset: _t.PointLike, ink: _t.ColorLike) -> Element:
         ...
 
-    def effect(self, arg0: _sigil.material.skia.Effect) -> Element:
+    def effect(self, effect: _sigil.material.skia.Effect) -> Element:
         ...
 
-    def ellipsis(self, arg0: str) -> Element:
+    def ellipsis(self, text: str) -> Element:
         ...
 
-    def fill(self, arg0: _t.PaintLike) -> Element:
+    def fill(self, value: _t.PaintLike) -> Element:
         ...
 
     def flowAround(self, key: str, margin: typing.SupportsFloat=0.0) -> Element:
         ...
 
-    def font(self, arg0: _sigil.weave.Type) -> Element:
+    def font(self, type: _sigil.weave.Type) -> Element:
         ...
 
-    def fontSize(self, arg0: _t.FloatLike | _sigil.weave.Length) -> Element:
+    def fontSize(self, size: _t.FloatLike | _sigil.weave.Length) -> Element:
         ...
 
-    def fontTrack(self, arg0: _t.FloatLike | _sigil.weave.Length) -> Element:
+    def fontTrack(self, tracking: _t.FloatLike | _sigil.weave.Length) -> Element:
         ...
 
-    def fontWeight(self, arg0: typing.SupportsFloat) -> Element:
+    def fontWeight(self, weight: typing.SupportsFloat) -> Element:
         ...
 
     def foreground(self, decoration: _t.DecorationLike, name: str='') -> Element:
         ...
 
-    def gap(self, arg0: _t.DimensionLike) -> Element:
+    def gap(self, value: _t.DimensionLike) -> Element:
         ...
 
     def grow(self, factor: typing.SupportsFloat=1.0) -> Element:
         ...
 
-    def height(self, arg0: _t.DimensionLike) -> Element:
+    def height(self, value: _t.DimensionLike) -> Element:
         ...
 
-    def hitTestable(self, arg0: bool) -> Element:
+    def hitTestable(self, enabled: bool) -> Element:
         ...
 
-    def ink(self, arg0: _t.ElementInkLike) -> Element:
-        ...
-
-    @typing.overload
-    def inset(self, arg0: typing.SupportsFloat) -> Element:
+    def ink(self, value: _t.ElementInkLike) -> Element:
         ...
 
     @typing.overload
-    def inset(self, arg0: _t.DimensionLike, arg1: _t.DimensionLike, arg2: _t.DimensionLike, arg3: _t.DimensionLike) -> Element:
+    def inset(self, all: typing.SupportsFloat) -> Element:
+        ...
+
+    @typing.overload
+    def inset(self, left: _t.DimensionLike, top: _t.DimensionLike, right: _t.DimensionLike, bottom: _t.DimensionLike) -> Element:
         ...
 
     def inward(self) -> Element:
         ...
 
-    def justify(self, arg0: _t.JustifyLike) -> Element:
+    def justify(self, alignment: _t.JustifyLike) -> Element:
         ...
 
-    def key(self, arg0: str) -> Element:
+    def key(self, key: str) -> Element:
         ...
 
-    def left(self, arg0: _t.DimensionLike) -> Element:
+    def left(self, value: _t.DimensionLike) -> Element:
         ...
 
     @typing.overload
@@ -725,22 +730,22 @@ class Element:
     def margin(self, left: _t.DimensionLike, top: _t.DimensionLike, right: _t.DimensionLike, bottom: _t.DimensionLike, /) -> Element:
         ...
 
-    def maxHeight(self, arg0: _t.DimensionLike) -> Element:
+    def maxHeight(self, value: _t.DimensionLike) -> Element:
         ...
 
-    def maxLines(self, arg0: typing.SupportsInt) -> Element:
+    def maxLines(self, count: typing.SupportsInt) -> Element:
         ...
 
-    def maxWidth(self, arg0: _t.DimensionLike) -> Element:
+    def maxWidth(self, value: _t.DimensionLike) -> Element:
         ...
 
-    def minHeight(self, arg0: _t.DimensionLike) -> Element:
+    def minHeight(self, value: _t.DimensionLike) -> Element:
         ...
 
-    def minWidth(self, arg0: _t.DimensionLike) -> Element:
+    def minWidth(self, value: _t.DimensionLike) -> Element:
         ...
 
-    def opacity(self, arg0: _t.ScalarLike) -> Element:
+    def opacity(self, value: _t.ScalarLike) -> Element:
         ...
 
     def outward(self) -> Element:
@@ -761,67 +766,67 @@ class Element:
     def padding(self, left: _t.DimensionLike, top: _t.DimensionLike, right: _t.DimensionLike, bottom: _t.DimensionLike, /) -> Element:
         ...
 
-    def perspective(self, arg0: _t.ScalarLike) -> Element:
+    def perspective(self, value: _t.ScalarLike) -> Element:
         ...
 
-    def perspectiveOrigin(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> Element:
+    def perspectiveOrigin(self, x: typing.SupportsFloat, y: typing.SupportsFloat) -> Element:
         ...
 
     def preserve3d(self, preserve: bool=True) -> Element:
         ...
 
-    def rect(self, arg0: _t.RectLike) -> Element:
+    def rect(self, rect: _t.RectLike) -> Element:
         ...
 
-    def region(self, arg0: _t.RectLike) -> Element:
+    def region(self, rect: _t.RectLike) -> Element:
         ...
 
-    def right(self, arg0: _t.DimensionLike) -> Element:
+    def right(self, value: _t.DimensionLike) -> Element:
         ...
 
-    def rotate(self, arg0: _t.ScalarLike) -> Element:
+    def rotate(self, value: _t.ScalarLike) -> Element:
         ...
 
-    def rotateX(self, arg0: _t.ScalarLike) -> Element:
+    def rotateX(self, value: _t.ScalarLike) -> Element:
         ...
 
-    def rotateY(self, arg0: _t.ScalarLike) -> Element:
+    def rotateY(self, value: _t.ScalarLike) -> Element:
         ...
 
-    def rotateZ(self, arg0: _t.ScalarLike) -> Element:
+    def rotateZ(self, value: _t.ScalarLike) -> Element:
         ...
 
     def row(self) -> Element:
         ...
 
-    def sampling(self, arg0: _sigil.skia.SamplingOptions) -> Element:
+    def sampling(self, sampling: _sigil.skia.SamplingOptions) -> Element:
         ...
 
-    def scale(self, arg0: _t.ScalarLike) -> Element:
+    def scale(self, value: _t.ScalarLike) -> Element:
         ...
 
-    def scaleX(self, arg0: _t.ScalarLike) -> Element:
+    def scaleX(self, value: _t.ScalarLike) -> Element:
         ...
 
-    def scaleY(self, arg0: _t.ScalarLike) -> Element:
+    def scaleY(self, value: _t.ScalarLike) -> Element:
         ...
 
-    def scaleZ(self, arg0: _t.ScalarLike) -> Element:
+    def scaleZ(self, value: _t.ScalarLike) -> Element:
         ...
 
-    def shape(self, arg0: _t.ShapeLike) -> Element:
+    def shape(self, value: _t.ShapeLike) -> Element:
         ...
 
-    def shrink(self, arg0: typing.SupportsFloat) -> Element:
+    def shrink(self, factor: typing.SupportsFloat) -> Element:
         ...
 
     def size(self, width: _t.DimensionLike, height: _t.DimensionLike) -> Element:
         ...
 
-    def skewX(self, arg0: _t.ScalarLike) -> Element:
+    def skewX(self, value: _t.ScalarLike) -> Element:
         ...
 
-    def skewY(self, arg0: _t.ScalarLike) -> Element:
+    def skewY(self, value: _t.ScalarLike) -> Element:
         ...
 
     def staggerChildren(self, seconds: typing.SupportsFloat, from_: str='start') -> Element:
@@ -835,71 +840,71 @@ class Element:
     def stroke(self, spans: Spans, decoration: _t.DecorationLike, name: str='') -> Element:
         ...
 
-    def style(self, arg0: LayerStyle) -> Element:
+    def style(self, style: LayerStyle) -> Element:
         ...
 
-    def styleClass(self, arg0: str) -> Element:
+    def styleClass(self, name: str) -> Element:
         ...
 
-    def styleSheet(self, arg0: _sigil.weave.StyleSheet) -> Element:
+    def styleSheet(self, sheet: _sigil.weave.StyleSheet) -> Element:
         ...
 
-    def textFill(self, arg0: _sigil.material.skia.Paint) -> Element:
+    def textFill(self, paint: _sigil.material.skia.Paint) -> Element:
         ...
 
-    def textStroke(self, arg0: typing.SupportsFloat, arg1: _t.ColorLike) -> Element:
+    def textStroke(self, width: typing.SupportsFloat, color: _t.ColorLike) -> Element:
         ...
 
-    def thread(self, arg0: str) -> Element:
+    def thread(self, name: str) -> Element:
         ...
 
-    def threshold(self, arg0: typing.SupportsFloat) -> Element:
+    def threshold(self, threshold: typing.SupportsFloat) -> Element:
         ...
 
-    def top(self, arg0: _t.DimensionLike) -> Element:
+    def top(self, value: _t.DimensionLike) -> Element:
         ...
 
-    def transformOrigin(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> Element:
+    def transformOrigin(self, x: typing.SupportsFloat, y: typing.SupportsFloat) -> Element:
         ...
 
-    def transformOrigin3d(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat) -> Element:
+    def transformOrigin3d(self, x: typing.SupportsFloat, y: typing.SupportsFloat, z: typing.SupportsFloat) -> Element:
         ...
 
-    def transformOriginPx(self, arg0: _t.PointLike) -> Element:
+    def transformOriginPx(self, point: _t.PointLike) -> Element:
         ...
 
-    def transition(self, arg0: _sigil.motion.Transition) -> Element:
+    def transition(self, transition: _sigil.motion.Transition) -> Element:
         ...
 
-    def translateX(self, arg0: _t.ScalarLike) -> Element:
+    def translateX(self, value: _t.ScalarLike) -> Element:
         ...
 
-    def translateY(self, arg0: _t.ScalarLike) -> Element:
+    def translateY(self, value: _t.ScalarLike) -> Element:
         ...
 
-    def translateZ(self, arg0: _t.ScalarLike) -> Element:
+    def translateZ(self, value: _t.ScalarLike) -> Element:
         ...
 
-    def travel(self, arg0: MotionPath) -> Element:
+    def travel(self, path: MotionPath) -> Element:
         ...
 
-    def var(self, arg0: str, arg1: _t.DimensionLike | _t.ColorLike) -> Element:
+    def var(self, name: str, value: _t.DimensionLike | _t.ColorLike) -> Element:
         ...
 
-    def width(self, arg0: _t.DimensionLike) -> Element:
+    def width(self, value: _t.DimensionLike) -> Element:
         ...
 
     def wrapLines(self, wrap: bool=True) -> Element:
         ...
 
-    def zIndex(self, arg0: typing.SupportsInt) -> Element:
+    def zIndex(self, index: typing.SupportsInt) -> Element:
         ...
 
 class Fill:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
     @staticmethod
-    def color(arg0: _t.ColorLike) -> Fill:
+    def color(value: _t.ColorLike) -> Fill:
         ...
 
     @staticmethod
@@ -911,10 +916,10 @@ class Fill:
         ...
 
     @staticmethod
-    def var(arg0: VarRef) -> Fill:
+    def var(reference: VarRef) -> Fill:
         ...
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     @typing.overload
@@ -922,7 +927,7 @@ class Fill:
         ...
 
     @typing.overload
-    def __init__(self, arg0: _t.FillLike) -> None:
+    def __init__(self, value: _t.FillLike) -> None:
         ...
 
     @property
@@ -1054,7 +1059,7 @@ class LayerStyle:
         ...
 
     @over.setter
-    def over(self, arg1: collections.abc.Sequence[Decoration]) -> None:
+    def over(self, value: collections.abc.Sequence[Decoration], /) -> None:
         ...
 
     @property
@@ -1062,7 +1067,7 @@ class LayerStyle:
         ...
 
     @under.setter
-    def under(self, arg1: collections.abc.Sequence[Decoration]) -> None:
+    def under(self, value: collections.abc.Sequence[Decoration], /) -> None:
         ...
 
 class MotionPath:
@@ -1076,7 +1081,7 @@ class MotionPath:
         ...
 
     @lookAhead.setter
-    def lookAhead(self, arg0: typing.SupportsFloat) -> None:
+    def lookAhead(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -1084,7 +1089,7 @@ class MotionPath:
         ...
 
     @t.setter
-    def t(self, arg1: _t.ScalarLike) -> None:
+    def t(self, value: _t.ScalarLike, /) -> None:
         ...
 
 class PathFormat:
@@ -1158,7 +1163,7 @@ class PathFormat:
         ...
 
     @dashIntervals.setter
-    def dashIntervals(self, arg0: collections.abc.Sequence[typing.SupportsFloat]) -> None:
+    def dashIntervals(self, value: collections.abc.Sequence[typing.SupportsFloat], /) -> None:
         ...
 
     @property
@@ -1166,7 +1171,7 @@ class PathFormat:
         ...
 
     @dashPhase.setter
-    def dashPhase(self, arg0: typing.SupportsFloat) -> None:
+    def dashPhase(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -1174,7 +1179,7 @@ class PathFormat:
         ...
 
     @dashPhaseBinding.setter
-    def dashPhaseBinding(self, arg1: _t.ScalarLike | None) -> None:
+    def dashPhaseBinding(self, value: _t.ScalarLike | None, /) -> None:
         ...
 
     @property
@@ -1182,7 +1187,7 @@ class PathFormat:
         ...
 
     @stampAdvance.setter
-    def stampAdvance(self, arg0: typing.SupportsFloat) -> None:
+    def stampAdvance(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -1190,7 +1195,7 @@ class PathFormat:
         ...
 
     @strokeFill.setter
-    def strokeFill(self, arg1: _t.SurfacePaintLike) -> None:
+    def strokeFill(self, value: _t.SurfacePaintLike, /) -> None:
         ...
 
     @property
@@ -1198,7 +1203,7 @@ class PathFormat:
         ...
 
     @trimEnd.setter
-    def trimEnd(self, arg0: typing.SupportsFloat) -> None:
+    def trimEnd(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -1206,7 +1211,7 @@ class PathFormat:
         ...
 
     @trimOffset.setter
-    def trimOffset(self, arg0: typing.SupportsFloat) -> None:
+    def trimOffset(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -1214,7 +1219,7 @@ class PathFormat:
         ...
 
     @trimPhase.setter
-    def trimPhase(self, arg1: _t.ScalarLike | None) -> None:
+    def trimPhase(self, value: _t.ScalarLike | None, /) -> None:
         ...
 
     @property
@@ -1222,7 +1227,7 @@ class PathFormat:
         ...
 
     @trimStart.setter
-    def trimStart(self, arg0: typing.SupportsFloat) -> None:
+    def trimStart(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -1230,7 +1235,7 @@ class PathFormat:
         ...
 
     @width.setter
-    def width(self, arg0: typing.SupportsFloat) -> None:
+    def width(self, value: typing.SupportsFloat, /) -> None:
         ...
 
 class Shadow:
@@ -1244,7 +1249,7 @@ class Shadow:
         ...
 
     @blur.setter
-    def blur(self, arg0: typing.SupportsFloat) -> None:
+    def blur(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -1252,7 +1257,7 @@ class Shadow:
         ...
 
     @color.setter
-    def color(self, arg1: _t.ColorLike) -> None:
+    def color(self, value: _t.ColorLike, /) -> None:
         ...
 
     @property
@@ -1260,7 +1265,7 @@ class Shadow:
         ...
 
     @maxBind.setter
-    def maxBind(self, arg0: typing.SupportsFloat) -> None:
+    def maxBind(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -1268,13 +1273,13 @@ class Shadow:
         ...
 
     @offset.setter
-    def offset(self, arg1: _t.PointLike) -> None:
+    def offset(self, value: _t.PointLike, /) -> None:
         ...
 
 class Shape:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     @typing.overload
@@ -1282,24 +1287,24 @@ class Shape:
         ...
 
     @typing.overload
-    def __init__(self, arg0: _t.ShapeLike) -> None:
+    def __init__(self, value: _t.ShapeLike) -> None:
         ...
 
     def comparable(self) -> bool:
         ...
 
-    def path(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> _sigil.skia.Path:
+    def path(self, width: typing.SupportsFloat, height: typing.SupportsFloat) -> _sigil.skia.Path:
         ...
 
 class Spans:
 
-    def __or__(self, arg0: Spans) -> Spans:
+    def __or__(self, other: Spans) -> Spans:
         ...
 
 class SurfacePaint:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     @typing.overload
@@ -1307,7 +1312,7 @@ class SurfacePaint:
         ...
 
     @typing.overload
-    def __init__(self, arg0: _t.SurfacePaintLike) -> None:
+    def __init__(self, value: _t.SurfacePaintLike) -> None:
         ...
 
     def isAnimated(self) -> bool:
@@ -1333,7 +1338,7 @@ class TextSettling:
 class VarRef:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     @property
@@ -1349,34 +1354,34 @@ def box() -> Element:
 def graphics(key: str, program: _t.DrawCallback, cache: Cache=...) -> Element:
     ...
 
-def heldPath(arg0: _sigil.skia.Path) -> Shape:
+def heldPath(path: _sigil.skia.Path) -> Shape:
     ...
 
 def image(image: _sigil.skia.Image, fit: Fit=...) -> Element:
     ...
 
 @typing.overload
-def layout(arg0: layouts.Radial) -> Element:
+def layout(scheme: layouts.Radial) -> Element:
     ...
 
 @typing.overload
-def layout(arg0: layouts.Grid) -> Element:
+def layout(scheme: layouts.Grid) -> Element:
     ...
 
 @typing.overload
-def layout(arg0: layouts.Diagonal) -> Element:
+def layout(scheme: layouts.Diagonal) -> Element:
     ...
 
 @typing.overload
-def layout(arg0: layouts.BaselineGrid) -> Element:
+def layout(scheme: layouts.BaselineGrid) -> Element:
     ...
 
 @typing.overload
-def layout(arg0: layouts.Jittered) -> Element:
+def layout(scheme: layouts.Jittered) -> Element:
     ...
 
 @typing.overload
-def layout(arg0: layouts.AlongPath) -> Element:
+def layout(scheme: layouts.AlongPath) -> Element:
     ...
 
 def memo[Model](properties: Model, describe: collections.abc.Callable[[Model], Element]) -> Element:
@@ -1385,31 +1390,31 @@ def memo[Model](properties: Model, describe: collections.abc.Callable[[Model], E
 def pathFigure(path: _sigil.skia.Path, bleed: typing.SupportsFloat=0.0) -> Element:
     ...
 
-def pct(arg0: typing.SupportsFloat) -> Dimension:
+def pct(percent: typing.SupportsFloat) -> Dimension:
     ...
 
 def pen(key: str, program: _t.DrawCallback, cache: Cache=...) -> Element:
     ...
 
-def ph(arg0: typing.SupportsFloat) -> Dimension:
+def ph(percent: typing.SupportsFloat) -> Dimension:
     ...
 
-def picture(arg0: _sigil.skia.Picture, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat) -> Element:
+def picture(picture: _sigil.skia.Picture, width: typing.SupportsFloat, height: typing.SupportsFloat) -> Element:
     ...
 
 def positioned() -> Element:
     ...
 
-def pw(arg0: typing.SupportsFloat) -> Dimension:
+def pw(percent: typing.SupportsFloat) -> Dimension:
     ...
 
 def shadow(color: _t.ColorLike, offset: _t.PointLike, blur: typing.SupportsFloat) -> Shadow:
     ...
 
-def shape(arg0: _t.ShapeLike) -> Shape:
+def shape(value: _t.ShapeLike) -> Shape:
     ...
 
-def slot(arg0: str) -> Element:
+def slot(name: str) -> Element:
     ...
 
 def stack() -> Element:
@@ -1426,5 +1431,5 @@ def text(value: str, style: _sigil.weave.TextStyle) -> Element:
 def text(value: str, size: _t.FloatLike | _sigil.weave.Length | None=None, color: _t.ColorLike | None=None) -> Element:
     ...
 
-def var(arg0: str) -> VarRef:
+def var(name: str) -> VarRef:
     ...

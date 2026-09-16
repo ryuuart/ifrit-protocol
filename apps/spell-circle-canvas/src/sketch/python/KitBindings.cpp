@@ -132,19 +132,26 @@ void bindTheme(py::module_& module) {
   field(theme, "spacing", &sketchKit::Theme::spacing);
   field(theme, "captionWhere", &sketchKit::Theme::captionWhere);
   theme.def(py::self == py::self)
-      .def("font", py::overload_cast<const sketchKit::Register&>(
-                       &sketchKit::Theme::font, py::const_))
       .def("font",
-           [](const sketchKit::Theme& value, const sketchKit::Register& line,
-              py::handle ink) {
-             return value.font(line, sigil::python::color(ink));
-           })
+           py::overload_cast<const sketchKit::Register&>(
+               &sketchKit::Theme::font, py::const_),
+           py::arg("register"))
+      .def(
+          "font",
+          [](const sketchKit::Theme& value, const sketchKit::Register& line,
+             py::handle ink) {
+            return value.font(line, sigil::python::color(ink));
+          },
+          py::arg("line"), py::arg("ink"))
       .def("styleSheet", &sketchKit::Theme::styleSheet)
-      .def("voice", &sketchKit::Theme::voice)
-      .def("style", [](const sketchKit::Theme& value,
-                       const sketchKit::Register& line, py::handle ink) {
-        return value.style(line, sigil::python::fill(ink));
-      });
+      .def("voice", &sketchKit::Theme::voice, py::arg("noteMeasure"))
+      .def(
+          "style",
+          [](const sketchKit::Theme& value, const sketchKit::Register& line,
+             py::handle ink) {
+            return value.style(line, sigil::python::fill(ink));
+          },
+          py::arg("line"), py::arg("ink"));
   py::enum_<sketchKit::Voice>(module, "Voice")
       .value("Book", sketchKit::Voice::Book)
       .value("Terminal", sketchKit::Voice::Terminal)
@@ -163,11 +170,13 @@ void bindTheme(py::module_& module) {
   py::class_<ThemeProvider, std::shared_ptr<ThemeProvider>>(module, "Provide")
       .def(py::init<sketchKit::Theme>(), py::arg("theme"))
       .def("__enter__", &ThemeProvider::enter)
-      .def("__exit__",
-           [](ThemeProvider& scope, py::object, py::object, py::object) {
-             scope.close();
-             return false;
-           })
+      .def(
+          "__exit__",
+          [](ThemeProvider& scope, py::object, py::object, py::object) {
+            scope.close();
+            return false;
+          },
+          py::arg("exc_type"), py::arg("exc_value"), py::arg("traceback"))
       .def("close", &ThemeProvider::close)
       .def_property_readonly("active", &ThemeProvider::active);
 }
@@ -223,23 +232,31 @@ void bindSpecimens(py::module_& module) {
   field(grid, "ruled", &sketchKit::PanelGrid::ruled);
   field(grid, "align", &sketchKit::PanelGrid::align);
   field(grid, "measure", &sketchKit::PanelGrid::measure);
-  module.def("stage", &stageContext);
-  module.def("page", &sketchKit::page);
+  module.def("stage", &stageContext, py::arg("context"), py::arg("stage"));
+  module.def("page", &sketchKit::page, py::arg("sheet"), py::arg("content"));
   module.def("well",
-             py::overload_cast<const sketchKit::Well&>(&sketchKit::well));
+             py::overload_cast<const sketchKit::Well&>(&sketchKit::well),
+             py::arg("specification"));
   module.def("well",
              py::overload_cast<const sketchKit::Well&, compose::Element>(
-                 &sketchKit::well));
-  module.def("caption", [](float measure, std::string label, std::string note,
-                           compose::Element body) {
-    return sketchKit::caption(measure, label, note, std::move(body));
-  });
-  module.def("cell", [](const sketchKit::Cell& plate, std::string label,
-                        std::string note, compose::Element picture) {
-    return sketchKit::cell(plate, label, note, std::move(picture));
-  });
-  module.def("cells", &sketchKit::cells);
-  module.def("panelGrid", &sketchKit::panelGrid);
+                 &sketchKit::well),
+             py::arg("specification"), py::arg("surface"));
+  module.def(
+      "caption",
+      [](float measure, std::string label, std::string note,
+         compose::Element body) {
+        return sketchKit::caption(measure, label, note, std::move(body));
+      },
+      py::arg("measure"), py::arg("label"), py::arg("note"), py::arg("body"));
+  module.def(
+      "cell",
+      [](const sketchKit::Cell& plate, std::string label, std::string note,
+         compose::Element picture) {
+        return sketchKit::cell(plate, label, note, std::move(picture));
+      },
+      py::arg("plate"), py::arg("label"), py::arg("note"), py::arg("picture"));
+  module.def("cells", &sketchKit::cells, py::arg("run"));
+  module.def("panelGrid", &sketchKit::panelGrid, py::arg("grid"));
 }
 
 }  // namespace

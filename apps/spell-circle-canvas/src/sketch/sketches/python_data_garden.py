@@ -53,48 +53,38 @@ class DataGarden:
             .justify("space_between")
             .padding(19, 0)
             .children(
-                [
-                    (
-                        column()
-                        .gap(5)
-                        .children(
-                            [
-                                label("SPECIMENS", 11, MUTED),
-                                label("12", 33),
-                            ]
-                        )
-                    ),
-                    (
-                        column()
-                        .gap(5)
-                        .children(
-                            [
-                                label("ROOMS", 11, MUTED),
-                                label("03", 33),
-                            ]
-                        )
-                    ),
-                    (
-                        column()
-                        .gap(9)
-                        .children(
-                            [
-                                label("OBSERVATION", 11, MUTED),
-                                label("Week 08", 25),
-                            ]
-                        )
-                    ),
-                    (
-                        column()
-                        .gap(12)
-                        .children(
-                            [
-                                label("BUBBLE AREA", 11, MUTED),
-                                label("Water / ml", 19),
-                            ]
-                        )
-                    ),
-                ]
+                (
+                    column()
+                    .gap(5)
+                    .children(
+                        label("SPECIMENS", 11, MUTED),
+                        label("12", 33),
+                    )
+                ),
+                (
+                    column()
+                    .gap(5)
+                    .children(
+                        label("ROOMS", 11, MUTED),
+                        label("03", 33),
+                    )
+                ),
+                (
+                    column()
+                    .gap(9)
+                    .children(
+                        label("OBSERVATION", 11, MUTED),
+                        label("Week 08", 25),
+                    )
+                ),
+                (
+                    column()
+                    .gap(12)
+                    .children(
+                        label("BUBBLE AREA", 11, MUTED),
+                        label("Water / ml", 19),
+                    )
+                ),
             )
         )
         legend = (
@@ -106,10 +96,8 @@ class DataGarden:
                         row()
                         .gap(7)
                         .children(
-                            [
-                                (box().width(8).height(8).fill(ink).corners(4)),
-                                label(f"ROOM {room}", 10, MUTED),
-                            ]
+                            (box().width(8).height(8).fill(ink).corners(4)),
+                            label(f"ROOM {room}", 10, MUTED),
                         )
                     )
                     for room, ink in ROOMS.items()
@@ -124,121 +112,97 @@ class DataGarden:
             .top(39)
             .gap(16)
             .children(
-                [
-                    (
-                        row()
-                        .width(892)
-                        .justify("space_between")
-                        .children(
-                            [
-                                label("FIELDNOTES / 08", 12, MUTED),
-                                label("CONTROLLED CULTIVATION", 11, MUTED),
-                            ]
-                        )
-                    ),
-                    (
-                        row()
-                        .width(892)
-                        .justify("space_between")
-                        .alignItems("center")
-                        .children(
-                            [
-                                (
-                                    column()
-                                    .gap(9)
-                                    .children(
-                                        [
-                                            label("Under glass.", 48),
-                                            label(
-                                                "A small trial of light, water and growth.",
-                                                15,
-                                                MUTED,
-                                            ),
-                                        ]
-                                    )
+                (
+                    row()
+                    .width(892)
+                    .justify("space_between")
+                    .children(
+                        label("FIELDNOTES / 08", 12, MUTED),
+                        label("CONTROLLED CULTIVATION", 11, MUTED),
+                    )
+                ),
+                (
+                    row()
+                    .width(892)
+                    .justify("space_between")
+                    .alignItems("center")
+                    .children(
+                        (
+                            column()
+                            .gap(9)
+                            .children(
+                                label("Under glass.", 48),
+                                label(
+                                    "A small trial of light, water and growth.",
+                                    15,
+                                    MUTED,
                                 ),
+                            )
+                        ),
+                        (
+                            box()
+                            .fill(INK)
+                            .padding(17)
+                            .corners(3)
+                            .children(
+                                label("BOTANICAL\nTRIAL LEDGER", 11, "#f3f1e8"),
+                            )
+                        ),
+                    )
+                ),
+                (box().width(892).height(1).fill(RULE)),
+                summary,
+                (
+                    row()
+                    .gap(27)
+                    .children(
+                        (
+                            column()
+                            .width(560)
+                            .gap(15)
+                            .children(
                                 (
-                                    box()
-                                    .fill(INK)
-                                    .padding(17)
-                                    .corners(3)
-                                    .children(
-                                        [
-                                            label(
-                                                "BOTANICAL\nTRIAL LEDGER", 11, "#f3f1e8"
-                                            ),
-                                        ]
-                                    )
-                                ),
-                            ]
-                        )
-                    ),
-                    (box().width(892).height(1).fill(RULE)),
-                    summary,
-                    (
-                        row()
-                        .gap(27)
-                        .children(
-                            [
-                                (
-                                    column()
+                                    row()
                                     .width(560)
-                                    .gap(15)
+                                    .justify("space_between")
                                     .children(
-                                        [
-                                            (
-                                                row()
-                                                .width(560)
-                                                .justify("space_between")
-                                                .children(
-                                                    [
-                                                        label("LIGHT × HEIGHT", 12),
-                                                        legend,
-                                                    ]
-                                                )
-                                            ),
-                                            (
-                                                graphics(
-                                                    "greenhouse-scatter", self.scatter
-                                                )
-                                                .width(560)
-                                                .height(416)
-                                            ),
-                                            label(
-                                                "Illustrative measurements  ·  relative light / final height in cm",
-                                                11,
-                                                MUTED,
-                                            ),
-                                        ]
+                                        label("LIGHT × HEIGHT", 12),
+                                        legend,
                                     )
                                 ),
-                                (box().width(1).height(448).fill(RULE)),
                                 (
-                                    column()
-                                    .width(276)
-                                    .gap(15)
-                                    .children(
-                                        [
-                                            label("HEIGHT / SORTED", 12),
-                                            (
-                                                graphics(
-                                                    "greenhouse-ranking", self.bars
-                                                )
-                                                .width(276)
-                                                .height(416)
-                                            ),
-                                            label(
-                                                "NATIVE TABLE → SORT → BAND SCALE",
-                                                9,
-                                                MUTED,
-                                            ),
-                                        ]
-                                    )
+                                    graphics("greenhouse-scatter", self.scatter)
+                                    .width(560)
+                                    .height(416)
                                 ),
-                            ]
-                        )
-                    ),
-                ]
+                                label(
+                                    "Illustrative measurements  ·  relative light / final height in cm",
+                                    11,
+                                    MUTED,
+                                ),
+                            )
+                        ),
+                        (box().width(1).height(448).fill(RULE)),
+                        (
+                            column()
+                            .width(276)
+                            .gap(15)
+                            .children(
+                                label("HEIGHT / SORTED", 12),
+                                (
+                                    graphics("greenhouse-ranking", self.bars)
+                                    .width(276)
+                                    .height(416)
+                                ),
+                                label(
+                                    "NATIVE TABLE → SORT → BAND SCALE",
+                                    9,
+                                    MUTED,
+                                ),
+                            )
+                        ),
+                    )
+                ),
             )
         )
 

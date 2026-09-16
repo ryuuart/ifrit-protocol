@@ -10,6 +10,13 @@ They do not provide another element tree, motion engine, renderer or IO loop.
 The supported surface is curated; linking a native library does not imply
 that every C++ API is exposed to Python.
 
+Callable inputs are named in the bindings so runtime help, keyword calls and
+generated editor signatures agree. Positional variadic APIs retain typed
+overloads in the package. An element's `children` method accepts individual
+elements or one iterable, including a list, tuple or generator. Each call
+appends in order and returns the same element; all inputs are converted before
+any are appended.
+
 ## Module assembly
 
 * `Python.h` — `bindLibraries`

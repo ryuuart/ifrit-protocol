@@ -13,7 +13,7 @@ class Effect:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
     @staticmethod
-    def blur(arg0: Paint, arg1: typing.SupportsFloat) -> Effect:
+    def blur(sigmaMap: Paint, maxSigma: typing.SupportsFloat) -> Effect:
         ...
 
     @staticmethod
@@ -25,7 +25,7 @@ class Effect:
         ...
 
     @staticmethod
-    def glow(arg0: _t.ColorLike, arg1: typing.SupportsFloat) -> Effect:
+    def glow(ink: _t.ColorLike, sigma: typing.SupportsFloat) -> Effect:
         ...
 
     @staticmethod
@@ -33,26 +33,26 @@ class Effect:
         ...
 
     @staticmethod
-    def recipe(arg0: _sigil.material.Material) -> Effect:
+    def recipe(material: _sigil.material.Material) -> Effect:
         ...
 
     @staticmethod
     def shader(effect: _sigil.skia.RuntimeEffect, uniforms: collections.abc.Sequence[tuple[str, typing.SupportsFloat]]=[]) -> Effect:
         ...
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     def isAnimated(self) -> bool:
         ...
 
-    def slot(self, arg0: str, arg1: Paint) -> Effect:
+    def slot(self, name: str, paint: Paint) -> Effect:
         ...
 
-    def then(self, arg0: Effect) -> Effect:
+    def then(self, effect: Effect) -> Effect:
         ...
 
-    def uniform(self, arg0: str, arg1: _t.ScalarLike | collections.abc.Sequence[_t.FloatLike]) -> Effect:
+    def uniform(self, name: str, value: _t.ScalarLike | collections.abc.Sequence[_t.FloatLike]) -> Effect:
         ...
 
     def usesWorldSpace(self) -> bool:
@@ -118,15 +118,15 @@ class Paint:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
     @staticmethod
-    def blend(arg0: collections.abc.Sequence[tuple[Paint, _sigil.skia.BlendMode]]) -> Paint:
+    def blend(layers: collections.abc.Sequence[tuple[Paint, _sigil.skia.BlendMode]]) -> Paint:
         ...
 
     @staticmethod
-    def conical(arg0: _t.PointLike, arg1: typing.SupportsFloat, arg2: _t.PointLike, arg3: typing.SupportsFloat, arg4: _t.GradientStops) -> Paint:
+    def conical(start: _t.PointLike, startRadius: typing.SupportsFloat, end: _t.PointLike, endRadius: typing.SupportsFloat, stops: _t.GradientStops) -> Paint:
         ...
 
     @staticmethod
-    def glowUnit(arg0: _t.PointLike, arg1: typing.SupportsFloat, arg2: _t.GradientStops) -> Paint:
+    def glowUnit(center: _t.PointLike, radius: typing.SupportsFloat, stops: _t.GradientStops) -> Paint:
         ...
 
     @staticmethod
@@ -138,7 +138,7 @@ class Paint:
         ...
 
     @staticmethod
-    def linearUnit(arg0: _t.PointLike, arg1: _t.PointLike, arg2: _t.GradientStops) -> Paint:
+    def linearUnit(start: _t.PointLike, end: _t.PointLike, stops: _t.GradientStops) -> Paint:
         ...
 
     @staticmethod
@@ -146,11 +146,11 @@ class Paint:
         ...
 
     @staticmethod
-    def radialUnit(arg0: _t.PointLike, arg1: typing.SupportsFloat, arg2: _t.GradientStops) -> Paint:
+    def radialUnit(center: _t.PointLike, radius: typing.SupportsFloat, stops: _t.GradientStops) -> Paint:
         ...
 
     @staticmethod
-    def recipe(arg0: _sigil.material.Material) -> Paint:
+    def recipe(material: _sigil.material.Material) -> Paint:
         ...
 
     @staticmethod
@@ -158,14 +158,14 @@ class Paint:
         ...
 
     @staticmethod
-    def solid(arg0: _t.ColorLike) -> Paint:
+    def solid(color: _t.ColorLike) -> Paint:
         ...
 
     @staticmethod
     def sweep(center: _t.PointLike, stops: _t.GradientStops, start: typing.SupportsFloat=0, end: typing.SupportsFloat=360) -> Paint:
         ...
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     @typing.overload
@@ -173,16 +173,16 @@ class Paint:
         ...
 
     @typing.overload
-    def __init__(self, arg0: Paint) -> None:
+    def __init__(self, paint: Paint) -> None:
         ...
 
-    def amount(self, arg0: typing.SupportsFloat) -> Paint:
+    def amount(self, amount: typing.SupportsFloat) -> Paint:
         ...
 
     def copy(self) -> Paint:
         ...
 
-    def fit(self, arg0: Fit) -> Paint:
+    def fit(self, fit: Fit) -> Paint:
         ...
 
     def isAnimated(self) -> bool:
@@ -191,13 +191,13 @@ class Paint:
     def isNone(self) -> bool:
         ...
 
-    def quantizeTime(self, arg0: typing.SupportsFloat) -> Paint:
+    def quantizeTime(self, hz: typing.SupportsFloat) -> Paint:
         ...
 
-    def slot(self, arg0: str, arg1: Paint) -> Paint:
+    def slot(self, name: str, paint: Paint) -> Paint:
         ...
 
-    def uniform(self, arg0: str, arg1: _t.UniformValue) -> Paint:
+    def uniform(self, name: str, value: _t.UniformValue) -> Paint:
         ...
 
     def worldSpace(self, on: bool=True) -> Paint:

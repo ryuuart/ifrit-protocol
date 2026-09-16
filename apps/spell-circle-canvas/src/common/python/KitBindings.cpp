@@ -129,25 +129,36 @@ void bindComponents(py::module_& module) {
   part(panel, "titleLine", &composeKit::Panel::titleLine);
   part(panel, "noteLine", &composeKit::Panel::noteLine);
   module.def("well",
-             py::overload_cast<const composeKit::Well&>(&composeKit::well));
+             py::overload_cast<const composeKit::Well&>(&composeKit::well),
+             py::arg("specification"));
   module.def("well",
              py::overload_cast<const composeKit::Well&, compose::Element>(
-                 &composeKit::well));
-  module.def("cell", [](const composeKit::Caption& voice, std::string label,
-                        std::string note, compose::Element body) {
-    return composeKit::cell(voice, label, note, std::move(body));
-  });
-  module.def("cells", &composeKit::cells);
-  module.def("panelGrid", &composeKit::panelGrid);
-  module.def("sheet", &composeKit::sheet);
-  module.def("board", &composeKit::board);
-  module.def("panel", &composeKit::panel);
-  module.def("captionLabel",
-             [](std::string text) { return composeKit::captionLabel(text); });
-  module.def("captionNote",
-             [](std::string text) { return composeKit::captionNote(text); });
-  module.def("figure",
-             [](std::string text) { return composeKit::figure(text); });
+                 &composeKit::well),
+             py::arg("specification"), py::arg("surface"));
+  module.def(
+      "cell",
+      [](const composeKit::Caption& voice, std::string label, std::string note,
+         compose::Element body) {
+        return composeKit::cell(voice, label, note, std::move(body));
+      },
+      py::arg("voice"), py::arg("label"), py::arg("note"), py::arg("body"));
+  module.def("cells", &composeKit::cells, py::arg("run"));
+  module.def("panelGrid", &composeKit::panelGrid, py::arg("grid"));
+  module.def("sheet", &composeKit::sheet, py::arg("page"), py::arg("content"));
+  module.def("board", &composeKit::board, py::arg("board"));
+  module.def("panel", &composeKit::panel, py::arg("region"),
+             py::arg("content"));
+  module.def(
+      "captionLabel",
+      [](std::string text) { return composeKit::captionLabel(text); },
+      py::arg("text"));
+  module.def(
+      "captionNote",
+      [](std::string text) { return composeKit::captionNote(text); },
+      py::arg("text"));
+  module.def(
+      "figure", [](std::string text) { return composeKit::figure(text); },
+      py::arg("text"));
 
   auto companion = record<composeKit::Line::Companion>(module, "LineCompanion");
   field(companion, "thickness", &composeKit::Line::Companion::thickness);
@@ -167,35 +178,53 @@ void bindComponents(py::module_& module) {
   field(ladder, "thickness", &composeKit::Ladder::thickness);
   field(ladder, "column", &composeKit::Ladder::column);
   field(ladder, "fill", &composeKit::Ladder::fill);
-  module.def("line", &composeKit::line);
-  module.def("ladder", &composeKit::ladder);
+  module.def("line", &composeKit::line, py::arg("mark"));
+  module.def("ladder", &composeKit::ladder, py::arg("rungs"));
   module.def("centred", py::overload_cast<>(&composeKit::centred));
   module.def("centred",
-             py::overload_cast<compose::Element>(&composeKit::centred));
-  module.def("at", [](float x, float y, py::handle w, py::handle h) {
-    return composeKit::at(x, y, dimension(w), dimension(h));
-  });
-  module.def("at", [](compose::Element element, float x, float y, py::handle w,
-                      py::handle h) {
-    return composeKit::at(std::move(element), x, y, dimension(w), dimension(h));
-  });
-  module.def("disc", [](py::handle centre, float radius) {
-    return composeKit::disc(point(centre), radius);
-  });
-  module.def("dot", [](py::handle centre, float radius, py::handle ink) {
-    return composeKit::dot(point(centre), radius, surfacePaint(ink));
-  });
-  module.def("ring",
-             [](py::handle centre, float radius, compose::Decoration pen) {
-               return composeKit::ring(point(centre), radius, std::move(pen));
-             });
+             py::overload_cast<compose::Element>(&composeKit::centred),
+             py::arg("child"));
+  module.def(
+      "at",
+      [](float x, float y, py::handle w, py::handle h) {
+        return composeKit::at(x, y, dimension(w), dimension(h));
+      },
+      py::arg("x"), py::arg("y"), py::arg("width"), py::arg("height"));
+  module.def(
+      "at",
+      [](compose::Element element, float x, float y, py::handle w,
+         py::handle h) {
+        return composeKit::at(std::move(element), x, y, dimension(w),
+                              dimension(h));
+      },
+      py::arg("element"), py::arg("x"), py::arg("y"), py::arg("width"),
+      py::arg("height"));
+  module.def(
+      "disc",
+      [](py::handle centre, float radius) {
+        return composeKit::disc(point(centre), radius);
+      },
+      py::arg("centre"), py::arg("radius"));
+  module.def(
+      "dot",
+      [](py::handle centre, float radius, py::handle ink) {
+        return composeKit::dot(point(centre), radius, surfacePaint(ink));
+      },
+      py::arg("centre"), py::arg("radius"), py::arg("ink"));
+  module.def(
+      "ring",
+      [](py::handle centre, float radius, compose::Decoration pen) {
+        return composeKit::ring(point(centre), radius, std::move(pen));
+      },
+      py::arg("centre"), py::arg("radius"), py::arg("pen"));
 }
 
 template <class Scheme>
 void layoutFunction(py::module_& compose) {
-  compose.def("layout", [](Scheme scheme) {
-    return sigil::compose::layout(std::move(scheme));
-  });
+  compose.def(
+      "layout",
+      [](Scheme scheme) { return sigil::compose::layout(std::move(scheme)); },
+      py::arg("scheme"));
 }
 
 void bindLayouts(py::module_& compose) {
@@ -211,11 +240,13 @@ void bindLayouts(py::module_& compose) {
   field(track, "maxKind", &layouts::Track::maxKind);
   field(track, "maxValue", &layouts::Track::maxValue);
   track.def(py::self == py::self);
-  module.def("px", &layouts::px);
+  module.def("px", &layouts::px, py::arg("pixels"));
   module.def("content", &layouts::content);
   module.def("fr", &layouts::fr, py::arg("weight") = 1.0f);
-  module.def("minmax", &layouts::minmax);
-  module.def("repeatTrack", &layouts::repeatTrack);
+  module.def("minmax", &layouts::minmax, py::arg("minimum"),
+             py::arg("maximum"));
+  module.def("repeatTrack", &layouts::repeatTrack, py::arg("count"),
+             py::arg("track"));
   auto grid = record<layouts::Grid>(module, "Grid");
   field(grid, "columns", &layouts::Grid::columns);
   field(grid, "rows", &layouts::Grid::rows);

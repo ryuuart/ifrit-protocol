@@ -22,7 +22,7 @@ class Board:
         ...
 
     @ground.setter
-    def ground(self, arg1: _t.SurfacePaintLike) -> None:
+    def ground(self, value: _t.SurfacePaintLike, /) -> None:
         ...
 
     @property
@@ -30,7 +30,7 @@ class Board:
         ...
 
     @size.setter
-    def size(self, arg1: _t.SizeLike) -> None:
+    def size(self, value: _t.SizeLike, /) -> None:
         ...
 
 class Caption:
@@ -46,7 +46,7 @@ class Caption:
         ...
 
     @align.setter
-    def align(self, arg1: _t.AlignLike) -> None:
+    def align(self, value: _t.AlignLike, /) -> None:
         ...
 
     @property
@@ -54,7 +54,7 @@ class Caption:
         ...
 
     @body.setter
-    def body(self, arg1: _sigil.compose.kit.Well | None) -> None:
+    def body(self, value: _sigil.compose.kit.Well | None, /) -> None:
         ...
 
     @property
@@ -62,7 +62,7 @@ class Caption:
         ...
 
     @gap.setter
-    def gap(self, arg1: _t.FloatLike) -> None:
+    def gap(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -70,7 +70,7 @@ class Caption:
         ...
 
     @justify.setter
-    def justify(self, arg1: _t.AlignLike) -> None:
+    def justify(self, value: _t.AlignLike, /) -> None:
         ...
 
     @property
@@ -78,7 +78,7 @@ class Caption:
         ...
 
     @label.setter
-    def label(self, arg1: collections.abc.Callable[[], _sigil.compose.Element] | collections.abc.Callable[[str], _sigil.compose.Element] | collections.abc.Callable[[str, Caption], _sigil.compose.Element] | None) -> None:
+    def label(self, value: collections.abc.Callable[[], _sigil.compose.Element] | collections.abc.Callable[[str], _sigil.compose.Element] | collections.abc.Callable[[str, Caption], _sigil.compose.Element] | None, /) -> None:
         ...
 
     @property
@@ -86,7 +86,7 @@ class Caption:
         ...
 
     @labelMeasure.setter
-    def labelMeasure(self, arg1: _t.FloatLike) -> None:
+    def labelMeasure(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -94,7 +94,7 @@ class Caption:
         ...
 
     @note.setter
-    def note(self, arg1: collections.abc.Callable[[], _sigil.compose.Element] | collections.abc.Callable[[str], _sigil.compose.Element] | collections.abc.Callable[[str, Caption], _sigil.compose.Element] | None) -> None:
+    def note(self, value: collections.abc.Callable[[], _sigil.compose.Element] | collections.abc.Callable[[str], _sigil.compose.Element] | collections.abc.Callable[[str, Caption], _sigil.compose.Element] | None, /) -> None:
         ...
 
     @property
@@ -102,7 +102,7 @@ class Caption:
         ...
 
     @noteGap.setter
-    def noteGap(self, arg1: _t.FloatLike) -> None:
+    def noteGap(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -110,7 +110,7 @@ class Caption:
         ...
 
     @noteMeasure.setter
-    def noteMeasure(self, arg1: _t.FloatLike) -> None:
+    def noteMeasure(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -118,7 +118,7 @@ class Caption:
         ...
 
     @reading.setter
-    def reading(self, arg1: str) -> None:
+    def reading(self, value: str, /) -> None:
         ...
 
     @property
@@ -126,7 +126,7 @@ class Caption:
         ...
 
     @readingLine.setter
-    def readingLine(self, arg1: collections.abc.Callable[[], _sigil.compose.Element] | collections.abc.Callable[[str], _sigil.compose.Element] | collections.abc.Callable[[str, Caption], _sigil.compose.Element] | None) -> None:
+    def readingLine(self, value: collections.abc.Callable[[], _sigil.compose.Element] | collections.abc.Callable[[str], _sigil.compose.Element] | collections.abc.Callable[[str, Caption], _sigil.compose.Element] | None, /) -> None:
         ...
 
     @property
@@ -134,7 +134,7 @@ class Caption:
         ...
 
     @where.setter
-    def where(self, arg1: CaptionWhere) -> None:
+    def where(self, value: CaptionWhere, /) -> None:
         ...
 
 class CaptionWhere:
@@ -203,7 +203,7 @@ class Cells:
         ...
 
     @align.setter
-    def align(self, arg1: _t.AlignLike) -> None:
+    def align(self, value: _t.AlignLike, /) -> None:
         ...
 
     @property
@@ -211,7 +211,7 @@ class Cells:
         ...
 
     @cells.setter
-    def cells(self, arg1: collections.abc.Sequence[_sigil.compose.Element]) -> None:
+    def cells(self, value: collections.abc.Sequence[_sigil.compose.Element], /) -> None:
         ...
 
     @property
@@ -219,7 +219,7 @@ class Cells:
         ...
 
     @column.setter
-    def column(self, arg1: bool) -> None:
+    def column(self, value: bool, /) -> None:
         ...
 
     @property
@@ -227,7 +227,7 @@ class Cells:
         ...
 
     @divider.setter
-    def divider(self, arg1: _t.FillLike) -> None:
+    def divider(self, value: _t.FillLike, /) -> None:
         ...
 
     @property
@@ -235,7 +235,7 @@ class Cells:
         ...
 
     @dividerWidth.setter
-    def dividerWidth(self, arg1: _t.FloatLike) -> None:
+    def dividerWidth(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -243,7 +243,7 @@ class Cells:
         ...
 
     @gap.setter
-    def gap(self, arg1: _t.FloatLike) -> None:
+    def gap(self, value: _t.FloatLike, /) -> None:
         ...
 
 class Ladder:
@@ -259,7 +259,7 @@ class Ladder:
         ...
 
     @column.setter
-    def column(self, arg1: bool) -> None:
+    def column(self, value: bool, /) -> None:
         ...
 
     @property
@@ -267,7 +267,7 @@ class Ladder:
         ...
 
     @count.setter
-    def count(self, arg1: typing.SupportsInt) -> None:
+    def count(self, value: typing.SupportsInt, /) -> None:
         ...
 
     @property
@@ -275,7 +275,7 @@ class Ladder:
         ...
 
     @fill.setter
-    def fill(self, arg1: _t.FillLike) -> None:
+    def fill(self, value: _t.FillLike, /) -> None:
         ...
 
     @property
@@ -283,7 +283,7 @@ class Ladder:
         ...
 
     @pitch.setter
-    def pitch(self, arg1: _t.FloatLike) -> None:
+    def pitch(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -291,7 +291,7 @@ class Ladder:
         ...
 
     @thickness.setter
-    def thickness(self, arg1: _t.FloatLike) -> None:
+    def thickness(self, value: _t.FloatLike, /) -> None:
         ...
 
 class Line:
@@ -307,7 +307,7 @@ class Line:
         ...
 
     @column.setter
-    def column(self, arg1: bool) -> None:
+    def column(self, value: bool, /) -> None:
         ...
 
     @property
@@ -315,7 +315,7 @@ class Line:
         ...
 
     @fill.setter
-    def fill(self, arg1: _t.FillLike) -> None:
+    def fill(self, value: _t.FillLike, /) -> None:
         ...
 
     @property
@@ -323,7 +323,7 @@ class Line:
         ...
 
     @inset.setter
-    def inset(self, arg1: _t.FloatLike) -> None:
+    def inset(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -331,7 +331,7 @@ class Line:
         ...
 
     @length.setter
-    def length(self, arg1: _t.DimensionLike) -> None:
+    def length(self, value: _t.DimensionLike, /) -> None:
         ...
 
     @property
@@ -339,7 +339,7 @@ class Line:
         ...
 
     @pair.setter
-    def pair(self, arg1: _sigil.compose.kit.LineCompanion | None) -> None:
+    def pair(self, value: _sigil.compose.kit.LineCompanion | None, /) -> None:
         ...
 
     @property
@@ -347,7 +347,7 @@ class Line:
         ...
 
     @thickness.setter
-    def thickness(self, arg1: _t.FloatLike) -> None:
+    def thickness(self, value: _t.FloatLike, /) -> None:
         ...
 
 class LineCompanion:
@@ -363,7 +363,7 @@ class LineCompanion:
         ...
 
     @dash.setter
-    def dash(self, arg1: collections.abc.Sequence[float]) -> None:
+    def dash(self, value: collections.abc.Sequence[float], /) -> None:
         ...
 
     @property
@@ -371,7 +371,7 @@ class LineCompanion:
         ...
 
     @fill.setter
-    def fill(self, arg1: _t.FillLike) -> None:
+    def fill(self, value: _t.FillLike, /) -> None:
         ...
 
     @property
@@ -379,7 +379,7 @@ class LineCompanion:
         ...
 
     @gap.setter
-    def gap(self, arg1: _t.FloatLike) -> None:
+    def gap(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -387,7 +387,7 @@ class LineCompanion:
         ...
 
     @thickness.setter
-    def thickness(self, arg1: _t.FloatLike) -> None:
+    def thickness(self, value: _t.FloatLike, /) -> None:
         ...
 
 class Panel:
@@ -403,7 +403,7 @@ class Panel:
         ...
 
     @body.setter
-    def body(self, arg1: _sigil.compose.kit.Well | None) -> None:
+    def body(self, value: _sigil.compose.kit.Well | None, /) -> None:
         ...
 
     @property
@@ -411,7 +411,7 @@ class Panel:
         ...
 
     @eyebrow.setter
-    def eyebrow(self, arg1: str) -> None:
+    def eyebrow(self, value: str, /) -> None:
         ...
 
     @property
@@ -419,7 +419,7 @@ class Panel:
         ...
 
     @eyebrowLine.setter
-    def eyebrowLine(self, arg1: collections.abc.Callable[[], _sigil.compose.Element] | collections.abc.Callable[[str], _sigil.compose.Element] | collections.abc.Callable[[str, Panel], _sigil.compose.Element] | None) -> None:
+    def eyebrowLine(self, value: collections.abc.Callable[[], _sigil.compose.Element] | collections.abc.Callable[[str], _sigil.compose.Element] | collections.abc.Callable[[str, Panel], _sigil.compose.Element] | None, /) -> None:
         ...
 
     @property
@@ -427,7 +427,7 @@ class Panel:
         ...
 
     @gap.setter
-    def gap(self, arg1: _t.FloatLike) -> None:
+    def gap(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -435,7 +435,7 @@ class Panel:
         ...
 
     @note.setter
-    def note(self, arg1: str) -> None:
+    def note(self, value: str, /) -> None:
         ...
 
     @property
@@ -443,7 +443,7 @@ class Panel:
         ...
 
     @noteLine.setter
-    def noteLine(self, arg1: collections.abc.Callable[[], _sigil.compose.Element] | collections.abc.Callable[[str], _sigil.compose.Element] | collections.abc.Callable[[str, Panel], _sigil.compose.Element] | None) -> None:
+    def noteLine(self, value: collections.abc.Callable[[], _sigil.compose.Element] | collections.abc.Callable[[str], _sigil.compose.Element] | collections.abc.Callable[[str, Panel], _sigil.compose.Element] | None, /) -> None:
         ...
 
     @property
@@ -451,7 +451,7 @@ class Panel:
         ...
 
     @rule.setter
-    def rule(self, arg1: _t.FillLike) -> None:
+    def rule(self, value: _t.FillLike, /) -> None:
         ...
 
     @property
@@ -459,7 +459,7 @@ class Panel:
         ...
 
     @ruleWidth.setter
-    def ruleWidth(self, arg1: _t.FloatLike) -> None:
+    def ruleWidth(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -467,7 +467,7 @@ class Panel:
         ...
 
     @title.setter
-    def title(self, arg1: str) -> None:
+    def title(self, value: str, /) -> None:
         ...
 
     @property
@@ -475,7 +475,7 @@ class Panel:
         ...
 
     @titleGap.setter
-    def titleGap(self, arg1: _t.FloatLike) -> None:
+    def titleGap(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -483,7 +483,7 @@ class Panel:
         ...
 
     @titleLine.setter
-    def titleLine(self, arg1: collections.abc.Callable[[], _sigil.compose.Element] | collections.abc.Callable[[str], _sigil.compose.Element] | collections.abc.Callable[[str, Panel], _sigil.compose.Element] | None) -> None:
+    def titleLine(self, value: collections.abc.Callable[[], _sigil.compose.Element] | collections.abc.Callable[[str], _sigil.compose.Element] | collections.abc.Callable[[str, Panel], _sigil.compose.Element] | None, /) -> None:
         ...
 
 class PanelGrid:
@@ -499,7 +499,7 @@ class PanelGrid:
         ...
 
     @align.setter
-    def align(self, arg1: _t.AlignLike) -> None:
+    def align(self, value: _t.AlignLike, /) -> None:
         ...
 
     @property
@@ -507,7 +507,7 @@ class PanelGrid:
         ...
 
     @cells.setter
-    def cells(self, arg1: collections.abc.Sequence[_sigil.compose.Element]) -> None:
+    def cells(self, value: collections.abc.Sequence[_sigil.compose.Element], /) -> None:
         ...
 
     @property
@@ -515,7 +515,7 @@ class PanelGrid:
         ...
 
     @columns.setter
-    def columns(self, arg1: typing.SupportsInt) -> None:
+    def columns(self, value: typing.SupportsInt, /) -> None:
         ...
 
     @property
@@ -523,7 +523,7 @@ class PanelGrid:
         ...
 
     @divider.setter
-    def divider(self, arg1: _t.FillLike) -> None:
+    def divider(self, value: _t.FillLike, /) -> None:
         ...
 
     @property
@@ -531,7 +531,7 @@ class PanelGrid:
         ...
 
     @dividerWidth.setter
-    def dividerWidth(self, arg1: _t.FloatLike) -> None:
+    def dividerWidth(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -539,7 +539,7 @@ class PanelGrid:
         ...
 
     @gap.setter
-    def gap(self, arg1: _t.FloatLike) -> None:
+    def gap(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -547,7 +547,7 @@ class PanelGrid:
         ...
 
     @measure.setter
-    def measure(self, arg1: _t.DimensionLike) -> None:
+    def measure(self, value: _t.DimensionLike, /) -> None:
         ...
 
     @property
@@ -555,7 +555,7 @@ class PanelGrid:
         ...
 
     @rowGap.setter
-    def rowGap(self, arg1: _t.FloatLike | None) -> None:
+    def rowGap(self, value: _t.FloatLike | None, /) -> None:
         ...
 
 class Sheet:
@@ -571,7 +571,7 @@ class Sheet:
         ...
 
     @contentGap.setter
-    def contentGap(self, arg1: _t.FloatLike) -> None:
+    def contentGap(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -579,7 +579,7 @@ class Sheet:
         ...
 
     @footer.setter
-    def footer(self, arg1: str) -> None:
+    def footer(self, value: str, /) -> None:
         ...
 
     @property
@@ -587,7 +587,7 @@ class Sheet:
         ...
 
     @footerLine.setter
-    def footerLine(self, arg1: collections.abc.Callable[[], _sigil.compose.Element] | collections.abc.Callable[[str], _sigil.compose.Element] | collections.abc.Callable[[str, Sheet], _sigil.compose.Element] | None) -> None:
+    def footerLine(self, value: collections.abc.Callable[[], _sigil.compose.Element] | collections.abc.Callable[[str], _sigil.compose.Element] | collections.abc.Callable[[str, Sheet], _sigil.compose.Element] | None, /) -> None:
         ...
 
     @property
@@ -595,7 +595,7 @@ class Sheet:
         ...
 
     @ground.setter
-    def ground(self, arg1: _t.SurfacePaintLike) -> None:
+    def ground(self, value: _t.SurfacePaintLike, /) -> None:
         ...
 
     @property
@@ -603,7 +603,7 @@ class Sheet:
         ...
 
     @key.setter
-    def key(self, arg1: str) -> None:
+    def key(self, value: str, /) -> None:
         ...
 
     @property
@@ -611,7 +611,7 @@ class Sheet:
         ...
 
     @marginBottom.setter
-    def marginBottom(self, arg1: _t.FloatLike) -> None:
+    def marginBottom(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -619,7 +619,7 @@ class Sheet:
         ...
 
     @marginTop.setter
-    def marginTop(self, arg1: _t.FloatLike) -> None:
+    def marginTop(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -627,7 +627,7 @@ class Sheet:
         ...
 
     @marginX.setter
-    def marginX(self, arg1: _t.FloatLike) -> None:
+    def marginX(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -635,7 +635,7 @@ class Sheet:
         ...
 
     @rule.setter
-    def rule(self, arg1: _t.FillLike) -> None:
+    def rule(self, value: _t.FillLike, /) -> None:
         ...
 
     @property
@@ -643,7 +643,7 @@ class Sheet:
         ...
 
     @ruleWidth.setter
-    def ruleWidth(self, arg1: _t.FloatLike) -> None:
+    def ruleWidth(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -651,7 +651,7 @@ class Sheet:
         ...
 
     @subtitle.setter
-    def subtitle(self, arg1: str) -> None:
+    def subtitle(self, value: str, /) -> None:
         ...
 
     @property
@@ -659,7 +659,7 @@ class Sheet:
         ...
 
     @subtitleGap.setter
-    def subtitleGap(self, arg1: _t.FloatLike) -> None:
+    def subtitleGap(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -667,7 +667,7 @@ class Sheet:
         ...
 
     @subtitleLine.setter
-    def subtitleLine(self, arg1: collections.abc.Callable[[], _sigil.compose.Element] | collections.abc.Callable[[str], _sigil.compose.Element] | collections.abc.Callable[[str, Sheet], _sigil.compose.Element] | None) -> None:
+    def subtitleLine(self, value: collections.abc.Callable[[], _sigil.compose.Element] | collections.abc.Callable[[str], _sigil.compose.Element] | collections.abc.Callable[[str, Sheet], _sigil.compose.Element] | None, /) -> None:
         ...
 
     @property
@@ -675,7 +675,7 @@ class Sheet:
         ...
 
     @title.setter
-    def title(self, arg1: str) -> None:
+    def title(self, value: str, /) -> None:
         ...
 
     @property
@@ -683,7 +683,7 @@ class Sheet:
         ...
 
     @titleLine.setter
-    def titleLine(self, arg1: collections.abc.Callable[[], _sigil.compose.Element] | collections.abc.Callable[[str], _sigil.compose.Element] | collections.abc.Callable[[str, Sheet], _sigil.compose.Element] | None) -> None:
+    def titleLine(self, value: collections.abc.Callable[[], _sigil.compose.Element] | collections.abc.Callable[[str], _sigil.compose.Element] | collections.abc.Callable[[str, Sheet], _sigil.compose.Element] | None, /) -> None:
         ...
 
 class Well:
@@ -699,7 +699,7 @@ class Well:
         ...
 
     @clip.setter
-    def clip(self, arg1: bool) -> None:
+    def clip(self, value: bool, /) -> None:
         ...
 
     @property
@@ -707,7 +707,7 @@ class Well:
         ...
 
     @content.setter
-    def content(self, arg1: _sigil.compose.kit.WellContent | None) -> None:
+    def content(self, value: _sigil.compose.kit.WellContent | None, /) -> None:
         ...
 
     @property
@@ -715,7 +715,7 @@ class Well:
         ...
 
     @corners.setter
-    def corners(self, arg1: _t.FloatLike) -> None:
+    def corners(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -723,7 +723,7 @@ class Well:
         ...
 
     @ground.setter
-    def ground(self, arg1: _t.SurfacePaintLike) -> None:
+    def ground(self, value: _t.SurfacePaintLike, /) -> None:
         ...
 
     @property
@@ -731,7 +731,7 @@ class Well:
         ...
 
     @height.setter
-    def height(self, arg1: _t.DimensionLike) -> None:
+    def height(self, value: _t.DimensionLike, /) -> None:
         ...
 
     @property
@@ -739,7 +739,7 @@ class Well:
         ...
 
     @keyline.setter
-    def keyline(self, arg1: _t.FillLike | None) -> None:
+    def keyline(self, value: _t.FillLike | None, /) -> None:
         ...
 
     @property
@@ -747,7 +747,7 @@ class Well:
         ...
 
     @keylineWidth.setter
-    def keylineWidth(self, arg1: _t.FloatLike) -> None:
+    def keylineWidth(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -755,7 +755,7 @@ class Well:
         ...
 
     @padding.setter
-    def padding(self, arg1: _t.FloatLike) -> None:
+    def padding(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -763,7 +763,7 @@ class Well:
         ...
 
     @paddingY.setter
-    def paddingY(self, arg1: _t.FloatLike | None) -> None:
+    def paddingY(self, value: _t.FloatLike | None, /) -> None:
         ...
 
     @property
@@ -771,7 +771,7 @@ class Well:
         ...
 
     @placed.setter
-    def placed(self, arg1: bool) -> None:
+    def placed(self, value: bool, /) -> None:
         ...
 
     @property
@@ -779,7 +779,7 @@ class Well:
         ...
 
     @width.setter
-    def width(self, arg1: _t.DimensionLike) -> None:
+    def width(self, value: _t.DimensionLike, /) -> None:
         ...
 
 class WellContent:
@@ -795,7 +795,7 @@ class WellContent:
         ...
 
     @across.setter
-    def across(self, arg1: _t.AlignLike) -> None:
+    def across(self, value: _t.AlignLike, /) -> None:
         ...
 
     @property
@@ -803,30 +803,30 @@ class WellContent:
         ...
 
     @down.setter
-    def down(self, arg1: _t.JustifyLike) -> None:
+    def down(self, value: _t.JustifyLike, /) -> None:
         ...
 
 @typing.overload
-def at(arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: _t.DimensionLike, arg3: _t.DimensionLike) -> _sigil.compose.Element:
+def at(x: typing.SupportsFloat, y: typing.SupportsFloat, width: _t.DimensionLike, height: _t.DimensionLike) -> _sigil.compose.Element:
     ...
 
 @typing.overload
-def at(arg0: _sigil.compose.Element, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: _t.DimensionLike, arg4: _t.DimensionLike) -> _sigil.compose.Element:
+def at(element: _sigil.compose.Element, x: typing.SupportsFloat, y: typing.SupportsFloat, width: _t.DimensionLike, height: _t.DimensionLike) -> _sigil.compose.Element:
     ...
 
-def board(arg0: Board) -> _sigil.compose.Element:
+def board(board: Board) -> _sigil.compose.Element:
     ...
 
-def captionLabel(arg0: str) -> _sigil.compose.Element:
+def captionLabel(text: str) -> _sigil.compose.Element:
     ...
 
-def captionNote(arg0: str) -> _sigil.compose.Element:
+def captionNote(text: str) -> _sigil.compose.Element:
     ...
 
-def cell(arg0: Caption, arg1: str, arg2: str, arg3: _sigil.compose.Element) -> _sigil.compose.Element:
+def cell(voice: Caption, label: str, note: str, body: _sigil.compose.Element) -> _sigil.compose.Element:
     ...
 
-def cells(arg0: Cells) -> _sigil.compose.Element:
+def cells(run: Cells) -> _sigil.compose.Element:
     ...
 
 @typing.overload
@@ -834,40 +834,40 @@ def centred() -> _sigil.compose.Element:
     ...
 
 @typing.overload
-def centred(arg0: _sigil.compose.Element) -> _sigil.compose.Element:
+def centred(child: _sigil.compose.Element) -> _sigil.compose.Element:
     ...
 
-def disc(arg0: _t.PointLike, arg1: typing.SupportsFloat) -> _sigil.compose.Element:
+def disc(centre: _t.PointLike, radius: typing.SupportsFloat) -> _sigil.compose.Element:
     ...
 
-def dot(arg0: _t.PointLike, arg1: typing.SupportsFloat, arg2: _t.FillLike) -> _sigil.compose.Element:
+def dot(centre: _t.PointLike, radius: typing.SupportsFloat, ink: _t.FillLike) -> _sigil.compose.Element:
     ...
 
-def figure(arg0: str) -> _sigil.compose.Element:
+def figure(text: str) -> _sigil.compose.Element:
     ...
 
-def ladder(arg0: Ladder) -> _sigil.compose.Element:
+def ladder(rungs: Ladder) -> _sigil.compose.Element:
     ...
 
-def line(arg0: Line) -> _sigil.compose.Element:
+def line(mark: Line) -> _sigil.compose.Element:
     ...
 
-def panel(arg0: Panel, arg1: _sigil.compose.Element) -> _sigil.compose.Element:
+def panel(region: Panel, content: _sigil.compose.Element) -> _sigil.compose.Element:
     ...
 
-def panelGrid(arg0: PanelGrid) -> _sigil.compose.Element:
+def panelGrid(grid: PanelGrid) -> _sigil.compose.Element:
     ...
 
-def ring(arg0: _t.PointLike, arg1: typing.SupportsFloat, arg2: _sigil.compose.Decoration) -> _sigil.compose.Element:
+def ring(centre: _t.PointLike, radius: typing.SupportsFloat, pen: _sigil.compose.Decoration) -> _sigil.compose.Element:
     ...
 
-def sheet(arg0: Sheet, arg1: _sigil.compose.Element) -> _sigil.compose.Element:
-    ...
-
-@typing.overload
-def well(arg0: Well) -> _sigil.compose.Element:
+def sheet(page: Sheet, content: _sigil.compose.Element) -> _sigil.compose.Element:
     ...
 
 @typing.overload
-def well(arg0: Well, arg1: _sigil.compose.Element) -> _sigil.compose.Element:
+def well(specification: Well) -> _sigil.compose.Element:
+    ...
+
+@typing.overload
+def well(specification: Well, surface: _sigil.compose.Element) -> _sigil.compose.Element:
     ...

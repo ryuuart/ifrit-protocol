@@ -12,10 +12,10 @@ __all__: list[str] = ['Column', 'ColumnType', 'CsvOptions', 'Database', 'Engine'
 class Column:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object) -> bool:
         ...
 
-    def __getitem__(self, arg0: typing.SupportsInt) -> _t.CellValue:
+    def __getitem__(self, row: typing.SupportsInt) -> _t.CellValue:
         ...
 
     def __init__(self, name: str, values: collections.abc.Iterable[_t.CellInput], type: _sigil.data.ColumnType | None=None) -> None:
@@ -24,7 +24,7 @@ class Column:
     def __len__(self) -> int:
         ...
 
-    def at(self, arg0: typing.SupportsInt) -> _t.CellValue:
+    def at(self, row: typing.SupportsInt) -> _t.CellValue:
         ...
 
     def copy(self) -> Column:
@@ -33,22 +33,22 @@ class Column:
     def empty(self) -> bool:
         ...
 
-    def markMissing(self, arg0: typing.SupportsInt) -> None:
+    def markMissing(self, row: typing.SupportsInt) -> None:
         ...
 
-    def missing(self, arg0: typing.SupportsInt) -> bool:
+    def missing(self, row: typing.SupportsInt) -> bool:
         ...
 
     def name(self) -> str:
         ...
 
-    def rename(self, arg0: str) -> None:
+    def rename(self, name: str) -> None:
         ...
 
     def size(self) -> int:
         ...
 
-    def take(self, arg0: collections.abc.Sequence[typing.SupportsInt]) -> Column:
+    def take(self, rows: collections.abc.Sequence[typing.SupportsInt]) -> Column:
         ...
 
     def type(self) -> ColumnType:
@@ -119,7 +119,7 @@ class CsvOptions:
     delimiter: str
     header: bool
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object) -> bool:
         ...
 
     def __init__(self, *, comment: str=..., delimiter: str=..., header: bool=...) -> None:
@@ -135,7 +135,7 @@ class Database:
         ...
 
     @staticmethod
-    def open(arg0: os.PathLike[str] | os.PathLike[bytes] | str | bytes) -> Database | None:
+    def open(path: os.PathLike[str] | os.PathLike[bytes] | str | bytes) -> Database | None:
         ...
 
     def engine(self) -> Engine:
@@ -144,7 +144,7 @@ class Database:
     def file(self) -> pathlib.Path:
         ...
 
-    def query(self, arg0: str) -> Table:
+    def query(self, sql: str) -> Table:
         ...
 
 class Engine:
@@ -219,7 +219,7 @@ class Group:
 class Instant:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object) -> bool:
         ...
 
     def __float__(self) -> float:
@@ -233,13 +233,13 @@ class Instant:
         ...
 
     @seconds.setter
-    def seconds(self, arg0: typing.SupportsFloat) -> None:
+    def seconds(self, value: typing.SupportsFloat, /) -> None:
         ...
 
 class Interval:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object) -> bool:
         ...
 
     def __init__(self, low: typing.SupportsFloat=0, high: typing.SupportsFloat=1) -> None:
@@ -256,7 +256,7 @@ class Interval:
         ...
 
     @high.setter
-    def high(self, arg0: typing.SupportsFloat) -> None:
+    def high(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -264,20 +264,20 @@ class Interval:
         ...
 
     @low.setter
-    def low(self, arg0: typing.SupportsFloat) -> None:
+    def low(self, value: typing.SupportsFloat, /) -> None:
         ...
 
 class Json:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
     @staticmethod
-    def object(arg0: collections.abc.Iterable[tuple[str, _t.JsonInput]]) -> Json:
+    def object(items: collections.abc.Iterable[tuple[str, _t.JsonInput]]) -> Json:
         ...
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object) -> bool:
         ...
 
-    def __getitem__(self, arg0: str | typing.SupportsInt) -> Json:
+    def __getitem__(self, key: str | typing.SupportsInt) -> Json:
         ...
 
     def __init__(self, value: _t.JsonInput | None=None) -> None:
@@ -494,16 +494,16 @@ class Scale:
     overflow: Overflow
     transform: Transform
 
-    def __call__(self, arg0: typing.SupportsFloat) -> float:
+    def __call__(self, value: typing.SupportsFloat) -> float:
         ...
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object) -> bool:
         ...
 
     def __init__(self, *, overflow: Overflow=..., transform: Transform=..., base: typing.SupportsFloat=..., domain: Interval | collections.abc.Sequence[_t.FloatLike]=..., exponent: typing.SupportsFloat=..., outerPadding: typing.SupportsFloat=..., padding: typing.SupportsFloat=..., range: Interval | collections.abc.Sequence[_t.FloatLike]=..., steps: typing.SupportsInt=..., threshold: typing.SupportsFloat=..., thresholds: collections.abc.Sequence[typing.SupportsFloat]=...) -> None:
         ...
 
-    def apply(self, arg0: typing.SupportsFloat) -> float:
+    def apply(self, value: typing.SupportsFloat) -> float:
         ...
 
     def bandwidth(self) -> float:
@@ -512,22 +512,22 @@ class Scale:
     def copy(self) -> Scale:
         ...
 
-    def invert(self, arg0: typing.SupportsFloat) -> float:
+    def invert(self, value: typing.SupportsFloat) -> float:
         ...
 
     def nice(self, count: typing.SupportsInt=10) -> Scale:
         ...
 
-    def position(self, arg0: typing.SupportsFloat) -> float:
+    def position(self, index: typing.SupportsFloat) -> float:
         ...
 
-    def slot(self, arg0: typing.SupportsFloat) -> int:
+    def slot(self, value: typing.SupportsFloat) -> int:
         ...
 
     def stepWidth(self) -> float:
         ...
 
-    def through[Result](self, arg0: _t.FloatLike, arg1: collections.abc.Callable[[float], Result]) -> Result:
+    def through[Result](self, input: _t.FloatLike, interpolate: collections.abc.Callable[[float], Result]) -> Result:
         ...
 
     def tickStep(self, count: typing.SupportsInt=10) -> float:
@@ -541,7 +541,7 @@ class Scale:
         ...
 
     @base.setter
-    def base(self, arg0: typing.SupportsFloat) -> None:
+    def base(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -549,7 +549,7 @@ class Scale:
         ...
 
     @domain.setter
-    def domain(self, arg1: Interval | collections.abc.Sequence[_t.FloatLike]) -> None:
+    def domain(self, value: Interval | collections.abc.Sequence[_t.FloatLike], /) -> None:
         ...
 
     @property
@@ -557,7 +557,7 @@ class Scale:
         ...
 
     @exponent.setter
-    def exponent(self, arg0: typing.SupportsFloat) -> None:
+    def exponent(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -565,7 +565,7 @@ class Scale:
         ...
 
     @outerPadding.setter
-    def outerPadding(self, arg0: typing.SupportsFloat) -> None:
+    def outerPadding(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -573,7 +573,7 @@ class Scale:
         ...
 
     @padding.setter
-    def padding(self, arg0: typing.SupportsFloat) -> None:
+    def padding(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -581,7 +581,7 @@ class Scale:
         ...
 
     @range.setter
-    def range(self, arg1: Interval | collections.abc.Sequence[_t.FloatLike]) -> None:
+    def range(self, value: Interval | collections.abc.Sequence[_t.FloatLike], /) -> None:
         ...
 
     @property
@@ -589,7 +589,7 @@ class Scale:
         ...
 
     @steps.setter
-    def steps(self, arg0: typing.SupportsInt) -> None:
+    def steps(self, value: typing.SupportsInt, /) -> None:
         ...
 
     @property
@@ -597,7 +597,7 @@ class Scale:
         ...
 
     @threshold.setter
-    def threshold(self, arg0: typing.SupportsFloat) -> None:
+    def threshold(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -605,13 +605,13 @@ class Scale:
         ...
 
     @thresholds.setter
-    def thresholds(self, arg0: collections.abc.Sequence[typing.SupportsFloat]) -> None:
+    def thresholds(self, value: collections.abc.Sequence[typing.SupportsFloat], /) -> None:
         ...
 
 class Table:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object) -> bool:
         ...
 
     def __init__(self, columns: collections.abc.Sequence[Column]=[]) -> None:
@@ -621,17 +621,17 @@ class Table:
         ...
 
     @typing.overload
-    def add(self, arg0: Column) -> None:
+    def add(self, column: Column) -> None:
         ...
 
     @typing.overload
     def add(self, name: str, values: collections.abc.Iterable[_t.CellInput], type: ColumnType | None=None) -> None:
         ...
 
-    def cell(self, arg0: str, arg1: typing.SupportsInt) -> _t.CellValue:
+    def cell(self, name: str, row: typing.SupportsInt) -> _t.CellValue:
         ...
 
-    def column(self, arg0: str) -> _sigil.data.Column | None:
+    def column(self, name: str) -> _sigil.data.Column | None:
         ...
 
     def columns(self) -> list[Column]:
@@ -646,22 +646,22 @@ class Table:
     def empty(self) -> bool:
         ...
 
-    def filter(self, arg0: collections.abc.Callable[[int], bool]) -> Table:
+    def filter(self, predicate: collections.abc.Callable[[int], bool]) -> Table:
         ...
 
-    def group(self, arg0: str) -> list[Group]:
+    def group(self, names: str) -> list[Group]:
         ...
 
-    def has(self, arg0: str) -> bool:
+    def has(self, name: str) -> bool:
         ...
 
-    def remove(self, arg0: str) -> bool:
+    def remove(self, name: str) -> bool:
         ...
 
-    def row(self, arg0: typing.SupportsInt) -> dict[str, _t.CellValue]:
+    def row(self, row: typing.SupportsInt) -> dict[str, _t.CellValue]:
         ...
 
-    def select(self, arg0: collections.abc.Sequence[str]) -> Table:
+    def select(self, names: collections.abc.Sequence[str]) -> Table:
         ...
 
     def size(self) -> int:
@@ -670,7 +670,7 @@ class Table:
     def sort(self, name: str, order: Order=...) -> Table:
         ...
 
-    def take(self, arg0: collections.abc.Sequence[typing.SupportsInt]) -> Table:
+    def take(self, rows: collections.abc.Sequence[typing.SupportsInt]) -> Table:
         ...
 
 class Transform:
@@ -753,17 +753,17 @@ class Transform:
 def decodeCsv(text: str, options: CsvOptions=..., name: str='') -> _sigil.data.Table | None:
     ...
 
-def decodeInstant(arg0: str) -> _sigil.data.Instant | None:
+def decodeInstant(text: str) -> _sigil.data.Instant | None:
     ...
 
-def decodeJson(arg0: str) -> _sigil.data.Json | None:
+def decodeJson(text: str) -> _sigil.data.Json | None:
     ...
 
-def encodeJson(arg0: _t.JsonInput) -> str:
+def encodeJson(value: _t.JsonInput) -> str:
     ...
 
-def engineOf(arg0: os.PathLike[str] | os.PathLike[bytes] | str | bytes) -> _sigil.data.Engine | None:
+def engineOf(uri: os.PathLike[str] | os.PathLike[bytes] | str | bytes) -> _sigil.data.Engine | None:
     ...
 
-def tableFromJson(arg0: _t.JsonInput) -> Table | None:
+def tableFromJson(value: _t.JsonInput) -> Table | None:
     ...

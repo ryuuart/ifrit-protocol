@@ -10,20 +10,20 @@ __all__: list[str] = ['Assets', 'Context', 'kit']
 
 class Assets:
 
-    def database(self, arg0: str) -> _sigil.data.Database | None:
+    def database(self, uri: str) -> _sigil.data.Database | None:
         ...
 
     def hub(self) -> _sigil.io.Hub:
         ...
 
-    def image(self, arg0: str) -> _sigil.image.ImageAsset:
+    def image(self, uri: str) -> _sigil.image.ImageAsset:
         ...
 
-    def json(self, arg0: str) -> _sigil.data.Json | None:
+    def json(self, uri: str) -> _sigil.data.Json | None:
         ...
 
     def root(self) -> pathlib.Path:
         ...
 
-    def table(self, arg0: str) -> _sigil.data.Table | None:
+    def table(self, uri: str) -> _sigil.data.Table | None:
         ...

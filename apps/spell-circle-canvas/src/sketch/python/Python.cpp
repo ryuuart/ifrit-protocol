@@ -601,31 +601,43 @@ void bindRuntime(py::module_& module) {
   auto clocks = module.attr("motion").cast<py::module_>();
   auto sketches = module.def_submodule("sketch");
   py::class_<ComposerView>(composition, "Composer")
-      .def("render",
-           [](const ComposerView& v, const compose::Element& e) {
-             v.state()->composer->render(e);
-           })
-      .def("renderSlot",
-           [](const ComposerView& v, const std::string& key,
-              const compose::Element& e) {
-             v.state()->composer->renderSlot(key, e);
-           })
-      .def("bounds",
-           [](const ComposerView& v, const std::string& key) {
-             return v.state()->composer->bounds(key);
-           })
-      .def("hitTest",
-           [](const ComposerView& v, py::handle at) {
-             return v.state()->composer->hitTest(sigil::python::point(at));
-           })
-      .def("routesAt",
-           [](const ComposerView& v, const std::string& key) {
-             return v.state()->composer->routesAt(key);
-           })
-      .def("settling",
-           [](const ComposerView& v, const std::string& key) {
-             return v.state()->composer->settling(key);
-           })
+      .def(
+          "render",
+          [](const ComposerView& v, const compose::Element& e) {
+            v.state()->composer->render(e);
+          },
+          py::arg("element"))
+      .def(
+          "renderSlot",
+          [](const ComposerView& v, const std::string& key,
+             const compose::Element& e) {
+            v.state()->composer->renderSlot(key, e);
+          },
+          py::arg("name"), py::arg("element"))
+      .def(
+          "bounds",
+          [](const ComposerView& v, const std::string& key) {
+            return v.state()->composer->bounds(key);
+          },
+          py::arg("key"))
+      .def(
+          "hitTest",
+          [](const ComposerView& v, py::handle at) {
+            return v.state()->composer->hitTest(sigil::python::point(at));
+          },
+          py::arg("at"))
+      .def(
+          "routesAt",
+          [](const ComposerView& v, const std::string& key) {
+            return v.state()->composer->routesAt(key);
+          },
+          py::arg("key"))
+      .def(
+          "settling",
+          [](const ComposerView& v, const std::string& key) {
+            return v.state()->composer->settling(key);
+          },
+          py::arg("key"))
       .def("active",
            [](const ComposerView& v) { return v.state()->composer->active(); })
       .def("dirty",
@@ -645,29 +657,37 @@ void bindRuntime(py::module_& module) {
       .def("elapsed",
            [](const TickerView& v) { return v.state()->ticker->elapsed(); });
   py::class_<AssetsView>(sketches, "Assets")
-      .def("image",
-           [](const AssetsView& v, const std::string& uri) {
-             return *v.state()->assets->image(uri);
-           })
-      .def("json",
-           [](const AssetsView& v,
-              const std::string& uri) -> std::optional<data::Json> {
-             const auto value = v.state()->assets->json(uri);
-             if (value) return *value;
-             return {};
-           })
-      .def("table",
-           [](const AssetsView& v,
-              const std::string& uri) -> std::optional<data::Table> {
-             const auto value = v.state()->assets->table(uri);
-             if (value) return *value;
-             return {};
-           })
-      .def("database",
-           [](const AssetsView& v, const std::string& uri) {
-             return sigil::python::dataDatabase(
-                 v.state()->assets->database(uri));
-           })
+      .def(
+          "image",
+          [](const AssetsView& v, const std::string& uri) {
+            return *v.state()->assets->image(uri);
+          },
+          py::arg("uri"))
+      .def(
+          "json",
+          [](const AssetsView& v,
+             const std::string& uri) -> std::optional<data::Json> {
+            const auto value = v.state()->assets->json(uri);
+            if (value) return *value;
+            return {};
+          },
+          py::arg("uri"))
+      .def(
+          "table",
+          [](const AssetsView& v,
+             const std::string& uri) -> std::optional<data::Table> {
+            const auto value = v.state()->assets->table(uri);
+            if (value) return *value;
+            return {};
+          },
+          py::arg("uri"))
+      .def(
+          "database",
+          [](const AssetsView& v, const std::string& uri) {
+            return sigil::python::dataDatabase(
+                v.state()->assets->database(uri));
+          },
+          py::arg("uri"))
       .def("hub",
            [](const AssetsView& v) {
              v.state();
@@ -680,30 +700,38 @@ void bindRuntime(py::module_& module) {
       .def("root",
            [](const AssetsView& v) { return v.state()->assets->root(); });
   py::class_<Context, std::shared_ptr<Context>>(module, "Context")
-      .def("canvas",
-           [](const Context& ctx, float width, float height) {
-             if (!std::isfinite(width) || !std::isfinite(height) ||
-                 width <= 0 || height <= 0)
-               throw py::value_error(
-                   "Canvas dimensions must be finite and positive");
-             ctx.state()->specification->size = {width, height};
-           })
-      .def("background",
-           [](const Context& ctx, py::handle value) {
-             ctx.state()->specification->background =
-                 sigil::python::color(value);
-           })
-      .def("captureAt",
-           [](const Context& ctx, double seconds) {
-             if (!std::isfinite(seconds) || seconds < 0)
-               throw py::value_error(
-                   "Capture time must be finite and nonnegative");
-             ctx.state()->specification->captureSeconds = seconds;
-           })
-      .def("render",
-           [](const Context& ctx, const compose::Element& element) {
-             ctx.state()->composer->render(element);
-           })
+      .def(
+          "canvas",
+          [](const Context& ctx, float width, float height) {
+            if (!std::isfinite(width) || !std::isfinite(height) || width <= 0 ||
+                height <= 0)
+              throw py::value_error(
+                  "Canvas dimensions must be finite and positive");
+            ctx.state()->specification->size = {width, height};
+          },
+          py::arg("width"), py::arg("height"))
+      .def(
+          "background",
+          [](const Context& ctx, py::handle value) {
+            ctx.state()->specification->background =
+                sigil::python::color(value);
+          },
+          py::arg("color"))
+      .def(
+          "captureAt",
+          [](const Context& ctx, double seconds) {
+            if (!std::isfinite(seconds) || seconds < 0)
+              throw py::value_error(
+                  "Capture time must be finite and nonnegative");
+            ctx.state()->specification->captureSeconds = seconds;
+          },
+          py::arg("seconds"))
+      .def(
+          "render",
+          [](const Context& ctx, const compose::Element& element) {
+            ctx.state()->composer->render(element);
+          },
+          py::arg("element"))
       .def_property_readonly(
           "composer",
           [](const Context& ctx) { return ComposerView(ctx.state()); })
@@ -717,10 +745,12 @@ void bindRuntime(py::module_& module) {
             return ctx.state()->context().measured(value, pinned);
           },
           py::arg("value"), py::arg("pinned") = 0)
-      .def("oversample",
-           [](const Context& ctx, int samples) {
-             ctx.state()->context().oversample(samples);
-           })
+      .def(
+          "oversample",
+          [](const Context& ctx, int samples) {
+            ctx.state()->context().oversample(samples);
+          },
+          py::arg("samples"))
       .def("plate", [](const Context& ctx) { ctx.state()->context().plate(); })
       .def(
           "nonlinearPicture",
@@ -740,10 +770,12 @@ void bindRuntime(py::module_& module) {
             return compose::snapshot(element, *state->fonts, maximum);
           },
           py::arg("element"), py::arg("maxSize") = SkSize::MakeEmpty())
-      .def("local",
-           [](const Context& ctx, const std::string& name) {
-             return "sketch://" + ctx.state()->key + "/" + name;
-           })
+      .def(
+          "local",
+          [](const Context& ctx, const std::string& name) {
+            return "sketch://" + ctx.state()->key + "/" + name;
+          },
+          py::arg("path"))
       .def_property_readonly(
           "elapsed",
           [](const Context& ctx) { return ctx.state()->ticker->elapsed(); })

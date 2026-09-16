@@ -80,7 +80,7 @@ class Stream:
         ...
 
     @staticmethod
-    def mix64(arg0: typing.SupportsInt) -> Stream:
+    def mix64(seed: typing.SupportsInt) -> Stream:
         ...
 
     @staticmethod
@@ -88,7 +88,7 @@ class Stream:
         ...
 
     @staticmethod
-    def pcg(arg0: typing.SupportsInt) -> Stream:
+    def pcg(seed: typing.SupportsInt) -> Stream:
         ...
 
     @staticmethod
@@ -100,7 +100,7 @@ class Stream:
         ...
 
     @staticmethod
-    def xorshift(arg0: typing.SupportsInt) -> Stream:
+    def xorshift(seed: typing.SupportsInt) -> Stream:
         ...
 
     def __copy__(self) -> Stream:
@@ -109,7 +109,7 @@ class Stream:
     def __init__(self) -> None:
         ...
 
-    def below(self, arg0: typing.SupportsInt) -> int:
+    def below(self, upper: typing.SupportsInt) -> int:
         ...
 
     def bits(self) -> int:
@@ -127,7 +127,7 @@ class Stream:
     def parameter(self) -> int:
         ...
 
-    def range(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> float:
+    def range(self, low: typing.SupportsFloat, high: typing.SupportsFloat) -> float:
         ...
 
     def signedUnit(self) -> float:

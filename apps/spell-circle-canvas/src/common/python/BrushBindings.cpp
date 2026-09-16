@@ -308,13 +308,14 @@ void bindBrush(py::module_& root) {
              return brush::Pressure{start, middle, end};
            }),
            py::arg("start"), py::arg("middle"), py::arg("end"))
-      .def("at", &brush::Pressure::at)
+      .def("at", &brush::Pressure::at, py::arg("progress"))
       .def_static("gaussianProfile", &brush::Pressure::gaussianProfile,
                   py::arg("centerJitter"), py::arg("widthJitter"),
                   py::arg("minimum"), py::arg("maximum"));
   pressure.attr("Gaussian") = module.attr("Gaussian");
   pressure.attr("Variation") = module.attr("Variation");
-  curve.def("at", &brush::Curve::at).def_static("flat", &brush::Curve::flat);
+  curve.def("at", &brush::Curve::at, py::arg("input"))
+      .def_static("flat", &brush::Curve::flat, py::arg("value"));
   response.def("at", &brush::Response::at, py::arg("dab"), py::arg("pressure"),
                py::arg("speedReference"));
   dynamics.def("empty", &brush::Dynamics::empty);
@@ -397,7 +398,8 @@ void bindBrush(py::module_& root) {
       py::arg("position"), py::arg("seconds") = 0.0f);
   py::class_<Direction>(module, "Direction")
       .def(py::init(
-          [](py::handle field) { return Direction{direction(field)}; }))
+               [](py::handle field) { return Direction{direction(field)}; }),
+           py::arg("field"))
       .def(
           "__call__",
           [](const Direction& field, py::handle position, float seconds) {
@@ -430,19 +432,26 @@ void bindBrush(py::module_& root) {
               [](brush::Polygon& value, py::iterable vertices) {
                 value.vertices = points(vertices);
               })
-          .def("intersect", &brush::Polygon::intersect)
-          .def("translated", &brush::Polygon::translated)
+          .def("intersect", &brush::Polygon::intersect, py::arg("line"))
+          .def("translated", &brush::Polygon::translated, py::arg("x"),
+               py::arg("y"))
           .def("empty", &brush::Polygon::empty)
           .def("copy", [](const brush::Polygon& value) { return value; });
-  polygon.def("draw",
-              [](const brush::Polygon& value, BorrowedPen& pen,
-                 const brush::Tool& tool) { value.draw(pen.get(), tool); });
-  polygon.def("fill",
-              [](const brush::Polygon& value, BorrowedPen& pen,
-                 const brush::Wash& style) { value.fill(pen.get(), style); });
-  polygon.def("wash",
-              [](const brush::Polygon& value, BorrowedPen& pen,
-                 const brush::Wash& style) { value.wash(pen.get(), style); });
+  polygon.def(
+      "draw",
+      [](const brush::Polygon& value, BorrowedPen& pen,
+         const brush::Tool& tool) { value.draw(pen.get(), tool); },
+      py::arg("pen"), py::arg("tool"));
+  polygon.def(
+      "fill",
+      [](const brush::Polygon& value, BorrowedPen& pen,
+         const brush::Wash& style) { value.fill(pen.get(), style); },
+      py::arg("pen"), py::arg("style"));
+  polygon.def(
+      "wash",
+      [](const brush::Polygon& value, BorrowedPen& pen,
+         const brush::Wash& style) { value.wash(pen.get(), style); },
+      py::arg("pen"), py::arg("style"));
   polygon.def(
       "hatch",
       [](const brush::Polygon& value, BorrowedPen& pen, const brush::Tool& tool,
@@ -453,30 +462,36 @@ void bindBrush(py::module_& root) {
       [](const brush::Polygon& value, BorrowedPen& pen, const brush::Tool& tool,
          const brush::Mass& style) { value.mass(pen.get(), tool, style); },
       py::arg("pen"), py::arg("tool"), py::arg("style") = brush::Mass{});
-  polygon.def("draw", [](const brush::Polygon& value, BorrowedPen& pen,
-                         const brush::Engine& engine) {
-    value.draw(pen.get(), engine);
-  });
-  polygon.def("fill", [](const brush::Polygon& value, BorrowedPen& pen,
-                         const brush::Engine& engine) {
-    value.fill(pen.get(), engine);
-  });
-  polygon.def("wash", [](const brush::Polygon& value, BorrowedPen& pen,
-                         const brush::Engine& engine) {
-    value.wash(pen.get(), engine);
-  });
-  polygon.def("hatch", [](const brush::Polygon& value, BorrowedPen& pen,
-                          const brush::Engine& engine) {
-    value.hatch(pen.get(), engine);
-  });
-  polygon.def("mass", [](const brush::Polygon& value, BorrowedPen& pen,
-                         const brush::Engine& engine) {
-    value.mass(pen.get(), engine);
-  });
-  polygon.def("show", [](const brush::Polygon& value, BorrowedPen& pen,
-                         const brush::Engine& engine) {
-    value.show(pen.get(), engine);
-  });
+  polygon.def(
+      "draw",
+      [](const brush::Polygon& value, BorrowedPen& pen,
+         const brush::Engine& engine) { value.draw(pen.get(), engine); },
+      py::arg("pen"), py::arg("engine"));
+  polygon.def(
+      "fill",
+      [](const brush::Polygon& value, BorrowedPen& pen,
+         const brush::Engine& engine) { value.fill(pen.get(), engine); },
+      py::arg("pen"), py::arg("engine"));
+  polygon.def(
+      "wash",
+      [](const brush::Polygon& value, BorrowedPen& pen,
+         const brush::Engine& engine) { value.wash(pen.get(), engine); },
+      py::arg("pen"), py::arg("engine"));
+  polygon.def(
+      "hatch",
+      [](const brush::Polygon& value, BorrowedPen& pen,
+         const brush::Engine& engine) { value.hatch(pen.get(), engine); },
+      py::arg("pen"), py::arg("engine"));
+  polygon.def(
+      "mass",
+      [](const brush::Polygon& value, BorrowedPen& pen,
+         const brush::Engine& engine) { value.mass(pen.get(), engine); },
+      py::arg("pen"), py::arg("engine"));
+  polygon.def(
+      "show",
+      [](const brush::Polygon& value, BorrowedPen& pen,
+         const brush::Engine& engine) { value.show(pen.get(), engine); },
+      py::arg("pen"), py::arg("engine"));
 
   auto plot =
       py::class_<brush::Plot>(module, "Plot")
@@ -487,10 +502,10 @@ void bindBrush(py::module_& root) {
                py::arg("length"), py::arg("pressure") = 1.0f)
           .def("endPlot", &brush::Plot::endPlot, py::arg("angle"),
                py::arg("pressure") = 1.0f)
-          .def("rotate", &brush::Plot::rotate)
+          .def("rotate", &brush::Plot::rotate, py::arg("angle"))
           .def("length", &brush::Plot::length)
-          .def("angle", &brush::Plot::angle)
-          .def("pressure", &brush::Plot::pressure)
+          .def("angle", &brush::Plot::angle, py::arg("distance"))
+          .def("pressure", &brush::Plot::pressure, py::arg("distance"))
           .def("empty", &brush::Plot::empty)
           .def("copy", [](const brush::Plot& value) { return value; })
           .def(
@@ -627,7 +642,7 @@ void bindBrush(py::module_& root) {
           py::arg("field"), py::arg("seconds") = 0.0f)
       .def("isIn", &brush::Position::isIn)
       .def("isInCanvas", &brush::Position::isInCanvas)
-      .def("place", &brush::Position::place)
+      .def("place", &brush::Position::place, py::arg("x"), py::arg("y"))
       .def("reset", &brush::Position::reset)
       .def(
           "field",
@@ -639,9 +654,9 @@ void bindBrush(py::module_& root) {
   py::class_<brush::Sampler>(module, "Sampler")
       .def(py::init<float>(),
            py::arg("speedFilterSeconds") = brush::kSpeedFilterSeconds)
-      .def("begin", &brush::Sampler::begin)
-      .def("move", &brush::Sampler::move)
-      .def("end", &brush::Sampler::end)
+      .def("begin", &brush::Sampler::begin, py::arg("input"))
+      .def("move", &brush::Sampler::move, py::arg("input"), py::arg("spacing"))
+      .def("end", &brush::Sampler::end, py::arg("input"), py::arg("spacing"))
       .def("cancel", &brush::Sampler::cancel)
       .def("active", &brush::Sampler::active)
       .def("distance", &brush::Sampler::distance);
@@ -649,32 +664,40 @@ void bindBrush(py::module_& root) {
   py::class_<brush::Catalogue>(module, "Catalogue")
       .def(py::init<>())
       .def_static("stock", &brush::Catalogue::stock)
-      .def("add",
-           [](brush::Catalogue& catalogue, const std::string& name,
-              const brush::Tool& tool) {
-             return toolCopy(catalogue.add(name, tool));
-           })
-      .def("find",
-           [](const brush::Catalogue& catalogue, const std::string& name) {
-             return toolCopy(catalogue.find(name));
-           })
-      .def("contains", &brush::Catalogue::contains)
+      .def(
+          "add",
+          [](brush::Catalogue& catalogue, const std::string& name,
+             const brush::Tool& tool) {
+            return toolCopy(catalogue.add(name, tool));
+          },
+          py::arg("name"), py::arg("tool"))
+      .def(
+          "find",
+          [](const brush::Catalogue& catalogue, const std::string& name) {
+            return toolCopy(catalogue.find(name));
+          },
+          py::arg("name"))
+      .def("contains", &brush::Catalogue::contains, py::arg("name"))
       .def("names", &brush::Catalogue::names)
-      .def("scale", &brush::Catalogue::scale);
+      .def("scale", &brush::Catalogue::scale, py::arg("factor"));
 
   auto engine =
       py::class_<brush::Engine>(module, "Engine")
           .def(py::init<>())
-          .def(py::init<brush::Catalogue>())
-          .def("add",
-               [](brush::Engine& engine, const std::string& name,
-                  const brush::Tool& tool) {
-                 return toolCopy(engine.add(name, tool));
-               })
-          .def("pick",
-               [](brush::Engine& engine, const std::string& name) {
-                 return toolCopy(engine.pick(name));
-               })
+          .def(py::init<brush::Catalogue>(), py::arg("catalogue"))
+          .def(
+              "add",
+              [](brush::Engine& engine, const std::string& name,
+                 const brush::Tool& tool) {
+                return toolCopy(engine.add(name, tool));
+              },
+              py::arg("name"), py::arg("tool"))
+          .def(
+              "pick",
+              [](brush::Engine& engine, const std::string& name) {
+                return toolCopy(engine.pick(name));
+              },
+              py::arg("name"))
           .def(
               "set",
               [](brush::Engine& engine, const std::string& name,
@@ -683,13 +706,15 @@ void bindBrush(py::module_& root) {
               },
               py::arg("name"), py::arg("color"), py::arg("weight") = 1.0f)
           .def("names", &brush::Engine::names)
-          .def("scaleBrushes", &brush::Engine::scaleBrushes)
-          .def("stroke",
-               [](brush::Engine& engine, py::handle pigment) {
-                 engine.stroke(color(pigment));
-               })
+          .def("scaleBrushes", &brush::Engine::scaleBrushes, py::arg("factor"))
+          .def(
+              "stroke",
+              [](brush::Engine& engine, py::handle pigment) {
+                engine.stroke(color(pigment));
+              },
+              py::arg("pigment"))
           .def("noStroke", &brush::Engine::noStroke)
-          .def("strokeWeight", &brush::Engine::strokeWeight)
+          .def("strokeWeight", &brush::Engine::strokeWeight, py::arg("weight"))
           .def("hasStroke", &brush::Engine::hasStroke)
           .def("tool", py::overload_cast<>(&brush::Engine::tool, py::const_))
           .def(
@@ -753,22 +778,29 @@ void bindBrush(py::module_& root) {
               py::arg("name"), py::arg("field"),
               py::arg("units") = draw::RADIANS)
           .def("listFields", &brush::Engine::listFields)
-          .def("field", &brush::Engine::field)
+          .def("field", &brush::Engine::field, py::arg("name"))
           .def("noField", &brush::Engine::noField)
           .def("wiggle", &brush::Engine::wiggle, py::arg("amount") = 1.0f)
-          .def("clip", [](brush::Engine& engine,
-                          py::handle region) { engine.clip(rect(region)); })
-          .def("clip",
-               [](brush::Engine& engine, BorrowedPen& pen, py::handle region) {
-                 engine.clip(pen.get(), rect(region));
-               })
+          .def(
+              "clip",
+              [](brush::Engine& engine, py::handle region) {
+                engine.clip(rect(region));
+              },
+              py::arg("region"))
+          .def(
+              "clip",
+              [](brush::Engine& engine, BorrowedPen& pen, py::handle region) {
+                engine.clip(pen.get(), rect(region));
+              },
+              py::arg("pen"), py::arg("region"))
           .def("noClip", &brush::Engine::noClip)
           .def("push", &brush::Engine::push)
           .def("pop", &brush::Engine::pop)
           .def(
               "paint",
               [](const brush::Engine& engine, BorrowedPen& pen,
-                 py::iterable path) { engine.paint(pen.get(), samples(path)); })
+                 py::iterable path) { engine.paint(pen.get(), samples(path)); },
+              py::arg("pen"), py::arg("path"))
           .def(
               "line",
               [](const brush::Engine& engine, BorrowedPen& pen, py::handle from,
@@ -792,16 +824,20 @@ void bindBrush(py::module_& root) {
                 return engine.spline(pen.get(), samples(path), curvature);
               },
               py::arg("pen"), py::arg("controls"), py::arg("curvature") = 0.5f)
-          .def("polygon",
-               [](const brush::Engine& engine, BorrowedPen& pen,
-                  py::iterable vertices) {
-                 return engine.polygon(pen.get(), points(vertices));
-               })
-          .def("polygon",
-               [](const brush::Engine& engine, BorrowedPen& pen,
-                  const brush::Polygon& polygon) {
-                 engine.polygon(pen.get(), polygon);
-               })
+          .def(
+              "polygon",
+              [](const brush::Engine& engine, BorrowedPen& pen,
+                 py::iterable vertices) {
+                return engine.polygon(pen.get(), points(vertices));
+              },
+              py::arg("pen"), py::arg("vertices"))
+          .def(
+              "polygon",
+              [](const brush::Engine& engine, BorrowedPen& pen,
+                 const brush::Polygon& polygon) {
+                engine.polygon(pen.get(), polygon);
+              },
+              py::arg("pen"), py::arg("polygon"))
           .def(
               "rect",
               [](const brush::Engine& engine, BorrowedPen& pen, float x,
@@ -826,11 +862,14 @@ void bindBrush(py::module_& root) {
               },
               py::arg("pen"), py::arg("x"), py::arg("y"), py::arg("radius"),
               py::arg("irregularity") = 0.0f)
-          .def("arc",
-               [](const brush::Engine& engine, BorrowedPen& pen, float x,
-                  float y, float radius, float start, float stop) {
-                 return engine.arc(pen.get(), x, y, radius, start, stop);
-               })
+          .def(
+              "arc",
+              [](const brush::Engine& engine, BorrowedPen& pen, float x,
+                 float y, float radius, float start, float stop) {
+                return engine.arc(pen.get(), x, y, radius, start, stop);
+              },
+              py::arg("pen"), py::arg("x"), py::arg("y"), py::arg("radius"),
+              py::arg("start"), py::arg("stop"))
           .def("beginShape", &brush::Engine::beginShape,
                py::arg("curvature") = 0.0f)
           .def("vertex", &brush::Engine::vertex, py::arg("x"), py::arg("y"),
@@ -850,10 +889,12 @@ void bindBrush(py::module_& root) {
               [](const brush::Engine& engine, BorrowedPen& pen, float x,
                  float y) { return engine.position(pen.get(), x, y); },
               py::arg("pen"), py::arg("x") = 0.0f, py::arg("y") = 0.0f)
-          .def("beginStroke",
-               [](brush::Engine& engine, brush::PlotType kind, py::handle at) {
-                 engine.beginStroke(kind, point(at));
-               })
+          .def(
+              "beginStroke",
+              [](brush::Engine& engine, brush::PlotType kind, py::handle at) {
+                engine.beginStroke(kind, point(at));
+              },
+              py::arg("kind"), py::arg("at"))
           .def(
               "move",
               [](brush::Engine& engine, BorrowedPen& pen, float angle,
@@ -871,24 +912,32 @@ void bindBrush(py::module_& root) {
               py::arg("pen"), py::arg("angle"), py::arg("pressure") = 1.0f)
           .def("cancelStroke", &brush::Engine::cancelStroke)
           .def("cancelInput", &brush::Engine::cancelInput);
-  engine.def("beginInput",
-             [](brush::Engine& engine, BorrowedPen& pen, brush::Input input) {
-               engine.beginInput(pen.get(), input);
-             });
-  engine.def("moveInput",
-             [](brush::Engine& engine, BorrowedPen& pen, brush::Input input) {
-               engine.moveInput(pen.get(), input);
-             });
-  engine.def("endInput",
-             [](brush::Engine& engine, BorrowedPen& pen, brush::Input input) {
-               engine.endInput(pen.get(), input);
-             });
+  engine.def(
+      "beginInput",
+      [](brush::Engine& engine, BorrowedPen& pen, brush::Input input) {
+        engine.beginInput(pen.get(), input);
+      },
+      py::arg("pen"), py::arg("input"));
+  engine.def(
+      "moveInput",
+      [](brush::Engine& engine, BorrowedPen& pen, brush::Input input) {
+        engine.moveInput(pen.get(), input);
+      },
+      py::arg("pen"), py::arg("input"));
+  engine.def(
+      "endInput",
+      [](brush::Engine& engine, BorrowedPen& pen, brush::Input input) {
+        engine.endInput(pen.get(), input);
+      },
+      py::arg("pen"), py::arg("input"));
   engine
-      .def("draw",
-           [](const brush::Engine& engine, BorrowedPen& pen,
-              const brush::Polygon& polygon) {
-             engine.draw(pen.get(), polygon);
-           })
+      .def(
+          "draw",
+          [](const brush::Engine& engine, BorrowedPen& pen,
+             const brush::Polygon& polygon) {
+            engine.draw(pen.get(), polygon);
+          },
+          py::arg("pen"), py::arg("polygon"))
       .def(
           "draw",
           [](const brush::Engine& engine, BorrowedPen& pen,
@@ -897,11 +946,13 @@ void bindBrush(py::module_& root) {
           py::arg("pen"), py::arg("plot"), py::arg("x") = 0.0f,
           py::arg("y") = 0.0f, py::arg("scale") = 1.0f);
   engine
-      .def("fill",
-           [](const brush::Engine& engine, BorrowedPen& pen,
-              const brush::Polygon& polygon) {
-             engine.fill(pen.get(), polygon);
-           })
+      .def(
+          "fill",
+          [](const brush::Engine& engine, BorrowedPen& pen,
+             const brush::Polygon& polygon) {
+            engine.fill(pen.get(), polygon);
+          },
+          py::arg("pen"), py::arg("polygon"))
       .def(
           "fill",
           [](const brush::Engine& engine, BorrowedPen& pen,
@@ -910,11 +961,13 @@ void bindBrush(py::module_& root) {
           py::arg("pen"), py::arg("plot"), py::arg("x") = 0.0f,
           py::arg("y") = 0.0f, py::arg("scale") = 1.0f);
   engine
-      .def("wash",
-           [](const brush::Engine& engine, BorrowedPen& pen,
-              const brush::Polygon& polygon) {
-             engine.wash(pen.get(), polygon);
-           })
+      .def(
+          "wash",
+          [](const brush::Engine& engine, BorrowedPen& pen,
+             const brush::Polygon& polygon) {
+            engine.wash(pen.get(), polygon);
+          },
+          py::arg("pen"), py::arg("polygon"))
       .def(
           "wash",
           [](const brush::Engine& engine, BorrowedPen& pen,
@@ -923,11 +976,13 @@ void bindBrush(py::module_& root) {
           py::arg("pen"), py::arg("plot"), py::arg("x") = 0.0f,
           py::arg("y") = 0.0f, py::arg("scale") = 1.0f);
   engine
-      .def("hatch",
-           [](const brush::Engine& engine, BorrowedPen& pen,
-              const brush::Polygon& polygon) {
-             engine.hatch(pen.get(), polygon);
-           })
+      .def(
+          "hatch",
+          [](const brush::Engine& engine, BorrowedPen& pen,
+             const brush::Polygon& polygon) {
+            engine.hatch(pen.get(), polygon);
+          },
+          py::arg("pen"), py::arg("polygon"))
       .def(
           "hatch",
           [](const brush::Engine& engine, BorrowedPen& pen,
@@ -936,11 +991,13 @@ void bindBrush(py::module_& root) {
           py::arg("pen"), py::arg("plot"), py::arg("x") = 0.0f,
           py::arg("y") = 0.0f, py::arg("scale") = 1.0f);
   engine
-      .def("mass",
-           [](const brush::Engine& engine, BorrowedPen& pen,
-              const brush::Polygon& polygon) {
-             engine.mass(pen.get(), polygon);
-           })
+      .def(
+          "mass",
+          [](const brush::Engine& engine, BorrowedPen& pen,
+             const brush::Polygon& polygon) {
+            engine.mass(pen.get(), polygon);
+          },
+          py::arg("pen"), py::arg("polygon"))
       .def(
           "mass",
           [](const brush::Engine& engine, BorrowedPen& pen,
@@ -949,25 +1006,35 @@ void bindBrush(py::module_& root) {
           py::arg("pen"), py::arg("plot"), py::arg("x") = 0.0f,
           py::arg("y") = 0.0f, py::arg("scale") = 1.0f);
   engine
-      .def("hatchArray",
-           [](const brush::Engine& engine, BorrowedPen& pen,
-              const std::vector<brush::Polygon>& polygons) {
-             engine.hatchArray(pen.get(), polygons);
-           })
-      .def("hatchArray", [](const brush::Engine& engine, BorrowedPen& pen,
-                            const brush::Polygon& polygon) {
-        engine.hatchArray(pen.get(), polygon);
-      });
+      .def(
+          "hatchArray",
+          [](const brush::Engine& engine, BorrowedPen& pen,
+             const std::vector<brush::Polygon>& polygons) {
+            engine.hatchArray(pen.get(), polygons);
+          },
+          py::arg("pen"), py::arg("polygons"))
+      .def(
+          "hatchArray",
+          [](const brush::Engine& engine, BorrowedPen& pen,
+             const brush::Polygon& polygon) {
+            engine.hatchArray(pen.get(), polygon);
+          },
+          py::arg("pen"), py::arg("polygon"));
   engine
-      .def("massArray",
-           [](const brush::Engine& engine, BorrowedPen& pen,
-              const std::vector<brush::Polygon>& polygons) {
-             engine.massArray(pen.get(), polygons);
-           })
-      .def("massArray", [](const brush::Engine& engine, BorrowedPen& pen,
-                           const brush::Polygon& polygon) {
-        engine.massArray(pen.get(), polygon);
-      });
+      .def(
+          "massArray",
+          [](const brush::Engine& engine, BorrowedPen& pen,
+             const std::vector<brush::Polygon>& polygons) {
+            engine.massArray(pen.get(), polygons);
+          },
+          py::arg("pen"), py::arg("polygons"))
+      .def(
+          "massArray",
+          [](const brush::Engine& engine, BorrowedPen& pen,
+             const brush::Polygon& polygon) {
+            engine.massArray(pen.get(), polygon);
+          },
+          py::arg("pen"), py::arg("polygon"));
   module.def(
       "pencil",
       [](py::handle pigment, float width) {
@@ -999,10 +1066,13 @@ void bindBrush(py::module_& root) {
       },
       py::arg("color"), py::arg("width") = 18.0f);
 
-  module.def("spacingOf", &brush::spacingOf);
-  module.def("prepareStroke", [](BorrowedPen& pen, const brush::Tool& tool) {
-    return brush::prepareStroke(pen.get(), tool);
-  });
+  module.def("spacingOf", &brush::spacingOf, py::arg("tool"));
+  module.def(
+      "prepareStroke",
+      [](BorrowedPen& pen, const brush::Tool& tool) {
+        return brush::prepareStroke(pen.get(), tool);
+      },
+      py::arg("pen"), py::arg("tool"));
   module.def(
       "segment",
       [](py::handle from, py::handle to, float spacing, float p0, float p1) {
@@ -1033,10 +1103,12 @@ void bindBrush(py::module_& root) {
       },
       py::arg("pen"), py::arg("tool"), py::arg("from_"), py::arg("to"),
       py::arg("startPressure") = 1.0f, py::arg("endPressure") = 1.0f);
-  module.def("paint", [](BorrowedPen& pen, const brush::Tool& tool,
-                         py::iterable stroke) {
-    brush::paint(pen.get(), tool, samples(stroke));
-  });
+  module.def(
+      "paint",
+      [](BorrowedPen& pen, const brush::Tool& tool, py::iterable stroke) {
+        brush::paint(pen.get(), tool, samples(stroke));
+      },
+      py::arg("pen"), py::arg("tool"), py::arg("stroke"));
   module.def(
       "trace",
       [](py::handle start, float length, float spacing, float seconds,
@@ -1080,10 +1152,12 @@ void bindBrush(py::module_& root) {
       },
       py::arg("pen"), py::arg("tool"), py::arg("dabs"),
       py::arg("options") = brush::DepositOptions{});
-  module.def("wash", [](BorrowedPen& pen, const brush::Wash& pigment,
-                        py::iterable polygon) {
-    brush::wash(pen.get(), pigment, points(polygon));
-  });
+  module.def(
+      "wash",
+      [](BorrowedPen& pen, const brush::Wash& pigment, py::iterable polygon) {
+        brush::wash(pen.get(), pigment, points(polygon));
+      },
+      py::arg("pen"), py::arg("pigment"), py::arg("polygon"));
   module.def(
       "hatch",
       [](BorrowedPen& pen, const brush::Tool& tool, py::iterable polygon,
@@ -1119,13 +1193,16 @@ void bindBrush(py::module_& root) {
       py::arg("pen"), py::arg("tool"), py::arg("polygons"),
       py::arg("style") = brush::Mass{});
 
-  module.def("randomBelow", [](BorrowedPen& pen, float total) {
-    return brush::randomBelow(pen.get(), total);
-  });
+  module.def(
+      "randomBelow",
+      [](BorrowedPen& pen, float total) {
+        return brush::randomBelow(pen.get(), total);
+      },
+      py::arg("pen"), py::arg("total"));
   module.attr("Stroke") = py::module_::import("builtins").attr("list");
 
   auto format = module.def_submodule("format");
-  format.def("encodeBrush", &brush::format::encodeBrush);
+  format.def("encodeBrush", &brush::format::encodeBrush, py::arg("tool"));
   format.def(
       "decodeBrush",
       [](py::bytes content, const std::string& hint) {
@@ -1144,18 +1221,27 @@ void bindBrush(py::module_& root) {
       },
       py::arg("description") = py::bytes(), py::arg("shape") = py::bytes(),
       py::arg("grain") = py::bytes());
-  format.def("isPhotoshopBrushes", [](py::bytes content) {
-    const auto source = py::cast<std::string>(content);
-    return brush::format::isPhotoshopBrushes(bytes(source));
-  });
-  format.def("decodePhotoshopBrushes", [](py::bytes content) {
-    const auto source = py::cast<std::string>(content);
-    return brush::format::decodePhotoshopBrushes(bytes(source));
-  });
-  format.def("decodeProcreateBrush", [](py::bytes content) {
-    const auto source = py::cast<std::string>(content);
-    return brush::format::decodeProcreateBrush(bytes(source));
-  });
+  format.def(
+      "isPhotoshopBrushes",
+      [](py::bytes content) {
+        const auto source = py::cast<std::string>(content);
+        return brush::format::isPhotoshopBrushes(bytes(source));
+      },
+      py::arg("content"));
+  format.def(
+      "decodePhotoshopBrushes",
+      [](py::bytes content) {
+        const auto source = py::cast<std::string>(content);
+        return brush::format::decodePhotoshopBrushes(bytes(source));
+      },
+      py::arg("content"));
+  format.def(
+      "decodeProcreateBrush",
+      [](py::bytes content) {
+        const auto source = py::cast<std::string>(content);
+        return brush::format::decodeProcreateBrush(bytes(source));
+      },
+      py::arg("content"));
 }
 
 }  // namespace sigil::python

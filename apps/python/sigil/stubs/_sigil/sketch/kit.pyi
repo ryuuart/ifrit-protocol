@@ -25,7 +25,7 @@ class Cell:
         ...
 
     @measure.setter
-    def measure(self, arg1: _t.FloatLike | None) -> None:
+    def measure(self, value: _t.FloatLike | None, /) -> None:
         ...
 
     @property
@@ -33,7 +33,7 @@ class Cell:
         ...
 
     @plate.setter
-    def plate(self, arg1: Well) -> None:
+    def plate(self, value: Well, /) -> None:
         ...
 
 class Page:
@@ -49,7 +49,7 @@ class Page:
         ...
 
     @footer.setter
-    def footer(self, arg1: str) -> None:
+    def footer(self, value: str, /) -> None:
         ...
 
     @property
@@ -57,7 +57,7 @@ class Page:
         ...
 
     @ground.setter
-    def ground(self, arg1: _t.SurfacePaintLike | None) -> None:
+    def ground(self, value: _t.SurfacePaintLike | None, /) -> None:
         ...
 
     @property
@@ -65,7 +65,7 @@ class Page:
         ...
 
     @key.setter
-    def key(self, arg1: str) -> None:
+    def key(self, value: str, /) -> None:
         ...
 
     @property
@@ -73,7 +73,7 @@ class Page:
         ...
 
     @ruled.setter
-    def ruled(self, arg1: bool) -> None:
+    def ruled(self, value: bool, /) -> None:
         ...
 
     @property
@@ -81,7 +81,7 @@ class Page:
         ...
 
     @subtitle.setter
-    def subtitle(self, arg1: str) -> None:
+    def subtitle(self, value: str, /) -> None:
         ...
 
     @property
@@ -89,13 +89,13 @@ class Page:
         ...
 
     @title.setter
-    def title(self, arg1: str) -> None:
+    def title(self, value: str, /) -> None:
         ...
 
 class Palette:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     def __init__(self, *, ash: _t.ColorLike=..., cellGround: _t.ColorLike=..., figure: _t.ColorLike=..., ground: _t.ColorLike=..., ink: _t.ColorLike=..., rule: _t.ColorLike=...) -> None:
@@ -109,7 +109,7 @@ class Palette:
         ...
 
     @ash.setter
-    def ash(self, arg1: _t.ColorLike) -> None:
+    def ash(self, value: _t.ColorLike, /) -> None:
         ...
 
     @property
@@ -117,7 +117,7 @@ class Palette:
         ...
 
     @cellGround.setter
-    def cellGround(self, arg1: _t.ColorLike) -> None:
+    def cellGround(self, value: _t.ColorLike, /) -> None:
         ...
 
     @property
@@ -125,7 +125,7 @@ class Palette:
         ...
 
     @figure.setter
-    def figure(self, arg1: _t.ColorLike) -> None:
+    def figure(self, value: _t.ColorLike, /) -> None:
         ...
 
     @property
@@ -133,7 +133,7 @@ class Palette:
         ...
 
     @ground.setter
-    def ground(self, arg1: _t.ColorLike) -> None:
+    def ground(self, value: _t.ColorLike, /) -> None:
         ...
 
     @property
@@ -141,7 +141,7 @@ class Palette:
         ...
 
     @ink.setter
-    def ink(self, arg1: _t.ColorLike) -> None:
+    def ink(self, value: _t.ColorLike, /) -> None:
         ...
 
     @property
@@ -149,7 +149,7 @@ class Palette:
         ...
 
     @rule.setter
-    def rule(self, arg1: _t.ColorLike) -> None:
+    def rule(self, value: _t.ColorLike, /) -> None:
         ...
 
 class PanelGrid:
@@ -165,7 +165,7 @@ class PanelGrid:
         ...
 
     @align.setter
-    def align(self, arg1: _t.AlignLike) -> None:
+    def align(self, value: _t.AlignLike, /) -> None:
         ...
 
     @property
@@ -173,7 +173,7 @@ class PanelGrid:
         ...
 
     @cells.setter
-    def cells(self, arg1: collections.abc.Sequence[_sigil.compose.Element]) -> None:
+    def cells(self, value: collections.abc.Sequence[_sigil.compose.Element], /) -> None:
         ...
 
     @property
@@ -181,7 +181,7 @@ class PanelGrid:
         ...
 
     @columns.setter
-    def columns(self, arg1: typing.SupportsInt) -> None:
+    def columns(self, value: typing.SupportsInt, /) -> None:
         ...
 
     @property
@@ -189,7 +189,7 @@ class PanelGrid:
         ...
 
     @gap.setter
-    def gap(self, arg1: _t.FloatLike | None) -> None:
+    def gap(self, value: _t.FloatLike | None, /) -> None:
         ...
 
     @property
@@ -197,7 +197,7 @@ class PanelGrid:
         ...
 
     @measure.setter
-    def measure(self, arg1: _t.DimensionLike) -> None:
+    def measure(self, value: _t.DimensionLike, /) -> None:
         ...
 
     @property
@@ -205,7 +205,7 @@ class PanelGrid:
         ...
 
     @rowGap.setter
-    def rowGap(self, arg1: _t.FloatLike | None) -> None:
+    def rowGap(self, value: _t.FloatLike | None, /) -> None:
         ...
 
     @property
@@ -213,7 +213,7 @@ class PanelGrid:
         ...
 
     @ruled.setter
-    def ruled(self, arg1: bool) -> None:
+    def ruled(self, value: bool, /) -> None:
         ...
 
 class Provide:
@@ -221,7 +221,7 @@ class Provide:
     def __enter__(self) -> Provide:
         ...
 
-    def __exit__(self, arg0: type[BaseException] | None, arg1: BaseException | None, arg2: types.TracebackType | None) -> bool:
+    def __exit__(self, exc_type: type[BaseException] | None, exc_value: BaseException | None, traceback: types.TracebackType | None) -> bool:
         ...
 
     def __init__(self, theme: Theme) -> None:
@@ -247,7 +247,7 @@ class Recess:
         ...
 
     @blur.setter
-    def blur(self, arg1: _t.FloatLike) -> None:
+    def blur(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -255,7 +255,7 @@ class Recess:
         ...
 
     @lipDark.setter
-    def lipDark(self, arg1: _t.ColorLike | None) -> None:
+    def lipDark(self, value: _t.ColorLike | None, /) -> None:
         ...
 
     @property
@@ -263,7 +263,7 @@ class Recess:
         ...
 
     @lipLight.setter
-    def lipLight(self, arg1: _t.ColorLike | None) -> None:
+    def lipLight(self, value: _t.ColorLike | None, /) -> None:
         ...
 
     @property
@@ -271,7 +271,7 @@ class Recess:
         ...
 
     @lipWidth.setter
-    def lipWidth(self, arg1: _t.FloatLike) -> None:
+    def lipWidth(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -279,7 +279,7 @@ class Recess:
         ...
 
     @offset.setter
-    def offset(self, arg1: _t.PointLike) -> None:
+    def offset(self, value: _t.PointLike, /) -> None:
         ...
 
     @property
@@ -287,13 +287,13 @@ class Recess:
         ...
 
     @shade.setter
-    def shade(self, arg1: _t.FillLike) -> None:
+    def shade(self, value: _t.FillLike, /) -> None:
         ...
 
 class Register:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     def __init__(self, *, face: _sigil.skia.Typeface=..., mono: bool=..., size: _t.FloatLike=..., track: _t.FloatLike=...) -> None:
@@ -307,7 +307,7 @@ class Register:
         ...
 
     @face.setter
-    def face(self, arg1: _sigil.skia.Typeface) -> None:
+    def face(self, value: _sigil.skia.Typeface, /) -> None:
         ...
 
     @property
@@ -315,7 +315,7 @@ class Register:
         ...
 
     @mono.setter
-    def mono(self, arg1: bool) -> None:
+    def mono(self, value: bool, /) -> None:
         ...
 
     @property
@@ -323,7 +323,7 @@ class Register:
         ...
 
     @size.setter
-    def size(self, arg1: _t.FloatLike) -> None:
+    def size(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -331,7 +331,7 @@ class Register:
         ...
 
     @track.setter
-    def track(self, arg1: _t.FloatLike) -> None:
+    def track(self, value: _t.FloatLike, /) -> None:
         ...
 
 class Relief:
@@ -347,7 +347,7 @@ class Relief:
         ...
 
     @angleDeg.setter
-    def angleDeg(self, arg1: _t.FloatLike) -> None:
+    def angleDeg(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -355,7 +355,7 @@ class Relief:
         ...
 
     @blur.setter
-    def blur(self, arg1: _t.FloatLike) -> None:
+    def blur(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -363,7 +363,7 @@ class Relief:
         ...
 
     @depth.setter
-    def depth(self, arg1: _t.FloatLike) -> None:
+    def depth(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -371,7 +371,7 @@ class Relief:
         ...
 
     @light.setter
-    def light(self, arg1: _t.ColorLike) -> None:
+    def light(self, value: _t.ColorLike, /) -> None:
         ...
 
     @property
@@ -379,7 +379,7 @@ class Relief:
         ...
 
     @shade.setter
-    def shade(self, arg1: _t.ColorLike) -> None:
+    def shade(self, value: _t.ColorLike, /) -> None:
         ...
 
 class Run:
@@ -395,7 +395,7 @@ class Run:
         ...
 
     @align.setter
-    def align(self, arg1: _t.AlignLike) -> None:
+    def align(self, value: _t.AlignLike, /) -> None:
         ...
 
     @property
@@ -403,7 +403,7 @@ class Run:
         ...
 
     @cells.setter
-    def cells(self, arg1: collections.abc.Sequence[_sigil.compose.Element]) -> None:
+    def cells(self, value: collections.abc.Sequence[_sigil.compose.Element], /) -> None:
         ...
 
     @property
@@ -411,7 +411,7 @@ class Run:
         ...
 
     @column.setter
-    def column(self, arg1: bool) -> None:
+    def column(self, value: bool, /) -> None:
         ...
 
     @property
@@ -419,7 +419,7 @@ class Run:
         ...
 
     @gap.setter
-    def gap(self, arg1: _t.FloatLike | None) -> None:
+    def gap(self, value: _t.FloatLike | None, /) -> None:
         ...
 
     @property
@@ -427,13 +427,13 @@ class Run:
         ...
 
     @ruled.setter
-    def ruled(self, arg1: bool) -> None:
+    def ruled(self, value: bool, /) -> None:
         ...
 
 class Spacing:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     def __init__(self, *, barHeight: _t.FloatLike=..., bezel: _t.FloatLike=..., captionGap: _t.FloatLike=..., captionNoteGap: _t.FloatLike=..., cellGap: _t.FloatLike=..., chipCorners: _t.FloatLike=..., chipPaddingX: _t.FloatLike=..., chipPaddingY: _t.FloatLike=..., contentGap: _t.FloatLike=..., labelGap: _t.FloatLike=..., marginBottom: _t.FloatLike=..., marginTop: _t.FloatLike=..., marginX: _t.FloatLike=..., panelCorners: _t.FloatLike=..., panelPadding: _t.FloatLike=..., rowGap: _t.FloatLike=..., screenCorners: _t.FloatLike=..., subtitleGap: _t.FloatLike=..., swatchSide: _t.FloatLike=..., tickReach: _t.FloatLike=..., wellPadding: _t.FloatLike=...) -> None:
@@ -447,7 +447,7 @@ class Spacing:
         ...
 
     @barHeight.setter
-    def barHeight(self, arg1: _t.FloatLike) -> None:
+    def barHeight(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -455,7 +455,7 @@ class Spacing:
         ...
 
     @bezel.setter
-    def bezel(self, arg1: _t.FloatLike) -> None:
+    def bezel(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -463,7 +463,7 @@ class Spacing:
         ...
 
     @captionGap.setter
-    def captionGap(self, arg1: _t.FloatLike) -> None:
+    def captionGap(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -471,7 +471,7 @@ class Spacing:
         ...
 
     @captionNoteGap.setter
-    def captionNoteGap(self, arg1: _t.FloatLike) -> None:
+    def captionNoteGap(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -479,7 +479,7 @@ class Spacing:
         ...
 
     @cellGap.setter
-    def cellGap(self, arg1: _t.FloatLike) -> None:
+    def cellGap(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -487,7 +487,7 @@ class Spacing:
         ...
 
     @chipCorners.setter
-    def chipCorners(self, arg1: _t.FloatLike) -> None:
+    def chipCorners(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -495,7 +495,7 @@ class Spacing:
         ...
 
     @chipPaddingX.setter
-    def chipPaddingX(self, arg1: _t.FloatLike) -> None:
+    def chipPaddingX(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -503,7 +503,7 @@ class Spacing:
         ...
 
     @chipPaddingY.setter
-    def chipPaddingY(self, arg1: _t.FloatLike) -> None:
+    def chipPaddingY(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -511,7 +511,7 @@ class Spacing:
         ...
 
     @contentGap.setter
-    def contentGap(self, arg1: _t.FloatLike) -> None:
+    def contentGap(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -519,7 +519,7 @@ class Spacing:
         ...
 
     @labelGap.setter
-    def labelGap(self, arg1: _t.FloatLike) -> None:
+    def labelGap(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -527,7 +527,7 @@ class Spacing:
         ...
 
     @marginBottom.setter
-    def marginBottom(self, arg1: _t.FloatLike) -> None:
+    def marginBottom(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -535,7 +535,7 @@ class Spacing:
         ...
 
     @marginTop.setter
-    def marginTop(self, arg1: _t.FloatLike) -> None:
+    def marginTop(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -543,7 +543,7 @@ class Spacing:
         ...
 
     @marginX.setter
-    def marginX(self, arg1: _t.FloatLike) -> None:
+    def marginX(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -551,7 +551,7 @@ class Spacing:
         ...
 
     @panelCorners.setter
-    def panelCorners(self, arg1: _t.FloatLike) -> None:
+    def panelCorners(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -559,7 +559,7 @@ class Spacing:
         ...
 
     @panelPadding.setter
-    def panelPadding(self, arg1: _t.FloatLike) -> None:
+    def panelPadding(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -567,7 +567,7 @@ class Spacing:
         ...
 
     @rowGap.setter
-    def rowGap(self, arg1: _t.FloatLike) -> None:
+    def rowGap(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -575,7 +575,7 @@ class Spacing:
         ...
 
     @screenCorners.setter
-    def screenCorners(self, arg1: _t.FloatLike) -> None:
+    def screenCorners(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -583,7 +583,7 @@ class Spacing:
         ...
 
     @subtitleGap.setter
-    def subtitleGap(self, arg1: _t.FloatLike) -> None:
+    def subtitleGap(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -591,7 +591,7 @@ class Spacing:
         ...
 
     @swatchSide.setter
-    def swatchSide(self, arg1: _t.FloatLike) -> None:
+    def swatchSide(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -599,7 +599,7 @@ class Spacing:
         ...
 
     @tickReach.setter
-    def tickReach(self, arg1: _t.FloatLike) -> None:
+    def tickReach(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -607,7 +607,7 @@ class Spacing:
         ...
 
     @wellPadding.setter
-    def wellPadding(self, arg1: _t.FloatLike) -> None:
+    def wellPadding(self, value: _t.FloatLike, /) -> None:
         ...
 
 class Stage:
@@ -623,7 +623,7 @@ class Stage:
         ...
 
     @background.setter
-    def background(self, arg1: _t.ColorLike | None) -> None:
+    def background(self, value: _t.ColorLike | None, /) -> None:
         ...
 
     @property
@@ -631,7 +631,7 @@ class Stage:
         ...
 
     @captureAt.setter
-    def captureAt(self, arg1: _t.FloatLike) -> None:
+    def captureAt(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -639,7 +639,7 @@ class Stage:
         ...
 
     @nonlinearPicture.setter
-    def nonlinearPicture(self, arg1: bool) -> None:
+    def nonlinearPicture(self, value: bool, /) -> None:
         ...
 
     @property
@@ -647,7 +647,7 @@ class Stage:
         ...
 
     @oversample.setter
-    def oversample(self, arg1: typing.SupportsInt) -> None:
+    def oversample(self, value: typing.SupportsInt, /) -> None:
         ...
 
     @property
@@ -655,7 +655,7 @@ class Stage:
         ...
 
     @plateOnly.setter
-    def plateOnly(self, arg1: bool) -> None:
+    def plateOnly(self, value: bool, /) -> None:
         ...
 
     @property
@@ -663,13 +663,13 @@ class Stage:
         ...
 
     @size.setter
-    def size(self, arg1: _t.SizeLike) -> None:
+    def size(self, value: _t.SizeLike, /) -> None:
         ...
 
 class Theme:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     def __init__(self, *, captionWhere: _sigil.compose.kit.CaptionWhere=..., palette: Palette=..., spacing: Spacing=..., type: TypeScale=...) -> None:
@@ -679,20 +679,20 @@ class Theme:
         ...
 
     @typing.overload
-    def font(self, arg0: Register) -> _sigil.weave.Type:
+    def font(self, register: Register) -> _sigil.weave.Type:
         ...
 
     @typing.overload
-    def font(self, arg0: Register, arg1: _t.ColorLike) -> _sigil.weave.Type:
+    def font(self, line: Register, ink: _t.ColorLike) -> _sigil.weave.Type:
         ...
 
-    def style(self, arg0: Register, arg1: _t.ColorLike) -> _sigil.weave.TextStyle:
+    def style(self, line: Register, ink: _t.ColorLike) -> _sigil.weave.TextStyle:
         ...
 
     def styleSheet(self) -> _sigil.weave.StyleSheet:
         ...
 
-    def voice(self, arg0: typing.SupportsFloat) -> _sigil.compose.kit.Caption:
+    def voice(self, noteMeasure: typing.SupportsFloat) -> _sigil.compose.kit.Caption:
         ...
 
     @property
@@ -700,7 +700,7 @@ class Theme:
         ...
 
     @captionWhere.setter
-    def captionWhere(self, arg1: _sigil.compose.kit.CaptionWhere) -> None:
+    def captionWhere(self, value: _sigil.compose.kit.CaptionWhere, /) -> None:
         ...
 
     @property
@@ -708,7 +708,7 @@ class Theme:
         ...
 
     @palette.setter
-    def palette(self, arg1: Palette) -> None:
+    def palette(self, value: Palette, /) -> None:
         ...
 
     @property
@@ -716,7 +716,7 @@ class Theme:
         ...
 
     @spacing.setter
-    def spacing(self, arg1: Spacing) -> None:
+    def spacing(self, value: Spacing, /) -> None:
         ...
 
     @property
@@ -724,13 +724,13 @@ class Theme:
         ...
 
     @type.setter
-    def type(self, arg1: TypeScale) -> None:
+    def type(self, value: TypeScale, /) -> None:
         ...
 
 class TypeScale:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     def __init__(self, *, captionLabel: Register=..., captionNote: Register=..., eyebrow: Register=..., footer: Register=..., mono: _sigil.skia.Typeface=..., sans: _sigil.skia.Typeface=..., section: Register=..., subtitle: Register=..., title: Register=...) -> None:
@@ -744,7 +744,7 @@ class TypeScale:
         ...
 
     @captionLabel.setter
-    def captionLabel(self, arg1: Register) -> None:
+    def captionLabel(self, value: Register, /) -> None:
         ...
 
     @property
@@ -752,7 +752,7 @@ class TypeScale:
         ...
 
     @captionNote.setter
-    def captionNote(self, arg1: Register) -> None:
+    def captionNote(self, value: Register, /) -> None:
         ...
 
     @property
@@ -760,7 +760,7 @@ class TypeScale:
         ...
 
     @eyebrow.setter
-    def eyebrow(self, arg1: Register) -> None:
+    def eyebrow(self, value: Register, /) -> None:
         ...
 
     @property
@@ -768,7 +768,7 @@ class TypeScale:
         ...
 
     @footer.setter
-    def footer(self, arg1: Register) -> None:
+    def footer(self, value: Register, /) -> None:
         ...
 
     @property
@@ -776,7 +776,7 @@ class TypeScale:
         ...
 
     @mono.setter
-    def mono(self, arg1: _sigil.skia.Typeface) -> None:
+    def mono(self, value: _sigil.skia.Typeface, /) -> None:
         ...
 
     @property
@@ -784,7 +784,7 @@ class TypeScale:
         ...
 
     @sans.setter
-    def sans(self, arg1: _sigil.skia.Typeface) -> None:
+    def sans(self, value: _sigil.skia.Typeface, /) -> None:
         ...
 
     @property
@@ -792,7 +792,7 @@ class TypeScale:
         ...
 
     @section.setter
-    def section(self, arg1: Register) -> None:
+    def section(self, value: Register, /) -> None:
         ...
 
     @property
@@ -800,7 +800,7 @@ class TypeScale:
         ...
 
     @subtitle.setter
-    def subtitle(self, arg1: Register) -> None:
+    def subtitle(self, value: Register, /) -> None:
         ...
 
     @property
@@ -808,7 +808,7 @@ class TypeScale:
         ...
 
     @title.setter
-    def title(self, arg1: Register) -> None:
+    def title(self, value: Register, /) -> None:
         ...
 
 class Voice:
@@ -877,7 +877,7 @@ class Well:
         ...
 
     @clip.setter
-    def clip(self, arg1: bool) -> None:
+    def clip(self, value: bool, /) -> None:
         ...
 
     @property
@@ -885,7 +885,7 @@ class Well:
         ...
 
     @content.setter
-    def content(self, arg1: _sigil.sketch.kit.WellContent | None) -> None:
+    def content(self, value: _sigil.sketch.kit.WellContent | None, /) -> None:
         ...
 
     @property
@@ -893,7 +893,7 @@ class Well:
         ...
 
     @corners.setter
-    def corners(self, arg1: _t.FloatLike | None) -> None:
+    def corners(self, value: _t.FloatLike | None, /) -> None:
         ...
 
     @property
@@ -901,7 +901,7 @@ class Well:
         ...
 
     @ground.setter
-    def ground(self, arg1: _t.SurfacePaintLike | None) -> None:
+    def ground(self, value: _t.SurfacePaintLike | None, /) -> None:
         ...
 
     @property
@@ -909,7 +909,7 @@ class Well:
         ...
 
     @height.setter
-    def height(self, arg1: _t.DimensionLike) -> None:
+    def height(self, value: _t.DimensionLike, /) -> None:
         ...
 
     @property
@@ -917,7 +917,7 @@ class Well:
         ...
 
     @keyline.setter
-    def keyline(self, arg1: _t.FillLike | None) -> None:
+    def keyline(self, value: _t.FillLike | None, /) -> None:
         ...
 
     @property
@@ -925,7 +925,7 @@ class Well:
         ...
 
     @keylineWidth.setter
-    def keylineWidth(self, arg1: _t.FloatLike) -> None:
+    def keylineWidth(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -933,7 +933,7 @@ class Well:
         ...
 
     @padding.setter
-    def padding(self, arg1: _t.FloatLike | None) -> None:
+    def padding(self, value: _t.FloatLike | None, /) -> None:
         ...
 
     @property
@@ -941,7 +941,7 @@ class Well:
         ...
 
     @paddingY.setter
-    def paddingY(self, arg1: _t.FloatLike | None) -> None:
+    def paddingY(self, value: _t.FloatLike | None, /) -> None:
         ...
 
     @property
@@ -949,7 +949,7 @@ class Well:
         ...
 
     @placed.setter
-    def placed(self, arg1: bool) -> None:
+    def placed(self, value: bool, /) -> None:
         ...
 
     @property
@@ -957,7 +957,7 @@ class Well:
         ...
 
     @recess.setter
-    def recess(self, arg1: _sigil.sketch.kit.Recess | None) -> None:
+    def recess(self, value: _sigil.sketch.kit.Recess | None, /) -> None:
         ...
 
     @property
@@ -965,7 +965,7 @@ class Well:
         ...
 
     @relief.setter
-    def relief(self, arg1: _sigil.sketch.kit.Relief | None) -> None:
+    def relief(self, value: _sigil.sketch.kit.Relief | None, /) -> None:
         ...
 
     @property
@@ -973,7 +973,7 @@ class Well:
         ...
 
     @width.setter
-    def width(self, arg1: _t.DimensionLike) -> None:
+    def width(self, value: _t.DimensionLike, /) -> None:
         ...
 
 class WellContent:
@@ -989,7 +989,7 @@ class WellContent:
         ...
 
     @across.setter
-    def across(self, arg1: _t.AlignLike) -> None:
+    def across(self, value: _t.AlignLike, /) -> None:
         ...
 
     @property
@@ -997,16 +997,16 @@ class WellContent:
         ...
 
     @down.setter
-    def down(self, arg1: _t.JustifyLike) -> None:
+    def down(self, value: _t.JustifyLike, /) -> None:
         ...
 
-def caption(arg0: typing.SupportsFloat, arg1: str, arg2: str, arg3: _sigil.compose.Element) -> _sigil.compose.Element:
+def caption(measure: typing.SupportsFloat, label: str, note: str, body: _sigil.compose.Element) -> _sigil.compose.Element:
     ...
 
-def cell(arg0: Cell, arg1: str, arg2: str, arg3: _sigil.compose.Element) -> _sigil.compose.Element:
+def cell(plate: Cell, label: str, note: str, picture: _sigil.compose.Element) -> _sigil.compose.Element:
     ...
 
-def cells(arg0: Run) -> _sigil.compose.Element:
+def cells(run: Run) -> _sigil.compose.Element:
     ...
 
 def houseFace(voice: Voice, weight: typing.SupportsInt=400, italic: bool=False) -> _sigil.skia.Typeface:
@@ -1015,13 +1015,13 @@ def houseFace(voice: Voice, weight: typing.SupportsInt=400, italic: bool=False) 
 def houseTheme() -> Theme:
     ...
 
-def page(arg0: Page, arg1: _sigil.compose.Element) -> _sigil.compose.Element:
+def page(sheet: Page, content: _sigil.compose.Element) -> _sigil.compose.Element:
     ...
 
-def panelGrid(arg0: PanelGrid) -> _sigil.compose.Element:
+def panelGrid(grid: PanelGrid) -> _sigil.compose.Element:
     ...
 
-def stage(arg0: _sigil.Context, arg1: Stage) -> None:
+def stage(context: _sigil.Context, stage: Stage) -> None:
     ...
 
 def studyTheme() -> Theme:
@@ -1031,9 +1031,9 @@ def theme() -> Theme:
     ...
 
 @typing.overload
-def well(arg0: Well) -> _sigil.compose.Element:
+def well(specification: Well) -> _sigil.compose.Element:
     ...
 
 @typing.overload
-def well(arg0: Well, arg1: _sigil.compose.Element) -> _sigil.compose.Element:
+def well(specification: Well, surface: _sigil.compose.Element) -> _sigil.compose.Element:
     ...

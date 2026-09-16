@@ -204,7 +204,9 @@ py::class_<T> record(py::module_& module, const char* name) {
         return value.cast<T>();
       }))
       .def("copy", [](const T& value) { return value; })
-      .def("__eq__", [](const T& a, const T& b) { return a == b; });
+      .def(
+          "__eq__", [](const T& a, const T& b) { return a == b; },
+          py::arg("other"));
 }
 
 }  // namespace
@@ -237,7 +239,8 @@ void bindData(py::module_& root) {
                                   json(pair[1]));
             }
             return data::Json(std::move(result));
-          })
+          },
+          py::arg("items"))
       .def("copy", [](const data::Json& value) { return value; })
       .def("kind", &data::Json::kind)
       .def("null", &data::Json::null)
@@ -251,16 +254,17 @@ void bindData(py::module_& root) {
           py::arg("fallback") = "")
       .def("size", &data::Json::size)
       .def("__len__", &data::Json::size)
-      .def("__getitem__",
-           [](const data::Json& value, py::handle key) -> data::Json {
-             if (py::isinstance<py::str>(key))
-               return value[py::cast<std::string>(key)];
-             if (!py::isinstance<py::int_>(key))
-               throw py::type_error("A JSON index needs text or an integer.");
-             const auto index = py::cast<py::ssize_t>(key);
-             return index < 0 ? data::Json{}
-                              : value[static_cast<size_t>(index)];
-           })
+      .def(
+          "__getitem__",
+          [](const data::Json& value, py::handle key) -> data::Json {
+            if (py::isinstance<py::str>(key))
+              return value[py::cast<std::string>(key)];
+            if (!py::isinstance<py::int_>(key))
+              throw py::type_error("A JSON index needs text or an integer.");
+            const auto index = py::cast<py::ssize_t>(key);
+            return index < 0 ? data::Json{} : value[static_cast<size_t>(index)];
+          },
+          py::arg("key"))
       .def("items",
            [](const data::Json& value) {
              return std::vector<data::Json>(value.items().begin(),
@@ -274,22 +278,30 @@ void bindData(py::module_& root) {
       .def("to_python", &pythonJson,
            "A detached Python value; duplicate object keys keep the first "
            "member.")
-      .def("__eq__",
-           [](const data::Json& a, const data::Json& b) { return a == b; })
+      .def(
+          "__eq__",
+          [](const data::Json& a, const data::Json& b) { return a == b; },
+          py::arg("other"))
       .def("__repr__", [](const data::Json& value) {
         return "Json(" + data::encodeJson(value) + ")";
       });
-  module.def("decodeJson", &data::decodeJson);
-  module.def("encodeJson",
-             [](py::handle value) { return data::encodeJson(json(value)); });
-  module.def("tableFromJson",
-             [](py::handle value) { return data::tableFromJson(json(value)); });
+  module.def("decodeJson", &data::decodeJson, py::arg("text"));
+  module.def(
+      "encodeJson",
+      [](py::handle value) { return data::encodeJson(json(value)); },
+      py::arg("value"));
+  module.def(
+      "tableFromJson",
+      [](py::handle value) { return data::tableFromJson(json(value)); },
+      py::arg("value"));
 
   py::class_<data::Instant>(module, "Instant")
       .def(py::init<double>(), py::arg("seconds") = 0)
       .def_readwrite("seconds", &data::Instant::seconds)
       .def("__float__", [](data::Instant value) { return value.seconds; })
-      .def("__eq__", [](data::Instant a, data::Instant b) { return a == b; });
+      .def(
+          "__eq__", [](data::Instant a, data::Instant b) { return a == b; },
+          py::arg("other"));
   py::class_<data::Flag>(module, "Flag")
       .def(py::init<bool>(), py::arg("set") = false)
       .def_readwrite("set", &data::Flag::set)
@@ -307,16 +319,20 @@ void bindData(py::module_& root) {
            py::arg("type") = py::none())
       .def("copy", [](const data::Column& value) { return value; })
       .def("name", &data::Column::name)
-      .def("rename", &data::Column::rename)
+      .def("rename", &data::Column::rename, py::arg("name"))
       .def("type", &data::Column::type)
       .def("size", &data::Column::size)
       .def("__len__", &data::Column::size)
       .def("empty", &data::Column::empty)
-      .def("at", [](const data::Column& value,
-                    size_t row) { return cell(value.at(row)); })
-      .def("__getitem__", &presentCell)
-      .def("missing", &data::Column::missing)
-      .def("markMissing", &data::Column::markMissing)
+      .def(
+          "at",
+          [](const data::Column& value, size_t row) {
+            return cell(value.at(row));
+          },
+          py::arg("row"))
+      .def("__getitem__", &presentCell, py::arg("row"))
+      .def("missing", &data::Column::missing, py::arg("row"))
+      .def("markMissing", &data::Column::markMissing, py::arg("row"))
       .def("values",
            [](const data::Column& value) {
              py::list result;
@@ -324,12 +340,16 @@ void bindData(py::module_& root) {
                result.append(presentCell(value, row));
              return result;
            })
-      .def("take",
-           [](const data::Column& value, const std::vector<size_t>& rows) {
-             return value.take(rows);
-           })
-      .def("__eq__",
-           [](const data::Column& a, const data::Column& b) { return a == b; });
+      .def(
+          "take",
+          [](const data::Column& value, const std::vector<size_t>& rows) {
+            return value.take(rows);
+          },
+          py::arg("rows"))
+      .def(
+          "__eq__",
+          [](const data::Column& a, const data::Column& b) { return a == b; },
+          py::arg("other"));
   py::class_<data::Table::Group>(module, "Group")
       .def_property_readonly(
           "key",
@@ -352,24 +372,36 @@ void bindData(py::module_& root) {
              return std::vector<data::Column>(value.columns().begin(),
                                               value.columns().end());
            })
-      .def("column",
-           [](const data::Table& value,
-              std::string_view name) -> std::optional<data::Column> {
-             if (const auto* found = value.column(name)) return *found;
-             return {};
-           })
-      .def("has", &data::Table::has)
-      .def("cell", [](const data::Table& value, std::string_view name,
-                      size_t row) { return cell(value.cell(name, row)); })
-      .def("row",
-           [](const data::Table& value, size_t row) {
-             py::dict result;
-             for (const auto& column : value.columns())
-               result[py::str(column.name())] = presentCell(column, row);
-             return result;
-           })
-      .def("add", [](data::Table& value,
-                     data::Column column) { value.add(std::move(column)); })
+      .def(
+          "column",
+          [](const data::Table& value,
+             std::string_view name) -> std::optional<data::Column> {
+            if (const auto* found = value.column(name)) return *found;
+            return {};
+          },
+          py::arg("name"))
+      .def("has", &data::Table::has, py::arg("name"))
+      .def(
+          "cell",
+          [](const data::Table& value, std::string_view name, size_t row) {
+            return cell(value.cell(name, row));
+          },
+          py::arg("name"), py::arg("row"))
+      .def(
+          "row",
+          [](const data::Table& value, size_t row) {
+            py::dict result;
+            for (const auto& column : value.columns())
+              result[py::str(column.name())] = presentCell(column, row);
+            return result;
+          },
+          py::arg("row"))
+      .def(
+          "add",
+          [](data::Table& value, data::Column column) {
+            value.add(std::move(column));
+          },
+          py::arg("column"))
       .def(
           "add",
           [](data::Table& value, std::string name, py::iterable values,
@@ -377,24 +409,30 @@ void bindData(py::module_& root) {
             value.add(column(std::move(name), values, type));
           },
           py::arg("name"), py::arg("values"), py::arg("type") = py::none())
-      .def("remove", &data::Table::remove)
-      .def("select",
-           [](const data::Table& value, const std::vector<std::string>& names) {
-             const std::vector<std::string_view> views(names.begin(),
-                                                       names.end());
-             return value.select(views);
-           })
-      .def("take",
-           [](const data::Table& value, const std::vector<size_t>& rows) {
-             return value.take(rows);
-           })
-      .def("filter",
-           [](const data::Table& value, const py::function& keep) {
-             return value.filter([&](size_t row) {
-               const CallbackBoundary boundary;
-               return keep(row).cast<bool>();
-             });
-           })
+      .def("remove", &data::Table::remove, py::arg("name"))
+      .def(
+          "select",
+          [](const data::Table& value, const std::vector<std::string>& names) {
+            const std::vector<std::string_view> views(names.begin(),
+                                                      names.end());
+            return value.select(views);
+          },
+          py::arg("names"))
+      .def(
+          "take",
+          [](const data::Table& value, const std::vector<size_t>& rows) {
+            return value.take(rows);
+          },
+          py::arg("rows"))
+      .def(
+          "filter",
+          [](const data::Table& value, const py::function& keep) {
+            return value.filter([&](size_t row) {
+              const CallbackBoundary boundary;
+              return keep(row).cast<bool>();
+            });
+          },
+          py::arg("predicate"))
       .def(
           "derive",
           [](data::Table& value, std::string name, const py::function& function,
@@ -409,9 +447,11 @@ void bindData(py::module_& root) {
           py::arg("name"), py::arg("value"), py::arg("type") = py::none())
       .def("sort", &data::Table::sort, py::arg("name"),
            py::arg("order") = data::Order::Ascending)
-      .def("group", &data::Table::group)
-      .def("__eq__",
-           [](const data::Table& a, const data::Table& b) { return a == b; });
+      .def("group", &data::Table::group, py::arg("names"))
+      .def(
+          "__eq__",
+          [](const data::Table& a, const data::Table& b) { return a == b; },
+          py::arg("other"));
 
   record<data::CsvOptions>(module, "CsvOptions")
       .def_readwrite("delimiter", &data::CsvOptions::delimiter)
@@ -419,7 +459,7 @@ void bindData(py::module_& root) {
       .def_readwrite("comment", &data::CsvOptions::comment);
   module.def("decodeCsv", &data::decodeCsv, py::arg("text"),
              py::arg("options") = data::CsvOptions{}, py::arg("name") = "");
-  module.def("decodeInstant", &data::decodeInstant);
+  module.def("decodeInstant", &data::decodeInstant, py::arg("text"));
 
   py::class_<data::Interval>(module, "Interval")
       .def(py::init<double, double>(), py::arg("low") = 0, py::arg("high") = 1)
@@ -427,7 +467,9 @@ void bindData(py::module_& root) {
       .def_readwrite("high", &data::Interval::high)
       .def("extent", &data::Interval::extent)
       .def("degenerate", &data::Interval::degenerate)
-      .def("__eq__", [](data::Interval a, data::Interval b) { return a == b; });
+      .def(
+          "__eq__", [](data::Interval a, data::Interval b) { return a == b; },
+          py::arg("other"));
   py::enum_<data::Transform>(module, "Transform")
       .value("Linear", data::Transform::Linear)
       .value("Log", data::Transform::Log)
@@ -469,18 +511,20 @@ void bindData(py::module_& root) {
       .def_readwrite("padding", &data::Scale::padding)
       .def_readwrite("outerPadding", &data::Scale::outerPadding)
       .def_readwrite("thresholds", &data::Scale::thresholds)
-      .def("apply", &data::Scale::apply)
-      .def("__call__", &data::Scale::apply)
-      .def("invert", &data::Scale::invert)
-      .def("position", &data::Scale::position)
-      .def("through",
-           [](const data::Scale& value, double input,
-              const py::function& interpolate) {
-             const CallbackBoundary boundary;
-             return value.through(
-                 input, [&](double position) { return interpolate(position); });
-           })
-      .def("slot", &data::Scale::slot)
+      .def("apply", &data::Scale::apply, py::arg("value"))
+      .def("__call__", &data::Scale::apply, py::arg("value"))
+      .def("invert", &data::Scale::invert, py::arg("value"))
+      .def("position", &data::Scale::position, py::arg("index"))
+      .def(
+          "through",
+          [](const data::Scale& value, double input,
+             const py::function& interpolate) {
+            const CallbackBoundary boundary;
+            return value.through(
+                input, [&](double position) { return interpolate(position); });
+          },
+          py::arg("input"), py::arg("interpolate"))
+      .def("slot", &data::Scale::slot, py::arg("value"))
       .def("bandwidth", &data::Scale::bandwidth)
       .def("stepWidth", &data::Scale::stepWidth)
       .def("ticks", &data::Scale::ticks, py::arg("count") = 10)
@@ -491,14 +535,16 @@ void bindData(py::module_& root) {
       .value("Sqlite", data::Engine::Sqlite)
       .value("Duck", data::Engine::Duck);
   py::class_<DatabaseView>(module, "Database")
-      .def_static("open",
-                  [](const std::filesystem::path& path) {
-                    std::string why;
-                    auto database = data::Database::open(path, &why);
-                    if (!database) throw std::runtime_error(why);
-                    return dataDatabase(
-                        std::make_shared<data::Database>(std::move(*database)));
-                  })
+      .def_static(
+          "open",
+          [](const std::filesystem::path& path) {
+            std::string why;
+            auto database = data::Database::open(path, &why);
+            if (!database) throw std::runtime_error(why);
+            return dataDatabase(
+                std::make_shared<data::Database>(std::move(*database)));
+          },
+          py::arg("path"))
       .def_static(
           "fromBytes",
           [](py::bytes bytes, std::string hint) {
@@ -517,13 +563,16 @@ void bindData(py::module_& root) {
       .def("engine",
            [](const DatabaseView& view) { return view.owner->engine(); })
       .def("file", [](const DatabaseView& view) { return view.owner->file(); })
-      .def("query", [](const DatabaseView& view, std::string_view sql) {
-        std::string why;
-        auto table = view.owner->query(sql, &why);
-        if (!table) throw std::runtime_error(why);
-        return std::move(*table);
-      });
-  module.def("engineOf", &data::engineOf);
+      .def(
+          "query",
+          [](const DatabaseView& view, std::string_view sql) {
+            std::string why;
+            auto table = view.owner->query(sql, &why);
+            if (!table) throw std::runtime_error(why);
+            return std::move(*table);
+          },
+          py::arg("sql"));
+  module.def("engineOf", &data::engineOf, py::arg("uri"));
 }
 
 }  // namespace sigil::python

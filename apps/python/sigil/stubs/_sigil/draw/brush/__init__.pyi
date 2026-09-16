@@ -69,19 +69,19 @@ class Catalogue:
     def __init__(self) -> None:
         ...
 
-    def add(self, arg0: str, arg1: Tool) -> _sigil.draw.brush.Tool | None:
+    def add(self, name: str, tool: Tool) -> _sigil.draw.brush.Tool | None:
         ...
 
-    def contains(self, arg0: str) -> bool:
+    def contains(self, name: str) -> bool:
         ...
 
-    def find(self, arg0: str) -> _sigil.draw.brush.Tool | None:
+    def find(self, name: str) -> _sigil.draw.brush.Tool | None:
         ...
 
     def names(self) -> list[str]:
         ...
 
-    def scale(self, arg0: typing.SupportsFloat) -> None:
+    def scale(self, factor: typing.SupportsFloat) -> None:
         ...
 
 class Curl:
@@ -107,13 +107,13 @@ class Curl:
 class Curve:
 
     @staticmethod
-    def flat(arg0: typing.SupportsFloat) -> Curve:
+    def flat(value: typing.SupportsFloat) -> Curve:
         ...
 
     def __init__(self, *, bend: _t.FloatLike=..., curve: _t.ScalarFunction | None=..., maximum: _t.FloatLike=..., minimum: _t.FloatLike=...) -> None:
         ...
 
-    def at(self, arg0: typing.SupportsFloat) -> float:
+    def at(self, input: typing.SupportsFloat) -> float:
         ...
 
     def copy(self) -> Curve:
@@ -124,7 +124,7 @@ class Curve:
         ...
 
     @bend.setter
-    def bend(self, arg1: _t.FloatLike) -> None:
+    def bend(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -132,7 +132,7 @@ class Curve:
         ...
 
     @curve.setter
-    def curve(self, arg1: _t.ScalarFunction | None) -> None:
+    def curve(self, value: _t.ScalarFunction | None, /) -> None:
         ...
 
     @property
@@ -140,7 +140,7 @@ class Curve:
         ...
 
     @maximum.setter
-    def maximum(self, arg1: _t.FloatLike) -> None:
+    def maximum(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -148,7 +148,7 @@ class Curve:
         ...
 
     @minimum.setter
-    def minimum(self, arg1: _t.FloatLike) -> None:
+    def minimum(self, value: _t.FloatLike, /) -> None:
         ...
 
 class Dab:
@@ -164,7 +164,7 @@ class Dab:
         ...
 
     @barrelRotation.setter
-    def barrelRotation(self, arg1: _t.FloatLike) -> None:
+    def barrelRotation(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -172,7 +172,7 @@ class Dab:
         ...
 
     @direction.setter
-    def direction(self, arg1: _t.FloatLike) -> None:
+    def direction(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -180,7 +180,7 @@ class Dab:
         ...
 
     @distance.setter
-    def distance(self, arg1: _t.FloatLike) -> None:
+    def distance(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -188,7 +188,7 @@ class Dab:
         ...
 
     @position.setter
-    def position(self, arg1: _t.PointLike) -> None:
+    def position(self, value: _t.PointLike, /) -> None:
         ...
 
     @property
@@ -196,7 +196,7 @@ class Dab:
         ...
 
     @pressure.setter
-    def pressure(self, arg1: _t.FloatLike) -> None:
+    def pressure(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -204,7 +204,7 @@ class Dab:
         ...
 
     @progress.setter
-    def progress(self, arg1: _t.FloatLike) -> None:
+    def progress(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -212,7 +212,7 @@ class Dab:
         ...
 
     @speed.setter
-    def speed(self, arg1: _t.FloatLike) -> None:
+    def speed(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -220,7 +220,7 @@ class Dab:
         ...
 
     @tilt.setter
-    def tilt(self, arg1: _t.FloatLike) -> None:
+    def tilt(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -228,7 +228,7 @@ class Dab:
         ...
 
     @tiltDirection.setter
-    def tiltDirection(self, arg1: _t.FloatLike) -> None:
+    def tiltDirection(self, value: _t.FloatLike, /) -> None:
         ...
 
 class DepositOptions:
@@ -244,7 +244,7 @@ class DepositOptions:
         ...
 
     @end.setter
-    def end(self, arg1: bool) -> None:
+    def end(self, value: bool, /) -> None:
         ...
 
     @property
@@ -252,7 +252,7 @@ class DepositOptions:
         ...
 
     @start.setter
-    def start(self, arg1: bool) -> None:
+    def start(self, value: bool, /) -> None:
         ...
 
 class Direction:
@@ -260,7 +260,7 @@ class Direction:
     def __call__(self, position: _t.PointLike, seconds: typing.SupportsFloat=0.0) -> float:
         ...
 
-    def __init__(self, arg0: _t.DirectionLike) -> None:
+    def __init__(self, field: _t.DirectionLike) -> None:
         ...
 
 class Drive:
@@ -337,25 +337,25 @@ class Engine:
         ...
 
     @typing.overload
-    def __init__(self, arg0: Catalogue) -> None:
+    def __init__(self, catalogue: Catalogue) -> None:
         ...
 
-    def add(self, arg0: str, arg1: Tool) -> _sigil.draw.brush.Tool | None:
+    def add(self, name: str, tool: Tool) -> _sigil.draw.brush.Tool | None:
         ...
 
     def addField(self, name: str, field: _t.DirectionLike, units: _sigil.draw.Constant=...) -> bool:
         ...
 
-    def arc(self, arg0: _sigil.draw.Pen, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat, arg4: typing.SupportsFloat, arg5: typing.SupportsFloat) -> _sigil.draw.brush.PlacedPlot | None:
+    def arc(self, pen: _sigil.draw.Pen, x: typing.SupportsFloat, y: typing.SupportsFloat, radius: typing.SupportsFloat, start: typing.SupportsFloat, stop: typing.SupportsFloat) -> _sigil.draw.brush.PlacedPlot | None:
         ...
 
-    def beginInput(self, arg0: _sigil.draw.Pen, arg1: Input) -> None:
+    def beginInput(self, pen: _sigil.draw.Pen, input: Input) -> None:
         ...
 
     def beginShape(self, curvature: typing.SupportsFloat=0.0) -> None:
         ...
 
-    def beginStroke(self, arg0: PlotType, arg1: _t.PointLike) -> None:
+    def beginStroke(self, kind: PlotType, at: _t.PointLike) -> None:
         ...
 
     def cancelInput(self) -> None:
@@ -368,22 +368,22 @@ class Engine:
         ...
 
     @typing.overload
-    def clip(self, arg0: _t.RectLike) -> None:
+    def clip(self, region: _t.RectLike) -> None:
         ...
 
     @typing.overload
-    def clip(self, arg0: _sigil.draw.Pen, arg1: _t.RectLike) -> None:
+    def clip(self, pen: _sigil.draw.Pen, region: _t.RectLike) -> None:
         ...
 
     @typing.overload
-    def draw(self, arg0: _sigil.draw.Pen, arg1: Polygon) -> None:
+    def draw(self, pen: _sigil.draw.Pen, polygon: Polygon) -> None:
         ...
 
     @typing.overload
     def draw(self, pen: _sigil.draw.Pen, plot: Plot, x: typing.SupportsFloat=0.0, y: typing.SupportsFloat=0.0, scale: typing.SupportsFloat=1.0) -> None:
         ...
 
-    def endInput(self, arg0: _sigil.draw.Pen, arg1: Input) -> None:
+    def endInput(self, pen: _sigil.draw.Pen, input: Input) -> None:
         ...
 
     def endShape(self, pen: _sigil.draw.Pen, close: bool=False) -> _sigil.draw.brush.PlacedPlot | None:
@@ -392,7 +392,7 @@ class Engine:
     def endStroke(self, pen: _sigil.draw.Pen, angle: typing.SupportsFloat, pressure: typing.SupportsFloat=1.0) -> list[Sample]:
         ...
 
-    def field(self, arg0: str) -> bool:
+    def field(self, name: str) -> bool:
         ...
 
     @typing.overload
@@ -400,7 +400,7 @@ class Engine:
         ...
 
     @typing.overload
-    def fill(self, arg0: _sigil.draw.Pen, arg1: Polygon) -> None:
+    def fill(self, pen: _sigil.draw.Pen, polygon: Polygon) -> None:
         ...
 
     @typing.overload
@@ -428,7 +428,7 @@ class Engine:
         ...
 
     @typing.overload
-    def hatch(self, arg0: _sigil.draw.Pen, arg1: Polygon) -> None:
+    def hatch(self, pen: _sigil.draw.Pen, polygon: Polygon) -> None:
         ...
 
     @typing.overload
@@ -436,11 +436,11 @@ class Engine:
         ...
 
     @typing.overload
-    def hatchArray(self, arg0: _sigil.draw.Pen, arg1: collections.abc.Sequence[Polygon]) -> None:
+    def hatchArray(self, pen: _sigil.draw.Pen, polygons: collections.abc.Sequence[Polygon]) -> None:
         ...
 
     @typing.overload
-    def hatchArray(self, arg0: _sigil.draw.Pen, arg1: Polygon) -> None:
+    def hatchArray(self, pen: _sigil.draw.Pen, polygon: Polygon) -> None:
         ...
 
     def hatchStyle(self, name: str, color: _t.ColorLike='#000000', weight: typing.SupportsFloat=1.0) -> _sigil.draw.brush.Tool | None:
@@ -457,7 +457,7 @@ class Engine:
         ...
 
     @typing.overload
-    def mass(self, arg0: _sigil.draw.Pen, arg1: Polygon) -> None:
+    def mass(self, pen: _sigil.draw.Pen, polygon: Polygon) -> None:
         ...
 
     @typing.overload
@@ -465,17 +465,17 @@ class Engine:
         ...
 
     @typing.overload
-    def massArray(self, arg0: _sigil.draw.Pen, arg1: collections.abc.Sequence[Polygon]) -> None:
+    def massArray(self, pen: _sigil.draw.Pen, polygons: collections.abc.Sequence[Polygon]) -> None:
         ...
 
     @typing.overload
-    def massArray(self, arg0: _sigil.draw.Pen, arg1: Polygon) -> None:
+    def massArray(self, pen: _sigil.draw.Pen, polygon: Polygon) -> None:
         ...
 
     def move(self, pen: _sigil.draw.Pen, angle: typing.SupportsFloat, length: typing.SupportsFloat, pressure: typing.SupportsFloat=1.0) -> None:
         ...
 
-    def moveInput(self, arg0: _sigil.draw.Pen, arg1: Input) -> None:
+    def moveInput(self, pen: _sigil.draw.Pen, input: Input) -> None:
         ...
 
     def names(self) -> list[str]:
@@ -502,18 +502,18 @@ class Engine:
     def noWash(self) -> None:
         ...
 
-    def paint(self, arg0: _sigil.draw.Pen, arg1: collections.abc.Iterable[_t.SampleLike]) -> None:
+    def paint(self, pen: _sigil.draw.Pen, path: collections.abc.Iterable[_t.SampleLike]) -> None:
         ...
 
-    def pick(self, arg0: str) -> _sigil.draw.brush.Tool | None:
-        ...
-
-    @typing.overload
-    def polygon(self, arg0: _sigil.draw.Pen, arg1: collections.abc.Iterable[_t.PointLike]) -> Polygon:
+    def pick(self, name: str) -> _sigil.draw.brush.Tool | None:
         ...
 
     @typing.overload
-    def polygon(self, arg0: _sigil.draw.Pen, arg1: Polygon) -> None:
+    def polygon(self, pen: _sigil.draw.Pen, vertices: collections.abc.Iterable[_t.PointLike]) -> Polygon:
+        ...
+
+    @typing.overload
+    def polygon(self, pen: _sigil.draw.Pen, polygon: Polygon) -> None:
         ...
 
     def pop(self) -> None:
@@ -538,7 +538,7 @@ class Engine:
     def rect(self, pen: _sigil.draw.Pen, x: typing.SupportsFloat, y: typing.SupportsFloat, width: typing.SupportsFloat, height: typing.SupportsFloat, radius: typing.SupportsFloat) -> None:
         ...
 
-    def scaleBrushes(self, arg0: typing.SupportsFloat) -> None:
+    def scaleBrushes(self, factor: typing.SupportsFloat) -> None:
         ...
 
     def set(self, name: str, color: _t.ColorLike, weight: typing.SupportsFloat=1.0) -> _sigil.draw.brush.Tool | None:
@@ -547,10 +547,10 @@ class Engine:
     def spline(self, pen: _sigil.draw.Pen, controls: collections.abc.Iterable[_t.SampleLike], curvature: typing.SupportsFloat=0.5) -> PlacedPlot:
         ...
 
-    def stroke(self, arg0: _t.ColorLike) -> None:
+    def stroke(self, pigment: _t.ColorLike) -> None:
         ...
 
-    def strokeWeight(self, arg0: typing.SupportsFloat) -> None:
+    def strokeWeight(self, weight: typing.SupportsFloat) -> None:
         ...
 
     def tool(self) -> Tool:
@@ -564,7 +564,7 @@ class Engine:
         ...
 
     @typing.overload
-    def wash(self, arg0: _sigil.draw.Pen, arg1: Polygon) -> None:
+    def wash(self, pen: _sigil.draw.Pen, polygon: Polygon) -> None:
         ...
 
     @typing.overload
@@ -587,7 +587,7 @@ class Gaussian:
         ...
 
     @center.setter
-    def center(self, arg1: _t.FloatLike) -> None:
+    def center(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -595,7 +595,7 @@ class Gaussian:
         ...
 
     @centerJitter.setter
-    def centerJitter(self, arg1: _t.FloatLike) -> None:
+    def centerJitter(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -603,7 +603,7 @@ class Gaussian:
         ...
 
     @maximum.setter
-    def maximum(self, arg1: _t.FloatLike) -> None:
+    def maximum(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -611,7 +611,7 @@ class Gaussian:
         ...
 
     @minimum.setter
-    def minimum(self, arg1: _t.FloatLike) -> None:
+    def minimum(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -619,7 +619,7 @@ class Gaussian:
         ...
 
     @sharpness.setter
-    def sharpness(self, arg1: _t.FloatLike) -> None:
+    def sharpness(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -627,7 +627,7 @@ class Gaussian:
         ...
 
     @width.setter
-    def width(self, arg1: _t.FloatLike) -> None:
+    def width(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -635,7 +635,7 @@ class Gaussian:
         ...
 
     @widthJitter.setter
-    def widthJitter(self, arg1: _t.FloatLike) -> None:
+    def widthJitter(self, value: _t.FloatLike, /) -> None:
         ...
 
 class Grain:
@@ -651,7 +651,7 @@ class Grain:
         ...
 
     @depth.setter
-    def depth(self, arg1: _t.FloatLike) -> None:
+    def depth(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -659,7 +659,7 @@ class Grain:
         ...
 
     @image.setter
-    def image(self, arg1: _sigil.skia.Image) -> None:
+    def image(self, value: _sigil.skia.Image, /) -> None:
         ...
 
     @property
@@ -667,7 +667,7 @@ class Grain:
         ...
 
     @scale.setter
-    def scale(self, arg1: _t.FloatLike) -> None:
+    def scale(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -675,7 +675,7 @@ class Grain:
         ...
 
     @space.setter
-    def space(self, arg1: GrainSpace) -> None:
+    def space(self, value: GrainSpace, /) -> None:
         ...
 
 class GrainSpace:
@@ -741,7 +741,7 @@ class Hatch:
         ...
 
     @angle.setter
-    def angle(self, arg1: _t.FloatLike) -> None:
+    def angle(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -749,7 +749,7 @@ class Hatch:
         ...
 
     @continuous.setter
-    def continuous(self, arg1: bool) -> None:
+    def continuous(self, value: bool, /) -> None:
         ...
 
     @property
@@ -757,7 +757,7 @@ class Hatch:
         ...
 
     @gradient.setter
-    def gradient(self, arg1: _t.FloatLike) -> None:
+    def gradient(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -765,7 +765,7 @@ class Hatch:
         ...
 
     @jitter.setter
-    def jitter(self, arg1: _t.FloatLike) -> None:
+    def jitter(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -773,7 +773,7 @@ class Hatch:
         ...
 
     @spacing.setter
-    def spacing(self, arg1: _t.FloatLike) -> None:
+    def spacing(self, value: _t.FloatLike, /) -> None:
         ...
 
 class ImageMask:
@@ -844,7 +844,7 @@ class Input:
         ...
 
     @barrelRotation.setter
-    def barrelRotation(self, arg1: _t.FloatLike) -> None:
+    def barrelRotation(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -852,7 +852,7 @@ class Input:
         ...
 
     @position.setter
-    def position(self, arg1: _t.PointLike) -> None:
+    def position(self, value: _t.PointLike, /) -> None:
         ...
 
     @property
@@ -860,7 +860,7 @@ class Input:
         ...
 
     @pressure.setter
-    def pressure(self, arg1: _t.FloatLike) -> None:
+    def pressure(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -868,7 +868,7 @@ class Input:
         ...
 
     @seconds.setter
-    def seconds(self, arg1: _t.FloatLike) -> None:
+    def seconds(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -876,7 +876,7 @@ class Input:
         ...
 
     @tilt.setter
-    def tilt(self, arg1: _t.FloatLike) -> None:
+    def tilt(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -884,7 +884,7 @@ class Input:
         ...
 
     @tiltDirection.setter
-    def tiltDirection(self, arg1: _t.FloatLike) -> None:
+    def tiltDirection(self, value: _t.FloatLike, /) -> None:
         ...
 
 class Line:
@@ -905,7 +905,7 @@ class Line:
         ...
 
     @from_.setter
-    def from_(self, arg1: _t.PointLike) -> None:
+    def from_(self, value: _t.PointLike, /) -> None:
         ...
 
     @property
@@ -913,7 +913,7 @@ class Line:
         ...
 
     @to.setter
-    def to(self, arg1: _t.PointLike) -> None:
+    def to(self, value: _t.PointLike, /) -> None:
         ...
 
 class Mass:
@@ -929,7 +929,7 @@ class Mass:
         ...
 
     @gradient.setter
-    def gradient(self, arg1: _t.FloatLike) -> None:
+    def gradient(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -937,7 +937,7 @@ class Mass:
         ...
 
     @outline.setter
-    def outline(self, arg1: bool) -> None:
+    def outline(self, value: bool, /) -> None:
         ...
 
     @property
@@ -945,7 +945,7 @@ class Mass:
         ...
 
     @precision.setter
-    def precision(self, arg1: _t.FloatLike) -> None:
+    def precision(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -953,7 +953,7 @@ class Mass:
         ...
 
     @strength.setter
-    def strength(self, arg1: _t.FloatLike) -> None:
+    def strength(self, value: _t.FloatLike, /) -> None:
         ...
 
 class PlacedPlot:
@@ -972,7 +972,7 @@ class PlacedPlot:
         ...
 
     @origin.setter
-    def origin(self, arg1: _t.PointLike) -> None:
+    def origin(self, value: _t.PointLike, /) -> None:
         ...
 
     @property
@@ -980,7 +980,7 @@ class PlacedPlot:
         ...
 
     @plot.setter
-    def plot(self, arg1: Plot) -> None:
+    def plot(self, value: Plot, /) -> None:
         ...
 
 class Plot:
@@ -995,7 +995,7 @@ class Plot:
     def addSegment(self, angle: typing.SupportsFloat, length: typing.SupportsFloat, pressure: typing.SupportsFloat=1.0) -> None:
         ...
 
-    def angle(self, arg0: typing.SupportsFloat) -> float:
+    def angle(self, distance: typing.SupportsFloat) -> float:
         ...
 
     def copy(self) -> Plot:
@@ -1048,10 +1048,10 @@ class Plot:
     def polygon(self, x: typing.SupportsFloat=0.0, y: typing.SupportsFloat=0.0, spacing: typing.SupportsFloat=1.0, curvature: typing.SupportsFloat=0.5, scale: typing.SupportsFloat=1.0) -> Polygon:
         ...
 
-    def pressure(self, arg0: typing.SupportsFloat) -> float:
+    def pressure(self, distance: typing.SupportsFloat) -> float:
         ...
 
-    def rotate(self, arg0: typing.SupportsFloat) -> None:
+    def rotate(self, angle: typing.SupportsFloat) -> None:
         ...
 
     def show(self, pen: _sigil.draw.Pen, engine: Engine, x: typing.SupportsFloat=0.0, y: typing.SupportsFloat=0.0, scale: typing.SupportsFloat=1.0) -> None:
@@ -1132,22 +1132,22 @@ class Polygon:
         ...
 
     @typing.overload
-    def draw(self, arg0: _sigil.draw.Pen, arg1: Tool) -> None:
+    def draw(self, pen: _sigil.draw.Pen, tool: Tool) -> None:
         ...
 
     @typing.overload
-    def draw(self, arg0: _sigil.draw.Pen, arg1: Engine) -> None:
+    def draw(self, pen: _sigil.draw.Pen, engine: Engine) -> None:
         ...
 
     def empty(self) -> bool:
         ...
 
     @typing.overload
-    def fill(self, arg0: _sigil.draw.Pen, arg1: Wash) -> None:
+    def fill(self, pen: _sigil.draw.Pen, style: Wash) -> None:
         ...
 
     @typing.overload
-    def fill(self, arg0: _sigil.draw.Pen, arg1: Engine) -> None:
+    def fill(self, pen: _sigil.draw.Pen, engine: Engine) -> None:
         ...
 
     @typing.overload
@@ -1155,10 +1155,10 @@ class Polygon:
         ...
 
     @typing.overload
-    def hatch(self, arg0: _sigil.draw.Pen, arg1: Engine) -> None:
+    def hatch(self, pen: _sigil.draw.Pen, engine: Engine) -> None:
         ...
 
-    def intersect(self, arg0: Line) -> list[_sigil.skia.Point]:
+    def intersect(self, line: Line) -> list[_sigil.skia.Point]:
         ...
 
     @typing.overload
@@ -1166,21 +1166,21 @@ class Polygon:
         ...
 
     @typing.overload
-    def mass(self, arg0: _sigil.draw.Pen, arg1: Engine) -> None:
+    def mass(self, pen: _sigil.draw.Pen, engine: Engine) -> None:
         ...
 
-    def show(self, arg0: _sigil.draw.Pen, arg1: Engine) -> None:
+    def show(self, pen: _sigil.draw.Pen, engine: Engine) -> None:
         ...
 
-    def translated(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> Polygon:
-        ...
-
-    @typing.overload
-    def wash(self, arg0: _sigil.draw.Pen, arg1: Wash) -> None:
+    def translated(self, x: typing.SupportsFloat, y: typing.SupportsFloat) -> Polygon:
         ...
 
     @typing.overload
-    def wash(self, arg0: _sigil.draw.Pen, arg1: Engine) -> None:
+    def wash(self, pen: _sigil.draw.Pen, style: Wash) -> None:
+        ...
+
+    @typing.overload
+    def wash(self, pen: _sigil.draw.Pen, engine: Engine) -> None:
         ...
 
     @property
@@ -1188,7 +1188,7 @@ class Polygon:
         ...
 
     @vertices.setter
-    def vertices(self, arg1: collections.abc.Iterable[_t.PointLike]) -> None:
+    def vertices(self, value: collections.abc.Iterable[_t.PointLike], /) -> None:
         ...
 
 class Position:
@@ -1216,7 +1216,7 @@ class Position:
     def moveTo(self, direction: typing.SupportsFloat, length: typing.SupportsFloat, stepLength: typing.SupportsFloat=1.0, field: _t.DirectionLike | None=None, seconds: typing.SupportsFloat=0.0) -> list[Sample]:
         ...
 
-    def place(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> None:
+    def place(self, x: typing.SupportsFloat, y: typing.SupportsFloat) -> None:
         ...
 
     def plotTo(self, plot: Plot, length: typing.SupportsFloat, stepLength: typing.SupportsFloat, scale: typing.SupportsFloat=1.0) -> list[Sample]:
@@ -1252,7 +1252,7 @@ class Pressure:
     def __init__(self, start: typing.SupportsFloat, middle: typing.SupportsFloat, end: typing.SupportsFloat) -> None:
         ...
 
-    def at(self, arg0: typing.SupportsFloat) -> float:
+    def at(self, progress: typing.SupportsFloat) -> float:
         ...
 
     def copy(self) -> Pressure:
@@ -1263,7 +1263,7 @@ class Pressure:
         ...
 
     @curve.setter
-    def curve(self, arg1: _t.ScalarFunction | None) -> None:
+    def curve(self, value: _t.ScalarFunction | None, /) -> None:
         ...
 
     @property
@@ -1271,7 +1271,7 @@ class Pressure:
         ...
 
     @end.setter
-    def end(self, arg1: _t.FloatLike) -> None:
+    def end(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1279,7 +1279,7 @@ class Pressure:
         ...
 
     @middle.setter
-    def middle(self, arg1: _t.FloatLike) -> None:
+    def middle(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1287,7 +1287,7 @@ class Pressure:
         ...
 
     @start.setter
-    def start(self, arg1: _t.FloatLike) -> None:
+    def start(self, value: _t.FloatLike, /) -> None:
         ...
 
 class Response:
@@ -1306,7 +1306,7 @@ class Response:
         ...
 
     @curve.setter
-    def curve(self, arg1: Curve) -> None:
+    def curve(self, value: Curve, /) -> None:
         ...
 
     @property
@@ -1314,7 +1314,7 @@ class Response:
         ...
 
     @drive.setter
-    def drive(self, arg1: Drive) -> None:
+    def drive(self, value: Drive, /) -> None:
         ...
 
 class Rotation:
@@ -1391,7 +1391,7 @@ class Sample:
         ...
 
     @position.setter
-    def position(self, arg1: _t.PointLike) -> None:
+    def position(self, value: _t.PointLike, /) -> None:
         ...
 
     @property
@@ -1399,7 +1399,7 @@ class Sample:
         ...
 
     @pressure.setter
-    def pressure(self, arg1: _t.FloatLike) -> None:
+    def pressure(self, value: _t.FloatLike, /) -> None:
         ...
 
 class Sampler:
@@ -1410,7 +1410,7 @@ class Sampler:
     def active(self) -> bool:
         ...
 
-    def begin(self, arg0: Input) -> list[Dab]:
+    def begin(self, input: Input) -> list[Dab]:
         ...
 
     def cancel(self) -> None:
@@ -1419,10 +1419,10 @@ class Sampler:
     def distance(self) -> float:
         ...
 
-    def end(self, arg0: Input, arg1: typing.SupportsFloat) -> list[Dab]:
+    def end(self, input: Input, spacing: typing.SupportsFloat) -> list[Dab]:
         ...
 
-    def move(self, arg0: Input, arg1: typing.SupportsFloat) -> list[Dab]:
+    def move(self, input: Input, spacing: typing.SupportsFloat) -> list[Dab]:
         ...
 
 class Shape:
@@ -1438,7 +1438,7 @@ class Shape:
         ...
 
     @angleJitter.setter
-    def angleJitter(self, arg1: _t.FloatLike) -> None:
+    def angleJitter(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1446,7 +1446,7 @@ class Shape:
         ...
 
     @image.setter
-    def image(self, arg1: _sigil.skia.Image) -> None:
+    def image(self, value: _sigil.skia.Image, /) -> None:
         ...
 
     @property
@@ -1454,7 +1454,7 @@ class Shape:
         ...
 
     @mask.setter
-    def mask(self, arg1: ImageMask) -> None:
+    def mask(self, value: ImageMask, /) -> None:
         ...
 
     @property
@@ -1462,7 +1462,7 @@ class Shape:
         ...
 
     @scatter.setter
-    def scatter(self, arg1: _t.FloatLike) -> None:
+    def scatter(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1470,7 +1470,7 @@ class Shape:
         ...
 
     @spacing.setter
-    def spacing(self, arg1: _t.FloatLike) -> None:
+    def spacing(self, value: _t.FloatLike, /) -> None:
         ...
 
 class Tip:
@@ -1551,7 +1551,7 @@ class Tool:
         ...
 
     @angle.setter
-    def angle(self, arg1: _t.FloatLike) -> None:
+    def angle(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1559,7 +1559,7 @@ class Tool:
         ...
 
     @aspect.setter
-    def aspect(self, arg1: _t.FloatLike) -> None:
+    def aspect(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1567,7 +1567,7 @@ class Tool:
         ...
 
     @blend.setter
-    def blend(self, arg1: _sigil.draw.Constant) -> None:
+    def blend(self, value: _sigil.draw.Constant, /) -> None:
         ...
 
     @property
@@ -1575,7 +1575,7 @@ class Tool:
         ...
 
     @bristles.setter
-    def bristles(self, arg1: typing.SupportsInt) -> None:
+    def bristles(self, value: typing.SupportsInt, /) -> None:
         ...
 
     @property
@@ -1583,7 +1583,7 @@ class Tool:
         ...
 
     @color.setter
-    def color(self, arg1: _t.ColorLike) -> None:
+    def color(self, value: _t.ColorLike, /) -> None:
         ...
 
     @property
@@ -1591,7 +1591,7 @@ class Tool:
         ...
 
     @density.setter
-    def density(self, arg1: _t.FloatLike) -> None:
+    def density(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1599,7 +1599,7 @@ class Tool:
         ...
 
     @dynamics.setter
-    def dynamics(self, arg1: Dynamics) -> None:
+    def dynamics(self, value: Dynamics, /) -> None:
         ...
 
     @property
@@ -1607,7 +1607,7 @@ class Tool:
         ...
 
     @markerTip.setter
-    def markerTip(self, arg1: bool) -> None:
+    def markerTip(self, value: bool, /) -> None:
         ...
 
     @property
@@ -1615,7 +1615,7 @@ class Tool:
         ...
 
     @noise.setter
-    def noise(self, arg1: _t.FloatLike) -> None:
+    def noise(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1623,7 +1623,7 @@ class Tool:
         ...
 
     @opacity.setter
-    def opacity(self, arg1: _t.FloatLike) -> None:
+    def opacity(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1631,7 +1631,7 @@ class Tool:
         ...
 
     @opacityJitter.setter
-    def opacityJitter(self, arg1: _t.FloatLike) -> None:
+    def opacityJitter(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1639,7 +1639,7 @@ class Tool:
         ...
 
     @pressure.setter
-    def pressure(self, arg1: Pressure) -> None:
+    def pressure(self, value: Pressure, /) -> None:
         ...
 
     @property
@@ -1647,7 +1647,7 @@ class Tool:
         ...
 
     @pressureOpacity.setter
-    def pressureOpacity(self, arg1: _t.FloatLike) -> None:
+    def pressureOpacity(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1655,7 +1655,7 @@ class Tool:
         ...
 
     @pressureSize.setter
-    def pressureSize(self, arg1: _t.FloatLike) -> None:
+    def pressureSize(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1663,7 +1663,7 @@ class Tool:
         ...
 
     @rotation.setter
-    def rotation(self, arg1: Rotation) -> None:
+    def rotation(self, value: Rotation, /) -> None:
         ...
 
     @property
@@ -1671,7 +1671,7 @@ class Tool:
         ...
 
     @scatter.setter
-    def scatter(self, arg1: _t.FloatLike) -> None:
+    def scatter(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1679,7 +1679,7 @@ class Tool:
         ...
 
     @sharpness.setter
-    def sharpness(self, arg1: _t.FloatLike) -> None:
+    def sharpness(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1687,7 +1687,7 @@ class Tool:
         ...
 
     @sizeJitter.setter
-    def sizeJitter(self, arg1: _t.FloatLike) -> None:
+    def sizeJitter(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1695,7 +1695,7 @@ class Tool:
         ...
 
     @spacing.setter
-    def spacing(self, arg1: _t.FloatLike) -> None:
+    def spacing(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1703,7 +1703,7 @@ class Tool:
         ...
 
     @spacingJitter.setter
-    def spacingJitter(self, arg1: _t.FloatLike) -> None:
+    def spacingJitter(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1711,7 +1711,7 @@ class Tool:
         ...
 
     @speedOpacity.setter
-    def speedOpacity(self, arg1: _t.FloatLike) -> None:
+    def speedOpacity(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1719,7 +1719,7 @@ class Tool:
         ...
 
     @speedReference.setter
-    def speedReference(self, arg1: _t.FloatLike) -> None:
+    def speedReference(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1727,7 +1727,7 @@ class Tool:
         ...
 
     @speedSize.setter
-    def speedSize(self, arg1: _t.FloatLike) -> None:
+    def speedSize(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1735,7 +1735,7 @@ class Tool:
         ...
 
     @tiltAspect.setter
-    def tiltAspect(self, arg1: _t.FloatLike) -> None:
+    def tiltAspect(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1743,7 +1743,7 @@ class Tool:
         ...
 
     @tiltOffset.setter
-    def tiltOffset(self, arg1: _t.FloatLike) -> None:
+    def tiltOffset(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1751,7 +1751,7 @@ class Tool:
         ...
 
     @tiltOpacity.setter
-    def tiltOpacity(self, arg1: _t.FloatLike) -> None:
+    def tiltOpacity(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1759,7 +1759,7 @@ class Tool:
         ...
 
     @tiltSize.setter
-    def tiltSize(self, arg1: _t.FloatLike) -> None:
+    def tiltSize(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1767,7 +1767,7 @@ class Tool:
         ...
 
     @tip.setter
-    def tip(self, arg1: Tip) -> None:
+    def tip(self, value: Tip, /) -> None:
         ...
 
     @property
@@ -1775,7 +1775,7 @@ class Tool:
         ...
 
     @width.setter
-    def width(self, arg1: _t.FloatLike) -> None:
+    def width(self, value: _t.FloatLike, /) -> None:
         ...
 
 class Variation:
@@ -1791,7 +1791,7 @@ class Variation:
         ...
 
     @offset.setter
-    def offset(self, arg1: _t.FloatLike) -> None:
+    def offset(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1799,7 +1799,7 @@ class Variation:
         ...
 
     @scale.setter
-    def scale(self, arg1: _t.FloatLike) -> None:
+    def scale(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1807,7 +1807,7 @@ class Variation:
         ...
 
     @tilt.setter
-    def tilt(self, arg1: _t.FloatLike) -> None:
+    def tilt(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1815,7 +1815,7 @@ class Variation:
         ...
 
     @warp.setter
-    def warp(self, arg1: _t.FloatLike) -> None:
+    def warp(self, value: _t.FloatLike, /) -> None:
         ...
 
 class Vortex:
@@ -1834,7 +1834,7 @@ class Vortex:
         ...
 
     @center.setter
-    def center(self, arg1: _t.PointLike) -> None:
+    def center(self, value: _t.PointLike, /) -> None:
         ...
 
     @property
@@ -1842,7 +1842,7 @@ class Vortex:
         ...
 
     @direction.setter
-    def direction(self, arg1: _t.FloatLike) -> None:
+    def direction(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1850,7 +1850,7 @@ class Vortex:
         ...
 
     @pull.setter
-    def pull(self, arg1: _t.FloatLike) -> None:
+    def pull(self, value: _t.FloatLike, /) -> None:
         ...
 
 class Wash:
@@ -1866,7 +1866,7 @@ class Wash:
         ...
 
     @bleed.setter
-    def bleed(self, arg1: _t.FloatLike) -> None:
+    def bleed(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1874,7 +1874,7 @@ class Wash:
         ...
 
     @bleedAngle.setter
-    def bleedAngle(self, arg1: typing.SupportsFloat | None) -> None:
+    def bleedAngle(self, value: typing.SupportsFloat | None, /) -> None:
         ...
 
     @property
@@ -1882,7 +1882,7 @@ class Wash:
         ...
 
     @bleedDirection.setter
-    def bleedDirection(self, arg1: BleedDirection) -> None:
+    def bleedDirection(self, value: BleedDirection, /) -> None:
         ...
 
     @property
@@ -1890,7 +1890,7 @@ class Wash:
         ...
 
     @blend.setter
-    def blend(self, arg1: _sigil.draw.Constant) -> None:
+    def blend(self, value: _sigil.draw.Constant, /) -> None:
         ...
 
     @property
@@ -1898,7 +1898,7 @@ class Wash:
         ...
 
     @border.setter
-    def border(self, arg1: _t.FloatLike) -> None:
+    def border(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1906,7 +1906,7 @@ class Wash:
         ...
 
     @color.setter
-    def color(self, arg1: _t.ColorLike) -> None:
+    def color(self, value: _t.ColorLike, /) -> None:
         ...
 
     @property
@@ -1914,7 +1914,7 @@ class Wash:
         ...
 
     @layers.setter
-    def layers(self, arg1: typing.SupportsInt) -> None:
+    def layers(self, value: typing.SupportsInt, /) -> None:
         ...
 
     @property
@@ -1922,7 +1922,7 @@ class Wash:
         ...
 
     @opacity.setter
-    def opacity(self, arg1: _t.FloatLike) -> None:
+    def opacity(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1930,7 +1930,7 @@ class Wash:
         ...
 
     @scatter.setter
-    def scatter(self, arg1: bool) -> None:
+    def scatter(self, value: bool, /) -> None:
         ...
 
     @property
@@ -1938,7 +1938,7 @@ class Wash:
         ...
 
     @texture.setter
-    def texture(self, arg1: _t.FloatLike) -> None:
+    def texture(self, value: _t.FloatLike, /) -> None:
         ...
 
 class Wave:
@@ -1957,7 +1957,7 @@ class Wave:
         ...
 
     @amplitude.setter
-    def amplitude(self, arg1: _t.FloatLike) -> None:
+    def amplitude(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1965,7 +1965,7 @@ class Wave:
         ...
 
     @direction.setter
-    def direction(self, arg1: _t.FloatLike) -> None:
+    def direction(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1973,7 +1973,7 @@ class Wave:
         ...
 
     @speed.setter
-    def speed(self, arg1: _t.FloatLike) -> None:
+    def speed(self, value: _t.FloatLike, /) -> None:
         ...
 
     @property
@@ -1981,7 +1981,7 @@ class Wave:
         ...
 
     @wavelength.setter
-    def wavelength(self, arg1: _t.FloatLike) -> None:
+    def wavelength(self, value: _t.FloatLike, /) -> None:
         ...
 
 def charcoal(color: _t.ColorLike, width: typing.SupportsFloat=9.0) -> Tool:
@@ -2014,22 +2014,22 @@ def mass(pen: _sigil.draw.Pen, tool: Tool, polygon: collections.abc.Iterable[_t.
 def massArray(pen: _sigil.draw.Pen, tool: Tool, polygons: collections.abc.Sequence[Polygon], style: Mass=...) -> None:
     ...
 
-def paint(arg0: _sigil.draw.Pen, arg1: Tool, arg2: collections.abc.Iterable[_t.SampleLike]) -> None:
+def paint(pen: _sigil.draw.Pen, tool: Tool, stroke: collections.abc.Iterable[_t.SampleLike]) -> None:
     ...
 
 def pencil(color: _t.ColorLike, width: typing.SupportsFloat=1.399999976158142) -> Tool:
     ...
 
-def prepareStroke(arg0: _sigil.draw.Pen, arg1: Tool) -> Tool:
+def prepareStroke(pen: _sigil.draw.Pen, tool: Tool) -> Tool:
     ...
 
-def randomBelow(arg0: _sigil.draw.Pen, arg1: typing.SupportsFloat) -> float:
+def randomBelow(pen: _sigil.draw.Pen, total: typing.SupportsFloat) -> float:
     ...
 
 def segment(from_: _t.PointLike, to: _t.PointLike, spacing: typing.SupportsFloat=1.0, startPressure: typing.SupportsFloat=1.0, endPressure: typing.SupportsFloat=1.0) -> list[Sample]:
     ...
 
-def spacingOf(arg0: Tool) -> float:
+def spacingOf(tool: Tool) -> float:
     ...
 
 @typing.overload
@@ -2052,7 +2052,7 @@ def trace(start: _t.PointLike, length: typing.SupportsFloat, spacing: typing.Sup
 def warp(polygon: collections.abc.Iterable[_t.PointLike], spacing: typing.SupportsFloat, amount: typing.SupportsFloat, seconds: typing.SupportsFloat, field: _t.DirectionLike, pressure: typing.SupportsFloat=1.0) -> list[Sample]:
     ...
 
-def wash(arg0: _sigil.draw.Pen, arg1: Wash, arg2: collections.abc.Iterable[_t.PointLike]) -> None:
+def wash(pen: _sigil.draw.Pen, pigment: Wash, polygon: collections.abc.Iterable[_t.PointLike]) -> None:
     ...
 
 def watercolor(color: _t.ColorLike, width: typing.SupportsFloat=22.0) -> Tool:

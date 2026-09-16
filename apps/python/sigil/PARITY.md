@@ -9,7 +9,7 @@ convenience builders share native values; neither is a second scene model.
 | Surface | Bound contract | Remaining boundary |
 | --- | --- | --- |
 | Canvas hosting | Setup, update and draw argument prefixes; checked context services; fresh local import generations; source-backed catalogue and external workspaces | Model state is replaced on reload; each workspace process uses one Python environment |
-| Composition | Direct native factories and overloads, fluent properties, explicit element children, dimensions and units, layout and placement, 2D/3D transforms, fills, typography and style classes | The full native Element and feature catalogue is not claimed |
+| Composition | Direct native factories and overloads, fluent properties, named inputs, variadic or iterable children (including lists and tuples), dimensions and units, layout and placement, 2D/3D transforms, fills, typography and style classes | The full native Element and feature catalogue is not claimed |
 | Memo | Deep-copied model, Python equality, native reconciliation and captured inherited environment | Builder must be pure in its model and environment; closure mutation is not a dependency |
 | Motion | Shared outputs, binding chains, easing values, entrances, transitions and keyframe paths | Python times use seconds; scheduling comes from the native session ticker |
 | Typography | Native partial Type, TextStyle, Block, StyleSheet and Rule | Full rich runs, stories and per-glyph effects are not bound |

@@ -16,7 +16,7 @@ class Cell:
         ...
 
     @column.setter
-    def column(self, arg0: typing.SupportsInt) -> None:
+    def column(self, value: typing.SupportsInt, /) -> None:
         ...
 
     @property
@@ -24,7 +24,7 @@ class Cell:
         ...
 
     @row.setter
-    def row(self, arg0: typing.SupportsInt) -> None:
+    def row(self, value: typing.SupportsInt, /) -> None:
         ...
 
 class Turn:
@@ -77,23 +77,23 @@ class Turn:
     def value(self) -> int:
         ...
 
-def along(arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsInt, arg3: typing.SupportsInt, arg4: Turn) -> float:
+def along(start: typing.SupportsFloat, extent: typing.SupportsFloat, index: typing.SupportsInt, count: typing.SupportsInt, turn: Turn) -> float:
     ...
 
-def cellAt(arg0: typing.SupportsInt, arg1: typing.SupportsInt) -> Cell:
+def cellAt(index: typing.SupportsInt, columns: typing.SupportsInt) -> Cell:
     ...
 
 def cellRect(cell: Cell, module: _sigil.skia.Size, gap: _sigil.skia.Size=..., origin: _sigil.skia.Point=..., columnSpan: typing.SupportsInt=1, rowSpan: typing.SupportsInt=1) -> _sigil.skia.Rect:
     ...
 
-def moduleSize(arg0: _sigil.skia.Size, arg1: typing.SupportsInt, arg2: typing.SupportsInt, arg3: _sigil.skia.Size) -> _sigil.skia.Size:
+def moduleSize(container: _sigil.skia.Size, columns: typing.SupportsInt, rows: typing.SupportsInt, gap: _sigil.skia.Size) -> _sigil.skia.Size:
     ...
 
-def onEllipse(arg0: _sigil.skia.Point, arg1: _sigil.skia.Point, arg2: typing.SupportsFloat) -> _sigil.skia.Point:
+def onEllipse(center: _sigil.skia.Point, radii: _sigil.skia.Point, radians: typing.SupportsFloat) -> _sigil.skia.Point:
     ...
 
-def onRing(arg0: typing.SupportsInt, arg1: typing.SupportsInt, arg2: _sigil.skia.Point, arg3: _sigil.skia.Point, arg4: typing.SupportsFloat, arg5: typing.SupportsFloat, arg6: Turn) -> _sigil.skia.Point:
+def onRing(index: typing.SupportsInt, count: typing.SupportsInt, center: _sigil.skia.Point, radii: _sigil.skia.Point, startRadians: typing.SupportsFloat, sweepRadians: typing.SupportsFloat, turn: Turn) -> _sigil.skia.Point:
     ...
 
-def step(arg0: typing.SupportsFloat, arg1: typing.SupportsInt, arg2: Turn) -> float:
+def step(extent: typing.SupportsFloat, count: typing.SupportsInt, turn: Turn) -> float:
     ...

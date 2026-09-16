@@ -15,13 +15,16 @@ def wrong_paint(pen: str) -> None:
 
 box(wdith=20)  # error: reportCallIssue
 box().width(object())  # error: reportArgumentType
-row().children([42])  # error: reportArgumentType
+row().children([42])  # error: reportCallIssue,reportArgumentType
 text(12)  # error: reportArgumentType
 box().fill(object())  # error: reportArgumentType
 box().alignItems("middle")  # error: reportArgumentType
 row(text("implicit child"))  # error: reportCallIssue
-row().children(["implicit text"])  # error: reportArgumentType
-row().children([None])  # error: reportArgumentType
+row().children(["implicit text"])  # error: reportCallIssue,reportArgumentType
+row().children([None])  # error: reportCallIssue,reportArgumentType
+row().children((text("valid"), None))  # error: reportCallIssue,reportArgumentType
+row().children(text("valid"), "implicit text")  # error: reportArgumentType
+row().children(text("valid"), [text("nested")])  # error: reportArgumentType
 graphics("bad", wrong_paint)  # error: reportArgumentType
 memo("wrong model", component)  # error: reportArgumentType
 kit.page(box(), titlle="typo")  # error: reportCallIssue
@@ -31,4 +34,5 @@ sketch(size=(200, "wide"))  # error: reportArgumentType
 
 def draw(pen: Pen, ctx: SketchContext) -> None:
     pen.circle("left", 20, 10)  # error: reportArgumentType
+    pen.line(x1=0, y1=0, x2=12, yy2=12)  # error: reportCallIssue
     ctx.render("a scene")  # error: reportArgumentType

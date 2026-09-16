@@ -12,10 +12,10 @@ __all__: list[str] = ['Animatable', 'Bound', 'ColorFrom', 'ColorFromTo', 'ColorO
 class Animatable:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object) -> bool:
         ...
 
-    def __init__(self, arg0: _t.ScalarLike) -> None:
+    def __init__(self, value: _t.ScalarLike) -> None:
         ...
 
     def copy(self) -> Animatable:
@@ -34,16 +34,16 @@ class Animatable:
 class Bound:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object) -> bool:
         ...
 
-    def __init__(self, arg0: Output) -> None:
+    def __init__(self, output: Output) -> None:
         ...
 
-    def apply(self, arg0: typing.SupportsFloat) -> float:
+    def apply(self, input: typing.SupportsFloat) -> float:
         ...
 
-    def clamp(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> Bound:
+    def clamp(self, low: typing.SupportsFloat, high: typing.SupportsFloat) -> Bound:
         ...
 
     def copy(self) -> Bound:
@@ -55,51 +55,51 @@ class Bound:
     def invert(self) -> Bound:
         ...
 
-    def map(self, arg0: _t.EaseLike) -> Bound:
+    def map(self, function: _t.EaseLike) -> Bound:
         ...
 
-    def offset(self, arg0: typing.SupportsFloat) -> Bound:
+    def offset(self, amount: typing.SupportsFloat) -> Bound:
         ...
 
     def pingPong(self) -> Bound:
         ...
 
-    def quantize(self, arg0: typing.SupportsInt) -> Bound:
+    def quantize(self, steps: typing.SupportsInt) -> Bound:
         ...
 
     def sample(self) -> float:
         ...
 
-    def scale(self, arg0: typing.SupportsFloat) -> Bound:
+    def scale(self, factor: typing.SupportsFloat) -> Bound:
         ...
 
-    def source(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> Bound:
+    def source(self, low: typing.SupportsFloat, high: typing.SupportsFloat) -> Bound:
         ...
 
     def square(self, duty: typing.SupportsFloat=0.5) -> Bound:
         ...
 
-    def target(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> Bound:
+    def target(self, low: typing.SupportsFloat, high: typing.SupportsFloat) -> Bound:
         ...
 
-    def trapezoid(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat) -> Bound:
+    def trapezoid(self, riseStart: typing.SupportsFloat, holdStart: typing.SupportsFloat, holdEnd: typing.SupportsFloat, fallEnd: typing.SupportsFloat) -> Bound:
         ...
 
-    def wave(self, arg0: _t.EaseLike) -> Bound:
+    def wave(self, easing: _t.EaseLike) -> Bound:
         ...
 
     def wiggle(self, amount: typing.SupportsFloat=1.0, frequency: typing.SupportsFloat=2.0, seed: typing.SupportsInt=0, octaves: typing.SupportsInt=1, falloff: typing.SupportsFloat=0.5) -> Bound:
         ...
 
-    def window(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> Bound:
+    def window(self, low: typing.SupportsFloat, high: typing.SupportsFloat) -> Bound:
         ...
 
-    def wrap(self, arg0: typing.SupportsFloat) -> Bound:
+    def wrap(self, period: typing.SupportsFloat) -> Bound:
         ...
 
 class ColorFrom:
 
-    def to(self, arg0: _t.ColorLike) -> ColorFromTo:
+    def to(self, value: _t.ColorLike) -> ColorFromTo:
         ...
 
 class ColorFromTo:
@@ -125,7 +125,7 @@ class ColorOutput:
     def isConnected(self) -> bool:
         ...
 
-    def set(self, arg0: _t.ColorLike) -> None:
+    def set(self, value: _t.ColorLike) -> None:
         ...
 
     @property
@@ -133,7 +133,7 @@ class ColorOutput:
         ...
 
     @value.setter
-    def value(self, arg1: _t.ColorLike) -> None:
+    def value(self, value: _t.ColorLike, /) -> None:
         ...
 
 class ColorTo:
@@ -163,30 +163,30 @@ class ColorWaypoints:
 class Curve:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __call__(self, arg0: typing.SupportsFloat) -> float:
+    def __call__(self, progress: typing.SupportsFloat) -> float:
         ...
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object) -> bool:
         ...
 
     def __init__(self) -> None:
         ...
 
-    def at(self, arg0: typing.SupportsFloat) -> float:
+    def at(self, progress: typing.SupportsFloat) -> float:
         ...
 
 class Easing:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __call__(self, arg0: typing.SupportsFloat) -> float:
+    def __call__(self, progress: typing.SupportsFloat) -> float:
         ...
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object) -> bool:
         ...
 
 class FillFrom:
 
-    def to(self, arg0: _t.FillLike) -> FillFromTo:
+    def to(self, value: _t.FillLike) -> FillFromTo:
         ...
 
 class FillFromTo:
@@ -212,7 +212,7 @@ class FillOutput:
     def isConnected(self) -> bool:
         ...
 
-    def set(self, arg0: _t.FillLike) -> None:
+    def set(self, value: _t.FillLike) -> None:
         ...
 
     @property
@@ -220,7 +220,7 @@ class FillOutput:
         ...
 
     @value.setter
-    def value(self, arg1: _t.FillLike) -> None:
+    def value(self, value: _t.FillLike, /) -> None:
         ...
 
 class FillTo:
@@ -262,7 +262,7 @@ class FixedStatus:
 
 class From:
 
-    def to(self, arg0: _t.FloatLike) -> FromTo:
+    def to(self, value: _t.FloatLike) -> FromTo:
         ...
 
 class FromTo:
@@ -288,7 +288,7 @@ class Output:
     def isConnected(self) -> bool:
         ...
 
-    def set(self, arg0: _t.FloatLike) -> None:
+    def set(self, value: _t.FloatLike) -> None:
         ...
 
     @property
@@ -296,7 +296,7 @@ class Output:
         ...
 
     @value.setter
-    def value(self, arg1: _t.FloatLike) -> None:
+    def value(self, value: _t.FloatLike, /) -> None:
         ...
 
 class Ticker:
@@ -322,7 +322,7 @@ class To:
 class Transition:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object) -> bool:
         ...
 
     def __init__(self, duration: typing.SupportsFloat=0.25, ease: _t.EaseLike | None=None, delay: typing.SupportsFloat=0.0) -> None:
@@ -336,7 +336,7 @@ class Transition:
         ...
 
     @delay.setter
-    def delay(self, arg1: typing.SupportsFloat) -> None:
+    def delay(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -344,7 +344,7 @@ class Transition:
         ...
 
     @duration.setter
-    def duration(self, arg1: typing.SupportsFloat) -> None:
+    def duration(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -352,7 +352,7 @@ class Transition:
         ...
 
     @ease.setter
-    def ease(self, arg1: _t.EaseLike) -> None:
+    def ease(self, value: _t.EaseLike, /) -> None:
         ...
 
 class Transitioned:
@@ -388,13 +388,13 @@ def animate(path: ColorFromTo | ColorTo | ColorWaypoints, spec: Transition | Non
 def animate(path: FillFromTo | FillTo | FillWaypoints, spec: Transition | None=None, *, ease: _t.EaseLike=None) -> FillTransitioned:
     ...
 
-def bind(arg0: Output) -> Bound:
+def bind(output: Output) -> Bound:
     ...
 
-def clamp01(arg0: typing.SupportsFloat) -> float:
+def clamp01(value: typing.SupportsFloat) -> float:
     ...
 
-def decay(arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> float:
+def decay(age: typing.SupportsFloat, tau: typing.SupportsFloat) -> float:
     ...
 
 @typing.overload
@@ -413,51 +413,51 @@ def flash(age: typing.SupportsFloat, attack: typing.SupportsFloat, tau: typing.S
     ...
 
 @typing.overload
-def from_(arg0: float, /) -> From:
+def from_(value: float) -> From:
     ...
 
 @typing.overload
-def from_(arg0: _t.ColorLike, /) -> ColorFrom:
+def from_(value: _t.ColorLike) -> ColorFrom:
     ...
 
 @typing.overload
-def from_(arg0: _sigil.compose.Fill, /) -> FillFrom:
+def from_(value: _sigil.compose.Fill) -> FillFrom:
     ...
 
-def phase(arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> float:
+def phase(seconds: typing.SupportsFloat, period: typing.SupportsFloat) -> float:
     ...
 
-def quantizeTime(arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> float:
+def quantizeTime(seconds: typing.SupportsFloat, hz: typing.SupportsFloat) -> float:
     ...
 
 def ramp(delay: typing.SupportsFloat, duration: typing.SupportsFloat, ease: _t.EaseLike | None=None) -> Transition:
     ...
 
-def stepIndex(arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> int:
+def stepIndex(seconds: typing.SupportsFloat, hz: typing.SupportsFloat) -> int:
     ...
 
 @typing.overload
-def through(arg0: collections.abc.Iterable[tuple[_t.FloatLike, float]], /) -> Waypoints:
+def through(frames: collections.abc.Iterable[tuple[_t.FloatLike, float]]) -> Waypoints:
     ...
 
 @typing.overload
-def through(arg0: collections.abc.Iterable[tuple[_t.FloatLike, _t.ColorLike]], /) -> ColorWaypoints:
+def through(frames: collections.abc.Iterable[tuple[_t.FloatLike, _t.ColorLike]]) -> ColorWaypoints:
     ...
 
 @typing.overload
-def through(arg0: collections.abc.Iterable[tuple[_t.FloatLike, _sigil.compose.Fill]], /) -> FillWaypoints:
+def through(frames: collections.abc.Iterable[tuple[_t.FloatLike, _sigil.compose.Fill]]) -> FillWaypoints:
     ...
 
 @typing.overload
-def to(arg0: float, /) -> To:
+def to(value: float) -> To:
     ...
 
 @typing.overload
-def to(arg0: _t.ColorLike, /) -> ColorTo:
+def to(value: _t.ColorLike) -> ColorTo:
     ...
 
 @typing.overload
-def to(arg0: _sigil.compose.Fill, /) -> FillTo:
+def to(value: _sigil.compose.Fill) -> FillTo:
     ...
 
 @typing.overload

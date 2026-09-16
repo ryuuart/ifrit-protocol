@@ -18,16 +18,16 @@ __all__: list[str] = ['Context', 'compose', 'core', 'data', 'draw', 'geometry', 
 
 class Context:
 
-    def background(self, arg0: _t.ColorLike) -> None:
+    def background(self, color: _t.ColorLike) -> None:
         ...
 
-    def canvas(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> None:
+    def canvas(self, width: typing.SupportsFloat, height: typing.SupportsFloat) -> None:
         ...
 
-    def captureAt(self, arg0: typing.SupportsFloat) -> None:
+    def captureAt(self, seconds: typing.SupportsFloat) -> None:
         ...
 
-    def local(self, arg0: str) -> str:
+    def local(self, path: str) -> str:
         ...
 
     def measure(self, element: compose.Element, maxSize: skia.Size=...) -> skia.Size:
@@ -39,13 +39,13 @@ class Context:
     def nonlinearPicture(self) -> None:
         ...
 
-    def oversample(self, arg0: typing.SupportsInt) -> None:
+    def oversample(self, samples: typing.SupportsInt) -> None:
         ...
 
     def plate(self) -> None:
         ...
 
-    def render(self, arg0: compose.Element) -> None:
+    def render(self, element: compose.Element) -> None:
         ...
 
     def snapshot(self, element: compose.Element, maxSize: skia.Size=...) -> skia.Picture:

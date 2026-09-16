@@ -45,10 +45,17 @@ void bindGeometry(py::module_& root) {
   py::enum_<geometry::arrange::Turn>(arrange, "Turn")
       .value("Open", geometry::arrange::Turn::Open)
       .value("Closed", geometry::arrange::Turn::Closed);
-  arrange.def("step", &geometry::arrange::step)
-      .def("along", &geometry::arrange::along)
-      .def("onEllipse", &geometry::arrange::onEllipse)
-      .def("onRing", &geometry::arrange::onRing);
+  arrange
+      .def("step", &geometry::arrange::step, py::arg("extent"),
+           py::arg("count"), py::arg("turn"))
+      .def("along", &geometry::arrange::along, py::arg("start"),
+           py::arg("extent"), py::arg("index"), py::arg("count"),
+           py::arg("turn"))
+      .def("onEllipse", &geometry::arrange::onEllipse, py::arg("center"),
+           py::arg("radii"), py::arg("radians"))
+      .def("onRing", &geometry::arrange::onRing, py::arg("index"),
+           py::arg("count"), py::arg("center"), py::arg("radii"),
+           py::arg("startRadians"), py::arg("sweepRadians"), py::arg("turn"));
   py::class_<geometry::arrange::Cell>(arrange, "Cell")
       .def(py::init([](int column, int row) {
              return geometry::arrange::Cell{column, row};
@@ -56,8 +63,11 @@ void bindGeometry(py::module_& root) {
            py::arg("column") = 0, py::arg("row") = 0)
       .def_readwrite("column", &geometry::arrange::Cell::column)
       .def_readwrite("row", &geometry::arrange::Cell::row);
-  arrange.def("cellAt", &geometry::arrange::cellAt)
-      .def("moduleSize", &geometry::arrange::moduleSize);
+  arrange
+      .def("cellAt", &geometry::arrange::cellAt, py::arg("index"),
+           py::arg("columns"))
+      .def("moduleSize", &geometry::arrange::moduleSize, py::arg("container"),
+           py::arg("columns"), py::arg("rows"), py::arg("gap"));
   arrange.def("cellRect", &geometry::arrange::cellRect, py::arg("cell"),
               py::arg("module"), py::arg("gap") = SkSize{0, 0},
               py::arg("origin") = SkPoint{0, 0}, py::arg("columnSpan") = 1,
@@ -70,7 +80,7 @@ void bindGeometry(py::module_& root) {
       .def(
           "__matmul__",
           [](const glm::mat4& a, const glm::mat4& b) { return a * b; },
-          py::is_operator());
+          py::is_operator(), py::arg("other"));
   py::class_<camera::Camera>(cameras, "Camera")
       .def(py::init<>())
       .def_readwrite("eye", &camera::Camera::eye)
@@ -79,10 +89,13 @@ void bindGeometry(py::module_& root) {
       .def_readwrite("fovYDeg", &camera::Camera::fovYDeg)
       .def_readwrite("zNear", &camera::Camera::zNear)
       .def_readwrite("zFar", &camera::Camera::zFar)
-      .def("project", [](const camera::Camera& camera, glm::vec3 p,
-                         std::array<float, 2> viewport) {
-        return camera.project(p, {viewport[0], viewport[1]});
-      });
+      .def(
+          "project",
+          [](const camera::Camera& camera, glm::vec3 p,
+             std::array<float, 2> viewport) {
+            return camera.project(p, {viewport[0], viewport[1]});
+          },
+          py::arg("point"), py::arg("viewport"));
   py::class_<camera::Orbit>(cameras, "Orbit")
       .def(py::init([](float yaw, float pitch, float distance) {
              return camera::Orbit{yaw, pitch, distance};
@@ -92,7 +105,8 @@ void bindGeometry(py::module_& root) {
       .def_readwrite("yawDeg", &camera::Orbit::yawDeg)
       .def_readwrite("pitchDeg", &camera::Orbit::pitchDeg)
       .def_readwrite("distance", &camera::Orbit::distance);
-  cameras.def("orbitOf", &camera::orbitOf).def("cameraAt", &camera::cameraAt);
+  cameras.def("orbitOf", &camera::orbitOf, py::arg("camera"))
+      .def("cameraAt", &camera::cameraAt, py::arg("pivot"), py::arg("orbit"));
   cameras.def("place", &camera::place, py::arg("position") = glm::vec3(0),
               py::arg("yawDeg") = 0, py::arg("pitchDeg") = 0,
               py::arg("rollDeg") = 0, py::arg("scale") = 1);
@@ -108,8 +122,8 @@ void bindGeometry(py::module_& root) {
       .def_readwrite("indices", &mesh::Mesh::indices)
       .def("vertexCount", &mesh::Mesh::vertexCount)
       .def("triangleCount", &mesh::Mesh::triangleCount)
-      .def("append", &mesh::Mesh::append)
-      .def("transform", &mesh::Mesh::transform)
+      .def("append", &mesh::Mesh::append, py::arg("mesh"))
+      .def("transform", &mesh::Mesh::transform, py::arg("matrix"))
       .def("computeNormals", &mesh::Mesh::computeNormals)
       .def("bounds", [](const mesh::Mesh& mesh) {
         glm::vec3 lo, hi;
@@ -130,7 +144,7 @@ void bindGeometry(py::module_& root) {
                               }});
       },
       py::arg("nu"), py::arg("nv"), py::arg("surface"));
-  meshes.def("quad", &mesh::quad);
+  meshes.def("quad", &mesh::quad, py::arg("width"), py::arg("height"));
   py::class_<mesh::BoxOptions>(meshes, "BoxOptions")
       .def(py::init<>())
       .def_readwrite("front", &mesh::BoxOptions::front)

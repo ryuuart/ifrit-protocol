@@ -13,7 +13,7 @@ __all__: list[str] = ['ADD', 'BASELINE', 'BEVEL', 'BLEND', 'BOLD', 'BOLDITALIC',
 
 class Canvas:
 
-    def clear(self, arg0: _t.ColorLike) -> None:
+    def clear(self, ink: _t.ColorLike) -> None:
         ...
 
     def clipPath(self, path: _sigil.skia.Path, invert: bool=False) -> None:
@@ -22,19 +22,19 @@ class Canvas:
     def clipRect(self, rect: _t.RectLike, invert: bool=False) -> None:
         ...
 
-    def drawCircle(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: _sigil.skia.Paint) -> None:
+    def drawCircle(self, x: typing.SupportsFloat, y: typing.SupportsFloat, radius: typing.SupportsFloat, paint: _sigil.skia.Paint) -> None:
         ...
 
-    def drawPath(self, arg0: _sigil.skia.Path, arg1: _sigil.skia.Paint) -> None:
+    def drawPath(self, path: _sigil.skia.Path, paint: _sigil.skia.Paint) -> None:
         ...
 
-    def drawPoints(self, arg0: PointMode, arg1: _t.PointBatch, arg2: _sigil.skia.Paint) -> None:
+    def drawPoints(self, mode: PointMode, points: _t.PointBatch, paint: _sigil.skia.Paint) -> None:
         ...
 
-    def drawRect(self, arg0: _t.RectLike, arg1: _sigil.skia.Paint) -> None:
+    def drawRect(self, box: _t.RectLike, paint: _sigil.skia.Paint) -> None:
         ...
 
-    def drawVertices(self, arg0: _sigil.skia.Vertices, arg1: _sigil.skia.BlendMode, arg2: _sigil.skia.Paint) -> None:
+    def drawVertices(self, vertices: _sigil.skia.Vertices, blend: _sigil.skia.BlendMode, paint: _sigil.skia.Paint) -> None:
         ...
 
     def getSaveCount(self) -> int:
@@ -46,19 +46,19 @@ class Canvas:
     def restore(self) -> None:
         ...
 
-    def restoreToCount(self, arg0: typing.SupportsInt) -> None:
+    def restoreToCount(self, count: typing.SupportsInt) -> None:
         ...
 
-    def rotate(self, arg0: typing.SupportsFloat) -> None:
+    def rotate(self, degrees: typing.SupportsFloat) -> None:
         ...
 
     def save(self) -> int:
         ...
 
-    def scale(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> None:
+    def scale(self, x: typing.SupportsFloat, y: typing.SupportsFloat) -> None:
         ...
 
-    def translate(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> None:
+    def translate(self, x: typing.SupportsFloat, y: typing.SupportsFloat) -> None:
         ...
 
 class Constant:
@@ -269,7 +269,7 @@ class Graphics:
     def __init__(self, width: typing.SupportsFloat, height: typing.SupportsFloat) -> None:
         ...
 
-    def begin(self, arg0: Pen) -> Pen:
+    def begin(self, host: Pen) -> Pen:
         ...
 
     def draw(self, host: Pen, program: _t.DrawCallback) -> None:
@@ -287,10 +287,10 @@ class Graphics:
     def image(self) -> _sigil.skia.Image:
         ...
 
-    def resize(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> None:
+    def resize(self, width: typing.SupportsFloat, height: typing.SupportsFloat) -> None:
         ...
 
-    def setDensityFloor(self, arg0: typing.SupportsFloat) -> None:
+    def setDensityFloor(self, density: typing.SupportsFloat) -> None:
         ...
 
     def width(self) -> float:
@@ -299,7 +299,7 @@ class Graphics:
 class NoiseField:
 
     @staticmethod
-    def corner(arg0: typing.SupportsInt, arg1: typing.SupportsInt, arg2: typing.SupportsInt, arg3: typing.SupportsInt) -> float:
+    def corner(seed: typing.SupportsInt, x: typing.SupportsInt, y: typing.SupportsInt, z: typing.SupportsInt) -> float:
         ...
 
     def __init__(self, seed: typing.SupportsInt=0) -> None:
@@ -308,7 +308,7 @@ class NoiseField:
     def at(self, x: typing.SupportsFloat, y: typing.SupportsFloat=0.0, z: typing.SupportsFloat=0.0) -> float:
         ...
 
-    def detail(self, arg0: typing.SupportsInt, arg1: typing.SupportsFloat) -> None:
+    def detail(self, octaves: typing.SupportsInt, falloff: typing.SupportsFloat) -> None:
         ...
 
     def falloff(self) -> float:
@@ -318,7 +318,7 @@ class NoiseField:
         ...
 
     @typing.overload
-    def seed(self, arg0: typing.SupportsInt) -> None:
+    def seed(self, seed: typing.SupportsInt) -> None:
         ...
 
     @typing.overload
@@ -328,18 +328,18 @@ class NoiseField:
 class Pen:
 
     @staticmethod
-    def lerpColor(arg0: _t.ColorLike, arg1: _t.ColorLike, arg2: typing.SupportsFloat) -> _sigil.skia.Color:
+    def lerpColor(a: _t.ColorLike, b: _t.ColorLike, amount: typing.SupportsFloat) -> _sigil.skia.Color:
         ...
 
     @typing.overload
-    def angleMode(self, arg0: Constant) -> None:
+    def angleMode(self, mode: Constant) -> None:
         ...
 
     @typing.overload
     def angleMode(self) -> Constant:
         ...
 
-    def applyMatrix(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat, arg4: typing.SupportsFloat, arg5: typing.SupportsFloat) -> None:
+    def applyMatrix(self, a: typing.SupportsFloat, b: typing.SupportsFloat, c: typing.SupportsFloat, d: typing.SupportsFloat, e: typing.SupportsFloat, f: typing.SupportsFloat) -> None:
         ...
 
     def arc(self, x: typing.SupportsFloat, y: typing.SupportsFloat, width: typing.SupportsFloat, height: typing.SupportsFloat, start: typing.SupportsFloat, stop: typing.SupportsFloat, mode: Constant=...) -> None:
@@ -363,24 +363,24 @@ class Pen:
     def beginShape(self, kind: Constant=...) -> None:
         ...
 
-    def bezier(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat, arg4: typing.SupportsFloat, arg5: typing.SupportsFloat, arg6: typing.SupportsFloat, arg7: typing.SupportsFloat) -> None:
+    def bezier(self, x1: typing.SupportsFloat, y1: typing.SupportsFloat, x2: typing.SupportsFloat, y2: typing.SupportsFloat, x3: typing.SupportsFloat, y3: typing.SupportsFloat, x4: typing.SupportsFloat, y4: typing.SupportsFloat) -> None:
         ...
 
-    def bezierVertex(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat, arg4: typing.SupportsFloat, arg5: typing.SupportsFloat) -> None:
+    def bezierVertex(self, x2: typing.SupportsFloat, y2: typing.SupportsFloat, x3: typing.SupportsFloat, y3: typing.SupportsFloat, x4: typing.SupportsFloat, y4: typing.SupportsFloat) -> None:
         ...
 
-    def blendMode(self, arg0: Constant) -> None:
+    def blendMode(self, mode: Constant) -> None:
         ...
 
     def canvas(self) -> Canvas:
         ...
 
     @typing.overload
-    def circle(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat) -> None:
+    def circle(self, x: typing.SupportsFloat, y: typing.SupportsFloat, diameter: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def circle(self, arg0: _t.PointLike, arg1: typing.SupportsFloat) -> None:
+    def circle(self, at: _t.PointLike, diameter: typing.SupportsFloat) -> None:
         ...
 
     def clear(self) -> None:
@@ -402,45 +402,45 @@ class Pen:
         ...
 
     @typing.overload
-    def colorMode(self, arg0: Constant) -> None:
+    def colorMode(self, mode: Constant) -> None:
         ...
 
     @typing.overload
-    def colorMode(self, arg0: Constant, arg1: typing.SupportsFloat) -> None:
+    def colorMode(self, mode: Constant, max: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def colorMode(self, arg0: Constant, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat) -> None:
+    def colorMode(self, mode: Constant, max1: typing.SupportsFloat, max2: typing.SupportsFloat, max3: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def colorMode(self, arg0: Constant, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat, arg4: typing.SupportsFloat) -> None:
+    def colorMode(self, mode: Constant, max1: typing.SupportsFloat, max2: typing.SupportsFloat, max3: typing.SupportsFloat, maxA: typing.SupportsFloat) -> None:
         ...
 
     def contentScale(self) -> float:
         ...
 
-    def curve(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat, arg4: typing.SupportsFloat, arg5: typing.SupportsFloat, arg6: typing.SupportsFloat, arg7: typing.SupportsFloat) -> None:
+    def curve(self, x1: typing.SupportsFloat, y1: typing.SupportsFloat, x2: typing.SupportsFloat, y2: typing.SupportsFloat, x3: typing.SupportsFloat, y3: typing.SupportsFloat, x4: typing.SupportsFloat, y4: typing.SupportsFloat) -> None:
         ...
 
-    def curveTightness(self, arg0: typing.SupportsFloat) -> None:
+    def curveTightness(self, amount: typing.SupportsFloat) -> None:
         ...
 
-    def curveVertex(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> None:
+    def curveVertex(self, x: typing.SupportsFloat, y: typing.SupportsFloat) -> None:
         ...
 
     def element(self, element: _sigil.compose.Element, box: _t.RectLike, index: typing.SupportsInt=0) -> None:
         ...
 
     @typing.overload
-    def ellipse(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat) -> None:
+    def ellipse(self, x: typing.SupportsFloat, y: typing.SupportsFloat, width: typing.SupportsFloat, height: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def ellipse(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat) -> None:
+    def ellipse(self, x: typing.SupportsFloat, y: typing.SupportsFloat, width: typing.SupportsFloat) -> None:
         ...
 
-    def ellipseMode(self, arg0: Constant) -> None:
+    def ellipseMode(self, mode: Constant) -> None:
         ...
 
     def endContour(self) -> None:
@@ -469,33 +469,33 @@ class Pen:
         ...
 
     @typing.overload
-    def frameRate(self, arg0: typing.SupportsFloat) -> None:
+    def frameRate(self, fps: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def image(self, arg0: _sigil.skia.Image, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat) -> None:
+    def image(self, image: _sigil.skia.Image, x: typing.SupportsFloat, y: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def image(self, arg0: _sigil.skia.Image, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat, arg4: typing.SupportsFloat) -> None:
+    def image(self, image: _sigil.skia.Image, x: typing.SupportsFloat, y: typing.SupportsFloat, width: typing.SupportsFloat, height: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def image(self, arg0: _sigil.skia.Image, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat, arg4: typing.SupportsFloat, arg5: typing.SupportsFloat, arg6: typing.SupportsFloat, arg7: typing.SupportsFloat, arg8: typing.SupportsFloat) -> None:
+    def image(self, image: _sigil.skia.Image, x: typing.SupportsFloat, y: typing.SupportsFloat, width: typing.SupportsFloat, height: typing.SupportsFloat, sourceX: typing.SupportsFloat, sourceY: typing.SupportsFloat, sourceWidth: typing.SupportsFloat, sourceHeight: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def image(self, arg0: Graphics, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat) -> None:
+    def image(self, image: Graphics, x: typing.SupportsFloat, y: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def image(self, arg0: Graphics, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat, arg4: typing.SupportsFloat) -> None:
+    def image(self, image: Graphics, x: typing.SupportsFloat, y: typing.SupportsFloat, width: typing.SupportsFloat, height: typing.SupportsFloat) -> None:
         ...
 
-    def imageMode(self, arg0: Constant) -> None:
+    def imageMode(self, mode: Constant) -> None:
         ...
 
-    def inherit(self, arg0: _t.ColorLike, arg1: _sigil.weave.Type) -> None:
+    def inherit(self, ink: _t.ColorLike, font: _sigil.weave.Type) -> None:
         ...
 
     def inheritedFont(self) -> _sigil.weave.Type:
@@ -507,18 +507,18 @@ class Pen:
     def isLooping(self) -> bool:
         ...
 
-    def keyIsDown(self, arg0: typing.SupportsInt) -> bool:
+    def keyIsDown(self, code: typing.SupportsInt) -> bool:
         ...
 
     def keysDown(self) -> list[int]:
         ...
 
     @typing.overload
-    def line(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat) -> None:
+    def line(self, x1: typing.SupportsFloat, y1: typing.SupportsFloat, x2: typing.SupportsFloat, y2: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def line(self, arg0: _t.PointLike, arg1: _t.PointLike) -> None:
+    def line(self, start: _t.PointLike, end: _t.PointLike) -> None:
         ...
 
     def loop(self) -> None:
@@ -545,18 +545,18 @@ class Pen:
     def noise(self, x: typing.SupportsFloat, y: typing.SupportsFloat=0.0, z: typing.SupportsFloat=0.0) -> float:
         ...
 
-    def noiseDetail(self, arg0: typing.SupportsInt, arg1: typing.SupportsFloat) -> None:
+    def noiseDetail(self, octaves: typing.SupportsInt, falloff: typing.SupportsFloat) -> None:
         ...
 
-    def noiseSeed(self, arg0: typing.SupportsInt) -> None:
-        ...
-
-    @typing.overload
-    def point(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> None:
+    def noiseSeed(self, seed: typing.SupportsInt) -> None:
         ...
 
     @typing.overload
-    def point(self, arg0: _t.PointLike) -> None:
+    def point(self, x: typing.SupportsFloat, y: typing.SupportsFloat) -> None:
+        ...
+
+    @typing.overload
+    def point(self, at: _t.PointLike) -> None:
         ...
 
     def pop(self) -> None:
@@ -565,10 +565,10 @@ class Pen:
     def push(self) -> None:
         ...
 
-    def quad(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat, arg4: typing.SupportsFloat, arg5: typing.SupportsFloat, arg6: typing.SupportsFloat, arg7: typing.SupportsFloat) -> None:
+    def quad(self, x1: typing.SupportsFloat, y1: typing.SupportsFloat, x2: typing.SupportsFloat, y2: typing.SupportsFloat, x3: typing.SupportsFloat, y3: typing.SupportsFloat, x4: typing.SupportsFloat, y4: typing.SupportsFloat) -> None:
         ...
 
-    def quadraticVertex(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat) -> None:
+    def quadraticVertex(self, cx: typing.SupportsFloat, cy: typing.SupportsFloat, x3: typing.SupportsFloat, y3: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
@@ -576,32 +576,32 @@ class Pen:
         ...
 
     @typing.overload
-    def random(self, arg0: typing.SupportsFloat) -> float:
+    def random(self, max: typing.SupportsFloat) -> float:
         ...
 
     @typing.overload
-    def random(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> float:
+    def random(self, min: typing.SupportsFloat, max: typing.SupportsFloat) -> float:
         ...
 
     def randomGaussian(self, mean: typing.SupportsFloat=0.0, sd: typing.SupportsFloat=1.0) -> float:
         ...
 
-    def randomSeed(self, arg0: typing.SupportsInt) -> None:
+    def randomSeed(self, seed: typing.SupportsInt) -> None:
         ...
 
     @typing.overload
-    def rect(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat) -> None:
+    def rect(self, x: typing.SupportsFloat, y: typing.SupportsFloat, width: typing.SupportsFloat, height: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def rect(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat, arg4: typing.SupportsFloat) -> None:
+    def rect(self, x: typing.SupportsFloat, y: typing.SupportsFloat, width: typing.SupportsFloat, height: typing.SupportsFloat, radius: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def rect(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat, arg4: typing.SupportsFloat, arg5: typing.SupportsFloat, arg6: typing.SupportsFloat, arg7: typing.SupportsFloat) -> None:
+    def rect(self, x: typing.SupportsFloat, y: typing.SupportsFloat, width: typing.SupportsFloat, height: typing.SupportsFloat, topLeft: typing.SupportsFloat, topRight: typing.SupportsFloat, bottomRight: typing.SupportsFloat, bottomLeft: typing.SupportsFloat) -> None:
         ...
 
-    def rectMode(self, arg0: Constant) -> None:
+    def rectMode(self, mode: Constant) -> None:
         ...
 
     def redraw(self) -> None:
@@ -610,44 +610,44 @@ class Pen:
     def resetMatrix(self) -> None:
         ...
 
-    def rotate(self, arg0: typing.SupportsFloat) -> None:
+    def rotate(self, angle: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def scale(self, arg0: typing.SupportsFloat) -> None:
+    def scale(self, factor: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def scale(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> None:
+    def scale(self, x: typing.SupportsFloat, y: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def shape(self, arg0: _sigil.skia.Path) -> None:
+    def shape(self, path: _sigil.skia.Path) -> None:
         ...
 
     @typing.overload
-    def shape(self, arg0: _sigil.skia.Path, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat, arg4: typing.SupportsFloat) -> None:
+    def shape(self, silhouette: _sigil.skia.Path, x: typing.SupportsFloat, y: typing.SupportsFloat, width: typing.SupportsFloat, height: typing.SupportsFloat) -> None:
         ...
 
-    def shearX(self, arg0: typing.SupportsFloat) -> None:
+    def shearX(self, angle: typing.SupportsFloat) -> None:
         ...
 
-    def shearY(self, arg0: typing.SupportsFloat) -> None:
+    def shearY(self, angle: typing.SupportsFloat) -> None:
         ...
 
     def smooth(self) -> None:
         ...
 
     @typing.overload
-    def square(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat) -> None:
+    def square(self, x: typing.SupportsFloat, y: typing.SupportsFloat, size: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def square(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat) -> None:
+    def square(self, x: typing.SupportsFloat, y: typing.SupportsFloat, size: typing.SupportsFloat, radius: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def square(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat, arg4: typing.SupportsFloat, arg5: typing.SupportsFloat, arg6: typing.SupportsFloat) -> None:
+    def square(self, x: typing.SupportsFloat, y: typing.SupportsFloat, size: typing.SupportsFloat, topLeft: typing.SupportsFloat, topRight: typing.SupportsFloat, bottomRight: typing.SupportsFloat, bottomLeft: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
@@ -662,42 +662,42 @@ class Pen:
     def stroke(self, red: _t.FloatLike, green: _t.FloatLike, blue: _t.FloatLike, alpha: _t.FloatLike=..., /) -> None:
         ...
 
-    def strokeCap(self, arg0: Constant) -> None:
+    def strokeCap(self, cap: Constant) -> None:
         ...
 
     def strokeDash(self, intervals: collections.abc.Sequence[typing.SupportsFloat], phase: typing.SupportsFloat=0.0) -> None:
         ...
 
-    def strokeJoin(self, arg0: Constant) -> None:
+    def strokeJoin(self, join: Constant) -> None:
         ...
 
     def strokePaint(self) -> _sigil.skia.Paint | None:
         ...
 
-    def strokeWeight(self, arg0: typing.SupportsFloat) -> None:
+    def strokeWeight(self, weight: typing.SupportsFloat) -> None:
         ...
 
     def targetFrameRate(self) -> float:
         ...
 
     @typing.overload
-    def text(self, arg0: str, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat) -> None:
+    def text(self, text: str, x: typing.SupportsFloat, y: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def text(self, arg0: str, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat, arg4: typing.SupportsFloat) -> None:
+    def text(self, text: str, x: typing.SupportsFloat, y: typing.SupportsFloat, width: typing.SupportsFloat, height: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def text(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat) -> None:
+    def text(self, value: typing.SupportsFloat, x: typing.SupportsFloat, y: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def textAlign(self, arg0: Constant) -> None:
+    def textAlign(self, horizontal: Constant) -> None:
         ...
 
     @typing.overload
-    def textAlign(self, arg0: Constant, arg1: Constant) -> None:
+    def textAlign(self, horizontal: Constant, vertical: Constant) -> None:
         ...
 
     def textAscent(self) -> float:
@@ -707,48 +707,48 @@ class Pen:
         ...
 
     @typing.overload
-    def textFont(self, arg0: str) -> None:
+    def textFont(self, family: str) -> None:
         ...
 
     @typing.overload
-    def textFont(self, arg0: str, arg1: typing.SupportsFloat) -> None:
+    def textFont(self, family: str, size: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def textFont(self, arg0: _sigil.weave.Type) -> None:
+    def textFont(self, type: _sigil.weave.Type) -> None:
         ...
 
     @typing.overload
-    def textFont(self, arg0: _sigil.skia.Typeface) -> None:
+    def textFont(self, face: _sigil.skia.Typeface) -> None:
         ...
 
     @typing.overload
-    def textLeading(self, arg0: typing.SupportsFloat) -> None:
+    def textLeading(self, leading: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
     def textLeading(self) -> float:
         ...
 
-    def textSize(self, arg0: typing.SupportsFloat) -> None:
+    def textSize(self, size: typing.SupportsFloat) -> None:
         ...
 
-    def textStyle(self, arg0: Constant) -> None:
+    def textStyle(self, style: Constant) -> None:
         ...
 
-    def textWidth(self, arg0: str) -> float:
+    def textWidth(self, text: str) -> float:
         ...
 
-    def translate(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> None:
+    def translate(self, x: typing.SupportsFloat, y: typing.SupportsFloat) -> None:
         ...
 
-    def triangle(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat, arg4: typing.SupportsFloat, arg5: typing.SupportsFloat) -> None:
+    def triangle(self, x1: typing.SupportsFloat, y1: typing.SupportsFloat, x2: typing.SupportsFloat, y2: typing.SupportsFloat, x3: typing.SupportsFloat, y3: typing.SupportsFloat) -> None:
         ...
 
-    def vertex(self, arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> None:
+    def vertex(self, x: typing.SupportsFloat, y: typing.SupportsFloat) -> None:
         ...
 
-    def vertices(self, arg0: _sigil.skia.Vertices) -> None:
+    def vertices(self, mesh: _sigil.skia.Vertices) -> None:
         ...
 
     @property
@@ -852,37 +852,37 @@ class PointMode:
     def value(self) -> int:
         ...
 
-def constrain(arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat) -> float:
+def constrain(value: typing.SupportsFloat, low: typing.SupportsFloat, high: typing.SupportsFloat) -> float:
     ...
 
-def degrees(arg0: typing.SupportsFloat) -> float:
+def degrees(radians: typing.SupportsFloat) -> float:
     ...
 
-def dist(arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat, arg3: typing.SupportsFloat) -> float:
+def dist(x1: typing.SupportsFloat, y1: typing.SupportsFloat, x2: typing.SupportsFloat, y2: typing.SupportsFloat) -> float:
     ...
 
-def lerp(arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat) -> float:
+def lerp(start: typing.SupportsFloat, stop: typing.SupportsFloat, amount: typing.SupportsFloat) -> float:
     ...
 
-def lerpColor(arg0: _t.ColorLike, arg1: _t.ColorLike, arg2: typing.SupportsFloat) -> _sigil.skia.Color:
+def lerpColor(a: _t.ColorLike, b: _t.ColorLike, amount: typing.SupportsFloat) -> _sigil.skia.Color:
     ...
 
-def mag(arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> float:
+def mag(x: typing.SupportsFloat, y: typing.SupportsFloat) -> float:
     ...
 
 def map(value: typing.SupportsFloat, start1: typing.SupportsFloat, stop1: typing.SupportsFloat, start2: typing.SupportsFloat, stop2: typing.SupportsFloat, withinBounds: bool=False) -> float:
     ...
 
-def norm(arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: typing.SupportsFloat) -> float:
+def norm(value: typing.SupportsFloat, start: typing.SupportsFloat, stop: typing.SupportsFloat) -> float:
     ...
 
 def on(canvas: Canvas, size: tuple[typing.SupportsFloat, typing.SupportsFloat], program: _t.DrawCallback) -> None:
     ...
 
-def radians(arg0: typing.SupportsFloat) -> float:
+def radians(degrees: typing.SupportsFloat) -> float:
     ...
 
-def sq(arg0: typing.SupportsFloat) -> float:
+def sq(value: typing.SupportsFloat) -> float:
     ...
 ADD: Constant
 BASELINE: Constant

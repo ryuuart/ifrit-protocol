@@ -40,40 +40,29 @@ def instrument(reading):
         .corners(15)
         .opacity(animate(from_(0).to(1), Transition(0.4, ease.outQuad)))
         .children(
-            [
-                (text(reading.label).styleClass("label")),
-                (
-                    row()
-                    .gap(12)
-                    .alignItems("baseline")
-                    .children(
-                        [
-                            (text(f"{reading.value:02d}").styleClass("reading")),
-                            (text("/ 100").styleClass("unit")),
-                        ]
-                    )
-                ),
-                (
-                    box()
-                    .width(212)
-                    .height(6)
-                    .fill("#253e36")
-                    .corners(3)
-                    .clip(True)
-                    .children(
-                        [
-                            (
-                                box()
-                                .width(pct(reading.value))
-                                .height(6)
-                                .fill(reading.accent)
-                            ),
-                        ]
-                    )
-                ),
-                marks,
-                (text("SIGNAL LOCKED").styleClass("label").ink(reading.accent)),
-            ]
+            (text(reading.label).styleClass("label")),
+            (
+                row()
+                .gap(12)
+                .alignItems("baseline")
+                .children(
+                    (text(f"{reading.value:02d}").styleClass("reading")),
+                    (text("/ 100").styleClass("unit")),
+                )
+            ),
+            (
+                box()
+                .width(212)
+                .height(6)
+                .fill("#253e36")
+                .corners(3)
+                .clip(True)
+                .children(
+                    (box().width(pct(reading.value)).height(6).fill(reading.accent)),
+                )
+            ),
+            marks,
+            (text("SIGNAL LOCKED").styleClass("label").ink(reading.accent)),
         )
     ).stroke(stroke(1, "#2b463d"))
 
@@ -112,44 +101,35 @@ class MemoStation:
             .ink("#e0ede5")
             .styleSheet(self.sheet)
             .children(
-                [
-                    (
-                        row()
-                        .width(864)
-                        .justify("space_between")
-                        .children(
-                            [
-                                (text("STATION / 04").styleClass("label")),
-                                (text("LIVE READINGS").styleClass("label")),
-                            ]
-                        )
-                    ),
-                    (text("A quiet signal, held in place.").styleClass("title")),
-                    (
-                        row()
-                        .gap(24)
-                        .children(
-                            [
-                                (memo(value, instrument).key(value.label))
-                                for value in values
-                            ]
-                        )
-                    ),
-                    (
-                        row()
-                        .width(864)
-                        .justify("space_between")
-                        .children(
-                            [
-                                (text("SENSOR ARRAY").styleClass("label")),
-                                (
-                                    text(
-                                        "NATIVE COMPOSITION / PYTHON MODELS"
-                                    ).styleClass("label")
-                                ),
-                            ]
-                        )
-                    ),
-                ]
+                (
+                    row()
+                    .width(864)
+                    .justify("space_between")
+                    .children(
+                        (text("STATION / 04").styleClass("label")),
+                        (text("LIVE READINGS").styleClass("label")),
+                    )
+                ),
+                (text("A quiet signal, held in place.").styleClass("title")),
+                (
+                    row()
+                    .gap(24)
+                    .children(
+                        [(memo(value, instrument).key(value.label)) for value in values]
+                    )
+                ),
+                (
+                    row()
+                    .width(864)
+                    .justify("space_between")
+                    .children(
+                        (text("SENSOR ARRAY").styleClass("label")),
+                        (
+                            text("NATIVE COMPOSITION / PYTHON MODELS").styleClass(
+                                "label"
+                            )
+                        ),
+                    )
+                ),
             )
         )

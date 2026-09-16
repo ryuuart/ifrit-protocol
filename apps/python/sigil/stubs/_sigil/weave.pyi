@@ -20,7 +20,7 @@ class Block:
     lineBreakLocale: str | None
     writingMode: _sigil.weave.WritingMode | None
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     def __init__(self, *, alignment: _sigil.weave.TextAlignment | None=..., balanceRaggedLines: bool | None=..., halfLeading: bool | None=..., justifyLastLine: bool | None=..., lastLineAlignment: _sigil.weave.TextAlignment | None=..., leading: _sigil.weave.Leading | None=..., lineBreak: _sigil.weave.LineBreakStrategy | None=..., lineBreakLocale: str | None=..., writingMode: _sigil.weave.WritingMode | None=..., firstLineIndent: typing.SupportsFloat | None=..., lastLineIndent: typing.SupportsFloat | None=..., orphanLines: typing.SupportsInt | None=..., tsume: typing.SupportsFloat | None=..., widowLines: typing.SupportsInt | None=...) -> None:
@@ -34,7 +34,7 @@ class Block:
         ...
 
     @firstLineIndent.setter
-    def firstLineIndent(self, arg0: typing.SupportsFloat | None) -> None:
+    def firstLineIndent(self, value: typing.SupportsFloat | None, /) -> None:
         ...
 
     @property
@@ -42,7 +42,7 @@ class Block:
         ...
 
     @lastLineIndent.setter
-    def lastLineIndent(self, arg0: typing.SupportsFloat | None) -> None:
+    def lastLineIndent(self, value: typing.SupportsFloat | None, /) -> None:
         ...
 
     @property
@@ -50,7 +50,7 @@ class Block:
         ...
 
     @orphanLines.setter
-    def orphanLines(self, arg0: typing.SupportsInt | None) -> None:
+    def orphanLines(self, value: typing.SupportsInt | None, /) -> None:
         ...
 
     @property
@@ -58,7 +58,7 @@ class Block:
         ...
 
     @tsume.setter
-    def tsume(self, arg0: typing.SupportsFloat | None) -> None:
+    def tsume(self, value: typing.SupportsFloat | None, /) -> None:
         ...
 
     @property
@@ -66,13 +66,13 @@ class Block:
         ...
 
     @widowLines.setter
-    def widowLines(self, arg0: typing.SupportsInt | None) -> None:
+    def widowLines(self, value: typing.SupportsInt | None, /) -> None:
         ...
 
 class FontFeature:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     def __init__(self, tag: str, value: typing.SupportsInt=1) -> None:
@@ -87,13 +87,13 @@ class FontFeature:
         ...
 
     @value.setter
-    def value(self, arg0: typing.SupportsInt) -> None:
+    def value(self, value: typing.SupportsInt, /) -> None:
         ...
 
 class FontVariation:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     def __init__(self, tag: str, value: typing.SupportsFloat) -> None:
@@ -108,7 +108,7 @@ class FontVariation:
         ...
 
     @value.setter
-    def value(self, arg0: typing.SupportsFloat) -> None:
+    def value(self, value: typing.SupportsFloat, /) -> None:
         ...
 
 class Leading:
@@ -172,7 +172,7 @@ class Leading:
     kind: Leading.Kind
 
     @staticmethod
-    def absolute(arg0: typing.SupportsFloat) -> Leading:
+    def absolute(pixels: typing.SupportsFloat) -> Leading:
         ...
 
     @staticmethod
@@ -180,14 +180,14 @@ class Leading:
         ...
 
     @staticmethod
-    def grid(arg0: typing.SupportsFloat) -> Leading:
+    def grid(step: typing.SupportsFloat) -> Leading:
         ...
 
     @staticmethod
-    def multiple(arg0: typing.SupportsFloat) -> Leading:
+    def multiple(factor: typing.SupportsFloat) -> Leading:
         ...
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     def __init__(self) -> None:
@@ -198,7 +198,7 @@ class Leading:
         ...
 
     @value.setter
-    def value(self, arg0: typing.SupportsFloat) -> None:
+    def value(self, value: typing.SupportsFloat, /) -> None:
         ...
 
 class Length:
@@ -261,7 +261,7 @@ class Length:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
     unit: Length.Unit
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     @typing.overload
@@ -269,11 +269,11 @@ class Length:
         ...
 
     @typing.overload
-    def __init__(self, arg0: typing.SupportsFloat) -> None:
+    def __init__(self, value: typing.SupportsFloat) -> None:
         ...
 
     @typing.overload
-    def __init__(self, arg0: typing.SupportsFloat, arg1: Length.Unit) -> None:
+    def __init__(self, value: typing.SupportsFloat, unit: Length.Unit) -> None:
         ...
 
     def relative(self) -> bool:
@@ -284,7 +284,7 @@ class Length:
         ...
 
     @value.setter
-    def value(self, arg0: typing.SupportsFloat) -> None:
+    def value(self, value: typing.SupportsFloat, /) -> None:
         ...
 
 class LineBreakStrategy:
@@ -341,7 +341,7 @@ class PaintStyle:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
     foreground: _sigil.skia.Paint
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     def __init__(self, *, foreground: _sigil.skia.Paint=..., baselineShift: typing.SupportsFloat=...) -> None:
@@ -352,36 +352,36 @@ class PaintStyle:
         ...
 
     @baselineShift.setter
-    def baselineShift(self, arg0: typing.SupportsFloat) -> None:
+    def baselineShift(self, value: typing.SupportsFloat, /) -> None:
         ...
 
 class Rule:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     @typing.overload
-    def __init__(self, arg0: str) -> None:
+    def __init__(self, name: str) -> None:
         ...
 
     @typing.overload
-    def __init__(self, arg0: str, arg1: Type) -> None:
+    def __init__(self, name: str, type: Type) -> None:
         ...
 
     @typing.overload
-    def __init__(self, arg0: str, arg1: Block) -> None:
+    def __init__(self, name: str, block: Block) -> None:
         ...
 
     @typing.overload
-    def block(self, arg0: Block) -> Rule:
+    def block(self, block: Block) -> Rule:
         ...
 
     @typing.overload
     def block(self) -> Block:
         ...
 
-    def font(self, arg0: Type) -> Rule:
+    def font(self, type: Type) -> Rule:
         ...
 
     def name(self) -> str:
@@ -399,7 +399,7 @@ class ShapingStyle:
     typeface: _sigil.skia.Typeface
     verticalForm: VerticalForm
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     def __init__(self, *, aliased: bool=..., languageTag: str=..., opticalKerning: bool=..., textTransform: TextTransform=..., typeface: _sigil.skia.Typeface=..., verticalForm: VerticalForm=..., fontFeatures: collections.abc.Sequence[FontFeature]=..., fontSize: typing.SupportsFloat=..., letterSpacing: typing.SupportsFloat=..., scaleX: typing.SupportsFloat=..., variations: collections.abc.Sequence[FontVariation]=..., wordSpacing: typing.SupportsFloat=...) -> None:
@@ -410,7 +410,7 @@ class ShapingStyle:
         ...
 
     @fontFeatures.setter
-    def fontFeatures(self, arg1: collections.abc.Sequence[FontFeature]) -> None:
+    def fontFeatures(self, value: collections.abc.Sequence[FontFeature], /) -> None:
         ...
 
     @property
@@ -418,7 +418,7 @@ class ShapingStyle:
         ...
 
     @fontSize.setter
-    def fontSize(self, arg0: typing.SupportsFloat) -> None:
+    def fontSize(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -426,7 +426,7 @@ class ShapingStyle:
         ...
 
     @letterSpacing.setter
-    def letterSpacing(self, arg0: typing.SupportsFloat) -> None:
+    def letterSpacing(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -434,7 +434,7 @@ class ShapingStyle:
         ...
 
     @scaleX.setter
-    def scaleX(self, arg0: typing.SupportsFloat) -> None:
+    def scaleX(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -442,7 +442,7 @@ class ShapingStyle:
         ...
 
     @variations.setter
-    def variations(self, arg1: collections.abc.Sequence[FontVariation]) -> None:
+    def variations(self, value: collections.abc.Sequence[FontVariation], /) -> None:
         ...
 
     @property
@@ -450,19 +450,19 @@ class ShapingStyle:
         ...
 
     @wordSpacing.setter
-    def wordSpacing(self, arg0: typing.SupportsFloat) -> None:
+    def wordSpacing(self, value: typing.SupportsFloat, /) -> None:
         ...
 
 class StyleSheet:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __contains__(self, arg0: str) -> bool:
+    def __contains__(self, name: str) -> bool:
         ...
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
-    def __getitem__(self, arg0: str) -> TextStyle:
+    def __getitem__(self, name: str) -> TextStyle:
         ...
 
     @typing.overload
@@ -470,42 +470,42 @@ class StyleSheet:
         ...
 
     @typing.overload
-    def __init__(self, arg0: TextStyle) -> None:
+    def __init__(self, style: TextStyle) -> None:
         ...
 
     def __len__(self) -> int:
         ...
 
     @typing.overload
-    def base(self, arg0: TextStyle) -> StyleSheet:
+    def base(self, style: TextStyle) -> StyleSheet:
         ...
 
     @typing.overload
     def base(self) -> TextStyle:
         ...
 
-    def contains(self, arg0: str) -> bool:
+    def contains(self, name: str) -> bool:
         ...
 
     def empty(self) -> bool:
         ...
 
-    def find(self, arg0: str) -> _sigil.weave.Rule | None:
+    def find(self, name: str) -> _sigil.weave.Rule | None:
         ...
 
     def rules(self) -> list[Rule]:
         ...
 
     @typing.overload
-    def set(self, arg0: Rule) -> StyleSheet:
+    def set(self, rule: Rule) -> StyleSheet:
         ...
 
     @typing.overload
-    def set(self, arg0: str, arg1: Type) -> StyleSheet:
+    def set(self, name: str, type: Type) -> StyleSheet:
         ...
 
     @typing.overload
-    def set(self, arg0: str, arg1: Block) -> StyleSheet:
+    def set(self, name: str, block: Block) -> StyleSheet:
         ...
 
 class TextAlignment:
@@ -569,22 +569,22 @@ class TextStyle:
     paint: PaintStyle
     shaping: ShapingStyle
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     def __init__(self, *, paint: PaintStyle=..., shaping: ShapingStyle=...) -> None:
         ...
 
-    def condense(self, arg0: typing.SupportsFloat) -> TextStyle:
+    def condense(self, width: typing.SupportsFloat) -> TextStyle:
         ...
 
-    def opticalSize(self, arg0: typing.SupportsFloat) -> TextStyle:
+    def opticalSize(self, size: typing.SupportsFloat) -> TextStyle:
         ...
 
-    def variation(self, arg0: str, arg1: typing.SupportsFloat) -> TextStyle:
+    def variation(self, tag: str, value: typing.SupportsFloat) -> TextStyle:
         ...
 
-    def weight(self, arg0: typing.SupportsFloat) -> TextStyle:
+    def weight(self, weight: typing.SupportsFloat) -> TextStyle:
         ...
 
 class TextTransform:
@@ -678,7 +678,7 @@ class Type:
     def wordSpacing(self, value: Length | float | int | None) -> None:
         ...
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
     def __init__(self, *, aliased: bool | None=..., antiAlias: bool | None=..., color8: bool | None=..., face: _sigil.skia.Typeface | None=..., language: str | None=..., opticalKerning: bool | None=..., textTransform: TextTransform | None=..., verticalForm: VerticalForm | None=..., size: Length | float | int | None=..., track: Length | float | int | None=..., wordSpacing: Length | float | int | None=..., color: _t.ColorLike | None=..., condense: typing.SupportsFloat | None=..., features: collections.abc.Sequence[FontFeature] | None=..., slant: typing.SupportsFloat | None=..., variations: collections.abc.Sequence[FontVariation]=..., weight: typing.SupportsFloat | None=...) -> None:
@@ -695,7 +695,7 @@ class Type:
         ...
 
     @color.setter
-    def color(self, arg1: _t.ColorLike | None) -> None:
+    def color(self, value: _t.ColorLike | None, /) -> None:
         ...
 
     @property
@@ -703,7 +703,7 @@ class Type:
         ...
 
     @condense.setter
-    def condense(self, arg0: typing.SupportsFloat | None) -> None:
+    def condense(self, value: typing.SupportsFloat | None, /) -> None:
         ...
 
     @property
@@ -711,7 +711,7 @@ class Type:
         ...
 
     @features.setter
-    def features(self, arg1: collections.abc.Sequence[FontFeature] | None) -> None:
+    def features(self, value: collections.abc.Sequence[FontFeature] | None, /) -> None:
         ...
 
     @property
@@ -719,7 +719,7 @@ class Type:
         ...
 
     @slant.setter
-    def slant(self, arg0: typing.SupportsFloat | None) -> None:
+    def slant(self, value: typing.SupportsFloat | None, /) -> None:
         ...
 
     @property
@@ -727,7 +727,7 @@ class Type:
         ...
 
     @variations.setter
-    def variations(self, arg1: collections.abc.Sequence[FontVariation]) -> None:
+    def variations(self, value: collections.abc.Sequence[FontVariation], /) -> None:
         ...
 
     @property
@@ -735,7 +735,7 @@ class Type:
         ...
 
     @weight.setter
-    def weight(self, arg0: typing.SupportsFloat | None) -> None:
+    def weight(self, value: typing.SupportsFloat | None, /) -> None:
         ...
 
 class VerticalForm:
@@ -844,22 +844,22 @@ class WritingMode:
     def value(self) -> int:
         ...
 
-def em(arg0: typing.SupportsFloat) -> Length:
+def em(value: typing.SupportsFloat) -> Length:
     ...
 
 def initialType() -> Type:
     ...
 
-def lh(arg0: typing.SupportsFloat) -> Length:
+def lh(value: typing.SupportsFloat) -> Length:
     ...
 
-def rem(arg0: typing.SupportsFloat) -> Length:
+def rem(value: typing.SupportsFloat) -> Length:
     ...
 
-def rule(arg0: str) -> Rule:
+def rule(name: str) -> Rule:
     ...
 
-def textStyle(arg0: Type) -> TextStyle:
+def textStyle(type: Type) -> TextStyle:
     ...
 
 def typeface(family: str, weight: typing.SupportsInt=400, italic: bool=False) -> _sigil.skia.Typeface:

@@ -34,7 +34,7 @@ class BoxOptions:
         ...
 
     @sideShade.setter
-    def sideShade(self, arg0: typing.SupportsFloat) -> None:
+    def sideShade(self, value: typing.SupportsFloat, /) -> None:
         ...
 
 class Mesh:
@@ -42,7 +42,7 @@ class Mesh:
     def __init__(self) -> None:
         ...
 
-    def append(self, arg0: Mesh) -> None:
+    def append(self, mesh: Mesh) -> None:
         ...
 
     def bounds(self) -> tuple[_t.Vec3, _t.Vec3]:
@@ -54,7 +54,7 @@ class Mesh:
     def copy(self) -> Mesh:
         ...
 
-    def transform(self, arg0: camera.Matrix) -> None:
+    def transform(self, matrix: camera.Matrix) -> None:
         ...
 
     def triangleCount(self) -> int:
@@ -68,7 +68,7 @@ class Mesh:
         ...
 
     @colors.setter
-    def colors(self, arg0: collections.abc.Sequence[_t.Vec4Like]) -> None:
+    def colors(self, value: collections.abc.Sequence[_t.Vec4Like], /) -> None:
         ...
 
     @property
@@ -76,7 +76,7 @@ class Mesh:
         ...
 
     @indices.setter
-    def indices(self, arg0: collections.abc.Sequence[typing.SupportsInt]) -> None:
+    def indices(self, value: collections.abc.Sequence[typing.SupportsInt], /) -> None:
         ...
 
     @property
@@ -84,7 +84,7 @@ class Mesh:
         ...
 
     @normals.setter
-    def normals(self, arg0: collections.abc.Sequence[_t.Vec3Like]) -> None:
+    def normals(self, value: collections.abc.Sequence[_t.Vec3Like], /) -> None:
         ...
 
     @property
@@ -92,7 +92,7 @@ class Mesh:
         ...
 
     @positions.setter
-    def positions(self, arg0: collections.abc.Sequence[_t.Vec3Like]) -> None:
+    def positions(self, value: collections.abc.Sequence[_t.Vec3Like], /) -> None:
         ...
 
     @property
@@ -100,7 +100,7 @@ class Mesh:
         ...
 
     @uvs.setter
-    def uvs(self, arg0: collections.abc.Sequence[_t.Vec2Like]) -> None:
+    def uvs(self, value: collections.abc.Sequence[_t.Vec2Like], /) -> None:
         ...
 
 class Platonic:
@@ -177,7 +177,7 @@ def grid(nu: typing.SupportsInt, nv: typing.SupportsInt, surface: collections.ab
 def platonic(solid: Platonic, radius: typing.SupportsFloat=1, sharedVertices: bool=False) -> Mesh:
     ...
 
-def quad(arg0: typing.SupportsFloat, arg1: typing.SupportsFloat) -> Mesh:
+def quad(width: typing.SupportsFloat, height: typing.SupportsFloat) -> Mesh:
     ...
 
 def revolve(profile: collections.abc.Sequence[_t.Vec2Like], segments: typing.SupportsInt=48, sweepDeg: typing.SupportsFloat=360, close: bool=True) -> Mesh:

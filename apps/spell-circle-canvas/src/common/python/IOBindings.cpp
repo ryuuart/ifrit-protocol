@@ -296,7 +296,7 @@ void bindIO(py::module_& module) {
           [](const FeedHandle& left, const FeedHandle& right) {
             return left.get() == right.get();
           },
-          py::is_operator());
+          py::is_operator(), py::arg("other"));
 
   py::class_<HubHandle>(resources, "Hub")
       .def(py::init<>())

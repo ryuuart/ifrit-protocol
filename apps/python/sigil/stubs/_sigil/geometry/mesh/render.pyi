@@ -29,7 +29,7 @@ class Light:
         ...
 
     @intensity.setter
-    def intensity(self, arg0: typing.SupportsFloat) -> None:
+    def intensity(self, value: typing.SupportsFloat, /) -> None:
         ...
 
 class MeshStyle:
@@ -51,7 +51,7 @@ class MeshStyle:
         ...
 
     @lights.setter
-    def lights(self, arg0: collections.abc.Sequence[Light]) -> None:
+    def lights(self, value: collections.abc.Sequence[Light], /) -> None:
         ...
 
     @property
@@ -59,7 +59,7 @@ class MeshStyle:
         ...
 
     @metallic.setter
-    def metallic(self, arg0: typing.SupportsFloat) -> None:
+    def metallic(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -67,7 +67,7 @@ class MeshStyle:
         ...
 
     @rim.setter
-    def rim(self, arg0: typing.SupportsFloat) -> None:
+    def rim(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -75,7 +75,7 @@ class MeshStyle:
         ...
 
     @roughness.setter
-    def roughness(self, arg0: typing.SupportsFloat) -> None:
+    def roughness(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -83,7 +83,7 @@ class MeshStyle:
         ...
 
     @shininess.setter
-    def shininess(self, arg0: typing.SupportsFloat) -> None:
+    def shininess(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -91,7 +91,7 @@ class MeshStyle:
         ...
 
     @specular.setter
-    def specular(self, arg0: typing.SupportsFloat) -> None:
+    def specular(self, value: typing.SupportsFloat, /) -> None:
         ...
 
 class Mode:

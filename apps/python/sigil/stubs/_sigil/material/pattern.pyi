@@ -12,29 +12,29 @@ class Tile:
     def image(self) -> _sigil.skia.Image:
         ...
 
-    def offset(self, arg0: _sigil.skia.Point) -> Tile:
+    def offset(self, offset: _sigil.skia.Point) -> Tile:
         ...
 
     def paint(self) -> _sigil.material.skia.Paint:
         ...
 
-    def rotate(self, arg0: typing.SupportsFloat) -> Tile:
+    def rotate(self, degrees: typing.SupportsFloat) -> Tile:
         ...
 
-    def scale(self, arg0: typing.SupportsFloat) -> Tile:
+    def scale(self, factor: typing.SupportsFloat) -> Tile:
         ...
 
-    def seed(self, arg0: typing.SupportsInt) -> Tile:
+    def seed(self, seed: typing.SupportsInt) -> Tile:
         ...
 
-def checker(arg0: typing.SupportsFloat, arg1: _t.ColorLike, arg2: _t.ColorLike) -> Tile:
+def checker(cell: typing.SupportsFloat, a: _t.ColorLike, b: _t.ColorLike) -> Tile:
     ...
 
-def gridLines(arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: _t.ColorLike) -> Tile:
+def gridLines(spacing: typing.SupportsFloat, width: typing.SupportsFloat, color: _t.ColorLike) -> Tile:
     ...
 
 def halftone(spacing: typing.SupportsFloat, radius: typing.SupportsFloat, color: _t.ColorLike, staggered: bool=True) -> Tile:
     ...
 
-def stripes(arg0: typing.SupportsFloat, arg1: typing.SupportsFloat, arg2: _t.ColorLike) -> Tile:
+def stripes(on: typing.SupportsFloat, off: typing.SupportsFloat, color: _t.ColorLike) -> Tile:
     ...

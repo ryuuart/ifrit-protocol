@@ -6,7 +6,7 @@ import typing
 import _sigil.compose
 __all__: list[str] = ['at', 'corners', 'edges', 'every', 'fit', 'range', 'rest', 'upTo', 'wrap']
 
-def at(arg0: typing.SupportsInt, arg1: typing.SupportsInt) -> _sigil.compose.Spans:
+def at(index: typing.SupportsInt, count: typing.SupportsInt) -> _sigil.compose.Spans:
     ...
 
 def corners(arm: typing.SupportsFloat, angle: typing.SupportsFloat=30.0) -> _sigil.compose.Spans:
@@ -21,7 +21,7 @@ def every(count: typing.SupportsInt, duty: typing.SupportsFloat=1.0) -> _sigil.c
 def fit(key: str, margin: typing.SupportsFloat=0.0) -> _sigil.compose.Spans:
     ...
 
-def range(arg0: _t.ScalarLike, arg1: _t.ScalarLike) -> _sigil.compose.Spans:
+def range(start: _t.ScalarLike, end: _t.ScalarLike) -> _sigil.compose.Spans:
     ...
 
 @typing.overload
@@ -29,11 +29,11 @@ def rest() -> _sigil.compose.Spans:
     ...
 
 @typing.overload
-def rest(arg0: str) -> _sigil.compose.Spans:
+def rest(name: str) -> _sigil.compose.Spans:
     ...
 
-def upTo(arg0: _t.ScalarLike) -> _sigil.compose.Spans:
+def upTo(end: _t.ScalarLike) -> _sigil.compose.Spans:
     ...
 
-def wrap(arg0: _t.ScalarLike, arg1: _t.ScalarLike) -> _sigil.compose.Spans:
+def wrap(start: _t.ScalarLike, end: _t.ScalarLike) -> _sigil.compose.Spans:
     ...

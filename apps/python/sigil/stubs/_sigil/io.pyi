@@ -19,7 +19,7 @@ class Arrival:
         ...
 
     @at.setter
-    def at(self, arg0: typing.SupportsFloat) -> None:
+    def at(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -27,7 +27,7 @@ class Arrival:
         ...
 
     @bytes.setter
-    def bytes(self, arg1: collections.abc.Buffer) -> None:
+    def bytes(self, value: collections.abc.Buffer, /) -> None:
         ...
 
     @property
@@ -35,13 +35,13 @@ class Arrival:
         ...
 
     @generation.setter
-    def generation(self, arg0: typing.SupportsInt) -> None:
+    def generation(self, value: typing.SupportsInt, /) -> None:
         ...
 
 class Feed:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
-    def __eq__(self, arg0: builtins.object) -> bool:
+    def __eq__(self, other: builtins.object) -> bool:
         ...
 
     def __init__(self, uri: str, policy: FeedPolicy=...) -> None:
@@ -120,7 +120,7 @@ class FeedPolicy:
         ...
 
     @capacity.setter
-    def capacity(self, arg0: typing.SupportsInt) -> None:
+    def capacity(self, value: typing.SupportsInt, /) -> None:
         ...
 
 class Hub:

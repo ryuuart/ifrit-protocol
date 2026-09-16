@@ -35,7 +35,7 @@ class Camera:
     def __init__(self) -> None:
         ...
 
-    def project(self, arg0: _t.Vec3Like, arg1: typing.Annotated[collections.abc.Sequence[typing.SupportsFloat], 'FixedSize(2)']) -> _sigil.skia.Point | None:
+    def project(self, point: _t.Vec3Like, viewport: typing.Annotated[collections.abc.Sequence[typing.SupportsFloat], 'FixedSize(2)']) -> _sigil.skia.Point | None:
         ...
 
     @property
@@ -43,7 +43,7 @@ class Camera:
         ...
 
     @fovYDeg.setter
-    def fovYDeg(self, arg0: typing.SupportsFloat) -> None:
+    def fovYDeg(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -51,7 +51,7 @@ class Camera:
         ...
 
     @zFar.setter
-    def zFar(self, arg0: typing.SupportsFloat) -> None:
+    def zFar(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -59,7 +59,7 @@ class Camera:
         ...
 
     @zNear.setter
-    def zNear(self, arg0: typing.SupportsFloat) -> None:
+    def zNear(self, value: typing.SupportsFloat, /) -> None:
         ...
 
 class Matrix:
@@ -67,7 +67,7 @@ class Matrix:
     def __init__(self) -> None:
         ...
 
-    def __matmul__(self, arg0: Matrix) -> Matrix:
+    def __matmul__(self, other: Matrix) -> Matrix:
         ...
 
 class Orbit:
@@ -80,7 +80,7 @@ class Orbit:
         ...
 
     @distance.setter
-    def distance(self, arg0: typing.SupportsFloat) -> None:
+    def distance(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -88,7 +88,7 @@ class Orbit:
         ...
 
     @pitchDeg.setter
-    def pitchDeg(self, arg0: typing.SupportsFloat) -> None:
+    def pitchDeg(self, value: typing.SupportsFloat, /) -> None:
         ...
 
     @property
@@ -96,16 +96,16 @@ class Orbit:
         ...
 
     @yawDeg.setter
-    def yawDeg(self, arg0: typing.SupportsFloat) -> None:
+    def yawDeg(self, value: typing.SupportsFloat, /) -> None:
         ...
 
-def cameraAt(arg0: Camera, arg1: Orbit) -> Camera:
+def cameraAt(pivot: Camera, orbit: Orbit) -> Camera:
     ...
 
 def faceCamera(eye: _t.Vec3Like, at: _t.Vec3Like, up: _t.Vec3Like=(0.0, 1.0, 0.0)) -> Matrix:
     ...
 
-def orbitOf(arg0: Camera) -> Orbit:
+def orbitOf(camera: Camera) -> Orbit:
     ...
 
 def place(position: _t.Vec3Like=(0.0, 0.0, 0.0), yawDeg: typing.SupportsFloat=0, pitchDeg: typing.SupportsFloat=0, rollDeg: typing.SupportsFloat=0, scale: typing.SupportsFloat=1) -> Matrix:

@@ -18,11 +18,9 @@ def card(label: str, accent: str) -> Element:
         .fill(accent)
         .ink("#ffffff")
         .children(
-            [
-                text("COMPOSE", size=11),
-                text(label, size=27),
-                text("Layout + type + paint", size=11),
-            ]
+            text("COMPOSE", size=11),
+            text(label, size=27),
+            text("Layout + type + paint", size=11),
         )
     )
 
@@ -43,7 +41,7 @@ class ComposeStamps:
             .corners(6)
             .fill("#273d41")
             .ink("#ffffff")
-            .children([text("Aa", size=18), text("01", size=10)])
+            .children(text("Aa", size=18), text("01", size=10))
         )
         self.brush = brush.marker("#273d41", 78)
         self.brush.tip = brush.Tip.Custom

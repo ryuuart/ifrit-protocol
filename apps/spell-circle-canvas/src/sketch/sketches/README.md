@@ -66,8 +66,8 @@ one `draw` method; edit `COLOR`, `SPEED` or the greeting.
 `python_hello_compose.py` submits a retained tree once: a Python `card`
 component, a gradient paint factory, a native themed page and native entrance
 motion. Edit `TITLE`, `CARDS` or `card`, then save either file to reload it.
-Compose examples use native fluent properties and explicit `.children([...])`
-lists. `python_compose_stamps.py` places those trees with a Draw pen and
+Compose examples use native fluent properties and explicit `.children(...)`
+groups. `python_compose_stamps.py` places those trees with a Draw pen and
 repeats a composed mark through a custom brush tip.
 
 `python_live_signals.py` is a live JSON signal observatory: native UDP feeds

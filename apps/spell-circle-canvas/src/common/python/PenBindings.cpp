@@ -221,20 +221,38 @@ void bindCanvas(py::module_& module) {
   py::class_<BorrowedCanvas>(module, "Canvas")
       .def("save", [](BorrowedCanvas& self) { return self.get().save(); })
       .def("restore", [](BorrowedCanvas& self) { self.get().restore(); })
-      .def("restoreToCount",
-           [](BorrowedCanvas& self, int count) {
-             self.get().restoreToCount(count);
-           })
+      .def(
+          "restoreToCount",
+          [](BorrowedCanvas& self, int count) {
+            self.get().restoreToCount(count);
+          },
+          py::arg("count"))
       .def("getSaveCount",
            [](BorrowedCanvas& self) { return self.get().getSaveCount(); })
-      .def("clear", [](BorrowedCanvas& self,
-                       py::object ink) { self.get().clear(color(ink)); })
-      .def("translate", [](BorrowedCanvas& self, float x,
-                           float y) { self.get().translate(x, y); })
-      .def("scale", [](BorrowedCanvas& self, float x,
-                       float y) { self.get().scale(x, y); })
-      .def("rotate", [](BorrowedCanvas& self,
-                        float degrees) { self.get().rotate(degrees); })
+      .def(
+          "clear",
+          [](BorrowedCanvas& self, py::object ink) {
+            self.get().clear(color(ink));
+          },
+          py::arg("ink"))
+      .def(
+          "translate",
+          [](BorrowedCanvas& self, float x, float y) {
+            self.get().translate(x, y);
+          },
+          py::arg("x"), py::arg("y"))
+      .def(
+          "scale",
+          [](BorrowedCanvas& self, float x, float y) {
+            self.get().scale(x, y);
+          },
+          py::arg("x"), py::arg("y"))
+      .def(
+          "rotate",
+          [](BorrowedCanvas& self, float degrees) {
+            self.get().rotate(degrees);
+          },
+          py::arg("degrees"))
       .def("resetMatrix",
            [](BorrowedCanvas& self) { self.get().resetMatrix(); })
       .def(
@@ -253,41 +271,51 @@ void bindCanvas(py::module_& module) {
                 true);
           },
           py::arg("path"), py::arg("invert") = false)
-      .def("drawPath",
-           [](BorrowedCanvas& self, const SkPath& path, const SkPaint& paint) {
-             self.get().drawPath(path, paint);
-           })
-      .def("drawRect",
-           [](BorrowedCanvas& self, py::object box, const SkPaint& paint) {
-             self.get().drawRect(rect(box), paint);
-           })
-      .def("drawCircle",
-           [](BorrowedCanvas& self, float x, float y, float radius,
-              const SkPaint& paint) {
-             self.get().drawCircle(x, y, radius, paint);
-           })
-      .def("drawPoints",
-           [](BorrowedCanvas& self, SkCanvas::PointMode mode, py::object values,
-              const SkPaint& paint) {
-             (void)self.get();
-             const auto points = pointBatch(values);
-             // Conversion can run Python iteration or buffer callbacks that
-             // close this frame, so reacquire its checked canvas afterward.
-             self.get().drawPoints(
-                 mode, SkSpan<const SkPoint>{points.data(), points.size()},
-                 paint);
-           })
-      .def("drawVertices",
-           [](BorrowedCanvas& self, const sk_sp<SkVertices>& vertices,
-              SkBlendMode blend, const SkPaint& paint) {
-             self.get().drawVertices(vertices, blend, paint);
-           });
+      .def(
+          "drawPath",
+          [](BorrowedCanvas& self, const SkPath& path, const SkPaint& paint) {
+            self.get().drawPath(path, paint);
+          },
+          py::arg("path"), py::arg("paint"))
+      .def(
+          "drawRect",
+          [](BorrowedCanvas& self, py::object box, const SkPaint& paint) {
+            self.get().drawRect(rect(box), paint);
+          },
+          py::arg("box"), py::arg("paint"))
+      .def(
+          "drawCircle",
+          [](BorrowedCanvas& self, float x, float y, float radius,
+             const SkPaint& paint) {
+            self.get().drawCircle(x, y, radius, paint);
+          },
+          py::arg("x"), py::arg("y"), py::arg("radius"), py::arg("paint"))
+      .def(
+          "drawPoints",
+          [](BorrowedCanvas& self, SkCanvas::PointMode mode, py::object values,
+             const SkPaint& paint) {
+            (void)self.get();
+            const auto points = pointBatch(values);
+            // Conversion can run Python iteration or buffer callbacks that
+            // close this frame, so reacquire its checked canvas afterward.
+            self.get().drawPoints(
+                mode, SkSpan<const SkPoint>{points.data(), points.size()},
+                paint);
+          },
+          py::arg("mode"), py::arg("points"), py::arg("paint"))
+      .def(
+          "drawVertices",
+          [](BorrowedCanvas& self, const sk_sp<SkVertices>& vertices,
+             SkBlendMode blend, const SkPaint& paint) {
+            self.get().drawVertices(vertices, blend, paint);
+          },
+          py::arg("vertices"), py::arg("blend"), py::arg("paint"));
 }
 
 void bindGraphics(py::module_& module) {
   py::class_<Graphics, std::shared_ptr<Graphics>>(module, "Graphics")
       .def(py::init<float, float>(), py::arg("width"), py::arg("height"))
-      .def("begin", &Graphics::begin)
+      .def("begin", &Graphics::begin, py::arg("host"))
       .def("end", &Graphics::end)
       .def(
           "draw",
@@ -302,12 +330,18 @@ void bindGraphics(py::module_& module) {
             }
           },
           py::arg("host"), py::arg("program"))
-      .def("resize", [](Graphics& self, float width,
-                        float height) { self.get().resize(width, height); })
-      .def("setDensityFloor",
-           [](Graphics& self, float density) {
-             self.get().setDensityFloor(density);
-           })
+      .def(
+          "resize",
+          [](Graphics& self, float width, float height) {
+            self.get().resize(width, height);
+          },
+          py::arg("width"), py::arg("height"))
+      .def(
+          "setDensityFloor",
+          [](Graphics& self, float density) {
+            self.get().setDensityFloor(density);
+          },
+          py::arg("density"))
       .def("image", [](Graphics& self) { return self.get().image(); })
       .def("width", [](Graphics& self) { return self.get().width(); })
       .def("height", [](Graphics& self) { return self.get().height(); })
@@ -430,95 +464,127 @@ void bindPen(py::module_& root) {
   penMethod(cls, "clear", &Pen::clear);
   penMethod(cls, "noFill", &Pen::noFill);
   penMethod(cls, "noStroke", &Pen::noStroke);
-  penMethod(cls, "strokeWeight", &Pen::strokeWeight);
-  penMethod(cls, "strokeCap", &Pen::strokeCap);
-  penMethod(cls, "strokeJoin", &Pen::strokeJoin);
+  penMethod(cls, "strokeWeight", &Pen::strokeWeight, py::arg("weight"));
+  penMethod(cls, "strokeCap", &Pen::strokeCap, py::arg("cap"));
+  penMethod(cls, "strokeJoin", &Pen::strokeJoin, py::arg("join"));
   penMethod(cls, "smooth", &Pen::smooth);
   penMethod(cls, "noSmooth", &Pen::noSmooth);
-  penMethod(cls, "blendMode", &Pen::blendMode);
-  penMethod(cls, "rectMode", &Pen::rectMode);
-  penMethod(cls, "ellipseMode", &Pen::ellipseMode);
+  penMethod(cls, "blendMode", &Pen::blendMode, py::arg("mode"));
+  penMethod(cls, "rectMode", &Pen::rectMode, py::arg("mode"));
+  penMethod(cls, "ellipseMode", &Pen::ellipseMode, py::arg("mode"));
   penMethod(cls, "angleMode",
-            py::overload_cast<draw::Constant>(&Pen::angleMode));
+            py::overload_cast<draw::Constant>(&Pen::angleMode),
+            py::arg("mode"));
   penMethod(cls, "colorMode",
-            py::overload_cast<draw::Constant>(&Pen::colorMode));
+            py::overload_cast<draw::Constant>(&Pen::colorMode),
+            py::arg("mode"));
   penMethod(cls, "colorMode",
-            py::overload_cast<draw::Constant, float>(&Pen::colorMode));
-  penMethod(cls, "point", py::overload_cast<float, float>(&Pen::point));
+            py::overload_cast<draw::Constant, float>(&Pen::colorMode),
+            py::arg("mode"), py::arg("max"));
+  penMethod(cls, "point", py::overload_cast<float, float>(&Pen::point),
+            py::arg("x"), py::arg("y"));
   penMethod(cls, "line",
-            py::overload_cast<float, float, float, float>(&Pen::line));
+            py::overload_cast<float, float, float, float>(&Pen::line),
+            py::arg("x1"), py::arg("y1"), py::arg("x2"), py::arg("y2"));
   penMethod(cls, "rect",
-            py::overload_cast<float, float, float, float>(&Pen::rect));
+            py::overload_cast<float, float, float, float>(&Pen::rect),
+            py::arg("x"), py::arg("y"), py::arg("width"), py::arg("height"));
   penMethod(cls, "rect",
-            py::overload_cast<float, float, float, float, float>(&Pen::rect));
-  penMethod(cls, "square",
-            py::overload_cast<float, float, float>(&Pen::square));
+            py::overload_cast<float, float, float, float, float>(&Pen::rect),
+            py::arg("x"), py::arg("y"), py::arg("width"), py::arg("height"),
+            py::arg("radius"));
+  penMethod(cls, "square", py::overload_cast<float, float, float>(&Pen::square),
+            py::arg("x"), py::arg("y"), py::arg("size"));
   penMethod(cls, "ellipse",
-            py::overload_cast<float, float, float, float>(&Pen::ellipse));
+            py::overload_cast<float, float, float, float>(&Pen::ellipse),
+            py::arg("x"), py::arg("y"), py::arg("width"), py::arg("height"));
   penMethod(cls, "ellipse",
-            py::overload_cast<float, float, float>(&Pen::ellipse));
-  penMethod(cls, "circle",
-            py::overload_cast<float, float, float>(&Pen::circle));
+            py::overload_cast<float, float, float>(&Pen::ellipse), py::arg("x"),
+            py::arg("y"), py::arg("width"));
+  penMethod(cls, "circle", py::overload_cast<float, float, float>(&Pen::circle),
+            py::arg("x"), py::arg("y"), py::arg("diameter"));
   penMethod(cls, "arc", &Pen::arc, py::arg("x"), py::arg("y"), py::arg("width"),
             py::arg("height"), py::arg("start"), py::arg("stop"),
             py::arg("mode") = draw::OPEN);
-  penMethod(cls, "triangle", &Pen::triangle);
-  penMethod(cls, "quad", &Pen::quad);
-  penMethod(cls, "bezier", &Pen::bezier);
+  penMethod(cls, "triangle", &Pen::triangle, py::arg("x1"), py::arg("y1"),
+            py::arg("x2"), py::arg("y2"), py::arg("x3"), py::arg("y3"));
+  penMethod(cls, "quad", &Pen::quad, py::arg("x1"), py::arg("y1"),
+            py::arg("x2"), py::arg("y2"), py::arg("x3"), py::arg("y3"),
+            py::arg("x4"), py::arg("y4"));
+  penMethod(cls, "bezier", &Pen::bezier, py::arg("x1"), py::arg("y1"),
+            py::arg("x2"), py::arg("y2"), py::arg("x3"), py::arg("y3"),
+            py::arg("x4"), py::arg("y4"));
   penMethod(cls, "beginShape", &Pen::beginShape,
             py::arg("kind") = draw::POLYGON);
-  penMethod(cls, "vertex", &Pen::vertex);
-  penMethod(cls, "curveVertex", &Pen::curveVertex);
-  penMethod(cls, "bezierVertex", &Pen::bezierVertex);
-  penMethod(cls, "quadraticVertex", &Pen::quadraticVertex);
+  penMethod(cls, "vertex", &Pen::vertex, py::arg("x"), py::arg("y"));
+  penMethod(cls, "curveVertex", &Pen::curveVertex, py::arg("x"), py::arg("y"));
+  penMethod(cls, "bezierVertex", &Pen::bezierVertex, py::arg("x2"),
+            py::arg("y2"), py::arg("x3"), py::arg("y3"), py::arg("x4"),
+            py::arg("y4"));
+  penMethod(cls, "quadraticVertex", &Pen::quadraticVertex, py::arg("cx"),
+            py::arg("cy"), py::arg("x3"), py::arg("y3"));
   penMethod(cls, "beginContour", &Pen::beginContour);
   penMethod(cls, "endContour", &Pen::endContour);
   penMethod(cls, "endShape", &Pen::endShape, py::arg("mode") = draw::OPEN);
-  penMethod(cls, "textSize", &Pen::textSize);
+  penMethod(cls, "textSize", &Pen::textSize, py::arg("size"));
   penMethod(cls, "textFont",
-            py::overload_cast<std::string_view>(&Pen::textFont));
+            py::overload_cast<std::string_view>(&Pen::textFont),
+            py::arg("family"));
   penMethod(cls, "textFont",
-            py::overload_cast<std::string_view, float>(&Pen::textFont));
+            py::overload_cast<std::string_view, float>(&Pen::textFont),
+            py::arg("family"), py::arg("size"));
   penMethod(cls, "textAlign",
-            py::overload_cast<draw::Constant>(&Pen::textAlign));
+            py::overload_cast<draw::Constant>(&Pen::textAlign),
+            py::arg("horizontal"));
   penMethod(cls, "textAlign",
-            py::overload_cast<draw::Constant, draw::Constant>(&Pen::textAlign));
-  penMethod(cls, "textLeading", py::overload_cast<float>(&Pen::textLeading));
-  penMethod(cls, "textStyle", &Pen::textStyle);
+            py::overload_cast<draw::Constant, draw::Constant>(&Pen::textAlign),
+            py::arg("horizontal"), py::arg("vertical"));
+  penMethod(cls, "textLeading", py::overload_cast<float>(&Pen::textLeading),
+            py::arg("leading"));
+  penMethod(cls, "textStyle", &Pen::textStyle, py::arg("style"));
   penMethod(cls, "text",
-            py::overload_cast<std::string_view, float, float>(&Pen::text));
+            py::overload_cast<std::string_view, float, float>(&Pen::text),
+            py::arg("text"), py::arg("x"), py::arg("y"));
   penMethod(cls, "text",
             py::overload_cast<std::string_view, float, float, float, float>(
-                &Pen::text));
-  penMethod(cls, "textWidth", &Pen::textWidth);
+                &Pen::text),
+            py::arg("text"), py::arg("x"), py::arg("y"), py::arg("width"),
+            py::arg("height"));
+  penMethod(cls, "textWidth", &Pen::textWidth, py::arg("text"));
   penMethod(cls, "textAscent", &Pen::textAscent);
   penMethod(cls, "textDescent", &Pen::textDescent);
-  penMethod(cls, "translate", &Pen::translate);
-  penMethod(cls, "rotate", &Pen::rotate);
-  penMethod(cls, "scale", py::overload_cast<float>(&Pen::scale));
-  penMethod(cls, "scale", py::overload_cast<float, float>(&Pen::scale));
-  penMethod(cls, "shearX", &Pen::shearX);
-  penMethod(cls, "shearY", &Pen::shearY);
+  penMethod(cls, "translate", &Pen::translate, py::arg("x"), py::arg("y"));
+  penMethod(cls, "rotate", &Pen::rotate, py::arg("angle"));
+  penMethod(cls, "scale", py::overload_cast<float>(&Pen::scale),
+            py::arg("factor"));
+  penMethod(cls, "scale", py::overload_cast<float, float>(&Pen::scale),
+            py::arg("x"), py::arg("y"));
+  penMethod(cls, "shearX", &Pen::shearX, py::arg("angle"));
+  penMethod(cls, "shearY", &Pen::shearY, py::arg("angle"));
   penMethod(cls, "push", &Pen::push);
   penMethod(cls, "pop", &Pen::pop);
   penMethod(cls, "resetMatrix", &Pen::resetMatrix);
   penMethod(cls, "random", py::overload_cast<>(&Pen::random));
-  penMethod(cls, "random", py::overload_cast<float>(&Pen::random));
-  penMethod(cls, "random", py::overload_cast<float, float>(&Pen::random));
-  penMethod(cls, "randomSeed", &Pen::randomSeed);
+  penMethod(cls, "random", py::overload_cast<float>(&Pen::random),
+            py::arg("max"));
+  penMethod(cls, "random", py::overload_cast<float, float>(&Pen::random),
+            py::arg("min"), py::arg("max"));
+  penMethod(cls, "randomSeed", &Pen::randomSeed, py::arg("seed"));
   penMethod(cls, "randomGaussian", &Pen::randomGaussian, py::arg("mean") = 0.0f,
             py::arg("sd") = 1.0f);
   penMethod(cls, "noise", &Pen::noise, py::arg("x"), py::arg("y") = 0.0f,
             py::arg("z") = 0.0f);
-  penMethod(cls, "noiseSeed", &Pen::noiseSeed);
-  penMethod(cls, "noiseDetail", &Pen::noiseDetail);
+  penMethod(cls, "noiseSeed", &Pen::noiseSeed, py::arg("seed"));
+  penMethod(cls, "noiseDetail", &Pen::noiseDetail, py::arg("octaves"),
+            py::arg("falloff"));
   penMethod(cls, "millis", &Pen::millis);
   penMethod(cls, "frameRate", py::overload_cast<>(&Pen::frameRate, py::const_));
-  penMethod(cls, "frameRate", py::overload_cast<double>(&Pen::frameRate));
+  penMethod(cls, "frameRate", py::overload_cast<double>(&Pen::frameRate),
+            py::arg("fps"));
   penMethod(cls, "noLoop", &Pen::noLoop);
   penMethod(cls, "loop", &Pen::loop);
   penMethod(cls, "redraw", &Pen::redraw);
-  penMethod(cls, "keyIsDown", &Pen::keyIsDown);
+  penMethod(cls, "keyIsDown", &Pen::keyIsDown, py::arg("code"));
   cls.def("keysDown", [](BorrowedPen& self) {
     const auto keys = self.get().keysDown();
     return std::vector<int>{keys.begin(), keys.end()};
@@ -527,19 +593,25 @@ void bindPen(py::module_& root) {
   penMethod(cls, "isLooping", &Pen::isLooping);
   penMethod(cls, "targetFrameRate", &Pen::targetFrameRate);
   penMethod(cls, "angleMode", py::overload_cast<>(&Pen::angleMode, py::const_));
-  penMethod(cls, "imageMode", &Pen::imageMode);
+  penMethod(cls, "imageMode", &Pen::imageMode, py::arg("mode"));
   penMethod(
       cls, "colorMode",
-      py::overload_cast<draw::Constant, float, float, float>(&Pen::colorMode));
+      py::overload_cast<draw::Constant, float, float, float>(&Pen::colorMode),
+      py::arg("mode"), py::arg("max1"), py::arg("max2"), py::arg("max3"));
   penMethod(cls, "colorMode",
             py::overload_cast<draw::Constant, float, float, float, float>(
-                &Pen::colorMode));
+                &Pen::colorMode),
+            py::arg("mode"), py::arg("max1"), py::arg("max2"), py::arg("max3"),
+            py::arg("maxA"));
   cls.def("color", [](BorrowedPen& self, py::args values) {
     return penColor(self.get(), values);
   });
-  cls.def_static("lerpColor", [](py::object a, py::object b, float amount) {
-    return Pen::lerpColor(color(a), color(b), amount);
-  });
+  cls.def_static(
+      "lerpColor",
+      [](py::object a, py::object b, float amount) {
+        return Pen::lerpColor(color(a), color(b), amount);
+      },
+      py::arg("a"), py::arg("b"), py::arg("amount"));
   cls.def(
       "strokeDash",
       [](BorrowedPen& self, const std::vector<float>& intervals, float phase) {
@@ -547,57 +619,84 @@ void bindPen(py::module_& root) {
       },
       py::arg("intervals"), py::arg("phase") = 0.0f);
   penMethod(cls, "noDash", &Pen::noDash);
-  cls.def("point", [](BorrowedPen& self, py::object at) {
-    self.get().point(point(at));
-  });
-  cls.def("line", [](BorrowedPen& self, py::object from, py::object to) {
-    self.get().line(point(from), point(to));
-  });
-  cls.def("circle", [](BorrowedPen& self, py::object at, float diameter) {
-    self.get().circle(point(at), diameter);
-  });
+  cls.def(
+      "point",
+      [](BorrowedPen& self, py::object at) { self.get().point(point(at)); },
+      py::arg("at"));
+  cls.def(
+      "line",
+      [](BorrowedPen& self, py::object from, py::object to) {
+        self.get().line(point(from), point(to));
+      },
+      py::arg("start"), py::arg("end"));
+  cls.def(
+      "circle",
+      [](BorrowedPen& self, py::object at, float diameter) {
+        self.get().circle(point(at), diameter);
+      },
+      py::arg("at"), py::arg("diameter"));
   penMethod(
       cls, "rect",
       py::overload_cast<float, float, float, float, float, float, float, float>(
-          &Pen::rect));
+          &Pen::rect),
+      py::arg("x"), py::arg("y"), py::arg("width"), py::arg("height"),
+      py::arg("topLeft"), py::arg("topRight"), py::arg("bottomRight"),
+      py::arg("bottomLeft"));
   penMethod(cls, "square",
-            py::overload_cast<float, float, float, float>(&Pen::square));
+            py::overload_cast<float, float, float, float>(&Pen::square),
+            py::arg("x"), py::arg("y"), py::arg("size"), py::arg("radius"));
   penMethod(cls, "square",
             py::overload_cast<float, float, float, float, float, float, float>(
-                &Pen::square));
-  penMethod(cls, "curve", &Pen::curve);
-  penMethod(cls, "curveTightness", &Pen::curveTightness);
-  penMethod(cls, "applyMatrix", &Pen::applyMatrix);
+                &Pen::square),
+            py::arg("x"), py::arg("y"), py::arg("size"), py::arg("topLeft"),
+            py::arg("topRight"), py::arg("bottomRight"), py::arg("bottomLeft"));
+  penMethod(cls, "curve", &Pen::curve, py::arg("x1"), py::arg("y1"),
+            py::arg("x2"), py::arg("y2"), py::arg("x3"), py::arg("y3"),
+            py::arg("x4"), py::arg("y4"));
+  penMethod(cls, "curveTightness", &Pen::curveTightness, py::arg("amount"));
+  penMethod(cls, "applyMatrix", &Pen::applyMatrix, py::arg("a"), py::arg("b"),
+            py::arg("c"), py::arg("d"), py::arg("e"), py::arg("f"));
   penMethod(cls, "textLeading",
             py::overload_cast<>(&Pen::textLeading, py::const_));
-  penMethod(cls, "text", py::overload_cast<double, float, float>(&Pen::text));
+  penMethod(cls, "text", py::overload_cast<double, float, float>(&Pen::text),
+            py::arg("value"), py::arg("x"), py::arg("y"));
   penMethod(cls, "textFont",
-            py::overload_cast<const weave::Type&>(&Pen::textFont));
+            py::overload_cast<const weave::Type&>(&Pen::textFont),
+            py::arg("type"));
   penMethod(cls, "textFont",
-            py::overload_cast<sk_sp<SkTypeface>>(&Pen::textFont));
+            py::overload_cast<sk_sp<SkTypeface>>(&Pen::textFont),
+            py::arg("face"));
   cls.def("inheritedInk",
           [](BorrowedPen& self) { return self.get().inheritedInk(); });
   cls.def("inheritedFont",
           [](BorrowedPen& self) { return self.get().inheritedFont(); });
-  cls.def("inherit",
-          [](BorrowedPen& self, py::object ink, const weave::Type& font) {
-            self.get().inherit(color(ink), font);
-          });
-  cls.def("shape", [](BorrowedPen& self, const SkPath& path) {
-    self.get().shape(path);
-  });
-  cls.def("shape", [](BorrowedPen& self, py::object silhouette, float x,
-                      float y, float width, float height) {
-    struct Shape {
-      py::object object;
-      SkPath path(SkSize size) const {
-        return object.attr("path")(py::make_tuple(size.width(), size.height()))
-            .cast<SkPath>();
-      }
-    } shape{std::move(silhouette)};
-    self.get().shape(shape, x, y, width, height);
-  });
-  penMethod(cls, "vertices", &Pen::vertices);
+  cls.def(
+      "inherit",
+      [](BorrowedPen& self, py::object ink, const weave::Type& font) {
+        self.get().inherit(color(ink), font);
+      },
+      py::arg("ink"), py::arg("font"));
+  cls.def(
+      "shape",
+      [](BorrowedPen& self, const SkPath& path) { self.get().shape(path); },
+      py::arg("path"));
+  cls.def(
+      "shape",
+      [](BorrowedPen& self, py::object silhouette, float x, float y,
+         float width, float height) {
+        struct Shape {
+          py::object object;
+          SkPath path(SkSize size) const {
+            return object
+                .attr("path")(py::make_tuple(size.width(), size.height()))
+                .cast<SkPath>();
+          }
+        } shape{std::move(silhouette)};
+        self.get().shape(shape, x, y, width, height);
+      },
+      py::arg("silhouette"), py::arg("x"), py::arg("y"), py::arg("width"),
+      py::arg("height"));
+  penMethod(cls, "vertices", &Pen::vertices, py::arg("mesh"));
   cls.def(
       "clip",
       [](BorrowedPen& self, py::function shape, bool invert) {
@@ -635,50 +734,70 @@ void bindPen(py::module_& root) {
                                callerSlot(native, index));
       },
       py::arg("element"), py::arg("box"), py::arg("index") = 0);
-  penMethod(
-      cls, "image",
-      py::overload_cast<const sk_sp<SkImage>&, float, float>(&Pen::image));
+  penMethod(cls, "image",
+            py::overload_cast<const sk_sp<SkImage>&, float, float>(&Pen::image),
+            py::arg("image"), py::arg("x"), py::arg("y"));
   penMethod(
       cls, "image",
       py::overload_cast<const sk_sp<SkImage>&, float, float, float, float>(
-          &Pen::image));
+          &Pen::image),
+      py::arg("image"), py::arg("x"), py::arg("y"), py::arg("width"),
+      py::arg("height"));
   penMethod(cls, "image",
             py::overload_cast<const sk_sp<SkImage>&, float, float, float, float,
-                              float, float, float, float>(&Pen::image));
-  cls.def("image", [](BorrowedPen& self, Graphics& image, float x, float y) {
-    self.get().image(image.get(), x, y);
-  });
-  cls.def("image", [](BorrowedPen& self, Graphics& image, float x, float y,
-                      float width, float height) {
-    self.get().image(image.get(), x, y, width, height);
-  });
+                              float, float, float, float>(&Pen::image),
+            py::arg("image"), py::arg("x"), py::arg("y"), py::arg("width"),
+            py::arg("height"), py::arg("sourceX"), py::arg("sourceY"),
+            py::arg("sourceWidth"), py::arg("sourceHeight"));
+  cls.def(
+      "image",
+      [](BorrowedPen& self, Graphics& image, float x, float y) {
+        self.get().image(image.get(), x, y);
+      },
+      py::arg("image"), py::arg("x"), py::arg("y"));
+  cls.def(
+      "image",
+      [](BorrowedPen& self, Graphics& image, float x, float y, float width,
+         float height) { self.get().image(image.get(), x, y, width, height); },
+      py::arg("image"), py::arg("x"), py::arg("y"), py::arg("width"),
+      py::arg("height"));
   bindGraphics(module);
 
   py::class_<draw::NoiseField>(module, "NoiseField")
       .def(py::init<uint32_t>(), py::arg("seed") = 0)
-      .def("seed", py::overload_cast<uint32_t>(&draw::NoiseField::seed))
+      .def("seed", py::overload_cast<uint32_t>(&draw::NoiseField::seed),
+           py::arg("seed"))
       .def("seed", py::overload_cast<>(&draw::NoiseField::seed, py::const_))
-      .def("detail", &draw::NoiseField::detail)
+      .def("detail", &draw::NoiseField::detail, py::arg("octaves"),
+           py::arg("falloff"))
       .def("at", &draw::NoiseField::at, py::arg("x"), py::arg("y") = 0.0f,
            py::arg("z") = 0.0f)
       .def("octaves", &draw::NoiseField::octaves)
       .def("falloff", &draw::NoiseField::falloff)
-      .def_static("corner", &draw::NoiseField::corner);
+      .def_static("corner", &draw::NoiseField::corner, py::arg("seed"),
+                  py::arg("x"), py::arg("y"), py::arg("z"));
 
   module.def("map", &draw::map, py::arg("value"), py::arg("start1"),
              py::arg("stop1"), py::arg("start2"), py::arg("stop2"),
              py::arg("withinBounds") = false);
-  module.def("lerp", &draw::lerp);
-  module.def("constrain", &draw::constrain);
-  module.def("dist", &draw::dist);
-  module.def("mag", &draw::mag);
-  module.def("norm", &draw::norm);
-  module.def("sq", &draw::sq);
-  module.def("radians", &draw::radians);
-  module.def("degrees", &draw::degrees);
-  module.def("lerpColor", [](py::object a, py::object b, float amount) {
-    return Pen::lerpColor(color(a), color(b), amount);
-  });
+  module.def("lerp", &draw::lerp, py::arg("start"), py::arg("stop"),
+             py::arg("amount"));
+  module.def("constrain", &draw::constrain, py::arg("value"), py::arg("low"),
+             py::arg("high"));
+  module.def("dist", &draw::dist, py::arg("x1"), py::arg("y1"), py::arg("x2"),
+             py::arg("y2"));
+  module.def("mag", &draw::mag, py::arg("x"), py::arg("y"));
+  module.def("norm", &draw::norm, py::arg("value"), py::arg("start"),
+             py::arg("stop"));
+  module.def("sq", &draw::sq, py::arg("value"));
+  module.def("radians", &draw::radians, py::arg("degrees"));
+  module.def("degrees", &draw::degrees, py::arg("radians"));
+  module.def(
+      "lerpColor",
+      [](py::object a, py::object b, float amount) {
+        return Pen::lerpColor(color(a), color(b), amount);
+      },
+      py::arg("a"), py::arg("b"), py::arg("amount"));
   module.def(
       "on",
       [](BorrowedCanvas& canvas, std::pair<float, float> size,

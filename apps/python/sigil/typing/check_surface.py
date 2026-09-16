@@ -7,6 +7,7 @@ import ast
 import importlib
 import inspect
 import keyword
+import re
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -58,6 +59,8 @@ def main() -> int:
             declaration = declared[name]
             if inspect.isclass(value) and isinstance(declaration, ast.ClassDef):
                 inspect_members(value, declaration, path + "." + name)
+            elif callable(value) and re.search(r"\barg\d+\s*:", value.__doc__ or ""):
+                failures.append(f"{path}.{name}: unnamed native argument")
 
     generic = {
         "list",
@@ -105,6 +108,10 @@ def main() -> int:
             if isinstance(node, ast.AnnAssign):
                 annotation(node.annotation, f"{name}:{node.lineno}")
             elif isinstance(node, ast.arg):
+                if re.fullmatch(r"arg\d+", node.arg):
+                    failures.append(
+                        f"{name}:{node.lineno}: unnamed argument {node.arg}"
+                    )
                 if node.annotation is None and node.arg not in {"self", "cls"}:
                     failures.append(
                         f"{name}:{node.lineno}: untyped argument {node.arg}"
@@ -120,7 +127,7 @@ def main() -> int:
         print("\n".join(failures))
         return 1
     print(
-        f"Native surface passed: {count} exported members; no Any or bare collection signatures."
+        f"Native surface passed: {count} exported members; named arguments, no Any or bare collection signatures."
     )
     return 0
 

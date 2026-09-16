@@ -108,9 +108,9 @@ void bindCore(py::module_& module) {
   using Stream = chanceNative::Stream;
   py::class_<Stream>(chance, "Stream")
       .def(py::init<>())
-      .def_static("pcg", &Stream::pcg)
-      .def_static("mix64", &Stream::mix64)
-      .def_static("xorshift", &Stream::xorshift)
+      .def_static("pcg", &Stream::pcg, py::arg("seed"))
+      .def_static("mix64", &Stream::mix64, py::arg("seed"))
+      .def_static("xorshift", &Stream::xorshift, py::arg("seed"))
       .def_static("halton", &Stream::halton, py::arg("base"),
                   py::arg("skip") = 0)
       .def_static("sobol", &Stream::sobol, py::arg("skip") = 0)
@@ -124,8 +124,8 @@ void bindCore(py::module_& module) {
       .def("bits", &Stream::bits)
       .def("unit", &Stream::unit)
       .def("signedUnit", &Stream::signedUnit)
-      .def("range", &Stream::range)
-      .def("below", &Stream::below)
+      .def("range", &Stream::range, py::arg("low"), py::arg("high"))
+      .def("below", &Stream::below, py::arg("upper"))
       .def("normal", &Stream::normal)
       .def("source", &Stream::source)
       .def("parameter", &Stream::parameter)
@@ -146,33 +146,35 @@ void bindValues(py::module_& module) {
       .value("Linear", SkMipmapMode::kLinear);
   py::class_<SkSamplingOptions>(skia, "SamplingOptions")
       .def(py::init<>())
-      .def(py::init<SkFilterMode>())
-      .def(py::init<SkFilterMode, SkMipmapMode>());
+      .def(py::init<SkFilterMode>(), py::arg("filter"))
+      .def(py::init<SkFilterMode, SkMipmapMode>(), py::arg("filter"),
+           py::arg("mipmap"));
 
   py::class_<SkPoint>(skia, "Point")
       .def(py::init([](float x, float y) { return SkPoint{x, y}; }),
            py::arg("x") = 0, py::arg("y") = 0)
-      .def(py::init([](py::sequence p) { return point(p); }))
+      .def(py::init([](py::sequence p) { return point(p); }),
+           py::arg("coordinates"))
       .def_readwrite("x", &SkPoint::fX)
       .def_readwrite("y", &SkPoint::fY)
       .def("length", &SkPoint::length)
       .def(
           "__add__", [](SkPoint a, SkPoint b) { return a + b; },
-          py::is_operator())
+          py::is_operator(), py::arg("other"))
       .def(
           "__sub__", [](SkPoint a, SkPoint b) { return a - b; },
-          py::is_operator())
+          py::is_operator(), py::arg("other"))
       .def(
           "__mul__",
           [](SkPoint a, float n) { return SkPoint{a.x() * n, a.y() * n}; },
-          py::is_operator())
+          py::is_operator(), py::arg("factor"))
       .def(
           "__truediv__",
           [](SkPoint a, float n) {
             if (n == 0) throw py::value_error("Cannot divide a point by zero.");
             return SkPoint{a.x() / n, a.y() / n};
           },
-          py::is_operator());
+          py::is_operator(), py::arg("factor"));
   py::implicitly_convertible<py::tuple, SkPoint>();
   py::implicitly_convertible<py::list, SkPoint>();
   py::class_<SkRect>(skia, "Rect")
@@ -180,12 +182,16 @@ void bindValues(py::module_& module) {
              return SkRect::MakeXYWH(x, y, w, h);
            }),
            py::arg("x"), py::arg("y"), py::arg("width"), py::arg("height"))
-      .def(py::init([](py::sequence r) { return rect(r); }))
-      .def_static("MakeXYWH", &SkRect::MakeXYWH)
-      .def_static("MakeLTRB", &SkRect::MakeLTRB)
+      .def(py::init([](py::sequence r) { return rect(r); }),
+           py::arg("coordinates"))
+      .def_static("MakeXYWH", &SkRect::MakeXYWH, py::arg("x"), py::arg("y"),
+                  py::arg("width"), py::arg("height"))
+      .def_static("MakeLTRB", &SkRect::MakeLTRB, py::arg("left"),
+                  py::arg("top"), py::arg("right"), py::arg("bottom"))
       .def_static("MakeEmpty", &SkRect::MakeEmpty)
-      .def_static("MakeWH", &SkRect::MakeWH)
-      .def("join", &SkRect::join)
+      .def_static("MakeWH", &SkRect::MakeWH, py::arg("width"),
+                  py::arg("height"))
+      .def("join", &SkRect::join, py::arg("rect"))
       .def("width", &SkRect::width)
       .def("height", &SkRect::height)
       .def("centerX", &SkRect::centerX)
@@ -195,12 +201,15 @@ void bindValues(py::module_& module) {
       .def("right", &SkRect::right)
       .def("bottom", &SkRect::bottom)
       .def("contains",
-           py::overload_cast<float, float>(&SkRect::contains, py::const_));
+           py::overload_cast<float, float>(&SkRect::contains, py::const_),
+           py::arg("x"), py::arg("y"));
   py::implicitly_convertible<py::tuple, SkRect>();
   py::implicitly_convertible<py::list, SkRect>();
   py::class_<SkSize>(skia, "Size")
-      .def(py::init([](float w, float h) { return SkSize{w, h}; }))
-      .def(py::init([](std::array<float, 2> v) { return SkSize{v[0], v[1]}; }))
+      .def(py::init([](float w, float h) { return SkSize{w, h}; }),
+           py::arg("width"), py::arg("height"))
+      .def(py::init([](std::array<float, 2> v) { return SkSize{v[0], v[1]}; }),
+           py::arg("dimensions"))
       .def("width", &SkSize::width)
       .def("height", &SkSize::height);
   py::implicitly_convertible<py::tuple, SkSize>();
@@ -210,7 +219,8 @@ void bindValues(py::module_& module) {
              return SkColor4f{r, g, b, a};
            }),
            py::arg("r"), py::arg("g"), py::arg("b"), py::arg("a") = 1)
-      .def(py::init([](py::object value) { return color(value); }))
+      .def(py::init([](py::object value) { return color(value); }),
+           py::arg("value"))
       .def_readwrite("r", &SkColor4f::fR)
       .def_readwrite("g", &SkColor4f::fG)
       .def_readwrite("b", &SkColor4f::fB)
@@ -264,59 +274,81 @@ void bindValues(py::module_& module) {
   py::class_<SkMatrix>(skia, "Matrix")
       .def(py::init([] { return SkMatrix::I(); }))
       .def_static("Translate",
-                  py::overload_cast<float, float>(&SkMatrix::Translate))
-      .def_static("Scale", &SkMatrix::Scale)
-      .def_static("RotateDeg", py::overload_cast<float>(&SkMatrix::RotateDeg))
-      .def("postTranslate", &SkMatrix::postTranslate, fluent)
+                  py::overload_cast<float, float>(&SkMatrix::Translate),
+                  py::arg("x"), py::arg("y"))
+      .def_static("Scale", &SkMatrix::Scale, py::arg("x"), py::arg("y"))
+      .def_static("RotateDeg", py::overload_cast<float>(&SkMatrix::RotateDeg),
+                  py::arg("degrees"))
+      .def("postTranslate", &SkMatrix::postTranslate, py::arg("x"),
+           py::arg("y"), fluent)
       .def("postScale", py::overload_cast<float, float>(&SkMatrix::postScale),
-           fluent)
+           py::arg("x"), py::arg("y"), fluent)
       .def("postRotate", py::overload_cast<float>(&SkMatrix::postRotate),
-           fluent);
+           py::arg("degrees"), fluent);
   py::class_<SkPath>(skia, "Path")
       .def(py::init<>())
       .def("isEmpty", &SkPath::isEmpty)
       .def("getBounds", &SkPath::getBounds, py::return_value_policy::copy)
       .def("contains",
-           py::overload_cast<float, float>(&SkPath::contains, py::const_))
-      .def_static("Rect", [](py::handle r) { return SkPath::Rect(rect(r)); })
-      .def_static("Oval", [](py::handle r) { return SkPath::Oval(rect(r)); })
-      .def_static("Circle", [](float x, float y,
-                               float r) { return SkPath::Circle(x, y, r); })
-      .def("offset",
-           [](const SkPath& p, float x, float y) {
-             return SkPathBuilder(p).offset(x, y).detach();
-           })
-      .def("transform", [](const SkPath& p, const SkMatrix& m) {
-        return SkPathBuilder(p).transform(m).detach();
-      });
+           py::overload_cast<float, float>(&SkPath::contains, py::const_),
+           py::arg("x"), py::arg("y"))
+      .def_static(
+          "Rect", [](py::handle r) { return SkPath::Rect(rect(r)); },
+          py::arg("rect"))
+      .def_static(
+          "Oval", [](py::handle r) { return SkPath::Oval(rect(r)); },
+          py::arg("rect"))
+      .def_static(
+          "Circle",
+          [](float x, float y, float r) { return SkPath::Circle(x, y, r); },
+          py::arg("x"), py::arg("y"), py::arg("radius"))
+      .def(
+          "offset",
+          [](const SkPath& p, float x, float y) {
+            return SkPathBuilder(p).offset(x, y).detach();
+          },
+          py::arg("x"), py::arg("y"))
+      .def(
+          "transform",
+          [](const SkPath& p, const SkMatrix& m) {
+            return SkPathBuilder(p).transform(m).detach();
+          },
+          py::arg("matrix"));
   auto builder =
       py::class_<SkPathBuilder>(skia, "PathBuilder")
           .def(py::init<>())
-          .def(py::init<const SkPath&>())
+          .def(py::init<const SkPath&>(), py::arg("path"))
           .def("moveTo",
-               py::overload_cast<float, float>(&SkPathBuilder::moveTo), fluent)
+               py::overload_cast<float, float>(&SkPathBuilder::moveTo),
+               py::arg("x"), py::arg("y"), fluent)
           .def("moveTo", py::overload_cast<SkPoint>(&SkPathBuilder::moveTo),
-               fluent)
+               py::arg("point"), fluent)
           .def("lineTo",
-               py::overload_cast<float, float>(&SkPathBuilder::lineTo), fluent)
+               py::overload_cast<float, float>(&SkPathBuilder::lineTo),
+               py::arg("x"), py::arg("y"), fluent)
           .def("lineTo", py::overload_cast<SkPoint>(&SkPathBuilder::lineTo),
-               fluent)
+               py::arg("point"), fluent)
           .def("quadTo",
                py::overload_cast<float, float, float, float>(
                    &SkPathBuilder::quadTo),
+               py::arg("x1"), py::arg("y1"), py::arg("x2"), py::arg("y2"),
                fluent)
           .def("conicTo",
                py::overload_cast<float, float, float, float, float>(
                    &SkPathBuilder::conicTo),
-               fluent)
+               py::arg("x1"), py::arg("y1"), py::arg("x2"), py::arg("y2"),
+               py::arg("weight"), fluent)
           .def("cubicTo",
                py::overload_cast<float, float, float, float, float, float>(
                    &SkPathBuilder::cubicTo),
-               fluent)
+               py::arg("x1"), py::arg("y1"), py::arg("x2"), py::arg("y2"),
+               py::arg("x3"), py::arg("y3"), fluent)
           .def("close", &SkPathBuilder::close, fluent)
           .def("reset", &SkPathBuilder::reset, fluent)
-          .def("setFillType", &SkPathBuilder::setFillType, fluent)
-          .def("setIsVolatile", &SkPathBuilder::setIsVolatile, fluent)
+          .def("setFillType", &SkPathBuilder::setFillType, py::arg("fillType"),
+               fluent)
+          .def("setIsVolatile", &SkPathBuilder::setIsVolatile,
+               py::arg("isVolatile"), fluent)
           .def(
               "addRect",
               [](SkPathBuilder& b, py::handle r, SkPathDirection dir)
@@ -328,17 +360,17 @@ void bindValues(py::module_& module) {
               [](SkPathBuilder& b, py::handle r) -> SkPathBuilder& {
                 return b.addOval(rect(r));
               },
-              fluent)
+              py::arg("rect"), fluent)
           .def(
               "addCircle",
               [](SkPathBuilder& b, float x, float y,
                  float r) -> SkPathBuilder& { return b.addCircle(x, y, r); },
-              fluent)
+              py::arg("x"), py::arg("y"), py::arg("radius"), fluent)
           .def(
               "addArc",
               [](SkPathBuilder& b, py::handle r, float start, float sweep)
                   -> SkPathBuilder& { return b.addArc(rect(r), start, sweep); },
-              fluent)
+              py::arg("rect"), py::arg("start"), py::arg("sweep"), fluent)
           .def(
               "addPolygon",
               [](SkPathBuilder& b, const std::vector<SkPoint>& points,
@@ -351,9 +383,11 @@ void bindValues(py::module_& module) {
               [](SkPathBuilder& b, const SkPath& p) -> SkPathBuilder& {
                 return b.addPath(p);
               },
-              fluent)
-          .def("offset", &SkPathBuilder::offset, fluent)
-          .def("transform", &SkPathBuilder::transform, fluent)
+              py::arg("path"), fluent)
+          .def("offset", &SkPathBuilder::offset, py::arg("x"), py::arg("y"),
+               fluent)
+          .def("transform", &SkPathBuilder::transform, py::arg("matrix"),
+               fluent)
           .def("detach", [](SkPathBuilder& b) { return b.detach(); })
           .def("snapshot", [](const SkPathBuilder& b) { return b.snapshot(); });
   py::enum_<SkPathOp>(skia, "PathOp")
@@ -362,12 +396,15 @@ void bindValues(py::module_& module) {
       .value("Union", kUnion_SkPathOp)
       .value("Xor", kXOR_SkPathOp)
       .value("ReverseDifference", kReverseDifference_SkPathOp);
-  skia.def("pathOp", [](const SkPath& a, const SkPath& b, SkPathOp operation) {
-    auto result = Op(a, b, operation);
-    if (!result)
-      throw py::value_error("The path operation could not be evaluated.");
-    return *result;
-  });
+  skia.def(
+      "pathOp",
+      [](const SkPath& a, const SkPath& b, SkPathOp operation) {
+        auto result = Op(a, b, operation);
+        if (!result)
+          throw py::value_error("The path operation could not be evaluated.");
+        return *result;
+      },
+      py::arg("a"), py::arg("b"), py::arg("operation"));
   py::enum_<SkPaint::Style>(skia, "PaintStyle")
       .value("Fill", SkPaint::kFill_Style)
       .value("Stroke", SkPaint::kStroke_Style)
@@ -382,15 +419,17 @@ void bindValues(py::module_& module) {
       .value("Bevel", SkPaint::kBevel_Join);
   py::class_<SkPaint>(skia, "Paint")
       .def(py::init<>())
-      .def(py::init<const SkPaint&>())
-      .def("setColor", [](SkPaint& p, py::handle c) { p.setColor(color(c)); })
-      .def("setAlphaf", &SkPaint::setAlphaf)
-      .def("setAntiAlias", &SkPaint::setAntiAlias)
-      .def("setStyle", &SkPaint::setStyle)
-      .def("setStrokeWidth", &SkPaint::setStrokeWidth)
-      .def("setStrokeCap", &SkPaint::setStrokeCap)
-      .def("setStrokeJoin", &SkPaint::setStrokeJoin)
-      .def("setBlendMode", &SkPaint::setBlendMode);
+      .def(py::init<const SkPaint&>(), py::arg("paint"))
+      .def(
+          "setColor", [](SkPaint& p, py::handle c) { p.setColor(color(c)); },
+          py::arg("color"))
+      .def("setAlphaf", &SkPaint::setAlphaf, py::arg("alpha"))
+      .def("setAntiAlias", &SkPaint::setAntiAlias, py::arg("enabled"))
+      .def("setStyle", &SkPaint::setStyle, py::arg("style"))
+      .def("setStrokeWidth", &SkPaint::setStrokeWidth, py::arg("width"))
+      .def("setStrokeCap", &SkPaint::setStrokeCap, py::arg("cap"))
+      .def("setStrokeJoin", &SkPaint::setStrokeJoin, py::arg("join"))
+      .def("setBlendMode", &SkPaint::setBlendMode, py::arg("mode"));
   py::enum_<SkVertices::VertexMode>(skia, "VertexMode")
       .value("Triangles", SkVertices::kTriangles_VertexMode)
       .value("TriangleStrip", SkVertices::kTriangleStrip_VertexMode)
@@ -438,7 +477,7 @@ void bindValues(py::module_& module) {
         return py::bytes(bytes);
       });
   py::class_<SkRuntimeEffect, sk_sp<SkRuntimeEffect>>(skia, "RuntimeEffect")
-      .def_static("MakeForShader", &shader);
+      .def_static("MakeForShader", &shader, py::arg("source"));
 
   auto images = module.def_submodule("image");
   images.def(
@@ -477,9 +516,12 @@ void bindValues(py::module_& module) {
       .def("height", &image::ImageAsset::height)
       .def("animated", &image::ImageAsset::animated)
       .def("totalDurationMs", &image::ImageAsset::totalDurationMs)
-      .def("frameAt", [](const image::ImageAsset& asset, double milliseconds) {
-        return asset.frameAt(milliseconds).image;
-      });
+      .def(
+          "frameAt",
+          [](const image::ImageAsset& asset, double milliseconds) {
+            return asset.frameAt(milliseconds).image;
+          },
+          py::arg("milliseconds"));
   const auto decode = [](py::bytes encoded, int width, int height,
                          const std::string& hint) {
     const std::string bytes = encoded;
@@ -520,12 +562,16 @@ void bindValues(py::module_& module) {
              py::arg("contrast") = 1, py::arg("stretch") = 1);
   auto nativePaint = materials.def_submodule("skia");
   py::class_<mskia::Effect>(nativePaint, "Effect")
-      .def_static("recipe", py::overload_cast<const material::Material&>(
-                                &mskia::Effect::recipe))
-      .def_static("glow",
-                  [](py::object ink, float sigma) {
-                    return mskia::Effect::glow(color(ink), sigma);
-                  })
+      .def_static(
+          "recipe",
+          py::overload_cast<const material::Material&>(&mskia::Effect::recipe),
+          py::arg("material"))
+      .def_static(
+          "glow",
+          [](py::object ink, float sigma) {
+            return mskia::Effect::glow(color(ink), sigma);
+          },
+          py::arg("ink"), py::arg("sigma"))
       .def_static("brightPass", &mskia::Effect::brightPass,
                   py::arg("threshold") = 0.68f, py::arg("knee") = 0.30f)
       .def_static("phosphorBloom", &mskia::Effect::phosphorBloom,
@@ -538,8 +584,10 @@ void bindValues(py::module_& module) {
       .def_static("directionalBlur", &mskia::Effect::directionalBlur,
                   py::arg("sigma"), py::arg("angleDeg"),
                   py::arg("across") = 0.0f)
-      .def_static("blur", &mskia::Effect::blur)
-      .def("slot", &mskia::Effect::slot, fluent)
+      .def_static("blur", &mskia::Effect::blur, py::arg("sigmaMap"),
+                  py::arg("maxSigma"))
+      .def("slot", &mskia::Effect::slot, py::arg("name"), py::arg("paint"),
+           fluent)
       .def(
           "uniform",
           [](mskia::Effect& self, const std::string& name,
@@ -549,8 +597,8 @@ void bindValues(py::module_& module) {
               return self.uniform(name, value.cast<std::vector<float>>());
             return self.uniform(name, motionAnimatable(value));
           },
-          fluent)
-      .def("then", &mskia::Effect::then)
+          py::arg("name"), py::arg("value"), fluent)
+      .def("then", &mskia::Effect::then, py::arg("effect"))
       .def("isAnimated", &mskia::Effect::isAnimated)
       .def("usesWorldSpace", &mskia::Effect::usesWorldSpace)
       .def(py::self == py::self);
@@ -562,10 +610,11 @@ void bindValues(py::module_& module) {
       .value("Native", mskia::Fit::Native);
   py::class_<mskia::Paint>(nativePaint, "Paint")
       .def(py::init<>())
-      .def(py::init<const mskia::Paint&>())
+      .def(py::init<const mskia::Paint&>(), py::arg("paint"))
       .def("copy", [](const mskia::Paint& p) { return p; })
-      .def_static("solid",
-                  [](py::handle c) { return mskia::Paint::solid(color(c)); })
+      .def_static(
+          "solid", [](py::handle c) { return mskia::Paint::solid(color(c)); },
+          py::arg("color"))
       .def_static(
           "linear",
           [](py::handle a, py::handle b, py::iterable s, SkTileMode tile) {
@@ -584,7 +633,9 @@ void bindValues(py::module_& module) {
           "conical",
           [](py::handle a, float ra, py::handle b, float rb, py::iterable s) {
             return mskia::Paint::conical(point(a), ra, point(b), rb, stops(s));
-          })
+          },
+          py::arg("start"), py::arg("startRadius"), py::arg("end"),
+          py::arg("endRadius"), py::arg("stops"))
       .def_static(
           "sweep",
           [](py::handle c, py::iterable s, float start, float end) {
@@ -592,19 +643,24 @@ void bindValues(py::module_& module) {
           },
           py::arg("center"), py::arg("stops"), py::arg("start") = 0,
           py::arg("end") = 360)
-      .def_static("linearUnit",
-                  [](py::handle a, py::handle b, py::iterable s) {
-                    return mskia::Paint::linearUnit(point(a), point(b),
-                                                    stops(s));
-                  })
-      .def_static("radialUnit",
-                  [](py::handle c, float r, py::iterable s) {
-                    return mskia::Paint::radialUnit(point(c), r, stops(s));
-                  })
-      .def_static("glowUnit",
-                  [](py::handle c, float r, py::iterable s) {
-                    return mskia::Paint::glowUnit(point(c), r, stops(s));
-                  })
+      .def_static(
+          "linearUnit",
+          [](py::handle a, py::handle b, py::iterable s) {
+            return mskia::Paint::linearUnit(point(a), point(b), stops(s));
+          },
+          py::arg("start"), py::arg("end"), py::arg("stops"))
+      .def_static(
+          "radialUnit",
+          [](py::handle c, float r, py::iterable s) {
+            return mskia::Paint::radialUnit(point(c), r, stops(s));
+          },
+          py::arg("center"), py::arg("radius"), py::arg("stops"))
+      .def_static(
+          "glowUnit",
+          [](py::handle c, float r, py::iterable s) {
+            return mskia::Paint::glowUnit(point(c), r, stops(s));
+          },
+          py::arg("center"), py::arg("radius"), py::arg("stops"))
       .def_static(
           "image",
           [](sk_sp<SkImage> image, SkTileMode tx, SkTileMode ty,
@@ -616,37 +672,50 @@ void bindValues(py::module_& module) {
           py::arg("local") = SkMatrix::I())
       .def_static("sksl", &sksl, py::arg("effect"),
                   py::arg("uniforms") = py::dict())
-      .def_static("recipe", &mskia::Paint::recipe)
-      .def_static("blend", &mskia::Paint::blend)
-      .def("uniform", &uniform, fluent)
-      .def("slot", &mskia::Paint::slot, fluent)
-      .def("amount", &mskia::Paint::amount, fluent)
-      .def("fit", &mskia::Paint::fit, fluent)
+      .def_static("recipe", &mskia::Paint::recipe, py::arg("material"))
+      .def_static("blend", &mskia::Paint::blend, py::arg("layers"))
+      .def("uniform", &uniform, py::arg("name"), py::arg("value"), fluent)
+      .def("slot", &mskia::Paint::slot, py::arg("name"), py::arg("paint"),
+           fluent)
+      .def("amount", &mskia::Paint::amount, py::arg("amount"), fluent)
+      .def("fit", &mskia::Paint::fit, py::arg("fit"), fluent)
       .def("worldSpace", py::overload_cast<bool>(&mskia::Paint::worldSpace),
            py::arg("on") = true, fluent)
-      .def("quantizeTime", &mskia::Paint::quantizeTime, fluent)
+      .def("quantizeTime", &mskia::Paint::quantizeTime, py::arg("hz"), fluent)
       .def("isAnimated", &mskia::Paint::isAnimated)
       .def("isNone", &mskia::Paint::isNone)
       .def(py::self == py::self);
   auto patterns = materials.def_submodule("pattern");
   py::class_<pattern::Tile>(patterns, "Tile")
-      .def("seed", &pattern::Tile::seed, fluent)
-      .def("scale", py::overload_cast<float>(&pattern::Tile::scale), fluent)
-      .def("rotate", py::overload_cast<float>(&pattern::Tile::rotate), fluent)
-      .def("offset", py::overload_cast<SkPoint>(&pattern::Tile::offset), fluent)
+      .def("seed", &pattern::Tile::seed, py::arg("seed"), fluent)
+      .def("scale", py::overload_cast<float>(&pattern::Tile::scale),
+           py::arg("factor"), fluent)
+      .def("rotate", py::overload_cast<float>(&pattern::Tile::rotate),
+           py::arg("degrees"), fluent)
+      .def("offset", py::overload_cast<SkPoint>(&pattern::Tile::offset),
+           py::arg("offset"), fluent)
       .def("image", &pattern::Tile::image)
       .def("paint", [](const pattern::Tile& tile) {
         return mskia::Paint::shader(tile.texture().shader());
       });
-  patterns.def("gridLines", [](float spacing, float width, py::handle c) {
-    return pattern::gridLines(spacing, width, materialColor(c));
-  });
-  patterns.def("stripes", [](float on, float off, py::handle c) {
-    return pattern::stripes(on, off, materialColor(c));
-  });
-  patterns.def("checker", [](float cell, py::handle a, py::handle b) {
-    return pattern::checker(cell, materialColor(a), materialColor(b));
-  });
+  patterns.def(
+      "gridLines",
+      [](float spacing, float width, py::handle c) {
+        return pattern::gridLines(spacing, width, materialColor(c));
+      },
+      py::arg("spacing"), py::arg("width"), py::arg("color"));
+  patterns.def(
+      "stripes",
+      [](float on, float off, py::handle c) {
+        return pattern::stripes(on, off, materialColor(c));
+      },
+      py::arg("on"), py::arg("off"), py::arg("color"));
+  patterns.def(
+      "checker",
+      [](float cell, py::handle a, py::handle b) {
+        return pattern::checker(cell, materialColor(a), materialColor(b));
+      },
+      py::arg("cell"), py::arg("a"), py::arg("b"));
   patterns.def(
       "halftone",
       [](float spacing, float radius, py::handle c, bool staggered) {
@@ -678,15 +747,18 @@ void bindValues(py::module_& module) {
       .value("Rem", weave::Length::Unit::Rem)
       .value("Lh", weave::Length::Unit::Lh);
   length.def(py::init<>())
-      .def(py::init<float>())
-      .def(py::init<float, weave::Length::Unit>())
+      .def(py::init<float>(), py::arg("value"))
+      .def(py::init<float, weave::Length::Unit>(), py::arg("value"),
+           py::arg("unit"))
       .def_readwrite("value", &weave::Length::value)
       .def_readwrite("unit", &weave::Length::unit)
       .def("relative", &weave::Length::relative)
       .def(py::self == py::self);
   py::implicitly_convertible<py::float_, weave::Length>();
   py::implicitly_convertible<py::int_, weave::Length>();
-  weave.def("em", &weave::em).def("rem", &weave::rem).def("lh", &weave::lh);
+  weave.def("em", &weave::em, py::arg("value"))
+      .def("rem", &weave::rem, py::arg("value"))
+      .def("lh", &weave::lh, py::arg("value"));
   py::class_<weave::Type>(weave, "Type")
       .def(py::init([](py::kwargs kwargs) {
         return keywordValue<weave::Type>(kwargs, "Unknown Type field: ");

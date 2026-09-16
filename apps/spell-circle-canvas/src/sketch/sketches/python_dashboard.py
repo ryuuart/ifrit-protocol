@@ -49,39 +49,31 @@ def metric(label, value, detail, accent, level, index):
         .opacity(entrance(0, 1, duration=0.6, delay=index * 0.1))
         .translateY(entrance(12, 0, duration=0.6, delay=index * 0.1))
         .children(
-            [
-                (
-                    row()
-                    .gap(8)
-                    .alignItems("center")
-                    .children(
-                        [
-                            (box().width(7).height(7).corners(4).fill(accent)),
-                            text(label, size=12, color=MUTED),
-                        ]
-                    )
-                ),
-                text(value, size=46, color=INK),
-                (
-                    box()
-                    .height(3)
-                    .fill("#324153")
-                    .children(
-                        [
-                            (
-                                box()
-                                .width(f"{level * 100}%")
-                                .height(3)
-                                .fill(accent)
-                                .scaleX(
-                                    entrance(0.02, 1, duration=0.9, delay=index * 0.12)
-                                )
-                            ),
-                        ]
-                    )
-                ),
-                text(detail, size=12, color=MUTED),
-            ]
+            (
+                row()
+                .gap(8)
+                .alignItems("center")
+                .children(
+                    (box().width(7).height(7).corners(4).fill(accent)),
+                    text(label, size=12, color=MUTED),
+                )
+            ),
+            text(value, size=46, color=INK),
+            (
+                box()
+                .height(3)
+                .fill("#324153")
+                .children(
+                    (
+                        box()
+                        .width(f"{level * 100}%")
+                        .height(3)
+                        .fill(accent)
+                        .scaleX(entrance(0.02, 1, duration=0.9, delay=index * 0.12))
+                    ),
+                )
+            ),
+            text(detail, size=12, color=MUTED),
         )
     )
 
@@ -98,67 +90,57 @@ def signal_panel():
         .corners(16)
         .fill(PANEL)
         .children(
-            [
-                (
-                    row()
-                    .justify("space_between")
-                    .alignItems("center")
-                    .children(
-                        [
-                            (
-                                column()
-                                .gap(6)
-                                .children(
-                                    [
-                                        text("Signal envelope", size=22, color=INK),
-                                        text(
-                                            "A composed view of 48 observations",
-                                            size=12,
-                                            color=MUTED,
-                                        ),
-                                    ]
-                                )
+            (
+                row()
+                .justify("space_between")
+                .alignItems("center")
+                .children(
+                    (
+                        column()
+                        .gap(6)
+                        .children(
+                            text("Signal envelope", size=22, color=INK),
+                            text(
+                                "A composed view of 48 observations",
+                                size=12,
+                                color=MUTED,
                             ),
-                            text("NORMALIZED  /  0—1", size=11, color=MUTED),
-                        ]
-                    )
-                ),
-                (
-                    row()
-                    .height(136)
-                    .gap(7)
-                    .alignItems("end")
-                    .children(
-                        [
-                            (
-                                box()
-                                .height(124 * sample + 8)
-                                .grow(1)
-                                .corners(3)
-                                .fill("#8bd0bd" if i < 32 else "#edbb83")
-                                .key(f"sample.{i}")
-                                .scaleY(
-                                    entrance(
-                                        0.03, 1, duration=0.7, delay=0.2 + i * 0.01
-                                    )
-                                )
+                        )
+                    ),
+                    text("NORMALIZED  /  0—1", size=11, color=MUTED),
+                )
+            ),
+            (
+                row()
+                .height(136)
+                .gap(7)
+                .alignItems("end")
+                .children(
+                    [
+                        (
+                            box()
+                            .height(124 * sample + 8)
+                            .grow(1)
+                            .corners(3)
+                            .fill("#8bd0bd" if i < 32 else "#edbb83")
+                            .key(f"sample.{i}")
+                            .scaleY(
+                                entrance(0.03, 1, duration=0.7, delay=0.2 + i * 0.01)
                             )
-                            for i, sample in enumerate(samples)
-                        ]
-                    )
-                ),
-                (
-                    row()
-                    .justify("space_between")
-                    .children(
-                        [
-                            text("00:00", size=11, color=MUTED),
-                            text("00:24", size=11, color=MUTED),
-                            text("00:48", size=11, color=MUTED),
-                        ]
-                    )
-                ),
-            ]
+                        )
+                        for i, sample in enumerate(samples)
+                    ]
+                )
+            ),
+            (
+                row()
+                .justify("space_between")
+                .children(
+                    text("00:00", size=11, color=MUTED),
+                    text("00:24", size=11, color=MUTED),
+                    text("00:48", size=11, color=MUTED),
+                )
+            ),
         )
     )
 
@@ -173,78 +155,60 @@ class Dashboard:
             .absolute()
             .inset(0)
             .children(
-                [
-                    (
-                        row()
-                        .justify("space_between")
-                        .alignItems("center")
-                        .children(
-                            [
-                                (
-                                    column()
-                                    .gap(10)
-                                    .children(
-                                        [
-                                            text(
-                                                "FIELD NOTES    /    002",
-                                                size=12,
-                                                color=MUTED,
-                                            ),
-                                            text(
-                                                "A quiet instrument", size=36, color=INK
-                                            ),
-                                        ]
-                                    )
-                                ),
-                                (
-                                    row()
-                                    .padding(14, 10)
-                                    .gap(8)
-                                    .corners(14)
-                                    .fill("#203d3b")
-                                    .alignItems("center")
-                                    .children(
-                                        [
-                                            (
-                                                box()
-                                                .width(6)
-                                                .height(6)
-                                                .corners(3)
-                                                .fill("#8bd0bd")
-                                            ),
-                                            text("OBSERVING", size=11, color="#8bd0bd"),
-                                        ]
-                                    )
-                                ),
-                            ]
-                        )
-                    ),
-                    (box().height(1).fill("#2b3b4c")),
-                    (
-                        row()
-                        .gap(18)
-                        .children(
-                            [
-                                metric(**reading, index=i)
-                                for i, reading in enumerate(READINGS)
-                            ]
-                        )
-                    ),
-                    signal_panel(),
-                    (
-                        row()
-                        .justify("space_between")
-                        .children(
-                            [
+                (
+                    row()
+                    .justify("space_between")
+                    .alignItems("center")
+                    .children(
+                        (
+                            column()
+                            .gap(10)
+                            .children(
                                 text(
-                                    "Three readings. One continuous field.",
+                                    "FIELD NOTES    /    002",
                                     size=12,
                                     color=MUTED,
                                 ),
-                                text("OBSERVATION 002", size=11, color=MUTED),
-                            ]
-                        )
-                    ),
-                ]
+                                text("A quiet instrument", size=36, color=INK),
+                            )
+                        ),
+                        (
+                            row()
+                            .padding(14, 10)
+                            .gap(8)
+                            .corners(14)
+                            .fill("#203d3b")
+                            .alignItems("center")
+                            .children(
+                                (box().width(6).height(6).corners(3).fill("#8bd0bd")),
+                                text("OBSERVING", size=11, color="#8bd0bd"),
+                            )
+                        ),
+                    )
+                ),
+                (box().height(1).fill("#2b3b4c")),
+                (
+                    row()
+                    .gap(18)
+                    .children(
+                        [
+                            metric(**reading, index=i)
+                            for i, reading in enumerate(READINGS)
+                        ]
+                    )
+                ),
+                signal_panel(),
+                (
+                    row()
+                    .justify("space_between")
+                    .children(
+                        text(
+                            "Three readings. One continuous field.",
+                            size=12,
+                            color=MUTED,
+                        ),
+                        text("OBSERVATION 002", size=11, color=MUTED),
+                    )
+                ),
             )
         )

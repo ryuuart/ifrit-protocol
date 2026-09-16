@@ -33,30 +33,20 @@ def signal_row(number, title, detail, signal, accent):
         .width(TRACK)
         .height(48)
         .children(
-            [
-                *marks,
-                (
-                    box()
-                    .width(TRACK)
-                    .height(1)
-                    .fill("#435851")
-                    .absolute()
-                    .left(0)
-                    .top(22)
-                ),
-                (
-                    box()
-                    .width(30)
-                    .height(30)
-                    .fill(accent)
-                    .corners(8)
-                    .absolute()
-                    .left(0)
-                    .top(7)
-                    .translateX(signal.copy().target(0, TRACK - 30))
-                    .rotate(signal.copy().target(-20, 20))
-                ),
-            ]
+            *marks,
+            (box().width(TRACK).height(1).fill("#435851").absolute().left(0).top(22)),
+            (
+                box()
+                .width(30)
+                .height(30)
+                .fill(accent)
+                .corners(8)
+                .absolute()
+                .left(0)
+                .top(7)
+                .translateX(signal.copy().target(0, TRACK - 30))
+                .rotate(signal.copy().target(-20, 20))
+            ),
         )
     )
     return (
@@ -68,21 +58,17 @@ def signal_row(number, title, detail, signal, accent):
         .fill("#162621" if number % 2 else "#13221e")
         .corners(12)
         .children(
-            [
-                (
-                    column()
-                    .gap(5)
-                    .width(168)
-                    .children(
-                        [
-                            text(f"0{number}", size=12, color=accent),
-                            text(title, size=17, color=INK),
-                            text(detail, size=11, color=MUTED),
-                        ]
-                    )
-                ),
-                track,
-            ]
+            (
+                column()
+                .gap(5)
+                .width(168)
+                .children(
+                    text(f"0{number}", size=12, color=accent),
+                    text(title, size=17, color=INK),
+                    text(detail, size=11, color=MUTED),
+                )
+            ),
+            track,
         )
     )
 
@@ -140,33 +126,27 @@ class MotionSignals:
             .alignItems("center")
             .width(WIDTH)
             .children(
-                [
-                    (
-                        column()
-                        .gap(9)
-                        .children(
-                            [
-                                text("MOTION / SIGNAL DESK", size=12, color="#96bd9e"),
-                                text(
-                                    "One clock. Six interpretations.",
-                                    size=31,
-                                    color=INK,
-                                ),
-                            ]
-                        )
-                    ),
-                    (
-                        box()
-                        .padding(12)
-                        .corners(8)
-                        .fill("#1b3124")
-                        .children(
-                            [
-                                text("NATIVE\nCLOCK", size=13, color="#b7dd93"),
-                            ]
-                        )
-                    ),
-                ]
+                (
+                    column()
+                    .gap(9)
+                    .children(
+                        text("MOTION / SIGNAL DESK", size=12, color="#96bd9e"),
+                        text(
+                            "One clock. Six interpretations.",
+                            size=31,
+                            color=INK,
+                        ),
+                    )
+                ),
+                (
+                    box()
+                    .padding(12)
+                    .corners(8)
+                    .fill("#1b3124")
+                    .children(
+                        text("NATIVE\nCLOCK", size=13, color="#b7dd93"),
+                    )
+                ),
             )
         )
         footer = (
@@ -174,11 +154,9 @@ class MotionSignals:
             .width(WIDTH)
             .justify("space_between")
             .children(
-                [
-                    text("RETAINED COMPONENTS", size=11, color=MUTED),
-                    text("OUTPUT → BIND → PROPERTY", size=11, color="#a8bcae"),
-                    text("PERIOD  5.0 s", size=11, color=MUTED),
-                ]
+                text("RETAINED COMPONENTS", size=11, color=MUTED),
+                text("OUTPUT → BIND → PROPERTY", size=11, color="#a8bcae"),
+                text("PERIOD  5.0 s", size=11, color=MUTED),
             )
         )
         ctx.render(
@@ -191,10 +169,8 @@ class MotionSignals:
             .translateY(entrance)
             .opacity(animate(from_(0).to(1), Transition(0.5, ease.outQuad)))
             .children(
-                [
-                    header,
-                    column().gap(9).width(WIDTH).children(rows),
-                    footer,
-                ]
+                header,
+                column().gap(9).width(WIDTH).children(rows),
+                footer,
             )
         )
