@@ -162,7 +162,7 @@ build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 | `encode_write` | Rewritten · subject study | Reviewed GPU plate |
 | `env_faces` | Rewritten · subject study | Reviewed GPU plate |
 | `env_lanes` | Rewritten · subject study | Reviewed GPU plate |
-| `exact_tangent` | Rewritten · subject study | Reviewed GPU plate |
+| `exact_tangent` | Rewritten · subject study | Reviewed raster + GPU plates · shared coverage and 8× edge detail |
 | `exr_channels` | Rewritten · subject study | Reviewed GPU plate |
 | `feed_vitals` | Rewritten · subject study | Reviewed GPU plate |
 | `floating_panels` | Retain · focused specimen | Cached preview |
