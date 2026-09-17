@@ -218,6 +218,17 @@ void bindSpecimens(py::module_& module) {
   auto cell = record<sketchKit::Cell>(module, "Cell");
   field(cell, "plate", &sketchKit::Cell::plate);
   field(cell, "measure", &sketchKit::Cell::measure);
+  auto comparisonCase =
+      record<sketchKit::ComparisonCase>(module, "ComparisonCase");
+  field(comparisonCase, "title", &sketchKit::ComparisonCase::title);
+  field(comparisonCase, "control", &sketchKit::ComparisonCase::control);
+  field(comparisonCase, "figure", &sketchKit::ComparisonCase::figure);
+  field(comparisonCase, "note", &sketchKit::ComparisonCase::note);
+  auto comparison = record<sketchKit::Comparison>(module, "Comparison");
+  field(comparison, "cases", &sketchKit::Comparison::cases);
+  field(comparison, "measure", &sketchKit::Comparison::measure);
+  field(comparison, "gap", &sketchKit::Comparison::gap);
+  field(comparison, "trackGap", &sketchKit::Comparison::trackGap);
   auto run = record<sketchKit::Run>(module, "Run");
   field(run, "cells", &sketchKit::Run::cells);
   field(run, "column", &sketchKit::Run::column);
@@ -255,6 +266,7 @@ void bindSpecimens(py::module_& module) {
         return sketchKit::cell(plate, label, note, std::move(picture));
       },
       py::arg("plate"), py::arg("label"), py::arg("note"), py::arg("picture"));
+  module.def("comparison", &sketchKit::comparison, py::arg("comparison"));
   module.def("cells", &sketchKit::cells, py::arg("run"));
   module.def("panelGrid", &sketchKit::panelGrid, py::arg("grid"));
 }

@@ -14,7 +14,8 @@ from . import motion
 from . import sketch
 from . import skia
 from . import weave
-__all__: list[str] = ['Context', 'compose', 'core', 'data', 'draw', 'geometry', 'image', 'io', 'material', 'motion', 'render_file', 'sketch', 'skia', 'weave']
+from . import world
+__all__: list[str] = ['Context', 'compose', 'core', 'data', 'draw', 'geometry', 'image', 'io', 'material', 'motion', 'render_file', 'sketch', 'skia', 'weave', 'world']
 
 class Context:
 

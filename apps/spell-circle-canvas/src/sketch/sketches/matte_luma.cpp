@@ -67,7 +67,7 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr float kPanel = 208.0f;
+constexpr float kPanel = 240.0f;
 constexpr float kSplit = 0.5f;  // matte: greys left of here, alpha right
 
 // (colour, its Rec. 601 grey twin). 0.299 R' + 0.587 G' + 0.114 B'.
@@ -92,14 +92,14 @@ constexpr SkColor4f kFrame{0.24f, 0.28f, 0.36f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
   look.palette.ink = kInk;
   look.palette.ash = kDim;
   look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
   look.type.captionLabel = {.size = 13, .track = 0.4f};
-  look.spacing.marginX = 30;
-  look.spacing.marginTop = 22;
+  look.spacing.marginX = 40;
+  look.spacing.marginTop = 40;
   look.spacing.captionGap = 6;
   return look;
 }
@@ -189,7 +189,7 @@ Element bandLabels(float stripW) {
 struct MatteLuma {
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
-    sketch::kit::stage(ctx, {.size = {1180, 620}});
+    sketch::kit::stage(ctx, {.size = {1100, 1180}});
     // Every gate is a constant: the sheet is complete on the first frame.
     ctx.captureAt(0.05);
 
@@ -201,32 +201,20 @@ struct MatteLuma {
       inner.mask(std::move(gate));
       return cell(kPanel, kPanel, std::move(inner));
     };
-    const auto captioned = [&](const char* call, const char* note,
-                               Element body) {
-      return sketch::kit::caption(kPanel, call, note, std::move(body));
+    const auto captioned = [&](const char* caseTitle, const char* call,
+                               const char* note,
+                               Element body) -> sketch::kit::ComparisonCase {
+      return {.title = caseTitle,
+              .control = call,
+              .figure = std::move(body),
+              .note = note};
     };
 
     // The bottom row: the run as a picture, and the run as a matte.
-    const float stripW = kPanel * 4 + 3 * 12;
+    const float stripW = 1020;
     const mskia::Paint bands = bandStrip(stripW);
     Element bandMatted = content(stripW, 64);
     bandMatted.mask(by::luma(bands));
-
-    Element gates = kit::cells(
-        {.cells = {captioned(
-                       "the coverage paint",
-                       "greys on the left | white ramping in ALPHA on "
-                       "the right",
-                       cell(kPanel, kPanel, box().inset(0).fill(coverage))),
-                   captioned("by::alpha(coverage)", "keeps what it COVERS",
-                             gated(by::alpha(coverage))),
-                   captioned("by::alphaOut(coverage)", "…and the complement",
-                             gated(by::alphaOut(coverage))),
-                   captioned("by::luma(coverage)", "keeps what is BRIGHT",
-                             gated(by::luma(coverage))),
-                   captioned("by::lumaOut(coverage)", "…and the complement",
-                             gated(by::lumaOut(coverage)))},
-         .gap = 12});
 
     Element law = box().column().gap(6).children(
         {text("Rec. 601 on ENCODED values · each "
@@ -243,17 +231,71 @@ struct MatteLuma {
          cell(stripW, 64, std::move(bandMatted))});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "Track mattes",
-         .subtitle = "one content, one coverage paint, four gates "
-                     "— right halves match between alpha "
-                     "and luma because the luma is taken on the "
-                     "PREMULTIPLIED colour; left halves do not",
-         .footer = "Y' = 0.299 R' + 0.587 G' + 0.114 B' · "
-                   "Rec. 709's luminance coefficients on encoded "
-                   "values would break every pair above"},
-        kit::cells({.cells = {std::move(gates), std::move(law)},
-                    .column = true,
-                    .gap = 26})));
+        {.title = "Coverage and brightness are different",
+         .subtitle =
+             "A source, a matte, four gates—and the colour law behind them",
+         .footer = "Luma uses encoded, premultiplied colour: Y′ = 0.299 R′ + "
+                   "0.587 G′ + 0.114 B′."},
+        box().column().gap(26).children(
+            {box()
+                 .row()
+                 .alignItems(Align::Start)
+                 .gap(20)
+                 .children(
+                     {sketch::kit::comparison(
+                          {.cases = {captioned(
+                                         "THE MATTE", "the coverage paint",
+                                         "Left: opaque grey. Right: white with "
+                                         "falling "
+                                         "alpha.",
+                                         cell(kPanel, kPanel,
+                                              box().inset(0).fill(coverage))),
+                                     captioned("THE CONTENT", "before the gate",
+                                               "The same colour ramp and "
+                                               "lettering feed all four gates.",
+                                               content(kPanel, kPanel))},
+                           .measure = 500,
+                           .gap = 20}),
+                      box().column().gap(18).children(
+                          {sketch::kit::sectionHeader(
+                               {.label = "TWO READINGS OF ONE MATTE",
+                                .note = ""}),
+                           text("The left half changes colour while staying "
+                                "opaque. The right half changes opacity while "
+                                "staying white. This separates alpha coverage "
+                                "from premultiplied brightness.")
+                               .width(360)
+                               .styleClass("captionNote"),
+                           text("Keep and remove are complements. Checkerboard "
+                                "means the content is hidden, rather than "
+                                "painted black.")
+                               .width(360)
+                               .styleClass("captionNote")})}),
+             sketch::kit::sectionHeader(
+                 {.label = "KEEP / REMOVE",
+                  .note = "Alpha pair on the left · luma pair on the right"}),
+             sketch::kit::comparison(
+                 {.cases =
+                      {captioned("ALPHA · KEEP", "by::alpha(coverage)",
+                                 "The grey half remains fully visible.",
+                                 gated(by::alpha(coverage))),
+                       captioned("ALPHA · REMOVE", "by::alphaOut(coverage)",
+                                 "The grey half disappears.",
+                                 gated(by::alphaOut(coverage))),
+                       captioned("LUMA · KEEP", "by::luma(coverage)",
+                                 "Brightness reduces both halves.",
+                                 gated(by::luma(coverage))),
+                       captioned(
+                           "LUMA · REMOVE", "by::lumaOut(coverage)",
+                           "The brightness complement reveals both halves.",
+                           gated(by::lumaOut(coverage)))},
+                  .measure = 1020,
+                  .gap = 20}),
+             sketch::kit::sectionHeader(
+                 {.label = "THE COLOUR WEIGHTS",
+                  .note = "The coloured bands and their grey twins must "
+                          "produce the same coverage."}),
+             std::move(law)})));
   }
 };
 

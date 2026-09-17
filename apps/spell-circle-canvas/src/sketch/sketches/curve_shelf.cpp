@@ -45,14 +45,14 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 638};
-constexpr float kCell = 200;
-constexpr float kPicture = 176;
+constexpr SkSize kCanvas = {1100, 1150};
+constexpr float kCell = 240;
+constexpr float kPicture = 190;
 constexpr float kWeight = 1.5f;  // every curve drawn at one width
 
 /** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.captionWhere = kit::Caption::Where::Below;
   look.type.captionLabel = {.size = 11.5f, .mono = true};
   look.spacing.captionGap = 8;
@@ -60,20 +60,23 @@ sketch::kit::Theme sheetTheme() {
   return look;
 }
 
-/** A specimen's name is a legend under the thing it names, so the
- *  caption stands below the body on this shelf rather than around it. */
-
 /** One specimen: the curve stroked inside a bordered plate, its call
  *  spelled under it and the rule it illustrates under that. */
-Element cell(const char* call, const char* note, Shape curve) {
-  return sketch::kit::cell(
-      {.plate = {.width = kCell, .height = kPicture}}, call, note,
-      box()
-          .absolute()
-          .inset(12)
-          .shape(std::move(curve))
-          .stroke(stroke(kWeight,
-                         Fill::color(sketch::kit::theme().palette.figure))));
+sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
+                                 const char* note, Shape curve,
+                                 float inset = 12) {
+  return {
+      .title = caseTitle,
+      .control = call,
+      .figure = sketch::kit::cell(
+          {.plate = {.width = kCell, .height = kPicture}}, "", "",
+          box()
+              .absolute()
+              .inset(inset)
+              .shape(std::move(curve))
+              .stroke(stroke(
+                  kWeight, Fill::color(sketch::kit::theme().palette.figure)))),
+      .note = note};
 }
 
 }  // namespace
@@ -84,67 +87,114 @@ struct CurveShelf {
     const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
-    // Two shelves, named before the page: the families, and the second
-    // reading of each — the rule about k, the two spirals, the two
-    // trochoids.
-    Element families = kit::cells(
-        {.cells = {cell("parametric(\"epicycle\", f)",
-                        "the KEYED escape hatch — your callable, comparable "
-                        "by name",
-                        shapes::parametric(
-                            "epicycle",
-                            [](float t) {
-                              return SkPoint{
-                                  0.62f * std::cos(t) + 0.34f * std::cos(7 * t),
-                                  0.62f * std::sin(t) +
-                                      0.34f * std::sin(7 * t)};
-                            },
-                            0.0f, 6.2831853f, 1400)),
-                   cell("lissajous(3, 2, 90)", "x = sin(a·t + δ), y = sin(b·t)",
-                        shapes::lissajous(3, 2, 90)),
-                   cell("lissajous(5, 4, 45)",
-                        "the ratio picks the family, δ the phase",
-                        shapes::lissajous(5, 4, 45)),
-                   cell("harmonograph(3,2,0,.06,5)",
-                        "amplitudes DECAY, so a real pendulum figure spirals "
-                        "in",
-                        shapes::harmonograph(3, 2, 0, 0.06f, 5, 9)),
-                   cell("rose(5)", "r = cos(k·θ) · odd k gives k petals",
-                        shapes::rose(5))},
-         .gap = 12});
-
-    Element pairs = kit::cells(
-        {.cells = {cell("rose(4)",
-                        "…and EVEN k gives 2k, which is the rule about this "
-                        "family",
-                        shapes::rose(4)),
-                   cell("spiral(4)",
-                        "Archimedean — even spacing: a clock spring",
-                        shapes::spiral(4)),
-                   cell("spiral(4, true, 0.34)",
-                        "logarithmic — a constant angle: a nautilus",
-                        shapes::spiral(4, true, 0.34f)),
-                   cell("trochoid(5, 3, 5, false, 3)",
-                        "an EPItrochoid: the rolling circle runs outside the "
-                        "fixed one",
-                        shapes::trochoid(5, 3, 5, false, 3)),
-                   cell("trochoid(5, 3, 5, true, 3)",
-                        "…and the same three numbers with it running inside",
-                        shapes::trochoid(5, 3, 5, true, 3))},
-         .gap = 12});
-
     ctx.composer.render(sketch::kit::page(
-        {.title = "Curve shelf",
-         .subtitle = "dials · the two frequency parameters in each cell · "
-                     "the sample count · the stroke width (1.5 px, one for "
-                     "the shelf)",
-         .footer = "every curve here evaluates in the unit frame and is "
-                   "scaled onto the node's half-extents, so a cell twice the "
-                   "size draws the same figure twice as large and never a "
-                   "different one"},
-        kit::cells({.cells = {std::move(families), std::move(pairs)},
-                    .column = true,
-                    .gap = 16})));
+        {.title = "A small atlas of curves",
+         .subtitle = "Ten constructions, grouped by the rule that makes them.",
+         .footer = "The same stroke and the same display extent keep the "
+                   "differences in geometry visible."},
+        box().column().gap(24).children(
+            {sketch::kit::sectionHeader(
+                 {.label = "01  COUPLE OSCILLATORS",
+                  .note = "Frequency and phase describe the path"}),
+             sketch::kit::comparison(
+                 {.cases =
+                      {cell(
+                           "SUM TWO ORBITS", "parametric(\"epicycle\", f)",
+                           "the KEYED escape hatch — your callable, comparable "
+                           "by name",
+                           shapes::parametric(
+                               "epicycle",
+                               [](float t) {
+                                 return SkPoint{0.62f * std::cos(t) +
+                                                    0.34f * std::cos(7 * t),
+                                                0.62f * std::sin(t) +
+                                                    0.34f * std::sin(7 * t)};
+                               },
+                               0.0f, 6.2831853f, 1400)),
+                       cell("FREQUENCY 3 : 2", "lissajous(3, 2, 90)",
+                            "x = sin(a·t + δ), y = sin(b·t)",
+                            shapes::lissajous(3, 2, 90)),
+                       cell("FREQUENCY 5 : 4", "lissajous(5, 4, 45)",
+                            "the ratio picks the family, δ the phase",
+                            shapes::lissajous(5, 4, 45)),
+                       cell("ADD DAMPING", "harmonograph(3,2,0,.06,5)",
+                            "amplitudes DECAY, so a real pendulum figure "
+                            "spirals "
+                            "in",
+                            shapes::harmonograph(3, 2, 0, 0.06f, 5, 9), 32)},
+                  .measure = 1020,
+                  .gap = 20}),
+             box()
+                 .row()
+                 .alignItems(Align::Start)
+                 .gap(20)
+                 .children(
+                     {box().column().gap(18).children(
+                          {sketch::kit::sectionHeader(
+                               {.label = "02  COUNT THE PETALS", .note = ""}),
+                           sketch::kit::comparison(
+                               {.cases =
+                                    {cell("ODD FREQUENCY", "rose(5)",
+                                          "r = cos(k·θ) · odd k gives k petals",
+                                          shapes::rose(5)),
+                                     cell("EVEN FREQUENCY", "rose(4)",
+                                          "…and EVEN k gives 2k, which is the "
+                                          "rule about this "
+                                          "family",
+                                          shapes::rose(4))},
+                                .measure = 500,
+                                .gap = 20})}),
+                      box().column().gap(18).children(
+                          {sketch::kit::sectionHeader(
+                               {.label = "03  GROW THE RADIUS", .note = ""}),
+                           sketch::kit::comparison(
+                               {.cases = {cell("EVEN SPACING", "spiral(4)",
+                                               "Archimedean — even spacing: a "
+                                               "clock spring",
+                                               shapes::spiral(4)),
+                                          cell("CONSTANT ANGLE",
+                                               "spiral(4, true, 0.34)",
+                                               "logarithmic — a constant "
+                                               "angle: a nautilus",
+                                               shapes::spiral(4, true, 0.34f))},
+                                .measure = 500,
+                                .gap = 20})})}),
+             box()
+                 .row()
+                 .alignItems(Align::Start)
+                 .gap(20)
+                 .children(
+                     {box().column().gap(18).children(
+                          {sketch::kit::sectionHeader(
+                               {.label = "04  ROLL A CIRCLE", .note = ""}),
+                           sketch::kit::comparison(
+                               {.cases =
+                                    {cell("OUTSIDE",
+                                          "trochoid(5, 3, 5, false, 3)",
+                                          "an EPItrochoid: the rolling circle "
+                                          "runs outside the "
+                                          "fixed one",
+                                          shapes::trochoid(5, 3, 5, false, 3)),
+                                     cell("INSIDE",
+                                          "trochoid(5, 3, 5, true, 3)",
+                                          "…and the same three numbers with it "
+                                          "running inside",
+                                          shapes::trochoid(5, 3, 5, true, 3))},
+                                .measure = 500,
+                                .gap = 20})}),
+                      box().column().gap(18).children(
+                          {sketch::kit::sectionHeader(
+                               {.label = "ONE UNIT FRAME", .note = ""}),
+                           text("Every drawing is evaluated in its own unit "
+                                "frame. Its display box changes the scale, not "
+                                "the mathematical curve.")
+                               .width(360)
+                               .styleClass("captionNote"),
+                           text("Compare the two roses, the two spirals and "
+                                "the two trochoids within their pairs: each "
+                                "pair changes one defining rule.")
+                               .width(360)
+                               .styleClass("captionNote")})})})));
   }
 };
 

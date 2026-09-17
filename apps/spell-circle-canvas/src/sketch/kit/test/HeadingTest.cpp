@@ -143,9 +143,8 @@ TEST(SketchKitHeading, ARegisterNamesItsOwnFace) {
                           kit::titleCard({.title = {u8"THE STROKE ATLAS"}})));
 }
 
-/** The rule is what grows, so the note stands at the far edge however
- *  wide the header is — which is the whole reason it is a component. */
-TEST(SketchKitHeading, TheSectionRuleFillsWhatTheTwoLinesLeave) {
+/** The rule follows the label; the supporting note stays below the heading. */
+TEST(SketchKitHeading, TheSectionRuleFollowsItsLabel) {
   EXPECT_FALSE(sameDrawing(
       kit::sectionHeader({.label = u8"DYNAMICS", .note = u8"6 presets"})
           .width(360),

@@ -1,227 +1,160 @@
 /** @file
- * bullets_dropcap — the furniture a page of set text carries, and how
- * little of it is a mechanism.
- *
- * AN INITIAL LETTER is a property of the block: `initialLetter({.lines =
- * 3})` says how many lines of cap, and the layout derives the size from
- * the block's own pitch and the face's own cap height, then seats the
- * letter's baseline on the line it sinks to. Nothing is sized by eye and
- * nothing is placed by hand, which is what makes the same declaration
- * right in a face whose cap is tall and in one whose cap is short.
- *
- * AN ORNAMENT is the other case and stays an exclusion: an illuminated
- * letter is a keyed element with a silhouette, and the body is an ordinary
- * text leaf that flows around that key — the same exclusion a photograph
- * in a column gets, resolved in the same pass.
- *
- * A NESTED STYLE is the opening of a paragraph set differently from the
- * rest of it. What makes it nested rather than a hand-cut restyle is that
- * the author says WHERE IT STOPS in the text's own terms — so many words,
- * so many characters, or through a delimiter — and the text decides where
- * that falls. `nestedRun` answers a plain selector and `spanStyle` does
- * the work; the delimiter form is an anchored non-greedy regular
- * expression with the mark literal-quoted, so a dash that is also a regex
- * operator means itself. Edit the copy and the run re-resolves.
- *
- * A LIST is an indent with the marker standing in the room it opens:
- * `indent.start` holds EVERY line in, the first one included, and the
- * marker is a leaf placed beside the text at the block's own start. The
- * room belongs to the marker alone — a first line pulled back out of the
- * indent would begin exactly where the marker stands and print through
- * it. The numbering is the caller's to format, which is
- * why `markers` is strings: roman, lettered, restarting and hierarchical
- * schemes are data, and this is the shape they are drawn in. Two levels
- * is two calls.
- *
- * EDIT THESE FIRST
- *   kCapLines — how many lines of cap the initial spans.
- *   kMargin — how far the body stands off the initial, px.
- *   kHang — the indent a marker hangs in, px, per level.
+ * Paragraph openings compared on one passage, then two ways to make room
+ * at the margin. Initial size follows the face's cap height and line pitch;
+ * nested styles stop at a word count or delimiter. The ornament instead
+ * subtracts a silhouette, while list markers occupy a hanging indent.
  */
-
 // TAGS: Typography/Paragraph
 
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
 
-#include <string>
+#include <optional>
 #include <utility>
 #include <vector>
 
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
-
 using namespace sigil::compose;
 
 namespace {
+constexpr float kMeasure = 288;
+constexpr float kBodySize = 14;
+constexpr float kHang = 22;
+constexpr SkColor4f kBody{0.85f, 0.86f, 0.89f, 1};
+constexpr const char* kPassage =
+    "When the first words set the tone, the reader finds a way into the page. "
+    "An opening can carry a quiet initial, a change of voice, or a mark at "
+    "the margin. The paragraph keeps its own rhythm.";
 
-constexpr SkSize kCanvas = {1100, 496};
-constexpr float kCell = 250;
-constexpr float kPicture = 252;
-
-constexpr float kCapLines = 3;  // lines of cap the initial spans
-constexpr float kMargin = 7;    // the body's stand-off from the initial
-constexpr float kHang = 16;     // the indent a marker hangs in, px
-
-constexpr SkColor4f kBody{0.82f, 0.83f, 0.86f, 1};
-
-const char* kPassage =
-    "When the measure changes the opening keeps its treatment, because "
-    "the run was stated in the text's own terms and not in a range of "
-    "characters somebody counted once. That is the whole difference "
-    "between a nested style and a restyle by hand.";
-
-/** THE SERIF REGISTER, a partial: what the passage is set in over the
- *  page, and what an initial, a nested run and a list's items are set in
- *  over the text they belong to. It states its tracking because the
- *  page's running register is tracked and this face is not. */
-weave::Type serifType(float size, SkColor4f color, float track = 0) {
-  const sk_sp<SkTypeface> face = weave::ports::face(
-      {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
-  return {.face = face, .size = size, .color = color, .track = track};
+weave::Type serif(float size, SkColor4f color, float tracking = 0) {
+  return {.face = weave::ports::face({"Iowan Old Style", "Georgia", "serif"}),
+          .size = size,
+          .color = color,
+          .track = tracking};
 }
 
-/** The plate every specimen on this sheet stands on, and the
- *  measure its caption is set to. */
-const sketch::kit::Cell kSpecimen{
-    .plate = {.width = kCell, .height = kPicture, .padding = 14}};
-
-/** One initial letter over the passage; `nested`, when given, sets the
- *  opening of the block in a style of its own. Both are properties of the
- *  one text leaf: the initial is not a second element. */
-Element dropped(const char* key, std::optional<kit::NestedStyle> nested) {
-  Element block =
+Element opening(std::optional<kit::NestedStyle> nested) {
+  Element body =
       text(kPassage)
-          .font(serifType(11.5f, kBody))
-          .key(key)
-          .width(kCell - 28)
+          .font(serif(kBodySize, kBody))
+          .width(kMeasure)
           .initialLetter(
-              {.lines = kCapLines,
-               .margin = kMargin,
-               .style = serifType(11.5f, sketch::kit::theme().palette.figure)});
-  if (nested) block.spanStyle(kit::nestedRun(*nested), nested->style);
-  return block;
+              {.lines = 3,
+               .margin = 8,
+               .style = serif(kBodySize, sketch::kit::theme().palette.figure)});
+  if (nested) body.spanStyle(kit::nestedRun(*nested), nested->style);
+  return sketch::kit::well({.width = 328, .height = 218, .padding = 20})
+      .children({std::move(body)});
 }
 
-/** A caller-built initial: the star is both the ornament that paints and
- *  the silhouette the opening lines subtract. */
-Element illuminated(const char* key, std::optional<kit::NestedStyle> nested) {
-  const sketch::kit::Theme& look = sketch::kit::theme();
-  const Element ornament =
+Element ornament() {
+  const auto& look = sketch::kit::theme();
+  Element star =
       kit::at(box()
-                  .key(key)
+                  .key("opening-star")
                   .absolute()
                   .shape(sigil::geometry::shapes::star(8, 0.48f, 0.12f))
                   .fill(Fill::color(look.palette.figure))
-                  .children({text(u8"W")
-                                 .font(serifType(27, look.palette.ground))
+                  .children({text("W")
+                                 .font(serif(31, look.palette.ground))
                                  .absolute()
-                                 .left(15)
-                                 .top(14)}),
-              0, 0, 58, 64);
-  Element body = text(std::string_view(kPassage).substr(1))
-                     .font(serifType(11.5f, kBody))
-                     .width(kCell - 28)
-                     .flowAround(key, kMargin);
-  if (nested) body.spanStyle(kit::nestedRun(*nested), nested->style);
-  return box().children({ornament, std::move(body)});
+                                 .left(16)
+                                 .top(16)}),
+              0, 0, 68, 74);
+  return sketch::kit::well({.width = 501, .height = 170, .padding = 20})
+      .children({box().width(461).children(
+          {std::move(star), text(std::string_view(kPassage).substr(1))
+                                .font(serif(kBodySize, kBody))
+                                .width(461)
+                                .flowAround("opening-star", 8)})});
 }
 
+Element hangingList() {
+  const auto& look = sketch::kit::theme();
+  const std::vector<std::u8string> items = {
+      u8"The marker holds its own margin.",
+      u8"Wrapped lines return to the text edge, leaving the marker clear while "
+      u8"the paragraph carries on below it."};
+  const std::vector<std::u8string> marks = {u8"1.", u8"2."};
+  const std::vector<std::u8string> nested = {
+      u8"An inner level adds one more indent."};
+  const std::vector<std::u8string> dashes = {u8"—"};
+  Element guide = box().absolute().left(kHang).top(0).width(1).height(130).fill(
+      Fill::color(look.palette.rule));
+  return sketch::kit::well({.width = 501, .height = 170, .padding = 20})
+      .children({box().width(461).children(
+          {std::move(guide),
+           box().column().gap(12).children(
+               {kit::bullets(items, marks, serif(kBodySize, kBody), kHang, 439),
+                kit::bullets(nested, dashes, serif(kBodySize, look.palette.ash),
+                             kHang, 417)
+                    .margin(kHang, 0, 0, 0)})})});
+}
 }  // namespace
 
 struct BulletsDropCap {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
-    // nothing moves; the sheet is complete at once
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
-    const sketch::kit::Theme& look = sketch::kit::theme();
-
-    const weave::Type smallCaps = serifType(11.5f, look.palette.figure, 1.1f);
-
-    // Two levels: two calls, the second inset by its own hang. A level is
-    // not a mechanism here either.
-    const std::vector<std::u8string> outer = {
-        u8"The marker is set at the block's own start.",
-        u8"Every line of the item begins one hang in, the first one "
-        u8"included, so the marker has the room to itself."};
-    const std::vector<std::u8string> outerMarks = {u8"1.", u8"2."};
-    const std::vector<std::u8string> inner = {
-        u8"A number is the caller's to format.",
-        u8"Roman, lettered, restarting, hierarchical — all data."};
-    const std::vector<std::u8string> innerMarks = {u8"—", u8"—"};
-
-    Element list = box().column().gap(9).children(
-        {kit::bullets(outer, outerMarks, serifType(11, kBody), kHang,
-                      kCell - 28 - kHang),
-         kit::bullets(inner, innerMarks, serifType(10.5f, look.palette.ash),
-                      kHang, kCell - 28 - kHang * 2)
-             .margin(kHang, 0, 0, 0)});
-
+    const sketch::kit::Provide look(sketch::kit::studyTheme());
+    sketch::kit::stage(ctx, {.size = {1100, 790}, .captureAt = 0.05});
+    const weave::Type openingVoice =
+        serif(kBodySize, sketch::kit::theme().palette.figure, 0.35f);
     ctx.composer.render(sketch::kit::page(
-        {.title = "Bullets and the initial letter",
-         .subtitle = "dials · the cap's depth in LINES (3, "
-                     "and the size follows from the face) · "
-                     "the body's stand-off (7 px) · where "
-                     "the nested run stops · the hang (16 "
-                     "px per level)",
-         .footer = "the initial is a property of the block and the "
-                   "layout derives its size; an ornament is still "
-                   "an exclusion the body flows around; the nested "
-                   "style is a span restyle over a selector the "
-                   "vocabulary could already name; and a list is "
-                   "an indent with the marker standing in the room "
-                   "it opened"},
-        kit::cells(
-            {.cells =
-                 {sketch::kit::cell(
-                      kSpecimen, "text(passage).initialLetter({.lines = 3})",
-                      "the size is derived from the block's pitch and "
-                      "the face's cap height · one property, no "
-                      "second element",
-                      dropped("cap-plain", {})),
-                  sketch::kit::cell(
-                      kSpecimen, "ornament.key(k) + text.flowAround(k)",
-                      "the star is the painted initial AND the "
-                      "silhouette subtracted from each horizontal "
-                      "line · type enters its notches",
-                      illuminated("cap-ornament",
-                                  kit::NestedStyle{
-                                      .until = kit::NestedStyle::Until::Words,
-                                      .count = 6,
-                                      .style = smallCaps})),
-                  sketch::kit::cell(
-                      kSpecimen,
-                      "…"
-                      ", NestedStyle{Delimiter, \"once.\"}",
-                      "from the start THROUGH the first occurrence, "
-                      "inclusive · an anchored non-greedy regex "
-                      "with the mark literal-quoted",
-                      dropped("cap-delim",
-                              kit::NestedStyle{
-                                  .until = kit::NestedStyle::Until::Delimiter,
-                                  .delimiter = u8"once.",
-                                  .style = smallCaps})),
-                  sketch::kit::cell(
-                      kSpecimen,
-                      "kit::bullets(items, markers, style, hang, "
-                      "measure)",
-                      "two levels, two calls · every line of an "
-                      "item stands one hang in, the first included, "
-                      "and the marker keeps the room the indent "
-                      "opened",
-                      std::move(list))},
-             .gap = 14})));
+        {.title = "A way into the paragraph",
+         .subtitle = "One passage at 14 px · three opening treatments, then "
+                     "two different kinds of margin",
+         .footer =
+             "The initial spans three lines. A nested style follows the words "
+             "when copy changes; the list's indent belongs to every line."},
+        box().column().gap(28).children(
+            {sketch::kit::comparison(
+                 {.cases =
+                      {{.title = "INITIAL ONLY",
+                        .control = "3 lines · 8 px stand-off",
+                        .figure = opening({}),
+                        .note = "Cap height and line pitch determine the "
+                                "letter's size."},
+                       {.title = "THE FIRST FIVE WORDS",
+                        .control = "NestedStyle::Until::Words",
+                        .figure = opening(kit::NestedStyle{
+                            .until = kit::NestedStyle::Until::Words,
+                            .count = 5,
+                            .style = openingVoice}),
+                        .note = "The changed voice ends after “set”; the "
+                                "paragraph continues."},
+                       {.title = "THROUGH THE COMMA",
+                        .control = "NestedStyle::Until::Delimiter",
+                        .figure =
+                            opening(kit::NestedStyle{
+                                .until = kit::NestedStyle::Until::Delimiter,
+                                .delimiter = u8",",
+                                .style = openingVoice}),
+                        .note =
+                            "The opening phrase includes its punctuation."}},
+                  .measure = 1020,
+                  .gap = 18}),
+             sketch::kit::comparison(
+                 {.cases = {{.title = "A SHAPED OPENING",
+                             .control = "One silhouette · flowAround",
+                             .figure = ornament(),
+                             .note = "The lines enter the star's notches; the "
+                                     "body responds to its contour."},
+                            {.title = "A HANGING MARKER",
+                             .control = "22 px per level · kit::bullets",
+                             .figure = hangingList(),
+                             .note =
+                                 "The rule marks the text edge. Numerals stay "
+                                 "outside it; nested items move inward."}},
+                  .measure = 1020,
+                  .gap = 18})})));
   }
 };
 
 SIGIL_SKETCH(BulletsDropCap, "Kit · API",
-             "one initial dropped into a paragraph three ways — "
-             "plain, with a word-counted opening and with one that ends at "
-             "a delimiter — beside a two-level hanging list")
+             "one paragraph opened by a dropped initial and two nested styles, "
+             "beside a shaped ornament and a hanging list")

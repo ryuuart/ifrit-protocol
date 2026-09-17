@@ -1,29 +1,9 @@
 /** @file
- * frame_inputs — the values a body reads that no author sets, and the
- * two doors a caller opens for the ones that are its own.
- *
- * A recipe DECLARES which per-frame values its body reads —
- * `frame(FrameInput::Resolution)`, `ContentScale`, `WorldTransform`,
- * `Time` — and only those are uploaded. A material that declares none is
- * a pure function of its parameters and can be cached across frames;
- * declaring Time or ContentScale makes it animated, and declaring
- * Resolution or the world transform makes it geometry-dependent.
- *
- * A `UniformBlock` is the caller's side of the same seam: a revisioned
- * float buffer behind a live ARRAY uniform, for per-frame data no scalar
- * can carry. Own it beside the model, write `values()`, `commit()`. It
- * compares by IDENTITY, so a block recreated every describe reads as a
- * new binding and re-patches its node.
- *
- * `withRecipe` is the third door: THE SAME INSTANCE over a second
- * definition of the same parameters layout. Values, bindings and children
- * carry over and the two compile and cache apart, which is the point —
- * one program per specialization rather than one per draw.
- *
- * EDIT THESE FIRST
- *   kBars  — how many bars the table holds. It is a constant in the body
- *            and the array's length, so the two cannot drift.
- *   kGain  — the height every bar is multiplied by.
+ * A twelve-value uniform buffer drawn through one parameter layout.
+ * The upper comparison changes only content scale or world translation.
+ * The lower changes the data binding, replaces the bar recipe with dots,
+ * and selects a body that never reads the table. UniformBlock identity is
+ * stable; its committed revision makes new contents available at resolve.
  */
 
 // TAGS: Materials/Shaders
@@ -55,16 +35,16 @@ using material::Target;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 686};
-constexpr float kCell = 341;
-constexpr float kPicture = 196;
+constexpr SkSize kCanvas = {1100, 810};
+constexpr float kCell = 324;
+constexpr float kPicture = 182;
 
 constexpr int kBars = 12;      // the table's length, and a constant in the body
 constexpr float kGain = 0.9f;  // every bar's height multiplier
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette.cellGround = {0.09f, 0.095f, 0.11f, 1};
   look.type.captionLabel = {.size = 11, .mono = true};
   return look;
@@ -163,20 +143,24 @@ SkPath whole() {
   return SkPathBuilder().addRect(SkRect::MakeWH(kCell, kPicture)).detach();
 }
 
-Element cell(const char* call, const std::string& note, material::Material m,
-             float contentScale, glm::mat3 world = glm::mat3(1.0f)) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well(
-          {.width = kCell, .height = kPicture},
-          custom(call, [m = std::move(m), contentScale, world, face = whole()](
-                           SkCanvas& canvas, const PaintContext& pc) {
-            material::skia::fill(
-                canvas, face, m,
-                {.resolution = {pc.size.width(), pc.size.height()},
-                 .contentScale = contentScale,
-                 .world = world});
-          })));
+sketch::kit::ComparisonCase example(const char* title, const char* control,
+                                    const char* note, material::Material m,
+                                    float contentScale,
+                                    glm::mat3 world = glm::mat3(1)) {
+  return {.title = title,
+          .control = control,
+          .figure = sketch::kit::well(
+              {.width = kCell, .height = kPicture},
+              custom(title,
+                     [m = std::move(m), contentScale, world, face = whole()](
+                         SkCanvas& canvas, const PaintContext& pc) {
+                       material::skia::fill(
+                           canvas, face, m,
+                           {.resolution = {pc.size.width(), pc.size.height()},
+                            .contentScale = contentScale,
+                            .world = world});
+                     })),
+          .note = note};
 }
 
 }  // namespace
@@ -214,58 +198,51 @@ struct FrameInputs {
     ramped.bind("uBars", second);
     ramped.set("uTint", Color{0.96f, 0.68f, 0.34f, 1});
 
-    // What the FRAME hands the same body: a content scale it reads its
-    // hairline width out of, and a world transform it reads as a phase.
-    Element theFrame = kit::cells(
-        {.cells = {cell("bind(\"uBars\", block) · contentScale 1",
-                        "twelve floats read LIVE at every resolve · the "
-                        "hairlines are 1 / uContentScale wide, so here they "
-                        "are 1 px",
-                        bars, 1.0f),
-                   cell("… contentScale 3",
-                        "the same material and the same block · only the "
-                        "frame value moved, and the hairlines thinned to a "
-                        "third",
-                        bars, 3.0f),
-                   cell("a second block, a second tint",
-                        "the block compares by IDENTITY, so this is a "
-                        "different binding · its values never enter the "
-                        "prune comparison",
-                        ramped, 1.0f)},
-         .gap = 14});
-
-    // …and what the RECIPE decides: one instance worn on three
-    // definitions of one parameters layout.
-    Element theRecipe = kit::cells(
-        {.cells = {cell("frame(WorldTransform) · uWorld translated",
-                        "the body reads column 2 of uWorld as its phase · "
-                        "identity outside a composite, so it degrades to the "
-                        "node's own space",
-                        bars, 1.0f, glm::mat3(1, 0, 0, 0, 1, 0, 142, 0, 1)),
-                   cell("withRecipe(dotsRecipe())",
-                        "THE SAME INSTANCE over a second definition of one "
-                        "parameters layout · the values, the binding and the "
-                        "tint all carried over",
-                        bars.withRecipe(dotsRecipe()), 1.0f),
-                   cell("withRecipe(flatRecipe())",
-                        "a body that reads neither uBars nor uGain · the "
-                        "third definition of one ABI, and the table it is "
-                        "still bound to reaches nothing",
-                        bars.withRecipe(flatRecipe()), 1.0f)},
-         .gap = 14});
-
+    Element frame = sketch::kit::comparison(
+        {.cases =
+             {example(
+                  "REFERENCE", "contentScale = 1",
+                  "One-pixel dividers; the live table supplies twelve heights.",
+                  bars, 1),
+              example("DENSITY", "contentScale = 3",
+                      "Only scale changes. The divider is now one third of a "
+                      "layout unit.",
+                      bars, 3),
+              example("PLACEMENT", "world translation x = 142",
+                      "Only the world transform changes. Its translation "
+                      "shifts the phase.",
+                      bars, 1, glm::mat3(1, 0, 0, 0, 1, 0, 142, 0, 1))},
+         .measure = 1020,
+         .gap = 24});
+    Element recipe = sketch::kit::comparison(
+        {.cases =
+             {example(
+                  "CHANGE THE DATA", "second UniformBlock + tint",
+                  "The same bar recipe reads a different twelve-value buffer.",
+                  ramped, 1),
+              example("CHANGE THE PROGRAM", "withRecipe(dotsRecipe())",
+                      "The original data and tint carry over to a body that "
+                      "draws discs.",
+                      bars.withRecipe(dotsRecipe()), 1),
+              example("LEAVE VALUES UNUSED", "withRecipe(flatRecipe())",
+                      "This body reads the tint. The bound table contributes "
+                      "no pixels.",
+                      bars.withRecipe(flatRecipe()), 1)},
+         .measure = 1020,
+         .gap = 24});
     ctx.composer.render(sketch::kit::page(
-        {.title = "Frame inputs",
-         .subtitle = "dials · the content scale (1, then 3) · the world "
-                     "translation · the block's twelve floats · the recipe "
-                     "the instance is worn on",
-         .footer = "what a compiler KEEPS is what the upload fills: a field "
-                   "a body never reads reaches nothing, and the program "
-                   "cache names the recipe and every field the compiler "
-                   "dropped once per target"},
-        kit::cells({.cells = {std::move(theFrame), std::move(theRecipe)},
-                    .column = true,
-                    .gap = 18})));
+        {.title = "What changes a shader's output?",
+         .subtitle = "A twelve-value table and one parameter layout, varied "
+                     "through frame inputs, data bindings and recipe bodies.",
+         .footer = "UniformBlock is owned beside the model. Its identity stays "
+                   "stable while values and revision change."},
+        box().column().gap(26).children(
+            {sketch::kit::sectionHeader(
+                 {.label = "01  SAME MATERIAL, DIFFERENT FRAME"}),
+             std::move(frame),
+             sketch::kit::sectionHeader(
+                 {.label = "02  CHANGE ONE PART OF THE MATERIAL"}),
+             std::move(recipe)})));
   }
 };
 

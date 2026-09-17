@@ -10,7 +10,7 @@ import _sigil.compose
 import _sigil.compose.kit
 import _sigil.skia
 import _sigil.weave
-__all__: list[str] = ['Cell', 'Page', 'Palette', 'PanelGrid', 'Provide', 'Recess', 'Register', 'Relief', 'Run', 'Spacing', 'Stage', 'Theme', 'TypeScale', 'Voice', 'Well', 'WellContent', 'caption', 'cell', 'cells', 'houseFace', 'houseTheme', 'page', 'panelGrid', 'stage', 'studyTheme', 'theme', 'well']
+__all__: list[str] = ['Cell', 'Comparison', 'ComparisonCase', 'Page', 'Palette', 'PanelGrid', 'Provide', 'Recess', 'Register', 'Relief', 'Run', 'Spacing', 'Stage', 'Theme', 'TypeScale', 'Voice', 'Well', 'WellContent', 'caption', 'cell', 'cells', 'comparison', 'houseFace', 'houseTheme', 'page', 'panelGrid', 'stage', 'studyTheme', 'theme', 'well']
 
 class Cell:
 
@@ -34,6 +34,86 @@ class Cell:
 
     @plate.setter
     def plate(self, value: Well, /) -> None:
+        ...
+
+class Comparison:
+
+    def __init__(self, *, cases: collections.abc.Sequence[ComparisonCase]=..., gap: _t.FloatLike | None=..., measure: _t.FloatLike=..., trackGap: _t.FloatLike | None=...) -> None:
+        ...
+
+    def copy(self) -> Comparison:
+        ...
+
+    @property
+    def cases(self) -> list[ComparisonCase]:
+        ...
+
+    @cases.setter
+    def cases(self, value: collections.abc.Sequence[ComparisonCase], /) -> None:
+        ...
+
+    @property
+    def gap(self) -> float | None:
+        ...
+
+    @gap.setter
+    def gap(self, value: _t.FloatLike | None, /) -> None:
+        ...
+
+    @property
+    def measure(self) -> float:
+        ...
+
+    @measure.setter
+    def measure(self, value: _t.FloatLike, /) -> None:
+        ...
+
+    @property
+    def trackGap(self) -> float | None:
+        ...
+
+    @trackGap.setter
+    def trackGap(self, value: _t.FloatLike | None, /) -> None:
+        ...
+
+class ComparisonCase:
+
+    def __init__(self, *, control: str=..., figure: _sigil.compose.Element=..., note: str=..., title: str=...) -> None:
+        ...
+
+    def copy(self) -> ComparisonCase:
+        ...
+
+    @property
+    def control(self) -> str:
+        ...
+
+    @control.setter
+    def control(self, value: str, /) -> None:
+        ...
+
+    @property
+    def figure(self) -> _sigil.compose.Element:
+        ...
+
+    @figure.setter
+    def figure(self, value: _sigil.compose.Element, /) -> None:
+        ...
+
+    @property
+    def note(self) -> str:
+        ...
+
+    @note.setter
+    def note(self, value: str, /) -> None:
+        ...
+
+    @property
+    def title(self) -> str:
+        ...
+
+    @title.setter
+    def title(self, value: str, /) -> None:
         ...
 
 class Page:
@@ -1007,6 +1087,9 @@ def cell(plate: Cell, label: str, note: str, picture: _sigil.compose.Element) ->
     ...
 
 def cells(run: Run) -> _sigil.compose.Element:
+    ...
+
+def comparison(comparison: Comparison) -> _sigil.compose.Element:
     ...
 
 def houseFace(voice: Voice, weight: typing.SupportsInt=400, italic: bool=False) -> _sigil.skia.Typeface:

@@ -1,57 +1,9 @@
 /** @file
- * web_script — driving a page rather than only displaying one.
- *
- * A `WebView` is not a picture, it is a live document, and four calls
- * reach into it. One page is loaded into four views and each is driven
- * one way, so the cells differ in exactly the call named on them.
- *
- *   setLoadCallback(fn) — fires ON THE WEB THREAD when the main frame
- *     finishes loading. It is the only honest place to say "the document
- *     is here": a view answers no frame at all until it has painted one,
- *     and a caller that waited on a clock instead would be racing.
- *   evaluateScript(js, onResult) — runs JavaScript in the page. What the
- *     expression evaluates to comes back STRINGIFIED (or the exception
- *     text does), also on the web thread, so the caption under that cell
- *     is the page's own answer and not something this file computed.
- *   scroll(dx, dy) — pixels of wheel, exactly as an input would deliver
- *     them, and a wheel's delta is WHAT THE CONTENT MOVES BY: a negative
- *     dy walks down the page. The document's own overflow does the rest.
- *   mouseMove / mouseDown / mouseUp — in view pixels. A page sees NO
- *     CLICK until the matching up arrives, which is why the fourth cell
- *     sends three events for one press and its handler stamps the point.
- *
- * A PROCESS BOOTS EXACTLY ONE ENGINE, so it is held beside the sketch
- * rather than inside it; the four views are that engine's.
- *
- * The settling is the awkward part and is stated rather than hidden:
- * every call above is asynchronous across the web thread, so each cell is
- * a SEQUENCE the page is put through — load, the call, the page's own
- * answer that it landed, the view going quiet, a whole painting — and
- * every step of it turns on the ENGINE'S OWN EVENTS, never on a stretch
- * of clock. A machine that runs the engine slowly reaches those events
- * later and draws this same sheet.
- *
- * A CAPTURE IS HELD ON THAT SEQUENCE AND A WINDOW IS NOT. setup() runs on
- * the thread that presents, so the four sequences are started there and
- * advanced from update(): each cell draws its own view live until its
- * sequence stops on a frame, the footer says the pages are still
- * arriving, and the sheet is described again as each one lands. One
- * declaration, two ways of driving it, decided by ctx.deterministic.
- *
- * AND EVERY STILL HERE IS THE FRAME THE PAGE WENT QUIET ON. The page's
- * own answer says the call landed; it does not say the picture has caught
- * up with it. A wheel is walked smoothly and `window.scrollY` is reported
- * as a whole number, so the page says 220 while the rows are still a
- * fraction of a pixel short of it, and which repaint that answer falls on
- * is decided by how loaded the machine was — a row edge antialiased two
- * ways, and a plate that moves under a busy sweep and holds when this
- * scene is rendered alone. So each stage waits for the answer AND for the
- * view to stop painting, and the last frame is the one drawn.
- *
- * EDIT THESE FIRST
- *   kScrollBy  — how far down the page the third cell walks, px.
- *   kClickAt   — where the fourth cell presses, in view pixels.
- *   kScript    — the expression the second cell evaluates.
+ * One HTML document loaded into four independent web views.
+ * The comparison isolates loading, script evaluation, scrolling and a
+ * synthetic click. Answers below each view come from its page or load state.
+ * Settling waits for the requested state and for painting to finish; a
+ * capture holds the completed frame instead of sampling an arbitrary delay.
  */
 
 // TAGS: Interfaces/Web
@@ -94,13 +46,13 @@ constexpr const char* kScript =
     "document.getElementById('head').textContent = 'EVALUATED';"
     "'rewrote ' + document.querySelectorAll('.row').length + ' rows'";
 
-constexpr SkSize kCanvas = {1360, 430};
+constexpr SkSize kCanvas = {1360, 660};
 
 constexpr SkColor4f kCellGround{0.12f, 0.12f, 0.14f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.type.captionLabel = {.size = 11, .track = 0.4f};
   look.spacing.captionGap = 6;
   return look;
@@ -261,47 +213,62 @@ struct WebScript {
     const bool expired =
         std::any_of(pages.begin(), pages.end(),
                     [](const auto& page) { return page->broken(); });
-    const int atX = kClickAt.x(), atY = kClickAt.y();
-    const std::string press = kit::formatted(
-        "three events for one click — the page's own "
-        "handler stamped (%d, %d)",
-        atX, atY);
-    const std::string wheel = kit::formatted(
-        "%d px down the page — a delta is what the "
-        "CONTENT moves by, so down is negative",
-        kScrollBy);
-
     ctx.composer.render(sketch::kit::page(
-        {.title = "Driving a page",
-         .subtitle = "dials · the script · the wheel "
-                     "· the point pressed — one "
-                     "document, four views, one call apart",
-         .footer =
-             std::string(
-                 "every call crosses to the web thread, so each cell was "
-                 "driven and then waited on for the engine's own events — "
-                 "the load, the page's own answer that what the call asked "
-                 "for has landed, and the view going quiet — and then "
-                 "painted whole, so no still carries the seams of how its "
-                 "driving was broken up") +
-             (expired   ? "; one of those waits expired"
-              : arrived ? ""
-                        : "; the pages are still arriving")},
-        kit::cells(
-            {.cells =
-                 {cell("plain", 0, "loadHTML + setLoadCallback",
-                       std::string("the load callback ") +
-                           (pages[0]->loaded() ? "fired" : "never fired") +
-                           ", and " +
-                           (pages[0]->painted() ? "a frame was published"
-                                                : "nothing was published")),
-                  cell("scripted", 1, "evaluateScript(js, onResult)",
-                       std::string("the page answered “") + pages[1]->reply() +
-                           "”"),
-                  cell("scrolled", 2, "scroll(0, -dy)", wheel),
-                  cell("pressed", 3, "mouseMove / mouseDown / mouseUp", press)},
-             .gap = 18,
-             .divider = Fill::color(sketch::kit::theme().palette.rule)})));
+        {.title = "Four ways to drive one document",
+         .subtitle =
+             "Each view starts with the same HTML. A single operation changes "
+             "the document, its viewport or its interaction state.",
+         .footer = expired   ? "A settling wait expired; inspect the result "
+                               "before relying on this capture."
+                   : arrived ? "Every operation has answered and the views "
+                               "have finished painting."
+                             : "The views are still loading or repainting."},
+        box().column().gap(28).children(
+            {sketch::kit::comparison(
+                 {.cases =
+                      {cell("plain", 0, "LOAD", "loadHTML",
+                            "The unmodified document is the visual reference."),
+                       cell("scripted", 1, "EVALUATE", "evaluateScript",
+                            "The script changes the heading, row text and "
+                            "alternating fills."),
+                       cell("scrolled", 2, "SCROLL", "scroll(0, -220)",
+                            "Only the viewport moves. The document remains "
+                            "unchanged."),
+                       cell("pressed", 3, "PRESS", "mouseMove / Down / Up",
+                            "The page's own handler changes the button after "
+                            "the synthetic click.")},
+                  .measure = 1280,
+                  .gap = 24}),
+             sketch::kit::sectionHeader(
+                 {.label = "ANSWERS FROM THE PAGE",
+                  .note = "Observed state, not a timer guess"}),
+             sketch::kit::comparison(
+                 {.cases =
+                      {{.title = "LOAD / PAINT",
+                        .figure = text(kit::formatted(
+                                           "loaded: %s\npainted: %s",
+                                           pages[0]->loaded() ? "yes" : "no",
+                                           pages[0]->painted() ? "yes" : "no"))
+                                      .styleClass("readout")
+                                      .width(302)},
+                       {.title = "SCRIPT RESULT",
+                        .figure = text(pages[1]->reply())
+                                      .styleClass("readout")
+                                      .width(302)},
+                       {.title = "CONFIRMED SCROLL",
+                        .figure =
+                            text(pages[2]->arrived() ? "220 px"
+                                                     : "Awaiting confirmation")
+                                .styleClass("readout")
+                                .width(302)},
+                       {.title = "CONFIRMED BUTTON CLASS",
+                        .figure =
+                            text(pages[3]->arrived() ? "hit"
+                                                     : "Awaiting confirmation")
+                                .styleClass("readout")
+                                .width(302)}},
+                  .measure = 1280,
+                  .gap = 24})})));
   }
 
   std::shared_ptr<scry::WebView> open(scry::WebEngine& web) const {
@@ -324,8 +291,9 @@ struct WebScript {
    *  engine publishes a texture it reuses, so there is no image to keep
    *  and the view draws its latest — which is what a device rendering of
    *  a live page is either way. */
-  Element cell(const std::string& name, size_t at, const char* call,
-               std::string note) const {
+  sketch::kit::ComparisonCase cell(const std::string& name, size_t at,
+                                   const char* title, const char* control,
+                                   std::string note) const {
     const SkRect where = SkRect::MakeWH((float)kViewW, (float)kViewH);
     scry::WebView::Frame still = pages[at]->still();
     const std::string key = still.image
@@ -344,11 +312,13 @@ struct WebScript {
             view->draw(canvas, where);
         });
     if (!still.image) picture.cache(Cache::None);
-    return sketch::kit::caption((float)kViewW, call, note,
-                                std::move(picture)
-                                    .width((float)kViewW)
-                                    .height((float)kViewH)
-                                    .fill(Fill::color(kCellGround)));
+    return {.title = title,
+            .control = control,
+            .figure = std::move(picture)
+                          .width((float)kViewW)
+                          .height((float)kViewH)
+                          .fill(Fill::color(kCellGround)),
+            .note = std::move(note)};
   }
 
   /** What stands here when the engine has nothing to lay out with. A

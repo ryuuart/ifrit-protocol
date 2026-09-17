@@ -1,44 +1,8 @@
 /** @file
- * exr_channels — every channel a float source carries, picked by name.
- *
- * `decodeChannels` is the door past the SkImage. An EXR does not hold a
- * picture, it holds NAMED PLANES, and a decode that composited them into
- * four bytes a channel would throw away both the names and the range. So
- * `ChannelData` hands back what the file actually carries: the names in
- * source order, the interleaved floats, and `index(name)` to find one.
- * `makeImage(r, g, b, a)` is the way back — explicit channel indices,
- * `-1` for a plane that is absent, which is how one plane becomes a
- * greyscale map and three become a picture.
- *
- * `probeImage` reads the format, the channel names and the floating-point
- * flag WITHOUT decoding a pixel, which is what a hub asks when it is
- * deciding what a resource is.
- *
- * WHERE A CHANNEL GOES. A picked plane is a map, and a map fills a slot:
- * `Material::child(kit::kRoughnessSlot, Texture::of(image))` puts the
- * green plane where a surface reads its roughness, and `kit::map` reads
- * it back out. The last cell is that slot's contents — what a renderer
- * standing on the surface would sample.
- *
- * THE FIXTURE IS WRITTEN HERE, in setup, and the round trip is the
- * point: three fields are laid down as floats, `encodeImage(pixels,
- * Format::Exr)` writes them, and everything on the sheet comes back
- * through `decodeChannels`. The red plane is authored ABOVE ONE on
- * purpose — the readout prints the peak that came back, which is the
- * claim that the range survived a format the eight-bit encoders would
- * have flattened.
- *
- * WHAT IS NOT SHOWN, and why: this build's encoder writes a SINGLE-PART
- * EXR with the four ordinary channel names, so there is no `diffuse.R`
- * to select with `DecodeOptions::layer` here. Named layers and
- * multi-part files decode — the layer option and the part-name prefix
- * are implemented — but nothing in this tree WRITES one, so a sheet that
- * showed layer selection would have to ship a binary fixture.
- *
- * EDIT THESE FIRST
- *   kSize  — the fixture's edge, px.
- *   kPeak  — how far above one the red plane is authored.
- *   kCell  — how large each plane is drawn.
+ * Four named float planes are encoded into one EXR and decoded by name.
+ * The channel strip measures their peaks; the lower comparison composites
+ * RGB and places G in a material roughness slot. Metadata is probed without
+ * decoding pixels. This fixture has one part and no named layers.
  */
 
 // TAGS: Media/Images
@@ -77,14 +41,13 @@ namespace {
 
 constexpr int kSize = 192;     // the fixture's edge, px
 constexpr float kPeak = 4.0f;  // the red plane's authored peak
-constexpr float kCell = 158;   // how large each plane is drawn
-constexpr SkSize kCanvas = {1080, 396};
+constexpr SkSize kCanvas = {1100, 820};
 
 constexpr SkColor4f kCellGround{0.12f, 0.12f, 0.14f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.type.captionLabel = {.size = 11, .track = 0.4f};
   look.spacing.captionGap = 6;
   return look;
@@ -137,14 +100,13 @@ sk_sp<SkData> writeExr() {
 /** One plane, drawn at the cell's own size. The picture is the plate's
  *  GROUND — a comparable image paint, which prunes on the image it names,
  *  where a canvas call can be compared to nothing. */
-Element cell(const sk_sp<SkImage>& picture, const char* call,
-             std::string note) {
-  return sketch::kit::cell({.plate = {.width = kCell,
-                                      .height = kCell,
-                                      .ground = Fill::color(kCellGround),
-                                      .padding = 0}},
-                           call, note,
-                           sigil::compose::image(picture, Fit::Cover));
+Element plane(const sk_sp<SkImage>& picture, float width = 237) {
+  return sketch::kit::well(
+      {.width = width,
+       .height = 200,
+       .ground = Fill::color(kCellGround),
+       .content = sketch::kit::Well::Content{}},
+      sigil::compose::image(picture, Fit::Contain).width(180).height(180));
 }
 
 }  // namespace
@@ -201,60 +163,74 @@ struct ExrChannels {
   Element sheet(const image::ChannelData& planes,
                 const std::optional<image::ImageProbe>& probed,
                 size_t byteSize) const {
-    // One cell per plane, each named by the index it came back at and by
-    // the peak that plane actually carries.
-    kit::Cells shelf{
-        .cells =
-            each(planes.names,
-                 [&](const std::string& name, size_t i) {
-                   const int c = (int)i;
-                   float peak = 0.0f;
-                   for (int y = 0; y < planes.height; ++y)
-                     for (int x = 0; x < planes.width; ++x)
-                       peak = std::max(peak, planes.at(x, y, c));
-                   return cell(
-                       planes.makeImage(c, c, c, -1), "makeImage(i, i, i, -1)",
-                       "index(\"" + name + "\") = " + std::to_string(c) +
-                           "   peak " + kit::formatted("%.2f", (double)peak));
-                 }),
-        .gap = 14};
-    shelf.cells.push_back(cell(planes.makeImage(), "makeImage()",
-                               "the default layer — R, G and B "
-                               "composited, alpha filled where absent"));
-    shelf.cells.push_back(cell(
-        throughRoughnessSlot(planes), "child(kRoughnessSlot, Texture::of(…))",
-        "the green plane where a surface reads its roughness, read "
-        "back with kit::map"));
-
-    std::string foot = "probeImage — ";
-    if (probed) {
-      foot += probed->format + ", " + std::to_string(probed->width) + "×" +
-              std::to_string(probed->height) + ", " +
-              std::to_string(probed->channels) + " channels, " +
-              (probed->floatingPoint ? "floating point" : "integer") + ", " +
-              std::to_string(byteSize) + " bytes, no pixels decoded";
-      if (!probed->channelNames.empty()) {
-        foot += "   ·   names";
-        for (const std::string& name : probed->channelNames) foot += " " + name;
-      }
-      if (!probed->layers.empty()) {
-        foot += "   ·   layers";
-        for (const std::string& layer : probed->layers) foot += " " + layer;
-      } else {
-        foot +=
-            "   ·   one part, no named layers — which is "
-            "what this build's encoder writes";
-      }
-    } else {
-      foot += "nothing";
+    std::vector<sketch::kit::ComparisonCase> channels;
+    for (size_t i = 0; i < planes.names.size(); ++i) {
+      float peak = 0;
+      for (int y = 0; y < planes.height; ++y)
+        for (int x = 0; x < planes.width; ++x)
+          peak = std::max(peak, planes.at(x, y, (int)i));
+      channels.push_back(
+          {.title = planes.names[i] + " PLANE",
+           .control =
+               kit::formatted("channel %zu · peak %.2f", i, (double)peak),
+           .figure = plane(planes.makeImage((int)i, (int)i, (int)i, -1)),
+           .note = planes.names[i] == "R"
+                       ? "Radiance exceeds the display range."
+                   : planes.names[i] == "G"
+                       ? "The roughness field is independent of the colour."
+                   : planes.names[i] == "B"
+                       ? "A hard mask with a reduced-coverage band."
+                       : "Opaque coverage throughout."});
     }
-
-    return sketch::kit::page({.title = "Float channels",
-                              .subtitle = "dials · the channel (named on "
-                                          "each cell) · the slot the "
-                                          "picked plane fills",
-                              .footer = foot},
-                             kit::cells(std::move(shelf)));
+    std::string metadata =
+        probed ? kit::formatted(
+                     "%s · %d × %d\n%d channels · %s\n%zu bytes",
+                     probed->format.c_str(), probed->width, probed->height,
+                     probed->channels,
+                     probed->floatingPoint ? "floating point" : "integer",
+                     byteSize)
+               : "Metadata probe unavailable";
+    if (probed && !probed->layers.empty()) {
+      metadata += "\nLayers:";
+      for (const auto& layer : probed->layers) metadata += " " + layer;
+    }
+    Element outputs = sketch::kit::comparison(
+        {.cases = {{.title = "COMPOSITE",
+                    .control = "makeImage()",
+                    .figure = plane(planes.makeImage(), 318),
+                    .note = "The selected R, G and B planes become one "
+                            "displayable image."},
+                   {.title = "ROUGHNESS INPUT",
+                    .control = "G → kRoughnessSlot",
+                    .figure = plane(throughRoughnessSlot(planes), 318),
+                    .note = "The G plane is put in a material slot, then read "
+                            "back through kit::map."}},
+         .measure = 660,
+         .gap = 24});
+    return sketch::kit::page(
+        {.title = "An image is not always a picture",
+         .subtitle = "One generated EXR stores four named float planes. Their "
+                     "range and meaning survive decoding.",
+         .footer = "The fixture is a single-part EXR. Named layer selection "
+                   "needs a source with named layers."},
+        box().column().gap(26).children(
+            {sketch::kit::comparison(
+                 {.cases = std::move(channels), .measure = 1020, .gap = 24}),
+             sketch::kit::sectionHeader(
+                 {.label = "CHOOSE WHAT EACH PLANE MEANS"}),
+             box().row().gap(30).children(
+                 {std::move(outputs),
+                  sketch::kit::well({.width = 330, .padding = 22})
+                      .column()
+                      .gap(18)
+                      .children(
+                          {text("PROBE BEFORE DECODE")
+                               .styleClass("captionLabel"),
+                           text(metadata).styleClass("readout").width(286),
+                           text("The metadata query reads the format, "
+                                "dimensions and channel names without decoding "
+                                "pixels.")
+                               .width(286)})})}));
   }
 
   static Element missing(const std::string& why) {

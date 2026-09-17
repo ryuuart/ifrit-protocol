@@ -192,6 +192,7 @@ painting an Element directly.
 | `well({…, .content = Well::Content{}}, picture)` | THE WELL THAT HOLDS: the plate is a surface of its own and the picture stands inside it at its own measure, ranged as `content` says and centred where it says nothing else — the specimen smaller than the plate it is shown on |
 | `caption(measure, label, note, body)` | one captioned specimen in the theme's voice — the label set in the class `captionLabel`, the note in `captionNote`; `measure` is the cell's own width, the one distance a caption cannot inherit |
 | `cell(Cell, label, note, picture)` | the same specimen with the sheet's plate and measure stated ONCE: `Cell::plate` is the well the picture is HELD by — as a box holds a child, or ranged where `Well::content` says — and `Cell::measure` unset is the plate's own width |
+| `comparison(Comparison)` | equal columns with shared title, control, figure and note tracks; wrapping in one column moves every figure together, and notes begin below the tallest figure |
 | `cells(Run)` | a run of cells along one axis at the theme's gutter, each at its own width |
 | `panelGrid(PanelGrid)` | equal shares of the width, one per cell — what `cells` cannot do, because a fixed width does not know how wide the page is — on one row where `columns` is 0, wrapped every N above that, with a short last row keeping its share; `PanelGrid::measure` is the width the shares are cut from, for the grid whose parent sizes itself from its content and has none to divide |
 | `passage(ctx, name)` | the prose in the sketch's own files, `ctx.local(name)` (`"data/manuscript_1.txt"`), minus the newlines a file ends with — the prose a sheet about setting a page is SET IN, kept beside the sketch rather than typed into it |
@@ -208,6 +209,24 @@ footer, and `Page::ground` names a fill for a sheet whose ground is not a
 flat colour, because a palette holds colours and a gradient is not one. A
 well that must paint nothing passes `Fill::none()`; a well that must
 paint something else passes that.
+
+`Comparison::cases` holds `ComparisonCase` values with a human-readable
+`title`, a secondary `control`, the authored `figure`, and a short `note`.
+The comparison keeps the figure's own extent inside its column and supplies no
+well or scaling. `Comparison::measure` states the available width in pixels,
+including gaps, so text wraps at its final column width before tracks are measured; `Comparison::gap` separates cases and `Comparison::trackGap`
+separates the semantic tracks. Empty text omits that track only when every case
+leaves it empty. A page can place several comparisons under different section
+headings, or place one beside a source image or a readout.
+
+```cpp
+sketch::kit::comparison({
+    .cases = {{.title = "REFERENCE", .control = "radius = 0",
+               .figure = original, .note = "The unmodified outline"},
+              {.title = "ROUNDED", .control = "radius = 22",
+               .figure = rounded, .note = "The same outline with rounded corners"}},
+    .measure = 660, .gap = 20});
+```
 
 **A PAGE IS THE ROOT OF THE CASCADE.** The sheet `page()` returns declares
 the font and the ink everything under it inherits: the theme's text face
@@ -311,7 +330,7 @@ the page and the reading well take their look from the current theme.
 | | |
 | --- | --- |
 | `titleCard(TitleCard)` | an eyebrow over a title over a subtitle, optionally ruled, with the notes ranged at its far edge — the header half of a page, standing on its own |
-| `sectionHeader(SectionHeader)` | a name at the left, a remark at the right, and the rule that fills what the two leave between them |
+| `sectionHeader(SectionHeader)` | a name followed by a horizontal rule, with its supporting note directly beneath the name at a bounded reading measure |
 
 ```cpp
 sketch::kit::titleCard({.eyebrow = {"SIGIL · COMPOSE"},

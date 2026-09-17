@@ -1,7 +1,7 @@
 # SigilPython
 
 Reusable Python bindings for the native drawing, composition, typography,
-motion, material, geometry, image, data and resource libraries. The static
+motion, material, geometry, World, image, data and resource libraries. The static
 `SigilPython` target has no sketch runtime, application, window or interpreter
 startup dependency. Namespace `sigil::python`.
 
@@ -15,7 +15,8 @@ generated editor signatures agree. Positional variadic APIs retain typed
 overloads in the package. An element's `children` method accepts individual
 elements or one iterable, including a list, tuple or generator. Each call
 appends in order and returns the same element; all inputs are converted before
-any are appended.
+any are appended. Container factories accept the same child forms; `layout`
+takes its scheme before its children.
 
 ## Module assembly
 
@@ -80,12 +81,15 @@ does not extend access to the borrowed pen.
 
 * `ValueBindings.h` — `point`, `rect`
 * `ComposeBindings.h` — `dimension`, `fill`, `surfacePaint`, `alignment`,
-  `justification`, `shape`
+  `justification`, `shape`, `elements`
 * `MotionBindings.h` — `motionAnimatable`, `motionInk`, `motionFill`,
   `motionEase`, `motionTransition`
 * `IOBindings.h` — `HubHandle`, `retainSessionFeed`
 * `DataBindings.h` — `dataDatabase`
 * `KitBindings.h` — `bindComposeKit`
+* `WeaveBindings.h` — `bindWeave`
+* `GeometryBindings.h` — `bindGeometry`
+* `WorldBindings.h` — `bindWorld`
 
 These headers let another native adapter use the same conversions and wrapper
 types. A checked hub accepts host-provided access and feed-retention functions;
@@ -93,6 +97,21 @@ owned hubs have independent lifetimes. IO transport workers execute no Python.
 Overlapping host sessions can share a feed lease, and the last lease closes its
 transport without holding the interpreter lock. Escaped checked wrappers cannot
 keep a closed host session alive.
+
+## World ownership
+
+World declarations use the native element, frame, light, selector and kit
+values. Meshes and cameras remain Geometry values; surface parameters and
+factories remain Material values. The Python scene owner contains a ticker
+before its native scene, because the scene borrows that ticker. The owner
+cannot move and checks its creating thread on every operation. It retains
+the current frame so advancing time can resample its native motion lanes.
+Scene destruction precedes ticker destruction.
+
+The supported executor is the native CPU renderer. Image capture returns
+an owned image; drawing into a sketch accepts the existing checked pen.
+Camera, lights and statistics are copied on read. No device handles, custom
+Python pass bodies or additional callback lifetime are introduced.
 
 ## Build and validation
 
@@ -102,7 +121,7 @@ embedding library. A module target sets `SIGIL_PYTHON_EXTENSION` so Python
 symbols resolve from the importing interpreter instead of another libpython.
 
 `python_test` links this library without any sketch target. It checks common
-module registration, neutral Compose kit callbacks, explicit callback cleanup
-and native scope unwinding. The sketch adapter separately tests hot reload,
+module registration, neutral Compose kit callbacks, explicit callback cleanup,
+native scope unwinding and retained World ticker, frame and image ownership. The sketch adapter separately tests hot reload,
 context invalidation and its session-owned resources. Package tests exercise
 the combined extension and its Python convenience surface.

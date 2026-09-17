@@ -1,5 +1,5 @@
 /** @file
- * fx_scatter_mix — two glyph effects nobody had drawn, and the three
+ * fx_scatter_mix — two composed glyph effects, and the three
  * schedule dials that decide who moves first.
  *
  * `fx::scatter` flies every glyph in from its own random offset inside a
@@ -34,6 +34,7 @@
 // TAGS: Typography/Effects, Motion/Transitions
 
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Instruments.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
@@ -53,9 +54,7 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 400};
-constexpr float kCell = 200;
-constexpr float kPicture = 176;
+constexpr SkSize kCanvas = {1100, 700};
 
 constexpr float kProgress = 0.5f;  // where the photograph is taken
 constexpr float kRadius = 34;      // the scatter's disc, px
@@ -70,21 +69,20 @@ weave::TextStyle specimen() {
   const sk_sp<SkTypeface> face = weave::ports::face(
       {"Helvetica Neue", "Helvetica", "Arial", "sans-serif"});
   return weave::textStyle({.face = face,
-                           .size = 24,
+                           .size = 34,
                            .color = sketch::kit::theme().palette.figure,
                            .track = 1});
 }
 
-Element cell(const char* call, const char* note, const char* key, Track track) {
+Element figure(float width, const char* key, Track track) {
   track.progress = kProgress;
-  return sketch::kit::cell({.plate = {.width = kCell, .height = kPicture}},
-                           call, note,
-                           text("CASCADE", specimen())
-                               .key(key)
-                               .width(kCell - 72)
-                               .absolute()
-                               .inset(36, 60, 36, 14)
-                               .fx(std::move(track)));
+  return sketch::kit::well({.width = width, .height = 146})
+      .children({text("CASCADE", specimen())
+                     .key(key)
+                     .width(width - 88)
+                     .absolute()
+                     .inset(44, 48, 44, 20)
+                     .fx(std::move(track))});
 }
 
 /** The one spread every cell starts from — the origin and the
@@ -100,66 +98,99 @@ motion::Spread ladder(motion::Spread::From from,
 }  // namespace
 
 struct FxScatterMix {
-  void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
-    // Every track holds one constant progress: the sheet is one instant
-    // of the cascade, not a moment of an animation.
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
-    const SkColor4f figure = sketch::kit::theme().palette.figure;
+  bool instrumented = false;
 
-    ctx.composer.render(sketch::kit::page(
-        {.title = "Scatter, mix and the ladder",
-         .subtitle = "dials · the progress the photograph is "
-                     "taken at (0.50) · the scatter's radius "
-                     "(34 px) and lean (26°) · the "
-                     "origin · the distribution curve",
-         .footer = "mix composes by the algebra stacked tracks use "
-                   "— dx, dy and rotation add, scale and "
-                   "alpha multiply — and the scatter's "
-                   "randomness is seeded from each glyph's own "
-                   "identity, so it is the same scatter every "
-                   "frame"},
-        kit::cells(
-            {.cells =
-                 {cell("fx::scatter(34, 26)",
-                       "each glyph flies in from its own offset in a "
-                       "disc, with its own lean · From::Start, so "
-                       "the head has landed",
-                       "sc",
-                       {.effect = fx::scatter(kRadius, kLean),
-                        .stagger = ladder(motion::Spread::From::Start)}),
-                  cell("fx::mix(scatter, tint)",
-                       "both at once at one local t · the "
-                       "offsets are the scatter's and the colour the "
-                       "tint's, composed and not sequenced",
-                       "mx",
-                       {.effect = fx::mix(fx::scatter(kRadius, kLean),
-                                          fx::tint(kHot, figure)),
-                        .stagger = ladder(motion::Spread::From::Start)}),
-                  cell("Spread::From::End",
-                       "the same effect, the cascade run backwards "
-                       "· the LAST glyph is the one that has "
-                       "landed",
-                       "en",
-                       {.effect = fx::scatter(kRadius, kLean),
-                        .stagger = ladder(motion::Spread::From::End)}),
-                  cell("Spread::From::Edges",
-                       "both ends start together and meet in the middle "
-                       "· the centre of the word is still in "
-                       "flight",
-                       "ed",
-                       {.effect = fx::scatter(kRadius, kLean),
-                        .stagger = ladder(motion::Spread::From::Edges)}),
-                  cell("…"
-                       ", .distribution = t²",
-                       "the ramp of DELAYS passed through a curve "
-                       "· an ease-in crowds the early units and "
-                       "lets the tail spread out",
-                       "di",
-                       {.effect = fx::scatter(kRadius, kLean),
-                        .stagger = ladder(motion::Spread::From::Start,
-                                          [](float t) { return t * t; })})},
-             .gap = 12})));
+  void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    instrumented = false;
+    ctx.composer.render(describe(ctx));
+    // Request frames only until layout can supply the static beat meters.
+    ctx.ticker.add([this]() -> bool { return !instrumented; });
+  }
+
+  void update(double, sketch::SketchContext& ctx) {
+    if (instrumented || ctx.composer.beatsOf("sc", 0).empty()) return;
+    ctx.composer.render(describe(ctx));
+    instrumented = true;
+  }
+
+  Element describe(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    const SkColor4f ink = sketch::kit::theme().palette.figure;
+
+    Element page = sketch::kit::page(
+        {.title = "Change the effect, or change who starts",
+         .subtitle = "The same word at 50% master progress · 60 ms between "
+                     "glyphs, 420 ms for each motion",
+         .footer =
+             "Meters read each glyph's actual local time. mix runs effects "
+             "together: offsets and rotation add; scale and alpha multiply."},
+        box().column().gap(22).children(
+            {text("01 / ONE SCHEDULE, TWO EFFECTS").styleClass("section"),
+             sketch::kit::comparison(
+                 {.cases =
+                      {{.title = "SCATTER",
+                        .control = "radius 34 px · lean 26° · from start",
+                        .figure = figure(
+                            498, "sc",
+                            {.effect = fx::scatter(kRadius, kLean),
+                             .stagger = ladder(motion::Spread::From::Start)}),
+                        .note = "Each glyph gets a stable, seeded offset and "
+                                "lean."},
+                       {.title = "SCATTER + TINT",
+                        .control = "mix(scatter, tint) · same local time",
+                        .figure = figure(
+                            498, "mx",
+                            {.effect = fx::mix(fx::scatter(kRadius, kLean),
+                                               fx::tint(kHot, ink)),
+                             .stagger = ladder(motion::Spread::From::Start)}),
+                        .note = "Position follows scatter while colour "
+                                "changes alongside it."}},
+                  .measure = 1020,
+                  .gap = 24}),
+             text("02 / ONE EFFECT, THREE SCHEDULES").styleClass("section"),
+             sketch::kit::comparison(
+                 {.cases =
+                      {{.title = "FROM THE END",
+                        .control = "From::End",
+                        .figure = figure(328, "en",
+                                         {.effect = fx::scatter(kRadius, kLean),
+                                          .stagger = ladder(
+                                              motion::Spread::From::End)}),
+                        .note = "The final glyph starts first; the cascade "
+                                "travels backward."},
+                       {.title = "FROM BOTH EDGES",
+                        .control = "From::Edges",
+                        .figure = figure(
+                            328, "ed",
+                            {.effect = fx::scatter(kRadius, kLean),
+                             .stagger = ladder(motion::Spread::From::Edges)}),
+                        .note = "Both ends arrive together. The centre "
+                                "remains in flight."},
+                       {.title = "EASE THE DELAYS",
+                        .control = "From::Start · distribution t²",
+                        .figure = figure(
+                            328, "di",
+                            {.effect = fx::scatter(kRadius, kLean),
+                             .stagger = ladder(motion::Spread::From::Start,
+                                               [](float t) { return t * t; })}),
+                        .note = "Only the delay spacing changes; each glyph "
+                                "keeps the same motion."}},
+                  .measure = 1020,
+                  .gap = 18})}));
+    Element root = stack().inset(0).children({std::move(page)});
+    for (const char* key : {"sc", "mx", "en", "ed", "di"})
+      root.children(
+          {kit::trackMeter(ctx.composer, key, 0,
+                           sketch::kit::theme().palette.figure,
+                           {0.4f, 0.4f, 0.5f, 0.2f},
+                           {.where = kit::MeterPlacement::Where::Under,
+                            .thickness = 3,
+                            .gap = 12,
+                            .trim = 1.5f})
+               .inset(0)});
+    return root;
   }
 };
 

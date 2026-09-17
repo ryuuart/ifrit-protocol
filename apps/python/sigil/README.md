@@ -16,10 +16,10 @@ standalone Python interpreter, including headless file rendering.
 The public direct binding surface is `sigil.native`: its library namespaces
 expose the bound native types and verbs, including `compose`, `draw`,
 `material`, `geometry`, `image`, `weave`, `core`, `motion`, `sketch`,
-`data`, `io` and `skia`.
+`data`, `io`, `skia` and `world`.
 `sigil.compose` exposes those same native factories and types, with `row()`
 and `column()` as small shortcuts for a box's flow direction. Properties
-use native fluent methods; `.children(...)` supplies composed elements:
+use native fluent methods; container arguments supply composed elements:
 
 ```python
 from sigil.native import compose as raw
@@ -27,7 +27,7 @@ from sigil.compose import row, text
 
 mark = raw.box().width(12).height(12).fill("#8bd0bd")
 caption = text("Observing", size=14)
-panel = row().gap(8).alignItems("center").children(mark, caption)
+panel = row(mark, caption).gap(8).alignItems("center")
 ```
 
 There is one element type and no separate Python node model to keep in
@@ -48,7 +48,7 @@ Python contract, rather than maintaining a second renderer.
 
 The wheel includes type declarations for the direct bindings and authoring
 helpers, with a `py.typed` marker for editors. Builders return native
-`Element` values; material factories return native paints. Supported input
+`Element` values; material factories return native paints or materials. Supported input
 forms use unions and overloads, fluent methods retain their native signatures,
 and memo builders preserve the type of their model. Decorating a sketch retains
 its class type.
@@ -628,13 +628,16 @@ model can submit another tree with `ctx.render(...)`. Keys match elements
 across those descriptions, and native transition declarations animate a
 property when its described target changes.
 
-Create an element, state its properties, then give it children:
-`column().gap(12).children(heading(), body())`. `row()` is
-`box().row()` and `column()` is `box().column()`. Constructors do not take
-layout or styling keywords. Fluent methods keep their native names, such
+Container factories accept children directly:
+`column(heading(), body()).gap(12)`. The fluent form
+`column().gap(12).children(heading(), body())` is equivalent. This applies to
+`box`, `row`, `column`, `stack`, `positioned`, and `layout(scheme, ...)`.
+`row()` is `box().row()` and `column()` is `box().column()`. Constructors
+do not take layout or styling keywords. Fluent methods keep their native names, such
 as `.alignItems("center")`, `.fontSize(18)` and `.translateY(12)`.
 
-Children accept individual native elements or one sequence of elements:
+Both factory arguments and `.children()` accept individual native elements
+or one sequence of elements:
 `.children(a, b)`, `.children([a, b])` and `.children((a, b))` are equivalent.
 Pass a list comprehension directly for repeated content, or expand a sequence
 with `*items` alongside other elements: `.children(heading(), *items, footer())`.
@@ -813,8 +816,53 @@ remain concise wrappers over native declarations.
 and `rule` values. A partial type inherits unspecified fields; a complete
 text style describes its own look. A page states its theme's stylesheet
 on its root, and `styleClass` on a native element selects a class from
-that cascade. Coverage is curated; rich text stories and every native
-text effect are not implied by exposing these value types.
+that cascade. Mixed runs and paragraph settings use the same native values.
+
+## Typography
+
+Compose accepts a native `RichText` value. Each added run carries plain text,
+a partial `Type`, a complete `TextStyle`, or a class name. Children remain
+composed elements; an inline object reserves its space with `slot` and matches
+a child by its key:
+
+```python
+from sigil.compose import box, text
+from sigil.weave import Block, Leading, Type, rich
+
+passage = (rich().add("A ").add("warm", Type(color="#e39a60"))
+           .add(" signal ").slot("status", (12, 12)).add(" arrives."))
+label = (text(passage).width(320).font(Type(size=22, color="#d8e3e8"))
+         .block(Block(leading=Leading.multiple(1.3)))
+         .children(box().key("status").fill("#8bd0bd")))
+```
+
+`rich()` inherits its base from the element's type cascade; `rich(textStyle(...))`
+states a complete base. `StyleSheet.types()` supplies the native `TypeSheet`
+for explicit named-run resolution. `spanStyle` and `spanPaint` restyle selections
+from `weave.selectors`; Compose's `selectors.style` and `selectors.inFrame`
+address named runs and story frames. Selector ranges use native UTF-16 offsets.
+
+`Block` exposes leading, alignment, justification, hyphenation settings, tab
+stops, CJK line tables and writing mode. `ParagraphStyle` adds per-paragraph
+spacing, indents, keeps, reservations and an initial letter. Give `paragraphs`
+a list or tuple of those styles, or of stylesheet names. `Story(passage)` with
+`frame(story).key(...).thread(...)` flows that same content through several
+frames. `firstBaseline`, `distribute`, `initialLetter`, `reserve`, `live`,
+`maxLines` and `ellipsis` use the native layout controls.
+
+Glyph underlays, overlays and line decorations belong to `PaintStyle` or a
+partial `Type`. `PaintLayer` accepts a configured Skia paint and an offset;
+`Decoration` describes an underline, overline, strike or highlight. Optional
+records and array properties are copies: edit and assign them back. A rich
+value's `runs()` and a story's `blocks()` return independent snapshots.
+`TextPath` and `onPath` place text on a native shape and accept shared motion
+values for progress.
+
+The binding does not yet expose direct editable `Paragraph`/`FontContext`
+layout, custom flow or hyphenator implementations, annotation/ruby values,
+or per-glyph effect tracks. `PaintLayer.material` is also unbound; ordinary
+Skia paints and Compose's `textFill` remain available. These are explicit
+coverage limits, independent of whether a native library is linked.
 
 ## Data values and native resources
 
@@ -901,10 +949,12 @@ effect avoids compiling source on each description. Use a fresh instance
 or `paint.copy()` before changing uniform values or child slots on a shared
 paint.
 
-This surface does not expose the full native recipe-definition API, uniform
-blocks, material preset kit, SDF catalogue or texture/PBR catalogue. The
-generic material value returned by the bound field factories is opaque
-apart from copying and conversion into a paint or effect. Paint uniform
+The native `sigil.material.kit.SurfaceParameters` record and its `surface`
+and `unlit` factories describe mesh surfaces: base color, roughness, metallic
+response, emission and transmission. The returned `sigil.material.Material`
+is the same value a World element accepts. The full recipe-definition API,
+uniform blocks, SDF catalogue, texture maps and environment maps remain
+unbound. Material values support copying and conversion into a paint or effect. Paint uniform
 setters currently take constant values; native frame uniforms animate
 shader paints, while effect uniforms can also take bound motion values.
 New backend-neutral recipes and unbound material catalogues still require
@@ -945,7 +995,7 @@ tool.pressure.end = 0.05
 # Inside draw(self, pen): brush.line(pen, tool, (40, 80), (280, 160))
 ```
 
-## Meshes and the example gallery
+## Mesh geometry
 
 `from sigil.geometry import mesh` exposes the native mesh currency, stock
 solids, extrusion, lathing and parametric grids. `mesh.camera` owns cameras
@@ -956,8 +1006,61 @@ array properties are copied Python values: assign the changed array back
 to update the native mesh.
 
 The mesh painter runs on its native CPU executor and works without a
-display or GPU. This surface does not expose SigilWorld's device scene,
-frame graph, compute operators or full PBR material system.
+display or GPU.
+
+## Retained 3D scenes
+
+`sigil.world` exposes native retained scene declarations and the CPU frame
+executor. Import meshes and cameras from `sigil.geometry.mesh`, materials
+from `sigil.material`, and animation values from `sigil.motion`. These are
+the same values used by the direct bindings.
+
+```python
+from sigil import image, world
+from sigil.geometry import mesh
+from sigil.material import kit as surfaces
+
+finish = surfaces.surface(
+    surfaces.SurfaceParameters.dielectric("#87b9ad", roughness=0.45)
+)
+model = (world.Element().key("vessel")
+         .mesh(mesh.torus(65, 20)).fill(finish).rotateX(25))
+scene = world.Scene()
+scene.render(world.kit.litSet(model, world.kit.Set(ground=0), seconds=1))
+image.save(scene.image((640, 480), background="#141d25"), "world.png")
+```
+
+An `Element` supports keyed children, mesh and material values, tags,
+transforms, cameras and lights. `children` takes variadic elements or one
+iterable, including a tuple. Re-describing keyed nodes preserves native
+identity and shares equal mesh resources. Scalar lanes accept native motion
+outputs, bindings and transitions; `scene.advance(seconds)` advances the
+owned ticker and samples the retained frame. Use it from an update callback
+when the scene includes timed transitions. Explicit time can instead drive
+fresh descriptions, as it does in `python_world_study`.
+
+A `Frame` supplies a camera, pixel extent and passes. `geometryPass` writes
+named resources; `postPass` can read, blur, grade and composite them. Add a
+pass with `frame.pass_(pass_value)` and choose the image with
+`frame.present("resource")`. Pass `reads` and `writes` accept variadic names
+or one iterable. Selectors combine with `|`, `&` and `~`; `Selection.All`
+disables selection filtering. Invalid frame graphs raise `ValueError`.
+
+`Scene.image(size)` returns an owned native image with no window required;
+`Scene.draw(pen)` draws into a live sketch's checked pen. A scene stays on
+its creating thread and owns the ticker its native renderer borrows. Camera,
+light and statistics getters return copies. The three-point rig, turntable
+and lit-set kit compose ordinary native elements. Light and rig colors are
+linear RGBA sequences, matching the native light records.
+
+The CPU executor approximates material response through the native mesh
+painter. Without an environment map, roughness does not change its
+directional-light highlights; the study varies base color at a fixed
+roughness. Device execution, environment lighting, texture-map authoring,
+point-operator pipelines, custom pass callbacks and readbacks remain
+unbound; the Python API does not claim GPU PBR parity.
+
+## Example gallery
 
 The wheel includes these examples; `sigil examples` lists their names.
 Render one with `sigil render --example NAME -o preview.png`.
@@ -966,11 +1069,13 @@ Render one with `sigil render --example NAME -o preview.png`.
 | --- | --- |
 | `python_hello` | A first drawing: a greeting, a moving circle and two constants to edit |
 | `python_hello_compose` | A first retained composition: Python component and paint factories, native themed page and entrance motion |
+| `python_type_atelier` | Mixed runs and inline objects, selector styling, initial letters, a threaded story and curved lettering |
 | `python_kit_specimen` | Native page and captions, stock layouts, scoped theme and deferred memo |
 | `python_motion_signals` | Shared native outputs, ticker callbacks, binding chains and keyframe entrance |
 | `python_memo_station` | Retained model descriptions, memo invalidation and native motion |
 | `python_data_garden` | Native CSV tables, sorting, and linear, band and square-root scales |
 | `python_mesh_observatory` | Parametric 3D knot, lathed vessel, regular solid, camera, native lighting |
+| `python_world_study` | Retained keyed 3D scene, shared vessel mesh, material finishes and moving native light rig |
 | `python_liquid_glass` | Shader-driven refraction, nested shader inputs, moving field uniforms, Bezier filaments |
 | `python_botanical_study` | Layered natural media, native hatching and dry pigment |
 | `python_liquid_layers` | Pressure-shaped ribbons, wet fibres, pigment blooms and pattern materials |
@@ -990,9 +1095,9 @@ those library namespaces under `sigil.native`.
 
 The package is an alpha Python frontend with selected first-tier authoring
 surfaces. It is not a complete verb-for-verb implementation of the broader
-Python proposal. Complete typography, world rendering, media pipelines and
-networking remain separate coverage decisions. The native brush `weightedChoice` template and generic
-byte-source loading are not exposed; Python can choose values and supply
+Python proposal. Unbound typography controls, World device execution and
+media pipelines remain separate coverage decisions. The native brush
+`weightedChoice` template and generic byte-source loading are not exposed; Python can choose values and supply
 the brush decoder with bytes.
 Repeated drawing calls still cross into native code individually; a
 larger geometry operation should use a native batch API when one is

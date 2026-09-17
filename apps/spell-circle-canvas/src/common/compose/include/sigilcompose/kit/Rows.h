@@ -147,8 +147,9 @@ struct Table {
    *  is named, in the ink in force. */
   bool headRuled = false;
   /** ONE PATCH PER ROW, in row order, standing before that row's first
-   *  column. A row past the end of this run, or one whose patch is none,
-   *  carries no mark and spends no room. */
+   *  column. When any row has a patch, the head and every row reserve the
+   *  same leading space. A row past the end of this run, or one whose
+   *  patch is none, leaves that space empty. */
   std::span<const SurfacePaint> swatches;
   float swatchSide = 10.0f;
   float swatchCorners = 0.0f;

@@ -87,9 +87,13 @@ Element table(std::span<const std::span<const Utf8>> rows, const Table& how) {
 
   const bool headed = std::ranges::any_of(
       how.columns, [](const Column& one) { return !one.head.empty(); });
+  const bool marked = std::ranges::any_of(
+      how.swatches.first(std::min(rows.size(), how.swatches.size())),
+      [](const SurfacePaint& paint) { return !paint.none(); });
   if (headed) {
     Element head =
         box().row().alignItems(Align::Center).gap(Dimension(how.gap));
+    if (marked) head.children({box().width(how.swatchSide).shrink(0)});
     for (size_t index = 0; index < how.columns.size(); ++index) {
       const Utf8& words = how.columns[index].head;
       head.children({sized(
@@ -107,9 +111,10 @@ Element table(std::span<const std::span<const Utf8>> rows, const Table& how) {
     Element row = box().row().alignItems(Align::Center).gap(Dimension(how.gap));
     if (index < how.keys.size() && !how.keys[index].empty())
       row.key(how.keys[index]);
-    if (index < how.swatches.size() && !how.swatches[index].none())
-      row.children(
-          {mark(how.swatches[index], how.swatchSide, how.swatchCorners)});
+    if (marked)
+      row.children({mark(
+          index < how.swatches.size() ? how.swatches[index] : SurfacePaint{},
+          how.swatchSide, how.swatchCorners)});
     const std::span<const Utf8> cells = rows[index];
     for (size_t at = 0; at < cells.size(); ++at) {
       Element cell = how.cellLine

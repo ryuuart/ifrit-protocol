@@ -247,6 +247,118 @@ TEST(SketchKitCells, AnExplicitGroundWinsOverTheThemes) {
 
 // The runs
 
+TEST(SketchKitCells, ComparisonAlignsFiguresAfterWrappedTitlesAndControls) {
+  const kit::Provide look(kit::studyTheme());
+  Drawn drawn(
+      kit::comparison(
+          {.cases = {{.title = "THE REFERENCE WITH A LONGER TWO LINE TITLE",
+                      .control = "radius = 22; corners = topLeft | bottomRight",
+                      .figure =
+                          subject().key("reference").width(140).height(40),
+                      .note = "The reference outline."},
+                     {.title = "RESULT",
+                      .control = "radius = 0",
+                      .figure = subject().key("result").width(160).height(60),
+                      .note = "Its authored height is retained."}},
+           .measure = 400,
+           .gap = 20})
+          .styleSheet(kit::theme().styleSheet()));
+  const auto reference = drawn.composer.bounds("reference");
+  const auto result = drawn.composer.bounds("result");
+  ASSERT_TRUE(reference);
+  ASSERT_TRUE(result);
+  EXPECT_FLOAT_EQ(reference->top(), result->top());
+  EXPECT_GT(reference->top(), 40);
+  EXPECT_FLOAT_EQ(reference->width(), 140);
+  EXPECT_FLOAT_EQ(result->width(), 160);
+  EXPECT_FLOAT_EQ(reference->height(), 40);
+  EXPECT_FLOAT_EQ(result->height(), 60);
+  EXPECT_GE(result->left() - reference->right(), 20);
+}
+
+TEST(SketchKitCells, ComparisonInAPagePreservesFiguresAndWrapsNotes) {
+  const kit::Provide look(kit::studyTheme());
+  sigil::motion::Ticker ticker;
+  compose::Composer composer(ticker, fonts());
+  composer.setSize({900, 1050});
+  const auto result = [](const char* key) {
+    return compose::box().key(key).width(160).height(240).fill(
+        Fill::color({0.9f, 0.3f, 0.4f, 1}));
+  };
+  Element first = compose::box().column().gap(12).children(
+      {compose::box().key("map").width(160).height(74), result("first")});
+  Element comparison =
+      kit::comparison(
+          {.cases =
+               {{.title = "A LONG REFERENCE TITLE THAT WRAPS",
+                 .control = "blur(map, maximum = 14)",
+                 .figure = std::move(first),
+                 .note =
+                     "The reference note is deliberately long enough to wrap "
+                     "across several lines inside its own narrow column."},
+                {.title = "SECOND",
+                 .control = "same control",
+                 .figure = result("second"),
+                 .note = "Short note."},
+                {.title = "THIRD",
+                 .control = "same control",
+                 .figure = result("third"),
+                 .note = "Short note."},
+                {.title = "FOURTH",
+                 .control = "same control",
+                 .figure = result("fourth"),
+                 .note = "Short note."}},
+           .measure = 700,
+           .gap = 20})
+          .key("comparison");
+  composer.render(
+      kit::page({.title = "A complete page", .footer = "End"},
+                compose::box().column().gap(24).children(
+                    {compose::box()
+                         .row()
+                         .alignItems(compose::Align::Start)
+                         .gap(20)
+                         .children({std::move(comparison),
+                                    compose::box().width(100).height(80)}),
+                     compose::box().key("following").width(700).height(90)})));
+  const sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(900, 1050));
+  composer.draw(*surface->getCanvas());
+  const auto map = composer.bounds("map");
+  const auto firstBounds = composer.bounds("first");
+  const auto second = composer.bounds("second");
+  const auto fourth = composer.bounds("fourth");
+  const auto band = composer.bounds("comparison");
+  const auto following = composer.bounds("following");
+  ASSERT_TRUE(map && firstBounds && second && fourth && band && following);
+  EXPECT_FLOAT_EQ(map->height(), 74);
+  EXPECT_FLOAT_EQ(firstBounds->height(), 240);
+  EXPECT_FLOAT_EQ(second->height(), 240);
+  EXPECT_FLOAT_EQ(fourth->height(), 240);
+  EXPECT_FLOAT_EQ(firstBounds->top() - map->bottom(), 12);
+  EXPECT_FLOAT_EQ(map->top(), second->top());
+  EXPECT_FLOAT_EQ(second->top(), fourth->top());
+  EXPECT_FLOAT_EQ(fourth->right() - map->left(), 700);
+  // The longest note occupies multiple lines below the entire nested figure.
+  EXPECT_GT(band->bottom() - firstBounds->bottom(), 50);
+  EXPECT_GE(following->top() - band->bottom(), 24);
+  EXPECT_LT(following->bottom(), 1000);
+}
+
+TEST(SketchKitCells, ComparisonOmitsTracksEmptyInEveryCase) {
+  Drawn drawn(kit::comparison({.cases = {{.figure = subject().key("first")},
+                                         {.figure = subject().key("second")}},
+                               .measure = 400,
+                               .gap = 20}));
+  const auto first = drawn.composer.bounds("first");
+  const auto second = drawn.composer.bounds("second");
+  ASSERT_TRUE(first);
+  ASSERT_TRUE(second);
+  EXPECT_FLOAT_EQ(first->top(), 0);
+  EXPECT_FLOAT_EQ(first->top(), second->top());
+  EXPECT_FLOAT_EQ(first->width(), 60);
+}
+
 TEST(SketchKitCells, ARunIsTheHandSpelledRunAtTheThemesGutter) {
   EXPECT_TRUE(sameDrawing(
       compose::kit::cells({.cells = {subject(), subject()},

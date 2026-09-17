@@ -1,25 +1,9 @@
 /** @file
- * svg_silhouette — a traced outline arrives as a string, and the one
- * flag that decides what happens to it in a box that is the wrong shape.
- *
- * `shapes::svg(d)` parses an SVG path-d with Skia's own parser: trace a
- * reference silhouette in any vector tool, paste the `d`, done. The
- * parse happens ONCE, at the call, and what the value then holds is the
- * parsed `SkPath` — which compares — so a node shaped by an svg() prunes
- * exactly like one shaped by a polygon.
- *
- * What the flag decides is how the path's own bounds map onto the node's
- * box. By default they map corner to corner, which STRETCHES: the same
- * `d` in a wide box and a tall one is two different figures.
- * `preserveAspect` fits and centres instead, so the figure keeps its
- * proportions and gives back the slack on the long axis.
- *
- * Both rows below are the same string in the same three boxes. Nothing
- * else on this sheet changes.
- *
- * EDIT THESE FIRST
- *   kBolt   — the `d` string. Anything SkParsePath reads.
- *   kBoxes  — the three box shapes it is asked to fill.
+ * One SVG path in three matched viewport shapes.
+ * Columns hold viewport dimensions constant; rows select corner-to-corner
+ * mapping or aspect-preserving fit. The rule belongs to the requested box,
+ * the yellow silhouette to the path. Parsing happens once when shapes::svg
+ * constructs the comparable value.
  */
 
 // TAGS: Geometry/Paths
@@ -39,13 +23,13 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 724};
-constexpr float kCell = 341;
-constexpr float kPicture = 212;
+constexpr SkSize kCanvas = {1100, 860};
+constexpr float kCell = 324;
+constexpr float kPicture = 208;
 
 /** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.type.captionLabel = {.size = 11, .mono = true};
   return look;
 }
@@ -60,24 +44,47 @@ constexpr SkColor4f kFigure{0.98f, 0.80f, 0.34f, 1};
 /** One specimen: the box the outline was asked to fill, keylined so the
  *  box and the figure are separately visible, with an ordinary node
  *  SHAPED by the svg value stretched over it. */
-Element cell(const char* call, const char* note, SkSize boxSize,
-             bool preserveAspect) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well(
-          {.width = kCell,
-           .height = kPicture,
-           .clip = false,
-           .content = sketch::kit::Well::Content{}},
-          box()
-              .width(boxSize.width())
-              .height(boxSize.height())
-              .stroke(stroke(1.0f, Fill::color(kBoxRule)))
-              .children({box()
-                             .grow(1)
-                             .alignSelf(Align::Stretch)
-                             .shape(shapes::svg(kBolt, preserveAspect))
-                             .fill(Fill::color(kFigure))})));
+Element viewport(SkSize size, bool preserveAspect) {
+  return sketch::kit::well(
+      {.width = kCell,
+       .height = kPicture,
+       .content = sketch::kit::Well::Content{}},
+      box()
+          .width(size.width())
+          .height(size.height())
+          .stroke(stroke(1.0f, Fill::color(kBoxRule)))
+          .children({box()
+                         .grow(1)
+                         .alignSelf(Align::Stretch)
+                         .shape(shapes::svg(kBolt, preserveAspect))
+                         .fill(Fill::color(kFigure))}));
+}
+
+Element fitRow(bool preserveAspect) {
+  return sketch::kit::comparison(
+      {.cases =
+           {{.title = "WIDE",
+             .control = "270 × 96",
+             .figure = viewport({270, 96}, preserveAspect),
+             .note = preserveAspect
+                         ? "The spare width stays outside the silhouette."
+                         : "The silhouette widens to reach both edges."},
+            {.title = "SQUARE",
+             .control = "176 × 176",
+             .figure = viewport({176, 176}, preserveAspect),
+             .note = preserveAspect
+                         ? "The bolt keeps the proportions of its path."
+                         : "Equal box dimensions do not imply an undistorted "
+                           "path."},
+            {.title = "TALL",
+             .control = "96 × 190",
+             .figure = viewport({96, 190}, preserveAspect),
+             .note =
+                 preserveAspect
+                     ? "A close aspect match leaves only a small margin."
+                     : "A close aspect match makes the stretch less obvious."}},
+       .measure = 1020,
+       .gap = 24});
 }
 
 }  // namespace
@@ -89,57 +96,18 @@ struct SvgSilhouette {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "SVG silhouette",
-         .subtitle = "dials · the d string (\"M62 4 L18 78 "
-                     "H44 L30 148 L86 62 H56 Z\") · the fit "
-                     "· the box it is asked to fill",
-         .footer = "the parse happens once, at the call, and what "
-                   "the value holds afterwards is the parsed path "
-                   "— which compares, so a node shaped "
-                   "by an svg() prunes like any other"},
-        kit::cells(
-            {.cells =
-                 {kit::cells(
-                      {.cells =
-                           {cell("svg(d) in 270 × 96",
-                                 "the default maps the path's own "
-                                 "bounds corner to corner, so a wide "
-                                 "box flattens the figure",
-                                 {270, 96}, false),
-                            cell("svg(d) in 176 × 176",
-                                 "square: the bolt is taller than it is "
-                                 "wide, so it is still stretched "
-                                 "sideways here",
-                                 {176, 176}, false),
-                            cell("svg(d) in 96 × 190",
-                                 "a tall box is nearly the path's own "
-                                 "aspect, which is why this one looks "
-                                 "right by accident",
-                                 {96, 190}, false)},
-                       .gap =
-                           14}),
-                  kit::cells(
-                      {.cells =
-                           {cell("svg(d, true) in 270 × 96",
-                                 "preserveAspect fits and CENTRES "
-                                 "instead · the slack goes to "
-                                 "the long axis, not to the figure",
-                                 {270, 96},
-                                 true),
-                            cell("svg(d, true) in 176 × 176",
-                                 "the same proportions in a square box "
-                                 "· one figure, three boxes, no "
-                                 "second d string",
-                                 {176, 176}, true),
-                            cell("svg(d, true) in 96 × 190",
-                                 "and where the box already matched, "
-                                 "the flag changes almost nothing "
-                                 "— which is the tell",
-                                 {96, 190}, true)},
-                       .gap =
-                           14})},
-             .column = true,
-             .gap = 18})));
+        {.title = "One outline, three viewports",
+         .subtitle = "The grey rule is the requested box. The yellow shape "
+                     "comes from one unchanged SVG path.",
+         .footer = "The path is parsed once. preserveAspect changes how its "
+                   "bounds map into a layout box."},
+        box().column().gap(22).children(
+            {sketch::kit::sectionHeader(
+                 {.label = "STRETCH TO THE BOX", .note = "svg(d)"}),
+             fitRow(false),
+             sketch::kit::sectionHeader(
+                 {.label = "KEEP THE PROPORTIONS", .note = "svg(d, true)"}),
+             fitRow(true)})));
   }
 };
 

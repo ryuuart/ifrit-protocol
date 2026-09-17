@@ -54,9 +54,9 @@ namespace pop = sigil::geometry::mesh::pop;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 788};
-constexpr float kCell = 340;
-constexpr float kPicture = 248;
+constexpr SkSize kCanvas = {1100, 900};
+constexpr float kCell = 328;
+constexpr float kPicture = 216;
 
 constexpr int kMotes = 5200;     // points in each cloud
 constexpr float kNoise = 20;     // the displacement Relax has to heal
@@ -64,7 +64,7 @@ constexpr int kIterations = 12;  // the strongest smoothing on the sheet
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette.cellGround = {0.09f, 0.095f, 0.11f, 1};
   look.type.captionLabel = {.size = 12, .track = 1.2f};
   look.spacing.captionGap = 8;
@@ -138,16 +138,13 @@ std::function<void(SkCanvas&, SkSize)> splat(pop::Builder chain,
   };
 }
 
-Element cell(const char* call, const std::string& note,
-             std::function<void(SkCanvas&, SkSize)> draw) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well(
-          {.width = kCell, .height = kPicture},
-          custom(call, [draw = std::move(draw)](SkCanvas& canvas,
-                                                const PaintContext& pc) {
-            draw(canvas, pc.size);
-          })));
+Element figure(const char* key, std::function<void(SkCanvas&, SkSize)> draw) {
+  return sketch::kit::well(
+      {.width = kCell, .height = kPicture},
+      custom(key, [draw = std::move(draw)](SkCanvas& canvas,
+                                           const PaintContext& pc) {
+        draw(canvas, pc.size);
+      }));
 }
 
 }  // namespace
@@ -168,62 +165,69 @@ struct PopBillboards {
                  ? (double)((axis == 0) ? (*tex)[0].x : (*tex)[0].y)
                  : 0.0;
     };
-    Element sink = kit::cells(
-        {.cells = {cell("pop::Builder::billboards(canvas, camera, viewport)",
-                        kit::formatted("%d points · size and tint lanes "
-                                       "picked up unnamed · the default soft "
-                                       "dot, additive",
-                                       kMotes),
-                        splat(motes(), {.size = 2.6f})),
-                   cell("BillboardStyle{.sprite = ring}",
-                        kit::formatted(
-                            "one sprite for the whole splat · "
-                            "pop::Atlas wrote Tex cell (%.2f, %.2f) on "
-                            "point 0 for the STAMPING sink, which this "
-                            "one does not read",
-                            texCell(0), texCell(1)),
-                        splat(motes(), {.sprite = ringSprite(),
-                                        .size = 7,
-                                        .additive = false})),
-                   cell("BillboardStyle{.perspective = false}",
-                        "constant pixel size · near and far points splat "
-                        "the same, so the depth sort is the only thing left "
-                        "saying which is in front",
-                        splat(motes(), {.size = 4,
-                                        .additive = false,
-                                        .perspective = false}))},
-         .gap = 14});
-    Element relax = kit::cells(
-        {.cells =
-             {cell("no Relax",
-                   kit::formatted("noise(%.0f, 0.075) straight off the loop "
-                                  "scatter · consecutive points jump, so "
-                                  "a frame threaded through them tears",
-                                  (double)kNoise),
-                   splat(kinked(), kStrand)),
-              cell("smooth(0.5, 3)",
-                   "Relax{.strength = 0.5, .iterations = 3} · each "
-                   "point eases toward its chain-order neighbours' midpoint",
-                   splat(kinked().smooth(0.5f, 3), kStrand)),
-              cell("smooth(0.9, 12)",
-                   kit::formatted("strength 0.9 over %d passes · the run "
-                                  "is continuous again — the amplitude "
-                                  "survives, only the kinks go",
-                                  kIterations),
-                   splat(kinked().smooth(0.9f, kIterations), kStrand))},
-         .gap = 14});
-
     ctx.composer.render(sketch::kit::page(
-        {.title = "A field of billboards",
-         .subtitle = "dials · the relax iterations (0, 3, 12) · "
-                     "the sprite · the atlas cell (4 by 4)",
-         .footer = "the splatting sink forms no geometry: it projects, "
-                   "sorts back to front and draws one sprite per point, "
-                   "which is why it is the sink a camera-facing mark "
-                   "belongs to"},
-        kit::cells({.cells = {std::move(sink), std::move(relax)},
-                    .column = true,
-                    .gap = 18})));
+        {.title = "The mark and the path",
+         .subtitle = "First change how points are drawn; then change where "
+                     "they lie · fixed camera within each comparison",
+         .footer = kit::formatted(
+             "Billboards project and paint one sprite per point. Atlas cells "
+             "belong to the stamping sink; point 0 carries Tex (%.2f, %.2f).",
+             texCell(0), texCell(1))},
+        box().column().gap(22).children(
+            {text("01 / ONE TORUS, THREE DRAWING STYLES · 5,200 POINTS")
+                 .styleClass("section"),
+             sketch::kit::comparison(
+                 {.cases = {{.title = "SOFT LIGHT",
+                             .control = "soft dot · additive · size 2.6",
+                             .figure =
+                                 figure("soft", splat(motes(), {.size = 2.6f})),
+                             .note = "Overlapping light builds a glow. Point "
+                                     "lanes supply size and tint."},
+                            {.title = "HOLLOW RINGS",
+                             .control = "ring sprite · opaque · size 7",
+                             .figure =
+                                 figure("rings",
+                                        splat(motes(), {.sprite = ringSprite(),
+                                                        .size = 7,
+                                                        .additive = false})),
+                             .note = "A crisp rim reveals the projected size "
+                                     "of each mark."},
+                            {.title = "CONSTANT PIXELS",
+                             .control = "perspective = false · size 4",
+                             .figure = figure(
+                                 "pixels", splat(motes(), {.size = 4,
+                                                           .additive = false,
+                                                           .perspective =
+                                                               false})),
+                             .note = "Near and far points share a pixel size; "
+                                     "depth order still separates them."}},
+                  .measure = 1020,
+                  .gap = 18}),
+             text("02 / ONE NOISED LOOP, THREE RELAXATION AMOUNTS · 1,400 "
+                  "POINTS")
+                 .styleClass("section"),
+             sketch::kit::comparison(
+                 {.cases =
+                      {{.title = "UNTOUCHED",
+                        .control = "0 passes · noise amplitude 20",
+                        .figure = figure("noise", splat(kinked(), kStrand)),
+                        .note = "Consecutive points jump across the displaced "
+                                "loop."},
+                       {.title = "GENTLE RELAXATION",
+                        .control = "3 passes · strength 0.5",
+                        .figure = figure(
+                            "gentle", splat(kinked().smooth(0.5f, 3), kStrand)),
+                        .note = "Each point moves toward its two chain-order "
+                                "neighbours."},
+                       {.title = "CONTINUOUS STRAND",
+                        .control = "12 passes · strength 0.9",
+                        .figure = figure(
+                            "smooth",
+                            splat(kinked().smooth(0.9f, kIterations), kStrand)),
+                        .note = "The fine kinks soften while the broad "
+                                "displacement remains."}},
+                  .measure = 1020,
+                  .gap = 18})})));
   }
 };
 

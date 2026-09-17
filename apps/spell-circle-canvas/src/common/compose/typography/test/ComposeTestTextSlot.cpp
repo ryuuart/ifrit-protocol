@@ -74,6 +74,30 @@ TEST(TextSlot, AChildPaintsInsideTheReservedRect) {
             20);
 }
 
+TEST(TextSlot, AVerticalChildReceivesThePhysicalSlotRect) {
+  Host host(260, 300);
+  host.composer.render(box().padding(12).children(
+      {text(sigil::weave::rich(coloredStyle(18, SK_ColorWHITE))
+                .add(u8"A ")
+                .slot("pill", {80, 30}, 4)
+                .add(u8" B"))
+           .key("caption")
+           .width(180)
+           .height(240)
+           .block({.writingMode = sigil::weave::WritingMode::kVerticalRL})
+           .children({box().key("pill").fill(red())})}));
+  host.frame();
+  const auto rect = host.composer.bounds("pill");
+  const auto caption = host.composer.bounds("caption");
+  ASSERT_TRUE(rect && caption);
+  EXPECT_FLOAT_EQ(rect->width(), 30);
+  EXPECT_FLOAT_EQ(rect->height(), 80);
+  EXPECT_TRUE(caption->contains(*rect));
+  EXPECT_EQ(host.pixel(static_cast<int>(rect->centerX()),
+                       static_cast<int>(rect->centerY())),
+            SK_ColorRED);
+}
+
 TEST(TextSlot, TheReservedRunIsUnbreakableAndMovesOnRelayout) {
   // The placeholder re-resolves with the paragraph: narrow the box and the
   // pill lands on a different line, at a different place on it.

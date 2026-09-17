@@ -1,39 +1,15 @@
 /** @file
- * tile map — what a memo is worth, made visible: one tile is edited on a
- * timer, and only the chunk holding it is described again.
- *
- * The map is four `memo` chunks of 8×5 tiles, each keyed by properties that
- * say which chunk it is, how many times it has changed, and which of its
- * cells carries an edit. Every 0.7 s ONE cell in ONE chunk is given a
- * different atlas region. Its chunk's properties are then unequal to the ones
- * the reconciler is holding, so that chunk's describe runs and its
- * subtree re-records; the other three compare equal, their describes are
- * skipped, and their recordings replay.
- *
- * THE FLASH IS THE PROOF. The chunk that re-recorded is washed in a
- * colour that decays over the next half second — an ordinary bound
- * opacity on a sibling of the memo, so the wash is outside what the memo
- * holds and fades without touching it. What flashes is what the
- * reconciler did work on; three quarters of the map never moves.
- *
- * THE READOUT is a composer's own count for the frame that did the work —
- * nodes described, memo hits, instances patched, recordings held, nodes
- * painted live — read at the NEXT edit, once the frame that did the work
- * has been drawn, because a still cannot show the numbers of the frame it
- * is itself part of. The counts are a function of the description and are
- * the same on every machine; the milliseconds are a function of the run
- * and are shown only in the window, because a number a sketch measured
- * about its own execution differs from itself between two captures.
- *
- * EDIT THESE FIRST
- *   kPeriod — seconds between edits
- *   kFade   — how long the flash takes to die
- *   kChunkCols / kChunkRows / kChunks — the map
+ * Four memoized map chunks share one generated image atlas.
+ * Each timed mutation edits one tile; a bound sibling wash marks the edited
+ * chunk without invalidating its memo. A separate composer measures the map
+ * alone with promotion disabled. The displayed counts belong to the previous
+ * completed edit; elapsed timings appear only in a live window.
  */
 
 // TAGS: Geometry/Layout, Runtime/Caching
 
 #include <include/core/SkBitmap.h>
+#include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSurface.h>
 #include <include/utils/SkNoDrawCanvas.h>
 #include <sigilcompose/core/Core.h>
@@ -72,12 +48,9 @@ constexpr double kPeriod = 0.7;
 constexpr float kFade = 0.45f;
 
 constexpr float kPad = 40.0f;
-constexpr float kHeadH = 46.0f;
-constexpr float kFootH = 38.0f;
-constexpr float kGap = 16.0f;
-constexpr float kCanvasW = kChunks * kChunkCols * kTile + 2 * kPad;
-constexpr float kCanvasH =
-    kChunkRows * kTile + kHeadH + kFootH + 2 * kGap + 2 * kPad;
+constexpr float kGap = 20;
+constexpr float kCanvasW = 1120;
+constexpr float kCanvasH = 710;
 
 constexpr SkColor4f kGround{0.03f, 0.03f, 0.07f, 1};
 constexpr SkColor4f kInk{0.84f, 0.87f, 0.94f, 1};
@@ -89,7 +62,7 @@ constexpr SkColor4f kFlash{1.0f, 0.58f, 0.20f, 0.55f};
 /** This page's look: the map's own near-black, and a header set close
  *  enough to the grid that the chunks keep the width they ask for. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette = {.ground = kGround, .ink = kInk, .ash = kAsh, .rule = kRule};
   look.spacing.marginX = kPad;
   look.spacing.marginTop = kPad * 0.6f;
@@ -249,49 +222,43 @@ struct TileMap {
             motion::decay((float)(clock - editedAt[(size_t)i]), kFade);
     });
     probe = std::make_unique<Composer>(ctx.ticker, *ctx.fonts);
-    probe->setSize(ctx.size);
+    probe->setSize({kChunks * kChunkCols * kTile, kChunkRows * kTile});
     probe->setAutoTexturePromotion(Composer::PromotionPolicy::Off);
-    probe->render(describe(ctx));
+    probe->render(map());
     ctx.composer.render(describe(ctx));
+  }
+
+  Element map() {
+    // THE MAP: one memo a chunk, and beside each the wash that says the
+    // reconciler described it again.
+    return box()
+        .row()
+        .width(kChunks * kChunkCols * kTile)
+        .children({each(kChunks, [this](int i) {
+          return stack()
+              .width(kChunkCols * kTile)
+              .height(kChunkRows * kTile)
+              // Recorded, so a describe that runs is a recording
+              // written and the footer's count is the work itself.
+              .children({memo(Chunk{i, revisions[(size_t)i], edits[(size_t)i]},
+                              [tileset = tileset](const Chunk& c) {
+                                return chunkElement(tileset, c);
+                              })
+                             .key("chunk" + std::to_string(i))
+                             .cache(Cache::Picture),
+                         // The wash: a sibling of the memo, so fading it
+                         // costs the memo nothing and the memo's own
+                         // recording stands.
+                         box()
+                             .key("flash" + std::to_string(i))
+                             .cover()
+                             .fill(Fill::color(kFlash))
+                             .opacity(&flash[(size_t)i])});
+        })});
   }
 
   Element describe(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
-    // THE MAP: one memo a chunk, and beside each the wash that says the
-    // reconciler described it again.
-    Element grid =
-        box()
-            .row()
-            .width(kChunks * kChunkCols * kTile)
-            .children({each(kChunks, [this](int i) {
-              return stack()
-                  .width(kChunkCols * kTile)
-                  .height(kChunkRows * kTile)
-                  // Recorded, so a describe that runs is a recording
-                  // written and the footer's count is the work itself.
-                  .children(
-                      {memo(Chunk{i, revisions[(size_t)i], edits[(size_t)i]},
-                            [tileset = tileset](const Chunk& c) {
-                              return chunkElement(tileset, c);
-                            })
-                           .key("chunk" + std::to_string(i))
-                           .cache(Cache::Picture),
-                       // The wash: a sibling of the memo, so fading it
-                       // costs the memo nothing and the memo's own
-                       // recording stands.
-                       box()
-                           .key("flash" + std::to_string(i))
-                           .cover()
-                           .fill(Fill::color(kFlash))
-                           .opacity(&flash[(size_t)i])});
-            })});
-
-    const std::string counts = kit::formatted(
-        "described %zu  ·  memo hits %zu  ·  patched "
-        "%zu  ·  recordings held %zu  ·  painted "
-        "live %zu",
-        worked.describedNodes, worked.memoHits, worked.patchedNodes,
-        worked.picturesLive, worked.nodesPainted);
     // The counts are a function of the description and belong on a
     // plate; the milliseconds are a function of the run and do not, so
     // a capture is told where they are read instead.
@@ -303,13 +270,68 @@ struct TileMap {
             : kit::formatted("reconcile %.3f ms  ·  paint %.3f ms",
                              worked.reconcileMs, worked.paintMs);
 
+    const char* names[] = {"FLOOR", "BRICK", "MOSS", "EMBER"};
+    Element atlasLegend = box().row().children({each(4, [&](int i) {
+      return box().column().gap(10).width(96).children(
+          {image(tileset)
+               .region(SkRect::MakeXYWH((float)i * 16, 0, 16, 16))
+               .width(80)
+               .height(80)
+               .sampling(SkSamplingOptions(SkFilterMode::kNearest)),
+           text(names[i]).styleClass("captionLabel")});
+    })});
+    Element labels = box().row().children({each(kChunks, [this](int i) {
+      return box()
+          .width(kChunkCols * kTile)
+          .column()
+          .gap(8)
+          .children({text(kit::formatted("CHUNK %02d", i + 1))
+                         .styleClass("captionLabel"),
+                     text(kit::formatted("revision %d", revisions[(size_t)i]))
+                         .styleClass("readout")});
+    })});
     return sketch::kit::page(
-        {.title = u8"A map, kept in pieces",
-         .subtitle = u8"one tile edited every 0.7 s — the chunk "
-                     u8"that holds it is described again and washed; the "
-                     u8"other three replay",
-         .footer = counts + "   |   " + timing},
-        std::move(grid));
+        {.title = "Edit one tile. Keep three chunks.",
+         .subtitle = "One atlas, four memoized regions. The warm wash marks "
+                     "the chunk whose description changed.",
+         .footer = timing},
+        box().column().gap(24).children(
+            {box().row().gap(32).children(
+                 {std::move(atlasLegend),
+                  box().column().gap(14).width(440).children(
+                      {text("THE SOURCE ATLAS").styleClass("captionLabel"),
+                       text("Four 16 × 16 regions share one image asset. Every "
+                            "0.7 seconds, one cell selects a different region.")
+                           .width(440),
+                       text("The flash fades on a sibling of the memo. Its "
+                            "animation does not invalidate the chunk it "
+                            "highlights.")
+                           .width(440)})}),
+             sketch::kit::sectionHeader(
+                 {.label = "THE LIVE MAP", .note = "8 × 5 tiles per chunk"}),
+             sketch::kit::well(
+                 {.width = 1040,
+                  .height = 220,
+                  .content = sketch::kit::Well::Content{}},
+                 box().column().gap(14).children({std::move(labels), map()})),
+             sketch::kit::sectionHeader({.label = "WORK AT THE PREVIOUS EDIT",
+                                         .note = "Measured on the map alone"}),
+             box().row().gap(40).children(
+                 {sketch::kit::readout(
+                      {{"Described nodes",
+                        kit::formatted("%zu", worked.describedNodes)},
+                       {"Memo hits", kit::formatted("%zu", worked.memoHits)}},
+                      {.measure = 250, .ruled = true}),
+                  sketch::kit::readout(
+                      {{"Patched instances",
+                        kit::formatted("%zu", worked.patchedNodes)},
+                       {"Recordings held",
+                        kit::formatted("%zu", worked.picturesLive)}},
+                      {.measure = 250, .ruled = true}),
+                  sketch::kit::readout(
+                      {{"Painted live",
+                        kit::formatted("%zu", worked.nodesPainted)}},
+                      {.measure = 250})})}));
   }
 
   /** THE DATA PATH, and only when the data changes: one cell of one
@@ -340,7 +362,7 @@ struct TileMap {
     edits[(size_t)chunk] = Edit{cell, (rule + 1 + (int)(h % 3u)) % 4};
     ++revisions[(size_t)chunk];
     editedAt[(size_t)chunk] = clock;
-    probe->render(describe(ctx));
+    probe->render(map());
     ctx.composer.render(describe(ctx));
   }
 };

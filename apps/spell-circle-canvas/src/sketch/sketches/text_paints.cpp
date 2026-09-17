@@ -1,179 +1,151 @@
 /** @file
- * text_paints — one word, eight fills, and the coordinate space that
- * makes them work at any size.
- *
- * `textFill` paints the GLYPHS with a material mapped to TEXT-METRIC
- * space: the material's unit square lands with x across the widest line
- * and y from the first line's CAP TOP — real cap height, off the face's
- * metrics — to the last line's baseline. That is what makes a chrome
- * wordmark work: author the ramp once in [0, 1] and its horizon crosses
- * the capitals whatever the font size, with no hand-positioned
- * gradients. It supersedes the style's foreground paint and combines
- * with `fx()`, so a letter in flight is painted exactly as a resting one
- * is.
- *
- * The six animated fields share one ABI — the run's origin and extent,
- * the clock, and a slow two-axis drift derived from it — so the parameters
- * are built by one call and the six differ only in their bodies. They
- * are held at one moment here; bind the clock and they run.
- *
- * The two chrome ramps are not fields at all: they are stop lists in
- * unit space, handed straight to the same verb.
- *
- * EDIT THESE FIRST
- *   kWord    — the word. Capitals, because the mapping is cap height.
- *   kSize    — the type size, px. Change it and nothing else moves.
- *   kMoment  — the second every animated field is frozen at.
+ * A text paint is mapped through the run's metrics. The chrome horizon
+ * therefore follows cap height at every size. A compact proof shelf keeps
+ * the six procedural fields and both ramps at one word, size and moment.
  */
-
 // TAGS: Typography/Effects
 
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Gloss.h>
-#include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
-#include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
 
 #include <utility>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace material = sigil::material;
 namespace paint = sigil::material::skia;
-
 using namespace sigil::compose;
 
 namespace {
+constexpr float kMoment = 6.4f;
 
-constexpr SkSize kCanvas = {1100, 636};
-constexpr float kCell = 252;
-constexpr float kPicture = 168;
-
-constexpr const char* kWord = "SIGIL";
-constexpr float kSize = 56;      // the type size, px
-constexpr float kMoment = 6.4f;  // the second every field is frozen at
-
-/** The specimen sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
-  look.palette.ground = {0.06f, 0.06f, 0.075f, 1};
-  look.palette.cellGround = {0.10f, 0.105f, 0.125f, 1};
-  look.spacing.captionGap = 8;
-  return look;
+Element word(float size, paint::Paint fill) {
+  return text("SIGIL")
+      .font({.face = sigil::weave::ports::face(
+                 {"Avenir Next Heavy", "Helvetica Neue Bold", "Arial Black"}),
+             .size = size,
+             .track = size * 0.025f})
+      .textFill(std::move(fill));
 }
 
-/** THE WORDMARK, as a class over the sheet's registers: its own face, as
- *  heavy as the machine has, so the fill has letterforms to be seen inside,
- *  at the one size — in the ink in force where it lands, which is the
- *  page's. */
-weave::StyleSheet classes(const sketch::kit::Theme& look) {
-  return look.styleSheet().set(
-      "display",
-      {.face = weave::ports::face({"Avenir Next Heavy", "Helvetica Neue Bold",
-                                   "Arial Black", "Impact", "sans-serif"}),
-       .size = kSize,
-       .track = 3.0f});
+paint::Paint field(material::Material value) {
+  return paint::Paint::recipe(std::move(value));
 }
 
-/** The run's box, which is what an animated field is parameterised over.
- *  One rect for all six, so the six differ only in their bodies. */
-SkRect run() { return SkRect::MakeWH(1, 1); }
-
-/** One specimen. A second fill, when given, paints a copy of the word
- *  UNDER the first — which is what a transparent field is drawn over. */
-Element cell(const char* call, const char* note, paint::Paint fill,
-             paint::Paint beneath = {}) {
-  Element plate = sketch::kit::well({.width = kCell,
-                                     .height = kPicture,
-                                     .content = sketch::kit::Well::Content{}});
-  Element word = text(kWord).styleClass("display").textFill(std::move(fill));
-  if (beneath.isSolid() || beneath.asShader())
-    plate.children({kit::centred(text(kWord).styleClass("display").textFill(
-                                     std::move(beneath)))
-                        .cover()});
-  return sketch::kit::caption(kCell, call, note,
-                              std::move(plate).children({std::move(word)}));
+// Sparkle uses pixel-sized cells. Map a virtual field into the unit square
+// that textFill stretches over the run's metrics.
+paint::Paint sparkle() {
+  const auto shader =
+      field(material::kit::sparkle(SkRect::MakeWH(220, 70), kMoment))
+          .asShader();
+  return paint::Paint::shader(
+      shader->makeWithLocalMatrix(SkMatrix::Scale(1.0f / 220, 1.0f / 70)));
 }
 
-Element field(const char* call, const char* note, material::Material m) {
-  return cell(call, note, paint::Paint::recipe(std::move(m)));
+Element swatch(paint::Paint fill, bool overlay = false) {
+  Element sample = box().width(217.5f).height(96);
+  if (overlay)
+    sample.children(
+        {kit::centred(word(49, paint::Paint::solid({0.23f, 0.30f, 0.46f, 1})))
+             .cover()});
+  sample.children({kit::centred(word(49, std::move(fill))).cover()});
+  return sketch::kit::well({.width = 241.5f,
+                            .height = 120,
+                            .padding = 12,
+                            .content = sketch::kit::Well::Content{}})
+      .children({std::move(sample)});
 }
-
 }  // namespace
 
 struct TextPaints {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Theme sheet = sheetTheme();
-    const sketch::kit::Provide look(sheet);
-    // the fields are frozen at kMoment, not at the clock
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
-
-    // The six animated fields and, under them, the two that are not
-    // fields at all — each shelf named before the page, so a cell reads as
-    // the paint it names.
-    Element animated = kit::cells(
-        {.cells = {field("kit::water(bounds, t)",
-                         "rippling blue with fine caustic highlights",
-                         material::kit::water(run(), kMoment)),
-                   field("kit::meshGradient(bounds, t)",
-                         "four corners with softly moving control regions",
-                         material::kit::meshGradient(run(), kMoment)),
-                   cell("kit::sparkle(bounds, t)",
-                        "a TRANSPARENT field of twinkling points, drawn here "
-                        "over a solid copy of the word · on its own it is an "
-                        "overlay",
-                        paint::Paint::recipe(
-                            material::kit::sparkle(run(), kMoment)),
-                        paint::Paint::solid({0.14f, 0.18f, 0.30f, 1})),
-                   field("kit::starNest(bounds, t)",
-                         "a volumetric raymarch · the heaviest of the six, "
-                         "since it is a nested loop",
-                         material::kit::starNest(run(), kMoment))},
-         .gap = 14});
-
-    Element ramps = kit::cells(
-        {.cells = {field("kit::clouds(bounds, t)",
-                         "layered ridged and fbm noise drifting on the shared "
-                         "motion vector",
-                         material::kit::clouds(run(), kMoment)),
-                   field("kit::tunnel(bounds, t)",
-                         "an endless kaleidoscope falling away · the same "
-                         "ABI, a very different body",
-                         material::kit::tunnel(run(), kMoment)),
-                   cell("kit::sunsetChromeType()",
-                        "not a field at all · a stop list in UNIT space, so "
-                        "the hard horizon lands at half cap height",
-                        kit::sunsetChromeType()),
-                   cell("kit::silverChromeType()",
-                        "the same construction, colder · one ramp, and the "
-                        "metrics do the placing",
-                        kit::silverChromeType())},
-         .gap = 14});
-
-    ctx.composer.render(
-        sketch::kit::page(
-            {.title = "Text paints",
-             .subtitle = "dials · the paint · the type size (56 px — change "
-                         "it and the fills do not move) · the moment (6.4 s)",
-             .footer = "the material's unit square lands with x across the "
-                       "widest line and y from cap top to baseline, so a ramp "
-                       "authored once in [0, 1] crosses the capitals at any "
-                       "size"},
-            kit::cells({.cells = {std::move(animated), std::move(ramps)},
-                        .column = true,
-                        .gap = 18}))
-            .styleSheet(classes(sheet)));
+    const sketch::kit::Provide look(sketch::kit::studyTheme());
+    sketch::kit::stage(ctx, {.size = {1100, 940}, .captureAt = 0.05});
+    const SkRect unit = SkRect::MakeWH(1, 1);
+    Element hero =
+        sketch::kit::well({.width = 501, .height = 236, .padding = 26})
+            .column()
+            .gap(20)
+            .children({text("ONE RAMP · 104 PX").styleClass("eyebrow"),
+                       word(104, kit::sunsetChromeType()),
+                       text("The hard horizon crosses the capitals.")
+                           .styleClass("captionNote")});
+    Element scale =
+        sketch::kit::well({.width = 501, .height = 236, .padding = 26})
+            .column()
+            .gap(12)
+            .children(
+                {text("THE SAME RAMP · 28 / 48 / 72 PX").styleClass("eyebrow"),
+                 word(28, kit::sunsetChromeType()),
+                 word(48, kit::sunsetChromeType()),
+                 word(72, kit::sunsetChromeType())});
+    ctx.composer.render(sketch::kit::page(
+        {.title = "Paint that follows the type",
+         .subtitle = "The material's unit square runs from cap top to baseline "
+                     "· change the size and the horizon follows",
+         .footer =
+             "All proofs use the same word and 49 px face. Procedural fields "
+             "are held at 6.4 s; the two chrome ramps do not move."},
+        box().column().gap(28).children(
+            {sketch::kit::comparison(
+                 {.cases = {{.title = "A WORDMARK", .figure = std::move(hero)},
+                            {.title = "ONE COORDINATE SYSTEM, THREE SIZES",
+                             .figure = std::move(scale)}},
+                  .measure = 1020,
+                  .gap = 18}),
+             text("EIGHT INKS · a common proof size").styleClass("eyebrow"),
+             sketch::kit::comparison(
+                 {.cases = {{.title = "WATER",
+                             .control = "water(unit, t)",
+                             .figure = swatch(
+                                 field(material::kit::water(unit, kMoment))),
+                             .note = "Fine highlights in a blue field."},
+                            {.title = "MESH",
+                             .control = "meshGradient(unit, t)",
+                             .figure = swatch(field(
+                                 material::kit::meshGradient(unit, kMoment))),
+                             .note = "Four color regions across the word."},
+                            {.title = "SPARKLE OVER A BASE",
+                             .control = "220 × 70 px → unit space",
+                             .figure = swatch(sparkle(), true),
+                             .note =
+                                 "A pixel-grid field mapped over blue ink."},
+                            {.title = "STAR NEST",
+                             .control = "starNest(unit, t)",
+                             .figure = swatch(
+                                 field(material::kit::starNest(unit, kMoment))),
+                             .note = "Dense light inside the letterforms."}},
+                  .measure = 1020,
+                  .gap = 18}),
+             sketch::kit::comparison(
+                 {.cases = {{.title = "CLOUDS",
+                             .control = "clouds(unit, t)",
+                             .figure = swatch(
+                                 field(material::kit::clouds(unit, kMoment))),
+                             .note = "Broad, soft changes of value."},
+                            {.title = "TUNNEL",
+                             .control = "tunnel(unit, t)",
+                             .figure = swatch(
+                                 field(material::kit::tunnel(unit, kMoment))),
+                             .note = "A high-contrast moving field."},
+                            {.title = "SUNSET CHROME",
+                             .control = "sunsetChromeType()",
+                             .figure = swatch(kit::sunsetChromeType()),
+                             .note = "A hard horizon at half cap height."},
+                            {.title = "SILVER CHROME",
+                             .control = "silverChromeType()",
+                             .figure = swatch(kit::silverChromeType()),
+                             .note = "The same mapping with a colder ramp."}},
+                  .measure = 1020,
+                  .gap = 18})})));
   }
 };
 
 SIGIL_SKETCH(TextPaints, "Specimen",
-             "one wordmark under the six animated text fields and the two "
-             "chrome ramps, all placed by the text metrics rather than by "
-             "hand")
+             "a chrome wordmark across four sizes and an aligned proof of six "
+             "procedural text paints and two chrome ramps")

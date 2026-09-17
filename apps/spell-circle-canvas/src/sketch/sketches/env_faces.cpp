@@ -55,9 +55,9 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 694};
-constexpr float kCell = 252;
-constexpr float kPicture = 196;
+constexpr SkSize kCanvas = {1100, 1220};
+constexpr float kCell = 328;
+constexpr float kPicture = 220;
 
 constexpr int kFaceSide = 128;  // each cube face's resolution
 constexpr float kBevel = 30;    // the disc's shoulder, px
@@ -67,7 +67,7 @@ constexpr SkColor4f kGround{0.06f, 0.06f, 0.075f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette.ground = {0.06f, 0.06f, 0.075f, 1};
   look.palette.cellGround = {0.085f, 0.09f, 0.105f, 1};
   return look;
@@ -125,24 +125,28 @@ SkPath disc() {
 
 material::Texture shoulder() { return material::bevelNormals(disc(), kBevel); }
 
-Element cell(const char* call, const std::string& note,
-             std::function<void(SkCanvas&, const material::FrameData&)> draw) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well(
-          {.width = kCell, .height = kPicture},
-          custom(call, [draw = std::move(draw)](SkCanvas& canvas,
-                                                const PaintContext& pc) {
-            draw(canvas, {.resolution = {pc.size.width(), pc.size.height()}});
-          })));
+sketch::kit::ComparisonCase cell(
+    const char* caseTitle, const char* call, const std::string& note,
+    std::function<void(SkCanvas&, const material::FrameData&)> draw) {
+  return {.title = caseTitle,
+          .control = call,
+          .figure = sketch::kit::well(
+              {.width = kCell, .height = kPicture},
+              custom(call,
+                     [draw = std::move(draw)](SkCanvas& canvas,
+                                              const PaintContext& pc) {
+                       draw(canvas, {.resolution = {pc.size.width(),
+                                                    pc.size.height()}});
+                     })),
+          .note = note};
 }
 
 /** The panorama itself, fitted into the cell. */
-Element panorama(const char* call, const std::string& note,
-                 const material::EnvironmentMap& environment,
-                 float roughness = 0) {
+sketch::kit::ComparisonCase panorama(
+    const char* caseTitle, const char* call, const std::string& note,
+    const material::EnvironmentMap& environment, float roughness = 0) {
   return cell(
-      call, note,
+      caseTitle, call, note,
       [environment, roughness](SkCanvas& canvas, const material::FrameData&) {
         const sk_sp<SkImage> image = environment.image(roughness);
         if (!image) return;
@@ -155,13 +159,13 @@ Element panorama(const char* call, const std::string& note,
 }
 
 /** A chrome disc reflecting the panorama. */
-Element reflector(const char* call, const std::string& note,
-                  const material::EnvironmentMap& environment,
-                  float roughness = 0) {
+sketch::kit::ComparisonCase reflector(
+    const char* caseTitle, const char* call, const std::string& note,
+    const material::EnvironmentMap& environment, float roughness = 0) {
   // The face is captured BY VALUE: this program is invoked at paint time,
   // long after the frame that described it.
   return cell(
-      call, note,
+      caseTitle, call, note,
       [paint = material::kit::chrome(
            shoulder(), environment, {.roughness = roughness, .contrast = 1.5f}),
        face = disc()](SkCanvas& canvas, const material::FrameData& frame) {
@@ -193,73 +197,88 @@ struct EnvFaces {
     const SkColor4f mean = resampled.average();
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "Environment faces",
-         .subtitle = "dials · the face set (six baked here) "
-                     "· the ground colour · the "
-                     "roughness the reflection reads the panorama "
-                     "at",
-         .footer = "one internal form, four ways in: u is azimuth, "
-                   "v is 0 at the zenith, and every source is "
-                   "resampled into that while the value is built "
-                   "rather than at each lookup"},
-        kit::cells(
-            {.cells =
-                 {kit::cells({.cells =
-                                  {panorama("kit::studioEnvironment(384)",
-                                            "baked with no assets · a "
-                                            "graded sky, a floor bounce and "
-                                            "three softboxes",
-                                            studio),
-                                   panorama("fromFaces(six)",
-                                            kit::formatted(
-                                                "six cube faces resampled into "
-                                                "one equirect · average "
-                                                "(%.2f %.2f %.2f)",
-                                                (double)mean.fR,
-                                                (double)mean.fG,
-                                                (double)mean.fB),
-                                            resampled),
-                                   panorama("fromCubeMap(6:1 row)",
-                                            "the SAME six as one sheet, "
-                                            "unpacked by aspect ratio · "
-                                            "the layout is read, never "
-                                            "declared",
-                                            unpacked),
-                                   panorama("resampled.withGround(warm)",
-                                            "everything below the horizon "
-                                            "replaced IN the panorama, so the "
-                                            "blurs and the irradiance see it "
-                                            "too",
-                                            grounded)},
-                              .gap = 14}),
-                  kit::cells({.cells =
-                                  {reflector("kit::chrome(bevel, studio)",
-                                             "the two textures a reflective "
-                                             "surface is shaded from: a normal "
-                                             "map at the outline's bounds and "
-                                             "a panorama",
-                                             studio),
-                                   reflector("kit::chrome(bevel, fromFaces)",
-                                             "the same disc, the same "
-                                             "normals · the six faces "
-                                             "are legible in the rim because "
-                                             "the rim looks sideways",
-                                             resampled),
-                                   reflector("…"
-                                             " at roughness 0.45",
-                                             "image(roughness) is one of nine "
-                                             "wrap-aware blurs, picked by how "
-                                             "rough the surface says it is",
-                                             resampled, 0.45f),
-                                   reflector("kit::chrome(bevel, withGround)",
-                                             "the same reflection over a "
-                                             "panorama whose lower half is one "
-                                             "colour · which is what a "
-                                             "car park is replaced with",
-                                             grounded)},
-                              .gap = 14})},
-             .column = true,
-             .gap = 18})));
+        {.title = "From a sky to a reflection",
+         .subtitle = "Three source conditions, one reflective surface",
+         .footer = "The reflection pairs preserve the same disc, normal map "
+                   "and view; only the panorama changes."},
+        box().column().gap(24).children(
+            {sketch::kit::sectionHeader(
+                 {.label = "PANORAMAS",
+                  .note = "Source conditions read across; their reflections "
+                          "read directly below."}),
+             sketch::kit::comparison(
+                 {.cases =
+                      {panorama("STUDIO", "kit::studioEnvironment(384)",
+                                "Procedural studio: sky, floor bounce and "
+                                "three softboxes.",
+                                studio),
+                       panorama(
+                           "SIX FACES", "fromFaces(six)",
+                           "Six directional faces resampled into one panorama.",
+                           resampled),
+                       panorama(
+                           "GROUND REPLACEMENT", "resampled.withGround(warm)",
+                           "The lower hemisphere is replaced before filtering.",
+                           grounded)},
+                  .measure = 1020,
+                  .gap = 18}),
+             sketch::kit::sectionHeader(
+                 {.label = "THE SAME BEVEL", .note = ""}),
+             sketch::kit::comparison(
+                 {.cases =
+                      {reflector("SOFTBOXES", "kit::chrome(bevel, studio)",
+                                 "A bevel normal and the studio panorama shade "
+                                 "this disc.",
+                                 studio),
+                       reflector(
+                           "DIRECTIONAL COLOUR",
+                           "kit::chrome(bevel, fromFaces)",
+                           "The same bevel reflects the coloured cube faces.",
+                           resampled),
+                       reflector(
+                           "WARM LOWER HEMISPHERE",
+                           "kit::chrome(bevel, withGround)",
+                           "The warm lower hemisphere is visible in the rim.",
+                           grounded)},
+                  .measure = 1020,
+                  .gap = 18}),
+             box()
+                 .row()
+                 .alignItems(Align::Start)
+                 .gap(18)
+                 .children(
+                     {box().column().gap(18).children(
+                          {sketch::kit::sectionHeader(
+                               {.label = "IMPORT AND FILTER", .note = ""}),
+                           sketch::kit::comparison(
+                               {.cases = {panorama("ALTERNATE PACKING",
+                                                   "fromCubeMap(6:1 row)",
+                                                   "The same six faces "
+                                                   "unpacked from a 6:1 strip.",
+                                                   unpacked),
+                                          reflector("ROUGHNESS 0.45",
+                                                    "…"
+                                                    " at roughness 0.45",
+                                                    "Roughness selects a "
+                                                    "wider, wrap-aware blur.",
+                                                    resampled, 0.45f)},
+                                .measure = 674,
+                                .gap = 18})}),
+                      box().column().gap(18).children(
+                          {sketch::kit::sectionHeader(
+                               {.label = "ONE INTERNAL FORM", .note = ""}),
+                           text("Every input becomes an equirectangular "
+                                "panorama: azimuth across the image, zenith at "
+                                "the top. Import layout is resolved once, "
+                                "before shading.")
+                               .width(328)
+                               .styleClass("captionNote"),
+                           text(kit::formatted(
+                                    "Mean radiance\nR %.2f  G %.2f  B %.2f",
+                                    (double)mean.fR, (double)mean.fG,
+                                    (double)mean.fB))
+                               .width(328)
+                               .styleClass("captionNote")})})})));
   }
 };
 

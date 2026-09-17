@@ -1,48 +1,10 @@
 /** @file
- * usd_roundtrip — a set written to a stage and read back as the same
- * values it was described with.
- *
- * `usd::Writer` takes VALUES, never a renderer's memory: a `mesh::Mesh`
- * with its placement and its material, a `mesh::Cloud` with its stamp as
- * a point instancer, a `light::Light`, a `camera::Camera`. `save()`
- * writes whichever format the path's extension names — binary crate
- * (`.usdc`), ASCII (`.usda`) or a `.usdz` package — and the three carry
- * the same stage.
- *
- * `readModel` pours the stage's meshes and instancers into
- * `codec::decode::Model`, which is the currency every other format lands
- * in too, so a stage read here goes anywhere a PLY or a glTF does.
- * `readLights` and `readCameras` hand back the emitters and the lens AS
- * THE SAME VALUES THE WRITER TOOK, which is what makes this a round trip
- * rather than an export.
- *
- * THE CAMERA IS THE PROOF. Each cell is drawn from the camera that cell's
- * own file gave back — the source cell from the source camera, each
- * format's cell from the one `readCameras` read out of it. Four pictures
- * that agree are four cameras that agree, which no readout can claim as
- * plainly.
- *
- * WHAT USD HAS NO WORD FOR rides as custom data. A point light's range is
- * `sigil:range`; a material stack's depth is `sigil:layers`. The readouts
- * name what came back, including the material the binding carried — which
- * is also why the three read cells are brass and the source cell is not:
- * a stage carries the surface's colour as `displayColor`, so the merged
- * model comes back with a colour lane the authored mesh never had.
- *
- * WHAT THE WRITER REFUSES HERE is the third cell, printed rather than
- * hidden: `save()` exports the layer, and USD does not allow a PACKAGE
- * layer to be written that way — a `.usdz` wants the packaging utility
- * that assembles a crate and its neighbours into an archive. The crate
- * and the ASCII spellings round-trip whole.
- *
- * The stage is written into a temporary directory here, so the sheet is a
- * function of the geometry generated below and never of what a machine
- * happens to have on disk.
- *
- * EDIT THESE FIRST
- *   kR, kr        — the torus written to the stage.
- *   kMotes        — points the instancer carries.
- *   kMetersPerUnit — the stage metadata a consumer reads the size by.
+ * A mesh, point instancer, light and camera written as USD values.
+ * Successful formats are drawn using the cameras read from their stages;
+ * readouts report the decoded topology and scene contents. Failed writes
+ * produce a labelled result and a diagnostic in the export summary.
+ * The writer exports layers directly and assembles packages with USD's archive
+ * utility.
  */
 
 // TAGS: Media/Models
@@ -78,8 +40,8 @@ namespace render = sigil::geometry::mesh::render;
 
 namespace {
 
-constexpr SkSize kCanvas = {1200, 520};
-constexpr float kCell = 274;
+constexpr SkSize kCanvas = {1200, 740};
+constexpr float kCell = 262;
 constexpr float kPicture = 232;
 
 constexpr float kR = 62, kr = 23;  // the torus, major and minor radius
@@ -89,7 +51,7 @@ constexpr double kMetersPerUnit = 0.01;
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette.ground = {0.07f, 0.075f, 0.085f, 1};
   look.type.captionLabel = {.size = 12, .track = 1.2f};
   look.spacing.captionGap = 8;
@@ -137,18 +99,26 @@ const char* kindName(world::light::Kind kind) {
   return "?";
 }
 
-Element cell(const std::string& key, const char* heading,
-             const std::string& reading, gm::Mesh mesh, camera::Camera lens) {
-  return sketch::kit::caption(
-      kCell, heading, reading,
-      sketch::kit::well(
-          {.width = kCell, .height = kPicture, .clip = false},
-          custom(key, [mesh = std::move(mesh), lens](SkCanvas& canvas,
-                                                     const PaintContext& pc) {
-            if (mesh.positions.empty()) return;
-            render::drawMesh(canvas, mesh, glm::mat4(1.0f), lens, pc.size,
-                             stageStyle());
-          })));
+sketch::kit::ComparisonCase specimen(const std::string& key,
+                                     const char* heading,
+                                     const std::string& reading, gm::Mesh mesh,
+                                     std::optional<camera::Camera> lens) {
+  return {.title = heading,
+          .control =
+              lens ? kit::formatted("%s fovY %.1f°",
+                                    key == "source" ? "Authored" : "Returned",
+                                    (double)lens->fovYDeg)
+                   : std::string("Camera unavailable"),
+          .figure = sketch::kit::well(
+              {.width = kCell, .height = kPicture},
+              custom(key,
+                     [mesh = std::move(mesh), lens](SkCanvas& canvas,
+                                                    const PaintContext& pc) {
+                       if (lens && !mesh.positions.empty())
+                         render::drawMesh(canvas, mesh, glm::mat4(1), *lens,
+                                          pc.size, stageStyle());
+                     })),
+          .note = reading};
 }
 
 }  // namespace
@@ -180,10 +150,9 @@ struct UsdRoundtrip {
     std::error_code ignored;
     std::filesystem::create_directories(dir, ignored);
 
-    kit::Cells shelf{.gap = 18,
-                     .divider = Fill::color(sketch::kit::theme().palette.rule)};
-    shelf.cells.push_back(cell(
-        "source", "the set, as values",
+    std::vector<sketch::kit::ComparisonCase> cases;
+    cases.push_back(specimen(
+        "source", "AUTHORED VALUES",
         kit::formatted("%zu vertices · %zu triangles · no colour "
                        "lane\n%s light · fovY %.1f° · "
                        "%zu instancer points",
@@ -193,6 +162,7 @@ struct UsdRoundtrip {
 
     std::string names;
     std::string trouble;
+    bool packaged = false;
     for (const char* extension : {".usdc", ".usda", ".usdz"}) {
       const std::filesystem::path file = dir / (std::string("set") + extension);
       std::string error;
@@ -204,28 +174,40 @@ struct UsdRoundtrip {
         writer.light("key", sun);
         writer.camera("lens", lens);
         if (!writer.save(&error)) {
-          if (trouble.empty()) trouble = error;
-          shelf.cells.push_back(cell(extension, extension,
-                                     "save refused: " + error, gm::Mesh{},
-                                     lens));
+          trouble += std::string(extension) + ": " + error + "\n";
+          cases.push_back(
+              {.title = extension,
+               .control = "Save failed",
+               .figure =
+                   sketch::kit::well(
+                       {.width = kCell, .height = kPicture, .padding = 20})
+                       .children({text("No exported stage").width(kCell - 40)}),
+               .note = error});
           continue;
         }
       }
 
+      if (std::string_view(extension) == ".usdz") packaged = true;
       usd::ReadInfo info;
+      std::string modelError, lightError, cameraError;
       const std::optional<codec::decode::Model> model =
-          usd::readModel(file, &info, &error);
-      const auto lamps = usd::readLights(file, &error);
-      const auto lenses = usd::readCameras(file, &error);
+          usd::readModel(file, &info, &modelError);
+      const auto lamps = usd::readLights(file, &lightError);
+      const auto lenses = usd::readCameras(file, &cameraError);
+      for (const auto& failure : {modelError, lightError, cameraError})
+        if (!failure.empty())
+          trouble += std::string(extension) + ": " + failure + "\n";
       const uintmax_t bytes = std::filesystem::file_size(file, ignored);
 
       const gm::Mesh back = model ? model->merged() : gm::Mesh{};
-      const camera::Camera readLens =
-          lenses && !lenses->empty() ? lenses->front().camera : lens;
+      const std::optional<camera::Camera> readLens =
+          lenses && !lenses->empty()
+              ? std::optional<camera::Camera>(lenses->front().camera)
+              : std::nullopt;
       if (names.empty() && !info.materialNames.empty())
         names = info.materialNames.front();
 
-      shelf.cells.push_back(cell(
+      cases.push_back(specimen(
           extension, extension,
           kit::formatted(
               "%.1f KiB · %zu parts · %zu vertices\n"
@@ -238,7 +220,7 @@ struct UsdRoundtrip {
                                        : "none",
               lenses ? lenses->size() : 0,
               lenses && lenses->size() == 1 ? "" : "s",
-              (double)readLens.fovYDeg),
+              readLens ? (double)readLens->fovYDeg : 0.0),
           back, readLens));
     }
 
@@ -250,16 +232,36 @@ struct UsdRoundtrip {
     if (!names.empty())
       foot += "   ·   ReadInfo bound “" + names + "” as the material";
     if (!trouble.empty())
-      foot += "   ·   a package layer is not written through save()";
+      foot += "   ·   read/write diagnostics are shown below";
 
-    ctx.composer.render(
-        sketch::kit::page({.title = "USD round trip",
-                           .subtitle = "dials · the format (.usdc, "
-                                       ".usda, .usdz) · metersPerUnit "
-                                       "— each cell drawn from the "
-                                       "camera its own file gave back",
-                           .footer = foot},
-                          kit::cells(std::move(shelf))));
+    ctx.composer.render(sketch::kit::page(
+        {.title = "A scene leaves the renderer",
+         .subtitle = "Mesh, instancer, light and lens travel as values. Every "
+                     "returned scene uses the camera read from its own stage.",
+         .footer = foot},
+        box().column().gap(28).children(
+            {sketch::kit::comparison(
+                 {.cases = std::move(cases), .measure = 1120, .gap = 24}),
+             sketch::kit::sectionHeader(
+                 {.label = "PACKAGE EXPORT", .note = ".usdz"}),
+             sketch::kit::well({.width = 1120, .padding = 20})
+                 .row()
+                 .gap(28)
+                 .children(
+                     {box().column().gap(12).width(286).children(
+                          {text(packaged ? "PACKAGE WRITTEN"
+                                         : "PACKAGE UNAVAILABLE")
+                               .styleClass("captionLabel"),
+                           text("A package needs an archive containing its "
+                                "crate and dependencies.")
+                               .width(286)}),
+                      text(trouble.empty()
+                               ? "All three stages were written and read. USDZ "
+                                 "packages a crate and its dependencies into "
+                                 "one archive."
+                               : trouble)
+                          .width(480)
+                          .styleClass("readout")})})));
   }
 };
 

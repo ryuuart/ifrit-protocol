@@ -5,59 +5,73 @@ SketchKit page, captions and wells. Reference studies preserve the typography,
 colour, arrangement and proportions of their source. Drawing and 3D sketches
 keep the image itself as the subject; a page is not required around every image.
 
-This inventory covers **232 managed entries**. The untracked `spell_circle`
+This inventory covers **234 managed entries**. The untracked `spell_circle`
 project is user-owned and excluded. Each entry below has an explicit disposition;
 retaining a visual treatment is not a claim that the sketch was redesigned.
 
-## Refined families
+## Rewritten studies
 
-- The twelve transport and schema demonstrations use `instrument()` to place a
-  bounded preview beside a readable connection or source panel. The picture keeps
-  its authored coordinate space. Titles explain what the sketch does, notes explain
-  the visual encoding, and footers name the sender or editable source.
-- Sixty-nine API and data comparisons use `specimenTheme()` for stronger title
-  hierarchy and brighter notes at compact margins. Fixed specimen geometry and
-  subject-specific colours remain local. Short headings leave API detail to the
-  explanation, captions and source.
-- The house theme is unchanged. Reference reconstructions, composed Python examples,
-  full-frame drawings and 3D studies retain their visual vocabulary.
+Seventy-one API and data studies use compositions built around their subjects.
+The examples preserve their library operations and report actual results:
+
+- Typography compares identical passages under changed rules, places metrics
+  beside the affected text, and uses content that exposes each rule.
+- Geometry groups construction, placement and topology by the operation being
+  compared, with shared coordinate frames and bounded specimens.
+- Motion separates clock, sampling, retargeting and scheduling comparisons;
+  plots share scales and their readouts have dedicated space.
+- Materials distinguish source fields, parameter changes and composed outputs.
+- Image and storage studies separate representation from presentation, with
+  aligned format/exposure matrices and measured round-trip results.
+- Runtime studies show data flow and observed outcomes. Diagnostic tables sit
+  beside their subjects; the tile-map probe measures the map without its page.
+
+`comparison()` aligns title, control, figure and note tracks within each group.
+Wrapped text moves the entire figure row together, and notes start below the
+largest figure. Figures retain their authored extent. The component does not
+choose a page composition; each study supplies its own grouping and hierarchy.
+
+Section labels retain their horizontal rules. Supporting notes sit directly
+below the label, at a bounded reading measure. Diagnostic tables use compact
+columns; matching swatches, headings and values share an origin.
+
+Two Python studies demonstrate the native authoring surface: typography combines
+mixed runs, inline slots, threaded frames and a curved baseline; World combines
+a shared mesh, keyed scene elements, material values and a moving light rig.
+The World study uses the native CPU executor.
+
+The twelve transport and schema demonstrations use `instrument()` to place a
+bounded preview beside a readable source panel. Reference reconstructions,
+composed Python examples, full-frame drawings and 3D studies retain their own
+visual vocabulary. Retention is not a claim of redesign.
 
 ## Review coverage
 
-The first review used available cached thumbnails as contact sheets. These show
-composition and hierarchy, but do not establish that a current source renders.
-A rendered plate in the table means the current source was rebuilt and captured
-in the headless GPU lane. All 81 changed sketches and ten retained entries that
-had no cached preview have a fresh plate: **91 rendered, 141 cached previews**.
-Native application chrome is reviewed separately.
+The seventy-one rewritten C++ studies have fresh headless GPU plates reviewed
+at full size for clipping, caption alignment, comparison origins and footer
+clearance. Both new Python studies were rendered through Sketchbook and the
+standalone package. The table distinguishes these reviews from existing plates
+and cached previews elsewhere in the catalogue.
 
-The refinement includes extra caption-to-footer clearance on 24 dense sheets,
-aligned blur examples, shorter Japanese typography labels, an open blend curve
-contained within its well, and a scatter word with room for its full travel.
-
-The review artifacts contain individual plates and contact sheets under
-`/private/tmp/sketch-design-plates/`, with `results.json` for the initial sweep
-`density-results.json` for corrected layouts, and `final-results.json` for
-the final scatter and billboard captures. A current source can be
-captured independently with:
+Current rewrite artifacts are kept under `/private/tmp/sketch-polish-plates/`.
+The broader catalogue review artifacts are under
+`/private/tmp/sketch-design-plates/`. A source can be captured independently:
 
 ```sh
 build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
   --headless /tmp/sketch-plates --gpu --sketch <key>
 ```
 
-The billboard GPU sweep completed after exceeding the capture runner's timeout;
-its rendering performance remains an explicit item in the application findings.
-
 | Disposition | Entries |
 |---|---:|
-| Refined · compact specimen | 69 |
+| Rewritten · subject study | 71 |
 | Refined · instrument | 12 |
 | Retain · 3D subject | 14 |
 | Retain · Python composition | 18 |
+| New · Python authoring study | 2 |
 | Retain · authored catalog | 20 |
 | Retain · drawing as the subject | 31 |
-| Retain · focused specimen | 27 |
+| Retain · focused specimen | 25 |
 | Retain · reference study | 41 |
 
 ## Per-entry disposition
@@ -86,7 +100,7 @@ its rendering performance remains an explicit item in the application findings.
 | `threaded_story` | Retain · authored catalog | Cached preview |
 | `artnet_lights` | Refined · instrument | Rendered plate |
 | `data_scales` | Retain · focused specimen | Cached preview |
-| `data_sources` | Refined · compact specimen | Rendered plate |
+| `data_sources` | Rewritten · subject study | Reviewed GPU plate |
 | `feed_events` | Refined · instrument | Rendered plate |
 | `feed_sky` | Refined · instrument | Rendered plate |
 | `grpc_watch` | Refined · instrument | Rendered plate |
@@ -129,79 +143,79 @@ its rendering performance remains an explicit item in the application findings.
 | `brush_live_tutorial` | Retain · drawing as the subject | Cached preview |
 | `brush_rain` | Retain · drawing as the subject | Cached preview |
 | `brushwork_currents` | Retain · drawing as the subject | Cached preview |
-| `blend_options` | Refined · compact specimen | Rendered plate |
-| `blur_falloff` | Refined · compact specimen | Rendered plate |
-| `border_weave` | Refined · compact specimen | Rendered plate |
-| `bullets_dropcap` | Refined · compact specimen | Rendered plate |
-| `cascade` | Refined · compact specimen | Rendered plate |
-| `channel_bind` | Refined · compact specimen | Rendered plate |
-| `cjk_rules` | Refined · compact specimen | Rendered plate |
-| `codec_roundtrip` | Refined · compact specimen | Rendered plate |
+| `blend_options` | Rewritten · subject study | Reviewed GPU plate |
+| `blur_falloff` | Rewritten · subject study | Reviewed GPU plate |
+| `border_weave` | Rewritten · subject study | Reviewed GPU plate |
+| `bullets_dropcap` | Rewritten · subject study | Reviewed GPU plate |
+| `cascade` | Rewritten · subject study | Reviewed GPU plate |
+| `channel_bind` | Rewritten · subject study | Reviewed GPU plate |
+| `cjk_rules` | Rewritten · subject study | Reviewed GPU plate |
+| `codec_roundtrip` | Rewritten · subject study | Reviewed GPU plate |
 | `compute_variant` | Retain · 3D subject | Cached preview |
-| `contour_poses` | Refined · compact specimen | Rendered plate |
-| `corner_notched` | Refined · compact specimen | Rendered plate |
-| `coverage_boundary` | Refined · compact specimen | Rendered plate |
-| `crossing_rule` | Refined · compact specimen | Rendered plate |
-| `crt_bloom` | Refined · compact specimen | Rendered plate |
-| `decay_step` | Refined · compact specimen | Rendered plate |
+| `contour_poses` | Rewritten · subject study | Reviewed GPU plate |
+| `corner_notched` | Rewritten · subject study | Reviewed GPU plate |
+| `coverage_boundary` | Rewritten · subject study | Reviewed GPU plate |
+| `crossing_rule` | Rewritten · subject study | Reviewed GPU plate |
+| `crt_bloom` | Rewritten · subject study | Reviewed GPU plate |
+| `decay_step` | Rewritten · subject study | Reviewed GPU plate |
 | `ember_decode` | Retain · focused specimen | Cached preview |
-| `encode_write` | Refined · compact specimen | Rendered plate |
-| `env_faces` | Refined · compact specimen | Rendered plate |
-| `env_lanes` | Refined · compact specimen | Rendered plate |
-| `exact_tangent` | Refined · compact specimen | Rendered plate |
-| `exr_channels` | Refined · compact specimen | Rendered plate |
-| `feed_vitals` | Refined · compact specimen | Rendered plate |
+| `encode_write` | Rewritten · subject study | Reviewed GPU plate |
+| `env_faces` | Rewritten · subject study | Reviewed GPU plate |
+| `env_lanes` | Rewritten · subject study | Reviewed GPU plate |
+| `exact_tangent` | Rewritten · subject study | Reviewed GPU plate |
+| `exr_channels` | Rewritten · subject study | Reviewed GPU plate |
+| `feed_vitals` | Rewritten · subject study | Reviewed GPU plate |
 | `floating_panels` | Retain · focused specimen | Cached preview |
-| `formation_bands` | Refined · compact specimen | Rendered plate |
-| `frame_grid` | Refined · compact specimen | Rendered plate |
-| `frame_inputs` | Refined · compact specimen | Rendered plate |
-| `fx_scatter_mix` | Refined · compact specimen | Rendered plate |
-| `geo_groups` | Refined · compact specimen | Rendered plate |
-| `gif_frames` | Refined · compact specimen | Rendered plate |
-| `grid_layouts` | Refined · compact specimen | Rendered plate |
-| `half_float` | Refined · compact specimen | Rendered plate |
+| `formation_bands` | Rewritten · subject study | Reviewed GPU plate |
+| `frame_grid` | Rewritten · subject study | Reviewed GPU plate |
+| `frame_inputs` | Rewritten · subject study | Reviewed GPU plate |
+| `fx_scatter_mix` | Rewritten · subject study | Reviewed GPU plate |
+| `geo_groups` | Rewritten · subject study | Reviewed GPU plate |
+| `gif_frames` | Rewritten · subject study | Reviewed GPU plate |
+| `grid_layouts` | Rewritten · subject study | Reviewed GPU plate |
+| `half_float` | Rewritten · subject study | Reviewed GPU plate |
 | `hit_slots` | Retain · focused specimen | Cached preview |
-| `hub_reload` | Refined · compact specimen | Rendered plate |
+| `hub_reload` | Rewritten · subject study | Reviewed GPU plate |
 | `import_native` | Retain · 3D subject | Cached preview |
-| `keeps_and_frames` | Refined · compact specimen | Rendered plate |
-| `lane_retarget` | Refined · compact specimen | Rendered plate |
-| `live_settling` | Refined · compact specimen | Rendered plate |
-| `material_atlas` | Refined · compact specimen | Rendered plate |
-| `material_slots` | Refined · compact specimen | Rendered plate |
-| `matte_luma` | Refined · compact specimen | Rendered plate |
+| `keeps_and_frames` | Rewritten · subject study | Reviewed GPU plate |
+| `lane_retarget` | Rewritten · subject study | Reviewed GPU plate |
+| `live_settling` | Rewritten · subject study | Reviewed GPU plate |
+| `material_atlas` | Rewritten · subject study | Reviewed GPU plate |
+| `material_slots` | Rewritten · subject study | Reviewed GPU plate |
+| `matte_luma` | Rewritten · subject study | Reviewed GPU plate |
 | `mesh_generators` | Retain · focused specimen | Cached preview |
 | `mesh_normal_bridge` | Retain · focused specimen | Cached preview |
-| `net_policy` | Refined · compact specimen | Rendered plate |
-| `nine_slice` | Refined · compact specimen | Rendered plate |
-| `ocio_view` | Refined · compact specimen | Rendered plate |
+| `net_policy` | Rewritten · subject study | Reviewed GPU plate |
+| `nine_slice` | Rewritten · subject study | Reviewed GPU plate |
+| `ocio_view` | Rewritten · subject study | Reviewed GPU plate |
 | `optical_kerning` | Retain · focused specimen | Cached preview |
-| `over_under` | Refined · compact specimen | Rendered plate |
-| `painter_gpu` | Refined · compact specimen | Rendered plate |
+| `over_under` | Rewritten · subject study | Reviewed GPU plate |
+| `painter_gpu` | Rewritten · subject study | Reviewed GPU plate |
 | `path_booleans` | Retain · focused specimen | Cached preview |
-| `pattern_sequence` | Refined · compact specimen | Rendered plate |
-| `pixfont_dotsprite` | Refined · compact specimen | Rendered plate |
-| `place_repeat_tiles` | Refined · compact specimen | Rendered plate |
-| `pop_billboards` | Refined · compact specimen | Rendered plate |
-| `pop_deform` | Refined · compact specimen | Rendered plate |
-| `pop_math` | Refined · compact specimen | Rendered plate |
-| `pop_order` | Refined · compact specimen | Rendered plate |
-| `pop_prims` | Retain · focused specimen | Cached preview |
-| `pop_stamps` | Retain · focused specimen | Cached preview |
-| `rich_slot_reserve` | Refined · compact specimen | Rendered plate |
-| `routers_straight` | Refined · compact specimen | Rendered plate |
-| `routes_probe` | Refined · compact specimen | Rendered plate |
-| `sdf_star` | Refined · compact specimen | Rendered plate |
-| `slang_portable` | Refined · compact specimen | Rendered plate |
+| `pattern_sequence` | Rewritten · subject study | Reviewed GPU plate |
+| `pixfont_dotsprite` | Rewritten · subject study | Reviewed GPU plate |
+| `place_repeat_tiles` | Rewritten · subject study | Reviewed GPU plate |
+| `pop_billboards` | Rewritten · subject study | Reviewed GPU plate |
+| `pop_deform` | Rewritten · subject study | Reviewed GPU plate |
+| `pop_math` | Rewritten · subject study | Reviewed GPU plate |
+| `pop_order` | Rewritten · subject study | Reviewed GPU plate |
+| `pop_prims` | Rewritten · subject study | Reviewed GPU plate |
+| `pop_stamps` | Rewritten · subject study | Reviewed GPU plate |
+| `rich_slot_reserve` | Rewritten · subject study | Reviewed GPU plate |
+| `routers_straight` | Rewritten · subject study | Reviewed GPU plate |
+| `routes_probe` | Rewritten · subject study | Reviewed GPU plate |
+| `sdf_star` | Rewritten · subject study | Reviewed GPU plate |
+| `slang_portable` | Rewritten · subject study | Reviewed GPU plate |
 | `spacing_passes` | Retain · focused specimen | Cached preview |
 | `surface_components` | Retain · focused specimen | Cached preview |
-| `svg_silhouette` | Refined · compact specimen | Rendered plate |
-| `ticker_lanes` | Refined · compact specimen | Rendered plate |
-| `tile_map` | Refined · compact specimen | Rendered plate |
-| `usd_roundtrip` | Refined · compact specimen | Rendered plate |
-| `volatility_cost` | Refined · compact specimen | Rendered plate |
-| `warichu_placeholder` | Refined · compact specimen | Rendered plate |
-| `web_script` | Refined · compact specimen | Rendered plate |
-| `yarn_marquee` | Refined · compact specimen | Rendered plate |
+| `svg_silhouette` | Rewritten · subject study | Reviewed GPU plate |
+| `ticker_lanes` | Rewritten · subject study | Reviewed GPU plate |
+| `tile_map` | Rewritten · subject study | Reviewed GPU plate |
+| `usd_roundtrip` | Rewritten · subject study | Reviewed GPU plate |
+| `volatility_cost` | Rewritten · subject study | Reviewed GPU plate |
+| `warichu_placeholder` | Rewritten · subject study | Reviewed GPU plate |
+| `web_script` | Rewritten · subject study | Reviewed GPU plate |
+| `yarn_marquee` | Rewritten · subject study | Reviewed GPU plate |
 | `card_flip` | Retain · focused specimen | Cached preview |
 | `guest_body` | Retain · 3D subject | Cached preview |
 | `guest_picture` | Retain · focused specimen | Cached preview |
@@ -226,6 +240,8 @@ its rendering performance remains an explicit item in the application findings.
 | `python_observable_reaction_diffusion` | Retain · Python composition | Cached preview |
 | `python_observable_reynolds` | Retain · Python composition | Cached preview |
 | `python_orbits` | Retain · Python composition | Cached preview |
+| `python_type_atelier` | New · Python authoring study | Reviewed native and standalone plates |
+| `python_world_study` | New · Python authoring study | Reviewed native and standalone plates |
 | `dart_flight` | Retain · 3D subject | Cached preview |
 | `deformed_cloud` | Retain · 3D subject | Cached preview |
 | `first_light` | Retain · 3D subject | Cached preview |
@@ -237,18 +253,18 @@ its rendering performance remains an explicit item in the application findings.
 | `scattered_model` | Retain · 3D subject | Cached preview |
 | `scene_surfaces` | Retain · 3D subject | Cached preview |
 | `set_stagger` | Retain · 3D subject | Cached preview |
-| `bound_lane` | Refined · compact specimen | Rendered plate |
-| `curve_shelf` | Refined · compact specimen | Rendered plate |
-| `field_shelf` | Refined · compact specimen | Rendered plate |
+| `bound_lane` | Rewritten · subject study | Reviewed GPU plate |
+| `curve_shelf` | Rewritten · subject study | Reviewed GPU plate |
+| `field_shelf` | Rewritten · subject study | Reviewed GPU plate |
 | `gerstner_grid` | Retain · focused specimen | Cached preview |
-| `kinetic_card` | Refined · compact specimen | Rendered plate |
-| `noise_shelf` | Refined · compact specimen | Rendered plate |
-| `paint_shelf` | Refined · compact specimen | Rendered plate |
-| `paragraph_paints` | Refined · compact specimen | Rendered plate |
+| `kinetic_card` | Rewritten · subject study | Reviewed GPU plate |
+| `noise_shelf` | Rewritten · subject study | Reviewed GPU plate |
+| `paint_shelf` | Rewritten · subject study | Reviewed GPU plate |
+| `paragraph_paints` | Rewritten · subject study | Reviewed GPU plate |
 | `paragraph_sheet` | Retain · focused specimen | Cached preview |
 | `shape_tour` | Retain · focused specimen | Cached preview |
 | `stroke_atlas` | Retain · focused specimen | Cached preview |
-| `text_paints` | Refined · compact specimen | Rendered plate |
+| `text_paints` | Rewritten · subject study | Reviewed GPU plate |
 | `ui_particles` | Retain · focused specimen | Cached preview |
 | `hello` | Retain · focused specimen | Cached preview |
 | `shapeworks_lab` | Retain · focused specimen | Cached preview |

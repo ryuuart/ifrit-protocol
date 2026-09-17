@@ -76,7 +76,7 @@ namespace {
 const char* kDesk = "osc://:27080";           // where the faders land
 const char* kRecording = "data/faders.feed";  // what a capture replays
 
-constexpr SkSize kCanvas = {1180, 568};
+constexpr SkSize kCanvas = {1180, 740};
 constexpr SkColor4f kBackdrop = {0.05f, 0.05f, 0.075f, 1};
 /** Every fader is away from both ends of its travel by here, and the
  *  three stand at three different points of their own rhythms. */
@@ -98,25 +98,24 @@ constexpr size_t kReading = 0;
 
 /** The plate the instrument stands on: the canvas inside the page
  *  margins, and the line the three parts stand on. */
-constexpr float kFigureWidth = 1132;
-constexpr float kFigureHeight = 360;
+constexpr float kFigureWidth = 354;
+constexpr float kFigureHeight = 320;
 constexpr float kFloor = 300;
-constexpr float kLabelTop = kFloor + 16;
 
 /** THE BLADE: how tall it stands at the top of the fader's travel and at
  *  the bottom of it. A height is layout and a binding is read after
  *  layout, so the blade is built at its full extent and SCALED about its
  *  foot — the one drawn property a fader can move every frame without a
  *  re-describe. */
-constexpr float kBladeAt = 120;
+constexpr float kBladeAt = 150;
 constexpr float kBladeWide = 54;
 constexpr float kBladeTall = 270;
 constexpr float kBladeShort = 36;
 
 /** THE WHEEL: a ring of hues that turns under a fixed pointer, so which
  *  colour the pointer names is the fader's reading. */
-constexpr float kWheelAt = 460;
-constexpr float kWheelTop = 36;
+constexpr float kWheelAt = 77;
+constexpr float kWheelTop = 100;
 constexpr float kWheelSide = 200;
 constexpr float kWheelMiddleX = kWheelAt + kWheelSide * 0.5f;
 constexpr float kWheelMiddleY = kWheelTop + kWheelSide * 0.5f;
@@ -124,8 +123,8 @@ constexpr float kHubSide = 68;
 constexpr int kHues = 12;
 
 /** THE PLUMB: a bob on a cord, hung from a pivot it turns about. */
-constexpr float kPlumbAt = 860;
-constexpr float kPlumbTop = 30;
+constexpr float kPlumbAt = 111;
+constexpr float kPlumbTop = 50;
 constexpr float kPlumbWide = 132;
 constexpr float kPlumbLong = 250;
 constexpr float kBobSide = 52;
@@ -154,14 +153,6 @@ std::vector<material::skia::Stop> hues() {
   return stops;
 }
 
-/** One word under a part of the instrument, at the width its own column
- *  leaves it. */
-compose::Element part(const char* words, float left, float width) {
-  return compose::text(words)
-      .styleClass("captionLabel")
-      .rect(SkRect::MakeLTRB(left, kLabelTop, left + width, kLabelTop + 20));
-}
-
 }  // namespace
 
 namespace {
@@ -188,7 +179,7 @@ struct ChannelBind {
   Shown shown;
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
+    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
     sketch::kit::stage(
         ctx,
         {.size = kCanvas, .captureAt = kCaptureAt, .background = kBackdrop});
@@ -257,35 +248,47 @@ struct ChannelBind {
   }
 
   void describe(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
+    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
     ctx.composer.render(sketch::kit::page(
-        {.title = "The fader and the property",
-         .subtitle = "three channels on one desk · one binding chain each · "
-                     "no handler between the wire and the drawing",
-         .footer = "a channel writes its output only when the message under "
-                   "its name moved"},
-        compose::box().column().gap(14).children({figure(), readings()})));
+        {.title = "A number arrives. A property moves.",
+         .subtitle = "Three OSC faders, three bound properties · input 0–127 "
+                     "becomes height, rotation and sway",
+         .footer = "Bindings are installed once. Between messages the picture "
+                   "holds the last value; a changed channel updates its output "
+                   "and the readout."},
+        compose::box().column().gap(24).children(
+            {figure(), readings(), door()})));
   }
 
-  /** THE INSTRUMENT: three parts of one drawing, each bound to one fader
-   *  and to nothing else. */
   compose::Element figure() {
     const sketch::kit::Theme& look = sketch::kit::theme();
-    return sketch::kit::well(
-        {.width = compose::Dimension(kFigureWidth),
-         .height = compose::Dimension(kFigureHeight),
-         .padding = 0,
-         .corners = 3},
-        compose::positioned().children(
-            {// The line the three stand on.
-             compose::box()
-                 .rect(SkRect::MakeLTRB(60, kFloor, kFigureWidth - 60,
-                                        kFloor + 1))
-                 .fill(compose::Fill::color(look.palette.rule)),
-             blade(look), wheel(look), plumb(look),
-             part("BLADE · a height", kBladeAt - 24, 240),
-             part("WHEEL · a hue, turned", kWheelAt, 240),
-             part("PLUMB · a sway, there and back", kPlumbAt - 40, 280)}));
+    const auto plate = [&](std::vector<compose::Element> parts) {
+      parts.push_back(
+          compose::box()
+              .rect(SkRect::MakeLTRB(26, kFloor, kFigureWidth - 26, kFloor + 1))
+              .fill(compose::Fill::color(look.palette.rule)));
+      return sketch::kit::well(
+          {.width = kFigureWidth, .height = kFigureHeight},
+          compose::positioned().children(std::move(parts)));
+    };
+    return sketch::kit::comparison(
+        {.cases = {{.title = "01 / RISE",
+                    .control = kChains[0],
+                    .figure = plate({blade(look)}),
+                    .note = "A linear mapping scales the blade about its foot: "
+                            "36–270 px tall."},
+                   {.title = "02 / TURN",
+                    .control = kChains[1],
+                    .figure = plate(wheel(look)),
+                    .note = "Smoothstep shapes the turn. The fixed pointer "
+                            "reads the rotating hue wheel."},
+                   {.title = "03 / SWING",
+                    .control = kChains[2],
+                    .figure = plate(plumb(look)),
+                    .note = "Ping-pong folds the input into a return trip "
+                            "between −16° and +16°."}},
+         .measure = 1100,
+         .gap = 19});
   }
 
   /** A HEIGHT, as the scale of a blade about its own foot. */
@@ -369,22 +372,15 @@ struct ChannelBind {
   /** WHAT EACH CHANNEL LAST READ off the wire, and what the chain over it
    *  puts the property at. */
   compose::Element readings() {
-    std::vector<sketch::kit::Row> rows;
-    rows.reserve(kFaders);
+    std::vector<sketch::kit::ComparisonCase> cases;
     for (size_t index = 0; index != kFaders; ++index)
-      rows.push_back(
-          {.cells = {kAddresses[index], reading(index), kChains[index],
-                     kDriven[index], standing(index)}});
-    return compose::box().column().gap(10).children(
-        {sketch::kit::table(
-             std::move(rows),
-             {.columns = {{.head = "FADER", .width = 96},
-                          {.head = "LAST READ", .width = 96, .figure = true},
-                          {.head = "THE CHAIN", .width = 366},
-                          {.head = "WHAT IT MOVES", .width = 196},
-                          {.head = "THE PROPERTY NOW", .figure = true}},
-              .headRuled = true}),
-         door()});
+      cases.push_back({.title = kAddresses[index],
+                       .figure = sketch::kit::readout(
+                           {{.name = "LAST INPUT", .value = reading(index)},
+                            {.name = kDriven[index], .value = standing(index)}},
+                           {.measure = kFigureWidth, .ruled = true})});
+    return sketch::kit::comparison(
+        {.cases = std::move(cases), .measure = 1100, .gap = 19});
   }
 
   /** The reading as the wire spelled it, or the dash that says nothing
@@ -412,13 +408,13 @@ struct ChannelBind {
    *  arrived, how much of it was no OSC packet at all, and the sentence
    *  saying why there is no door where there is none. */
   compose::Element door() {
-    return compose::text(compose::kit::formatted(
-                             "%s   ·   arrivals %llu   ·   undecodable %llu"
-                             "   ·   %s",
-                             kDesk, (unsigned long long)shown.generation,
-                             (unsigned long long)shown.undecodable,
-                             shown.trouble.empty() ? "the door is open"
-                                                   : shown.trouble.c_str()))
+    return compose::text(
+               compose::kit::formatted(
+                   "%s   ·   arrivals %llu   ·   undecodable %llu"
+                   "   ·   %s",
+                   kDesk, (unsigned long long)shown.generation,
+                   (unsigned long long)shown.undecodable,
+                   shown.trouble.empty() ? "listening" : shown.trouble.c_str()))
         .styleClass("captionNote");
   }
 };

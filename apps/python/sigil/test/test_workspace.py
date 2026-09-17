@@ -116,7 +116,7 @@ class Scene:
             {"first.py", "studies/second.cpp"},
         )
         self.assertTrue(all(row["external"] for row in external))
-        self.assertTrue(any(row["folder"] == "Python" for row in rows))
+        self.assertEqual(rows, external)
 
 
 if __name__ == "__main__":

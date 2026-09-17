@@ -47,6 +47,54 @@ assert "sigil._loader" not in sys.modules
            scope);
 }
 
+TEST(PythonBindings, WorldOwnsItsTickerFrameAndPixelsWithoutASketchHost) {
+  auto module = native();
+  py::dict scope;
+  scope["native"] = module;
+  py::exec(R"(
+import gc
+import sys
+import weakref
+
+scene = native.world.Scene()
+angle = native.motion.Output(0)
+angle_ref = weakref.ref(angle)
+camera = native.geometry.mesh.camera.Camera()
+camera.eye = (0, 0, 320)
+body = (native.world.Element().key("body")
+        .mesh(native.geometry.mesh.box((-65, -35, -20), (65, 35, 20)))
+        .fill(native.material.kit.unlit(
+            native.material.kit.SurfaceParameters(baseColor="#e75a31")))
+        .rotateZ(angle)
+        .translateX(native.motion.entrance(0, 30, duration=1)))
+frame = native.world.Frame(body).camera(camera)
+scene.render(frame)
+first = scene.image((96, 96)).rgba()
+assert any(first[3::4])
+handle = scene.handleOf("body")
+angle.value = 90
+scene.advance(0.25)
+quarter = scene.image((96, 96)).rgba()
+assert first != quarter
+
+del angle, frame, body, camera
+gc.collect()
+assert angle_ref() is None
+scene.advance(0.25)
+assert scene.handleOf("body") == handle
+image = scene.image((96, 96))
+half = image.rgba()
+assert half != quarter
+assert any(half[3::4])
+del scene
+gc.collect()
+assert image.rgba() == half
+assert not hasattr(native, "Context")
+assert "sigil._loader" not in sys.modules
+)",
+           scope);
+}
+
 TEST(PythonBindings, HostLifetimeReleasesRetainedBoundCallbacks) {
   (void)native();
   py::dict scope;

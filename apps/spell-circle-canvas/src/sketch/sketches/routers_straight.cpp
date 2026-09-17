@@ -52,10 +52,10 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 400};
-constexpr float kCell = 163;
-constexpr float kPicture = 176;
-constexpr float kNode = 46;
+constexpr SkSize kCanvas = {1100, 900};
+constexpr float kCell = 328;
+constexpr float kPicture = 226;
+constexpr float kNode = 66;
 
 constexpr float kRadius = 12;    // the corner radius, px
 constexpr float kChamfer = 14;   // the 45 degree cut, which wins over a radius
@@ -84,16 +84,20 @@ Element plate(const std::string& tag, Element route) {
            std::move(route).inset(0).foreground(wire)});
 }
 
-Element cell(const char* call, const char* note, const std::string& tag,
-             Element route) {
-  return sketch::kit::caption(kCell, call, note, plate(tag, std::move(route)));
+sketch::kit::ComparisonCase cell(const char* title, const char* call,
+                                 const char* note, const std::string& tag,
+                                 Element route) {
+  return {.title = title,
+          .control = call,
+          .figure = plate(tag, std::move(route)),
+          .note = note};
 }
 
 }  // namespace
 
 struct RoutersStraight {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
+    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -102,56 +106,58 @@ struct RoutersStraight {
     };
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "The stock routes",
-         .subtitle = "dials · the router · the bend "
-                     "(MidX, HFirst, VFirst) · the corner "
-                     "radius (12 px) or the 45° cut (14 px, "
-                     "which wins) · the arc's bulge (0.26 of "
-                     "the chord)",
-         .footer = "a Router is a function of the two endpoint "
-                   "rects and a RailRouter one over the whole "
-                   "anchor run — which is why octilinear "
-                   "is reached through rail() and never through "
-                   "connector()"},
-        kit::cells(
-            {.cells =
-                 {cell("routers::straight()",
-                       "centre to centre · the connector default, "
-                       "here as a named value, with a 4 px gap pulling "
-                       "each end back",
-                       "st", wire("st", routers::straight())),
-                  cell("orthogonal(Bend::MidX)",
-                       "the Z · half way over, one vertical run, "
-                       "half way in — what a node graph "
-                       "defaults to",
-                       "mx",
-                       wire("mx", routers::orthogonal(routers::Bend::MidX))),
-                  cell("orthogonal(Bend::HFirst, 12)",
-                       "an L bending AT THE TARGET column, its turn "
-                       "rounded · the circuit trace",
-                       "hf",
-                       wire("hf", routers::orthogonal(routers::Bend::HFirst,
-                                                      kRadius))),
-                  cell("orthogonal(Bend::VFirst, 0, 14)",
-                       "the other L, out of the SOURCE first, its turn "
-                       "cut at 45° · a chamfer wins over a "
-                       "radius",
-                       "vf",
-                       wire("vf", routers::orthogonal(routers::Bend::VFirst, 0,
-                                                      kChamfer))),
-                  cell("routers::arc(0.26)",
-                       "the chord bowed by a fraction of its own length "
-                       "· the sign picks the side",
-                       "ar", wire("ar", routers::arc(kBulge))),
-                  cell("rail({a, b}, octilinear(8))",
-                       "the metro-map RailRouter · the leg runs "
-                       "45° for the shorter delta and finishes "
-                       "straight, and rail() is its only door",
-                       "oc",
-                       rail({Anchor{"oc-a", {0.5f, 0.5f}, 4},
-                             Anchor{"oc-b", {0.5f, 0.5f}, 4}},
-                            routers::octilinear(8)))},
-             .gap = 10})));
+        {.title = "Routes between two anchors",
+         .subtitle =
+             "Hold the endpoints still and change the path between them.",
+         .footer = "A connector consumes two endpoint rectangles. A rail "
+                   "consumes an entire run of anchors."},
+        box().column().gap(22).children(
+            {sketch::kit::sectionHeader(
+                 {.label = "01  A CONNECTOR BETWEEN TWO RECTANGLES",
+                  .note = "Identical endpoints · three ways to cross the gap"}),
+             sketch::kit::comparison(
+                 {.cases =
+                      {cell("DIRECT", "straight() · gap = 4",
+                            "A direct chord joins the same two endpoint "
+                            "rectangles.",
+                            "st", wire("st", routers::straight())),
+                       cell("ORTHOGONAL", "orthogonal(MidX)",
+                            "Split the horizontal distance with a vertical run "
+                            "in the middle.",
+                            "mx",
+                            wire("mx",
+                                 routers::orthogonal(routers::Bend::MidX))),
+                       cell("CURVED", "arc(0.26)",
+                            "Bow the chord by 26 per cent of its own length.",
+                            "ar", wire("ar", routers::arc(kBulge)))},
+                  .measure = 1020,
+                  .gap = 18}),
+             sketch::kit::sectionHeader(
+                 {.label = "02  CONTROL THE TURN",
+                  .note = "A corner belongs to the route, not the node"}),
+             sketch::kit::comparison(
+                 {.cases =
+                      {cell("ROUND AN L", "orthogonal(HFirst, 12)",
+                            "Travel horizontally first; round the corner at "
+                            "the target column.",
+                            "hf",
+                            wire("hf", routers::orthogonal(
+                                           routers::Bend::HFirst, kRadius))),
+                       cell("CHAMFER AN L", "orthogonal(VFirst, 0, 14)",
+                            "Travel vertically first; cut the corner at 45°.",
+                            "vf",
+                            wire("vf",
+                                 routers::orthogonal(routers::Bend::VFirst, 0,
+                                                     kChamfer))),
+                       cell("FOLLOW AN ANCHOR RUN", "rail(..., octilinear(8))",
+                            "A rail follows the anchor run with a 45° leg and "
+                            "a straight remainder.",
+                            "oc",
+                            rail({Anchor{"oc-a", {0.5f, 0.5f}, 4},
+                                  Anchor{"oc-b", {0.5f, 0.5f}, 4}},
+                                 routers::octilinear(8)))},
+                  .measure = 1020,
+                  .gap = 18})})));
   }
 };
 

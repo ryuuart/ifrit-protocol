@@ -175,6 +175,33 @@ struct Cell {
                                     compose::Utf8 note,
                                     compose::Element picture);
 
+/** One case in a comparison: its name, the setting being changed, the
+ *  figure at its authored size, and what the reader should observe. */
+struct ComparisonCase {
+  compose::Utf8 title;
+  compose::Utf8 control;
+  compose::Element figure;
+  compose::Utf8 note;
+};
+
+/** A horizontal comparison with shared title, control, figure and note
+ *  tracks. A wrapped title or setting moves every figure together; the
+ *  notes start below the tallest figure. A text track absent from every
+ *  case is omitted. Figures retain their own extent and are centred in
+ *  equal-width columns; this component supplies no picture surface. */
+struct Comparison {
+  std::vector<ComparisonCase> cases;
+  /** The available width in pixels, including the gaps between cases.
+   *  Stated so text can wrap before the shared tracks are measured. */
+  float measure = 0;
+  /** Between cases; unset is the theme's cell gap. */
+  std::optional<float> gap;
+  /** Between semantic tracks; unset is 8 px. */
+  std::optional<float> trackGap;
+};
+
+[[nodiscard]] compose::Element comparison(Comparison specification);
+
 /** A RUN OF CELLS along one axis, at the theme's gutter. */
 struct Run {
   /** In order along the axis. */

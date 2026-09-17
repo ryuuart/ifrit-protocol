@@ -807,6 +807,25 @@ void bindValues(py::module_& module) {
           })
       .def_readwrite("textTransform", &weave::Type::textTransform)
       .def_readwrite("verticalForm", &weave::Type::verticalForm)
+      .def_property(
+          "decorations",
+          [](const weave::Type& self) { return self.decorations; },
+          [](weave::Type& self,
+             std::optional<std::vector<weave::Decoration>> value) {
+            self.decorations = std::move(value);
+          })
+      .def_property(
+          "underlays", [](const weave::Type& self) { return self.underlays; },
+          [](weave::Type& self,
+             std::optional<std::vector<weave::PaintLayer>> value) {
+            self.underlays = std::move(value);
+          })
+      .def_property(
+          "overlays", [](const weave::Type& self) { return self.overlays; },
+          [](weave::Type& self,
+             std::optional<std::vector<weave::PaintLayer>> value) {
+            self.overlays = std::move(value);
+          })
       .def("empty", &weave::Type::empty)
       .def("copy", [](const weave::Type& self) { return self; })
       .def(py::self == py::self);

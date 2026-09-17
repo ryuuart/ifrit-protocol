@@ -600,7 +600,11 @@ them rather than the only one.
   own family list or script policy.
 - **Inline placeholders** — pills, icons, and images woven into the flow. The
   breakers treat each as an unbreakable word; `placeholderRects()` reports
-  where they landed.
+  where they landed. Their size is logical: `Placeholder::width` is advance
+  along the reading direction and `Placeholder::height` spans the line or
+  column. A vertical slot therefore reports a physical rectangle with those
+  dimensions exchanged, centred on the column axis. `Placeholder::baselineDrop`
+  positions horizontal objects against the baseline; vertical objects ignore it.
 - **Per-glyph choreography** — `forEachPlacedGlyph()` (`choreograph/PlacedGlyph.h`) hands
   every glyph of a finished layout to a visitor as one `PlacedGlyph`: the
   shaped run it came from, its glyph ID and advance, the absolute rest

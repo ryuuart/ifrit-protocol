@@ -133,6 +133,9 @@ class RichText {
 
   /** Reserves an INLINE SLOT: `size` px of blank space woven into the flow,
    *  and the name whatever is placed in that space answers to.
+   *  Size is logical: width is the inline advance and height is the band
+   *  across the reading direction. In a vertical passage the reported
+   *  physical rectangle is therefore {height, width}.
    *
    *  The reserved box is ONE UNBREAKABLE WORD: a line never breaks inside
    *  it, and a box taller than the type opens the lines of its BLOCK. The
@@ -143,7 +146,8 @@ class RichText {
    *
    *  `baselineDrop` is how far the box's BOTTOM sits below the baseline —
    *  0 stands it on the baseline like an inline image, and about the face's
-   *  descent centres a pill on the x-height.
+   *  descent centres a pill on the x-height. It applies only horizontally;
+   *  vertical objects are centred across their column axis.
    *
    *  The slot occupies one code point (U+FFFC), so it counts as a cluster,
    *  falls inside the ranges a selection names, and takes its turn in

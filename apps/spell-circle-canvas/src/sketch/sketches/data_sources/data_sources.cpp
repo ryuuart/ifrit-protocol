@@ -1,6 +1,10 @@
-/** One table of cities reaches a drawing three ways — the CSV decoded, the
- *  SQLite store that stands beside this sketch, and DuckDB asked over the
- *  same CSV — and every way answers the same Table a bar is drawn from. */
+/** @file
+ * One city dataset answers three different questions through a Table.
+ * CSV supplies the original rows; SQLite aggregates countries; DuckDB filters
+ * coastal cities from the resolved CSV. Every result uses the same bar
+ * renderer, with its scale normalized independently. Source files are local
+ * to this directory sketch.
+ */
 // TAGS: Data/Sources, Data/Tables
 
 #include <sigilcompose/kit/Specimen.h>
@@ -22,8 +26,8 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr float kCell = 330;
-constexpr float kBars = 150;
+constexpr float kCell = 324;
+constexpr float kBars = 112;
 
 /** THE ANSWER, drawn: one bar a row against the largest of them, read
  *  straight off @p table's two columns. A table that has not loaded draws
@@ -53,7 +57,7 @@ struct DataSources {
   std::string sqliteNote, duckNote;
 
   void setup(sketch::SketchContext& ctx) {
-    sketch::kit::stage(ctx, {.size = {1100, 420}, .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.size = {1100, 640}, .captureAt = 0.05});
     // The CSV beside this sketch, decoded to a Table by the hub.
     csv = ctx.assets.table(ctx.local("data/cities.csv"));
     // The SQLite store beside this sketch, opened in place: the same rows,
@@ -82,36 +86,56 @@ struct DataSources {
   }
 
   Element describe() {
-    const sketch::kit::Provide look(sketch::kit::specimenTheme());
+    const sketch::kit::Provide look(sketch::kit::studyTheme());
+    const auto result = [](Element chart) {
+      return sketch::kit::well({.width = kCell, .height = 290, .padding = 14})
+          .children({std::move(chart)});
+    };
     return sketch::kit::page(
-        {.title = u8"One table, three sources",
-         .subtitle = u8"a CSV decoded · a SQLite store beside the sketch "
-                     u8"· DuckDB asked over the CSV · every answer "
-                     u8"is a Table",
-         .footer = u8"the files stand next to the sketch and are named through "
-                   u8"ctx.local(); a query shapes the rows where a filter and "
-                   u8"a group would, and draws from the same value"},
-        kit::cells(
-            {.cells =
-                 {sketch::kit::caption(
-                      kCell, u8"assets.table(local(\"data/cities.csv\"))",
-                      u8"the decoder types the columns: text, number, flag, "
-                      u8"instant",
-                      answer(csv.get(), "city", "population",
-                             "the CSV has not loaded")),
-                  sketch::kit::caption(
-                      kCell, u8"assets.database(local(\"data/cities.sqlite\"))",
-                      u8"SUM(population) GROUP BY country · the store "
-                      u8"is opened in place and reopened when it changes",
-                      answer(fromSqlite ? &*fromSqlite : nullptr, "country",
-                             "population", sqliteNote)),
-                  sketch::kit::caption(
-                      kCell, u8"Database::memory(Engine::Duck)",
-                      u8"read_csv('cities.csv') WHERE coastal · the "
-                      u8"engine reads the file the hub resolved",
-                      answer(fromDuck ? &*fromDuck : nullptr, "city",
-                             "population", duckNote))},
-             .gap = 14}));
+        {.title = "One dataset, three questions",
+         .subtitle = "Read the cities, aggregate their countries, then select "
+                     "the coast. All three answers use the same Table value "
+                     "and bar renderer.",
+         .footer =
+             "Bar lengths are normalized within each result. Country totals "
+             "and individual city populations use different scales."},
+        box().column().gap(28).children(
+            {sketch::kit::comparison(
+                 {.cases = {{.title = "READ EVERY CITY",
+                             .control = "CSV → assets.table",
+                             .figure =
+                                 result(answer(csv.get(), "city", "population",
+                                               "The CSV has not loaded")),
+                             .note = "Directly decoded rows, in file order."},
+                            {.title = "TOTAL BY COUNTRY",
+                             .control = "SQLite → GROUP BY country",
+                             .figure = result(
+                                 answer(fromSqlite ? &*fromSqlite : nullptr,
+                                        "country", "population", sqliteNote)),
+                             .note = "SUM(population), ordered from the "
+                                     "largest country total."},
+                            {.title = "ONLY COASTAL CITIES",
+                             .control = "DuckDB → WHERE coastal",
+                             .figure =
+                                 result(answer(fromDuck ? &*fromDuck : nullptr,
+                                               "city", "population", duckNote)),
+                             .note = "The six largest coastal cities selected "
+                                     "from the CSV."}},
+                  .measure = 1020,
+                  .gap = 24}),
+             sketch::kit::sectionHeader(
+                 {.label = "FILES BESIDE THE SKETCH",
+                  .note = "ctx.local() resolves both sources"}),
+             box().row().gap(32).children(
+                 {text("cities.csv\nTyped text, number and flag columns")
+                      .width(324)
+                      .styleClass("readout"),
+                  text("cities.sqlite\nA persistent relational store")
+                      .width(324)
+                      .styleClass("readout"),
+                  text("In-memory DuckDB\nQueries the resolved CSV path")
+                      .width(308)
+                      .styleClass("readout")})}));
   }
 };
 

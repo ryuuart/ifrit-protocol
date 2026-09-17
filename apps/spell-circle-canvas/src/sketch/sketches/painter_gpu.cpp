@@ -1,33 +1,9 @@
 /** @file
- * painter_gpu — the mesh painter as a value, and the two executors that
- * stand behind it.
- *
- * `render::MeshStyle::runtime` is who performs a draw, and it is an
- * ordinary comparable value. `render::Runtime::cpu()` is the built-in
- * executor — it needs no device, sorts triangles back to front and
- * antialiases their edges, and is what a byte-identity plate is hashed
- * from. `world::diligent::painterRuntime(device)` is the same seam on a
- * GPU: it rasterises with a depth test and no edge antialiasing, then
- * reads the pixels back onto the canvas the caller passed.
- *
- * A SKETCH NAMES NEITHER. `sketch::painterRuntime()` is the one the
- * process installed — the device executor where a host brought a device
- * up, the CPU one where it did not — so a sketch writes the line once and
- * is correct on both tiers. Run this file plainly and the two cells hold
- * the same picture; run it with `--gpu` and the right-hand cell's meshes
- * are rasterised on the device while the left stays on the CPU. The note
- * under the right cell says which of the two it got, by comparing the
- * value.
- *
- * WHAT MAY DIFFER, and what may not: the FLAT PANELS are the canvas's own
- * draw on either executor, because `drawImagePanel` concats the
- * perspective and hands the image to Skia — a panel on a GPU-backed
- * canvas was already on the GPU. Only `drawMesh` changes hands, so the
- * floor and the curved sheet are where a difference can show at all.
- *
- * EDIT THESE FIRST
- *   kPanels — how many flat cards stand in each cell.
- *   kCurve  — the curved sheet's radius; larger is flatter.
+ * The same textured cockpit through the CPU and host-selected runtimes.
+ * Both viewports use identical geometry, camera, textures and lighting.
+ * Only mesh drawing changes executor; perspective image panels remain canvas
+ * draws. The host viewport reports whether a device executor or the CPU
+ * fallback was selected, so a raster capture cannot imply GPU coverage.
  */
 
 // TAGS: Geometry/Meshes
@@ -57,8 +33,8 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1180, 700};
-constexpr SkSize kCell = {536, 512};
+constexpr SkSize kCanvas = {1180, 840};
+constexpr SkSize kCell = {536, 420};
 constexpr int kPanels = 3;
 constexpr float kCurve = 300;
 
@@ -66,7 +42,7 @@ constexpr SkColor4f kCellGround{0.035f, 0.038f, 0.055f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.type.captionLabel = {.size = 11.5f, .track = 0.6f};
   return look;
 }
@@ -159,19 +135,13 @@ struct PainterGpu {
                      kCell, emissive);
   }
 
-  Element cell(const char* call, Utf8 note, const render::Runtime& runtime) {
-    return sketch::kit::caption(
-        kCell.width(), call, std::move(note),
-        custom(std::string("cell.") + call,
-               [this, runtime](SkCanvas& canvas) { draw(canvas, runtime); })
-            .width(kCell.width())
-            .height(kCell.height())
-            // The viewport a mesh is projected onto is the
-            // cell, and the canvas it lands on is the sheet:
-            // without this the floor runs under the cell
-            // beside it.
-            .clip()
-            .fill(Fill::color(kCellGround)));
+  Element viewport(const char* key, const render::Runtime& runtime) {
+    return custom(key,
+                  [this, runtime](SkCanvas& canvas) { draw(canvas, runtime); })
+        .width(kCell.width())
+        .height(kCell.height())
+        .clip()
+        .fill(Fill::color(kCellGround));
   }
 
   void setup(sketch::SketchContext& ctx) {
@@ -193,35 +163,48 @@ struct PainterGpu {
     // The comparison IS the readout: a value equal to the built-in one
     // says no host installed a device executor in this process.
     processIsCpu = sketch::painterRuntime() == render::Runtime::cpu();
-    const std::u8string got =
-        processIsCpu
-            ? u8"this process installed none, so it IS Runtime::cpu() — "
-              u8"run with --gpu and the same call answers "
-              u8"diligent::painterRuntime"
-            : u8"a device executor: diligent::painterRuntime, rasterising "
-              u8"with a depth test and reading the pixels back onto this "
-              u8"canvas";
-
     ctx.composer.render(sketch::kit::page(
-        {.title = "Painter runtime",
-         .subtitle = "dials · the runtime (named on each "
-                     "cell) · the panel count (3 flat cards "
-                     "and one curved sheet per cell)",
-         .footer = "drawMesh changes hands; drawImagePanel does "
-                   "not — a panel concats the "
-                   "perspective and hands the image to the canvas, "
-                   "so the cards are the same on both executors and "
-                   "only the floor and the curve can differ"},
-        kit::cells({.cells = {cell("render::Runtime::cpu()",
-                                   u8"the built-in executor — no device, "
-                                   u8"triangles sorted back to front, their "
-                                   u8"edges antialiased",
-                                   render::Runtime::cpu()),
-                              cell("sketch::painterRuntime()", got,
-                                   sketch::painterRuntime())},
-                    .gap = 22,
-                    .divider = Fill::color(sketch::kit::theme().palette.rule),
-                    .align = Align::Start})));
+        {.title = "One cockpit, two executors",
+         .subtitle = "The camera, meshes, textures and lighting are identical. "
+                     "Only the mesh runtime is selected differently.",
+         .footer = "The host selects the runtime. The sketch asks for its "
+                   "value; CPU remains available for an explicit reference."},
+        box().column().gap(26).children(
+            {sketch::kit::comparison(
+                 {.cases =
+                      {{.title = "CPU REFERENCE",
+                        .control = "render::Runtime::cpu()",
+                        .figure =
+                            viewport("painter.cpu", render::Runtime::cpu()),
+                        .note = "Triangles are sorted back to front; their "
+                                "edges are antialiased."},
+                       {.title = "HOST RUNTIME",
+                        .control = processIsCpu ? "CPU fallback selected"
+                                                : "Diligent device selected",
+                        .figure =
+                            viewport("painter.host", sketch::painterRuntime()),
+                        .note = processIsCpu
+                                    ? "No device executor is installed. This "
+                                      "is the same CPU path as the reference."
+                                    : "Meshes use depth-tested device "
+                                      "rasterization, then return pixels to "
+                                      "the canvas."}},
+                  .measure = 1100,
+                  .gap = 28}),
+             sketch::kit::sectionHeader(
+                 {.label = "WHERE TO LOOK",
+                  .note = "drawMesh changes executor; image panels remain "
+                          "canvas draws"}),
+             box().row().gap(28).children(
+                 {text("FLAT CARDS\nPerspective image panels: the shared "
+                       "canvas path.")
+                      .width(348),
+                  text("CURVED DISPLAY\nA textured triangle mesh: inspect the "
+                       "silhouette.")
+                      .width(348),
+                  text("TRANSLUCENT FLOOR\nA mesh surface: inspect overlap and "
+                       "edge treatment.")
+                      .width(348)})})));
   }
 };
 

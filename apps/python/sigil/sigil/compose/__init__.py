@@ -1,5 +1,6 @@
 """Native composition: factories, fluent properties and explicit children."""
 
+from collections.abc import Iterable as _Iterable
 from importlib import import_module as _import_module
 
 from _sigil.compose import *
@@ -7,14 +8,14 @@ from _sigil.compose import *
 from ..native import compose as _native
 
 
-def row() -> Element:
+def row(*children: Element | _Iterable[Element]) -> Element:
     """Create a native box with horizontal child flow."""
-    return _native.box().row()
+    return _native.box(*children).row()
 
 
-def column() -> Element:
+def column(*children: Element | _Iterable[Element]) -> Element:
     """Create a native box with vertical child flow."""
-    return _native.box().column()
+    return _native.box(*children).column()
 
 
 __all__ = ["column", "row"]

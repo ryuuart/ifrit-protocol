@@ -5,11 +5,15 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Stroke.h>
 #include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/typography/Selector.h>
+#include <sigilcompose/typography/TextPath.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/ComposeBindings.h>
 #include <sigilpython/MotionBindings.h>
 #include <sigilpython/ValueBindings.h>
+#include <sigilweave/layout/Story.h>
 #include <sigilweave/layout/StyleSheet.h>
+#include <sigilweave/query/Selector.h>
 
 #include <algorithm>
 #include <any>
@@ -34,199 +38,6 @@ compose::Decoration decoration(py::handle value) {
   if (py::isinstance<compose::Shadow>(value))
     return value.cast<compose::Shadow>();
   throw py::type_error("A decoration is a Decoration, PathFormat, or Shadow.");
-}
-
-void bindTypography(py::module_& module) {
-  auto text = module.def_submodule("weave");
-  using namespace weave;
-  py::enum_<TextTransform>(text, "TextTransform")
-      .value("None_", TextTransform::kNone)
-      .value("Uppercase", TextTransform::kUppercase)
-      .value("Lowercase", TextTransform::kLowercase)
-      .value("Capitalize", TextTransform::kCapitalize);
-  py::enum_<VerticalForm>(text, "VerticalForm")
-      .value("Auto", VerticalForm::kAuto)
-      .value("Upright", VerticalForm::kUpright)
-      .value("Rotated", VerticalForm::kRotated)
-      .value("TateChuYoko", VerticalForm::kTateChuYoko);
-  py::class_<FontFeature>(text, "FontFeature")
-      .def(py::init([](const std::string& tag, uint32_t value) {
-             if (tag.size() != 4)
-               throw py::value_error("An OpenType tag needs four bytes.");
-             FontFeature result;
-             std::copy_n(tag.begin(), 4, result.tag);
-             result.value = value;
-             return result;
-           }),
-           py::arg("tag"), py::arg("value") = 1)
-      .def_property_readonly(
-          "tag",
-          [](const FontFeature& self) { return std::string(self.tag, 4); })
-      .def_readwrite("value", &FontFeature::value)
-      .def(py::self == py::self);
-  py::class_<FontVariation>(text, "FontVariation")
-      .def(py::init([](const std::string& tag, float value) {
-             if (tag.size() != 4)
-               throw py::value_error("An OpenType tag needs four bytes.");
-             FontVariation result;
-             std::copy_n(tag.begin(), 4, result.tag);
-             result.value = value;
-             return result;
-           }),
-           py::arg("tag"), py::arg("value"))
-      .def_property_readonly(
-          "tag",
-          [](const FontVariation& self) { return std::string(self.tag, 4); })
-      .def_readwrite("value", &FontVariation::value)
-      .def(py::self == py::self);
-  py::class_<ShapingStyle>(text, "ShapingStyle")
-      .def(py::init(
-          [](py::kwargs fields) { return keywordValue<ShapingStyle>(fields); }))
-      .def_readwrite("typeface", &ShapingStyle::typeface)
-      .def_readwrite("fontSize", &ShapingStyle::fontSize)
-      .def_readwrite("letterSpacing", &ShapingStyle::letterSpacing)
-      .def_readwrite("scaleX", &ShapingStyle::scaleX)
-      .def_readwrite("wordSpacing", &ShapingStyle::wordSpacing)
-      .def_readwrite("languageTag", &ShapingStyle::languageTag)
-      .def_property(
-          "fontFeatures",
-          [](const ShapingStyle& self) { return self.fontFeatures; },
-          [](ShapingStyle& self, std::vector<FontFeature> value) {
-            self.fontFeatures = std::move(value);
-          })
-      .def_property(
-          "variations",
-          [](const ShapingStyle& self) { return self.variations; },
-          [](ShapingStyle& self, std::vector<FontVariation> value) {
-            self.variations = std::move(value);
-          })
-      .def_readwrite("textTransform", &ShapingStyle::textTransform)
-      .def_readwrite("verticalForm", &ShapingStyle::verticalForm)
-      .def_readwrite("aliased", &ShapingStyle::aliased)
-      .def_readwrite("opticalKerning", &ShapingStyle::opticalKerning)
-      .def(py::self == py::self);
-  py::class_<PaintStyle>(text, "PaintStyle")
-      .def(py::init(
-          [](py::kwargs fields) { return keywordValue<PaintStyle>(fields); }))
-      .def_readwrite("foreground", &PaintStyle::foreground)
-      .def_readwrite("baselineShift", &PaintStyle::baselineShift)
-      .def(py::self == py::self);
-  py::class_<TextStyle>(text, "TextStyle")
-      .def(py::init(
-          [](py::kwargs fields) { return keywordValue<TextStyle>(fields); }))
-      .def_readwrite("shaping", &TextStyle::shaping)
-      .def_readwrite("paint", &TextStyle::paint)
-      .def("weight", &TextStyle::weight, py::arg("weight"), fluent)
-      .def("opticalSize", &TextStyle::opticalSize, py::arg("size"), fluent)
-      .def("condense", &TextStyle::condense, py::arg("width"), fluent)
-      .def(
-          "variation",
-          [](TextStyle& self, const std::string& tag,
-             float value) -> TextStyle& {
-            if (tag.size() != 4)
-              throw py::value_error("An OpenType tag needs four bytes.");
-            char bytes[5] = {};
-            std::copy_n(tag.begin(), 4, bytes);
-            return self.variation(bytes, value);
-          },
-          py::arg("tag"), py::arg("value"), fluent)
-      .def(py::self == py::self);
-  text.def("textStyle", &weave::textStyle, py::arg("type"))
-      .def("initialType", &weave::initialType);
-  py::enum_<TextAlignment>(text, "TextAlignment")
-      .value("Start", TextAlignment::kStart)
-      .value("Center", TextAlignment::kCenter)
-      .value("End", TextAlignment::kEnd)
-      .value("Justify", TextAlignment::kJustify);
-  py::enum_<LineBreakStrategy>(text, "LineBreakStrategy")
-      .value("Greedy", LineBreakStrategy::kGreedy)
-      .value("KnuthPlass", LineBreakStrategy::kKnuthPlass);
-  py::enum_<WritingMode>(text, "WritingMode")
-      .value("Horizontal", WritingMode::kHorizontal)
-      .value("VerticalRL", WritingMode::kVerticalRL);
-  auto leading = py::class_<Leading>(text, "Leading");
-  py::enum_<Leading::Kind>(leading, "Kind")
-      .value("Face", Leading::Kind::kFace)
-      .value("Multiple", Leading::Kind::kMultiple)
-      .value("Absolute", Leading::Kind::kAbsolute)
-      .value("Grid", Leading::Kind::kGrid);
-  leading.def(py::init<>())
-      .def_static("face", &Leading::face)
-      .def_static("multiple", &Leading::multiple, py::arg("factor"))
-      .def_static("absolute", &Leading::absolute, py::arg("pixels"))
-      .def_static("grid", &Leading::grid, py::arg("step"))
-      .def_readwrite("kind", &Leading::kind)
-      .def_readwrite("value", &Leading::value)
-      .def(py::self == py::self);
-  py::class_<Block>(text, "Block")
-      .def(py::init(
-          [](py::kwargs fields) { return keywordValue<Block>(fields); }))
-      .def_property(
-          "leading", [](const Block& self) { return self.leading; },
-          [](Block& self, std::optional<Leading> value) {
-            self.leading = std::move(value);
-          })
-      .def_readwrite("halfLeading", &Block::halfLeading)
-      .def_readwrite("alignment", &Block::alignment)
-      .def_readwrite("firstLineIndent", &Block::firstLineIndent)
-      .def_readwrite("lastLineIndent", &Block::lastLineIndent)
-      .def_readwrite("widowLines", &Block::widowLines)
-      .def_readwrite("orphanLines", &Block::orphanLines)
-      .def_readwrite("balanceRaggedLines", &Block::balanceRaggedLines)
-      .def_readwrite("writingMode", &Block::writingMode)
-      .def_readwrite("lineBreakLocale", &Block::lineBreakLocale)
-      .def_readwrite("lineBreak", &Block::lineBreak)
-      .def_readwrite("lastLineAlignment", &Block::lastLineAlignment)
-      .def_readwrite("justifyLastLine", &Block::justifyLastLine)
-      .def_readwrite("tsume", &Block::tsume)
-      .def("empty", &Block::empty)
-      .def(py::self == py::self);
-  py::class_<Rule>(text, "Rule")
-      .def(py::init<std::string>(), py::arg("name"))
-      .def(py::init<std::string, Type>(), py::arg("name"), py::arg("type"))
-      .def(py::init<std::string, Block>(), py::arg("name"), py::arg("block"))
-      .def("font", &Rule::font, py::arg("type"), fluent)
-      .def("block", py::overload_cast<Block>(&Rule::block), py::arg("block"),
-           fluent)
-      .def("name", &Rule::name)
-      .def("type", &Rule::type, py::return_value_policy::copy)
-      .def("block", py::overload_cast<>(&Rule::block, py::const_),
-           py::return_value_policy::copy)
-      .def(py::self == py::self);
-  text.def("rule", &weave::rule, py::arg("name"));
-  py::class_<StyleSheet>(text, "StyleSheet")
-      .def(py::init([](const std::vector<Rule>& rules) {
-             StyleSheet value;
-             for (const auto& rule : rules) value.set(rule);
-             return value;
-           }),
-           py::arg("rules") = std::vector<Rule>{})
-      .def(py::init<TextStyle>(), py::arg("style"))
-      .def("base", py::overload_cast<TextStyle>(&StyleSheet::base),
-           py::arg("style"), fluent)
-      .def("base", py::overload_cast<>(&StyleSheet::base, py::const_),
-           py::return_value_policy::copy)
-      .def("set", py::overload_cast<const Rule&>(&StyleSheet::set),
-           py::arg("rule"), fluent)
-      .def("set", py::overload_cast<std::string, Type>(&StyleSheet::set),
-           py::arg("name"), py::arg("type"), fluent)
-      .def("set", py::overload_cast<std::string, Block>(&StyleSheet::set),
-           py::arg("name"), py::arg("block"), fluent)
-      .def("__getitem__", &StyleSheet::operator[], py::arg("name"))
-      .def(
-          "find",
-          [](const StyleSheet& self,
-             const std::string& name) -> std::optional<Rule> {
-            if (auto rule = self.find(name)) return *rule;
-            return {};
-          },
-          py::arg("name"))
-      .def("contains", &StyleSheet::contains, py::arg("name"))
-      .def("__contains__", &StyleSheet::contains, py::arg("name"))
-      .def("rules", &StyleSheet::rules, py::return_value_policy::copy)
-      .def("__len__", &StyleSheet::size)
-      .def("empty", &StyleSheet::empty)
-      .def(py::self == py::self);
 }
 
 Element memo(py::object properties, py::function describe) {
@@ -349,8 +160,23 @@ compose::Shape shape(py::handle value) {
   return compose::heldPath(value.cast<SkPath>());
 }
 
+std::vector<compose::Element> elements(py::args values) {
+  try {
+    if (values.size() == 1 && (py::isinstance<py::str>(values[0]) ||
+                               py::isinstance<py::bytes>(values[0])))
+      throw py::cast_error();
+    const auto children =
+        values.size() == 1 && !py::isinstance<compose::Element>(values[0])
+            ? py::tuple(values[0])
+            : py::tuple(values);
+    return children.cast<std::vector<compose::Element>>();
+  } catch (const py::cast_error&) {
+    throw py::type_error(
+        "children expects Elements or one iterable of Elements");
+  }
+}
+
 void bindCompose(py::module_& module) {
-  bindTypography(module);
   auto composition = module.def_submodule("compose");
   py::class_<compose::Composer::Stats>(composition, "ComposerStats")
 #define SIGIL_STAT(name) .def_readonly(#name, &compose::Composer::Stats::name)
@@ -617,6 +443,34 @@ void bindCompose(py::module_& module) {
   selections.def("rest", py::overload_cast<std::string_view>(&spans::rest),
                  py::arg("name"));
 
+  auto textPath =
+      bindRecord<TextPath>(composition, "TextPath", "Unknown TextPath field: ");
+  py::enum_<TextPath::Align>(textPath, "Align")
+      .value("Start", TextPath::Align::Start)
+      .value("Center", TextPath::Align::Center)
+      .value("End", TextPath::Align::End);
+  py::enum_<TextPath::Orient>(textPath, "Orient")
+      .value("Tangent", TextPath::Orient::Tangent)
+      .value("Radial", TextPath::Orient::Radial)
+      .value("Upright", TextPath::Orient::Upright);
+  textPath
+      .def_property(
+          "path", [](const TextPath& value) { return value.path; },
+          [](TextPath& value, py::object path) { value.path = shape(path); })
+      .def_property(
+          "at", [](const TextPath& value) { return value.at; },
+          [](TextPath& value, py::object at) {
+            value.at = motionAnimatable(at);
+          })
+      .def_readwrite("align", &TextPath::align)
+      .def_readwrite("offset", &TextPath::offset)
+      .def_readwrite("autoFlip", &TextPath::autoFlip)
+      .def_readwrite("orient", &TextPath::orient)
+      .def_readwrite("exactTangent", &TextPath::exactTangent);
+  auto textSelections = composition.def_submodule("selectors");
+  textSelections.def("style", &selectors::style, py::arg("name"))
+      .def("inFrame", &selectors::inFrame, py::arg("key"));
+
   element.def("copy", [](const Element& value) { return value; })
       .def("__copy__", [](const Element& value) { return value; })
       .def("row", &Element::row, fluent)
@@ -636,19 +490,7 @@ void bindCompose(py::module_& module) {
       .def(
           "children",
           [](Element& self, py::args values) -> Element& {
-            try {
-              if (values.size() == 1 && (py::isinstance<py::str>(values[0]) ||
-                                         py::isinstance<py::bytes>(values[0])))
-                throw py::cast_error();
-              const auto children =
-                  values.size() == 1 && !py::isinstance<Element>(values[0])
-                      ? py::tuple(values[0])
-                      : py::tuple(values);
-              return self.children(children.cast<std::vector<Element>>());
-            } catch (const py::cast_error&) {
-              throw py::type_error(
-                  "children expects Elements or one iterable of Elements");
-            }
+            return self.children(elements(values));
           },
           fluent)
       .def(
@@ -808,6 +650,47 @@ void bindCompose(py::module_& module) {
       .def("outward", &Element::outward, fluent)
       .def("clip", &Element::clip, py::arg("clip") = true, fluent)
       .def("block", &Element::block, py::arg("block"), fluent)
+      .def("paragraphs",
+           py::overload_cast<std::vector<weave::ParagraphStyle>>(
+               &Element::paragraphs),
+           py::arg("blocks"), fluent)
+      .def(
+          "paragraphs",
+          [](Element& self, const std::vector<std::string>& names) -> Element& {
+            std::vector<std::string_view> views(names.begin(), names.end());
+            return self.paragraphs(views);
+          },
+          py::arg("names"), fluent)
+      .def("initialLetter", &Element::initialLetter, py::arg("initial"), fluent)
+      .def("firstBaseline", &Element::firstBaseline, py::arg("rule"),
+           py::arg("offset") = 0.0f, fluent)
+      .def("distribute", &Element::distribute, py::arg("rule"),
+           py::arg("maximumInterlineSpacing") = 0.0f, fluent)
+      .def("reserve", &Element::reserve, py::arg("band"), fluent)
+      .def("live", &Element::live, py::arg("enabled") = true,
+           py::arg("candidates") = 0, fluent)
+      .def(
+          "ellipsis",
+          [](Element& self, const std::string& marker) -> Element& {
+            return self.ellipsis(marker);
+          },
+          py::arg("marker"), fluent)
+      .def("maxLines", &Element::maxLines, py::arg("lines"), fluent)
+      .def("thread", &Element::thread, py::arg("key"), fluent)
+      .def("balanceChain", &Element::balanceChain, py::arg("throughLine") = ~0u,
+           fluent)
+      .def("flowAround", &Element::flowAround, py::arg("key"),
+           py::arg("margin") = 0.0f, fluent)
+      .def("onPath", &Element::onPath, py::arg("path"), fluent)
+      .def("spanPaint", &Element::spanPaint, py::arg("where"), py::arg("paint"),
+           fluent)
+      .def("spanStyle",
+           py::overload_cast<weave::Selector, weave::TextStyle>(
+               &Element::spanStyle),
+           py::arg("where"), py::arg("style"), fluent)
+      .def("spanStyle",
+           py::overload_cast<weave::Selector, weave::Type>(&Element::spanStyle),
+           py::arg("where"), py::arg("type"), fluent)
       .def("styleSheet", &Element::styleSheet, py::arg("sheet"), fluent)
       .def("styleClass", &Element::styleClass, py::arg("name"), fluent)
       .def(
@@ -859,22 +742,13 @@ void bindCompose(py::module_& module) {
       .def("atRest", &Element::atRest)
       .def("bakeScale", &Element::bakeScale, py::arg("scale"), fluent)
       .def("transition", &Element::transition, py::arg("transition"), fluent)
-      .def("flowAround", &Element::flowAround, py::arg("key"),
-           py::arg("margin") = 0.0f, fluent)
+
       .def(
           "region",
           [](Element& self, py::object value) -> Element& {
             return self.region(rect(value));
           },
           py::arg("rect"), fluent)
-      .def("thread", &Element::thread, py::arg("name"), fluent)
-      .def("maxLines", &Element::maxLines, py::arg("count"), fluent)
-      .def(
-          "ellipsis",
-          [](Element& self, const std::string& value) -> Element& {
-            return self.ellipsis(value);
-          },
-          py::arg("text"), fluent)
       .def("textFill", &Element::textFill, py::arg("paint"), fluent)
       .def(
           "textStroke",
@@ -979,7 +853,12 @@ void bindCompose(py::module_& module) {
       },
       py::arg("spans"), py::arg("decoration"), py::arg("name") = "", fluent);
 
-  composition.def("box", &compose::box);
+  composition.def("text", py::overload_cast<weave::RichText>(&compose::text),
+                  py::arg("content"));
+  composition.def("frame", &compose::frame, py::arg("story"));
+  composition.def("box", [](py::args children) {
+    return compose::box().children(elements(children));
+  });
   composition.def(
       "text",
       [](const std::string& value, py::object size, py::object ink) {
@@ -1023,8 +902,15 @@ void bindCompose(py::module_& module) {
       py::arg("cache") = compose::Cache::None);
 
   composition.def("memo", &memo, py::arg("properties"), py::arg("describe"));
-  composition.def("stack", &stack)
-      .def("positioned", &positioned)
+  composition
+      .def("stack",
+           [](py::args children) {
+             return stack().children(elements(children));
+           })
+      .def("positioned",
+           [](py::args children) {
+             return positioned().children(elements(children));
+           })
       .def("slot", &slot, py::arg("name"));
   composition.def("image",
                   py::overload_cast<sk_sp<SkImage>, Fit>(&compose::image),

@@ -59,26 +59,17 @@ constexpr int kCount = 240;               // few, big and overlapping
 constexpr float kSpread = 62.0f;          // how far off the ring they throw
 constexpr glm::vec3 kOrderAxis{0, 0, 1};  // the sort key: dot(P, axis)
 constexpr bool kDescending = false;       // false = ascending = farthest first
-constexpr float kPanel = 340.0f;
+constexpr float kPanel = 498.0f;
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
   look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
   look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
   look.type.captionLabel = {.size = 13, .track = 0.4f};
-  look.spacing.marginX = 30;
-  look.spacing.marginTop = 22;
-  look.spacing.captionGap = 5;
   return look;
 }
-
-const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
-const SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
-const SkColor4f kGround{0.055f, 0.06f, 0.085f, 1};
-const SkColor4f kRule{0.19f, 0.20f, 0.26f, 1};
-const SkColor4f kFrame{0.24f, 0.28f, 0.36f, 1};
 
 /** A CROWN: a closed ring in the XZ plane with a threefold vertical wave.
  *  One property is doing the work here — the near and far arcs OVERLAP on
@@ -95,7 +86,7 @@ std::vector<glm::vec3> crown(float radius, float rise, int knots) {
 }
 
 mesh::camera::Camera lookAtCrown() {
-  return {.eye = {0, 150, 980}, .target = {0, 0, 0}, .fovYDeg = 34};
+  return {.eye = {0, 180, 1160}, .target = {0, 0, 0}, .fovYDeg = 34};
 }
 
 /** A HARD-EDGED sprite, and it is load-bearing: a soft dot's rim is
@@ -144,15 +135,6 @@ Element splat(mesh::Cloud cloud, float spriteSize) {
       .cache(Cache::None);
 }
 
-Element panel(const char* title, const char* note, Element inner) {
-  // The well clips: the projection is wider than the frame.
-  return sketch::kit::cell({.plate = {.width = Dimension(kPanel),
-                                      .height = Dimension(kPanel),
-                                      .ground = Fill::none(),
-                                      .keyline = Fill::color(kFrame)}},
-                           title, note, std::move(inner));
-}
-
 }  // namespace
 
 struct PopOrder {
@@ -161,7 +143,7 @@ struct PopOrder {
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // Both clouds are cooked in setup; nothing reads the clock.
-    sketch::kit::stage(ctx, {.size = {760, 552}, .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.size = {1100, 690}, .captureAt = 0.05});
 
     const std::vector<glm::vec3> loop = crown(215, 190, 72);
 
@@ -182,22 +164,39 @@ struct PopOrder {
     unsorted = depthChain().cloud();
     sorted = depthChain().order(kOrderAxis, kDescending).cloud();
 
+    const auto figure = [](mesh::Cloud cloud) {
+      return sketch::kit::well({.width = kPanel, .height = 390})
+          .children({splat(std::move(cloud), 34)});
+    };
     ctx.composer.render(sketch::kit::page(
-        {.title = "The order of points",
-         .subtitle = "colour is driven from P.z over the ring's own "
-                     "depth range, so colour IS depth and a "
-                     "mis-ordered sprite is a dark dot sitting on "
-                     "a bright one",
-         .footer = "Sort is CPU-only and stated as a boundary: a "
-                   "permutation is not a per-point map, so "
-                   "SigilWorld declines a chain holding one"},
-        kit::cells(
-            {.cells = {panel("no order() · WRONG",
-                             "scatter order = painter order",
-                             splat(unsorted, 34)),
-                       panel("order({0,0,1}) · right",
-                             "farthest first, one call", splat(sorted, 34))},
-             .gap = 20})));
+        {.title = "Which point owns the overlap?",
+         .subtitle = "240 opaque sprites · identical positions, colours and "
+                     "seed · the drawing order is the only change",
+         .footer = "The sink's depth sort is disabled in both views. order() "
+                   "is a CPU permutation, with every point lane following the "
+                   "same ordering."},
+        box().column().gap(20).children(
+            {sketch::kit::comparison(
+                 {.cases = {{.title = "SCATTER ORDER",
+                             .control = "the generator's sequence",
+                             .figure = figure(unsorted),
+                             .note = "Dark, distant sprites can cover bright, "
+                                     "nearby sprites. The last mark wins."},
+                            {.title = "DEPTH ORDER",
+                             .control = "order({0, 0, 1}) · farthest first",
+                             .figure = figure(sorted),
+                             .note =
+                                 "Near sprites land last. Overlap now agrees "
+                                 "with the depth encoded by colour."}},
+                  .measure = 1020,
+                  .gap = 24}),
+             sketch::kit::readout(
+                 {{.name = "DEPTH KEY",
+                   .value = "dark blue / far     →     pale blue / near"},
+                  {.name = "MEMBERSHIP",
+                   .value = kit::formatted("%zu before     %zu after",
+                                           unsorted.size(), sorted.size())}},
+                 {.nameMeasure = 110})})));
   }
 };
 

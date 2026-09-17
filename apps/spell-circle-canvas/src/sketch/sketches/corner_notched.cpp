@@ -45,9 +45,9 @@ using Corner = sigil::geometry::shapes::Corner;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 660};
-constexpr float kCell = 252;
-constexpr float kPicture = 190;
+constexpr SkSize kCanvas = {1100, 820};
+constexpr float kCell = 240;
+constexpr float kPicture = 176;
 
 constexpr float kRadius = 22;      // the rounding radius, px
 constexpr float kCut = 30;         // the chamfer, px
@@ -59,22 +59,26 @@ constexpr SkColor4f kEdge{0.92f, 0.84f, 0.66f, 1};
 
 /** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.type.captionLabel = {.size = 11, .mono = true};
   return look;
 }
 
 /** One specimen: the cut plate filled and keylined inside a cell, so the
  *  treatment reads both as a silhouette and as an edge. */
-Element cell(const char* call, const char* note, Shape cut) {
-  return sketch::kit::cell(
-      {.plate = {.width = kCell, .height = kPicture, .clip = false}}, call,
-      note,
-      box()
-          .inset(30, 22, 30, 22)
-          .shape(std::move(cut))
-          .fill(Fill::color(kPlate))
-          .stroke(stroke(1.6f, Fill::color(kEdge))));
+sketch::kit::ComparisonCase cell(const char* title, const char* call,
+                                 const char* note, Shape cut) {
+  return {.title = title,
+          .control = call,
+          .figure = sketch::kit::cell(
+              {.plate = {.width = kCell, .height = kPicture, .clip = false}},
+              "", "",
+              box()
+                  .inset(30, 22, 30, 22)
+                  .shape(std::move(cut))
+                  .fill(Fill::color(kPlate))
+                  .stroke(stroke(1.6f, Fill::color(kEdge)))),
+          .note = note};
 }
 
 }  // namespace
@@ -86,71 +90,76 @@ struct CornerNotched {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "Corner treatments",
-         .subtitle = "dials · the radius (22 px) · the "
-                     "chamfer (30 px) · the notch (38 by 18 "
-                     "px) · the mask",
-         .footer = "every cell here is one value away from the "
-                   "box at the top left — a radius, a "
-                   "cut, a bite, or the mask that says which "
-                   "corners take one"},
-        kit::cells(
-            {.cells =
-                 {kit::cells(
-                      {.cells =
-                           {cell("parallelogram(0)",
-                                 "no lean — the clean "
-                                 "four-point box every cell below is "
-                                 "one value away from",
+        {.title = "Cut, select, round",
+         .subtitle = "A shape operation changes the outline. A corner mask "
+                     "chooses where it acts.",
+         .footer = "Rounding wraps an existing outline; chamfers and notches "
+                   "construct a new one."},
+        box().column().gap(24).children(
+            {sketch::kit::sectionHeader(
+                 {.label = "01  CHANGE THE OUTLINE",
+                  .note = "One source · three operations"}),
+             sketch::kit::comparison(
+                 {.cases = {cell("REFERENCE", "parallelogram(0)",
+                                 "The same rectangle starts every comparison.",
                                  shapes::parallelogram(0)),
-                            cell("rounded(parallelogram(0), 22)",
-                                 "the WRAPPER: any silhouette in, every "
-                                 "sharp corner of it rounded, the "
-                                 "wrapped value still comparable",
+                            cell("ROUND", "rounded(outline, 22)",
+                                 "The outline stays comparable; each sharp "
+                                 "turn receives a radius.",
                                  shapes::rounded(shapes::parallelogram(0),
                                                  kRadius)),
-                            cell("chamfered(30)",
-                                 "the 45° cut on all four "
-                                 "— the corner that reads as "
-                                 "machined metal",
+                            cell("CHAMFER", "chamfered(30)",
+                                 "A straight cut replaces each corner.",
                                  shapes::chamfered(kCut)),
-                            cell("chamfered(30, Corner::Diagonal)",
-                                 "top-left and bottom-right only "
-                                 "— the asymmetric pair that "
-                                 "reads as a tab",
-                                 shapes::chamfered(kCut, Corner::Diagonal))},
-                       .gap = 14}),
-                  kit::cells(
-                      {.cells =
-                           {cell("notched(38, 18)",
-                                 "the rectangular bite on all four "
-                                 "— the stencil corner, the "
-                                 "fixing lug",
-                                 shapes::notched(kNotchWidth, kNotchDepth)),
-                            cell("notched(38, 18, TopLeft|TopRight)",
-                                 "the mask is a bit set, so any union "
-                                 "of corners is a value · two "
-                                 "lugs on the top edge",
-                                 shapes::notched(
-                                     kNotchWidth, kNotchDepth,
-                                     Corner::TopLeft |
-                                         Corner::TopRight)),
-                            cell("rounded(star(6, 0.5), 10)",
-                                 "the wrapper over a shape with NO box "
-                                 "corners · twelve sharp turns, "
-                                 "every one rounded the same",
-                                 shapes::
-                                     rounded(shapes::star(6, 0.5f), 10)),
-                            cell("rounded(notched(38, 18), 7)",
-                                 "a wrapper over a cut · the "
-                                 "bites stay, and the eight corners "
-                                 "they made soften",
-                                 shapes::
-                                     rounded(shapes::notched(kNotchWidth, kNotchDepth), 7))},
-                       .gap =
-                           14})},
-             .column = true,
-             .gap = 18})));
+                            cell("NOTCH", "notched(38, 18)",
+                                 "Each corner loses a rectangular bite.",
+                                 shapes::notched(kNotchWidth, kNotchDepth))},
+                  .measure = 1020,
+                  .gap = 20}),
+             box()
+                 .row()
+                 .alignItems(Align::Start)
+                 .gap(20)
+                 .children(
+                     {box().column().width(500).gap(20).children(
+                          {sketch::kit::sectionHeader(
+                               {.label = "02  CHOOSE THE CORNERS", .note = ""}),
+                           sketch::kit::comparison(
+                               {.cases = {cell("DIAGONAL PAIR",
+                                               "Corner::Diagonal",
+                                               "Only the diagonal pair "
+                                               "receives the cut.",
+                                               shapes::chamfered(
+                                                   kCut, Corner::Diagonal)),
+                                          cell("TOP PAIR", "TopLeft | TopRight",
+                                               "A corner mask selects just the "
+                                               "top pair.",
+                                               shapes::notched(
+                                                   kNotchWidth, kNotchDepth,
+                                                   Corner::TopLeft |
+                                                       Corner::TopRight))},
+                                .measure = 500,
+                                .gap = 20})}),
+                      box().column().width(500).gap(20).children(
+                          {sketch::kit::sectionHeader(
+                               {.label = "03  COMPOSE TREATMENTS", .note = ""}),
+                           sketch::kit::comparison(
+                               {.cases = {cell("ROUND A STAR",
+                                               "rounded(star, 10)",
+                                               "Rounding also works on "
+                                               "non-rectangular outlines.",
+                                               shapes::rounded(
+                                                   shapes::star(6, 0.5f), 10)),
+                                          cell("ROUND A NOTCH",
+                                               "rounded(notched, 7)",
+                                               "The notch remains; its new "
+                                               "corners soften.",
+                                               shapes::rounded(
+                                                   shapes::notched(kNotchWidth,
+                                                                   kNotchDepth),
+                                                   7))},
+                                .measure = 500,
+                                .gap = 20})})})})));
   }
 };
 

@@ -45,8 +45,8 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1120, 736};
-constexpr float kCell = 250;        // the drawn square of one cell
+constexpr SkSize kCanvas = {1100, 950};
+constexpr float kCell = 240;        // the drawn square of one cell
 constexpr float kReach = 15;        // a strand's full mark width, px
 constexpr float kPatchRadius = 30;  // the cap on one patch's reach, px
 
@@ -62,7 +62,7 @@ constexpr SkColor4f kPin{0.92f, 0.36f, 0.30f, 1};
  *  from here — which they do, because the theme is bound before
  *  `stage()` runs. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   // Behind one cell's specimen, a shade off the sheet's own ground.
   look.palette.cellGround = {0.11f, 0.11f, 0.13f, 1};
   look.type.captionLabel = {.size = 11.5f, .track = 0.6f};
@@ -146,18 +146,22 @@ void paintWeave(SkCanvas& canvas, const std::vector<SkPath>& strands,
 }
 
 /** One captioned cell: the call, the drawing, then what it did. */
-Element cell(std::string key, std::vector<SkPath> strands,
-             path::CrossingRule rule, int pinned, const char* call,
-             const char* note) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      custom(
-          std::move(key),
-          [strands = std::move(strands), rule = std::move(rule), pinned](
-              SkCanvas& canvas) { paintWeave(canvas, strands, rule, pinned); })
-          .width(kCell)
-          .height(kCell)
-          .fill(Fill::color(sketch::kit::theme().palette.cellGround)));
+sketch::kit::ComparisonCase cell(const char* title, std::string key,
+                                 std::vector<SkPath> strands,
+                                 path::CrossingRule rule, int pinned,
+                                 const char* call, const char* note) {
+  return {
+      .title = title,
+      .control = call,
+      .figure = custom(std::move(key),
+                       [strands = std::move(strands), rule = std::move(rule),
+                        pinned](SkCanvas& canvas) {
+                         paintWeave(canvas, strands, rule, pinned);
+                       })
+                    .width(kCell)
+                    .height(kCell)
+                    .fill(Fill::color(sketch::kit::theme().palette.cellGround)),
+      .note = note};
 }
 
 }  // namespace
@@ -174,65 +178,69 @@ struct CrossingRuleSheet {
       return path::crossing::pairs(d);
     };
 
-    // A shelf per subject, named before the page so the four calls on it
-    // read as four rules rather than as one nested literal.
-    Element stars = kit::cells(
-        {.cells =
-             {cell("hept.alternate", heptagram(), path::crossing::alternate(),
-                   -1, "crossing::alternate()",
-                   "{7/2} heptagram — seven knots, so the over-under run "
-                   "cannot close and one seam doubles"),
-              cell("hept.sequence", heptagram(),
-                   path::crossing::sequence({path::Order::Over,
-                                             path::Order::Over,
-                                             path::Order::Under}),
-                   -1, "crossing::sequence({Over, Over, Under})",
-                   "any repeating pattern, read off the knot's ordinal"),
-              cell("hept.pairs", heptagram(), sevenCycle(), -1,
-                   "crossing::pairs({{i, i+1}})",
-                   "strand dominance round a seven-cycle, which no draw "
-                   "order can spell"),
-              cell("hept.except", heptagram(),
-                   path::crossing::alternate().except(0, path::Order::Under), 0,
-                   "alternate().except(0, Under)",
-                   "one positional pin, ringed; pins move when the geometry "
-                   "does")},
-         .gap = 14});
-
-    Element loops = kit::cells(
-        {.cells =
-             {cell("ring.alternate", rings(), path::crossing::alternate(), -1,
-                   "crossing::alternate()",
-                   "three rings — six knots alternating by ordinal, which is "
-                   "not a weave here"),
-              cell("ring.sequence", rings(),
-                   path::crossing::sequence({path::Order::Over,
-                                             path::Order::Under,
-                                             path::Order::Under}),
-                   -1, "crossing::sequence({Over, Under, Under})",
-                   "the same six knots on a three-long pattern"),
-              cell("ring.pairs", rings(),
-                   path::crossing::pairs({{0, 1}, {1, 2}, {2, 0}}), -1,
-                   "crossing::pairs({{0,1},{1,2},{2,0}})",
-                   "the cyclic dominance: every ring over one and under "
-                   "another"),
-              cell("ring.except", rings(),
-                   path::crossing::pairs({{0, 1}, {1, 2}, {2, 0}})
-                       .except(3, path::Order::Under),
-                   3, "pairs(...).except(3, Under)",
-                   "the cycle with knot 3 corrected by hand, ringed")},
-         .gap = 14});
-
     ctx.composer.render(sketch::kit::page(
-        {.title = "Crossing rule",
-         .subtitle = "dials · the rule (named on each cell) · the patch "
-                     "width (reach 15 px, cap 30 px)",
-         .footer = "a knot is decided, never drawn in order — the cyclic "
-                   "dominance in the third ring cell has no draw order at "
-                   "all"},
-        kit::cells({.cells = {std::move(stars), std::move(loops)},
-                    .column = true,
-                    .gap = 18})));
+        {.title = "Who passes over whom?",
+         .subtitle = "Read down to compare topology. Read across to compare "
+                     "the rule that decides each crossing.",
+         .footer = "A cyclic dominance relation cannot be expressed by "
+                   "painting whole strands in one global order."},
+        box().column().gap(24).children(
+            {sketch::kit::sectionHeader(
+                 {.label = "SEVEN STRANDS · SEVEN CROSSINGS",
+                  .note = "An odd cycle exposes the alternating seam"}),
+             sketch::kit::comparison(
+                 {.cases =
+                      {cell("ALTERNATE", "hept.alternate", heptagram(),
+                            path::crossing::alternate(), -1, "alternate()",
+                            "Seven crossings cannot close an alternating "
+                            "cycle; one seam repeats."),
+                       cell("REPEAT A SEQUENCE", "hept.sequence", heptagram(),
+                            path::crossing::sequence({path::Order::Over,
+                                                      path::Order::Over,
+                                                      path::Order::Under}),
+                            -1, "sequence(Over, Over, Under)",
+                            "Repeat over, over, under by the crossing "
+                            "ordinal."),
+                       cell("STRAND DOMINANCE", "hept.pairs", heptagram(),
+                            sevenCycle(), -1, "pairs(i, i + 1)",
+                            "Each strand dominates the next around a cycle."),
+                       cell("PIN ONE CROSSING", "hept.except", heptagram(),
+                            path::crossing::alternate().except(
+                                0, path::Order::Under),
+                            0, "alternate().except(0, Under)",
+                            "The ring marks the crossing whose decision was "
+                            "overridden.")},
+                  .measure = 1020,
+                  .gap = 20}),
+             sketch::kit::sectionHeader(
+                 {.label = "THREE RINGS · SIX CROSSINGS",
+                  .note = "The geometry stays fixed; only the policy changes"}),
+             sketch::kit::comparison(
+                 {.cases = {cell("ALTERNATE", "ring.alternate", rings(),
+                                 path::crossing::alternate(), -1, "alternate()",
+                                 "Alternating six crossing ordinals does not "
+                                 "produce a cyclic weave."),
+                            cell("REPEAT A SEQUENCE", "ring.sequence", rings(),
+                                 path::crossing::sequence({path::Order::Over,
+                                                           path::Order::Under,
+                                                           path::Order::Under}),
+                                 -1, "sequence(Over, Under, Under)",
+                                 "Repeat over, under, under across the six "
+                                 "crossings."),
+                            cell(
+                                "STRAND DOMINANCE", "ring.pairs", rings(),
+                                path::crossing::pairs({{0, 1}, {1, 2}, {2, 0}}),
+                                -1, "pairs(0→1, 1→2, 2→0)",
+                                "Every ring passes over one neighbour and "
+                                "under the other."),
+                            cell("PIN ONE CROSSING", "ring.except", rings(),
+                                 path::crossing::pairs({{0, 1}, {1, 2}, {2, 0}})
+                                     .except(3, path::Order::Under),
+                                 3, "pairs(...).except(3, Under)",
+                                 "The ring marks the corrected crossing in the "
+                                 "cyclic weave.")},
+                  .measure = 1020,
+                  .gap = 20})})));
   }
 };
 

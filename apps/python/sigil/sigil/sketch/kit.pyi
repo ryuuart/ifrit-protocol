@@ -1,9 +1,12 @@
+from collections.abc import Sequence
 from typing import Unpack
 
 from _sigil.compose import Element
 from _sigil.sketch import Context
 from _sigil.sketch.kit import (
     Cell,
+    Comparison,
+    ComparisonCase,
     Page,
     Palette,
     PanelGrid,
@@ -35,6 +38,7 @@ from ..compose._typing import Child as _Child
 from ._kit_typing import (
     CellProperties as _CellProperties,
 )
+from ._kit_typing import ComparisonProperties as _ComparisonProperties
 from ._kit_typing import (
     PageProperties as _PageProperties,
 )
@@ -74,6 +78,11 @@ def cell(
     note: str = ...,
     **properties: Unpack[_CellProperties],
 ) -> Element: ...
+def comparison(
+    cases: Sequence[ComparisonCase],
+    props: Comparison | None = ...,
+    **properties: Unpack[_ComparisonProperties],
+) -> Element: ...
 def cells(
     *children: _Child, props: Run | None = ..., **properties: Unpack[_RunProperties]
 ) -> Element: ...
@@ -85,6 +94,8 @@ def panel_grid(
 
 __all__ = [
     "Cell",
+    "Comparison",
+    "ComparisonCase",
     "Page",
     "Palette",
     "PanelGrid",
@@ -103,6 +114,7 @@ __all__ = [
     "caption",
     "cell",
     "cells",
+    "comparison",
     "house_face",
     "house_theme",
     "page",

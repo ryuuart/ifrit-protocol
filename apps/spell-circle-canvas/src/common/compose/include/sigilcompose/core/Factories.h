@@ -277,7 +277,8 @@ Element pathFigure(SkPath absolute, float bleed = 0.0f);
  *  flexbox (nests freely inside flex and vice versa). The container
  *  itself is sized by its own dims/flex; children are measured by
  *  Yoga/SigilWeave, then positioned and sized by scheme.place() in a
- *  bounded second layout pass. */
+ *  bounded second layout pass. Text reflows at its placed reading measure
+ *  before the scheme resolves content-sized tracks again. */
 template <LayoutScheme L>
 Element layout(L scheme);
 

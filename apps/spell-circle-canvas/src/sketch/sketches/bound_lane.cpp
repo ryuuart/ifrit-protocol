@@ -86,16 +86,10 @@ constexpr float kLaps = 2.0f;    // track 4's .target(0, kLaps)
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
   look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
   look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
-  look.type.captionLabel = {.size = 13};
-  look.captionWhere = kit::Caption::Where::Below;
-  look.spacing.marginX = 30;
-  look.spacing.marginTop = 22;
-  look.spacing.captionGap = 8;
-  look.spacing.captionNoteGap = 3;
   // A TRACE IS A MEASURED FIGURE, so the curve every plot draws is the
   // palette's figure colour and no plot names one.
   look.palette.figure = {0.36f, 0.82f, 0.72f, 1};
@@ -186,15 +180,15 @@ Element locus(const char* key, const BoundFloat& wx, const BoundFloat& wy,
 /** ONE PANEL, captioned in the one voice every panel here is: the
  *  picture, then what it is, then the call that spelled it, measured to
  *  the cell so a note never widens its own panel. */
-Element panel(float width, float height, const char* title, const char* sub,
-              Element inner) {
-  inner.inset(0);  // the plot fills its frame
-  return sketch::kit::cell({.plate = {.width = Dimension(width),
-                                      .height = Dimension(height),
-                                      .ground = Fill::none(),
-                                      .clip = false,
-                                      .keyline = Fill::color(kFrame)}},
-                           title, sub, std::move(inner));
+sketch::kit::ComparisonCase panel(float width, float height, const char* title,
+                                  const char* control, Element inner) {
+  inner.inset(0);
+  return {.title = title,
+          .control = control,
+          .figure = sketch::kit::well({.width = width,
+                                       .height = height,
+                                       .keyline = Fill::color(kFrame)})
+                        .children({std::move(inner)})};
 }
 
 /** The mark: 22 px, and its CENTRE (the default transformOrigin, hence
@@ -211,18 +205,24 @@ Element arrowMark() {
  *  silhouette, and handed to the mark as its motion path — because a
  *  MotionPath resolves against the PARENT's box, which is precisely the
  *  box whose outline you are looking at. */
-Element track(Shape curve, MotionPath along, Element mark, const char* caption,
-              const char* spelling) {
+sketch::kit::ComparisonCase track(Shape curve, MotionPath along, Element mark,
+                                  const char* caption, const char* spelling) {
   along.path = curve;
   mark.travel(std::move(along));
-  return sketch::kit::caption(232, caption, spelling,
-                              box()
-                                  .width(176)
-                                  .height(176)
-                                  .margin(22, 4, 22, 10)
-                                  .shape(std::move(curve))
-                                  .stroke(stroke(1.4f, Fill::color(kCurve)))
-                                  .children({std::move(mark)}));
+  return {
+      .title = caption,
+      .control = spelling,
+      .figure = sketch::kit::well({.width = 228,
+                                   .height = 184,
+                                   .ground = Fill::none(),
+                                   .clip = false,
+                                   .content = sketch::kit::Well::Content{}},
+                                  box()
+                                      .width(156)
+                                      .height(156)
+                                      .shape(std::move(curve))
+                                      .stroke(stroke(1.4f, Fill::color(kCurve)))
+                                      .children({std::move(mark)}))};
 }
 
 }  // namespace
@@ -233,7 +233,7 @@ struct BoundLane {
 
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
-    sketch::kit::stage(ctx, {.size = {1280, 900}, .captureAt = 6.0});
+    sketch::kit::stage(ctx, {.size = {1280, 1030}, .captureAt = 6.0});
 
     // `seconds` is the SCHEDULE the shake is phased off. It ramps forever
     // rather than wrapping, so `frequency` reads as plain Hz and the noise
@@ -273,58 +273,65 @@ struct BoundLane {
           .translateY(y);
     };
 
-    Element chain = kit::cells(
-        {.cells =
-             {panel(190, 128, "bare", "bind(&phase)",
+    Element chain = sketch::kit::comparison(
+        {.cases =
+             {panel(190, 128, "INPUT", "bind(phase)",
                     stage("lane.bare", bind(&phase).value(), -0.15f, 1.15f)),
-              panel(190, 128, "envelope", ".pingPong()",
+              panel(190, 128, "ENVELOPE", "pingPong()",
                     stage("lane.pingPong", bind(&phase).pingPong().value(),
                           -0.15f, 1.15f)),
               panel(
-                  190, 128, "curve", ".map(ease::outBack())",
+                  190, 128, "CURVE", "map(outBack)",
                   stage("lane.curve", bind(&phase).map(ease::outBack()).value(),
                         -0.15f, 1.15f)),
-              panel(190, 128, "quantize", ".quantize(8)",
+              panel(190, 128, "STEPS", "quantize(8)",
                     stage("lane.quantize", bind(&phase).quantize(8).value(),
                           -0.15f, 1.15f)),
-              panel(190, 128, "wrap", ".scale(3).wrap(1)",
+              panel(190, 128, "REPEAT", "scale(3).wrap(1)",
                     stage("lane.wrap",
                           bind(&phase).scale(3.0f).wrap(1.0f).value(), -0.15f,
                           1.15f)),
-              panel(190, 128, "wiggle · 3 octaves", "rails are ±amount",
+              panel(190, 128, "NOISE", "3 octaves · rails ±60",
                     wiggleStage("lane.wiggle",
                                 wiggle(&seconds, kAmount, kFrequency, kSeedX,
                                        kOctaves, kFalloff)
                                     .value()))},
+         .measure = 1200,
          .gap = 12});
 
-    Element locusRow = kit::cells(
-        {.cells = {panel(230, 230, "SHARED SEED · broken",
-                         "x and y both seed 1 → y = x",
-                         locus("locus.shared", shakeX.value(), sameY.value(),
-                               "locusShared")),
-                   panel(230, 230, "SEEDS 1 / 2 · a shake",
-                         "two independent lanes",
-                         locus("locus.split", shakeX.value(), shakeY.value(),
-                               "locus")),
-                   panel(230, 230, "the same lanes, LIVE",
-                         "amber = shared seed, teal = 1 / 2",
-                         stack().children({chip(shakeX, sameY, kTraceB, 62),
-                                           chip(shakeX, shakeY, kTrace, 142)})),
-                   text("THE ORDER IS THE POINT. wrap folds the affine "
-                        "value, so a wrapped phase still wiggles across "
-                        "the seam; wiggle adds in the property's own "
-                        "units, so its amount is pixels here and laps "
-                        "below; clamp is always last, whenever it was "
-                        "written.")
-                       .font({.face = weave::defaultFace(),
-                              .size = 12,
-                              .color = kDim})
-                       .width(420)},
+    Element locusRow = sketch::kit::comparison(
+        {.cases =
+             {panel(282, 220, "SHARED SEED", "x: seed 1 / y: seed 1",
+                    locus("locus.shared", shakeX.value(), sameY.value(),
+                          "locusShared")),
+              panel(282, 220, "INDEPENDENT SEEDS", "x: seed 1 / y: seed 2",
+                    locus("locus.split", shakeX.value(), shakeY.value(),
+                          "locus")),
+              panel(282, 220, "THE SAME LANES, LIVE",
+                    "amber: shared / teal: split",
+                    stack().children({chip(shakeX, sameY, kTraceB, 81),
+                                      chip(shakeX, shakeY, kTrace, 167)})),
+              {.title = "WHY TWO SEEDS?",
+               .figure = box().width(282).column().gap(14).children(
+                   {text("Equal seeds make x = y, so the point can only slide "
+                         "along a diagonal. Independent seeds let it explore "
+                         "the plane.")
+                        .width(282)
+                        .styleClass("captionNote"),
+                    sketch::kit::readout(
+                        {{.name = "Amplitude", .value = "±60 px"},
+                         {.name = "Frequency", .value = "3 Hz"},
+                         {.name = "Plotted window", .value = "2 seconds"}},
+                        {.measure = 282, .ruled = true}),
+                    text("The red rails bound the displacement. Noise is "
+                         "added in the property's own units; clamp runs last.")
+                        .width(282)
+                        .styleClass("captionNote")})}},
+         .measure = 1200,
          .gap = 24});
 
-    Element tracks = kit::cells(
-        {.cells =
+    Element tracks = sketch::kit::comparison(
+        {.cases =
              {// 1 — the bare case. lookAhead defaults to 0, so orientation
               // is left alone: a dot rides, nothing turns.
               track(shapes::circle(), {.t = &phase},
@@ -333,46 +340,46 @@ struct BoundLane {
                         .height(18)
                         .shape(shapes::circle())
                         .fill(Fill::color(kTraceB)),
-                    "1 · t only", ".t = &phase"),
+                    "POSITION ONLY", ".t = &phase"),
               // 2 — lookAhead engages auto-orient: the angle of the chord
               // ahead is ADDED to rotate() (which is 0 here).
               track(shapes::circle(), {.t = &phase, .lookAhead = kLook},
-                    arrowMark(), "2 · + lookAhead", ".lookAhead = 0.02"),
+                    arrowMark(), "FOLLOW THE TANGENT", ".lookAhead = 0.02"),
               // 3 — …and rotate() still composes on top of the bank. Same
               // flight as 2; the arrow also spins as it goes.
               track(shapes::circle(), {.t = &phase, .lookAhead = kLook},
                     arrowMark().rotate(bind(&phase).target(0.0f, 720.0f)),
-                    "3 · + rotate()", "rotate() ADDS to it"),
+                    "ADD A SPIN", "rotate() ADDS to it"),
               // 4 — the lane is the SCHEDULE, so "two laps" is one affine
               // verb on it. A closed curve wraps; no API.
               track(shapes::circle(),
                     {.t = bind(&phase).target(0.0f, kLaps), .lookAhead = kLook},
-                    arrowMark(), "4 · two laps", ".target(0, 2) wraps"),
+                    arrowMark(), "TWO LAPS", ".target(0, 2) wraps"),
               // 5 — an OPEN curve CLAMPS at its ends and holds the last good
               // chord there, so a parked arrow still points down the final
               // leg instead of reading atan2(0, 0).
               track(shapes::arc(140.0f, 260.0f),
                     {.t = bind(&phase).target(-0.3f, 1.3f), .lookAhead = kLook},
-                    arrowMark(), "5 · open curve",
-                    ".target(-0.3, 1.3) clamps")},
-         .gap = 8});
+                    arrowMark(), "OPEN PATH", ".target(-0.3, 1.3) clamps")},
+         .measure = 1200,
+         .gap = 15});
 
     ctx.composer.render(
         sketch::kit::page(
-            {.title = "The bound lane",
-             .subtitle = "normalise → envelope "
-                         "→ curve → quantize "
-                         "→ affine → wrap "
-                         "→ wiggle → clamp, "
-                         "in that order whatever order they were "
-                         "written in",
-             .footer = "outline and motion path are one Shape value "
-                       "· translateX/Y are IGNORED while a path "
-                       "is engaged"},
-            kit::cells({.cells = {std::move(chain), std::move(locusRow),
-                                  std::move(tracks)},
-                        .column = true,
-                        .gap = 26}))
+            {.title = "One lane, from signal to movement",
+             .subtitle = "Read a value, reshape it, then give it a place to go "
+                         "· the same binding vocabulary in three settings",
+             .footer = "Stage order is fixed: normalise → envelope → curve → "
+                       "quantize → affine → wrap → wiggle → clamp. A path "
+                       "controls position while travel is engaged."},
+            box().column().gap(24).children(
+                {text("01 / RESHAPE A NORMALIZED INPUT").styleClass("section"),
+                 std::move(chain),
+                 text("02 / BUILD A TWO-AXIS SHAKE").styleClass("section"),
+                 std::move(locusRow),
+                 text("03 / FOLLOW A PATH · ONE PHASE, FIVE READINGS")
+                     .styleClass("section"),
+                 std::move(tracks)}))
             .styleSheet(sheetClasses(sketch::kit::theme())));
   }
 };

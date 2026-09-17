@@ -1,35 +1,8 @@
 /** @file
- * warichu_placeholder — the aside a text sets small and DOUBLED inside
- * the line it interrupts, and the reserved box it stands in.
- *
- * A warichu is not set beside its base and not set under it: it is two
- * short lines occupying one inline slot of the base's own line. Two
- * questions have to be answered before the slot can be reserved, and
- * `weave::warichuSplit` answers both: WHERE the note is cut, and WHAT
- * ROOM the two lines then need.
- *
- * The cut is the break opportunity that leaves the two lines CLOSEST IN
- * ADVANCE, because two lines of one length is what makes the note read as
- * one object rather than as a line with something under it. It is a WORD
- * index — the note's first word on the second line — so the caller cuts
- * its own text at that word's start and sets the halves. The note's size
- * is its own style's, as everything beside a base is: nothing here halves
- * anything.
- *
- * The room is then an ordinary inline slot: `advance` is the wider of the
- * two lines and `band` the depth they stack into, which is exactly what
- * `weave::RichText::slot` reserves and what the breakers treat as one
- * unbreakable word. The child laid into it draws the two lines. A band deeper
- * than the base's type goes into the block's strut, so the pitch of the whole
- * block opens to hold the note and no leading is set by hand here.
- *
- * EDIT THESE FIRST
- *   kNote — the aside, whose own length decides where it is cut.
- *   kNoteSize — the note's type size, which is the whole of what makes it
- *     small: nothing derives it from the base.
- *   kDrop — how far the slot's bottom sits below the base's baseline.
+ * A long aside becomes a balanced pair of short lines inside one inline
+ * slot. The split is measured in the note's own face and size; its wider
+ * line determines the advance and its two-line depth determines the band.
  */
-
 // TAGS: Typography/Paragraph, Typography/CJK
 
 #include <sigilcompose/core/Core.h>
@@ -42,209 +15,188 @@
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
+#include <sigilweave/unicode/Unicode.h>
 
 #include <string>
 #include <utility>
 
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
-
 using namespace sigil::compose;
 
 namespace {
+constexpr SkColor4f kSlot{0.19f, 0.21f, 0.26f, 1};
+constexpr const char8_t* kNote =
+    u8"a small interruption that stays within the line";
 
-constexpr SkSize kCanvas = {1100, 424};
-constexpr float kCell = 254;
-constexpr float kPicture = 210;
+struct Note {
+  weave::Type type;
+  weave::WarichuSplit split;
+  std::u8string words, first, second;
+  float oneLine = 0;
 
-constexpr float kNoteSize = 8;  // the note's own size, and nothing else's
-constexpr float kBaseSize = 13;
-constexpr float kDrop = 3;  // the slot's bottom, below the base's baseline
+  void measure(sketch::SketchContext& ctx, std::u8string copy,
+               weave::Type voice, bool vertical = false) {
+    words = std::move(copy);
+    type = std::move(voice);
+    weave::Paragraph paragraph =
+        weave::ParagraphBuilder(weave::textStyle(type)).addText(words).build();
+    if (vertical) paragraph.setWritingMode(weave::WritingMode::kVerticalRL);
+    split = weave::warichuSplit(*ctx.fonts, paragraph);
+    const auto& utf16 = paragraph.text();
+    const uint32_t cut = split.cutWord < paragraph.words().size()
+                             ? paragraph.words()[split.cutWord].textBegin
+                             : static_cast<uint32_t>(utf16.size());
+    first = weave::unicode::toUtf8(std::u16string_view(utf16).substr(0, cut));
+    second = weave::unicode::toUtf8(std::u16string_view(utf16).substr(cut));
+    oneLine = ctx.measure(box().children({text(words).font(type)})).width();
+  }
 
-const char* kNote = "which a text sets small and doubled inside the line";
+  Element lines(bool vertical = false) const {
+    const float half = split.band * 0.5f;
+    const auto line = [&](const std::u8string& copy, float at) {
+      Element leaf = text(copy).font(type).absolute();
+      return vertical
+                 ? kit::at(std::move(leaf), at, 0, half, split.advance)
+                       .block({.writingMode = weave::WritingMode::kVerticalRL})
+                 : std::move(leaf.left(0).top(at).width(split.advance));
+    };
+    return box().children(
+        {line(first, vertical ? half : 0), line(second, vertical ? 0 : half)});
+  }
+};
 
-constexpr SkColor4f kBody{0.86f, 0.87f, 0.90f, 1};
-constexpr SkColor4f kSlot{0.16f, 0.17f, 0.20f, 1};
-
-sk_sp<SkTypeface> serif() {
-  return weave::ports::face(
-      {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
+Element horizontal(const Note& note, bool balanced) {
+  const SkSize extent = balanced ? SkSize{note.split.advance, note.split.band}
+                                 : SkSize{note.oneLine, 19};
+  return sketch::kit::well({.width = 501, .height = 190, .padding = 24})
+      .children(
+          {text(
+               weave::rich()
+                   .add(u8"An aside ")
+                   .slot("note", extent, 5)
+                   .add(
+                       u8" can interrupt a sentence without leaving the line."))
+               .font({.face = sketch::kit::houseFace(sketch::kit::Voice::Book),
+                      .size = 23,
+                      .track = 0})
+               .width(453)
+               .children(
+                   {box()
+                        .key("note")
+                        .fill(Fill::color(kSlot))
+                        .children({balanced
+                                       ? note.lines()
+                                       : text(note.words).font(note.type)})})});
 }
-
-/** The note's type: the paragraph the split is asked about is set in it
- *  whole, and every drawn note inherits it from the slot it stands in. */
-weave::Type noteType() {
-  return {.face = serif(),
-          .size = kNoteSize,
-          .color = sketch::kit::theme().palette.figure};
-}
-
-/** UTF-16 back to UTF-8 for the two halves of a Latin note. The note is
- *  the caller's own text, so the caller knows what is in it. */
-std::u8string narrow(std::u16string_view utf16) {
-  std::u8string out;
-  out.reserve(utf16.size());
-  for (char16_t unit : utf16)
-    if (unit < 0x80) out.push_back(static_cast<char8_t>(unit));
-  return out;
-}
-
-/** The plate every specimen on this sheet stands on, and the
- *  measure its caption is set to. */
-const sketch::kit::Cell kSpecimen{
-    .plate = {.width = kCell, .height = kPicture, .padding = 12}};
-
 }  // namespace
 
 struct WarichuPlaceholder {
-  weave::WarichuSplit split;
-  std::u8string first, second;
-  std::string report[3];
-  float oneLine = 0;
+  Note latin, japanese;
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
-    // nothing moves; the sheet is complete at once
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
-
-    // The note as a paragraph of its own, which is what the split is asked
-    // about: its size, its face and its language are the note's, and the
-    // base has no say in any of them.
-    const weave::TextStyle noteStyle = weave::textStyle(noteType());
-    weave::Paragraph note =
-        weave::ParagraphBuilder(noteStyle).addText(kNote).build();
-    split = weave::warichuSplit(*ctx.fonts, note);
-
-    const std::u16string& utf16 = note.text();
-    const uint32_t cut = split.cutWord < note.words().size()
-                             ? note.words()[split.cutWord].textBegin
-                             : static_cast<uint32_t>(utf16.size());
-    first = narrow(std::u16string_view(utf16).substr(0, cut));
-    second = narrow(std::u16string_view(utf16).substr(cut));
-
-    oneLine = ctx.measure(box().children({text(kNote, noteStyle)})).width();
-    report[0] = kit::formatted("one line · advance %.1f px", oneLine);
-    report[1] = kit::formatted("split · advance %.1f · band %.1f",
-                               split.advance, split.band);
-    report[2] = kit::formatted("cut at word %u · \"%s\"", split.cutWord,
-                               reinterpret_cast<const char*>(second.c_str()));
-
-    ctx.composer.render(sketch::kit::page(
-        {.title = "Warichu",
-         .subtitle = "dials · the note's own size (8 px "
-                     "against a 13 px base) · the slot's "
-                     "baseline drop · the note's length, "
-                     "which is what decides the cut",
-         .footer = "the cut is the break opportunity that leaves "
-                   "the two lines CLOSEST IN ADVANCE — "
-                   "two lines of one length is what makes a note "
-                   "read as one object rather than as a line with "
-                   "something under it"},
-        kit::cells({.cells = {oneLineCell(), splitCell(), verticalCell(),
-                              readoutCell()},
-                    .gap = 14})));
-  }
-
-  /** The base sentence, with one inline slot in the middle of it. */
-  Element based(SkSize slot, Element child, bool vertical = false) {
-    Element leaf =
-        text(weave::rich()
-                 .add(u8"A warichu ")
-                 .slot("note", slot, kDrop)
-                 .add(u8" interrupts the line it stands in, rather than "
-                      u8"standing beside it."))
-            // Track nought: the page's running text is tracked; a serif is not.
-            .font({.face = serif(), .size = kBaseSize, .track = 0.0f})
-            .ink(kBody)
-            .width(kCell - 24)
-            // The band goes into the block's strut, so the base's own
-            // pitch opens to hold the note; the slot sets the note's type.
-            .children({box()
-                           .key("note")
-                           .fill(Fill::color(kSlot))
-                           .font(noteType())
-                           .children({std::move(child)})});
-    if (vertical) {
-      leaf.block({.writingMode = weave::WritingMode::kVerticalRL})
-          .width(kCell - 24)
-          .height(kPicture - 24);
-    }
-    return leaf;
-  }
-
-  /** The note set as ONE line, which is what the slot holds when nothing
-   *  splits it — and why a long aside interrupts so badly. */
-  Element oneLineCell() {
-    return sketch::kit::cell(
-        kSpecimen, "slot(\"note\", {one line, band})",
-        "the aside set as a single line · it takes the base's "
-        "whole measure and the line it interrupts has nowhere to go",
-        based({oneLine, kNoteSize * 1.4f}, text(kNote)));
-  }
-
-  /** The two lines, cut where the split said, stacked across the band it
-   *  asked for. */
-  Element splitCell() {
-    return sketch::kit::cell(
-        kSpecimen, "warichuSplit(fonts, note)",
-        "the same note in two lines of one length, in a slot the "
-        "split sized · the band opens the base's own pitch, "
-        "with no leading set by hand",
-        based({split.advance, split.band}, stackedNote()));
-  }
-
-  /** The same slot in a vertical base: the two lines stack ACROSS the
-   *  column, which is the setting the form comes from. */
-  Element verticalCell() {
-    return sketch::kit::cell(
-        kSpecimen,
-        "…"
-        " in a vertical base",
-        "the two lines stack across the column · the slot is "
-        "the same value and the writing mode is the base's",
-        based({split.band, split.advance}, stackedNote(true), true));
-  }
-
-  /** THE SLOT'S CHILD IS A POSITIONED SUBTREE — the placeholder rect is
-   *  its box and no flex layout runs inside it — so the two lines carry
-   *  their own rects rather than stacking in a column. */
-  Element stackedNote(bool vertical = false) {
-    const float half = split.band * 0.5f;
-    const auto row = [&](const std::u8string& words, float along) {
-      Element leaf = text(words).absolute();
-      // The band is ACROSS the column in a vertical setting, so the two
-      // lines stand side by side and each runs down the note's advance;
-      // in a horizontal base they stack across it.
-      return vertical
-                 ? kit::at(std::move(leaf), along, 0, half, split.advance)
-                       .block({.writingMode = weave::WritingMode::kVerticalRL})
-                 : std::move(leaf.left(0.0f).top(along).width(split.advance));
-    };
-    return box().children({row(first, 0), row(second, half)});
-  }
-
-  /** What the split answered, printed. */
-  Element readoutCell() {
-    const sketch::kit::Theme& sheet = sketch::kit::theme();
-    return sketch::kit::cell(
-        kSpecimen, "WarichuSplit{advance, band, cutWord}",
-        "what the split answered for this note at this size "
-        "· the caller cuts its own text at that word's start",
-        // The three numbers are set in one voice, on the column:
-        // the face a call is set in, at the figure colour.
-        box()
+    const sketch::kit::Provide look(sketch::kit::studyTheme());
+    sketch::kit::stage(ctx, {.size = {1100, 825}, .captureAt = 0.05});
+    const auto& sheet = sketch::kit::theme();
+    latin.measure(ctx, kNote,
+                  {.face = sketch::kit::houseFace(sketch::kit::Voice::Book),
+                   .size = 13,
+                   .color = sheet.palette.figure,
+                   .track = 0});
+    japanese.measure(
+        ctx, u8"小さな文字で二行に組む",
+        {.face = weave::ports::face(
+             {"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif CJK JP"}),
+         .size = 13,
+         .color = sheet.palette.figure,
+         .track = 0,
+         .language = "ja"},
+        true);
+    Element construction =
+        sketch::kit::well({.width = 328, .height = 234, .padding = 22})
             .column()
-            .gap(8)
-            .font({.face = sheet.type.mono, .size = 10})
-            .ink(sheet.palette.figure)
-            .children({each(report, [](const std::string& row) {
-              return text(row).width(kCell - 24);
-            })}));
+            .gap(22)
+            .children({text("THE TWO LINES").styleClass("eyebrow"),
+                       box()
+                           .width(latin.split.advance)
+                           .height(latin.split.band)
+                           .fill(Fill::color(kSlot))
+                           .children({latin.lines()}),
+                       text("The wider line sets the advance.\nThe pair shares "
+                            "one unbreakable slot.")
+                           .width(284)
+                           .styleClass("captionNote")});
+    Element vertical =
+        sketch::kit::well({.width = 328, .height = 234, .padding = 22})
+            .children(
+                {text(weave::rich()
+                          .add(u8"割注は")
+                          .slot("note",
+                                {japanese.split.advance, japanese.split.band})
+                          .add(u8"本文の途中に置く。"))
+                     .font({.face = japanese.type.face,
+                            .size = 24,
+                            .track = 0,
+                            .language = "ja"})
+                     .width(284)
+                     .height(190)
+                     .block({.writingMode = weave::WritingMode::kVerticalRL})
+                     .children({box()
+                                    .key("note")
+                                    .fill(Fill::color(kSlot))
+                                    .children({japanese.lines(true)})})});
+    Element reading =
+        sketch::kit::well({.width = 328, .height = 234, .padding = 22})
+            .column()
+            .gap(20)
+            .children(
+                {sketch::kit::readout(
+                     {{.name = "Single-line advance",
+                       .value = kit::formatted("%.1f px", latin.oneLine)},
+                      {.name = "Balanced advance",
+                       .value = kit::formatted("%.1f px", latin.split.advance)},
+                      {.name = "Two-line band",
+                       .value = kit::formatted("%.1f px", latin.split.band)},
+                      {.name = "Cut word",
+                       .value = kit::formatted("%u", latin.split.cutWord)}},
+                     {.measure = 284, .ruled = true}),
+                 text("Measured at 13 px. The note keeps its own size; the "
+                      "base is 23 px.")
+                     .width(284)
+                     .styleClass("captionNote")});
+    ctx.composer.render(sketch::kit::page(
+        {.title = "An aside inside the line",
+         .subtitle = "Warichu · one note, first in a single line and then "
+                     "balanced into two",
+         .footer =
+             "warichuSplit chooses the break with the closest advances. The "
+             "slot's band enters the paragraph's strut before wrapping."},
+        box().column().gap(30).children(
+            {sketch::kit::comparison(
+                 {.cases = {{.title = "ONE LONG INTERRUPTION",
+                             .control = "The note stays on one line",
+                             .figure = horizontal(latin, false),
+                             .note = "The wide slot spends most of the "
+                                     "sentence's measure."},
+                            {.title = "TWO BALANCED LINES",
+                             .control = "The same note · warichuSplit",
+                             .figure = horizontal(latin, true),
+                             .note = "A shorter advance leaves room for the "
+                                     "surrounding text."}},
+                  .measure = 1020,
+                  .gap = 18}),
+             sketch::kit::comparison(
+                 {.cases = {{.title = "HOW THE SLOT IS BUILT",
+                             .figure = std::move(construction)},
+                            {.title = "IN A VERTICAL BASE",
+                             .figure = std::move(vertical)},
+                            {.title = "THE MEASURED ANSWER",
+                             .figure = std::move(reading)}},
+                  .measure = 1020,
+                  .gap = 18})})));
   }
 };
 
 SIGIL_SKETCH(WarichuPlaceholder, "Kit · API",
-             "one aside set as a single line and then as two of one length "
-             "in the slot the split sized, in a horizontal base and in a "
-             "vertical one, with the numbers printed")
+             "a measured inline note before and after balancing, its two-line "
+             "construction, and a Japanese vertical setting")

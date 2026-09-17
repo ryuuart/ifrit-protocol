@@ -43,7 +43,8 @@ namespace {
 /** WHERE THE FIRST CHARACTER'S BASELINE SITS, down from the top of what the
  *  layout placed — the one number `Align::Baseline` reads off a text leaf.
  *
- *  A horizontal leaf answers with its first line's ascent. A VERTICAL leaf
+ *  A horizontal leaf includes the first line's offset from its content
+ *  origin, including room reserved before that line. A VERTICAL leaf
  *  HAS NO BASELINE: its reading axis is y, and a column's glyphs centre
  *  themselves ACROSS the axis instead of standing on one. It answers with
  *  its first character's own baseline all the same, because that is the
@@ -53,7 +54,7 @@ namespace {
 float textBaseline(const Instance& inst, const SkRect& bounds) {
   if (!inst.lines.empty()) {
     const sigil::weave::LineMetrics& first = inst.lines.front();
-    return first.baseline - first.rect().top();
+    return first.baseline - bounds.top();
   }
   if (inst.columns.empty()) return 0.0f;
   // Runs arrive in logical order, so the first one carrying glyphs holds the
@@ -284,6 +285,11 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
     bounds.join(line.rect());
   for (const sigil::weave::ColumnMetrics& column : inst.columns)
     bounds.join(column.rect());
+  // A positive first-line offset is room inside the leaf. The glyphs
+  // keep that offset when painted, so measuring only their span would
+  // let the final line protrude past the leaf and into its next sibling.
+  if (!vertical && !bounds.isEmpty())
+    bounds.fTop = std::min(bounds.top(), pad.top);
   // THE AXES SWAP. A horizontal passage grows along x and stacks on y; a
   // vertical one grows along y and stacks on x, so the same union answers
   // both — one column of type measures tall and one pitch wide.

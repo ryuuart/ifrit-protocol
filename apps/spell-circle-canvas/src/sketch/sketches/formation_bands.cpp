@@ -50,9 +50,9 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 788};
-constexpr float kCell = 340;
-constexpr float kPicture = 248;
+constexpr SkSize kCanvas = {1100, 940};
+constexpr float kCell = 328;
+constexpr float kPicture = 236;
 
 constexpr float kAmplitude = 11;   // the wave law's swing, px
 constexpr float kWavelength = 54;  // px per cycle of it
@@ -65,7 +65,7 @@ constexpr SkColor4f kBandEdge{0.95f, 0.62f, 0.30f, 1};
 
 /** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.type.captionLabel = {.size = 12, .track = 1.2f};
   look.spacing.captionGap = 8;
   return look;
@@ -98,19 +98,24 @@ SkPaint fillPaint(SkColor4f color) {
   return p;
 }
 
-Element cell(const char* call, const std::string& note,
-             std::function<void(SkCanvas&)> draw) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture, .clip = false},
-                        custom(call, [draw = std::move(draw)](
-                                         SkCanvas& canvas) { draw(canvas); })));
+sketch::kit::ComparisonCase cell(const char* title, const char* call,
+                                 const std::string& note,
+                                 std::function<void(SkCanvas&)> draw) {
+  return {.title = title,
+          .control = call,
+          .figure = sketch::kit::well(
+              {.width = kCell, .height = kPicture, .clip = false},
+              custom(call, [draw = std::move(draw)](
+                               SkCanvas& canvas) { draw(canvas); })),
+          .note = note};
 }
 
 /** ONE RAIL CELL: the spine under it, and @p law walked as a single rail
  *  over it. */
-Element railCell(const char* call, const std::string& note, path::Profile law) {
-  return cell(call, note, [law = std::move(law)](SkCanvas& canvas) {
+sketch::kit::ComparisonCase railCell(const char* title, const char* call,
+                                     const std::string& note,
+                                     path::Profile law) {
+  return cell(title, call, note, [law = std::move(law)](SkCanvas& canvas) {
     canvas.drawPath(spine(), strokePaint(kSpine, 1.2f));
     canvas.drawPath(path::profileOffset(spine(), law),
                     strokePaint(kFigure, 2.4f));
@@ -121,9 +126,10 @@ Element railCell(const char* call, const std::string& note, path::Profile law) {
  *  filled, then its own boundary drawn, because a band is a region and
  *  its two rails at once. The spine goes on TOP of it, since which side
  *  of the spine the mark took is the whole subject. */
-Element bandCell(const char* call, const char* note, path::Profile law,
-                 path::Formation how) {
-  return cell(call, note, [law = std::move(law), how](SkCanvas& canvas) {
+sketch::kit::ComparisonCase bandCell(const char* title, const char* call,
+                                     const char* note, path::Profile law,
+                                     path::Formation how) {
+  return cell(title, call, note, [law = std::move(law), how](SkCanvas& canvas) {
     const SkPath region = path::bandRegion(spine(), law, how);
     canvas.drawPath(region, fillPaint(kBandFill));
     canvas.drawPath(region, strokePaint(kBandEdge, 1.3f));
@@ -143,70 +149,63 @@ struct FormationBands {
         path::Profile(shapers::wave(kAmplitude, kWavelength));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "Formation bands",
-         .subtitle = "dials · the formation (Centered, "
-                     "Outward, Inward) · the amplitude "
-                     "(11 px) · the wavelength (54 px per "
-                     "cycle)",
-         .footer = "positive across is LEFT of travel, which on a "
-                   "clockwise path is outside it — so "
-                   "Outward and Inward are not a sign the caller "
-                   "picks but a side the formation names"},
-        kit::cells(
-            {.cells =
-                 {kit::cells(
-                      {.cells =
-                           {railCell(
-                                "profileOffset(spine, profile::self())",
-                                kit::formatted(
-                                    "across ≡ 0 · max() %.0f px — the "
-                                    "boundary itself, which is the law every "
-                                    "other law is measured against",
-                                    (double)path::profile::self().max()),
-                                path::profile::self()),
-                            railCell(
-                                "profileOffset(spine, profile::offset(15))",
-                                kit::formatted(
-                                    "across ≡ 15 · max() %.0f px · a "
-                                    "constant law delegates to parallel, so "
-                                    "the corners take an arc outside and a "
-                                    "miter inside",
-                                    (double)path::profile::offset(kRail).max()),
-                                path::profile::offset(kRail)),
-                            railCell(
-                                "profileOffset(spine, shapers::wave(11, 54))",
-                                kit::formatted(
-                                    "one rail of the wave law · max() %.0f "
-                                    "px, which is what bleed and cull are "
-                                    "sized from",
-                                    (double)wave.max()),
-                                wave)},
-                       .gap = 14}),
-                  kit::cells(
-                      {.cells = {bandCell(
-                                     "bandRegion(spine, wave, "
-                                     "Formation::Centered)",
-                                     "both rails at ±across, closed per "
-                                     "contour · a law that crosses zero "
-                                     "pinches the band shut wherever it does",
+        {.title = "From a rail to a band",
+         .subtitle = "One clockwise hexagon. First displace its outline; then "
+                     "choose which side becomes a region.",
+         .footer = "A formation names a side of the source contour, rather "
+                   "than asking the caller to guess a sign."},
+        box().column().gap(24).children(
+            {box()
+                 .row()
+                 .alignItems(Align::Start)
+                 .gap(18)
+                 .children(
+                     {box().column().gap(16).children(
+                          {sketch::kit::sectionHeader(
+                               {.label = "SOURCE CONTOUR",
+                                .note = "Every offset starts on this rail"}),
+                           sketch::kit::comparison(
+                               {.cases = {railCell("ZERO OFFSET",
+                                                   "profile::self()",
+                                                   "The warm outline is the "
+                                                   "origin of every offset.",
+                                                   path::profile::self())},
+                                .measure = 328,
+                                .gap = 18})}),
+                      box().column().gap(16).children(
+                          {sketch::kit::sectionHeader(
+                               {.label = "OFFSET PROFILES",
+                                .note = "A rail is one displaced outline"}),
+                           sketch::kit::comparison(
+                               {.cases = {railCell(
+                                              "CONSTANT", "profile::offset(15)",
+                                              "A constant 15 px offset follows "
+                                              "the outside of the hexagon.",
+                                              path::profile::offset(kRail)),
+                                          railCell("VARYING", "wave(11, 54)",
+                                                   "A wave varies the offset "
+                                                   "by up to 11 px.",
+                                                   wave)},
+                                .measure = 674,
+                                .gap = 18})})}),
+             sketch::kit::sectionHeader(
+                 {.label = "TURN THE PROFILE INTO A REGION",
+                  .note = "Blue: source spine · amber: filled band"}),
+             sketch::kit::comparison(
+                 {.cases = {bandCell("BOTH SIDES", "Formation::Centered",
+                                     "The region straddles the spine and "
+                                     "pinches where the width crosses zero.",
                                      wave, path::Formation::Centered),
-                                 bandCell("bandRegion(spine, wave, "
-                                          "Formation::Outward)",
-                                          "the spine (blue) is the INNER rail "
-                                          "· the whole mark stands outside the "
-                                          "figure it was measured from",
-                                          wave, path::Formation::Outward),
-                                 bandCell(
-                                     "bandRegion(spine, wave, "
-                                     "Formation::Inward)",
-                                     "the spine (blue) is the OUTER rail "
-                                     "· the mark falls entirely within the "
-                                     "figure, which is what a milled groove "
-                                     "wants",
+                            bandCell("OUTSIDE ONLY", "Formation::Outward",
+                                     "The blue spine is the inner rail. The "
+                                     "entire region sits outside.",
+                                     wave, path::Formation::Outward),
+                            bandCell("INSIDE ONLY", "Formation::Inward",
+                                     "The blue spine is the outer rail. The "
+                                     "entire region sits inside.",
                                      wave, path::Formation::Inward)},
-                       .gap = 14})},
-             .column = true,
-             .gap = 18})));
+                  .measure = 1020,
+                  .gap = 18})})));
   }
 };
 

@@ -11,8 +11,9 @@ import _sigil.skia
 import _sigil.weave
 from . import kit
 from . import layouts
+from . import selectors
 from . import spans
-__all__: list[str] = ['Align', 'Backface', 'Boundary', 'Cache', 'CellSpan', 'Composer', 'ComposerStats', 'Corners', 'Decoration', 'Dimension', 'Element', 'Fill', 'Fit', 'Justify', 'LayerStyle', 'MotionPath', 'PathFormat', 'Shadow', 'Shape', 'Spans', 'SurfacePaint', 'TextSettling', 'VarRef', 'autoDimension', 'box', 'graphics', 'heldPath', 'image', 'kit', 'layout', 'layouts', 'memo', 'pathFigure', 'pct', 'pen', 'ph', 'picture', 'positioned', 'pw', 'shadow', 'shape', 'slot', 'spans', 'stack', 'stroke', 'text', 'var']
+__all__: list[str] = ['Align', 'Backface', 'Boundary', 'Cache', 'CellSpan', 'Composer', 'ComposerStats', 'Corners', 'Decoration', 'Dimension', 'Element', 'Fill', 'Fit', 'Justify', 'LayerStyle', 'MotionPath', 'PathFormat', 'Shadow', 'Shape', 'Spans', 'SurfacePaint', 'TextPath', 'TextSettling', 'VarRef', 'autoDimension', 'box', 'frame', 'graphics', 'heldPath', 'image', 'kit', 'layout', 'layouts', 'memo', 'pathFigure', 'pct', 'pen', 'ph', 'picture', 'positioned', 'pw', 'selectors', 'shadow', 'shape', 'slot', 'spans', 'stack', 'stroke', 'text', 'var']
 
 class Align:
     """
@@ -586,6 +587,9 @@ class Element:
     def bakeScale(self, scale: typing.SupportsFloat) -> Element:
         ...
 
+    def balanceChain(self, throughLine: typing.SupportsInt=4294967295) -> Element:
+        ...
+
     def basis(self, value: _t.DimensionLike) -> Element:
         ...
 
@@ -653,16 +657,22 @@ class Element:
     def cover(self) -> Element:
         ...
 
+    def distribute(self, rule: _sigil.weave.FrameOptions.Distribute, maximumInterlineSpacing: typing.SupportsFloat=0.0) -> Element:
+        ...
+
     def echo(self, offset: _t.PointLike, ink: _t.ColorLike) -> Element:
         ...
 
     def effect(self, effect: _sigil.material.skia.Effect) -> Element:
         ...
 
-    def ellipsis(self, text: str) -> Element:
+    def ellipsis(self, marker: str) -> Element:
         ...
 
     def fill(self, value: _t.PaintLike) -> Element:
+        ...
+
+    def firstBaseline(self, rule: _sigil.weave.FrameOptions.FirstBaseline, offset: typing.SupportsFloat=0.0) -> Element:
         ...
 
     def flowAround(self, key: str, margin: typing.SupportsFloat=0.0) -> Element:
@@ -695,6 +705,9 @@ class Element:
     def hitTestable(self, enabled: bool) -> Element:
         ...
 
+    def initialLetter(self, initial: _sigil.weave.InitialLetter) -> Element:
+        ...
+
     def ink(self, value: _t.ElementInkLike) -> Element:
         ...
 
@@ -718,6 +731,9 @@ class Element:
     def left(self, value: _t.DimensionLike) -> Element:
         ...
 
+    def live(self, enabled: bool=True, candidates: typing.SupportsInt=0) -> Element:
+        ...
+
     @typing.overload
     def margin(self, all: _t.DimensionLike, /) -> Element:
         ...
@@ -733,7 +749,7 @@ class Element:
     def maxHeight(self, value: _t.DimensionLike) -> Element:
         ...
 
-    def maxLines(self, count: typing.SupportsInt) -> Element:
+    def maxLines(self, lines: typing.SupportsInt) -> Element:
         ...
 
     def maxWidth(self, value: _t.DimensionLike) -> Element:
@@ -743,6 +759,9 @@ class Element:
         ...
 
     def minWidth(self, value: _t.DimensionLike) -> Element:
+        ...
+
+    def onPath(self, path: TextPath) -> Element:
         ...
 
     def opacity(self, value: _t.ScalarLike) -> Element:
@@ -766,6 +785,14 @@ class Element:
     def padding(self, left: _t.DimensionLike, top: _t.DimensionLike, right: _t.DimensionLike, bottom: _t.DimensionLike, /) -> Element:
         ...
 
+    @typing.overload
+    def paragraphs(self, blocks: collections.abc.Sequence[_sigil.weave.ParagraphStyle]) -> Element:
+        ...
+
+    @typing.overload
+    def paragraphs(self, names: collections.abc.Sequence[str]) -> Element:
+        ...
+
     def perspective(self, value: _t.ScalarLike) -> Element:
         ...
 
@@ -779,6 +806,9 @@ class Element:
         ...
 
     def region(self, rect: _t.RectLike) -> Element:
+        ...
+
+    def reserve(self, band: _sigil.weave.ReservedBand) -> Element:
         ...
 
     def right(self, value: _t.DimensionLike) -> Element:
@@ -829,6 +859,17 @@ class Element:
     def skewY(self, value: _t.ScalarLike) -> Element:
         ...
 
+    def spanPaint(self, where: _sigil.weave.Selector, paint: _sigil.weave.PaintStyle) -> Element:
+        ...
+
+    @typing.overload
+    def spanStyle(self, where: _sigil.weave.Selector, style: _sigil.weave.TextStyle) -> Element:
+        ...
+
+    @typing.overload
+    def spanStyle(self, where: _sigil.weave.Selector, type: _sigil.weave.Type) -> Element:
+        ...
+
     def staggerChildren(self, seconds: typing.SupportsFloat, from_: str='start') -> Element:
         ...
 
@@ -855,7 +896,7 @@ class Element:
     def textStroke(self, width: typing.SupportsFloat, color: _t.ColorLike) -> Element:
         ...
 
-    def thread(self, name: str) -> Element:
+    def thread(self, key: str) -> Element:
         ...
 
     def threshold(self, threshold: typing.SupportsFloat) -> Element:
@@ -1321,6 +1362,148 @@ class SurfacePaint:
     def none(self) -> bool:
         ...
 
+class TextPath:
+
+    class Align:
+        """
+        Members:
+
+          Start
+
+          Center
+
+          End
+        """
+        Center: typing.ClassVar[TextPath.Align]
+        End: typing.ClassVar[TextPath.Align]
+        Start: typing.ClassVar[TextPath.Align]
+        __members__: typing.ClassVar[dict[str, TextPath.Align]]
+
+        def __eq__(self, other: builtins.object) -> bool:
+            ...
+
+        def __getstate__(self) -> int:
+            ...
+
+        def __hash__(self) -> int:
+            ...
+
+        def __index__(self) -> int:
+            ...
+
+        def __init__(self, value: typing.SupportsInt) -> None:
+            ...
+
+        def __int__(self) -> int:
+            ...
+
+        def __ne__(self, other: builtins.object) -> bool:
+            ...
+
+        def __repr__(self) -> str:
+            ...
+
+        def __setstate__(self, state: typing.SupportsInt) -> None:
+            ...
+
+        def __str__(self) -> str:
+            ...
+
+        @property
+        def name(self) -> str:
+            ...
+
+        @property
+        def value(self) -> int:
+            ...
+
+    class Orient:
+        """
+        Members:
+
+          Tangent
+
+          Radial
+
+          Upright
+        """
+        Radial: typing.ClassVar[TextPath.Orient]
+        Tangent: typing.ClassVar[TextPath.Orient]
+        Upright: typing.ClassVar[TextPath.Orient]
+        __members__: typing.ClassVar[dict[str, TextPath.Orient]]
+
+        def __eq__(self, other: builtins.object) -> bool:
+            ...
+
+        def __getstate__(self) -> int:
+            ...
+
+        def __hash__(self) -> int:
+            ...
+
+        def __index__(self) -> int:
+            ...
+
+        def __init__(self, value: typing.SupportsInt) -> None:
+            ...
+
+        def __int__(self) -> int:
+            ...
+
+        def __ne__(self, other: builtins.object) -> bool:
+            ...
+
+        def __repr__(self) -> str:
+            ...
+
+        def __setstate__(self, state: typing.SupportsInt) -> None:
+            ...
+
+        def __str__(self) -> str:
+            ...
+
+        @property
+        def name(self) -> str:
+            ...
+
+        @property
+        def value(self) -> int:
+            ...
+    align: TextPath.Align
+    autoFlip: bool
+    exactTangent: bool
+    orient: TextPath.Orient
+
+    def __init__(self, *, align: TextPath.Align=..., autoFlip: bool=..., exactTangent: bool=..., orient: TextPath.Orient=..., at: _t.ScalarLike=..., offset: typing.SupportsFloat=..., path: _t.ShapeLike=...) -> None:
+        ...
+
+    def copy(self) -> TextPath:
+        ...
+
+    @property
+    def at(self) -> _sigil.motion.Animatable:
+        ...
+
+    @at.setter
+    def at(self, value: _t.ScalarLike, /) -> None:
+        ...
+
+    @property
+    def offset(self) -> float:
+        ...
+
+    @offset.setter
+    def offset(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def path(self) -> Shape:
+        ...
+
+    @path.setter
+    def path(self, value: _t.ShapeLike, /) -> None:
+        ...
+
 class TextSettling:
 
     @property
@@ -1348,7 +1531,15 @@ class VarRef:
 def autoDimension() -> Dimension:
     ...
 
-def box() -> Element:
+@typing.overload
+def box(children: collections.abc.Iterable[Element], /) -> Element:
+    ...
+
+@typing.overload
+def box(*children: Element) -> Element:
+    ...
+
+def frame(story: _sigil.weave.Story) -> Element:
     ...
 
 def graphics(key: str, program: _t.DrawCallback, cache: Cache=...) -> Element:
@@ -1361,27 +1552,11 @@ def image(image: _sigil.skia.Image, fit: Fit=...) -> Element:
     ...
 
 @typing.overload
-def layout(scheme: layouts.Radial) -> Element:
+def layout(scheme: layouts.Grid | layouts.Radial | layouts.Diagonal | layouts.BaselineGrid | layouts.Jittered | layouts.AlongPath, *children: Element) -> Element:
     ...
 
 @typing.overload
-def layout(scheme: layouts.Grid) -> Element:
-    ...
-
-@typing.overload
-def layout(scheme: layouts.Diagonal) -> Element:
-    ...
-
-@typing.overload
-def layout(scheme: layouts.BaselineGrid) -> Element:
-    ...
-
-@typing.overload
-def layout(scheme: layouts.Jittered) -> Element:
-    ...
-
-@typing.overload
-def layout(scheme: layouts.AlongPath) -> Element:
+def layout(scheme: layouts.Grid | layouts.Radial | layouts.Diagonal | layouts.BaselineGrid | layouts.Jittered | layouts.AlongPath, children: collections.abc.Iterable[Element], /) -> Element:
     ...
 
 def memo[Model](properties: Model, describe: collections.abc.Callable[[Model], Element]) -> Element:
@@ -1402,7 +1577,12 @@ def ph(percent: typing.SupportsFloat) -> Dimension:
 def picture(picture: _sigil.skia.Picture, width: typing.SupportsFloat, height: typing.SupportsFloat) -> Element:
     ...
 
-def positioned() -> Element:
+@typing.overload
+def positioned(children: collections.abc.Iterable[Element], /) -> Element:
+    ...
+
+@typing.overload
+def positioned(*children: Element) -> Element:
     ...
 
 def pw(percent: typing.SupportsFloat) -> Dimension:
@@ -1417,7 +1597,12 @@ def shape(value: _t.ShapeLike) -> Shape:
 def slot(name: str) -> Element:
     ...
 
-def stack() -> Element:
+@typing.overload
+def stack(children: collections.abc.Iterable[Element], /) -> Element:
+    ...
+
+@typing.overload
+def stack(*children: Element) -> Element:
     ...
 
 def stroke(width: typing.SupportsFloat, paint: _t.SurfacePaintLike | None=None, align: PathFormat.Align=...) -> PathFormat:
@@ -1425,6 +1610,10 @@ def stroke(width: typing.SupportsFloat, paint: _t.SurfacePaintLike | None=None, 
 
 @typing.overload
 def text(value: str, style: _sigil.weave.TextStyle) -> Element:
+    ...
+
+@typing.overload
+def text(content: _sigil.weave.RichText) -> Element:
     ...
 
 @typing.overload

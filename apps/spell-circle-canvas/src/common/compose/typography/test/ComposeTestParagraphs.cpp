@@ -67,6 +67,50 @@ std::vector<float> baselinesOf(Host& host, const char* key) {
 
 // ── The block controls, through the leaf ─────────────────────────────────
 
+TEST(ComposeParagraphs, ReservedBeforeBelongsToTheMeasuredLeaf) {
+  const auto render = [](Host& host, float before) {
+    host.composer.render(box().column().padding(10).children(
+        {text(u8"First line\nSecond line\nThird line", whiteStyle(18))
+             .key("passage")
+             .width(200)
+             .reserve({.before = before}),
+         box().key("next").width(200).height(10).fill(red())}));
+    host.frame();
+  };
+  Host plain(260, 300), reserved(260, 300);
+  render(plain, 0);
+  render(reserved, 14);
+  const auto bare = plain.composer.bounds("passage");
+  const auto withRoom = reserved.composer.bounds("passage");
+  const auto next = reserved.composer.bounds("next");
+  ASSERT_TRUE(bare && withRoom && next);
+  const auto lines = reserved.composer.units(
+      "passage", sigil::weave::selectors::each(sigil::weave::Unit::Line),
+      sigil::weave::Unit::Line);
+  ASSERT_EQ(lines.size(), 3u);
+  EXPECT_NEAR(withRoom->height() - bare->height(), 14 * lines.size(), 1.0f);
+  EXPECT_GE(withRoom->bottom() + 0.01f, lines.back().rect.bottom());
+  EXPECT_GE(next->top() + 0.01f, lines.back().rect.bottom());
+}
+
+TEST(ComposeParagraphs, ReservedBeforeParticipatesInBaselineAlignment) {
+  Host host(300, 160);
+  host.composer.render(box()
+                           .row()
+                           .alignItems(Align::Baseline)
+                           .gap(20)
+                           .children({text(u8"A", whiteStyle(20)).key("plain"),
+                                      text(u8"A", whiteStyle(20))
+                                          .key("reserved")
+                                          .reserve({.before = 14})}));
+  host.frame();
+  const auto plain = baselinesOf(host, "plain");
+  const auto reserved = baselinesOf(host, "reserved");
+  ASSERT_EQ(plain.size(), 1u);
+  ASSERT_EQ(reserved.size(), 1u);
+  EXPECT_NEAR(plain.front(), reserved.front(), 0.01f);
+}
+
 TEST(ComposeParagraphs, ABlockStyleOpensThePitchTheLeafSetsIt) {
   Host plain(360, 300);
   plain.composer.render(

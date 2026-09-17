@@ -68,20 +68,17 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kSceneSize{1180, 620};
+constexpr SkSize kSceneSize{1180, 930};
 
 constexpr float kMargin = 56;
-constexpr float kGutter = 30;
-constexpr float kCell = (kSceneSize.fWidth - 2 * kMargin - 2 * kGutter) / 3;
-constexpr float kSpecimen = 38;
-constexpr float kBodyH = 78;
+constexpr float kSpecimen = 29;
+constexpr float kBodyH = 100;
 
 /// Seconds per pass of the shared phase.
 constexpr double kPeriod = 3.0;
 
 constexpr SkColor4f kGround{0.043f, 0.043f, 0.058f, 1};
 constexpr SkColor4f kBone{0.930f, 0.920f, 0.890f, 1};
-constexpr SkColor4f kAsh{0.540f, 0.540f, 0.590f, 1};
 constexpr SkColor4f kFaint{0.540f, 0.540f, 0.590f, 0.28f};
 constexpr SkColor4f kAccent{0.980f, 0.360f, 0.250f, 1};
 /// Where `fx::tint` wipes FROM. The specimen is set in kAccent, its
@@ -123,8 +120,10 @@ sk_sp<SkTypeface> graded() {
  *  context's own face, and one voice for every cell — the call over the
  *  specimen, what it deviates under it. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
-  look.palette = {.ground = kGround, .ink = kBone, .ash = kAsh, .rule = kFaint};
+  sketch::kit::Theme look = sketch::kit::studyTheme();
+  look.palette.ground = kGround;
+  look.palette.ink = kBone;
+  look.palette.rule = kFaint;
   look.type.captionLabel = {.size = 12, .track = 0.8f};
   look.spacing.marginX = kMargin;
   look.spacing.marginTop = kMargin - 12;
@@ -181,17 +180,19 @@ struct KineticCard {
    *  cascade, captioned with the call that made it. The meter is not here
    *  — it is drawn over the whole composition, because `beatsOf` answers
    *  in the composer's space. */
-  Element cell(const Row& row) {
-    return sketch::kit::caption(kCell, row.call, row.note,
-                                box().width(kCell).height(kBodyH).children(
-                                    {text(row.word)
-                                         .styleClass("specimen")
-                                         .font(row.over)
-                                         .key(row.key)
-                                         .width(kCell)
-                                         .fx({.effect = row.effect,
-                                              .stagger = kCascade,
-                                              .progress = &phase})}));
+  sketch::kit::ComparisonCase cell(const Row& row, float width) {
+    return {.title = row.word,
+            .control = row.call,
+            .figure = box().width(width).height(kBodyH).padding(4, 22).children(
+                {text(row.word)
+                     .styleClass("specimen")
+                     .font(row.over)
+                     .key(row.key)
+                     .width(width - 8)
+                     .fx({.effect = row.effect,
+                          .stagger = kCascade,
+                          .progress = &phase})}),
+            .note = row.note};
   }
 
   Element describe(sketch::SketchContext& ctx) {
@@ -224,7 +225,7 @@ struct KineticCard {
          "coverage only, no displacement",
          "TYPE ON", fx::typeOn()},
         {"axis",
-         "fx::variableAxisSweep(\"GRAD\", 400, 1000)",
+         "GRAD axis · 400 → 1000",
          "a grade swept at draw time; advance-invariant, so nothing moves",
          "AXIS SWEEP",
          fx::variableAxisSweep("GRAD", 400, 1000),
@@ -246,24 +247,40 @@ struct KineticCard {
          "WAVE LOOP", fx::waveLoop(0.10f, 0.5f)},
     };
 
-    std::vector<Element> shelves;
-    for (int r = 0; r < 3; ++r) {
-      std::vector<Element> run;
-      for (int c = 0; c < 3; ++c) run.push_back(cell(kRows[r * 3 + c]));
-      shelves.push_back(kit::cells({.cells = std::move(run), .gap = kGutter}));
-    }
-
+    std::vector<sketch::kit::ComparisonCase> moving;
+    for (int i = 0; i < 5; ++i) moving.push_back(cell(kRows[i], 200));
+    std::vector<sketch::kit::ComparisonCase> stationary;
+    for (int i = 5; i < 8; ++i) stationary.push_back(cell(kRows[i], 340));
     Element sheet = sketch::kit::page(
-        {.title = u8"Text in motion",
-         .subtitle = u8"nine presets, one cascade, one wrapping "
-                     u8"phase — and each one's own "
-                     u8"schedule drawn under it",
-         .footer = u8"rise · slide · pop · "
-                   u8"spinIn · scatter move their glyphs; "
-                   u8"typeOn · variableAxisSweep · "
-                   u8"tint touch coverage, an outline and colour "
-                   u8"and leave every pen position alone"},
-        kit::cells({.cells = std::move(shelves), .column = true, .gap = 34}));
+        {.title = "A vocabulary of moving type",
+         .subtitle = "Nine presets on one three-second clock · each meter "
+                     "reads the glyph's actual share of the cascade",
+         .footer = "Each entrance spans its own word, so half a cycle means "
+                   "half a cascade. The grade axis changes outlines without "
+                   "changing advances."},
+        box().column().gap(26).children(
+            {text("01 / MOVE THE GLYPHS").styleClass("section"),
+             sketch::kit::comparison(
+                 {.cases = std::move(moving), .measure = 1068, .gap = 17}),
+             text("02 / KEEP THE PEN POSITIONS").styleClass("section"),
+             sketch::kit::comparison(
+                 {.cases = std::move(stationary), .measure = 1068, .gap = 24}),
+             text("03 / KEEP MOVING").styleClass("section"),
+             box().row().gap(28).children(
+                 {sketch::kit::comparison(
+                      {.cases = {cell(kRows[8], 340)}, .measure = 340}),
+                  box().width(480).column().gap(16).children(
+                      {text("READING THE CASCADE").styleClass("section"),
+                       text("A full meter means that glyph has completed its "
+                            "beat. A partial meter marks a glyph in motion; an "
+                            "empty one is still waiting.")
+                           .width(440)
+                           .styleClass("captionNote"),
+                       text("The wave reads the shared clock as a loop. It "
+                            "changes neither the entrance schedule nor the "
+                            "positions chosen by paragraph layout.")
+                           .width(440)
+                           .styleClass("captionNote")})})}));
 
     Element root = stack()
                        .styleSheet(sheetClasses())

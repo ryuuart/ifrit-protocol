@@ -11,6 +11,7 @@ from _sigil import (
     sketch,
     skia,
     weave,
+    world,
 )
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "sketch",
     "skia",
     "weave",
+    "world",
 ]

@@ -35,6 +35,7 @@
 
 // TAGS: Geometry/Points
 
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
@@ -42,7 +43,7 @@
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <algorithm>
 #include <cmath>
@@ -59,7 +60,7 @@ namespace material = sigil::material;
 
 namespace {
 
-constexpr SkSize kCanvas = {1240, 720};
+constexpr SkSize kCanvas = {1240, 780};
 constexpr int kPieces = 64;
 
 /** A four-stop ramp walked in OKLab, at a lightness multiplier. @p f
@@ -87,31 +88,28 @@ glm::vec4 oklabRamp(float f, float value) {
 struct PopPrims {
   mesh::Mesh facets, baked, pieces;
 
-  void draw(SkCanvas& canvas) const {
-    const camera::Camera view{
-        .eye = {0, 210, 900}, .target = {0, 0, 0}, .fovYDeg = 42};
-
-    // No view-dependent term at all: 1 and 2 must be comparable.
-    const render::MeshStyle flat{.baseColor = {1, 1, 1, 1},
-                                 .ambient = {0.34f, 0.34f, 0.38f, 1},
-                                 .specular = 0,
-                                 .rim = 0};
-
-    render::MeshStyle lane = flat;
-    lane.primitiveColorLane = "Color";
-    render::drawMesh(canvas, facets, camera::place({-380, 10, 0}, 0, -28), view,
-                     kCanvas, lane);
-
-    render::drawMesh(canvas, baked, camera::place({0, 10, 0}, 0, -28), view,
-                     kCanvas, flat);
-
-    render::MeshStyle stamped = lane;
-    stamped.ambient = {0.9f, 0.9f, 0.95f, 1};
-    render::drawMesh(canvas, pieces, camera::place({380, 10, 0}), view, kCanvas,
-                     stamped);
+  Element figure(const char* key, const mesh::Mesh& subject, bool primitiveLane,
+                 bool stamps = false) const {
+    return sketch::kit::well(
+        {.width = 372, .height = 360},
+        custom(key, [subject, primitiveLane, stamps](SkCanvas& canvas,
+                                                     const PaintContext& pc) {
+          const camera::Camera view{
+              .eye = {0, 210, 900}, .target = {0, 0, 0}, .fovYDeg = 42};
+          render::MeshStyle style{.baseColor = {1, 1, 1, 1},
+                                  .ambient = {0.34f, 0.34f, 0.38f, 1},
+                                  .specular = 0,
+                                  .rim = 0};
+          if (primitiveLane) style.primitiveColorLane = "Color";
+          if (stamps) style.ambient = {0.9f, 0.9f, 0.95f, 1};
+          render::drawMesh(canvas, subject,
+                           camera::place({}, 0, stamps ? 0 : -28), view,
+                           pc.size, style);
+        }));
   }
 
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide look(sketch::kit::studyTheme());
     sketch::kit::stage(ctx,
                        {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
                         .captureAt = 1.0,
@@ -157,11 +155,65 @@ struct PopPrims {
       }
     }
 
-    // Keyed on the sink's own name: everything `draw` reads is cooked
-    // above, in this setup, and nothing after it moves.
-    ctx.composer.render(custom("pop.primitives", [this](SkCanvas& canvas) {
-                          draw(canvas);
-                        }).inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = "Colour belongs to a triangle",
+         .subtitle = "A primitive lane, its vertex-only equivalent, and the "
+                     "identity carried by each stamped piece",
+         .footer = "The first two views share the mesh, camera and flat "
+                   "lighting. Baking duplicates vertices so neighbouring "
+                   "triangles can retain different colours."},
+        box().column().gap(22).children(
+            {sketch::kit::comparison(
+                 {.cases = {{.title = "NATIVE PRIMITIVE LANE",
+                             .control = "primitiveColorLane = Color",
+                             .figure = figure("primitive.native", facets, true),
+                             .note = "Two triangles share points but carry "
+                                     "different brightness values."},
+                            {.title = "BAKED INTO VERTICES",
+                             .control = "bakePrimitiveColor(Color)",
+                             .figure = figure("primitive.baked", baked, false),
+                             .note = "The same appearance, expressed through "
+                                     "per-vertex colour."},
+                            {.title = "IDENTITY PER PIECE",
+                             .control = "promote(Id) → stamps(quad)",
+                             .figure =
+                                 figure("primitive.pieces", pieces, true, true),
+                             .note = "Each stamped point gives all of its "
+                                     "triangles the same Id."}},
+                  .measure = 1160,
+                  .gap = 22}),
+             sketch::kit::comparison(
+                 {.cases = {{.figure = sketch::kit::readout(
+                                           {{.name = "Vertices",
+                                             .value = kit::formatted(
+                                                 "%zu", facets.vertexCount())},
+                                            {.name = "Triangles",
+                                             .value = kit::formatted(
+                                                 "%zu",
+                                                 facets.triangleCount())}},
+                                           {.nameMeasure = 88})
+                                           .width(372)},
+                            {.figure = sketch::kit::readout(
+                                           {{.name = "Vertices",
+                                             .value = kit::formatted(
+                                                 "%zu", baked.vertexCount())},
+                                            {.name = "Triangles",
+                                             .value = kit::formatted(
+                                                 "%zu",
+                                                 baked.triangleCount())}},
+                                           {.nameMeasure = 88})
+                                           .width(372)},
+                            {.figure = sketch::kit::readout(
+                                           {{.name = "Pieces",
+                                             .value =
+                                                 kit::formatted("%d", kPieces)},
+                                            {.name = "Triangles",
+                                             .value =
+                                                 kit::formatted("%zu", pieces.triangleCount())}},
+                                           {.nameMeasure = 88})
+                                           .width(372)}},
+                  .measure = 1160,
+                  .gap = 22})})));
   }
 };
 

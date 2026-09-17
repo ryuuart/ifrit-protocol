@@ -294,9 +294,10 @@ struct LayoutInput {
    *  A text leaf's is its longest unbreakable run, measured at a nil
    *  width; its height is left at the measured one, because the height of
    *  a paragraph set one word to a line is not a minimum anybody wants.
-   *  Everything else answers with its measured size, which is the
-   *  honest floor for a box compose cannot ask to be narrower: layout
-   *  measures once and never re-describes a child at a proposed width.
+   *  Everything else answers with its measured size; a scheme does not
+   *  re-describe a box or infer a smaller intrinsic size for it. Text's
+   *  wrapped extent is remeasured at the scheme's placed reading measure
+   *  before content-sized tracks settle.
    *
    *  EMPTY unless the scheme asked for it, since the text minimum costs a
    *  measure per text child. A scheme asks by declaring

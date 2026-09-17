@@ -87,20 +87,23 @@ compose::Element titleCard(const TitleCard& card) {
 
 compose::Element sectionHeader(const SectionHeader& header) {
   const Theme& look = theme();
+  Element column = box().column().shrink(0);
   Element row =
       box().row().alignItems(Align::Center).gap(look.spacing.labelGap);
   if (!header.label.empty())
-    row.children({text(header.label,
-                       look.style(look.type.section, look.palette.ink))});
-  // The rule is what GROWS, so the label stays at the left and the note at
-  // the right however wide the header is given.
-  Element between = box().grow(1).height(1).alignSelf(Align::Center);
-  if (header.ruled) between.fill(Fill::color(look.palette.rule));
-  row.children({std::move(between)});
+    row.children(
+        {text(header.label, look.style(look.type.section, look.palette.ink))});
+  if (header.ruled)
+    row.children(
+        {box().grow(1).height(1).fill(Fill::color(look.palette.rule))});
+  if (!header.label.empty() || header.ruled) column.children({std::move(row)});
   if (!header.note.empty())
-    row.children({text(header.note,
-                       look.style(look.type.captionNote, look.palette.ash))});
-  return row;
+    column.children(
+        {text(header.note, look.style(look.type.captionNote, look.palette.ash))
+             .maxWidth(look.type.captionNote.size * 36)
+             .margin(0, header.label.empty() ? 0 : look.spacing.captionNoteGap,
+                     0, 0)});
+  return column;
 }
 
 }  // namespace sigil::sketch::kit

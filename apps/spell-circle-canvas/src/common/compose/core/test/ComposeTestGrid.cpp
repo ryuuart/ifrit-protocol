@@ -4,6 +4,7 @@
 
 #include <sigilcompose/core/Grid.h>
 
+#include <array>
 #include <limits>
 #include <memory>
 
@@ -311,14 +312,9 @@ TEST(ComposeGrid, ASchemeThatAsksIsToldHowNarrowItsTextChildrenCanGo) {
   Host host(300, 200);
   const Recorder recorder;
   host.composer.render(box().absolute().inset(0).children(
-      {layout(recorder)
-           .absolute()
-           .left(0.0f)
-           .top(0.0f)
-           .width(200.0f)
-           .children(
-               {text(u8"one two three four five six seven eight", styleAt(12))
-                    .width(200.0f)})}));
+      {layout(recorder).absolute().left(0.0f).top(0.0f).width(200.0f).children(
+          {text(u8"one two three four five six seven eight", styleAt(12))
+               .width(200.0f)})}));
   host.frame();
   ASSERT_EQ(recorder.seen->childMinSizes.size(), 1u);
   // The narrowest the paragraph goes is one word, and it was measured at
@@ -379,6 +375,321 @@ TEST(ComposeGrid, AGridEmbeddedInAColumnTakesItsHeightFromWhatItPlaced) {
   host.frame();
   EXPECT_FLOAT_EQ(require(host.composer.bounds("grid")).height(), 60);
   EXPECT_FLOAT_EQ(require(host.composer.bounds("grid")).width(), 300);
+}
+
+TEST(ComposeGrid, AStretchedGridContributesToItsContentSizedRow) {
+  Host host(500, 600);
+  const auto tree = [](float siblingHeight, float figureHeight) {
+    return box().column().gap(20).children(
+        {box().key("row").row().gap(20).children(
+             {layout(Grid{.columns = {layouts::fr()},
+                          .rows = {layouts::px(figureHeight)}})
+                  .key("grid")
+                  .width(300)
+                  .children({box().key("figure").fill(red())}),
+              box().width(100).height(siblingHeight)}),
+         box().key("following").height(20)});
+  };
+  for (const auto [siblingHeight, figureHeight, expected] :
+       {std::array{80.0f, 240.0f, 240.0f}, std::array{320.0f, 240.0f, 320.0f},
+        std::array{80.0f, 120.0f, 120.0f}}) {
+    host.composer.render(tree(siblingHeight, figureHeight));
+    host.frame();
+    EXPECT_FLOAT_EQ(require(host.composer.bounds("grid")).height(), expected);
+    EXPECT_FLOAT_EQ(require(host.composer.bounds("row")).height(), expected);
+    EXPECT_FLOAT_EQ(require(host.composer.bounds("figure")).height(),
+                    figureHeight);
+    EXPECT_FLOAT_EQ(require(host.composer.bounds("following")).top(),
+                    expected + 20);
+  }
+}
+
+TEST(ComposeGrid, AStretchedGridKeepsItsParentsExplicitHeight) {
+  Host host(500, 400);
+  host.composer.render(box().column().gap(20).children(
+      {box().row().height(80).children(
+           {layout(Grid{.columns = {layouts::fr()}, .rows = {layouts::px(240)}})
+                .key("grid")
+                .width(300)
+                .children({box().key("figure").fill(red())})}),
+       box().key("following").height(20)}));
+  host.frame();
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("grid")).height(), 80);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("figure")).height(), 240);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("following")).top(), 100);
+}
+
+TEST(ComposeGrid, AStretchedGridsNaturalExtentRespectsItsOwnMaximum) {
+  Host host(500, 600);
+  const auto tree = [](float siblingHeight) {
+    return box().column().gap(20).children(
+        {box().key("row").row().gap(20).children(
+             {layout(
+                  Grid{.columns = {layouts::fr()}, .rows = {layouts::px(240)}})
+                  .key("grid")
+                  .width(300)
+                  .maxHeight(100)
+                  .children({box().key("figure").fill(red())}),
+              box().width(100).height(siblingHeight)}),
+         box().key("following").height(20)});
+  };
+  for (const float siblingHeight : {80.0f, 320.0f, 80.0f}) {
+    host.composer.render(tree(siblingHeight));
+    host.frame();
+    const float rowHeight = std::max(100.0f, siblingHeight);
+    EXPECT_FLOAT_EQ(require(host.composer.bounds("grid")).height(), 100);
+    EXPECT_FLOAT_EQ(require(host.composer.bounds("row")).height(), rowHeight);
+    EXPECT_FLOAT_EQ(require(host.composer.bounds("figure")).height(), 240);
+    EXPECT_FLOAT_EQ(require(host.composer.bounds("following")).top(),
+                    rowHeight + 20);
+  }
+}
+
+TEST(ComposeGrid, AMaximumBoundsAContentSizedRowWithoutFixingItsHeight) {
+  Host host(500, 600);
+  for (const float maximum : {500.0f, 100.0f, 500.0f}) {
+    host.composer.render(box().column().gap(20).children(
+        {box().key("row").row().maxHeight(maximum).children(
+             {layout(
+                  Grid{.columns = {layouts::fr()}, .rows = {layouts::px(240)}})
+                  .key("grid")
+                  .width(300)
+                  .children({box().key("figure").fill(red())}),
+              box().width(100).height(80)}),
+         box().key("following").height(20)}));
+    host.frame();
+    const float expected = std::min(maximum, 240.0f);
+    EXPECT_FLOAT_EQ(require(host.composer.bounds("grid")).height(), expected);
+    EXPECT_FLOAT_EQ(require(host.composer.bounds("row")).height(), expected);
+    EXPECT_FLOAT_EQ(require(host.composer.bounds("figure")).height(), 240);
+    EXPECT_FLOAT_EQ(require(host.composer.bounds("following")).top(),
+                    expected + 20);
+  }
+}
+
+TEST(ComposeGrid, AContentSizedRowsMinimumCanStretchAShorterGrid) {
+  Host host(500, 600);
+  host.composer.render(box().column().gap(20).children(
+      {box().key("row").row().minHeight(200).maxHeight(500).children(
+           {layout(Grid{.columns = {layouts::fr()}, .rows = {layouts::px(120)}})
+                .key("grid")
+                .width(300)
+                .children({box().key("figure").fill(red())}),
+            box().width(100).height(80)}),
+       box().key("following").height(20)}));
+  host.frame();
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("grid")).height(), 200);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("row")).height(), 200);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("figure")).height(), 120);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("following")).top(), 220);
+}
+
+TEST(ComposeGrid, AParentsMaximumLeavesRoomForItsPaddingAndTheGridMargin) {
+  Host host(500, 600);
+  host.composer.render(box().column().gap(20).children(
+      {box()
+           .key("row")
+           .row()
+           .maxHeight(100)
+           .padding(0, 10, 0, 10)
+           .children({layout(Grid{.columns = {layouts::fr()},
+                                  .rows = {layouts::px(240)}})
+                          .key("grid")
+                          .width(300)
+                          .margin(0, 5, 0, 5)
+                          .children({box().key("figure").fill(red())}),
+                      box().width(100).height(60)}),
+       box().key("following").height(20)}));
+  host.frame();
+  const SkRect grid = require(host.composer.bounds("grid"));
+  EXPECT_FLOAT_EQ(grid.top(), 15);
+  EXPECT_FLOAT_EQ(grid.height(), 70);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("row")).height(), 100);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("following")).top(), 120);
+}
+
+TEST(ComposeGrid, AMaximumBoundsAContentSizedColumnWithoutFixingItsWidth) {
+  Host host(600, 500);
+  for (const float maximum : {500.0f, 100.0f, 500.0f}) {
+    host.composer.render(
+        box()
+            .row()
+            .alignItems(Align::Start)
+            .gap(20)
+            .children({box().key("column").column().maxWidth(maximum).children(
+                           {layout(Grid{.columns = {layouts::px(240)},
+                                        .rows = {layouts::fr()}})
+                                .key("grid")
+                                .height(300)
+                                .children({box().key("figure").fill(red())}),
+                            box().width(80).height(100)}),
+                       box().key("following").width(20).height(20)}));
+    host.frame();
+    const float expected = std::min(maximum, 240.0f);
+    EXPECT_FLOAT_EQ(require(host.composer.bounds("grid")).width(), expected);
+    EXPECT_FLOAT_EQ(require(host.composer.bounds("column")).width(), expected);
+    EXPECT_FLOAT_EQ(require(host.composer.bounds("figure")).width(), 240);
+    EXPECT_FLOAT_EQ(require(host.composer.bounds("following")).left(),
+                    expected + 20);
+  }
+}
+
+TEST(ComposeGrid, AMaximumPassesThroughNestedStretchedRows) {
+  Host host(500, 600);
+  host.composer.render(box().column().gap(20).children(
+      {box()
+           .key("outer")
+           .row()
+           .maxHeight(100)
+           .padding(0, 10, 0, 10)
+           .children({box()
+                          .key("inner")
+                          .row()
+                          .padding(0, 5, 0, 5)
+                          .children({layout(Grid{.columns = {layouts::fr()},
+                                                 .rows = {layouts::px(240)}})
+                                         .key("grid")
+                                         .width(300)
+                                         .children({box().fill(red())}),
+                                     box().width(100).height(20)})}),
+       box().key("following").height(20)}));
+  host.frame();
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("grid")).height(), 70);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("inner")).height(), 80);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("outer")).height(), 100);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("following")).top(), 120);
+}
+
+TEST(ComposeGrid, TextWrapsAtItsResolvedTrackWidthBeforeRowsAreSized) {
+  Host host(500, 600);
+  const auto paragraph = [] {
+    return text(
+        u8"One measured paragraph should wrap within the track that "
+        "holds it and leave the following row below all of its lines.",
+        styleAt(16));
+  };
+  host.composer.render(box().column().gap(20).children(
+      {layout(Grid{.columns = {layouts::fr(), layouts::fr()},
+                   .rows = {layouts::content(), layouts::content()},
+                   .gap = {20, 12}})
+           .key("grid")
+           .row()
+           .alignItems(Align::Start)
+           .children({paragraph().key("paragraph").shrink(0).cells(0, 0),
+                      box().height(18).cells(1, 0),
+                      box().key("nextRow").height(20).cells(0, 1)}),
+       box().key("following").height(20)}));
+  float previousHeight = 0;
+  for (const float viewport : {500.0f, 300.0f}) {
+    host.composer.setSize({viewport, 600});
+    host.frame();
+    const SkRect textBounds = require(host.composer.bounds("paragraph"));
+    const float measure = (viewport - 20) / 2;
+    EXPECT_FLOAT_EQ(textBounds.width(), measure);
+    EXPECT_GT(textBounds.height(), previousHeight);
+    EXPECT_GE(require(host.composer.bounds("nextRow")).top(),
+              textBounds.bottom() + 12);
+    EXPECT_GE(require(host.composer.bounds("following")).top(),
+              require(host.composer.bounds("grid")).bottom() + 20);
+    Host reference(500, 600);
+    reference.composer.render(
+        box().children({paragraph().key("reference").width(measure)}));
+    reference.frame();
+    EXPECT_NEAR(textBounds.height(),
+                require(reference.composer.bounds("reference")).height(),
+                0.25f);
+    previousHeight = textBounds.height();
+  }
+}
+
+TEST(ComposeGrid, TextWrapsAtItsBoundedWidthBeforeRowsAreSized) {
+  const auto paragraph = [] {
+    return text(
+        "One paragraph wraps at its own bounds even when the grid track "
+        "offers a different width. Every line belongs above the next row.",
+        styleAt(16));
+  };
+  for (const bool maximum : {true, false}) {
+    const float trackWidth = maximum ? 240 : 80;
+    const float expectedWidth = maximum ? 100 : 140;
+    Element bounded = paragraph().key("paragraph").shrink(0).cells(0, 0);
+    if (maximum)
+      bounded.maxWidth(expectedWidth);
+    else
+      bounded.minWidth(expectedWidth);
+    Host host(500, 600);
+    host.composer.render(
+        layout(Grid{.columns = {layouts::px(trackWidth)},
+                    .rows = {layouts::content(), layouts::content()},
+                    .gap = {0, 12}})
+            .row()
+            .alignItems(Align::Start)
+            .children({std::move(bounded),
+                       box().key("following").height(20).cells(0, 1)}));
+    host.frame();
+    Host reference(500, 600);
+    reference.composer.render(
+        box().children({paragraph().key("reference").width(expectedWidth)}));
+    reference.frame();
+    const SkRect actual = require(host.composer.bounds("paragraph"));
+    EXPECT_FLOAT_EQ(actual.width(), expectedWidth);
+    EXPECT_NEAR(actual.height(),
+                require(reference.composer.bounds("reference")).height(),
+                0.25f);
+    EXPECT_NEAR(require(host.composer.bounds("following")).top(),
+                actual.bottom() + 12, 0.25f);
+  }
+}
+
+TEST(ComposeGrid, ACustomSchemeCanReturnFewerRectsAfterTextReflow) {
+  struct ReflowSensitive {
+    std::shared_ptr<bool> shortened = std::make_shared<bool>(false);
+    std::vector<SkRect> place(const LayoutInput& in) const {
+      if (in.childSizes.front().height() > 40) {
+        *shortened = true;
+        return {};
+      }
+      return {SkRect::MakeWH(60, in.childSizes.front().height())};
+    }
+  };
+  Host host(500, 400);
+  const ReflowSensitive scheme;
+  host.composer.render(
+      layout(scheme)
+          .row()
+          .alignItems(Align::Start)
+          .children(
+              {text(u8"A sentence becomes several lines at the proposed width.",
+                    styleAt(16))
+                   .shrink(0)}));
+  host.frame();
+  EXPECT_TRUE(*scheme.shortened);
+}
+
+TEST(ComposeGrid, WrappedTextKeepsItsDeclaredExtentBounds) {
+  Host host(400, 400);
+  host.composer.render(
+      layout(Grid{.columns = {layouts::px(160), layouts::px(160)},
+                  .rows = {layouts::content(), layouts::content()},
+                  .gap = {20, 12}})
+          .row()
+          .alignItems(Align::Start)
+          .children(
+              {text("Short", styleAt(16))
+                   .key("minimum")
+                   .minHeight(90)
+                   .cells(0, 0),
+               text("A long paragraph whose many words would need more than "
+                    "one line when placed within a narrow track.",
+                    styleAt(16))
+                   .key("maximum")
+                   .maxHeight(30)
+                   .cells(1, 0),
+               box().key("following").height(20).cells(0, 1)}));
+  host.frame();
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("minimum")).height(), 90);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("maximum")).height(), 30);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("following")).top(), 102);
 }
 
 TEST(ComposeGrid, RepeatTrackIsNCopiesOfOneTrack) {

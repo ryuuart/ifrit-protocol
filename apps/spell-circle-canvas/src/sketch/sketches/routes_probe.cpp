@@ -1,34 +1,9 @@
 /** @file
- * routes_probe — the two questions a composer answers about the tree it
- * has already drawn.
- *
- * `routesAt(nodeKey)` is the edge store's BACK-INDEX: the keys of every
- * `connector()` and `rail()` anchored on that node, in tree order. It is
- * the graph query — which edges touch this node — that a hover highlight
- * or a pruned update needs, and it exists because the routes were
- * resolved against layout geometry the author never held. Keyless routes
- * are anchored but unaddressable, so they are simply absent: give a
- * route a key to see it here.
- *
- * `profile()` is the per-node companion to `stats()`. Where the stats say
- * the tree is re-rasterising, a profile row says WHICH node is doing it
- * and, through `promotionReason`, what refused it a bake. Every refusal
- * names a condition under which a bake would produce different pixels,
- * which is the one thing promotion may never do. The five probes here
- * each wear one such property, and both the reason and the refusal mask
- * are read off the composer rather than written down: the verdict is a
- * FIRST MATCH, so a cheap node reports `Cheap` however many other
- * conditions also refuse it, and the mask under it is all of them.
- *
- * Neither query answers before the frame it describes has been drawn, so
- * the diagram is composed on a composer of its own, drawn once onto a
- * scratch surface, and asked there; the sheet prints what came back
- * beside the same diagram described again.
- *
- * EDIT THESE FIRST
- *   kProbe — the node whose routes are listed.
- *   The five probe nodes' verdicts: rotate, opacity, Cache::None and
- *   Cache::Texture are what earn four of the five reasons.
+ * Connectivity and cache decisions read from a composed diagram.
+ * routesAt() lists keyed edges anchored to a node in tree order. profile()
+ * reports the cache state, first promotion reason and complete refusal mask
+ * for each selected node. The queries run on a separate composer after its
+ * first draw; the displayed timings are deliberately omitted from plates.
  */
 
 // TAGS: Geometry/Diagrams
@@ -59,7 +34,7 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 470};
+constexpr SkSize kCanvas = {1100, 760};
 constexpr float kDiagram = 330;
 constexpr float kPicture = 300;
 constexpr float kNode = 74;
@@ -89,11 +64,14 @@ constexpr const char* kStateWords[] = {"Live",     "Picture",  "Texture",
 }  // namespace
 
 struct RoutesProbe {
-  std::vector<std::string> routes;    // what routesAt() answered
-  std::vector<std::string> verdicts;  // one line per probe, from profile()
+  std::vector<std::string> routes;  // what routesAt() answered
+  struct Verdict {
+    std::string key, state, reason, refusals;
+  };
+  std::vector<Verdict> verdicts;
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sketch::kit::specimenTheme());
+    const sketch::kit::Provide look(sketch::kit::studyTheme());
     // the readouts are taken before the sheet is built
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -124,11 +102,9 @@ struct RoutesProbe {
             if (!refused.empty()) refused += ", ";
             refused += kPromotionWords[bit];
           }
-          verdicts.push_back(row.label + "  ·  " +
-                             kStateWords[(size_t)row.cacheState] + "\n      " +
-                             Composer::promotionReason(row.promotion) +
-                             "\n      refusals · " +
-                             (refused.empty() ? std::string("none") : refused));
+          verdicts.push_back({key, kStateWords[(size_t)row.cacheState],
+                              Composer::promotionReason(row.promotion),
+                              refused.empty() ? "none" : refused});
           break;
         }
 
@@ -226,52 +202,44 @@ struct RoutesProbe {
   }
 
   Element sheetFor() const {
-    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
-    constexpr float kList = 260;
-    constexpr float kTable = 430;
+    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
+    Element costs = box().column().gap(12).width(560).children(
+        {each(verdicts, [](const Verdict& row) {
+          return sketch::kit::well({.width = 560, .padding = 16})
+              .row()
+              .gap(20)
+              .children({box().width(108).column().gap(8).children(
+                             {text(row.key).styleClass("captionLabel"),
+                              text(row.state).styleClass("readout")}),
+                         box().width(400).column().gap(8).children(
+                             {text(row.reason).width(400),
+                              text("Refusals: " + row.refusals)
+                                  .width(400)
+                                  .styleClass("captionNote")})});
+        })});
     return sketch::kit::page(
-               {.title = "Routes and costs",
-                .subtitle = "dials · the probed node (\"hub\") "
-                            "· which routes carry a key · "
-                            "the property each probe wears: rotate, "
-                            "opacity, Cache::None, Cache::Texture",
-                .footer = "a profile row's reason names a condition "
-                          "under which a bake would produce DIFFERENT "
-                          "pixels — which is the one thing "
-                          "promotion may never do, and the reason an "
-                          "expensive node stays live"},
-               kit::cells({.cells = {sketch::kit::caption(
-                                         kDiagram,
-                                         "connector(from, to, router)"
-                                         ".key(…)",
-                                         "four routes on one hub · "
-                                         "three carry keys and the fourth "
-                                         "does not",
-                                         diagram()),
-                                     sketch::kit::caption(
-                                         kList, "composer.routesAt(\"hub\")",
-                                         "in tree order · the keyless "
-                                         "route is anchored and drawn, and "
-                                         "not in this list",
-                                         lines(routes, kList,
-                                               "— nothing yet: the "
-                                               "first describe has not been "
-                                               "drawn")),
-                                     sketch::kit::caption(
-                                         kTable,
-                                         "composer.profile() → "
-                                         "label · cacheState · "
-                                         "promotionReason",
-                                         "each probe looked up by its own key "
-                                         "· the milliseconds are on "
-                                         "these same rows and are not printed, "
-                                         "because a plate that carries a "
-                                         "timing differs from itself",
-                                         lines(verdicts, kTable,
-                                               "— empty until a frame "
-                                               "has been drawn with profiling "
-                                               "on"))},
-                           .gap = 18}))
+               {.title = "Ask the tree what happened",
+                .subtitle =
+                    "A route query describes connectivity. A profile describes "
+                    "why each drawn node kept its cache state.",
+                .footer = "Both queries run after a frame is drawn. The reason "
+                          "is the first matching condition; the refusal mask "
+                          "includes every matching condition."},
+               box().row().gap(32).children(
+                   {box().column().gap(18).width(kDiagram).children(
+                        {sketch::kit::sectionHeader(
+                             {.label = "CONNECTIVITY", .note = "hub"}),
+                         diagram(),
+                         text("routesAt(\"hub\")").styleClass("readout"),
+                         lines(routes, kDiagram, "No keyed routes"),
+                         text("The route to live is drawn but has no key, so "
+                              "it cannot appear in the addressable route list.")
+                             .width(kDiagram)}),
+                    box().column().gap(18).width(560).children(
+                        {sketch::kit::sectionHeader(
+                             {.label = "CACHE VERDICTS",
+                              .note = "composer.profile()"}),
+                         std::move(costs)})}))
         .styleSheet(sheetClasses(sketch::kit::theme()));
   }
 };

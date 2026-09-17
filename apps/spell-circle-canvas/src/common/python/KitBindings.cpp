@@ -223,7 +223,10 @@ template <class Scheme>
 void layoutFunction(py::module_& compose) {
   compose.def(
       "layout",
-      [](Scheme scheme) { return sigil::compose::layout(std::move(scheme)); },
+      [](Scheme scheme, py::args children) {
+        return sigil::compose::layout(std::move(scheme))
+            .children(elements(children));
+      },
       py::arg("scheme"));
 }
 

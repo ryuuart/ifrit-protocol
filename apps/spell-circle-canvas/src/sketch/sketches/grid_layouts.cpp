@@ -15,8 +15,8 @@
  * leaves at three different sizes rather than boxes: a box has no
  * baseline and falls back to its bottom edge.
  *
- * Read the third cell against its own rules. The cards are 11, 14 and
- * 18 px in turn and the rhythm is one distance, so the letters sit on
+ * Read the third cell against its own rules. The cards are 12, 16 and
+ * 20 px in turn and the rhythm is one distance, so the letters sit on
  * the drawn lines while the plates behind them do not line up at all.
  *
  * EDIT THESE FIRST
@@ -44,10 +44,10 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 622};
-constexpr float kCell = 332;
-constexpr float kPicture = 430;
-constexpr float kInset = 12;
+constexpr SkSize kCanvas = {1100, 760};
+constexpr float kCell = 328;
+constexpr float kPicture = 424;
+constexpr float kInset = 20;
 
 constexpr int kColumns = 3;  // the module the first cell is cut into
 constexpr int kRows = 4;
@@ -59,7 +59,7 @@ constexpr SkColor4f kCard{0.17f, 0.18f, 0.21f, 1};
 
 /** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.type.captionLabel = {.size = 11, .mono = true};
   look.spacing.captionGap = 8;
   return look;
@@ -69,12 +69,12 @@ sketch::kit::Theme sheetTheme() {
  *  every scheme is handed a real first baseline; the three sizes cycle so
  *  the baseline rhythm has something to correct. */
 std::vector<Element> cards() {
-  static constexpr float kSizes[3] = {11, 14, 18};
+  static constexpr float kSizes[3] = {12, 16, 20};
   const sketch::kit::Theme& look = sketch::kit::theme();
   return each(12, [&look](int i) {
-    return text((i < 9 ? "0" : "") + std::to_string(i + 1),
+    return text((i < 9 ? "0" : "") + std::to_string(i + 1) + " Aa",
                 look.mono(kSizes[i % 3], look.palette.figure))
-        .padding(8, 4, 8, 4)
+        .padding(8, 3, 8, 3)
         .fill(Fill::color(kCard));
   });
 }
@@ -82,18 +82,19 @@ std::vector<Element> cards() {
 /** The rhythm the third cell snaps to, drawn so the reader can see which
  *  line each card's letters landed on. */
 Element rhythmLines() {
-  return kit::ladder({.count = (int)(kPicture / kRhythm),
+  return kit::ladder({.count = 13,
                       .pitch = kRhythm,
-                      .fill = Fill::color(sketch::kit::theme().palette.rule)});
+                      .fill = Fill::color(sketch::kit::theme().palette.rule)})
+      .absolute()
+      .left(kInset)
+      .top(kInset)
+      .width(kCell - 2 * kInset);
 }
 
-Element cell(const char* call, const char* note, Element placed,
-             bool ruled = false) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture})
-          .children({ruled ? rhythmLines() : box(),
-                     placed.inset(kInset).children(cards())}));
+Element specimen(Element placed, bool ruled = false) {
+  return sketch::kit::well({.width = kCell, .height = kPicture, .padding = 0})
+      .children({ruled ? rhythmLines() : box(),
+                 placed.inset(kInset).children(cards())});
 }
 
 }  // namespace
@@ -105,40 +106,45 @@ struct GridLayouts {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "Grid layouts",
-         .subtitle = "dials · the module (3 columns "
-                     "× 4 rows, 10 px gutter) · the "
-                     "baseline rhythm (32 px) · the shear "
-                     "(−12°) · the same "
-                     "twelve cards in all three",
-         .footer = "a scheme is arithmetic over LayoutInput, so "
-                   "each of these caches like any other static "
-                   "subtree — and only BaselineGrid "
-                   "reads childBaselines, which a box does not "
-                   "have"},
-        kit::cells(
-            {.cells =
-                 {cell("Grid: 3 columns x 4 rows",
-                       "the card is SIZED to its cell · twelve "
-                       "with no spans auto-flow one module each, "
-                       "left to right then down",
-                       layout(layouts::Grid{
-                           .columns =
-                               layouts::repeatTrack(kColumns, layouts::fr()),
-                           .rows = layouts::repeatTrack(kRows, layouts::fr()),
-                           .gap = {kGutter, kGutter}})),
-                  cell("layouts::Diagonal{-12, 6}",
-                       "measured sizes kept · x tracks the shear "
-                       "line at each row's y, and the run is shifted so "
-                       "nothing lands at negative x",
-                       layout(
-                           layouts::Diagonal{.skewDeg = kSkewDeg, .gap = 6})),
-                  cell("layouts::BaselineGrid{32}",
-                       "each card falls to the next 32 px line by its "
-                       "own FIRST BASELINE · three type sizes, "
-                       "one rhythm",
-                       layout(layouts::BaselineGrid{.rhythm = kRhythm}), true)},
-             .gap = 16})));
+        {.title = "Three ways to place twelve cards",
+         .subtitle = "The same text leaves at 12, 16 and 20 px · resize the "
+                     "cells, shear a stack, or align the baselines",
+         .footer = "The baseline rules share the layout's origin. Letters land "
+                   "on the rules; the card edges need not align."},
+        box().column().gap(26).children(
+            {sketch::kit::comparison(
+                 {.cases =
+                      {{.title = "FILL THE MODULE",
+                        .control = "3 columns × 4 rows · 10 px gutters",
+                        .figure = specimen(layout(layouts::Grid{
+                            .columns =
+                                layouts::repeatTrack(kColumns, layouts::fr()),
+                            .rows = layouts::repeatTrack(kRows, layouts::fr()),
+                            .gap = {kGutter, kGutter}})),
+                        .note = "Every card takes its cell's width and height. "
+                                "Type size stays unchanged."},
+                       {.title = "FOLLOW A SHEAR",
+                        .control = "−12° · 6 px between cards",
+                        .figure = specimen(layout(
+                            layouts::Diagonal{.skewDeg = kSkewDeg, .gap = 6})),
+                        .note = "Measured sizes stay intact. Each left edge "
+                                "follows the same sloping line."},
+                       {.title = "SHARE A BASELINE RHYTHM",
+                        .control = "32 px pitch · mixed type sizes",
+                        .figure = specimen(
+                            layout(layouts::BaselineGrid{.rhythm = kRhythm}),
+                            true),
+                        .note =
+                            "Each first baseline moves down to the next rule. "
+                            "The spacing absorbs the difference in size."}},
+                  .measure = 1020,
+                  .gap = 18}),
+             sketch::kit::readout(
+                 {{.name = "Input", .value = "12 measured text leaves"},
+                  {.name = "Grid changes", .value = "position + extent"},
+                  {.name = "Diagonal / baseline change",
+                   .value = "position only"}},
+                 {.measure = 501, .ruled = true})})));
   }
 };
 

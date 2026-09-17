@@ -1,38 +1,9 @@
 /** @file
- * encode_write — the same pixels through each encoder, and out through
- * the hub that owns where bytes go.
- *
- * `encodeImage` hands BYTES back and nothing else. What the bytes mean,
- * where they land, under what name and through which mount is
- * SigilIO's concern, and the two are separate on purpose: the
- * encoder never looks at a filename, and `Hub::write` never looks at the
- * content. This sheet is one call of each, in that order.
- *
- * `quality` is honoured by the lossy formats alone, and WebP's 100 is
- * not "lossy at maximum": it selects the format's LOSSLESS mode, which
- * is a different codec inside the same container, because a caller
- * asking for everything wants the one that keeps everything. PNG is
- * lossless at every setting and ignores the number.
- *
- * The pixmap overload encodes the pixels EXACTLY as they are given, so
- * the colour type is the caller's; the image overload reads back at the
- * depth the format wants — premultiplied N32 for the LDR formats, RGBA
- * float for EXR — which is why a float image written as PNG is
- * tone-independent eight-bit. Asking for a PNG is asking for that.
- *
- * A format with no encoder in the build simply fails to encode, the same
- * way a format with no decoder fails to decode, so the cells print what
- * came back rather than assuming it did.
- *
- * `Hub::write` stores through the same mount table a read resolves by,
- * makes the directories above the file, and DROPS every cached view of
- * that URI so the next ask reads the file back instead of serving what
- * was there before.
- *
- * EDIT THESE FIRST
- *   kLossy — the quality the lossy cells ask for.
- *   kSide — the side of the source image, px.
- *   kMount — the prefix the written bytes are stored under.
+ * One source image encoded as PNG, lossless WebP, lossy WebP and JPEG.
+ * Each picture is decoded from the encoded bytes and its size is measured.
+ * The separate transaction writes PNG bytes through a mounted Hub, then
+ * reads them as an image. Encoding chooses representation; the Hub resolves
+ * and invalidates resource views.
  */
 
 // TAGS: Media/Images
@@ -63,9 +34,9 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 400};
-constexpr float kCell = 166;
-constexpr float kPicture = 176;
+constexpr SkSize kCanvas = {1100, 700};
+constexpr float kCell = 189.6f;
+constexpr float kPicture = 190;
 
 constexpr int kLossy = 24;  // the quality the lossy cells ask for
 constexpr int kSide = 176;  // the source image's side, px
@@ -95,27 +66,24 @@ sk_sp<SkImage> source() {
   return surface->makeImageSnapshot();
 }
 
-Element cell(const char* call, const char* note, sk_sp<SkImage> picture,
-             const std::string& readout) {
-  Element art = image(std::move(picture), Fit::Stretch);
-  const sketch::kit::Theme& sheet = sketch::kit::theme();
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture})
-          .children({std::move(art).inset(0),
-                     text(readout)
-                         .styleClass("readout")
-                         .left(6.0f)
-                         .top(6.0f)
-                         .padding(4, 2)
-                         .fill(Fill::color({0, 0, 0, 0.55f}))}));
+sketch::kit::ComparisonCase encoded(const char* title, const char* control,
+                                    sk_sp<SkImage> picture, size_t bytes) {
+  return {.title = title,
+          .control = control,
+          .figure = sketch::kit::well(
+              {.width = kCell,
+               .height = kPicture,
+               .content = sketch::kit::Well::Content{}},
+              picture ? image(picture).width(kSide).height(kSide)
+                      : text("Encoder unavailable").width(kCell - 24)),
+          .note = kit::formatted("%zu bytes", bytes)};
 }
 
 }  // namespace
 
 struct EncodeWrite {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
+    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
     // every encode has already been taken
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -157,54 +125,60 @@ struct EncodeWrite {
                        wrote ? "true" : "false", read ? "true" : "false",
                        read ? read->width() : 0, read ? read->height() : 0);
 
+    Element codecs = sketch::kit::comparison(
+        {.cases =
+             {{.title = "SOURCE",
+               .control = "176 × 176 · N32",
+               .figure =
+                   sketch::kit::well({.width = kCell,
+                                      .height = kPicture,
+                                      .content = sketch::kit::Well::Content{}},
+                                     image(art).width(kSide).height(kSide)),
+               .note = "Fine rules, a smooth ramp and a hard circular edge."},
+              encoded("PNG", "Lossless", png, pngBytes),
+              encoded("WEBP", "quality = 100 · lossless", webpLossless,
+                      losslessBytes),
+              encoded("WEBP", "quality = 24 · lossy", webpLossy, lossyBytes),
+              encoded("JPEG", "quality = 24 · lossy", jpeg, jpegBytes)},
+         .measure = 1020,
+         .gap = 18});
+
+    Element transaction = box().row().gap(28).children(
+        {sketch::kit::well({.width = 150,
+                            .height = 150,
+                            .content = sketch::kit::Well::Content{}},
+                           image(read && !read->frames().empty()
+                                     ? read->frames().front().image
+                                     : nullptr)
+                               .width(132)
+                               .height(132)),
+         box().column().gap(12).width(390).children(
+             {text("WRITE THE ENCODED BYTES").styleClass("captionLabel"),
+              text("encodeImage → Hub::write → Hub::image")
+                  .styleClass("readout"),
+              text(uri).styleClass("captionNote"),
+              text("The file is read back through the same mount. Encoding "
+                   "chooses the representation; the hub chooses its "
+                   "destination.")
+                  .width(390)}),
+         sketch::kit::well({.width = 424, .height = 150, .padding = 20})
+             .column()
+             .gap(16)
+             .children({text("READ AFTER WRITE").styleClass("captionLabel"),
+                        text(written).styleClass("readout").width(384),
+                        text("Writing invalidates the URI's cached views.")
+                            .width(384)})});
+
     ctx.composer.render(sketch::kit::page(
-        {.title = "Encode, then write",
-         .subtitle = "dials · the format · the quality the "
-                     "lossy ones honour (24) · the source's side "
-                     "(176 px) · the mount the bytes are stored "
-                     "under",
-         .footer = "the encoder hands bytes back and never looks at "
-                   "a filename; the hub stores them through the "
-                   "same mount table a read resolves by and drops "
-                   "every cached view of that URI, so the next ask "
-                   "reads the file"},
-        kit::cells(
-            {.cells =
-                 {cell("the source pixels",
-                       "a smooth ramp under hard edges and fine detail "
-                       "· the pair of things the lossy codecs "
-                       "disagree about",
-                       art, kit::formatted("N32 premul · %d×%d", kSide, kSide)),
-                  cell("encodeImage(art, Png)",
-                       "lossless at every setting, and the quality is "
-                       "ignored · the bytes decode back to the "
-                       "pixels that went in",
-                       png, kit::formatted("png · %zu bytes", pngBytes)),
-                  cell("Webp, quality 100",
-                       "100 selects the LOSSLESS codec rather than lossy "
-                       "at maximum · two codecs in one container, "
-                       "and this is the one that keeps everything",
-                       webpLossless,
-                       kit::formatted("webp · %zu bytes", losslessBytes)),
-                  cell("Webp, quality 24",
-                       "the same container, the other codec · the "
-                       "ramp survives and the fine rules go soft",
-                       webpLossy,
-                       kit::formatted("webp · %zu bytes", lossyBytes)),
-                  cell("Jpeg, quality 24",
-                       "the quantisation quality · the blocks are "
-                       "the codec's own, and they land where the edges "
-                       "are",
-                       jpeg, kit::formatted("jpeg · %zu bytes", jpegBytes)),
-                  cell("hub.write(uri, bytes)",
-                       "the bytes out through the mount table, then "
-                       "asked back for as an image · the write "
-                       "dropped the cached view, so this is the file",
-                       read && !read->frames().empty()
-                           ? read->frames().front().image
-                           : nullptr,
-                       written)},
-             .gap = 10})));
+        {.title = "What the encoder keeps",
+         .subtitle = "One source, four decoded results. Compare the fine edges "
+                     "before reading the byte counts.",
+         .footer = "PNG ignores quality. WebP at 100 selects its lossless "
+                   "codec; lower values select lossy compression."},
+        box().column().gap(30).children(
+            {std::move(codecs),
+             sketch::kit::sectionHeader({.label = "FROM PIXELS TO A FILE"}),
+             std::move(transaction)})));
   }
 };
 

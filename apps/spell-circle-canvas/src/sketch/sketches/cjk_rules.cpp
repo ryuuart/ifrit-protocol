@@ -1,190 +1,145 @@
 /** @file
- * cjk_rules — the four tables a Japanese column is set under, on one
- * passage, one at a time.
- *
- * None of them is a rule the engine holds. WHICH characters may not stand
- * at a line's edge, HOW FAR a mark may hang outside the measure, and HOW
- * MUCH room stands between two full-width characters are decisions, and
- * decisions are the caller's — so each arrives as DATA the layout asks
- * for and has no opinion about. `weave::kit` ships stock tables and a
- * house's own table is a peer of them.
- *
- * A TAILORING COMES FIRST. Segmentation runs under a locale, and a locale
- * that names its line-break rules — the strict Japanese ones a printed
- * page is set under — already refuses most of the boundaries a kinsoku
- * table would forbid. The table is what a house adds ON TOP: one more
- * character it refuses to open a line with. That is why the locale cell
- * stands beside the table cell rather than under it — and why the two of
- * them, and the kinsoku cell, are the same picture as the reference on
- * this passage. The segmentation had already refused every boundary they
- * would have.
- *
- * `hanging` is burasagari here: the sentence marks alone, at a line's END,
- * as a fraction of their own advance — so a column squares optically
- * rather than on its advances. It is the LINE EDGE and has nothing to do
- * with a hanging indent.
- *
- * `mojikumi` reads the class of the character BEFORE a gap and the class
- * of the one after it, and nearly every entry of a real table is NEGATIVE:
- * an opening bracket carries its ink in its right half and a closing one
- * in its left, so two back to back leave a full em of white between two
- * marks that are each half air. `tsume` closes the gap after every
- * full-width character the table gives no class of its own, on top of
- * that. Both apply where two characters meet across a break opportunity.
- *
- * EDIT THESE FIRST
- *   kSize — the body size, px.
- *   kBracketRoom — the em fraction a closing/opening pair closes up by.
- *   kTsume — the em fraction every other full-width gap closes up by.
+ * Japanese composition at three boundaries: a house prohibition, a
+ * punctuation mark at the measure, and the white inside bracket pairs.
+ * Locale tailoring already forbids common punctuation starts. The extra
+ * prohibition here deliberately adds an ideograph so its effect is visible.
  */
-
 // TAGS: Typography/CJK
 
 #include <sigilcompose/core/Core.h>
-#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/kit/LineTables.h>
 #include <sigilweave/layout/LayoutOptions.h>
 #include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
 
-#include <cstddef>
 #include <utility>
 
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
-
 using namespace sigil::compose;
 
 namespace {
+constexpr SkColor4f kInk{0.88f, 0.89f, 0.92f, 1};
+constexpr float kSize = 22;
 
-constexpr SkSize kCanvas = {1100, 402};
-constexpr float kCell = 163;
-constexpr float kPicture = 148;
-
-constexpr float kSize = 13;            // the body size, px
-constexpr float kBracketRoom = -0.5f;  // an em fraction: brackets close up
-constexpr float kTsume = -0.12f;       // …and every other full-width gap
-
-constexpr SkColor4f kBody{0.88f, 0.88f, 0.90f, 1};
-
-/** The passage's own register: a mincho face tagged `ja`, so the face's
- *  Japanese behaviour is what shapes it. */
-weave::TextStyle body() {
-  const sk_sp<SkTypeface> face = weave::ports::face(
-      {"Hiragino Mincho ProN", "Yu Mincho", "Songti SC", "Noto Serif CJK JP"});
-  weave::TextStyle style = weave::textStyle({.size = kSize, .color = kBody});
-  style.shaping.typeface = face;
-  style.shaping.languageTag = "ja";
-  return style;
+weave::Type mincho(float size = kSize) {
+  return {.face = weave::ports::face(
+              {"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif CJK JP"}),
+          .size = size,
+          .color = kInk,
+          .track = 0,
+          .language = "ja"};
 }
 
-/** A table of the one pair that matters most: a closing mark followed by
- *  an opening one, whose two half-air cells otherwise leave a full em of
- *  white between them. */
-weave::MojikumiTable brackets(float room) {
+weave::MojikumiTable brackets() {
   weave::MojikumiTable table;
-  table.members[static_cast<size_t>(weave::MojikumiClass::kOpening)] = u"（「";
+  table.members[static_cast<size_t>(weave::MojikumiClass::kOpening)] = u"「（";
   table.members[static_cast<size_t>(weave::MojikumiClass::kClosing)] = u"）」";
-  table.members[static_cast<size_t>(weave::MojikumiClass::kFullStop)] = u"。";
-  table.members[static_cast<size_t>(weave::MojikumiClass::kComma)] = u"、";
   table.room[static_cast<size_t>(weave::MojikumiClass::kClosing)]
-            [static_cast<size_t>(weave::MojikumiClass::kOpening)] = room;
-  table.room[static_cast<size_t>(weave::MojikumiClass::kFullStop)]
-            [static_cast<size_t>(weave::MojikumiClass::kOpening)] = room;
-  // A closing mark carries its ink in its left half, so the gap after it
-  // is air whatever follows.
-  table.room[static_cast<size_t>(weave::MojikumiClass::kClosing)]
-            [static_cast<size_t>(weave::MojikumiClass::kIdeograph)] = room;
+            [static_cast<size_t>(weave::MojikumiClass::kOpening)] = -0.5f;
   return table;
 }
 
-/** The one passage, set the same way in every cell: it carries brackets,
- *  a reading mark and two sentence marks, so each table has something to
- *  act on. */
-Element column() {
-  return text(
-             u8"「組版」「行送り」の禁則は、行頭に句読点を置かない。"
-             u8"約物の空きは詰め、行末には句点をぶら下げる。",
-             body())
-      .width(kCell - 24)
-      .height(kPicture - 24)
-      .block({.writingMode = weave::WritingMode::kVerticalRL});
+Element column(const char8_t* copy, float depth) {
+  return text(copy).font(mincho()).width(112).height(depth).block(
+      {.writingMode = weave::WritingMode::kVerticalRL,
+       .lineBreakLocale = "ja"});
 }
 
-/** The plate every specimen on this sheet stands on, and the
- *  measure its caption is set to. */
-const sketch::kit::Cell kSpecimen{
-    .plate = {.width = kCell, .height = kPicture, .padding = 12}};
+Element paired(Element before, Element after, float depth) {
+  const auto& look = sketch::kit::theme();
+  const auto sample = [&](const char* label, Element body) {
+    return box().column().gap(16).width(132).children(
+        {text(label).styleClass("captionNote"),
+         box().width(132).height(156).children(
+             {box().absolute().left(8).top(depth).width(116).height(1).fill(
+                  Fill::color(look.palette.figure)),
+              std::move(body).absolute().left(10).top(0)})});
+  };
+  return sketch::kit::well({.width = 328, .height = 226, .padding = 20})
+      .children({box().row().gap(24).children(
+          {sample("REFERENCE", std::move(before)),
+           sample("WITH THE RULE", std::move(after))})});
+}
 
+Element tracking(bool tightened) {
+  return sketch::kit::well({.width = 501, .height = 104, .padding = 20})
+      .children({text(u8"文字の間に流れる白い空間")
+                     .font(mincho(26))
+                     .width(461)
+                     .block({.lineBreakLocale = "ja",
+                             .mojikumi = brackets(),
+                             .tsume = tightened ? -0.12f : 0.0f})});
+}
 }  // namespace
 
 struct CjkRules {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
-    // nothing moves; the sheet is complete at once
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
-
+    const sketch::kit::Provide look(sketch::kit::studyTheme());
+    sketch::kit::stage(ctx, {.size = {1100, 810}, .captureAt = 0.05});
+    weave::KinsokuTable house = weave::kit::kinsoku::japanese();
+    house.notLineStart += u"組";
     ctx.composer.render(sketch::kit::page(
-        {.title = "The Japanese tables",
-         .subtitle = "dials · the body size (13 px) · "
-                     "the bracket room and the tsume, as em "
-                     "fractions · the locale the "
-                     "segmentation runs under",
-         .footer = "every one of these is DATA the layout asks for "
-                   "and holds no opinion about — which "
-                   "marks a house forbids, hangs or closes up is a "
-                   "decision, and a caller's own table is a peer "
-                   "of the stock one"},
-        kit::cells(
-            {.cells =
-                 {sketch::kit::cell(
-                      kSpecimen, "writingMode(VerticalRL)",
-                      "the passage with no table at all · the "
-                      "reference every other cell is read against",
-                      column()),
-                  sketch::kit::cell(
-                      kSpecimen, "kinsoku(japanese)",
-                      "the closing marks and non-starters may not "
-                      "OPEN a column · identical to the "
-                      "reference, because the segmentation had already "
-                      "refused those boundaries",
-                      column().block(
-                          {.kinsoku = sigil::weave::kit::kinsoku::japanese()})),
-                  sketch::kit::cell(
-                      kSpecimen, "hanging(japanese)",
-                      "burasagari · the sentence marks alone, "
-                      "at a column's END · no column of this "
-                      "setting closes on one, so nothing hangs",
-                      column().block(
-                          {.hanging = sigil::weave::kit::hanging::japanese()})),
-                  sketch::kit::cell(
-                      kSpecimen, "brackets(−0.5 em)",
-                      "half an em taken out of the gap between a "
-                      "closing mark and an opening one · two "
-                      "half-air cells set closer",
-                      column().block({.mojikumi = brackets(kBracketRoom)})),
-                  sketch::kit::cell(
-                      kSpecimen, "tsume(−0.12 em)",
-                      "every full-width gap the table gives no class "
-                      "closed up on top of that · the whole "
-                      "column shortens",
-                      column().block({.mojikumi = brackets(kBracketRoom),
-                                      .tsume = kTsume})),
-                  sketch::kit::cell(
-                      kSpecimen, "lineBreakLocale(\"ja\")",
-                      "the tailoring the segmentation runs under "
-                      "· the default already breaks this "
-                      "passage the same way, which is the point of "
-                      "the two cells before it",
-                      column().block({.lineBreakLocale = "ja"}))},
-             .gap = 10})));
+        {.title = "At the edge of a Japanese line",
+         .subtitle = "Paired vertical settings at 22 px · gold rules mark the "
+                     "same measure in each pair",
+         .footer = "Japanese locale tailoring comes first. A house table adds "
+                   "prohibitions; hanging and spacing tables change the room "
+                   "around marks."},
+        box().column().gap(30).children(
+            {sketch::kit::comparison(
+                 {.cases =
+                      {{.title = "KEEP A WORD OPENING TOGETHER",
+                        .control = "House rule: 組 may not start a column",
+                        .figure = paired(column(u8"日本語と組版を学ぶ。", 88),
+                                         column(u8"日本語と組版を学ぶ。", 88)
+                                             .block({.kinsoku = house}),
+                                         88),
+                        .note =
+                            "The house rule carries the preceding character "
+                            "forward so 組 cannot open the column."},
+                       {.title = "LET THE FULL STOP HANG",
+                        .control = "End aligned · hanging::japanese()",
+                        .figure = paired(
+                            column(u8"文字を組む。", 132)
+                                .block(
+                                    {.alignment = weave::TextAlignment::kEnd}),
+                            column(u8"文字を組む。", 132)
+                                .block({.alignment = weave::TextAlignment::kEnd,
+                                        .hanging =
+                                            weave::kit::hanging::japanese()}),
+                            132),
+                        .note = "Both sentences align to the gold edge. With "
+                                "hanging, the full stop sits beyond it."},
+                       {.title = "CLOSE THE BRACKET GAP",
+                        .control = "Closing → opening: −0.5 em",
+                        .figure =
+                            paired(column(u8"「組版」「余白」「行間」", 132),
+                                   column(u8"「組版」「余白」「行間」", 132)
+                                       .block({.mojikumi = brackets()}),
+                                   132),
+                        .note =
+                            "Two half-empty bracket cells share less white. "
+                            "The marks and their size stay unchanged."}},
+                  .measure = 1020,
+                  .gap = 18}),
+             sketch::kit::comparison(
+                 {.cases = {{.title = "FULL-WIDTH SPACING",
+                             .control = "tsume = 0",
+                             .figure = tracking(false),
+                             .note = "A horizontal reference at 26 px."},
+                            {.title = "A TIGHTER TEXTURE",
+                             .control = "tsume = −0.12 em",
+                             .figure = tracking(true),
+                             .note = "Unclassified full-width gaps close in "
+                                     "addition to bracket spacing."}},
+                  .measure = 1020,
+                  .gap = 18})})));
   }
 };
 
 SIGIL_SKETCH(CjkRules, "Kit · API",
-             "one vertical passage set under each of the Japanese line "
-             "tables in turn — the prohibitions, the hanging "
-             "marks, the bracket room, the tsume and the locale")
+             "paired Japanese settings that expose a house prohibition, "
+             "hanging punctuation, bracket spacing and full-width tracking")

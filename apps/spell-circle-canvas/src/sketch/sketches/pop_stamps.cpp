@@ -35,6 +35,7 @@
 
 #include <include/core/SkMatrix.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/kit/Silhouettes.h>
@@ -45,7 +46,7 @@
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <array>
 #include <cmath>
@@ -65,7 +66,7 @@ namespace render = sigil::geometry::mesh::render;
 
 namespace {
 
-constexpr SkSize kCanvas = {1240, 720};
+constexpr SkSize kCanvas = {1240, 900};
 
 /** A 2 x 2 sprite sheet, described rather than painted: four motifs in
  *  four cells, which is exactly what `.atlas(2, 2)` indexes — the cell a
@@ -102,7 +103,6 @@ std::vector<glm::vec3> ringPoints() {
 struct PopStamps {
   sk_sp<SkImage> atlas;
   mesh::Mesh tube, plates, crown, glints, ribbon;
-  glm::mat4 crownPlace{1.0f};
 
   /** An element tree painted to pixels, square, at a stated side. The
    *  session owns the scene the picture was taken from and lets it go
@@ -116,45 +116,45 @@ struct PopStamps {
     return scene->image();
   }
 
-  void draw(SkCanvas& canvas) const {
-    camera::Camera view;
-    view.eye = {0, 260, 980};
-    view.target = {0, 20, 0};
-    view.fovYDeg = 42;
-
-    render::MeshStyle steel;
-    steel.baseColor = {0.62f, 0.7f, 0.82f, 1};
-    steel.specular = 0.8f;
-    steel.shininess = 48;
-    render::drawMesh(canvas, tube, camera::place({-330, 40, 0}, 24, -10), view,
-                     kCanvas, steel);
-
-    render::MeshStyle sprites;
-    sprites.baseColor = {1, 1, 1, 1};
-    sprites.ambient = {0.85f, 0.85f, 0.9f, 1};
-    sprites.specular = 0;
-    sprites.texture = atlas;
-    render::drawMesh(canvas, plates, camera::place({330, 60, 0}, -16), view,
-                     kCanvas, sprites);
-
-    render::MeshStyle gold = steel;
-    gold.baseColor = {0.95f, 0.72f, 0.3f, 1};
-    render::drawMesh(canvas, crown, crownPlace, view, kCanvas, gold);
-
-    render::MeshStyle glint;
-    glint.baseColor = {1.0f, 0.95f, 0.8f, 1};
-    glint.ambient = {0.85f, 0.8f, 0.7f, 1};
-    glint.specular = 0;
-    render::drawMesh(canvas, glints, crownPlace, view, kCanvas, glint);
-
-    render::MeshStyle jade = steel;
-    jade.baseColor = {0.4f, 0.85f, 0.6f, 1};
-    jade.backfaceCull = false;
-    render::drawMesh(canvas, ribbon, camera::place({0, -60, 140}, 0, 14), view,
-                     kCanvas, jade);
+  Element figure(const char* key, int output) const {
+    return sketch::kit::well(
+        {.width = 568, .height = 238},
+        custom(key, [this, output](SkCanvas& canvas, const PaintContext& pc) {
+          const camera::Camera view{
+              .eye = {0, 260, 980}, .target = {0, 20, 0}, .fovYDeg = 42};
+          render::MeshStyle style;
+          style.baseColor = {0.62f, 0.7f, 0.82f, 1};
+          style.specular = 0.8f;
+          style.shininess = 48;
+          if (output == 0) {
+            render::drawMesh(canvas, tube, camera::place({}, 24, -10), view,
+                             pc.size, style);
+          } else if (output == 1) {
+            style.baseColor = {1, 1, 1, 1};
+            style.ambient = {0.85f, 0.85f, 0.9f, 1};
+            style.specular = 0;
+            style.texture = atlas;
+            render::drawMesh(canvas, plates, camera::place({}, -16), view,
+                             pc.size, style);
+          } else if (output == 2) {
+            const glm::mat4 placed = camera::place({}, 14, -10, 0, 0.85f);
+            style.baseColor = {0.95f, 0.72f, 0.3f, 1};
+            render::drawMesh(canvas, crown, placed, view, pc.size, style);
+            style.baseColor = {1.0f, 0.95f, 0.8f, 1};
+            style.ambient = {0.85f, 0.8f, 0.7f, 1};
+            style.specular = 0;
+            render::drawMesh(canvas, glints, placed, view, pc.size, style);
+          } else {
+            style.baseColor = {0.4f, 0.85f, 0.6f, 1};
+            style.backfaceCull = false;
+            render::drawMesh(canvas, ribbon, camera::place({}, 0, 14), view,
+                             pc.size, style);
+          }
+        }));
   }
 
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide look(sketch::kit::studyTheme());
     sketch::kit::stage(ctx,
                        {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
                         .captureAt = 1.0,
@@ -191,7 +191,6 @@ struct PopStamps {
                        true,
                        {.segments = 160,
                         .normals = pop::SweepOptions::Normals::Geometric});
-    crownPlace = camera::place({0, 255, -140}, 14, -10, 0, 0.85f);
     glints = pop::on(crown, 600).jitter(1.5f).stamps(mesh::quad(3, 3));
 
     ribbon = pop::cookSweep(pop::on(ring)
@@ -204,11 +203,43 @@ struct PopStamps {
                              .scale = 42,
                              .normals = pop::SweepOptions::Normals::Frame});
 
-    // Keyed on the sink's own name: everything `draw` reads is cooked
-    // above, in this setup, and nothing after it moves.
-    ctx.composer.render(custom("pop.stamps", [this](SkCanvas& canvas) {
-                          draw(canvas);
-                        }).inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = "One path, four surfaces",
+         .subtitle = "A closed ring of ten control points · the point chain "
+                     "stays editable until a sink forms the body",
+         .footer = "A formed body can become a source again: the crown carries "
+                   "600 glints sampled from its own surface. The open ribbon "
+                   "is drawn on both sides."},
+        box().column().gap(28).children(
+            {sketch::kit::comparison(
+                 {.cases = {{.title = "SWEEP A CIRCLE",
+                             .control = "220 points → noise → circle profile",
+                             .figure = figure("sink.tube", 0),
+                             .note =
+                                 kit::formatted("A displaced rail makes a "
+                                                "wobbly tube. %zu triangles.",
+                                                tube.triangleCount())},
+                            {.title = "STAMP AN ATLAS",
+                             .control = "900 points → spread → atlas(2, 2)",
+                             .figure = figure("sink.atlas", 1),
+                             .note = "Four texture motifs, varied in size and "
+                                     "turned toward the camera."}},
+                  .measure = 1160,
+                  .gap = 24}),
+             sketch::kit::comparison(
+                 {.cases =
+                      {{.title = "SWEEP AN OUTLINE",
+                        .control = "140 points → noise → smooth → star profile",
+                        .figure = figure("sink.profile", 2),
+                        .note = "A star cross-section makes the crown; its "
+                                "surface seeds a second point chain."},
+                       {.title = "OPEN A WINDOW",
+                        .control = "120 points → half-window → line profile",
+                        .figure = figure("sink.ribbon", 3),
+                        .note = "An open profile and a partial rail form a "
+                                "ribbon instead of a closed pipe."}},
+                  .measure = 1160,
+                  .gap = 24})})));
   }
 };
 

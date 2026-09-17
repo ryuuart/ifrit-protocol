@@ -1,29 +1,9 @@
 /** @file
- * net_policy — when a hub may touch the network, and what it does when
- * it cannot.
- *
- * Three policies, and the difference between them is entirely about the
- * FIRST ask for a resource: an entry already loaded stays as it is.
- * `CacheFirst`, the default, serves a present cache file with no traffic
- * at all and fetches on a miss, which is what makes an offline run work
- * out of the box once a resource has been seen. `Refresh` asks the
- * network first to pick up upstream changes and FALLS BACK to the cached
- * copy when the fetch fails, so a flaky network degrades to CacheFirst
- * instead of failing. `Offline` never touches the network: a cache hit,
- * or nothing.
- *
- * A caller can pre-seed a URL with `seedNetworkCache`. This sheet encodes
- * a picture, seeds one URL, and then asks four hubs for two URLs, one
- * seeded and one not.
- *
- * So nothing here reaches the network, and the sheet is the same picture
- * on a machine with a connection and on one without: the host used is a
- * reserved name that cannot resolve, which is what makes the `Refresh`
- * cell a fetch that genuinely failed rather than one that was skipped.
- *
- * EDIT THESE FIRST
- *   kSeeded, kMissing — the two URLs, one of which is pre-seeded.
- *   cacheDir — the directory the seed is written into.
+ * Four independent first reads over a seeded and a missing cache entry.
+ * The policy table shows the actual returned image or absence. CacheFirst
+ * serves the seed directly; Offline serves only cache hits; Refresh attempts
+ * a fetch and falls back to the seed. The reserved host makes that fetch
+ * fail. Each row creates a fresh Hub so no in-memory view bypasses policy.
  */
 
 // TAGS: Runtime/Resources
@@ -55,9 +35,7 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 400};
-constexpr float kCell = 254;
-constexpr float kPicture = 190;
+constexpr SkSize kCanvas = {1100, 650};
 
 // A reserved name that cannot resolve: every fetch here fails at once
 // and none of them leaves the machine.
@@ -80,29 +58,37 @@ sk_sp<SkData> seedBytes() {
   return img::encodeImage(*surface->makeImageSnapshot(), img::Format::Png);
 }
 
-Element cell(const char* call, const char* note,
-             const std::shared_ptr<const img::ImageAsset>& asset,
-             const std::string& readout) {
-  const sketch::kit::Theme& sheet = sketch::kit::theme();
-  // What came back, at the seed's own size — or the hole where nothing
-  // did, which is a cell's answer as much as a picture is.
-  Element art =
-      (asset ? image(asset) : box().fill(Fill::color({0.13f, 0.10f, 0.11f, 1})))
-          .width(150)
-          .height(100);
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
-          .column()
-          .gap(10)
-          .children({std::move(art), text(readout).styleClass("readout")}));
+Element decision(const char* policy, const char* state, const char* route,
+                 const std::shared_ptr<const img::ImageAsset>& result) {
+  return sketch::kit::well({.width = 728, .height = 94, .padding = 16})
+      .row()
+      .gap(20)
+      .alignItems(Align::Center)
+      .children(
+          {box().column().gap(8).width(130).children(
+               {text(policy).styleClass("captionLabel"),
+                text(state).styleClass("captionNote")}),
+           text(route).width(234),
+           result
+               ? image(result).width(90).height(60)
+               : box()
+                     .width(90)
+                     .height(60)
+                     .fill(Fill::color({0.18f, 0.10f, 0.12f, 1}))
+                     .padding(8)
+                     .children({text("NO\nIMAGE").styleClass("captionLabel")}),
+           text(result ? kit::formatted("%d × %d\nserved", result->width(),
+                                        result->height())
+                       : "null\nreturned")
+               .width(182)
+               .styleClass("readout")});
 }
 
 }  // namespace
 
 struct NetPolicy {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
+    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
     // every ask has already been answered
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -130,46 +116,45 @@ struct NetPolicy {
     const auto offlineMiss = ask(io::NetworkPolicy::Offline, kMissing);
     const auto refresh = ask(io::NetworkPolicy::Refresh, kSeeded);
 
-    const auto verdict = [](const char* name,
-                            const std::shared_ptr<const img::ImageAsset>& a) {
-      return kit::formatted(
-          "%s · %s", name,
-          a ? kit::formatted("served %d×%d", a->width(), a->height()).c_str()
-            : "null");
-    };
-
     ctx.composer.render(sketch::kit::page(
-        {.title = "The network policies",
-         .subtitle = "dials · the policy · which URL "
-                     "is seeded · the cache directory",
-         .footer = "the host is a reserved name that cannot "
-                   "resolve, so nothing here leaves the machine "
-                   "— which is what makes the Refresh "
-                   "cell a fetch that genuinely failed and fell "
-                   "back rather than one that was skipped"},
-        kit::cells(
-            {.cells = {cell("CacheFirst · seeded",
-                            "the default · a present cache file is "
-                            "served with no traffic at all, which is what "
-                            "makes an offline run work once a resource has "
-                            "been seen",
-                            cacheFirst, verdict("CacheFirst", cacheFirst)),
-                       cell("Offline · seeded",
-                            "never touches the network · a cache hit "
-                            "answers exactly as CacheFirst did, because "
-                            "neither of them asked anything",
-                            offlineHit, verdict("Offline", offlineHit)),
-                       cell("Offline · not seeded",
-                            "…and a miss is a miss · nothing is "
-                            "fetched and nothing is invented, which is what "
-                            "a hermetic run wants",
-                            offlineMiss, verdict("Offline", offlineMiss)),
-                       cell("Refresh · seeded",
-                            "asks the network FIRST to pick up upstream "
-                            "changes · the fetch failed here, and a "
-                            "failed fetch falls back to the cached copy",
-                            refresh, verdict("Refresh", refresh))},
-             .gap = 14})));
+        {.title = "When may a resource use the network?",
+         .subtitle = "The same seeded image, four independent first reads. A "
+                     "reserved host makes every attempted fetch fail.",
+         .footer = "Policies govern the first load. A resource already held by "
+                   "a hub remains loaded until invalidated."},
+        box().row().gap(32).children(
+            {box().column().gap(16).width(260).children(
+                 {sketch::kit::sectionHeader(
+                      {.label = "THE CACHE INPUT",
+                       .note = "Seeded before each read"}),
+                  sketch::kit::well(
+                      {.width = 260,
+                       .height = 200,
+                       .content = sketch::kit::Well::Content{}},
+                      cacheFirst ? image(cacheFirst).width(225).height(150)
+                                 : text("Seed unavailable")),
+                  text("plate.png  ·  seeded\nabsent.png ·  missing")
+                      .styleClass("readout"),
+                  text("Each row creates a fresh hub. The policy and the "
+                       "presence of a cache file are the only inputs that "
+                       "change.")
+                      .width(260)}),
+             box().column().gap(16).width(728).children(
+                 {sketch::kit::sectionHeader(
+                      {.label = "POLICY / CACHE",
+                       .note = "DECISION → OBSERVED RESULT"}),
+                  decision("CacheFirst", "Seeded",
+                           "Use the cached file without fetching.", cacheFirst),
+                  decision("Offline", "Seeded",
+                           "Only inspect the cache; the file is present.",
+                           offlineHit),
+                  decision("Offline", "Missing",
+                           "Only inspect the cache; there is no fallback.",
+                           offlineMiss),
+                  decision("Refresh", "Seeded",
+                           "Try the network, then use the cached file after "
+                           "failure.",
+                           refresh)})})));
   }
 };
 

@@ -69,13 +69,13 @@ constexpr double kRackHz = 0.18;    // panel 4's breathing rate
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
   look.palette.ink = {0.92f, 0.94f, 0.98f, 1};
   look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
   look.type.captionLabel = {.size = 13, .track = 0.4f};
-  look.spacing.marginX = 30;
-  look.spacing.marginTop = 22;
+  look.spacing.marginX = 40;
+  look.spacing.marginTop = 40;
   look.spacing.captionGap = 6;
   return look;
 }
@@ -116,10 +116,15 @@ mskia::Paint lensMap() {
                                 {{0.0f, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}});
 }
 
-Element panel(const char* call, const char* note, mskia::Effect e,
-              std::string key) {
-  return sketch::kit::caption(
-      kPanel, call, note, subject().key(std::move(key)).effect(std::move(e)));
+sketch::kit::ComparisonCase panel(const char* caseTitle, const char* call,
+                                  const char* note, mskia::Paint map,
+                                  mskia::Effect e, std::string key) {
+  return {.title = caseTitle,
+          .control = call,
+          .figure = box().column().gap(12).children(
+              {box().width(kPanel).height(74).fill(std::move(map)),
+               subject().key(std::move(key)).effect(std::move(e))}),
+          .note = note};
 }
 
 }  // namespace
@@ -130,39 +135,78 @@ struct BlurFalloff {
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // the top of panel 4's breath: 1 / (2 kRackHz)
-    sketch::kit::stage(ctx, {.size = {1080, 464}, .captureAt = 2.78});
+    sketch::kit::stage(ctx, {.size = {1100, 960}, .captureAt = 2.78});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "Blur falloff",
-         .subtitle = "one effect, four falloffs — same "
-                     "content, same maximum sigma, only the map "
-                     "differs",
-         .footer = "the parameter is a PAINT, so it prunes, it "
-                   "animates on the one uniform channel, and its "
-                   "unit square is whatever box the layout decided"},
-        kit::cells(
-            {.cells = {panel("filter(Blur(14, 14))",
-                             "a constant blur, for contrast: all legible or "
-                             "none of it",
+        {.title = "Where does the blur fall?",
+         .subtitle = "One source, four spatial controls",
+         .footer = "The last result is live: a bound parameter changes the "
+                   "blur without rebuilding the picture."},
+        box().column().gap(28).children(
+            {box()
+                 .row()
+                 .shrink(0)
+                 .alignItems(Align::Start)
+                 .gap(40)
+                 .children(
+                     {box().column().gap(12).children(
+                          {sketch::kit::sectionHeader(
+                               {.label = "THE SOURCE", .note = ""}),
+                           subject()}),
+                      box().column().gap(18).children(
+                          {sketch::kit::sectionHeader(
+                               {.label = "READ THE MAP",
+                                .note =
+                                    "Dark means sharp; light means blurred."}),
+                           text("The stripes reveal lost detail. Every output "
+                                "uses this same picture and a maximum sigma of "
+                                "14 pixels. The narrow map above each result "
+                                "shows where that blur is applied.")
+                               .width(660)
+                               .styleClass("captionNote"),
+                           box().width(660).height(42).fill(
+                               mskia::Paint::linearUnit(
+                                   {0, 0}, {1, 0},
+                                   {{0, {0, 0, 0, 1}}, {1, {1, 1, 1, 1}}})),
+                           box()
+                               .row()
+                               .alignItems(Align::Start)
+                               .gap(20)
+                               .children({text("BLACK  ·  sigma 0")
+                                              .width(320)
+                                              .styleClass("captionNote"),
+                                          text("WHITE  ·  sigma 14")
+                                              .width(320)
+                                              .styleClass("captionNote")})})}),
+             sketch::kit::sectionHeader(
+                 {.label = "FOUR FALLOFFS",
+                  .note = "Map above · resulting image below"}),
+             sketch::kit::comparison(
+                 {.cases =
+                      {panel("UNIFORM", "filter(Blur(14, 14))",
+                             "Every position receives the same blur.",
+                             mskia::Paint::solid({1, 1, 1, 1}),
                              mskia::Effect::filter(SkImageFilters::Blur(
                                  kMaxSigma, kMaxSigma, nullptr)),
                              "flat"),
-                       panel("blur(linearUnit 3 stops, 14)",
-                             "depth of field — sharp at the focal "
-                             "line, blurred away from it on both sides",
-                             mskia::Effect::blur(dofMap(), kMaxSigma), "dof"),
-                       panel("blur(glowUnit, 14)",
-                             "a lens edge — sharp on axis, soft at "
-                             "the inscribed circle",
+                       panel("DEPTH OF FIELD", "blur(linearUnit 3 stops, 14)",
+                             "The dark horizon stays sharp; distance from it "
+                             "increases blur.",
+                             dofMap(), mskia::Effect::blur(dofMap(), kMaxSigma),
+                             "dof"),
+                       panel("LENS EDGE", "blur(glowUnit, 14)",
+                             "The centre stays sharp while the edge softens.",
+                             lensMap(),
                              mskia::Effect::blur(lensMap(), kMaxSigma), "lens"),
-                       panel("blur(dofMap, 14) · live",
-                             "rack focus — the SAME map, maxSigma "
-                             "bound inside the declared range: nothing "
-                             "re-describes, the held passes are reused",
+                       panel("RACK FOCUS", "blur(dofMap, 14) · live",
+                             "The depth map stays fixed. Its maximum blur "
+                             "breathes with time.",
+                             dofMap(),
                              mskia::Effect::blur(dofMap(), kMaxSigma)
                                  .uniform("maxSigma", &rack),
                              "rack")},
-             .gap = 20})));
+                  .measure = 1020,
+                  .gap = 20})})));
   }
 
   void update(double elapsed, sketch::SketchContext& ctx) {

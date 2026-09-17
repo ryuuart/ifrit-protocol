@@ -60,9 +60,7 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 400};
-constexpr float kCell = 200;
-constexpr float kPicture = 176;
+constexpr SkSize kCanvas = {1100, 770};
 
 constexpr float kSpan = 3.0f;    // seconds across every plot
 constexpr float kTau = 0.6f;     // the decay's time constant, seconds
@@ -115,16 +113,11 @@ Element plot(const char* key, std::vector<sketch::kit::Layer> curves,
       .inset(0);
 }
 
-/** The plate every specimen on this sheet stands on, and the
- *  measure its caption is set to. */
-const sketch::kit::Cell kSpecimen{
-    .plate = {.width = kCell, .height = kPicture}};
-
 }  // namespace
 
 struct DecayStep {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
+    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
     // the plots are functions of time, not of the clock
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     const sketch::kit::Theme& look = sketch::kit::theme();
@@ -142,80 +135,89 @@ struct DecayStep {
       };
     };
 
+    const auto figure = [](float width, float height, Element chart) {
+      return sketch::kit::well({.width = width, .height = height})
+          .children({std::move(chart)});
+    };
     ctx.composer.render(
         sketch::kit::page(
-            {.title = "The clock arithmetic",
-             .subtitle = "dials · three seconds across every plot "
-                         "· the time constant (0.6 s) · "
-                         "the rate (4 Hz) · the period (0.8 s) "
-                         "· the damping ratios",
-             .footer = "a spring is a STATE and the rest are functions, "
-                       "which is the whole difference: an ease needs "
-                       "two fixed endpoints and can only restart when "
-                       "the target moves, where a spring carries the "
-                       "motion it already has into the new one"},
-            kit::cells(
-                {.cells = {sketch::kit::cell(
-                               kSpecimen, "motion::decay(age, 0.6)",
-                               "exp(-age/tau) · 1 at the instant it "
-                               "happened, and never quite 0 · the grid is "
-                               "one tau apart, so the curve crosses each line "
-                               "lower by the same fraction",
-                               plot("decay", {curve([](double t) {
-                                      return motion::decay((float)t, kTau);
-                                    })},
-                                    (int)(kSpan / kTau))),
-                           sketch::kit::cell(
-                               kSpecimen, "quantizeTime(t, 4) / 3",
-                               "SECONDS posterised at a rate and held still "
-                               "between steps · twelve steps across "
-                               "three seconds, against the ramp they came from",
-                               plot("quantize",
-                                    {curve([](double t) { return t / kSpan; },
-                                           "ramp"),
-                                     curve([](double t) {
-                                       return motion::quantizeTime((float)t,
-                                                                   kHz) /
-                                              kSpan;
-                                     })},
-                                    (int)(kSpan * kHz))),
-                           sketch::kit::cell(
-                               kSpecimen, "stepIndex(t, 4) / 12",
-                               "the same clock as an INTEGER COUNT · the "
-                               "same staircase, and the number a cursor or a "
-                               "frame table indexes with",
-                               plot("step",
-                                    {curve(
-                                        [](double t) {
-                                          return (double)motion::stepIndex(
-                                                     (float)t, kHz) /
-                                                 (kSpan * kHz);
-                                        },
-                                        "second")},
-                                    (int)(kSpan * kHz))),
-                           sketch::kit::cell(
-                               kSpecimen, "motion::phase(t, 0.8)",
-                               "seconds folded into a wrapping [0, 1) "
-                               "· the marching ants, the marquee, the "
-                               "scanline creep · three and three quarter "
-                               "turns in three seconds",
-                               plot("phase", {curve([](double t) {
-                                      return motion::phase((float)t, kPeriod);
-                                    })})),
-                           sketch::kit::cell(
-                               kSpecimen, "spring(s, 1, dt, {0.8, damping})",
-                               "damping 0.25, 0.6 and 1.2 · below one it "
-                               "overshoots and rings, at one it arrives as "
-                               "fast "
-                               "as it can without crossing, above one it "
-                               "crawls "
-                               "in from one side",
-                               plot("spring",
-                                    {curve(springWalk(0.25f), "third"),
-                                     curve(springWalk(0.6f)),
-                                     curve(springWalk(1.2f), "second")},
-                                    0, 1.4f))},
-                 .gap = 12}))
+            {.title = "Reading a clock, remembering a motion",
+             .subtitle = "Three seconds across every plot · the top row remaps "
+                         "time; the lower row compares ways to settle",
+             .footer = "Clock functions are sampled directly. Each spring is "
+                       "stepped at 240 Hz and keeps its velocity; the "
+                       "displayed target is 0.9."},
+            box().column().gap(28).children(
+                {sketch::kit::comparison(
+                     {.cases =
+                          {{.title = "HOLD THE TIME",
+                            .control = "quantizeTime(t, 4 Hz) / 3",
+                            .figure = figure(
+                                328, 150,
+                                plot("quantize",
+                                     {curve([](double t) { return t / kSpan; },
+                                            "ramp"),
+                                      curve([](double t) {
+                                        return motion::quantizeTime((float)t,
+                                                                    kHz) /
+                                               kSpan;
+                                      })},
+                                     12)),
+                            .note = "Seconds held between steps. Grey is the "
+                                    "continuous clock."},
+                           {.title = "COUNT THE STEPS",
+                            .control = "stepIndex(t, 4 Hz) / 12",
+                            .figure = figure(328, 150,
+                                             plot("step",
+                                                  {curve(
+                                                      [](double t) {
+                                                        return (double)motion::
+                                                                   stepIndex(
+                                                                       (float)t,
+                                                                       kHz) /
+                                                               (kSpan * kHz);
+                                                      },
+                                                      "second")},
+                                                  12)),
+                            .note = "The same boundaries, returned as an "
+                                    "integer for a frame or cursor."},
+                           {.title = "REPEAT A PHASE",
+                            .control = "phase(t, 0.8 s)",
+                            .figure = figure(328, 150,
+                                             plot("phase", {curve([](double t) {
+                                                    return motion::phase(
+                                                        (float)t, kPeriod);
+                                                  })})),
+                            .note = "Wrap to zero every 0.8 seconds. The value "
+                                    "remains in [0, 1)."}},
+                      .measure = 1020,
+                      .gap = 18}),
+                 sketch::kit::comparison(
+                     {.cases =
+                          {{.title = "FORGET AN EVENT",
+                            .control = "decay(age, τ = 0.6 s)",
+                            .figure = figure(498, 200,
+                                             plot("decay", {curve([](double t) {
+                                                    return motion::decay(
+                                                        (float)t, kTau);
+                                                  })},
+                                                  5)),
+                            .note = "Each grid interval is one time constant: "
+                                    "36.8% remains after τ. No fixed end."},
+                           {.title = "CARRY THE VELOCITY",
+                            .control =
+                                "spring · period 0.8 s · three damping ratios",
+                            .figure =
+                                figure(498, 200,
+                                       plot("spring",
+                                            {curve(springWalk(0.25f), "third"),
+                                             curve(springWalk(0.6f)),
+                                             curve(springWalk(1.2f), "second")},
+                                            0, 1.4f)),
+                            .note = "Coral 0.25: ringing · gold 0.6: smaller "
+                                    "overshoot · blue 1.2: no crossing"}},
+                      .measure = 1020,
+                      .gap = 24})}))
             .styleSheet(plotSheet(look)));
   }
 };

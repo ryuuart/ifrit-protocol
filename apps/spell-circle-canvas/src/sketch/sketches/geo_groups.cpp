@@ -57,17 +57,17 @@ constexpr float kSpacing = 14.0f;
 constexpr float kRingRadius = 120.0f;
 constexpr float kRingWidth = 34.0f;
 constexpr float kTwistDeg = 70.0f;
-constexpr float kPanel = 360.0f;
+constexpr float kPanel = 360;
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
   look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
   look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
   look.type.captionLabel = {.size = 12.5f, .track = 0.4f};
-  look.spacing.marginX = 30;
-  look.spacing.marginTop = 22;
+  look.spacing.marginX = 40;
+  look.spacing.marginTop = 40;
   look.spacing.captionGap = 5;
   return look;
 }
@@ -133,8 +133,12 @@ const sketch::kit::Cell kPanelCell{.plate = {.width = Dimension(kPanel),
                                              .ground = Fill::none(),
                                              .keyline = Fill::color(kFrame)}};
 
-Element panel(const char* title, const char* note, Element inner) {
-  return sketch::kit::cell(kPanelCell, title, note, std::move(inner));
+sketch::kit::ComparisonCase panel(const char* caseTitle, const char* title,
+                                  const char* note, Element inner) {
+  return {.title = caseTitle,
+          .control = title,
+          .figure = sketch::kit::cell(kPanelCell, "", "", std::move(inner)),
+          .note = note};
 }
 
 // a literal table; only allocation could throw
@@ -151,7 +155,7 @@ struct GeoGroups {
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // Every cloud is cooked in setup; nothing reads the clock.
-    sketch::kit::stage(ctx, {.size = {1200, 440}, .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.size = {1200, 650}, .captureAt = 0.05});
 
     const std::string geo = geometry::mesh::codec::encode::geo(sourceGrid());
     const std::optional<geometry::mesh::codec::decode::Model> model =
@@ -159,10 +163,7 @@ struct GeoGroups {
                                              "grid.geo");
     if (!model || model->parts.empty()) {
       caption = "the .geo did not parse";
-      ctx.composer.render(
-          text(caption, weave::textStyle({.size = 15, .color = kInk}))
-              .left(30)
-              .top(16));
+      ctx.composer.render(text(caption).styleClass("captionNote"));
       return;
     }
     // asCloud(): positions, "normal" from N, "tint" from Cd, and every
@@ -198,22 +199,51 @@ struct GeoGroups {
                   .cloud();
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "Point groups as masks",
-         .subtitle = caption,
-         .footer = "a point group arrives from the file as a 0/1 "
-                   "lane under its own name — which is what "
-                   "masked() reads, and what encode::geo writes "
-                   "back out"},
-        kit::cells(
-            {.cells = {panel("pop::on(part.asCloud())",
-                             "Cd from the file; group \"ring\" scaled up",
-                             splat(saved)),
-                       panel("peak(60).masked(\"outside\")",
-                             "the inverted group; the ring stays put",
-                             splat(peaked)),
-                       panel("twist(70).masked(\"ring\")",
-                             "only the group turns", splat(twisted))},
-             .gap = 20})));
+        {.title = "The group survives the trip",
+         .subtitle = "Houdini JSON → point cloud → a mask on the operator",
+         .footer = "Larger dots mark the ring group. The data remains one "
+                   "named lane throughout the round trip."},
+        box().column().gap(26).children(
+            {box()
+                 .row()
+                 .alignItems(Align::Start)
+                 .gap(20)
+                 .children({box().column().gap(10).children(
+                                {sketch::kit::sectionHeader(
+                                     {.label = "01  WRITE", .note = ""}),
+                                 text("A tinted point grid and its ring group "
+                                      "are encoded as Houdini JSON.")
+                                     .width(360)
+                                     .styleClass("captionNote")}),
+                            box().column().gap(10).children(
+                                {sketch::kit::sectionHeader(
+                                     {.label = "02  READ", .note = ""}),
+                                 text("The importer restores the group as a "
+                                      "named scalar lane of zeros and ones.")
+                                     .width(360)
+                                     .styleClass("captionNote")}),
+                            box().column().gap(10).children(
+                                {sketch::kit::sectionHeader(
+                                     {.label = "03  SELECT", .note = ""}),
+                                 text("The same lane masks an operator "
+                                      "directly, or after inversion.")
+                                     .width(360)
+                                     .styleClass("captionNote")})}),
+             sketch::kit::sectionHeader(
+                 {.label = "THE RESTORED CLOUD", .note = caption}),
+             sketch::kit::comparison(
+                 {.cases = {panel("UNCHANGED GROUP", "pop::on(part.asCloud())",
+                                  "Cd from the file; group \"ring\" scaled up",
+                                  splat(saved)),
+                            panel("MOVE ITS COMPLEMENT",
+                                  "peak(60).masked(\"outside\")",
+                                  "the inverted group; the ring stays put",
+                                  splat(peaked)),
+                            panel("TURN THE GROUP",
+                                  "twist(70).masked(\"ring\")",
+                                  "only the group turns", splat(twisted))},
+                  .measure = 1120,
+                  .gap = 20})})));
   }
 };
 

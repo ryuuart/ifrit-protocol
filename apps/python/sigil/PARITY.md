@@ -12,14 +12,17 @@ convenience builders share native values; neither is a second scene model.
 | Composition | Direct native factories and overloads, fluent properties, named inputs, variadic or iterable children (including lists and tuples), dimensions and units, layout and placement, 2D/3D transforms, fills, typography and style classes | The full native Element and feature catalogue is not claimed |
 | Memo | Deep-copied model, Python equality, native reconciliation and captured inherited environment | Builder must be pure in its model and environment; closure mutation is not a dependency |
 | Motion | Shared outputs, binding chains, easing values, entrances, transitions and keyframe paths | Python times use seconds; scheduling comes from the native session ticker |
-| Typography | Native partial Type, TextStyle, Block, StyleSheet and Rule | Full rich runs, stories and per-glyph effects are not bound |
+| Typography | Native Type/TextStyle and paint layers/decorations; complete owned Block settings; ParagraphStyle, initial letters, TypeSheet, RichText runs/slots, Story frames, selectors/restyling and TextPath | Direct editable Paragraph/FontContext layout, custom flow/hyphenator implementations, annotations/ruby, per-glyph effect tracks and PaintLayer.material remain unbound |
 | Composer | Render, named slots, bounds, hit tests, routes, settling and owned statistics | Checked session view; manual native frame driving is not exposed |
 | Ticker | Regular and fixed callbacks, derivation, elapsed and activity | Checked session view; removal follows a callback's return value |
+| World | Native keyed elements, mesh/material/light/camera values, motion lanes, retained Scene, CPU images and checked Pen drawing, geometry/post passes, selectors, rig/turntable/lit-set presets | Device execution, environment maps, map authoring, point operators, custom pass callbacks and readbacks remain unbound; CPU material response is approximate |
 | Data and assets | Native JSON, tables, scales, database queries and checked resource loading | Database write methods are not exposed |
 | IO | Native hubs, feeds, arrivals, transport registration, send/reply, byte sinks and deterministic replay | Authors poll on their update clock; transport callbacks and threads stay native |
-| Specimen kit | Stage, page, well, caption, cell, cells, panel grid, comparable theme and native Provide | Other sketch-kit components remain separate coverage decisions |
+| Specimen kit | Stage, page, well, caption, cell, aligned comparison tracks, cells, panel grid, comparable theme and native Provide | Other sketch-kit components remain separate coverage decisions |
 | Compose kit | Neutral sheets, panels, boards, wells, captions, rules, circles, and native Grid plus free-form layouts | Stock routers, feeds, pools and every decoration scheme are not implied |
 
+`python_type_atelier.py` combines mixed runs, inline slots, named selections,
+initial letters, balanced story frames and a curved baseline.
 `python_kit_specimen.py` combines native layout schemes, page furniture and a
 memo that restores its scoped theme. `python_motion_signals.py` combines
 shared outputs, native bindings and keyframe motion. `python_memo_station.py`
@@ -37,6 +40,20 @@ into `.py` entries; the core sketch library does not require Python. The
 public package, declarations and Python contracts belong to `apps/python/sigil/`.
 Python value ownership and callback cleanup are exercised separately from
 composition's native rendering contracts.
+
+## World boundary
+
+`python_world_study.py` reuses one native vessel mesh under keyed scene nodes,
+three dielectric base colors at fixed roughness and a moving three-point
+light rig. Its
+scene executes on the CPU and produces a native image. Material parameters
+come from `sigil.material.kit`; meshes and cameras come from
+`sigil.geometry.mesh`. No World namespace aliases those origins.
+
+`test_world.py` checks actual rendered pixels, frame post-processing and
+invalid graphs, node identity and shared mesh resources, motion ownership,
+owned image/getter values and checked drawing/thread access. These contracts
+do not establish device-rendering parity or port every C++ World study.
 
 ## Draw collection
 

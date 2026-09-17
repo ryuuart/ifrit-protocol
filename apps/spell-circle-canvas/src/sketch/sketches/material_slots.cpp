@@ -79,17 +79,17 @@ constexpr int kCells = 4;           // the index chart is kCells x kCells
 constexpr float kMaskContrast = 3.2f;  // how hard the grain field's cut is
 
 constexpr SkColor4f kFrame{0.20f, 0.24f, 0.32f, 1};
-constexpr float kPanel = 180.0f;
+constexpr float kPanel = 188.0f;
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
   look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
   look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
   look.type.captionLabel = {.size = 12.5f, .track = 0.4f};
-  look.spacing.marginX = 30;
-  look.spacing.marginTop = 22;
+  look.spacing.marginX = 40;
+  look.spacing.marginTop = 40;
   look.spacing.captionGap = 6;
   return look;
 }
@@ -208,18 +208,21 @@ Element lutStrip(const sk_sp<SkImage>& table) {
                           SkSamplingOptions(SkFilterMode::kNearest)));
 }
 
-Element panel(const Tables& tables, const char* call, const char* note,
-              const sk_sp<SkImage>& table, float shade, std::string key) {
-  return sketch::kit::caption(
-      kPanel, call, note,
-      box().column().gap(6).children(
-          {box()
-               .key(std::move(key))
-               .width(kPanel)
-               .height(kPanel)
-               .fill(paletted(tables, table, shade))
-               .stroke(stroke(1.0f, Fill::color(kFrame))),
-           lutStrip(table)}));
+sketch::kit::ComparisonCase panel(const char* caseTitle, const Tables& tables,
+                                  const char* call, const char* note,
+                                  const sk_sp<SkImage>& table, float shade,
+                                  std::string key) {
+  return {.title = caseTitle,
+          .control = call,
+          .figure = box().column().gap(6).children(
+              {box()
+                   .key(std::move(key))
+                   .width(kPanel)
+                   .height(kPanel)
+                   .fill(paletted(tables, table, shade))
+                   .stroke(stroke(1.0f, Fill::color(kFrame))),
+               lutStrip(table)}),
+          .note = note};
 }
 
 // ------------------------------------------------------- over(base, top, mask)
@@ -246,21 +249,24 @@ mat::Material stackMask() {
   return field::grain(0.018f, 4, 21.0f, kMaskContrast);
 }
 
-Element operand(const char* call, const char* note, mat::Material material,
-                std::string key) {
-  return sketch::kit::caption(
-      kPanel, call, note,
-      box()
-          .key(std::move(key))
-          .width(kPanel)
-          .height(kPanel)
-          .fill(mskia::Paint::recipe(std::move(material)))
-          .stroke(stroke(1.0f, Fill::color(kFrame))));
+sketch::kit::ComparisonCase operand(const char* caseTitle, const char* call,
+                                    const char* note, mat::Material material,
+                                    std::string key) {
+  return {.title = caseTitle,
+          .control = call,
+          .figure = box()
+                        .key(std::move(key))
+                        .width(kPanel)
+                        .height(kPanel)
+                        .fill(mskia::Paint::recipe(std::move(material)))
+                        .stroke(stroke(1.0f, Fill::color(kFrame))),
+          .note = note};
 }
 
-Element stacked(const char* call, const char* note, mat::Blend blend,
-                std::string key) {
-  return operand(call, note,
+sketch::kit::ComparisonCase stacked(const char* caseTitle, const char* call,
+                                    const char* note, mat::Blend blend,
+                                    std::string key) {
+  return operand(caseTitle, call, note,
                  mat::over(stackBase(), stackTop(), stackMask(), blend),
                  std::move(key));
 }
@@ -276,66 +282,78 @@ struct MaterialChild {
     // runs: this sketch describes again when the live panel changes
     // lane, and a scope that ended with setup would not be there.
     const sketch::kit::Provide look(sheetTheme());
-    Element slots = kit::cells(
-        {.cells = {panel(tables, "child(\"uPalette\", grey)",
-                         "the indices themselves: a 0..15 staircase",
-                         tables.luts[Grey], 0.0f, "grey"),
-                   panel(tables, "child(\"uPalette\", fire)",
-                         "the SAME index texture, another table",
-                         tables.luts[Fire], 0.0f, "fire"),
-                   panel(tables, "child(\"uPalette\", ice)", "…and another",
-                         tables.luts[Ice], 0.0f, "ice"),
-                   panel(tables, "uniform(\"uShade\", 6)",
-                         "min(i + 6, 15): the top cells flatten onto the "
-                         "last entry — index arithmetic, drawn",
-                         tables.luts[Ice], kShade, "shade"),
-                   panel(tables, "the LUT swapped by update()",
-                         "door 3: data changes, the tree is described again, "
-                         "one node patches",
-                         tables.luts[(size_t)live % TableCount], 0.0f, "live")},
-         .gap = 20});
-
-    Element stack = kit::cells(
-        {.cells = {operand("kit::latten({.level = 0.62})",
-                           "the BASE of the stack", stackBase(), "base"),
-                   operand("kit::stone({.bedAngle = 62})",
-                           "the TOP — a crust with a bed of its "
-                           "own",
-                           stackTop(), "top"),
-                   operand("field::grain(0.018, 4, contrast 3.2)",
-                           "the MASK: an ordinary material, read as its red "
-                           "channel",
-                           stackMask(), "mask"),
-                   stacked("over(base, top, mask)",
-                           "Blend::Mix — the base moves toward "
-                           "the top where the mask says",
-                           mat::Blend::Mix, "over.mix"),
-                   stacked("over(…, Blend::Multiply)",
-                           "the same three operands, the other law: one "
-                           "material, three children",
-                           mat::Blend::Multiply, "over.mul")},
-         .gap = 20});
-
     return sketch::kit::page(
-        {.title = "Materials inside materials",
-         .subtitle = "top: Paint::sksl(…).slot() "
-                     "— an index texture read "
-                     "through a palette LUT · bottom: "
-                     "over(base, top, mask) — the "
-                     "same idea one level up",
-         .footer = "one effect, two children, ONE draw · "
-                   "children ride the prune signature, so a "
-                   "swapped LUT repatches and an identical one "
-                   "prunes"},
-        kit::cells({.cells = {std::move(slots), std::move(stack)},
-                    .column = true,
-                    .gap = 26}));
+        {.title = "A material can be an input",
+         .subtitle =
+             "A palette lookup and a masked stack expose their child slots",
+         .footer = "The live palette is data: describing an equal tree prunes "
+                   "it, while changing the table updates its consumer."},
+        box().column().gap(32).children(
+            {sketch::kit::sectionHeader(
+                 {.label = "LOOK UP A COLOUR",
+                  .note = "The chart stores indices. The strip below each "
+                          "result is its palette."}),
+             sketch::kit::comparison(
+                 {.cases = {panel(
+                                "GREY", tables, "slot(\"uPalette\", grey)",
+                                "Indices 0\u201315, read through a grey ramp.",
+                                tables.luts[Grey], 0.0f, "grey"),
+                            panel("FIRE", tables, "slot(\"uPalette\", fire)",
+                                  "The same indices through the fire table.",
+                                  tables.luts[Fire], 0.0f, "fire"),
+                            panel("ICE", tables, "slot(\"uPalette\", ice)",
+                                  "The same indices through the ice table.",
+                                  tables.luts[Ice], 0.0f, "ice"),
+                            panel("SHADE +6", tables, "uniform(\"uShade\", 6)",
+                                  "Add six to the index; clamp at entry 15.",
+                                  tables.luts[Ice], kShade, "shade"),
+                            panel("LIVE TABLE", tables,
+                                  "the LUT swapped by update()",
+                                  "The table changes every 0.8 seconds.",
+                                  tables.luts[(size_t)live % TableCount], 0.0f,
+                                  "live")},
+                  .measure = 1020,
+                  .gap = 20}),
+             box().column().gap(18).children(
+                 {box()
+                      .row()
+                      .alignItems(Align::Start)
+                      .gap(20)
+                      .children({sketch::kit::sectionHeader(
+                                     {.label = "THREE INPUTS",
+                                      .note = "Base + top + a scalar mask"})
+                                     .width(604),
+                                 sketch::kit::sectionHeader(
+                                     {.label = "TWO COMPOSITING LAWS",
+                                      .note = "The operands stay the same."})
+                                     .width(396)}),
+                  sketch::kit::comparison(
+                      {.cases = {operand("BASE", "kit::latten({.level = 0.62})",
+                                         "Latten provides the base.",
+                                         stackBase(), "base"),
+                                 operand("TOP", "kit::stone({.bedAngle = 62})",
+                                         "Stone provides the top.", stackTop(),
+                                         "top"),
+                                 operand("MASK",
+                                         "field::grain(0.018, 4, contrast 3.2)",
+                                         "Red-channel grain supplies coverage.",
+                                         stackMask(), "mask"),
+                                 stacked("MIX", "over(base, top, mask)",
+                                         "The mask interpolates between "
+                                         "base and top.",
+                                         mat::Blend::Mix, "over.mix"),
+                                 stacked("MULTIPLY", "over(…, Blend::Multiply)",
+                                         "The mask controls a "
+                                         "multiplicative blend.",
+                                         mat::Blend::Multiply, "over.mul")},
+                       .measure = 1020,
+                       .gap = 20})})}));
   }
 
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // the live panel is on the fire LUT here
-    sketch::kit::stage(ctx, {.size = {1060, 690}, .captureAt = 1.0});
+    sketch::kit::stage(ctx, {.size = {1100, 930}, .captureAt = 1.0});
     ctx.composer.render(describe());
   }
 

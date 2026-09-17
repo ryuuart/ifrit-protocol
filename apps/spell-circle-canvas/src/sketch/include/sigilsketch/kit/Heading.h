@@ -90,25 +90,22 @@ struct TitleCard {
  *  gap behind it. */
 [[nodiscard]] compose::Element titleCard(const TitleCard& card);
 
-/** A SECTION INSIDE THE CONTENT: a name at the left, a remark at the
- *  right, and the rule that fills what the two leave between them. */
+/** A section name followed by a rule, with its explanation directly below. */
 struct SectionHeader {
   compose::Utf8 label;
-  /** Ranged to the far edge — a count, a unit, a source. */
+  /** Left-aligned beneath the label, with a bounded reading measure. */
   compose::Utf8 note;
-  /** The hairline that spans the space between the two. false leaves the
-   *  space empty, which still ranges the note to the far edge. */
+  /** A hairline after the label, filling the rest of its row. */
   bool ruled = true;
 };
 
-/** THE HEADER, one line high.
+/** The header grows vertically to fit its label and supporting note.
  *
  *      sketch::kit::sectionHeader({.label = "DYNAMICS",
  *                                  .note = "6 presets"})
  *
- *  It stretches across whatever width it is given: the rule is what grows,
- *  so the label stays at the left and the note at the right however wide
- *  the column is. */
+ *  The note stays beneath the label's left edge as the rule stretches across
+ *  the remainder of the heading row. */
 [[nodiscard]] compose::Element sectionHeader(const SectionHeader& header);
 
 }  // namespace sigil::sketch::kit

@@ -188,6 +188,64 @@ class Children:
             line += bytes((0, 0, 255, 255)) * 4
             self.assertEqual(pixels, line * 32)
 
+    def test_container_arguments_match_fluent_children_in_the_renderer(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "containers.py"
+            output = Path(folder) / "containers.png"
+            source.write_text("""from sigil.compose import box, column, layout, positioned, row, stack
+from sigil.compose.layouts import Grid, px
+from sigil.sketch import sketch
+
+@sketch(size=(12, 28), capture_at=0)
+class Containers:
+    def setup(self, ctx):
+        def marks():
+            return [box().size(4, 4).fill(color) for color in ("#ff0000", "#00ff00", "#0000ff")]
+        rows = [
+            row(*marks()),
+            box(marks()).row(),
+            row(tuple(marks())),
+            row(mark for mark in marks()),
+            layout(Grid(columns=[px(4), px(4), px(4)], rows=[px(4)]), marks()),
+            positioned(*(mark.at((index * 4, 0)) for index, mark in enumerate(marks()))),
+            stack(*(mark.absolute().left(index * 4).top(0) for index, mark in enumerate(marks()))),
+        ]
+        ctx.render(column(row.size(12, 4).shrink(0) for row in rows))
+""")
+            render_file(source, output, at=0)
+            pixels = image.load(output).rgba()
+            line = bytes((255, 0, 0, 255)) * 4
+            line += bytes((0, 255, 0, 255)) * 4
+            line += bytes((0, 0, 255, 255)) * 4
+            self.assertEqual(pixels, line * 28)
+
+    def test_container_factories_reject_invalid_children(self):
+        from sigil.compose import layout, positioned, stack
+        from sigil.compose.layouts import Grid
+
+        factories = (
+            box,
+            row,
+            column,
+            stack,
+            positioned,
+            lambda *items: layout(Grid(), *items),
+        )
+        for factory in factories:
+            for children in (
+                (None,),
+                ("text",),
+                ([text("valid"), 3],),
+                (text("valid"), [box()]),
+            ):
+                with (
+                    self.subTest(factory=factory, children=children),
+                    self.assertRaises(TypeError),
+                ):
+                    factory(*children)
+            self.assertIsInstance(factory(), Element)
+            self.assertIsInstance(factory(()), Element)
+
     def test_named_binding_inputs_render_through_both_authoring_paths(self):
         with tempfile.TemporaryDirectory() as folder:
             source = Path(folder) / "keywords.py"
@@ -243,13 +301,12 @@ class Keywords:
             with self.subTest(collection=value), self.assertRaises(TypeError):
                 row().children(value)
 
-    def test_constructors_keep_properties_and_children_explicit(self):
+    def test_constructors_keep_properties_fluent(self):
         for constructor in (box, row, column):
             with self.subTest(constructor=constructor):
                 with self.assertRaises(TypeError):
                     constructor(width=30)
-                with self.assertRaises(TypeError):
-                    constructor(text("child"))
+                self.assertIsInstance(constructor(text("child")), Element)
         with self.assertRaises(AttributeError):
             box().wdith(30)
 

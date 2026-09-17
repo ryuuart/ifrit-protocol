@@ -55,9 +55,9 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 914};
-constexpr float kCell = 341;
-constexpr float kPicture = 300;
+constexpr SkSize kCanvas = {1100, 1360};
+constexpr float kCell = 500;
+constexpr float kPicture = 260;
 constexpr bool kLit = false;  // defines SIGIL_LIT in the session
 
 constexpr SkColor4f kFigure{0.60f, 0.88f, 0.72f, 1};
@@ -65,9 +65,8 @@ constexpr SkColor4f kFault{0.96f, 0.52f, 0.46f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette.cellGround = {0.10f, 0.105f, 0.125f, 1};
-  look.type.captionLabel = {.size = 11, .mono = true};
   return look;
 }
 
@@ -127,12 +126,20 @@ weave::TextStyle mono(float size, SkColor4f color) {
 
 /** A readout cell: a block of monospaced text in the plate, which is
  *  what a layout and a diagnostic ARE. */
-Element readout(const char* call, const std::string& note,
-                const std::string& body, SkColor4f colour = kFigure) {
-  return sketch::kit::cell(
-      {.plate =
-           {.width = kCell, .height = kPicture, .padding = 12, .paddingY = 10}},
-      call, note, text(body, mono(9.0f, colour)).width(kCell - 24));
+sketch::kit::ComparisonCase readout(const char* caseTitle, const char* call,
+                                    const std::string& note,
+                                    const std::string& body,
+                                    SkColor4f colour = kFigure,
+                                    float height = kPicture) {
+  return {.title = caseTitle,
+          .control = call,
+          .figure = sketch::kit::cell(
+              {.plate = {.width = kCell,
+                         .height = height,
+                         .padding = 16,
+                         .paddingY = 10}},
+              "", "", text(body, mono(10.5f, colour)).width(kCell - 32)),
+          .note = note};
 }
 
 }  // namespace
@@ -228,76 +235,89 @@ struct SlangPortable {
     const std::string garbageWhy = whyNot("this is not Slang", "fsCover");
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "Portable Slang shaders",
-         .subtitle =
-             kit::formatted("dials · the module source · lit (%s, which "
-                            "defines SIGIL_LIT) · the entry point names "
-                            "· this module compiled: %s",
-                            kLit ? "true" : "false", ok ? "yes" : "no"),
-         .footer = "both stages are linked as ONE program, because "
-                   "the layout is a property of the linked "
-                   "program: linking them apart would let an "
-                   "unused uniform be dropped from one and not the "
-                   "other, and the two would read one buffer at "
-                   "two sets of offsets"},
-        kit::cells(
-            {.cells =
-                 {kit::cells(
-                      {.cells =
-                           {readout("the module",
-                                    "imports resolved in memory · "
-                                    "sqrtP is Portable's and lambert is "
-                                    "Shading's, so a host and a device "
-                                    "call one definition",
-                                    std::string(kModule).substr(1),
-                                    sketch::kit::theme().palette.ink),
-                            readout(
-                                "Compiled::uniforms",
-                                "every number read back off the "
-                                "program that was just built "
-                                "· a sampled slot carries no "
-                                "bytes, so it is a texture and not "
-                                "a uniform",
-                                layout),
-                            readout(
-                                "slang::Uniforms · one draw",
-                                "written at those offsets and read "
-                                "straight back out · a name "
-                                "the program does not carry is "
-                                "skipped, not faulted",
-                                bytes)},
-                       .gap =
-                           14}),
-                  kit::cells({.cells = {readout("the kit's bodies through a "
-                                                "scaffold",
-                                                "each grained recipe's "
-                                                "generated "
-                                                "declarations and body, plus "
-                                                "the "
-                                                "two "
-                                                "stages a renderer supplies "
-                                                "· one body, two targets",
-                                                surfaces),
-                                        readout("a missing entry point",
-                                                "the name it could not find is "
-                                                "in "
-                                                "the message, which is what "
-                                                "makes a "
-                                                "typo a diagnostic rather than "
-                                                "an "
-                                                "empty program",
-                                                missingWhy, kFault),
-                                        readout("source that is not Slang",
-                                                "false, an empty Compiled, and "
-                                                "the "
-                                                "compiler's own diagnostics "
-                                                "· a body that cannot "
-                                                "compile "
-                                                "must say why",
-                                                garbageWhy, kFault)},
-                              .gap = 14})},
-             .column = true,
-             .gap = 18})));
+        {.title = "The compiler defines the layout",
+         .subtitle = "Inspect a linked program, then inspect the bytes written "
+                     "for one draw",
+         .footer = "Both stages link as one program. Their shared layout is "
+                   "reflected, never inferred by the renderer."},
+        box().column().gap(26).children(
+            {sketch::kit::sectionHeader(
+                 {.label = "SOURCE → LAYOUT → BYTES",
+                  .note = kit::formatted("Module compiled: %s · SIGIL_LIT: %s",
+                                         ok ? "yes" : "no",
+                                         kLit ? "true" : "false")}),
+             box()
+                 .row()
+                 .alignItems(Align::Start)
+                 .gap(20)
+                 .children({sketch::kit::comparison(
+                                {.cases = {readout(
+                                     "01  DECLARE THE PROGRAM", "the module",
+                                     "The source names its uniforms, sampled "
+                                     "slot and two stages.",
+                                     std::string(kModule).substr(1),
+                                     sketch::kit::theme().palette.ink, 614)},
+                                 .measure = 500,
+                                 .gap = 20}),
+                            box().column().gap(24).children(
+                                {sketch::kit::comparison(
+                                     {.cases = {readout(
+                                          "02  REFLECT ITS LAYOUT",
+                                          "Compiled::uniforms",
+                                          "Offsets, byte counts and strides "
+                                          "are reported by the compiler.",
+                                          layout)},
+                                      .measure = 500,
+                                      .gap = 20}),
+                                 sketch::kit::comparison(
+                                     {.cases = {readout(
+                                          "03  WRITE A DRAW",
+                                          "slang::Uniforms · one draw",
+                                          "Writes use the reported layout; the "
+                                          "readback below verifies the bytes.",
+                                          bytes)},
+                                      .measure = 500,
+                                      .gap = 20})})}),
+             box()
+                 .row()
+                 .alignItems(Align::Start)
+                 .gap(20)
+                 .children(
+                     {box().column().gap(16).children(
+                          {sketch::kit::sectionHeader(
+                               {.label = "MATERIAL BODIES", .note = ""}),
+                           sketch::kit::comparison(
+                               {.cases = {readout(
+                                    "COMPILE THROUGH A SCAFFOLD",
+                                    "the kit's bodies through a "
+                                    "scaffold",
+                                    "The material recipes compile through the "
+                                    "renderer scaffold.",
+                                    surfaces, kFigure, 100)},
+                                .measure = 500,
+                                .gap = 20})}),
+                      box().column().gap(18).children(
+                          {sketch::kit::sectionHeader(
+                               {.label = "DIAGNOSTICS", .note = ""}),
+                           sketch::kit::comparison(
+                               {.cases = {readout(
+                                    "MISSING ENTRY POINT",
+                                    "a missing entry point",
+                                    "The requested entry point is absent.",
+                                    missingWhy, kFault, 112)},
+                                .measure = 500,
+                                .gap = 20}),
+                           sketch::kit::comparison(
+                               {.cases = {readout(
+                                    "INVALID SOURCE",
+                                    "source that is not Slang",
+                                    "The source cannot be parsed "
+                                    "as a Slang module.",
+                                    garbageWhy.substr(0,
+                                                      garbageWhy.find("\n\n")),
+                                    kFault, 112)},
+                                .measure = 500,
+                                .gap = 20})})})})));
   }
 };
 

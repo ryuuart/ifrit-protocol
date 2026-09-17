@@ -85,8 +85,8 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr float kPanel = 552;    // one panel's drawn width, px
-constexpr float kPanelH = 470;   // …and its height
+constexpr float kPanel = 550;    // one panel's drawn width, px
+constexpr float kPanelH = 380;   // …and its height
 constexpr float kWidth = 132;    // the band's world width
 constexpr int kAcrossPx = 300;   // the banner column's pixel width
 constexpr int kBannerPx = 3072;  // the banner column's pixel length
@@ -102,37 +102,34 @@ constexpr SkColor4f kTick{1.0f, 0.72f, 0.36f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette.ground = {0.031f, 0.031f, 0.051f, 1};
   look.palette.ink = {0.925f, 0.957f, 0.996f, 1};
   look.palette.rule = {0.17f, 0.18f, 0.24f, 1};
   look.type.captionLabel = {.size = 13, .track = 0.5f};
-  look.spacing.marginX = 30;
-  look.spacing.marginTop = 22;
+  look.spacing.marginX = 40;
+  look.spacing.marginTop = 32;
   return look;
 }
 
 /** THE BANNER, as one column laid out at the full strip length. Sector
  *  spacing is `grow()` boxes rather than fixed gaps: the column is told
  *  how long it is and distributes the slack itself. The column is baked
- *  alone, so its runs are set in the default family over the initial
- *  values: the sector lines take the column's ink, and the numerals and
- *  the headings say their own. */
+ *  alone with its own face and ink: the sector lines inherit both, and
+ *  the numerals and the headings state their own size and color. */
 Element banner(float length) {
-  const char8_t* pool[4] = {
-      u8"the across-vector is the whole difference",
-      u8"a hung rail keeps the cloth flat to the ground",
-      u8"transport only promises the SMALLEST turn",
-      u8"one loop, one banner, two rails",
-  };
-  Element column = box()
-                       .column()
-                       .alignItems(Align::Center)
-                       .width((float)kAcrossPx)
-                       .height(length)
-                       .padding(14, 48)
-                       .fill(Fill::color({0.031f, 0.047f, 0.086f, 0.62f}))
-                       .ink(kInk);
+  const char8_t* pool[4] = {u8"FOLLOW", u8"THE LINE", u8"STAY", u8"UPRIGHT"};
+  Element column =
+      box()
+          .column()
+          .alignItems(Align::Center)
+          .width((float)kAcrossPx)
+          .height(length)
+          .padding(14, 48)
+          .fill(Fill::color({0.031f, 0.047f, 0.086f, 0.62f}))
+          .ink(kInk)
+          .font(
+              {.face = sketch::kit::houseFace(sketch::kit::Voice::Interface)});
   column.children(
       {box()
            .absolute()
@@ -142,7 +139,7 @@ Element banner(float length) {
            .absolute()
            .inset((float)kAcrossPx - 5, 0, 3, 0)
            .fill(Fill::color({kAccent.fR, kAccent.fG, kAccent.fB, 0.5f})),
-       text(u8"THE HUNG RAIL").font({.size = 60}).ink(kAccent)});
+       text(u8"MARQUEE").font({.size = 48}).ink(kAccent)});
   // One sector: the slack before it, its numeral, and the phrase it
   // carries. The spacers are grow boxes, so the column distributes
   // whatever length it was told it is.
@@ -151,10 +148,9 @@ Element banner(float length) {
                      text(kit::formatted("- %02d -", s + 1))
                          .font({.size = 34})
                          .ink(kNumeral),
-                     text(pool[(size_t)s % 4]).font({.size = 40})});
-  column.children({box().grow(), text(u8"and back to its own beginning")
-                                     .font({.size = 46})
-                                     .ink(kAccent)});
+                     text(pool[(size_t)s % 4]).font({.size = 42})});
+  column.children(
+      {box().grow(), text(u8"REPEAT").font({.size = 42}).ink(kAccent)});
   return column;
 }
 
@@ -219,9 +215,9 @@ struct YarnMarquee {
   std::vector<curve::Frame3> transported;
   std::vector<curve::Frame3> hung;
 
-  Element panel(const char* call, const char* note, std::string key,
+  Element panel(const char* label, const char* note, std::string key,
                 const std::vector<curve::Frame3>* rail) const {
-    return sketch::kit::caption(kPanel, call, note,
+    return sketch::kit::caption(kPanel, label, note,
                                 custom(std::move(key),
                                        [this, rail](SkCanvas& canvas) {
                                          paintRail(canvas, *rail, art);
@@ -231,9 +227,45 @@ struct YarnMarquee {
                                     .fill(Fill::color(kCellGround)));
   }
 
+  // Equal screen-space lengths isolate orientation from perspective scale.
+  Element orientation(const char* key, const std::vector<curve::Frame3>* rail) {
+    return custom(
+               key,
+               [rail](SkCanvas& canvas) {
+                 SkPaint rule;
+                 rule.setAntiAlias(true);
+                 rule.setStrokeWidth(1);
+                 rule.setColor4f({0.22f, 0.25f, 0.32f, 1});
+                 canvas.drawLine(20, 44, kPanel - 20, 44, rule);
+                 const auto camera = view();
+                 rule.setColor4f(kTick);
+                 rule.setStrokeWidth(2);
+                 for (int i = 0; i < 16; ++i) {
+                   const auto& f =
+                       (*rail)[static_cast<size_t>(i) * rail->size() / 16];
+                   const auto a = camera.project(f.position, {kPanel, kPanelH});
+                   const auto b = camera.project(f.position + f.binormal,
+                                                 {kPanel, kPanelH});
+                   if (!a || !b) continue;
+                   SkVector direction = *b - *a;
+                   if (!direction.normalize()) continue;
+                   const float x =
+                       28 + static_cast<float>(i) * (kPanel - 56) / 15;
+                   canvas.drawLine(
+                       x - direction.x() * 18, 44 - direction.y() * 18,
+                       x + direction.x() * 18, 44 + direction.y() * 18, rule);
+                   canvas.drawCircle(x + direction.x() * 18,
+                                     44 + direction.y() * 18, 2.5f, rule);
+                 }
+               })
+        .width(kPanel)
+        .height(88)
+        .fill(Fill::color(kCellGround));
+  }
+
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
-    sketch::kit::stage(ctx, {.size = {1200, 660}});
+    sketch::kit::stage(ctx, {.size = {1200, 820}});
     // Both rails are computed from the loop and nothing reads the clock.
     ctx.captureAt(0.05);
 
@@ -260,26 +292,36 @@ struct YarnMarquee {
     hung = curve::hangFrames(rail, kSections, 1.0f, 1.0f);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "The hung rail",
-         .subtitle = "one closed winding, one banner, a two-point "
-                     "line profile — the ticks are each "
-                     "frame's across-vector at the band's own "
-                     "width",
-         .footer = "painter order is the depth test · the "
-                   "cull is off, so both faces of a cloth show"},
-        kit::cells(
-            {.cells = {panel("curve::frames(loop, 220)",
-                             "parallel transport — the smallest "
-                             "turn from one frame to the next, and no "
-                             "relation to the world: the ticks tilt and the "
-                             "banner rolls onto its edge",
-                             "transported", &transported),
-                       panel("curve::hangFrames(loop, 220, head 1, span 1)",
-                             "the hang direction — straight down, "
-                             "made perpendicular to the tangent: the ticks "
-                             "stay level and the banner never turns over",
-                             "hung", &hung)},
-             .gap = 20})));
+        {.title = "Keeping a moving banner upright",
+         .subtitle = "One winding, one cloth, one camera · only the frame "
+                     "orientation changes",
+         .footer = "Dots mark the positive across-vector. Both faces of the "
+                   "cloth are drawn; triangles use painter order."},
+        box().column().gap(28).children(
+            {sketch::kit::cells(
+                 {.cells = {panel("PARALLEL TRANSPORT",
+                                  "The smallest local turn lets the cloth roll "
+                                  "around the loop.",
+                                  "transported", &transported),
+                            panel("WORLD-VERTICAL HANG",
+                                  "The projected downward direction keeps the "
+                                  "banner upright.",
+                                  "hung", &hung)},
+                  .gap = 20}),
+             box().column().gap(10).children(
+                 {text("READING THE RAIL · 16 equally spaced stations")
+                      .styleClass("eyebrow"),
+                  sketch::kit::cells(
+                      {.cells = {sketch::kit::caption(
+                                     kPanel, "Transported orientation",
+                                     "curve::frames(loop, 220)",
+                                     orientation("transport-directions",
+                                                 &transported)),
+                                 sketch::kit::caption(
+                                     kPanel, "Hung orientation",
+                                     "curve::hangFrames(loop, 220, 1, 1)",
+                                     orientation("hang-directions", &hung))},
+                       .gap = 20})})})));
   }
 };
 

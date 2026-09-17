@@ -2,10 +2,12 @@
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/core/Grid.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilsketch/kit/Cells.h>
 #include <sigilweave/layout/StyleSheet.h>
 
+#include <algorithm>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -80,6 +82,77 @@ compose::Element cell(const Cell& sheet, compose::Utf8 label,
       sheet.plate.content ? well(sheet.plate, std::move(picture))
                           : well(sheet.plate).children({std::move(picture)});
   return caption(measure, std::move(label), std::move(note), std::move(plate));
+}
+
+compose::Element comparison(Comparison specification) {
+  using namespace compose;
+  const Theme& look = theme();
+  if (specification.cases.empty()) return box();
+  const float gap = specification.gap.value_or(look.spacing.cellGap);
+  const float columnWidth = std::max(
+      0.0f,
+      (specification.measure - gap * float(specification.cases.size() - 1)) /
+          float(specification.cases.size()));
+  const auto any = [&](auto member) {
+    return std::any_of(
+        specification.cases.begin(), specification.cases.end(),
+        [&](const ComparisonCase& one) { return !(one.*member).empty(); });
+  };
+  const bool titles = any(&ComparisonCase::title);
+  const bool controls = any(&ComparisonCase::control);
+  const bool notes = any(&ComparisonCase::note);
+  const int tracks = 1 + int(titles) + int(controls) + int(notes);
+  std::vector<Element> children;
+  for (size_t column = 0; column < specification.cases.size(); ++column) {
+    ComparisonCase& one = specification.cases[column];
+    int row = 0;
+    if (titles) {
+      if (!one.title.empty())
+        children.push_back(text(std::move(one.title))
+                               .styleClass("captionLabel")
+                               .width(columnWidth)
+                               .shrink(0)
+                               .cells(int(column), row));
+      ++row;
+    }
+    if (controls) {
+      if (!one.control.empty())
+        children.push_back(text(std::move(one.control))
+                               .font(look.font({.size = 10.5f, .mono = true}))
+                               .ink(look.palette.ash)
+                               .width(columnWidth)
+                               .shrink(0)
+                               .cells(int(column), row));
+      ++row;
+    }
+    children.push_back(box()
+                           .column()
+                           .width(columnWidth)
+                           .shrink(0)
+                           .alignItems(Align::Center)
+                           .children({std::move(one.figure.shrink(0))})
+                           .cells(int(column), row++));
+    if (notes && !one.note.empty())
+      children.push_back(text(std::move(one.note))
+                             .styleClass("captionNote")
+                             .width(columnWidth)
+                             .shrink(0)
+                             .cells(int(column), row));
+  }
+  // Grid places already-measured children. Measure its tracks side by side
+  // so Yoga cannot shrink the figures as a temporary vertical stack, and
+  // give text its final column width before it reports a height.
+  return layout(layouts::Grid{
+                    .columns = layouts::repeatTrack(
+                        int(specification.cases.size()), layouts::fr()),
+                    .rows = layouts::repeatTrack(tracks, layouts::content()),
+                    .gap = {gap, specification.trackGap.value_or(8)},
+                    .down = Align::Start})
+      .row()
+      .width(specification.measure)
+      .shrink(0)
+      .alignItems(Align::Start)
+      .children(std::move(children));
 }
 
 compose::Element cells(Run run) {

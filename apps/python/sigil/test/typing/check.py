@@ -24,6 +24,8 @@ def main():
         valid = [
             fixtures / "authoring.py",
             fixtures / "native_surface.py",
+            fixtures / "typography.py",
+            fixtures / "world.py",
             *options.example,
         ]
         invalid = [

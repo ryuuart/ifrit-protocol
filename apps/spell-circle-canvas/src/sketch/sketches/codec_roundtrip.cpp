@@ -1,29 +1,9 @@
 /** @file
- * codec_roundtrip — geometry out through encode::ply and back in through
- * decode::model.
- *
- * PLY is the carrier because it is the one widely read format where
- * arbitrary per-vertex attributes are first-class: a Mesh writes its
- * vertices and triangles, a Cloud writes its positions and EVERY lane,
- * and the reader folds the suffixed properties back into lanes under
- * their own names. So a round trip is lossless up to the uchar colour
- * quantisation, and the last cell shows the header that says so.
- *
- * Ascii and binary carry the same properties in the same order. Ascii is
- * readable and diffable; binary writes rows as raw little-endian bytes,
- * so floats survive exactly instead of through a decimal spelling, and
- * the file is a third of the size. Both are read by the same
- * `decode::model` call, which picks its reader off the path hint.
- *
- * `decode::model` is also the door for OBJ, glTF, STL, Alembic and
- * Houdini .geo. Nothing is mounted at `res://` in this repository, so a
- * plate here is a function of the geometry generated below and never of
- * what a machine happens to have on disk.
- *
- * EDIT THESE FIRST
- *   kR, kr, kNu, kNv — the torus and how finely it is tessellated, which
- *                      is what every byte count below is a count of.
- *   kMotes           — points scattered on it for the cloud round trip.
+ * A generated torus serialized as ASCII and binary PLY, then decoded.
+ * The first comparison draws the source and both decoded meshes with one
+ * camera and reports measured topology and byte counts. The lower comparison
+ * covers point attributes, fitting the decoded bounds and the actual PLY
+ * header. Every fixture is generated locally.
  */
 
 // TAGS: Geometry/Meshes, Media/Models
@@ -61,9 +41,9 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1120, 700};
-constexpr float kCell = 348;
-constexpr float kPicture = 214;
+constexpr SkSize kCanvas = {1120, 910};
+constexpr float kCell = 330.66f;
+constexpr float kPicture = 208;
 
 constexpr float kR = 62, kr = 23;  // the torus, major and minor radius
 constexpr int kNu = 48, kNv = 24;  // how finely it is tessellated
@@ -73,7 +53,7 @@ constexpr SkColor4f kFigure{0.98f, 0.78f, 0.36f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette.ground = {0.07f, 0.075f, 0.085f, 1};
   look.type.captionLabel = {.size = 12, .track = 1.2f};
   look.spacing.captionGap = 8;
@@ -114,26 +94,14 @@ std::string kib(size_t bytes) {
   return buffer;
 }
 
-/** The one voice every cell on this sheet is captioned in: the call over
- *  the picture, the readout it produced under it, set monospaced so the
- *  counts of six cells line up. */
-/** A drawn cell: a fixed picture between the call and its readout, so six
- *  of them line up whatever each one drew. */
-Element cell(const char* heading, const std::string& reading, Element picture) {
-  return sketch::kit::caption(
-      kCell, heading, reading,
-      sketch::kit::well({.width = kCell, .height = kPicture, .clip = false},
-                        std::move(picture)));
-}
-
-Element meshCell(const char* heading, const std::string& reading,
-                 gm::Mesh mesh) {
-  return cell(heading, reading,
-              custom(heading, [mesh = std::move(mesh)](SkCanvas& canvas,
-                                                       const PaintContext& pc) {
-                render::drawMesh(canvas, mesh, camera::place({0, 0, 0}, 24, 0),
-                                 stageCamera(), pc.size, stageStyle());
-              }));
+Element meshFigure(const char* key, gm::Mesh mesh) {
+  return sketch::kit::well(
+      {.width = kCell, .height = kPicture},
+      custom(key, [mesh = std::move(mesh)](SkCanvas& canvas,
+                                           const PaintContext& pc) {
+        render::drawMesh(canvas, mesh, camera::place({0, 0, 0}, 24, 0),
+                         stageCamera(), pc.size, stageStyle());
+      }));
 }
 
 }  // namespace
@@ -183,73 +151,81 @@ struct CodecRoundtrip {
         (double)lo.x, (double)lo.y, (double)lo.z, (double)hi.x, (double)hi.y,
         (double)hi.z);
 
-    // The mesh through two formats, then the cloud, the fit and the
-    // header the encoder wrote — two named shelves, so a cell reads as
-    // the call it makes.
-    Element meshes = kit::cells(
-        {.cells = {meshCell("shapes::torus · never written",
-                            count(source.positions.size(), "vertices") + " · " +
-                                count(source.indices.size() / 3, "triangles"),
-                            source),
-                   meshCell(
-                       "encode::ply(mesh)",
-                       kib(ascii.size()) + " ascii · " +
-                           count(fromAscii ? fromAscii->vertexCount() : 0,
-                                 "vertices") +
-                           " · " +
-                           count(fromAscii ? fromAscii->triangleCount() : 0,
-                                 "triangles") +
-                           " back",
-                       fromAscii ? fromAscii->merged() : gm::Mesh{}),
-                   meshCell(
-                       "encode::ply(mesh, {.binary = true})",
-                       kib(binary.size()) + " · " +
-                           count(fromBinary ? fromBinary->vertexCount() : 0,
-                                 "vertices") +
-                           " · floats exact, not decimal",
-                       fromBinary ? fromBinary->merged() : gm::Mesh{})},
-         .gap = 14});
-
-    const std::string header = cloudPly.substr(
-        0, cloudPly.find("end_header") +
-               (cloudPly.find("end_header") == std::string::npos ? 0 : 10));
-    Element lanes = kit::cells(
-        {.cells =
-             {cell("encode::ply(cloud) · faceless",
-                   count(read.size(), "points") + " · " +
-                       std::to_string(read.colors.size()) + " colour, " +
-                       std::to_string(read.scalars.size()) + " scalar, " +
-                       std::to_string(read.vectors.size()) +
-                       " vector lanes read back",
-                   custom("cloud",
-                          [read](SkCanvas& canvas, const PaintContext& pc) {
-                            gm::points::BillboardStyle splat;
-                            splat.size = 3.4f;
-                            splat.sizeLane = "size";
-                            splat.tintLane = "tint";
-                            splat.additive = false;
-                            gm::points::drawBillboards(
-                                canvas, read, stageCamera(), pc.size, splat);
-                          })),
-              meshCell("Model::bounds + Model::fitTransform", boundsLine,
-                       fitted),
-              cell("the header encode::ply wrote",
-                   "positions, then a property per lane — nx/ny/nz, "
-                   "uchar rgba, and each scalar under its own name",
-                   box().padding(12, 10).children(
-                       {text(header, mono(9.5f, kFigure)).width(kCell - 24)}))},
-         .gap = 14});
-
+    const auto returned = [&](const auto& model, size_t bytes) {
+      return kit::formatted(
+          "%zu vertices · %zu triangles · %s", model ? model->vertexCount() : 0,
+          model ? model->triangleCount() : 0, kib(bytes).c_str());
+    };
+    Element meshes = sketch::kit::comparison(
+        {.cases = {{.title = "GENERATED TORUS",
+                    .control = "R 62 · r 23 · 48 × 24",
+                    .figure = meshFigure("source", source),
+                    .note = count(source.positions.size(), "vertices") + " · " +
+                            count(source.indices.size() / 3, "triangles")},
+                   {.title = "ASCII ROUND TRIP",
+                    .control = "encode::ply(mesh)",
+                    .figure = meshFigure(
+                        "ascii", fromAscii ? fromAscii->merged() : gm::Mesh{}),
+                    .note = returned(fromAscii, ascii.size())},
+                   {.title = "BINARY ROUND TRIP",
+                    .control = "binary = true",
+                    .figure =
+                        meshFigure("binary", fromBinary ? fromBinary->merged()
+                                                        : gm::Mesh{}),
+                    .note = returned(fromBinary, binary.size())}},
+         .measure = 1040,
+         .gap = 24});
+    const auto end = cloudPly.find("end_header");
+    const std::string header =
+        cloudPly.substr(0, end == std::string::npos ? 0 : end + 10);
+    Element cloud = sketch::kit::well(
+        {.width = kCell, .height = kPicture},
+        custom("cloud", [read](SkCanvas& canvas, const PaintContext& pc) {
+          gm::points::BillboardStyle splat;
+          splat.size = 3.4f;
+          splat.sizeLane = "size";
+          splat.tintLane = "tint";
+          splat.additive = false;
+          gm::points::drawBillboards(canvas, read, stageCamera(), pc.size,
+                                     splat);
+        }));
+    Element structure = sketch::kit::comparison(
+        {.cases =
+             {{.title = "POINT ATTRIBUTES",
+               .control = "Faceless PLY → mergedCloud()",
+               .figure = std::move(cloud),
+               .note = kit::formatted(
+                   "%zu points · %zu colour / %zu scalar / %zu vector lanes",
+                   read.size(), read.colors.size(), read.scalars.size(),
+                   read.vectors.size())},
+              {.title = "FIT THE DECODED MODEL",
+               .control = "fitTransform(120)",
+               .figure = meshFigure("fitted", fitted),
+               .note = boundsLine},
+              {.title = "THE ACTUAL FILE HEADER",
+               .control = "Position + named properties",
+               .figure =
+                   sketch::kit::well(
+                       {.width = kCell, .height = 254, .padding = 16})
+                       .children(
+                           {text(header, mono(11, kFigure)).width(kCell - 32)}),
+               .note = "Attribute names are encoded as PLY properties and "
+                       "reconstructed into lanes."}},
+         .measure = 1040,
+         .gap = 24});
     ctx.composer.render(sketch::kit::page(
-        {.title = "Codec round trip",
-         .subtitle = "dials · the format (ascii, binary, faceless cloud) · "
-                     "the generator (torus R 62 r 23, 48 by 24)",
-         .footer = "one decode::model call reads all of them — the reader is "
-                   "picked off the path hint, and OBJ, glTF, STL, Alembic "
-                   "and .geo come through the same door"},
-        kit::cells({.cells = {std::move(meshes), std::move(lanes)},
-                    .column = true,
-                    .gap = 18})));
+        {.title = "Geometry through a file",
+         .subtitle = "Match the torus before and after serialization, then "
+                     "inspect the attributes and bounds the decoder recovered.",
+         .footer = "decode::model chooses its reader from the path hint. ASCII "
+                   "stores decimal text; binary stores little-endian values."},
+        box().column().gap(26).children(
+            {sketch::kit::sectionHeader(
+                 {.label = "01  MESH TOPOLOGY AND APPEARANCE"}),
+             std::move(meshes),
+             sketch::kit::sectionHeader(
+                 {.label = "02  WHAT ELSE SURVIVES THE TRIP"}),
+             std::move(structure)})));
   }
 };
 

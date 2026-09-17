@@ -56,28 +56,20 @@ constexpr float kTwistDeg = 150.0f;
 constexpr float kTaper = 0.25f;
 constexpr float kBendDeg = 80.0f;
 constexpr float kPeak = 70.0f;
-constexpr float kPanel = 180.0f;
+constexpr float kPanel = 220.0f;
 constexpr float kHeight = 300.0f;  // the column: y in [-150, 150]
-constexpr float kLead = 374.0f;    // two panels and the gap between them
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
   look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
   look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
   look.type.captionLabel = {.size = 12, .track = 0.4f};
-  look.spacing.marginX = 30;
-  look.spacing.marginTop = 22;
-  look.spacing.captionGap = 5;
   return look;
 }
 
-const SkColor4f kGround{0.055f, 0.06f, 0.085f, 1};
-const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
-const SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
 const SkColor4f kFrame{0.24f, 0.28f, 0.36f, 1};
-const SkColor4f kRule{0.19f, 0.20f, 0.26f, 1};
 
 /** A thin vertical loop: points scatter along it with a radial spread,
  *  so the cloud is a fuzzy column standing on the y axis. */
@@ -90,9 +82,9 @@ std::vector<glm::vec3> column() {
 
 geometry::mesh::camera::Camera lookAtColumn() {
   geometry::mesh::camera::Camera camera;
-  camera.eye = {260, 120, 720};
+  camera.eye = {300, 140, 850};
   camera.target = {0, 0, 0};
-  camera.fovYDeg = 30;
+  camera.fovYDeg = 38;
   return camera;
 }
 
@@ -119,16 +111,10 @@ Element splat(geometry::mesh::Cloud cloud) {
       .cache(Cache::None);
 }
 
-Element panel(const char* title, const char* note, Element inner) {
-  // The cell is held to the picture's width: a call longer than its own
-  // panel would otherwise widen the cell and the two rows would stop
-  // lining up column for column.
-  return sketch::kit::cell({.plate = {.width = Dimension(kPanel),
-                                      .height = Dimension(kPanel * 1.6f),
-                                      .ground = Fill::none(),
-                                      .keyline = Fill::color(kFrame)}},
-                           title, note, std::move(inner))
-      .width(kPanel);
+Element field(geometry::mesh::Cloud cloud) {
+  return sketch::kit::well(
+             {.width = kPanel, .height = 236, .keyline = Fill::color(kFrame)})
+      .children({splat(std::move(cloud))});
 }
 
 /** The shared head of every chain: the column, spread, sized, and a
@@ -155,7 +141,7 @@ geometry::mesh::pop::Builder base() {
 struct PopDeform {
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
-    sketch::kit::stage(ctx, {.size = {1240, 860}});
+    sketch::kit::stage(ctx, {.size = {1240, 890}});
     // Every cloud is cooked once in setup; nothing here reads the clock.
     ctx.captureAt(0.05);
 
@@ -200,47 +186,49 @@ struct PopDeform {
          }},
     }};
 
-    std::vector<Element> top{
-        panel("select(\"band\", Box, feather 0.35)",
-              "the mask lane itself — the colour ramp reads it, so the "
-              "feather is visible",
-              splat(base().cloud())),
-        // The mask at work: everyone gets the same Math, taken by "band".
-        panel("move({90,0,0}).masked(\"band\")",
-              "one Math, taken by the mask: the band slides out and the "
-              "rest stands",
-              splat(base().move({90, 0, 0}).masked("band").cloud()))};
-    std::vector<Element> below{box().width(kLead).column().gap(6).children(
-        {text("…and the same four, .masked(\"band\")")
-             .font({.size = 13, .color = kInk, .track = 0.6f}),
-         text("a mask is one more lane on the cloud, so a masked "
-              "deformer is the same chain reading one more channel. "
-              "The four calls below are the four above with one more "
-              "link in each; the amounts are shared constants, so the "
-              "two rows are comparable by construction.")
-             // the page's remark voice is tracked; a body line is not
-             .font({.size = 11, .color = kDim, .track = 0})
-             .width(kLead)})};
-    for (const Deform& how : kDeforms) {
-      top.push_back(panel(how.call, how.note, splat(how.link(base()).cloud())));
-      below.push_back(panel(how.maskedCall, how.maskedNote,
-                            splat(how.link(base()).masked("band").cloud())));
+    const char* names[] = {"TWIST", "TAPER", "BEND", "ORIENT + PEAK"};
+    const char* settings[] = {"150° · offset axis", "top scale 0.25",
+                              "80° toward +X", "60° direction · push 70"};
+    std::vector<sketch::kit::ComparisonCase> whole{
+        {.title = "SOURCE / THE MASK",
+         .control = "Box · feather 0.35",
+         .figure = field(base().cloud()),
+         .note = "Warm points belong to the selected band; cool points lie "
+                 "outside."}};
+    std::vector<sketch::kit::ComparisonCase> masked{
+        {.title = "MOVE / BAND ONLY",
+         .control = "+90 along X",
+         .figure = field(base().move({90, 0, 0}).masked("band").cloud()),
+         .note =
+             "A simple translation reveals how the feather weights the edit."}};
+    for (size_t i = 0; i < kDeforms.size(); ++i) {
+      const Deform& how = kDeforms[i];
+      whole.push_back({.title = names[i],
+                       .control = settings[i],
+                       .figure = field(how.link(base()).cloud()),
+                       .note = how.note});
+      masked.push_back(
+          {.title = names[i],
+           .control = settings[i],
+           .figure = field(how.link(base()).masked("band").cloud()),
+           .note = how.maskedNote});
     }
-
     ctx.composer.render(sketch::kit::page(
-        {.title = "Deforming a point field",
-         .subtitle = "one column of 1,400 points · twist, "
-                     "taper, bend and orient+peak, on the whole "
-                     "cloud above and on the selected band below",
-         .footer = "every chain is cooked once by the CPU "
-                   "reference executor and splatted by "
-                   "points::drawBillboards · all ten are "
-                   "GPU-executable unchanged"},
-        kit::cells(
-            {.cells = {kit::cells({.cells = std::move(top), .gap = 14}),
-                       kit::cells({.cells = std::move(below), .gap = 14})},
-             .column = true,
-             .gap = 22})));
+        {.title = "The same deformation, with a mask",
+         .subtitle = "1,400 points · a feathered band is the only difference "
+                     "between the two operator rows",
+         .footer = "Read down each column: identical amounts and camera. The "
+                   "mask is a lane on the cloud, so every deformer can read "
+                   "the same selection."},
+        box().column().gap(20).children(
+            {text("WHOLE CLOUD / EACH POINT RECEIVES THE FULL EDIT")
+                 .styleClass("section"),
+             sketch::kit::comparison(
+                 {.cases = std::move(whole), .measure = 1160, .gap = 15}),
+             text("SELECTED BAND / THE MASK WEIGHTS THE SAME EDIT")
+                 .styleClass("section"),
+             sketch::kit::comparison(
+                 {.cases = std::move(masked), .measure = 1160, .gap = 15})})));
   }
 };
 

@@ -57,9 +57,9 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 424};
-constexpr float kCell = 166;
-constexpr float kPicture = 176;
+constexpr SkSize kCanvas = {1100, 940};
+constexpr float kCell = 328;
+constexpr float kPicture = 236;
 
 constexpr float kExposure = 1.0f;  // the stop the reference is read at
 constexpr float kBias = 0.45f;     // roughness added to every surface
@@ -70,7 +70,7 @@ constexpr SkColor4f kCellGround{0.06f, 0.065f, 0.08f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette.cellGround = {0.06f, 0.065f, 0.08f, 1};
   return look;
 }
@@ -109,12 +109,14 @@ gm::camera::Camera lens() {
 
 /** One cell: the bake IS the well's surface, sized and grounded by the
  *  well itself, so nothing here places a picture inside a plate. */
-Element cell(const char* call, const char* note, sk_sp<SkImage> baked) {
+sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
+                                 const char* note, sk_sp<SkImage> baked) {
   Element picture = image(std::move(baked), Fit::Stretch);
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture},
-                        std::move(picture)));
+  return {.title = caseTitle,
+          .control = call,
+          .figure = sketch::kit::well({.width = kCell, .height = kPicture},
+                                      std::move(picture)),
+          .note = note};
 }
 
 }  // namespace
@@ -162,47 +164,48 @@ struct EnvLanes {
     shown.backdrop.blur = kBlur;
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "The environment's dials",
-         .subtitle = "dials · one stop against two (1.0 and "
-                     "2.0) · the roughness added to every "
-                     "surface (0.45) · the crossfade (0.75) "
-                     "· the sky's strength and blur",
-         .footer = "a frame holds ONE environment node, so each "
-                   "cell here is a frame of its own baked at the "
-                   "pixels it will have — and exposure "
-                   "is the only dial that still means something in "
-                   "a set carrying no panorama at all"},
-        kit::cells(
-            {.cells = {cell("studio() · exposure 1",
-                            "the reference · a near-mirror body over a "
-                            "matte slab, lit by the panorama alone",
-                            bake(base)),
-                       cell("exposure = 2",
-                            "one stop · every radiance multiplied "
-                            "before the tone curve, so the shoulder falls "
-                            "somewhere else",
-                            bake(brighter)),
-                       cell("roughnessBias = 0.45",
-                            "added to every surface's roughness before it "
-                            "picks a prefiltered level · the set "
-                            "softens and no material was edited",
-                            bake(softened)),
-                       cell("diffuse .15 specular 2",
-                            "a bright reflection over a dim bounce · "
-                            "pushing one and not the other is a look, not a "
-                            "physical claim",
+        {.title = "One room, six readings",
+         .subtitle =
+             "A fixed camera and material reveal the environment controls",
+         .footer = "Every image is a separate world frame. The mesh, camera "
+                   "and surface parameters remain fixed."},
+        box().column().gap(26).children(
+            {sketch::kit::sectionHeader(
+                 {.label = "SURFACE RESPONSE",
+                  .note = "Reference · brightness · reflection softness"}),
+             sketch::kit::comparison(
+                 {.cases = {cell("THE REFERENCE", "studio() · exposure 1",
+                                 "Near-mirror metal on a matte slab, lit only "
+                                 "by the studio.",
+                                 bake(base)),
+                            cell("ONE STOP BRIGHTER", "exposure = 2",
+                                 "Double the radiance before the tone curve.",
+                                 bake(brighter)),
+                            cell("ROUGHER EVERYWHERE", "roughnessBias = 0.45",
+                                 "A bias softens every reflection without "
+                                 "editing the materials.",
+                                 bake(softened))},
+                  .measure = 1020,
+                  .gap = 18}),
+             sketch::kit::sectionHeader(
+                 {.label = "THE ENVIRONMENT AROUND IT",
+                  .note = "Separate the light contribution, the next sky, and "
+                          "the visible backdrop."}),
+             sketch::kit::comparison(
+                 {.cases =
+                      {cell("DIFFUSE / SPECULAR", "diffuse .15 specular 2",
+                            "A stronger reflection over a reduced diffuse "
+                            "bounce.",
                             bake(mirrored)),
-                       cell("crossfade 0.75 to sunset",
-                            "a second panorama mixed over the first · "
-                            "both are sampled rather than one rebuilt, which "
-                            "is what lets a sky change mid-frame",
+                       cell("CROSSFADE TO SUNSET", "crossfade 0.75 to sunset",
+                            "The next panorama contributes 75% of the "
+                            "illumination.",
                             bake(mixed)),
-                       cell("backdrop 1.0 blur 0.35",
-                            "the sky SHOWN rather than only reflected "
-                            "· zero draws none of it, so the strength "
-                            "is also the switch",
+                       cell("SHOW THE SKY", "backdrop 1.0 blur 0.35",
+                            "The backdrop becomes visible, with its own blur.",
                             bake(shown))},
-             .gap = 10})));
+                  .measure = 1020,
+                  .gap = 18})})));
   }
 };
 

@@ -16,10 +16,11 @@ def wrong_paint(pen: str) -> None:
 box(wdith=20)  # error: reportCallIssue
 box().width(object())  # error: reportArgumentType
 row().children([42])  # error: reportCallIssue,reportArgumentType
-text(12)  # error: reportArgumentType
+text(12)  # error: reportCallIssue,reportArgumentType
 box().fill(object())  # error: reportArgumentType
 box().alignItems("middle")  # error: reportArgumentType
-row(text("implicit child"))  # error: reportCallIssue
+row(text("valid"), [text("nested")])  # error: reportArgumentType
+row([42])  # error: reportCallIssue,reportArgumentType
 row().children(["implicit text"])  # error: reportCallIssue,reportArgumentType
 row().children([None])  # error: reportCallIssue,reportArgumentType
 row().children((text("valid"), None))  # error: reportCallIssue,reportArgumentType

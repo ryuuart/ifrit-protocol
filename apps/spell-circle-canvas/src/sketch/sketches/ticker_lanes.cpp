@@ -64,9 +64,9 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 400};
-constexpr float kCell = 254;
-constexpr float kPicture = 176;
+constexpr SkSize kCanvas = {1100, 720};
+constexpr float kCell = 498;
+constexpr float kPicture = 160;
 
 constexpr float kSpan = 3.0f;         // seconds plotted
 constexpr float kDt = 1.0f / 120.0f;  // the delta they are stepped at
@@ -103,18 +103,6 @@ Element plot(const char* key, std::vector<sketch::kit::Layer> lanes) {
   return sketch::kit::plot(key, kField, std::move(lanes)).cover();
 }
 
-Element cell(const char* call, const char* note, Element body, Utf8 readout) {
-  const sketch::kit::Theme& look = sketch::kit::theme();
-  // The readout stands on a scrim of the cell's own ground: a trace runs
-  // the whole plate and would otherwise cross it.
-  kit::Caption how = look.voice(kCell);
-  how.reading = std::move(readout);
-  how.body = {.width = Dimension(kCell),
-              .height = Dimension(kPicture),
-              .ground = Fill::color(look.palette.cellGround)};
-  return kit::cell(how, call, note, std::move(body));
-}
-
 /** The sheet's two classes past the registers and the chart's: the second
  *  lane of a plot that carries two, and the source a derivation is read
  *  against. */
@@ -132,7 +120,7 @@ struct TickerLanes {
   std::string readouts[4];
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
+    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
     // the run has already happened, on its own ticker
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     const sketch::kit::Theme& look = sketch::kit::theme();
@@ -174,53 +162,58 @@ struct TickerLanes {
 
     readouts[0] = kit::formatted("add · %d ticks · active %s", kSteps,
                                  stillActive ? "true" : "false");
-    readouts[1] = kit::formatted("addFixed %.0f Hz · %d steps in %.0f s",
-                                 kFixedHz, fixedSteps, kSpan);
+    readouts[1] = kit::formatted("addFixed %.0f Hz · %d steps in %.3f s",
+                                 kFixedHz, fixedSteps, elapsed);
     readouts[2] = kit::formatted("derive · quantize(%d) · registered %s",
                                  kLevels, derived_ok ? "true" : "false");
     readouts[3] = kit::formatted("timeline · RampTo over %.1f s", kRamp);
 
+    const auto figure = [](Element chart) {
+      return sketch::kit::well({.width = kCell, .height = kPicture})
+          .children({std::move(chart)});
+    };
     ctx.composer.render(
         sketch::kit::page(
-            {.title = "The ticker's lanes",
-             .subtitle = "dials · three seconds at a 120 Hz delta "
-                         "· the fixed rate (5 Hz) · the "
-                         "derivation's levels (6) · the "
-                         "timeline motion's duration (1.4 s)",
-             .footer = "a derivation runs in a SECOND PHASE, after the "
-                       "timeline and after every steppable, so it "
-                       "never reads a stale source and registration "
-                       "order does not matter — which is "
-                       "exactly what a hand-rolled shadow copy cannot "
-                       "promise"},
-            kit::cells(
-                {.cells =
-                     {cell("ticker.add([] { …})",
-                           "the free steppable, handed the frame's delta "
-                           "· it answers true forever here, which is "
-                           "what keeps active() true forever",
-                           plot("free", {lane(freeLane)}), readouts[0]),
-                      cell("ticker.addFixed(5, fn, 8, &alpha)",
-                           "the count of fixed steps against the render "
-                           "interpolant · the count comes from total "
-                           "elapsed time, so it is exact at any draw rate",
-                           plot("fixed",
-                                {lane(fixedLane), lane(alphaLane, "second")}),
-                           readouts[1]),
-                      cell("derive(&d, bind(&source).quantize(6))",
-                           "the source under the derivation · the "
-                           "bind() vocabulary reaching an Output instead of "
-                           "a property slot",
-                           plot("derive", {lane(sourceLane, "source"),
-                                           lane(derivedLane)}),
-                           readouts[2]),
-                      cell("timeline().apply(&v).then<RampTo>(1, 1.4)",
-                           "the master timeline · a finished motion "
-                           "is removed, which is what would let active() "
-                           "settle if the steppable above ever retired",
-                           plot("timeline", {lane(timelineLane)}),
-                           readouts[3])},
-                 .gap = 14}))
+            {.title = "Four ways to advance a value",
+             .subtitle =
+                 kit::formatted("One ticker, %.3f seconds at a 120 Hz delta · "
+                                "the same clock across every chart",
+                                elapsed),
+             .footer = "Derived values run after the timeline and steppables. "
+                       "A finished timeline retires; the free steppable here "
+                       "deliberately keeps the ticker active."},
+            box().column().gap(26).children(
+                {sketch::kit::comparison(
+                     {.cases =
+                          {{.title = "01 / EVERY FRAME",
+                            .control = "add(dt) · a repeating one-second phase",
+                            .figure = figure(plot("free", {lane(freeLane)})),
+                            .note = readouts[0]},
+                           {.title = "02 / FIXED INTERVALS",
+                            .control = "addFixed(5 Hz) · count + interpolation",
+                            .figure = figure(plot(
+                                "fixed",
+                                {lane(fixedLane), lane(alphaLane, "second")})),
+                            .note =
+                                readouts[1] + " · blue: alpha between steps"}},
+                      .measure = 1020,
+                      .gap = 24}),
+                 sketch::kit::comparison(
+                     {.cases =
+                          {{.title = "03 / AFTER THE SOURCE",
+                            .control =
+                                "derive · quantize the phase to six levels",
+                            .figure = figure(
+                                plot("derive", {lane(sourceLane, "source"),
+                                                lane(derivedLane)})),
+                            .note = readouts[2] + " · grey: source phase"},
+                           {.title = "04 / UNTIL COMPLETION",
+                            .control = "timeline · ramp 0 → 1, then hold",
+                            .figure =
+                                figure(plot("timeline", {lane(timelineLane)})),
+                            .note = readouts[3]}},
+                      .measure = 1020,
+                      .gap = 24})}))
             .styleSheet(sheetClasses(look)));
   }
 };

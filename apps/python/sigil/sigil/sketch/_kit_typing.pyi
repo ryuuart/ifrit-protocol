@@ -68,3 +68,9 @@ class PanelGridProperties(TypedDict, total=False):
     ruled: bool
     align: AlignLike
     measure: DimensionLike
+
+class ComparisonProperties(TypedDict, total=False):
+    measure: float
+    gap: float | None
+    track_gap: float | None
+    trackGap: float | None

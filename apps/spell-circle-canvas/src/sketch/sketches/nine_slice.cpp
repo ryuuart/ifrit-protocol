@@ -1,33 +1,9 @@
 /** @file
- * nine slice — one generated frame texture, and the three things a
- * lattice has to get right.
- *
- * A carved frame is drawn once on an offscreen canvas at TWICE the size
- * it is used at, and every panel below wears that one image through a
- * `Slice`: the corner and edge bands hold their shape while the middle
- * stretches to whatever box the layout settled.
- *
- *   DENSITY  A texture generated oversized is sharp on a dense display
- *            and, drawn without saying so, twice as heavy as it was
- *            designed: a 64 px corner band lands 64 layout units wide
- *            where 32 were meant. `Slice::density` is the source's
- *            pixels per layout unit, and the two panels in the first row
- *            are the one image at 2 and at 1, so the difference between
- *            declaring it and not is the picture.
- *   THE DOOR Skia's own `drawImageLattice` is not implemented on every
- *            backend and draws NOTHING where it is not — including when
- *            a picture recorded elsewhere replays there, so nothing in
- *            this tree ever calls it. `skia::draw::drawLattice` is the
- *            way round: it splits the lattice into rects every backend
- *            performs. The second row draws the same frame twice at the
- *            same size, once through `Slice` and once through that call
- *            spelled by hand in a `custom()` leaf, and the two agree —
- *            on a raster plate and on a device alike.
- *   STRETCH  The panel at the foot is re-laid out every frame, so the
- *            middle bands are watched stretching rather than assumed.
- *
- * The cells and the page are the specimen kit's, so the sheet's voice is
- * declared once.
+ * One generated carved texture, divided into nine regions.
+ * The source guides identify the fixed corner bands. Two comparisons isolate
+ * source density and the drawing path; a live destination shows the edge and
+ * centre bands stretching. Slice and skia::draw::drawLattice both decompose
+ * the image into rectangles supported by raster and device backends.
  */
 
 // TAGS: Geometry/Layout, Materials/Compositing
@@ -57,7 +33,7 @@ using namespace sigil::compose::kit::ornament;
 
 namespace {
 
-constexpr SkSize kSceneSize = {900, 640};
+constexpr SkSize kSceneSize = {1100, 830};
 /** The panels every comparison is drawn in — one size, so what differs
  *  between two cells is the one thing the cell is about. */
 constexpr float kPanelW = 250, kPanelH = 96;
@@ -75,14 +51,14 @@ constexpr SkColor4f kQuest{0.169f, 0.110f, 0.043f, 1};
  *  it did under it. The page's ground is a shade off the canvas's, which
  *  is black, so the margin around the sheet reads as a border. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette = {.ground = {0.055f, 0.055f, 0.075f, 1},
                   .ink = kInk,
                   .ash = kAsh,
                   .rule = kRule};
   look.type.title = {.size = 26, .track = 3};
   look.type.captionLabel = {.size = 12.5f, .track = 0.4f};
-  look.spacing.marginX = 44;
+  look.spacing.marginX = 40;
   look.spacing.marginTop = 34;
   look.spacing.marginBottom = 22;
   look.spacing.captionGap = 7;
@@ -156,59 +132,82 @@ struct NineSlice {
     const float breathW = kPanelW + 66 * stretch;
     const float breathH = kPanelH + 26 * stretch;
 
-    Element density =
-        kit::cells({.cells = {sketch::kit::caption(
-                                  kPanelW, u8"Slice::density = 2",
-                                  u8"192 px at its design width — a 16-unit "
-                                  u8"band",
-                                  panel(carvedFrameSlice(oak, kFrameDensity),
-                                        u8"BEGIN QUEST", kQuest)),
-                              sketch::kit::caption(
-                                  kPanelW, u8"Slice::density = 1",
-                                  u8"the same image at face value — twice "
-                                  u8"as heavy",
-                                  panel(carvedFrameSlice(oak, 1.0f),
-                                        u8"BEGIN QUEST", kQuest))},
-                    .gap = 34,
-                    .divider = Fill::color(kRule)});
-
-    Element trap = kit::cells(
-        {.cells = {sketch::kit::caption(
-                       kPanelW, u8"Slice",
-                       u8"decomposed into rects — every backend",
-                       panel(carvedFrameSlice(azurePlain, 1.0f), u8"DECOMPOSED",
-                             kQuest)),
-                   sketch::kit::caption(kPanelW, u8"skia::draw::drawLattice",
-                                        u8"the same rects — spelled by hand",
-                                        directLattice(azurePlain))},
-         .gap = 34,
-         .divider = Fill::color(kRule)});
-
-    Element source = kit::cells(
-        {.cells = {sketch::kit::caption(kPanelW, u8"the source",
-                                        u8"drawn once, offscreen, at 2×",
-                                        image(oak).width(96).height(96)),
-                   sketch::kit::caption(
-                       kPanelW, u8"re-laid out every frame",
-                       u8"the box changes, the corners do not",
-                       panel(carvedFrameSlice(crimson, kFrameDensity),
-                             u8"stretch me", kQuest)
-                           .width(breathW)
-                           .height(breathH))},
-         .gap = 34,
-         .divider = Fill::color(kRule),
-         .align = Align::Center});
-
+    Element sourceImage = box().width(192).height(192).children(
+        {image(oak).cover(),
+         box().left(64).top(0).width(1).height(192).fill(Fill::color(kInk)),
+         box().left(128).top(0).width(1).height(192).fill(Fill::color(kInk)),
+         box().left(0).top(64).width(192).height(1).fill(Fill::color(kInk)),
+         box().left(0).top(128).width(192).height(1).fill(Fill::color(kInk))});
+    Element source = box().column().gap(18).width(288).children(
+        {text("ONE SOURCE TEXTURE").styleClass("captionLabel"),
+         text("192 × 192 px · 2× density").styleClass("readout"),
+         sketch::kit::well({.width = 288,
+                            .height = 244,
+                            .content = sketch::kit::Well::Content{}},
+                           std::move(sourceImage)),
+         text("The four corners retain their size. Edge bands stretch along "
+              "one axis; the centre stretches along both.")
+             .width(288),
+         text("The guides mark thirds of the source image. Density converts "
+              "those source pixels into layout units.")
+             .width(288)});
+    Element density = sketch::kit::comparison(
+        {.cases = {{.title = "DECLARED DENSITY",
+                    .control = "Slice::density = 2",
+                    .figure = panel(carvedFrameSlice(oak, kFrameDensity),
+                                    "BEGIN QUEST", kQuest),
+                    .note =
+                        "The generated bands land at their intended weight."},
+                   {.title = "SOURCE PIXELS AS UNITS",
+                    .control = "Slice::density = 1",
+                    .figure =
+                        panel(carvedFrameSlice(oak, 1), "BEGIN QUEST", kQuest),
+                    .note = "The same bands occupy twice the layout space."}},
+         .measure = 700,
+         .gap = 28});
+    Element paths = sketch::kit::comparison(
+        {.cases =
+             {{.title = "COMPOSE DECORATION",
+               .control = "Slice",
+               .figure =
+                   panel(carvedFrameSlice(azurePlain, 1), "DECOMPOSED", kQuest),
+               .note = "The decoration divides the texture into rectangles."},
+              {.title = "DIRECT CANVAS",
+               .control = "skia::draw::drawLattice",
+               .figure = directLattice(azurePlain),
+               .note = "The same rectangles through the explicit draw call."}},
+         .measure = 700,
+         .gap = 28});
+    Element stretchPreview = sketch::kit::well(
+        {.width = 500, .height = 160, .content = sketch::kit::Well::Content{}},
+        panel(carvedFrameSlice(crimson, kFrameDensity), "RESIZE THE MIDDLE",
+              kQuest)
+            .width(breathW)
+            .height(breathH));
     return sketch::kit::page(
-        {.title = u8"Nine-slice surfaces",
-         .subtitle = u8"one generated texture over every size — "
-                     u8"the density it declares, and the native op it does "
-                     u8"not use",
-         .footer = u8"Sketchbook · nine_slice"},
-        kit::cells(
-            {.cells = {std::move(density), std::move(trap), std::move(source)},
-             .column = true,
-             .gap = 22}));
+        {.title = "A frame that can change size",
+         .subtitle = "Nine regions, one texture. Separate source density from "
+                     "the draw path and the changing destination.",
+         .footer = "Both draw paths use rectangles supported by raster and "
+                   "device backends."},
+        box().column().gap(28).children(
+            {box().row().gap(32).children(
+                 {std::move(source),
+                  box().column().gap(30).width(700).children(
+                      {std::move(density), std::move(paths)})}),
+             sketch::kit::sectionHeader(
+                 {.label = "LIVE RESIZE",
+                  .note = "Corner bands keep their dimensions"}),
+             box().row().gap(32).children(
+                 {std::move(stretchPreview),
+                  box().column().gap(14).width(488).children(
+                      {text(kit::formatted("%.0f × %.0f layout units", breathW,
+                                           breathH))
+                           .styleClass("readout"),
+                       text("The destination is laid out again every frame. "
+                            "Watch the straight bands grow while the carved "
+                            "corners retain their shape.")
+                           .width(360)})})}));
   }
 
   void setup(sketch::SketchContext& ctx) {

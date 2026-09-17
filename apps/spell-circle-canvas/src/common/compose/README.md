@@ -926,8 +926,11 @@ reproducing a printed page cannot read the grid back off them.
 
 A content floor is the second intrinsic contribution, and it is
 `LayoutInput::childMinSizes`: a text leaf's longest unbreakable run,
-measured at a nil width, and everything else's measured size, since layout
-measures once and never re-describes a child at a proposed width. It is
+measured at a nil width, and everything else's measured size. A scheme's
+placed width remeasures horizontal text before its content-sized rows settle;
+the placed depth does the same for vertical text and content-sized columns.
+The scheme does not re-describe children or infer a smaller intrinsic size
+for a box. The minimum is
 filled only for a scheme that declares `readsChildMinSizes` — the concept
 `SizesFromContentMinima` — because the text minimum costs a measure per
 child. THE ONE THING A CONTENT TRACK NEEDS FROM ITS CONTAINER is that the
@@ -1443,7 +1446,8 @@ also a key before both), `kit::readout`, a stack of them ruled between
 where `Rows::divider` names a fill, `kit::table`, N `kit::Column`s each at
 its own width — one head cell per column in the class `section`, a figure
 column's cells in `readout` and the rest in `captionNote`, one swatch and
-one key per row, and every row its own run of cells, so a short row stays
+one key per row, with the swatch column reserved in the head and every row
+when any row has a mark. Every row is its own run of cells, so a short row stays
 short and a surplus word takes the last column's class; its `cellLine`
 names the ROW and that row's own CELLS as well as the column, which is
 what lets a table light one row and what lets a cell be a DRAWING read off

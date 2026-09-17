@@ -1,38 +1,10 @@
 /** @file
- * gif_frames — an animated document, one frame at a time.
- *
- * `ImageAsset` decodes a GIF (or an animated WebP or AVIF) into a list of
- * `Frame`s, each a premultiplied SkImage with the milliseconds it stays
- * on screen. EVERY FRAME IS FULLY COMPOSITED AT DECODE TIME: the source
- * format's disposal and blend rules are already applied, so drawing frame
- * N never depends on having drawn frame N-1, and a sheet may lay them out
- * in any order at all — which is what the top shelf does.
- *
- * `frameAt(milliseconds)` is the playback: the frame showing at that many
- * milliseconds since the animation started, looped according to
- * `repetitionCount()` — a finite animation that has finished holds its
- * last frame, and a still image answers its one frame at any time. The
- * lower shelf asks for one moment per cell across two loop periods, so
- * the same frames come round again with the moment printed under each.
- *
- * A probe reads the metadata WITHOUT decoding pixels. `Hub::probe()`
- * answers the bytes — how many there are, and where they came from;
- * `Hub::probe<image::ImageProbe>()` answers what they MEAN, through the
- * prober SigilImage registers: the format, the dimensions and the frame
- * count. The readout at the foot is that pair beside what the decode
- * actually produced.
- *
- * THE SUBJECT IS THE REAL FILE. `fastbreak.gif` is the one thing that
- * ever moved on the 1996 Space Jam site, fetched here over https through
- * SigilIO's own cache; `sketch::requireCached` is the availability
- * door, so a machine that has fetched it once renders this sheet forever
- * after and offline, and one that never has stands the sketch down by
- * name rather than drawing a stand-in under it.
- *
- * EDIT THESE FIRST
- *   kSource  — the animated file. Any format the codecs carry.
- *   kSamples — the moments the lower shelf reads frameAt at, ms.
- *   kScale   — how many sheet pixels one source pixel covers.
+ * The decoded frames of Space Jam's fastbreak.gif beside time queries.
+ * Each decoded frame already includes the format's disposal and blend rules.
+ * The top strip reports frame duration and start time; the lower strip uses
+ * frameAt() across repeated playback and reports the corresponding phase.
+ * The resource must be available in the network cache for a deterministic
+ * capture; no replacement image stands in for it.
  */
 
 // TAGS: Media/Images
@@ -48,6 +20,7 @@
 #include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/style/Type.h>
 
+#include <cmath>
 #include <memory>
 #include <string>
 #include <vector>
@@ -64,8 +37,8 @@ namespace {
 
 constexpr const char* kSource =
     "https://www.spacejam.com/1996/img/fastbreak.gif";
-constexpr SkSize kCanvas = {1120, 600};
-constexpr float kScale = 3.0f;  // sheet pixels per source pixel
+constexpr SkSize kCanvas = {1120, 760};
+constexpr float kScale = 2.5f;  // sheet pixels per source pixel
 /** The moments the lower shelf reads. The file's own loop is 600 ms, so
  *  these run across two of them and the frames come round again. */
 constexpr double kSamples[] = {0, 150, 320, 480, 640, 900, 1150, 1420};
@@ -74,32 +47,22 @@ constexpr SkColor4f kCellGround{0.12f, 0.12f, 0.14f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.type.captionLabel = {.size = 11, .track = 0.4f};
   look.spacing.captionGap = 6;
   return look;
 }
 
-/** The caption register as a partial over what the cell inherits. */
-weave::Type labelType(float size, SkColor4f color, float track = 0) {
-  return {.size = size, .color = color, .track = track};
-}
-
-/** One frame, at kScale with the texels kept hard: this file is forty
- *  pixels across and a smooth resample would invent everything the sheet
- *  is about. The frame is the plate's own GROUND — a comparable image
- *  paint, which prunes on the image it names, where a canvas call cannot
- *  be compared to anything. */
-Element cell(const sk_sp<SkImage>& frame, float w, float h, const char* call,
-             std::string note) {
-  return sketch::kit::cell(
-      {.plate = {.width = w,
-                 .height = h,
-                 .ground = Fill::color(kCellGround),
-                 .padding = 0},
-       .measure = 0},
-      call, note,
-      sigil::compose::image(frame, Fit::Cover)
+Element frameFigure(const sk_sp<SkImage>& frame, float w, float h,
+                    float measure = 116) {
+  return sketch::kit::well(
+      {.width = measure,
+       .height = h + 16,
+       .ground = Fill::color(kCellGround),
+       .content = sketch::kit::Well::Content{}},
+      sigil::compose::image(frame, Fit::Contain)
+          .width(w)
+          .height(h)
           .sampling(SkSamplingOptions(SkFilterMode::kNearest)));
 }
 
@@ -131,14 +94,19 @@ struct GifFrames {
   Element decoded(const image::ImageAsset& gif) const {
     const float w = (float)gif.width() * kScale;
     const float h = (float)gif.height() * kScale;
-    return kit::cells(
-        {.cells = each(gif.frames(),
-                       [&](const auto& frame) {
-                         return cell(frame.image, w, h, "frames()",
-                                     kit::formatted("%.0f ms",
-                                                    (double)frame.durationMs));
-                       }),
-         .gap = 12});
+    std::vector<sketch::kit::ComparisonCase> frames;
+    double start = 0;
+    size_t index = 0;
+    for (const auto& frame : gif.frames()) {
+      frames.push_back({.title = kit::formatted("FRAME %zu", ++index),
+                        .control = kit::formatted("%.0f ms duration",
+                                                  (double)frame.durationMs),
+                        .figure = frameFigure(frame.image, w, h, 160),
+                        .note = kit::formatted("Starts at %.0f ms", start)});
+      start += frame.durationMs;
+    }
+    return sketch::kit::comparison(
+        {.cases = std::move(frames), .measure = 1040, .gap = 16});
   }
 
   /** The shelf of PLAYBACK: one moment per cell, read back through the
@@ -146,13 +114,16 @@ struct GifFrames {
   Element sampled(const image::ImageAsset& gif) const {
     const float w = (float)gif.width() * kScale;
     const float h = (float)gif.height() * kScale;
-    return kit::cells(
-        {.cells = each(kSamples,
-                       [&](double at) {
-                         return cell(gif.frameAt(at).image, w, h, "frameAt(ms)",
-                                     kit::formatted("%.0f ms", at));
-                       }),
-         .gap = 12});
+    std::vector<sketch::kit::ComparisonCase> moments;
+    for (double at : kSamples)
+      moments.push_back(
+          {.title = kit::formatted("%.0f ms", at),
+           .control = "frameAt(time)",
+           .figure = frameFigure(gif.frameAt(at).image, w, h),
+           .note = kit::formatted("Loop phase %.0f ms",
+                                  std::fmod(at, gif.totalDurationMs()))});
+    return sketch::kit::comparison(
+        {.cases = std::move(moments), .measure = 1040, .gap = 16});
   }
 
   Element sheet(const image::ImageAsset& gif,
@@ -176,43 +147,27 @@ struct GifFrames {
                  ? std::string("repeating forever")
                  : std::to_string(gif.repetitionCount()) + " repetitions");
 
-    Element shelves = kit::cells(
-        {.cells = {kit::cell(header(), "DECODED",
-                             "every frame, composited at decode — "
-                             "drawing one never needs the one before it",
-                             decoded(gif)),
-                   kit::cell(header(), "PLAYED",
-                             "frameAt looks the moment up in the durations "
-                             "and loops past the last one",
-                             sampled(gif))},
-         .column = true,
-         .gap = 26,
-         .divider = Fill::color(sketch::kit::theme().palette.rule)});
     return sketch::kit::page(
-        {.title = "Animated frames",
-         .subtitle = std::string("dials · the file (") + kSource +
-                     ") · the moments the lower shelf reads",
+        {.title = "Frames are not timestamps",
+         .subtitle = "Space Jam's fastbreak.gif · decoded images above, "
+                     "playback queries below · nearest-neighbour enlargement",
          .footer = foot},
-        std::move(shelves));
-  }
-
-  /** THE VOICE THE TWO SHELVES ARE TITLED IN — a heading over the run
-   *  rather than a caption under a picture, so its two lines are this
-   *  cell's own leaves: the register, a size of its own over it — and the
-   *  frame captions under each shelf keep the register as it is. */
-  static kit::Caption header() {
-    const sketch::kit::Theme& sheet = sketch::kit::theme();
-    kit::Caption voice{
-        .where = kit::Caption::Where::Above, .gap = 12, .noteGap = 5};
-    voice.label = [&sheet](const Utf8& call) {
-      return kit::captionLabel(call).font(
-          labelType(11.5f, sheet.palette.ink, 2.0f));
-    };
-    voice.note = [&sheet](const Utf8& remark) {
-      return kit::captionNote(remark).font(
-          labelType(10.5f, sheet.palette.ash, 0.2f));
-    };
-    return voice;
+        box().column().gap(24).children(
+            {sketch::kit::sectionHeader(
+                 {.label = "01  DECODE THE DOCUMENT",
+                  .note = kit::formatted("%zu composited frames",
+                                         gif.frames().size())}),
+             decoded(gif),
+             sketch::kit::sectionHeader(
+                 {.label = "02  ASK FOR A MOMENT",
+                  .note = kit::formatted("%.0f ms per loop",
+                                         (double)gif.totalDurationMs())}),
+             sampled(gif),
+             text("Each frame already includes disposal and blend rules. "
+                  "Playback selects among those complete images using their "
+                  "durations.")
+                 .width(440)
+                 .styleClass("captionNote")}));
   }
 
   /** What stands here when the file decoded to nothing. The availability

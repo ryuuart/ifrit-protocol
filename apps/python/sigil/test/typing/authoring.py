@@ -116,3 +116,8 @@ assert_type(row().children((text("One"), text("Two"))), Element)
 assert_type(row().children(()), Element)
 assert_type(row().children(*children), Element)
 assert_type(row().children(), Element)
+
+assert_type(row(text("One"), text("Two")), Element)
+assert_type(column(tuple(children)), Element)
+assert_type(box(child for child in children), Element)
+assert_type(layout(Grid(columns=[fr(), fr()]), children), Element)

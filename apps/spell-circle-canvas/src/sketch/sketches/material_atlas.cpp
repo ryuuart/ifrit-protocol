@@ -53,9 +53,9 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 700};
-constexpr float kCell = 341;
-constexpr float kPicture = 200;
+constexpr SkSize kCanvas = {1100, 880};
+constexpr float kCell = 328;
+constexpr float kPicture = 208;
 
 constexpr int kCols = 4, kRows = 2;  // the grid the sheet is cut on
 constexpr int kCellSide = 64;        // one cell's pixels
@@ -63,7 +63,7 @@ constexpr size_t kPlayhead = 6;      // the frame index the wrap cell reads
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette.cellGround = {0.09f, 0.095f, 0.11f, 1};
   return look;
 }
@@ -146,15 +146,18 @@ std::string sequenceNames(const material::Atlas& atlas) {
   return names.empty() ? std::string("none") : names;
 }
 
-Element cell(const char* call, const std::string& note,
-             std::function<void(SkCanvas&)> draw) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well(
-          {.width = kCell, .height = kPicture},
-          custom(call, [draw = std::move(draw)](SkCanvas& canvas) {
-            if (draw) draw(canvas);
-          })));
+sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
+                                 const std::string& note,
+                                 std::function<void(SkCanvas&)> draw) {
+  return {.title = caseTitle,
+          .control = call,
+          .figure = sketch::kit::well(
+              {.width = kCell, .height = kPicture},
+              custom(call,
+                     [draw = std::move(draw)](SkCanvas& canvas) {
+                       if (draw) draw(canvas);
+                     })),
+          .note = note};
 }
 
 /** A texture drawn at a stated rect, which is how a region is used: it
@@ -208,70 +211,55 @@ struct MaterialAtlas {
       };
     };
 
-    // The three cells cut straight from the sheet: the whole bake, the
-    // grid's own sequence, and the same sequence read from further along
-    // it — one list of indices, and the caller says where to start.
-    Element cutByGrid = kit::cells(
-        {.cells = {cell("the sheet, whole",
-                        kit::formatted("%d by %d cells of %d px · each wedge "
-                                       "sweeps 45° further than the last, so "
-                                       "a run read out of order shows it",
-                                       kCols, kRows, kCellSide),
-                        [sheet = sheet](SkCanvas& canvas) {
-                          put(canvas, sheet,
-                              SkRect::MakeXYWH(10, (kPicture - 160) * 0.5f, 320,
-                                               160),
-                              {kCols * kCellSide, kRows * kCellSide});
-                        }),
-                   cell("Atlas::grid(sheet, 4, 2)",
-                        kit::formatted("equal cells, row-major, named by "
-                                       "index · sequences: %s",
-                                       sequenceNames(grid).c_str()),
-                        strip(grid, "all", 4, 0)),
-                   cell("… the second row of it",
-                        "the same sequence read from index 4 · one list of "
-                        "indices, and the caller says where in it to start",
-                        strip(grid, "all", 4, 4))},
-         .gap = 14});
-
-    // …and the three the two tools' JSON cuts: a sequence per name stem,
-    // a sequence per frame tag, and a playhead past the end of one.
-    Element cutByTool = kit::cells(
-        {.cells =
-             {cell("Atlas::fromTexturePacker(sheet, json)",
-                   packed ? kit::formatted("a sequence per NAME STEM · %s · "
-                                           "walk_01…walk_04 in numeric order",
-                                           sequenceNames(*packed).c_str())
-                          : std::string("not that JSON"),
-                   packed ? strip(*packed, "walk", 4, 0) : nothing),
-              cell("Atlas::fromAseprite(sheet, json)",
-                   tagged ? kit::formatted("a sequence per frame TAG · %s · "
-                                           "the names carry nothing here",
-                                           sequenceNames(*tagged).c_str())
-                          : std::string("not that JSON"),
-                   tagged ? strip(*tagged, "shut", 4, 0) : nothing),
-              cell("frame(\"walk\", 6) · wrapping",
-                   packed ? kit::formatted("index %zu of a four-frame run · "
-                                           "past the end wraps, so the strip "
-                                           "reads 2, 3, 0, 1",
-                                           kPlayhead)
-                          : std::string("not that JSON"),
-                   packed ? strip(*packed, "walk", 4, kPlayhead) : nothing)},
-         .gap = 14});
-
     ctx.composer.render(sketch::kit::page(
-        {.title = "Material atlas",
-         .subtitle = kit::formatted(
-             "dials · the grid (%d by %d of %d px) · the source JSON · the "
-             "sequence · the playhead (%zu, past the end of a four-frame run)",
-             kCols, kRows, kCellSide, kPlayhead),
-         .footer = "a region is an ordinary texture cut from the sheet, so a "
-                   "sprite needs no second sampling path — and frame() wraps, "
-                   "so a playhead is a counter and not a modulus at every "
-                   "call site"},
-        kit::cells({.cells = {std::move(cutByGrid), std::move(cutByTool)},
-                    .column = true,
-                    .gap = 18})));
+        {.title = "A sheet becomes a sequence",
+         .subtitle = "Regions select pixels; metadata supplies a reading order",
+         .footer = "Each frame is an ordinary texture region. Sequence lookup "
+                   "wraps the index for the caller."},
+        box().column().gap(28).children(
+            {sketch::kit::sectionHeader(
+                 {.label = "01  CUT BY POSITION",
+                  .note = "One sheet feeds a continuous, row-major sequence."}),
+             sketch::kit::comparison(
+                 {.cases =
+                      {cell("THE SOURCE SHEET", "the sheet, whole",
+                            "Eight wedges progress by 45° in a four-by-two "
+                            "sheet.",
+                            [sheet = sheet](SkCanvas& canvas) {
+                              put(canvas, sheet,
+                                  SkRect::MakeXYWH(10, (kPicture - 154) * 0.5f,
+                                                   308, 154),
+                                  {kCols * kCellSide, kRows * kCellSide});
+                            }),
+                       cell("FIRST FOUR FRAMES", "Atlas::grid(sheet, 4, 2)",
+                            "Row-major indices 0–3.", strip(grid, "all", 4, 0)),
+                       cell("NEXT FOUR FRAMES", "… the second row of it",
+                            "Continue the same sequence at index 4.",
+                            strip(grid, "all", 4, 4))},
+                  .measure = 1020,
+                  .gap = 18}),
+             sketch::kit::sectionHeader(
+                 {.label = "02  READ THE AUTHORING METADATA",
+                  .note = "Names and tags group the same pixels; playback "
+                          "wraps."}),
+             sketch::kit::comparison(
+                 {.cases =
+                      {cell("NAME STEM → WALK",
+                            "Atlas::fromTexturePacker(sheet, json)",
+                            "TexturePacker derives walk from the numbered name "
+                            "stem.",
+                            packed ? strip(*packed, "walk", 4, 0) : nothing),
+                       cell("FRAME TAG → SHUT",
+                            "Atlas::fromAseprite(sheet, json)",
+                            "Aseprite derives shut from its frame tag.",
+                            tagged ? strip(*tagged, "shut", 4, 0) : nothing),
+                       cell("WRAPPING PLAYHEAD",
+                            "frame(\"walk\", 6) · wrapping",
+                            "Playhead 6 wraps a four-frame run to 2, 3, 0, 1.",
+                            packed ? strip(*packed, "walk", 4, kPlayhead)
+                                   : nothing)},
+                  .measure = 1020,
+                  .gap = 18})})));
   }
 };
 

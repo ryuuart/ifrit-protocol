@@ -15,7 +15,7 @@
  *     live; the cards are not, and are proved to be sitting still. The
  *     bill is exactly the movers, because volatility is a property of a
  *     subtree rather than of the frame.
- *   RIGHT — THE RELEASED SIDE. Five hundred stroked, shaped cells whose
+ *   RIGHT — THE RELEASED SIDE. A dense field of stroked, shaped cells whose
  *     only volatile thing is one seven-point star with `fill(&output)` —
  *     bound, and deliberately PARKED. The bound fill's resolved value
  *     rides in the content-scalar memo, so the recording stays valid
@@ -45,9 +45,9 @@
  *     and textures live, recordings and bakes made, nodes painted, and the
  *     four phase times — printed as a block.
  *
- * Every number the sheet measured about its own execution goes through
- * `ctx.measured(value, pinned)`, so a capture taken for a pixel diff shows
- * the pinned values and two runs of the same binary agree.
+ * Counts and cache verdicts are read from the probe. Stopwatch readings
+ * are hidden in deterministic captures, where machine-dependent timings
+ * cannot be compared meaningfully.
  *
  * THE READING IS TAKEN ONCE, at `kSnapAt`, and frozen. A readout that
  * re-described itself every frame would be measuring a sheet that
@@ -107,7 +107,6 @@ constexpr int kMovers = 24;         // bound, volatile, painted every frame
 constexpr int kCells = 417;         // enough cells for picture replay to hurt
 constexpr double kRepaintHz = 0.0;  // 0 = the bound colour never moves
 constexpr double kSnapAt = 2.0;     // when the reading is taken, seconds
-constexpr int kRows = 12;           // costliest nodes listed
 
 constexpr float kFieldWidth = 620.0f;
 constexpr float kFieldHeight = 560.0f;
@@ -119,19 +118,17 @@ constexpr SkColor4f kAccent{0.95f, 0.35f, 0.18f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
   look.palette.ink = kInk;
   look.palette.ash = kDim;
   look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
-  look.spacing.marginX = 26;
-  look.spacing.marginBottom = 14;
   // The readout's own register: every reading is one size, the name in
   // the quiet ink and the figure in the bright one.
   look.palette.figure = look.palette.ink;
   look.type.captionLabel = {.size = 11};
   look.spacing.labelGap = 8;
-  look.spacing.rowGap = 3;
+  look.spacing.rowGap = 5;
   look.spacing.swatchSide = 9;
   return look;
 }
@@ -301,7 +298,7 @@ struct VolatilityCost {
         .children({each(kCards, card), each(kMovers, mover)});
   }
 
-  /** THE MAP: every keyed node the profile named, outlined in the colour
+  /** THE MAP: subject nodes the profile named, outlined in the colour
    *  of the tier it took. Drawn in one paint program over the whole
    *  canvas, because it is a reading of the tree and not a part of it —
    *  a node per outline would change what it is measuring. */
@@ -323,47 +320,55 @@ struct VolatilityCost {
   }
 
   Element legend() const {
-    // The key is OUTLINED because the map it keys is: every node on the
-    // sheet is outlined in its tier's colour, not filled with it.
-    std::vector<sketch::kit::LegendEntry> entries;
-    for (const Tier& tier : kTiers)
-      entries.push_back({Fill::color(tier.color), tier.name, tier.what});
-    return sketch::kit::legend({.entries = std::move(entries),
-                                .column = false,
-                                .swatchSide = 11,
-                                .gap = 16,
-                                .strokeWidth = 1.4f,
-                                .wrap = true});
+    std::vector<sketch::kit::LegendEntry> first, second;
+    for (size_t i = 0; i < std::size(kTiers); ++i) {
+      const Tier& tier = kTiers[i];
+      (i < 3 ? first : second)
+          .push_back({Fill::color(tier.color), tier.name, tier.what});
+    }
+    return box().row().gap(24).children(
+        {sketch::kit::legend({.entries = std::move(first),
+                              .column = true,
+                              .gap = 10,
+                              .strokeWidth = 1.4f})
+             .width(310),
+         sketch::kit::legend({.entries = std::move(second),
+                              .column = true,
+                              .gap = 10,
+                              .strokeWidth = 1.4f})
+             .width(400)});
   }
 
-  /** THE FRAME, as the composer reports it. Every number here is one the
-   *  sketch measured about its own execution, so every one is pinned when
-   *  the host is capturing for a diff. */
+  /** THE FRAME, as the composer reports it: counts remain visible in a
+   *  deterministic capture; stopwatch readings are hidden. */
   Element statsBlock(const sketch::SketchContext& ctx) const {
     // A COUNT IS A FUNCTION OF THE DESCRIPTION and is printed as it is;
-    // a TIME is a function of the machine and is pinned when the host is
-    // capturing for a diff, so a plate carries the shape and not the
-    // stopwatch.
+    // a TIME is a function of the machine and is hidden when the host is
+    // capturing for a diff.
     const auto count = [](size_t v) { return std::to_string(v); };
-    const sketch::kit::Readout how{.nameMeasure = 168};
+    const sketch::kit::Readout how{.measure = 280};
+    const auto time = [&](double value) {
+      return ctx.deterministic ? std::string("—") : ms(ctx.measured(value));
+    };
     return box().column().gap(3).children(
-        {text("Composer::stats()").styleClass("heading"),
+        {text("FRAME / COUNTS + TIME").styleClass("heading"),
          sketch::kit::readout(
              {{u8"instances", count(frame.instances)},
-              {u8"describedNodes", count(frame.describedNodes)},
-              {u8"memoHits", count(frame.memoHits)},
-              {u8"patchedNodes", count(frame.patchedNodes)},
-              {u8"picturesLive", count(frame.picturesLive)},
-              {u8"texturesLive", count(frame.texturesLive)},
-              {u8"picturesRecorded", count(frame.picturesRecorded)},
-              {u8"texturesBaked", count(frame.texturesBaked)},
-              {u8"nodesPainted", count(frame.nodesPainted)},
-              {u8"reconcile ms", ms(ctx.measured(frame.reconcileMs))},
-              {u8"layout ms", ms(ctx.measured(frame.layoutMs))},
-              {u8"volatile ms", ms(ctx.measured(frame.volatileMs))},
-              {u8"paint ms", ms(ctx.measured(frame.paintMs))}},
+              {u8"described", count(frame.describedNodes)},
+              {u8"memo hits", count(frame.memoHits)},
+              {u8"patched", count(frame.patchedNodes)},
+              {u8"pictures held", count(frame.picturesLive)},
+              {u8"textures held", count(frame.texturesLive)},
+              {u8"recordings made", count(frame.picturesRecorded)},
+              {u8"bakes made", count(frame.texturesBaked)},
+              {u8"nodes painted", count(frame.nodesPainted)},
+              {u8"reconcile ms", time(frame.reconcileMs)},
+              {u8"layout ms", time(frame.layoutMs)},
+              {u8"volatile ms", time(frame.volatileMs)},
+              {u8"paint ms", time(frame.paintMs)}},
              how),
-         box().height(8), text("the split").styleClass("heading"),
+         box().height(8),
+         text("CACHE VERDICT / ALL NODES").styleClass("heading"),
          sketch::kit::readout(
              {{u8"refused: Volatile", count((size_t)volatileNodes)},
               {u8"reached a bake", count((size_t)bakedNodes)},
@@ -371,41 +376,58 @@ struct VolatilityCost {
              how)});
   }
 
-  /** THE COSTLIEST NODES, worst first, each with the tier it took and the
-   *  condition that refused it a bake. `selfMs` excludes children, so the
-   *  number lands on the node that actually costs. */
+  /** REPRESENTATIVE SUBJECT NODES, costliest first, each with the tier it took
+   * and the condition that refused it a bake. `selfMs` excludes children, so
+   * the number lands on the node that actually costs. */
   Element costTable(const sketch::SketchContext& ctx) const {
+    const auto subject = [](const std::string& key) {
+      if (key == "field") return "moving field";
+      if (key == "cellPanel") return "parked panel";
+      if (key == "cells") return "star group";
+      if (key == "accent") return "bound star";
+      if (key == "k0") return "static card";
+      if (key == "m0") return "moving card";
+      return "static star";
+    };
     std::vector<sketch::kit::Row> rows;
-    rows.reserve(worst.size());
-    for (const Composer::NodeCost& row : worst)
-      rows.push_back({{row.label, ms(ctx.measured(row.selfMs)),
+    for (const Composer::NodeCost& row : worst) {
+      const std::string key = row.label.substr(0, row.label.find(' '));
+      rows.push_back({{subject(key),
+                       ctx.deterministic ? "—" : ms(ctx.measured(row.selfMs)),
                        tierOf(row.cacheState).name,
                        Composer::promotionReason(row.promotion)},
                       Fill::color(tierOf(row.cacheState).color)});
-    // The tier and the reason are the row's own quiet columns; the key
-    // and the cost are what a reader is looking for, so those two carry
-    // the figure register.
-    return box().column().gap(3).children(
-        {text(ctx.deterministic ? "Composer::profile() · self ms, by key"
-                                : "Composer::profile() · self ms, worst first")
-             .styleClass("heading"),
-         sketch::kit::table(std::move(rows),
-                            {.columns = {{.width = 126, .figure = true},
-                                         {.width = 46, .figure = true},
-                                         {.width = 66},
-                                         {}},
-                             .gap = 8,
-                             .swatchSide = 9})});
+    }
+    return box().width(752).column().gap(14).children(
+        {text("SUBJECT / THE NODE'S OWN COST").styleClass("heading"),
+         sketch::kit::table(
+             std::move(rows),
+             {.columns = {{.head = "SUBJECT", .width = 128, .figure = true},
+                          {.head = "SELF MS", .width = 72, .figure = true},
+                          {.head = "TIER", .width = 98},
+                          {.head = "PROMOTION VERDICT", .width = 340}},
+              .gap = 14,
+              .swatchSide = 9,
+              .ruled = true,
+              .headRuled = true}),
+         text(ctx.deterministic
+                  ? "Capture mode hides machine-dependent times and orders "
+                    "rows by key. Counts and cache decisions remain the "
+                    "probe's actual results."
+                  : "Rows are ordered by self time. Self time excludes "
+                    "children; the probe freezes its result at two seconds.")
+             .width(440)
+             .styleClass("captionNote"),
+         legend()});
   }
 
   Element readout(const sketch::SketchContext& ctx) const {
     if (!snapped)
-      return box().children({text("reading at " + ms(kSnapAt) + " s…")
-                                 .font({.size = 12})
-                                 .ink(kDim)});
-    return box().column().gap(12).children(
-        {legend(),
-         box().row().gap(34).children({statsBlock(ctx), costTable(ctx)})});
+      return box().height(350).children(
+          {text("Observing the two workloads… snapshot at " + ms(kSnapAt) +
+                " s")
+               .styleClass("captionNote")});
+    return box().row().gap(48).children({statsBlock(ctx), costTable(ctx)});
   }
 
   Element describe(sketch::SketchContext& ctx) {
@@ -423,27 +445,40 @@ struct VolatilityCost {
         .children(
             {tierMap(),
              sketch::kit::page(
-                 {.title = "The caching proof",
-                  .subtitle = "volatility propagates upward, so one "
-                              "bound leaf decides what its whole subtree "
-                              "costs — every keyed node is "
-                              "outlined in the tier it took, read back "
-                              "from a probe of its own at " +
+                 {.title = "What still needs to be painted?",
+                  .subtitle = "Two workloads, one eager promotion policy · "
+                              "actual cache decisions sampled at " +
                               ms(kSnapAt) + " s",
-                  .footer = "a picture records the DRAW CALLS, so "
-                            "replaying one re-runs every shader over "
-                            "every pixel; only a bake replaces that with "
-                            "a blit · numbers the sheet measured "
-                            "about itself are pinned for a diff"},
-                 box().column().gap(16).children(
-                     {kit::cells({.cells = {field(), cells(&tint)}, .gap = 22}),
+                  .footer = "Outlines mark subject nodes only. A picture "
+                            "replays drawing commands; a texture replaces that "
+                            "work with a blit. One parked binding can settle "
+                            "without losing its connection."},
+                 box().column().gap(30).children(
+                     {sketch::kit::comparison(
+                          {.cases =
+                               {{.title = "MOVING / STATIC CARDS + LIVE MARKS",
+                                 .control = "300 cached cards · 24 "
+                                            "continuously bound movers",
+                                 .figure = field(),
+                                 .note =
+                                     "Motion stays local to the moving leaves. "
+                                     "The static cards can retain their work."},
+                                {.title = "PARKED / A BOUND COLOUR THAT HOLDS",
+                                 .control =
+                                     "417 shaped stars · one parked bound fill",
+                                 .figure = cells(&tint),
+                                 .note = "After identical frames, the bound "
+                                         "star can release volatility and let "
+                                         "its containing panel settle."}},
+                           .measure = 1280,
+                           .gap = 40}),
                       readout(ctx)}))});
   }
 
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // the reading is taken and frozen by then
-    sketch::kit::stage(ctx, {.size = {1320, 980}, .captureAt = kSnapAt + 0.5});
+    sketch::kit::stage(ctx, {.size = {1360, 1400}, .captureAt = kSnapAt + 0.5});
     movers.clear();
     marks.clear();
     worst.clear();
@@ -494,8 +529,7 @@ struct VolatilityCost {
     // from itself. WHICH nodes there are, what tier each took and what
     // refused each a bake are facts of the description; only their order
     // is a fact of the machine. So under a capture the rows are read in
-    // the description's own order, and the times beside them are pinned
-    // as every other measured number here is.
+    // the description's own order, and the times beside them are hidden.
     std::vector<Composer::NodeCost> rows = composer.profile();
     if (ctx.deterministic)
       std::sort(rows.begin(), rows.end(),
@@ -513,12 +547,20 @@ struct VolatilityCost {
       // A profile row's label is the node's key followed by its kind and
       // size, so the key is what stands before the first space.
       const std::string key = row.label.substr(0, row.label.find(' '));
-      if (const std::optional<SkRect> rect = composer.bounds(key))
-        marks.push_back({*rect, row.cacheState});
+      const bool numbered =
+          key.size() > 1 && (key[0] == 'c' || key[0] == 'k' || key[0] == 'm') &&
+          std::all_of(key.begin() + 1, key.end(),
+                      [](char c) { return c >= '0' && c <= '9'; });
+      const bool subject = numbered || key == "field" || key == "cellPanel" ||
+                           key == "cells" || key == "accent";
+      if (subject)
+        if (const std::optional<SkRect> rect = composer.bounds(key))
+          marks.push_back({*rect, row.cacheState});
+      if (key == "field" || key == "cellPanel" || key == "cells" ||
+          key == "accent" || key == "k0" || key == "m0" || key == "c0")
+        worst.push_back(row);
     }
     profiled = rows.size();
-    worst.assign(rows.begin(),
-                 rows.begin() + (long)std::min<size_t>(kRows, rows.size()));
     snapped = true;
     probe.reset();  // the reading is frozen; nothing else asks it anything
     ctx.composer.render(describe(ctx));
@@ -526,6 +568,6 @@ struct VolatilityCost {
 };
 
 SIGIL_SKETCH(VolatilityCost, "Kit · API",
-             "the caching proof — every keyed node outlined in "
+             "the caching proof — subject nodes outlined in "
              "the tier it took, the costliest listed with the condition "
              "that refused each a bake, and Composer::stats() beside them")

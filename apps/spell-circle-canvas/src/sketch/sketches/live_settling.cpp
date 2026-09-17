@@ -67,9 +67,9 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 440};
-constexpr float kCell = 254;
-constexpr float kPicture = 210;
+constexpr SkSize kCanvas = {1100, 590};
+constexpr float kCell = 243;
+constexpr float kPicture = 170;
 
 constexpr float kNarrow = 150;  // the measure the swell runs from
 constexpr float kWide = 230;    // …and to
@@ -138,7 +138,7 @@ constexpr Run kRuns[] = {
 
 struct LiveSettling {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
+    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
     // the swell has already been run, on its own composer
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -160,43 +160,57 @@ struct LiveSettling {
       for (float w = kWide; w >= kNarrow; w -= 1) step(w);
       step(endAt);
       const TextSettling settled = probe.settling("para");
-      return kit::formatted("live %s · reused %d · degraded %d",
-                            settled.live ? "true" : "false", settled.reused,
-                            settled.degraded);
+      return settled;
     };
 
-    // Each run's swell is made where its cell is, so a run states its
-    // declaration once and the report under it is that run's own.
-    const auto study = [&](const Run& run) {
-      return cell(run.call, run.note, run.measure, run.live, run.candidates,
-                  sweep(run.live, run.candidates, run.measure));
-    };
-
+    const char* names[] = {"NARROW / LIVE", "WIDE / LIVE", "WIDE / STATIC",
+                           "WIDE / ONE CANDIDATE"};
+    const char* notes[] = {"Return to a width already crossed.",
+                           "The same text, given more measure.",
+                           "The input moves, but live is not declared.",
+                           "A budget too small for optimization."};
+    std::vector<sketch::kit::ComparisonCase> cases;
+    std::vector<sketch::kit::ComparisonCase> reports;
+    for (size_t i = 0; i < std::size(kRuns); ++i) {
+      const Run& run = kRuns[i];
+      const TextSettling report = sweep(run.live, run.candidates, run.measure);
+      cases.push_back(
+          {.title = names[i],
+           .control = kit::formatted(
+               "%.0f px · %s", run.measure,
+               run.live ? (run.candidates == 1 ? "budget 1" : "budget 4000")
+                        : "no live()"),
+           .figure =
+               sketch::kit::well(
+                   {.width = kCell, .height = kPicture, .padding = 6})
+                   .children({passage(run.measure, run.live, run.candidates)}),
+           .note = notes[i]});
+      reports.push_back(
+          {.figure = sketch::kit::readout(
+                         {{.name = "Live", .value = report.live ? "yes" : "no"},
+                          {.name = "Reused",
+                           .value = kit::formatted("%d", report.reused)},
+                          {.name = "Degraded",
+                           .value = kit::formatted("%d", report.degraded)}},
+                         {.nameMeasure = 92})
+                         .width(kCell)});
+    }
     ctx.composer.render(sketch::kit::page(
-        {.title = "A moving measure",
-         .subtitle = "dials · the measure the swell runs "
-                     "between (150 to 230 px, one pixel at a step) "
-                     "· the frame's floor in break candidates "
-                     "(4000, then 1)",
-         .footer = "a settled passage reports nothing and answers "
-                   "reused 0 — it decided its breaks "
-                   "once and no later frame asks it again, which "
-                   "is why live is DECLARED and never inferred"},
-        kit::cells({.cells = each(kRuns, study), .gap = 14})));
-  }
-
-  /** One cell: the passage set at its own measure, with the report the
-   *  swell produced printed under it. */
-  Element cell(const char* call, const char* note, float measure, bool live,
-               int candidates, const std::string& report) {
-    const sketch::kit::Theme& sheet = sketch::kit::theme();
-    return sketch::kit::caption(
-        kCell, call, note,
-        sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
-            .column()
-            .gap(10)
-            .children({passage(measure, live, candidates),
-                       text(report).styleClass("readout")}));
+        {.title = "What a moving paragraph can reuse",
+         .subtitle = "One passage, swept from 150 to 230 px and back · "
+                     "identical words and type in all four runs",
+         .footer = "Reused counts cached break decisions; degraded counts "
+                   "blocks sent to the greedy breaker. Reports come from the "
+                   "final drawn frame of each sweep."},
+        box().column().gap(24).children(
+            {sketch::kit::comparison(
+                 {.cases = std::move(cases), .measure = 1020, .gap = 16}),
+             box().column().gap(12).children(
+                 {text("MEASURED / AFTER THE RETURN SWEEP")
+                      .styleClass("section"),
+                  sketch::kit::comparison({.cases = std::move(reports),
+                                           .measure = 1020,
+                                           .gap = 16})})})));
   }
 };
 

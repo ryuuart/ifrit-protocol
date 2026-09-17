@@ -51,12 +51,12 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 470};
-constexpr float kCell = 200;
-constexpr float kPicture = 200;
+constexpr SkSize kCanvas = {1100, 890};
+constexpr float kCell = 328;
+constexpr float kPicture = 206;
 
 constexpr size_t kCopies = 9;  // copies in each chain
-constexpr float kStep = 19;    // the per-copy translate, px
+constexpr float kStep = 26;    // the per-copy translate, px
 constexpr int kTiles = 4;      // slices the strip is cut into
 constexpr SkSize kMotif = {34, 34};
 constexpr SkISize kTile = {44, 128};
@@ -87,7 +87,7 @@ struct PlaceRepeatTiles {
   sk_sp<SkPicture> strip;
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
+    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -95,14 +95,14 @@ struct PlaceRepeatTiles {
     atlas->cell(motif(sketch::kit::theme().palette.figure), kMotif);
 
     plain = std::make_shared<instancing::Pool>();
-    instancing::place::repeat(*plain, kCopies, {28, 100}, {kStep, 0});
+    instancing::place::repeat(*plain, kCopies, {60, 108}, {kStep, 0});
 
     spun = std::make_shared<instancing::Pool>();
-    instancing::place::repeat(*spun, kCopies, {34, 60}, {kStep, 9}, 0.18f,
+    instancing::place::repeat(*spun, kCopies, {58, 52}, {kStep, 9}, 0.18f,
                               0.90f);
 
     faded = std::make_shared<instancing::Pool>();
-    instancing::place::repeat(*faded, kCopies, {28, 100}, {kStep, 0}, 0, 1.0f,
+    instancing::place::repeat(*faded, kCopies, {60, 108}, {kStep, 0}, 0, 1.0f,
                               1.0f, 0.12f);
 
     // THE STRIP: one tree, taller than any tile, baked once. Authored as a
@@ -130,19 +130,48 @@ struct PlaceRepeatTiles {
         snapshot(box().children({std::move(run)}), *ctx.fonts));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "Repeat and tile",
-         .subtitle = "dials · the copy count (9) · the "
-                     "per-copy translate (19 px), rotation and scale step "
-                     "· the opacity ramp · the tile count (4) "
-                     "and its facing",
-         .footer = "a chain's scale step is EXPONENTIAL and its "
-                   "translate linear, and a tile is a clip and a "
-                   "translate — there is no windowed "
-                   "bake and no need for one, because neighbouring "
-                   "tiles share their boundary texels"},
-        kit::cells({.cells = {chain(), turned(), ramped(), sliced(false),
-                              sliced(true)},
-                    .gap = 12})));
+        {.title = "Copies and windows",
+         .subtitle = "A repeated motif is a set of instances. A tiled strip is "
+                     "one picture viewed in pieces.",
+         .footer = "Translation and rotation advance linearly; repeated scale "
+                   "multiplies. Mirroring belongs to the tile consumer."},
+        box().column().gap(24).children(
+            {sketch::kit::sectionHeader(
+                 {.label = "01  COPY A MOTIF",
+                  .note = "A pool stores a transform and opacity for each "
+                          "instance"}),
+             sketch::kit::comparison(
+                 {.cases = {chain("TRANSLATE"), turned("ROTATE AND SHRINK"),
+                            ramped("FADE")},
+                  .measure = 1020,
+                  .gap = 18}),
+             box()
+                 .row()
+                 .alignItems(Align::Start)
+                 .gap(18)
+                 .children(
+                     {box().column().gap(18).children(
+                          {sketch::kit::sectionHeader(
+                               {.label = "02  SLICE ONE PICTURE", .note = ""}),
+                           sketch::kit::comparison(
+                               {.cases = {sliced("FORWARD", false),
+                                          sliced("MIRRORED", true)},
+                                .measure = 674,
+                                .gap = 18})}),
+                      box().column().gap(18).children(
+                          {sketch::kit::sectionHeader(
+                               {.label = "TWO KINDS OF REPETITION",
+                                .note = ""}),
+                           text("The upper row repeats geometry. Each star has "
+                                "a position, a rotation, a scale and an "
+                                "opacity.")
+                               .width(328)
+                               .styleClass("captionNote"),
+                           text("The lower row repeats a window over one "
+                                "recorded picture. Facing describes how the "
+                                "consumer will read that window.")
+                               .width(328)
+                               .styleClass("captionNote")})})})));
   }
 
   Element pooled(const std::shared_ptr<instancing::Pool>& pool) const {
@@ -150,70 +179,81 @@ struct PlaceRepeatTiles {
         {instancing::instances(atlas, pool, instancing::Mode::Data)});
   }
 
-  Element chain() const {
-    return sketch::kit::cell(
-        kSpecimen, "place::repeat(pool, 9, start, {19, 0})",
-        "the plainest chain · position is start + translate "
-        "× i, and every other lane is left alone",
-        pooled(plain));
+  sketch::kit::ComparisonCase chain(const char* caseTitle) const {
+    return {.title = caseTitle,
+            .control = "repeat · 9 copies · step = 26",
+            .figure = sketch::kit::cell(kSpecimen, "", "", pooled(plain)),
+            .note =
+                "the plainest chain · position is start + translate "
+                "× i, and every other lane is left alone"};
   }
 
-  Element turned() const {
-    return sketch::kit::cell(
-        kSpecimen,
-        "…"
-        ", rotateStep = 0.18, scaleStep = 0.90",
-        "rotation LINEAR in the index, scale EXPONENTIAL · "
-        "each copy is nine tenths of the one before it",
-        pooled(spun));
+  sketch::kit::ComparisonCase turned(const char* caseTitle) const {
+    return {.title = caseTitle,
+            .control =
+                "…"
+                ", rotateStep = 0.18, scaleStep = 0.90",
+            .figure = sketch::kit::cell(kSpecimen, "", "", pooled(spun)),
+            .note =
+                "rotation LINEAR in the index, scale EXPONENTIAL · "
+                "each copy is nine tenths of the one before it"};
   }
 
-  Element ramped() const {
-    return sketch::kit::cell(
-        kSpecimen,
-        "…"
-        ", opacityFrom = 1, opacityTo = 0.12",
-        "the ramp writes the alphas() lane, composing with the "
-        "authored tint · written only when the two arguments "
-        "say something",
-        pooled(faded));
+  sketch::kit::ComparisonCase ramped(const char* caseTitle) const {
+    return {.title = caseTitle,
+            .control =
+                "…"
+                ", opacityFrom = 1, opacityTo = 0.12",
+            .figure = sketch::kit::cell(kSpecimen, "", "", pooled(faded)),
+            .note =
+                "the ramp writes the alphas() lane, composing with the "
+                "authored tint · written only when the two arguments "
+                "say something"};
   }
 
   /** The strip, cut into `kTiles` rasters and laid out with air between
    *  them, so the reader sees separate tiles rather than one picture. */
-  Element sliced(bool mirrored) const {
+  sketch::kit::ComparisonCase sliced(const char* caseTitle,
+                                     bool mirrored) const {
     sk_sp<SkPicture> art = strip;
     const auto facing =
         mirrored ? tiles::Facing::Mirrored : tiles::Facing::Forward;
-    return sketch::kit::cell(
-        kSpecimen,
-        mirrored ? "tiles::window(tile, k, Down, Mirrored)"
-                 : "tiles::window(tile, k, Flow::Down)",
-        mirrored ? "pre-flipped ACROSS the strip for a consumer "
-                   "whose u runs backwards · legible in a PNG "
-                   "either way, which is the trap"
-                 : "four tiles of one baked picture, drawn apart "
-                   "· sliceable() first, so each replay "
-                   "visits only its own ops",
-        custom(mirrored ? "tiles.mirrored" : "tiles.forward", [art, facing](
-                                                                  SkCanvas&
-                                                                      canvas) {
-          constexpr float kAir = 4;
-          const float scale = 0.62f;
-          canvas.save();
-          canvas.translate(10, 8);
-          canvas.scale(scale, scale);
-          for (int k = 0; k < kTiles; ++k) {
-            canvas.save();
-            canvas.translate(k * ((float)kTile.width() + kAir / scale), 0);
-            canvas.clipRect(
-                SkRect::MakeWH((float)kTile.width(), (float)kTile.height()));
-            canvas.concat(tiles::window(kTile, k, tiles::Flow::Down, facing));
-            canvas.drawPicture(art);
-            canvas.restore();
-          }
-          canvas.restore();
-        }).cover());
+    return {
+        .title = caseTitle,
+        .control = mirrored ? "tiles::window(tile, k, Down, Mirrored)"
+                            : "tiles::window(tile, k, Flow::Down)",
+        .figure = sketch::kit::cell(
+            kSpecimen, "", "",
+            custom(mirrored ? "tiles.mirrored" : "tiles.forward",
+                   [art, facing](SkCanvas& canvas) {
+                     constexpr float kAir = 4;
+                     const float scale = 1.1f;
+                     canvas.save();
+                     canvas.translate((kCell - kTiles * kTile.width() * scale -
+                                       (kTiles - 1) * kAir) /
+                                          2,
+                                      30);
+                     canvas.scale(scale, scale);
+                     for (int k = 0; k < kTiles; ++k) {
+                       canvas.save();
+                       canvas.translate(
+                           k * ((float)kTile.width() + kAir / scale), 0);
+                       canvas.clipRect(SkRect::MakeWH((float)kTile.width(),
+                                                      (float)kTile.height()));
+                       canvas.concat(
+                           tiles::window(kTile, k, tiles::Flow::Down, facing));
+                       canvas.drawPicture(art);
+                       canvas.restore();
+                     }
+                     canvas.restore();
+                   })
+                .cover()),
+        .note = mirrored ? "pre-flipped ACROSS the strip for a consumer "
+                           "whose u runs backwards · legible in a PNG "
+                           "either way, which is the trap"
+                         : "four tiles of one baked picture, drawn apart "
+                           "· sliceable() first, so each replay "
+                           "visits only its own ops"};
   }
 };
 

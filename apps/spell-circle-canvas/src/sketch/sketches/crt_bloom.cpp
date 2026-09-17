@@ -24,8 +24,7 @@
  * is a drop shadow at zero offset; the stack ADDS it, so the halo and the
  * letters sum where they overlap and the core blows out. A phosphor adds.
  * A shadow does not. Everything else about the two is identical, which is
- * what makes the comparison worth drawing rather than describing — and
- * why the seam is drawn and labelled rather than left to be inferred.
+ * what makes the comparison worth drawing rather than describing.
  *
  * THE TUBE is `field::crtOverlay`: hard scanlines at a stated pitch and a
  * corner falloff, in black, with the alpha carrying both, laid over each
@@ -77,17 +76,16 @@ constexpr float kPitch = 6.0f;
 constexpr SkColor4f kGround{0.02f, 0.03f, 0.05f, 1};
 constexpr SkColor4f kCore{0.616f, 0.949f, 1.0f, 1};
 constexpr SkColor4f kHalo{0.165f, 0.498f, 0.588f, 1};
-constexpr SkColor4f kSeam{0.95f, 0.62f, 0.24f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette.ground = {0.02f, 0.03f, 0.05f, 1};
   look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
   look.palette.rule = {0.16f, 0.20f, 0.26f, 1};
   look.type.captionLabel = {.size = 13, .track = 0.4f};
-  look.spacing.marginX = 30;
-  look.spacing.marginTop = 22;
+  look.spacing.marginX = 40;
+  look.spacing.marginTop = 40;
   return look;
 }
 
@@ -123,23 +121,6 @@ Element panel(Element construction) {
       .children({std::move(construction), tube()});
 }
 
-/** THE SEAM, labelled: the hairline the comparison is read across. */
-Element seam() {
-  return box()
-      .column()
-      .alignItems(Align::Center)
-      .gap(6)
-      .children({text(u8"SEAM").font({.face = weave::defaultFace(),
-                                      .size = 10,
-                                      .color = kSeam,
-                                      .track = 2.0f}),
-                 kit::line({.length = Dimension(kPanelH),
-                            .thickness = 2,
-                            .column = true,
-                            .fill = Fill::color(
-                                {kSeam.fR, kSeam.fG, kSeam.fB, 0.55f})})});
-}
-
 }  // namespace
 
 struct CrtBloom {
@@ -147,7 +128,7 @@ struct CrtBloom {
     const sketch::kit::Provide look(sheetTheme());
     // Nothing on the sheet reads the clock: both halos are static and the
     // tube is a function of the box, so the plate is the first moment.
-    sketch::kit::stage(ctx, {.size = {1000, 500}, .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.size = {1000, 740}, .captureAt = 0.05});
 
     // LEFT — one node. The effect owns the whole construction.
     Element primitive =
@@ -175,36 +156,52 @@ struct CrtBloom {
                              headline(kCore).zIndex(2)}));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "CRT bloom",
-         .subtitle = "identical content either side of the seam "
-                     "— one word, one size, one spread, "
-                     "one tube; only the construction differs",
-         .footer = "glow composites its halo UNDER the letters, "
-                   "which is a drop shadow at zero offset; the "
-                   "stack ADDS it, so the core blows out · a "
-                   "phosphor adds, a shadow does not"},
-        kit::cells(
-            {.cells = {sketch::kit::caption(kPanel, "Effect::glow(halo, 14)",
-                                            "one node — the halo is "
-                                            "the headline's own coverage, so "
-                                            "nothing can drift out of step "
-                                            "with the letters",
-                                            std::move(primitive)),
-                       seam(),
-                       sketch::kit::caption(
-                           kPanel,
-                           "directionalBlur(14, 0°, 14) + "
-                           "kPlus",
-                           "two nodes — the same "
-                           "headline described twice, the lower "
-                           "copy blurred, added and baked to a "
-                           "texture because it never changes",
-                           std::move(built))},
-             .gap = 22})));
+        {.title = "A shadow or a phosphor?",
+         .subtitle = "Two ways to build a bloom, seen through the same tube",
+         .footer = "Read the letter interiors as well as the spread: the "
+                   "compositing operation changes their brightness."},
+        box().column().gap(24).children(
+            {sketch::kit::sectionHeader(
+                 {.label = "THE CONTROL",
+                  .note = "Identical word · 62 px type · 14 px spread · 6 px "
+                          "scanlines"}),
+             sketch::kit::comparison(
+                 {.cases = {{.title = "HALO UNDER THE CORE",
+                             .control = "Effect::glow(halo, 14)",
+                             .figure = std::move(primitive),
+                             .note = "One node. The blurred coverage sits "
+                                     "beneath the sharp letters."},
+                            {.title = "HALO ADDED TO THE CORE",
+                             .control = "directionalBlur(14) + kPlus",
+                             .figure = std::move(built),
+                             .note = "Two layers. Their light adds where they "
+                                     "overlap, lifting the bright core."}},
+                  .measure = 920,
+                  .gap = 40}),
+             box()
+                 .row()
+                 .alignItems(Align::Start)
+                 .gap(40)
+                 .children({box().column().gap(12).children(
+                                {sketch::kit::sectionHeader(
+                                     {.label = "SOURCE OVER", .note = ""}),
+                                 text("The sharp glyph covers the halo. This "
+                                      "is a centred shadow, with its outline "
+                                      "always tied to the source.")
+                                     .width(440)
+                                     .styleClass("captionNote")}),
+                            box().column().gap(12).children(
+                                {sketch::kit::sectionHeader(
+                                     {.label = "ADDITIVE LIGHT", .note = ""}),
+                                 text("The halo contributes to the glyph as "
+                                      "well as its surroundings. The static "
+                                      "blurred layer is retained as a texture.")
+                                     .width(440)
+                                     .styleClass("captionNote")})})})));
   }
 };
 
-SIGIL_SKETCH(CrtBloom, "Kit · API",
-             "Effect::glow beside the stack it names — one node "
-             "against two on identical content, either side of a labelled "
-             "seam and under the same field::crtOverlay tube")
+SIGIL_SKETCH(
+    CrtBloom, "Kit · API",
+    "Effect::glow beside the stack it names — one node "
+    "against two on identical content, under the same field::crtOverlay tube")

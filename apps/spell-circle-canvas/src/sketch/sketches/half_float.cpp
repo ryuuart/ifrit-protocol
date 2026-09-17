@@ -1,31 +1,9 @@
 /** @file
- * half_float — the copy that makes an HDR image drawable, and what it
- * keeps that the ordinary one throws away.
- *
- * A decoded HDR panorama lands as 32-bit float RGBA, which keeps the
- * range a sun needs and is NOT FILTERABLE on Apple GPUs: a sampler asked
- * to interpolate between two F32 texels there answers nothing. The copy
- * that makes such an image drawable is a HALF-float one, and it belongs
- * beside the device rather than beside the decoder, because it is a
- * property of the hardware the pixels are going to and not of the file
- * they came from.
- *
- * `isFloatImage` is the question a caller asks first — the form an HDR
- * decode produces, and the one a sampler may refuse. `halfFloatPixels`
- * answers tightly packed half RGBA, four values a texel, row after row
- * with no padding, which is what a 16-bit float texture is uploaded
- * from. `bytePixels` is the ordinary path, and it stands beside the
- * float one so a caller choosing between them reads both in one place.
- *
- * VALUES ABOVE ONE SURVIVE the halves, which is the whole point of
- * asking for them rather than for bytes. This sheet writes a ramp that
- * runs past one, reads it back both ways, and tone-maps each readback at
- * the same two exposures: the half copy still has the highlights to
- * bring down, and the byte copy clipped them on the way out.
- *
- * EDIT THESE FIRST
- *   kPeak — how far past one the source ramp runs.
- *   kStops — the two exposures each readback is tone-mapped at.
+ * The same HDR ramp read back through halfFloatPixels and bytePixels.
+ * Rows select the storage format and columns select the exposure applied
+ * after readback. The upper band exceeds one; the lower is clipped before
+ * storage. A hot texel is read from both buffers to distinguish data loss
+ * from a highlight merely exceeding the display range.
  */
 
 // TAGS: Materials/Color, Media/Images
@@ -57,9 +35,8 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 400};
-constexpr float kCell = 206;
-constexpr float kPicture = 176;
+constexpr SkSize kCanvas = {1100, 820};
+constexpr float kCell = 192;
 
 constexpr int kSide = 96;                   // the source's side, texels
 constexpr float kPeak = 6.0f;               // how far past one the ramp runs
@@ -83,9 +60,8 @@ float halfToFloat(uint16_t bits) {
   return sign ? -value : value;
 }
 
-/** The source: a ramp that runs from 0 to `kPeak` across the image, with
- *  a band at the top held at exactly 1 so the clip has an edge to be
- *  read against. */
+/** The upper ramp runs from zero to kPeak; the lower ramp is clipped
+ *  to one before either readback. */
 sk_sp<SkImage> hdrSource() {
   sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::Make(
       kSide, kSide, kRGBA_F32_SkColorType, kPremul_SkAlphaType));
@@ -106,16 +82,11 @@ sk_sp<SkImage> hdrSource() {
   return surface->makeImageSnapshot();
 }
 
-/** The plate every specimen on this sheet stands on, and the
- *  measure its caption is set to. */
-const sketch::kit::Cell kSpecimen{
-    .plate = {.width = kCell, .height = kPicture, .padding = 10}};
-
 }  // namespace
 
 struct HalfFloat {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
+    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
     // both readbacks have already been taken
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -147,48 +118,63 @@ struct HalfFloat {
         halves.size() > hot * 4 ? halfToFloat(halves[hot * 4]) : 0.0f,
         bytes.size() > hot * 4 ? (float)bytes[hot * 4] / 255.0f : 0.0f, kPeak);
 
+    const auto exposureRow = [&](bool floating) {
+      return sketch::kit::comparison(
+          {.cases =
+               {{.title = "DISPLAY EXPOSURE",
+                 .control = "1.00 ×",
+                 .figure = sketch::kit::well(
+                     {.width = 332,
+                      .height = 182,
+                      .content = sketch::kit::Well::Content{}},
+                     floating ? fromHalves(kStops[0]) : fromBytes(kStops[0])),
+                 .note = "Bright values meet the display ceiling."},
+                {.title = "REDUCED EXPOSURE",
+                 .control = "0.18 ×",
+                 .figure = sketch::kit::well(
+                     {.width = 332,
+                      .height = 182,
+                      .content = sketch::kit::Well::Content{}},
+                     floating ? fromHalves(kStops[1]) : fromBytes(kStops[1])),
+                 .note =
+                     floating
+                         ? "Highlight structure survives in the stored values."
+                         : "Lowering exposure darkens the clipped plateau."}},
+           .measure = 688,
+           .gap = 24});
+    };
+    Element matrix = box().column().gap(20).width(688).children(
+        {sketch::kit::sectionHeader(
+             {.label = "16-BIT FLOAT", .note = "halfFloatPixels"}),
+         exposureRow(true),
+         sketch::kit::sectionHeader(
+             {.label = "8-BIT CHANNELS", .note = "bytePixels"}),
+         exposureRow(false)});
+    Element readings =
+        sketch::kit::well({.width = 300, .padding = 22})
+            .column()
+            .gap(22)
+            .children(
+                {text("SAME SOURCE").styleClass("captionLabel"),
+                 text("0 → 6")
+                     .font({.size = 44})
+                     .ink(sketch::kit::theme().palette.figure),
+                 text("The upper ramp exceeds one. The lower band is limited "
+                      "to one before either readback.")
+                     .width(256),
+                 text("BUFFER EVIDENCE").styleClass("captionLabel"),
+                 text(readout).styleClass("readout").width(256),
+                 text("A display can hide a highlight that is still in the "
+                      "file. An 8-bit readback removes that information.")
+                     .width(256)});
     ctx.composer.render(sketch::kit::page(
-        {.title = "The drawable copy",
-         .subtitle = "dials · how far past one the ramp runs "
-                     "(6.0) · the two exposures each "
-                     "readback is tone-mapped at (1.0 and 0.18) "
-                     "· the source's side",
-         .footer = "values above one survive the halves, which is "
-                   "the whole point of asking for them rather than "
-                   "for bytes — and the byte copy clipped "
-                   "them on the way out, so no exposure brings them "
-                   "back"},
-        kit::cells(
-            {.cells =
-                 {sketch::kit::cell(kSpecimen, "halfFloatPixels · exposure 1.0",
-                                    "the half readback shown straight · "
-                                    "everything past one is off the top of the "
-                                    "display, which is what a display is",
-                                    fromHalves(kStops[0])),
-                  sketch::kit::cell(
-                      kSpecimen, "halfFloatPixels · exposure 0.18",
-                      "the same words brought down · the "
-                      "highlights are still there to bring, because a "
-                      "half held them",
-                      fromHalves(kStops[1])),
-                  sketch::kit::cell(
-                      kSpecimen, "bytePixels · exposure 1.0",
-                      "the ordinary readback · the same picture, "
-                      "and the top band and the ramp above one are now "
-                      "one colour",
-                      fromBytes(kStops[0])),
-                  sketch::kit::cell(
-                      kSpecimen, "bytePixels · exposure 0.18",
-                      "brought down by the same amount · nothing "
-                      "comes back: the clip happened in the readback "
-                      "and not in the display",
-                      fromBytes(kStops[1])),
-                  sketch::kit::cell(
-                      kSpecimen, "what each readback answered",
-                      "the question a caller asks first, the two buffer "
-                      "sizes, and one hot texel read out of each",
-                      text(readout).styleClass("readout").width(kCell - 20))},
-             .gap = 12})));
+        {.title = "A highlight, kept or clipped",
+         .subtitle = "Storage format runs down the page; exposure runs across "
+                     "it. Every picture starts with the same HDR ramp.",
+         .footer = "The exposure is applied after readback. Both rows use the "
+                   "same clamp only when making a displayable image."},
+        box().row().gap(32).children(
+            {std::move(matrix), std::move(readings)})));
   }
 
   /** A readback laid back out as a displayable picture: the sampler is

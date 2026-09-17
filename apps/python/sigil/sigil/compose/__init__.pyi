@@ -1,3 +1,6 @@
+from collections.abc import Iterable
+from typing import overload
+
 from _sigil.compose import (
     Align,
     Backface,
@@ -20,10 +23,12 @@ from _sigil.compose import (
     Shape,
     Spans,
     SurfacePaint,
+    TextPath,
     TextSettling,
     VarRef,
     autoDimension,
     box,
+    frame,
     graphics,
     heldPath,
     image,
@@ -36,6 +41,7 @@ from _sigil.compose import (
     picture,
     positioned,
     pw,
+    selectors,
     shadow,
     shape,
     slot,
@@ -48,8 +54,14 @@ from _sigil.compose import (
 
 from . import kit, layouts
 
-def row() -> Element: ...
-def column() -> Element: ...
+@overload
+def row(children: Iterable[Element], /) -> Element: ...
+@overload
+def row(*children: Element) -> Element: ...
+@overload
+def column(children: Iterable[Element], /) -> Element: ...
+@overload
+def column(*children: Element) -> Element: ...
 
 __all__ = [
     "Align",
@@ -73,11 +85,13 @@ __all__ = [
     "Shape",
     "Spans",
     "SurfacePaint",
+    "TextPath",
     "TextSettling",
     "VarRef",
     "autoDimension",
     "box",
     "column",
+    "frame",
     "graphics",
     "heldPath",
     "image",
@@ -93,6 +107,7 @@ __all__ = [
     "positioned",
     "pw",
     "row",
+    "selectors",
     "shadow",
     "shape",
     "slot",

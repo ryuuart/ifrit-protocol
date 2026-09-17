@@ -48,9 +48,9 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 680};
-constexpr float kCell = 252;
-constexpr float kPicture = 196;
+constexpr SkSize kCanvas = {1100, 1000};
+constexpr float kCell = 240;
+constexpr float kPicture = 224;
 
 constexpr int kPoints = 6;           // arms
 constexpr float kPointiness = 2.6f;  // m in [2, points]
@@ -68,23 +68,26 @@ sdf::Style plain() {
           .borderColor = {0.24f, 0.16f, 0.08f, 1}};
 }
 
-Element cell(const char* call, const std::string& note, sdf::Shape shape,
-             const sdf::Style& style) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well(
-          {.width = kCell, .height = kPicture},
-          custom(call, [paint = sdf::material(shape, style), face = whole()](
-                           SkCanvas& canvas, const PaintContext& pc) {
-            material::skia::fill(
-                canvas, face, paint,
-                {.resolution = {pc.size.width(), pc.size.height()}});
-          })));
+sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
+                                 const std::string& note, sdf::Shape shape,
+                                 const sdf::Style& style) {
+  return {.title = caseTitle,
+          .control = call,
+          .figure = sketch::kit::well(
+              {.width = kCell, .height = kPicture},
+              custom(call,
+                     [paint = sdf::material(shape, style), face = whole()](
+                         SkCanvas& canvas, const PaintContext& pc) {
+                       material::skia::fill(
+                           canvas, face, paint,
+                           {.resolution = {pc.size.width(), pc.size.height()}});
+                     })),
+          .note = note};
 }
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette.ground = {0.06f, 0.06f, 0.075f, 1};
   look.palette.cellGround = {0.085f, 0.09f, 0.105f, 1};
   return look;
@@ -114,88 +117,76 @@ struct SdfStar {
     heavy.borderWidth = 9;
     heavy.borderColor = {0.42f, 0.86f, 0.92f, 1};
 
-    Element content = kit::cells(
-        {.cells = {kit::cells(
-                       {.cells = {cell("sdf::star(6, 2)",
-                                       kit::formatted(
-                                           "the clamp's lower end · "
-                                           "the notch between two arms is "
-                                           "shallowest here · pad "
-                                           "%.0f px",
-                                           (double)sdf::pad(plain())),
-                                       sdf::star(kPoints, 2), plain()),
-                                  cell("sdf::star(6, 3.4)",
-                                       "the notch cuts deeper · the "
-                                       "shape is REBUILT through the factory, "
-                                       "never edited into another kind",
-                                       sdf::star(kPoints, 3.4f), plain()),
-                                  cell("sdf::star(6, 5)",
-                                       "…and deeper again, "
-                                       "toward the point count the clamp "
-                                       "stops at",
-                                       sdf::star(kPoints, 5), plain()),
-                                  cell("sdf::star(12, 3)",
-                                       "twice the arms at one m · one "
-                                       "recipe per KIND, not per parameter",
-                                       sdf::star(12, 3), plain())},
-                        .gap = 14}),
-                   kit::cells(
-                       {.cells = {cell(
-                                      "…"
-                                      ".glowRadius = 14",
-                                      kit::formatted("exp(−d / radius), "
-                                                     "not a blurred copy "
-                                                     "· pad "
-                                                     "%.0f px",
-                                                     (double)sdf::pad(glowing)),
-                                      sdf::star(kPoints, kPointiness), glowing),
-                                  cell("…"
-                                       ".glowRadius = 22",
-                                       kit::formatted("the falloff is the "
-                                                      "radius and "
-                                                      "nothing else · "
-                                                      "pad %.0f "
-                                                      "px, so in a fixed box "
-                                                      "the "
-                                                      "silhouette shrinks; "
-                                                      "minBoxFor("
-                                                      "style, 120) is %.0f",
-                                                      (double)sdf::pad(wide),
-                                                      (double)sdf::minBoxFor(
-                                                          wide, 120)),
-                                       sdf::star(kPoints, kPointiness), wide),
-                                  cell(
-                                      "…"
-                                      ".shadowOffset, "
-                                      ".shadowBlur",
-                                      kit::formatted("the layer BEHIND the "
-                                                     "fill "
-                                                     "· pad %.0f px, "
-                                                     "which is "
-                                                     "the offset and the blur "
-                                                     "together",
-                                                     (double)sdf::pad(dropped)),
-                                      sdf::star(kPoints, kPointiness), dropped),
-                                  cell("…"
-                                       ".borderWidth = 9",
-                                       "the border is CENTRED on the edge, "
-                                       "so "
-                                       "half of it is the pad and half eats "
-                                       "the fill",
-                                       sdf::star(kPoints, kPointiness), heavy)},
-                        .gap = 14})},
-         .column = true,
-         .gap = 18});
     ctx.composer.render(sketch::kit::page(
-        {.title = "SDF star",
-         .subtitle = "dials · the point count (6) · "
-                     "the pointiness (m in [2, points]) · "
-                     "the glow radius (14 px, then 22)",
-         .footer = "one draw per cell: shadow, glow, fill and "
-                   "border are four layers of one distance, which "
-                   "is what a path and four stacked passes would "
-                   "have cost four of"},
-        std::move(content)));
+        {.title = "One distance, several layers",
+         .subtitle = "Change the silhouette first; then compare shadow, glow, "
+                     "fill and border",
+         .footer = "Padding protects the effect inside the box. Increasing it "
+                   "reduces the visible interior at a fixed extent."},
+        box().column().gap(24).children(
+            {sketch::kit::sectionHeader(
+                 {.label = "THE SILHOUETTE",
+                  .note = "Pointiness 2 → 3.4 → 5 · then change the number of "
+                          "arms"}),
+             sketch::kit::comparison(
+                 {.cases =
+                      {cell(
+                           "SHALLOW", "sdf::star(6, 2)",
+                           "Six arms; the shallow end of the pointiness range.",
+                           sdf::star(kPoints, 2), plain()),
+                       cell("DEEPER", "sdf::star(6, 3.4)",
+                            "Keep the point count; deepen the notches.",
+                            sdf::star(kPoints, 3.4f), plain()),
+                       cell("DEEPEST", "sdf::star(6, 5)",
+                            "The notches approach the point-count limit.",
+                            sdf::star(kPoints, 5), plain()),
+                       cell("TWELVE POINTS", "sdf::star(12, 3)",
+                            "Twelve arms with pointiness held at three.",
+                            sdf::star(12, 3), plain())},
+                  .measure = 1020,
+                  .gap = 20}),
+             sketch::kit::sectionHeader(
+                 {.label = "FOUR WAYS TO DRESS ONE DISTANCE",
+                  .note = "All four below use six points and pointiness 2.6."}),
+             sketch::kit::comparison(
+                 {.cases =
+                      {cell("GLOW · 14 PX",
+                            "…"
+                            ".glowRadius = 14",
+                            "An exponential halo around the distance field.",
+                            sdf::star(kPoints, kPointiness), glowing),
+                       cell("GLOW · 22.4 PX",
+                            "…"
+                            ".glowRadius = 22",
+                            "A wider falloff also reserves more space inside "
+                            "the box.",
+                            sdf::star(kPoints, kPointiness), wide),
+                       cell("DROP SHADOW",
+                            "…"
+                            ".shadowOffset, "
+                            ".shadowBlur",
+                            "Offset and blur reserve room behind the "
+                            "silhouette.",
+                            sdf::star(kPoints, kPointiness), dropped),
+                       cell("BORDER · 9 PX",
+                            "…"
+                            ".borderWidth = 9",
+                            "The centred border uses space inside and outside "
+                            "the edge.",
+                            sdf::star(kPoints, kPointiness), heavy)},
+                  .measure = 1020,
+                  .gap = 20}),
+             sketch::kit::sectionHeader(
+                 {.label = "LAYOUT RESERVE IS VISIBLE", .note = ""}),
+             text(kit::formatted(
+                      "Reserved padding   glow %.0f px   /   wide glow %.0f px "
+                      "  /   shadow %.0f px\nA 120 px interior with the wide "
+                      "glow needs a %.0f px box.",
+                      (double)sdf::pad(glowing), (double)sdf::pad(wide),
+                      (double)sdf::pad(dropped),
+                      (double)sdf::minBoxFor(wide, 120)))
+                 .width(1020)
+                 .styleClass("captionNote")})));
   }
 };
 

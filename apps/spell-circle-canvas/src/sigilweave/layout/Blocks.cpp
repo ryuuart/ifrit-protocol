@@ -165,6 +165,12 @@ std::vector<detail::Block> resolveBlocks(
         const int slot = words[wordIndex].placeholderIndex;
         if (slot < 0 || (size_t)slot >= placeholders.size()) continue;
         const Placeholder& box = placeholders[(size_t)slot];
+        if (paragraph.writingMode() == WritingMode::kVerticalRL) {
+          // Columns centre objects across their axis; a horizontal
+          // baseline drop does not move the object or open the column.
+          faceHeight = std::max(faceHeight, box.height);
+          continue;
+        }
         faceAscent = std::max(faceAscent, box.height - box.baselineDrop);
         faceDescent = std::max(faceDescent, box.baselineDrop);
       }

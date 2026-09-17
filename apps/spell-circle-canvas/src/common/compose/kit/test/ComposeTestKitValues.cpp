@@ -1432,10 +1432,10 @@ TEST(KitRows, ARowIsItsOwnRunOfCellsSoAShortRowStaysShort) {
                            .styleSheet(rowClasses())
                            .children({kit::table(rows, how)}));
   host.frame();
-  // The unmarked row spends no room on a mark, and its one cell takes its
-  // column's width.
+  // The unmarked row leaves the mark's column empty, and its one cell
+  // takes its column's width.
   const SkRect alpha = require(host.composer.bounds("alpha"));
-  EXPECT_FLOAT_EQ(alpha.left(), 0);
+  EXPECT_FLOAT_EQ(alpha.left(), 9 + 10);
   EXPECT_FLOAT_EQ(alpha.width(), 120);
   // The marked row stands its mark before the first column.
   EXPECT_FLOAT_EQ(require(host.composer.bounds("beta")).left(), 9 + 10);
@@ -1471,6 +1471,45 @@ TEST(KitRows, ATableHeadsItsColumnsInTheSectionClassAndRulesUnderThem) {
   EXPECT_NEAR(head.height(), lineHeight(11), 1.0f);
   // The rule under the head is a row of its own, in the divider's fill.
   EXPECT_EQ(host.pixel(50, (int)(head.height() + 5) + 1), SK_ColorRED);
+}
+
+TEST(KitRows, SwatchesReserveOneColumnAcrossTheHeadAndEveryRow) {
+  const Utf8 cells[] = {"marked", "12", "empty", "34", "missing", "56"};
+  const SurfacePaint swatches[] = {red(), Fill::none()};
+  for (const bool marked : {false, true}) {
+    kit::Table how{.columns = {{.head = "NAME", .width = 120},
+                               {.head = "VALUE", .width = 60}},
+                   .gap = 10,
+                   .swatches = marked ? std::span<const SurfacePaint>(swatches)
+                                      : std::span<const SurfacePaint>{},
+                   .swatchSide = 12};
+    how.headLine = [](const Utf8& words) {
+      return text(words).key(words == "NAME" ? "nameHead" : "valueHead");
+    };
+    how.cellLine = [](const Utf8& words, const kit::Table&, size_t column,
+                      size_t row) {
+      return text(words).key("r" + std::to_string(row) + "c" +
+                             std::to_string(column));
+    };
+    Host host(400, 200);
+    host.composer.render(
+        box().children({kit::table(std::span<const Utf8>(cells), how)}));
+    host.frame();
+    const float start = marked ? 22.0f : 0.0f;
+    EXPECT_FLOAT_EQ(require(host.composer.bounds("nameHead")).left(), start);
+    EXPECT_FLOAT_EQ(require(host.composer.bounds("valueHead")).left(),
+                    start + 130);
+    for (size_t row = 0; row < 3; ++row) {
+      EXPECT_FLOAT_EQ(
+          require(host.composer.bounds("r" + std::to_string(row) + "c0"))
+              .left(),
+          start);
+      EXPECT_FLOAT_EQ(
+          require(host.composer.bounds("r" + std::to_string(row) + "c1"))
+              .left(),
+          start + 130);
+    }
+  }
 }
 
 TEST(KitRows, ABarsOwnInkStandsOverTheRowsPaintAndItsLines) {

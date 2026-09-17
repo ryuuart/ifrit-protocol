@@ -50,9 +50,9 @@ namespace pop = sigil::geometry::mesh::pop;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 672};
-constexpr float kCell = 252;
-constexpr float kPicture = 202;
+constexpr SkSize kCanvas = {1200, 920};
+constexpr float kCell = 268;
+constexpr float kPicture = 218;
 
 constexpr int kMotes = 4200;      // points every cell starts from
 constexpr float kFactor = 0.55f;  // the Mix weight
@@ -60,7 +60,7 @@ constexpr float kFeather = 0.6f;  // the fraction of Select's extent that fades
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette.cellGround = {0.09f, 0.095f, 0.11f, 1};
   look.type.captionLabel = {.size = 11.5f, .track = 0.8f};
   return look;
@@ -68,7 +68,7 @@ sketch::kit::Theme sheetTheme() {
 
 camera::Camera stage() {
   camera::Camera view;
-  view.eye = {0, 96, 250};
+  view.eye = {0, 120, 330};
   view.target = {0, 0, 0};
   view.fovYDeg = 40;
   return view;
@@ -107,15 +107,13 @@ pop::Builder base() {
  *  of them on every frame — thousands of canvas calls to arrive at a
  *  picture that has not changed since the cloud was cooked. A texture is
  *  the same pixels reached once and blitted after. */
-Element cell(const char* call, const std::string& note, gm::Cloud cloud) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well(
-          {.width = kCell, .height = kPicture},
-          custom(call, [cloud = std::move(cloud)](SkCanvas& canvas,
-                                                  const PaintContext& pc) {
-            points::drawBillboards(canvas, cloud, stage(), pc.size, splat());
-          }).cache(Cache::Texture)));
+Element cloudFigure(const char* key, gm::Cloud cloud) {
+  return sketch::kit::well(
+      {.width = kCell, .height = kPicture},
+      custom(key, [cloud = std::move(cloud)](SkCanvas& canvas,
+                                             const PaintContext& pc) {
+        points::drawBillboards(canvas, cloud, stage(), pc.size, splat());
+      }).cache(Cache::Texture));
 }
 
 }  // namespace
@@ -135,90 +133,98 @@ struct PopMath {
     const size_t kept = selected().keep("core").cloud().size();
     const size_t dropped = selected().drop("core").cloud().size();
 
-    // A shelf per reading — the lane rewrites, then the mask and the two
-    // operators that change what the set IS — named before the page, so
-    // each cell reads as the operator it names.
-    Element lanes = kit::cells(
-        {.cells =
-             {cell("the cloud, uncut",
-                   kit::formatted("pop::on(torus, %d) with a two-stop Lookup "
-                                  "on T · every cell below starts here",
-                                  kMotes),
-                   base().cloud()),
-              cell("Math{.lane = P, .multiplier = {1, 2.4, 1, 1}}",
-                   "lane = lane * multiplier + add, per component · the "
-                   "diagonal case of Affine, and the one that needs no "
-                   "matrix",
-                   base()
-                       .operation(pop::Math{pop::Lane::P, {1, 2.4f, 1, 1}})
-                       .cloud()),
-              cell("Affine{.matrix = rotate * shear}",
-                   "the whole affine vocabulary in one op · as a POSITION "
-                   "the translation applies; as a DIRECTION only the upper "
-                   "3x3 acts",
-                   base()
-                       .affine(glm::rotate(glm::mat4(1.0f), 0.5f,
-                                           glm::vec3{0, 0, 1}) *
-                               glm::mat4{1, 0, 0, 0, 0.55f, 1, 0, 0, 0, 0, 1, 0,
-                                         0, 0, 0, 1})
-                       .cloud()),
-              cell("Lookup{.from = P, .weights = {0,1,0,0}}",
-                   "key = dot(from, weights), remapped from [low, high] onto "
-                   "a table of stops and sampled · colour by HEIGHT, not by "
-                   "T",
-                   base()
-                       .rampBy(pop::Lane::P, 1,
-                               {{0.10f, 0.14f, 0.30f, 1},
-                                {0.30f, 0.85f, 0.72f, 1},
-                                {1.00f, 0.95f, 0.55f, 1}},
-                               -24, 24)
-                       .cloud())},
-         .gap = 14});
-
-    Element sets = kit::cells(
-        {.cells =
-             {cell("Select{.feather = 0.6} → Math{.mask = \"core\"}",
-                   "a mask is a LANE: 1 inside the region, 0 outside, "
-                   "feathered across the outer 0.6 · the write lands in "
-                   "proportion",
-                   selected()
-                       .masked("core")
-                       .operation(
-                           pop::Math{pop::Lane::P, {1, 1, 1, 1}, {0, 58, 0, 0}})
-                       .cloud()),
-              cell("Fill{\"anchor\"} → Mix{P, anchor, P, 0.55}",
-                   kit::formatted("to = a + (b - a) * factor · Fill invented "
-                                  "the lane on first write and Mix drew the "
-                                  "cloud %.0f%% of the way to it",
-                                  (double)(kFactor * 100)),
-                   base()
-                       .fill("anchor", {0, 86, 0, 1})
-                       .mix(pop::Lane::P, "anchor", pop::Lane::P, kFactor)
-                       .cloud()),
-              cell("Normal{.sense = +1} → Peak{34}",
-                   "Dir made unit and turned to face AWAY from the centre, "
-                   "then every point pushed along its own · without the "
-                   "Normal the pushes disagree",
-                   base().normal(1.0f, {0, 0, 0}).peak(34).cloud()),
-              cell("Delete{.mask = \"core\", .keep}",
-                   kit::formatted("the count is what this op moves: %zu kept, "
-                                  "%zu dropped, of %d · every lane compacted "
-                                  "through one permutation",
-                                  kept, dropped, kMotes),
-                   selected().keep("core").cloud())},
-         .gap = 14});
-
     ctx.composer.render(sketch::kit::page(
-        {.title = "Point arithmetic",
-         .subtitle = "dials · the operator · the Mix weight (0.55) · the "
-                     "Select feather (0.6 of the extent)",
-         .footer = "an operator names the lane it writes, and a name nothing "
-                   "has written yet is all zeros — which is why naming an "
-                   "unwritten lane as a mask selects nobody rather than "
-                   "everybody"},
-        kit::cells({.cells = {std::move(lanes), std::move(sets)},
-                    .column = true,
-                    .gap = 18})));
+        {.title = "One cloud, different questions",
+         .subtitle = "4,200 points on a torus · one seed, one camera, one "
+                     "scale throughout",
+         .footer = "Selection writes a continuous lane. A masked operator "
+                   "weights its edit by that lane; keep() changes the "
+                   "membership of the cloud."},
+        box().column().gap(26).children(
+            {text("01 / REWRITE A VALUE").styleClass("section"),
+             sketch::kit::comparison(
+                 {.cases =
+                      {{.title = "SOURCE",
+                        .control = "colour follows T",
+                        .figure = cloudFigure("source", base().cloud()),
+                        .note = "The unchanged torus is the reference for "
+                                "every edit."},
+                       {.title = "STRETCH",
+                        .control = "P.y × 2.4",
+                        .figure = cloudFigure(
+                            "stretch", base()
+                                           .operation(pop::Math{
+                                               pop::Lane::P, {1, 2.4f, 1, 1}})
+                                           .cloud()),
+                        .note = "Multiply one component. The colour lane stays "
+                                "intact."},
+                       {.title = "SHEAR + ROTATE",
+                        .control = "Affine · rotate × shear",
+                        .figure = cloudFigure(
+                            "affine",
+                            base()
+                                .affine(glm::rotate(glm::mat4(1.0f), 0.5f,
+                                                    glm::vec3{0, 0, 1}) *
+                                        glm::mat4{1, 0, 0, 0, 0.55f, 1, 0, 0, 0,
+                                                  0, 1, 0, 0, 0, 0, 1})
+                                .cloud()),
+                        .note = "One matrix acts on position. Translation is "
+                                "excluded for directions."},
+                       {.title = "RECOLOUR",
+                        .control = "Lookup · height −24…24",
+                        .figure = cloudFigure(
+                            "lookup", base()
+                                          .rampBy(pop::Lane::P, 1,
+                                                  {{0.10f, 0.14f, 0.30f, 1},
+                                                   {0.30f, 0.85f, 0.72f, 1},
+                                                   {1.00f, 0.95f, 0.55f, 1}},
+                                                  -24, 24)
+                                          .cloud()),
+                        .note = "Only tint changes. Low, middle and high "
+                                "points find new colours."}},
+                  .measure = 1120,
+                  .gap = 16}),
+             text("02 / CHOOSE WHERE THE EDIT LANDS").styleClass("section"),
+             sketch::kit::comparison(
+                 {.cases =
+                      {{.title = "FEATHER A MOVE",
+                        .control = "Select core → move +58y",
+                        .figure = cloudFigure(
+                            "masked",
+                            selected()
+                                .masked("core")
+                                .operation(pop::Math{
+                                    pop::Lane::P, {1, 1, 1, 1}, {0, 58, 0, 0}})
+                                .cloud()),
+                        .note = "A soft selection blends the displacement into "
+                                "untouched points."},
+                       {.title = "DRAW TO AN ANCHOR",
+                        .control = "Fill anchor → Mix 55%",
+                        .figure = cloudFigure(
+                            "mix", base()
+                                       .fill("anchor", {0, 86, 0, 1})
+                                       .mix(pop::Lane::P, "anchor",
+                                            pop::Lane::P, kFactor)
+                                       .cloud()),
+                        .note = "Every position travels the same fraction "
+                                "toward a named value."},
+                       {.title = "PUSH OUTWARD",
+                        .control = "Normal outward → Peak 34",
+                        .figure = cloudFigure(
+                            "peak",
+                            base().normal(1.0f, {0, 0, 0}).peak(34).cloud()),
+                        .note = "Normalize the direction before pushing each "
+                                "point along it."},
+                       {.title = "KEEP THE SELECTION",
+                        .control = "Delete · keep core",
+                        .figure = cloudFigure("keep",
+                                              selected().keep("core").cloud()),
+                        .note =
+                            kit::formatted("%zu kept · %zu removed. Every lane "
+                                           "follows the same permutation.",
+                                           kept, dropped)}},
+                  .measure = 1120,
+                  .gap = 16})})));
   }
 };
 

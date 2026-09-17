@@ -11,6 +11,8 @@ import ast
 import copy
 import re
 
+from world_refinements import register as register_world
+
 ERASED: dict[str, list[str]] = {}
 RETURNS: dict[str, str] = {}
 SIGNATURES: dict[str, str] = {}
@@ -31,6 +33,9 @@ def returns(prefix: str, names: str, value: str) -> None:
 
 def signatures(prefix: str, name: str, text: str) -> None:
     SIGNATURES[prefix + "." + name] = text
+
+
+register_world(ERASED, RETURNS, SIGNATURES, PARAMETERS)
 
 
 # Shared value conversions.
@@ -85,7 +90,48 @@ PARAMETERS["_sigil.weave.Type.variations"] = {
     "value": "collections.abc.Sequence[FontVariation]"
 }
 
+# Typography values use the same color, point and native scalar conversions.
+returns("_sigil.weave.StyleSheet", "types", "TypeSheet")
+for operator in ("__or__", "__and__"):
+    signatures(
+        "_sigil.weave.Selector",
+        operator,
+        f"def {operator}(self, other: Selector) -> Selector: ...",
+    )
+erased("_sigil.weave.Decoration", "color", "_t.ColorLike")
+erased("_sigil.weave.PaintLayer", "offset blurred", "_t.PointLike")
+for field, item in (
+    ("decorations", "Decoration"),
+    ("underlays", "PaintLayer"),
+    ("overlays", "PaintLayer"),
+):
+    returns("_sigil.weave.Type", field, f"list[{item}] | None")
+    PARAMETERS[f"_sigil.weave.Type.{field}"] = {
+        "value": f"collections.abc.Sequence[{item}] | None"
+    }
+erased("_sigil.compose.TextPath", "path", "_t.ShapeLike")
+erased("_sigil.compose.TextPath", "at", "_t.ScalarLike")
+
 # Retained declarations.
+for factory in ("box", "stack", "positioned"):
+    signatures(
+        "_sigil.compose",
+        factory,
+        f"""@typing.overload
+def {factory}(children: collections.abc.Iterable[Element], /) -> Element: ...
+@typing.overload
+def {factory}(*children: Element) -> Element: ...
+""",
+    )
+signatures(
+    "_sigil.compose",
+    "layout",
+    """@typing.overload
+def layout(scheme: layouts.Grid | layouts.Radial | layouts.Diagonal | layouts.BaselineGrid | layouts.Jittered | layouts.AlongPath, *children: Element) -> Element: ...
+@typing.overload
+def layout(scheme: layouts.Grid | layouts.Radial | layouts.Diagonal | layouts.BaselineGrid | layouts.Jittered | layouts.AlongPath, children: collections.abc.Iterable[Element], /) -> Element: ...
+""",
+)
 element = "_sigil.compose.Element"
 signatures(
     element,

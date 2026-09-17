@@ -48,16 +48,16 @@ using material::Color;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 636};
-constexpr float kCell = 252;
-constexpr float kPicture = 194;
+constexpr SkSize kCanvas = {1200, 810};
+constexpr float kCell = 268;
+constexpr float kPicture = 190;
 
 constexpr float kPhase = 17;  // how far the sett slides along +x, px
 constexpr float kPan = 21;    // the mapping's pan, px
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette.cellGround = {0.09f, 0.095f, 0.11f, 1};
   return look;
 }
@@ -95,12 +95,9 @@ mskia::Paint painted(const pattern::Tile& tile) {
 }
 
 /** One cell: the tile as the ground of the well the specimen stands in. */
-Element swatch(const char* call, const std::string& note,
-               const pattern::Tile& tile) {
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well(
-          {.width = kCell, .height = kPicture, .ground = painted(tile)}));
+Element swatch(const pattern::Tile& tile) {
+  return sketch::kit::well(
+      {.width = kCell, .height = kPicture, .ground = painted(tile)});
 }
 
 }  // namespace
@@ -114,99 +111,88 @@ struct PatternSequence {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
+    Element crossed = swatch(banked).children(
+        {box()
+             .inset(0)
+             .fill(painted(pattern::Tile(banked).rotate(90)))
+             .opacity(0.55f)});
+    Element filters =
+        sketch::kit::well({.width = kCell, .height = kPicture})
+            .row()
+            .children({box().grow(1).fill(
+                           painted(pattern::Tile(squares).scale(5).filter(
+                               SkFilterMode::kNearest))),
+                       box().grow(1).fill(
+                           painted(pattern::Tile(squares).scale(5).filter(
+                               SkFilterMode::kLinear)))});
     ctx.composer.render(sketch::kit::page(
-        {.title = "Pattern sequence",
-         .subtitle = "dials · the runs and their period "
-                     "· the phase (17 px) · the pan "
-                     "(21 px) · the scale, the rotation and "
-                     "the filter",
-         .footer = "the top row rebakes and the bottom row does "
-                   "not — scale, rotation, pan and "
-                   "filter act on the sampling matrix, so one "
-                   "bake serves every cell under the rule"},
-        kit::cells(
-            {.cells =
-                 {kit::cells(
-                      {.cells =
-                           {swatch(
-                                "pattern::sequence(runs)",
-                                kit::formatted("four runs along +x · the "
-                                               "period is their sum, %.0f px",
-                                               (double)period(sett())),
-                                pattern::sequence(sett())),
-                            swatch("sequence(runs, 17)",
-                                   "the phase slides the whole sequence "
-                                   "along +x, wrapped · a "
-                                   "different PROGRAM, so a different "
-                                   "bake",
-                                   pattern::sequence(sett(), kPhase)),
-                            swatch("sequence({{18, ink}, {6, gold}})",
-                                   "as many colours as there are runs "
-                                   "· two of them is an awning, "
-                                   "four is a sett",
-                                   pattern::sequence(
-                                       {{18, {0.13f, 0.20f, 0.24f, 1}},
-                                        {6, {0.86f, 0.76f, 0.44f, 1}}})),
-                            swatch("pattern::stripes(6, 12, gold)",
-                                   "the one-colour case has its own "
-                                   "name · the painted width and "
-                                   "the gap, rather than a run list",
-                                   pattern::stripes(
-                                       6, 12, {0.86f, 0.76f, 0.44f, 1}))},
-                       .gap = 14}),
-                  kit::cells(
-                      {.cells =
-                           {swatch("banked.offset({21, 0})",
-                                   "the mapping pans the repeat in the "
-                                   "SAMPLED space's px · no "
-                                   "rebake, and the seam never shows",
-                                   pattern::Tile(banked).offset({kPan, 0})),
-                            swatch(
-                                "banked.rotate(90).scale(1.4)",
-                                "rotate, then scale, then translate "
-                                "· a rotated repeat stays "
-                                "seamless because the bake never "
-                                "turned",
-                                pattern::Tile(banked).rotate(90).scale(1.4f)),
-                            sketch::kit::caption(
-                                kCell, "one bake, drawn crossed",
-                                "the sett along +x and the same bake "
-                                "turned a right angle over it · "
-                                "which is what a tartan is",
-                                sketch::kit::well({.width = kCell,
-                                                   .height = kPicture,
-                                                   .ground = painted(banked)})
-                                    .children(
-                                        {box()
-                                             .inset(0)
-                                             .fill(painted(
-                                                 pattern::Tile(banked).rotate(
-                                                     90)))
-                                             .opacity(0.55f)})),
-                            sketch::kit::caption(
-                                kCell, "filter(kNearest) | filter(kLinear)",
-                                "linear is the default and is right "
-                                "for an organic tile · on a "
-                                "pixel grid it is wrong, which the "
-                                "seam down the middle says",
-                                sketch::kit::well(
-                                    {.width = kCell, .height = kPicture})
-                                    .row()
-                                    .children(
-                                        {box().grow(1).fill(painted(pattern::Tile(
-                                                                        squares)
-                                                                        .scale(
-                                                                            5)
-                                                                        .filter(SkFilterMode::
-                                                                                    kNearest))),
-                                         box().grow(1).fill(painted(pattern::Tile(
-                                                                        squares)
-                                                                        .scale(
-                                                                            5)
-                                                                        .filter(SkFilterMode::kLinear)))}))},
-                       .gap = 14})},
-             .column = true,
-             .gap = 18})));
+        {.title = "Bake the pattern, move the sampling",
+         .subtitle = kit::formatted(
+             "Four coloured runs make one %.0f px repeat · program edits and "
+             "sampling edits have different costs",
+             (double)period(sett())),
+         .footer =
+             "Keep the Tile with your assets. Copies share its bake; scale, "
+             "rotation, offset and filtering alter how that bake is sampled."},
+        box().column().gap(22).children(
+            {text("01 / CHANGE THE PROGRAM · A DISTINCT BAKE FOR EACH CASE")
+                 .styleClass("section"),
+             sketch::kit::comparison(
+                 {.cases = {{.title = "FOUR RUNS",
+                             .control = "sequence · 26 + 7 + 14 + 5 px",
+                             .figure = swatch(pattern::sequence(sett())),
+                             .note = "The reference sett. Each run carries its "
+                                     "own width and colour."},
+                            {.title = "SHIFT THE PHASE",
+                             .control = "sequence · phase +17 px",
+                             .figure =
+                                 swatch(pattern::sequence(sett(), kPhase)),
+                             .note = "Phase is part of the program, so the "
+                                     "shifted repeat gets its own bake."},
+                            {.title = "SIMPLIFY THE SETT",
+                             .control = "sequence · 18 + 6 px",
+                             .figure = swatch(pattern::sequence(
+                                 {{18, {0.13f, 0.20f, 0.24f, 1}},
+                                  {6, {0.86f, 0.76f, 0.44f, 1}}})),
+                             .note = "Two colours describe an awning instead "
+                                     "of a four-colour sett."},
+                            {.title = "LEAVE A GAP",
+                             .control = "stripes · 6 px ink / 12 px gap",
+                             .figure = swatch(pattern::stripes(
+                                 6, 12, {0.86f, 0.76f, 0.44f, 1})),
+                             .note = "A single colour over transparency has a "
+                                     "simpler spelling."}},
+                  .measure = 1120,
+                  .gap = 16}),
+             text("02 / CHANGE THE SAMPLING · REUSE THE EXISTING BAKE")
+                 .styleClass("section"),
+             sketch::kit::comparison(
+                 {.cases =
+                      {{.title = "PAN",
+                        .control = "offset({21, 0})",
+                        .figure =
+                            swatch(pattern::Tile(banked).offset({kPan, 0})),
+                        .note = "Move the reference tile through sampled "
+                                "space, without repainting it."},
+                       {.title = "TURN + SCALE",
+                        .control = "rotate(90°) · scale(1.4)",
+                        .figure = swatch(
+                            pattern::Tile(banked).rotate(90).scale(1.4f)),
+                        .note = "A continuous repeat after rotation. The baked "
+                                "image never turned."},
+                       {.title = "CROSS THE SAME TILE",
+                        .control = "0° + 90° · upper opacity 55%",
+                        .figure = std::move(crossed),
+                        .note = "Two mappings of one sett make a tartan-like "
+                                "intersection."},
+                       {.title = "CHOOSE THE FILTER",
+                        .control = "nearest / linear · both scale 5",
+                        .figure = std::move(filters),
+                        .note =
+                            "A checker isolates the difference: hard pixels on "
+                            "the left, interpolation on the right."}},
+                  .measure = 1120,
+                  .gap = 16})})));
   }
 };
 

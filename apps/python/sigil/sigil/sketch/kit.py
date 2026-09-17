@@ -19,12 +19,16 @@ WellContent = _native.WellContent
 Recess = _native.Recess
 Relief = _native.Relief
 Cell = _native.Cell
+ComparisonCase = _native.ComparisonCase
+Comparison = _native.Comparison
 Run = _native.Run
 PanelGrid = _native.PanelGrid
 Provide = _native.Provide
 
 __all__ = [
     "Cell",
+    "Comparison",
+    "ComparisonCase",
     "Page",
     "Palette",
     "PanelGrid",
@@ -43,6 +47,7 @@ __all__ = [
     "caption",
     "cell",
     "cells",
+    "comparison",
     "house_face",
     "house_theme",
     "page",
@@ -115,3 +120,10 @@ def panel_grid(*children, props=None, **properties):
     if children:
         grid.cells = list(_children(children))
     return _native.panelGrid(grid)
+
+
+def comparison(cases, props=None, **properties):
+    """Align titles, controls, figures and notes with native comparison tracks."""
+    spec = specification(Comparison, props, properties)
+    spec.cases = list(cases)
+    return _native.comparison(spec)

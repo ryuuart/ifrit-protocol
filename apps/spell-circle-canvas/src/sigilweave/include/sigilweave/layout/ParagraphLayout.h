@@ -133,7 +133,10 @@ struct ParagraphLayout {
     SkRect rect = SkRect::MakeEmpty();  ///< where to draw the inline object
     int lineIndex = 0;                  ///< 0-based line it landed on
   };
-  /** Returns rectangles for inline objects in the paragraph. */
+  /** Returns physical rectangles for inline objects in the paragraph.
+   *  A placeholder's logical width advances along the reading direction;
+   *  its logical height spans the line or column. Vertical objects are
+   *  centred on the column axis and ignore the horizontal baseline drop. */
   [[nodiscard]] std::vector<PlacedPlaceholder> placeholderRects(
       const Paragraph& paragraph) const;
 

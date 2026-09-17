@@ -1,34 +1,9 @@
 /** @file
- * hub_reload — a mounted folder, a resource decoded as a type of the
- * caller's own, and what `poll()` does when the file underneath changes.
- *
- * A hub maps URIs onto directories: `mount(prefix, dir)` sends every URI
- * starting with that prefix under it, longest matching prefix wins, and
- * re-mounting a prefix replaces it. Every ask is CACHED, and a failed
- * lookup is not: a missing file loads as soon as it appears.
- *
- * `registerDecoder<T>` says how a T is made out of bytes, and `load<T>`
- * answers through it. The decode a view was made with rides along with
- * the view, so `poll()` can re-run exactly it — which is what makes hot
- * reload a property of the hub rather than of each consumer.
- * `ImageAsset` and `ChannelData` are registered by the constructor, and
- * `image(uri)` is `load<ImageAsset>(uri)` sharing one view.
- *
- * `poll()` re-checks every previously loaded resource, reloads what
- * changed, drops entries whose files vanished, and answers whether
- * anything moved. Views already handed out keep their values — a
- * `shared_ptr` a caller is holding is not rewritten under it — so a
- * consumer picks the new value up by ASKING AGAIN, which this sheet does
- * beside the readings it took before.
- *
- * The files are written by this sketch into a directory of its own under
- * the system's temporary one, changed there, and asked for again, so the
- * whole reload happens inside one describe and the sheet shows both
- * readings.
- *
- * EDIT THESE FIRST
- *   kMount — the prefix the folder is mounted under.
- *   kFirst, kSecond — the two states the text file is written in.
+ * Three resources before and after their files change under a Hub.
+ * The matrix compares a held text value, caller-decoded Cloud and ImageAsset
+ * with a second request after poll(). Existing shared views keep their
+ * values. The registered decoder belongs to the cached view, so reloading
+ * can repeat the decode without consumer-specific file watching.
  */
 
 // TAGS: Runtime/Resources
@@ -65,9 +40,7 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 400};
-constexpr float kCell = 206;
-constexpr float kPicture = 176;
+constexpr SkSize kCanvas = {1100, 700};
 
 const char* kMount = "res://";
 const char* kFirst = "the first state on disk";
@@ -112,16 +85,11 @@ sk_sp<SkData> chart(int bars, SkColor4f ink) {
   return img::encodeImage(*surface->makeImageSnapshot(), img::Format::Png);
 }
 
-/** The plate every specimen on this sheet stands on, and the
- *  measure its caption is set to. */
-const sketch::kit::Cell kSpecimen{
-    .plate = {.width = kCell, .height = kPicture, .padding = 10}};
-
 }  // namespace
 
 struct HubReload {
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
+    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
     // both readings have already been taken
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     const sketch::kit::Theme& look = sketch::kit::theme();
@@ -164,83 +132,77 @@ struct HubReload {
     const std::shared_ptr<const img::ImageAsset> secondChart =
         hub.image(chartUri);
 
+    const auto snapshot =
+        [&](const std::optional<std::string>& words,
+            const std::shared_ptr<const Cloud>& cloud,
+            const std::shared_ptr<const img::ImageAsset>& picture) {
+          return box().column().gap(18).width(330).children(
+              {sketch::kit::well({.width = 330, .height = 96, .padding = 20})
+                   .children({text(words.value_or("No text"))
+                                  .width(290)
+                                  .font({.size = 18})}),
+               sketch::kit::well({.width = 330,
+                                  .height = 130,
+                                  .content = sketch::kit::Well::Content{}},
+                                 clouds(nullptr, cloud).width(180).height(100)),
+               sketch::kit::well(
+                   {.width = 330,
+                    .height = 130,
+                    .content = sketch::kit::Well::Content{}},
+                   (picture ? image(picture) : box()).width(180).height(120))});
+        };
+    Element resourceIndex = box().column().gap(18).width(330).children(
+        {box().height(96).column().gap(10).padding(0, 16).children(
+             {text("TEXT").styleClass("captionLabel"),
+              text("notes.txt").styleClass("readout"),
+              text("hub.text(uri)").styleClass("captionNote")}),
+         box().height(130).column().gap(10).padding(0, 16).children(
+             {text("CALLER-DEFINED TYPE").styleClass("captionLabel"),
+              text("cloud.pts").styleClass("readout"),
+              text("registerDecoder<Cloud>\nload<Cloud>(uri)")
+                  .styleClass("captionNote")}),
+         box().height(130).column().gap(10).padding(0, 16).children(
+             {text("IMAGE").styleClass("captionLabel"),
+              text("chart.png").styleClass("readout"),
+              text("hub.image(uri)").styleClass("captionNote")})});
     ctx.composer.render(sketch::kit::page(
-        {.title = "A mounted folder",
-         .subtitle = "dials · the prefix the folder is "
-                     "mounted under · the two states each "
-                     "file is written in · what a T is "
-                     "decoded from bytes by",
-         .footer = "the decode a view was made with rides along "
-                   "with the view, so poll() re-runs exactly it "
-                   "— which is what makes hot reload a "
-                   "property of the hub rather than of every "
-                   "consumer of it"},
-        kit::cells(
-            {.cells =
-                 {sketch::kit::cell(
-                      kSpecimen, "hub.text(\"res://notes.txt\")",
-                      "the UTF-8 convenience over blob() · read "
-                      "once before the file changed and once after, "
-                      "with poll() between them",
-                      lines(
-                          {kit::formatted("first  · %s",
-                                          firstText ? firstText->c_str() : "-"),
-                           kit::formatted("poll() · %s",
-                                          moved ? "true" : "false"),
-                           kit::formatted(
-                               "second · %s",
-                               secondText ? secondText->c_str() : "-")})),
-                  sketch::kit::cell(
-                      kSpecimen, "hub.load<Cloud>(\"res://cloud.pts\")",
-                      "a type the hub has no opinion about, decoded by "
-                      "a function this file registered · both "
-                      "readings drawn over one another",
-                      clouds(firstCloud, secondCloud)),
-                  sketch::kit::cell(
-                      kSpecimen, "hub.image(\"res://chart.png\")",
-                      "the decoder the constructor registered · "
-                      "image(uri) IS load<ImageAsset>(uri) and shares "
-                      "one view of the entry",
-                      charts(firstChart, secondChart)),
-                  sketch::kit::cell(
-                      kSpecimen, "what a reload costs a holder",
-                      "nothing: a view already handed out keeps its "
-                      "value, so the first reading is still the first "
-                      "reading and the new one arrives by asking again",
-                      lines({kit::formatted(
-                                 "first  cloud · %zu points",
-                                 firstCloud ? firstCloud->points.size() : 0),
-                             kit::formatted(
-                                 "second cloud · %zu points",
-                                 secondCloud ? secondCloud->points.size() : 0),
-                             kit::formatted(
-                                 "first  chart · "
-                                 "%d×%d",
-                                 firstChart ? firstChart->width() : 0,
-                                 firstChart ? firstChart->height() : 0),
-                             kit::formatted("mount  · %s", hub.resolve(notesUri)
-                                                               .filename()
-                                                               .string()
-                                                               .c_str())}))},
-             .gap = 14})));
+        {.title = "A file changes. A held value does not.",
+         .subtitle = "Mounted files are replaced, poll() invalidates their "
+                     "views, and a second request gets the new values.",
+         .footer =
+             "The hub keeps each view's decoder. Consumers receive new shared "
+             "values by asking again; existing holders remain valid."},
+        box().column().gap(26).children(
+            {sketch::kit::comparison(
+                 {.cases = {{.title = "RESOURCE",
+                             .control = "res:// → mounted folder",
+                             .figure = std::move(resourceIndex)},
+                            {.title = "HELD BEFORE THE WRITE",
+                             .control = "first load",
+                             .figure =
+                                 snapshot(firstText, firstCloud, firstChart)},
+                            {.title = "REQUESTED AFTER POLL",
+                             .control = kit::formatted(
+                                 "poll() = %s", moved ? "true" : "false"),
+                             .figure = snapshot(secondText, secondCloud,
+                                                secondChart)}},
+                  .measure = 1020,
+                  .gap = 15}),
+             sketch::kit::readout(
+                 {{"Before / after cloud",
+                   kit::formatted(
+                       "%zu / %zu points",
+                       firstCloud ? firstCloud->points.size() : 0,
+                       secondCloud ? secondCloud->points.size() : 0)},
+                  {"Held image",
+                   kit::formatted("%d × %d",
+                                  firstChart ? firstChart->width() : 0,
+                                  firstChart ? firstChart->height() : 0)},
+                  {"Resolved file", hub.resolve(notesUri).filename().string()}},
+                 {.measure = 480, .ruled = true})})));
   }
 
-  /** The readings: the mono face at 10 px in the figure colour, as one
-   *  font and one ink on the column that every row under it inherits. */
-  Element lines(std::vector<std::string> rows) {
-    const sketch::kit::Theme& look = sketch::kit::theme();
-    return box()
-        .column()
-        .gap(8)
-        .font(look.font({.size = 10, .mono = true}))
-        .ink(look.palette.figure)
-        .children(each(rows, [](const std::string& row) {
-          return text(row).width(kCell - 20);
-        }));
-  }
-
-  /** Both readings of the point file, the first in ash and the second in
-   *  ink, so the reload is one picture. */
+  /** A point snapshot at the same origin and scale as its comparison. */
   Element clouds(const std::shared_ptr<const Cloud>& before,
                  const std::shared_ptr<const Cloud>& after) {
     const std::vector<SkPoint> a =
@@ -251,28 +213,17 @@ struct HubReload {
     // inks are read here and carried in by value.
     const SkColor4f ash = sketch::kit::theme().palette.ash;
     const SkColor4f figure = sketch::kit::theme().palette.figure;
-    return pen("hub.clouds",
-               [a, b, ash, figure](sigil::draw::Pen& pen) {
-                 pen.noStroke();
-                 const auto dots = [&](const std::vector<SkPoint>& points,
-                                       SkColor4f colour, float diameter) {
-                   pen.fill(colour);
-                   for (const SkPoint& point : points)
-                     pen.circle(point.fX, point.fY, diameter);
-                 };
-                 dots(a, ash, 14);
-                 dots(b, figure, 8);
-               })
-        .inset(0);
-  }
-
-  Element charts(const std::shared_ptr<const img::ImageAsset>& before,
-                 const std::shared_ptr<const img::ImageAsset>& after) {
-    return box().column().gap(8).children(
-        each(std::array{before, after},
-             [](const std::shared_ptr<const img::ImageAsset>& asset) {
-               return (asset ? image(asset) : box()).width(120).height(80);
-             }));
+    return pen("hub.clouds", [a, b, ash, figure](sigil::draw::Pen& pen) {
+      pen.noStroke();
+      const auto dots = [&](const std::vector<SkPoint>& points,
+                            SkColor4f colour, float diameter) {
+        pen.fill(colour);
+        for (const SkPoint& point : points)
+          pen.circle(point.fX, point.fY, diameter);
+      };
+      dots(a, ash, 14);
+      dots(b, figure, 8);
+    });
   }
 };
 

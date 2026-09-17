@@ -21,6 +21,7 @@ namespace sigil::weave {
 std::vector<LineMetrics> ParagraphLayout::lineMetrics(
     const Paragraph& paragraph) const {
   std::vector<LineMetrics> lines;
+  if (paragraph.writingMode() != WritingMode::kHorizontal) return lines;
   // Memoized per font change: lines overwhelmingly share one (typeface,
   // size), so metric resolution runs once per style stretch, not per run.
   const SkTypeface* lastTypeface = nullptr;
@@ -248,13 +249,16 @@ ParagraphLayout::placeholderRects(const Paragraph& paragraph) const {
     if (run.placeholderIndex < 0) continue;
     const Placeholder& placeholder =
         paragraph.placeholders()[static_cast<size_t>(run.placeholderIndex)];
-    placedPlaceholders.push_back(
-        {run.placeholderIndex,
-         SkRect::MakeXYWH(
-             run.origin.x(),
-             run.origin.y() - placeholder.height + placeholder.baselineDrop,
-             placeholder.width, placeholder.height),
-         run.lineIndex});
+    const SkRect rect =
+        paragraph.writingMode() == WritingMode::kVerticalRL
+            ? SkRect::MakeXYWH(run.origin.x() - placeholder.height * 0.5f,
+                               run.origin.y(), placeholder.height,
+                               placeholder.width)
+            : SkRect::MakeXYWH(run.origin.x(),
+                               run.origin.y() - placeholder.height +
+                                   placeholder.baselineDrop,
+                               placeholder.width, placeholder.height);
+    placedPlaceholders.push_back({run.placeholderIndex, rect, run.lineIndex});
   }
   return placedPlaceholders;
 }

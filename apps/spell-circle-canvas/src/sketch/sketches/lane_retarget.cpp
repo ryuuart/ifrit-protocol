@@ -43,6 +43,7 @@
 #include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Kit.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <memory>
@@ -58,9 +59,9 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 400};
-constexpr float kCell = 254;
-constexpr float kPicture = 176;
+constexpr SkSize kCanvas = {1100, 690};
+constexpr float kCell = 328;
+constexpr float kPicture = 180;
 
 constexpr float kSpan = 2.4f;         // seconds plotted
 constexpr float kDt = 1.0f / 120.0f;  // the delta they are stepped at
@@ -117,30 +118,13 @@ Element plot(const char* key,
       .cover();
 }
 
-Element cell(const char* call, const char* note, Element body,
-             const std::string& readout) {
-  const sketch::kit::Theme& look = sketch::kit::theme();
-  return sketch::kit::caption(
-      kCell, call, note,
-      sketch::kit::well({.width = kCell, .height = kPicture})
-          .children({std::move(body),
-                     text(readout)
-                         .styleClass("readout")
-                         .absolute()
-                         .left(8.0f)
-                         .top(6.0f)
-                         .padding(4, 2)
-                         .fill(Fill::color(look.palette.cellGround))}));
-}
-
 }  // namespace
 
 struct LaneRetarget {
   Trace plain, slots, family, reshaped;
-  std::string readouts[4];
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
+    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
     // the four flights have already been run
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -149,52 +133,55 @@ struct LaneRetarget {
     family = run(Change::Family);
     reshaped = run(Change::Reshaped);
 
-    readouts[0] = kit::formatted("one description · 0 → %.2f", kFirst);
-    readouts[1] =
-        kit::formatted("retargetSlots at %.2f s → %.2f", kAt, kSecond);
-    readouts[2] = kit::formatted("retargetFamily · same shape");
-    readouts[3] = kit::formatted("retargetFamily · shape 1 → 2");
+    float disagreement = 0;
+    for (size_t i = 0; i < slots.size(); ++i)
+      disagreement = std::max(disagreement, std::abs(slots[i] - family[i]));
+    const auto figure = [&](const char* key, const Trace& flight,
+                            const char* series = "plotTrace") {
+      return sketch::kit::well({.width = kCell, .height = kPicture})
+          .children({plot(key, {{plain, "quiet"}, {flight, series}})});
+    };
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "Retargeting a lane",
-         .subtitle = "dials · the moment the second "
-                     "description arrives (0.55 s, the rule on "
-                     "every plot) · the two targets · "
-                     "the transition both ask for (900 ms)",
-         .footer = "a description that changes the SHAPE of a "
-                   "positional family DROPS its running motions "
-                   "rather than carrying them onto endpoints that "
-                   "now mean something else — the same "
-                   "rule keys enforce for whole nodes"},
-        kit::cells(
-            {.cells = {cell("one description, left alone",
-                            "the flight the other three interrupt · "
-                            "one transition from the standing value to the "
-                            "first target",
-                            plot("plain", {{plain, "plotTrace"}}), readouts[0]),
-                       cell("retargetSlots(ticker, anims, prev, next, spec)",
-                            "the fixed row bent onto the second target "
-                            "mid-flight · the plain flight is under it "
-                            "for comparison",
-                            plot("slots",
-                                 {{plain, "quiet"}, {slots, "plotTrace"}}),
-                            readouts[1]),
-                       cell("retargetFamily · equal shape",
-                            "a positional family of the same length "
-                            "retargets lane by lane, exactly as the fixed "
-                            "rows do",
-                            plot("family",
-                                 {{plain, "quiet"}, {family, "plotTrace"}}),
-                            readouts[2]),
-                       cell("retargetFamily · the shape changed",
-                            "one lane became two · the motions are "
-                            "dropped and the new lanes start where the "
-                            "storage starts, which is the jump this rule "
-                            "chooses over a wrong carry",
-                            plot("reshaped",
-                                 {{plain, "quiet"}, {reshaped, "reshaped"}}),
-                            readouts[3])},
-             .gap = 14})
+        {.title = "A new target, mid-flight",
+         .subtitle = "One transition, three responses to the same arrival · 0 "
+                     "→ 0.92, then 0.24 at 0.55 s",
+         .footer = "Every trace is sampled from a real ticker at 120 Hz. The "
+                   "vertical rule marks the new description; grey preserves "
+                   "the uninterrupted flight."},
+        box()
+            .column()
+            .gap(22)
+            .children(
+                {sketch::kit::caption(
+                     1020, "REFERENCE / NO INTERRUPTION",
+                     "0–2.4 s · value 0–1 · transition duration 900 ms",
+                     sketch::kit::well({.width = 1020, .height = 90})
+                         .children({plot("plain", {{plain, "plotTrace"}})})),
+                 sketch::kit::comparison(
+                     {.cases = {{.title = "FIXED SLOT",
+                                 .control = "retargetSlots · one property",
+                                 .figure = figure("slots", slots),
+                                 .note = "Keep the current value and bend "
+                                         "toward the new endpoint."},
+                                {.title = "SAME FAMILY",
+                                 .control = "retargetFamily · 1 → 1 lane",
+                                 .figure = figure("family", family),
+                                 .note = "Equal shape preserves the running "
+                                         "motion, just as a fixed slot does."},
+                                {.title = "CHANGED FAMILY",
+                                 .control = "retargetFamily · 1 → 2 lanes",
+                                 .figure =
+                                     figure("reshaped", reshaped, "reshaped"),
+                                 .note = "Changing shape drops the old motion. "
+                                         "The new value arrives immediately."}},
+                      .measure = 1020,
+                      .gap = 18}),
+                 sketch::kit::readout(
+                     {{.name = "Maximum sampled difference",
+                       .value = kit::formatted("%.6f", disagreement),
+                       .note = "fixed slots / equal family"}},
+                     {.nameMeasure = 190})})
             .styleSheet(look())));
   }
 

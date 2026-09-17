@@ -54,11 +54,12 @@ struct WordSegment {
 /// object-replacement character (U+FFFC), matched to its record by
 /// occurrence order.
 struct Placeholder {
-  float width = 0;   ///< advance the breakers reserve, px
-  float height = 0;  ///< box height the line must accommodate, px
+  float width = 0;   ///< logical inline advance the breakers reserve, px
+  float height = 0;  ///< logical cross-axis size the band accommodates, px
   /// The box's bottom edge sits this far below the baseline (0 = bottom on
   /// the baseline, like an inline image; ~descent centres a pill on
-  /// x-height).
+  /// x-height). Horizontal only: a vertical object is centred across the
+  /// column axis, with physical width `height` and physical height `width`.
   float baselineDrop = 0;
 };
 

@@ -1,36 +1,9 @@
 /** @file
- * feed_vitals — the feed itself, on a meter.
- *
- * Every other sketch that opens a feed draws what the messages MEAN.
- * This one draws the feed: how many messages have arrived, when each of
- * them landed, how many fell off the queue behind a reader, what the
- * newest one holds as bytes, and where the door is. Nothing here is
- * decoded and nothing is inferred — every figure on the sheet is one
- * the feed answered.
- *
- * THE TWO READERS STAND SIDE BY SIDE. `receive()` hands out the
- * arrivals this reader has not taken yet, in order, and never waits: it
- * is what the strip chart is drawn from, one tick per message at the
- * time that message carries. `latest()` is the newest message and is
- * never dropped, whatever the queue does: it is what the row of hex
- * pairs is read from. A reader that falls behind loses the OLDEST
- * arrivals, and `dropped()` is the count of them — which is why that
- * number stands on this sheet beside the generation rather than being
- * left to a comment.
- *
- * `pulse.py` beside this file is both ends of the signal: it sends the
- * pulse to the port, and it writes the recording a capture replays. A
- * capture mounts that recording onto the URI, so the still is taken of
- * the same arrivals at the same seconds on every run.
- *
- *     python3 pulse.py                                  # a window meters
- *     python3 pulse.py --record data/pulse.feed --seconds 8
- *
- * EDIT THESE FIRST
- *   kAddress    the URI the pulse arrives on
- *   kRecording  what a capture replays instead of listening
- *   kWindow     how far back the strip chart reaches
- *   kHexBytes   how much of the newest message the row shows
+ * A feed displayed as arrival timing, queue health and raw payload.
+ * receive() drains arrivals in order; latest() supplies the newest message
+ * independently of queue drops. The strip uses the timestamps carried by
+ * those arrivals. A deterministic capture mounts the local pulse recording;
+ * a live window listens on the same URI and pulse.py supplies example data.
  */
 
 // TAGS: Runtime/Resources, Data/Sources
@@ -64,14 +37,11 @@ namespace {
 const char* kAddress = "udp://:27021";       // where the pulse arrives
 const char* kRecording = "data/pulse.feed";  // what a capture replays
 
-constexpr SkSize kCanvas = {1280, 420};
+constexpr SkSize kCanvas = {1180, 720};
 constexpr double kCaptureAt = 3.0;  // a moment in one of the signal's gaps
 
-constexpr float kStripWidth = 548;
-constexpr float kCell = 196;
-constexpr float kWideCell = 236;
-constexpr float kPicture = 200;
-constexpr float kGap = 14;
+constexpr float kStripWidth = 736;
+constexpr float kCell = 328;
 
 constexpr float kWindow = 4.0f;   // seconds the strip chart reaches back
 constexpr size_t kHexBytes = 32;  // how much of a message the row shows
@@ -97,14 +67,6 @@ Vitals vitalsOf(const io::Feed& feed) {
           .trouble = feed.error()};
 }
 
-/** The plate the strip chart stands on, and the two the readings do. */
-const sketch::kit::Cell kStripPlate{
-    .plate = {.width = kStripWidth, .height = kPicture, .padding = 12}};
-const sketch::kit::Cell kReading{
-    .plate = {.width = kCell, .height = kPicture, .padding = 12}};
-const sketch::kit::Cell kWideReading{
-    .plate = {.width = kWideCell, .height = kPicture, .padding = 12}};
-
 }  // namespace
 
 namespace {
@@ -123,7 +85,7 @@ struct FeedVitals {
   double now = 0;
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
+    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = kCaptureAt});
 
     io::Hub& hub = ctx.assets.hub();
@@ -163,7 +125,7 @@ struct FeedVitals {
   }
 
   void describe(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
+    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
     // A paint program runs after the describe scope has closed, where the
     // theme in force is no longer this page's, so the colours the strip
     // is drawn in are read here and carried in by value.
@@ -171,41 +133,63 @@ struct FeedVitals {
     const SkColor4f rule = look.palette.rule;
     const SkColor4f figure = look.palette.figure;
     ctx.composer.render(sketch::kit::page(
-        {.title = "A feed on a meter",
-         .subtitle = "dials · the URI the pulse arrives on · the recording a "
-                     "capture replays · how far back the strip reaches",
-         .footer = "every figure here is one the feed answered: the ticks are "
-                   "its arrivals, the row is its bytes, and a gap in the "
-                   "strip is a silence on the wire"},
-        sketch::kit::cells(
-            {.cells = {sketch::kit::cell(
-                           kStripPlate, "feed->receive()",
-                           "one tick per message, placed by the time it "
-                           "carries · the newest stands at the right, and "
-                           "each hairline is one second back",
-                           pen("feed_vitals.strip",
-                               [this, rule, figure](Pen& pen) {
-                                 strip(pen, rule, figure);
-                               })
-                               .cover()),
-                       sketch::kit::cell(kReading, "feed->generation()",
-                                         "every message the feed has taken, "
-                                         "counted from one · and the oldest "
-                                         "arrivals that fell off the queue "
-                                         "behind this reader",
-                                         counts()),
-                       sketch::kit::cell(kWideReading, "feed->latest()",
-                                         "the newest message as it arrived · "
-                                         "never dropped, whatever the queue "
-                                         "does, and never decoded here",
-                                         bytes()),
-                       sketch::kit::cell(kReading, "feed->address()",
-                                         "the local end the transport bound · "
-                                         "or the sentence saying why there is "
-                                         "no door, since a feed that could "
-                                         "not open still exists",
-                                         door())},
-             .gap = kGap})));
+        {.title = "Listen to the wire",
+         .subtitle = "Arrival timing, queue health and the newest payload are "
+                     "three views of the same feed.",
+         .footer = "A still replays data/pulse.feed. A live window listens at "
+                   "udp://:27021; pulse.py sends the example traffic."},
+        box().column().gap(26).children(
+            {box().row().gap(28).children(
+                 {box()
+                      .column()
+                      .gap(12)
+                      .width(kStripWidth)
+                      .children(
+                          {sketch::kit::sectionHeader(
+                               {.label = "ARRIVALS",
+                                .note = "One mark per message · receive()"}),
+                           sketch::kit::well(
+                               {.width = kStripWidth,
+                                .height = 206,
+                                .padding = 16},
+                               pen("feed_vitals.strip",
+                                   [this, rule, figure](Pen& pen) {
+                                     strip(pen, rule, figure);
+                                   })),
+                           box()
+                               .row()
+                               .justify(Justify::SpaceBetween)
+                               .padding(16, 0)
+                               .children({text("−4 s").styleClass("readout"),
+                                          text("−3 s").styleClass("readout"),
+                                          text("−2 s").styleClass("readout"),
+                                          text("−1 s").styleClass("readout"),
+                                          text("NOW").styleClass("readout")})}),
+                  sketch::kit::well(
+                      {.width = 336, .height = 252, .padding = 22})
+                      .column()
+                      .gap(16)
+                      .children(
+                          {text("QUEUE HEALTH").styleClass("captionLabel"),
+                           counts()})}),
+             sketch::kit::sectionHeader({.label = "THE MOST RECENT MESSAGE",
+                                         .note = "latest() stays available if "
+                                                 "older arrivals are dropped"}),
+             box().row().gap(28).children(
+                 {sketch::kit::well(
+                      {.width = 540, .height = 178, .padding = 20})
+                      .row()
+                      .gap(24)
+                      .children({bytes(),
+                                 text("Raw bytes, in arrival order. No "
+                                      "decoding or interpretation is applied.")
+                                     .width(208)}),
+                  sketch::kit::well(
+                      {.width = 532, .height = 178, .padding = 20})
+                      .column()
+                      .gap(14)
+                      .children({text("TRANSPORT").styleClass("captionLabel"),
+                                 door()})})})));
   }
 
   /** THE ARRIVALS: one tick per message, placed by the time that message
@@ -306,9 +290,8 @@ struct FeedVitals {
         .alignItems(Align::Start)
         .font(look.font({.size = 11, .mono = true}))
         .ink(look.palette.ash)
-        .children(each(rows, [](const std::string& row) {
-          return text(row).width(kCell - 24);
-        }));
+        .children(each(
+            rows, [](const std::string& row) { return text(row).width(492); }));
   }
 };
 

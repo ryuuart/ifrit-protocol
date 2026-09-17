@@ -1,35 +1,7 @@
 /** @file
- * exact_tangent — the rotation ladder under curved lettering, and the one
- * switch that lifts it.
- *
- * A run `onPath` is shaped once and then every glyph is placed by arc
- * length and turned to its tangent. That turn is SNAPPED by default, and
- * the reason is that every distinct rotation is both a batch bucket and a
- * glyph-atlas strike: a curve whose glyphs turned continuously would mint
- * a fresh strike per letter per frame.
- *
- * How fine the ladder is depends on the RENDERED SIZE. One step turns a
- * glyph by 2π/N, sweeping its far edge — take that as the half-em —
- * through (px/2)·2π/N pixels, so the ladder is cut at sixteen steps per
- * pixel of em and the sweep is about a fifth of a pixel at every size.
- * Both ends are clamped, at 64 steps and at 2048, and the ceiling is what
- * bounds the strike population at all. It binds from 128 px of em upward,
- * where a step's sweep starts to pass the quarter-pixel grid a moving
- * run's origins sit on again.
- *
- * So `exactTangent` changes nothing a reader can see at label sizes, and
- * that is the point. The last cell superimposes the two runs in two
- * colours at a size where the ceiling has bound for some time, and they
- * still land within a fraction of a pixel of each other — the cool run
- * covers the warm one and no fringe appears. Set the switch for STATIC
- * artwork set larger still, where the steps do show and nothing is paying
- * per frame.
- *
- * EDIT THESE FIRST
- *   kLabelSize — the size the ladder is invisible at.
- *   kDisplaySize, kDetailSize — display size, and the detail the two
- *     runs are superimposed at.
- *   kTurns — the spiral's turns, which is how tight the baseline is.
+ * Curved lettering at label and display sizes, with snapped and continuous
+ * tangents under the same path and type. A magnified two-colour overlay
+ * reveals their difference without changing the underlying glyphs.
  */
 
 // TAGS: Typography/Lettering
@@ -55,13 +27,13 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 400};
-constexpr float kCell = 200;
-constexpr float kPicture = 176;
+constexpr SkSize kCanvas = {1100, 850};
+constexpr float kCell = 328;
+constexpr float kPicture = 190;
 
 constexpr float kLabelSize = 15;    // where the ladder is invisible
 constexpr float kDisplaySize = 74;  // display size, still on the ladder
-constexpr float kDetailSize = 260;  // one letter, cropped to a detail
+constexpr float kDetailSize = 260;  // one letter, enlarged to show its edges
 constexpr float kTurns = 3.2f;      // the spiral's turns
 
 constexpr SkColor4f kSnapped{0.95f, 0.44f, 0.32f, 0.75f};
@@ -94,10 +66,10 @@ Element run(const char* word, float size, SkColor4f colour, bool exact,
                .exactTangent = exact});
 }
 
-/** A run on the inscribed circle — the large-size cells. `offset` rides
+/** A run on the inscribed oval — the large-size cells. `offset` rides
  *  the type inside the baseline so a big face stays on the plate. */
 Element arcRun(const char* word, float size, SkColor4f colour, bool exact,
-               float at = 0.30f, float offset = -22, float inset = 14) {
+               float at = 0.75f, float offset = -65, float inset = 14) {
   return text(word)
       .styleClass("inscription")
       .font({.size = size, .color = colour})
@@ -120,64 +92,103 @@ struct ExactTangent {
   void setup(sketch::SketchContext& ctx) {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
-    const sketch::kit::Provide look(sketch::kit::specimenTheme());
+    const sketch::kit::Provide look(sketch::kit::studyTheme());
     const SkColor4f figure = sketch::kit::theme().palette.figure;
 
     ctx.composer.render(
         sketch::kit::page(
-            {.title = "The tangent ladder",
-             .subtitle = "dials · the size (15 px, then 74, then 260) "
-                         "· the spiral's turns (3.2) · "
-                         "exactTangent · how far off the "
-                         "baseline the type rides",
-             .footer = "the ladder is sixteen steps per pixel of em, "
-                       "clamped between 64 and 2048 — so a "
-                       "step sweeps a glyph's far edge about a fifth "
-                       "of a pixel at every size until the ceiling "
-                       "binds, which is why the switch is for artwork "
-                       "set large and static"},
-            kit::cells(
-                {.cells =
-                     {sketch::kit::cell(
-                          kSpecimen, "onPath({spiral(3.2), at = 0.42})",
-                          "the baseline every cell uses · one run "
-                          "shaped once and placed by arc length, at label "
-                          "size with the ladder ON",
-                          run("a tight spiral carries its whole run",
-                              kLabelSize, figure, false)),
-                      sketch::kit::cell(
-                          kSpecimen,
-                          "…"
-                          ".exactTangent = true",
-                          "the same run with the ladder lifted · at "
-                          "this size the two are the same picture, which "
-                          "is what the default is for",
-                          run("a tight spiral carries its whole run",
-                              kLabelSize, figure, true)),
-                      sketch::kit::cell(
-                          kSpecimen, "74 px · exactTangent = false",
-                          "display size on a circle · still on "
-                          "the sixteen-steps-per-pixel ladder, so a step "
-                          "sweeps about a fifth of a pixel here too",
-                          arcRun("Ravello", kDisplaySize, figure, false)),
-                      sketch::kit::cell(
-                          kSpecimen, "74 px · exactTangent = true",
-                          "the same letters turned to their exact "
-                          "tangents · one strike per letter per "
-                          "distinct angle, which a static plate can afford",
-                          arcRun("Ravello", kDisplaySize, figure, true)),
-                      sketch::kit::cell(
-                          kSpecimen, "260 px, both at once",
-                          "snapped in warm under exact in cool, cropped "
-                          "to a detail · no fringe: the two land "
-                          "within a fraction of a pixel, which is the "
-                          "ladder doing its job",
-                          box().inset(0).clip().children(
-                              {arcRun("Ra", kDetailSize, kSnapped, false, 0.26f,
-                                      -86, 4),
-                               arcRun("Ra", kDetailSize, kExact, true, 0.26f,
-                                      -86, 4)}))},
-                 .gap = 12}))
+            {.title = "How exact is a tangent?",
+             .subtitle = "Matched type at two sizes, with a magnified overlay "
+                         "showing where the two settings disagree.",
+             .footer = "Exact tangents are useful for large static lettering; "
+                       "the default bounds the number of rotation strikes."},
+            box()
+                .row()
+                .alignItems(Align::Start)
+                .gap(18)
+                .children(
+                    {box().column().gap(22).children(
+                         {sketch::kit::sectionHeader(
+                              {.label = "LABEL SIZE",
+                               .note = "One spiral, the same text"}),
+                          sketch::kit::comparison(
+                              {.cases =
+                                   {{.title = "SNAPPED",
+                                     .control =
+                                         "15 px \u00b7 exactTangent = false",
+                                     .figure = sketch::kit::cell(
+                                         kSpecimen, "", "",
+                                         run("a tight spiral carries its whole "
+                                             "run",
+                                             kLabelSize, figure, false)),
+                                     .note = "The default rotation ladder at "
+                                             "label size."},
+                                    {.title = "EXACT",
+                                     .control =
+                                         "15 px \u00b7 exactTangent = true",
+                                     .figure = sketch::kit::cell(
+                                         kSpecimen, "", "",
+                                         run("a tight spiral carries its whole "
+                                             "run",
+                                             kLabelSize, figure, true)),
+                                     .note = "The same line with continuous "
+                                             "tangents."}},
+                               .measure = 674,
+                               .gap = 18}),
+                          sketch::kit::sectionHeader(
+                              {.label = "DISPLAY SIZE",
+                               .note = "One oval, the same letters"}),
+                          sketch::kit::comparison(
+                              {.cases =
+                                   {{.title = "SNAPPED",
+                                     .control =
+                                         "74 px \u00b7 exactTangent = false",
+                                     .figure = sketch::kit::cell(
+                                         kSpecimen, "", "",
+                                         arcRun("Ravello", kDisplaySize, figure,
+                                                false)),
+                                     .note = "The default at display size."},
+                                    {.title = "EXACT",
+                                     .control =
+                                         "74 px \u00b7 exactTangent = true",
+                                     .figure = sketch::kit::cell(
+                                         kSpecimen, "", "",
+                                         arcRun("Ravello", kDisplaySize, figure,
+                                                true)),
+                                     .note = "The same letters on exact "
+                                             "tangents."}},
+                               .measure = 674,
+                               .gap = 18})}),
+                     box().column().gap(22).children(
+                         {sketch::kit::sectionHeader(
+                              {.label = "MAGNIFIED DIFFERENCE",
+                               .note = "One enlarged letter"}),
+                          sketch::kit::comparison(
+                              {.cases =
+                                   {{.title = "SUPERIMPOSED",
+                                     .control = "260 px \u00b7 warm + cool",
+                                     .figure = sketch::kit::cell(
+                                         sketch::kit::Cell{
+                                             .plate = {.width = kCell,
+                                                       .height = 420}},
+                                         "", "",
+                                         box().inset(0).clip().children(
+                                             {arcRun("R", kDetailSize, kSnapped,
+                                                     false, 0.78f, -140, 4)
+                                                  .translateY(110),
+                                              arcRun("R", kDetailSize, kExact,
+                                                     true, 0.78f, -140, 4)
+                                                  .translateY(110)})),
+                                     .note =
+                                         "Warm is snapped; cool is exact. The "
+                                         "overlay exposes any separation."}},
+                               .measure = 328,
+                               .gap = 18}),
+                          text("The rotation ladder is bounded between 64 and "
+                               "2048 steps. Its spacing follows rendered type "
+                               "size; exact tangents remove that quantisation.")
+                              .width(328)
+                              .styleClass("captionNote")})}))
             .styleSheet(voices()));
   }
 };

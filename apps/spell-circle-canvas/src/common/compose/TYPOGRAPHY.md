@@ -731,6 +731,12 @@ POSITIONED subtree: the placeholder rect is its box, so flex layout does not
 run inside it and its own children take explicit rects, exactly as under
 `positioned()`.
 
+The slot size is `{inline advance, cross-axis band}` in both writing modes.
+With `weave::WritingMode::kVerticalRL`, `{80, 30}` reserves 80 px down the
+column and gives its child a physical box 30 px wide and 80 px tall, centred
+across the column axis. The horizontal baseline drop does not apply there.
+Changing writing mode does not require exchanging the declared dimensions.
+
 **A TEXT SLOT IS NOT A MOUNT SLOT.** `slot()` and `Composer::renderSlot` name
 a hole a HOST fills from outside the description, and those names live in one
 registry for the whole composition. These names live in the rich-text value
@@ -840,6 +846,12 @@ line-metric overrides — stays behind the paragraph overload, which takes
 the whole options value. **On that overload the setters override FIELD BY
 FIELD**, and only the fields actually set: everything a setter did not
 name keeps the value that was passed in.
+
+A horizontal text leaf's measured height includes the room from its content
+origin to the first line. A reservation before the line, leading, or space
+before its first paragraph therefore remains inside the leaf's background
+and above its following sibling. Baseline alignment reads the resulting
+first baseline, including that room.
 
 SigilWeave's `FEATURES.md` carries the control-by-control table, with the
 verb or field on this side that reaches each one; it is the fastest

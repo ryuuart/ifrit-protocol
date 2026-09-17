@@ -80,23 +80,23 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr float kBand = 1140;      // a full-width band's drawn width, px
+constexpr float kBand = 856;       // a full-width band's drawn width, px
 constexpr float kRun = 150;        // the height of a run band
 constexpr float kWide = 210;       // the height of the derived-count band
 constexpr float kSpine = 300;      // one spine cell, square-ish
-constexpr float kSpineCell = 561;  // (kBand - the gap between the two) / 2
+constexpr float kSpineCell = 551;  // (kBand - the gap between the two) / 2
 
 constexpr SkColor4f kCellGround{0.085f, 0.085f, 0.105f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::specimenTheme();
+  sketch::kit::Theme look = sketch::kit::studyTheme();
   look.palette.ground = {0.055f, 0.055f, 0.075f, 1};
   look.palette.ink = {0.90f, 0.91f, 0.94f, 1};
   look.palette.rule = {0.19f, 0.20f, 0.24f, 1};
   look.type.captionLabel = {.size = 12, .track = 0.6f};
-  look.spacing.marginX = 30;
-  look.spacing.marginTop = 24;
+  look.spacing.marginX = 40;
+  look.spacing.marginTop = 40;
   look.spacing.marginBottom = 18;
   return look;
 }
@@ -138,14 +138,32 @@ SkPath wave(SkPoint from, SkPoint to, float amplitude, int cycles) {
 
 using Painter = void (*)(SkCanvas&);
 
-Element band(std::string key, float width, float height, const char* call,
-             const char* note, Painter paint) {
-  return sketch::kit::caption(
-      width, call, note,
-      custom(std::move(key), [paint](SkCanvas& canvas) { paint(canvas); })
-          .width(width)
-          .height(height)
-          .fill(Fill::color(kCellGround)));
+sketch::kit::ComparisonCase band(const char* caseTitle, std::string key,
+                                 float width, float height, const char* call,
+                                 const char* note, Painter paint) {
+  return {.title = caseTitle,
+          .control = call,
+          .figure = custom(std::move(key),
+                           [paint](SkCanvas& canvas) { paint(canvas); })
+                        .width(width)
+                        .height(height)
+                        .fill(Fill::color(kCellGround)),
+          .note = note};
+}
+
+Element explained(sketch::kit::ComparisonCase one) {
+  const auto& look = sketch::kit::theme();
+  return box()
+      .row()
+      .alignItems(Align::Start)
+      .gap(24)
+      .children({box().column().width(240).gap(12).children(
+                     {text(std::move(one.title)).styleClass("captionLabel"),
+                      text(std::move(one.control))
+                          .font(look.font({.size = 10.5f, .mono = true}))
+                          .ink(look.palette.ash),
+                      text(std::move(one.note)).styleClass("captionNote")}),
+                 std::move(one.figure)});
 }
 
 // 1 — the two-key run at a stated count.
@@ -246,55 +264,57 @@ struct BlendOptions {
     const sketch::kit::Provide look(sheetTheme());
     // Every step is computed from the keys and the options; nothing here
     // reads the clock.
-    sketch::kit::stage(ctx, {.size = {1200, 1400}, .captureAt = 0.05});
-
-    Element spineRow = kit::cells(
-        {.cells = {band("spine.page", kSpineCell, kSpine,
-                        "Spacing::Distance{30} · spine = spiral(2.2) "
-                        "· AlignToPage",
-                        "the walk is measured in px of SPINE, so the "
-                        "density holds where a count would crowd the middle "
-                        "and starve the rim; the beads stay upright",
-                        spineUpright),
-                   band("spine.path", kSpineCell, kSpine,
-                        "the same run · AlignToPath",
-                        "each step turns to the tangent — beads "
-                        "on a wire, against confetti on a line beside it",
-                        spineTurned)},
-         .gap = 18});
+    sketch::kit::stage(ctx, {.size = {1200, 1390}, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "Blend options",
-         .subtitle = "path::blend interpolates OUTLINES: "
-                     "every intermediate is a real path",
-         .footer = "Sketchbook · blend_options"},
-        kit::cells(
-            {.cells = {band("steps", kBand, kRun, "Options{.steps = 8}",
-                            "a count the author picks — the arms shorten and "
-                            "the hub swells, because the contours are aligned "
-                            "before anything is interpolated",
-                            statedCount),
-                       band("waypoint", kBand, kRun,
+        {.title = "Between two outlines",
+         .subtitle = "Every intermediate is a path: change its spacing, its "
+                     "keys, its style, or where it travels.",
+         .footer = "The blend interpolates geometry. Its steps can be filled, "
+                   "stroked and composed like any other path."},
+        box().column().gap(22).children(
+            {explained(band(
+                 "01  CHOOSE A COUNT", "steps", kBand, kRun,
+                 "Options{.steps = 8}",
+                 "Eight intermediate outlines connect the star and circle. "
+                 "Their contours are aligned before interpolation.",
+                 statedCount)),
+             explained(band("02  ADD A WAYPOINT", "waypoint", kBand, kRun,
                             "make({a, b, c}, {.steps = 5, .smoothOutlines})",
-                            "a third key splits the spine into one span per "
-                            "PAIR: the run bends without its spacing changing",
-                            waypoint),
-                       band("stroke", kBand, kRun,
+                            "A third key creates two spans. The middle shape "
+                            "bends the run while spacing stays regular.",
+                            waypoint)),
+             explained(band("03  INTERPOLATE THE STROKE", "stroke", kBand, kRun,
                             "Key{.stroke, .strokeWidth} · steps = 14",
-                            "a key with no fill carries its stroke WIDTH "
-                            "across too, so the run thins from 6 px to 1",
-                            strokes),
-                       band("derived", kBand, kWide,
-                            "Spacing::SmoothColor · and two OPEN keys at "
-                            "steps = 42",
-                            "left: no count is named — the blend picks one so "
-                            "adjacent steps differ by less than the eye "
-                            "resolves. right: an open path has no inside, so "
-                            "the count decides between a ribbon and rails",
-                            derivedCount),
-                       std::move(spineRow)},
-             .column = true,
-             .gap = 18})));
+                            "The outline, stroke colour and width interpolate "
+                            "together: the run thins from 6 px to 1 px.",
+                            strokes)),
+             explained(band(
+                 "04  LET COLOUR PICK THE DENSITY", "derived", kBand, kWide,
+                 "Spacing::SmoothColor · and two OPEN keys at "
+                 "steps = 42",
+                 "Left: colour difference chooses the number of steps. Right: "
+                 "42 steps between open paths form a ribbon.",
+                 derivedCount)),
+             sketch::kit::sectionHeader(
+                 {.label = "05  PUT THE RUN ON A SPINE",
+                  .note =
+                      "Same spiral · 30 px spacing · one orientation change"}),
+             sketch::kit::comparison(
+                 {.cases = {band("UPRIGHT TO THE PAGE", "spine.page",
+                                 kSpineCell, kSpine,
+                                 "Spacing::Distance{30} · spine = spiral(2.2) "
+                                 "· AlignToPage",
+                                 "Even distance along the spine; every mark "
+                                 "remains upright.",
+                                 spineUpright),
+                            band("FOLLOW THE TANGENT", "spine.path", kSpineCell,
+                                 kSpine, "the same run · AlignToPath",
+                                 "The same spine and spacing; each mark turns "
+                                 "with the tangent.",
+                                 spineTurned)},
+                  .measure = 1120,
+                  .gap = 18})})));
   }
 };
 
