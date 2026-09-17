@@ -31,10 +31,11 @@ panel = row(mark, caption).gap(8).alignItems("center")
 ```
 
 There is one element type and no separate Python node model to keep in
-sync. `box`, `text`, `graphics`, `memo`, `layout`, `stack` and `positioned`
-are the direct bound factories, including their native overloads. `_sigil` is
-the extension's implementation module; application code uses the public
-package paths.
+sync. `box`, `text`, `frame`, `image`, `picture`, `pathFigure`, `slot`, `pen`,
+`graphics`, `memo`, `layout`, `stack` and `positioned` are direct bound
+factories; `PARITY.md` names the native overloads and factories not yet bound.
+`_sigil` is the extension's implementation module; application code uses the
+public package paths.
 
 Both Python surfaces target the capabilities needed to reproduce the native
 sketch catalog. Coverage is still incomplete; `PARITY.md` lists the outstanding
@@ -46,7 +47,10 @@ checking shared types, mixed construction, typing and lifecycle contracts.
 The wheel includes type declarations for the direct bindings and authoring
 helpers, with a `py.typed` marker for editors. Builders return native
 `Element` values; material factories return native paints or materials. Supported input
-forms use unions and overloads, fluent methods retain their native signatures,
+forms use unions and overloads, except `Pen.fill` and `Pen.stroke` over a paint
+with `CANVAS` or `SHAPE` or over a `Material`, `Pen.background` over a paint and
+`Pen.shape` over a silhouette, which run but fail strict checking. Fluent
+methods retain their native signatures,
 and memo builders preserve the type of their model. Decorating a sketch retains
 its class type.
 
@@ -560,7 +564,7 @@ uv run sigil open sketch.py --publish "Live Sketch"
 
 On macOS, a Syphon client such as Receiver subscribes to `Live Sketch` and
 receives the canvas directly from Sketchbook's rendered GPU texture.
-`--publish` without a name uses the host's default name. Ctrl-P toggles output
+`--publish` without a name publishes under the sketch file's stem. Ctrl-P toggles output
 in the window, and the status line shows the publication name. Drawing with
 either Python or C++ uses this same path.
 
@@ -910,9 +914,10 @@ values for progress.
 
 Direct editable paragraphs, font contexts, native flow geometry and annotation
 values are available. Per-glyph effect tracks and custom Python implementations
-of flow/hyphenation remain unfinished. Material paint layers support optional
-native materials as well as Skia paint. The parity table tracks the remaining
-work independently of which native libraries are linked.
+of flow/hyphenation remain unfinished. A paint layer holds an optional native
+material value, but no host installs the resolver that shades it, so the layer
+draws with its Skia paint. The parity table tracks the remaining work
+independently of which native libraries are linked.
 
 ## Data values and native resources
 
@@ -932,8 +937,8 @@ bar_height = height.apply(readings.cell("value", 0))
 
 A scale owns native domain mapping, transforms, overflow, ticks and band
 placement. A database query view retains its connection and returns owned
-tables. The database bindings expose query access, not native database write
-methods. Live byte feeds and file output are supplied by `sigil.io`.
+tables; an owned connection from `Database.open()` or `memory()` also accepts
+writes. Live byte feeds and file output are supplied by `sigil.io`.
 `ctx.assets` routes resource loading through
 the session's existing native services; the data values can also be used
 from an ordinary installed Python process.
@@ -1001,7 +1006,9 @@ paint.
 
 The native `sigil.material.kit.SurfaceParameters` record and its `surface`
 and `unlit` factories describe mesh surfaces: base color, roughness, metallic
-response, emission and transmission. The returned `sigil.material.Material`
+response, emission and transmission. The CPU executor, the only one Python
+reaches, shades from base color and metallic response; emission and
+transmission do not reach its pixels. The returned `sigil.material.Material`
 is the same value a World element accepts. The full recipe-definition API,
 uniform blocks, SDF catalogue, texture maps and environment maps remain
 unbound. Material values support copying and conversion into a paint or effect. Paint uniform
@@ -1134,8 +1141,10 @@ Render one with `sigil render --example NAME -o preview.png`.
 | `python_observable_l_system` | Python string rewriting, turtle stack and native geometry |
 | `python_observable_reynolds` | Stateful flocking, seeded initialization and transforms |
 | `python_observable_reaction_diffusion` | NumPy Gray–Scott simulation and bulk pixel transfer; needs the `studies` extra |
+| `python_compose_stamps` | Compose trees placed by a Draw pen and repeated as a custom brush tip |
+| `python_live_signals` | Native UDP feed arrivals, JSON decoding, drawn traces and a reply to each sender |
 | `python_dashboard` | Functions and iterables constructing retained native elements |
-| `python_orbits` | An animated immediate drawing with retained trails |
+| `python_orbits` | An animated immediate drawing with fading trails computed from the scene clock |
 
 ## Scope
 
@@ -1216,8 +1225,9 @@ tint = ramp(0.5)
 ```
 
 `Database.open()` and `memory()` return owned writable connections. Databases
-loaded through a hub or `fromBytes()` expose query views that reject explicit
-`execute()` and `insert()` calls. Failures raise an
+loaded through a sketch's `ctx.assets` hub or `fromBytes()` expose query views
+that reject explicit `execute()` and `insert()` calls; `registerDecoders` adds
+only the table and JSON decoders to a standalone hub. Failures raise an
 exception; table/query results are independent copies. Protocol encoders accept
 native Json values or ordinary Python dictionaries, tuples and lists and return
 bytes; invalid packets decode to `None`. A `Schema` owns the binary schema it

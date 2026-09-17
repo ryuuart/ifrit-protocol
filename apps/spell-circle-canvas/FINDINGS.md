@@ -79,3 +79,107 @@ active macOS window-sharing overlay, then assert that quitting completes
 with exit status zero. Inspect the native window's observation and class
 lifetime if that sequence reproduces the fault; the shared background
 rendering helper changes its Objective-C class.
+
+## Database query views can write through `query()`
+
+`src/common/python/DataBindings.cpp` rejects `execute()` and `insert()` on a
+database loaded through a sketch hub or `Database.fromBytes()`, reporting that
+the view is read-only. `query()` on the same view runs any statement, and a
+hub-cached SQLite file is opened in place for reading and writing, so
+`ctx.assets.database(uri).query("DELETE FROM totals")` removes rows from the
+file on disk.
+
+A view that refuses writes should refuse them through every method. A
+regression should load a SQLite file through `ctx.assets` and through
+`fromBytes()`, run a writing statement through `query()`, assert that it
+raises and that the file is unchanged, and assert that reading queries still
+answer.
+
+## A standalone hub cannot load a database from Python
+
+`data.registerDecoders(hub)` installs only the table and JSON decoders, and no
+Python call installs the database decoder, so `io.Hub().load(data.Database,
+uri)` returns `None` for an existing SQLite file. The generated declarations
+still offer that overload, and `ctx.assets.hub()` loads the same file because
+the sketch host registers the decoder itself.
+
+An owned hub should load what a session hub loads once its decoders are
+registered. A test should mount a directory holding a SQLite file on
+`io.Hub()`, call `registerDecoders`, load it as `data.Database` and assert that
+a query returns its rows.
+
+## `Flag` and `Instant` lose their native comparisons in Python
+
+`data.Flag(True) == data.Flag(True)` is `False`, and comparing two
+`data.Instant` values with `<` raises `TypeError`, although the native types
+define equality and ordering. Table cells hand these values to Python code,
+which then cannot compare or sort them directly.
+
+Bound values should compare as the native values do. A test should assert
+that equal flags compare equal and unequal flags do not, and that two decoded
+instants order chronologically.
+
+## Some bound keyword names break keyword calls
+
+`Table.group` names its parameter `names` although it takes one column name,
+the native parameter is `name`, and the neighbouring table methods use `name`.
+`sketch.kit.Theme.font` names its one-argument parameter `register` while its
+two-argument overload and `Theme.style` name the same register `line`.
+`Element.padding` and `Element.margin` are bound over positional arguments
+only, so they accept no keyword at all. A keyword call written from one form
+fails on another, although the bindings name inputs so that keyword calls work.
+
+Keyword names should agree with the native parameters and across overloads. A
+test should call `table.group(name="kind")`, `theme.font(line=register)` with
+and without `ink`, and `padding` and `margin` with named lengths.
+
+## Pen declarations omit forms the binding accepts
+
+`src/common/python/PenBindings.cpp` accepts `pen.fill(paint, CANVAS)` and
+`SHAPE`, `pen.fill(material)`, the same forms for `stroke`, and
+`pen.background(paint)`. The declarations generated through
+`apps/python/sigil/typing/refinements.py` have none of these overloads, so the
+README's `pen.fill(glass, CANVAS)` and `python_liquid_glass.py` fail strict
+type checking. The same refinements declare the silhouette of
+`pen.shape(silhouette, x, y, width, height)` as `skia.Path`, but the binding
+calls `silhouette.path((width, height))`, so a path raises `AttributeError`.
+
+The declarations should describe the calls the binding accepts. A typing
+fixture should check each accepted form, and reject a `skia.Path` passed as a
+silhouette in favour of an object with a `path(size)` method.
+
+## `sigil render` ignores a sketch's `REQUIRES`
+
+Sketchbook registration reads a sketch's `REQUIRES` tuple and marks the entry
+unavailable when a module is missing. The `sigil render` command imports the
+sketch without reading it, so a missing module surfaces as a raw
+`ModuleNotFoundError` from the sketch's own import line, as it does for the
+two NumPy studies in an interpreter without NumPy.
+
+The command should report the declared module that is missing and exit
+nonzero. A test should render a sketch declaring an absent module and assert
+that the message names the module and the process fails.
+
+## A paint layer's material is held but never shades
+
+`weave::PaintLayer` carries an optional `material::Material`, and
+`src/sigilweave/paint/Paint.cpp` shades a layer with it only when a resolver
+installed through `weave::paint::setMaterialResolver` is present. Nothing
+outside the paint test installs one, so a material on a paint layer draws with
+the layer's plain paint in Sketchbook, the standalone renderer and Python
+alike.
+
+A host that draws retained text should install the resolver. A regression
+should set a material on a text paint layer, render it through the sketch
+host, and assert that the pixels differ from the same layer without the
+material.
+
+## A sketch comment says the clock survives reload
+
+`src/sketch/include/sigilsketch/canvas/Sketch.h` says every reload constructs
+a fresh instance "while the shared clock keeps running, so elapsed time is
+continuous across an edit". `Host::restartSession` in
+`src/sketch/live/Host.cpp` opens a session that owns a fresh clock and resets
+the host clock, so elapsed time restarts. The comment should describe the
+restart; a live-host test should assert that elapsed time after a reload
+starts again from zero.
