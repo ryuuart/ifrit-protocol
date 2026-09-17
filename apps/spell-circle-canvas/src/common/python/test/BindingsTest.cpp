@@ -95,6 +95,58 @@ assert "sigil._loader" not in sys.modules
            scope);
 }
 
+TEST(PythonBindings, WeaveLayoutsAndResourceLeasesOwnTheirDependencies) {
+  auto module = native();
+  py::dict scope;
+  scope["native"] = module;
+  py::exec(R"(
+import gc
+import tempfile
+import weakref
+from pathlib import Path
+
+w = native.weave
+fonts = w.FontContext()
+paragraph = w.Paragraph("hyphenation demonstration", w.Type(size=20))
+patterns = w.kit.PatternHyphenator("en", w.kit.englishHyphenationPatterns())
+pattern_ref = weakref.ref(patterns)
+layout = w.layoutParagraph(fonts, paragraph, w.BlockFlow((0, 0, 140, 200)), hyphenator=patterns)
+del patterns
+gc.collect()
+assert pattern_ref() is not None
+outline = layout.glyphOutline()
+assert not outline.isEmpty()
+del fonts, paragraph
+gc.collect()
+assert pattern_ref() is None
+assert layout.glyphOutline().getBounds().width() == outline.getBounds().width()
+
+layer = w.PaintLayer(material=native.material.field.noise(0.1))
+copy = layer.copy()
+layer.material = None
+gc.collect()
+assert copy.material is not None
+
+with tempfile.TemporaryDirectory() as folder:
+    Path(folder, "sample.txt").write_text("sample")
+    hub = native.io.Hub()
+    hub.mount("res://", Path(folder))
+    lease = hub.retain("res://*.txt")
+    del hub
+    gc.collect()
+    assert lease.preload() == 1
+    assert lease.uris() == ["res://sample.txt"]
+    lease.close()
+    lease.close()
+    try:
+        lease.refresh()
+        assert False, "A closed lease must reject access"
+    except RuntimeError:
+        pass
+)",
+           scope);
+}
+
 TEST(PythonBindings, HostLifetimeReleasesRetainedBoundCallbacks) {
   (void)native();
   py::dict scope;

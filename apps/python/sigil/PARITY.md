@@ -1,8 +1,13 @@
 # Python authoring coverage
 
-The package is an alpha authoring surface over the native libraries. Coverage
-is explicit rather than inferred from a module name. The raw bindings and
-convenience builders share native values; neither is a second scene model.
+The coverage target is every capability needed to reproduce every native sketch
+in Python, including the creative libraries and their kits. Raw bindings and
+Python conveniences must share native values. Named parameters, precise editor
+types, ordinary Python collections and owned results are part of coverage.
+
+The package does not yet meet that target. A bound operation is not a tested
+sketch port, and a module name is not evidence of full library coverage. The
+boundaries below are remaining implementation work, not permanent exclusions.
 
 ## Retained authoring
 
@@ -12,13 +17,14 @@ convenience builders share native values; neither is a second scene model.
 | Composition | Direct native factories and overloads, fluent properties, named inputs, variadic or iterable children (including lists and tuples), dimensions and units, layout and placement, 2D/3D transforms, fills, typography and style classes | The full native Element and feature catalogue is not claimed |
 | Memo | Deep-copied model, Python equality, native reconciliation and captured inherited environment | Builder must be pure in its model and environment; closure mutation is not a dependency |
 | Motion | Shared outputs, binding chains, easing values, entrances, transitions and keyframe paths | Python times use seconds; scheduling comes from the native session ticker |
-| Typography | Native Type/TextStyle and paint layers/decorations; complete owned Block settings; ParagraphStyle, initial letters, TypeSheet, RichText runs/slots, Story frames, selectors/restyling and TextPath | Direct editable Paragraph/FontContext layout, custom flow/hyphenator implementations, annotations/ruby, per-glyph effect tracks and PaintLayer.material remain unbound |
+| Typography | Native Type/TextStyle and material paint layers; Block and ParagraphStyle; RichText, Story, selectors, TextPath and Compose Annotation; direct Paragraph editing, FontContext, native flows, layout metrics/outlines/drawing, Beside/warichu, MarkerSet and pattern hyphenation | Custom Python flow/hyphenator implementations, complete glyph choreography and custom font-manager integration remain unbound; the native group-ruby defect is tracked in FINDINGS.md |
 | Composer | Render, named slots, bounds, hit tests, routes, settling and owned statistics | Checked session view; manual native frame driving is not exposed |
 | Ticker | Regular and fixed callbacks, derivation, elapsed and activity | Checked session view; removal follows a callback's return value |
 | World | Native keyed elements, mesh/material/light/camera values, motion lanes, retained Scene, CPU images and checked Pen drawing, geometry/post passes, selectors, rig/turntable/lit-set presets | Device execution, environment maps, map authoring, point operators, custom pass callbacks and readbacks remain unbound; CPU material response is approximate |
-| Data and assets | Native JSON, tables, scales, database queries and checked resource loading | Database write methods are not exposed |
-| IO | Native hubs, feeds, arrivals, transport registration, send/reply, byte sinks and deterministic replay | Authors poll on their update clock; transport callbacks and threads stay native |
-| Specimen kit | Stage, page, well, caption, cell, aligned comparison tracks, cells, panel grid, comparable theme and native Provide | Other sketch-kit components remain separate coverage decisions |
+| Data and assets | Native JSON, tables, scales, owned databases with query/execute/insert, schema conversion and OSC/MIDI/Art-Net codecs | Native Connection handlers and generated arbitrary FlatBuffer root accessors remain unbound |
+| IO | Native hubs, typed loading, resource leases/preload, feeds, arrivals, transport registration, send/reply, byte sinks and deterministic replay | Archive/custom sources, custom decoder/transport callbacks and graphics publication/subscription remain unbound; authors poll on their update clock |
+| Material | Native colors, OKLab/OKLCH/CIELAB conversions, ramps, palettes, harmonies, extraction, dither, field factories, Skia paints and surface presets | General recipe/parameter authoring, texture sets/atlases, environment maps, masks/combinators, OCIO, SDF and the complete material kit remain unfinished |
+| Specimen kit | Stage, page, well, caption, cell, aligned comparison tracks, cells, panel grid, comparable theme and native Provide | The remaining sketch-kit components are unfinished |
 | Compose kit | Neutral sheets, panels, boards, wells, captions, rules, circles, and native Grid plus free-form layouts | Stock routers, feeds, pools and every decoration scheme are not implied |
 | Document kit | Native article/section, six heading levels, plain/rich paragraphs, lead, captions, labels, eyebrow, footer, code, quotes, lists/items, figures and rules; structural role styling and inherited layout properties | Semantic roles style font/block values through the native stylesheet; CSS parsing and arbitrary element-property selectors are not supplied |
 
@@ -147,5 +153,33 @@ C++ originals.
 
 The table covers Draw collection authoring. It does not assert that every
 unrelated sketch importing a pen also has all of its data, networking, UI,
-typography, video or world dependencies bound. Those libraries retain their
-own coverage boundaries.
+typography, video or world dependencies bound. Those libraries have their
+own outstanding work in this table.
+
+## Verification and remaining catalog work
+
+`test_library_coverage.py` checks wire and schema round trips, database writes,
+resource residency, native color calculations, standalone typography editing,
+query ranges and rendered text. `PythonBindings.WeaveLayoutsAndResourceLeasesOwnTheirDependencies`
+checks retained native dependencies without a sketch host. The generated-stub
+check rejects unnamed arguments and erased types; it also verifies the public
+Weave, Data, IO and Material export lists.
+
+These checks establish the exercised contracts, not complete library or catalog
+parity. Remaining catalog work includes:
+
+- Compose: per-glyph tracks, marker paint operations, custom layout/drawing
+  hooks, full feature and kit coverage.
+- Weave: custom flow and hyphenation implementations, placed glyph access and
+  choreography, live variable-font drawing and the rest of the kit.
+- Material and Geometry: recipe graphs, texture and environment workflows,
+  mesh/point operators, and the remaining stock generators and kits.
+- World: native device rendering, environment lighting, point pipelines,
+  resource readbacks and custom passes.
+- IO and Data: schema-backed Connection routing, custom sources/decoders,
+  archives and native shared-texture publication/subscription.
+- Image, Video, Scry, Substance and USD: the image-processing and media/SDK
+  surfaces used by their native studies, with explicit availability reporting.
+- Catalog validation: translate the remaining studies and compare native and
+  Python renders at matching sizes, assets, backends and animation times.
+  Optional SDKs require the same prerequisites on both authoring paths.

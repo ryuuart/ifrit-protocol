@@ -36,13 +36,10 @@ are the direct bound factories, including their native overloads. `_sigil` is
 the extension's implementation module; application code uses the public
 package paths.
 
-Both Python surfaces deliberately cover a curated subset of C++. A
-native capability becoming available does not require immediately binding
-it or designing a convenience wrapper. Coverage can lag while the C++
-libraries develop. The bindings and authoring layer ship from the same
-build, with tests checking shared types, mixed construction and lifecycle
-contracts. Expanding the surface means deciding and testing each new
-Python contract, rather than maintaining a second renderer.
+Both Python surfaces target the capabilities needed to reproduce the native
+sketch catalog. Coverage is still incomplete; `PARITY.md` lists the outstanding
+work. The bindings and authoring layer ship from the same build, with tests
+checking shared types, mixed construction, typing and lifecycle contracts.
 
 ## Type information
 
@@ -911,11 +908,11 @@ value's `runs()` and a story's `blocks()` return independent snapshots.
 `TextPath` and `onPath` place text on a native shape and accept shared motion
 values for progress.
 
-The binding does not yet expose direct editable `Paragraph`/`FontContext`
-layout, custom flow or hyphenator implementations, annotation/ruby values,
-or per-glyph effect tracks. `PaintLayer.material` is also unbound; ordinary
-Skia paints and Compose's `textFill` remain available. These are explicit
-coverage limits, independent of whether a native library is linked.
+Direct editable paragraphs, font contexts, native flow geometry and annotation
+values are available. Per-glyph effect tracks and custom Python implementations
+of flow/hyphenation remain unfinished. Material paint layers support optional
+native materials as well as Skia paint. The parity table tracks the remaining
+work independently of which native libraries are linked.
 
 ## Data values and native resources
 
@@ -1147,12 +1144,10 @@ motion from `sigil.motion`, drawing from `sigil.draw`, and sketch
 declarations and rendering from `sigil.sketch`. Direct bindings preserve
 those library namespaces under `sigil.native`.
 
-The package is an alpha Python frontend with selected first-tier authoring
-surfaces. It is not a complete verb-for-verb implementation of the broader
-Python proposal. Unbound typography controls, World device execution and
-media pipelines remain separate coverage decisions. The native brush
-`weightedChoice` template and generic byte-source loading are not exposed; Python can choose values and supply
-the brush decoder with bytes.
+The package is an alpha Python frontend working toward complete sketch authoring
+coverage. The remaining native capabilities in `PARITY.md` are implementation
+work. Current tests do not establish full C++ catalog or GPU rendering parity.
+
 Repeated drawing calls still cross into native code individually; a
 larger geometry operation should use a native batch API when one is
 available. Python supports experimentation and higher-level components
@@ -1169,3 +1164,70 @@ The authoring contract tests run against the built extension. From
 PYTHONPATH=../spell-circle-canvas/build/python python3 -m unittest discover \
   -s sigil/test -p 'test_*.py'
 ```
+
+## Direct typography and data workflows
+
+A standalone program can edit and measure native paragraphs without a sketch
+host. Character ranges use UTF-16 offsets, matching the native engine; query
+functions supply those ranges for Python strings, including supplementary-plane
+characters. Font contexts stay on their creating thread. Layouts retain a
+paragraph snapshot so their glyph pointers survive edits and
+font-cache purges. Measurements and drawing reject a changed or unrelated
+paragraph until it is laid out again; drawing accepts the checked sketch pen.
+
+```python
+from sigil import weave
+
+fonts = weave.FontContext()
+paragraph = weave.Paragraph("A measured paragraph.", weave.Type(size=24))
+flow = weave.BlockFlow((0, 0, 320, 200))
+layout = weave.layoutParagraph(fonts, paragraph, flow)
+for line in layout.lineMetrics(paragraph):
+    print(line.textBegin, line.textEnd, line.rect())
+# In draw(self, pen): layout.drawBatched(pen, paragraph)
+```
+
+`PathFlow`, `VerticalBlockFlow`, `LineSetFlow` and `ExclusionFlow` use the native
+layout engine. Collection properties return copies: assign a tuple, list or
+other supported sequence back after changing it. `layoutParagraph(...,
+hyphenator=patterns)` retains its native pattern table with the paragraph.
+`weave.kit.PatternHyphenator` accepts UTF-8 pattern-file text.
+
+```python
+from sigil import data, io, material
+
+hub = io.Hub()
+hub.mount("res://", "./data")
+data.registerDecoders(hub)
+with hub.retain("res://*.csv") as lease:
+    lease.preload()
+    rows = hub.load(data.Table, "res://measurements.csv")
+    if rows is not None:
+        database = data.Database.memory()
+        database.insert("measurements", rows)
+        summary = database.query("SELECT count(*) AS count FROM measurements")
+
+colors = material.harmony("#7bb7ba", material.Scheme.Triad)
+ramp = material.Ramp(stops=(
+    material.RampStop(0, colors[0]),
+    material.RampStop(1, colors[1]),
+))
+tint = ramp(0.5)
+```
+
+`Database.open()` and `memory()` return owned writable connections. Databases
+loaded through a hub or `fromBytes()` expose query views that reject explicit
+`execute()` and `insert()` calls. Failures raise an
+exception; table/query results are independent copies. Protocol encoders accept
+native Json values or ordinary Python dictionaries, tuples and lists and return
+bytes; invalid packets decode to `None`. A `Schema` owns the binary schema it
+loads and verifies conversions in both directions.
+
+Material colors work in ordinary drawing and composition color inputs. Palette
+indexing follows Python bounds and negative-index rules; native `at()` keeps its
+clamping behavior. Ramp, palette extraction and dither computations execute in
+C++. A paint layer's optional material is copied on assignment and retrieval;
+reassign it after editing, just as for other optional native value records.
+
+Resource leases stay on their creating thread. This prevents another Python
+thread from closing residency while a blocking preload has released the GIL.

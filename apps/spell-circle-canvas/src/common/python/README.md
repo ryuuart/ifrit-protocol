@@ -7,8 +7,8 @@ startup dependency. Namespace `sigil::python`.
 
 The bindings construct the native values and call their native algorithms.
 They do not provide another element tree, motion engine, renderer or IO loop.
-The supported surface is curated; linking a native library does not imply
-that every C++ API is exposed to Python.
+The authoring target is the full native sketch catalog. Coverage is incomplete;
+linking a native library does not imply that every C++ API is exposed to Python.
 
 Callable inputs are named in the bindings so runtime help, keyword calls and
 generated editor signatures agree. Positional variadic APIs retain typed
@@ -131,3 +131,25 @@ module registration, neutral Compose kit callbacks, explicit callback cleanup,
 native scope unwinding and retained World ticker, frame and image ownership. The sketch adapter separately tests hot reload,
 context invalidation and its session-owned resources. Package tests exercise
 the combined extension and its Python convenience surface.
+
+## Direct typography, color and data
+
+The direct typography owner constructs a system-backed font context and checks
+its creating thread. Paragraphs retain pattern hyphenators passed to layout;
+layout values retain a native paragraph snapshot that owns their ordinary shaped
+words, and returned metrics are copies. Drawing and measurements check that an
+explicit paragraph still matches the placement before reading its styles.
+Drawing uses the same checked pen as the other drawing bindings. UTF-16 ranges
+remain explicit rather than being silently reinterpreted as Python indices.
+
+Material colors preserve the native color-space calculations and pass through
+the shared color conversion used by drawing, composition and paint uniforms.
+Palettes provide Python indexing and iteration beside the native clamped `at`.
+Optional paint-layer materials copy native values across the Python boundary.
+
+Owned database connections expose writes; cached and byte-backed database
+views reject explicit execute and insert calls. Resource leases retain an owned
+hub or check a borrowed host before access. Closing a lease releases residency and
+makes subsequent access fail; context-manager exit performs that close even
+when the body raises. Lease methods check their creating thread so closing a
+lease cannot race a preload while blocking hub work releases the interpreter lock.

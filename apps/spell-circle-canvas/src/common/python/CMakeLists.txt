@@ -5,7 +5,7 @@ sigil_library(SigilPython
   SOURCES Python.cpp Bindings.cpp ComposeBindings.cpp MotionBindings.cpp
           KitBindings.cpp DocumentBindings.cpp DataBindings.cpp IOBindings.cpp PenBindings.cpp
           ValueBindings.cpp GeometryBindings.cpp BrushBindings.cpp WeaveBindings.cpp
-          WorldBindings.cpp
+          WorldBindings.cpp MaterialBindings.cpp WeaveLayoutBindings.cpp
   HEADERS Python.h Bindings.h ComposeBindings.h MotionBindings.h KitBindings.h
           DataBindings.h IOBindings.h PenBindings.h ValueBindings.h BrushBindings.h
           WeaveBindings.h GeometryBindings.h WorldBindings.h
@@ -18,7 +18,7 @@ sigil_library(SigilPython
           SigilGeometryMeshRender SigilGeometryKit
           SigilMaterialCore SigilMaterialSkia SigilMaterialPattern SigilMaterialField
           SigilMaterialKit SigilWorldScene SigilWorldKit
-          SigilWeaveStyle SigilWeaveParagraph SigilWeaveQuery SigilWeaveLayout SigilWeavePorts
+          SigilWeaveStyle SigilWeaveParagraph SigilWeaveQuery SigilWeaveLayout SigilWeavePorts SigilWeaveKit
           SigilImageDecode SigilImageEncode SigilDraw SigilDrawBrush SigilDrawBrushFormat)
 target_include_directories(SigilPython SYSTEM PUBLIC ${Python3_INCLUDE_DIRS})
 # Executables embed Python; extension modules resolve Python symbols from

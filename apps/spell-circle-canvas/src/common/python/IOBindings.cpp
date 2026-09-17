@@ -4,12 +4,15 @@
 #include <sigilio/hub/Hub.h>
 #include <sigilio/hub/Recording.h>
 #include <sigilio/transport/Transport.h>
+#include <sigilpython/DataBindings.h>
 #include <sigilpython/IOBindings.h>
+#include <sigilpython/ValueBindings.h>
 
 #include <cmath>
 #include <cstring>
 #include <mutex>
 #include <stdexcept>
+#include <thread>
 #include <unordered_map>
 #include <utility>
 
@@ -64,6 +67,39 @@ void validRecording(const std::vector<io::Arrival>& recording) {
     previous = arrival.at;
   }
 }
+
+class ResourceHandle {
+ public:
+  ResourceHandle(HubHandle hub, const std::vector<std::string>& selectors)
+      : m_hub(std::move(hub)) {
+    auto& native = m_hub.get();
+    std::vector<std::string_view> views(selectors.begin(), selectors.end());
+    m_lease.emplace(unlocked([&] { return native.retain(views); }));
+  }
+  ~ResourceHandle() {
+    unlocked([&] { m_lease.reset(); });
+  }
+  io::ResourceLease& get() {
+    checkThread();
+    m_hub.get();
+    if (!m_lease) throw std::runtime_error("Resource lease is closed.");
+    return *m_lease;
+  }
+  void close() {
+    checkThread();
+    unlocked([&] { m_lease.reset(); });
+  }
+
+ private:
+  void checkThread() const {
+    if (m_thread != std::this_thread::get_id())
+      throw std::runtime_error(
+          "Resource lease belongs to its creating thread.");
+  }
+  const std::thread::id m_thread = std::this_thread::get_id();
+  HubHandle m_hub;
+  std::optional<io::ResourceLease> m_lease;
+};
 
 class FeedHandle {
  public:
@@ -166,6 +202,43 @@ std::shared_ptr<void> retainSessionFeed(std::shared_ptr<io::Feed> feed) {
 
 void bindIO(py::module_& module) {
   auto resources = module.def_submodule("io");
+  py::class_<ResourceHandle>(resources, "ResourceLease")
+      .def(
+          "include",
+          [](ResourceHandle& lease, const std::string& selector) {
+            auto& value = lease.get();
+            return unlocked([&] { return value.include(selector); });
+          },
+          py::arg("selector"))
+      .def("refresh",
+           [](ResourceHandle& lease) {
+             auto& value = lease.get();
+             return unlocked([&] { return value.refresh(); });
+           })
+      .def("preload",
+           [](ResourceHandle& lease) {
+             auto& value = lease.get();
+             return unlocked([&] { return value.preload(); });
+           })
+      .def("uris",
+           [](ResourceHandle& lease) {
+             auto uris = lease.get().uris();
+             return std::vector<std::string>(uris.begin(), uris.end());
+           })
+      .def("close", &ResourceHandle::close)
+      .def(
+          "__enter__",
+          [](ResourceHandle& lease) -> ResourceHandle& {
+            lease.get();
+            return lease;
+          },
+          py::return_value_policy::reference_internal)
+      .def(
+          "__exit__",
+          [](ResourceHandle& lease, py::object, py::object, py::object) {
+            lease.close();
+          },
+          py::arg("exc_type"), py::arg("exc_value"), py::arg("traceback"));
   py::class_<io::ResourceInfo>(resources, "ResourceInfo")
       .def_readonly("byteSize", &io::ResourceInfo::byteSize)
       .def_readonly("path", &io::ResourceInfo::path);
@@ -300,6 +373,53 @@ void bindIO(py::module_& module) {
 
   py::class_<HubHandle>(resources, "Hub")
       .def(py::init<>())
+      .def(
+          "load",
+          [](const HubHandle& value, py::handle type,
+             const std::string& uri) -> py::object {
+            auto& hub = value.get();
+            if (type.is(py::type::of<image::ImageAsset>())) {
+              auto asset = unlocked([&] { return hub.image(uri); });
+              return asset ? py::cast(*asset) : py::none();
+            }
+            return loadData(hub, type, uri);
+          },
+          py::arg("type"), py::arg("uri"))
+      .def(
+          "retain",
+          [](const HubHandle& value, const std::string& selector) {
+            return std::make_unique<ResourceHandle>(
+                value, std::vector<std::string>{selector});
+          },
+          py::arg("selector"))
+      .def(
+          "retain",
+          [](const HubHandle& value,
+             const std::vector<std::string>& selectors) {
+            return std::make_unique<ResourceHandle>(value, selectors);
+          },
+          py::arg("selectors") = std::vector<std::string>{})
+      .def(
+          "preload",
+          [](const HubHandle& value, const std::string& selector) {
+            auto& hub = value.get();
+            return unlocked([&] { return hub.preload(selector); });
+          },
+          py::arg("selector"))
+      .def(
+          "preload",
+          [](const HubHandle& value, const std::vector<std::string>& uris) {
+            auto& hub = value.get();
+            return unlocked([&] {
+              return hub.preload(std::span<const std::string>(uris));
+            });
+          },
+          py::arg("uris"))
+      .def("discardUnretained",
+           [](const HubHandle& value) {
+             auto& hub = value.get();
+             return unlocked([&] { return hub.discardUnretained(); });
+           })
       .def(
           "mount",
           [](const HubHandle& value, std::string prefix,

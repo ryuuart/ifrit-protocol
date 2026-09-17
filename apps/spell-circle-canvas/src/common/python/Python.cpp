@@ -16,14 +16,16 @@ void bindLibraries(pybind11::module_& module) {
   bindCore(module);
   bindValues(module);
   bindMotion(module);
+  bindMaterial(module);
   bindWeave(module);
   bindCompose(module);
   bindPen(module);
+  bindWeaveLayout(module);
   bindBrush(module);
   bindGeometry(module);
   bindWorld(module);
-  bindData(module);
   bindIO(module);
+  bindData(module);
   bindComposeKit(module);
 }
 }  // namespace sigil::python

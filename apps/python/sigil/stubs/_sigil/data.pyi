@@ -6,8 +6,9 @@ import builtins
 import collections.abc
 import typing
 import os
+import _sigil.io
 import pathlib
-__all__: list[str] = ['Column', 'ColumnType', 'CsvOptions', 'Database', 'Engine', 'Flag', 'Group', 'Instant', 'Interval', 'Json', 'JsonKind', 'Order', 'Overflow', 'Scale', 'Table', 'Transform', 'decodeCsv', 'decodeInstant', 'decodeJson', 'encodeJson', 'engineOf', 'tableFromJson']
+__all__: list[str] = ['Column', 'ColumnType', 'CsvOptions', 'Database', 'Engine', 'Flag', 'Group', 'Instant', 'Interval', 'Json', 'JsonKind', 'Order', 'Overflow', 'Scale', 'Schema', 'Table', 'Transform', 'decodeArtNet', 'decodeCsv', 'decodeInstant', 'decodeJson', 'decodeMidi', 'decodeOsc', 'encodeArtNet', 'encodeJson', 'encodeMidi', 'encodeOsc', 'engineOf', 'maxOscPacketBytes', 'registerDecoders', 'tableFromJson']
 
 class Column:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
@@ -131,17 +132,27 @@ class CsvOptions:
 class Database:
 
     @staticmethod
-    def fromBytes(bytes: bytes, hint: str='data.sqlite') -> Database | None:
+    def fromBytes(bytes: bytes, hint: str='data.sqlite') -> Database:
         ...
 
     @staticmethod
-    def open(path: os.PathLike[str] | os.PathLike[bytes] | str | bytes) -> Database | None:
+    def memory(engine: Engine=...) -> Database:
+        ...
+
+    @staticmethod
+    def open(path: os.PathLike[str] | os.PathLike[bytes] | str | bytes) -> Database:
         ...
 
     def engine(self) -> Engine:
         ...
 
+    def execute(self, sql: str) -> None:
+        ...
+
     def file(self) -> pathlib.Path:
+        ...
+
+    def insert(self, name: str, rows: Table) -> None:
         ...
 
     def query(self, sql: str) -> Table:
@@ -608,6 +619,27 @@ class Scale:
     def thresholds(self, value: collections.abc.Sequence[typing.SupportsFloat], /) -> None:
         ...
 
+class Schema:
+
+    @staticmethod
+    def fromBinarySchema(bytes: bytes) -> Schema:
+        ...
+
+    def __bool__(self) -> bool:
+        ...
+
+    def __init__(self) -> None:
+        ...
+
+    def binary(self, json: str) -> bytes:
+        ...
+
+    def rootName(self) -> str:
+        ...
+
+    def text(self, binary: bytes) -> str:
+        ...
+
 class Table:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
@@ -750,6 +782,9 @@ class Transform:
     def value(self) -> int:
         ...
 
+def decodeArtNet(packet: bytes) -> _sigil.data.Json | None:
+    ...
+
 def decodeCsv(text: str, options: CsvOptions=..., name: str='') -> _sigil.data.Table | None:
     ...
 
@@ -759,11 +794,35 @@ def decodeInstant(text: str) -> _sigil.data.Instant | None:
 def decodeJson(text: str) -> _sigil.data.Json | None:
     ...
 
+def decodeMidi(message: bytes) -> _sigil.data.Json | None:
+    ...
+
+def decodeOsc(packet: bytes) -> _sigil.data.Json | None:
+    ...
+
+def encodeArtNet(message: _t.JsonInput) -> bytes:
+    ...
+
 def encodeJson(value: _t.JsonInput) -> str:
+    ...
+
+def encodeMidi(message: _t.JsonInput) -> bytes:
+    ...
+
+@typing.overload
+def encodeOsc(message: _t.JsonInput) -> bytes:
+    ...
+
+@typing.overload
+def encodeOsc(address: str, arguments: _t.JsonInput) -> bytes:
     ...
 
 def engineOf(uri: os.PathLike[str] | os.PathLike[bytes] | str | bytes) -> _sigil.data.Engine | None:
     ...
 
+def registerDecoders(hub: _sigil.io.Hub) -> None:
+    ...
+
 def tableFromJson(value: _t.JsonInput) -> Table | None:
     ...
+maxOscPacketBytes: int = 65507

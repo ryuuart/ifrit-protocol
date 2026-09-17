@@ -46,6 +46,7 @@ __all__ = [
 FloatLike: TypeAlias = SupportsFloat | SupportsIndex
 ColorLike: TypeAlias = (
     skia.Color
+    | material.Color
     | str
     | tuple[FloatLike, FloatLike, FloatLike]
     | tuple[FloatLike, FloatLike, FloatLike, FloatLike]

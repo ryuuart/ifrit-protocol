@@ -14,5 +14,6 @@ SkPoint point(pybind11::handle value);
 SkRect rect(pybind11::handle value);
 void bindCore(pybind11::module_& module);
 void bindValues(pybind11::module_& module);
+void bindMaterial(pybind11::module_& module);
 
 }  // namespace sigil::python

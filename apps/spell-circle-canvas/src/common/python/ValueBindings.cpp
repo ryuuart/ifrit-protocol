@@ -55,7 +55,8 @@ mskia::Paint& uniform(mskia::Paint& paint, const std::string& name,
                       py::handle value) {
   if (py::isinstance<py::int_>(value) || py::isinstance<py::float_>(value))
     return paint.uniform(name, py::cast<float>(value));
-  if (py::isinstance<SkColor4f>(value))
+  if (py::isinstance<SkColor4f>(value) ||
+      py::isinstance<material::Color>(value))
     return paint.uniform(name, color(value));
   const auto values = py::cast<std::vector<float>>(value);
   if (values.size() == 2)

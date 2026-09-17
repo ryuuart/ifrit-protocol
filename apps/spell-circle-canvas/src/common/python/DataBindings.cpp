@@ -4,12 +4,19 @@
 
 #include <pybind11/stl.h>
 #include <pybind11/stl/filesystem.h>
+#include <sigildata/decode/ArtNet.h>
 #include <sigildata/decode/Csv.h>
+#include <sigildata/decode/Decoders.h>
 #include <sigildata/decode/Json.h>
+#include <sigildata/decode/Midi.h>
+#include <sigildata/decode/Osc.h>
+#include <sigildata/decode/Schema.h>
 #include <sigildata/query/Database.h>
 #include <sigildata/scale/Scale.h>
+#include <sigilio/hub/Hub.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/DataBindings.h>
+#include <sigilpython/IOBindings.h>
 
 #include <cstring>
 #include <memory>
@@ -23,7 +30,18 @@ namespace {
 
 struct DatabaseView {
   std::shared_ptr<const data::Database> owner;
+  std::shared_ptr<data::Database> writer;
+
+  data::Database& writable() const {
+    if (!writer) throw std::runtime_error("This database view is read-only.");
+    return *writer;
+  }
 };
+
+DatabaseView ownedDatabase(data::Database value) {
+  auto owner = std::make_shared<data::Database>(std::move(value));
+  return {owner, owner};
+}
 
 struct Recursion {
   inline static thread_local int depth = 0;
@@ -215,8 +233,45 @@ py::object dataDatabase(std::shared_ptr<const data::Database> database) {
   return database ? py::cast(DatabaseView{std::move(database)}) : py::none();
 }
 
+py::object loadData(io::Hub& hub, py::handle type, const std::string& uri) {
+  if (type.is(py::type::of<DatabaseView>())) {
+    std::shared_ptr<const data::Database> value;
+    {
+      const py::gil_scoped_release release;
+      value = hub.load<data::Database>(uri);
+    }
+    return dataDatabase(std::move(value));
+  }
+  if (type.is(py::type::of<data::Json>())) {
+    std::shared_ptr<const data::Json> value;
+    {
+      const py::gil_scoped_release release;
+      value = hub.load<data::Json>(uri);
+    }
+    return value ? py::cast(*value) : py::none();
+  }
+  if (type.is(py::type::of<data::Table>())) {
+    std::shared_ptr<const data::Table> value;
+    {
+      const py::gil_scoped_release release;
+      value = hub.load<data::Table>(uri);
+    }
+    return value ? py::cast(*value) : py::none();
+  }
+  throw py::type_error(
+      "This hub loader accepts Json, Table, Database or ImageAsset.");
+}
+
 void bindData(py::module_& root) {
   auto module = root.def_submodule("data");
+  module.def(
+      "registerDecoders",
+      [](const HubHandle& value) {
+        auto& hub = value.get();
+        const py::gil_scoped_release release;
+        data::registerDecoders(hub);
+      },
+      py::arg("hub"));
   py::enum_<data::Json::Kind>(module, "JsonKind")
       .value("Null", data::Json::Kind::Null)
       .value("Boolean", data::Json::Kind::Boolean)
@@ -536,13 +591,21 @@ void bindData(py::module_& root) {
       .value("Duck", data::Engine::Duck);
   py::class_<DatabaseView>(module, "Database")
       .def_static(
+          "memory",
+          [](data::Engine engine) {
+            std::string why;
+            auto database = data::Database::memory(engine, &why);
+            if (!database) throw std::runtime_error(why);
+            return ownedDatabase(std::move(*database));
+          },
+          py::arg("engine") = data::Engine::Sqlite)
+      .def_static(
           "open",
           [](const std::filesystem::path& path) {
             std::string why;
             auto database = data::Database::open(path, &why);
             if (!database) throw std::runtime_error(why);
-            return dataDatabase(
-                std::make_shared<data::Database>(std::move(*database)));
+            return ownedDatabase(std::move(*database));
           },
           py::arg("path"))
       .def_static(
@@ -564,6 +627,23 @@ void bindData(py::module_& root) {
            [](const DatabaseView& view) { return view.owner->engine(); })
       .def("file", [](const DatabaseView& view) { return view.owner->file(); })
       .def(
+          "execute",
+          [](const DatabaseView& view, std::string_view sql) {
+            std::string why;
+            if (!view.writable().execute(sql, &why))
+              throw std::runtime_error(why);
+          },
+          py::arg("sql"))
+      .def(
+          "insert",
+          [](const DatabaseView& view, std::string_view name,
+             const data::Table& rows) {
+            std::string why;
+            if (!view.writable().insert(name, rows, &why))
+              throw std::runtime_error(why);
+          },
+          py::arg("name"), py::arg("rows"))
+      .def(
           "query",
           [](const DatabaseView& view, std::string_view sql) {
             std::string why;
@@ -573,6 +653,76 @@ void bindData(py::module_& root) {
           },
           py::arg("sql"));
   module.def("engineOf", &data::engineOf, py::arg("uri"));
+
+  auto decodePacket = [](auto decoder) {
+    return [decoder](py::bytes input) {
+      const auto source = input.cast<std::string>();
+      return decoder(std::as_bytes(std::span(source)));
+    };
+  };
+  auto encodePacket = [](auto encoder) {
+    return [encoder](py::handle message) {
+      const auto result = encoder(json(message));
+      return py::bytes(reinterpret_cast<const char*>(result.data()),
+                       result.size());
+    };
+  };
+  module.def("decodeOsc", decodePacket(data::decodeOsc), py::arg("packet"));
+  module.def("decodeMidi", decodePacket(data::decodeMidi), py::arg("message"));
+  module.def("decodeArtNet", decodePacket(data::decodeArtNet),
+             py::arg("packet"));
+  module.def(
+      "encodeOsc",
+      encodePacket(static_cast<std::vector<std::byte> (*)(const data::Json&)>(
+          &data::encodeOsc)),
+      py::arg("message"));
+  module.def(
+      "encodeOsc",
+      [](std::string_view address, py::handle arguments) {
+        const auto result = data::encodeOsc(address, json(arguments));
+        return py::bytes(reinterpret_cast<const char*>(result.data()),
+                         result.size());
+      },
+      py::arg("address"), py::arg("arguments"));
+  module.def("encodeMidi", encodePacket(data::encodeMidi), py::arg("message"));
+  module.def("encodeArtNet", encodePacket(data::encodeArtNet),
+             py::arg("message"));
+  module.attr("maxOscPacketBytes") = data::maxOscPacketBytes;
+  py::class_<data::Schema>(module, "Schema")
+      .def(py::init<>())
+      .def_static(
+          "fromBinarySchema",
+          [](py::bytes bytes) {
+            const auto source = bytes.cast<std::string>();
+            std::string why;
+            auto schema = data::Schema::fromBinarySchema(
+                std::as_bytes(std::span(source)), &why);
+            if (!schema) throw py::value_error(why);
+            return schema;
+          },
+          py::arg("bytes"))
+      .def("__bool__", [](const data::Schema& value) { return bool(value); })
+      .def("rootName", &data::Schema::rootName)
+      .def(
+          "text",
+          [](const data::Schema& value, py::bytes bytes) {
+            const auto source = bytes.cast<std::string>();
+            std::string why;
+            auto result = value.text(std::as_bytes(std::span(source)), &why);
+            if (!result) throw py::value_error(why);
+            return *result;
+          },
+          py::arg("binary"))
+      .def(
+          "binary",
+          [](const data::Schema& value, std::string_view json) {
+            std::string why;
+            auto result = value.binary(json, &why);
+            if (!result) throw py::value_error(why);
+            return py::bytes(reinterpret_cast<const char*>(result->data()),
+                             result->size());
+          },
+          py::arg("json"));
 }
 
 }  // namespace sigil::python

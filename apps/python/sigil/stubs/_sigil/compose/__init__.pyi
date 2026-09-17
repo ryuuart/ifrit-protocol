@@ -14,7 +14,7 @@ from . import kit
 from . import layouts
 from . import selectors
 from . import spans
-__all__: list[str] = ['Align', 'Backface', 'Boundary', 'Cache', 'CellSpan', 'Composer', 'ComposerStats', 'Corners', 'Decoration', 'Dimension', 'Element', 'Fill', 'Fit', 'Justify', 'LayerStyle', 'MotionPath', 'PathFormat', 'Shadow', 'Shape', 'Spans', 'SurfacePaint', 'TextPath', 'TextSettling', 'VarRef', 'autoDimension', 'box', 'document', 'frame', 'graphics', 'heldPath', 'image', 'kit', 'layout', 'layouts', 'memo', 'pathFigure', 'pct', 'pen', 'ph', 'picture', 'positioned', 'pw', 'selectors', 'shadow', 'shape', 'slot', 'spans', 'stack', 'stroke', 'text', 'var']
+__all__: list[str] = ['Align', 'Annotation', 'Backface', 'Boundary', 'Cache', 'CellSpan', 'Composer', 'ComposerStats', 'Corners', 'Decoration', 'Dimension', 'Element', 'Fill', 'Fit', 'Justify', 'LayerStyle', 'MotionPath', 'PathFormat', 'Shadow', 'Shape', 'Spans', 'SurfacePaint', 'TextPath', 'TextSettling', 'VarRef', 'autoDimension', 'box', 'document', 'frame', 'graphics', 'heldPath', 'image', 'kit', 'layout', 'layouts', 'memo', 'pathFigure', 'pct', 'pen', 'ph', 'picture', 'positioned', 'pw', 'selectors', 'shadow', 'shape', 'slot', 'spans', 'stack', 'stroke', 'text', 'var']
 
 class Align:
     """
@@ -76,6 +76,89 @@ class Align:
 
     @property
     def value(self) -> int:
+        ...
+
+class Annotation:
+
+    class Side:
+        """
+        Members:
+
+          Before
+
+          After
+        """
+        After: typing.ClassVar[Annotation.Side]
+        Before: typing.ClassVar[Annotation.Side]
+        __members__: typing.ClassVar[dict[str, Annotation.Side]]
+
+        def __eq__(self, other: builtins.object) -> bool:
+            ...
+
+        def __getstate__(self) -> int:
+            ...
+
+        def __hash__(self) -> int:
+            ...
+
+        def __index__(self) -> int:
+            ...
+
+        def __init__(self, value: typing.SupportsInt) -> None:
+            ...
+
+        def __int__(self) -> int:
+            ...
+
+        def __ne__(self, other: builtins.object) -> bool:
+            ...
+
+        def __repr__(self) -> str:
+            ...
+
+        def __setstate__(self, state: typing.SupportsInt) -> None:
+            ...
+
+        def __str__(self) -> str:
+            ...
+
+        @property
+        def name(self) -> str:
+            ...
+
+        @property
+        def value(self) -> int:
+            ...
+    __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
+    reserve: bool
+    side: Annotation.Side
+    style: _sigil.weave.Type
+    unit: _sigil.weave.Unit
+    where: _sigil.weave.Selector
+
+    def __eq__(self, other: builtins.object, /) -> bool:
+        ...
+
+    def __init__(self, *, reserve: bool=..., side: Annotation.Side=..., style: _sigil.weave.Type=..., unit: _sigil.weave.Unit=..., where: _sigil.weave.Selector=..., gap: typing.SupportsFloat=..., readings: collections.abc.Sequence[str]=...) -> None:
+        ...
+
+    def copy(self) -> Annotation:
+        ...
+
+    @property
+    def gap(self) -> float:
+        ...
+
+    @gap.setter
+    def gap(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def readings(self) -> list[str]:
+        ...
+
+    @readings.setter
+    def readings(self, value: collections.abc.Sequence[str], /) -> None:
         ...
 
 class Backface:
@@ -554,6 +637,9 @@ class Element:
         ...
 
     def alignSelf(self, alignment: _t.AlignLike) -> Element:
+        ...
+
+    def annotate(self, reading: Annotation) -> Element:
         ...
 
     def appear(self, entrance: _sigil.motion.Transition) -> Element:

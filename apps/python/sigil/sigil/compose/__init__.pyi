@@ -3,6 +3,7 @@ from typing import overload
 
 from _sigil.compose import (
     Align,
+    Annotation,
     Backface,
     Boundary,
     Cache,
@@ -65,6 +66,7 @@ def column(*children: Element) -> Element: ...
 
 __all__ = [
     "Align",
+    "Annotation",
     "Backface",
     "Boundary",
     "Cache",

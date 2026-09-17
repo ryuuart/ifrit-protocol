@@ -1,0 +1,6 @@
+namespace coverage;
+table Reading {
+  label:string;
+  value:double;
+}
+root_type Reading;

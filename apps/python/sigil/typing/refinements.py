@@ -49,6 +49,20 @@ erased("_sigil.weave.Type", "color", "_t.ColorLike | None")
 returns("_sigil.io.Hub", "blob fetch", "bytes | None")
 returns("_sigil.io.Feed", "latest", "bytes | None")
 erased("_sigil.io.Hub", "write", "collections.abc.Buffer")
+erased("_sigil.io.ResourceLease", "__exit__", "object", "object", "object")
+signatures(
+    "_sigil.io.Hub",
+    "load",
+    """@typing.overload
+def load(self, type: type[_sigil.data.Table], uri: str) -> _sigil.data.Table | None: ...
+@typing.overload
+def load(self, type: type[_sigil.data.Json], uri: str) -> _sigil.data.Json | None: ...
+@typing.overload
+def load(self, type: type[_sigil.data.Database], uri: str) -> _sigil.data.Database | None: ...
+@typing.overload
+def load(self, type: type[_sigil.image.ImageAsset], uri: str) -> _sigil.image.ImageAsset | None: ...
+""",
+)
 erased("_sigil.io.Arrival", "__init__ bytes", "collections.abc.Buffer")
 erased("_sigil.io.Feed", "deliver send sendTo", "collections.abc.Buffer")
 erased("_sigil.io.SharedMemoryWriter", "write", "collections.abc.Buffer")
@@ -100,6 +114,16 @@ for operator in ("__or__", "__and__"):
     )
 erased("_sigil.weave.Decoration", "color", "_t.ColorLike")
 erased("_sigil.weave.PaintLayer", "offset blurred", "_t.PointLike")
+erased("_sigil.weave.kit", "dropShadow", "_t.ColorLike", "_t.PointLike")
+erased("_sigil.weave.kit", "glow outline", "_t.ColorLike")
+for name in ("BlockFlow", "VerticalBlockFlow", "ExclusionFlow"):
+    erased(f"_sigil.weave.{name}", "__init__", "_t.RectLike")
+erased("_sigil.weave.silhouette", "rectangle circle ellipse coverage", "_t.RectLike")
+erased("_sigil.weave.Beside", "base", "_t.RectLike")
+erased("_sigil.weave.Exclusion", "offset", "_t.PointLike")
+erased("_sigil.weave.LineInterval", "origin direction", "_t.PointLike")
+erased("_sigil.weave", "layoutSingleLine", "_t.PointLike")
+erased("_sigil.weave", "layoutWarichu", "_t.RectLike")
 for field, item in (
     ("decorations", "Decoration"),
     ("underlays", "PaintLayer"),
@@ -298,7 +322,35 @@ PARAMETERS["_sigil.data.Column.__init__"] = {
 returns("_sigil.data.Column", "__getitem__ at", "_t.CellValue")
 returns("_sigil.data.Column", "values", "list[_t.CellValue]")
 returns("_sigil.data.Group", "key", "_t.CellValue")
-returns("_sigil.data.Database", "open fromBytes", "Database | None")
+returns("_sigil.data.Database", "fromBytes", "Database")
+erased("_sigil.data", "encodeOsc encodeMidi encodeArtNet", "_t.JsonInput")
+
+erased("_sigil.material.Color", "__init__", "_t.ColorLike")
+returns("_sigil.material.Color", "__iter__", "collections.abc.Iterator[float]")
+returns("_sigil.material.Palette", "__iter__", "collections.abc.Iterator[Color]")
+erased("_sigil.material.RampStop", "__init__ color", "_t.ColorLike")
+for name in ("__init__", "entries"):
+    PARAMETERS[f"_sigil.material.Palette.{name}"] = {
+        "entries"
+        if name == "__init__"
+        else "value": "collections.abc.Iterable[_t.ColorLike]"
+    }
+PARAMETERS["_sigil.material.palette"] = {
+    "pixels": "collections.abc.Iterable[_t.ColorLike]"
+}
+erased(
+    "_sigil.material",
+    "toOklab toOklch toLab luminance withAlpha scale lighten rotateHue harmony closestEntry",
+    "_t.ColorLike",
+)
+erased(
+    "_sigil.material",
+    "mixLinear lerpOklab mixToward deltaE",
+    "_t.ColorLike",
+    "_t.ColorLike",
+)
+erased("_sigil.material.Dither", "at", "_t.ColorLike")
+erased("_sigil.material.field", "halftoneRamp", "_t.ColorLike")
 PARAMETERS["_sigil.data.Database.open"] = {
     "path": "os.PathLike[str] | os.PathLike[bytes] | str | bytes"
 }

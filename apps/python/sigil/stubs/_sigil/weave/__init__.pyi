@@ -5,9 +5,112 @@ import _sigil._types as _t
 import builtins
 import collections.abc
 import typing
+import _sigil.draw
 import _sigil.skia
+from . import kit
 from . import selectors
-__all__: list[str] = ['Block', 'Decoration', 'FontFeature', 'FontVariation', 'FrameOptions', 'HangingEdge', 'HangingTable', 'HyphenationLimits', 'HyphenationOptions', 'IndentOptions', 'InitialLetter', 'JustificationOptions', 'KeepOptions', 'KinsokuTable', 'Leading', 'Length', 'LineBreakStrategy', 'MojikumiClass', 'MojikumiTable', 'PaintLayer', 'PaintStyle', 'ParagraphStyle', 'ReservedBand', 'RichText', 'Rule', 'Selector', 'ShapingStyle', 'Story', 'StyleSheet', 'TabStop', 'TabStopOptions', 'TextAlignment', 'TextStyle', 'TextTransform', 'Type', 'TypeSheet', 'Unit', 'VerticalForm', 'WritingMode', 'em', 'initialType', 'lh', 'rem', 'rich', 'rule', 'selectors', 'textStyle', 'toParagraphStyle', 'typeface']
+from . import silhouette
+__all__: list[str] = ['Band', 'Beside', 'Block', 'BlockFlow', 'CharRange', 'ColumnMetrics', 'Decoration', 'Exclusion', 'ExclusionFlow', 'FlowAxis', 'FlowGeometry', 'FontContext', 'FontFeature', 'FontStats', 'FontVariation', 'FrameOptions', 'GlyphFit', 'HangingEdge', 'HangingTable', 'HyphenationLimits', 'HyphenationOptions', 'Hyphenator', 'IndentOptions', 'InitialLetter', 'JustificationOptions', 'KeepOptions', 'KinsokuTable', 'KnuthPlassOptions', 'Leading', 'Length', 'LineBreakStrategy', 'LineInterval', 'LineMetrics', 'LineMetricsOptions', 'LineRequest', 'LineSetFlow', 'MarkerSet', 'MojikumiClass', 'MojikumiTable', 'OverflowOptions', 'PaintLayer', 'PaintStyle', 'Paragraph', 'ParagraphBuilder', 'ParagraphLayout', 'ParagraphLayoutOptions', 'ParagraphStyle', 'PathFlow', 'PathTextOptions', 'PlacedInitial', 'Placeholder', 'ReservedBand', 'RichText', 'Rule', 'Selector', 'ShapingStyle', 'Silhouette', 'Span', 'Story', 'Strut', 'StyleSheet', 'StyleSpan', 'TabStop', 'TabStopOptions', 'TextAlignment', 'TextEdit', 'TextStyle', 'TextTransform', 'Type', 'TypeSheet', 'Unit', 'VerticalBlockFlow', 'VerticalForm', 'WarichuSplit', 'WritingMode', 'bandBeside', 'em', 'findAllOccurrences', 'findRegexMatches', 'initialType', 'kit', 'layoutBeside', 'layoutParagraph', 'layoutSingleLine', 'layoutWarichu', 'lh', 'rem', 'rich', 'rule', 'selectors', 'shareOfReading', 'silhouette', 'textStyle', 'toParagraphStyle', 'typeface', 'warichuSplit', 'wordRanges']
+
+class Band:
+
+    def __init__(self, *, end: typing.SupportsFloat=..., start: typing.SupportsFloat=...) -> None:
+        ...
+
+    def copy(self) -> Band:
+        ...
+
+    @property
+    def end(self) -> float:
+        ...
+
+    @end.setter
+    def end(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def start(self) -> float:
+        ...
+
+    @start.setter
+    def start(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+class Beside:
+
+    class Side:
+        """
+        Members:
+
+          Before
+
+          After
+        """
+        After: typing.ClassVar[Beside.Side]
+        Before: typing.ClassVar[Beside.Side]
+        __members__: typing.ClassVar[dict[str, Beside.Side]]
+
+        def __eq__(self, other: builtins.object) -> bool:
+            ...
+
+        def __getstate__(self) -> int:
+            ...
+
+        def __hash__(self) -> int:
+            ...
+
+        def __index__(self) -> int:
+            ...
+
+        def __init__(self, value: typing.SupportsInt) -> None:
+            ...
+
+        def __int__(self) -> int:
+            ...
+
+        def __ne__(self, other: builtins.object) -> bool:
+            ...
+
+        def __repr__(self) -> str:
+            ...
+
+        def __setstate__(self, state: typing.SupportsInt) -> None:
+            ...
+
+        def __str__(self) -> str:
+            ...
+
+        @property
+        def name(self) -> str:
+            ...
+
+        @property
+        def value(self) -> int:
+            ...
+    side: Beside.Side
+    writingMode: WritingMode
+
+    def __init__(self, *, side: Beside.Side=..., writingMode: WritingMode=..., base: _t.RectLike=..., gap: typing.SupportsFloat=...) -> None:
+        ...
+
+    def copy(self) -> Beside:
+        ...
+
+    @property
+    def base(self) -> _sigil.skia.Rect:
+        ...
+
+    @base.setter
+    def base(self, value: _t.RectLike, /) -> None:
+        ...
+
+    @property
+    def gap(self) -> float:
+        ...
+
+    @gap.setter
+    def gap(self, value: typing.SupportsFloat, /) -> None:
+        ...
 
 class Block:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
@@ -74,6 +177,68 @@ class Block:
 
     @widowLines.setter
     def widowLines(self, value: typing.SupportsInt | None, /) -> None:
+        ...
+
+class BlockFlow(FlowGeometry):
+
+    def __init__(self, bounds: _t.RectLike) -> None:
+        ...
+
+class CharRange:
+
+    def __init__(self, *, end: typing.SupportsInt=..., start: typing.SupportsInt=...) -> None:
+        ...
+
+    def copy(self) -> CharRange:
+        ...
+
+    @property
+    def end(self) -> int:
+        ...
+
+    @end.setter
+    def end(self, value: typing.SupportsInt, /) -> None:
+        ...
+
+    @property
+    def start(self) -> int:
+        ...
+
+    @start.setter
+    def start(self, value: typing.SupportsInt, /) -> None:
+        ...
+
+class ColumnMetrics:
+
+    def rect(self) -> _sigil.skia.Rect:
+        ...
+
+    @property
+    def axis(self) -> float:
+        ...
+
+    @property
+    def bottom(self) -> float:
+        ...
+
+    @property
+    def lineIndex(self) -> int:
+        ...
+
+    @property
+    def pitch(self) -> float:
+        ...
+
+    @property
+    def textBegin(self) -> int:
+        ...
+
+    @property
+    def textEnd(self) -> int:
+        ...
+
+    @property
+    def top(self) -> float:
         ...
 
 class Decoration:
@@ -273,6 +438,143 @@ class Decoration:
     def thickness(self, value: typing.SupportsFloat, /) -> None:
         ...
 
+class Exclusion:
+    shape: Silhouette
+
+    def __init__(self, *, shape: Silhouette=..., margin: typing.SupportsFloat=..., offset: _t.PointLike=...) -> None:
+        ...
+
+    def copy(self) -> Exclusion:
+        ...
+
+    @property
+    def margin(self) -> float:
+        ...
+
+    @margin.setter
+    def margin(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def offset(self) -> _sigil.skia.Point:
+        ...
+
+    @offset.setter
+    def offset(self, value: _t.PointLike, /) -> None:
+        ...
+
+class ExclusionFlow(FlowGeometry):
+
+    def __init__(self, bounds: _t.RectLike, axis: FlowAxis=...) -> None:
+        ...
+
+    def axis(self) -> FlowAxis:
+        ...
+
+    def bounds(self) -> _sigil.skia.Rect:
+        ...
+
+    def setMinimumIntervalWidth(self, minimumWidth: typing.SupportsFloat) -> None:
+        ...
+
+    @property
+    def exclusions(self) -> list[Exclusion]:
+        ...
+
+    @exclusions.setter
+    def exclusions(self, value: collections.abc.Sequence[Exclusion], /) -> None:
+        ...
+
+class FlowAxis:
+    """
+    Members:
+
+      Lines
+
+      Columns
+    """
+    Columns: typing.ClassVar[FlowAxis]
+    Lines: typing.ClassVar[FlowAxis]
+    __members__: typing.ClassVar[dict[str, FlowAxis]]
+
+    def __eq__(self, other: builtins.object) -> bool:
+        ...
+
+    def __getstate__(self) -> int:
+        ...
+
+    def __hash__(self) -> int:
+        ...
+
+    def __index__(self) -> int:
+        ...
+
+    def __init__(self, value: typing.SupportsInt) -> None:
+        ...
+
+    def __int__(self) -> int:
+        ...
+
+    def __ne__(self, other: builtins.object) -> bool:
+        ...
+
+    def __repr__(self) -> str:
+        ...
+
+    def __setstate__(self, state: typing.SupportsInt) -> None:
+        ...
+
+    def __str__(self) -> str:
+        ...
+
+    @property
+    def name(self) -> str:
+        ...
+
+    @property
+    def value(self) -> int:
+        ...
+
+class FlowGeometry:
+
+    def lineIntervals(self, request: LineRequest) -> list[LineInterval] | None:
+        ...
+
+    def uniformIntervals(self) -> bool:
+        ...
+
+class FontContext:
+
+    def __init__(self, defaultTypeface: _sigil.skia.Typeface | None=None) -> None:
+        ...
+
+    def defaultTypeface(self) -> _sigil.skia.Typeface:
+        ...
+
+    def glyphAdvanceEm(self, base: _sigil.skia.Typeface, glyph: typing.SupportsInt, vertical: bool=False) -> float:
+        ...
+
+    def purgeAllCaches(self) -> None:
+        ...
+
+    def purgeShapeCache(self) -> None:
+        ...
+
+    def resetStats(self) -> None:
+        ...
+
+    def resolveTypeface(self, primaryTypeface: _sigil.skia.Typeface, codePoint: typing.SupportsInt, languageTag: str='') -> _sigil.skia.Typeface:
+        ...
+
+    def stats(self) -> FontStats:
+        ...
+
+    def variedTypeface(self, base: _sigil.skia.Typeface, variations: collections.abc.Sequence[FontVariation]) -> _sigil.skia.Typeface:
+        ...
+
+    def variedTypefaceCount(self) -> int:
+        ...
+
 class FontFeature:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
@@ -292,6 +594,62 @@ class FontFeature:
 
     @value.setter
     def value(self, value: typing.SupportsInt, /) -> None:
+        ...
+
+class FontStats:
+
+    def __init__(self, *, coverageQueries: typing.SupportsInt=..., fallbackQueries: typing.SupportsInt=..., opticalProfileQueries: typing.SupportsInt=..., opticalReferenceQueries: typing.SupportsInt=..., shapeCacheHits: typing.SupportsInt=..., shapeCalls: typing.SupportsInt=...) -> None:
+        ...
+
+    def copy(self) -> FontStats:
+        ...
+
+    @property
+    def coverageQueries(self) -> int:
+        ...
+
+    @coverageQueries.setter
+    def coverageQueries(self, value: typing.SupportsInt, /) -> None:
+        ...
+
+    @property
+    def fallbackQueries(self) -> int:
+        ...
+
+    @fallbackQueries.setter
+    def fallbackQueries(self, value: typing.SupportsInt, /) -> None:
+        ...
+
+    @property
+    def opticalProfileQueries(self) -> int:
+        ...
+
+    @opticalProfileQueries.setter
+    def opticalProfileQueries(self, value: typing.SupportsInt, /) -> None:
+        ...
+
+    @property
+    def opticalReferenceQueries(self) -> int:
+        ...
+
+    @opticalReferenceQueries.setter
+    def opticalReferenceQueries(self, value: typing.SupportsInt, /) -> None:
+        ...
+
+    @property
+    def shapeCacheHits(self) -> int:
+        ...
+
+    @shapeCacheHits.setter
+    def shapeCacheHits(self, value: typing.SupportsInt, /) -> None:
+        ...
+
+    @property
+    def shapeCalls(self) -> int:
+        ...
+
+    @shapeCalls.setter
+    def shapeCalls(self, value: typing.SupportsInt, /) -> None:
         ...
 
 class FontVariation:
@@ -468,6 +826,30 @@ class FrameOptions:
     def maximumInterlineSpacing(self, value: typing.SupportsFloat, /) -> None:
         ...
 
+class GlyphFit:
+
+    def __init__(self, *, glyphScale: typing.SupportsFloat=..., letterSpacing: typing.SupportsFloat=...) -> None:
+        ...
+
+    def copy(self) -> GlyphFit:
+        ...
+
+    @property
+    def glyphScale(self) -> float:
+        ...
+
+    @glyphScale.setter
+    def glyphScale(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def letterSpacing(self) -> float:
+        ...
+
+    @letterSpacing.setter
+    def letterSpacing(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
 class HangingEdge:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
     character: str
@@ -594,6 +976,11 @@ class HyphenationOptions:
 
     @zone.setter
     def zone(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+class Hyphenator:
+
+    def breakPoints(self, word: str, languageTag: str) -> list[int]:
         ...
 
 class IndentOptions:
@@ -984,6 +1371,38 @@ class KinsokuTable:
     def empty(self) -> bool:
         ...
 
+class KnuthPlassOptions:
+
+    def __init__(self, *, candidates: typing.SupportsInt=..., minimumIntervalWidth: typing.SupportsFloat=..., tolerance: typing.SupportsFloat=...) -> None:
+        ...
+
+    def copy(self) -> KnuthPlassOptions:
+        ...
+
+    @property
+    def candidates(self) -> int:
+        ...
+
+    @candidates.setter
+    def candidates(self, value: typing.SupportsInt, /) -> None:
+        ...
+
+    @property
+    def minimumIntervalWidth(self) -> float:
+        ...
+
+    @minimumIntervalWidth.setter
+    def minimumIntervalWidth(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def tolerance(self) -> float:
+        ...
+
+    @tolerance.setter
+    def tolerance(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
 class Leading:
 
     class Kind:
@@ -1210,6 +1629,213 @@ class LineBreakStrategy:
     def value(self) -> int:
         ...
 
+class LineInterval:
+    wrapContour: bool
+
+    def __init__(self, *, wrapContour: bool=..., advanceScale: typing.SupportsFloat=..., contourStart: typing.SupportsFloat=..., direction: _t.PointLike=..., length: typing.SupportsFloat=..., origin: _t.PointLike=...) -> None:
+        ...
+
+    def copy(self) -> LineInterval:
+        ...
+
+    @property
+    def advanceScale(self) -> float:
+        ...
+
+    @advanceScale.setter
+    def advanceScale(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def contourStart(self) -> float:
+        ...
+
+    @contourStart.setter
+    def contourStart(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def direction(self) -> _sigil.skia.Point:
+        ...
+
+    @direction.setter
+    def direction(self, value: _t.PointLike, /) -> None:
+        ...
+
+    @property
+    def length(self) -> float:
+        ...
+
+    @length.setter
+    def length(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def origin(self) -> _sigil.skia.Point:
+        ...
+
+    @origin.setter
+    def origin(self, value: _t.PointLike, /) -> None:
+        ...
+
+class LineMetrics:
+
+    def rect(self) -> _sigil.skia.Rect:
+        ...
+
+    @property
+    def ascent(self) -> float:
+        ...
+
+    @property
+    def baseline(self) -> float:
+        ...
+
+    @property
+    def descent(self) -> float:
+        ...
+
+    @property
+    def left(self) -> float:
+        ...
+
+    @property
+    def lineIndex(self) -> int:
+        ...
+
+    @property
+    def right(self) -> float:
+        ...
+
+    @property
+    def textBegin(self) -> int:
+        ...
+
+    @property
+    def textEnd(self) -> int:
+        ...
+
+class LineMetricsOptions:
+
+    def __init__(self, *, ascent: typing.SupportsFloat=..., height: typing.SupportsFloat=...) -> None:
+        ...
+
+    def copy(self) -> LineMetricsOptions:
+        ...
+
+    @property
+    def ascent(self) -> float:
+        ...
+
+    @ascent.setter
+    def ascent(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def height(self) -> float:
+        ...
+
+    @height.setter
+    def height(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+class LineRequest:
+
+    def __init__(self, *, ascent: typing.SupportsFloat=..., bandStart: typing.SupportsFloat=..., blockIndex: typing.SupportsInt=..., index: typing.SupportsInt=..., lineHeight: typing.SupportsFloat=..., lineInBlock: typing.SupportsInt=...) -> None:
+        ...
+
+    def copy(self) -> LineRequest:
+        ...
+
+    @property
+    def ascent(self) -> float:
+        ...
+
+    @ascent.setter
+    def ascent(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def bandStart(self) -> float:
+        ...
+
+    @bandStart.setter
+    def bandStart(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def blockIndex(self) -> int:
+        ...
+
+    @blockIndex.setter
+    def blockIndex(self, value: typing.SupportsInt, /) -> None:
+        ...
+
+    @property
+    def index(self) -> int:
+        ...
+
+    @index.setter
+    def index(self, value: typing.SupportsInt, /) -> None:
+        ...
+
+    @property
+    def lineHeight(self) -> float:
+        ...
+
+    @lineHeight.setter
+    def lineHeight(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def lineInBlock(self) -> int:
+        ...
+
+    @lineInBlock.setter
+    def lineInBlock(self, value: typing.SupportsInt, /) -> None:
+        ...
+
+class LineSetFlow(FlowGeometry):
+
+    def __init__(self, lines: collections.abc.Sequence[collections.abc.Sequence[LineInterval]]=[]) -> None:
+        ...
+
+    @property
+    def lines(self) -> list[list[LineInterval]]:
+        ...
+
+    @lines.setter
+    def lines(self, value: collections.abc.Sequence[collections.abc.Sequence[LineInterval]], /) -> None:
+        ...
+
+class MarkerSet:
+
+    @typing.overload
+    def __init__(self) -> None:
+        ...
+
+    @typing.overload
+    def __init__(self, paragraph: Paragraph) -> None:
+        ...
+
+    def applyPaint(self, paragraph: Paragraph, name: str, paint: PaintStyle) -> None:
+        ...
+
+    def applyStyle(self, paragraph: Paragraph, name: str, style: TextStyle) -> None:
+        ...
+
+    def rangesFor(self, name: str) -> list[CharRange] | None:
+        ...
+
+    def remove(self, name: str) -> None:
+        ...
+
+    def setRanges(self, name: str, ranges: collections.abc.Sequence[CharRange]) -> None:
+        ...
+
+    def synchronize(self, paragraph: Paragraph) -> bool:
+        ...
+
 class MojikumiClass:
     """
     Members:
@@ -1309,8 +1935,26 @@ class MojikumiTable:
     def room(self, value: typing.Annotated[collections.abc.Sequence[typing.Annotated[collections.abc.Sequence[typing.SupportsFloat], 'FixedSize(7)']], 'FixedSize(7)'], /) -> None:
         ...
 
+class OverflowOptions:
+    ellipsis: str
+
+    def __init__(self, *, ellipsis: str=..., maxLines: typing.SupportsInt=...) -> None:
+        ...
+
+    def copy(self) -> OverflowOptions:
+        ...
+
+    @property
+    def maxLines(self) -> int:
+        ...
+
+    @maxLines.setter
+    def maxLines(self, value: typing.SupportsInt, /) -> None:
+        ...
+
 class PaintLayer:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
+    material: _sigil.material.Material | None
     paint: _sigil.skia.Paint
 
     @staticmethod
@@ -1320,10 +1964,13 @@ class PaintLayer:
     def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
-    def __init__(self, *, paint: _sigil.skia.Paint=..., offset: _t.PointLike=...) -> None:
+    def __init__(self, *, material: _sigil.material.Material | None=..., paint: _sigil.skia.Paint=..., offset: _t.PointLike=...) -> None:
         ...
 
     def copy(self) -> PaintLayer:
+        ...
+
+    def resolvedPaint(self, foreground: _sigil.skia.Paint) -> _sigil.skia.Paint:
         ...
 
     @property
@@ -1388,6 +2035,242 @@ class PaintStyle:
     def underlays(self, value: collections.abc.Sequence[PaintLayer], /) -> None:
         ...
 
+class Paragraph:
+
+    @typing.overload
+    def __init__(self) -> None:
+        ...
+
+    @typing.overload
+    def __init__(self, text: str, type: Type) -> None:
+        ...
+
+    @typing.overload
+    def __init__(self, text: str, style: TextStyle) -> None:
+        ...
+
+    def appendPlaceholder(self, placeholder: Placeholder, style: TextStyle) -> None:
+        ...
+
+    def appendText(self, text: str, style: TextStyle) -> None:
+        ...
+
+    def clear(self) -> None:
+        ...
+
+    def editsSince(self, revision: typing.SupportsInt) -> list[TextEdit] | None:
+        ...
+
+    def ensureAnalyzed(self, fonts: FontContext) -> None:
+        ...
+
+    def ensureShaped(self, fonts: FontContext) -> None:
+        ...
+
+    def identity(self) -> int:
+        ...
+
+    def kinsoku(self) -> KinsokuTable:
+        ...
+
+    def lineBreakLocale(self) -> str:
+        ...
+
+    def naturalWidth(self, fonts: FontContext) -> float:
+        ...
+
+    def needsShaping(self) -> bool:
+        ...
+
+    def placeholders(self) -> list[Placeholder]:
+        ...
+
+    def replaceText(self, start: typing.SupportsInt, end: typing.SupportsInt, text: str) -> None:
+        ...
+
+    def revision(self) -> int:
+        ...
+
+    def sentenceStarts(self) -> list[int]:
+        ...
+
+    def setHyphenator(self, hyphenator: Hyphenator, limits: HyphenationLimits=...) -> None:
+        ...
+
+    def setKinsoku(self, table: KinsokuTable) -> None:
+        ...
+
+    def setLineBreakLocale(self, locale: str) -> None:
+        ...
+
+    @typing.overload
+    def setPaint(self, start: typing.SupportsInt, end: typing.SupportsInt, paint: PaintStyle) -> None:
+        ...
+
+    @typing.overload
+    def setPaint(self, ranges: collections.abc.Sequence[CharRange], paint: PaintStyle) -> None:
+        ...
+
+    def setPlaceholder(self, index: typing.SupportsInt, placeholder: Placeholder) -> None:
+        ...
+
+    def setSoftHyphenBreaks(self, enabled: bool) -> None:
+        ...
+
+    def setStyle(self, start: typing.SupportsInt, end: typing.SupportsInt, style: TextStyle) -> None:
+        ...
+
+    def setWritingMode(self, mode: WritingMode) -> None:
+        ...
+
+    def shapedWordCount(self) -> int:
+        ...
+
+    def softHyphenBreaks(self) -> bool:
+        ...
+
+    def spans(self) -> list[StyleSpan]:
+        ...
+
+    def strut(self, fonts: FontContext) -> Strut:
+        ...
+
+    def strutAt(self, fonts: FontContext, textOffset: typing.SupportsInt) -> Strut:
+        ...
+
+    def text(self) -> str:
+        ...
+
+    def wordRevision(self) -> int:
+        ...
+
+    def writingMode(self) -> WritingMode:
+        ...
+
+class ParagraphBuilder:
+
+    def __init__(self, baseStyle: TextStyle) -> None:
+        ...
+
+    def addPlaceholder(self, placeholder: Placeholder) -> ParagraphBuilder:
+        ...
+
+    def addText(self, text: str) -> ParagraphBuilder:
+        ...
+
+    def build(self) -> Paragraph:
+        ...
+
+    def popStyle(self) -> ParagraphBuilder:
+        ...
+
+    def pushStyle(self, style: TextStyle) -> ParagraphBuilder:
+        ...
+
+class ParagraphLayout:
+
+    def columnMetrics(self, paragraph: Paragraph) -> list[ColumnMetrics]:
+        ...
+
+    def draw(self, pen: _sigil.draw.Pen, paragraph: Paragraph, overridePaint: _sigil.weave.PaintStyle | None=None) -> None:
+        ...
+
+    def drawBatched(self, pen: _sigil.draw.Pen, paragraph: Paragraph, overridePaint: _sigil.weave.PaintStyle | None=None) -> None:
+        ...
+
+    def glyphOutline(self) -> _sigil.skia.Path:
+        ...
+
+    def lineMetrics(self, paragraph: Paragraph) -> list[LineMetrics]:
+        ...
+
+    def overflowed(self) -> bool:
+        ...
+
+    @property
+    def degradedBlocks(self) -> int:
+        ...
+
+    @property
+    def ellipsized(self) -> bool:
+        ...
+
+    @property
+    def firstUnplacedWord(self) -> int:
+        ...
+
+    @property
+    def initial(self) -> PlacedInitial:
+        ...
+
+    @property
+    def intervals(self) -> list[LineInterval]:
+        ...
+
+    @property
+    def lineCount(self) -> int:
+        ...
+
+    @property
+    def linePitch(self) -> float:
+        ...
+
+    @property
+    def reusedBlocks(self) -> int:
+        ...
+
+    @property
+    def tangentRotationSteps(self) -> int:
+        ...
+
+class ParagraphLayoutOptions:
+    alignment: TextAlignment
+    blockDefault: ParagraphStyle
+    frame: FrameOptions
+    hanging: HangingTable
+    hyphenation: HyphenationOptions
+    justification: JustificationOptions
+    kinsoku: KinsokuTable
+    knuthPlass: KnuthPlassOptions
+    lineBreakStrategy: LineBreakStrategy
+    lineMetrics: LineMetricsOptions
+    live: bool
+    mojikumi: MojikumiTable
+    overflow: OverflowOptions
+    pathText: PathTextOptions
+    reserved: ReservedBand
+    tabStops: TabStopOptions
+
+    def __init__(self, *, alignment: TextAlignment=..., blockDefault: ParagraphStyle=..., frame: FrameOptions=..., hanging: HangingTable=..., hyphenation: HyphenationOptions=..., justification: JustificationOptions=..., kinsoku: KinsokuTable=..., knuthPlass: KnuthPlassOptions=..., lineBreakStrategy: LineBreakStrategy=..., lineMetrics: LineMetricsOptions=..., live: bool=..., mojikumi: MojikumiTable=..., overflow: OverflowOptions=..., pathText: PathTextOptions=..., reserved: ReservedBand=..., tabStops: TabStopOptions=..., blocks: collections.abc.Sequence[ParagraphStyle]=..., nextMeasure: typing.SupportsFloat=..., tsume: typing.SupportsFloat=...) -> None:
+        ...
+
+    def copy(self) -> ParagraphLayoutOptions:
+        ...
+
+    @property
+    def blocks(self) -> list[ParagraphStyle]:
+        ...
+
+    @blocks.setter
+    def blocks(self, value: collections.abc.Sequence[ParagraphStyle], /) -> None:
+        ...
+
+    @property
+    def nextMeasure(self) -> float:
+        ...
+
+    @nextMeasure.setter
+    def nextMeasure(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def tsume(self) -> float:
+        ...
+
+    @tsume.setter
+    def tsume(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
 class ParagraphStyle:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
     alignment: _sigil.weave.TextAlignment | None
@@ -1425,6 +2308,105 @@ class ParagraphStyle:
 
     @spaceBefore.setter
     def spaceBefore(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+class PathFlow(FlowGeometry):
+
+    def __init__(self, path: _sigil.skia.Path) -> None:
+        ...
+
+    def addPath(self, path: _sigil.skia.Path) -> None:
+        ...
+
+class PathTextOptions:
+
+    def __init__(self, *, tangentRotationSteps: typing.SupportsInt=...) -> None:
+        ...
+
+    def copy(self) -> PathTextOptions:
+        ...
+
+    @property
+    def tangentRotationSteps(self) -> int:
+        ...
+
+    @tangentRotationSteps.setter
+    def tangentRotationSteps(self, value: typing.SupportsInt, /) -> None:
+        ...
+
+class PlacedInitial:
+    baseline: _sigil.skia.Point
+    box: _sigil.skia.Rect
+    placed: bool
+
+    def __init__(self, *, baseline: _sigil.skia.Point=..., box: _sigil.skia.Rect=..., placed: bool=..., bands: typing.SupportsInt=..., fontSize: typing.SupportsFloat=..., notch: typing.SupportsFloat=..., textEnd: typing.SupportsInt=...) -> None:
+        ...
+
+    def copy(self) -> PlacedInitial:
+        ...
+
+    @property
+    def bands(self) -> int:
+        ...
+
+    @bands.setter
+    def bands(self, value: typing.SupportsInt, /) -> None:
+        ...
+
+    @property
+    def fontSize(self) -> float:
+        ...
+
+    @fontSize.setter
+    def fontSize(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def notch(self) -> float:
+        ...
+
+    @notch.setter
+    def notch(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def textEnd(self) -> int:
+        ...
+
+    @textEnd.setter
+    def textEnd(self, value: typing.SupportsInt, /) -> None:
+        ...
+
+class Placeholder:
+
+    def __init__(self, *, baselineDrop: typing.SupportsFloat=..., height: typing.SupportsFloat=..., width: typing.SupportsFloat=...) -> None:
+        ...
+
+    def copy(self) -> Placeholder:
+        ...
+
+    @property
+    def baselineDrop(self) -> float:
+        ...
+
+    @baselineDrop.setter
+    def baselineDrop(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def height(self) -> float:
+        ...
+
+    @height.setter
+    def height(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def width(self) -> float:
+        ...
+
+    @width.setter
+    def width(self, value: typing.SupportsFloat, /) -> None:
         ...
 
 class ReservedBand:
@@ -1669,6 +2651,38 @@ class ShapingStyle:
     def wordSpacing(self, value: typing.SupportsFloat, /) -> None:
         ...
 
+class Silhouette:
+
+    def bandSpans(self, axis: FlowAxis, band: Band, margin: typing.SupportsFloat=0.0) -> list[Span]:
+        ...
+
+    def bounds(self) -> _sigil.skia.Rect:
+        ...
+
+class Span:
+
+    def __init__(self, *, end: typing.SupportsFloat=..., start: typing.SupportsFloat=...) -> None:
+        ...
+
+    def copy(self) -> Span:
+        ...
+
+    @property
+    def end(self) -> float:
+        ...
+
+    @end.setter
+    def end(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def start(self) -> float:
+        ...
+
+    @start.setter
+    def start(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
 class Story:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
@@ -1700,6 +2714,46 @@ class Story:
         ...
 
     def paragraphs(self, blocks: collections.abc.Sequence[ParagraphStyle]) -> Story:
+        ...
+
+class Strut:
+
+    def __init__(self, *, ascent: typing.SupportsFloat=..., capHeight: typing.SupportsFloat=..., height: typing.SupportsFloat=..., xHeight: typing.SupportsFloat=...) -> None:
+        ...
+
+    def copy(self) -> Strut:
+        ...
+
+    @property
+    def ascent(self) -> float:
+        ...
+
+    @ascent.setter
+    def ascent(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def capHeight(self) -> float:
+        ...
+
+    @capHeight.setter
+    def capHeight(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def height(self) -> float:
+        ...
+
+    @height.setter
+    def height(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def xHeight(self) -> float:
+        ...
+
+    @xHeight.setter
+    def xHeight(self, value: typing.SupportsFloat, /) -> None:
         ...
 
 class StyleSheet:
@@ -1758,6 +2812,31 @@ class StyleSheet:
         ...
 
     def types(self) -> TypeSheet:
+        ...
+
+class StyleSpan:
+    style: TextStyle
+
+    def __init__(self, *, style: TextStyle=..., end: typing.SupportsInt=..., start: typing.SupportsInt=...) -> None:
+        ...
+
+    def copy(self) -> StyleSpan:
+        ...
+
+    @property
+    def end(self) -> int:
+        ...
+
+    @end.setter
+    def end(self, value: typing.SupportsInt, /) -> None:
+        ...
+
+    @property
+    def start(self) -> int:
+        ...
+
+    @start.setter
+    def start(self, value: typing.SupportsInt, /) -> None:
         ...
 
 class TabStop:
@@ -1921,6 +3000,38 @@ class TextAlignment:
 
     @property
     def value(self) -> int:
+        ...
+
+class TextEdit:
+
+    def __init__(self, *, inserted: typing.SupportsInt=..., removed: typing.SupportsInt=..., start: typing.SupportsInt=...) -> None:
+        ...
+
+    def copy(self) -> TextEdit:
+        ...
+
+    @property
+    def inserted(self) -> int:
+        ...
+
+    @inserted.setter
+    def inserted(self, value: typing.SupportsInt, /) -> None:
+        ...
+
+    @property
+    def removed(self) -> int:
+        ...
+
+    @removed.setter
+    def removed(self, value: typing.SupportsInt, /) -> None:
+        ...
+
+    @property
+    def start(self) -> int:
+        ...
+
+    @start.setter
+    def start(self, value: typing.SupportsInt, /) -> None:
         ...
 
 class TextStyle:
@@ -2229,6 +3340,11 @@ class Unit:
     def value(self) -> int:
         ...
 
+class VerticalBlockFlow(FlowGeometry):
+
+    def __init__(self, bounds: _t.RectLike) -> None:
+        ...
+
 class VerticalForm:
     """
     Members:
@@ -2285,6 +3401,38 @@ class VerticalForm:
     def value(self) -> int:
         ...
 
+class WarichuSplit:
+
+    def __init__(self, *, advance: typing.SupportsFloat=..., band: typing.SupportsFloat=..., cutWord: typing.SupportsInt=...) -> None:
+        ...
+
+    def copy(self) -> WarichuSplit:
+        ...
+
+    @property
+    def advance(self) -> float:
+        ...
+
+    @advance.setter
+    def advance(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def band(self) -> float:
+        ...
+
+    @band.setter
+    def band(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def cutWord(self) -> int:
+        ...
+
+    @cutWord.setter
+    def cutWord(self, value: typing.SupportsInt, /) -> None:
+        ...
+
 class WritingMode:
     """
     Members:
@@ -2335,10 +3483,31 @@ class WritingMode:
     def value(self) -> int:
         ...
 
+def bandBeside(fonts: FontContext, style: TextStyle, gap: typing.SupportsFloat=0.0) -> float:
+    ...
+
 def em(value: typing.SupportsFloat) -> Length:
     ...
 
+def findAllOccurrences(paragraph: Paragraph, needle: str, scope: _sigil.weave.CharRange | None=None) -> list[CharRange]:
+    ...
+
+def findRegexMatches(paragraph: Paragraph, pattern: str, scope: _sigil.weave.CharRange | None=None) -> list[CharRange]:
+    ...
+
 def initialType() -> Type:
+    ...
+
+def layoutBeside(fonts: FontContext, reading: Paragraph, beside: Beside) -> ParagraphLayout:
+    ...
+
+def layoutParagraph(fonts: FontContext, paragraph: Paragraph, geometry: FlowGeometry, options: ParagraphLayoutOptions=..., firstWord: typing.SupportsInt=0, hyphenator: Hyphenator | None=None) -> ParagraphLayout:
+    ...
+
+def layoutSingleLine(fonts: FontContext, paragraph: Paragraph, baselineOrigin: _t.PointLike, pathText: PathTextOptions=...) -> ParagraphLayout:
+    ...
+
+def layoutWarichu(fonts: FontContext, note: Paragraph, slot: _t.RectLike, writingMode: WritingMode=...) -> ParagraphLayout:
     ...
 
 def lh(value: typing.SupportsFloat) -> Length:
@@ -2358,6 +3527,9 @@ def rich(base: TextStyle) -> RichText:
 def rule(name: str) -> Rule:
     ...
 
+def shareOfReading(reading: str, here: typing.SupportsFloat, next: typing.SupportsFloat) -> str:
+    ...
+
 def textStyle(type: Type) -> TextStyle:
     ...
 
@@ -2365,4 +3537,10 @@ def toParagraphStyle(block: Block) -> ParagraphStyle:
     ...
 
 def typeface(family: str, weight: typing.SupportsInt=400, italic: bool=False) -> _sigil.skia.Typeface:
+    ...
+
+def warichuSplit(fonts: FontContext, note: Paragraph) -> WarichuSplit:
+    ...
+
+def wordRanges(paragraph: Paragraph, fonts: FontContext) -> list[CharRange]:
     ...

@@ -1,6 +1,7 @@
 #include <sigilcore/reconcile/Environment.h>
 #include <sigildraw/Color.h>
 #include <sigildraw/Pen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilpython/Bindings.h>
 
 #include <algorithm>
@@ -18,6 +19,10 @@ namespace py = pybind11;
 
 SkColor4f color(py::handle value) {
   if (py::isinstance<SkColor4f>(value)) return py::cast<SkColor4f>(value);
+  if (py::isinstance<material::Color>(value)) {
+    const auto c = py::cast<material::Color>(value);
+    return {c.r, c.g, c.b, c.a};
+  }
   if (py::isinstance<py::str>(value))
     return draw::parseColor(py::cast<std::string>(value));
   if (!py::isinstance<py::tuple>(value) && !py::isinstance<py::list>(value))

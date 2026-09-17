@@ -1,5 +1,3 @@
-"""Native material paints and repeating pattern tiles."""
+"""Native materials, color calculations, palettes and paint factories."""
 
-from _sigil.material import Material, field, kit, pattern, skia
-
-__all__ = ["Material", "field", "kit", "pattern", "skia"]
+from _sigil.material import *

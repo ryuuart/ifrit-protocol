@@ -6,7 +6,7 @@ import collections.abc
 import typing
 import os
 import pathlib
-__all__: list[str] = ['Arrival', 'Feed', 'FeedPolicy', 'Hub', 'NetworkPolicy', 'RecordingWriter', 'ResourceInfo', 'SharedMemoryWriter', 'readRecording', 'registerGrpc', 'registerMidi', 'registerQuic', 'registerSerial', 'registerSharedMemory', 'registerTransports', 'registerUdp', 'registerWebRtc', 'registerWebSocket', 'registerWebSocketClient']
+__all__: list[str] = ['Arrival', 'Feed', 'FeedPolicy', 'Hub', 'NetworkPolicy', 'RecordingWriter', 'ResourceInfo', 'ResourceLease', 'SharedMemoryWriter', 'readRecording', 'registerGrpc', 'registerMidi', 'registerQuic', 'registerSerial', 'registerSharedMemory', 'registerTransports', 'registerUdp', 'registerWebRtc', 'registerWebSocket', 'registerWebSocketClient']
 
 class Arrival:
     from_: str
@@ -131,6 +131,9 @@ class Hub:
     def blob(self, uri: str) -> bytes | None:
         ...
 
+    def discardUnretained(self) -> int:
+        ...
+
     @typing.overload
     def dispatch(self) -> None:
         ...
@@ -148,16 +151,48 @@ class Hub:
     def fetch(self, uri: str) -> bytes | None:
         ...
 
+    @typing.overload
+    def load(self, type: type[_sigil.data.Table], uri: str) -> _sigil.data.Table | None:
+        ...
+
+    @typing.overload
+    def load(self, type: type[_sigil.data.Json], uri: str) -> _sigil.data.Json | None:
+        ...
+
+    @typing.overload
+    def load(self, type: type[_sigil.data.Database], uri: str) -> _sigil.data.Database | None:
+        ...
+
+    @typing.overload
+    def load(self, type: type[_sigil.image.ImageAsset], uri: str) -> _sigil.image.ImageAsset | None:
+        ...
+
     def mount(self, prefix: str, path: os.PathLike[str] | os.PathLike[bytes] | str | bytes) -> None:
         ...
 
     def poll(self) -> bool:
         ...
 
+    @typing.overload
+    def preload(self, selector: str) -> int:
+        ...
+
+    @typing.overload
+    def preload(self, uris: collections.abc.Sequence[str]) -> int:
+        ...
+
     def probe(self, uri: str) -> _sigil.io.ResourceInfo | None:
         ...
 
     def resolve(self, uri: str) -> pathlib.Path:
+        ...
+
+    @typing.overload
+    def retain(self, selector: str) -> ResourceLease:
+        ...
+
+    @typing.overload
+    def retain(self, selectors: collections.abc.Sequence[str]=[]) -> ResourceLease:
         ...
 
     def select(self, uri: str) -> list[str]:
@@ -247,6 +282,29 @@ class ResourceInfo:
 
     @property
     def path(self) -> pathlib.Path:
+        ...
+
+class ResourceLease:
+
+    def __enter__(self) -> ResourceLease:
+        ...
+
+    def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
+        ...
+
+    def close(self) -> None:
+        ...
+
+    def include(self, selector: str) -> int:
+        ...
+
+    def preload(self) -> int:
+        ...
+
+    def refresh(self) -> int:
+        ...
+
+    def uris(self) -> list[str]:
         ...
 
 class SharedMemoryWriter:

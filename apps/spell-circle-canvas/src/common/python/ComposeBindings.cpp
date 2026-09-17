@@ -6,6 +6,7 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Stroke.h>
 #include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/typography/Annotation.h>
 #include <sigilcompose/typography/Selector.h>
 #include <sigilcompose/typography/TextPath.h>
 #include <sigilpython/Bindings.h>
@@ -36,8 +37,9 @@ compose::VarValue variable(py::handle value) {
     const auto text = value.cast<std::string>();
     if (text != "auto" && !text.ends_with("%")) return color(value);
   }
-  if (py::isinstance<SkColor4f>(value) || py::isinstance<py::tuple>(value) ||
-      py::isinstance<py::list>(value))
+  if (py::isinstance<SkColor4f>(value) ||
+      py::isinstance<material::Color>(value) ||
+      py::isinstance<py::tuple>(value) || py::isinstance<py::list>(value))
     return color(value);
   return dimension(value);
 }
@@ -455,6 +457,19 @@ void bindCompose(py::module_& module) {
   selections.def("rest", py::overload_cast<std::string_view>(&spans::rest),
                  py::arg("name"));
 
+  auto annotation = bindRecord<Annotation>(composition, "Annotation",
+                                           "Unknown annotation field: ");
+  py::enum_<Annotation::Side>(annotation, "Side")
+      .value("Before", Annotation::Side::Before)
+      .value("After", Annotation::Side::After);
+  annotation.def_readwrite("where", &Annotation::where)
+      .def_readwrite("unit", &Annotation::unit)
+      .def_readwrite("readings", &Annotation::readings)
+      .def_readwrite("style", &Annotation::style)
+      .def_readwrite("side", &Annotation::side)
+      .def_readwrite("gap", &Annotation::gap)
+      .def_readwrite("reserve", &Annotation::reserve)
+      .def(py::self == py::self);
   auto textPath =
       bindRecord<TextPath>(composition, "TextPath", "Unknown TextPath field: ");
   py::enum_<TextPath::Align>(textPath, "Align")
@@ -747,6 +762,7 @@ void bindCompose(py::module_& module) {
             return self.echo(point(offset), color(ink));
           },
           py::arg("offset"), py::arg("ink"), fluent)
+      .def("annotate", &Element::annotate, py::arg("reading"), fluent)
       .def("effect", &Element::effect, py::arg("effect"), fluent)
       .def("backdrop", &Element::backdrop, py::arg("effect"), fluent)
       .def("appear", &Element::appear, py::arg("entrance"), fluent)

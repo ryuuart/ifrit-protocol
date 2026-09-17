@@ -4,4 +4,5 @@
 
 namespace sigil::python {
 void bindWeave(pybind11::module_& module);
+void bindWeaveLayout(pybind11::module_& module);
 }  // namespace sigil::python

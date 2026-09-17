@@ -33,6 +33,7 @@ def members(body: list[ast.stmt]) -> dict[str, ast.stmt]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--stubs", type=Path, default=HERE.parent / "stubs" / "_sigil")
+    parser.add_argument("--public", type=Path, default=HERE.parent / "sigil")
     options = parser.parse_args()
     failures: list[str] = []
     count = 0
@@ -53,6 +54,11 @@ def main() -> int:
                 continue
             count += 1
             if name not in declared:
+                if inspect.isclass(native) and any(
+                    name in base.__dict__ and base.__module__.startswith("_sigil")
+                    for base in native.__mro__[1:]
+                ):
+                    continue
                 failures.append(f"{path}.{name}: missing declaration")
                 continue
             value = getattr(native, name)
@@ -123,6 +129,25 @@ def main() -> int:
                     failures.append(f"{name}:{node.lineno}: untyped return")
                 else:
                     annotation(node.returns, f"{name}:{node.lineno}")
+    for name in ("weave", "data", "io", "material"):
+        native = importlib.import_module("_sigil." + name)
+        public = importlib.import_module("sigil." + name)
+        body = ast.parse((options.public / f"{name}.pyi").read_text()).body
+        declared = members(body)
+        if any(
+            isinstance(node, ast.ImportFrom)
+            and node.module == "_sigil." + name
+            and any(alias.name == "*" for alias in node.names)
+            for node in body
+        ):
+            declared.update({exported: body[0] for exported in dir(native)})
+        for exported in dir(native):
+            if exported.startswith("_"):
+                continue
+            if exported not in declared or not hasattr(public, exported):
+                failures.append(
+                    f"sigil.{name}.{exported}: native export missing from public package or stub"
+                )
     if failures:
         print("\n".join(failures))
         return 1

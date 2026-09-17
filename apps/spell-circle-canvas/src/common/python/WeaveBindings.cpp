@@ -1,8 +1,10 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
+#include <sigilmaterial/core/Material.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/ValueBindings.h>
 #include <sigilpython/WeaveBindings.h>
+#include <sigilweave/kit/PaintLayers.h>
 #include <sigilweave/layout/Story.h>
 #include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/query/Selector.h>
@@ -131,6 +133,18 @@ void bindWeave(py::module_& module) {
   optionalField(decoration, "paint", &Decoration::paint);
   record<PaintLayer>(text, "PaintLayer")
       .def_readwrite("paint", &PaintLayer::paint)
+      .def_property(
+          "material",
+          [](const PaintLayer& layer) -> std::optional<material::Material> {
+            if (layer.material) return *layer.material;
+            return {};
+          },
+          [](PaintLayer& layer, std::optional<material::Material> value) {
+            layer.material = value ? std::make_shared<const material::Material>(
+                                         std::move(*value))
+                                   : nullptr;
+          })
+      .def("resolvedPaint", &PaintLayer::resolvedPaint, py::arg("foreground"))
       .def_property(
           "offset", [](const PaintLayer& value) { return value.offset; },
           [](PaintLayer& value, py::object offset) {
@@ -584,6 +598,32 @@ void bindWeave(py::module_& module) {
             return selectors::regex(std::u8string(value.begin(), value.end()));
           },
           py::arg("pattern"));
+  auto kit = text.def_submodule("kit");
+  kit.def(
+      "dropShadow",
+      [](py::handle ink, py::handle offset, float blurSigma, float spread,
+         float intensity) {
+        return weave::kit::dropShadow(color(ink).toSkColor(), point(offset),
+                                      blurSigma, spread, intensity);
+      },
+      py::arg("color") = "#00000066", py::arg("offset") = py::make_tuple(2, 2),
+      py::arg("blurSigma") = 2.0f, py::arg("spread") = 0.0f,
+      py::arg("intensity") = 1.0f);
+  kit.def(
+      "glow",
+      [](py::handle ink, float blurSigma, float spread, float intensity) {
+        return weave::kit::glow(color(ink).toSkColor(), blurSigma, spread,
+                                intensity);
+      },
+      py::arg("color"), py::arg("blurSigma"), py::arg("spread") = 0.0f,
+      py::arg("intensity") = 1.0f);
+  kit.def(
+      "outline",
+      [](py::handle ink, float width, SkPaint::Join join) {
+        return weave::kit::outline(color(ink).toSkColor(), width, join);
+      },
+      py::arg("color"), py::arg("width"),
+      py::arg("join") = SkPaint::kRound_Join);
 }
 
 }  // namespace sigil::python
