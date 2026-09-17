@@ -7,6 +7,7 @@ TAGS: Data/Visualization, Drawing/Charts, Typography/Editorial
 """
 
 from sigil.compose import box, column, graphics, row, text
+from sigil.compose import document as doc
 from sigil.data import Order, Scale, Transform, decodeCsv
 from sigil.draw import CENTER, LEFT, RIGHT
 from sigil.sketch import SketchContext, sketch
@@ -117,8 +118,8 @@ class DataGarden:
                     .width(892)
                     .justify("space_between")
                     .children(
-                        label("FIELDNOTES / 08", 12, MUTED),
-                        label("CONTROLLED CULTIVATION", 11, MUTED),
+                        doc.eyebrow("FIELDNOTES / 08").fontSize(12).ink(MUTED),
+                        doc.label("CONTROLLED CULTIVATION").fontSize(11).ink(MUTED),
                     )
                 ),
                 (
@@ -131,12 +132,10 @@ class DataGarden:
                             column()
                             .gap(9)
                             .children(
-                                label("Under glass.", 48),
-                                label(
-                                    "A small trial of light, water and growth.",
-                                    15,
-                                    MUTED,
-                                ),
+                                doc.h1("Under glass.").fontSize(48).ink(INK),
+                                doc.lead("A small trial of light, water and growth.")
+                                .fontSize(15)
+                                .ink(MUTED),
                             )
                         ),
                         (
@@ -166,7 +165,7 @@ class DataGarden:
                                     .width(560)
                                     .justify("space_between")
                                     .children(
-                                        label("LIGHT × HEIGHT", 12),
+                                        doc.h2("LIGHT × HEIGHT").fontSize(12).ink(INK),
                                         legend,
                                     )
                                 ),
@@ -175,11 +174,11 @@ class DataGarden:
                                     .width(560)
                                     .height(416)
                                 ),
-                                label(
-                                    "Illustrative measurements  ·  relative light / final height in cm",
-                                    11,
-                                    MUTED,
-                                ),
+                                doc.caption(
+                                    "Illustrative measurements  ·  relative light / final height in cm"
+                                )
+                                .fontSize(11)
+                                .ink(MUTED),
                             )
                         ),
                         (box().width(1).height(448).fill(RULE)),
@@ -188,17 +187,15 @@ class DataGarden:
                             .width(276)
                             .gap(15)
                             .children(
-                                label("HEIGHT / SORTED", 12),
+                                doc.h2("HEIGHT / SORTED").fontSize(12).ink(INK),
                                 (
                                     graphics("greenhouse-ranking", self.bars)
                                     .width(276)
                                     .height(416)
                                 ),
-                                label(
-                                    "NATIVE TABLE → SORT → BAND SCALE",
-                                    9,
-                                    MUTED,
-                                ),
+                                doc.footer("NATIVE TABLE → SORT → BAND SCALE")
+                                .fontSize(9)
+                                .ink(MUTED),
                             )
                         ),
                     )

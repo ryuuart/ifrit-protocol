@@ -27,6 +27,7 @@
 // TAGS: Patterns/Tiling
 
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/pattern/Tile.h>
@@ -135,8 +136,8 @@ struct PatternSequence {
              "Keep the Tile with your assets. Copies share its bake; scale, "
              "rotation, offset and filtering alter how that bake is sampled."},
         box().column().gap(22).children(
-            {text("01 / CHANGE THE PROGRAM · A DISTINCT BAKE FOR EACH CASE")
-                 .styleClass("section"),
+            {document::h2(
+                 "01 / CHANGE THE PROGRAM · A DISTINCT BAKE FOR EACH CASE"),
              sketch::kit::comparison(
                  {.cases = {{.title = "FOUR RUNS",
                              .control = "sequence · 26 + 7 + 14 + 5 px",
@@ -164,8 +165,7 @@ struct PatternSequence {
                                      "simpler spelling."}},
                   .measure = 1120,
                   .gap = 16}),
-             text("02 / CHANGE THE SAMPLING · REUSE THE EXISTING BAKE")
-                 .styleClass("section"),
+             document::h2("02 / CHANGE THE SAMPLING · REUSE THE EXISTING BAKE"),
              sketch::kit::comparison(
                  {.cases =
                       {{.title = "PAN",

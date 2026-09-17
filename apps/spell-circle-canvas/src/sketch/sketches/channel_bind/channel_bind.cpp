@@ -46,6 +46,7 @@
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildata/connection/Connection.h>
 #include <sigilio/hub/Hub.h>
@@ -408,14 +409,12 @@ struct ChannelBind {
    *  arrived, how much of it was no OSC packet at all, and the sentence
    *  saying why there is no door where there is none. */
   compose::Element door() {
-    return compose::text(
-               compose::kit::formatted(
-                   "%s   ·   arrivals %llu   ·   undecodable %llu"
-                   "   ·   %s",
-                   kDesk, (unsigned long long)shown.generation,
-                   (unsigned long long)shown.undecodable,
-                   shown.trouble.empty() ? "listening" : shown.trouble.c_str()))
-        .styleClass("captionNote");
+    return compose::document::caption(compose::kit::formatted(
+        "%s   ·   arrivals %llu   ·   undecodable %llu"
+        "   ·   %s",
+        kDesk, (unsigned long long)shown.generation,
+        (unsigned long long)shown.undecodable,
+        shown.trouble.empty() ? "listening" : shown.trouble.c_str()));
   }
 };
 

@@ -1,6 +1,7 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/kit/Board.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Ground.h>
 #include <sigilsketch/kit/Panel.h>
 
@@ -15,7 +16,6 @@ using compose::Corners;
 using compose::Dimension;
 using compose::Element;
 using compose::Fill;
-using compose::text;
 
 compose::Element backdrop(const Backdrop& ground) {
   const Theme& look = theme();
@@ -82,8 +82,9 @@ compose::Element frame(const Frame& chrome, compose::Element screen) {
     shell.corners(Corners{round});
   shell.children({std::move(opening)});
   if (!chrome.plate.empty())
-    shell.children({text(chrome.plate,
-                         look.style(look.type.eyebrow, look.palette.ash))
+    shell.children({compose::document::eyebrow(chrome.plate)
+                        .role(weave::rule("eyebrow").font(
+                            look.font(look.type.eyebrow, look.palette.ash)))
                         .margin(0, bezel * 0.5f, 0, 0)
                         .alignSelf(Align::Center)});
   return shell;

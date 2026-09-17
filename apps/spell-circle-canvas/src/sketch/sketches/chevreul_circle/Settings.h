@@ -308,7 +308,8 @@ inline const weave::StyleSheet& classes() {
   static const weave::StyleSheet look =
       sheet()
           .styleSheet()
-          .set("heading", {.size = 8.5f, .color = kInk, .track = 0.5f})
+          .set("heading",
+               {.face = mono(), .size = 8.5f, .color = kInk, .track = 0.5f})
           .set("note", {.size = 7.0f, .track = 0.2f})
           .set("column", {.size = 6.5f, .track = 0.2f})
           .set("readout", {.size = 8.0f, .track = 0.2f})

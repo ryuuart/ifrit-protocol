@@ -39,6 +39,7 @@
 
 // TAGS: Typography/CJK
 
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
@@ -179,7 +180,7 @@ struct Bousen {
         .font({.size = 10})
         .ink(bs::kUsu)
         .children(
-            {text(std::move(passage))
+            {document::paragraph(std::move(passage))
                  .absolute()
                  .right(bs::kBlockRight)
                  .top(96)
@@ -229,14 +230,15 @@ struct Bousen {
                          .children({kit::at(box().key("leader").absolute().fill(
                                                 Fill::color(bs::kAka)),
                                             0.0f, 42.0f, 168.0f, 1.0f),
-                                    text(weave::rich()
-                                             .add("mark() ",
-                                                  weave::Type{.size = 11,
-                                                              .color = bs::kAka,
-                                                              .track = 1})
-                                             .add("— anchored to "
-                                                  "the phrase,\nnot to a "
-                                                  "coordinate"))
+                                    document::paragraph(
+                                        weave::rich()
+                                            .add("mark() ",
+                                                 weave::Type{.size = 11,
+                                                             .color = bs::kAka,
+                                                             .track = 1})
+                                            .add("— anchored to "
+                                                 "the phrase,\nnot to a "
+                                                 "coordinate"))
                                         .width(150.0f)})),
              // The plate names itself in the other writing mode, so the two
              // stand side by side.
@@ -249,10 +251,10 @@ struct Bousen {
                      {text("傍線", bs::body(44, bs::kSumi)),
                       kit::line({.length = Dimension(120),
                                  .fill = Fill::color(bs::kAka)}),
-                      text("THE COLUMN'S FURNITURE")
+                      document::eyebrow("THE COLUMN'S FURNITURE")
                           .font({.size = 13, .color = bs::kAi, .track = 3}),
-                      text("a band beside the column, not beneath a\n"
-                           "line · a mark on the phrase it names")
+                      document::lead("a band beside the column, not beneath a\n"
+                                     "line · a mark on the phrase it names")
                           .font({.size = 13, .color = bs::kSumi, .track = 0.4f})
                           .width(260.0f),
                       box().height(20.0f),
@@ -262,9 +264,10 @@ struct Bousen {
                            specimen("valt · vpal · vkna",
                                     bs::columnFitted(26, bs::kAka))}),
                       box().height(14.0f),
-                      text("the pair is one string set twice: the "
-                           "second asks\nthe face for the metrics it "
-                           "keeps for a column")
+                      document::caption(
+                          "the pair is one string set twice: the "
+                          "second asks\nthe face for the metrics it "
+                          "keeps for a column")
                           .font({.size = 11})
                           .width(300.0f)}),
              // The cascade lives on its own strip, and it wears a band. A track
@@ -311,8 +314,8 @@ struct Bousen {
                             bandSpecimen("HIGHLIGHT · PITCH",
                                          weave::Decoration::Kind::kHighlight,
                                          bs::kAiWash, 0)}),
-             text("the entrance beats over COLUMNS · a band is "
-                  "beside the column, never beneath a line")
+             document::paragraph("the entrance beats over COLUMNS · a band is "
+                                 "beside the column, never beneath a line")
                  .font({.size = 12})
                  .absolute()
                  .inset(64, bs::kH - 44, 0, 0)});

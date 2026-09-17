@@ -1,9 +1,12 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilsketch/kit/Legend.h>
 
 #include <cstddef>
 #include <utility>
+
+#include "DocumentInk.h"
 
 namespace sigil::sketch::kit {
 
@@ -13,7 +16,7 @@ using compose::Corners;
 using compose::Dimension;
 using compose::Element;
 using compose::Fill;
-using compose::text;
+namespace document = compose::document;
 
 namespace {
 
@@ -21,14 +24,17 @@ namespace {
  *  where the entry says so, the note in the quiet ash either way. */
 void words(Element& line, const LegendEntry& entry) {
   const Theme& look = theme();
-  if (!entry.label.empty())
-    line.children(
-        {text(entry.label,
-              look.style(look.type.captionNote,
-                         entry.ink.value_or(Fill::color(look.palette.ink))))});
+  if (!entry.label.empty()) {
+    Element label = document::label(entry.label)
+                        .role(weave::rule("label").font(look.font(
+                            look.type.captionNote, look.palette.ink)));
+    if (entry.ink) detail::documentInk(label, *entry.ink);
+    line.children({std::move(label)});
+  }
   if (!entry.note.empty())
-    line.children({text(entry.note,
-                        look.style(look.type.captionNote, look.palette.ash))});
+    line.children({document::caption(entry.note)
+                       .role(weave::rule("caption").font(look.font(
+                           look.type.captionNote, look.palette.ash)))});
 }
 
 /** The beat the entry rides in on, where it has one. */
@@ -106,18 +112,17 @@ compose::Element swatchStrip(const SwatchStrip& strip) {
     // The word stands under its own swatch and takes the swatch's width,
     // so a strip that names only its ends keeps its steps butted; a step
     // whose number is the measurement says so with its own ink.
-    const Fill ink = i < strip.inks.size() ? strip.inks[i] : Fill{};
-    Element step =
-        box()
-            .column()
-            .alignItems(Align::Center)
-            .children({std::move(patch)})
-            .children({text(strip.labels[i],
-                            look.style(look.type.eyebrow,
-                                       ink.kind == Fill::Kind::None
-                                           ? Fill::color(look.palette.ash)
-                                           : ink))
-                           .margin(0, look.spacing.captionNoteGap, 0, 0)});
+    Element label = document::eyebrow(strip.labels[i])
+                        .role(weave::rule("eyebrow").font(
+                            look.font(look.type.eyebrow, look.palette.ash)));
+    if (i < strip.inks.size() && strip.inks[i].kind != Fill::Kind::None)
+      detail::documentInk(label, strip.inks[i]);
+    Element step = box()
+                       .column()
+                       .alignItems(Align::Center)
+                       .children({std::move(patch)})
+                       .children({std::move(label.margin(
+                           0, look.spacing.captionNoteGap, 0, 0))});
     if (strip.appear) step.appear(*strip.appear);
     run.children({std::move(step)});
   }
@@ -129,9 +134,10 @@ compose::Element chip(const Chip& tag) {
   Element plate =
       box().padding(look.spacing.chipPaddingX, look.spacing.chipPaddingY);
   tag.ground.value_or(Fill::color(look.palette.figure)).apply(plate);
-  plate.children({text(
-      tag.label, look.style(look.type.eyebrow, tag.ink.value_or(Fill::color(
-                                                   look.palette.ground))))});
+  Element label = document::eyebrow(tag.label).role(weave::rule("eyebrow").font(
+      look.font(look.type.eyebrow, look.palette.ground)));
+  if (tag.ink) detail::documentInk(label, *tag.ink);
+  plate.children({std::move(label)});
   if (const float round = tag.corners.value_or(look.spacing.chipCorners);
       round > 0)
     plate.corners(Corners{round});

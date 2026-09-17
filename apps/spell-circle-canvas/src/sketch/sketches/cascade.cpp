@@ -9,6 +9,7 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcore/reconcile/Environment.h>
 #include <sigildraw/Pen.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -85,13 +86,14 @@ Element editorialCard(bool cooled) {
                           box().grow(),
                           box().width(42).height(42).stroke(stroke(1.5f)),
                           box().width(42).height(42).fill(Fill::currentInk())}),
-           text(weave::rich()
-                    .add(u8"The base inherits. ")
-                    .add(u8"This run changes only color. ",
-                         weave::Type{.color = kTeal})
-                    .add(u8"A whole style stands alone.",
-                         weave::textStyle(
-                             {.size = 12, .color = kPale, .track = 0})))
+           document::paragraph(
+               weave::rich()
+                   .add(u8"The base inherits. ")
+                   .add(u8"This run changes only color. ",
+                        weave::Type{.color = kTeal})
+                   .add(u8"A whole style stands alone.",
+                        weave::textStyle(
+                            {.size = 12, .color = kPale, .track = 0})))
                .width(612),
            box().row().gap(22).children(
                {box()
@@ -229,7 +231,7 @@ struct Cascade {
         sketch::kit::well({.width = 332, .height = 328, .padding = 22})
             .column()
             .gap(24)
-            .children({text("WHAT THE CARD INHERITS").styleClass("eyebrow"),
+            .children({document::eyebrow("WHAT THE CARD INHERITS"),
                        sketch::kit::readout(
                            {{.name = "Base type", .value = "14 px"},
                             {.name = "Figure class", .value = "48 px"},
@@ -238,10 +240,10 @@ struct Cascade {
                             {.name = "Gutter property", .value = "12 px"},
                             {.name = "Relative type", .value = "21 px"}},
                            {.measure = 288, .ruled = true}),
-                       text("Watch the number, outline and filled square ease "
-                            "together. Their color comes from one ancestor.")
-                           .width(288)
-                           .styleClass("captionNote")});
+                       document::caption(
+                           "Watch the number, outline and filled square ease "
+                           "together. Their color comes from one ancestor.")
+                           .width(288)});
     return sketch::kit::page(
         {.title = "What flows through a composition",
          .subtitle = "One card, one parent voice · local declarations change "

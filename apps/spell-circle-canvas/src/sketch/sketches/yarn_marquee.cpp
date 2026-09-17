@@ -56,6 +56,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Measure.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
@@ -309,8 +310,8 @@ struct YarnMarquee {
                                   "hung", &hung)},
                   .gap = 20}),
              box().column().gap(10).children(
-                 {text("READING THE RAIL · 16 equally spaced stations")
-                      .styleClass("eyebrow"),
+                 {document::eyebrow(
+                      "READING THE RAIL · 16 equally spaced stations"),
                   sketch::kit::cells(
                       {.cells = {sketch::kit::caption(
                                      kPanel, "Transported orientation",

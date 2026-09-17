@@ -268,4 +268,20 @@ TEST(SketchKitRows, BarsReadTwoColumnsOfATable) {
       sameDrawing(compose::box(), kit::bars(cities, "city", "deaths", {})));
 }
 
+TEST(SketchKitRows, AReadoutClassKeepsTheParagraphRoleAndOverridesItsType) {
+  const kit::Theme& house = kit::houseTheme();
+  const sigil::weave::StyleSheet sheet{
+      sigil::weave::rule("readout").font(
+          house.font(house.type.captionLabel, SkColors::kBlue)),
+      sigil::weave::rule("paragraph")
+          .font({.size = 32, .color = SkColors::kRed})
+          .block({.leading = sigil::weave::Leading::multiple(2.0f)})};
+  const auto under = [&](Element content) {
+    return compose::box().styleSheet(sheet).children({std::move(content)});
+  };
+  EXPECT_TRUE(sameDrawing(
+      under(compose::kit::figure("AAAA\nAAAA")),
+      under(kit::labelRow({.value = "AAAA\nAAAA"}, {.measure = 0}))));
+}
+
 }  // namespace

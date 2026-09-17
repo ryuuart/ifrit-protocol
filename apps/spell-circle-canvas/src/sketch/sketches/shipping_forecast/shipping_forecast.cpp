@@ -145,6 +145,7 @@
 // TAGS: Typography/Effects, Motion/Transitions
 
 #include <sigilcompose/brush/Adaptors.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
@@ -358,7 +359,7 @@ struct ShippingForecast {
    *  own beat. */
   [[nodiscard]] Element eyebrow(const Utf8& words, const char* key, float from,
                                 float to) {
-    return text(words).styleClass("eyebrow").key(key).opacity(beat(from, to));
+    return document::eyebrow(words).key(key).opacity(beat(from, to));
   }
 
   // ------------------------------------------------------------------
@@ -649,7 +650,7 @@ struct ShippingForecast {
 
     return box().column().gap(9).children({
         eyebrow(page["eyebrow"], "fc-eyebrow", 1.50f, 2.10f),
-        text(copy)
+        document::paragraph(copy)
             .font({.size = 19.5f})
             .key("forecast")
             .width(pct(100))
@@ -728,7 +729,7 @@ struct ShippingForecast {
 
     return box().column().gap(9).children({
         eyebrow(page["eyebrow"], "syn-eyebrow", 2.60f, 3.10f),
-        text(copy)
+        document::paragraph(copy)
             .font({.size = 19.5f})
             .key("synopsis")
             .width(pct(100))
@@ -786,9 +787,7 @@ struct ShippingForecast {
         .gap(9)
         .opacity(beat(3.20f, 3.80f))
         .children({
-            text(doc["beaufort"]["eyebrow"])
-                .styleClass("eyebrow")
-                .key("bf-eyebrow"),
+            document::eyebrow(doc["beaufort"]["eyebrow"]).key("bf-eyebrow"),
             box()
                 .row()
                 .gap(6)

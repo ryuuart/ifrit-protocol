@@ -77,7 +77,7 @@ auto Minard1869::setup(sketch::SketchContext& ctx) -> void {
   cardLook.type.captionLabel = {9.5f, 0};
   cardLook.type.captionNote = {9.5f, 0};
   cardSheet = cardLook.styleSheet();
-  cardSheet.set("title", partial(faceUiBold, 15, kCardInk, 1.6f));
+  cardSheet.set("h1", partial(faceUiBold, 15, kCardInk, 1.6f));
   cardSheet.set("measured", weave::Type{.color = kBlue});
   cardSheet.set("amber", weave::Type{.color = kAmber});
   cardSheet.set("grey", weave::Type{.color = hexColor(0x6d675c, 0.45f)});

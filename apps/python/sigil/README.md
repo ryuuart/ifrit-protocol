@@ -751,6 +751,59 @@ A neutral `Caption` or `Sheet` can replace its native line part with a
 Python callable accepting no arguments, the text, or the text and props.
 The props passed to that callable are an owned native copy.
 
+## Documents and role styling
+
+`sigil.compose.document` supplies native document components with a default
+type hierarchy: `article`, `section`, `h1` through `h6`, `paragraph`, `lead`,
+`caption`, `label`, `eyebrow`, `footer`, `code`, `quote`, `list`, `item`,
+`figure` and `rule`. Each returns the ordinary native `Element` and accepts
+its fluent properties. A component carries a semantic role independently of
+any extra `styleClass` names the author gives it.
+
+```python
+from sigil.compose import document as doc
+from sigil.weave import Block, Leading, StyleSheet, Type, em, rule
+
+content = doc.article(
+    doc.eyebrow("FIELD JOURNAL"),
+    doc.h1("A field worth noticing"),
+    doc.paragraph("An ordinary observation can become a small story."),
+    doc.list(doc.item("Notice the light."), doc.item("Follow its movement.")),
+    doc.quote("Let the words find a comfortable measure."),
+)
+look = StyleSheet([
+    rule("h1").font(Type(size=34, color="#88492e")),
+    rule("paragraph").block(Block(leading=Leading.multiple(1.45))),
+    rule("quote").font(Type(color="#687969")),
+])
+page = content.styleSheet(look).var(doc.measure, em(34))
+```
+
+A rule named `h1` styles every heading with that role in the subtree. Roles
+and classes have separate membership and look up the same named rules. The
+cascade applies inherited type, the component's fallback role, the sheet's
+rule for that role, authored classes, then direct `font`/`block` declarations.
+Build the children before their parent if useful; role styling resolves where
+they land. A nested stylesheet can change one region's voice. The native
+specimen theme uses `h1`, `lead`, `h2`, `label`, `caption`, `eyebrow` and `footer`
+for its document lines; its editable type-register field names remain `title`,
+`subtitle`, `captionLabel` and `captionNote`.
+
+`article` bounds the reading measure. The inherited properties `doc.measure`,
+`doc.gap`, `doc.list_gap` and `doc.quote_inset` control document geometry;
+set them with `.var(name, value)` on an ancestor or the document itself.
+Fallbacks are 38 em, 1 em, 0.4 em and 1 em respectively. A custom component can
+declare a role using `.role("notice")` or `.role(rule("notice").font(...))`
+and fallback properties with `.varDefaults({...})`. An ancestor's authored
+property takes precedence over those fallback values.
+
+Document containers accept individual Elements or one iterable, including
+lists, tuples and generators. `doc.quote("words")` is also valid;
+`doc.paragraph(rich_text)` retains a single native rich passage. `doc.item`
+accepts words or an Element body and an optional marker. These are semantic
+components; arbitrary text does not become an implicit child of an article.
+`python_document.py` shows one description under two complete role themes.
+
 ## Authoring a Python kit
 
 A kit can be an ordinary Python module exporting component functions and
@@ -1070,6 +1123,7 @@ Render one with `sigil render --example NAME -o preview.png`.
 | `python_hello` | A first drawing: a greeting, a moving circle and two constants to edit |
 | `python_hello_compose` | A first retained composition: Python component and paint factories, native themed page and entrance motion |
 | `python_type_atelier` | Mixed runs and inline objects, selector styling, initial letters, a threaded story and curved lettering |
+| `python_document` | One semantic document under two inherited role stylesheets |
 | `python_kit_specimen` | Native page and captions, stock layouts, scoped theme and deferred memo |
 | `python_motion_signals` | Shared native outputs, ticker callbacks, binding chains and keyframe entrance |
 | `python_memo_station` | Retained model descriptions, memo invalidation and native motion |

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from math import sin
 
 from sigil.compose import box, column, memo, pct, row, stroke, text
+from sigil.compose import document as doc
 from sigil.motion import Transition, animate, ease, from_
 from sigil.sketch import SketchContext, sketch
 from sigil.weave import StyleSheet, Type, rule
@@ -40,7 +41,7 @@ def instrument(reading):
         .corners(15)
         .opacity(animate(from_(0).to(1), Transition(0.4, ease.outQuad)))
         .children(
-            (text(reading.label).styleClass("label")),
+            doc.label(reading.label),
             (
                 row()
                 .gap(12)
@@ -62,7 +63,7 @@ def instrument(reading):
                 )
             ),
             marks,
-            (text("SIGNAL LOCKED").styleClass("label").ink(reading.accent)),
+            doc.label("SIGNAL LOCKED").ink(reading.accent),
         )
     ).stroke(stroke(1, "#2b463d"))
 
@@ -73,8 +74,10 @@ class MemoStation:
         self.last = None
         self.sheet = StyleSheet(
             [
-                rule("title").font(Type(size=42, weight=600)),
+                rule("h1").font(Type(size=42, weight=600)),
                 rule("label").font(Type(size=11, track=1.3, color="#789f8e")),
+                rule("eyebrow").font(Type(size=11, track=1.3, color="#789f8e")),
+                rule("footer").font(Type(size=11, track=1.3, color="#789f8e")),
                 rule("reading").font(Type(size=66, track=-2)),
                 rule("unit").font(Type(size=13, color="#789f8e")),
             ]
@@ -106,11 +109,11 @@ class MemoStation:
                     .width(864)
                     .justify("space_between")
                     .children(
-                        (text("STATION / 04").styleClass("label")),
-                        (text("LIVE READINGS").styleClass("label")),
+                        doc.eyebrow("STATION / 04"),
+                        doc.label("LIVE READINGS"),
                     )
                 ),
-                (text("A quiet signal, held in place.").styleClass("title")),
+                doc.h1("A quiet signal, held in place."),
                 (
                     row()
                     .gap(24)
@@ -123,12 +126,8 @@ class MemoStation:
                     .width(864)
                     .justify("space_between")
                     .children(
-                        (text("SENSOR ARRAY").styleClass("label")),
-                        (
-                            text("NATIVE COMPOSITION / PYTHON MODELS").styleClass(
-                                "label"
-                            )
-                        ),
+                        doc.footer("SENSOR ARRAY"),
+                        doc.footer("NATIVE COMPOSITION / PYTHON MODELS"),
                     )
                 ),
             )

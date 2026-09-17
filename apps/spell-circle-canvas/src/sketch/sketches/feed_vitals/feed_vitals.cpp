@@ -10,6 +10,7 @@
 
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildraw/Pen.h>
 #include <sigilio/hub/Feed.h>
@@ -169,9 +170,7 @@ struct FeedVitals {
                       {.width = 336, .height = 252, .padding = 22})
                       .column()
                       .gap(16)
-                      .children(
-                          {text("QUEUE HEALTH").styleClass("captionLabel"),
-                           counts()})}),
+                      .children({document::label("QUEUE HEALTH"), counts()})}),
              sketch::kit::sectionHeader({.label = "THE MOST RECENT MESSAGE",
                                          .note = "latest() stays available if "
                                                  "older arrivals are dropped"}),
@@ -188,8 +187,7 @@ struct FeedVitals {
                       {.width = 532, .height = 178, .padding = 20})
                       .column()
                       .gap(14)
-                      .children({text("TRANSPORT").styleClass("captionLabel"),
-                                 door()})})})));
+                      .children({document::label("TRANSPORT"), door()})})})));
   }
 
   /** THE ARRIVALS: one tick per message, placed by the time that message
@@ -224,11 +222,11 @@ struct FeedVitals {
         .gap(8)
         .alignItems(Align::Start)
         .children(
-            {text("GENERATION").styleClass("eyebrow").ink(look.palette.ash),
+            {document::eyebrow("GENERATION").ink(look.palette.ash),
              text(kit::formatted("%llu", (unsigned long long)shown.generation))
                  .font(look.font({.size = 52, .mono = true},
                                  look.palette.figure)),
-             text("DROPPED").styleClass("eyebrow").ink(look.palette.ash),
+             document::eyebrow("DROPPED").ink(look.palette.ash),
              text(kit::formatted("%llu", (unsigned long long)shown.dropped))
                  .font(
                      look.font({.size = 22, .mono = true}, look.palette.ink))});
@@ -264,7 +262,7 @@ struct FeedVitals {
         .column()
         .gap(8)
         .alignItems(Align::Start)
-        .children({text(headline).styleClass("eyebrow").ink(look.palette.ash),
+        .children({document::eyebrow(headline).ink(look.palette.ash),
                    box()
                        .column()
                        .gap(look.spacing.rowGap)

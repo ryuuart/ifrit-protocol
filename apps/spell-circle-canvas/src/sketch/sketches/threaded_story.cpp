@@ -39,6 +39,7 @@
 
 // TAGS: Typography/Paragraph, Motion/Transitions
 
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Typeset.h>
@@ -107,8 +108,8 @@ kit::Caption voice() {
 /** THE TWO CLASSES THAT VOICE IS SET IN — the name in the mark colour, the
  *  remark a size under it in the faint one. */
 weave::StyleSheet voiceClasses() {
-  return weave::StyleSheet{{"captionLabel", label(9.5f, kMark, 2.4f)},
-                           {"captionNote", label(9.0f, kFaint, 0.2f)}};
+  return weave::StyleSheet{{"label", label(9.5f, kMark, 2.4f)},
+                           {"caption", label(9.0f, kFaint, 0.2f)}};
 }
 
 /** The story, declared once. Its blocks are numbered from its own start,
@@ -217,13 +218,14 @@ struct ThreadedStory {
                  .column()
                  .gap(5)
                  .children(
-                     {text("ONE STORY, THREE FRAMES, TWICE")
+                     {document::h1("ONE STORY, THREE FRAMES, TWICE")
                           .font({.size = 11, .color = s::kInk, .track = 3.4f}),
-                      text("the cut is a word index — the "
-                           "remainder the frame before reported — so a "
-                           "narrower first frame moves "
-                           "it, and the columns begin elsewhere")
-                          .font({.track = 0.3f})
+                      document::lead(
+                          "the cut is a word index — the "
+                          "remainder the frame before reported — so a "
+                          "narrower first frame moves "
+                          "it, and the columns begin elsewhere")
+                          .font({.size = 9.5f, .track = 0.3f})
                           .width(700.0f)}),
              box()
                  .inset(s::kMargin, s::kMargin + 56, 0, 0)
@@ -239,9 +241,10 @@ struct ThreadedStory {
                                       "more fits before them, and the same two "
                                       "columns begin further in",
                                       chain("wide", s::kWide, article))}),
-             text("a Western column is a FRAME; the vertical writing "
-                  "mode keeps the word for the thing it already meant")
-                 .font({.track = 0.2f})
+             document::footer(
+                 "a Western column is a FRAME; the vertical writing "
+                 "mode keeps the word for the thing it already meant")
+                 .font({.size = 9.5f, .track = 0.2f})
                  .inset(s::kMargin, s::kH - 32, 0, 0)});
   }
 };

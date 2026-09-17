@@ -6,6 +6,7 @@ TAGS: Geometry/Layout, Typography/Interface, Motion/Animation
 from math import sin
 
 from sigil.compose import box, column, row, text
+from sigil.compose import document as doc
 from sigil.motion import entrance
 from sigil.sketch import SketchContext, sketch
 
@@ -55,7 +56,7 @@ def metric(label, value, detail, accent, level, index):
                 .alignItems("center")
                 .children(
                     (box().width(7).height(7).corners(4).fill(accent)),
-                    text(label, size=12, color=MUTED),
+                    doc.label(label).fontSize(12).ink(MUTED),
                 )
             ),
             text(value, size=46, color=INK),
@@ -73,7 +74,7 @@ def metric(label, value, detail, accent, level, index):
                     ),
                 )
             ),
-            text(detail, size=12, color=MUTED),
+            doc.caption(detail).fontSize(12).ink(MUTED),
         )
     )
 
@@ -99,12 +100,10 @@ def signal_panel():
                         column()
                         .gap(6)
                         .children(
-                            text("Signal envelope", size=22, color=INK),
-                            text(
-                                "A composed view of 48 observations",
-                                size=12,
-                                color=MUTED,
-                            ),
+                            doc.h2("Signal envelope").fontSize(22).ink(INK),
+                            doc.caption("A composed view of 48 observations")
+                            .fontSize(12)
+                            .ink(MUTED),
                         )
                     ),
                     text("NORMALIZED  /  0—1", size=11, color=MUTED),
@@ -164,12 +163,10 @@ class Dashboard:
                             column()
                             .gap(10)
                             .children(
-                                text(
-                                    "FIELD NOTES    /    002",
-                                    size=12,
-                                    color=MUTED,
-                                ),
-                                text("A quiet instrument", size=36, color=INK),
+                                doc.eyebrow("FIELD NOTES    /    002")
+                                .fontSize(12)
+                                .ink(MUTED),
+                                doc.h1("A quiet instrument").fontSize(36).ink(INK),
                             )
                         ),
                         (
@@ -181,7 +178,7 @@ class Dashboard:
                             .alignItems("center")
                             .children(
                                 (box().width(6).height(6).corners(3).fill("#8bd0bd")),
-                                text("OBSERVING", size=11, color="#8bd0bd"),
+                                doc.label("OBSERVING").fontSize(11).ink("#8bd0bd"),
                             )
                         ),
                     )
@@ -202,12 +199,10 @@ class Dashboard:
                     row()
                     .justify("space_between")
                     .children(
-                        text(
-                            "Three readings. One continuous field.",
-                            size=12,
-                            color=MUTED,
-                        ),
-                        text("OBSERVATION 002", size=11, color=MUTED),
+                        doc.footer("Three readings. One continuous field.")
+                        .fontSize(12)
+                        .ink(MUTED),
+                        doc.footer("OBSERVATION 002").fontSize(11).ink(MUTED),
                     )
                 ),
             )

@@ -35,6 +35,7 @@
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilgeometry/kit/Corners.h>
@@ -193,24 +194,24 @@ struct BorderWeave {
                       box().column().gap(16).children(
                           {sketch::kit::sectionHeader(
                                {.label = "READING THE EDGE", .note = ""}),
-                           text("The filled plaque is the source silhouette. "
-                                "The light line is a decoration following that "
-                                "outline.")
-                               .width(360)
-                               .styleClass("captionNote"),
-                           text("Corner modes operate on intervals of the "
-                                "contour. They need no separately positioned "
-                                "corner elements.")
-                               .width(360)
-                               .styleClass("captionNote"),
-                           text("Parallel rails never braid. The strands must "
-                                "exchange sides for a crossing rule to matter.")
-                               .width(360)
-                               .styleClass("captionNote"),
-                           text("The corner rule scans tangent breaks, not "
-                                "the number of vertices describing the path.")
-                               .width(360)
-                               .styleClass("captionNote")})})})));
+                           document::caption(
+                               "The filled plaque is the source silhouette. "
+                               "The light line is a decoration following that "
+                               "outline.")
+                               .width(360),
+                           document::caption(
+                               "Corner modes operate on intervals of the "
+                               "contour. They need no separately positioned "
+                               "corner elements.")
+                               .width(360),
+                           document::caption(
+                               "Parallel rails never braid. The strands must "
+                               "exchange sides for a crossing rule to matter.")
+                               .width(360),
+                           document::caption(
+                               "The corner rule scans tangent breaks, not "
+                               "the number of vertices describing the path.")
+                               .width(360)})})})));
   }
 };
 

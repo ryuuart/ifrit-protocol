@@ -124,8 +124,8 @@ struct Well {
 [[nodiscard]] compose::Element well(const Well& specification);
 
 /** ONE CAPTIONED SPECIMEN: @p body with @p label over it and @p note
- *  under it, set in the classes `captionLabel` and `captionNote` — the
- *  theme's own registers, bound around the two lines this call writes —
+ *  under it, with document roles `label` and `caption` — the theme's
+ *  registers, resolved where the two lines land —
  *  and spaced by the theme's caption gaps.
  *
  *      sketch::kit::caption(

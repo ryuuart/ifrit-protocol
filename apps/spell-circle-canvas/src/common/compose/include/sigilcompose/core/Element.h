@@ -71,6 +71,7 @@ struct Instance;
 
 class Composer;
 class Pattern;
+class VarTable;
 // The typography vocabulary the text verbs take, defined under
 // <sigilcompose/typography/>: a call site that dresses its type includes
 // the header that spells the value it passes. Which glyphs a verb
@@ -391,6 +392,15 @@ class Element {
    *  is a value on the description, so a subtree carries its own and
    *  nothing is bound around the code that builds it. */
   Element& styleSheet(sigil::weave::StyleSheet sheet);
+  /** A SEMANTIC ROLE with default typography. The rule's name selects a
+   *  rule from the sheet where this node lands; that rule overrides these
+   *  defaults, ordinary classes override the role, and the node's own
+   *  font and block override both. Unstated fields inherit. A sheet need
+   *  not carry the role: the defaults make a component useful on its own.
+   *  A later call replaces the role and its defaults together. */
+  Element& role(sigil::weave::Rule defaults);
+  /** A semantic role with no default fields, styled by the sheet in force. */
+  Element& role(std::string name);
   /** CLASSES: the partials the sheets in force register under each name
    *  in @p names — several, separated by spaces, as CSS's class attribute
    *  lists them, folded in left to right — resolved by the cascade pass
@@ -408,6 +418,11 @@ class Element {
    *  the paint context: a fill, a stroke, a mark, a length, the ink. */
   Element& var(std::string_view name, SkColor4f colour);
   Element& var(std::string_view name, Dimension length);
+  /** FALLBACK CUSTOM PROPERTIES for this node and its descendants.
+   *  Inherited properties override these defaults, and properties this
+   *  node sets with var() override both, including explicit zero values.
+   *  A later call replaces this table. */
+  Element& varDefaults(VarTable defaults);
 
   // ---- paint ----
   /** A colour, a shader, a transition between colours, or a LIVE binding.

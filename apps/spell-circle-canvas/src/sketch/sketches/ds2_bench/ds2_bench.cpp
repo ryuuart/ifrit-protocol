@@ -3,6 +3,8 @@
 
 // TAGS: Geometry/Diagrams, Interfaces/Game
 
+#include <sigilcompose/kit/Document.h>
+
 #include "Circuit.h"
 
 struct Ds2Bench {
@@ -242,8 +244,7 @@ struct Ds2Bench {
 
              .zIndex(7)
              .children(
-                 {text("CONTACT BEAM")
-                      .styleClass("title")
+                 {document::h1("CONTACT BEAM")
                       .key("title")
                       .fx({.effect = fx::typeOn(),
                            .stagger = {.eachMs = 26, .durationMs = 190},
@@ -253,28 +254,26 @@ struct Ds2Bench {
          box()
              .at({kPX + 34, kRuleY + 13})
              .zIndex(7)
-             .children({text("NANOCIRCUIT REPAIR · TIER III")
-                            .styleClass("subtitle")})});
+             .children({document::lead("NANOCIRCUIT REPAIR · TIER III")})});
     const float gaugeD = 26, gaugeX = 786, gaugeY = kRuleY + 6;
     // 359.99, not 360: shapes::sector() with a full-turn sweep produces an
     // EMPTY path (SkPathBuilder::arcTo swallows |sweep| == 360), so the
     // gauge's own track — the most obvious call there is — silently
     // disappears at the natural value.
-    root.children(
-        {box()
-             .rect(SkRect::MakeXYWH(gaugeX, gaugeY, gaugeD, gaugeD))
-             .shape(shapes::sector(0, 359.99f, 0.58f))
-             .fill(Paint::solid(mskia::withAlpha(kCyan, 0.18f)))
-             .zIndex(7),
-         box()
-             .rect(SkRect::MakeXYWH(gaugeX, gaugeY, gaugeD, gaugeD))
-             .shape(shapes::sector(-90, 360 * 0.78f, 0.58f))
-             .fill(Paint::solid(mskia::withAlpha(kCyan, 0.9f)))
-             .zIndex(7),
-         box()
-             .at({gaugeX + 34, kRuleY + 13})
-             .zIndex(7)
-             .children({text("R.I.G. INTEGRITY 78%").styleClass("subtitle")})});
+    root.children({box()
+                       .rect(SkRect::MakeXYWH(gaugeX, gaugeY, gaugeD, gaugeD))
+                       .shape(shapes::sector(0, 359.99f, 0.58f))
+                       .fill(Paint::solid(mskia::withAlpha(kCyan, 0.18f)))
+                       .zIndex(7),
+                   box()
+                       .rect(SkRect::MakeXYWH(gaugeX, gaugeY, gaugeD, gaugeD))
+                       .shape(shapes::sector(-90, 360 * 0.78f, 0.58f))
+                       .fill(Paint::solid(mskia::withAlpha(kCyan, 0.9f)))
+                       .zIndex(7),
+                   box()
+                       .at({gaugeX + 34, kRuleY + 13})
+                       .zIndex(7)
+                       .children({document::lead("R.I.G. INTEGRITY 78%")})});
   }
 
   // -------------------------------------------------------------------
@@ -726,8 +725,8 @@ struct Ds2Bench {
     // face and a colour of its own. Every one of them is the interface
     // face condensed 1.16, which is what benchType() is.
     weave::StyleSheet classes;
-    classes.set("title", benchType(31, kTitle, 0.10f))
-        .set("subtitle",
+    classes.set("h1", benchType(31, kTitle, 0.10f))
+        .set("lead",
              benchType(10.5f, mskia::withAlpha(kCyan, 0.5f), 0.2f, false))
         .set("node", benchType(11, mskia::withAlpha(kCyan, 0.78f), 0.08f))
         .set("circuit", benchType(11, mskia::withAlpha(kCyan, 0.62f), 0.18f))

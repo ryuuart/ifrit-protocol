@@ -111,7 +111,7 @@ TEST(SketchKitTheme, ARegisterInTheHouseSansStatesTheDefaultFamily) {
   EXPECT_EQ(*under.face, nullptr) << "not the serif above it";
 }
 
-TEST(SketchKitTheme, TheRegistersAreClasses) {
+TEST(SketchKitTheme, TheRegistersStyleDocumentRoles) {
   const kit::Theme& house = kit::houseTheme();
   {
     const sigil::weave::StyleSheet sheet = house.styleSheet();
@@ -122,14 +122,14 @@ TEST(SketchKitTheme, TheRegistersAreClasses) {
     ASSERT_NE(classes->find("eyebrow"), nullptr);
     EXPECT_EQ(classes->find("eyebrow")->type(), house.font(house.type.eyebrow))
         << "a register a sheet sets inside its content names no colour";
-    EXPECT_EQ(classes->find("captionLabel")->type(),
+    EXPECT_EQ(classes->find("label")->type(),
               house.font(house.type.captionLabel, house.palette.ink))
         << "a class carries its whole look, colour included";
-    EXPECT_EQ(classes->find("captionNote")->type(),
+    EXPECT_EQ(classes->find("caption")->type(),
               house.font(house.type.captionNote, house.palette.ash));
-    EXPECT_EQ(classes->find("title")->type(),
+    EXPECT_EQ(classes->find("h1")->type(),
               house.font(house.type.title, house.palette.ink));
-    EXPECT_EQ(classes->find("subtitle")->type(),
+    EXPECT_EQ(classes->find("lead")->type(),
               house.font(house.type.subtitle, house.palette.ash));
     EXPECT_EQ(classes->find("footer")->type(),
               house.font(house.type.footer, house.palette.ash));

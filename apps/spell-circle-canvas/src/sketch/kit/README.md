@@ -68,11 +68,10 @@ const sketch::kit::Provide look(sheetTheme());   // the theme, for this scope
 ctx.composer.render(sketch::kit::page({…}, content));  // its root states the sheet
 ```
 
-A describe phase is an ordinary C++ call tree evaluated bottom-up, so the
-describe-time stack *is* the description tree and dynamic scope is the
-C++ answer to inheriting down it. `sketch::kit::theme()` is the read;
-with nothing bound it answers `houseTheme()`, which is what makes a
-component correct on its own.
+Spacing and surface choices are read while a component is described.
+`sketch::kit::theme()` answers the bound theme, or `houseTheme()` when
+none is bound. Typography resolves later from the retained tree: a
+heading built before its parent still receives that parent's role rules.
 
 A `Register` says how one line is set: its size, its tracking, which of
 the theme's two faces it takes — and, for the line neither of those is,
@@ -80,44 +79,59 @@ the theme's two faces it takes — and, for the line neither of those is,
 title is a display cut standing over an eyebrow in a grotesque and a
 subtitle in the text face is three faces, and a theme carries two.
 
-**A register is also a partial type for the cascade.** `Theme::font(line)`
-is the register as a `weave::Type` — its face, size and track, no colour,
-so the ink in force paints it — and `Theme::styleSheet()` is all seven as
-classes under their own names: `title`, `subtitle`, `footer`,
-`captionLabel`, `captionNote`, `eyebrow`, `section` — with `readout`
-beside them, the one class no register of its own answers. A node that
-states that sheet with `styleSheet()` puts it in force for everything
-under it, so a leaf there is set in a register by name:
+**The document kit owns the text vocabulary.** Components use
+`compose::document::h1`, `compose::document::h2`,
+`compose::document::lead`, `compose::document::label`,
+`compose::document::caption`, `compose::document::eyebrow` and
+`compose::document::footer`. Each returns an ordinary Element with a
+semantic role. The role has useful fallback typography; a matching rule
+in the sheet where it lands styles every instance of that role.
+
+`Theme::font(line)` gives a register as a partial `weave::Type`.
+`Theme::styleSheet()` maps the theme's registers onto document roles:
+
+| Register | Document role | Colour |
+| --- | --- | --- |
+| `TypeScale::title` | `h1` | `Palette::ink` |
+| `TypeScale::subtitle` | `lead` | `Palette::ash` |
+| `TypeScale::footer` | `footer` | `Palette::ash` |
+| `TypeScale::captionLabel` | `label` | `Palette::ink` |
+| `TypeScale::captionNote` | `caption` | `Palette::ash` |
+| `TypeScale::eyebrow` | `eyebrow` | inherited ink |
+| `TypeScale::section` | `h2` | inherited ink |
 
 ```cpp
-compose::text(u8"CALL").styleClass("captionLabel")   // the register, by name
-compose::text(u8"note").font(look.font(look.type.eyebrow))  // or as a value
+#include <sigilcompose/kit/Document.h>
+
+weave::StyleSheet look = sketch::kit::theme().styleSheet();
+look.set(weave::rule("h1").font({.size = 30}));
+look.set(weave::rule("caption").font({.size = 12}));
+
+sketch::kit::page({.title = "THE STROKE ATLAS"},
+                 compose::document::section({
+                     compose::document::h2("A measured edge"),
+                     compose::document::paragraph("The shared content."),
+                 }))
+    .styleSheet(look);
 ```
 
-**A CLASS CARRIES ITS WHOLE LOOK, COLOUR INCLUDED**, as a CSS class does:
-`title` and `captionLabel` are registered in `Palette::ink`, `subtitle`,
-`footer` and `captionNote` in `Palette::ash`. The two registers a sheet
-sets INSIDE its content — `eyebrow` and `section` — name no colour, so
-each is painted in the ink in force wherever it is read. So a page's three
-lines and a cell's two are one entry each on this sheet and nowhere else:
-a theme with two colours moved moves every line that names them.
+A role rule overrides the component's fallback fields. An authored
+`styleClass()` overrides the role, and direct `font()` or `block()`
+overrides both. Nearer sheets override the fields they name; other
+fields remain in force. A component's stock role is separate from its
+classes, so adding a class never removes its semantic identity.
 
-**One class is not a register of its own.** `readout` is the register a
-CALL is set in — the digits of one width — in `Palette::figure`, and it is
-where a MEASURED FIGURE stands: a readout's value, a figure column's
-cells, a reading pinned over a picture. It is an eighth entry on the
-sheet, so a figure reads as one wherever it is written.
+The `readout` rule remains the treatment for measured values: the
+caption-label register in `Palette::figure`. Eight `plot` classes dress
+chart marks and labels. These data treatments are separate from the
+heading and prose hierarchy.
 
-**And eight more entries answer no register at all**: the parts a CHART
-draws, tabled under "the classes a chart draws" below, so a plot is dressed
-by the same sheet a page states and a theme with one colour moved moves
-every drawing that names it.
-
-A sketch whose classes go past the registers starts from `styleSheet()`,
-adds its own with `weave::StyleSheet::set` or as a literal, and states
-the result on its root; a nearer sheet's entries stand over a farther
-one's by name, so a panel with registers of its own states them on the
-panel.
+A sketch starts from `Theme::styleSheet()`, changes role rules or adds
+its own classes with `weave::StyleSheet::set`, and states the result on
+its root. A panel can state a nearer sheet when its content has a
+separate treatment. Layout remains ordinary Compose layout;
+`compose::document::article` and other document groups additionally
+read inherited document variables for measure and spacing.
 
 The face a register takes comes from somewhere, and three fallback runs
 recur across this repository's sheets: the book face, the terminal face
@@ -187,17 +201,17 @@ painting an Element directly.
 | | |
 | --- | --- |
 | `stage(ctx, Stage)` | the canvas, the ground and the capture moment in one call — the whole `CanvasSpecification`, with the ground taken from the theme unless the stage names one. A SET takes the same value through the `SetContext` overload; the viewpoint is not on it, because a camera is a fact about the scene and `SetContext::camera` is the fallback for the set that states none |
-| `page(Page, content)` | the sheet over the whole canvas: title, subtitle and footer set in the classes `title`, `subtitle` and `footer`, its margins, its ground and its hairline |
+| `page(Page, content)` | the sheet over the whole canvas: title, subtitle and footer in document roles `h1`, `lead` and `footer`, its margins, its ground and its hairline |
 | `well(Well, surface)` | the fixed surface a specimen is shown in, on the theme's cell ground — with `corners` and a `keyline`, the PLATE a panel stands on; with a `recess`, the hole punched in one; with a `relief`, the piece standing proud of one. THE SURFACE IS THE WELL: the spec is written onto the element handed in, which is what a drawing sized to its plate wants |
 | `well({…, .content = Well::Content{}}, picture)` | THE WELL THAT HOLDS: the plate is a surface of its own and the picture stands inside it at its own measure, ranged as `content` says and centred where it says nothing else — the specimen smaller than the plate it is shown on |
-| `caption(measure, label, note, body)` | one captioned specimen in the theme's voice — the label set in the class `captionLabel`, the note in `captionNote`; `measure` is the cell's own width, the one distance a caption cannot inherit |
+| `caption(measure, label, note, body)` | one captioned specimen in the theme's voice — the label has document role `label`, the note has role `caption`; `measure` is the cell's own width, the one distance a caption cannot inherit |
 | `cell(Cell, label, note, picture)` | the same specimen with the sheet's plate and measure stated ONCE: `Cell::plate` is the well the picture is HELD by — as a box holds a child, or ranged where `Well::content` says — and `Cell::measure` unset is the plate's own width |
 | `comparison(Comparison)` | equal columns with shared title, control, figure and note tracks; wrapping in one column moves every figure together, and notes begin below the tallest figure |
 | `cells(Run)` | a run of cells along one axis at the theme's gutter, each at its own width |
 | `panelGrid(PanelGrid)` | equal shares of the width, one per cell — what `cells` cannot do, because a fixed width does not know how wide the page is — on one row where `columns` is 0, wrapped every N above that, with a short last row keeping its share; `PanelGrid::measure` is the width the shares are cut from, for the grid whose parent sizes itself from its content and has none to divide |
 | `passage(ctx, name)` | the prose in the sketch's own files, `ctx.local(name)` (`"data/manuscript_1.txt"`), minus the newlines a file ends with — the prose a sheet about setting a page is SET IN, kept beside the sketch rather than typed into it |
 | `Document(ctx, name)` | the JSON document in the sketch's own files, read as the WORDS THE PLATE SETS: a record at a key, a sentence with its figures written in, a run of lines each in the class the document named, and a passage as one mixed-text value |
-| `lineOf(line)` | one of that run as a leaf, in the class the document named for it |
+| `lineOf(line)` | one of that run as a document paragraph, with any authored class it names |
 
 ```cpp
 sketch::kit::page({.title = "THE STROKE ATLAS"},
@@ -239,10 +253,11 @@ of its own is set in the sheet's own voice; `compose::Element::font({.size
 which `Fill::currentInk()` also reads back; and a padding written as a
 `weave::Length` measures against the type in force. A leaf handed a whole
 `weave::TextStyle` — `compose::text(utf8, style)`, which is what
-`Theme::style` builds and what most components here pass — inherits
-nothing and is set exactly as it was written. The page's own title,
-subtitle and footer and a cell's label and note are the exception: each is
-set in the CLASS of its own name, a partial over what the page inherits.
+`Theme::style` builds — inherits nothing and is set exactly as it was
+written. Shared presentation components instead use document roles with
+theme registers as fallback partials. Authored role rules can therefore
+change their typography, while an explicit ink or shader supplied by a
+caller changes paint without freezing the font.
 `page()` states `Theme::styleSheet()` on its root, so those lines and
 every cell under the page are in the theme's voice whether or not the
 sketch around it bound a theme, and a sheet the sketch states nearer to
@@ -297,7 +312,7 @@ are one paragraph:
 kit::Document doc{ctx, "data/content.json"};        // in setup
 doc.figures({{"rest", compose::kit::formatted("%.2f", measured)}});
 …
-column().children({text(doc["masthead"]["title"]).styleClass("title"),
+column().children({compose::document::h1(doc["masthead"]["title"]),
                    each(doc.run("notes"), sketch::kit::lineOf)})
 ```
 
@@ -312,9 +327,9 @@ not arrive draws its furniture and none of its lettering. A figure is
 already formatted when it arrives, because how a number reads is the
 measurement's business.
 
-Nothing here reads a theme: a class is a name, and a node is text wherever
-text is taken, because `compose::Utf8` accepts any value that reads itself
-out with `text()`.
+The content reader does not resolve a theme. `lineOf()` creates a document
+paragraph and preserves only the class the content explicitly names.
+`compose::Utf8` accepts a JSON text value directly.
 
 ### A picture and its readings — `Instrument.h`
 
@@ -662,8 +677,8 @@ whose only rule runs round its OUTER edge asks for.
 whose unset padding is the theme's PANEL padding, whose unset radius is
 its panel corner and whose unset keyline is its rule — a piece of
 furniture is padded, rounded and ruled, where a picture's surface is
-grounded and flush. Its three lines are set in the classes `eyebrow`,
-`title` and `captionNote`, and the two gaps of its head are the theme's
+grounded and flush. Its three lines have document roles `eyebrow`,
+`h1` and `caption`, and the two gaps of its head are the theme's
 caption gaps, so a region and the cell beside it breathe alike.
 
 ### A log, and things along an axis — `Console.h`, `Ticker.h`

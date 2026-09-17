@@ -67,6 +67,15 @@ Element& Element::styleSheet(sigil::weave::StyleSheet sheet) {
   return *this;
 }
 
+Element& Element::role(sigil::weave::Rule defaults) {
+  m_node->cascadeData.ensure().role = std::move(defaults);
+  return *this;
+}
+
+Element& Element::role(std::string name) {
+  return role(sigil::weave::Rule(std::move(name)));
+}
+
 Element& Element::var(std::string_view name, SkColor4f colour) {
   m_node->cascadeData.ensure().vars.set(compose::var(name), colour);
   return *this;
@@ -74,6 +83,11 @@ Element& Element::var(std::string_view name, SkColor4f colour) {
 
 Element& Element::var(std::string_view name, Dimension length) {
   m_node->cascadeData.ensure().vars.set(compose::var(name), length);
+  return *this;
+}
+
+Element& Element::varDefaults(VarTable defaults) {
+  m_node->cascadeData.ensure().varDefaults = std::move(defaults);
   return *this;
 }
 

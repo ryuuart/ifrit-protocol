@@ -6,6 +6,7 @@
 // TAGS: Typography/Paragraph
 
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -66,7 +67,7 @@ Element chain(const std::string& key, const weave::Story& story,
                        .height(height - 24);
     if (index == 1) body.thread(key + "2");
     return box().column().gap(10).children(
-        {text(index == 1 ? "FRAME 1" : "FRAME 2").styleClass("captionNote"),
+        {document::caption(index == 1 ? "FRAME 1" : "FRAME 2"),
          sketch::kit::well({.width = 192, .height = height, .padding = 12})
              .children({std::move(body)})});
   };
@@ -141,8 +142,7 @@ struct KeepsAndFrames {
                                 "there is room before it."}},
                   .measure = 1020,
                   .gap = 18}),
-             text("WHERE THE LINES SIT · one 124 px text frame")
-                 .styleClass("eyebrow"),
+             document::eyebrow("WHERE THE LINES SIT · one 124 px text frame"),
              sketch::kit::comparison(
                  {.cases =
                       {{.title = "ASCENT",

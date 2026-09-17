@@ -234,19 +234,22 @@ void Composer::Impl::resolveCascade(
       for (const sigil::weave::Rule& r : cascade.sheet->rules()) own->set(r);
       sheet = std::move(own);
     }
-    // THE CLASSES, then the node's own partials over them: a class's
-    // fields are the node's unless the node states the field itself, as an
-    // inline style beats a class. Between classes the SHEET's order
-    // decides, a later rule over an earlier one, so the order the names
-    // were written in means nothing, as it means nothing in a class
-    // attribute. Both are laid over the PARENT's font in one overlay, so a
-    // relative size in either is measured against the size inherited.
-    std::optional<sigil::weave::Type> ownFont = cascade.font;
-    std::optional<sigil::weave::Block> ownBlock = cascade.block;
+    // The role defaults, its matching sheet rule, ordinary classes, then
+    // direct declarations. A role stays below every ordinary class,
+    // regardless of sheet order. Merge partials first so relative sizes
+    // resolve once against the parent's font rather than compounding.
+    sigil::weave::Type ownFont;
+    sigil::weave::Block ownBlock;
+    if (cascade.role) {
+      sigil::weave::merge(ownFont, cascade.role->type());
+      sigil::weave::merge(ownBlock, cascade.role->block());
+      if (const sigil::weave::Rule* rule =
+              sheet ? sheet->find(cascade.role->name()) : nullptr) {
+        sigil::weave::merge(ownFont, rule->type());
+        sigil::weave::merge(ownBlock, rule->block());
+      }
+    }
     if (!cascade.classes.empty()) {
-      sigil::weave::Type classFont;
-      sigil::weave::Block classBlock;
-      bool any = false;
       const auto named = [&](std::string_view name) {
         return std::find(cascade.classes.begin(), cascade.classes.end(),
                          name) != cascade.classes.end();
@@ -254,33 +257,28 @@ void Composer::Impl::resolveCascade(
       if (sheet)
         for (const sigil::weave::Rule& r : sheet->rules())
           if (named(r.name())) {
-            sigil::weave::merge(classFont, r.type());
-            sigil::weave::merge(classBlock, r.block());
-            any = true;
+            sigil::weave::merge(ownFont, r.type());
+            sigil::weave::merge(ownBlock, r.block());
           }
       for (const std::string& name : cascade.classes)
         if (!(sheet && sheet->contains(name)))
           warnNoSuchClass(name, sheet != nullptr);
-      if (any) {
-        if (ownFont) sigil::weave::merge(classFont, *ownFont);
-        ownFont = std::move(classFont);
-        if (ownBlock) sigil::weave::merge(classBlock, *ownBlock);
-        ownBlock = std::move(classBlock);
-      }
     }
-    if (ownBlock) sigil::weave::merge(block, *ownBlock);
+    if (cascade.font) sigil::weave::merge(ownFont, *cascade.font);
+    if (cascade.block) sigil::weave::merge(ownBlock, *cascade.block);
+    sigil::weave::merge(block, ownBlock);
     if (cascade.sampling) sampling = cascade.sampling;
-    if (!cascade.vars.empty()) {
-      auto own =
-          std::make_shared<VarTable>(parentVars ? *parentVars : VarTable{});
+    if (!cascade.varDefaults.empty() || !cascade.vars.empty()) {
+      auto own = std::make_shared<VarTable>(cascade.varDefaults);
+      if (parentVars) own->overlay(*parentVars);
       own->overlay(cascade.vars);
       vars = std::move(own);
     }
     // The node's partial over the parent's font. A relative size in it is
     // measured against the PARENT — the size inherited — which is what
     // `1.5_em` on a heading means.
-    if (ownFont)
-      font = sigil::weave::overlay(parentFont, *ownFont, fontSizePx(rootFont),
+    if (!ownFont.empty())
+      font = sigil::weave::overlay(parentFont, ownFont, fontSizePx(rootFont),
                                    parentLineHeight);
     if (cascade.inkVar) {
       const VarValue* value = vars ? vars->find(*cascade.inkVar) : nullptr;

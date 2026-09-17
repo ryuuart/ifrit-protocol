@@ -465,6 +465,7 @@ struct BlackWatch {
         {label("THE DRAFT  ·  4 SHAFTS, STRAIGHT DRAW, 2/2 BALANCED TWILL, "
                "TROMP AS WRIT",
                kColX, 140, kColW + 40)
+             .role("h2")
              .styleClass("heading")});
 
     auto cell = [&](float x, float y, bool on) {
@@ -533,8 +534,9 @@ struct BlackWatch {
     const float y0 = 584, cell = 46, gap = 6, gx = kColX + 20;
     const data::Json& page = doc["blends"];
     Element g = box();
-    g.children(
-        {label(page["heading"], kColX, 556, kColW).styleClass("heading")});
+    g.children({label(page["heading"], kColX, 556, kColW)
+                    .role("h2")
+                    .styleClass("heading")});
     const SkSize module{cell, cell};
     const SkSize gaps{gap, gap};
     for (int i = 0; i < 3; ++i) {
@@ -576,6 +578,7 @@ struct BlackWatch {
     const float y0 = 790, rowH = 34;
     Element g = box();
     g.children({label(doc["palettes"]["heading"], kColX, 762, kColW + 40)
+                    .role("h2")
                     .styleClass("heading")});
     // which family the cloth is wearing, right now
     const float spans[5][2] = {{kWeaveEnd, kProveEnd},
@@ -618,8 +621,9 @@ struct BlackWatch {
     const float y0 = 1052, sw = 180, sh = 110, gap = 16;
     const data::Json& page = doc["provenance"];
     Element g = box();
-    g.children(
-        {label(page["heading"], kClothX, 1030, 700).styleClass("heading")});
+    g.children({label(page["heading"], kClothX, 1030, 700)
+                    .role("h2")
+                    .styleClass("heading")});
     for (int i = 0; i < 4; ++i) {
       const float x =
           arrange::cellRect({i, 0}, {sw, sh}, {gap, 0}, {kClothX, 0}).fLeft;
@@ -683,6 +687,7 @@ struct BlackWatch {
     const float y0 = 1276, barW = 880, barH = 26, x0 = kClothX + 140;
     Element g = box();
     g.children({label(doc["comparison"]["heading"], kClothX, 1242, 900)
+                    .role("h2")
                     .styleClass("heading")});
 
     struct Bar {
@@ -745,6 +750,7 @@ struct BlackWatch {
     const size_t rows = verdict.rows.size();
     Element g = box();
     g.children({label(doc["verification"]["heading"], x0, 1030, kColW)
+                    .role("h2")
                     .styleClass("heading"),
                 at(x0 - 12, y0 - 8, 472, (float)rows * lh + 14)
                     .fill(hexColor(0xDCD4C4, 0.8f))

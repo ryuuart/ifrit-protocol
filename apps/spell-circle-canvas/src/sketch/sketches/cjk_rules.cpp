@@ -7,6 +7,7 @@
 // TAGS: Typography/CJK
 
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -52,7 +53,7 @@ Element paired(Element before, Element after, float depth) {
   const auto& look = sketch::kit::theme();
   const auto sample = [&](const char* label, Element body) {
     return box().column().gap(16).width(132).children(
-        {text(label).styleClass("captionNote"),
+        {document::caption(label),
          box().width(132).height(156).children(
              {box().absolute().left(8).top(depth).width(116).height(1).fill(
                   Fill::color(look.palette.figure)),

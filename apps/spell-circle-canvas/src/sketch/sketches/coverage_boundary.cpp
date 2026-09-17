@@ -35,6 +35,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Generators.h>
@@ -209,16 +210,16 @@ struct CoverageBoundary {
                       box().column().gap(18).children(
                           {sketch::kit::sectionHeader(
                                {.label = "WHAT IS TRACED", .note = ""}),
-                           text("Coverage reads the completed content, "
-                                "including children. The node’s own halo and "
-                                "shadow are excluded, so a decoration cannot "
-                                "grow the outline it decorates.")
-                               .width(328)
-                               .styleClass("captionNote"),
-                           text("The halo and recessed shadow are identical "
-                                "throughout. Only the boundary changes.")
-                               .width(328)
-                               .styleClass("captionNote")})})})));
+                           document::caption(
+                               "Coverage reads the completed content, "
+                               "including children. The node’s own halo and "
+                               "shadow are excluded, so a decoration cannot "
+                               "grow the outline it decorates.")
+                               .width(328),
+                           document::caption(
+                               "The halo and recessed shadow are identical "
+                               "throughout. Only the boundary changes.")
+                               .width(328)})})})));
   }
 };
 

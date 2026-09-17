@@ -10,6 +10,7 @@
 // TAGS: Media/Models
 
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
@@ -249,9 +250,8 @@ struct UsdRoundtrip {
                  .gap(28)
                  .children(
                      {box().column().gap(12).width(286).children(
-                          {text(packaged ? "PACKAGE WRITTEN"
-                                         : "PACKAGE UNAVAILABLE")
-                               .styleClass("captionLabel"),
+                          {document::label(packaged ? "PACKAGE WRITTEN"
+                                                    : "PACKAGE UNAVAILABLE"),
                            text("A package needs an archive containing its "
                                 "crate and dependencies.")
                                .width(286)}),

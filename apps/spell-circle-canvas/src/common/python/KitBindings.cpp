@@ -307,6 +307,7 @@ void bindComposeKit(py::module_& root) {
   auto components = compose.def_submodule("kit");
   bindComponents(components);
   bindLayouts(compose);
+  bindDocument(compose);
 }
 
 }  // namespace sigil::python

@@ -53,10 +53,9 @@ auto KspMapView::setup(sketch::SketchContext& ctx) -> void {
   // states this sheet and every line under it is dressed by name.
   doc = sketch::kit::Document(ctx, "data/content.json");
   cardLook = weave::StyleSheet{
-      {"captionNote",
-       weave::Type{.face = sans(), .size = 11, .color = kCardInk}},
+      {"caption", weave::Type{.face = sans(), .size = 11, .color = kCardInk}},
       {"readout", weave::Type{.face = sansB(), .size = 11, .color = kOrange}},
-      {"section",
+      {"h2",
        weave::Type{
            .face = sansB(), .size = 11, .color = kOrange, .track = 0.2f}}};
 

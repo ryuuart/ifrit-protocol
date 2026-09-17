@@ -12,6 +12,7 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Routers.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -209,13 +210,12 @@ struct RoutesProbe {
               .row()
               .gap(20)
               .children({box().width(108).column().gap(8).children(
-                             {text(row.key).styleClass("captionLabel"),
+                             {document::label(row.key),
                               text(row.state).styleClass("readout")}),
                          box().width(400).column().gap(8).children(
                              {text(row.reason).width(400),
-                              text("Refusals: " + row.refusals)
-                                  .width(400)
-                                  .styleClass("captionNote")})});
+                              document::caption("Refusals: " + row.refusals)
+                                  .width(400)})});
         })});
     return sketch::kit::page(
                {.title = "Ask the tree what happened",

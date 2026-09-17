@@ -13,6 +13,7 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -155,14 +156,14 @@ struct HalfFloat {
             .column()
             .gap(22)
             .children(
-                {text("SAME SOURCE").styleClass("captionLabel"),
+                {document::label("SAME SOURCE"),
                  text("0 → 6")
                      .font({.size = 44})
                      .ink(sketch::kit::theme().palette.figure),
                  text("The upper ramp exceeds one. The lower band is limited "
                       "to one before either readback.")
                      .width(256),
-                 text("BUFFER EVIDENCE").styleClass("captionLabel"),
+                 document::label("BUFFER EVIDENCE"),
                  text(readout).styleClass("readout").width(256),
                  text("A display can hide a highlight that is still in the "
                       "file. An 8-bit readback removes that information.")

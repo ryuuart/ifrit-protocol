@@ -16,6 +16,7 @@ from json import dumps
 from math import isfinite, sin
 
 from sigil.compose import Element, box, column, graphics, row, text
+from sigil.compose import document as doc
 from sigil.data import decodeJson
 from sigil.draw import CENTER, LEFT, RIGHT, Pen
 from sigil.io import Arrival, Feed, FeedPolicy
@@ -112,11 +113,11 @@ def metric(label: str, value: str, detail: str, accent: str) -> Element:
                 .alignItems("center")
                 .children(
                     (box().width(6).height(6).corners(3).fill(accent)),
-                    text(label, size=11),
+                    doc.label(label).fontSize(11),
                 )
             ),
             text(value, size=43, color=INK),
-            text(detail, size=11, color=MUTED),
+            doc.caption(detail).fontSize(11).ink(MUTED),
         )
     )
 
@@ -256,8 +257,8 @@ class LiveSignals:
                     .width(1004)
                     .justify("space_between")
                     .children(
-                        text("FIELD INSTRUMENTS / 03", size=11, color=MUTED),
-                        text("JSON IN · JSON OUT", size=11, color=MUTED),
+                        doc.eyebrow("FIELD INSTRUMENTS / 03").fontSize(11).ink(MUTED),
+                        doc.label("JSON IN · JSON OUT").fontSize(11).ink(MUTED),
                     )
                 ),
                 (
@@ -266,7 +267,7 @@ class LiveSignals:
                     .justify("space_between")
                     .alignItems("center")
                     .children(
-                        text("Signals, received.", size=48, color=INK),
+                        doc.h1("Signals, received.").fontSize(48).ink(INK),
                         (
                             row()
                             .gap(9)
@@ -275,17 +276,17 @@ class LiveSignals:
                             .corners(18)
                             .children(
                                 (box().width(7).height(7).corners(4).fill(accent)),
-                                text(status, size=12, color=accent),
+                                doc.label(status).fontSize(12).ink(accent),
                             )
                         ),
                     )
                 ),
                 (
-                    text(
-                        "Two channels, one small message, and a way back to the sender.",
-                        size=16,
-                        color=MUTED,
+                    doc.lead(
+                        "Two channels, one small message, and a way back to the sender."
                     )
+                    .fontSize(16)
+                    .ink(MUTED)
                 ),
                 (
                     row()
@@ -331,11 +332,9 @@ class LiveSignals:
                                     .width(606)
                                     .justify("space_between")
                                     .children(
-                                        text(
-                                            "RECENT ARRIVALS",
-                                            size=11,
-                                            color="#d3e6dd",
-                                        ),
+                                        doc.h2("RECENT ARRIVALS")
+                                        .fontSize(11)
+                                        .ink("#d3e6dd"),
                                         (
                                             row()
                                             .gap(8)
@@ -383,21 +382,21 @@ class LiveSignals:
                             .corners(14)
                             .width(334)
                             .children(
-                                text("A small contract.", size=24, color=INK),
+                                doc.h2("A small contract.").fontSize(24).ink(INK),
                                 (
-                                    text(
-                                        '{\n  "sequence": 1,\n  "pressure": 0.62,\n  "flow": 0.35\n}',
-                                        size=16,
-                                        color="#527a72",
+                                    doc.code(
+                                        '{\n  "sequence": 1,\n  "pressure": 0.62,\n  "flow": 0.35\n}'
                                     )
+                                    .fontSize(16)
+                                    .ink("#527a72")
                                 ),
                                 (box().width(286).height(1).fill(RULE)),
                                 (
-                                    text(
-                                        "The reply echoes sequence, counts accepted samples and returns mean pressure.",
-                                        size=13,
-                                        color=MUTED,
+                                    doc.paragraph(
+                                        "The reply echoes sequence, counts accepted samples and returns mean pressure."
                                     )
+                                    .fontSize(13)
+                                    .ink(MUTED)
                                 ),
                             )
                         ),
@@ -413,13 +412,13 @@ class LiveSignals:
                             column()
                             .gap(7)
                             .children(
-                                text(detail, size=13, color=INK),
+                                doc.caption(detail).fontSize(13).ink(INK),
                                 (
-                                    text(
-                                        f"udp://:{PORT}  ·  sender: sigil.examples.tools.send_live_signals  ·  --export reply.json",
-                                        size=10,
-                                        color=MUTED,
+                                    doc.footer(
+                                        f"udp://:{PORT}  ·  sender: sigil.examples.tools.send_live_signals  ·  --export reply.json"
                                     )
+                                    .fontSize(10)
+                                    .ink(MUTED)
                                 ),
                             )
                         ),

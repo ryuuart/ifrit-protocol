@@ -1,3 +1,5 @@
+#include <sigilcompose/kit/Document.h>
+
 #include "ThunderFulu.h"
 
 auto ThunderFulu::rail(float w) const -> Element {
@@ -53,7 +55,7 @@ auto ThunderFulu::chantPanel() -> Element {
       .key("chant")
       .font({.size = 11.5f})
       .ink(kChalk)
-      .children({text(said["heading"])
+      .children({document::h2(said["heading"])
                      .styleClass("heading")
                      .font({.size = 17.0f, .track = 1.4f}),
                  rail(468),
@@ -120,7 +122,7 @@ auto ThunderFulu::tempoPanel() -> Element {
       .font({.size = 10.5f})
       .ink(hexColor(0x9a8a68))
       .children(
-          {text(said["heading"])
+          {document::h2(said["heading"])
                .styleClass("heading")
                .font({.size = 13.0f, .track = 1.2f}),
            sketch::kit::table(std::move(rows), {.columns = {{.width = 62},
@@ -165,7 +167,7 @@ auto ThunderFulu::marginColumn() -> Element {
 
   // --- 踏符頭: one chant line per hook, as the hook goes down -----------
   g.children({box().column().at({0, 126}).width(Wc).gap(8).children(
-      {text(said["head"]["heading"]).styleClass("heading"), rail(Wc),
+      {document::h2(said["head"]["heading"]).styleClass("heading"), rail(Wc),
        box().column().width(Wc).gap(13).children(
            {sung(said["head"]["lines"], tHead, tHeadEach + tHeadGap, 0.3f,
                  "hc")})})});
@@ -179,7 +181,8 @@ auto ThunderFulu::marginColumn() -> Element {
            .width(Wc)
            .gap(6)
            .children(
-               {text(said["law"]["heading"]).styleClass("heading"), rail(Wc),
+               {document::h2(said["law"]["heading"]).styleClass("heading"),
+                rail(Wc),
                 // THE BAND THE LAW ACTUALLY PAINTS, by the same Ribbon that
                 // paints the plate.
                 box()
@@ -216,7 +219,7 @@ auto ThunderFulu::marginColumn() -> Element {
       {{6, 8}, {96, 5}, {106, 16}, {100, 52}},  // TURN
   };
   const float ky = 412;
-  g.children({text(said["classes"]["heading"])
+  g.children({document::h2(said["classes"]["heading"])
                   .styleClass("heading")
                   .at({0, ky})
                   .width(Wc),
@@ -248,7 +251,7 @@ auto ThunderFulu::marginColumn() -> Element {
   // just above it and a section rule follows this heading immediately.
   const float gy = 646;
   g.children({box().column().at({0, gy}).width(Wc).gap(8).children(
-      {text(said["gall"]["heading"]).styleClass("heading"), rail(Wc),
+      {document::h2(said["gall"]["heading"]).styleClass("heading"), rail(Wc),
        box().column().width(Wc).gap(5).children(
            // the chant must finish exactly as the tenth stroke
            // lands, so its step is ten strokes over six phrases

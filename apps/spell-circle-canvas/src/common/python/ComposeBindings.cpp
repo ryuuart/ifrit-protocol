@@ -1,6 +1,7 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Stroke.h>
@@ -29,6 +30,17 @@ namespace {
 constexpr auto fluent = py::return_value_policy::reference_internal;
 using compose::Element;
 using Model = std::shared_ptr<PythonValue>;
+
+compose::VarValue variable(py::handle value) {
+  if (py::isinstance<py::str>(value)) {
+    const auto text = value.cast<std::string>();
+    if (text != "auto" && !text.ends_with("%")) return color(value);
+  }
+  if (py::isinstance<SkColor4f>(value) || py::isinstance<py::tuple>(value) ||
+      py::isinstance<py::list>(value))
+    return color(value);
+  return dimension(value);
+}
 
 compose::Decoration decoration(py::handle value) {
   if (py::isinstance<compose::Decoration>(value))
@@ -693,22 +705,37 @@ void bindCompose(py::module_& module) {
            py::arg("where"), py::arg("type"), fluent)
       .def("styleSheet", &Element::styleSheet, py::arg("sheet"), fluent)
       .def("styleClass", &Element::styleClass, py::arg("name"), fluent)
+      .def("role", py::overload_cast<weave::Rule>(&Element::role),
+           py::arg("defaults"), fluent)
+      .def("role", py::overload_cast<std::string>(&Element::role),
+           py::arg("name"), fluent)
       .def(
           "var",
           [](Element& self, const std::string& name,
              py::object value) -> Element& {
-            if (py::isinstance<py::str>(value)) {
-              const auto text = value.cast<std::string>();
-              if (text != "auto" && !text.ends_with("%"))
-                return self.var(name, color(value));
-            }
-            if (py::isinstance<SkColor4f>(value) ||
-                py::isinstance<py::tuple>(value) ||
-                py::isinstance<py::list>(value))
-              return self.var(name, color(value));
-            return self.var(name, dimension(value));
+            return std::visit(
+                [&](const auto& converted) -> Element& {
+                  return self.var(name, converted);
+                },
+                variable(value));
           },
           py::arg("name"), py::arg("value"), fluent)
+      .def(
+          "varDefaults",
+          [](Element& self, const py::dict& defaults) -> Element& {
+            compose::VarTable table;
+            try {
+              for (auto [name, value] : defaults)
+                table.set(compose::var(name.cast<std::string>()),
+                          variable(value));
+            } catch (const py::cast_error&) {
+              throw py::type_error(
+                  "Default properties require string names and color or "
+                  "dimension values");
+            }
+            return self.varDefaults(std::move(table));
+          },
+          py::arg("defaults"), fluent)
       .def("sampling", &Element::sampling, py::arg("sampling"), fluent)
       .def("hitTestable", &Element::hitTestable, py::arg("enabled"), fluent)
       .def("boundary", &Element::boundary, py::arg("boundary"), fluent)

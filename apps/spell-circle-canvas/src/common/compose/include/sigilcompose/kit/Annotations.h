@@ -28,6 +28,7 @@
 #include <sigilcompose/core/Derive.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/typography/Selector.h>
 #include <sigilcompose/typography/TextUnit.h>
 #include <sigilcore/callable/Callable.h>
@@ -71,7 +72,8 @@ struct Beside {
  *                               weave::Unit::Word,
  *                               {.side = Beside::Side::End, .gap = 14},
  *                               [&](const TextUnit &u) {
- *                                 return text(gloss(u.range), small);
+ *                                 return document::caption(gloss(u.range))
+ *                                     .font(small);
  *                               })
  *                     .absolute().inset(0)});
  *

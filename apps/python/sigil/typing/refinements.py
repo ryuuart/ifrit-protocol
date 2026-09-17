@@ -133,6 +133,23 @@ def layout(scheme: layouts.Grid | layouts.Radial | layouts.Diagonal | layouts.Ba
 """,
 )
 element = "_sigil.compose.Element"
+ATTRIBUTES["_sigil.compose.document.__all__"] = "builtins.list[str]"
+for factory in ("article", "section", "list", "quote"):
+    overloads = f"""@typing.overload
+def {factory}(children: collections.abc.Iterable[_sigil.compose.Element], /) -> _sigil.compose.Element: ...
+@typing.overload
+def {factory}(*children: _sigil.compose.Element) -> _sigil.compose.Element: ...
+"""
+    if factory == "quote":
+        overloads += """@typing.overload
+def quote(words: str) -> _sigil.compose.Element: ...
+"""
+    signatures("_sigil.compose.document", factory, overloads)
+signatures(
+    element,
+    "varDefaults",
+    "def varDefaults(self, defaults: dict[str, _t.DimensionLike | _t.ColorLike]) -> Element: ...",
+)
 signatures(
     element,
     "children",

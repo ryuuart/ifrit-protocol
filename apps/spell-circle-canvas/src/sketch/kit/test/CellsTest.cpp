@@ -45,9 +45,9 @@ TEST(SketchKitCells, CaptionDrawsTheHandSpelledCell) {
   // test states it on the cell, where the theme's registers resolve to
   // the two rules spelled out below.
   const sigil::weave::StyleSheet classes{
-      {"captionLabel",
+      {"label",
        {.face = house.type.mono, .size = 10.5f, .color = house.palette.ink}},
-      {"captionNote",
+      {"caption",
        {.face = house.type.sans,
         .size = 10,
         .color = house.palette.ash,

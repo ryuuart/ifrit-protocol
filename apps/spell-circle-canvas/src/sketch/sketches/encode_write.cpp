@@ -11,6 +11,7 @@
 #include <include/core/SkData.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildraw/Draw.h>
 #include <sigilimage/asset/ImageAsset.h>
@@ -153,10 +154,10 @@ struct EncodeWrite {
                                .width(132)
                                .height(132)),
          box().column().gap(12).width(390).children(
-             {text("WRITE THE ENCODED BYTES").styleClass("captionLabel"),
+             {document::label("WRITE THE ENCODED BYTES"),
               text("encodeImage → Hub::write → Hub::image")
                   .styleClass("readout"),
-              text(uri).styleClass("captionNote"),
+              document::caption(uri),
               text("The file is read back through the same mount. Encoding "
                    "chooses the representation; the hub chooses its "
                    "destination.")
@@ -164,7 +165,7 @@ struct EncodeWrite {
          sketch::kit::well({.width = 424, .height = 150, .padding = 20})
              .column()
              .gap(16)
-             .children({text("READ AFTER WRITE").styleClass("captionLabel"),
+             .children({document::label("READ AFTER WRITE"),
                         text(written).styleClass("readout").width(384),
                         text("Writing invalidates the URI's cached views.")
                             .width(384)})});

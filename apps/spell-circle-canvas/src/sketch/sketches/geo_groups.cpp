@@ -29,6 +29,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Sprites.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
@@ -163,7 +164,7 @@ struct GeoGroups {
                                              "grid.geo");
     if (!model || model->parts.empty()) {
       caption = "the .geo did not parse";
-      ctx.composer.render(text(caption).styleClass("captionNote"));
+      ctx.composer.render(document::caption(caption));
       return;
     }
     // asCloud(): positions, "normal" from N, "tint" from Cd, and every
@@ -208,27 +209,27 @@ struct GeoGroups {
                  .row()
                  .alignItems(Align::Start)
                  .gap(20)
-                 .children({box().column().gap(10).children(
-                                {sketch::kit::sectionHeader(
-                                     {.label = "01  WRITE", .note = ""}),
-                                 text("A tinted point grid and its ring group "
-                                      "are encoded as Houdini JSON.")
-                                     .width(360)
-                                     .styleClass("captionNote")}),
-                            box().column().gap(10).children(
-                                {sketch::kit::sectionHeader(
-                                     {.label = "02  READ", .note = ""}),
-                                 text("The importer restores the group as a "
-                                      "named scalar lane of zeros and ones.")
-                                     .width(360)
-                                     .styleClass("captionNote")}),
-                            box().column().gap(10).children(
-                                {sketch::kit::sectionHeader(
-                                     {.label = "03  SELECT", .note = ""}),
-                                 text("The same lane masks an operator "
-                                      "directly, or after inversion.")
-                                     .width(360)
-                                     .styleClass("captionNote")})}),
+                 .children(
+                     {box().column().gap(10).children(
+                          {sketch::kit::sectionHeader(
+                               {.label = "01  WRITE", .note = ""}),
+                           document::caption(
+                               "A tinted point grid and its ring group "
+                               "are encoded as Houdini JSON.")
+                               .width(360)}),
+                      box().column().gap(10).children(
+                          {sketch::kit::sectionHeader(
+                               {.label = "02  READ", .note = ""}),
+                           document::caption(
+                               "The importer restores the group as a "
+                               "named scalar lane of zeros and ones.")
+                               .width(360)}),
+                      box().column().gap(10).children(
+                          {sketch::kit::sectionHeader(
+                               {.label = "03  SELECT", .note = ""}),
+                           document::caption("The same lane masks an operator "
+                                             "directly, or after inversion.")
+                               .width(360)})}),
              sketch::kit::sectionHeader(
                  {.label = "THE RESTORED CLOUD", .note = caption}),
              sketch::kit::comparison(

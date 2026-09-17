@@ -31,6 +31,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
@@ -174,8 +175,8 @@ struct PopBillboards {
              "belong to the stamping sink; point 0 carries Tex (%.2f, %.2f).",
              texCell(0), texCell(1))},
         box().column().gap(22).children(
-            {text("01 / ONE TORUS, THREE DRAWING STYLES · 5,200 POINTS")
-                 .styleClass("section"),
+            {document::h2(
+                 "01 / ONE TORUS, THREE DRAWING STYLES · 5,200 POINTS"),
              sketch::kit::comparison(
                  {.cases = {{.title = "SOFT LIGHT",
                              .control = "soft dot · additive · size 2.6",
@@ -203,9 +204,9 @@ struct PopBillboards {
                                      "depth order still separates them."}},
                   .measure = 1020,
                   .gap = 18}),
-             text("02 / ONE NOISED LOOP, THREE RELAXATION AMOUNTS · 1,400 "
-                  "POINTS")
-                 .styleClass("section"),
+             document::h2(
+                 "02 / ONE NOISED LOOP, THREE RELAXATION AMOUNTS · 1,400 "
+                 "POINTS"),
              sketch::kit::comparison(
                  {.cases =
                       {{.title = "UNTOUCHED",

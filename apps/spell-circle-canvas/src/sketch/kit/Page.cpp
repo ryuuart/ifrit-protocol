@@ -33,11 +33,9 @@ void stage(SetContext& ctx, const Stage& surface) {
 
 compose::Element page(const Page& sheet, compose::Element content) {
   const Theme& look = theme();
-  // THE PAGE ROOT CARRIES THE THEME'S SHEET. The title, the subtitle and
-  // the footer name their classes, and so does every cell under the page,
-  // and all of them resolve through the sheet stated on the root below —
-  // unless a sheet nearer to a leaf says otherwise, which is how a sketch
-  // re-registers one class for one panel.
+  // The page root carries the theme's document rules. Its heading, lead,
+  // footer and specimen captions resolve their roles through this sheet;
+  // a nearer sheet can change the fields it names for one panel.
   const compose::kit::Sheet specification{
       .title = sheet.title,
       .subtitle = sheet.subtitle,

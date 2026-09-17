@@ -13,6 +13,7 @@
 #include <include/core/SkSurface.h>
 #include <include/utils/SkNoDrawCanvas.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilimage/asset/ImageAsset.h>
@@ -278,15 +279,14 @@ struct TileMap {
                .width(80)
                .height(80)
                .sampling(SkSamplingOptions(SkFilterMode::kNearest)),
-           text(names[i]).styleClass("captionLabel")});
+           document::label(names[i])});
     })});
     Element labels = box().row().children({each(kChunks, [this](int i) {
       return box()
           .width(kChunkCols * kTile)
           .column()
           .gap(8)
-          .children({text(kit::formatted("CHUNK %02d", i + 1))
-                         .styleClass("captionLabel"),
+          .children({document::label(kit::formatted("CHUNK %02d", i + 1)),
                      text(kit::formatted("revision %d", revisions[(size_t)i]))
                          .styleClass("readout")});
     })});
@@ -299,7 +299,7 @@ struct TileMap {
             {box().row().gap(32).children(
                  {std::move(atlasLegend),
                   box().column().gap(14).width(440).children(
-                      {text("THE SOURCE ATLAS").styleClass("captionLabel"),
+                      {document::label("THE SOURCE ATLAS"),
                        text("Four 16 × 16 regions share one image asset. Every "
                             "0.7 seconds, one cell selects a different region.")
                            .width(440),

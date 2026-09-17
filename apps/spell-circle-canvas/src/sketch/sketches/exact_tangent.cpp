@@ -9,6 +9,7 @@
 #include <include/core/SkBitmap.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilcompose/typography/Typography.h>
@@ -174,9 +175,7 @@ Element tangentDetail(weave::FontContext& fonts) {
                     origin.y() + (crop.y() - overview.y()) * scale,
                     crop.width() * scale, crop.height() * scale))
                 .foreground(decorations::border(1, Fill::color(marker)))}),
-       text("EDGE DETAIL \u00b7 8\u00d7 RASTER")
-           .styleClass("captionLabel")
-           .padding(10, 0),
+       document::label("EDGE DETAIL \u00b7 8\u00d7 RASTER").padding(10, 0),
        image(pixels, Fit::Stretch)
            .region(crop)
            .sampling(SkSamplingOptions(SkFilterMode::kNearest))
@@ -283,11 +282,11 @@ struct ExactTangent {
                                          "shared."}},
                                .measure = 328,
                                .gap = 18}),
-                          text("The rotation ladder is bounded between 64 and "
-                               "2048 steps. Its spacing follows rendered type "
-                               "size; exact tangents remove that quantisation.")
-                              .width(328)
-                              .styleClass("captionNote")})}))
+                          document::caption(
+                              "The rotation ladder is bounded between 64 and "
+                              "2048 steps. Its spacing follows rendered type "
+                              "size; exact tangents remove that quantisation.")
+                              .width(328)})}))
             .styleSheet(voices()));
   }
 };

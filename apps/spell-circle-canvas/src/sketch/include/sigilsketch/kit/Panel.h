@@ -87,9 +87,9 @@ struct Panel {
  *                          .body = {.width = compose::Dimension(260)}},
  *                         slots())
  *
- *  The three lines are set in the classes `eyebrow`, `title` and
- *  `captionNote`, so a panel under a page — or under any root that states
- *  the theme's sheet — is in the theme's voice. */
+ *  The three lines have document roles `eyebrow`, `h1` and `caption`, so a
+ * panel under a page — or under any root that states the theme's sheet — is in
+ * the theme's voice. */
 [[nodiscard]] compose::Element panel(const Panel& region,
                                      compose::Element content);
 

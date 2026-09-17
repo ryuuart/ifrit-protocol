@@ -45,6 +45,7 @@
 // TAGS: Materials/Compositing
 
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/field/Field.h>
@@ -185,19 +186,19 @@ struct CrtBloom {
                  .children({box().column().gap(12).children(
                                 {sketch::kit::sectionHeader(
                                      {.label = "SOURCE OVER", .note = ""}),
-                                 text("The sharp glyph covers the halo. This "
-                                      "is a centred shadow, with its outline "
-                                      "always tied to the source.")
-                                     .width(440)
-                                     .styleClass("captionNote")}),
+                                 document::caption(
+                                     "The sharp glyph covers the halo. This "
+                                     "is a centred shadow, with its outline "
+                                     "always tied to the source.")
+                                     .width(440)}),
                             box().column().gap(12).children(
                                 {sketch::kit::sectionHeader(
                                      {.label = "ADDITIVE LIGHT", .note = ""}),
-                                 text("The halo contributes to the glyph as "
-                                      "well as its surroundings. The static "
-                                      "blurred layer is retained as a texture.")
-                                     .width(440)
-                                     .styleClass("captionNote")})})})));
+                                 document::caption(
+                                     "The halo contributes to the glyph as "
+                                     "well as its surroundings. The static "
+                                     "blurred layer is retained as a texture.")
+                                     .width(440)})})})));
   }
 };
 

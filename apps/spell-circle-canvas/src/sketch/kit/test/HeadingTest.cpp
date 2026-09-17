@@ -4,6 +4,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <include/core/SkShader.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -151,6 +152,71 @@ TEST(SketchKitHeading, TheSectionRuleFollowsItsLabel) {
       kit::sectionHeader(
           {.label = u8"DYNAMICS", .note = u8"6 presets", .ruled = false})
           .width(360)));
+}
+
+TEST(SketchKitHeading, DocumentRulesStyleAPreviouslyConstructedCard) {
+  const Element card = kit::titleCard({.title = {"AAAA"}, .key = "card"});
+  Drawn original(compose::box().children({card}));
+  Drawn styled(
+      compose::box().styleSheet({{"h1", {.size = 32}}}).children({card}));
+  const auto before = original.composer.bounds("card-title");
+  const auto after = styled.composer.bounds("card-title");
+  ASSERT_TRUE(before);
+  ASSERT_TRUE(after);
+  EXPECT_GT(after->width(), before->width() * 1.5f);
+}
+
+TEST(SketchKitHeading, AnAuthoredShaderKeepsDocumentTypography) {
+  const Element card = kit::titleCard(
+      {.title = {.words = "AAAA",
+                 .ink = Fill::shader(SkShaders::Color(SK_ColorGREEN))},
+       .key = "card"});
+  Drawn original(compose::box().children({card}));
+  Drawn styled(compose::box()
+                   .styleSheet({{"h1", {.size = 32, .color = SkColors::kRed}}})
+                   .children({card}));
+  const auto before = original.composer.bounds("card-title");
+  const auto after = styled.composer.bounds("card-title");
+  ASSERT_TRUE(before);
+  ASSERT_TRUE(after);
+  EXPECT_GT(after->width(), before->width() * 1.5f);
+  const SkBitmap pixels = styled.pixels();
+  int green = 0;
+  int red = 0;
+  for (int y = 0; y < pixels.height(); ++y)
+    for (int x = 0; x < pixels.width(); ++x) {
+      const SkColor color = pixels.getColor(x, y);
+      green += SkColorGetG(color) > 100;
+      red += SkColorGetR(color) > 100;
+    }
+  EXPECT_GT(green, 0);
+  EXPECT_EQ(red, 0);
+}
+
+TEST(SketchKitHeading, DocumentRulesSetASectionHeadingAndItsCaption) {
+  const kit::Theme& house = kit::houseTheme();
+  kit::Register heading = house.type.section;
+  heading.size = 24;
+  kit::Register note = house.type.captionNote;
+  note.size = 18;
+  const Element header =
+      kit::sectionHeader({.label = "AAAA", .note = "BBBB", .ruled = false});
+  Element byHand = compose::box().column().shrink(0).children(
+      {compose::box()
+           .row()
+           .alignItems(compose::Align::Center)
+           .gap(house.spacing.labelGap)
+           .children(
+               {compose::text("AAAA", house.style(heading, SkColors::kRed))}),
+       compose::text("BBBB", house.style(note, SkColors::kGreen))
+           .maxWidth(house.type.captionNote.size * 36)
+           .margin(0, house.spacing.captionNoteGap, 0, 0)});
+  EXPECT_TRUE(sameDrawing(
+      compose::box()
+          .styleSheet({{"h2", {.size = 24, .color = SkColors::kRed}},
+                       {"caption", {.size = 18, .color = SkColors::kGreen}}})
+          .children({header}),
+      compose::box().children({std::move(byHand)})));
 }
 
 }  // namespace

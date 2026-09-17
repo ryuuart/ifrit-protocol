@@ -7,9 +7,8 @@
  *
  * Every prop is the CONTENT and the ARRANGEMENT — how big, what is
  * behind, what the words are, how much room stands between them. A board
- * names no class at all; a panel names the class each of its three lines
- * is set in and the `weave::StyleSheet` in force where it lands says what
- * that class is.
+ * names no text role; a panel names the document role of each line
+ * and the `weave::StyleSheet` where it lands styles those roles.
  */
 
 #include <include/core/SkSize.h>
@@ -53,10 +52,9 @@ struct Board {
 // ---------------------------------------------------------------------------
 // The titled region
 
-/** The leaf a panel's eyebrow defaults to: @p text in the class
- *  `eyebrow`, so the sheet in force sets it. */
+/** The leaf a panel's eyebrow defaults to: a document eyebrow. */
 [[nodiscard]] inline Element panelEyebrow(const Utf8& text) {
-  return compose::text(text).styleClass("eyebrow");
+  return document::eyebrow(text);
 }
 
 /** THE TITLED REGION A PAGE DIVIDES ITSELF INTO: an eyebrow over a
@@ -71,8 +69,8 @@ struct Board {
  *                               .keyline = Fill::color(kKeyline)}},
  *                 slots())
  *
- *  ITS THREE LINES ARE SET IN THE CLASSES `eyebrow`, `title` and
- *  `captionNote`, of the `weave::StyleSheet` in scope here, and nothing
+ *  ITS THREE LINES HAVE DOCUMENT ROLES `eyebrow`, `h1` and `caption`,
+ *  resolved through the `weave::StyleSheet` where the panel lands, and nothing
  *  else is said about their type; each is a PART, so a panel whose title
  *  must stand otherwise hands in its own leaf and everything under the
  *  panel keeps its registers.

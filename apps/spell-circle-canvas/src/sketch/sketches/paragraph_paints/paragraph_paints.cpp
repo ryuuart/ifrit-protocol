@@ -6,6 +6,7 @@
 // TAGS: Typography/Paragraph
 
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Gloss.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/kit/TextPaint.h>
@@ -81,22 +82,20 @@ struct ParagraphPaints {
     return sketch::kit::well({.width = 501, .height = 484, .padding = 24})
         .column()
         .gap(14)
-        .children(
-            {text("01 · A WORD / 52 PX").styleClass("eyebrow"),
-             text("PAGE")
-                 .font(
-                     {.face = sketch::kit::houseFace(sketch::kit::Voice::Book),
-                      .size = 52,
-                      .track = 0})
-                 .textFill(ink),
-             text("02 · A COMPLETE PARAGRAPH / 13 PX").styleClass("eyebrow"),
-             passage(kExcerpt, 13, 453, ink),
-             text("03 · THE TOP OF A LONG RUN / 9 PX").styleClass("eyebrow"),
-             box().width(453).height(170).clip().children(
-                 {passage(prose, 9, 453, ink)}),
-             text(kit::formatted("170 px viewport · %.0f px complete run",
-                                 fullDepth))
-                 .styleClass("captionNote")});
+        .children({document::eyebrow("01 · A WORD / 52 PX"),
+                   text("PAGE")
+                       .font({.face = sketch::kit::houseFace(
+                                  sketch::kit::Voice::Book),
+                              .size = 52,
+                              .track = 0})
+                       .textFill(ink),
+                   document::eyebrow("02 · A COMPLETE PARAGRAPH / 13 PX"),
+                   passage(kExcerpt, 13, 453, ink),
+                   document::eyebrow("03 · THE TOP OF A LONG RUN / 9 PX"),
+                   box().width(453).height(170).clip().children(
+                       {passage(prose, 9, 453, ink)}),
+                   document::caption(kit::formatted(
+                       "170 px viewport · %.0f px complete run", fullDepth))});
   }
 
   Element inventory(paint::Paint ink, bool overlay = false) {
@@ -143,8 +142,8 @@ struct ParagraphPaints {
                                      "slowly down the page."}},
                   .measure = 1020,
                   .gap = 18}),
-             text("BODY-TYPE PROOFS · the complete paint inventory")
-                 .styleClass("eyebrow"),
+             document::eyebrow(
+                 "BODY-TYPE PROOFS · the complete paint inventory"),
              sketch::kit::comparison(
                  {.cases = {{.title = "WATER",
                              .figure = inventory(

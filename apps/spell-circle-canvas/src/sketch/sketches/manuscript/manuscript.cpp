@@ -55,6 +55,7 @@
 
 #include <include/core/SkMaskFilter.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Ornament.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -102,7 +103,7 @@ constexpr double kTurnSecs = 7.0;
 constexpr float kMm = 3.0f;  ///< canvas pixels to the millimetre
 constexpr float kLeafW = 259.0f;
 constexpr float kLeafH = 360.0f;
-constexpr SkSize kSceneSize = {kLeafW * kMm, kLeafH * kMm};
+constexpr SkSize kSceneSize = {kLeafW * kMm, kLeafH* kMm};
 
 // ── The ninths canon, in millimetres ───────────────────────────────────
 constexpr float kSpine = kLeafW / 9.0f;                  // 28.78
@@ -229,7 +230,7 @@ struct Manuscript {
     const kit::NestedStyle opening{.until = kit::NestedStyle::Until::Delimiter,
                                    .delimiter = u8".",
                                    .style = capitals};
-    Element prose = text(rest)
+    Element prose = document::paragraph(rest)
                         .font(body(kBodySize, pal.ink))
                         .flowAround("versal", px(2.4f))
                         .spanStyle(kit::nestedRun(opening), opening.style);
@@ -287,7 +288,8 @@ struct Manuscript {
                      .children(
                          {text(u8"nota bene")
                               .font(body(kBodySize * 0.82f, rubric.stem)),
-                          text(u8"the gate takes no coin but memory")
+                          document::paragraph(
+                              u8"the gate takes no coin but memory")
                               .font(body(kBodySize * 0.78f, rubric.ink))}),
                  kit::at(px(-kSpine * 0.2f), px(kPitch * 22.0f),
                          px(kSpine * 0.9f), px(kPitch * 5.0f))

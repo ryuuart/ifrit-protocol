@@ -33,6 +33,7 @@
 // TAGS: Typography/Lettering
 
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -163,20 +164,19 @@ struct OpticalKerning {
         sketch::kit::well({.width = kReading, .height = 368, .padding = 22})
             .column()
             .gap(24)
-            .children(
-                {sketch::kit::readout(pairs,
-                                      {.measure = kReading - 44, .ruled = true})
-                     .shrink(0),
-                 box().column().gap(4).children(
-                     {text("WHOLE LINE").styleClass("eyebrow"),
-                      text(lineDelta)
-                          .font(sheet.font({.size = 42, .mono = true}))
-                          .ink(sheet.palette.figure),
-                      text("px in total advance").styleClass("captionNote")}),
-                 text("The reference is the face's own even pair. "
-                      "Each difference accumulates along the line.")
-                     .width(kReading - 44)
-                     .styleClass("captionNote")}));
+            .children({sketch::kit::readout(
+                           pairs, {.measure = kReading - 44, .ruled = true})
+                           .shrink(0),
+                       box().column().gap(4).children(
+                           {document::eyebrow("WHOLE LINE"),
+                            text(lineDelta)
+                                .font(sheet.font({.size = 42, .mono = true}))
+                                .ink(sheet.palette.figure),
+                            document::caption("px in total advance")}),
+                       document::caption(
+                           "The reference is the face's own even pair. "
+                           "Each difference accumulates along the line.")
+                           .width(kReading - 44)}));
   }
 };
 

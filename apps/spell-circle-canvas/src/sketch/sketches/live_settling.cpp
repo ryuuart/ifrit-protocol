@@ -49,6 +49,7 @@
 
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -206,8 +207,7 @@ struct LiveSettling {
             {sketch::kit::comparison(
                  {.cases = std::move(cases), .measure = 1020, .gap = 16}),
              box().column().gap(12).children(
-                 {text("MEASURED / AFTER THE RETURN SWEEP")
-                      .styleClass("section"),
+                 {document::h2("MEASURED / AFTER THE RETURN SWEEP"),
                   sketch::kit::comparison({.cases = std::move(reports),
                                            .measure = 1020,
                                            .gap = 16})})})));

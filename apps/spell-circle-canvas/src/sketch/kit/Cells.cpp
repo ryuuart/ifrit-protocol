@@ -108,8 +108,7 @@ compose::Element comparison(Comparison specification) {
     int row = 0;
     if (titles) {
       if (!one.title.empty())
-        children.push_back(text(std::move(one.title))
-                               .styleClass("captionLabel")
+        children.push_back(document::label(std::move(one.title))
                                .width(columnWidth)
                                .shrink(0)
                                .cells(int(column), row));
@@ -117,12 +116,13 @@ compose::Element comparison(Comparison specification) {
     }
     if (controls) {
       if (!one.control.empty())
-        children.push_back(text(std::move(one.control))
-                               .font(look.font({.size = 10.5f, .mono = true}))
-                               .ink(look.palette.ash)
-                               .width(columnWidth)
-                               .shrink(0)
-                               .cells(int(column), row));
+        children.push_back(
+            document::code(std::move(one.control))
+                .role(weave::rule("code").font(
+                    look.font({.size = 10.5f, .mono = true}, look.palette.ash)))
+                .width(columnWidth)
+                .shrink(0)
+                .cells(int(column), row));
       ++row;
     }
     children.push_back(box()
@@ -133,8 +133,7 @@ compose::Element comparison(Comparison specification) {
                            .children({std::move(one.figure.shrink(0))})
                            .cells(int(column), row++));
     if (notes && !one.note.empty())
-      children.push_back(text(std::move(one.note))
-                             .styleClass("captionNote")
+      children.push_back(document::caption(std::move(one.note))
                              .width(columnWidth)
                              .shrink(0)
                              .cells(int(column), row));

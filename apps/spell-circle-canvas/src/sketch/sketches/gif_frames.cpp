@@ -11,6 +11,7 @@
 
 #include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilio/hub/Hub.h>
@@ -163,11 +164,11 @@ struct GifFrames {
                   .note = kit::formatted("%.0f ms per loop",
                                          (double)gif.totalDurationMs())}),
              sampled(gif),
-             text("Each frame already includes disposal and blend rules. "
-                  "Playback selects among those complete images using their "
-                  "durations.")
-                 .width(440)
-                 .styleClass("captionNote")}));
+             document::caption(
+                 "Each frame already includes disposal and blend rules. "
+                 "Playback selects among those complete images using their "
+                 "durations.")
+                 .width(440)}));
   }
 
   /** What stands here when the file decoded to nothing. The availability

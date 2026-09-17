@@ -40,6 +40,7 @@
 
 #include <include/effects/SkImageFilters.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
@@ -158,12 +159,12 @@ struct BlurFalloff {
                                {.label = "READ THE MAP",
                                 .note =
                                     "Dark means sharp; light means blurred."}),
-                           text("The stripes reveal lost detail. Every output "
-                                "uses this same picture and a maximum sigma of "
-                                "14 pixels. The narrow map above each result "
-                                "shows where that blur is applied.")
-                               .width(660)
-                               .styleClass("captionNote"),
+                           document::caption(
+                               "The stripes reveal lost detail. Every output "
+                               "uses this same picture and a maximum sigma of "
+                               "14 pixels. The narrow map above each result "
+                               "shows where that blur is applied.")
+                               .width(660),
                            box().width(660).height(42).fill(
                                mskia::Paint::linearUnit(
                                    {0, 0}, {1, 0},
@@ -172,12 +173,11 @@ struct BlurFalloff {
                                .row()
                                .alignItems(Align::Start)
                                .gap(20)
-                               .children({text("BLACK  ·  sigma 0")
-                                              .width(320)
-                                              .styleClass("captionNote"),
-                                          text("WHITE  ·  sigma 14")
-                                              .width(320)
-                                              .styleClass("captionNote")})})}),
+                               .children(
+                                   {document::caption("BLACK  ·  sigma 0")
+                                        .width(320),
+                                    document::caption("WHITE  ·  sigma 14")
+                                        .width(320)})})}),
              sketch::kit::sectionHeader(
                  {.label = "FOUR FALLOFFS",
                   .note = "Map above · resulting image below"}),

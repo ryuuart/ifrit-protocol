@@ -100,10 +100,10 @@ struct Page {
 };
 
 /** THE SHEET, over the whole canvas, in the theme's voice: the title, the
- *  subtitle and the footer set in the classes `title`, `subtitle` and
- *  `footer` — the theme's own registers, bound around the lines this call
- *  writes — the page margins and the content gap the theme's distances,
- *  the ground and the hairline the theme's colours.
+ *  subtitle and the footer in document roles `h1`, `lead` and `footer`
+ *  — the theme's registers, resolved where these lines land — the page margins
+ * and the content gap the theme's distances, the ground and the hairline the
+ * theme's colours.
  *
  *      ctx.composer.render(sketch::kit::page(
  *          {.title = "THE RULE AND THE STRANDS",

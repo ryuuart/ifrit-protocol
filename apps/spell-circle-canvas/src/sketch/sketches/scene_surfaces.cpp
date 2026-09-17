@@ -43,6 +43,7 @@
 
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/kit/Solids.h>
@@ -90,14 +91,14 @@ constexpr float kRepeats = 6.0f;
 constexpr int kTapeWidth = 512;
 constexpr int kTapeHeight = 160;
 
-/** THE SCREENS' TYPE, as classes: a screen's title and the note under it,
+/** THE SCREENS' TYPE, as roles and classes: a screen's heading and its note,
  *  and the tape's display line and its caption. A texture scene is a root
  *  of its own, so each states this sheet and every leaf under it names its
  *  register; that a screen's glyphs are aliased is that same root's
  *  statement. */
 weave::StyleSheet screenType() {
   weave::StyleSheet sheet;
-  sheet.set("title", {.size = 22.0f, .color = compose::hexColor(0xbfd4ef)});
+  sheet.set("h1", {.size = 22.0f, .color = compose::hexColor(0xbfd4ef)});
   sheet.set("note", {.size = 19.0f, .color = compose::hexColor(0x7e93b4)});
   sheet.set("display", {.size = 46.0f, .color = compose::hexColor(0xf2ebdc)});
   sheet.set("caption", {.size = 20.0f, .color = compose::hexColor(0x9eb8d9)});
@@ -132,7 +133,7 @@ compose::Element levels(float seconds, SkColor4f accent) {
          compose::box().width(compose::pct(100)).height(height).fill(accent)});
   };
   return screen(8.0f, compose::hexColor(0x12171f))
-      .children({compose::text(u8"LEVELS").styleClass("title"),
+      .children({compose::document::h1(u8"LEVELS"),
                  compose::box()
                      .row()
                      .gap(7.0f)
@@ -156,7 +157,7 @@ compose::Element trace(float seconds, SkColor4f accent) {
   };
   return screen(10.0f, compose::hexColor(0x0f141c))
       .children(
-          {compose::text(u8"TRACE").styleClass("title"),
+          {compose::document::h1(u8"TRACE"),
            compose::box().row().gap(5.0f).height(44.0f).children(
                {compose::each(kCells, cell)}),
            compose::text(u8"one wave, fourteen cells").styleClass("note")});
@@ -168,7 +169,7 @@ compose::Element trace(float seconds, SkColor4f accent) {
 compose::Element dial(float seconds, SkColor4f accent) {
   const float reading = 0.5f + 0.5f * std::sin(seconds * 1.15f);
   return screen(10.0f, compose::hexColor(0x14121f))
-      .children({compose::text(u8"DIAL").styleClass("title"),
+      .children({compose::document::h1(u8"DIAL"),
                  compose::box()
                      .width(compose::pct(100))
                      .height(26.0f)

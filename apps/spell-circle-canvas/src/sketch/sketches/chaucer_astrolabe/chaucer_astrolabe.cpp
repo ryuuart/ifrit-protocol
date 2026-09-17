@@ -127,19 +127,19 @@ auto ChaucerAstrolabe::setup(sketch::SketchContext& ctx) -> void {
   // draws, so a plot on a card is dressed without the card saying anything.
   doc = sketch::kit::Document(ctx, "data/content.json");
   cardLook = sheetLook.styleSheet();
-  cardLook.set("title", partial(faceLimb, 15, kRubric, 1.9f));
-  cardLook.set("subtitle", partial(faceItalic, 14, hexColor(0x6b5a44)));
+  cardLook.set("h1", partial(faceLimb, 15, kRubric, 1.9f));
+  cardLook.set("lead", partial(faceItalic, 14, hexColor(0x6b5a44)));
   cardLook.set("gloss", partial(faceItalic, 13, kRubric));
   cardLook.set("note", partial(faceItalic, 12, hexColor(0x7b6a54)));
   cardLook.set("quote", partial(faceItalic, 13.5f, kInk));
   cardLook.set("figure", partial(faceMono, 12, kInk));
   cardLook.set("engrave", partial(faceLimb, 9, hexColor(0x33240c, 0.85f)));
-  cardLook.set("captionLabel", partial(faceLimb, 11.5f, kInk, 1.2f));
-  cardLook.set("captionNote", partial(faceMono, 9.5f, hexColor(0x7b6a54)));
+  cardLook.set("label", partial(faceLimb, 11.5f, kInk, 1.2f));
+  cardLook.set("caption", partial(faceMono, 9.5f, hexColor(0x7b6a54)));
   cardLook.set("plotTick", partial(faceMono, 9.5f, kInk));
   cardLook.set("plotLabel", partial(faceItalic, 11, hexColor(0x7b6a54)));
   cardLook.set("dial", partial(faceLimb, 10, hexColor(0x8a99b0), 1.4f));
-  cardLook.set("readout", partial(faceMono, 19, hexColor(0xd8c79c)));
+  cardLook.set("dialReading", partial(faceMono, 19, hexColor(0xd8c79c)));
   cardLook.set("time", partial(faceMono, 19, hexColor(0xffdc8b)));
 
   brassGrain = Paint::recipe(field::grain(0.9f, 3, 11.0f, 0.30f));

@@ -6,6 +6,7 @@
 // TAGS: Typography/Effects
 
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Gloss.h>
 #include <sigilmaterial/kit/TextPaint.h>
@@ -71,19 +72,18 @@ struct TextPaints {
         sketch::kit::well({.width = 501, .height = 236, .padding = 26})
             .column()
             .gap(20)
-            .children({text("ONE RAMP · 104 PX").styleClass("eyebrow"),
-                       word(104, kit::sunsetChromeType()),
-                       text("The hard horizon crosses the capitals.")
-                           .styleClass("captionNote")});
+            .children(
+                {document::eyebrow("ONE RAMP · 104 PX"),
+                 word(104, kit::sunsetChromeType()),
+                 document::caption("The hard horizon crosses the capitals.")});
     Element scale =
         sketch::kit::well({.width = 501, .height = 236, .padding = 26})
             .column()
             .gap(12)
-            .children(
-                {text("THE SAME RAMP · 28 / 48 / 72 PX").styleClass("eyebrow"),
-                 word(28, kit::sunsetChromeType()),
-                 word(48, kit::sunsetChromeType()),
-                 word(72, kit::sunsetChromeType())});
+            .children({document::eyebrow("THE SAME RAMP · 28 / 48 / 72 PX"),
+                       word(28, kit::sunsetChromeType()),
+                       word(48, kit::sunsetChromeType()),
+                       word(72, kit::sunsetChromeType())});
     ctx.composer.render(sketch::kit::page(
         {.title = "Paint that follows the type",
          .subtitle = "The material's unit square runs from cap top to baseline "
@@ -98,7 +98,7 @@ struct TextPaints {
                              .figure = std::move(scale)}},
                   .measure = 1020,
                   .gap = 18}),
-             text("EIGHT INKS · a common proof size").styleClass("eyebrow"),
+             document::eyebrow("EIGHT INKS · a common proof size"),
              sketch::kit::comparison(
                  {.cases = {{.title = "WATER",
                              .control = "water(unit, t)",

@@ -9,11 +9,12 @@ import _sigil.material.skia
 import _sigil.motion
 import _sigil.skia
 import _sigil.weave
+from . import document
 from . import kit
 from . import layouts
 from . import selectors
 from . import spans
-__all__: list[str] = ['Align', 'Backface', 'Boundary', 'Cache', 'CellSpan', 'Composer', 'ComposerStats', 'Corners', 'Decoration', 'Dimension', 'Element', 'Fill', 'Fit', 'Justify', 'LayerStyle', 'MotionPath', 'PathFormat', 'Shadow', 'Shape', 'Spans', 'SurfacePaint', 'TextPath', 'TextSettling', 'VarRef', 'autoDimension', 'box', 'frame', 'graphics', 'heldPath', 'image', 'kit', 'layout', 'layouts', 'memo', 'pathFigure', 'pct', 'pen', 'ph', 'picture', 'positioned', 'pw', 'selectors', 'shadow', 'shape', 'slot', 'spans', 'stack', 'stroke', 'text', 'var']
+__all__: list[str] = ['Align', 'Backface', 'Boundary', 'Cache', 'CellSpan', 'Composer', 'ComposerStats', 'Corners', 'Decoration', 'Dimension', 'Element', 'Fill', 'Fit', 'Justify', 'LayerStyle', 'MotionPath', 'PathFormat', 'Shadow', 'Shape', 'Spans', 'SurfacePaint', 'TextPath', 'TextSettling', 'VarRef', 'autoDimension', 'box', 'document', 'frame', 'graphics', 'heldPath', 'image', 'kit', 'layout', 'layouts', 'memo', 'pathFigure', 'pct', 'pen', 'ph', 'picture', 'positioned', 'pw', 'selectors', 'shadow', 'shape', 'slot', 'spans', 'stack', 'stroke', 'text', 'var']
 
 class Align:
     """
@@ -814,6 +815,14 @@ class Element:
     def right(self, value: _t.DimensionLike) -> Element:
         ...
 
+    @typing.overload
+    def role(self, defaults: _sigil.weave.Rule) -> Element:
+        ...
+
+    @typing.overload
+    def role(self, name: str) -> Element:
+        ...
+
     def rotate(self, value: _t.ScalarLike) -> Element:
         ...
 
@@ -930,6 +939,9 @@ class Element:
         ...
 
     def var(self, name: str, value: _t.DimensionLike | _t.ColorLike) -> Element:
+        ...
+
+    def varDefaults(self, defaults: dict[str, _t.DimensionLike | _t.ColorLike]) -> Element:
         ...
 
     def width(self, value: _t.DimensionLike) -> Element:

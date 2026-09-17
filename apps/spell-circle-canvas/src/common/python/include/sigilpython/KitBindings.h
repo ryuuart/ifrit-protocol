@@ -13,6 +13,7 @@
 
 namespace sigil::python {
 void bindComposeKit(pybind11::module_& module);
+void bindDocument(pybind11::module_& compose);
 
 /** Conversions shared by native kit record registrations. */
 namespace kit {

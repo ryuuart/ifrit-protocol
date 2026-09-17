@@ -25,3 +25,4 @@ __all__.sort()
 # Kit records and layout schemes have their own domain-specific fields.
 kit = _import_module(__name__ + ".kit")
 layouts = _import_module(__name__ + ".layouts")
+document = _import_module(__name__ + ".document")

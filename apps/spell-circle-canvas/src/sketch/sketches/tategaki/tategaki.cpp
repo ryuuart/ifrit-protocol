@@ -36,6 +36,7 @@
 
 // TAGS: Typography/CJK
 
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
@@ -145,7 +146,7 @@ struct Tategaki {
         .fill(std::move(ground))
         .ink(tg::kGofun)
         .children(
-            {text(std::move(passage))
+            {document::paragraph(std::move(passage))
                  .font(tg::bodyType(tg::kBodySize))
                  .right(tg::kColumnBlockRight)
                  .top(92)
@@ -170,12 +171,13 @@ struct Tategaki {
                  .column()
                  .gap(10)
                  .children(
-                     {text("縦組み").font(tg::bodyType(46)),
+                     {document::h1("縦組み").font(tg::bodyType(46)),
                       kit::line({.length = Dimension(120),
                                  .fill = Fill::color(tg::kAi)}),
-                      text("VERTICAL-RL").font(tg::labelType(15, tg::kAi, 4)),
-                      text("UTR#50 orientation, 'vert' forms,\n"
-                           "tate-chu-yoko digits, rotated Latin")
+                      document::eyebrow("VERTICAL-RL")
+                          .font(tg::labelType(15, tg::kAi, 4)),
+                      document::lead("UTR#50 orientation, 'vert' forms,\n"
+                                     "tate-chu-yoko digits, rotated Latin")
                           .font(tg::labelType(14, 0.5f))
                           .width(240.0f),
                       box().height(26.0f),
@@ -201,12 +203,12 @@ struct Tategaki {
                                    .add(u8"年"),
                                tg::bodyType(28))}),
                       box().height(22.0f),
-                      text("one paragraph · one writingMode "
-                           "· three forms")
+                      document::caption("one paragraph · one writingMode "
+                                        "· three forms")
                           .font(tg::labelType(13, {0.55f, 0.53f, 0.50f, 1}))
                           .width(300.0f)}),
-             text("cluster-unit entrance staggers DOWN the column, "
-                  "columns advance right to left")
+             document::footer("cluster-unit entrance staggers DOWN the column, "
+                              "columns advance right to left")
                  .font(tg::labelType(13, {0.48f, 0.46f, 0.44f, 1}))
                  .left(64)
                  .bottom(46)});

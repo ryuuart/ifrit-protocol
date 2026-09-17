@@ -1,4 +1,5 @@
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilsketch/kit/Cells.h>
 #include <sigilsketch/kit/Heading.h>
 #include <sigilsketch/kit/Instrument.h>
@@ -38,7 +39,7 @@ compose::Element instrument(const Instrument& specification,
                            .placed = true},
                           stack().children({std::move(picture)}))});
   if (!specification.note.empty())
-    preview.children({text(specification.note).styleClass("captionNote")});
+    preview.children({document::caption(specification.note)});
   Element detail = box().column().basis(0).grow().gap(14).children(
       {sectionHeader({.label = specification.readingsLabel}),
        well(

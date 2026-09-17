@@ -88,8 +88,8 @@ struct SurfaceComponents {
                     .columns = 3,
                     .gap = 18,
                     .rowGap = 18}))
-        .styleSheet(weave::StyleSheet{{"title", {.size = 30}},
-                                      {"subtitle", {.size = 17}},
+        .styleSheet(weave::StyleSheet{{"h1", {.size = 30}},
+                                      {"lead", {.size = 17}},
                                       {"footer", {.size = 14}}})
         .font({.size = 16})
         .ink(kInk);

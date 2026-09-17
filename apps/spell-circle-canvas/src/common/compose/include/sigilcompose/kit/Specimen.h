@@ -12,9 +12,8 @@
  * look. Its props carry the CONTENT and the ARRANGEMENT — the words, the
  * measures, which side of the body a note stands on, what a rule is and
  * where a footer lands. Every face, size and colour is the CASCADE's: a
- * component names the class each line of it is set in, and the
- * `weave::StyleSheet` in scope where the component is called says what
- * that class is.
+ * component names the document role each line is set in, and the
+ * `weave::StyleSheet` where the component lands styles that role.
  */
 
 #include <include/core/SkColor.h>
@@ -23,6 +22,7 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Utf8.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Part.h>
 #include <sigilweave/layout/StyleSheet.h>
 
@@ -40,21 +40,19 @@ namespace sigil::compose::kit {
 // ---------------------------------------------------------------------------
 // The captioned cell
 
-/** The leaf a caption's label defaults to: @p text in the class
- *  `captionLabel`, so the sheet in force sets it. */
+/** The leaf a caption's label defaults to: a document label. */
 [[nodiscard]] inline Element captionLabel(const Utf8& text) {
-  return compose::text(text).styleClass("captionLabel");
+  return document::label(text);
 }
-/** The leaf a caption's note defaults to: @p text in the class
- *  `captionNote`. */
+/** The leaf a caption's note defaults to: a document caption. */
 [[nodiscard]] inline Element captionNote(const Utf8& text) {
-  return compose::text(text).styleClass("captionNote");
+  return document::caption(text);
 }
 /** THE LEAF A MEASURED FIGURE DEFAULTS TO: @p text in the class
  *  `readout` — a caption's reading, a readout's value, a figure column's
  *  cells. One leaf, because it is one line wherever it stands. */
 [[nodiscard]] inline Element figure(const Utf8& text) {
-  return compose::text(text).styleClass("readout");
+  return document::paragraph(text).styleClass("readout");
 }
 
 /** THE FIXED SURFACE A SPECIMEN IS SHOWN IN. Its size, ground, padding,
@@ -143,8 +141,8 @@ struct Well {
  *  handed to every cell on it, so the sheet has one voice.
  *
  *  NO TYPE IS HERE. The two lines are PARTS: `label` and `note` default to
- *  `captionLabel` and `captionNote`, leaves in the class of that name of
- *  the sheet in force where the cell lands, so what they look like is one
+ *  `captionLabel` and `captionNote`, document label and caption leaves
+ *  styled by the sheet where the cell lands, so what they look like is one
  *  rule each in a sheet. A cell whose call must stand otherwise hands
  *  `label` its own leaf — the register with a font over it, or a leaf of
  *  its own — and the cells under it keep the register, because no sheet
@@ -214,8 +212,8 @@ struct Caption {
  *      kit::cell(voice, "blur(14, 14)", "all or nothing",
  *                subject().key("flat").effect(blur))
  *
- *  THE LABEL IS SET IN THE CLASS `captionLabel` and the note in
- *  `captionNote`, of the `weave::StyleSheet` in scope here — nothing else
+ *  THE LABEL HAS ROLE `label` and the note has role `caption`,
+ *  resolved through the `weave::StyleSheet` where the cell lands — nothing else
  *  is said about their type, so a sheet that registers the two names
  *  clothes every cell on it at once.
  *
@@ -413,20 +411,17 @@ struct PanelGrid {
 // ---------------------------------------------------------------------------
 // The sheet
 
-/** The leaf a sheet's title defaults to: @p text in the class `title`,
- *  so the sheet in force sets it. */
+/** The leaf a sheet's title defaults to: a level-one document heading. */
 [[nodiscard]] inline Element sheetTitle(const Utf8& text) {
-  return compose::text(text).styleClass("title");
+  return document::h1(text);
 }
-/** The leaf a sheet's subtitle defaults to: @p text in the class
- *  `subtitle`. */
+/** The leaf a sheet's subtitle defaults to: a document lead. */
 [[nodiscard]] inline Element sheetSubtitle(const Utf8& text) {
-  return compose::text(text).styleClass("subtitle");
+  return document::lead(text);
 }
-/** The leaf a sheet's footer defaults to: @p text in the class
- *  `footer`. */
+/** The leaf a sheet's footer defaults to: a document footer. */
 [[nodiscard]] inline Element sheetFooter(const Utf8& text) {
-  return compose::text(text).styleClass("footer");
+  return document::footer(text);
 }
 
 /** THE SHEET: a page with a titled header, a footer line, and the content
@@ -441,9 +436,9 @@ struct PanelGrid {
  *                 kit::cells({.cells = panels, .gap = 40}))
  *          .absolute().inset(0)
  *
- *  ITS THREE LINES ARE SET IN THE CLASSES `title`, `subtitle` and
- *  `footer`, of the `weave::StyleSheet` in scope here, and nothing else is
- *  said about their type. Each is a PART — `titleLine`, `subtitleLine`,
+ *  ITS THREE LINES HAVE DOCUMENT ROLES `h1`, `lead` and `footer`,
+ *  resolved through the `weave::StyleSheet` where the sheet lands, and nothing
+ * else is said about their type. Each is a PART — `titleLine`, `subtitleLine`,
  *  `footerLine` — so a page whose title must stand otherwise hands in its
  *  own leaf and everything under the page keeps its registers, because no
  *  sheet moved.

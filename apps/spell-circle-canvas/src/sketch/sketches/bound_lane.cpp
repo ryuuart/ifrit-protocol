@@ -51,6 +51,7 @@
 
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
@@ -313,20 +314,20 @@ struct BoundLane {
                                       chip(shakeX, shakeY, kTrace, 167)})),
               {.title = "WHY TWO SEEDS?",
                .figure = box().width(282).column().gap(14).children(
-                   {text("Equal seeds make x = y, so the point can only slide "
-                         "along a diagonal. Independent seeds let it explore "
-                         "the plane.")
-                        .width(282)
-                        .styleClass("captionNote"),
+                   {document::caption(
+                        "Equal seeds make x = y, so the point can only slide "
+                        "along a diagonal. Independent seeds let it explore "
+                        "the plane.")
+                        .width(282),
                     sketch::kit::readout(
                         {{.name = "Amplitude", .value = "±60 px"},
                          {.name = "Frequency", .value = "3 Hz"},
                          {.name = "Plotted window", .value = "2 seconds"}},
                         {.measure = 282, .ruled = true}),
-                    text("The red rails bound the displacement. Noise is "
-                         "added in the property's own units; clamp runs last.")
-                        .width(282)
-                        .styleClass("captionNote")})}},
+                    document::caption(
+                        "The red rails bound the displacement. Noise is "
+                        "added in the property's own units; clamp runs last.")
+                        .width(282)})}},
          .measure = 1200,
          .gap = 24});
 
@@ -373,12 +374,10 @@ struct BoundLane {
                        "quantize → affine → wrap → wiggle → clamp. A path "
                        "controls position while travel is engaged."},
             box().column().gap(24).children(
-                {text("01 / RESHAPE A NORMALIZED INPUT").styleClass("section"),
-                 std::move(chain),
-                 text("02 / BUILD A TWO-AXIS SHAKE").styleClass("section"),
+                {document::h2("01 / RESHAPE A NORMALIZED INPUT"),
+                 std::move(chain), document::h2("02 / BUILD A TWO-AXIS SHAKE"),
                  std::move(locusRow),
-                 text("03 / FOLLOW A PATH · ONE PHASE, FIVE READINGS")
-                     .styleClass("section"),
+                 document::h2("03 / FOLLOW A PATH · ONE PHASE, FIVE READINGS"),
                  std::move(tracks)}))
             .styleSheet(sheetClasses(sketch::kit::theme())));
   }

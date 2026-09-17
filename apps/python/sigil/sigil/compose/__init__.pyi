@@ -52,7 +52,7 @@ from _sigil.compose import (
     var,
 )
 
-from . import kit, layouts
+from . import document, kit, layouts
 
 @overload
 def row(children: Iterable[Element], /) -> Element: ...
@@ -91,6 +91,7 @@ __all__ = [
     "autoDimension",
     "box",
     "column",
+    "document",
     "frame",
     "graphics",
     "heldPath",

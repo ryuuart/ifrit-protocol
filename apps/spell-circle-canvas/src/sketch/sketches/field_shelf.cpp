@@ -33,6 +33,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Draw.h>
@@ -250,18 +251,18 @@ struct FieldShelf {
                       box().column().gap(18).children(
                           {sketch::kit::sectionHeader(
                                {.label = "WHAT A FIELD DOES", .note = ""}),
-                           text("Halftone, noise and grain generate colour. "
-                                "Ripple samples a child image at displaced "
-                                "coordinates. The CRT overlay instead supplies "
-                                "black and alpha, changing the image beneath "
-                                "it.")
-                               .width(500)
-                               .styleClass("captionNote"),
-                           text("The paired wells keep the same size and seed. "
-                                "Their controls name the one property being "
-                                "explored.")
-                               .width(500)
-                               .styleClass("captionNote")})})})));
+                           document::caption(
+                               "Halftone, noise and grain generate colour. "
+                               "Ripple samples a child image at displaced "
+                               "coordinates. The CRT overlay instead supplies "
+                               "black and alpha, changing the image beneath "
+                               "it.")
+                               .width(500),
+                           document::caption(
+                               "The paired wells keep the same size and seed. "
+                               "Their controls name the one property being "
+                               "explored.")
+                               .width(500)})})})));
   }
 };
 

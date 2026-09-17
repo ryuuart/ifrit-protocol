@@ -1,3 +1,5 @@
+#include <sigilcompose/kit/Document.h>
+
 #include "ThunderFulu.h"
 
 auto ThunderFulu::voidWriting() -> Element {
@@ -386,7 +388,7 @@ auto ThunderFulu::furniture() -> Element {
                   .at({1046, 706})
                   .width(830)
                   .gap(6)
-                  .children({text(colophon["heading"])
+                  .children({document::h2(colophon["heading"])
                                  .styleClass("heading")
                                  .font({.size = 12.0f}),
                              rail(830),

@@ -2,6 +2,7 @@
 
 // TAGS: Interfaces/Game
 
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilweave/layout/StyleSheet.h>
 #include <sigilweave/style/Type.h>
@@ -220,12 +221,13 @@ struct LootGrid {
         .width(430.0f)
         .height(690.0f)
         .at({30.0f, 96.0f})
-        .children({text("HOARD").styleClass("heading").at({16.0f, 492.0f}),
-                   text("10 ×"
-                        " 4")
-                       .font({.size = 11, .track = 2.0f})
-                       .at({398.0f, 493.0f}),
-                   std::move(grid)});
+        .children(
+            {document::h2("HOARD").styleClass("heading").at({16.0f, 492.0f}),
+             text("10 ×"
+                  " 4")
+                 .font({.size = 11, .track = 2.0f})
+                 .at({398.0f, 493.0f}),
+             std::move(grid)});
   }
 
   Element paperdoll() {
@@ -387,7 +389,7 @@ struct LootGrid {
 
     return stack().width(pw).height(ph).at({30, 96}).children(
         {loot::panel(pw, ph).inset(0), loot::rivets(pw, ph),
-         text("EQUIPPED").styleClass("heading").at({pad, pad}),
+         document::h2("EQUIPPED").styleClass("heading").at({pad, pad}),
          std::move(body)});
   }
 
@@ -461,7 +463,7 @@ struct LootGrid {
         .gap(7)
         .at({500, 150})
         .children(
-            {text("BELT").styleClass("heading"),
+            {document::h2("BELT").styleClass("heading"),
              box().row().gap(lt::kGap).key("belt").children(
                  {each(kHeld, [](lt::Art held, size_t i) -> Element {
                    const bool potion = held == lt::Art::Potion;
@@ -495,8 +497,8 @@ struct LootGrid {
         .gap(7)
         .at({500, 560})
         .children(
-            {text("HORADRIC CUBE · 3 ×"
-                  " 4")
+            {document::h2("HORADRIC CUBE · 3 ×"
+                          " 4")
                  .styleClass("heading"),
              stack()
                  .width(3 * lt::kCell + 2 * lt::kGap)

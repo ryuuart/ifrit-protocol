@@ -14,8 +14,8 @@
  *
  * Every prop is the CONTENT and the ARRANGEMENT — the words, the values,
  * the widths, the air. Every face, size and colour is the CASCADE's: a
- * name and a note are set in the class `captionNote`, a figure in
- * `readout`, a table's head in `section`, and the `weave::StyleSheet` in
+ * name and a note have document role `caption`, a figure uses class
+ * `readout`, a table's head has role `h2`, and the `weave::StyleSheet` in
  * force where the component lands says what those are.
  */
 
@@ -35,10 +35,9 @@
 
 namespace sigil::compose::kit {
 
-/** The leaf a table's head cell defaults to: @p text in the class
- *  `section`, the register a name INSIDE the content is set in. */
+/** The leaf a table's head cell defaults to: a level-two document heading. */
 [[nodiscard]] inline Element section(const Utf8& text) {
-  return compose::text(text).styleClass("section");
+  return document::h2(text);
 }
 
 // ---------------------------------------------------------------------------
@@ -70,7 +69,7 @@ struct Reading {
  *
  *  NO TYPE IS HERE. The three lines are PARTS: `nameLine` and `noteLine`
  *  default to `captionNote` and `valueLine` to `figure`, leaves in the
- *  class of the sheet in force where the row lands. */
+ *  document roles styled by the sheet where the row lands. */
 struct Rows {
   /** The width the whole row ranges across, px. 0 sets the name and the
    *  figure side by side at `labelGap` and lets the row size itself; a
@@ -126,7 +125,7 @@ struct Column {
    *  LAST column usually wants, since nothing ranges after it. */
   float width = 0.0f;
   /** Sets the column's cells in the class `readout` rather than in
-   *  `captionNote`, so its digits read as measured figures. */
+   *  the document caption role, so its digits read as measured figures. */
   bool figure = false;
 };
 
@@ -166,7 +165,7 @@ struct Table {
    *  dresses a column names three, one that lights a row names four, and
    *  one whose last column is a METER READ OFF THE ROW names five. Empty
    *  sets each cell in its own column's class — `readout` for a figure
-   *  column, `captionNote` for the rest.
+   *  column, document captions for the rest.
    *
    *  A PART MAY ANSWER ANY ELEMENT, not only a line: a cell that is a
    *  drawing — a bar, a swatch ramp, a sparkline — is what the row it

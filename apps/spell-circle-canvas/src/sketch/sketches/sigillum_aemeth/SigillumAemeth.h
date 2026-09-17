@@ -33,10 +33,10 @@ struct SigillumAemeth {
    *  archangel, the seal face of a letter on the fan. */
   [[nodiscard]] weaveNs::StyleSheet voices() const {
     return weaveNs::StyleSheet{
-        {"title",
+        {"h1",
          weaveNs::Type{
              .face = faceDisplay, .size = 46, .color = kVellum, .track = 2.6f}},
-        {"subtitle",
+        {"lead",
          weaveNs::Type{
              .face = faceItalic, .size = 19, .color = hexColor(0xc7ab74)}},
         {"serif", weaveNs::Type{.face = faceSerif}},
@@ -57,7 +57,7 @@ struct SigillumAemeth {
              .face = faceQuill, .size = 21, .color = hexColor(0xd8c08a)}},
         {"fan", weaveNs::Type{.face = faceSeal, .size = 23, .color = kVellum}},
         {"rubric", weaveNs::Type{.color = kRubric}},
-        {"heading", weaveNs::Type{.color = kRubric, .track = 1.6f}},
+        {"heading", weaveNs::Type{.size = 15, .color = kRubric, .track = 1.6f}},
     };
   }
 

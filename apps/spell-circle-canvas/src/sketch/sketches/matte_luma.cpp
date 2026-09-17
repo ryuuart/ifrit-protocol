@@ -43,6 +43,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
@@ -260,17 +261,17 @@ struct MatteLuma {
                           {sketch::kit::sectionHeader(
                                {.label = "TWO READINGS OF ONE MATTE",
                                 .note = ""}),
-                           text("The left half changes colour while staying "
-                                "opaque. The right half changes opacity while "
-                                "staying white. This separates alpha coverage "
-                                "from premultiplied brightness.")
-                               .width(360)
-                               .styleClass("captionNote"),
-                           text("Keep and remove are complements. Checkerboard "
-                                "means the content is hidden, rather than "
-                                "painted black.")
-                               .width(360)
-                               .styleClass("captionNote")})}),
+                           document::caption(
+                               "The left half changes colour while staying "
+                               "opaque. The right half changes opacity while "
+                               "staying white. This separates alpha coverage "
+                               "from premultiplied brightness.")
+                               .width(360),
+                           document::caption(
+                               "Keep and remove are complements. Checkerboard "
+                               "means the content is hidden, rather than "
+                               "painted black.")
+                               .width(360)})}),
              sketch::kit::sectionHeader(
                  {.label = "KEEP / REMOVE",
                   .note = "Alpha pair on the left · luma pair on the right"}),

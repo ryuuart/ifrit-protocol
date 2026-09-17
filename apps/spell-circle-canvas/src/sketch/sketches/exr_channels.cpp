@@ -14,6 +14,7 @@
 #include <include/core/SkPixmap.h>
 #include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilimage/decode/ChannelData.h>
 #include <sigilimage/decode/Decode.h>
@@ -224,8 +225,7 @@ struct ExrChannels {
                       .column()
                       .gap(18)
                       .children(
-                          {text("PROBE BEFORE DECODE")
-                               .styleClass("captionLabel"),
+                          {document::label("PROBE BEFORE DECODE"),
                            text(metadata).styleClass("readout").width(286),
                            text("The metadata query reads the format, "
                                 "dimensions and channel names without decoding "

@@ -75,6 +75,7 @@
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildraw/Pen.h>
@@ -410,23 +411,21 @@ struct VolatilityCost {
               .swatchSide = 9,
               .ruled = true,
               .headRuled = true}),
-         text(ctx.deterministic
-                  ? "Capture mode hides machine-dependent times and orders "
-                    "rows by key. Counts and cache decisions remain the "
-                    "probe's actual results."
-                  : "Rows are ordered by self time. Self time excludes "
-                    "children; the probe freezes its result at two seconds.")
-             .width(440)
-             .styleClass("captionNote"),
+         document::caption(
+             ctx.deterministic
+                 ? "Capture mode hides machine-dependent times and orders "
+                   "rows by key. Counts and cache decisions remain the "
+                   "probe's actual results."
+                 : "Rows are ordered by self time. Self time excludes "
+                   "children; the probe freezes its result at two seconds.")
+             .width(440),
          legend()});
   }
 
   Element readout(const sketch::SketchContext& ctx) const {
     if (!snapped)
-      return box().height(350).children(
-          {text("Observing the two workloads… snapshot at " + ms(kSnapAt) +
-                " s")
-               .styleClass("captionNote")});
+      return box().height(350).children({document::caption(
+          "Observing the two workloads… snapshot at " + ms(kSnapAt) + " s")});
     return box().row().gap(48).children({statsBlock(ctx), costTable(ctx)});
   }
 

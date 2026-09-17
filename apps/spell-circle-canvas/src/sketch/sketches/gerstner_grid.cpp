@@ -45,6 +45,7 @@
 // TAGS: Typography/Paragraph, Geometry/Layout
 
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
@@ -277,7 +278,7 @@ struct GerstnerGrid {
                          .gap(g::kUnit)
                          .font({.size = c.size});
       for (int b = 0; b < c.blocks; ++b)
-        copy.children({text(g::kBody[(i + b) % g::kBodyCount])
+        copy.children({document::paragraph(g::kBody[(i + b) % g::kBodyCount])
                            .ink(b % 2 == 0 ? g::kInk : g::kInkSoft)
                            .width(colW)});
       band.children(

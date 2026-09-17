@@ -7,6 +7,7 @@
 // TAGS: Typography/Paragraph
 
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -75,7 +76,7 @@ struct RichSlotReserve {
          .footer = "Slots match this text leaf's keyed children. The "
                    "measurements below come from the laid-out paragraphs."},
         box().column().gap(26).children(
-            {text("01 · AN OBJECT IN THE LINE").styleClass("eyebrow"),
+            {document::eyebrow("01 · AN OBJECT IN THE LINE"),
              sketch::kit::comparison(
                  {.cases = {{.title = "ON THE BASELINE",
                              .control = "34 × 16 px · drop 0",
@@ -94,7 +95,7 @@ struct RichSlotReserve {
                                      "including lines without the box."}},
                   .measure = 1020,
                   .gap = 18}),
-             text("02 · ROOM BESIDE EVERY LINE").styleClass("eyebrow"),
+             document::eyebrow("02 · ROOM BESIDE EVERY LINE"),
              sketch::kit::comparison(
                  {.cases = {{.title = "NO RESERVED BAND",
                              .control = "before 0 · after 0",

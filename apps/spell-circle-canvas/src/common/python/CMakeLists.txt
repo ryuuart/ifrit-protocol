@@ -3,7 +3,7 @@ sigil_library_root(SigilPython
 
 sigil_library(SigilPython
   SOURCES Python.cpp Bindings.cpp ComposeBindings.cpp MotionBindings.cpp
-          KitBindings.cpp DataBindings.cpp IOBindings.cpp PenBindings.cpp
+          KitBindings.cpp DocumentBindings.cpp DataBindings.cpp IOBindings.cpp PenBindings.cpp
           ValueBindings.cpp GeometryBindings.cpp BrushBindings.cpp WeaveBindings.cpp
           WorldBindings.cpp
   HEADERS Python.h Bindings.h ComposeBindings.h MotionBindings.h KitBindings.h

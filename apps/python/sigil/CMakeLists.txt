@@ -101,6 +101,7 @@ if(SIGIL_BASEDPYRIGHT)
       --example "${PROJECT_SOURCE_DIR}/src/sketch/sketches/python_compose_stamps.py"
       --example "${PROJECT_SOURCE_DIR}/src/sketch/sketches/python_live_signals.py"
       --example "${PROJECT_SOURCE_DIR}/src/sketch/sketches/python_type_atelier.py"
+      --example "${PROJECT_SOURCE_DIR}/src/sketch/sketches/python_document.py"
       --example "${PROJECT_SOURCE_DIR}/src/sketch/sketches/python_world_study.py"
       --example "${CMAKE_CURRENT_SOURCE_DIR}/sigil/examples/tools/send_live_signals.py")
 endif()

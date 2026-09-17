@@ -11,6 +11,7 @@
 #include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Ornament.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -139,7 +140,7 @@ struct NineSlice {
          box().left(0).top(64).width(192).height(1).fill(Fill::color(kInk)),
          box().left(0).top(128).width(192).height(1).fill(Fill::color(kInk))});
     Element source = box().column().gap(18).width(288).children(
-        {text("ONE SOURCE TEXTURE").styleClass("captionLabel"),
+        {document::label("ONE SOURCE TEXTURE"),
          text("192 × 192 px · 2× density").styleClass("readout"),
          sketch::kit::well({.width = 288,
                             .height = 244,

@@ -29,13 +29,13 @@
 # mixer a layout scatters with. The arrow points one way: this tier links
 # Brush, and Brush links nothing here.
 sigil_library(SigilComposeKit
-  SOURCES Bevels.cpp Board.cpp Eras.cpp Frame.cpp Routers.cpp Rows.cpp
+  SOURCES Bevels.cpp Board.cpp Document.cpp Eras.cpp Frame.cpp Routers.cpp Rows.cpp
           Specimen.cpp Sprites.cpp
-  HEADERS Board.h Chrome.h Frame.h Gel.h Gloss.h Ground.h Annotations.h
+  HEADERS Board.h Chrome.h Document.h Frame.h Gel.h Gloss.h Ground.h Annotations.h
           Typeset.h Instruments.h Kinetic.h Kit.h Layouts.h Marquee.h
           PixelType.h Placers.h Routers.h Rows.h Specimen.h Sprites.h
   PUBLIC SigilComposeCore SigilComposeTypography SigilComposeBrush
-         SigilGeometryKit SigilCoreCompute SigilMaterial SigilWeave)
+         SigilGeometryKit SigilCoreCompute SigilMaterial SigilWeave SigilWeavePorts)
 
 # The kit's cases, declared here beside the code they cover and carried
 # by the library's one test binary. SigilMeasure is here for the checks a
@@ -47,7 +47,7 @@ sigil_library(SigilComposeKit
 # that case alone carries the label.
 sigil_test(compose_test
   SOURCES test/ComposeTestKitValues.cpp test/ComposeTestChrome.cpp
-          test/ComposeTestColumns.cpp
+          test/ComposeTestColumns.cpp test/ComposeTestDocument.cpp
           test/ComposeTestLayoutsAndShapes.cpp
           test/ComposeTestTravel.cpp test/ComposeTestRouters.cpp
           test/ComposeTestEras.cpp

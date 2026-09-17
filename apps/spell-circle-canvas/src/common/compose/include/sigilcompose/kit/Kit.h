@@ -11,6 +11,7 @@
 #include "sigilcompose/kit/Annotations.h"
 #include "sigilcompose/kit/Board.h"
 #include "sigilcompose/kit/Chrome.h"
+#include "sigilcompose/kit/Document.h"
 #include "sigilcompose/kit/Frame.h"
 #include "sigilcompose/kit/Gel.h"
 #include "sigilcompose/kit/Gloss.h"

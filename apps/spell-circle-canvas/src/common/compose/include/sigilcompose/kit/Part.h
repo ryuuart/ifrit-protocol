@@ -17,12 +17,11 @@ namespace sigil::compose::kit {
  *  as a range's children take a function of the item or of the item and
  *  its index.
  *
- *  Every component's parts default to a leaf in the register's class,
- *  so the sheet in force sets the line; a sketch hands in its own to set
- *  that one line otherwise — the register's leaf with a font over it, or
- *  a leaf of its own — and nothing else under the component changes,
- *  because no sheet moved. An empty part is the default, so a component
- *  falls back to its own leaf where a caller left one unset. */
+ *  A component's stock text parts carry document roles, or a data class
+ *  for measured values, so the sheet where they land styles them. A caller
+ *  can supply its own leaf to change one line without changing the sheet
+ *  for the rest of the component. An empty part selects the component's
+ *  own default leaf. */
 template <class... Offered>
 using Part = core::Callable<Element(const Offered&...)>;
 

@@ -38,6 +38,7 @@
 
 // TAGS: Typography/Paragraph
 
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
@@ -150,8 +151,8 @@ kit::Caption callVoice(float measure) {
 /// in the mark colour, what it decides a size under it.
 weave::StyleSheet panelClasses() {
   weave::StyleSheet sheet = classes();
-  sheet.set("captionLabel", label(9.5f, 2.0f, kMark));
-  sheet.set("captionNote", label(9.0f, 0.4f));
+  sheet.set("label", label(9.5f, 2.0f, kMark));
+  sheet.set("caption", label(9.0f, 0.4f));
   return sheet;
 }
 
@@ -159,8 +160,8 @@ weave::StyleSheet panelClasses() {
 /// as one line, so both are the same size.
 weave::StyleSheet callClasses() {
   weave::StyleSheet sheet = classes();
-  sheet.set("captionLabel", label(8.5f, 1.2f));
-  sheet.set("captionNote", label(8.5f, 1.2f));
+  sheet.set("label", label(8.5f, 1.2f));
+  sheet.set("caption", label(8.5f, 1.2f));
   return sheet;
 }
 
@@ -179,7 +180,7 @@ Element leadingSpecimen(const char* caption, weave::Leading leading) {
   weave::ParagraphStyle style;
   style.leading = leading;
   return kit::cell(callVoice(kMeasure * 0.48f), caption, "",
-                   text(kFourWays)
+                   document::paragraph(kFourWays)
                        .styleClass("body")
                        .font({.size = 11.5f})
                        .width(kMeasure * 0.48f)
@@ -213,7 +214,7 @@ struct ParagraphSheet {
                 .height(s::kGrid * 4)
                 .children(
                     {gridRules(),
-                     text(s::kFourWays)
+                     document::paragraph(s::kFourWays)
                          .styleClass("body")
                          .font({.size = 11.5f})
                          .inset(0)
@@ -262,12 +263,13 @@ struct ParagraphSheet {
         "the gap between two blocks is the LARGER of the first's "
         "spaceAfter and the second's spaceBefore — 26 then 24, "
         "never 36 or 30.",
-        text(u8"after 26, before 10 — the gap under this block "
-             u8"is twenty-six.\n"
-             u8"after 6, before 24 — and the gap under THIS one "
-             u8"is twenty-four.\n"
-             u8"The block above claimed six and the one below claimed "
-             u8"twenty-four, so twenty-four stands.")
+        document::paragraph(
+            u8"after 26, before 10 — the gap under this block "
+            u8"is twenty-six.\n"
+            u8"after 6, before 24 — and the gap under THIS one "
+            u8"is twenty-four.\n"
+            u8"The block above claimed six and the one below claimed "
+            u8"twenty-four, so twenty-four stands.")
             .styleClass("body")
             .width(s::kMeasure)
             .paragraphs({first, second, third}));
@@ -287,17 +289,18 @@ struct ParagraphSheet {
         "start and end on every line, firstLine and lastLine added to "
         "start on those two — all of it arithmetic on the "
         "intervals the geometry handed back.",
-        text(u8"A first-line indent moves the opening of the block and "
-             u8"nothing else, which is the oldest way to mark a "
-             u8"paragraph.\n"
-             u8"A hanging indent is the same field negative against a "
-             u8"start indent, so the first line comes out to the margin "
-             u8"and the rest stay in.\n"
-             u8"Indenting both ends narrows the measure without moving "
-             u8"the block, which is how a quotation stands apart from "
-             u8"the text around it.\n"
-             u8"A last-line indent pulls the closing line in, and it is "
-             u8"the fit that decides which line that is.")
+        document::paragraph(
+            u8"A first-line indent moves the opening of the block and "
+            u8"nothing else, which is the oldest way to mark a "
+            u8"paragraph.\n"
+            u8"A hanging indent is the same field negative against a "
+            u8"start indent, so the first line comes out to the margin "
+            u8"and the rest stay in.\n"
+            u8"Indenting both ends narrows the measure without moving "
+            u8"the block, which is how a quotation stands apart from "
+            u8"the text around it.\n"
+            u8"A last-line indent pulls the closing line in, and it is "
+            u8"the fit that decides which line that is.")
             .styleClass("body")
             .width(s::kMeasure)
             .paragraphs({firstLine, hanging, bothEnds, lastLine}));
@@ -321,7 +324,7 @@ struct ParagraphSheet {
     const auto column = [&](const char* caption,
                             const weave::JustificationOptions& spec) {
       return kit::cell(s::callVoice(s::kMeasure * 0.31f), caption, "",
-                       text(passage)
+                       document::paragraph(passage)
                            .styleClass("body")
                            .font({.size = 11.0f})
                            .width(s::kMeasure * 0.31f)
@@ -382,13 +385,13 @@ struct ParagraphSheet {
         "the same controls a quarter turn round: the pitch is the "
         "column's width, the indents run down it, and the air between "
         "blocks is a gap across the page.",
-        text(u8"縦組み\n"
-             u8"行の間隔は"
-             u8"段落ごとに"
-             u8"決まり、縦"
-             u8"に組めばそ"
-             u8"れが列の幅"
-             u8"になる。")
+        document::paragraph(u8"縦組み\n"
+                            u8"行の間隔は"
+                            u8"段落ごとに"
+                            u8"決まり、縦"
+                            u8"に組めばそ"
+                            u8"れが列の幅"
+                            u8"になる。")
             .styleClass("body")
             .font({.size = 15.0f})
             .width(210.0f)
@@ -402,7 +405,7 @@ struct ParagraphSheet {
   Element panels(std::vector<Element> run) {
     return kit::cells({.cells = std::move(run),
                        .column = true,
-                       .gap = 22,
+                       .gap = 16,
                        .divider = Fill::color(s::kFaint)});
   }
 

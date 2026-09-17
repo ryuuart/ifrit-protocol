@@ -30,6 +30,89 @@ same probe this page is.
 
 ---
 
+## Writing a document
+
+`sigilcompose/kit/Document.h` supplies content components in
+`sigil::compose::document`. They return ordinary Elements with semantic
+roles and a default type hierarchy. A document can style every heading,
+paragraph or caption through one inherited `weave::StyleSheet`:
+
+```cpp
+#include <sigilcompose/kit/Document.h>
+#include <sigilweave/layout/StyleSheet.h>
+
+namespace document = sigil::compose::document;
+namespace weave = sigil::weave;
+
+auto content = document::article({
+    document::eyebrow("FIELD NOTES"),
+    document::h1("A document has a voice"),
+    document::lead("The content describes its purpose; the sheet chooses its look."),
+    document::section({
+        document::h2("One rule, every paragraph"),
+        document::paragraph("This paragraph inherits the document's face and ink."),
+        document::quote("A quoted passage keeps its own semantic role."),
+        document::list({document::item("Headings establish the hierarchy."),
+                   document::item("Captions stay beside the material they describe.")}),
+    }),
+    document::footer("An ordinary Compose tree, ready for a window or a snapshot."),
+}).styleSheet({
+    weave::rule("h1").font({.size = 36}),
+    weave::rule("h2").font({.size = 24}),
+    weave::rule("paragraph").block({.leading = weave::Leading::multiple(1.5f)}),
+    weave::rule("caption").font({.size = 12}),
+});
+```
+
+The roles are `article`, `section`, `h1` through `h6`, `paragraph`, `lead`,
+`caption`, `label`, `eyebrow`, `footer`, `code`, `quote`, `list`, `item`,
+`marker`, `figure` and `rule`. `heading(level, words)` accepts levels 1–6.
+`paragraph` also accepts a `weave::RichText`; inline runs stay in one shaped
+passage. `figure(body, note)` keeps a body and its caption together, and
+`item(body, marker)` accepts composed content for nested lists. Container
+factories take children directly or through the usual `children()` call.
+
+Roles are independent of class membership; both look up stylesheet rules by
+name. Resolution at each node is inherited
+type and block, then role defaults, the stylesheet rule matching the role,
+authored classes, and finally direct `font()` and `block()` declarations.
+A later `styleClass("warning")` therefore keeps the element's paragraph
+role; the warning rule overrides only what it states. Relative sizes are
+resolved once against the inherited font. Content built before its parent
+still adopts that parent's rules, including after a retained theme update.
+
+`Element::role` is the underlying seam. It accepts a name or a `weave::Rule`
+that supplies the role's fallback type and block. Missing role rules are
+normal: the fallback remains in force. An unknown authored class still
+reports a missing rule. Rules use exact names; there is no selector-string
+parser or combinator matching.
+
+The document's layout uses inherited length properties: `document::measure`
+is the maximum article width, `document::gap` separates content blocks,
+`document::listGap` separates list items and a figure's caption, and
+`document::quoteInset` indents quotations. For example:
+
+```cpp
+content.var(document::measure, sigil::compose::Dimension(640))
+       .var(document::gap, sigil::compose::Dimension(18));
+```
+
+The stock measure is 38 em and the flow gap is 1 em. These are configurable
+defaults, not a character-count guarantee; typefaces have different widths.
+An article also fits the width available from its parent. The defaults are
+carried through `Element::varDefaults`, below inherited and directly stated
+properties, so an outer theme can restyle components made elsewhere.
+Explicit zero lengths and direct layout overrides remain meaningful.
+Typography rules belong to SigilWeave; layout and document components belong
+to Compose. Existing paragraph, story, writing-mode and exclusion controls
+remain available on these Elements.
+
+The specimen, page, panel and caption kits use this document vocabulary for
+their content. Their geometry still belongs to their own layout components;
+an existing specimen well does not become a prose column.
+
+---
+
 ## Writing a component
 
 A component is a free function from your data to an `Element`. There is no
@@ -553,20 +636,20 @@ a nested run (`kit::NestedStyle`), a list's items (`kit::bullets`) and an
 initial letter's are partials over the text they belong to, so a reading
 at `0.5_em` is half its base whatever the base inherits. A caption's and
 a sheet's lines (`kit::Caption`, `kit::Sheet`) take the same fields by
-NAME instead — `captionLabel`, `captionNote`, `title`, `subtitle`,
-`footer`, classes of the sheet in force where the component lands, which
+NAME instead — the `label`, `caption`, `h1`, `lead` and
+`footer` document roles of the sheet in force where the component lands, which
 is what a theme states on a page's root; each such line is a `kit::Part`,
 so a cell whose call must differ hands in its own leaf and the cells
 under it keep the register. A bake — `snapshot`,
 `intrinsicSize`, `kit::coverage` — runs the cascade over its own tree,
 so a partial inside it resolves against the bake's root.
 
-**A sheet is a value on the tree, and a class is a name resolved
+**A sheet is a value on the tree, and a role or class is a name resolved
 against it.** `Element::styleSheet` states a `weave::StyleSheet` on any node; it is in
 force for that node and everything under it, inherited as the font is,
 and a nearer sheet's rules stand over a farther one's by name, so a
 subtree carries a look of its own. A sheet is a literal of `weave::Rule`s,
-one per class, each a type half and a block half — `{"note", {.size =
+one per role or class, each a type half and a block half — `{"note", {.size =
 11}}` names the type half by its fields, `{"lead", {.firstLineIndent =
 24}}` the block half, and `weave::rule("body").font({.size =
 19.5f}).block({.leading = Leading::multiple(1.35f)})` both, with the verbs
@@ -576,7 +659,7 @@ spaces as CSS's class attribute lists them. The cascade pass resolves
 each name against the sheet in force where the element LANDS — the rule's
 type half and its block half, whichever it states — and the fields a class sets
 inherit down the tree like any `font()` or `block()`. Specificity is
-flat and stated: an inherited value loses to a class, between classes
+stated: role defaults and role rules stand below classes, between classes
 the SHEET's order decides (a later entry over an earlier, whatever order
 the names were written in), and a class loses to the node's own `font()`
 or `block()`, so `styleClass("cell").font({.color = c})` is the cell class in
@@ -1376,8 +1459,8 @@ was built with, which is the root of a plate that has no layout at all
 and names no class, states no sheet and sets no font, so a page-less
 drawing states its own with `Element::styleSheet` on what it returns —
 with `kit::panel` beside it, the titled region a page divides itself
-into: an eyebrow over a title in the classes `eyebrow` and `title`, a
-note at the far edge of the head's last line in `captionNote`, each of
+into: an eyebrow over a title in the roles `eyebrow` and `h1`, a
+note at the far edge of the head's last line in `caption`, each of
 the three a part (`Panel::eyebrowLine`, `Panel::titleLine`,
 `Panel::noteLine`), a hairline under the head where `Panel::rule` names
 one, and the whole standing in `Panel::body`, which is a `kit::Well` —
@@ -1403,7 +1486,7 @@ component changes — the furniture of a specimen sheet in
 `kit/Specimen.h` — `kit::cell`, a body with a label and a note set
 beside it as a `kit::Caption` says (its `label` and `note` are parts
 that default to `captionLabel` and `captionNote`, leaves in the
-register's class; `Caption::Where` puts the note under
+document roles `label` and `caption`; `Caption::Where` puts the note under
 the body, or both lines above it, or both below, and `labelMeasure` and
 `noteMeasure` wrap either line at a stated width so a long one does not
 widen the cell it captions; `Caption::body` states the body's own well, so

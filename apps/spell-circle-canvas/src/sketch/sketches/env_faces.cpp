@@ -34,6 +34,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Reflections.h>
@@ -267,18 +268,18 @@ struct EnvFaces {
                       box().column().gap(18).children(
                           {sketch::kit::sectionHeader(
                                {.label = "ONE INTERNAL FORM", .note = ""}),
-                           text("Every input becomes an equirectangular "
-                                "panorama: azimuth across the image, zenith at "
-                                "the top. Import layout is resolved once, "
-                                "before shading.")
-                               .width(328)
-                               .styleClass("captionNote"),
-                           text(kit::formatted(
-                                    "Mean radiance\nR %.2f  G %.2f  B %.2f",
-                                    (double)mean.fR, (double)mean.fG,
-                                    (double)mean.fB))
-                               .width(328)
-                               .styleClass("captionNote")})})})));
+                           document::caption(
+                               "Every input becomes an equirectangular "
+                               "panorama: azimuth across the image, zenith at "
+                               "the top. Import layout is resolved once, "
+                               "before shading.")
+                               .width(328),
+                           document::caption(
+                               kit::formatted(
+                                   "Mean radiance\nR %.2f  G %.2f  B %.2f",
+                                   (double)mean.fR, (double)mean.fG,
+                                   (double)mean.fB))
+                               .width(328)})})})));
   }
 };
 

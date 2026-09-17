@@ -41,6 +41,7 @@
 
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigildata/connection/Connection.h>
 #include <sigildata/decode/FlatBuffer.h>
 #include <sigildraw/Pen.h>
@@ -143,15 +144,14 @@ struct SchemaScene {
         compose::pen("schema_scene.sky", [this](Pen& pen) { draw(pen); })
             .fill(SkColor4f{0.04f, 0.04f, 0.09f, 1}),
         compose::box().column().gap(18).children(
-            {compose::text("DOCUMENT").styleClass("eyebrow"),
+            {compose::document::eyebrow("DOCUMENT"),
              compose::text("data/sky.json"),
-             compose::text("SCHEMA").styleClass("eyebrow"),
+             compose::document::eyebrow("SCHEMA"),
              compose::text("Envelope → Sky"),
-             compose::text("LIVE INPUT").styleClass("eyebrow"),
-             compose::text(kLive),
-             compose::text("A valid live message replaces the file's sky. An "
-                           "invalid message leaves the last picture in place.")
-                 .styleClass("captionNote")})));
+             compose::document::eyebrow("LIVE INPUT"), compose::text(kLive),
+             compose::document::caption(
+                 "A valid live message replaces the file's sky. An "
+                 "invalid message leaves the last picture in place.")})));
   }
 
   /** The newest message on the door, read once each time one arrives:

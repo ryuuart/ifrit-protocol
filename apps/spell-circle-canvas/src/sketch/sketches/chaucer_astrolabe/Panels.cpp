@@ -324,7 +324,8 @@ auto ChaucerAstrolabe::specCard() -> Element {
                            [](const data::Json& row) -> sketch::kit::Row {
                              return {{row["key"], row["value"]}};
                            }),
-                       {.columns = {{.width = 96}, {}}}),
+                       {.columns = {{.width = 96}, {}}})
+                       .styleSheet(sheetLook.styleSheet()),
                    kit::line({.fill = Fill::color(hexColor(0x241c15, 0.22f))}),
                    box().styleClass("figure").children(
                        {each(page["obliquity"].items(),
@@ -364,7 +365,8 @@ auto ChaucerAstrolabe::starPanel() -> Element {
                                        {heads[1].words, 88},
                                        {heads[2].words, 56, true},
                                        {heads[3].words, 58, true},
-                                       {heads[4].words, 52, true}}}),
+                                       {heads[4].words, 52, true}}})
+                          .styleSheet(sheetLook.styleSheet()),
                       // the strip: Cancer, the equator and Capricorn ruled
                       // across it, and one star per row against them
                       sketch::kit::plot(
@@ -492,6 +494,7 @@ auto ChaucerAstrolabe::titleStrip() -> Element {
               .notes = {{.words = page["note"],
                          .ink = Fill::color(hexColor(0x6b5a44))}},
               .ruled = true})
+      .styleSheet(sheetLook.styleSheet())
       .left(64)
       .top(44)
       .width(kW - 128);
@@ -516,10 +519,11 @@ auto ChaucerAstrolabe::readout() -> Element {
       .row()
       .gap(26)
       .alignItems(Align::Baseline)
-      .children({each(doc["readout"].items(), [&](const data::Json& name,
-                                                  std::size_t i) {
-        return box().gap(1).children(
-            {text(name).styleClass("dial"),
-             text(value[i]).styleClass(i == 0 || i == 4 ? "time" : "readout")});
-      })});
+      .children({each(
+          doc["readout"].items(), [&](const data::Json& name, std::size_t i) {
+            return box().gap(1).children(
+                {text(name).styleClass("dial"),
+                 text(value[i]).styleClass(i == 0 || i == 4 ? "time"
+                                                            : "dialReading")});
+          })});
 }

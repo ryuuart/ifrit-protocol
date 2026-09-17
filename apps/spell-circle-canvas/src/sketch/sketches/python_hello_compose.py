@@ -8,7 +8,8 @@ EDIT THESE FIRST
 TAGS: Runtime/Starter, Geometry/Layout, Materials/Gradients, Motion/Animation
 """
 
-from sigil.compose import Element, column, row, text
+from sigil.compose import Element, row
+from sigil.compose import document as doc
 from sigil.material import skia
 from sigil.motion import entrance
 from sigil.sketch import SketchContext, kit, sketch
@@ -27,9 +28,9 @@ def wash(accent: str) -> skia.Paint:
 
 def card(title: str, detail: str, accent: str, delay: float = 0) -> Element:
     return (
-        column(
-            text(title, size=26),
-            text(detail, size=14, color="#dce6e9"),
+        doc.article(
+            doc.h2(title).fontSize(26),
+            doc.paragraph(detail).fontSize(14).ink("#dce6e9"),
         )
         .gap(14)
         .padding(24)

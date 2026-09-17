@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import assert_type
 
 from sigil.compose import Element, box, column, graphics, layout, memo, row, text
+from sigil.compose import document as doc
 from sigil.compose import kit as marks
 from sigil.compose.layouts import Grid, fr
 from sigil.draw import Pen
@@ -12,7 +13,23 @@ from sigil.material import skia
 from sigil.motion import Output, bind, entrance
 from sigil.native import compose as raw
 from sigil.sketch import SketchContext, kit, render_file, sketch
-from sigil.weave import Type, em, textStyle
+from sigil.weave import Type, em, rich, rule, textStyle
+
+document_items = [doc.item("One"), doc.item(body=doc.paragraph("Two"), marker="2.")]
+assert_type(doc.article(doc.h1(words="Title"), doc.paragraph("A passage")), Element)
+assert_type(doc.section(tuple(document_items)), Element)
+assert_type(doc.list(item for item in document_items), Element)
+assert_type(doc.quote(words="A quotation"), Element)
+assert_type(
+    doc.quote(doc.paragraph("A quotation"), doc.caption("Attribution")), Element
+)
+assert_type(doc.paragraph(words=rich().add("A mixed passage")), Element)
+assert_type(doc.heading(level=3, words="Section"), Element)
+assert_type(doc.figure(body=box(), note="A figure"), Element)
+assert_type(doc.article().var(doc.measure, em(36)), Element)
+assert_type(box().role(rule("notice").font(Type(weight=600))), Element)
+assert_type(box().role("notice"), Element)
+assert_type(box().varDefaults({doc.measure: em(30), "accent": "#123456"}), Element)
 
 
 @dataclass(frozen=True)

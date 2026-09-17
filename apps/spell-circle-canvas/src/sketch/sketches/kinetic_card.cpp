@@ -47,6 +47,7 @@
 
 // TAGS: Typography/Effects, Motion/Transitions
 
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Instruments.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -259,28 +260,28 @@ struct KineticCard {
                    "half a cascade. The grade axis changes outlines without "
                    "changing advances."},
         box().column().gap(26).children(
-            {text("01 / MOVE THE GLYPHS").styleClass("section"),
+            {document::h2("01 / MOVE THE GLYPHS"),
              sketch::kit::comparison(
                  {.cases = std::move(moving), .measure = 1068, .gap = 17}),
-             text("02 / KEEP THE PEN POSITIONS").styleClass("section"),
+             document::h2("02 / KEEP THE PEN POSITIONS"),
              sketch::kit::comparison(
                  {.cases = std::move(stationary), .measure = 1068, .gap = 24}),
-             text("03 / KEEP MOVING").styleClass("section"),
+             document::h2("03 / KEEP MOVING"),
              box().row().gap(28).children(
                  {sketch::kit::comparison(
                       {.cases = {cell(kRows[8], 340)}, .measure = 340}),
                   box().width(480).column().gap(16).children(
-                      {text("READING THE CASCADE").styleClass("section"),
-                       text("A full meter means that glyph has completed its "
-                            "beat. A partial meter marks a glyph in motion; an "
-                            "empty one is still waiting.")
-                           .width(440)
-                           .styleClass("captionNote"),
-                       text("The wave reads the shared clock as a loop. It "
-                            "changes neither the entrance schedule nor the "
-                            "positions chosen by paragraph layout.")
-                           .width(440)
-                           .styleClass("captionNote")})})}));
+                      {document::h2("READING THE CASCADE"),
+                       document::caption(
+                           "A full meter means that glyph has completed its "
+                           "beat. A partial meter marks a glyph in motion; an "
+                           "empty one is still waiting.")
+                           .width(440),
+                       document::caption(
+                           "The wave reads the shared clock as a loop. It "
+                           "changes neither the entrance schedule nor the "
+                           "positions chosen by paragraph layout.")
+                           .width(440)})})}));
 
     Element root = stack()
                        .styleSheet(sheetClasses())

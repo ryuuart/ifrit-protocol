@@ -135,15 +135,15 @@ inline sigil::compose::Element specimen(std::string_view caption,
                                         float captionWidth = 0.0f,
                                         float gap = 8.0f) {
   // A caption stacked over its body is the compose kit's cell in its
-  // type-specimen reading. The cell sets its label in the class
-  // `captionLabel`, so the register this plate states IS that class on the
+  // type-specimen reading. The cell sets its label in the role
+  // `label`, so the register this plate states IS that role on the
   // cell that writes it.
   return sigil::compose::kit::cell(
              {.where = sigil::compose::kit::Caption::Where::Above,
               .gap = gap,
               .labelMeasure = captionWidth},
              caption, {}, std::move(column))
-      .styleSheet(sigil::weave::StyleSheet{{"captionLabel", style}});
+      .styleSheet(sigil::weave::StyleSheet{{"label", style}});
 }
 
 }  // namespace vertical

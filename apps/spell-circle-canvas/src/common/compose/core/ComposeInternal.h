@@ -513,6 +513,9 @@ struct DepthData {
  *  pass from the parent's resolved values and this block. */
 struct CascadeData {
   std::optional<sigil::weave::Type> font;
+  /** The node's semantic name and fallback typography. The matching
+   *  sheet rule overrides its defaults before ordinary classes apply. */
+  std::optional<sigil::weave::Rule> role;
   /** The classes this node names (Element::styleClass), in the order they
    *  were written: resolved in the cascade pass against the sheets in
    *  force where the node lands, and laid under the node's own partials. */
@@ -530,6 +533,9 @@ struct CascadeData {
   /** ink(var(...)): the property the ink reads. Exclusive with a colour in
    *  `font->color` — whichever was written last stands. */
   std::optional<VarRef> inkVar;
+  /** Properties supplied only where no ancestor or this node states a
+   *  value, so component defaults do not override their document. */
+  VarTable varDefaults;
   VarTable vars;
   bool operator==(const CascadeData&) const = default;
 };

@@ -4,6 +4,7 @@ TAGS: Typography/Paragraphs, Typography/Lettering, Runtime/Python
 """
 
 from sigil.compose import Element, TextPath, box, column, frame, row, stroke, text
+from sigil.compose import document as doc
 from sigil.compose import selectors as selected
 from sigil.sketch import SketchContext, kit, sketch
 from sigil.skia import PathBuilder
@@ -83,8 +84,8 @@ def curved_figure() -> Element:
     )
     key = (
         row(
-            text("PATH", size=10, color=MUTED),
-            text("one cubic / exact tangent", size=10, color=MUTED),
+            doc.label("PATH").fontSize(10).ink(MUTED),
+            doc.caption("one cubic / exact tangent").fontSize(10).ink(MUTED),
         )
         .gap(14)
         .absolute()
@@ -128,7 +129,7 @@ class TypeAtelier:
             content = (
                 column(
                     column(
-                        text("01 / WHAT A RUN CAN CARRY").styleClass("eyebrow"),
+                        doc.eyebrow("01 / WHAT A RUN CAN CARRY"),
                         kit.comparison(
                             (
                                 case(
@@ -157,9 +158,7 @@ class TypeAtelier:
                     .gap(16)
                     .shrink(0),
                     column(
-                        text("02 / THE SAME ENGINE, TWO KINDS OF JOURNEY").styleClass(
-                            "eyebrow"
-                        ),
+                        doc.eyebrow("02 / THE SAME ENGINE, TWO KINDS OF JOURNEY"),
                         kit.comparison(
                             (
                                 case(

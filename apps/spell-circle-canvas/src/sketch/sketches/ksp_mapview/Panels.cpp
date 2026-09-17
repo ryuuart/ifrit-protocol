@@ -16,8 +16,8 @@ auto KspMapView::infoHead(const Utf8& label) -> Element {
 auto KspMapView::infoCard() -> Element {
   using namespace ksp;
   // The card is set in the sans at 11 px in the card ink, and its three
-  // registers are one sheet: a row's name is `captionNote`, the figure that
-  // answers it `readout`, a strip head `section`. So every line below says
+  // registers are one sheet: a row's name is `caption`, the figure that
+  // answers it `readout`, a strip head `h2`. So every line below says
   // only its words, and the card's words are the document's.
   const data::Json& page = doc["info"];
   const kit::Rows how{.measure = 224, .gap = 7};

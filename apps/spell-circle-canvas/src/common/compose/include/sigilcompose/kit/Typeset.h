@@ -34,6 +34,7 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Utf8.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/typography/Annotation.h>
 #include <sigilcompose/typography/Selector.h>
 #include <sigilcompose/typography/TextUnit.h>
@@ -182,7 +183,7 @@ struct NestedStyle {
                                      std::span<const std::u8string> markers,
                                      sigil::weave::Type style, float hang,
                                      float measure, float gap = 4.0f) {
-  Element list = box().column().gap(gap);
+  Element list = document::list().gap(gap);
   sigil::weave::ParagraphStyle hanging;
   hanging.indent.start = hang;
   for (size_t index = 0; index < items.size(); ++index) {
@@ -190,11 +191,13 @@ struct NestedStyle {
         markers.empty() ? items[index]
                         : markers[std::min(index, markers.size() - 1)];
     list.children({box()
-                       .children({text(items[index])
+                       .role("item")
+                       .children({document::paragraph(items[index])
                                       .font(style)
                                       .width(Dimension(measure))
                                       .paragraphs({hanging})})
-                       .children({text(marker)
+                       .children({document::paragraph(marker)
+                                      .role("marker")
                                       .font(style)
                                       .absolute()
                                       .left(Dimension(0.0f))
@@ -233,6 +236,7 @@ struct NestedStyle {
                         static_cast<float>(count);
   for (int index = 0; index < count; ++index) {
     Element column = frame(story)
+                         .role("paragraph")
                          .key(keyPrefix + std::to_string(index))
                          .width(Dimension(measure))
                          .height(Dimension(height));

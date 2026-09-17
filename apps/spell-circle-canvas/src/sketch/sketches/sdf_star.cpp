@@ -31,6 +31,7 @@
 
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/Draw.h>
@@ -178,15 +179,15 @@ struct SdfStar {
                   .gap = 20}),
              sketch::kit::sectionHeader(
                  {.label = "LAYOUT RESERVE IS VISIBLE", .note = ""}),
-             text(kit::formatted(
-                      "Reserved padding   glow %.0f px   /   wide glow %.0f px "
-                      "  /   shadow %.0f px\nA 120 px interior with the wide "
-                      "glow needs a %.0f px box.",
-                      (double)sdf::pad(glowing), (double)sdf::pad(wide),
-                      (double)sdf::pad(dropped),
-                      (double)sdf::minBoxFor(wide, 120)))
-                 .width(1020)
-                 .styleClass("captionNote")})));
+             document::caption(
+                 kit::formatted(
+                     "Reserved padding   glow %.0f px   /   wide glow %.0f px "
+                     "  /   shadow %.0f px\nA 120 px interior with the wide "
+                     "glow needs a %.0f px box.",
+                     (double)sdf::pad(glowing), (double)sdf::pad(wide),
+                     (double)sdf::pad(dropped),
+                     (double)sdf::minBoxFor(wide, 120)))
+                 .width(1020)})));
   }
 };
 

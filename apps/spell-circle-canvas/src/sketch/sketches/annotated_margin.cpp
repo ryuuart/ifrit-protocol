@@ -32,6 +32,7 @@
 // TAGS: Typography/Paragraph
 
 #include <sigilcompose/kit/Annotations.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Instruments.h>
 #include <sigilcompose/kit/Kinetic.h>
@@ -146,7 +147,7 @@ struct AnnotatedMargin {
                                  m::note(10, m::kFaint, 0.3f))}),
              // The passage itself: one leaf, keyed, and annotated by
              // nothing — everything below reads it from outside.
-             text(m::kPassage)
+             document::paragraph(m::kPassage)
                  .key("passage")
                  .left(m::kTextLeft)
                  .top(m::kTextTop)
@@ -154,8 +155,8 @@ struct AnnotatedMargin {
                  .paragraphs({{.leading = weave::Leading::multiple(1.55f)}}),
              // The same text again, lower, under a cascade — the playhead
              // below rides its beats.
-             text("A marker placed from a beat agrees with the "
-                  "letters by construction.")
+             document::paragraph("A marker placed from a beat agrees with the "
+                                 "letters by construction.")
                  .font({.size = 17})
                  .key("cascade")
                  .left(m::kTextLeft)

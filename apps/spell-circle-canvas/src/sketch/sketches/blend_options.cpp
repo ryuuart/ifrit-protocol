@@ -59,6 +59,7 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
@@ -158,11 +159,11 @@ Element explained(sketch::kit::ComparisonCase one) {
       .alignItems(Align::Start)
       .gap(24)
       .children({box().column().width(240).gap(12).children(
-                     {text(std::move(one.title)).styleClass("captionLabel"),
+                     {document::label(std::move(one.title)),
                       text(std::move(one.control))
                           .font(look.font({.size = 10.5f, .mono = true}))
                           .ink(look.palette.ash),
-                      text(std::move(one.note)).styleClass("captionNote")}),
+                      document::caption(std::move(one.note))}),
                  std::move(one.figure)});
 }
 

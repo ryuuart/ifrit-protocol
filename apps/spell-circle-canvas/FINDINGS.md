@@ -1,5 +1,19 @@
 # Findings
 
+## Documentation probes do not recognize newly supplied namespace aliases
+
+`src/test/docs/api_doc_probes.py` emits aliases supplied through `--alias`
+into the generated C++ translation unit, but does not add their names to the
+namespace set used while resolving documented names. An alias such as
+`doc=sigil::compose::document` therefore reports `doc::article` as an unknown
+type even though the target function exists. Aliases already present in the
+scanner's built-in namespace set can appear to work.
+
+An explicitly supplied alias should participate in both name resolution and
+generated C++ declarations. A regression should supply a new alias for a
+declared namespace, resolve a qualified function through that alias, and
+compile the resulting probe. Documents spelling the original namespace pass.
+
 ## Billboard point clouds are substantially slower on the GPU lane
 
 `pop_billboards` completes its raster plate, but its headless GPU sweep takes

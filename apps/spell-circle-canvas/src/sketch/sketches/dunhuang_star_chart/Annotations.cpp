@@ -1,3 +1,4 @@
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilgeometry/path/Frame.h>
 #include <sigilsketch/kit/Chart.h>
@@ -211,7 +212,7 @@ auto DunhuangStarChart::poleText() -> Element {
       .key("poletext")
       .opacity(gate(tPrec0 - 0.6f, tPrec0 + 0.4f))
       .children(
-          {text(doc.phrase("poleTitle"))
+          {document::h2(doc.phrase("poleTitle"))
                .styleClass("heading")
                .font({.size = 12.0f}),
            noteStack("pole"),
@@ -332,7 +333,7 @@ auto DunhuangStarChart::projectionPanel() -> Element {
       .gap(8)
       .key("proj")
       .opacity(gate(tProj, tProj + 0.9f))
-      .children({text(doc.phrase("projectionTitle"))
+      .children({document::h2(doc.phrase("projectionTitle"))
                      .styleClass("heading")
                      .font({.size = 13.0f, .track = 1.1f}),
                  box().row().gap(46).children(each(curves, field)),
@@ -394,23 +395,22 @@ auto DunhuangStarChart::auditPanel() -> Element {
       .key("audit")
       .opacity(gate(tAudit - 0.9f, tAudit - 0.2f))
       .styleSheet(voices())
-      .children(
-          {text(doc.phrase("auditTitle"))
-               .styleClass("heading")
-               .font({.size = 13.0f}),
-           text(doc.phrase("auditLead")).styleClass("caption"),
-           box().row().gap(6).children(
-               each(heads,
-                    [](const sketch::kit::Document::Line& h, size_t i) {
-                      Element cell = text(h.words).styleClass("caption dim");
-                      return i + 1 < std::size(kHeads) ? cell.width(kHeads[i])
-                                                       : cell.grow(1);
-                    })),
-           each(20, [this](int i) { return auditRow(i); }),
-           hairline(0.5f).opacity(gate(tAudit + 5.4f, tAudit + 5.9f)),
-           noteStack("auditFoot")
-               .font({.size = 9.4f})
-               .opacity(gate(tAudit + 5.4f, tAudit + 5.9f))});
+      .children({document::h2(doc.phrase("auditTitle"))
+                     .styleClass("heading")
+                     .font({.size = 13.0f}),
+                 text(doc.phrase("auditLead")).styleClass("caption"),
+                 box().row().gap(6).children(each(
+                     heads,
+                     [](const sketch::kit::Document::Line& h, size_t i) {
+                       Element cell = text(h.words).styleClass("caption dim");
+                       return i + 1 < std::size(kHeads) ? cell.width(kHeads[i])
+                                                        : cell.grow(1);
+                     })),
+                 each(20, [this](int i) { return auditRow(i); }),
+                 hairline(0.5f).opacity(gate(tAudit + 5.4f, tAudit + 5.9f)),
+                 noteStack("auditFoot")
+                     .font({.size = 9.4f})
+                     .opacity(gate(tAudit + 5.4f, tAudit + 5.9f))});
 }
 
 auto DunhuangStarChart::map13Panel() -> Element {
@@ -423,7 +423,7 @@ auto DunhuangStarChart::map13Panel() -> Element {
       .gap(6)
       .key("m13")
       .opacity(gate(tAudit + 4.6f, tAudit + 5.4f))
-      .children({text(doc.phrase("map13Title"))
+      .children({document::h2(doc.phrase("map13Title"))
                      .styleClass("heading")
                      .font({.size = 12.0f}),
                  noteStack("map13").gap(1.5f).font({.size = 9.2f})});
@@ -455,7 +455,7 @@ auto DunhuangStarChart::ruleNote() -> Element {
       .gap(6)
       .key("rulenote")
       .opacity(gate(tFold1 - 0.2f, tFold1 + 0.8f))
-      .children({text(doc.phrase("ruleTitle"))
+      .children({document::h2(doc.phrase("ruleTitle"))
                      .styleClass("heading")
                      .font({.size = 12.0f}),
                  noteStack("rule")});

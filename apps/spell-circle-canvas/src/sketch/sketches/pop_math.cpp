@@ -26,6 +26,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
@@ -141,7 +142,7 @@ struct PopMath {
                    "weights its edit by that lane; keep() changes the "
                    "membership of the cloud."},
         box().column().gap(26).children(
-            {text("01 / REWRITE A VALUE").styleClass("section"),
+            {document::h2("01 / REWRITE A VALUE"),
              sketch::kit::comparison(
                  {.cases =
                       {{.title = "SOURCE",
@@ -184,7 +185,7 @@ struct PopMath {
                                 "points find new colours."}},
                   .measure = 1120,
                   .gap = 16}),
-             text("02 / CHOOSE WHERE THE EDIT LANDS").styleClass("section"),
+             document::h2("02 / CHOOSE WHERE THE EDIT LANDS"),
              sketch::kit::comparison(
                  {.cases =
                       {{.title = "FEATHER A MOVE",

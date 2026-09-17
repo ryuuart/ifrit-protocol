@@ -5,7 +5,7 @@ SketchKit page, captions and wells. Reference studies preserve the typography,
 colour, arrangement and proportions of their source. Drawing and 3D sketches
 keep the image itself as the subject; a page is not required around every image.
 
-This inventory covers **234 managed entries**. The untracked `spell_circle`
+This inventory covers **236 managed entries**. The untracked `spell_circle`
 project is user-owned and excluded. Each entry below has an explicit disposition;
 retaining a visual treatment is not a claim that the sketch was redesigned.
 
@@ -40,6 +40,15 @@ mixed runs, inline slots, threaded frames and a curved baseline; World combines
 a shared mesh, keyed scene elements, material values and a moving light rig.
 The World study uses the native CPU executor.
 
+The C++ `document_styles` and Python `python_document` studies each present one
+content tree under two scoped role stylesheets. They demonstrate native document
+headings, paragraphs, quotations and lists. The C++ study also demonstrates
+author classes and inline emphasis.
+Shared specimen furniture uses the same document roles. Existing document
+content adopts semantic leaves while reference layouts keep their authored
+typefaces, measures, text-flow controls and geometry. Raw typography fixtures
+remain direct uses of the API they demonstrate.
+
 The twelve transport and schema demonstrations use `instrument()` to place a
 bounded preview beside a readable source panel. Reference reconstructions,
 composed Python examples, full-frame drawings and 3D studies retain their own
@@ -53,9 +62,21 @@ clearance. Both new Python studies were rendered through Sketchbook and the
 standalone package. The table distinguishes these reviews from existing plates
 and cached previews elsewhere in the catalogue.
 
+The document integration rendered 106 native sketches and nine Python sketches.
+Both new document studies have reviewed plates. Sixty-seven native plates match
+the available earlier images pixel for pixel. Targeted visual review found
+Chaucer's card styles reaching its masthead and table figures, and Sigillum's
+section headings growing beyond their authored size. Scoped stylesheets and
+explicit reference heading sizes preserve those arrangements. Paragraph Sheet's
+stacked-panel spacing leaves its final example clear of the footer, and Sigillum's
+margin spacing keeps all four legend rows above its console. This coverage verifies
+the semantic migration and does not reclassify retained studies as redesigned.
+
 Current rewrite artifacts are kept under `/private/tmp/sketch-polish-plates/`.
 The broader catalogue review artifacts are under
-`/private/tmp/sketch-design-plates/`. A source can be captured independently:
+`/private/tmp/sketch-design-plates/`. Document integration plates are under
+`/private/tmp/document-plates/` and `/private/tmp/document-python-plates/`.
+A source can be captured independently:
 
 ```sh
 build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
@@ -69,6 +90,7 @@ build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 | Retain · 3D subject | 14 |
 | Retain · Python composition | 18 |
 | New · Python authoring study | 2 |
+| New · document authoring study | 2 |
 | Retain · authored catalog | 20 |
 | Retain · drawing as the subject | 31 |
 | Retain · focused specimen | 25 |
@@ -78,6 +100,8 @@ build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 
 | Sketch | Disposition | Visual evidence |
 |---|---|---|
+| `document_styles` | New · document authoring study | Reviewed GPU plate |
+| `python_document` | New · document authoring study | Reviewed CPU plate |
 | `aero_desktop` | Retain · authored catalog | Cached preview |
 | `y2k_chrome` | Retain · authored catalog | Cached preview |
 | `daemon_console` | Retain · authored catalog | Rendered plate |
@@ -88,16 +112,16 @@ build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 | `flourish` | Retain · authored catalog | Cached preview |
 | `night_network` | Retain · authored catalog | Cached preview |
 | `zellige` | Retain · authored catalog | Cached preview |
-| `annotated_margin` | Retain · authored catalog | Cached preview |
-| `beethoven` | Retain · authored catalog | Cached preview |
-| `bousen` | Retain · authored catalog | Cached preview |
+| `annotated_margin` | Retain · authored catalog | Reviewed GPU plate |
+| `beethoven` | Retain · authored catalog | Reviewed GPU plate |
+| `bousen` | Retain · authored catalog | Reviewed GPU plate |
 | `chrome_type` | Retain · authored catalog | Cached preview |
 | `horizontal_flow` | Retain · authored catalog | Cached preview |
-| `manuscript` | Retain · authored catalog | Cached preview |
+| `manuscript` | Retain · authored catalog | Reviewed GPU plate |
 | `mawarikomi` | Retain · authored catalog | Cached preview |
 | `ruby_kenten` | Retain · authored catalog | Cached preview |
 | `tategaki` | Retain · authored catalog | Cached preview |
-| `threaded_story` | Retain · authored catalog | Cached preview |
+| `threaded_story` | Retain · authored catalog | Reviewed GPU plate |
 | `artnet_lights` | Refined · instrument | Rendered plate |
 | `data_scales` | Retain · focused specimen | Cached preview |
 | `data_sources` | Rewritten · subject study | Reviewed GPU plate |
@@ -261,7 +285,7 @@ build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 | `noise_shelf` | Rewritten · subject study | Reviewed GPU plate |
 | `paint_shelf` | Rewritten · subject study | Reviewed GPU plate |
 | `paragraph_paints` | Rewritten · subject study | Reviewed GPU plate |
-| `paragraph_sheet` | Retain · focused specimen | Cached preview |
+| `paragraph_sheet` | Retain · focused specimen | Reviewed GPU plate |
 | `shape_tour` | Retain · focused specimen | Cached preview |
 | `stroke_atlas` | Retain · focused specimen | Cached preview |
 | `text_paints` | Rewritten · subject study | Reviewed GPU plate |
@@ -271,9 +295,9 @@ build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 | `stock_materials` | Retain · focused specimen | Cached preview |
 | `substance_swatches` | Retain · focused specimen | Cached preview |
 | `web_panel` | Retain · focused specimen | Cached preview |
-| `dunhuang_star_chart` | Retain · reference study | Rendered plate |
-| `sigillum_aemeth` | Retain · reference study | Rendered plate |
-| `thunder_fulu` | Retain · reference study | Rendered plate |
+| `dunhuang_star_chart` | Retain · reference study | Reviewed GPU plate |
+| `sigillum_aemeth` | Retain · reference study | Reviewed GPU plate |
+| `thunder_fulu` | Retain · reference study | Reviewed GPU plate |
 | `eva_magi_defense` | Retain · reference study | Cached preview |
 | `eva_magi_deliberation` | Retain · reference study | Cached preview |
 | `eva_magi_interior` | Retain · reference study | Cached preview |
@@ -291,14 +315,14 @@ build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 | `hitman_verlet` | Retain · reference study | Cached preview |
 | `slitscan_2001` | Retain · reference study | Cached preview |
 | `vertigo_titles` | Retain · reference study | Cached preview |
-| `black_watch` | Retain · reference study | Cached preview |
+| `black_watch` | Retain · reference study | Reviewed GPU plate |
 | `cosmati` | Retain · reference study | Cached preview |
 | `kumiko_asanoha` | Retain · reference study | Cached preview |
 | `penrose_paving` | Retain · reference study | Rendered plate |
-| `chaucer_astrolabe` | Retain · reference study | Rendered plate |
-| `chevreul_circle` | Retain · reference study | Cached preview |
+| `chaucer_astrolabe` | Retain · reference study | Reviewed GPU plate |
+| `chevreul_circle` | Retain · reference study | Reviewed GPU plate |
 | `chladni_tab1` | Retain · reference study | Cached preview |
-| `minard_1869` | Retain · reference study | Cached preview |
+| `minard_1869` | Retain · reference study | Reviewed GPU plate |
 | `nightingale_coxcomb` | Retain · reference study | Cached preview |
 | `cde_motif` | Retain · reference study | Cached preview |
 | `spacejam_1996` | Retain · reference study | Rendered plate |
@@ -311,4 +335,4 @@ build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 | `karaoke_wipe` | Retain · reference study | Cached preview |
 | `matrix_rain` | Retain · reference study | Cached preview |
 | `rota_convocationis` | Retain · reference study | Cached preview |
-| `shipping_forecast` | Retain · reference study | Cached preview |
+| `shipping_forecast` | Retain · reference study | Reviewed GPU plate |

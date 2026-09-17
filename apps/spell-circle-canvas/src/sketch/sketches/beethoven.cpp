@@ -41,6 +41,7 @@
 // TAGS: Typography/Lettering
 
 #include <sigilcompose/brush/LayerStyles.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -116,7 +117,7 @@ inline constexpr auto kRings = std::to_array<int>({0, 0, 1, 1, 2, 2, 3, 4, 5});
 /** The registers — the poster's title, and the museum label's two lines
  *  — over the sheet's own setting. */
 inline weave::StyleSheet look() {
-  return {{"title", {.size = 38 * kScale}},
+  return {{"h1", {.size = 38 * kScale}},
           {"labelTitle", {.size = 14.0f, .track = 0.6f}},
           {"labelLine", {.size = 12.0f, .track = 0.4f}}};
 }
@@ -241,8 +242,7 @@ struct Beethoven {
             // flush left. That table is the poster's most characteristic
             // detail and the reason its lower half reads as setting rather
             // than as caption.
-            text("beethoven")
-                .styleClass("title")
+            document::h1("beethoven")
                 .key("title")
                 .at({0.055f * bp::kPlateW, 0.600f * bp::kPlateH}),
             imprint().key("imprint").at(

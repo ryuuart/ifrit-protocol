@@ -39,6 +39,7 @@
 
 // TAGS: Typography/CJK
 
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilcompose/typography/Typography.h>
@@ -93,8 +94,8 @@ inline kit::Caption voice() {
  *  remark a size down in the faded one. @p noteSize is the remark's,
  *  which the wide caption under the split setting states larger. */
 inline weave::StyleSheet voiceClasses(float noteSize) {
-  return weave::StyleSheet{{"captionLabel", labelType(9.5f, kAka, 1.6f)},
-                           {"captionNote", labelType(noteSize, kUsu, 0.2f)}};
+  return weave::StyleSheet{{"label", labelType(9.5f, kAka, 1.6f)},
+                           {"caption", labelType(noteSize, kUsu, 0.2f)}};
 }
 
 /** A captioned column: the caption over it, the specimen under it. */
@@ -209,12 +210,12 @@ struct RubyKenten {
                        "傍点",
                        f::body(30, f::kSumi)),
                   box().height(6),
-                  text("A READING IS PART OF THE TEXT")
+                  document::eyebrow("A READING IS PART OF THE TEXT")
                       .font({.size = 11, .color = f::kAi, .track = 3.0f}),
-                  text("the band it needs is in the base's strut "
-                       "before the base is broken, so the column "
-                       "pitch opens once\nand the reading is "
-                       "placed on the result")
+                  document::lead("the band it needs is in the base's strut "
+                                 "before the base is broken, so the column "
+                                 "pitch opens once\nand the reading is "
+                                 "placed on the result")
                       .font({.size = 10.5f})
                       .width(430.0f)}),
              box()
@@ -239,9 +240,10 @@ struct RubyKenten {
                                       "opens to hold it",
                                       std::move(mono))}),
              std::move(splitCell),
-             text("mono · group · jukugo are the UNIT "
-                  "and nothing else — the reading's size is "
-                  "its own type's, never a fraction of the base's")
+             document::paragraph(
+                 "mono · group · jukugo are the UNIT "
+                 "and nothing else — the reading's size is "
+                 "its own type's, never a fraction of the base's")
                  .left(52)
                  .bottom(34)});
   }

@@ -445,7 +445,8 @@ inline const weave::StyleSheet& classes() {
   static const weave::StyleSheet look =
       sheet()
           .styleSheet()
-          .set("heading", {.size = 9, .color = kInk, .track = 0.5f})
+          .set("heading",
+               {.face = mono(), .size = 9, .color = kInk, .track = 0.5f})
           .set("tag", {.size = 7, .track = 0.6f})
           .set("note", {.size = 8, .track = 0.2f})
           .set("quote", {.face = serif(), .size = 10.5f})

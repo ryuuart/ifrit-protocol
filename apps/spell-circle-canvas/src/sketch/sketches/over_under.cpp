@@ -32,6 +32,7 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkGradient.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilmaterial/core/Combine.h>
@@ -253,17 +254,17 @@ struct OverUnder {
                           {sketch::kit::sectionHeader(
                                {.label = "ONE VALUE, THREE CHILDREN",
                                 .note = ""}),
-                           text("A masked stack holds a base, a top and a "
-                                "mask. Applying the operation again creates "
-                                "another layer; reading under() walks back "
-                                "through that structure.")
-                               .width(500)
-                               .styleClass("captionNote"),
-                           text(kit::formatted(
-                                    "The final specimen has stack depth %d.",
-                                    material::stackDepth(twice)))
-                               .width(500)
-                               .styleClass("captionNote")})})})));
+                           document::caption(
+                               "A masked stack holds a base, a top and a "
+                               "mask. Applying the operation again creates "
+                               "another layer; reading under() walks back "
+                               "through that structure.")
+                               .width(500),
+                           document::caption(
+                               kit::formatted(
+                                   "The final specimen has stack depth %d.",
+                                   material::stackDepth(twice)))
+                               .width(500)})})})));
   }
 };
 

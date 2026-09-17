@@ -4,6 +4,7 @@ TAGS: Geometry/Layout, Typography/Interface
 """
 
 from sigil.compose import box, column, layout, memo, row, text
+from sigil.compose import document as doc
 from sigil.compose import kit as marks
 from sigil.compose.layouts import AlongPath, BaselineGrid, Diagonal, Jittered, Radial
 from sigil.motion import entrance
@@ -160,7 +161,7 @@ def captured_palette(properties):
             .gap(18)
             .children(
                 swatches,
-                text(properties[0], size=11, color=look.palette.ink),
+                doc.caption(properties[0]).fontSize(11).ink(look.palette.ink),
             )
         )
         .width(WIDTH)

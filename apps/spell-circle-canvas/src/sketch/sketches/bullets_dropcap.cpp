@@ -7,6 +7,7 @@
 // TAGS: Typography/Paragraph
 
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilgeometry/kit/Silhouettes.h>
@@ -41,7 +42,7 @@ weave::Type serif(float size, SkColor4f color, float tracking = 0) {
 
 Element opening(std::optional<kit::NestedStyle> nested) {
   Element body =
-      text(kPassage)
+      document::paragraph(kPassage)
           .font(serif(kBodySize, kBody))
           .width(kMeasure)
           .initialLetter(
@@ -69,10 +70,11 @@ Element ornament() {
               0, 0, 68, 74);
   return sketch::kit::well({.width = 501, .height = 170, .padding = 20})
       .children({box().width(461).children(
-          {std::move(star), text(std::string_view(kPassage).substr(1))
-                                .font(serif(kBodySize, kBody))
-                                .width(461)
-                                .flowAround("opening-star", 8)})});
+          {std::move(star),
+           document::paragraph(std::string_view(kPassage).substr(1))
+               .font(serif(kBodySize, kBody))
+               .width(461)
+               .flowAround("opening-star", 8)})});
 }
 
 Element hangingList() {

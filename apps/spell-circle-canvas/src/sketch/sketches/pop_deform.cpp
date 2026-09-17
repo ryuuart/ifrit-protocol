@@ -30,6 +30,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Sprites.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
@@ -221,12 +222,10 @@ struct PopDeform {
                    "mask is a lane on the cloud, so every deformer can read "
                    "the same selection."},
         box().column().gap(20).children(
-            {text("WHOLE CLOUD / EACH POINT RECEIVES THE FULL EDIT")
-                 .styleClass("section"),
+            {document::h2("WHOLE CLOUD / EACH POINT RECEIVES THE FULL EDIT"),
              sketch::kit::comparison(
                  {.cases = std::move(whole), .measure = 1160, .gap = 15}),
-             text("SELECTED BAND / THE MASK WEIGHTS THE SAME EDIT")
-                 .styleClass("section"),
+             document::h2("SELECTED BAND / THE MASK WEIGHTS THE SAME EDIT"),
              sketch::kit::comparison(
                  {.cases = std::move(masked), .measure = 1160, .gap = 15})})));
   }

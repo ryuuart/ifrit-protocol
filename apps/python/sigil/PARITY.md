@@ -20,6 +20,7 @@ convenience builders share native values; neither is a second scene model.
 | IO | Native hubs, feeds, arrivals, transport registration, send/reply, byte sinks and deterministic replay | Authors poll on their update clock; transport callbacks and threads stay native |
 | Specimen kit | Stage, page, well, caption, cell, aligned comparison tracks, cells, panel grid, comparable theme and native Provide | Other sketch-kit components remain separate coverage decisions |
 | Compose kit | Neutral sheets, panels, boards, wells, captions, rules, circles, and native Grid plus free-form layouts | Stock routers, feeds, pools and every decoration scheme are not implied |
+| Document kit | Native article/section, six heading levels, plain/rich paragraphs, lead, captions, labels, eyebrow, footer, code, quotes, lists/items, figures and rules; structural role styling and inherited layout properties | Semantic roles style font/block values through the native stylesheet; CSS parsing and arbitrary element-property selectors are not supplied |
 
 `python_type_atelier.py` combines mixed runs, inline slots, named selections,
 initial letters, balanced story frames and a curved baseline.
@@ -30,6 +31,9 @@ combines retained model descriptions and native motion. These are authoring
 studies rather than ports claiming pixel identity with C++ originals.
 `python_compose_stamps.py` places Compose trees with a Draw pen and uses one
 as a custom brush tip.
+`python_document.py` places the same document under two inherited role
+stylesheets. The native document kit also supplies prose and heading roles
+to the Python retained studies and shared specimen furniture.
 `python_data_garden.py` uses native table sorting and domain scales to draw
 two views of one illustrative CSV dataset.
 

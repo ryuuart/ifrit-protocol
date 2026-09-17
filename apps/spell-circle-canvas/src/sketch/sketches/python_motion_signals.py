@@ -6,6 +6,7 @@ TAGS: Motion/Animation, Drawing/Generative, Typography/Interface
 """
 
 from sigil.compose import box, column, row, text
+from sigil.compose import document as doc
 from sigil.motion import Output, Transition, animate, bind, ease, from_, through
 from sigil.sketch import SketchContext, sketch
 
@@ -64,8 +65,8 @@ def signal_row(number, title, detail, signal, accent):
                 .width(168)
                 .children(
                     text(f"0{number}", size=12, color=accent),
-                    text(title, size=17, color=INK),
-                    text(detail, size=11, color=MUTED),
+                    doc.h2(title).fontSize(17).ink(INK),
+                    doc.caption(detail).fontSize(11).ink(MUTED),
                 )
             ),
             track,
@@ -130,12 +131,8 @@ class MotionSignals:
                     column()
                     .gap(9)
                     .children(
-                        text("MOTION / SIGNAL DESK", size=12, color="#96bd9e"),
-                        text(
-                            "One clock. Six interpretations.",
-                            size=31,
-                            color=INK,
-                        ),
+                        doc.eyebrow("MOTION / SIGNAL DESK").fontSize(12).ink("#96bd9e"),
+                        doc.h1("One clock. Six interpretations.").fontSize(31).ink(INK),
                     )
                 ),
                 (
@@ -144,7 +141,7 @@ class MotionSignals:
                     .corners(8)
                     .fill("#1b3124")
                     .children(
-                        text("NATIVE\nCLOCK", size=13, color="#b7dd93"),
+                        doc.label("NATIVE\nCLOCK").fontSize(13).ink("#b7dd93"),
                     )
                 ),
             )
@@ -154,9 +151,9 @@ class MotionSignals:
             .width(WIDTH)
             .justify("space_between")
             .children(
-                text("RETAINED COMPONENTS", size=11, color=MUTED),
-                text("OUTPUT → BIND → PROPERTY", size=11, color="#a8bcae"),
-                text("PERIOD  5.0 s", size=11, color=MUTED),
+                doc.footer("RETAINED COMPONENTS").fontSize(11).ink(MUTED),
+                doc.footer("OUTPUT → BIND → PROPERTY").fontSize(11).ink("#a8bcae"),
+                doc.footer("PERIOD  5.0 s").fontSize(11).ink(MUTED),
             )
         )
         ctx.render(

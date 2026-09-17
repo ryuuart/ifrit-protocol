@@ -64,7 +64,9 @@ auto ChevreulCircle::theLabPlot() -> Element {
       {at(x0, y0, S, S)
            .fill(Fill::color(kWell))
            .foreground(stroke(1, Fill::color(kRule), PathFormat::Align::Inner)),
-       label(doc["lab.head"], x0 + 10, y0 + 6, S - 20).styleClass("heading"),
+       label(doc["lab.head"], x0 + 10, y0 + 6, S - 20)
+           .role("h2")
+           .styleClass("heading"),
        sketch::kit::plot(
            "lab", field,
            {sketch::kit::rules(
@@ -109,7 +111,9 @@ auto ChevreulCircle::theObservations() -> Element {
       {at(x0, y0, W, H)
            .fill(Fill::color(kWell))
            .foreground(stroke(1, Fill::color(kRule), PathFormat::Align::Inner)),
-       label(doc["obs.head"], x0 + 10, y0 + 6, W - 20).styleClass("heading")});
+       label(doc["obs.head"], x0 + 10, y0 + 6, W - 20)
+           .role("h2")
+           .styleClass("heading")});
   const float rowH = 19.4f, top = y0 + 24;
   for (size_t i = 0; i < kObs.size(); ++i) {
     const Observation& o = kObs[i];
@@ -241,6 +245,7 @@ auto ChevreulCircle::theContrast() -> Element {
   Element g = box();
   g.children(
       {label("SIMULTANEOUS CONTRAST · TWELVE IDENTICAL PATCHES", x0, y0, W)
+           .role("h2")
            .styleClass("heading")});
   const float cw = 88, chh = 66, gx = x0 + 6, gy = y0 + 18;
   // Beat 4's grounds arrive and withdraw as a DIRECTIONAL WIPE at 90 deg

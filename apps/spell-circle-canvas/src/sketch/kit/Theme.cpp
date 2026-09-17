@@ -23,19 +23,19 @@ weave::Type Theme::font(const Register& line, SkColor4f color) const {
 
 weave::StyleSheet Theme::styleSheet() const {
   weave::StyleSheet classes;
-  // A CLASS CARRIES ITS WHOLE LOOK, colour included, as a CSS class does:
+  // A ROLE RULE CARRIES ITS WHOLE LOOK, colour included, as a CSS class does:
   // the palette's ink for the lines that NAME something — the page's title,
   // the call over a cell — and its ash for the lines that qualify one.
-  classes.set("title", font(type.title, palette.ink));
-  classes.set("subtitle", font(type.subtitle, palette.ash));
+  classes.set("h1", font(type.title, palette.ink));
+  classes.set("lead", font(type.subtitle, palette.ash));
   classes.set("footer", font(type.footer, palette.ash));
-  classes.set("captionLabel", font(type.captionLabel, palette.ink));
-  classes.set("captionNote", font(type.captionNote, palette.ash));
+  classes.set("label", font(type.captionLabel, palette.ink));
+  classes.set("caption", font(type.captionNote, palette.ash));
   // The two registers a sheet sets INSIDE its content name no colour, so
   // each is painted in the ink in force wherever it is read — which is
   // what a section standing on a panel of its own asks for.
   classes.set("eyebrow", font(type.eyebrow));
-  classes.set("section", font(type.section));
+  classes.set("h2", font(type.section));
   // A MEASURED FIGURE is the one thing on the sheet that is neither type
   // nor furniture, so it is the register a CALL is set in — the digits of
   // one width — in the palette's figure colour, wherever it stands: a
@@ -98,8 +98,8 @@ weave::TextStyle Theme::mono(float size, SkColor4f color, float track) const {
 }
 
 compose::kit::Caption Theme::voice(float noteMeasure) const {
-  // No type: a cell's two lines are set in the classes `captionLabel` and
-  // `captionNote` of the sheet in force where the cell lands — the page
+  // No type: a cell's two lines have document roles `label` and
+  // `caption`, styled by the sheet where the cell lands — the page
   // root's, or the one a sketch without a page states on its own root.
   return {.where = captionWhere,
           .gap = spacing.captionGap,

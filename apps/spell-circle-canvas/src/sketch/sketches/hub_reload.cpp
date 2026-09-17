@@ -14,6 +14,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildraw/Draw.h>
 #include <sigilimage/asset/ImageAsset.h>
@@ -153,18 +154,15 @@ struct HubReload {
         };
     Element resourceIndex = box().column().gap(18).width(330).children(
         {box().height(96).column().gap(10).padding(0, 16).children(
-             {text("TEXT").styleClass("captionLabel"),
-              text("notes.txt").styleClass("readout"),
-              text("hub.text(uri)").styleClass("captionNote")}),
+             {document::label("TEXT"), text("notes.txt").styleClass("readout"),
+              document::caption("hub.text(uri)")}),
          box().height(130).column().gap(10).padding(0, 16).children(
-             {text("CALLER-DEFINED TYPE").styleClass("captionLabel"),
+             {document::label("CALLER-DEFINED TYPE"),
               text("cloud.pts").styleClass("readout"),
-              text("registerDecoder<Cloud>\nload<Cloud>(uri)")
-                  .styleClass("captionNote")}),
+              document::caption("registerDecoder<Cloud>\nload<Cloud>(uri)")}),
          box().height(130).column().gap(10).padding(0, 16).children(
-             {text("IMAGE").styleClass("captionLabel"),
-              text("chart.png").styleClass("readout"),
-              text("hub.image(uri)").styleClass("captionNote")})});
+             {document::label("IMAGE"), text("chart.png").styleClass("readout"),
+              document::caption("hub.image(uri)")})});
     ctx.composer.render(sketch::kit::page(
         {.title = "A file changes. A held value does not.",
          .subtitle = "Mounted files are replaced, poll() invalidates their "

@@ -37,6 +37,7 @@
 
 #include <sigilcompose/brush/Brush.h>
 #include <sigilcompose/kit/Chrome.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Gel.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
@@ -139,7 +140,7 @@ struct ChromeType {
     const sketch::kit::Theme& look = sketch::kit::theme();
     kit::Caption voice{.where = kit::Caption::Where::Above, .gap = 10};
     voice.label = [&look](const Utf8& call) {
-      return kit::captionLabel(call).font(
+      return document::label(call).font(
           look.font(sketch::kit::Register{9.5f, 2.6f}, c::kPale));
     };
     return kit::cell(

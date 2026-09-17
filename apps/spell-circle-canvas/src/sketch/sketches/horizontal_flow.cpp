@@ -19,6 +19,7 @@
 // TAGS: Typography/Paragraph
 
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -92,7 +93,7 @@ Element shapePassage() {
               sketch::kit::theme().font({.size = 14, .track = 1.2f}))});
 
   Element passage =
-      text(
+      document::paragraph(
           u8"A horizontal line begins at the left edge of its measure. "
           u8"When it reaches the ornament, the available band becomes two "
           u8"intervals: words fill the room on the left and continue in "
@@ -119,14 +120,15 @@ Element droppedPassage() {
 
   return box().width(kMeasure).height(350).children(
       {std::move(ornament),
-       text(u8"orizontal setting needs no drop-cap mechanism when the "
-            u8"initial is an ornament. The ornament is an element with "
-            u8"a key and a silhouette, while this paragraph is an "
-            u8"ordinary text leaf flowing around that key. The opening "
-            u8"lines take the changing room beside the points; the "
-            u8"later lines return to the whole measure. A photograph, "
-            u8"seal, flourish, or illustrated letter uses exactly the "
-            u8"same relationship.")
+       document::paragraph(
+           u8"orizontal setting needs no drop-cap mechanism when the "
+           u8"initial is an ornament. The ornament is an element with "
+           u8"a key and a silhouette, while this paragraph is an "
+           u8"ordinary text leaf flowing around that key. The opening "
+           u8"lines take the changing room beside the points; the "
+           u8"later lines return to the whole measure. A photograph, "
+           u8"seal, flourish, or illustrated letter uses exactly the "
+           u8"same relationship.")
            .key("drop-passage")
            .width(kMeasure)
            .flowAround("illuminated-h", kWrapMargin)});
@@ -158,12 +160,10 @@ struct HorizontalFlow {
             .ink(sheet.palette.ink)
             .styleSheet(sheet.styleSheet())
             .children(
-                {text(u8"HORIZONTAL TEXT FLOW")
-                     .styleClass("title")
-                     .at({42, 34}),
-                 text(u8"one exclusion rule · a shape in the measure · an "
-                      u8"ornament at the opening")
-                     .styleClass("subtitle")
+                {document::h1(u8"HORIZONTAL TEXT FLOW").at({42, 34}),
+                 document::lead(
+                     u8"one exclusion rule · a shape in the measure · an "
+                     u8"ornament at the opening")
                      .at({43, 76}),
                  panel(42, "FLOW AROUND A SHAPE",
                        "the line divides left and right, then becomes whole",

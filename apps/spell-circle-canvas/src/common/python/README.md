@@ -86,7 +86,7 @@ does not extend access to the borrowed pen.
   `motionEase`, `motionTransition`
 * `IOBindings.h` — `HubHandle`, `retainSessionFeed`
 * `DataBindings.h` — `dataDatabase`
-* `KitBindings.h` — `bindComposeKit`
+* `KitBindings.h` — `bindComposeKit`, `bindDocument`
 * `WeaveBindings.h` — `bindWeave`
 * `GeometryBindings.h` — `bindGeometry`
 * `WorldBindings.h` — `bindWorld`
@@ -97,6 +97,12 @@ owned hubs have independent lifetimes. IO transport workers execute no Python.
 Overlapping host sessions can share a feed lease, and the last lease closes its
 transport without holding the interpreter lock. Escaped checked wrappers cannot
 keep a closed host session alive.
+
+The Compose document submodule binds native semantic components. Containers
+accept the same Element children as ordinary Compose containers; paragraphs
+accept plain strings or native rich text. Role rules and default properties
+remain native declarations resolved from the eventual parent tree. They do
+not read a Python theme or capture an authoring-time environment.
 
 ## World ownership
 

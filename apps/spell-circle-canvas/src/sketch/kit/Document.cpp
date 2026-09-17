@@ -1,4 +1,5 @@
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 
@@ -93,7 +94,7 @@ std::vector<Document::Line> Document::run(const data::Json& node) const {
 }
 
 compose::Element lineOf(const Document::Line& one) {
-  return compose::text(one.words).styleClass(one.styleClass);
+  return compose::document::paragraph(one.words).styleClass(one.styleClass);
 }
 
 weave::RichText Document::passage(const data::Json& node) const {

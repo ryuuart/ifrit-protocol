@@ -30,6 +30,7 @@
 
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Curves.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -185,16 +186,16 @@ struct CurveShelf {
                       box().column().gap(18).children(
                           {sketch::kit::sectionHeader(
                                {.label = "ONE UNIT FRAME", .note = ""}),
-                           text("Every drawing is evaluated in its own unit "
-                                "frame. Its display box changes the scale, not "
-                                "the mathematical curve.")
-                               .width(360)
-                               .styleClass("captionNote"),
-                           text("Compare the two roses, the two spirals and "
-                                "the two trochoids within their pairs: each "
-                                "pair changes one defining rule.")
-                               .width(360)
-                               .styleClass("captionNote")})})})));
+                           document::caption(
+                               "Every drawing is evaluated in its own unit "
+                               "frame. Its display box changes the scale, not "
+                               "the mathematical curve.")
+                               .width(360),
+                           document::caption(
+                               "Compare the two roses, the two spirals and "
+                               "the two trochoids within their pairs: each "
+                               "pair changes one defining rule.")
+                               .width(360)})})})));
   }
 };
 

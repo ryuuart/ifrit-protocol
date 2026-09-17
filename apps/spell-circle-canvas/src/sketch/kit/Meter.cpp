@@ -1,5 +1,6 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilsketch/kit/Meter.h>
 
@@ -14,7 +15,7 @@ using compose::Corners;
 using compose::Dimension;
 using compose::Element;
 using compose::Fill;
-using compose::text;
+namespace document = compose::document;
 
 compose::Element meter(const Meter& bar) {
   const Theme& look = theme();
@@ -61,12 +62,16 @@ compose::Element meter(const Meter& bar) {
   if (bar.width.unit != Dimension::Unit::Auto) column.width(bar.width);
   Element head = box().row().alignItems(Align::Baseline);
   if (!bar.label.empty())
-    head.children({text(bar.label,
-                        look.style(look.type.captionNote, look.palette.ash))});
+    head.children(
+        {document::caption(bar.label).role(weave::rule("caption").font(
+            look.font(look.type.captionNote, look.palette.ash)))});
   head.children({box().grow(1)});
   if (!bar.reading.empty())
-    head.children({text(bar.reading, look.style(look.type.captionLabel,
-                                                        look.palette.figure))});
+    head.children({document::paragraph(bar.reading)
+                       .role(weave::rule("paragraph")
+                                 .font(look.font(look.type.captionLabel,
+                                                 look.palette.figure)))
+                       .styleClass("readout")});
   column.children({std::move(head)});
   column.children(
       {std::move(rail.margin(0, look.spacing.captionNoteGap, 0, 0))});
@@ -95,14 +100,17 @@ compose::Element gauge(const Gauge& dial) {
     face.children({ring(dial.sweepDeg * swept,
                         dial.bar.value_or(Fill::color(look.palette.figure)))});
   if (!dial.reading.empty())
-    face.children({box()
-                       .absolute()
-                       .inset(0)
-                       .alignItems(Align::Center)
-                       .justify(compose::Justify::Center)
-                       .children({text(dial.reading,
-                                       look.style(look.type.captionLabel,
-                                                  look.palette.figure))})});
+    face.children(
+        {box()
+             .absolute()
+             .inset(0)
+             .alignItems(Align::Center)
+             .justify(compose::Justify::Center)
+             .children({document::paragraph(dial.reading)
+                            .role(weave::rule("paragraph")
+                                      .font(look.font(look.type.captionLabel,
+                                                      look.palette.figure)))
+                            .styleClass("readout")})});
   return face;
 }
 

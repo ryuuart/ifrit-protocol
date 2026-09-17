@@ -34,6 +34,7 @@
 // TAGS: Typography/Effects, Motion/Transitions
 
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Instruments.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -127,7 +128,7 @@ struct FxScatterMix {
              "Meters read each glyph's actual local time. mix runs effects "
              "together: offsets and rotation add; scale and alpha multiply."},
         box().column().gap(22).children(
-            {text("01 / ONE SCHEDULE, TWO EFFECTS").styleClass("section"),
+            {document::h2("01 / ONE SCHEDULE, TWO EFFECTS"),
              sketch::kit::comparison(
                  {.cases =
                       {{.title = "SCATTER",
@@ -149,7 +150,7 @@ struct FxScatterMix {
                                 "changes alongside it."}},
                   .measure = 1020,
                   .gap = 24}),
-             text("02 / ONE EFFECT, THREE SCHEDULES").styleClass("section"),
+             document::h2("02 / ONE EFFECT, THREE SCHEDULES"),
              sketch::kit::comparison(
                  {.cases =
                       {{.title = "FROM THE END",

@@ -175,24 +175,22 @@ struct Theme {
    *  its track, and nothing else, so its colour is the ink in force where
    *  it is read. `page()` seeds its root from one; a leaf under the page
    *  set in another register says `.font(look.font(look.type.eyebrow))`,
-   *  or names the register as a class. */
+   *  or uses its document role. */
   [[nodiscard]] weave::Type font(const Register& line) const;
   /** The same register with a colour named — what a caption's label or a
    *  sheet's title is set in, as a partial over what the page inherits. */
   [[nodiscard]] weave::Type font(const Register& line, SkColor4f color) const;
-  /** THE SEVEN REGISTERS AS CLASSES, each under the name its field
-   *  carries — "title", "subtitle", "footer", "captionLabel",
-   *  "captionNote", "eyebrow", "section" — plus "readout", the one class
-   *  that is not a register of its own, so a leaf under a bound theme
-   *  says `.styleClass("eyebrow")` and is set as the theme's eyebrow is.
-   *  `Provide` binds it beside the theme; a sketch with classes of its
-   *  own adds them to this sheet and binds that.
+  /** THE DOCUMENT ROLES in the theme's registers: "h1", "lead",
+   *  "footer", "label", "caption", "eyebrow" and "h2", plus "readout"
+   *  for measured values. A document factory names its role and resolves
+   *  it through this sheet after adoption. A page states the sheet on
+   *  its root; authored rules can be added or changed by name.
    *
-   *  EACH CLASS CARRIES ITS WHOLE LOOK, colour included: `title` and
-   *  `captionLabel` in the palette's ink, `subtitle`, `footer` and
-   *  `captionNote` in its ash, and `readout` — the register a CALL is set
+   *  EACH ROLE RULE CARRIES ITS WHOLE LOOK, colour included: `h1` and
+   *  `label` in the palette's ink, `lead`, `footer` and `caption` in its
+   *  ash, and `readout` — the register a CALL is set
    *  in, which is where a MEASURED FIGURE stands — in its figure colour.
-   *  `eyebrow` and `section` name no colour, so each is painted in the
+   *  `eyebrow` and `h2` name no colour, so each is painted in the
    *  ink in force where it is read.
    *
    *  AND THE EIGHT A CHART DRESSES: `axis` for an axis line, `tick` for
@@ -226,7 +224,7 @@ struct Theme {
 
   /** THE SHEET'S VOICE: how every cell on it is captioned — where the
    *  two lines stand and the air around them. What they are SET IN is the
-   *  classes `captionLabel` and `captionNote` of `styleSheet()`, so no
+   *  document roles `label` and `caption` of `styleSheet()`, so no
    *  type is carried here. @p noteMeasure is the width the remark wraps
    *  at, which is the cell's own width — the one distance a caption
    *  cannot inherit, because it is a fact about the specimen and not
@@ -290,10 +288,9 @@ enum class Voice {
 /** BIND A THEME for everything described while this object lives, the
  *  way a provider does — the reconciler's own inherited value, so a
  *  sketch needs one include and one word. The registers reach the tree
- *  as CLASSES through `styleSheet()`, which `page()` states on its root;
- *  a sketch that renders no page states it on its own root, and a leaf
- *  under either says `.styleClass("captionLabel")` and is set in that
- *  register.
+ *  as role rules through `styleSheet()`, which `page()` states on its
+ *  root; a sketch without a page states it on its own root. A document
+ *  label under either resolves the theme's `label` rule.
  *
  *      sketch::kit::Provide look(sheetTheme());
  *      ctx.composer.render(sketch::kit::page({...}, content));

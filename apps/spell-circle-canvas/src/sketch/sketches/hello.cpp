@@ -9,6 +9,7 @@
 // TAGS: Runtime/Starter
 
 #include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigildraw/Pen.h>
 #include <sigilmotion/bind/Bound.h>
@@ -54,7 +55,7 @@ Element card(Utf8 step, Utf8 title, Utf8 note, SkColor4f color) {
       .padding(24)
       .corners({18})
       .fill(Fill::color(color))
-      .children({text(std::move(step)).styleClass("eyebrow"),
+      .children({document::eyebrow(std::move(step)),
                  text(std::move(title)).font({.size = 28}),
                  text(std::move(note))});
 }
@@ -119,11 +120,10 @@ struct HelloSketch {
                            .height(174)
                            .corners({18})
                            .fill(Fill::color(hexColor(0xe5e9df)))
-                           .children(
-                               {text(std::to_string(score))
-                                    .font({.size = 64})
-                                    .key("score"),
-                                text("and counting").styleClass("eyebrow")}),
+                           .children({text(std::to_string(score))
+                                          .font({.size = 64})
+                                          .key("score"),
+                                      document::eyebrow("and counting")}),
                        text("Update only when data changes.")
                            .ink(hexColor(0x63777a))})})}));
   }

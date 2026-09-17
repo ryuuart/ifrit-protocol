@@ -1,4 +1,5 @@
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Rows.h>
 #include <sigildata/table/Table.h>
 #include <sigilmaterial/skia/Color.h>
@@ -22,21 +23,13 @@ namespace {
  *  register, the figure in the register a CALL is set in, in the figure
  *  colour. */
 struct Registers {
-  weave::TextStyle quiet;
-  weave::TextStyle number;
+  weave::Type quiet;
+  weave::Type number;
 };
 
 Registers registers(const Theme& look) {
-  return {look.style(look.type.captionNote, look.palette.ash),
-          look.style(look.type.captionLabel, look.palette.figure)};
-}
-
-/** The two registers a READING is set in, in its own ink where it names
- *  one: a row a verdict lights keeps the registers and changes colour. */
-Registers registers(const Theme& look, const std::optional<SkColor4f>& ink) {
-  if (!ink) return registers(look);
-  return {look.style(look.type.captionNote, *ink),
-          look.style(look.type.captionLabel, *ink)};
+  return {look.font(look.type.captionNote, look.palette.ash),
+          look.font(look.type.captionLabel, look.palette.figure)};
 }
 
 compose::kit::Rows arrangement(const Readout& how, const Theme& look) {
@@ -50,10 +43,13 @@ compose::kit::Rows arrangement(const Readout& how, const Theme& look) {
       .swatchCorners = how.swatchCorners};
   const Registers set = registers(look);
   rows.nameLine = [quiet = set.quiet](const Utf8& words) {
-    return compose::text(words, quiet);
+    return compose::document::caption(words).role(
+        weave::rule("caption").font(quiet));
   };
   rows.valueLine = [number = set.number](const Utf8& words) {
-    return compose::text(words, number);
+    return compose::document::paragraph(words)
+        .role(weave::rule("paragraph").font(number))
+        .styleClass("readout");
   };
   rows.noteLine = rows.nameLine;
   return rows;
@@ -116,8 +112,8 @@ compose::Element table(std::vector<Row> rows, const Table& how) {
       .swatchCorners = how.swatchCorners,
       .keys = keys};
   specification.headLine = [look](const Utf8& words) {
-    return compose::text(words,
-                         look.style(look.type.section, look.palette.ink));
+    return compose::document::h2(words).role(
+        weave::rule("h2").font(look.font(look.type.section, look.palette.ink)));
   };
   // The cell names four parameters, so a row that states an ink is set in
   // that colour and keeps the register its column decides.
@@ -127,9 +123,14 @@ compose::Element table(std::vector<Row> rows, const Table& how) {
     const bool figure =
         !shape.columns.empty() &&
         shape.columns[std::min(column, shape.columns.size() - 1)].figure;
-    const Registers set =
-        registers(look, row < inks.size() ? inks[row] : std::nullopt);
-    return compose::text(words, figure ? set.number : set.quiet);
+    const Registers set = registers(look);
+    Element line = figure ? compose::document::paragraph(words)
+                                .role(weave::rule("paragraph").font(set.number))
+                                .styleClass("readout")
+                          : compose::document::caption(words).role(
+                                weave::rule("caption").font(set.quiet));
+    if (row < inks.size() && inks[row]) line.ink(*inks[row]);
+    return line;
   };
   return compose::kit::table(cells, specification);
 }
@@ -150,10 +151,13 @@ compose::Element bars(std::span<const compose::Utf8> labels,
       .inks = how.inks};
   const Registers set = registers(look);
   specification.labelLine = [quiet = set.quiet](const Utf8& words) {
-    return compose::text(words, quiet);
+    return compose::document::caption(words).role(
+        weave::rule("caption").font(quiet));
   };
   specification.figureLine = [number = set.number](double value) {
-    return compose::text(compose::kit::formatted("%.0f", value), number);
+    return compose::document::paragraph(compose::kit::formatted("%.0f", value))
+        .role(weave::rule("paragraph").font(number))
+        .styleClass("readout");
   };
   return compose::kit::bars(labels, values, specification);
 }

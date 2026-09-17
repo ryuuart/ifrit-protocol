@@ -78,6 +78,15 @@ Compose examples use native fluent properties and explicit `.children(...)`
 groups. `python_compose_stamps.py` places those trees with a Draw pen and
 repeats a composed mark through a custom brush tip.
 
+`document_styles.cpp` and `python_document.py` demonstrate document authoring:
+headings, paragraphs, quotations and lists are native Compose Elements with
+semantic roles. The same content appears under two scoped stylesheets; the C++
+study also uses author classes and inline text styles for local emphasis. Change an `h1`,
+`paragraph` or `caption` rule to restyle that role throughout its document.
+The shared specimen page and captions use these roles too; reference studies
+keep their authored faces, measures and geometry. Literal typography fixtures
+still use the raw text and paragraph APIs when those controls are the subject.
+
 `python_live_signals.py` is a live JSON signal observatory: native UDP feeds
 receive normalized pressure and flow, retained cards report the latest values,
 and native paths draw their history. Each valid message gets a JSON reply.

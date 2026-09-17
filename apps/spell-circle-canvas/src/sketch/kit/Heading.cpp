@@ -1,9 +1,12 @@
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilsketch/kit/Heading.h>
 
 #include <cstddef>
 #include <string>
 #include <utility>
+
+#include "DocumentInk.h"
 
 namespace sigil::sketch::kit {
 
@@ -12,15 +15,13 @@ using compose::box;
 using compose::Dimension;
 using compose::Element;
 using compose::Fill;
-using compose::text;
+namespace document = compose::document;
 
 namespace {
 
-/** One line of a card: its words in @p style, wearing whatever key and
- *  beat the caller gave the line. */
-Element spoken(const Line& line, const weave::TextStyle& style,
-               const std::string& key) {
-  Element el = text(line.words, style);
+/** A document line wearing the caller's explicit ink, key and beat. */
+Element spoken(const Line& line, Element el, const std::string& key) {
+  if (line.ink) detail::documentInk(el, *line.ink);
   if (!key.empty()) el.key(key);
   if (line.opacity) el.opacity(*line.opacity);
   if (line.lift) el.translateY(*line.lift);
@@ -45,18 +46,26 @@ compose::Element titleCard(const TitleCard& card) {
   const auto named = [&](const char* which) {
     return card.key.empty() ? std::string() : card.key + "-" + which;
   };
-  const auto say = [&](const Line& line, const Register& reg, SkColor4f ink,
-                       const char* which, float before) {
+  const auto say = [&](const Line& line, Element leaf, const char* which,
+                       float before) {
     if (line.words.empty()) return;
-    place(spoken(line, look.style(reg, line.ink.value_or(Fill::color(ink))),
-                 named(which)),
-          before);
+    place(spoken(line, std::move(leaf), named(which)), before);
   };
-  say(card.eyebrow, look.type.eyebrow, look.palette.ash, "eyebrow", 0);
-  say(card.title, look.type.title, look.palette.ink, "title",
-      look.spacing.subtitleGap);
-  say(card.subtitle, look.type.subtitle, look.palette.ash, "subtitle",
-      look.spacing.subtitleGap);
+  say(card.eyebrow,
+      document::eyebrow(card.eyebrow.words)
+          .role(weave::rule("eyebrow").font(
+              look.font(look.type.eyebrow, look.palette.ash))),
+      "eyebrow", 0);
+  say(card.title,
+      document::h1(card.title.words)
+          .role(weave::rule("h1").font(
+              look.font(look.type.title, look.palette.ink))),
+      "title", look.spacing.subtitleGap);
+  say(card.subtitle,
+      document::lead(card.subtitle.words)
+          .role(weave::rule("lead").font(
+              look.font(look.type.subtitle, look.palette.ash))),
+      "subtitle", look.spacing.subtitleGap);
   if (card.ruled)
     place(box()
               .height(1)
@@ -74,8 +83,9 @@ compose::Element titleCard(const TitleCard& card) {
     const Line& note = card.notes[i];
     ranged.children(
         {spoken(note,
-                look.style(look.type.captionNote,
-                           note.ink.value_or(Fill::color(look.palette.ash))),
+                document::caption(note.words)
+                    .role(weave::rule("caption").font(
+                        look.font(look.type.captionNote, look.palette.ash))),
                 card.key.empty() ? std::string()
                                  : card.key + "-note" + std::to_string(i))});
   }
@@ -91,15 +101,18 @@ compose::Element sectionHeader(const SectionHeader& header) {
   Element row =
       box().row().alignItems(Align::Center).gap(look.spacing.labelGap);
   if (!header.label.empty())
-    row.children(
-        {text(header.label, look.style(look.type.section, look.palette.ink))});
+    row.children({document::h2(header.label)
+                      .role(weave::rule("h2").font(
+                          look.font(look.type.section, look.palette.ink)))});
   if (header.ruled)
     row.children(
         {box().grow(1).height(1).fill(Fill::color(look.palette.rule))});
   if (!header.label.empty() || header.ruled) column.children({std::move(row)});
   if (!header.note.empty())
     column.children(
-        {text(header.note, look.style(look.type.captionNote, look.palette.ash))
+        {document::caption(header.note)
+             .role(weave::rule("caption").font(
+                 look.font(look.type.captionNote, look.palette.ash)))
              .maxWidth(look.type.captionNote.size * 36)
              .margin(0, header.label.empty() ? 0 : look.spacing.captionNoteGap,
                      0, 0)});

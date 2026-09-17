@@ -1,3 +1,5 @@
+#include <sigilcompose/kit/Document.h>
+
 #include "SigillumAemeth.h"
 
 auto SigillumAemeth::solverOverlay() -> Element {
@@ -266,14 +268,14 @@ auto SigillumAemeth::margin() -> Element {
       .scale(kS)
       .transformOrigin(0.0f, 0.0f)
       .column()
-      .gap(10)
+      .gap(8)
       .font({.face = faceMono, .size = 15})
       .ink(hexColor(0x8d7a58))
       .styleSheet(voices())
       .children(
           {box().column().gap(4).children(
-               {text(doc.phrase("title")).styleClass("title"),
-                text(doc.phrase("subtitle")).styleClass("subtitle"),
+               {document::h1(doc.phrase("title")),
+                document::lead(doc.phrase("subtitle")),
                 text(doc.phrase("provenance")).styleClass("serif")}),
            // the double rule under the masthead: heavy, with a dotted
            // companion held off it
@@ -284,7 +286,8 @@ auto SigillumAemeth::margin() -> Element {
                                 .gap = 3.4f,
                                 .fill = Fill::color(hexColor(0xc7ab74, 0.40f)),
                                 .dash = {2.0f, 5.0f}}}}),
-           text(doc.phrase("namesHeading")).styleClass("heading"), nameRows(),
+           document::h2(doc.phrase("namesHeading")).styleClass("heading"),
+           nameRows(),
            // the leftovers
            box().column().gap(4).children(
                {text(doc.phrase("consumed")).opacity(lit(tDark * 1000)),
@@ -294,12 +297,12 @@ auto SigillumAemeth::margin() -> Element {
                 text(doc.phrase("leftovers"))
                     .styleClass("gloss")
                     .opacity(lit(tDark * 1000 + 400))}),
-           text(doc.phrase("basketsHeading")).styleClass("heading"),
+           document::h2(doc.phrase("basketsHeading")).styleClass("heading"),
            basketFan(),
            text(doc.phrase("crossNote"))
                .styleClass("italic")
                .opacity(lit(tBirds * 1000 + 2600)),
-           text(doc.phrase("ordersHeading")).styleClass("heading"),
+           document::h2(doc.phrase("ordersHeading")).styleClass("heading"),
            // the four orders, each with the tablet the record gives it: an
            // arc-segment worn in the forehead, a round gold plate on the
            // breast, a four-square white ivory, a three-cornered green

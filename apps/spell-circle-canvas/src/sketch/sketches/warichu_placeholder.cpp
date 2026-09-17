@@ -6,6 +6,7 @@
 // TAGS: Typography/Paragraph, Typography/CJK
 
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
@@ -116,16 +117,16 @@ struct WarichuPlaceholder {
         sketch::kit::well({.width = 328, .height = 234, .padding = 22})
             .column()
             .gap(22)
-            .children({text("THE TWO LINES").styleClass("eyebrow"),
+            .children({document::eyebrow("THE TWO LINES"),
                        box()
                            .width(latin.split.advance)
                            .height(latin.split.band)
                            .fill(Fill::color(kSlot))
                            .children({latin.lines()}),
-                       text("The wider line sets the advance.\nThe pair shares "
-                            "one unbreakable slot.")
-                           .width(284)
-                           .styleClass("captionNote")});
+                       document::caption(
+                           "The wider line sets the advance.\nThe pair shares "
+                           "one unbreakable slot.")
+                           .width(284)});
     Element vertical =
         sketch::kit::well({.width = 328, .height = 234, .padding = 22})
             .children(
@@ -160,10 +161,10 @@ struct WarichuPlaceholder {
                       {.name = "Cut word",
                        .value = kit::formatted("%u", latin.split.cutWord)}},
                      {.measure = 284, .ruled = true}),
-                 text("Measured at 13 px. The note keeps its own size; the "
-                      "base is 23 px.")
-                     .width(284)
-                     .styleClass("captionNote")});
+                 document::caption(
+                     "Measured at 13 px. The note keeps its own size; the "
+                     "base is 23 px.")
+                     .width(284)});
     ctx.composer.render(sketch::kit::page(
         {.title = "An aside inside the line",
          .subtitle = "Warichu · one note, first in a single line and then "

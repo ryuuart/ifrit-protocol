@@ -33,6 +33,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Instances.h>
 #include <sigilcompose/core/Tiles.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Placers.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Generators.h>
@@ -162,16 +163,16 @@ struct PlaceRepeatTiles {
                           {sketch::kit::sectionHeader(
                                {.label = "TWO KINDS OF REPETITION",
                                 .note = ""}),
-                           text("The upper row repeats geometry. Each star has "
-                                "a position, a rotation, a scale and an "
-                                "opacity.")
-                               .width(328)
-                               .styleClass("captionNote"),
-                           text("The lower row repeats a window over one "
-                                "recorded picture. Facing describes how the "
-                                "consumer will read that window.")
-                               .width(328)
-                               .styleClass("captionNote")})})})));
+                           document::caption(
+                               "The upper row repeats geometry. Each star has "
+                               "a position, a rotation, a scale and an "
+                               "opacity.")
+                               .width(328),
+                           document::caption(
+                               "The lower row repeats a window over one "
+                               "recorded picture. Facing describes how the "
+                               "consumer will read that window.")
+                               .width(328)})})})));
   }
 
   Element pooled(const std::shared_ptr<instancing::Pool>& pool) const {

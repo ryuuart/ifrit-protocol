@@ -34,6 +34,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -248,17 +249,17 @@ struct PaintShelf {
                       box().column().gap(18).children(
                           {sketch::kit::sectionHeader(
                                {.label = "ONE PAINT, TWO BOXES", .note = ""}),
-                           text("A local ramp starts again in each box. A "
-                                "world-space ramp runs through the page, so "
-                                "the boxes become windows onto different parts "
-                                "of a single field.")
-                               .width(328)
-                               .styleClass("captionNote"),
-                           text("The buffer is another kind of source: its "
-                                "revision changes when the caller publishes "
-                                "new pixels.")
-                               .width(328)
-                               .styleClass("captionNote")})})})));
+                           document::caption(
+                               "A local ramp starts again in each box. A "
+                               "world-space ramp runs through the page, so "
+                               "the boxes become windows onto different parts "
+                               "of a single field.")
+                               .width(328),
+                           document::caption(
+                               "The buffer is another kind of source: its "
+                               "revision changes when the caller publishes "
+                               "new pixels.")
+                               .width(328)})})})));
   }
 };
 

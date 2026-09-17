@@ -452,8 +452,7 @@ kit::Caption specimenVoice(kit::Caption::Where where) {
 /** The sheet the caption's two classes are registered on — the only place
  *  a cell's type comes from. */
 weave::StyleSheet captionClasses() {
-  return weave::StyleSheet{{"captionLabel", {.size = 12}},
-                           {"captionNote", {.size = 10}}};
+  return weave::StyleSheet{{"label", {.size = 12}}, {"caption", {.size = 10}}};
 }
 
 /** One line of type at @p size, as the layout will size it. */
@@ -736,12 +735,11 @@ TEST(KitSpecimen, ASheetsLinesArePartsOfTheirOwnText) {
     return text(t).font({.size = 20});
   };
   Host host(400, 300);
-  host.composer.render(
-      kit::sheet(page, box().key("body"))
-          .styleSheet(weave::StyleSheet{{"title", {.size = 15}},
-                                        {"footer", {.size = 11}}})
-          .width(400)
-          .height(300));
+  host.composer.render(kit::sheet(page, box().key("body"))
+                           .styleSheet(weave::StyleSheet{
+                               {"h1", {.size = 15}}, {"footer", {.size = 11}}})
+                           .width(400)
+                           .height(300));
   host.frame();
   // The one line the sheet was handed stands where the register's would,
   // and the footer keeps its register, because no sheet moved.
@@ -796,15 +794,15 @@ TEST(KitSpecimen, ASheetRulesOffItsHeaderAndFooterAndFootsThePage) {
                   .rule = red(),
                   .ruleWidth = 2,
                   .key = "page"};
-  // The sheet's three lines are set in the classes of their own names, so
-  // the sizes the placement is read against are one entry each.
+  // Both arrangements use the same document typography, so toggling the
+  // rules is the only change that can move the content.
+  const weave::StyleSheet typography{{"h1", {.size = 15}},
+                                     {"footer", {.size = 11}}};
   Host host(400, 300);
-  host.composer.render(
-      kit::sheet(page, box().key("body"))
-          .styleSheet(weave::StyleSheet{{"title", {.size = 15}},
-                                        {"footer", {.size = 11}}})
-          .width(400)
-          .height(300));
+  host.composer.render(kit::sheet(page, box().key("body"))
+                           .styleSheet(typography)
+                           .width(400)
+                           .height(300));
   host.frame();
   const SkRect content = host.composer.bounds("page-content").value();
   // The content stands one content gap under the title, inside the side
@@ -830,8 +828,10 @@ TEST(KitSpecimen, ASheetRulesOffItsHeaderAndFooterAndFootsThePage) {
   kit::Sheet plain = page;
   plain.rule = Fill::none();
   plain.key = "plain";
-  host.composer.render(
-      kit::sheet(plain, box().key("body")).width(400).height(300));
+  host.composer.render(kit::sheet(plain, box().key("body"))
+                           .styleSheet(typography)
+                           .width(400)
+                           .height(300));
   host.frame();
   EXPECT_NEAR(host.composer.bounds("plain-content").value().top(),
               content.top(), 1.0f);
@@ -1016,10 +1016,10 @@ TEST(KitBoard, StatesNoSheetAndNoFontSoTheCallersVerbsDecide) {
           .width(200)
           .height(150)
           .font({.size = 20})
-          .styleSheet(weave::StyleSheet{{"captionNote", {.size = 9}}})
+          .styleSheet(weave::StyleSheet{{"caption", {.size = 9}}})
           .children({kit::board({}).children(
               {text(u8"Hg").key("inherited"),
-               text(u8"Hg").styleClass("captionNote").key("named")})}));
+               document::caption(u8"Hg").key("named")})}));
   host.frame();
   EXPECT_NEAR(require(host.composer.bounds("inherited")).height(),
               lineHeight(20), 1.5f);
@@ -1035,8 +1035,8 @@ namespace {
 /** The sheet a panel's three classes are registered on. */
 weave::StyleSheet panelClasses() {
   return weave::StyleSheet{{"eyebrow", {.size = 9}},
-                           {"title", {.size = 14}},
-                           {"captionNote", {.size = 10}}};
+                           {"h1", {.size = 14}},
+                           {"caption", {.size = 10}}};
 }
 
 }  // namespace
@@ -1290,9 +1290,9 @@ namespace {
 
 /** The sheet the three classes a row names are registered on. */
 weave::StyleSheet rowClasses() {
-  return weave::StyleSheet{{"captionNote", {.size = 10}},
+  return weave::StyleSheet{{"caption", {.size = 10}},
                            {"readout", {.size = 12}},
-                           {"section", {.size = 11}}};
+                           {"h2", {.size = 11}}};
 }
 
 }  // namespace

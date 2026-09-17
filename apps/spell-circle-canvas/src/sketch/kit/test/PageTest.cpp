@@ -100,8 +100,8 @@ TEST(SketchKitPage, DrawsTheHandSpelledSheet) {
   // page, which is exactly what the register names resolve to under the
   // theme.
   const sigil::weave::StyleSheet classes{
-      {"title", label(14, house.palette.ink, 2.4f)},
-      {"subtitle", label(11.5f, house.palette.ash, 0.8f)},
+      {"h1", label(14, house.palette.ink, 2.4f)},
+      {"lead", label(11.5f, house.palette.ash, 0.8f)},
       {"footer", label(11, house.palette.ash, 0.4f)}};
   Element byHand =
       compose::kit::sheet({.title = "THE RULE AND THE STRANDS",

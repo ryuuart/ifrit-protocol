@@ -13,6 +13,7 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilimage/encode/Encode.h>
@@ -64,24 +65,21 @@ Element decision(const char* policy, const char* state, const char* route,
       .row()
       .gap(20)
       .alignItems(Align::Center)
-      .children(
-          {box().column().gap(8).width(130).children(
-               {text(policy).styleClass("captionLabel"),
-                text(state).styleClass("captionNote")}),
-           text(route).width(234),
-           result
-               ? image(result).width(90).height(60)
-               : box()
-                     .width(90)
-                     .height(60)
-                     .fill(Fill::color({0.18f, 0.10f, 0.12f, 1}))
-                     .padding(8)
-                     .children({text("NO\nIMAGE").styleClass("captionLabel")}),
-           text(result ? kit::formatted("%d × %d\nserved", result->width(),
-                                        result->height())
-                       : "null\nreturned")
-               .width(182)
-               .styleClass("readout")});
+      .children({box().column().gap(8).width(130).children(
+                     {document::label(policy), document::caption(state)}),
+                 text(route).width(234),
+                 result ? image(result).width(90).height(60)
+                        : box()
+                              .width(90)
+                              .height(60)
+                              .fill(Fill::color({0.18f, 0.10f, 0.12f, 1}))
+                              .padding(8)
+                              .children({document::label("NO\nIMAGE")}),
+                 text(result ? kit::formatted("%d × %d\nserved",
+                                              result->width(), result->height())
+                             : "null\nreturned")
+                     .width(182)
+                     .styleClass("readout")});
 }
 
 }  // namespace
