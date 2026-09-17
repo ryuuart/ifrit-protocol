@@ -124,7 +124,8 @@ Element cell(const char* call, const char* note, Element body,
       kCell, call, note,
       sketch::kit::well({.width = kCell, .height = kPicture})
           .children({std::move(body),
-                     text(readout).styleClass("readout")
+                     text(readout)
+                         .styleClass("readout")
                          .absolute()
                          .left(8.0f)
                          .top(6.0f)
@@ -139,6 +140,7 @@ struct LaneRetarget {
   std::string readouts[4];
 
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     // the four flights have already been run
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -154,8 +156,7 @@ struct LaneRetarget {
     readouts[3] = kit::formatted("retargetFamily · shape 1 → 2");
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "RETARGETING A LANE · motion::"
-                  "retargetSlots, motion::retargetFamily",
+        {.title = "Retargeting a lane",
          .subtitle = "dials · the moment the second "
                      "description arrives (0.55 s, the rule on "
                      "every plot) · the two targets · "

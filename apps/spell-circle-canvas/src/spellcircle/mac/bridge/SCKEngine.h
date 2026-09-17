@@ -73,6 +73,8 @@ NS_SWIFT_UI_ACTOR
  */
 /** Clamped to [16, 8192] — 0 or Metal-exceeding sizes must never reach
  *  texture allocation. */
+@property(class, nonatomic, readonly) int minimumCanvasSize;
+@property(class, nonatomic, readonly) int maximumCanvasSize;
 @property(nonatomic) int canvasWidth;
 @property(nonatomic) int canvasHeight;
 @property(nonatomic) double scale;

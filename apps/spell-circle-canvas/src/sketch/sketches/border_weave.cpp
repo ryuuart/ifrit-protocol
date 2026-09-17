@@ -98,6 +98,7 @@ Element cell(const char* call, const char* note, Element body) {
 
 struct BorderWeave {
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     const sketch::kit::Theme& sheet = sketch::kit::theme();
@@ -109,8 +110,7 @@ struct BorderWeave {
                          .corner = kArm};
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE RULE AND THE STRANDS · Border's four "
-                  "modes, brush::weave over one outline",
+        {.title = "The rule and the strands",
          .subtitle = "dials · the width (1.8 px) and inset "
                      "(7 px) · the corner arm (18 px) "
                      "· the strand count (3), amplitude and "

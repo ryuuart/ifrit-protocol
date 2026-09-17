@@ -79,18 +79,13 @@ constexpr SkColor4f kCore{0.616f, 0.949f, 1.0f, 1};
 constexpr SkColor4f kHalo{0.165f, 0.498f, 0.588f, 1};
 constexpr SkColor4f kSeam{0.95f, 0.62f, 0.24f, 1};
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.ground = {0.02f, 0.03f, 0.05f, 1};
   look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
-  look.palette.ash = {0.62f, 0.66f, 0.74f, 1};
   look.palette.rule = {0.16f, 0.20f, 0.26f, 1};
-  look.type.title = {.size = 15, .track = 2};
-  look.type.subtitle = {.size = 11, .track = 0.6f};
-  look.type.footer = {.size = 10.5f, .track = 0.2f};
   look.type.captionLabel = {.size = 13, .track = 0.4f};
-  look.type.captionNote = {.size = 11, .track = 0.2f};
   look.spacing.marginX = 30;
   look.spacing.marginTop = 22;
   return look;
@@ -180,8 +175,7 @@ struct CrtBloom {
                              headline(kCore).zIndex(2)}));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "CRT BLOOM · Effect::glow beside the stack "
-                  "it names",
+        {.title = "CRT bloom",
          .subtitle = "identical content either side of the seam "
                      "— one word, one size, one spread, "
                      "one tube; only the construction differs",

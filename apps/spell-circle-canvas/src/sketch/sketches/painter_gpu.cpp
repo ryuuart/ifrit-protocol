@@ -64,11 +64,10 @@ constexpr float kCurve = 300;
 
 constexpr SkColor4f kCellGround{0.035f, 0.038f, 0.055f, 1};
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.type.captionLabel = {.size = 11.5f, .track = 0.6f};
-  look.type.captionNote = {.size = 11, .track = 0.3f};
   return look;
 }
 
@@ -99,15 +98,14 @@ Element card(float w, float h, SkColor4f accent) {
       .column()
       .gap(12)
       .padding(12)
-      .children(
-          {box().width(w - 24).height(11).corners({5}).fill(
-               Fill::color({accent.fR, accent.fG, accent.fB, 0.92f})),
-           box().column().gap(9).children({each(3, rule)}),
-           box()
-               .row()
-               .gap(5)
-               .alignItems(Align::End)
-               .children({each(10, bar)})});
+      .children({box().width(w - 24).height(11).corners({5}).fill(
+                     Fill::color({accent.fR, accent.fG, accent.fB, 0.92f})),
+                 box().column().gap(9).children({each(3, rule)}),
+                 box()
+                     .row()
+                     .gap(5)
+                     .alignItems(Align::End)
+                     .children({each(10, bar)})});
 }
 
 }  // namespace
@@ -205,8 +203,7 @@ struct PainterGpu {
               u8"canvas";
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "PAINTER RUNTIME · MeshStyle::runtime + "
-                  "sketch::painterRuntime()",
+        {.title = "Painter runtime",
          .subtitle = "dials · the runtime (named on each "
                      "cell) · the panel count (3 flat cards "
                      "and one curved sheet per cell)",

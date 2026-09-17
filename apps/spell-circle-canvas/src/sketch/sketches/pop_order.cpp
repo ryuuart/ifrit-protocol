@@ -61,18 +61,13 @@ constexpr glm::vec3 kOrderAxis{0, 0, 1};  // the sort key: dot(P, axis)
 constexpr bool kDescending = false;       // false = ascending = farthest first
 constexpr float kPanel = 340.0f;
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
   look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
-  look.palette.ash = {0.55f, 0.60f, 0.70f, 1};
   look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
-  look.type.title = {.size = 15, .track = 2};
-  look.type.subtitle = {.size = 11, .track = 0.6f};
-  look.type.footer = {.size = 10.5f, .track = 0.2f};
   look.type.captionLabel = {.size = 13, .track = 0.4f};
-  look.type.captionNote = {.size = 11, .track = 0.2f};
   look.spacing.marginX = 30;
   look.spacing.marginTop = 22;
   look.spacing.captionGap = 5;
@@ -166,7 +161,7 @@ struct PopOrder {
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // Both clouds are cooked in setup; nothing reads the clock.
-    sketch::kit::stage(ctx, {.size = {760, 500}, .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.size = {760, 552}, .captureAt = 0.05});
 
     const std::vector<glm::vec3> loop = crown(215, 190, 72);
 
@@ -188,8 +183,7 @@ struct PopOrder {
     sorted = depthChain().order(kOrderAxis, kDescending).cloud();
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "POP ORDER · order() is a PERMUTATION, "
-                  "and the point sink draws in it",
+        {.title = "The order of points",
          .subtitle = "colour is driven from P.z over the ring's own "
                      "depth range, so colour IS depth and a "
                      "mis-ordered sprite is a dark dot sitting on "

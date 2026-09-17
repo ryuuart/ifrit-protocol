@@ -55,19 +55,18 @@ using material::Target;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 646};
+constexpr SkSize kCanvas = {1100, 686};
 constexpr float kCell = 341;
 constexpr float kPicture = 196;
 
 constexpr int kBars = 12;      // the table's length, and a constant in the body
 constexpr float kGain = 0.9f;  // every bar's height multiplier
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.cellGround = {0.09f, 0.095f, 0.11f, 1};
   look.type.captionLabel = {.size = 11, .mono = true};
-  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
   return look;
 }
 
@@ -256,8 +255,7 @@ struct FrameInputs {
          .gap = 14});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "FRAME INPUTS · Recipe::frame + UniformBlock + "
-                  "Material::withRecipe",
+        {.title = "Frame inputs",
          .subtitle = "dials · the content scale (1, then 3) · the world "
                      "translation · the block's twelve floats · the recipe "
                      "the instance is worn on",

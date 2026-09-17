@@ -56,13 +56,13 @@ target_link_libraries(SpellCircleMacBridge
     SigilSkia
     SigilIOHub          # the hub, and the feed the port is opened as
     SigilIOTransport    # registerUdp: the scheme that port speaks
-    SigilPublish
+    SigilIOPublish
 )
 
 sigil_test(spellcircle_mac_test
   ARC
   SOURCES test/EngineTest.mm
-  LIBRARIES SpellCircleMacBridge SpellCircleSchema ${frameworks})
+  LIBRARIES SpellCircleMacBridge SpellCircleDocument SpellCircleSchema ${frameworks})
 
 add_executable(SpellCircleMac MACOSX_BUNDLE
   app/SpellCircleMacApp.swift

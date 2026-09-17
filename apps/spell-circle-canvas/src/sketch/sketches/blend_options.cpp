@@ -88,18 +88,13 @@ constexpr float kSpineCell = 561;  // (kBand - the gap between the two) / 2
 
 constexpr SkColor4f kCellGround{0.085f, 0.085f, 0.105f, 1};
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.ground = {0.055f, 0.055f, 0.075f, 1};
   look.palette.ink = {0.90f, 0.91f, 0.94f, 1};
-  look.palette.ash = {0.56f, 0.58f, 0.66f, 1};
   look.palette.rule = {0.19f, 0.20f, 0.24f, 1};
-  look.type.title = {.size = 15, .track = 2.2f};
-  look.type.subtitle = {.size = 11, .track = 0.7f};
-  look.type.footer = {.size = 10, .track = 0.3f};
   look.type.captionLabel = {.size = 12, .track = 0.6f};
-  look.type.captionNote = {.size = 11, .track = 0.3f};
   look.spacing.marginX = 30;
   look.spacing.marginTop = 24;
   look.spacing.marginBottom = 18;
@@ -207,7 +202,7 @@ void derivedCount(SkCanvas& canvas) {
                           .stroke = SkColor4f{0.15f, 0.85f, 1.0f, 0.9f},
                           .strokeWidth = 2.5f};
     const blend::Key to{
-        .path = wave({450, kWide - 40}, {kBand - 60, kWide - 30}, 38, 2),
+        .path = wave({450, kWide - 60}, {kBand - 60, kWide - 52}, 38, 2),
         .fill = {0, 0, 0, 0},
         .stroke = SkColor4f{1.0f, 0.3f, 0.75f, 0.9f},
         .strokeWidth = 2.5f};
@@ -251,7 +246,7 @@ struct BlendOptions {
     const sketch::kit::Provide look(sheetTheme());
     // Every step is computed from the keys and the options; nothing here
     // reads the clock.
-    sketch::kit::stage(ctx, {.size = {1200, 1330}, .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.size = {1200, 1400}, .captureAt = 0.05});
 
     Element spineRow = kit::cells(
         {.cells = {band("spine.page", kSpineCell, kSpine,
@@ -269,8 +264,7 @@ struct BlendOptions {
          .gap = 18});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "BLEND OPTIONS · how many steps, "
-                  "what rides along, and where they walk",
+        {.title = "Blend options",
          .subtitle = "path::blend interpolates OUTLINES: "
                      "every intermediate is a real path",
          .footer = "Sketchbook · blend_options"},

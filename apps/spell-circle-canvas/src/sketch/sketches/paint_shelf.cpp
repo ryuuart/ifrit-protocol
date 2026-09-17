@@ -49,7 +49,7 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 646};
+constexpr SkSize kCanvas = {1100, 686};
 constexpr float kCell = 252;
 constexpr float kPicture = 190;
 
@@ -57,9 +57,9 @@ constexpr float kFocus = 44;       // the conical's hot spot displacement, px
 constexpr float kWindowFrom = 45;  // the sweep window that does not fill a turn
 constexpr float kWindowTo = 315;
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.cellGround = {0.09f, 0.095f, 0.11f, 1};
   return look;
 }
@@ -92,9 +92,8 @@ Element cell(const char* call, const char* note, Element body) {
 
 /** One paint across the whole cell. */
 Element swatch(const char* call, const char* note, paint::Paint fill) {
-  return cell(
-      call, note,
-      box().children({box().cover().fill(std::move(fill))}));
+  return cell(call, note,
+              box().children({box().cover().fill(std::move(fill))}));
 }
 
 }  // namespace
@@ -138,15 +137,13 @@ struct PaintShelf {
     // TWO NODES, ONE DESCRIPTION — which is the whole of what worldSpace
     // is read by.
     const auto pair = [&](bool world) {
-      return box().row().padding(18, 34).gap(16).children(
-          {each(2, [&](int) {
-            return box().grow(1).alignSelf(Align::Stretch).fill(field(world));
-          })});
+      return box().row().padding(18, 34).gap(16).children({each(2, [&](int) {
+        return box().grow(1).alignSelf(Align::Stretch).fill(field(world));
+      })});
     };
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "PAINT SHELF · skia::Paint conical, sweep, "
-                  "buffer, worldSpace",
+        {.title = "Paint shelf",
          .subtitle = "dials · the focal offset (44 px) "
                      "· the sweep window (45° to "
                      "315°) · worldSpace on or off",

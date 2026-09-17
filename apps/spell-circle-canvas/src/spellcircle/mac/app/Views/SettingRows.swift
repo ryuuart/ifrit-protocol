@@ -8,6 +8,7 @@ struct NumericSettingRow: View {
     @Binding var value: Double
     let range: ClosedRange<Double>
     var step: Double = 1
+    var suffix: String = ""
 
     var body: some View {
         HStack {
@@ -24,6 +25,12 @@ struct NumericSettingRow: View {
                     let bounded = newValue.clamped(to: range)
                     if bounded != newValue { value = bounded }
                 }
+            if !suffix.isEmpty {
+                Text(suffix)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 16, alignment: .leading)
+            }
             Stepper(title, value: $value, in: range, step: step)
                 .labelsHidden()
         }

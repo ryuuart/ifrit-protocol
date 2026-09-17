@@ -48,7 +48,7 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 640};
+constexpr SkSize kCanvas = {1100, 680};
 constexpr float kCell = 252;
 constexpr float kPicture = 196;
 
@@ -82,9 +82,9 @@ Element cell(const char* call, const std::string& note, sdf::Shape shape,
           })));
 }
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.ground = {0.06f, 0.06f, 0.075f, 1};
   look.palette.cellGround = {0.085f, 0.09f, 0.105f, 1};
   return look;
@@ -187,8 +187,7 @@ struct SdfStar {
          .column = true,
          .gap = 18});
     ctx.composer.render(sketch::kit::page(
-        {.title = "SDF STAR · sdf::star + sdf::Style + "
-                  "sdf::pad",
+        {.title = "SDF star",
          .subtitle = "dials · the point count (6) · "
                      "the pointiness (m in [2, points]) · "
                      "the glow radius (14 px, then 22)",

@@ -60,7 +60,7 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 362};
+constexpr SkSize kCanvas = {1100, 402};
 constexpr float kCell = 163;
 constexpr float kPicture = 148;
 
@@ -123,12 +123,12 @@ const sketch::kit::Cell kSpecimen{
 
 struct CjkRules {
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE JAPANESE TABLES · kinsoku, hanging, "
-                  "mojikumi, tsume, lineBreakLocale",
+        {.title = "The Japanese tables",
          .subtitle = "dials · the body size (13 px) · "
                      "the bracket room and the tsume, as em "
                      "fractions · the locale the "
@@ -141,12 +141,12 @@ struct CjkRules {
         kit::cells(
             {.cells =
                  {sketch::kit::cell(
-                      kSpecimen, "writingMode(kVerticalRL)",
+                      kSpecimen, "writingMode(VerticalRL)",
                       "the passage with no table at all · the "
                       "reference every other cell is read against",
                       column()),
                   sketch::kit::cell(
-                      kSpecimen, "kinsoku(kit::kinsoku::japanese())",
+                      kSpecimen, "kinsoku(japanese)",
                       "the closing marks and non-starters may not "
                       "OPEN a column · identical to the "
                       "reference, because the segmentation had already "
@@ -154,20 +154,20 @@ struct CjkRules {
                       column().block(
                           {.kinsoku = sigil::weave::kit::kinsoku::japanese()})),
                   sketch::kit::cell(
-                      kSpecimen, "hanging(kit::hanging::japanese())",
+                      kSpecimen, "hanging(japanese)",
                       "burasagari · the sentence marks alone, "
                       "at a column's END · no column of this "
                       "setting closes on one, so nothing hangs",
                       column().block(
                           {.hanging = sigil::weave::kit::hanging::japanese()})),
                   sketch::kit::cell(
-                      kSpecimen, "mojikumi(brackets(-0.5))",
+                      kSpecimen, "brackets(−0.5 em)",
                       "half an em taken out of the gap between a "
                       "closing mark and an opening one · two "
                       "half-air cells set closer",
                       column().block({.mojikumi = brackets(kBracketRoom)})),
                   sketch::kit::cell(
-                      kSpecimen, "mojikumi({}, tsume = -0.12)",
+                      kSpecimen, "tsume(−0.12 em)",
                       "every full-width gap the table gives no class "
                       "closed up on top of that · the whole "
                       "column shortens",

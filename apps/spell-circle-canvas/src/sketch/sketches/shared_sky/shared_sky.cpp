@@ -61,7 +61,7 @@
 #include <sigildraw/Pen.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <cmath>
@@ -135,6 +135,7 @@ struct SharedSky {
   Vitals shown;
 
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
     sketch::kit::stage(
         ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
 
@@ -173,6 +174,7 @@ struct SharedSky {
   bool arrived() const { return !sky.latest().null(); }
 
   void describe(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
     // A paint program runs after the describe scope has closed, where the
     // theme in force is no longer this page's, so the one colour the
     // placeholder is drawn in is read here and carried in by value.
@@ -182,11 +184,21 @@ struct SharedSky {
                       draw(pen, rule);
                     }).cover());
     if (!arrived()) parts.push_back(waiting());
-    parts.push_back(readout());
-    ctx.composer.render(compose::stack()
-                            .width(kCanvas.width())
-                            .height(kCanvas.height())
-                            .children(std::move(parts)));
+    compose::Element picture = compose::stack()
+                                   .width(kCanvas.width())
+                                   .height(kCanvas.height())
+                                   .children(std::move(parts));
+    ctx.composer.render(sketch::kit::instrument(
+        {.page = {.title = "A scene between processes.",
+                  .subtitle = "SHARED MEMORY / SCHEMA  /  One process writes "
+                              "the sky. Another reads its newest state.",
+                  .footer = "Run sender.py beside this sketch to send data  ·  "
+                            "Captures replay the local recording"},
+         .pictureSize = kCanvas,
+         .pictureWidth = 816,
+         .note = "The horizon becomes a field of bands when the writer "
+                 "publishes a scene."},
+        std::move(picture).fill(kGround), readout()));
   }
 
   /** The sky, or the placeholder where there is none. */
@@ -264,7 +276,7 @@ struct SharedSky {
         .centerAt({kCanvas.width() * 0.5f, kCanvas.height() * 0.5f - 24.0f});
   }
 
-  /** THE DOOR'S OWN WORDS, small in the corner: how many messages have
+  /** THE DOOR'S OWN WORDS, in the reading panel: how many messages have
    *  been handed over, how many were no sky, and what the door is
    *  reading — or the sentence saying why it is reading nothing.
    *  Nothing here is computed about the sky; every line is what the
@@ -287,11 +299,9 @@ struct SharedSky {
                                 : shown.address.c_str()));
     return compose::box()
         .column()
-        .gap(look.spacing.rowGap)
-        .left(kMargin)
-        .bottom(kMargin)
-        .font(look.font({.size = 11, .mono = true}))
-        .ink(look.palette.ash)
+        .gap(12)
+        .font(look.font({.size = 12, .mono = true}))
+        .ink(look.palette.ink)
         .children(compose::each(lines, [](const std::string& line) {
           return compose::text(line);
         }));
@@ -304,4 +314,4 @@ SIGIL_SKETCH(SharedSky, "Data",
              "A sky drawn from a region of shared memory another process on "
              "this machine wrote: no socket, no copy through the kernel, the "
              "recording beside the sketch in a capture, and the door's own "
-             "vitals printed under it.")
+             "vitals shown beside it.")

@@ -23,8 +23,12 @@ struct SpellCircleRenderer::RenderState {
 };
 
 SpellCircleRenderer::SpellCircleRenderer() {
-  m_font.setBold(true);
-  m_font.setPointSize(36);
+  using Defaults = spellcircle::ReceiverDefaults;
+  if (Defaults::fontFamily[0] != '\0')
+    m_font.setFamily(QString::fromUtf8(Defaults::fontFamily));
+  m_font.setWeight(static_cast<QFont::Weight>(Defaults::fontWeight));
+  m_font.setItalic(Defaults::fontItalic);
+  m_font.setPointSize(Defaults::fontSize);
 }
 
 SpellCircleRenderer::~SpellCircleRenderer() = default;

@@ -32,37 +32,39 @@ struct SettingsPane: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     section("Appearance") {
-                        ColorPicker("Accent color", selection: $model.accentColor)
+                        ColorPicker("Scene color", selection: $model.accentColor)
                         NumericSettingRow(title: "Stroke width",
                                           value: $model.strokeWidth,
-                                          range: 0.5...100, step: 0.5)
-                        NumericSettingRow(title: "Scale", value: $model.scale,
-                                          range: 0.05...16, step: 0.25)
+                                          range: 0.5...100, step: 0.5, suffix: "px")
+                        NumericSettingRow(title: "Style scale", value: Binding(
+                            get: { model.scale * 100 },
+                            set: { model.scale = $0 / 100 }),
+                            range: 5...1600, step: 5, suffix: "%")
                     }
                     section("Labels") {
                         FontFamilyComboBox()
                         FontStyleComboBox()
                         NumericSettingRow(title: "Font size",
                                           value: $model.fontSize,
-                                          range: 1...512, step: 1)
-                        NumericSettingRow(title: "Label offset",
+                                          range: 1...512, step: 1, suffix: "pt")
+                        NumericSettingRow(title: "Ring label offset",
                                           value: $model.labelOffset,
-                                          range: -1000...1000, step: 5)
-                        NumericSettingRow(title: "Point distance",
+                                          range: -1000...1000, step: 5, suffix: "px")
+                        NumericSettingRow(title: "Point label distance",
                                           value: $model.pointDistance,
-                                          range: 0...1000, step: 5)
+                                          range: -2000...2000, step: 5, suffix: "px")
                     }
-                    section("Boxes") {
-                        NumericSettingRow(title: "Width", value: $model.boxWidth,
-                                          range: 1...4000, step: 10)
+                    section("Label boxes") {
+                        NumericSettingRow(title: "Minimum width", value: $model.boxWidth,
+                                          range: 0...4000, step: 10, suffix: "px")
                         NumericSettingRow(title: "Height", value: $model.boxHeight,
-                                          range: 1...4000, step: 10)
-                        NumericSettingRow(title: "Padding", value: $model.boxPadding,
-                                          range: 0...500, step: 2)
-                        NumericSettingRow(title: "Distance", value: $model.boxDistance,
-                                          range: 0...1000, step: 5)
+                                          range: 0...4000, step: 10, suffix: "px")
+                        NumericSettingRow(title: "Inner padding", value: $model.boxPadding,
+                                          range: 0...500, step: 2, suffix: "px")
+                        NumericSettingRow(title: "Distance from point", value: $model.boxDistance,
+                                          range: 0...2000, step: 5, suffix: "px")
                     }
-                    section("Canvas") {
+                    section("Output canvas") {
                         CanvasSizeRow(title: "Width", value: $model.canvasWidth)
                         CanvasSizeRow(title: "Height", value: $model.canvasHeight)
                         Text("Native pixels, \(EngineModel.canvasSizeRange.lowerBound)–\(EngineModel.canvasSizeRange.upperBound). Applied after you pause typing.")

@@ -52,7 +52,7 @@
 #include <sigildraw/Pen.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <cmath>
@@ -131,6 +131,7 @@ struct FeedSky {
   Vitals shown;
 
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
     sketch::kit::stage(
         ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
 
@@ -170,6 +171,7 @@ struct FeedSky {
   bool arrived() const { return !sky.latest().null(); }
 
   void describe(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
     // A paint program runs after the describe scope has closed, where the
     // theme in force is no longer this page's, so the one colour the
     // placeholder is drawn in is read here and carried in by value.
@@ -179,11 +181,22 @@ struct FeedSky {
                       draw(pen, rule);
                     }).cover());
     if (!arrived()) parts.push_back(waiting());
-    parts.push_back(readout());
-    ctx.composer.render(compose::stack()
-                            .width(kCanvas.width())
-                            .height(kCanvas.height())
-                            .children(std::move(parts)));
+    compose::Element picture = compose::stack()
+                                   .width(kCanvas.width())
+                                   .height(kCanvas.height())
+                                   .children(std::move(parts));
+    ctx.composer.render(sketch::kit::instrument(
+        {.page =
+             {.title = "A sky, received.",
+              .subtitle =
+                  "UDP / SCHEMA  /  The newest message becomes the picture.",
+              .footer = "Run sender.py beside this sketch to send data  ·  "
+                        "Captures replay the local recording"},
+         .pictureSize = kCanvas,
+         .pictureWidth = 816,
+         .note = "Each band comes from the schema: height, drift, colour and "
+                 "wind."},
+        std::move(picture).fill(kGround), readout()));
   }
 
   /** The sky, or the placeholder where there is none. */
@@ -259,7 +272,7 @@ struct FeedSky {
         .centerAt({kCanvas.width() * 0.5f, kCanvas.height() * 0.5f - 24.0f});
   }
 
-  /** THE DOOR'S OWN WORDS, small in the corner: how many messages have
+  /** THE DOOR'S OWN WORDS, in the reading panel: how many messages have
    *  arrived, how many fell off the queue behind a reader, how many were
    *  no sky under this sketch's schema, and where the door is — or the
    *  sentence saying why there is none. Nothing here is computed about
@@ -284,11 +297,9 @@ struct FeedSky {
                                 : shown.address.c_str()));
     return compose::box()
         .column()
-        .gap(look.spacing.rowGap)
-        .left(kMargin)
-        .bottom(kMargin)
-        .font(look.font({.size = 11, .mono = true}))
-        .ink(look.palette.ash)
+        .gap(12)
+        .font(look.font({.size = 12, .mono = true}))
+        .ink(look.palette.ink)
         .children(compose::each(lines, [](const std::string& line) {
           return compose::text(line);
         }));
@@ -301,4 +312,4 @@ SIGIL_SKETCH(FeedSky, "Data",
              "A sky drawn from the newest message on a connection read "
              "through the sketch's own schema: a port in a window, the "
              "recording beside the sketch in a capture, and the door's own "
-             "vitals printed under it.")
+             "vitals shown beside it.")

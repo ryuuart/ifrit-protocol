@@ -1,5 +1,30 @@
 # Findings
 
+## Billboard point clouds are substantially slower on the GPU lane
+
+`pop_billboards` completes its raster plate, but its headless GPU sweep takes
+long enough to exceed a 150-second capture timeout. An isolated GPU sweep
+eventually completes with the same visible composition. Sampling the process
+shows Graphite's Vulkan submission and fence waits dominating the main thread.
+The point renderer in `src/common/geometry/mesh/pop/Billboards.cpp` creates a
+tint color filter and submits one image rectangle for each splat.
+
+Reproduce both paths with:
+
+```sh
+build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
+  --headless /tmp/billboards-gpu --gpu --sketch pop_billboards
+build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
+  --headless /tmp/billboards-raster --sketch pop_billboards
+```
+
+The GPU path should handle dense clouds through batches of compatible sprites
+while preserving depth order, per-point tint and size, atlas windows, and the
+requested blend mode. A renderer benchmark should cover the default soft dot,
+the ring sprite, and atlas windows at increasing cloud sizes. Plate comparisons
+should assert that batching preserves those visual properties on raster and
+GPU backends. Runtime measurements belong to the benchmark results.
+
 ## Sketchbook's OpenGL raster fallback presents the canvas upside down
 
 With `QSG_RHI_BACKEND=opengl`, Sketchbook uploads its raster frame into the

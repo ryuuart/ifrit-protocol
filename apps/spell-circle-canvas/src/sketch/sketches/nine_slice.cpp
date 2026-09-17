@@ -75,16 +75,13 @@ constexpr SkColor4f kQuest{0.169f, 0.110f, 0.043f, 1};
  *  it did under it. The page's ground is a shade off the canvas's, which
  *  is black, so the margin around the sheet reads as a border. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look;
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette = {.ground = {0.055f, 0.055f, 0.075f, 1},
                   .ink = kInk,
                   .ash = kAsh,
                   .rule = kRule};
   look.type.title = {.size = 26, .track = 3};
-  look.type.subtitle = {.size = 12, .track = 0.6f};
-  look.type.footer = {.size = 10.5f, .track = 1.2f};
   look.type.captionLabel = {.size = 12.5f, .track = 0.4f};
-  look.type.captionNote = {.size = 11.0f, .track = 0.2f};
   look.spacing.marginX = 44;
   look.spacing.marginTop = 34;
   look.spacing.marginBottom = 22;
@@ -203,7 +200,7 @@ struct NineSlice {
          .align = Align::Center});
 
     return sketch::kit::page(
-        {.title = u8"NINE SLICE",
+        {.title = u8"Nine-slice surfaces",
          .subtitle = u8"one generated texture over every size — "
                      u8"the density it declares, and the native op it does "
                      u8"not use",

@@ -7,7 +7,7 @@ find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 QuickLayouts
                                      QuickDialogs2)
 qt_standard_project_setup(REQUIRES 6.11)
 
-qt_add_executable(Seer main.cpp)
+qt_add_executable(Seer main.cpp Arguments.cpp)
 sigil_qt_target(Seer)
 
 # A real .app: a bare Mach-O in bin/ gets no bundle identity, so macOS
@@ -25,7 +25,7 @@ set_target_properties(Seer PROPERTIES
 # root beside the generated qmldir. The property is read when the module
 # is declared, so it is set before it.
 foreach(seer_qml IN ITEMS
-    Main ConnectionsPane ReceivePane SendPane RecordStrip ReceiverPane ReceiverSettings)
+    Main ConnectionsPane ReceivePane SendPane RecordStrip ReceiverPane ReceiverSettings TexturesPane)
   set_source_files_properties(qml/${seer_qml}.qml
     PROPERTIES QT_RESOURCE_ALIAS ${seer_qml}.qml)
 endforeach()
@@ -41,6 +41,7 @@ qt_add_qml_module(Seer
     qml/RecordStrip.qml
     qml/ReceiverPane.qml
     qml/ReceiverSettings.qml
+    qml/TexturesPane.qml
   SOURCES
     SeerSession.cpp SeerSession.h
     Receiver.cpp Receiver.h
@@ -48,6 +49,8 @@ qt_add_qml_module(Seer
     MessageList.cpp MessageList.h
     WireDetail.cpp WireDetail.h
     SendForm.cpp SendForm.h
+    TextureSources.cpp TextureSources.h
+    TexturePreview.cpp TexturePreview.h
 )
 
 # SigilData is named here and not taken from the archive's link: the
@@ -55,7 +58,7 @@ qt_add_qml_module(Seer
 # this target spells that vocabulary itself.
 target_include_directories(Seer PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(Seer PRIVATE
-  SigilSeerWire SigilDataDecode SpellCircleModels SpellCircleCanvas
+  SigilSeerWire SigilDataDecode SigilIOPublish SpellCircleModels SpellCircleCanvas
   SpellCircleCanvasplugin
   IfritQt IfritQtplugin Qt6::Gui Qt6::Quick Qt6::QuickControls2 Qt6::QuickLayouts
   Qt6::QuickDialogs2)
@@ -63,8 +66,26 @@ target_link_libraries(Seer PRIVATE
 
 sigil_test(seer_qt_test
   SOURCES SeerSession.cpp Receiver.cpp WireList.cpp MessageList.cpp
-          WireDetail.cpp SendForm.cpp test/ReceiverTest.cpp
+          WireDetail.cpp SendForm.cpp Arguments.cpp test/ReceiverTest.cpp test/ArgumentsTest.cpp
   LIBRARIES SigilSeerWire SigilDataDecode SpellCircleModels SpellCircleSchema
             Qt6::Gui Qt6::Qml)
 sigil_qt_target(seer_qt_test)
 target_include_directories(seer_qt_test PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+
+if(APPLE)
+  set(SEER_TEXTURE_SOURCES TexturePreview.mm texture/Capture.mm texture/Grab.mm texture/Servers.mm)
+  target_sources(Seer PRIVATE ${SEER_TEXTURE_SOURCES})
+  set_source_files_properties(${SEER_TEXTURE_SOURCES}
+    TARGET_DIRECTORY Seer PROPERTIES COMPILE_OPTIONS -fobjc-arc)
+  sigil_frameworks(SEER_TEXTURE_FRAMEWORKS Foundation Metal)
+  target_link_libraries(Seer PRIVATE SigilImageEncode SigilIOSource ${SEER_TEXTURE_FRAMEWORKS})
+  sigil_test(seer_qt_test
+    ARC
+    SOURCES test/TextureTest.mm test/TexturePreviewTest.mm texture/Capture.mm
+            TexturePreview.cpp TexturePreview.mm TexturePreview.h
+    LIBRARIES SigilIOPublish SigilImageEncode SigilImageDecode SigilIOSource Qt6::Quick
+              ${SEER_TEXTURE_FRAMEWORKS}
+    SUITES SeerTextureCapture SeerTextureDelivery SeerTexturePreview LABELS gpu)
+else()
+  target_sources(Seer PRIVATE texture/Unsupported.cpp)
+endif()

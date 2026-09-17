@@ -9,7 +9,7 @@ import Ifrit.Qt 1.0 as Ui
 import SigilWeave.Gallery
 
 /** Top-level composition for the interactive SigilWeave gallery. */
-ApplicationWindow {
+Ui.AppWindow {
     id: galleryWindow
 
     required property int initialScene

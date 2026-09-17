@@ -43,7 +43,6 @@ add_subdirectory(common/qt)
 add_subdirectory(common/image)
 add_subdirectory(common/video)
 add_subdirectory(common/io)
-add_subdirectory(common/publish)
 # Tabular data and the mappings read off it. Over io's byte seam only:
 # a decoder speaks that vocabulary, and registers itself on whatever
 # hub a host holds, so nothing here inherits the hub or a codec.

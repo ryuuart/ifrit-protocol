@@ -123,13 +123,9 @@ sk_sp<SkTypeface> graded() {
  *  context's own face, and one voice for every cell — the call over the
  *  specimen, what it deviates under it. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look;
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette = {.ground = kGround, .ink = kBone, .ash = kAsh, .rule = kFaint};
-  look.type.title = {.size = 13, .track = 3.6f};
-  look.type.subtitle = {.size = 10.5f, .track = 0.3f};
-  look.type.footer = {.size = 10, .track = 0.2f};
   look.type.captionLabel = {.size = 12, .track = 0.8f};
-  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
   look.spacing.marginX = kMargin;
   look.spacing.marginTop = kMargin - 12;
   look.spacing.marginBottom = 30;
@@ -258,7 +254,7 @@ struct KineticCard {
     }
 
     Element sheet = sketch::kit::page(
-        {.title = u8"THE STOCK TEXT EFFECTS",
+        {.title = u8"Text in motion",
          .subtitle = u8"nine presets, one cascade, one wrapping "
                      u8"phase — and each one's own "
                      u8"schedule drawn under it",

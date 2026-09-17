@@ -45,17 +45,16 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 598};
+constexpr SkSize kCanvas = {1100, 638};
 constexpr float kCell = 200;
 constexpr float kPicture = 176;
 constexpr float kWeight = 1.5f;  // every curve drawn at one width
 
-/** The house sheet, in this one's caption voice. */
+/** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.captionWhere = kit::Caption::Where::Below;
   look.type.captionLabel = {.size = 11.5f, .mono = true};
-  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
   look.spacing.captionGap = 8;
   look.spacing.captionNoteGap = 3;
   return look;
@@ -135,8 +134,7 @@ struct CurveShelf {
          .gap = 12});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "CURVE SHELF · shapes:: parametric, lissajous, "
-                  "harmonograph, rose, spiral, trochoid",
+        {.title = "Curve shelf",
          .subtitle = "dials · the two frequency parameters in each cell · "
                      "the sample count · the stroke width (1.5 px, one for "
                      "the shelf)",

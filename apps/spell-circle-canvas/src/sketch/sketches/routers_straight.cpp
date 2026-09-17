@@ -93,6 +93,7 @@ Element cell(const char* call, const char* note, const std::string& tag,
 
 struct RoutersStraight {
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -101,8 +102,7 @@ struct RoutersStraight {
     };
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE STOCK ROUTES · routers::straight, "
-                  "orthogonal, arc, octilinear",
+        {.title = "The stock routes",
          .subtitle = "dials · the router · the bend "
                      "(MidX, HFirst, VFirst) · the corner "
                      "radius (12 px) or the 45° cut (14 px, "

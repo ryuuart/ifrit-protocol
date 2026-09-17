@@ -1577,10 +1577,10 @@ keeps its headers under `include/sigilsketch/canvas/` and its own
 
 Beside them stand `sketch_test`, `sketch_bench`, and the build step that
 writes the response file a hot-reloaded sketch compiles with. Native frame
-publication and subscription come from `SigilPublish` in `common/publish/`.
+publication and subscription come from `SigilIOPublish` in `common/io/publish/`.
 Sketchbook uses the shared Qt publication adapter; `Guest` wraps a native
-subscription for canvas and material use. The separate macOS `Receiver`
-monitor and PNG capture tool belongs to `common/publish/tools/receiver/`.
+subscription for canvas and material use. Seer owns the texture
+monitor and PNG capture workflow.
 
 ## Boundaries
 

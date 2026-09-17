@@ -64,7 +64,7 @@ namespace {
 
 constexpr const char* kSource =
     "https://www.spacejam.com/1996/img/fastbreak.gif";
-constexpr SkSize kCanvas = {1120, 560};
+constexpr SkSize kCanvas = {1120, 600};
 constexpr float kScale = 3.0f;  // sheet pixels per source pixel
 /** The moments the lower shelf reads. The file's own loop is 600 ms, so
  *  these run across two of them and the frames come round again. */
@@ -72,13 +72,10 @@ constexpr double kSamples[] = {0, 150, 320, 480, 640, 900, 1150, 1420};
 
 constexpr SkColor4f kCellGround{0.12f, 0.12f, 0.14f, 1};
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
-  look.type.subtitle = {.size = 11, .track = 0.6f};
-  look.type.footer = {.size = 11, .track = 0.3f};
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.type.captionLabel = {.size = 11, .track = 0.4f};
-  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
   look.spacing.captionGap = 6;
   return look;
 }
@@ -192,8 +189,7 @@ struct GifFrames {
          .gap = 26,
          .divider = Fill::color(sketch::kit::theme().palette.rule)});
     return sketch::kit::page(
-        {.title = "ANIMATED FRAMES · ImageAsset::frames() "
-                  "+ frameAt(ms)",
+        {.title = "Animated frames",
          .subtitle = std::string("dials · the file (") + kSource +
                      ") · the moments the lower shelf reads",
          .footer = foot},

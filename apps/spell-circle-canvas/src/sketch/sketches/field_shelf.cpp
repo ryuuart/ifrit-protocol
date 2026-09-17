@@ -63,9 +63,9 @@ constexpr float kSeed = 4;          // the seed every generated field offsets by
 
 constexpr SkColor4f kScreen{0.72f, 0.80f, 0.62f, 1};
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.cellGround = {0.09f, 0.095f, 0.11f, 1};
   return look;
 }
@@ -200,8 +200,7 @@ struct FieldShelf {
          .gap = 12});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "FIELD SHELF · field:: halftoneRamp, noise, grain, ripple, "
-                  "crtOverlay",
+        {.title = "Field shelf",
          .subtitle = "dials · the pitch (9 px) · the frequency (0.035 "
                      "features per px) · the seed (4) · and, in the bottom "
                      "row, the one dial that changes what each means",

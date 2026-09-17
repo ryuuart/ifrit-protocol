@@ -124,6 +124,7 @@ const sketch::kit::Cell kSpecimen{
 
 struct DecayStep {
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     // the plots are functions of time, not of the clock
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     const sketch::kit::Theme& look = sketch::kit::theme();
@@ -143,8 +144,7 @@ struct DecayStep {
 
     ctx.composer.render(
         sketch::kit::page(
-            {.title = "THE CLOCK ARITHMETIC · motion::decay, "
-                      "quantizeTime, stepIndex, phase, spring",
+            {.title = "The clock arithmetic",
              .subtitle = "dials · three seconds across every plot "
                          "· the time constant (0.6 s) · "
                          "the rate (4 Hz) · the period (0.8 s) "

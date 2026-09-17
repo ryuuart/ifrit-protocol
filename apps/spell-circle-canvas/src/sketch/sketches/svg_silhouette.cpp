@@ -39,15 +39,14 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 684};
+constexpr SkSize kCanvas = {1100, 724};
 constexpr float kCell = 341;
 constexpr float kPicture = 212;
 
-/** The house sheet, in this one's caption voice. */
+/** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.type.captionLabel = {.size = 11, .mono = true};
-  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
   return look;
 }
 
@@ -90,8 +89,7 @@ struct SvgSilhouette {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "SVG SILHOUETTE · shapes::svg(d, "
-                  "preserveAspect)",
+        {.title = "SVG silhouette",
          .subtitle = "dials · the d string (\"M62 4 L18 78 "
                      "H44 L30 148 L86 62 H56 Z\") · the fit "
                      "· the box it is asked to fill",

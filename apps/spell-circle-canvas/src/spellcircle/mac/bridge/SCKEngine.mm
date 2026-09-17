@@ -2,13 +2,15 @@
 
 #include <sigilio/transport/Transport.h>
 
+#include <include/core/SkColor.h>
 #include <algorithm>
+
+#include "ReceiverDefaults.h"
 
 namespace {
 
-constexpr int kDefaultPort = 27015;  // matches the Qt app / python sender
+using Defaults = spellcircle::ReceiverDefaults;
 
-constexpr double kDefaultTargetFps = 60.0;
 constexpr double kMinTargetFps = 1.0;
 constexpr double kMaxTargetFps = 240.0;
 
@@ -30,6 +32,13 @@ constexpr double kMaxTargetFps = 240.0;
 
 @implementation SCKEngine
 
++ (int)minimumCanvasSize {
+  return Defaults::minimumCanvasSize;
+}
++ (int)maximumCanvasSize {
+  return Defaults::maximumCanvasSize;
+}
+
 - (instancetype)init {
   self = [super init];
   if (!self) return nil;
@@ -46,33 +55,34 @@ constexpr double kMaxTargetFps = 240.0;
   // The publisher announces itself immediately and keeps the last
   // published frame for late-joining clients.
   if (_device)
-    _publisher = sigil::publish::createPublisher("SpellCircle", sigil::publish::Backend::Metal,
-                                                 (__bridge void *)_device);
+    _publisher = sigil::io::publish::createPublisher(
+        "SpellCircle", sigil::io::publish::Backend::Metal, (__bridge void *)_device);
 
   // Only UDP: this product speaks nothing else, so the hub is taught the
   // one scheme its port is opened on.
   sigil::io::registerUdp(_hub);
-  _port = kDefaultPort;
+  _port = Defaults::port;
   _statusText = @"Stopped";
-  _targetFramesPerSecond = kDefaultTargetFps;
+  _targetFramesPerSecond = Defaults::targetFramesPerSecond;
 
-  // Defaults mirror the Qt GraphicsConfig so both apps render a scene
-  // identically out of the box.
-  _canvasWidth = 4000;
-  _canvasHeight = 4000;
-  _scale = 1.0;
-  _strokeWidth = 4.0;
-  _labelOffset = 0.0;
-  _pointDistance = 40.0;
-  _boxWidth = 360.0;
-  _boxHeight = 140.0;
-  _boxPadding = 16.0;
-  _boxDistance = 40.0;
-  _fontSize = 36.0;
-  _fontFamily = @"";
-  _fontWeight = 700;  // bold, matching the Qt app's default QFont
-  _fontItalic = NO;
-  _accentColor = [NSColor colorWithSRGBRed:1.0 green:0.0 blue:0.0 alpha:1.0];
+  _canvasWidth = Defaults::canvasWidth;
+  _canvasHeight = Defaults::canvasHeight;
+  _scale = Defaults::scale;
+  _strokeWidth = Defaults::strokeWidth;
+  _labelOffset = Defaults::labelOffset;
+  _pointDistance = Defaults::pointDistance;
+  _boxWidth = Defaults::boxWidth;
+  _boxHeight = Defaults::boxHeight;
+  _boxPadding = Defaults::boxPadding;
+  _boxDistance = Defaults::boxDistance;
+  _fontSize = Defaults::fontSize;
+  _fontFamily = [NSString stringWithUTF8String:Defaults::fontFamily];
+  _fontWeight = Defaults::fontWeight;
+  _fontItalic = Defaults::fontItalic;
+  _accentColor = [NSColor colorWithSRGBRed:SkColorGetR(Defaults::color) / 255.0
+                                     green:SkColorGetG(Defaults::color) / 255.0
+                                      blue:SkColorGetB(Defaults::color) / 255.0
+                                     alpha:SkColorGetA(Defaults::color) / 255.0];
   _darkAppearance = YES;  // the canvas view syncs the real appearance
 
   _timestampFormatter = [[NSDateFormatter alloc] init];
@@ -150,14 +160,16 @@ SCK_CONFIG_SETTER(BOOL, fontItalic, setFontItalic)
 // texture allocation must never happen (it aborts under Metal validation),
 // no matter what a settings field feeds in.
 - (void)setCanvasWidth:(int)canvasWidth {
-  const int bounded = std::clamp(canvasWidth, 16, 8192);
+  const int bounded =
+      std::clamp(canvasWidth, Defaults::minimumCanvasSize, Defaults::maximumCanvasSize);
   if (_canvasWidth == bounded) return;
   _canvasWidth = bounded;
   [self configDidChange];
 }
 
 - (void)setCanvasHeight:(int)canvasHeight {
-  const int bounded = std::clamp(canvasHeight, 16, 8192);
+  const int bounded =
+      std::clamp(canvasHeight, Defaults::minimumCanvasSize, Defaults::maximumCanvasSize);
   if (_canvasHeight == bounded) return;
   _canvasHeight = bounded;
   [self configDidChange];

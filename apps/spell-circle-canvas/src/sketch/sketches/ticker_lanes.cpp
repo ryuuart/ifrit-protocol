@@ -132,6 +132,7 @@ struct TickerLanes {
   std::string readouts[4];
 
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     // the run has already happened, on its own ticker
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     const sketch::kit::Theme& look = sketch::kit::theme();
@@ -181,8 +182,7 @@ struct TickerLanes {
 
     ctx.composer.render(
         sketch::kit::page(
-            {.title = "THE TICKER'S LANES · Ticker::add, "
-                      "addFixed, derive, timeline",
+            {.title = "The ticker's lanes",
              .subtitle = "dials · three seconds at a 120 Hz delta "
                          "· the fixed rate (5 Hz) · the "
                          "derivation's levels (6) · the "

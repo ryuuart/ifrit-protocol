@@ -67,7 +67,7 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 400};
+constexpr SkSize kCanvas = {1100, 440};
 constexpr float kCell = 254;
 constexpr float kPicture = 210;
 
@@ -138,6 +138,7 @@ constexpr Run kRuns[] = {
 
 struct LiveSettling {
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     // the swell has already been run, on its own composer
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -172,8 +173,7 @@ struct LiveSettling {
     };
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "A MOVING MEASURE · Element::live, "
-                  "Composer::settling",
+        {.title = "A moving measure",
          .subtitle = "dials · the measure the swell runs "
                      "between (150 to 230 px, one pixel at a step) "
                      "· the frame's floor in break candidates "

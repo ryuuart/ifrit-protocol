@@ -36,6 +36,9 @@ bool WindowChrome::applyVibrancy(QQuickWindow *window) {
   // window is reached for, so it holds wherever the reach would fail.
   if (qEnvironmentVariableIsSet("IFRIT_NO_VIBRANCY")) return false;
 
+  // Qt owns title-bar geometry and safe-area notifications along with its flags.
+  window->setFlag(Qt::NoTitleBarBackgroundHint, true);
+
   // winId() forces platform-window creation for windows that are not yet
   // visible (the settings window starts hidden), so the NSWindow exists.
   // NOLINTNEXTLINE(performance-no-int-to-ptr): Qt hands the view over as an integer
@@ -46,7 +49,6 @@ bool WindowChrome::applyVibrancy(QQuickWindow *window) {
 
   nativeWindow.opaque = NO;
   nativeWindow.backgroundColor = NSColor.clearColor;
-  nativeWindow.titlebarAppearsTransparent = YES;
 
   // Qt's view is the NSWindow content view, and subviews always draw above
   // their superview, so the effect view goes into the frame view *behind*

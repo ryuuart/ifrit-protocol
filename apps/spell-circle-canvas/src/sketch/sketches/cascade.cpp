@@ -60,7 +60,7 @@ using sigil::draw::Pen;
 
 namespace {
 
-constexpr SkSize kCanvas = {1168, 812};
+constexpr SkSize kCanvas = {1168, 852};
 constexpr float kCell = 268;  // one cell's measure
 constexpr float kBody = 164;  // the well every specimen stands in
 constexpr float kPad = 12;
@@ -79,11 +79,10 @@ constexpr SkColor4f kWarm{1.00f, 0.67f, 0.28f, 1};
 constexpr SkColor4f kCool{0.44f, 0.64f, 1.00f, 1};
 constexpr SkColor4f kPanel{0.05f, 0.07f, 0.10f, 1};
 
-/** The house sheet, in this one's caption voice. */
+/** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.type.captionLabel = {.size = 10.5f, .mono = true};
-  look.type.captionNote = {.size = 10, .track = 0.2f};
   look.spacing.captionGap = 7;
   return look;
 }
@@ -392,8 +391,7 @@ struct Cascade {
 
   [[nodiscard]] Element sheet() const {
     return sketch::kit::page(
-        {.title = "THE CASCADE · the font, the ink and the "
-                  "custom properties",
+        {.title = "The cascade",
          .subtitle = "they flow down the TREE, wherever the code that built a "
                      "child ran · everything else a node says stays on it",
          .footer = "a class and a theme are LEXICAL, read where an element is "

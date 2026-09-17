@@ -120,13 +120,12 @@ struct ExactTangent {
   void setup(sketch::SketchContext& ctx) {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
-    const sketch::kit::Provide look(sketch::kit::theme());
+    const sketch::kit::Provide look(sketch::kit::specimenTheme());
     const SkColor4f figure = sketch::kit::theme().palette.figure;
 
     ctx.composer.render(
         sketch::kit::page(
-            {.title = "THE TANGENT LADDER · "
-                      "TextPath::exactTangent on a tight spiral",
+            {.title = "The tangent ladder",
              .subtitle = "dials · the size (15 px, then 74, then 260) "
                          "· the spiral's turns (3.2) · "
                          "exactTangent · how far off the "

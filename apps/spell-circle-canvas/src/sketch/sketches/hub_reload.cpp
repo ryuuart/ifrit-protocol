@@ -121,6 +121,7 @@ const sketch::kit::Cell kSpecimen{
 
 struct HubReload {
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     // both readings have already been taken
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     const sketch::kit::Theme& look = sketch::kit::theme();
@@ -164,8 +165,7 @@ struct HubReload {
         hub.image(chartUri);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "A MOUNTED FOLDER · Hub::mount, text, "
-                  "registerDecoder / load, poll",
+        {.title = "A mounted folder",
          .subtitle = "dials · the prefix the folder is "
                      "mounted under · the two states each "
                      "file is written in · what a T is "

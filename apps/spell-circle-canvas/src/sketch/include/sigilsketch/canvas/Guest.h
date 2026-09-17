@@ -20,7 +20,7 @@ namespace skgpu::graphite {
 class Recorder;
 }  // namespace skgpu::graphite
 
-namespace sigil::publish {
+namespace sigil::io::publish {
 class Subscription;
 }
 
@@ -131,7 +131,7 @@ class Guest {
   Guest(bool deterministic, std::string name, std::string application);
 
   std::string m_name;
-  std::unique_ptr<publish::Subscription> m_subscription;
+  std::unique_ptr<io::publish::Subscription> m_subscription;
   /** The last wrap, and what it was a wrap OF: which frame had arrived
    *  and which recorder it was recorded on. */
   sk_sp<SkImage> m_picture;

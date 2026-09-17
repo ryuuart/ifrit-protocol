@@ -117,22 +117,18 @@ constexpr SkColor4f kInk{0.92f, 0.94f, 0.98f, 1};
 constexpr SkColor4f kDim{0.56f, 0.61f, 0.72f, 1};
 constexpr SkColor4f kAccent{0.95f, 0.35f, 0.18f, 1};
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
   look.palette.ink = kInk;
   look.palette.ash = kDim;
   look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
-  look.type.title = {.size = 15, .track = 2};
-  look.type.subtitle = {.size = 11, .track = 0.5f};
-  look.type.footer = {.size = 10, .track = 0.2f};
   look.spacing.marginX = 26;
   look.spacing.marginBottom = 14;
   // The readout's own register: every reading is one size, the name in
   // the quiet ink and the figure in the bright one.
   look.palette.figure = look.palette.ink;
-  look.type.captionNote = {.size = 11};
   look.type.captionLabel = {.size = 11};
   look.spacing.labelGap = 8;
   look.spacing.rowGap = 3;
@@ -302,8 +298,7 @@ struct VolatilityCost {
         .width(kFieldWidth)
         .height(kFieldHeight)
         .fill(Fill::color({0.04f, 0.04f, 0.08f, 1}))
-        .children({each(kCards, card),
-                   each(kMovers, mover)});
+        .children({each(kCards, card), each(kMovers, mover)});
   }
 
   /** THE MAP: every keyed node the profile named, outlined in the colour
@@ -428,8 +423,7 @@ struct VolatilityCost {
         .children(
             {tierMap(),
              sketch::kit::page(
-                 {.title = "THE CACHING PROOF · what every node "
-                           "did to produce its pixels",
+                 {.title = "The caching proof",
                   .subtitle = "volatility propagates upward, so one "
                               "bound leaf decides what its whole subtree "
                               "costs — every keyed node is "

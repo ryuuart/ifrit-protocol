@@ -53,7 +53,7 @@
 #include <sigildraw/Pen.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <algorithm>
@@ -106,13 +106,6 @@ constexpr float kSegment = 240.0f;   // a ribbon's segment, and its gap after
 constexpr float kGap = 64.0f;
 constexpr float kDrift = 26.0f;  // what the whole field carries, px a second
 constexpr float kMargin = 28.0f;
-constexpr float kReadoutPad = 12.0f;
-/** The field runs under the readout as it runs under everything else, so
- *  the readout stands on a slab of the ground it is written against.
- *  Small type in the theme's quiet ink is unreadable over a lit ribbon
- *  otherwise, and the readout is what a person reads to find out why the
- *  sky is doing nothing. */
-constexpr SkColor4f kReadoutGround = {0.03f, 0.035f, 0.06f, 0.94f};
 
 /** A RIBBON'S OWN SHAPE, which no reading carries: how thick it is, how
  *  fast it runs against or with the field, and how far it breathes. The
@@ -185,6 +178,7 @@ struct SerialSensor {
   Reading shown;
 
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
     sketch::kit::stage(
         ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
 
@@ -254,6 +248,7 @@ struct SerialSensor {
   }
 
   void describe(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
     // A paint program runs after the describe scope has closed, where
     // the theme in force is no longer this page's, so the colours the
     // field is drawn in are read here and carried in by value.
@@ -263,11 +258,21 @@ struct SerialSensor {
                       draw(pen, rule);
                     }).cover());
     if (!heard) parts.push_back(waiting());
-    parts.push_back(readout());
-    ctx.composer.render(compose::stack()
-                            .width(kCanvas.width())
-                            .height(kCanvas.height())
-                            .children(std::move(parts)));
+    compose::Element picture = compose::stack()
+                                   .width(kCanvas.width())
+                                   .height(kCanvas.height())
+                                   .children(std::move(parts));
+    ctx.composer.render(sketch::kit::instrument(
+        {.page = {.title = "A reading from the room.",
+                  .subtitle = "SERIAL / SENSOR  /  Light changes the "
+                              "brightness. Tilt changes the direction.",
+                  .footer = "Run sensor.py beside this sketch to send data  ·  "
+                            "Captures replay the local recording"},
+         .pictureSize = kCanvas,
+         .pictureWidth = 816,
+         .note = "Connect the board, or run sensor.py and set kPort to its "
+                 "printed device path."},
+        std::move(picture).fill(kGround), readout()));
   }
 
   /** The field, or the placeholder where no reading has come. */
@@ -349,7 +354,7 @@ struct SerialSensor {
         .centerAt({kCanvas.width() * 0.5f, kCanvas.height() * 0.5f - 24.0f});
   }
 
-  /** THE DOOR'S OWN WORDS, small in the corner: the port a person
+  /** THE DOOR'S OWN WORDS, in the reading panel: the port a person
    *  edits, how many lines have come off it, how many were no reading,
    *  and the newest one as the board wrote it. */
   compose::Element readout() {
@@ -372,13 +377,9 @@ struct SerialSensor {
                                          : shown.address));
     return compose::box()
         .column()
-        .gap(look.spacing.rowGap)
-        .left(kMargin)
-        .bottom(kMargin)
-        .padding(kReadoutPad)
-        .fill(kReadoutGround)
-        .font(look.font({.size = 11, .mono = true}))
-        .ink(look.palette.ash)
+        .gap(12)
+        .font(look.font({.size = 12, .mono = true}))
+        .ink(look.palette.ink)
         .children(std::move(lines));
   }
 };
@@ -389,4 +390,4 @@ SIGIL_SKETCH(SerialSensor, "Data",
              "A board on a cable printing one line per reading: the light it "
              "reads is the brightness of a ribbon field, the tilt is its "
              "lean, the recording beside the sketch stands in for the board "
-             "in a capture, and the port's own vitals are printed under it.")
+             "in a capture, and the port's own vitals are shown beside it.")

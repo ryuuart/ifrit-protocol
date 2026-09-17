@@ -17,6 +17,7 @@ qt_add_qml_module(IfritQt
   VERSION 1.0
   QML_FILES
     Theme.qml
+    AppWindow.qml
     Panel.qml
     PanelHeading.qml
     SectionHeading.qml
@@ -27,6 +28,7 @@ qt_add_qml_module(IfritQt
     SegmentedControl.qml
     SearchField.qml
     SliderField.qml
+    NumberField.qml
     Checkerboard.qml
     DimensionSpinBoxes.qml
     FontFamilyField.qml
@@ -53,7 +55,7 @@ target_link_libraries(IfritQt
     Qt6::Quick
     Qt6::QuickControls2
     Qt6::QuickLayouts
-    SigilPublish
+    SigilIOPublish
   PRIVATE Qt::GuiPrivate
 )
 

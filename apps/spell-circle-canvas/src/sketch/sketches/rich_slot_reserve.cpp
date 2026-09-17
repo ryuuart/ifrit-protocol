@@ -122,12 +122,12 @@ Element banded(weave::ReservedBand band) {
 
 struct RichSlotReserve {
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "SLOTS AND RESERVED ROOM · "
-                  "weave::RichText::slot, Element::reserve",
+        {.title = "Slots and reserved room",
          .subtitle = "dials · the slot's size (34×16, "
                      "then 40×26) · its baseline drop "
                      "(0, then 4) · the band reserved beside "

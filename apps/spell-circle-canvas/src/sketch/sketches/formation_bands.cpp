@@ -50,7 +50,7 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 748};
+constexpr SkSize kCanvas = {1100, 788};
 constexpr float kCell = 340;
 constexpr float kPicture = 248;
 
@@ -63,11 +63,10 @@ constexpr SkColor4f kFigure{0.86f, 0.80f, 0.66f, 1};
 constexpr SkColor4f kBandFill{0.95f, 0.62f, 0.30f, 0.34f};
 constexpr SkColor4f kBandEdge{0.95f, 0.62f, 0.30f, 1};
 
-/** The house sheet, in this one's caption voice. */
+/** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.type.captionLabel = {.size = 12, .track = 1.2f};
-  look.type.captionNote = {.size = 10.5f, .mono = true};
   look.spacing.captionGap = 8;
   return look;
 }
@@ -144,8 +143,7 @@ struct FormationBands {
         path::Profile(shapers::wave(kAmplitude, kWavelength));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "FORMATION BANDS · Profile + profileOffset "
-                  "+ bandRegion",
+        {.title = "Formation bands",
          .subtitle = "dials · the formation (Centered, "
                      "Outward, Inward) · the amplitude "
                      "(11 px) · the wavelength (54 px per "

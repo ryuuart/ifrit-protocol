@@ -7,6 +7,8 @@ page is about what is in the directory.
 
 [Feature coverage](COVERAGE.md) maps public visual feature families to
 examples and distinguishes sketch demonstrations from tests and host lanes.
+[Presentation audit](SKETCH_REFINEMENT.md) records each catalog entry's visual
+treatment and distinguishes fresh render evidence from cached previews.
 
 The Python examples share this directory's `pyproject.toml` and `uv.lock`.
 Sketchbook prepares the matching `.venv` automatically, including NumPy for

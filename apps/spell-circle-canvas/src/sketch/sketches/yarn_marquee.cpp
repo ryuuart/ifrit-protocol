@@ -100,18 +100,13 @@ constexpr SkColor4f kAccent{0.455f, 0.878f, 0.745f, 1};
 constexpr SkColor4f kNumeral{0.588f, 0.659f, 0.769f, 1};
 constexpr SkColor4f kTick{1.0f, 0.72f, 0.36f, 1};
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.ground = {0.031f, 0.031f, 0.051f, 1};
   look.palette.ink = {0.925f, 0.957f, 0.996f, 1};
-  look.palette.ash = {0.56f, 0.58f, 0.66f, 1};
   look.palette.rule = {0.17f, 0.18f, 0.24f, 1};
-  look.type.title = {.size = 15, .track = 2};
-  look.type.subtitle = {.size = 11, .track = 0.6f};
-  look.type.footer = {.size = 10.5f, .track = 0.2f};
   look.type.captionLabel = {.size = 13, .track = 0.5f};
-  look.type.captionNote = {.size = 11, .track = 0.2f};
   look.spacing.marginX = 30;
   look.spacing.marginTop = 22;
   return look;
@@ -265,8 +260,7 @@ struct YarnMarquee {
     hung = curve::hangFrames(rail, kSections, 1.0f, 1.0f);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE HUNG RAIL · curve::hangFrames against "
-                  "curve::frames",
+        {.title = "The hung rail",
          .subtitle = "one closed winding, one banner, a two-point "
                      "line profile — the ticks are each "
                      "frame's across-vector at the band's own "

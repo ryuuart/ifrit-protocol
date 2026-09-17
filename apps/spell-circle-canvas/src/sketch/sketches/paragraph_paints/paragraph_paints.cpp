@@ -60,7 +60,7 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1200, 900};
+constexpr SkSize kCanvas = {1200, 940};
 
 constexpr float kPanel = 280;    // one panel's width, px
 constexpr float kColumn = 330;   // the visible height of the column, px
@@ -136,16 +136,12 @@ Element field(const std::u8string& prose, const char* call, const char* note,
   return panel(prose, call, note, paint::Paint::recipe(std::move(m)));
 }
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.ground = {0.06f, 0.06f, 0.075f, 1};
   look.palette.cellGround = {0.10f, 0.105f, 0.125f, 1};
-  look.type.title = {.size = 13, .track = 2.2f};
-  look.type.subtitle = {.size = 10.5f, .track = 0.6f};
-  look.type.footer = {.size = 10, .track = 0.3f};
   look.type.captionLabel = {.size = 9.5f, .mono = true};
-  look.type.captionNote = {.size = 9, .track = 0.2f};
   look.spacing.marginX = 20;
   look.spacing.marginTop = 18;
   look.spacing.marginBottom = 12;
@@ -167,8 +163,7 @@ struct ParagraphPaints {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "PARAGRAPH PAINTS · the preset text paints "
-                  "over a page of body type",
+        {.title = "Paragraph paints",
          .subtitle = "one passage · one face, size, measure, "
                      "leading, breaker and justification "
                      "· eight inks · the moment "

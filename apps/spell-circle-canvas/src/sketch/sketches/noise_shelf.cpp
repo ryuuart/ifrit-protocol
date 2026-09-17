@@ -65,9 +65,9 @@ constexpr uint32_t kSeed = 20260903;  // the seed every field is drawn from
 constexpr float kBlock = 4;           // px one sample is drawn at
 constexpr int kCells = 6;             // the lattice cell, in samples
 
-/** The house sheet, in this one's caption voice. */
+/** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.captionWhere = kit::Caption::Where::Below;
   look.spacing.captionGap = 8;
   look.spacing.captionNoteGap = 3;
@@ -84,28 +84,24 @@ Element field(const char* key, Field sample) {
   // A pen program runs after the describe scope has closed, so the
   // field's ink is read here and carried in by value.
   const SkColor4f ink = sketch::kit::theme().palette.figure;
-  return pen(key,
-             [sample = std::move(sample), ink](draw::Pen& pen) {
-               pen.noStroke();
-               pen.noSmooth();
-               const int columns = (int)(pen.width / kBlock);
-               const int rows = (int)(pen.height / kBlock);
-               for (int y = 0; y < rows; ++y)
-                 for (int x = 0; x < columns; ++x) {
-                   const float v = sample(x, y);
-                   const SkRect at =
-                       arrange::cellRect({x, y}, {kBlock, kBlock});
-                   pen.fill(SkColor4f{ink.fR * v, ink.fG * v, ink.fB * v, 1});
-                   pen.rect(at.fLeft, at.fTop, kBlock, kBlock);
-                 }
-             });
+  return pen(key, [sample = std::move(sample), ink](draw::Pen& pen) {
+    pen.noStroke();
+    pen.noSmooth();
+    const int columns = (int)(pen.width / kBlock);
+    const int rows = (int)(pen.height / kBlock);
+    for (int y = 0; y < rows; ++y)
+      for (int x = 0; x < columns; ++x) {
+        const float v = sample(x, y);
+        const SkRect at = arrange::cellRect({x, y}, {kBlock, kBlock});
+        pen.fill(SkColor4f{ink.fR * v, ink.fG * v, ink.fB * v, 1});
+        pen.rect(at.fLeft, at.fTop, kBlock, kBlock);
+      }
+  });
 }
 
 /** One line of the key column, in the theme's own terminal voice: what a
  *  fold answers is a word of hex and reads as one. */
-Element line(const std::string& row) {
-  return text(row).styleClass("readout");
-}
+Element line(const std::string& row) { return text(row).styleClass("readout"); }
 
 /** The plate every specimen on this sheet stands on, and the
  *  measure its caption is set to. */
@@ -123,9 +119,7 @@ struct NoiseShelf {
     const int columns = (int)(kCell / kBlock);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE MIXERS · core::noise hash, "
-                  "Mix64Stream, pcgHash, xorshift, lattice, and "
-                  "core::hash",
+        {.title = "The mixers",
          .subtitle = "dials · one seed for the whole shelf "
                      "· four px a sample · the "
                      "lattice's cell (6 samples) · what the "

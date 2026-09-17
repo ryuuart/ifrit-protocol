@@ -12,8 +12,10 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <string>
 #include <vector>
 
+#include "ReceiverDefaults.h"
 #include "SpellCircle_generated.h"
 
 @interface EngineRecorder : NSObject <SCKEngineDelegate>
@@ -129,6 +131,53 @@ std::vector<std::uint8_t> circleScene(const char *name) {
   SpellCircle::FinishSceneBuffer(
       builder, SpellCircle::CreateSceneDirect(builder, &circles, nullptr, nullptr, 128, 128));
   return {builder.GetBufferPointer(), builder.GetBufferPointer() + builder.GetSize()};
+}
+
+TEST(SpellCircleMacEngine, DefaultsMatchSharedSettings) {
+  ASSERT_TRUE(NSThread.isMainThread);
+  @autoreleasepool {
+    const auto engine = [[SCKEngine alloc] init];
+    using Defaults = spellcircle::ReceiverDefaults;
+    EXPECT_EQ(engine.port, Defaults::port);
+    EXPECT_EQ(engine.canvasWidth, Defaults::canvasWidth);
+    EXPECT_EQ(engine.canvasHeight, Defaults::canvasHeight);
+    EXPECT_DOUBLE_EQ(engine.scale, Defaults::scale);
+    EXPECT_DOUBLE_EQ(engine.strokeWidth, Defaults::strokeWidth);
+    EXPECT_DOUBLE_EQ(engine.labelOffset, Defaults::labelOffset);
+    EXPECT_DOUBLE_EQ(engine.pointDistance, Defaults::pointDistance);
+    EXPECT_DOUBLE_EQ(engine.boxWidth, Defaults::boxWidth);
+    EXPECT_DOUBLE_EQ(engine.boxHeight, Defaults::boxHeight);
+    EXPECT_DOUBLE_EQ(engine.boxPadding, Defaults::boxPadding);
+    EXPECT_DOUBLE_EQ(engine.boxDistance, Defaults::boxDistance);
+    EXPECT_DOUBLE_EQ(engine.fontSize, Defaults::fontSize);
+    EXPECT_EQ(engine.fontWeight, Defaults::fontWeight);
+    EXPECT_EQ(engine.fontItalic, Defaults::fontItalic);
+    EXPECT_EQ(std::string(engine.fontFamily.UTF8String), Defaults::fontFamily);
+    EXPECT_DOUBLE_EQ(engine.targetFramesPerSecond, Defaults::targetFramesPerSecond);
+    const auto color = [engine.accentColor colorUsingColorSpace:NSColorSpace.sRGBColorSpace];
+    EXPECT_DOUBLE_EQ(color.redComponent, ((Defaults::color >> 16) & 0xff) / 255.0);
+    EXPECT_DOUBLE_EQ(color.greenComponent, ((Defaults::color >> 8) & 0xff) / 255.0);
+    EXPECT_DOUBLE_EQ(color.blueComponent, (Defaults::color & 0xff) / 255.0);
+    EXPECT_DOUBLE_EQ(color.alphaComponent, ((Defaults::color >> 24) & 0xff) / 255.0);
+  }
+}
+
+TEST(SpellCircleMacEngine, CanvasBoundsMatchBothFrontendEditors) {
+  ASSERT_TRUE(NSThread.isMainThread);
+  @autoreleasepool {
+    const auto engine = [[SCKEngine alloc] init];
+    using Defaults = spellcircle::ReceiverDefaults;
+    EXPECT_EQ(SCKEngine.minimumCanvasSize, Defaults::minimumCanvasSize);
+    EXPECT_EQ(SCKEngine.maximumCanvasSize, Defaults::maximumCanvasSize);
+    engine.canvasHeight = Defaults::minimumCanvasSize;
+    engine.canvasWidth = -10;
+    EXPECT_EQ(engine.canvasWidth, Defaults::minimumCanvasSize);
+    engine.canvasWidth = 100000;
+    EXPECT_EQ(engine.canvasWidth, Defaults::maximumCanvasSize);
+    engine.canvasWidth = Defaults::minimumCanvasSize;
+    engine.canvasHeight = 100000;
+    EXPECT_EQ(engine.canvasHeight, Defaults::maximumCanvasSize);
+  }
 }
 
 TEST(SpellCircleMacEngine, LoopbackSeparatesChangedDuplicateAndInvalidPackets) {

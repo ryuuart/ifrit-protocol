@@ -18,7 +18,12 @@ at all.
 page a larger heading, brighter notes and wider margins while keeping the
 house ground and specimen components. Bind it with `Provide`, or copy it and
 change only the choices specific to a specimen, such as caption placement.
-Both stock themes hold their resolved faces across calls.
+The stock themes hold their resolved faces across calls.
+
+`specimenTheme()` keeps the house sheet's compact margins while giving API
+comparisons a readable heading and brighter notes. Fixed specimen wells keep
+their measure, and each sketch supplies a short title with its explanation
+in the subtitle and captions.
 
 ```cpp
 #include <sigilsketch/kit/Kit.h>
@@ -291,6 +296,15 @@ measurement's business.
 Nothing here reads a theme: a class is a name, and a node is text wherever
 text is taken, because `compose::Utf8` accepts any value that reads itself
 out with `text()`.
+
+### A picture and its readings — `Instrument.h`
+
+`instrument(Instrument, picture, readings)` arranges a live picture beside its
+readings on a page. `Instrument::pictureSize` is the picture's authored extent;
+`Instrument::pictureWidth` fits it into the preview without changing those
+coordinates. `Instrument::pictureLabel`, `Instrument::readingsLabel` and
+`Instrument::note` name the two regions and explain the picture. Both headings,
+the page and the reading well take their look from the current theme.
 
 ### What announces something — `Heading.h`
 

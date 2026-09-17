@@ -12,6 +12,7 @@
 #include <sigilsketch/kit/Console.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Heading.h>
+#include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Legend.h>
 #include <sigilsketch/kit/Meter.h>
 #include <sigilsketch/kit/Page.h>

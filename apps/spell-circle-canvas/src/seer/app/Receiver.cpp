@@ -77,13 +77,16 @@ Receiver::Receiver(sigil::seer::Wires& wires, QObject* parent,
     if (!source.isEmpty())
       m_uri = source;
     else {
-      const int port = network->value("port").toInt(27015);
+      const int port =
+          network->value("port").toInt(spellcircle::ReceiverDefaults::port);
       if (port > 0 && port <= 65535) m_uri = QString("udp://:%1").arg(port);
     }
   }
 }
 
-int Receiver::port() const { return QUrl(m_uri).port(27015); }
+int Receiver::port() const {
+  return QUrl(m_uri).port(spellcircle::ReceiverDefaults::port);
+}
 bool Receiver::recorded() const {
   return m_wires.recorded(m_uri.toStdString());
 }

@@ -14,6 +14,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
+#include <QScopedValueRollback>
 #include <QTemporaryDir>
 #include <chrono>
 #include <cstdint>
@@ -21,6 +22,9 @@
 #include <thread>
 #include <vector>
 
+#include "Application.h"
+#include "GraphicsConfig.h"
+#include "ReceiverDefaults.h"
 #include "SeerSession.h"
 #include "SpellCircleModel.h"
 #include "SpellCircle_generated.h"
@@ -29,14 +33,6 @@ namespace {
 
 using Clock = std::chrono::steady_clock;
 using namespace std::chrono_literals;
-
-void ensureApplication() {
-  static int argc = 1;
-  static char name[] = "seer_qt_test";
-  static char* argv[] = {name, nullptr};
-  qputenv("QT_QPA_PLATFORM", "offscreen");
-  static QGuiApplication application(argc, argv);
-}
 
 /** One socket bound the way the UDP transport binds its own: a dual-stack
  *  IPv6 socket, so a port this holds is a port the receiver cannot take.
@@ -69,7 +65,7 @@ uint16_t portOf(int handle) {
 
 class SeerReceiver : public ::testing::Test {
  protected:
-  SeerReceiver() { ensureApplication(); }
+  SeerReceiver() { ensureSeerTestApplication(); }
   QTemporaryDir directory;
   QString uri(uint16_t port) { return QString("udp://:%1").arg(port); }
   std::unique_ptr<SeerSession> session() {
@@ -137,6 +133,15 @@ QByteArray circleScene() {
       builder, SpellCircle::CreateSceneDirect(builder, &circles));
   return {reinterpret_cast<const char*>(builder.GetBufferPointer()),
           static_cast<qsizetype>(builder.GetSize())};
+}
+
+TEST_F(SeerReceiver, ACommandLinePeerIsSelectedWhenNoListenerWasRequested) {
+  const QString peer = QString("udp://127.0.0.1:%1").arg(availablePort());
+  QScopedValueRollback<QString> restorePeer(SeerSession::sendsTo, peer);
+  auto app = session();
+  EXPECT_EQ(app->selected(), 0);
+  EXPECT_EQ(app->reading()->uri(), peer);
+  EXPECT_EQ(app->sending()->peerUri(), peer);
 }
 
 TEST_F(SeerReceiver, APlainSessionDoesNotOpenTheSavedPort) {
@@ -495,6 +500,48 @@ TEST_F(SeerReceiver, CancelRestoresUnsavedDefaults) {
   app->receiver()->config()->setStrokeWidth(27);
   app->receiver()->cancelSettings();
   EXPECT_EQ(app->receiver()->config()->strokeWidth(), stroke);
+}
+
+TEST(ReceiverGraphics, DefaultsMatchSharedSettings) {
+  ensureSeerTestApplication();
+  const GraphicsConfig config;
+  using Defaults = spellcircle::ReceiverDefaults;
+  EXPECT_EQ(config.canvas()->width(), Defaults::canvasWidth);
+  EXPECT_EQ(config.canvas()->height(), Defaults::canvasHeight);
+  EXPECT_EQ(config.color().rgba(), Defaults::color);
+  EXPECT_DOUBLE_EQ(config.scale(), Defaults::scale);
+  EXPECT_DOUBLE_EQ(config.strokeWidth(), Defaults::strokeWidth);
+  EXPECT_DOUBLE_EQ(config.labelOffset(), Defaults::labelOffset);
+  EXPECT_DOUBLE_EQ(config.pointDistance(), Defaults::pointDistance);
+  EXPECT_DOUBLE_EQ(config.box()->width(), Defaults::boxWidth);
+  EXPECT_DOUBLE_EQ(config.box()->height(), Defaults::boxHeight);
+  EXPECT_DOUBLE_EQ(config.box()->padding(), Defaults::boxPadding);
+  EXPECT_DOUBLE_EQ(config.box()->distance(), Defaults::boxDistance);
+  if (*Defaults::fontFamily)
+    EXPECT_EQ(config.font().family(), QString::fromUtf8(Defaults::fontFamily));
+  EXPECT_EQ(config.font().pointSize(), Defaults::fontSize);
+  EXPECT_EQ(config.font().weight(), Defaults::fontWeight);
+  EXPECT_EQ(config.font().italic(), Defaults::fontItalic);
+}
+
+TEST(ReceiverGraphics, CanvasBoundsApplyToEditsAndSavedSettings) {
+  ensureSeerTestApplication();
+  GraphicsConfig config;
+  using Defaults = spellcircle::ReceiverDefaults;
+  config.canvas()->setWidth(0);
+  EXPECT_EQ(config.canvas()->width(), Defaults::minimumCanvasSize);
+  const auto generation = config.generation();
+  config.canvas()->setWidth(-100);
+  EXPECT_EQ(config.generation(), generation);
+  config.canvas()->setHeight(100000);
+  EXPECT_EQ(config.canvas()->height(), Defaults::maximumCanvasSize);
+  config.restore({{"canvas", QJsonObject{{"width", 90000}, {"height", -10}}}});
+  EXPECT_EQ(config.canvas()->width(), Defaults::maximumCanvasSize);
+  EXPECT_EQ(config.canvas()->height(), Defaults::minimumCanvasSize);
+  config.canvas()->setWidth(1920);
+  config.canvas()->setHeight(1080);
+  EXPECT_EQ(config.canvas()->width(), 1920);
+  EXPECT_EQ(config.canvas()->height(), 1080);
 }
 
 }  // namespace

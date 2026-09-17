@@ -42,7 +42,7 @@ final class EngineModel: NSObject, SCKEngineDelegate {
 
     /// Valid range for the offscreen canvas texture — the engine clamps too,
     /// but clamping here keeps the UI honest about what was applied.
-    static let canvasSizeRange = 16...8192
+    static let canvasSizeRange = Int(SCKEngine.minimumCanvasSize)...Int(SCKEngine.maximumCanvasSize)
 
     var port: Int { didSet { engine.port = Int32(port); save("port", port) } }
     var canvasWidth: Int {
@@ -97,26 +97,30 @@ final class EngineModel: NSObject, SCKEngineDelegate {
     override init() {
         engine = SCKEngine()
         let defaults = UserDefaults.standard
-        port = defaults.object(forKey: "port") as? Int ?? 27015
-        canvasWidth = (defaults.object(forKey: "canvasWidth") as? Int ?? 4000)
+        port = defaults.object(forKey: "port") as? Int ?? Int(engine.port)
+        canvasWidth = (defaults.object(forKey: "canvasWidth") as? Int ?? Int(engine.canvasWidth))
             .clamped(to: Self.canvasSizeRange)
-        canvasHeight = (defaults.object(forKey: "canvasHeight") as? Int ?? 4000)
+        canvasHeight = (defaults.object(forKey: "canvasHeight") as? Int ?? Int(engine.canvasHeight))
             .clamped(to: Self.canvasSizeRange)
-        targetFramesPerSecond = defaults.object(forKey: "targetFramesPerSecond") as? Double ?? 60
-        scale = defaults.object(forKey: "scale") as? Double ?? 1.0
-        strokeWidth = defaults.object(forKey: "strokeWidth") as? Double ?? 4.0
-        labelOffset = defaults.object(forKey: "labelOffset") as? Double ?? 0.0
-        pointDistance = defaults.object(forKey: "pointDistance") as? Double ?? 40.0
-        boxWidth = defaults.object(forKey: "boxWidth") as? Double ?? 360.0
-        boxHeight = defaults.object(forKey: "boxHeight") as? Double ?? 140.0
-        boxPadding = defaults.object(forKey: "boxPadding") as? Double ?? 16.0
-        boxDistance = defaults.object(forKey: "boxDistance") as? Double ?? 40.0
-        fontSize = defaults.object(forKey: "fontSize") as? Double ?? 36.0
-        fontFamily = defaults.string(forKey: "fontFamily") ?? ""
-        // Migrates the earlier boolean "fontBold" setting to a weight.
-        fontWeight = defaults.object(forKey: "fontWeight") as? Int
-            ?? ((defaults.object(forKey: "fontBold") as? Bool ?? true) ? 700 : 400)
-        fontItalic = defaults.object(forKey: "fontItalic") as? Bool ?? false
+        targetFramesPerSecond = defaults.object(forKey: "targetFramesPerSecond") as? Double ?? engine.targetFramesPerSecond
+        scale = defaults.object(forKey: "scale") as? Double ?? engine.scale
+        strokeWidth = defaults.object(forKey: "strokeWidth") as? Double ?? engine.strokeWidth
+        labelOffset = defaults.object(forKey: "labelOffset") as? Double ?? engine.labelOffset
+        pointDistance = defaults.object(forKey: "pointDistance") as? Double ?? engine.pointDistance
+        boxWidth = defaults.object(forKey: "boxWidth") as? Double ?? engine.boxWidth
+        boxHeight = defaults.object(forKey: "boxHeight") as? Double ?? engine.boxHeight
+        boxPadding = defaults.object(forKey: "boxPadding") as? Double ?? engine.boxPadding
+        boxDistance = defaults.object(forKey: "boxDistance") as? Double ?? engine.boxDistance
+        fontSize = defaults.object(forKey: "fontSize") as? Double ?? engine.fontSize
+        fontFamily = defaults.string(forKey: "fontFamily") ?? engine.fontFamily
+        if let weight = defaults.object(forKey: "fontWeight") as? Int {
+            fontWeight = weight
+        } else if let bold = defaults.object(forKey: "fontBold") as? Bool {
+            fontWeight = bold ? 700 : 400
+        } else {
+            fontWeight = Int(engine.fontWeight)
+        }
+        fontItalic = defaults.object(forKey: "fontItalic") as? Bool ?? engine.fontItalic
         appearance = AppearancePreference(
             rawValue: defaults.string(forKey: "appearance") ?? "") ?? .system
         if let components = defaults.array(forKey: "accentColor") as? [Double],
@@ -124,7 +128,7 @@ final class EngineModel: NSObject, SCKEngineDelegate {
             accentColor = Color(.sRGB, red: components[0], green: components[1],
                                 blue: components[2], opacity: components[3])
         } else {
-            accentColor = Color(.sRGB, red: 1, green: 0, blue: 0, opacity: 1)
+            accentColor = Color(nsColor: engine.accentColor)
         }
         super.init()
 

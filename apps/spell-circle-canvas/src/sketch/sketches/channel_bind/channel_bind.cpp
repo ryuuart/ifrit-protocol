@@ -188,6 +188,7 @@ struct ChannelBind {
   Shown shown;
 
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     sketch::kit::stage(
         ctx,
         {.size = kCanvas, .captureAt = kCaptureAt, .background = kBackdrop});
@@ -256,8 +257,9 @@ struct ChannelBind {
   }
 
   void describe(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE FADER AND THE PROPERTY",
+        {.title = "The fader and the property",
          .subtitle = "three channels on one desk · one binding chain each · "
                      "no handler between the wire and the drawing",
          .footer = "a channel writes its output only when the message under "

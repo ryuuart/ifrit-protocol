@@ -55,7 +55,7 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 874};
+constexpr SkSize kCanvas = {1100, 914};
 constexpr float kCell = 341;
 constexpr float kPicture = 300;
 constexpr bool kLit = false;  // defines SIGIL_LIT in the session
@@ -63,12 +63,11 @@ constexpr bool kLit = false;  // defines SIGIL_LIT in the session
 constexpr SkColor4f kFigure{0.60f, 0.88f, 0.72f, 1};
 constexpr SkColor4f kFault{0.96f, 0.52f, 0.46f, 1};
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.cellGround = {0.10f, 0.105f, 0.125f, 1};
   look.type.captionLabel = {.size = 11, .mono = true};
-  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
   return look;
 }
 
@@ -229,9 +228,7 @@ struct SlangPortable {
     const std::string garbageWhy = whyNot("this is not Slang", "fsCover");
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "SLANG PORTABLE · compileModule, the "
-                  "reported layout, and the two modules every "
-                  "session carries",
+        {.title = "Portable Slang shaders",
          .subtitle =
              kit::formatted("dials · the module source · lit (%s, which "
                             "defines SIGIL_LIT) · the entry point names "

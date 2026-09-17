@@ -30,6 +30,49 @@ TestCase {
             onFamilyChosen: value => family = value
         }
     }
+    Component {
+        id: appWindowComponent
+        Ui.AppWindow {
+            id: sampleWindow
+            width: 400
+            height: 300
+            visible: true
+            property real simulatedTopInset: 36
+            property real applicationHeaderHeight: 20
+            SafeArea.additionalMargins.top: simulatedTopInset
+            header: Item { height: sampleWindow.applicationHeaderHeight }
+        }
+    }
+
+    function test_windowContentClearsSystemControlsAndApplicationHeader() {
+        const window = createTemporaryObject(appWindowComponent, tests);
+        verify(window);
+        tryCompare(window, "topPadding", 36);
+        compare(window.contentItem.y, 36);
+        window.applicationHeaderHeight = 60;
+        tryCompare(window, "topPadding", 60);
+        compare(window.contentItem.y, 60);
+        window.simulatedTopInset = 80;
+        tryCompare(window, "topPadding", 80);
+        compare(window.contentItem.y, 80);
+        window.close();
+    }
+
+    Component {
+        id: numberComponent
+        Ui.NumberField {
+            id: number
+            width: 300
+            label: "Stroke width"
+            from: 0.5
+            to: 100
+            step: 0.5
+            decimals: 1
+            value: 4
+            suffix: "px"
+            onValueEdited: value => number.value = value
+        }
+    }
     SignalSpy { id: spy }
 
     function cleanup() {
@@ -88,6 +131,34 @@ TestCase {
         slider.value = 8;
         compare(spy.count, 0);
         compare(slider.value, 8);
+    }
+
+    function test_numberModelUpdatesDoNotWriteBack() {
+        const field = createTemporaryObject(numberComponent, tests);
+        spy.signalName = "valueEdited";
+        spy.target = field;
+        field.value = 7.5;
+        compare(spy.count, 0);
+        compare(findChild(field, "numberInput").value, 75);
+    }
+
+    function test_numberAcceptsDecimalTextAndKeyboardSteps() {
+        const field = createTemporaryObject(numberComponent, tests);
+        const input = findChild(field, "numberInput");
+        verify(waitForPolish(field));
+        spy.signalName = "valueEdited";
+        spy.target = field;
+        input.contentItem.forceActiveFocus();
+        input.contentItem.selectAll();
+        keyClick(Qt.Key_2);
+        keyClick(Qt.Key_Period);
+        keyClick(Qt.Key_5);
+        keyClick(Qt.Key_Return);
+        compare(field.value, 2.5);
+        verify(spy.count > 0);
+        keyClick(Qt.Key_Up);
+        compare(field.value, 3);
+        compare(input.Accessible.name, "Stroke width");
     }
 
     function test_fontCandidatesKeepTypingFocusAndAcceptKeyboardSelection() {

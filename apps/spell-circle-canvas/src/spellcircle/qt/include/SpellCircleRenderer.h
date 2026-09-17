@@ -1,5 +1,5 @@
 #pragma once
-#include <sigilpublish/Publisher.h>
+#include <sigilio/publish/Publisher.h>
 
 #include <QColor>
 #include <QFont>
@@ -8,6 +8,7 @@
 #include <limits>
 #include <memory>
 
+#include "ReceiverDefaults.h"
 #include "SceneGeometry.h"
 #include "SpellCircleModel.h"
 
@@ -63,7 +64,7 @@ class SpellCircleRenderer : public QCanvasPainterItemRenderer {
   int m_knownConfigGeneration = -1;
   bool m_geometryDirty = true;
   // Null when the active QRhi backend has no publisher implementation.
-  std::unique_ptr<sigil::publish::Publisher> m_publisher;
+  std::unique_ptr<sigil::io::publish::Publisher> m_publisher;
 
   // Graphite context, scene drawer and frame timing, owned by this render
   // thread. Null when the active QRhi backend has no Graphite context.
@@ -71,16 +72,16 @@ class SpellCircleRenderer : public QCanvasPainterItemRenderer {
 
   // Copied from GraphicsConfig in synchronize() — defaults match the
   // GraphicsConfig defaults for an unconfigured SpellCircle item.
-  QColor m_accentColor{"#ff0000"};
-  qreal m_strokeWidth = 4.0;
-  qreal m_scale = 1.0;
-  qreal m_labelOffset = 0.0;
-  int m_canvasWidth = 4000;
-  int m_canvasHeight = 4000;
+  QColor m_accentColor = QColor::fromRgba(spellcircle::ReceiverDefaults::color);
+  qreal m_strokeWidth = spellcircle::ReceiverDefaults::strokeWidth;
+  qreal m_scale = spellcircle::ReceiverDefaults::scale;
+  qreal m_labelOffset = spellcircle::ReceiverDefaults::labelOffset;
+  int m_canvasWidth = spellcircle::ReceiverDefaults::canvasWidth;
+  int m_canvasHeight = spellcircle::ReceiverDefaults::canvasHeight;
   QFont m_font;
-  qreal m_boxWidth = 360.0;
-  qreal m_boxHeight = 140.0;
-  qreal m_boxPadding = 16.0;
-  qreal m_boxDistance = 40.0;
-  qreal m_pointDistance = 40.0;
+  qreal m_boxWidth = spellcircle::ReceiverDefaults::boxWidth;
+  qreal m_boxHeight = spellcircle::ReceiverDefaults::boxHeight;
+  qreal m_boxPadding = spellcircle::ReceiverDefaults::boxPadding;
+  qreal m_boxDistance = spellcircle::ReceiverDefaults::boxDistance;
+  qreal m_pointDistance = spellcircle::ReceiverDefaults::pointDistance;
 };

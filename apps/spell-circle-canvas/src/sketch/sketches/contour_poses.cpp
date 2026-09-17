@@ -67,11 +67,10 @@ constexpr SkColor4f kFigure{0.86f, 0.80f, 0.66f, 1};
 constexpr SkColor4f kWarm{0.95f, 0.62f, 0.30f, 1};
 constexpr SkColor4f kCool{0.44f, 0.70f, 0.95f, 1};
 
-/** The house sheet, in this one's caption voice. */
+/** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.type.captionLabel = {.size = 12, .track = 1.2f};
-  look.type.captionNote = {.size = 10.5f, .mono = true};
   look.spacing.captionGap = 8;
   return look;
 }
@@ -136,8 +135,7 @@ struct ContourPoses {
             : contours.front().corners(kCornerDeg, 6.0f, 2.0f, &sharpest);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "CONTOUR POSES · Contour::of + poseAlong + "
-                  "corners + cornerWindows",
+        {.title = "Contour poses",
          .subtitle = "dials · the station count (24) "
                      "· the corner angle (30°) "
                      "· the window reach (26 px)",

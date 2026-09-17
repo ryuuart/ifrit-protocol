@@ -82,9 +82,9 @@ struct DataSources {
   }
 
   Element describe() {
-    const sketch::kit::Provide look(sketch::kit::theme());
+    const sketch::kit::Provide look(sketch::kit::specimenTheme());
     return sketch::kit::page(
-        {.title = u8"DATA SOURCES · one table, three ways",
+        {.title = u8"One table, three sources",
          .subtitle = u8"a CSV decoded · a SQLite store beside the sketch "
                      u8"· DuckDB asked over the CSV · every answer "
                      u8"is a Table",

@@ -95,14 +95,14 @@ Element cell(const char* call, const char* note,
       sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
           .column()
           .gap(10)
-          .children({std::move(art),
-                     text(readout).styleClass("readout")}));
+          .children({std::move(art), text(readout).styleClass("readout")}));
 }
 
 }  // namespace
 
 struct NetPolicy {
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     // every ask has already been answered
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -139,8 +139,7 @@ struct NetPolicy {
     };
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE NETWORK POLICIES · Hub::"
-                  "setNetworkPolicy over a pre-seeded cache",
+        {.title = "The network policies",
          .subtitle = "dials · the policy · which URL "
                      "is seeded · the cache directory",
          .footer = "the host is a reserved name that cannot "

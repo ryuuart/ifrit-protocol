@@ -123,6 +123,7 @@ struct FeedVitals {
   double now = 0;
 
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = kCaptureAt});
 
     io::Hub& hub = ctx.assets.hub();
@@ -162,6 +163,7 @@ struct FeedVitals {
   }
 
   void describe(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     // A paint program runs after the describe scope has closed, where the
     // theme in force is no longer this page's, so the colours the strip
     // is drawn in are read here and carried in by value.
@@ -169,8 +171,7 @@ struct FeedVitals {
     const SkColor4f rule = look.palette.rule;
     const SkColor4f figure = look.palette.figure;
     ctx.composer.render(sketch::kit::page(
-        {.title = "A FEED ON A METER · Feed::receive, latest, generation, "
-                  "dropped",
+        {.title = "A feed on a meter",
          .subtitle = "dials · the URI the pulse arrives on · the recording a "
                      "capture replays · how far back the strip reaches",
          .footer = "every figure here is one the feed answered: the ticks are "

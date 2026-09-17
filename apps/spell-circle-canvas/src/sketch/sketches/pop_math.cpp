@@ -58,12 +58,11 @@ constexpr int kMotes = 4200;      // points every cell starts from
 constexpr float kFactor = 0.55f;  // the Mix weight
 constexpr float kFeather = 0.6f;  // the fraction of Select's extent that fades
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.cellGround = {0.09f, 0.095f, 0.11f, 1};
   look.type.captionLabel = {.size = 11.5f, .track = 0.8f};
-  look.type.captionNote = {.size = 10, .mono = true};
   return look;
 }
 
@@ -210,8 +209,7 @@ struct PopMath {
          .gap = 14});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "POP MATH · Math, Fill, Affine, Lookup, Select, Mix, "
-                  "Normal, Delete",
+        {.title = "Point arithmetic",
          .subtitle = "dials · the operator · the Mix weight (0.55) · the "
                      "Select feather (0.6 of the extent)",
          .footer = "an operator names the lane it writes, and a name nothing "

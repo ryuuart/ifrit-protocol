@@ -87,15 +87,11 @@ constexpr int kNu = 44, kNv = 22;  // how finely it is tessellated
 constexpr int kMotes = 900;        // points the instancer carries
 constexpr double kMetersPerUnit = 0.01;
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.ground = {0.07f, 0.075f, 0.085f, 1};
-  look.palette.ash = {0.56f, 0.57f, 0.63f, 1};
-  look.type.subtitle = {.size = 11, .track = 0.6f};
-  look.type.footer = {.size = 10.5f, .track = 0.3f};
   look.type.captionLabel = {.size = 12, .track = 1.2f};
-  look.type.captionNote = {.size = 10, .mono = true};
   look.spacing.captionGap = 8;
   return look;
 }
@@ -257,9 +253,7 @@ struct UsdRoundtrip {
       foot += "   ·   a package layer is not written through save()";
 
     ctx.composer.render(
-        sketch::kit::page({.title = "USD ROUND TRIP · usd::Writer "
-                                    "→ readModel / readLights / "
-                                    "readCameras",
+        sketch::kit::page({.title = "USD round trip",
                            .subtitle = "dials · the format (.usdc, "
                                        ".usda, .usdz) · metersPerUnit "
                                        "— each cell drawn from the "

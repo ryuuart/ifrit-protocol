@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "ReceiverDefaults.h"
 #include "SceneGeometry.h"
 #include "SceneLabels.h"
 
@@ -30,23 +31,23 @@ namespace spellcircle {
  *  conversion the scene geometry does — a box is the size asked for on the
  *  canvas, whatever coordinate space the scene was authored in. */
 struct SceneStyle {
-  SkColor accentColor = SkColorSetRGB(0xff, 0x00, 0x00);
-  float strokeWidth = 4.0f;
-  float labelOffset = 0.0f;
+  SkColor accentColor = ReceiverDefaults::color;
+  float strokeWidth = ReceiverDefaults::strokeWidth;
+  float labelOffset = ReceiverDefaults::labelOffset;
   // Distance from the anchor point to the CENTRE of the point's value label,
   // along the outward ray resolved with the scene.
-  float pointDistance = 40.0f;
+  float pointDistance = ReceiverDefaults::pointDistance;
   // A minimum, not a fixed width: a box widens to fit its text plus padding on
   // both sides, so long labels are never clipped.
-  float boxWidth = 360.0f;
-  float boxHeight = 140.0f;
-  float boxPadding = 16.0f;
+  float boxWidth = ReceiverDefaults::boxWidth;
+  float boxHeight = ReceiverDefaults::boxHeight;
+  float boxPadding = ReceiverDefaults::boxPadding;
   // The gap between the anchor point and the box's nearest face, along the
   // outward ray resolved with the scene. The box's centre is pushed out by
   // this distance plus its half-extent along the ray, so a box that grows to
   // fit a longer label widens away from its point, never over it.
-  float boxDistance = 40.0f;
-  float fontSize = 36.0f;
+  float boxDistance = ReceiverDefaults::boxDistance;
+  float fontSize = ReceiverDefaults::fontSize;
   // Null is allowed and falls back to the font context's default platform
   // typeface, so labels never silently draw nothing.
   sk_sp<SkTypeface> typeface;

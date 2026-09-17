@@ -51,7 +51,7 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 740};
+constexpr SkSize kCanvas = {1100, 780};
 constexpr float kCell = 341;
 constexpr float kPicture = 232;
 
@@ -64,11 +64,10 @@ constexpr SkColor4f kFigure{0.88f, 0.82f, 0.66f, 1};
 constexpr SkColor4f kWarm{0.96f, 0.62f, 0.30f, 1};
 constexpr SkColor4f kCool{0.44f, 0.72f, 0.96f, 1};
 
-/** The house sheet, in this one's caption voice. */
+/** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.type.captionLabel = {.size = 11, .mono = true};
-  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
   return look;
 }
 
@@ -152,8 +151,7 @@ struct FrameGrid {
     }();
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "FRAME AND GRID · path::Frame, path::Grid, "
-                  "arrange::onRing / moduleSize / cellRect",
+        {.title = "Frame and grid",
          .subtitle = "dials · the frame's zero and sense "
                      "· the module and the gaps · the "
                      "grid's scale (7 px per unit) and snap (7 px)",

@@ -45,7 +45,7 @@ using Corner = sigil::geometry::shapes::Corner;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 620};
+constexpr SkSize kCanvas = {1100, 660};
 constexpr float kCell = 252;
 constexpr float kPicture = 190;
 
@@ -57,11 +57,10 @@ constexpr float kNotchDepth = 18;  // …and its depth
 constexpr SkColor4f kPlate{0.20f, 0.22f, 0.27f, 1};
 constexpr SkColor4f kEdge{0.92f, 0.84f, 0.66f, 1};
 
-/** The house sheet, in this one's caption voice. */
+/** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.type.captionLabel = {.size = 11, .mono = true};
-  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
   return look;
 }
 
@@ -87,8 +86,7 @@ struct CornerNotched {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "CORNER TREATMENTS · rounded + chamfered + "
-                  "notched, over a Corner mask",
+        {.title = "Corner treatments",
          .subtitle = "dials · the radius (22 px) · the "
                      "chamfer (30 px) · the notch (38 by 18 "
                      "px) · the mask",

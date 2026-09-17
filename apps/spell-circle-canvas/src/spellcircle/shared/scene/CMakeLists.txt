@@ -4,6 +4,7 @@ find_package(EnTT CONFIG REQUIRED)
 find_package(boost_unordered CONFIG REQUIRED)
 find_package(unofficial-skia CONFIG REQUIRED)
 add_library(SpellCircleDocument STATIC
+  include/ReceiverDefaults.h
   SceneModel.cpp include/SceneModel.h
   SceneSession.cpp include/SceneSession.h)
 target_include_directories(SpellCircleDocument PUBLIC
@@ -50,7 +51,7 @@ sigil_doc_probes(spellcircle
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../../../common/io/include/sigilio/hub
            ${CMAKE_CURRENT_SOURCE_DIR}/../../../common/io/include/sigilio/transport
-  PRELUDES "\"SceneModel.h\"" "\"SceneSession.h\""
+  PRELUDES "\"ReceiverDefaults.h\"" "\"SceneModel.h\"" "\"SceneSession.h\""
            "\"SceneRenderer.h\"" "<sigilio/hub/Hub.h>"
            "<sigilio/hub/Feed.h>" "<sigilio/transport/Transport.h>"
            "<iostream>"

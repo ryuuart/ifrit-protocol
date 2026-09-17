@@ -70,20 +70,20 @@ weave::TextStyle specimen() {
   const sk_sp<SkTypeface> face = weave::ports::face(
       {"Helvetica Neue", "Helvetica", "Arial", "sans-serif"});
   return weave::textStyle({.face = face,
-                           .size = 27,
+                           .size = 24,
                            .color = sketch::kit::theme().palette.figure,
-                           .track = 1.5f});
+                           .track = 1});
 }
 
 Element cell(const char* call, const char* note, const char* key, Track track) {
   track.progress = kProgress;
   return sketch::kit::cell({.plate = {.width = kCell, .height = kPicture}},
                            call, note,
-                           text("DISPLACEMENT", specimen())
+                           text("CASCADE", specimen())
                                .key(key)
-                               .width(kCell - 28)
+                               .width(kCell - 72)
                                .absolute()
-                               .inset(14, 60, 14, 14)
+                               .inset(36, 60, 36, 14)
                                .fx(std::move(track)));
 }
 
@@ -101,14 +101,14 @@ motion::Spread ladder(motion::Spread::From from,
 
 struct FxScatterMix {
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     // Every track holds one constant progress: the sheet is one instant
     // of the cascade, not a moment of an animation.
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     const SkColor4f figure = sketch::kit::theme().palette.figure;
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "SCATTER, MIX AND THE LADDER · fx::"
-                  "scatter, fx::mix, Spread::from, distribution",
+        {.title = "Scatter, mix and the ladder",
          .subtitle = "dials · the progress the photograph is "
                      "taken at (0.50) · the scatter's radius "
                      "(34 px) and lean (26°) · the "

@@ -67,18 +67,13 @@ constexpr float kMaxSigma = 14.0f;  // the map's 1.0 end, in px of sigma
 constexpr float kFocal = 0.42f;     // panel 2's sharp line, 0..1 down the box
 constexpr double kRackHz = 0.18;    // panel 4's breathing rate
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
   look.palette.ink = {0.92f, 0.94f, 0.98f, 1};
-  look.palette.ash = {0.56f, 0.61f, 0.72f, 1};
   look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
-  look.type.title = {.size = 15, .track = 2};
-  look.type.subtitle = {.size = 11, .track = 0.7f};
-  look.type.footer = {.size = 10.5f, .track = 0.2f};
   look.type.captionLabel = {.size = 13, .track = 0.4f};
-  look.type.captionNote = {.size = 11, .track = 0.2f};
   look.spacing.marginX = 30;
   look.spacing.marginTop = 22;
   look.spacing.captionGap = 6;
@@ -135,11 +130,10 @@ struct BlurFalloff {
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // the top of panel 4's breath: 1 / (2 kRackHz)
-    sketch::kit::stage(ctx, {.size = {1080, 430}, .captureAt = 2.78});
+    sketch::kit::stage(ctx, {.size = {1080, 464}, .captureAt = 2.78});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "BLUR FALLOFF · Effect::blur(Paint "
-                  "sigmaMap, float maxSigma)",
+        {.title = "Blur falloff",
          .subtitle = "one effect, four falloffs — same "
                      "content, same maximum sigma, only the map "
                      "differs",
@@ -161,7 +155,7 @@ struct BlurFalloff {
                              "a lens edge — sharp on axis, soft at "
                              "the inscribed circle",
                              mskia::Effect::blur(lensMap(), kMaxSigma), "lens"),
-                       panel("blur(dofMap, 14).uniform(\"maxSigma\", &rack)",
+                       panel("blur(dofMap, 14) · live",
                              "rack focus — the SAME map, maxSigma "
                              "bound inside the declared range: nothing "
                              "re-describes, the held passes are reused",

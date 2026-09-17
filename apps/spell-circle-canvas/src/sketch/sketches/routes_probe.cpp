@@ -93,7 +93,7 @@ struct RoutesProbe {
   std::vector<std::string> verdicts;  // one line per probe, from profile()
 
   void setup(sketch::SketchContext& ctx) {
-    const sketch::kit::Provide look(sketch::kit::houseTheme());
+    const sketch::kit::Provide look(sketch::kit::specimenTheme());
     // the readouts are taken before the sheet is built
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -226,11 +226,11 @@ struct RoutesProbe {
   }
 
   Element sheetFor() const {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     constexpr float kList = 260;
     constexpr float kTable = 430;
     return sketch::kit::page(
-               {.title = "ROUTES AND COSTS · "
-                         "Composer::routesAt, Composer::profile",
+               {.title = "Routes and costs",
                 .subtitle = "dials · the probed node (\"hub\") "
                             "· which routes carry a key · "
                             "the property each probe wears: rotate, "

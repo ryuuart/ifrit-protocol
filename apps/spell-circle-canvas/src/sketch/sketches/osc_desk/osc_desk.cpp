@@ -55,7 +55,7 @@
 #include <sigilio/hub/Hub.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <algorithm>
@@ -191,6 +191,7 @@ struct OscDesk {
   Reading shown;
 
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
     sketch::kit::stage(
         ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
     ticker = &ctx.ticker;
@@ -294,6 +295,7 @@ struct OscDesk {
   }
 
   void describe(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
     // A paint program runs after the describe scope has closed, where
     // the theme in force is no longer this page's, so the colours the
     // faders are drawn in are read here and carried in by value.
@@ -301,17 +303,26 @@ struct OscDesk {
     const SkColor4f rule = look.palette.rule;
     const SkColor4f figure = look.palette.figure;
     const SkColor4f ash = look.palette.ash;
-    ctx.composer.render(
+    compose::Element picture =
         compose::stack()
             .width(kCanvas.width())
             .height(kCanvas.height())
-            .children({compose::pen("osc_desk.sky",
-                                    [this, rule, figure, ash](Pen& pen) {
-                                      sky(pen);
-                                      faders(pen, rule, figure, ash);
-                                    })
-                           .cover(),
-                       readout()}));
+            .children({compose::pen("osc_desk.sky", [this, rule, figure,
+                                                     ash](Pen& pen) {
+                         sky(pen);
+                         faders(pen, rule, figure, ash);
+                       }).cover()});
+    ctx.composer.render(sketch::kit::instrument(
+        {.page = {.title = "An open sound control.",
+                  .subtitle = "OSC / CONTROL  /  Three continuous values "
+                              "become motion, colour and light.",
+                  .footer = "Run desk.py beside this sketch to send data  ·  "
+                            "Captures replay the local recording"},
+         .pictureSize = kCanvas,
+         .pictureWidth = 816,
+         .note = "Move the desk controls to steer the field; the meters show "
+                 "their current values."},
+        std::move(picture).fill(kGround), readout()));
   }
 
   /** The bands: each a ribbon of segments the width of the canvas, all
@@ -381,7 +392,7 @@ struct OscDesk {
     pen.text("GUST", left - kLabelGap, above);
   }
 
-  /** WHAT THE CONNECTION ANSWERS, small in the corner: how many
+  /** WHAT THE CONNECTION ANSWERS, in the reading panel: how many
    *  messages have arrived, how many of them were no OSC packet at all,
    *  what the newest one was addressed to, where the door is — or the
    *  sentence saying why there is none — and how many answers have gone
@@ -410,11 +421,9 @@ struct OscDesk {
         compose::kit::formatted("%llu", (unsigned long long)shown.replies)));
     return compose::box()
         .column()
-        .gap(look.spacing.rowGap)
-        .left(kMargin)
-        .bottom(kMargin)
-        .font(look.font({.size = 11, .mono = true}))
-        .ink(look.palette.ash)
+        .gap(12)
+        .font(look.font({.size = 12, .mono = true}))
+        .ink(look.palette.ink)
         .children(std::move(lines));
   }
 };

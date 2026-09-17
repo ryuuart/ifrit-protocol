@@ -8,7 +8,8 @@ writes a wire down to a file, and opens that file again as if it were the
 port.
 
 The wire library stands on SigilIO's feeds. The application also hosts the
-SpellCircle scene receiver, using its shared native scene model and canvas. What
+SpellCircle scene receiver and a shared-texture inspector. Its Messages, Scenes
+and Textures workspaces make each kind of source directly accessible. What
 travels a wire is bytes, and what those bytes mean belongs to whoever is
 at the other end — so a tool for looking at the wire itself can be
 pointed at a wire whose format it has never heard of, which is the only
@@ -19,6 +20,10 @@ cmake --build build --config Release --target Seer
 open build/bin/Release/Seer.app                          # the window
 build/bin/Release/Seer.app/Contents/MacOS/Seer udp://:27020
 build/bin/Release/Seer.app/Contents/MacOS/Seer --receiver udp://:27015
+build/bin/Release/Seer.app/Contents/MacOS/Seer --textures
+build/bin/Release/Seer.app/Contents/MacOS/Seer --list-textures
+build/bin/Release/Seer.app/Contents/MacOS/Seer --texture "Live Canvas" --app Sketchbook
+build/bin/Release/Seer.app/Contents/MacOS/Seer --texture "Live Canvas" --grab frame.png --timeout 10
 build/bin/Release/Seer.app/Contents/MacOS/Seer osc://:27050 ws://:27060/sky
 build/bin/Release/Seer.app/Contents/MacOS/Seer midi://in/Launchpad artnet://:6454
 build/bin/Release/Seer.app/Contents/MacOS/Seer --schema feed_sky.bfbs udp://:27020
@@ -199,7 +204,15 @@ there already.
 
 ## The window
 
-The wire panes and an optional receiver share one session. Every pane reads what
+Three workspaces share one session. **Messages** inspects and sends data;
+**Scenes** receives SpellCircle diagrams; **Textures** browses and previews
+publications from other applications. Selecting a workspace opens no ports.
+The first Messages view explains connection addresses and offers protocol
+presets for UDP, OSC, WebSocket, MIDI and Art-Net. A preset fills an editable
+address; **Connect** opens it. Connections stay alive while another workspace
+is visible.
+
+Every message pane reads what
 the last frame wrote, so the list, the readings and the log are one
 frame's answer rather than three asks a moment apart.
 
@@ -251,7 +264,7 @@ frame's answer rather than three asks a moment apart.
   opening a file back onto a URI. What is above then reads the file
   exactly as it read the port.
 
-**Receiver** opens a persistent scene preview, either through **Open Receiver**
+**Scenes** opens a persistent scene preview, either through **Open Scene Receiver**
 or `--receiver <uri>`. The source is pinned independently of the selected wire.
 The session drains each source once and passes the same arrivals to its trace,
 echo and scene consumers. Invalid scene packets remain visible in the raw trace
@@ -276,7 +289,31 @@ combined receiver file is authoritative. Otherwise the receiver imports separate
 graphics and network files, looking first in its settings directory, then the
 SpellCircle configuration directory, then beside the executable. Importing never
 writes these files. A normal launch opens no ports;
-the saved source is used only after **Open Receiver** is requested.
+the saved source is used only after **Open Scene Receiver** is requested.
+
+**Textures** lists the shared publications currently available on the machine,
+showing each name beside its publishing application. Discovery continues while
+the window is open. Selecting a source starts its preview; **Connect by name**
+also accepts a publication that has not started yet. An optional application
+name distinguishes publishers using the same name. The preview reconnects when
+the publisher returns and preserves the last received image while waiting.
+
+The preview uses the window's Metal device and imports the received native
+texture directly into Qt's scene graph. Fit, actual-size, wheel zoom and pan
+inspect the image over a transparency checkerboard. **Pause** holds a frame;
+**Save PNG** reads that frame back at its original resolution. Texture reception
+currently requires macOS and Metal. Other platforms explain its unavailability
+without affecting Messages or Scenes.
+
+The same capability is available without opening a window. `--list-textures`
+prints publication names and applications separated by a tab. `--texture <name>
+--grab <png>` waits for one frame, or the positive integer count supplied with
+`--frames`, and writes the newest frame. `--timeout` bounds discovery and frame
+waiting together. A retained static publication can satisfy a one-frame grab;
+additional frames require subsequent publications. Exit status 2 means no
+matching publication or invalid arguments, 3 means the frame wait expired, and
+4 means the frame could not be written. Headless listing and capture cannot be
+combined with window or message-connection options.
 
 The controls are Ifrit.Qt's — the theme derived from the system palette,
 shared panels and controls, and native window dressing — so the window follows the
@@ -329,7 +366,8 @@ string. What every reading ANSWERS is still a string and what a spelled
 message answers is still bytes, so nobody who links this is made to
 speak in document types, even where the schema puts them within reach.
 The wire archive has no drawing or Qt dependencies. The Seer executable links
-SpellCircle's Qt models and canvas for its receiver; neither consumes
+SpellCircle's Qt models and canvas for its scene receiver, and SigilIOPublish
+for texture discovery and subscription; neither consumes
 SigilSketch. The models are a plain C++ archive with observable values and scene
 state. The canvas module owns their anonymous QML registration and its renderer's
 Graphite context, native scene drawer and texture publisher. Headless receiver
@@ -341,8 +379,13 @@ One archive and one application, both always configured. The cases are
 in `seer_test` under `build/bin/<config>/tests/`, and every one of them
 runs with no application in the process. `seer_qt_test` hosts the Qt scene
 consumer and covers shared delivery, source pinning, port failures, replay,
-and settings persistence. GPU publication additionally needs a real window
-and a Syphon or Spout consumer. The codecs are linked there
+and settings persistence. It also covers CLI argument validation and, on
+macOS, texture capture channel/row order and late subscription to a static
+publication. Those texture cases carry the `gpu` label and require Metal.
+The native preview test also asserts pause, resize, reconnection, source changes,
+full-resolution capture and window teardown. Run it with `QT_QPA_PLATFORM=cocoa`
+on macOS; it skips on the default offscreen test platform. Window preview
+additionally needs a real window and a Syphon publisher. The codecs are linked there
 beside the library, because what the dialect cases assert is that a
 reading and a spelling agree with the bytes a sender writes; the build
 also

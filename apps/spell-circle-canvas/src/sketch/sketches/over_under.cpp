@@ -54,7 +54,7 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 622};
+constexpr SkSize kCanvas = {1100, 662};
 constexpr float kCell = 200;
 constexpr float kPicture = 176;
 
@@ -130,8 +130,6 @@ Element cell(const char* call, const std::string& note,
 
 /** The page's own prose, held apart from the tree so the tree reads as a
  *  tree. */
-constexpr const char* kTitle =
-    "OVER AND UNDER · over(base, top, mask, blend) and the mask family";
 constexpr const char* kSubtitle =
     "dials · the mask kind · the fit (0.32 to 0.70) · the "
     "blend · the bevel the slope normals come from (26 px)";
@@ -213,6 +211,7 @@ Element readings(const material::Material& twice) {
 
 struct OverUnder {
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -223,7 +222,9 @@ struct OverUnder {
         material::maskConstant(0.35f), material::Blend::Multiply);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = kTitle, .subtitle = kSubtitle, .footer = kFooter},
+        {.title = "Materials over materials",
+         .subtitle = kSubtitle,
+         .footer = kFooter},
         kit::cells({.cells = {sources(mixed), readings(twice)},
                     .column = true,
                     .gap = 16})));

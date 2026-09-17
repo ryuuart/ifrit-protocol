@@ -55,7 +55,7 @@
 #include <sigilio/hub/Hub.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <algorithm>
@@ -263,6 +263,7 @@ struct ArtNetLights {
   Reading shown;
 
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
     sketch::kit::stage(
         ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
     ticker = &ctx.ticker;
@@ -427,6 +428,7 @@ struct ArtNetLights {
   }
 
   void describe(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
     // A paint program runs after the describe scope has closed, where
     // the theme in force is no longer this page's, so the colours the
     // dimmer row is drawn in are read here and carried in by value.
@@ -434,17 +436,26 @@ struct ArtNetLights {
     const SkColor4f rule = look.palette.rule;
     const SkColor4f figure = look.palette.figure;
     const SkColor4f ash = look.palette.ash;
-    ctx.composer.render(
+    compose::Element picture =
         compose::stack()
             .width(kCanvas.width())
             .height(kCanvas.height())
-            .children({compose::pen("artnet_lights.room",
-                                    [this, rule, figure, ash](Pen& pen) {
-                                      sky(pen);
-                                      rack(pen, rule, figure, ash);
-                                    })
-                           .cover(),
-                       readout()}));
+            .children({compose::pen("artnet_lights.room", [this, rule, figure,
+                                                           ash](Pen& pen) {
+                         sky(pen);
+                         rack(pen, rule, figure, ash);
+                       }).cover()});
+    ctx.composer.render(sketch::kit::instrument(
+        {.page = {.title = "Light, across a network.",
+                  .subtitle = "ART-NET / DMX  /  A lighting desk sends "
+                              "channels. The scene answers in colour.",
+                  .footer = "Run console.py beside this sketch to send data  · "
+                            " Captures replay the local recording"},
+         .pictureSize = kCanvas,
+         .pictureWidth = 816,
+         .note = "The rack shows the outgoing dimmers; each ribbon follows its "
+                 "lighting channel."},
+        std::move(picture).fill(kGround), readout()));
   }
 
   /** THE SKY THE DESK LIGHTS: bands crossing the canvas, carried on the
@@ -506,7 +517,7 @@ struct ArtNetLights {
     }
   }
 
-  /** WHAT THE CONNECTION ANSWERS, small in the corner: how many packets
+  /** WHAT THE CONNECTION ANSWERS, in the reading panel: how many packets
    *  have arrived, how many of them were no Art-Net packet at all,
    *  which universe the newest one was for and what the head of it
    *  holds, how many universes have gone back to the desk, and where
@@ -532,11 +543,9 @@ struct ArtNetLights {
           row("address", shown.address.empty() ? "-" : shown.address));
     return compose::box()
         .column()
-        .gap(look.spacing.rowGap)
-        .left(kMargin)
-        .bottom(kMargin)
-        .font(look.font({.size = 11, .mono = true}))
-        .ink(look.palette.ash)
+        .gap(12)
+        .font(look.font({.size = 12, .mono = true}))
+        .ink(look.palette.ink)
         .children(std::move(lines));
   }
 };

@@ -138,6 +138,7 @@ Element illuminated(const char* key, std::optional<kit::NestedStyle> nested) {
 
 struct BulletsDropCap {
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     const sketch::kit::Theme& look = sketch::kit::theme();
@@ -164,8 +165,7 @@ struct BulletsDropCap {
              .margin(kHang, 0, 0, 0)});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "BULLETS AND THE INITIAL LETTER · "
-                  "initialLetter, kit::NestedStyle, kit::bullets",
+        {.title = "Bullets and the initial letter",
          .subtitle = "dials · the cap's depth in LINES (3, "
                      "and the size follows from the face) · "
                      "the body's stand-off (7 px) · where "

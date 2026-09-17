@@ -22,7 +22,7 @@ import QtQuick.Dialogs
 import QtQuick.Layouts
 import Sigil.Sketchbook
 
-ApplicationWindow {
+Ui.AppWindow {
     id: window
 
     width: 1440

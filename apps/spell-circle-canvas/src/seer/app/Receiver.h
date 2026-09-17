@@ -8,6 +8,7 @@
 #include <functional>
 
 #include "GraphicsConfig.h"
+#include "ReceiverDefaults.h"
 #include "SpellCircleModel.h"
 
 /** One pinned scene consumer of Seer's wires. The session owns draining;
@@ -56,7 +57,8 @@ class Receiver : public QObject {
   QString m_settingsDirectory;
   GraphicsConfig m_config;
   SpellCircleModel m_model;
-  QString m_uri = QStringLiteral("udp://:27015");
+  QString m_uri =
+      QStringLiteral("udp://:%1").arg(spellcircle::ReceiverDefaults::port);
   QString m_status = QStringLiteral("Stopped");
   bool m_opened = false;
   bool m_listening = false;

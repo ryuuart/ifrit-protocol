@@ -64,9 +64,9 @@ constexpr float kBakeSizes[3] = {9, 12, 16};      // the sweep in the first cell
 constexpr float kScale = 3;                       // integer, always
 constexpr SkColor4f kOn{0.62f, 0.98f, 0.72f, 1};  // what a mask is tinted
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.cellGround = {0.055f, 0.065f, 0.06f, 1};
   return look;
 }
@@ -115,8 +115,7 @@ struct PixFontDotSprite {
     dot = kit::dotSprite(32);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "PIXEL TYPE AND THE STAMP · kit::bakeRun, "
-                  "kit::bakeFont / kit::blit, kit::dotSprite",
+        {.title = "Pixel type and the stamp",
          .subtitle = "dials · the bake size (9, 12, 16 px) · "
                      "the present scale (3×, integer) · the "
                      "on colour · the blit's track (1 and 5 px)",
@@ -215,38 +214,36 @@ struct PixFontDotSprite {
   /** The stamp: white on transparency, so the tint is the caller's. */
   Element stamp() {
     sk_sp<SkImage> image = dot;
-    return cell(
-        "kit::dotSprite(32)",
-        "a white antialiased disc with a transparent ring around it "
-        "· baked once, tinted per point, never a square edge",
-        custom("pixfont.dot",
-               [image](SkCanvas& canvas, const PaintContext& pc) {
-                 static constexpr SkColor4f kTints[3] = {
-                     {1, 1, 1, 1}, kOn, {1.0f, 0.55f, 0.35f, 1}};
-                 const float side = pc.size.width() / 3.4f;
-                 // A white stamp is TINTED by modulating it —
-                 // setting a paint colour does nothing to a colour
-                 // image, and this is the step a point sink takes
-                 // per point.
-                 SkPaint paint;
-                 for (int i = 0; i < 3; ++i) {
-                   paint.setColorFilter(SkColorFilters::Blend(
-                       kTints[i], nullptr, SkBlendMode::kModulate));
-                   canvas.drawImageRect(
-                       image, SkRect::MakeXYWH(i * (side + 8), 10, side, side),
-                       SkSamplingOptions(SkFilterMode::kLinear), &paint);
-                 }
-                 // …and the same stamp small enough that the
-                 // transparent margin is the only reason its edge
-                 // is not a square.
-                 paint.setColorFilter(SkColorFilters::Blend(
-                     kOn, nullptr, SkBlendMode::kModulate));
-                 for (int i = 0; i < 9; ++i)
-                   canvas.drawImageRect(
-                       image, SkRect::MakeXYWH(i * 16.0f, side + 26, 14, 14),
-                       SkSamplingOptions(SkFilterMode::kLinear), &paint);
-               })
-            .cover());
+    return cell("kit::dotSprite(32)",
+                "a white antialiased disc with a transparent ring around it "
+                "· baked once, tinted per point, never a square edge",
+                custom("pixfont.dot", [image](SkCanvas& canvas,
+                                              const PaintContext& pc) {
+                  static constexpr SkColor4f kTints[3] = {
+                      {1, 1, 1, 1}, kOn, {1.0f, 0.55f, 0.35f, 1}};
+                  const float side = pc.size.width() / 3.4f;
+                  // A white stamp is TINTED by modulating it —
+                  // setting a paint colour does nothing to a colour
+                  // image, and this is the step a point sink takes
+                  // per point.
+                  SkPaint paint;
+                  for (int i = 0; i < 3; ++i) {
+                    paint.setColorFilter(SkColorFilters::Blend(
+                        kTints[i], nullptr, SkBlendMode::kModulate));
+                    canvas.drawImageRect(
+                        image, SkRect::MakeXYWH(i * (side + 8), 10, side, side),
+                        SkSamplingOptions(SkFilterMode::kLinear), &paint);
+                  }
+                  // …and the same stamp small enough that the
+                  // transparent margin is the only reason its edge
+                  // is not a square.
+                  paint.setColorFilter(SkColorFilters::Blend(
+                      kOn, nullptr, SkBlendMode::kModulate));
+                  for (int i = 0; i < 9; ++i)
+                    canvas.drawImageRect(
+                        image, SkRect::MakeXYWH(i * 16.0f, side + 26, 14, 14),
+                        SkSamplingOptions(SkFilterMode::kLinear), &paint);
+                }).cover());
   }
 };
 

@@ -25,7 +25,7 @@ import QtQuick
 import QtQuick.Controls
 import Ifrit.Qt 1.0 as Ui
 
-ApplicationWindow {
+Ui.AppWindow {
     id: window
     color: Ui.Theme.windowBackground
 
@@ -80,6 +80,13 @@ shared pickers; an application may still inject a different catalogue.
 
 ## Shared application controls
 
+`AppWindow` is the shared application and settings-window shell. It keeps
+content inside the window's safe area and below visible application headers
+and menus. Its background uses the shared palette. Native vibrancy is applied
+through Qt's title-bar flags so the platform continues to own control and
+content geometry. App-specific layouts belong inside its content item; no
+application reserves a guessed title-bar height.
+
 `Panel` is a padded container with a border and rounded background. Its
 children live in the content area, so a layout uses `anchors.fill: parent`
 without repeating the padding. It does not mask or allocate a layer.
@@ -107,6 +114,11 @@ signal and supplies the new index. A missing `enabled` field means enabled.
 `SliderField` takes `label`, `value`, `from`, `to`, `stepSize`, `decimals`
 and `suffix`. Only an interaction emits `valueEdited(value)`. A caller may
 set `resetEnabled` and `resetValue`, then handle `resetRequested`.
+
+`NumberField` provides a labelled, editable numeric value with optional units.
+It takes `value`, `from`, `to`, `step`, `decimals` and `suffix`; decimal values
+keep their precision through typed edits and keyboard stepping. Only an
+interaction emits `valueEdited(value)`, so model updates do not write back.
 
 `StatusIndicator` takes `text`, a semantic `tone` (`neutral`, `good`,
 `warning`, `error`) and `busy`. Text names the state as well as its colour;
@@ -209,7 +221,7 @@ the adapter does not create another device or perform a CPU readback.
 ## Boundary
 
 Public dependencies: `Qt6::Quick`, `Qt6::QuickControls2`,
-`Qt6::QuickLayouts` and `SigilPublish`. Qt's private graphics API is used only
+`Qt6::QuickLayouts` and `SigilIOPublish`. Qt's private graphics API is used only
 inside the publication adapter. On Apple, AppKit privately — elsewhere a stub
 implementation stands in. This module knows nothing about Skia, scene content,
 or the products that use it.
@@ -224,7 +236,7 @@ assets.
 
 QML types provided: the `Theme` singleton, `Panel`, `PanelHeading`, `SectionHeading`,
 `FactRow`, `StatusIndicator`, `Notice`, `IconButton`, `SegmentedControl`,
-`SearchField`, `SliderField`, `FontDatabase`, `Checkerboard`, `PanZoomCanvas`,
+`SearchField`, `SliderField`, `NumberField`, `FontDatabase`, `Checkerboard`, `PanZoomCanvas`,
 `GlassPanel`,
 `DimensionSpinBoxes`, `FontFamilyField`, `FontSelector`. The
 C++ side registers `WindowChrome` as a QML singleton with two invokable

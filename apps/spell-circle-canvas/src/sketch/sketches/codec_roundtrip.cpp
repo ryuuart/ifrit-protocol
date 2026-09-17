@@ -71,13 +71,11 @@ constexpr int kMotes = 2600;       // points for the cloud round trip
 
 constexpr SkColor4f kFigure{0.98f, 0.78f, 0.36f, 1};
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.ground = {0.07f, 0.075f, 0.085f, 1};
-  look.palette.ash = {0.56f, 0.57f, 0.63f, 1};
   look.type.captionLabel = {.size = 12, .track = 1.2f};
-  look.type.captionNote = {.size = 11, .mono = true};
   look.spacing.captionGap = 8;
   return look;
 }
@@ -243,7 +241,7 @@ struct CodecRoundtrip {
          .gap = 14});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "CODEC ROUND TRIP · encode::ply → decode::model",
+        {.title = "Codec round trip",
          .subtitle = "dials · the format (ascii, binary, faceless cloud) · "
                      "the generator (torus R 62 r 23, 48 by 24)",
          .footer = "one decode::model call reads all of them — the reader is "

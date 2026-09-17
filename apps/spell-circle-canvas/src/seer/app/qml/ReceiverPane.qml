@@ -16,7 +16,7 @@ Ui.Panel {
         spacing: 10
         RowLayout {
             Layout.fillWidth: true
-            Ui.SectionHeading { text: "Receiver" }
+            Ui.PanelHeading { title: "Scene receiver"; detail: "SpellCircle · vector scenes"; Layout.fillWidth: true }
             Item { Layout.fillWidth: true }
             ToolButton { text: "Settings…"; onClicked: pane.settingsRequested() }
         }

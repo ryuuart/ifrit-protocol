@@ -55,7 +55,7 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 654};
+constexpr SkSize kCanvas = {1100, 694};
 constexpr float kCell = 252;
 constexpr float kPicture = 196;
 
@@ -65,9 +65,9 @@ constexpr SkColor4f kGroundColour{0.14f, 0.12f, 0.10f, 1};
 
 constexpr SkColor4f kGround{0.06f, 0.06f, 0.075f, 1};
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.ground = {0.06f, 0.06f, 0.075f, 1};
   look.palette.cellGround = {0.085f, 0.09f, 0.105f, 1};
   return look;
@@ -193,9 +193,7 @@ struct EnvFaces {
     const SkColor4f mean = resampled.average();
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "ENVIRONMENT FACES · EnvironmentMap "
-                  "studio, fromFaces, fromCubeMap, fromEquirectangular, "
-                  "withGround",
+        {.title = "Environment faces",
          .subtitle = "dials · the face set (six baked here) "
                      "· the ground colour · the "
                      "roughness the reflection reads the panorama "

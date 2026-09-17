@@ -51,7 +51,7 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 640};
+constexpr SkSize kCanvas = {1100, 680};
 constexpr float kCell = 341;
 constexpr float kPicture = 200;
 
@@ -117,9 +117,9 @@ Element cell(const char* call, const std::string& note,
            .ground = material::skia::Paint::recipe(std::move(paint))}));
 }
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.cellGround = {0.09f, 0.095f, 0.11f, 1};
   return look;
 }
@@ -193,8 +193,7 @@ struct OcioView {
          .column = true,
          .gap = 18});
     ctx.composer.render(sketch::kit::page(
-        {.title = "OCIO VIEW · ocio::exponent, convert, "
-                  "viewTransform — each a baked 3D LUT",
+        {.title = "OCIO view",
          .subtitle = kit::formatted(
              "dials · the exponent (%.1f) · the LUT side "
              "(%d) · the config (\"%s\") · the display "

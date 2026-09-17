@@ -2,6 +2,7 @@
 
 #include <QFontDatabase>
 #include <QJsonObject>
+#include <algorithm>
 
 void BoxStyleConfig::setWidth(qreal width) {
   if (qFuzzyCompare(m_width, width)) return;
@@ -28,12 +29,14 @@ void BoxStyleConfig::setDistance(qreal distance) {
 }
 
 void CanvasSizeConfig::setWidth(int width) {
+  width = std::clamp(width, minimum(), maximum());
   if (m_width == width) return;
   m_width = width;
   emit changed();
 }
 
 void CanvasSizeConfig::setHeight(int height) {
+  height = std::clamp(height, minimum(), maximum());
   if (m_height == height) return;
   m_height = height;
   emit changed();
@@ -43,8 +46,13 @@ GraphicsConfig::GraphicsConfig(QObject* parent)
     : QObject(parent),
       m_box(new BoxStyleConfig(this)),
       m_canvas(new CanvasSizeConfig(this)) {
-  m_font.setBold(true);
-  m_font.setPointSize(36);
+  if (*spellcircle::ReceiverDefaults::fontFamily)
+    m_font.setFamily(
+        QString::fromUtf8(spellcircle::ReceiverDefaults::fontFamily));
+  m_font.setWeight(
+      static_cast<QFont::Weight>(spellcircle::ReceiverDefaults::fontWeight));
+  m_font.setItalic(spellcircle::ReceiverDefaults::fontItalic);
+  m_font.setPointSize(spellcircle::ReceiverDefaults::fontSize);
 
   connect(m_box, &BoxStyleConfig::changed, this,
           &GraphicsConfig::bumpGeneration);

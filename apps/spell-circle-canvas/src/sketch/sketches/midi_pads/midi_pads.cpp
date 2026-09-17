@@ -51,7 +51,7 @@
 #include <sigilio/hub/Hub.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <algorithm>
@@ -223,6 +223,7 @@ struct MidiPads {
   Reading shown;
 
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
     sketch::kit::stage(
         ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
     ticker = &ctx.ticker;
@@ -367,24 +368,34 @@ struct MidiPads {
   }
 
   void describe(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
     // A paint program runs after the describe scope has closed, where
     // the theme in force is no longer this page's, so the colours the
     // grid is drawn in are read here and carried in by value.
     const sketch::kit::Theme& look = sketch::kit::theme();
     const SkColor4f rule = look.palette.rule;
     const SkColor4f figure = look.palette.figure;
-    ctx.composer.render(
+    compose::Element picture =
         compose::stack()
             .width(kCanvas.width())
             .height(kCanvas.height())
-            .children({compose::pen("midi_pads.room",
-                                    [this, rule, figure](Pen& pen) {
-                                      sky(pen);
-                                      grid(pen, rule);
-                                      knob(pen, rule, figure);
-                                    })
-                           .cover(),
-                       readout()}));
+            .children(
+                {compose::pen("midi_pads.room", [this, rule, figure](Pen& pen) {
+                   sky(pen);
+                   grid(pen, rule);
+                   knob(pen, rule, figure);
+                 }).cover()});
+    ctx.composer.render(sketch::kit::instrument(
+        {.page = {.title = "A controller, both ways.",
+                  .subtitle = "MIDI / INPUT + OUTPUT  /  Play a pad, turn a "
+                              "knob, and send the light back.",
+                  .footer = "Run pads.py beside this sketch to send data  ·  "
+                            "Captures replay the local recording"},
+         .pictureSize = kCanvas,
+         .pictureWidth = 816,
+         .note = "Eight pads light the grid. The knob steers the wind; lit "
+                 "cells drive controller LEDs."},
+        std::move(picture).fill(kGround), readout()));
   }
 
   /** THE SKY THE CELLS STAND OVER: bands carried on the drift the knob
@@ -484,7 +495,7 @@ struct MidiPads {
     pen.circle(centre + reach, base + kThickness * 0.5f, kThickness * 2.2f);
   }
 
-  /** WHAT THE CONNECTION ANSWERS, small in the corner: how many
+  /** WHAT THE CONNECTION ANSWERS, in the reading panel: how many
    *  messages have arrived, how many of them were no MIDI message at
    *  all, how many pads have been struck and how far the knob has been
    *  turned, which cells are lit, how many lights have gone back down
@@ -512,11 +523,9 @@ struct MidiPads {
       lines.push_back(row("port", shown.address.empty() ? "-" : shown.address));
     return compose::box()
         .column()
-        .gap(look.spacing.rowGap)
-        .left(kMargin)
-        .bottom(kMargin)
-        .font(look.font({.size = 11, .mono = true}))
-        .ink(look.palette.ash)
+        .gap(12)
+        .font(look.font({.size = 12, .mono = true}))
+        .ink(look.palette.ink)
         .children(std::move(lines));
   }
 };

@@ -63,7 +63,7 @@ target_link_libraries(SpellCircleCanvas
     PUBLIC
       Qt6::Quick
       Qt6::CanvasPainter
-      SigilPublish
+      SigilIOPublish
     PRIVATE
       spdlog::spdlog
       IfritQt IfritQtplugin Qt6::QuickControls2 Qt6::QuickLayouts Qt6::QuickDialogs2

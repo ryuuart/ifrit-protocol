@@ -8,7 +8,8 @@ datagram over UDP. SpellCircle receives it, draws it with Skia on the
 GPU, and publishes the result as a transparent-background texture over
 Syphon, where a VJ or compositing tool picks it up.
 
-Seer hosts the Qt receiver beside its wire inspector, sender and recorder.
+Seer hosts the Qt receiver beside its wire inspector, sender, recorder and
+shared-texture viewer.
 The receiver accepts externally authored scenes; Sketchbook is the authoring
 application. Scenes may arrive at animation frame rates, so a sender can use
 the receiver as a live output surface.
@@ -21,15 +22,15 @@ zooming never redraw the scene — they move an already-rendered image.
 
 ## Getting a picture on screen
 
-Build (see [Build and test](#build-and-test)), open the Receiver in Seer,
-then send it something:
+Build (see [Build and test](#build-and-test)), open **Scenes** in Seer and
+choose **Open Scene Receiver**, then send it something:
 
 ```sh
 build/bin/Release/Seer.app/Contents/MacOS/Seer --receiver udp://:27015
 ```
 
-A plain Seer launch opens no ports. **Open Receiver** uses the saved source,
-or UDP port 27015 when there are no saved settings. Its source stays pinned
+A plain Seer launch opens no ports. **Scenes** provides an explicit start
+action using the saved source, or UDP port 27015 when there are no saved settings. Its source stays pinned
 while another wire is inspected. The receiver panel has start/stop, fit,
 actual-size, clear, activity, and graphics settings controls. Graphics and
 source settings save together under Seer's `receiver` configuration directory
@@ -37,6 +38,21 @@ and import existing
 SpellCircle graphics and port settings when no Seer receiver settings exist.
 Cancel restores the values present when settings opened. Syphon continues to
 publish under the server name `SpellCircle`.
+
+Graphics settings are grouped into **Appearance**, **Labels** and **Layout**.
+They share the controls and spacing used by the other Qt applications; stroke
+width accepts decimal values. The native macOS frontend exposes the same
+settings vocabulary through its SwiftUI inspector and Liquid Glass controls.
+Each frontend keeps its platform-specific navigation and materials.
+Both take initial styling, canvas limits and receiver defaults from
+`spellcircle::ReceiverDefaults`. Native Swift settings fall back to the
+initialized engine; saved settings remain authoritative in each frontend.
+Canvas dimensions clamp to the same limits during editing and settings import.
+
+The **Textures** workspace discovers shared Syphon outputs, previews a selected
+source, and saves PNG frames. **Messages** opens and inspects byte streams.
+The scene receiver keeps publishing while either workspace is selected. See
+[Seer](src/seer/README.md) for its command-line listing and capture options.
 
 With the lightweight Python package installed, run its bundled examples:
 
@@ -224,7 +240,7 @@ The app is thin. Most of the code is in libraries under `src/common/`,
 | [Ifrit.Qt](src/common/qt/README.md) | Reusable Qt Quick controls |
 | [SigilImage](src/common/image/README.md) | Still-image and animated-image decoding and encoding, and signed distance fields over a coverage mask |
 | [SigilVideo](src/common/video/README.md) | Streaming video decoding, GPU composition, and MP4 encoding |
-| [SigilPublish](src/common/publish/README.md) | Native inter-application texture publication and subscription, plus the macOS Receiver monitor and capture tool |
+| [SigilIOPublish](src/common/io/publish/README.md) | Optional SigilIO native texture publication and subscription; Seer owns inspection and capture |
 | [SigilIO](src/common/io/README.md) | Resource access and export: URIs, mounts, caching, hot reload, byte sinks |
 | [SigilData](src/common/data/README.md) | Tabular data and scales: typed columns, and the one value that maps a domain onto a range |
 | [SigilScry](src/common/scry/README.md) | HTML and CSS rendered to Skia images |

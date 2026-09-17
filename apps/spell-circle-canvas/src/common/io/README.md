@@ -24,7 +24,8 @@ what a consumer uses; every public header lives under
 
 `SigilIO` is the umbrella target over the source and the hub, and
 `<sigilio/IO.h>` the umbrella header; the transport feature stands
-outside both, linked only where a network feed is opened. The hub is a `ByteSource`;
+outside both, linked only where a network feed is opened. Native texture
+publication is likewise an optional feature, linked as `SigilIOPublish`. The hub is a `ByteSource`;
 anything that consumes bytes by URI can be written against the concept
 and handed a hub, a fixture, or an `AnyByteSource` holding either.
 

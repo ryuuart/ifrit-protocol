@@ -61,8 +61,8 @@ guard checks and what it cannot see.
   fields
 - `src/common/video/README.md` — SigilVideo: streaming decode, GPU
   composition, MP4 encode
-- `src/common/publish/README.md` — SigilPublish: native inter-application
-  texture publication and subscription, and the Receiver capture tool
+- `src/common/io/publish/README.md` — SigilIOPublish: native inter-application
+  texture publication and subscription
 - `src/common/io/README.md` — SigilIO: resource access: URIs, mounts,
   caching, hot reload, byte sinks
 - `src/common/data/README.md` — SigilData: tabular data and the one
@@ -74,6 +74,8 @@ guard checks and what it cannot see.
   someone else owns
 - `src/common/substance/README.md`, `src/common/usd/README.md` —
   optional SDK integrations
+- `src/seer/README.md` — message inspection, SpellCircle scenes, shared-texture
+  preview and capture
 - `src/common/qt/README.md` — reusable Qt Quick controls
 - `src/common/python/README.md` — reusable native Python bindings and
   callback ownership; the sketch session adapter stays under `src/sketch/python/`

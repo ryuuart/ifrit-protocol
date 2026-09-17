@@ -70,6 +70,7 @@ SeerSession::SeerSession(QObject* parent, QString settingsDirectory,
   if (!sendsTo.isEmpty()) {
     m_sendForm.setPeerUri(sendsTo);
     m_sendForm.reachPeer();
+    if (opensOn.isEmpty()) open(sendsTo);
   }
   // The form is filled in here as well, so the pane comes up holding
   // what this run has to say and a picture of it is a picture of the

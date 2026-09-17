@@ -128,6 +128,7 @@ struct CoverageBoundary {
   const CutOuts cut;
 
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -138,8 +139,7 @@ struct CoverageBoundary {
     };
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "COVERAGE BOUNDARY · "
-                  "Element::boundary(Boundary::Coverage)",
+        {.title = "Coverage boundary",
          .subtitle = "dials · the boundary · the "
                      "cut-out's alpha (0.30, under the half a "
                      "pixel must be covered to join) · the "

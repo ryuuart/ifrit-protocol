@@ -60,7 +60,7 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 604};
+constexpr SkSize kCanvas = {1100, 644};
 constexpr float kChainCell = 342;
 constexpr float kOptionCell = 254;
 constexpr SkSize kFrame = {158, 176};  // one frame of a chain
@@ -141,12 +141,12 @@ Element optionPlate(Element body) {
 
 struct KeepsAndFrames {
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "KEEPS AND FRAME OPTIONS · KeepOptions, "
-                  "Element::firstBaseline, Element::distribute",
+        {.title = "Keeps and frame options",
          .subtitle = "dials · the widow and orphan counts "
                      "(2 and 2) · startInNextFrame · "
                      "the seating rule · what becomes of the "

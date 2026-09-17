@@ -55,9 +55,9 @@ constexpr float kPicture = 194;
 constexpr float kPhase = 17;  // how far the sett slides along +x, px
 constexpr float kPan = 21;    // the mapping's pan, px
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.cellGround = {0.09f, 0.095f, 0.11f, 1};
   return look;
 }
@@ -115,8 +115,7 @@ struct PatternSequence {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "PATTERN SEQUENCE · pattern::sequence and "
-                  "Tile's mapping",
+        {.title = "Pattern sequence",
          .subtitle = "dials · the runs and their period "
                      "· the phase (17 px) · the pan "
                      "(21 px) · the scale, the rotation and "

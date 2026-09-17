@@ -115,6 +115,7 @@ Element cell(const char* call, const char* note, sk_sp<SkImage> picture,
 
 struct EncodeWrite {
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     // every encode has already been taken
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -157,8 +158,7 @@ struct EncodeWrite {
                        read ? read->width() : 0, read ? read->height() : 0);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "ENCODE, THEN WRITE · image::encodeImage, "
-                  "io::Hub::write",
+        {.title = "Encode, then write",
          .subtitle = "dials · the format · the quality the "
                      "lossy ones honour (24) · the source's side "
                      "(176 px) · the mount the bytes are stored "

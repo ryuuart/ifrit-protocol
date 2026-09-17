@@ -46,7 +46,7 @@
 #include <sigilio/hub/Hub.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <array>
@@ -200,6 +200,7 @@ struct GrpcWatch {
   Reading shown;
 
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
     sketch::kit::stage(
         ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
     ticker = &ctx.ticker;
@@ -336,16 +337,27 @@ struct GrpcWatch {
   }
 
   void describe(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
     std::vector<compose::Element> parts;
     parts.push_back(compose::pen("grpc_watch.sky", [this](Pen& pen) {
                       bands(pen);
                     }).cover());
     if (shown.generation == 0) parts.push_back(invitation());
-    parts.push_back(readout());
-    ctx.composer.render(compose::stack()
-                            .width(kCanvas.width())
-                            .height(kCanvas.height())
-                            .children(std::move(parts)));
+    compose::Element picture = compose::stack()
+                                   .width(kCanvas.width())
+                                   .height(kCanvas.height())
+                                   .children(std::move(parts));
+    ctx.composer.render(sketch::kit::instrument(
+        {.page = {.title = "A scene on a stream.",
+                  .subtitle = "gRPC / BIDIRECTIONAL  /  A long-lived "
+                              "connection carries updates in both directions.",
+                  .footer = "Run watch.py beside this sketch to send data  ·  "
+                            "Captures replay the local recording"},
+         .pictureSize = kCanvas,
+         .pictureWidth = 816,
+         .note = "The remote controls shape the bands; viewport readings "
+                 "travel back upstream."},
+        std::move(picture).fill(kGround), readout()));
   }
 
   /** The bands: each a ribbon of segments the width of the canvas,
@@ -377,7 +389,7 @@ struct GrpcWatch {
         .centerAt({kCanvas.width() * 0.5f, kCanvas.height() - 96.0f});
   }
 
-  /** WHAT THE CONNECTION ANSWERS, small in the corner: which door this
+  /** WHAT THE CONNECTION ANSWERS, in the reading panel: which door this
    *  is, how many messages have arrived, how many of them were no
    *  message at all, how many sends reached a caller, and the local end
    *  as the transport bound it — or the sentence saying why there is
@@ -401,11 +413,9 @@ struct GrpcWatch {
           row("address", shown.address.empty() ? "-" : shown.address));
     return compose::box()
         .column()
-        .gap(look.spacing.rowGap)
-        .left(kMargin)
-        .bottom(kMargin)
-        .font(look.font({.size = 11, .mono = true}))
-        .ink(look.palette.ash)
+        .gap(12)
+        .font(look.font({.size = 12, .mono = true}))
+        .ink(look.palette.ink)
         .children(std::move(lines));
   }
 };

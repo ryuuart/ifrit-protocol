@@ -54,7 +54,7 @@ constexpr SkColor4f kCasing{0.05f, 0.05f, 0.06f, 1};
 constexpr SkColor4f kCore{0.86f, 0.80f, 0.66f, 1};
 constexpr SkColor4f kPin{0.92f, 0.36f, 0.30f, 1};
 
-/** The house sheet, in this one's own look.
+/** The specimen sheet, in this one's own look.
  *
  *  A hot-reload fixture grounds a copy of this file in a colour of its
  *  own by writing one into this theme's palette and reads the corner
@@ -62,11 +62,10 @@ constexpr SkColor4f kPin{0.92f, 0.36f, 0.30f, 1};
  *  from here — which they do, because the theme is bound before
  *  `stage()` runs. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   // Behind one cell's specimen, a shade off the sheet's own ground.
   look.palette.cellGround = {0.11f, 0.11f, 0.13f, 1};
   look.type.captionLabel = {.size = 11.5f, .track = 0.6f};
-  look.type.captionNote = {.size = 11, .track = 0.3f};
   return look;
 }
 
@@ -225,8 +224,7 @@ struct CrossingRuleSheet {
          .gap = 14});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "CROSSING RULE · discoverCrossings + CrossingRule + "
-                  "crossingPatch",
+        {.title = "Crossing rule",
          .subtitle = "dials · the rule (named on each cell) · the patch "
                      "width (reach 15 px, cap 30 px)",
          .footer = "a knot is decided, never drawn in order — the cyclic "

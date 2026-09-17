@@ -52,7 +52,7 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 596};
+constexpr SkSize kCanvas = {1100, 636};
 constexpr float kCell = 252;
 constexpr float kPicture = 168;
 
@@ -60,9 +60,9 @@ constexpr const char* kWord = "SIGIL";
 constexpr float kSize = 56;      // the type size, px
 constexpr float kMoment = 6.4f;  // the second every field is frozen at
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.ground = {0.06f, 0.06f, 0.075f, 1};
   look.palette.cellGround = {0.10f, 0.105f, 0.125f, 1};
   look.spacing.captionGap = 8;
@@ -159,8 +159,7 @@ struct TextPaints {
 
     ctx.composer.render(
         sketch::kit::page(
-            {.title = "TEXT PAINTS · Element::textFill over kit::water, "
-                      "meshGradient, sparkle, starNest, clouds, tunnel",
+            {.title = "Text paints",
              .subtitle = "dials · the paint · the type size (56 px — change "
                          "it and the fills do not move) · the moment (6.4 s)",
              .footer = "the material's unit square lands with x across the "

@@ -115,6 +115,7 @@ const sketch::kit::Cell kSpecimen{
 
 struct HalfFloat {
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     // both readbacks have already been taken
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -147,8 +148,7 @@ struct HalfFloat {
         bytes.size() > hot * 4 ? (float)bytes[hot * 4] / 255.0f : 0.0f, kPeak);
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE DRAWABLE COPY · skia::isFloatImage, "
-                  "halfFloatPixels, bytePixels",
+        {.title = "The drawable copy",
          .subtitle = "dials · how far past one the ramp runs "
                      "(6.0) · the two exposures each "
                      "readback is tone-mapped at (1.0 and 0.18) "

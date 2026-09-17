@@ -53,7 +53,7 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 660};
+constexpr SkSize kCanvas = {1100, 700};
 constexpr float kCell = 341;
 constexpr float kPicture = 200;
 
@@ -61,9 +61,9 @@ constexpr int kCols = 4, kRows = 2;  // the grid the sheet is cut on
 constexpr int kCellSide = 64;        // one cell's pixels
 constexpr size_t kPlayhead = 6;      // the frame index the wrap cell reads
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.cellGround = {0.09f, 0.095f, 0.11f, 1};
   return look;
 }
@@ -260,8 +260,7 @@ struct MaterialAtlas {
          .gap = 14});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "MATERIAL ATLAS · Atlas grid, fromTexturePacker, "
-                  "fromAseprite, region, frame",
+        {.title = "Material atlas",
          .subtitle = kit::formatted(
              "dials · the grid (%d by %d of %d px) · the source JSON · the "
              "sequence · the playhead (%zu, past the end of a four-frame run)",

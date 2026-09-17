@@ -104,6 +104,7 @@ struct WarichuPlaceholder {
   float oneLine = 0;
 
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -130,8 +131,7 @@ struct WarichuPlaceholder {
                                reinterpret_cast<const char*>(second.c_str()));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "WARICHU · weave::warichuSplit into a "
-                  "reserved inline slot",
+        {.title = "Warichu",
          .subtitle = "dials · the note's own size (8 px "
                      "against a 13 px base) · the slot's "
                      "baseline drop · the note's length, "

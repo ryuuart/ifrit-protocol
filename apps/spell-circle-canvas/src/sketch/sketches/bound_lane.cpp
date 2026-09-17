@@ -84,18 +84,13 @@ constexpr double kPeriod = 6.0;  // seconds per lap of `phase`
 constexpr float kLook = 0.02f;   // lookAhead: the auto-orient chord
 constexpr float kLaps = 2.0f;    // track 4's .target(0, kLaps)
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
   look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
-  look.palette.ash = {0.55f, 0.60f, 0.70f, 1};
   look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
-  look.type.title = {.size = 15, .track = 2};
-  look.type.subtitle = {.size = 11, .track = 0.6f};
-  look.type.footer = {.size = 10.5f};
   look.type.captionLabel = {.size = 13};
-  look.type.captionNote = {.size = 11};
   look.captionWhere = kit::Caption::Where::Below;
   look.spacing.marginX = 30;
   look.spacing.marginTop = 22;
@@ -364,7 +359,7 @@ struct BoundLane {
 
     ctx.composer.render(
         sketch::kit::page(
-            {.title = "THE BOUND LANE · bind(&output)",
+            {.title = "The bound lane",
              .subtitle = "normalise → envelope "
                          "→ curve → quantize "
                          "→ affine → wrap "

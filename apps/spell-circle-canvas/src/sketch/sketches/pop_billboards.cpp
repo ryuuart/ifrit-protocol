@@ -54,7 +54,7 @@ namespace pop = sigil::geometry::mesh::pop;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 748};
+constexpr SkSize kCanvas = {1100, 788};
 constexpr float kCell = 340;
 constexpr float kPicture = 248;
 
@@ -62,12 +62,11 @@ constexpr int kMotes = 5200;     // points in each cloud
 constexpr float kNoise = 20;     // the displacement Relax has to heal
 constexpr int kIterations = 12;  // the strongest smoothing on the sheet
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.cellGround = {0.09f, 0.095f, 0.11f, 1};
   look.type.captionLabel = {.size = 12, .track = 1.2f};
-  look.type.captionNote = {.size = 10.5f, .mono = true};
   look.spacing.captionGap = 8;
   return look;
 }
@@ -215,7 +214,7 @@ struct PopBillboards {
          .gap = 14});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "POP BILLBOARDS · cookBillboards + BillboardStyle + Relax",
+        {.title = "A field of billboards",
          .subtitle = "dials · the relax iterations (0, 3, 12) · "
                      "the sprite · the atlas cell (4 by 4)",
          .footer = "the splatting sink forms no geometry: it projects, "

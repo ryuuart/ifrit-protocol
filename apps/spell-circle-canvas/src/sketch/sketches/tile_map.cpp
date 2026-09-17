@@ -89,11 +89,8 @@ constexpr SkColor4f kFlash{1.0f, 0.58f, 0.20f, 0.55f};
 /** This page's look: the map's own near-black, and a header set close
  *  enough to the grid that the chunks keep the width they ask for. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look;
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette = {.ground = kGround, .ink = kInk, .ash = kAsh, .rule = kRule};
-  look.type.title = {.size = 20, .track = 2.6f};
-  look.type.subtitle = {.size = 11.5f, .track = 0.4f};
-  look.type.footer = {.size = 11, .track = 0.6f};
   look.spacing.marginX = kPad;
   look.spacing.marginTop = kPad * 0.6f;
   look.spacing.marginBottom = kPad * 0.5f;
@@ -307,7 +304,7 @@ struct TileMap {
                              worked.reconcileMs, worked.paintMs);
 
     return sketch::kit::page(
-        {.title = u8"MEMO CHUNKING",
+        {.title = u8"A map, kept in pieces",
          .subtitle = u8"one tile edited every 0.7 s — the chunk "
                      u8"that holds it is described again and washed; the "
                      u8"other three replay",

@@ -1,22 +1,3 @@
-// THE WIRES: a field to open one, the schema they are all read
-// through, and the list of the ones that are open.
-//
-// A row is a whole wire — whether anything is coming, the URI it was
-// opened on, either the end the transport bound or the sentence saying
-// why it bound none, the word its scheme speaks in, and the end its
-// newest message came from. A reader picks a wire before a message has
-// arrived on any of them, so the word is there from the moment the wire
-// is opened: what it SPEAKS is a fact about the wire, while what one
-// message turned out to be is a fact about the message and is read in
-// the pane beside this one. A wire that could not be opened is listed
-// like any other, because the reader has to see the URI they mistyped
-// beside what is wrong with it.
-//
-// The schema stands here with the wires rather than with the readings
-// because it is one file over all of them, and what a reader has to see
-// of it is the root it declares: that is how they know the file they
-// picked is the one they meant.
-
 pragma ComponentBehavior: Bound
 
 import QtQuick
@@ -47,7 +28,19 @@ Ui.Panel {
         anchors.fill: parent
         spacing: 10
 
-        Ui.SectionHeading { text: "Connections" }
+        Ui.PanelHeading { title: "Connections"; detail: wireView.count + " open"; Layout.fillWidth: true }
+        ComboBox {
+            id: protocol
+            Layout.fillWidth: true
+            model: ["Custom address", "UDP · listen", "OSC · listen", "WebSocket · listen", "MIDI · virtual input", "Art-Net · listen"]
+            Accessible.name: "Connection protocol template"
+            onActivated: index => {
+                const templates = ["", "udp://:27020", "osc://:27050", "ws://:27060/sky", "midi://in/virtual:Seer", "artnet://:6454"];
+                uriField.text = templates[index];
+                uriField.forceActiveFocus();
+                uriField.selectAll();
+            }
+        }
 
         RowLayout {
             Layout.fillWidth: true
@@ -57,13 +50,14 @@ Ui.Panel {
                 id: uriField
 
                 Layout.fillWidth: true
-                placeholderText: "udp://:27020"
+                placeholderText: "Protocol and address"
+                Accessible.name: "Connection address"
                 font.family: Ui.Theme.monospaceFontFamily
                 onAccepted: pane.openTyped()
             }
 
             Button {
-                text: "Open"
+                text: "Connect"
                 enabled: uriField.text.trim().length > 0
                 onClicked: pane.openTyped()
             }
@@ -89,12 +83,6 @@ Ui.Panel {
                 font.pixelSize: Ui.Theme.captionSize
                 elide: Text.ElideMiddle
             }
-        }
-
-        Button {
-            Layout.fillWidth: true
-            text: "Open Receiver"
-            onClicked: pane.session.openReceiver()
         }
 
         ListView {
@@ -135,10 +123,10 @@ Ui.Panel {
                     // opened — with the reason in the line below it.
                     Rectangle {
                         Layout.alignment: Qt.AlignVCenter
-                        width: 8
-                        height: 8
+                        Layout.preferredWidth: 8
+                        Layout.preferredHeight: 8
                         radius: 4
-                        color: wire.error.length > 0 || wire.closed ? Ui.Theme.disabledText : wire.arrivalsPerSecond > 0 ? Ui.Theme.statusText : Ui.Theme.secondaryText
+                        color: wire.error.length > 0 ? Ui.Theme.errorText : wire.closed ? Ui.Theme.disabledText : wire.arrivalsPerSecond > 0 ? Ui.Theme.statusText : Ui.Theme.secondaryText
                     }
 
                     ColumnLayout {
@@ -159,7 +147,7 @@ Ui.Panel {
                         Label {
                             Layout.fillWidth: true
                             text: wire.error.length > 0 ? wire.error : wire.address.length > 0 ? wire.address : "not bound"
-                            color: wire.error.length > 0 ? Ui.Theme.primaryText : Ui.Theme.secondaryText
+                            color: wire.error.length > 0 ? Ui.Theme.errorText : Ui.Theme.secondaryText
                             font.pixelSize: Ui.Theme.captionSize
                             elide: Text.ElideRight
                         }
@@ -211,7 +199,7 @@ Ui.Panel {
 
             Label {
                 anchors.centerIn: parent
-                text: "No wires open"
+                text: "No connections yet"
                 color: Ui.Theme.disabledText
                 font.pixelSize: Ui.Theme.bodySize
                 visible: wireView.count === 0

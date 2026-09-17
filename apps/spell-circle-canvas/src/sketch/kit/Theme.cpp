@@ -155,6 +155,20 @@ const Theme& studyTheme() {
   return study;
 }
 
+const Theme& specimenTheme() {
+  static const Theme specimen = [] {
+    Theme sheet = houseTheme();
+    sheet.palette.ash = {0.65f, 0.67f, 0.72f, 1};
+    sheet.type.sans = houseFace(Voice::Interface);
+    sheet.type.title = {.size = 22, .track = -0.2f};
+    sheet.type.subtitle = {.size = 11.5f, .track = 0};
+    sheet.type.footer = {.size = 11, .track = 0};
+    sheet.type.captionNote = {.size = 11, .track = 0};
+    return sheet;
+  }();
+  return specimen;
+}
+
 const Theme& theme() {
   const Theme* bound = sigil::core::environment::inherited<Theme>();
   return bound != nullptr ? *bound : houseTheme();

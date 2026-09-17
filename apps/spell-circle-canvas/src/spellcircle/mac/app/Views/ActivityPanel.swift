@@ -40,14 +40,14 @@ struct ActivityPanel: View {
                     }
                 }
 
-                Section("Status") {
-                    infoRow("Zoom", model.zoomPercent > 0
+                Section("Output") {
+                    infoRow("View", model.zoomPercent > 0
                         ? "\(Int(model.zoomPercent.rounded()))%" : "—")
                     infoRow("Canvas", "\(model.canvasWidth) × \(model.canvasHeight) px")
                     infoRow("Render", model.renderMillis > 0
                         ? String(format: "%.1f ms", model.renderMillis) : "—")
-                    infoRow("Rate", model.scenesPerSecond > 0.5
-                        ? String(format: "%.0f scenes/s", model.scenesPerSecond) : "—")
+                    infoRow("Arrival rate", model.scenesPerSecond > 0.5
+                        ? String(format: "%.0f scenes/s", model.scenesPerSecond) : "Idle")
                     // View-zoom actions live in the window toolbar.
                 }
             }

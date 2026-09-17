@@ -87,6 +87,7 @@ struct PlaceRepeatTiles {
   sk_sp<SkPicture> strip;
 
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::specimenTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
@@ -129,8 +130,7 @@ struct PlaceRepeatTiles {
         snapshot(box().children({std::move(run)}), *ctx.fonts));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "REPEAT AND TILE · instancing::place::"
-                  "repeat, tiles::window / tiles::sliceable",
+        {.title = "Repeat and tile",
          .subtitle = "dials · the copy count (9) · the "
                      "per-copy translate (19 px), rotation and scale step "
                      "· the opacity ramp · the tile count (4) "
@@ -195,27 +195,25 @@ struct PlaceRepeatTiles {
                  : "four tiles of one baked picture, drawn apart "
                    "· sliceable() first, so each replay "
                    "visits only its own ops",
-        custom(mirrored ? "tiles.mirrored" : "tiles.forward",
-               [art, facing](SkCanvas& canvas) {
-                 constexpr float kAir = 4;
-                 const float scale = 0.62f;
-                 canvas.save();
-                 canvas.translate(10, 8);
-                 canvas.scale(scale, scale);
-                 for (int k = 0; k < kTiles; ++k) {
-                   canvas.save();
-                   canvas.translate(k * ((float)kTile.width() + kAir / scale),
-                                    0);
-                   canvas.clipRect(SkRect::MakeWH((float)kTile.width(),
-                                                  (float)kTile.height()));
-                   canvas.concat(
-                       tiles::window(kTile, k, tiles::Flow::Down, facing));
-                   canvas.drawPicture(art);
-                   canvas.restore();
-                 }
-                 canvas.restore();
-               })
-            .cover());
+        custom(mirrored ? "tiles.mirrored" : "tiles.forward", [art, facing](
+                                                                  SkCanvas&
+                                                                      canvas) {
+          constexpr float kAir = 4;
+          const float scale = 0.62f;
+          canvas.save();
+          canvas.translate(10, 8);
+          canvas.scale(scale, scale);
+          for (int k = 0; k < kTiles; ++k) {
+            canvas.save();
+            canvas.translate(k * ((float)kTile.width() + kAir / scale), 0);
+            canvas.clipRect(
+                SkRect::MakeWH((float)kTile.width(), (float)kTile.height()));
+            canvas.concat(tiles::window(kTile, k, tiles::Flow::Down, facing));
+            canvas.drawPicture(art);
+            canvas.restore();
+          }
+          canvas.restore();
+        }).cover());
   }
 };
 

@@ -24,7 +24,7 @@ namespace sigil::sketch {
 class Host;
 }  // namespace sigil::sketch
 
-namespace sigil::publish {
+namespace sigil::io::publish {
 class Publisher;
 }
 
@@ -83,7 +83,7 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
    *  offering them. The flag is the view's, read on every synchronize;
    *  the publisher stands only while it is true, because a publication
    *  that exists is one other applications can already see. */
-  std::unique_ptr<sigil::publish::Publisher> m_publisher;
+  std::unique_ptr<sigil::io::publish::Publisher> m_publisher;
   bool m_publishing = false;
   std::uint64_t m_publicationRequest = 0;
   SketchbookView* m_view = nullptr;

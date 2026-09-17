@@ -47,7 +47,7 @@
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Source.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Instrument.h>
 
 #include <cmath>
 #include <cstddef>
@@ -95,6 +95,7 @@ struct SchemaScene {
   std::shared_ptr<const io::Bytes> taken;
 
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(sketch::kit::studyTheme());
     sketch::kit::stage(ctx, {.size = {1280, 720},
                              .captureAt = 2.0,
                              .background = SkColor4f{0.04f, 0.04f, 0.09f, 1}});
@@ -129,8 +130,28 @@ struct SchemaScene {
     if (!ctx.deterministic)
       live = data::Connection(ctx.assets.hub(), kLive,
                               data::schema<schema_scene::Envelope>());
-    ctx.composer.render(
-        compose::pen("schema_scene.sky", [this](Pen& pen) { draw(pen); }));
+    ctx.composer.render(sketch::kit::instrument(
+        {.page = {.title = "A scene, described as data.",
+                  .subtitle = "FLATBUFFERS / SCHEMA  /  A file and a live "
+                              "message share one description.",
+                  .footer = "Edit data/sky.json and save  ·  Send a matching "
+                            "Envelope to udp://:27022"},
+         .pictureWidth = 816,
+         .readingsLabel = "SOURCE",
+         .note = "The schema owns the bands, wind and palette. The renderer "
+                 "draws the verified value."},
+        compose::pen("schema_scene.sky", [this](Pen& pen) { draw(pen); })
+            .fill(SkColor4f{0.04f, 0.04f, 0.09f, 1}),
+        compose::box().column().gap(18).children(
+            {compose::text("DOCUMENT").styleClass("eyebrow"),
+             compose::text("data/sky.json"),
+             compose::text("SCHEMA").styleClass("eyebrow"),
+             compose::text("Envelope → Sky"),
+             compose::text("LIVE INPUT").styleClass("eyebrow"),
+             compose::text(kLive),
+             compose::text("A valid live message replaces the file's sky. An "
+                           "invalid message leaves the last picture in place.")
+                 .styleClass("captionNote")})));
   }
 
   /** The newest message on the door, read once each time one arrives:

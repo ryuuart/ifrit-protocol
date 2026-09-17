@@ -57,11 +57,10 @@ constexpr float kSkewDeg = -12;  // the shear the second cell's rows ride
 
 constexpr SkColor4f kCard{0.17f, 0.18f, 0.21f, 1};
 
-/** The house sheet, in this one's caption voice. */
+/** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.type.captionLabel = {.size = 11, .mono = true};
-  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
   look.spacing.captionGap = 8;
   return look;
 }
@@ -106,8 +105,7 @@ struct GridLayouts {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "GRID LAYOUTS · layout(layouts::"
-                  "Grid | Diagonal | BaselineGrid)",
+        {.title = "Grid layouts",
          .subtitle = "dials · the module (3 columns "
                      "× 4 rows, 10 px gutter) · the "
                      "baseline rhythm (32 px) · the shear "

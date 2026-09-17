@@ -4,15 +4,15 @@ import QtQuick.Layouts
 import Ifrit.Qt 1.0 as Ui
 import SpellCircle.Canvas 1.0
 
-Window {
+Ui.AppWindow {
     id: settings
     required property var receiver
     property string error: ""
     property bool accepted: false
-    title: "Receiver Settings"
+    title: "Scene Receiver Settings"
     flags: Qt.platform.os === "osx" ? Qt.Sheet : Qt.Dialog
     width: 500
-    height: 730
+    height: 640
     minimumWidth: 480
     minimumHeight: 540
     color: Ui.Theme.windowBackground

@@ -279,6 +279,10 @@ enum class Voice {
  *  measured readouts; its resolved faces are shared across calls. */
 [[nodiscard]] const Theme& studyTheme();
 
+/** A compact comparison sheet with a readable title and notes, retaining
+ *  the house sheet's margins so fixed specimen wells keep their measure. */
+[[nodiscard]] const Theme& specimenTheme();
+
 /** THE THEME IN SCOPE, or the house one where nothing bound a theme —
  *  which is what makes every component here correct on its own. */
 [[nodiscard]] const Theme& theme();

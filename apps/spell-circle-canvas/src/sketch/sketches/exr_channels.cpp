@@ -82,13 +82,10 @@ constexpr SkSize kCanvas = {1080, 396};
 
 constexpr SkColor4f kCellGround{0.12f, 0.12f, 0.14f, 1};
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
-  look.type.subtitle = {.size = 11, .track = 0.6f};
-  look.type.footer = {.size = 10.5f, .track = 0.3f};
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.type.captionLabel = {.size = 11, .track = 0.4f};
-  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
   look.spacing.captionGap = 6;
   return look;
 }
@@ -252,8 +249,7 @@ struct ExrChannels {
       foot += "nothing";
     }
 
-    return sketch::kit::page({.title = "FLOAT CHANNELS · decodeChannels "
-                                       "+ ChannelData::index / makeImage",
+    return sketch::kit::page({.title = "Float channels",
                               .subtitle = "dials · the channel (named on "
                                           "each cell) · the slot the "
                                           "picked plane fills",

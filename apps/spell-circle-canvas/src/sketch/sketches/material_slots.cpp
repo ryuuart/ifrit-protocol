@@ -81,18 +81,13 @@ constexpr float kMaskContrast = 3.2f;  // how hard the grain field's cut is
 constexpr SkColor4f kFrame{0.20f, 0.24f, 0.32f, 1};
 constexpr float kPanel = 180.0f;
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
   look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
-  look.palette.ash = {0.55f, 0.60f, 0.70f, 1};
   look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
-  look.type.title = {.size = 15, .track = 2};
-  look.type.subtitle = {.size = 11, .track = 0.6f};
-  look.type.footer = {.size = 10.5f, .track = 0.2f};
   look.type.captionLabel = {.size = 12.5f, .track = 0.4f};
-  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
   look.spacing.marginX = 30;
   look.spacing.marginTop = 22;
   look.spacing.captionGap = 6;
@@ -322,8 +317,7 @@ struct MaterialChild {
          .gap = 20});
 
     return sketch::kit::page(
-        {.title = "SLOTS · a material filling "
-                  "another's",
+        {.title = "Materials inside materials",
          .subtitle = "top: Paint::sksl(…).slot() "
                      "— an index texture read "
                      "through a palette LUT · bottom: "

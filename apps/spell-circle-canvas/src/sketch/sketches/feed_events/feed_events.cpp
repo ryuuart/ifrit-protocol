@@ -49,7 +49,7 @@
 #include <sigilio/hub/Hub.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <algorithm>
@@ -188,6 +188,7 @@ struct FeedEvents {
   Reading shown;
 
   void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
     sketch::kit::stage(
         ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
     ticker = &ctx.ticker;
@@ -296,20 +297,30 @@ struct FeedEvents {
   }
 
   void describe(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide sheet(sketch::kit::studyTheme());
     // A paint program runs after the describe scope has closed, where
     // the theme in force is no longer this page's, so the one colour a
     // wave is drawn in is read here and carried in by value.
     const SkColor4f crest = sketch::kit::theme().palette.figure;
-    ctx.composer.render(compose::stack()
-                            .width(kCanvas.width())
-                            .height(kCanvas.height())
-                            .children({compose::pen("feed_events.sky",
-                                                    [this, crest](Pen& pen) {
-                                                      sky(pen);
-                                                      crossings(pen, crest);
-                                                    })
-                                           .cover(),
-                                       readout()}));
+    compose::Element picture =
+        compose::stack()
+            .width(kCanvas.width())
+            .height(kCanvas.height())
+            .children({compose::pen("feed_events.sky", [this, crest](Pen& pen) {
+                         sky(pen);
+                         crossings(pen, crest);
+                       }).cover()});
+    ctx.composer.render(sketch::kit::instrument(
+        {.page = {.title = "State meets an event.",
+                  .subtitle = "UDP / EVENTS  /  A steady signal, with a moment "
+                              "that travels through it.",
+                  .footer = "Run events.py beside this sketch to send data  ·  "
+                            "Captures replay the local recording"},
+         .pictureSize = kCanvas,
+         .pictureWidth = 816,
+         .note = "State sets the wind and palette. Events send a crest across "
+                 "the field."},
+        std::move(picture).fill(kGround), readout()));
   }
 
   /** THE STATE, DRAWN: bands carried on the drift the wind has built,
@@ -360,7 +371,7 @@ struct FeedEvents {
     }
   }
 
-  /** WHAT THE CONNECTION ANSWERS, small in the corner: how many
+  /** WHAT THE CONNECTION ANSWERS, in the reading panel: how many
    *  messages have arrived, how many were no JSON document at all, one
    *  line per kind with how many of each, and where the door is — or
    *  the sentence saying why there is none. */
@@ -387,11 +398,9 @@ struct FeedEvents {
           row("address", shown.address.empty() ? "-" : shown.address));
     return compose::box()
         .column()
-        .gap(look.spacing.rowGap)
-        .left(kMargin)
-        .bottom(kMargin)
-        .font(look.font({.size = 11, .mono = true}))
-        .ink(look.palette.ash)
+        .gap(12)
+        .font(look.font({.size = 12, .mono = true}))
+        .ink(look.palette.ink)
         .children(std::move(lines));
   }
 

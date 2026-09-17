@@ -18,10 +18,10 @@
 # connection brings that hub and the dynamic value with it.
 sigil_library(SigilSketchKit
   SOURCES Cells.cpp Channel.cpp Chart.cpp ChartMarks.cpp Console.cpp
-          Document.cpp Heading.cpp Legend.cpp Meter.cpp Page.cpp Panel.cpp
+          Document.cpp Heading.cpp Instrument.cpp Legend.cpp Meter.cpp Page.cpp Panel.cpp
           Passage.cpp Rows.cpp Scrollbar.cpp Theme.cpp Ticker.cpp
   HEADERS Cells.h Channel.h Chart.h Console.h Document.h Heading.h Kit.h
-          Legend.h Meter.h Page.h Panel.h Passage.h Rows.h Scrollbar.h
+          Instrument.h Legend.h Meter.h Page.h Panel.h Passage.h Rows.h Scrollbar.h
           Theme.h Ticker.h
   PUBLIC SigilSketch SigilComposeCore SigilComposeKit SigilCoreReconcile
          SigilDataConnection SigilDataDecode SigilDataScale SigilGeometryKit

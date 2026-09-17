@@ -4,6 +4,8 @@
 #include <QJsonObject>
 #include <QObject>
 
+#include "ReceiverDefaults.h"
+
 /** Geometry of the labelled boxes a scene can attach to its points, exposed as
  *  a grouped QML property on GraphicsConfig (receiver.config.box.width,
  *  and so on) — the grouping convention Qt itself uses for Rectangle.border.
@@ -51,10 +53,10 @@ class BoxStyleConfig : public QObject {
   void changed();
 
  private:
-  qreal m_width = 360.0;
-  qreal m_height = 140.0;
-  qreal m_padding = 16.0;
-  qreal m_distance = 40.0;
+  qreal m_width = spellcircle::ReceiverDefaults::boxWidth;
+  qreal m_height = spellcircle::ReceiverDefaults::boxHeight;
+  qreal m_padding = spellcircle::ReceiverDefaults::boxPadding;
+  qreal m_distance = spellcircle::ReceiverDefaults::boxDistance;
 };
 
 /** Size of the render target, in real pixels, exposed as a grouped QML property
@@ -66,11 +68,20 @@ class BoxStyleConfig : public QObject {
  *  settings would let the geometry and the surface disagree. */
 class CanvasSizeConfig : public QObject {
   Q_OBJECT
+  Q_PROPERTY(int minimum READ minimum CONSTANT)
+  Q_PROPERTY(int maximum READ maximum CONSTANT)
   Q_PROPERTY(int width READ width WRITE setWidth NOTIFY changed)
   Q_PROPERTY(int height READ height WRITE setHeight NOTIFY changed)
 
  public:
   explicit CanvasSizeConfig(QObject* parent = nullptr) : QObject(parent) {}
+
+  int minimum() const {
+    return spellcircle::ReceiverDefaults::minimumCanvasSize;
+  }
+  int maximum() const {
+    return spellcircle::ReceiverDefaults::maximumCanvasSize;
+  }
 
   /** Render-target width in pixels. */
   int width() const { return m_width; }
@@ -84,8 +95,8 @@ class CanvasSizeConfig : public QObject {
   void changed();
 
  private:
-  int m_width = 4000;
-  int m_height = 4000;
+  int m_width = spellcircle::ReceiverDefaults::canvasWidth;
+  int m_height = spellcircle::ReceiverDefaults::canvasHeight;
 };
 
 /**
@@ -199,11 +210,11 @@ class GraphicsConfig : public QObject {
    *  grouped objects' changed() signals are connected to it. */
   void bumpGeneration();
 
-  QColor m_color{"#ff0000"};
-  qreal m_strokeWidth = 4.0;
-  qreal m_scale = 1.0;
-  qreal m_labelOffset = 0.0;
-  qreal m_pointDistance = 40.0;
+  QColor m_color = QColor::fromRgba(spellcircle::ReceiverDefaults::color);
+  qreal m_strokeWidth = spellcircle::ReceiverDefaults::strokeWidth;
+  qreal m_scale = spellcircle::ReceiverDefaults::scale;
+  qreal m_labelOffset = spellcircle::ReceiverDefaults::labelOffset;
+  qreal m_pointDistance = spellcircle::ReceiverDefaults::pointDistance;
   QFont m_font;
   BoxStyleConfig* m_box;
   CanvasSizeConfig* m_canvas;

@@ -68,9 +68,9 @@ constexpr float kBlur = 0.35f;     // …and how soft
 
 constexpr SkColor4f kCellGround{0.06f, 0.065f, 0.08f, 1};
 
-/** The house sheet, in this one's own look. */
+/** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look = sketch::kit::houseTheme();
+  sketch::kit::Theme look = sketch::kit::specimenTheme();
   look.palette.cellGround = {0.06f, 0.065f, 0.08f, 1};
   return look;
 }
@@ -162,9 +162,7 @@ struct EnvLanes {
     shown.backdrop.blur = kBlur;
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "THE ENVIRONMENT'S DIALS · exposure, "
-                  "roughnessBias, diffuse/specular, crossfade, "
-                  "backdrop",
+        {.title = "The environment's dials",
          .subtitle = "dials · one stop against two (1.0 and "
                      "2.0) · the roughness added to every "
                      "surface (0.45) · the crossfade (0.75) "
