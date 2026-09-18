@@ -132,7 +132,9 @@ struct EvaMagiDeliberation {
             decorations::border(3.0f, Fill::currentInk(), 9.0f)))
         .children(
             {text(numeral)
-                 .font(fit(evangelion::voteNumeral(number), numeral, 88.0f,
+                 .ink({0, 0, 0, 1})
+                 .blend(SkBlendMode::kDstOut)
+                 .font(fit(evangelion::groteskBold(), numeral, 88.0f,
                            side - 48.0f))
                  .centerAt({side * 0.5f, side * layout.numberSlotY(number)}),
              text(name)
@@ -165,7 +167,7 @@ struct EvaMagiDeliberation {
              .font(fit(evangelion::condensedBold(), kReadout, 22.0f, 286.0f))
              .block({.leading = weave::Leading::absolute(32.0f)})
              .left(151.0f)
-             .top(334.0f),
+             .top(354.0f),
          text(u8"MAGI")
              .font(fit(evangelion::magiWordmark(), u8"MAGI", 54.0f, 230.0f))
              .centerAt({720.0f, 535.0f}),
@@ -185,16 +187,13 @@ struct EvaMagiDeliberation {
     return box().inset(0).children(
         {box()
              .inset(0)
-             .effect(evangelion::phosphor())
+             .fill(mskia::Paint::solid(kGround))
+             .effect(evangelion::crt(layout.canvasWidth, layout.canvasHeight))
              .cache(Cache::Texture)
-             .key("phosphor")
+             .key("crt")
              .children({backplane(), module(2, "BALTHASAR"),
                         module(3, "CASPER"), module(1, "MELCHIOR"),
-                        information()}),
-         box()
-             .inset(0)
-             .fill(mskia::Paint::recipe(evangelion::tube()))
-             .cache(Cache::Texture)});
+                        information()})});
   }
 
   void setup(sketch::SketchContext& context) {

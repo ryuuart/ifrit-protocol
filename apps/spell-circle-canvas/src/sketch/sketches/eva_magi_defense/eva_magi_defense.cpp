@@ -4,7 +4,7 @@
 // condensation. A continuous phosphor halo softens the lit edges.
 //
 // Capture at 2.5 seconds: five hostile sites, one friendly, the front still.
-// The front climbs from 3 to 17 seconds; the network then repeats.
+// The front climbs from 3 to 17 seconds, then holds its invaded state.
 
 // TAGS: Interfaces/Film
 
@@ -14,7 +14,6 @@
 #include "DefenseLayout.h"
 
 struct EvaMagiDefense {
-  ch::Output<float> creep{0.0f};    // scanline creep
   ch::Output<float> flicker{0.0f};  // phosphor dip (alpha of a black plane)
   ch::Output<float> blink{1.0f};    // COLLAPSING, hard on/off
 
@@ -114,7 +113,6 @@ struct EvaMagiDefense {
     const Site& s = kSites[index];
     const SkColor4f plateFill = friendly ? kFriendly : kHostile;
     const SkColor4f rim = friendly ? kRimFriendly : kRim;
-    const SkColor4f ink = friendly ? kInkFriendly : kInkHostile;
     const auto& module = tre::kModule;
 
     // The measured centre is the rotated silhouette's bounding-box centre.
@@ -170,7 +168,8 @@ struct EvaMagiDefense {
                         .alignItems(Align::Center)
                         .gap(-6)
                         .rotate(-s.rotation)
-                        .ink(ink)
+                        .ink({0, 0, 0, 1})
+                        .blend(SkBlendMode::kDstOut)
                         .children({text(u8"MAGI").font(type(36, 0.86f)),
                                    text(s.name).font(type(50, 0.95f))})});
     return plate;
@@ -262,22 +261,15 @@ struct EvaMagiDefense {
         .key("ribbonglow");
   }
 
-  /** A MARK ON ITS OWN BAKE, with the bloom baked into it. The bake is the
-   *  mark's turned box grown by the halo's reach — a layer effect reaches
-   *  no further than the node's own box — so the halo is complete and the
-   *  bake is the size of the mark, not of the canvas. The blit is exact at
-   *  any angle: a still mark bakes on the device grid, the plate's roll
-   *  included, and the recordings above it are pinned to that grid. */
+  /** A mark cached in its turned bounds before the whole screen is shaded. */
   Element glowing(SkPoint centre, float w, float h, float degrees,
                   const std::string& key,
                   const std::function<Element(SkPoint origin)>& mark) const {
     using namespace eva;
     const SkRect bounds = turnedBounds(centre, w, h, degrees);
-    const SkPoint origin{bounds.left() - kHaloReach, bounds.top() - kHaloReach};
-    return kit::at(origin.fX, origin.fY, bounds.width() + 2.0f * kHaloReach,
-                   bounds.height() + 2.0f * kHaloReach)
+    const SkPoint origin{bounds.left(), bounds.top()};
+    return kit::at(origin.fX, origin.fY, bounds.width(), bounds.height())
         .children({mark(origin)})
-        .effect(tubeBloom())
         .cache(Cache::Texture)
         .key(key);
   }
@@ -351,10 +343,8 @@ struct EvaMagiDefense {
     };
 
     auto root = stack().inset(0);
-    auto picture = stack().inset(0);
+    auto picture = stack().inset(0).fill(mskia::Paint::solid(kGround));
 
-    // (no ground node: the host clears to ctx.background, and a full-canvas
-    //  opaque fill on top of that is pure waste)
 
     // The ribbons: flat fills of one continuous field, panned by the front.
     // In a SLOT, so a fall's re-describe never reaches the funnel and the
@@ -365,15 +355,11 @@ struct EvaMagiDefense {
          // above both — a panel hides the ribbon under it, halo and all.
          camera(ribbonGlow()), camera(art()), camera(collapsingLayer(0)),
          camera(collapsingLayer(1))});
-    root.children({std::move(picture).key("phosphor")});
+    root.children({std::move(picture)
+                       .effect(evangelion::crt(kW, kH))
+                       .key("crt")});
 
-    // the photographed CRT: scanlines + vignette baked once, crept
-    mskia::Paint crt = mskia::Paint::recipe(evangelion::tube());
-    root.children({kit::at(0, -8, kW, kH + 16)
-                       .fill(crt)
-                       .translateY(&creep)
-                       .cache(Cache::Texture)
-                       .key("crt"),
+    root.children({
                    // phosphor flicker: an alpha-0 plane 99% of the time, so it
                    // costs nothing
                    box()
@@ -477,9 +463,6 @@ struct EvaMagiDefense {
     falls.build(eva::kFalls, eva::kFallN, 1);
     ctx.ticker.add([this, &ticker = ctx.ticker] {
       const double t = ticker.elapsed();
-      // scanlines creep one WHOLE PIXEL at a time, 4 px per 8 s: a fractional
-      // translate turns the cached CRT texture's blit into a resample.
-      creep = (float)(motion::stepIndex(t, 0.5) % 4);
       // phosphor flicker: a 4 s cycle, 1% duty
       const double ph = std::fmod(t, 4.0);
       flicker = ph < 0.04 ? 0.04f : 0.0f;

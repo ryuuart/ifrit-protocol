@@ -22,15 +22,16 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSize.h>
 #include <include/core/SkTypeface.h>
-#include <include/effects/SkImageFilters.h>
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/kit/Generators.h>
-#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/kit/Crt.h>
 #include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Bloom.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 
 namespace evangelion {
@@ -199,12 +200,6 @@ inline sk_sp<SkTypeface> magiWordmark() {
                                    SkFontStyle::kBold_Weight);
 }
 
-inline sk_sp<SkTypeface> voteNumeral(int number) {
-  return sigil::weave::ports::face(
-      {"Helvetica", "Arial"}, SkFontStyle::kBold_Weight,
-      number == 2 ? SkFontStyle::kOblique_Slant : SkFontStyle::kUpright_Slant);
-}
-
 inline sk_sp<SkTypeface> minchoHeavy() {
   return sigil::weave::ports::face(
       {"FOT-Matisse Pro EB", "FOT-Matisse ProN EB", "MatissePro-EB",
@@ -212,30 +207,50 @@ inline sk_sp<SkTypeface> minchoHeavy() {
       SkFontStyle::kBlack_Weight);
 }
 
-/** A continuous halo with a softly exposed core. Skia's Gaussian filters
- *  integrate thin strokes without the repeated contours of a sparse gather.
- *  Screen blending preserves saturated panel colours under their own light. */
-inline sigil::material::skia::Effect phosphor(float sigma = 1.6f,
-                                              float strength = 0.55f) {
-  using sigil::material::skia::Effect;
-  const auto bright = Effect::brightPass(0.55f, 0.25f).imageFilter();
-  auto halo = SkImageFilters::Blur(sigma, sigma, bright);
-  const float gain[20] = {1, 0, 0, 0, 0, 0, 1, 0, 0,        0,
-                          0, 0, 1, 0, 0, 0, 0, 0, strength, 0};
-  halo = SkImageFilters::ColorFilter(SkColorFilters::Matrix(gain), halo);
-  halo = SkImageFilters::Blend(SkBlendMode::kDstOut, halo, bright);
-  auto core = SkImageFilters::Blur(0.35f, 0.35f, nullptr);
-  return Effect::filter(
-      SkImageFilters::Blend(SkBlendMode::kScreen, core, halo));
-}
-
-inline sigil::material::Material tube() {
-  return sigil::material::field::crtOverlay({
-      .uScanPitch = 2.0f,
-      .uScanStrength = 0.012f,
-      .uVigStrength = 0.16f,
-      .uGrain = 0.035f,
+/** The shared colour-screen treatment, applied once to the whole display:
+ *  the phosphor light first — lit cores whitened, a close glow spread and
+ *  deepened toward each colour's strongest channel — then the tube, whose
+ *  own bloom is the last pass over everything. */
+inline sigil::material::skia::Effect crt(float width, float height) {
+  static const auto light = sigil::material::skia::bloom({
+      .sigma = 2.5f,
+      .strength = 0.5f,
+      .spread = 2.2f,
+      .tail = 0.3f,
+      .threshold = 0.12f,
+      .knee = 0.18f,
+      .softness = 0.85f,
+      .whitening = 0.2f,
+      .dilation = 1.0f,
+      .deepening = 2.0f,
   });
+  using sigil::material::skia::Effect;
+  // The tube's own light is drawn outside the recipe: its gather spends
+  // 192 taps a pixel every frame, where the same two Gaussians — 0.8 and
+  // 2.4 px, weighted 0.7 and 0.3, at 0.38, held at half and added — are
+  // separable blurs over the finished screen.
+  auto screen = sigil::material::kit::crt(SkRect::MakeWH(width, height));
+  screen.set("uBloom", 0.0f);
+  static const Effect tubeLight = [] {
+    const auto weigh = [](float w) {
+      const float m[20] = {w, 0, 0, 0, 0, 0, w, 0, 0, 0,
+                           0, 0, w, 0, 0, 0, 0, 0, 1, 0};
+      return Effect::filter(SkColorFilters::Matrix(m));
+    };
+    std::array<uint8_t, 256> half{};
+    for (int i = 0; i < 256; ++i)
+      half[i] = static_cast<uint8_t>(std::min(i, 128));
+    const Effect glow =
+        Effect::blur(0.8f).then(weigh(0.7f * 0.38f))
+            .emit(Effect::blur(2.4f).then(weigh(0.3f * 0.38f)),
+                  SkBlendMode::kPlus)
+            .then(Effect::filter(SkColorFilters::TableARGB(
+                nullptr, half.data(), half.data(), half.data())));
+    return Effect().emit(glow, SkBlendMode::kPlus);
+  }();
+  return light
+      .then(Effect::recipe(screen, std::max(width, height) * 0.05f + 10.0f))
+      .then(tubeLight);
 }
 
 /** The Japanese display register used where Matisse EB is unavailable. A

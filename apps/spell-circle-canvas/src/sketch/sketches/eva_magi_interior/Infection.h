@@ -1,11 +1,8 @@
 #pragma once
 
 #include <include/core/SkBitmap.h>
-#include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
-#include <include/core/SkPaint.h>
 #include <include/core/SkPath.h>
-#include <include/core/SkSurface.h>
 #include <include/effects/SkRuntimeEffect.h>
 
 #include <algorithm>
@@ -150,34 +147,6 @@ inline float frontFor(const Arrivals& table, float fraction) {
     }
   }
   return 1;
-}
-
-// At one pixel per cell the raster samples cell centres, excluding keylines.
-// The square voting modules give each cell equal visible area.
-inline float renderedCoverage(const sk_sp<SkRuntimeEffect>& effect,
-                              const Arrivals& table, float front) {
-  if (!effect || !table.field) return -1;
-  auto surface =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(table.columns, table.rows));
-  if (!surface) return -1;
-  SkRuntimeShaderBuilder program(effect);
-  program.uniform("uResolution") =
-      SkV2{(float)table.columns, (float)table.rows};
-  program.uniform("uCells") = SkV2{(float)table.columns, (float)table.rows};
-  program.uniform("uFront") = front;
-  program.uniform("uPour") = SkV4{1, 0, 0, 1};
-  program.uniform("uKey") = SkV4{0, 0, 0, 1};
-  program.child("uArrival") = table.field;
-  SkPaint paint;
-  paint.setShader(program.makeShader());
-  surface->getCanvas()->drawPaint(paint);
-  SkPixmap pixels;
-  if (!surface->peekPixels(&pixels)) return -1;
-  int infected = 0;
-  for (int y = 0; y < table.rows; ++y)
-    for (int x = 0; x < table.columns; ++x)
-      if (SkColorGetR(pixels.getColor(x, y)) > 127) ++infected;
-  return (float)infected / (float)(table.columns * table.rows);
 }
 
 }  // namespace magi

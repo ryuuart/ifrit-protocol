@@ -17,7 +17,6 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Edges.h>
-#include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -645,20 +644,11 @@ inline sk_sp<SkImage> fieldStrip(float hueTurn) {
 }
 
 // ---------------------------------------------------------------------------
-// THE BLOOM. Baked with each mark, so its cost is paid when a mark changes
-// and never per frame. The halo's reach is the node's box, so a mark's bake
-// is inset by kHaloReach on every side.
-
-constexpr float kBloomRadius = 6.0f;
-constexpr float kHaloReach = kBloomRadius * 2.0f + 8.0f;
-
-inline mskia::Effect tubeBloom() { return evangelion::phosphor(2.2f, 0.80f); }
-
 /** The ribbons' halo mask: the funnel's silhouette feathered twice — a
  *  tight pass and a wide one, the tail — with the silhouette itself cut
  *  back out, so the glow stands beside the ribbons and never over them. */
-constexpr float kRibbonHaloNear = 2.0f;
-constexpr float kRibbonHaloFar = 5.0f;
+constexpr float kRibbonHaloNear = 3.0f;
+constexpr float kRibbonHaloFar = 10.0f;
 constexpr float kRibbonHueTurn = -22.0f;  // the tail's hue, one turn for all
 
 inline sk_sp<SkImage> ribbonHaloMask(const SkPath& funnel) {
@@ -694,13 +684,9 @@ inline SkRect turnedBounds(SkPoint centre, float w, float h, float degrees) {
 }
 
 // ---------------------------------------------------------------------------
-// THE CRT. nerv-ui/components/crt-effects.css, transcribed: 2 px scanlines at
-// 4% black, a 70%/70% vignette ellipse reaching 40%. Baked once into a texture
-// and crept by a bound translateY — no per-frame shader anywhere.
-
 /** THE SILHOUETTES AS COMPARABLE VALUES. A raw outline callable compares
  *  equal to nothing, so a node carrying one is patched on every describe
- *  and its bake — here a bloom — is remade with it. `keyedShape` is the
+ *  and its cached drawing is remade with it. `keyedShape` is the
  *  library's answer: the numbers the generator is a function of ARE its
  *  identity, and equal keys mean equal drawings. */
 inline Shape siteSilhouette() {
