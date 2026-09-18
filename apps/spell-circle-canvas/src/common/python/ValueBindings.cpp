@@ -17,6 +17,7 @@
 #include <sigilimage/encode/Encode.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Bloom.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilpython/Bindings.h>
@@ -585,8 +586,15 @@ void bindValues(py::module_& module) {
       .def_static("directionalBlur", &mskia::Effect::directionalBlur,
                   py::arg("sigma"), py::arg("angleDeg"),
                   py::arg("across") = 0.0f)
-      .def_static("blur", &mskia::Effect::blur, py::arg("sigmaMap"),
-                  py::arg("maxSigma"))
+      .def_static("blur",
+                  py::overload_cast<mskia::Paint, float>(&mskia::Effect::blur),
+                  py::arg("sigmaMap"), py::arg("maxSigma"))
+      .def_static("blur", py::overload_cast<float>(&mskia::Effect::blur),
+                  py::arg("sigma"))
+      .def_static("dilate", &mskia::Effect::dilate, py::arg("pixels"))
+      .def_static("deepen", &mskia::Effect::deepen, py::arg("amount"))
+      .def_static("whiten", &mskia::Effect::whiten, py::arg("amount"),
+                  py::arg("threshold") = 0.2f, py::arg("knee") = 0.2f)
       .def("slot", &mskia::Effect::slot, py::arg("name"), py::arg("paint"),
            fluent)
       .def(
@@ -600,9 +608,29 @@ void bindValues(py::module_& module) {
           },
           py::arg("name"), py::arg("value"), fluent)
       .def("then", &mskia::Effect::then, py::arg("effect"))
+      .def(py::init<>())
+      .def("emit", &mskia::Effect::emit, py::arg("light"),
+           py::arg("mode") = SkBlendMode::kScreen)
       .def("isAnimated", &mskia::Effect::isAnimated)
       .def("usesWorldSpace", &mskia::Effect::usesWorldSpace)
       .def(py::self == py::self);
+
+  bindRecord<mskia::BloomParameters>(nativePaint, "BloomParameters",
+                                     "Unknown bloom parameter: ")
+      .def_readwrite("sigma", &mskia::BloomParameters::sigma)
+      .def_readwrite("strength", &mskia::BloomParameters::strength)
+      .def_readwrite("spread", &mskia::BloomParameters::spread)
+      .def_readwrite("tail", &mskia::BloomParameters::tail)
+      .def_readwrite("threshold", &mskia::BloomParameters::threshold)
+      .def_readwrite("knee", &mskia::BloomParameters::knee)
+      .def_readwrite("softness", &mskia::BloomParameters::softness)
+      .def_readwrite("whitening", &mskia::BloomParameters::whitening)
+      .def_readwrite("dilation", &mskia::BloomParameters::dilation)
+      .def_readwrite("deepening", &mskia::BloomParameters::deepening)
+      .def_readwrite("maxOpacity", &mskia::BloomParameters::maxOpacity);
+  nativePaint.def(
+      "bloom", &mskia::bloom,
+      py::arg("parameters") = mskia::BloomParameters{});
 
   py::enum_<mskia::Fit>(nativePaint, "Fit")
       .value("Contain", mskia::Fit::Contain)

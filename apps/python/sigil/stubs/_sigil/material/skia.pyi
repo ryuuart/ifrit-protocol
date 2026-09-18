@@ -7,17 +7,127 @@ import collections.abc
 import typing
 import _sigil.material
 import _sigil.skia
-__all__: list[str] = ['Effect', 'Fit', 'Paint']
+__all__: list[str] = ['BloomParameters', 'Effect', 'Fit', 'Paint', 'bloom']
+
+class BloomParameters:
+
+    def __init__(self, *, deepening: typing.SupportsFloat=..., dilation: typing.SupportsFloat=..., knee: typing.SupportsFloat=..., maxOpacity: typing.SupportsFloat=..., sigma: typing.SupportsFloat=..., softness: typing.SupportsFloat=..., spread: typing.SupportsFloat=..., strength: typing.SupportsFloat=..., tail: typing.SupportsFloat=..., threshold: typing.SupportsFloat=..., whitening: typing.SupportsFloat=...) -> None:
+        ...
+
+    def copy(self) -> BloomParameters:
+        ...
+
+    @property
+    def deepening(self) -> float:
+        ...
+
+    @deepening.setter
+    def deepening(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def dilation(self) -> float:
+        ...
+
+    @dilation.setter
+    def dilation(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def knee(self) -> float:
+        ...
+
+    @knee.setter
+    def knee(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def maxOpacity(self) -> float:
+        ...
+
+    @maxOpacity.setter
+    def maxOpacity(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def sigma(self) -> float:
+        ...
+
+    @sigma.setter
+    def sigma(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def softness(self) -> float:
+        ...
+
+    @softness.setter
+    def softness(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def spread(self) -> float:
+        ...
+
+    @spread.setter
+    def spread(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def strength(self) -> float:
+        ...
+
+    @strength.setter
+    def strength(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def tail(self) -> float:
+        ...
+
+    @tail.setter
+    def tail(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def threshold(self) -> float:
+        ...
+
+    @threshold.setter
+    def threshold(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def whitening(self) -> float:
+        ...
+
+    @whitening.setter
+    def whitening(self, value: typing.SupportsFloat, /) -> None:
+        ...
 
 class Effect:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
     @staticmethod
+    @typing.overload
     def blur(sigmaMap: Paint, maxSigma: typing.SupportsFloat) -> Effect:
         ...
 
     @staticmethod
+    @typing.overload
+    def blur(sigma: typing.SupportsFloat) -> Effect:
+        ...
+
+    @staticmethod
     def brightPass(threshold: typing.SupportsFloat=0.6800000071525574, knee: typing.SupportsFloat=0.30000001192092896) -> Effect:
+        ...
+
+    @staticmethod
+    def deepen(amount: typing.SupportsFloat) -> Effect:
+        ...
+
+    @staticmethod
+    def dilate(pixels: typing.SupportsFloat) -> Effect:
         ...
 
     @staticmethod
@@ -40,7 +150,17 @@ class Effect:
     def shader(effect: _sigil.skia.RuntimeEffect, uniforms: collections.abc.Sequence[tuple[str, typing.SupportsFloat]]=[]) -> Effect:
         ...
 
+    @staticmethod
+    def whiten(amount: typing.SupportsFloat, threshold: typing.SupportsFloat=0.20000000298023224, knee: typing.SupportsFloat=0.20000000298023224) -> Effect:
+        ...
+
     def __eq__(self, other: builtins.object, /) -> bool:
+        ...
+
+    def __init__(self) -> None:
+        ...
+
+    def emit(self, light: Effect, mode: _sigil.skia.BlendMode=...) -> Effect:
         ...
 
     def isAnimated(self) -> bool:
@@ -202,3 +322,6 @@ class Paint:
 
     def worldSpace(self, on: bool=True) -> Paint:
         ...
+
+def bloom(parameters: BloomParameters=...) -> Effect:
+    ...
