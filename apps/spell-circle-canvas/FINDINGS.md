@@ -1,5 +1,77 @@
 # Findings
 
+## The Sigillum heptagram self-audit finds only three of seven crossings
+
+`sigillum_aemeth/Settings.h` constructs seven open line paths through the
+vertices of a regular `{7/2}` star, then calls `path::discoverCrossings`.
+The rendered audit reports three discovered crossings instead of seven,
+and three passes out of alternation instead of zero. Its crossing patches
+therefore cover only part of the intended interlace.
+
+The seven non-adjacent edge intersections should be discovered, while
+the seven shared endpoints should be excluded. A regression should use
+the study's translated pixel-scale star and assert seven crossings,
+fourteen traversal passes, and an alternating over/under decision along
+each strand. The same construction translated and scaled should preserve
+that topology. The current evidence identifies the failing construction;
+the defect's location within discovery or its inputs remains unconfirmed.
+
+## Group ruby repeats a full reading on separately addressed CJK units
+
+`ruby_kenten` passes one reading over `書物` and `国語辞典` with
+`kit::ruby(selectors::text(...), Unit::Word, ...)`. Compose resolves word
+units from the paragraph's line-break words, which can divide a Japanese
+compound into multiple units. `TextAnnotations.cpp` repeats a one-item
+reading list on every unit; it also repeats that reading on every piece
+of a unit broken across columns. The GROUP and SPLIT specimens therefore
+show overlapping repeated furigana instead of one reading over the compound.
+
+Group ruby should associate one reading with the selected compound and
+distribute it across the compound's placed fragments. The current unit
+vocabulary has glyph, cluster, word, line and sentence, but no selected
+range unit. A regression should annotate a multi-character Japanese
+compound with one reading, assert one reading on an unbroken base, then
+force the base across columns and assert that the fragments partition
+the reading without repetition. Mono ruby and repeated kenten marks
+should retain their per-cluster behavior.
+
+## Initial-letter layout loses the space after the opening word
+
+`bullets_dropcap` supplies the unchanged passage beginning `When the first`
+to `document::paragraph(...).initialLetter({.lines = 3, .margin = 8, ...})`
+at 14 px in Iowan Old Style. In all three initial-letter panels the large
+`W` is followed by `henthe first`: the space between the opening word and
+`the` has no visible advance. The same passage with its first character
+removed and placed through `flowAround` displays `hen the first` correctly.
+Nested span styling does not change the failure. The exact placement stage
+responsible remains unconfirmed.
+
+An initial letter should consume only its selected glyphs; the remaining
+text must preserve inter-word spacing. A regression should lay out
+`When the first` with a three-line initial, inspect the positions around
+`hen the`, and assert the original space advance survives. Repeat with
+nested word and delimiter styling, and compare the remainder with an
+ordinary paragraph under the same face, size and available measure.
+
+## Varying profile rails leave inner-corner spurs
+
+`src/common/geometry/path/Band.cpp` delegates constant profiles to `parallel`
+but builds varying profiles by sampling each point along the contour and
+displacing it along that point's single tangent normal. On a clockwise
+hexagon, `bandRegion` with `profile::taper(4, 22)` and `Formation::Inward`
+leaves small triangular loops at the inner corners; `Formation::Centered`
+shows the same defect on its inner rail. A closed taper also has a width
+discontinuity at its seam because its endpoint widths differ; that seam
+does not account for the loops at the other corners.
+
+A varying rail should join adjacent offset edges at real contour vertices
+without the sampled path doubling back into corner loops. A regression
+should use a positive varying profile with matching endpoint widths on a
+clockwise polygon, inspect both inward and centered bands, and assert
+simple rails with no corner self-intersections while preserving the width
+law along each edge. Repeat on an open polyline to separate corner joining
+from closed-contour seam behavior.
+
 ## Documentation probes do not recognize newly supplied namespace aliases
 
 `src/test/docs/api_doc_probes.py` emits aliases supplied through `--alias`
@@ -183,3 +255,118 @@ continuous across an edit". `Host::restartSession` in
 the host clock, so elapsed time restarts. The comment should describe the
 restart; a live-host test should assert that elapsed time after a reload
 starts again from zero.
+
+## A bright pass in an emitted light softens the layer it is emitted over
+
+`skia::Effect::brightPass` is a runtime shader over the layer. When one
+sits anywhere in an image-filter graph, Skia evaluates that graph in the
+layer's local coordinates rather than device pixels and resamples the
+result onto a scaled canvas, so `Effect().emit(brightPass().then(...))`
+softens the sharp source it keeps, even where the emitted light is fully
+transparent. On a 2× headless GPU sweep of `ksp_mapview`, a transparent
+light through a bright pass moves thin orbit lines by up to 152 levels
+against the same map with no effect, while a transparent colour-filter
+light leaves it exact. `ksp_mapview` therefore still describes its map
+twice, so the bright pass only ever filters the second copy.
+
+`emit` should keep its source at device resolution whatever the light is
+made of. The bright pass is per-pixel, so it can be a runtime colour
+filter, which carries no matrix constraint; its threshold and knee
+should still take part in equality as they do now. With that,
+`ksp_mapview` should need one map.
+
+A test should render, on a canvas scaled by two, a layer with
+`Effect().emit(brightPass().then(<transparent>))` and assert it identical
+to the layer with no effect, and assert that two bright passes with equal
+threshold and knee still compare equal.
+
+## A recipe can only read the layer it runs over, so the CRT fuses three passes into one gather
+
+`skia::Effect::recipe` fills exactly one slot, `content`, from the layer
+the effect runs over; a `Material`'s other slots take textures or paints
+bound in advance, never a derivation of that layer. A recipe that needs a
+blurred copy of its input therefore has to blur it itself, per pixel, and
+`field/shaders/Crt.sksl` does: 96 samples on a fixed spiral at
+`uBloomRadius` and three times it, 192 texture reads with a sine and
+cosine each, every pixel, every frame the screen changes. That gather is
+also why the bloom is narrow — `kit::crt` sets `uBloomRadius = 2.4`, and
+a wider reach at that tap count leaves copies of fine lettering — and why
+the shader fuses what it adapts from as one pass: the source it adapts
+runs a beam pass on flat coordinates (rasterisation, jitter, sync, noise,
+flicker), blurs that output separably at half resolution, and a glass
+pass then warps the coordinates once and reads both textures there,
+adding RGB shift, bloom and vignette. Its bloom is blurred flat and
+sampled through the curvature; ours is gathered through it. A study that
+animates under the recipe falls from about 115 to 66 presented frames a
+second at 1440×900 on a 2× display, and `eva_magi_interior/EvangelionUi.h`
+turns the recipe's gather off and adds the same two Gaussians as
+separable blurs after it.
+
+A recipe should be able to declare a slot that the executor fills from
+a filter of the layer — the blur of `content` at a stated radius, reduced
+by a divisor the executor derives from that radius as `phosphorBloom`'s
+gather already does — so a shader reads a pre-blurred input once and the
+cost of a bloom depends on its radius only, and mildly. `Effect::recipe`
+and the material's slot vocabulary are where that seam lives; the Skia
+filter graph beneath already takes several named inputs to one runtime
+shader. With it, the CRT should be three recipes of one subject each — a
+beam pass on flat coordinates, a blurred source, a glass pass with
+`content` and `bloom` slots that warps once — and `kit::crt` their
+composition under the uniforms it has now, so the barrel alone, the
+scanlines alone, or the bloom source alone serve other surfaces.
+
+Tests should assert that a recipe with a slot filled from a blur of the
+layer renders the same pixels as the layer blurred by `Effect::blur` and
+bound as a texture; that the glass pass at zero curvature and zero shift
+is the identity inside its bounds; that the beam pass with bloom and
+curvature off matches the current shader; that the kit's CRT shows light
+well beyond ten pixels from a thin bright line, fading smoothly with no
+secondary copies; and that the frame cost of the composed CRT at a
+64-pixel bloom radius is within a small factor of its cost at 2.
+
+## The thumbnail's PNG encode runs on the render thread
+
+`SketchbookRenderer::render` calls `refreshThumbnail()` once a sketch has
+settled, and that call runs `Host::capture` to completion inside the
+frame: the readback, and then `SkPngEncoder` over the whole still. On
+`eva_magi_deliberation` the encode alone holds `QSGRenderThread` for
+about 90 ms a second after the sketch opens, and a still full of grain
+and scanlines deflates slowly, so the hitch grows with exactly the
+sketches that look richest. The store is keyed by a content hash, so
+every change to a sketch or to an effect it uses retakes the still on
+the next open.
+
+The readback has to happen on the render thread; the encode and the
+write do not. `Host::capture` should hand the pixmap to a worker and
+return, as the browser's lazy thumbnail render already runs off the
+render thread. A test should open a sketch in the window lane and assert
+no frame after the settled moment exceeds the frame budget by the
+encode's cost, and that the thumbnail still lands.
+
+## Opening a sketch builds its effect pipelines on the render thread
+
+Graphite creates a Metal graphics pipeline the first time each distinct
+draw appears, and `DrawPass::prepareResources` waits for the creation
+task on `QSGRenderThread`. A sketch whose root carries a chain of
+runtime-shader and runtime-colour-filter stages — the MAGI studies'
+bloom and CRT are about a dozen — pays one pipeline per stage on its
+first frame: profiling `eva_magi_deliberation` opening in the window
+shows the render thread stalled under `MtlGraphicsPipeline::Make` for
+several hundred milliseconds in the first half second, while the
+sketch's own `Composer::draw` costs about a millisecond and the scene
+then caches to a texture. Metal serves already-compiled shaders from its
+disk cache, so the stall is shorter on a second open and longest after
+any edit to a shader, which is every edit during effect work. The
+startup warm-up (`warmStockMaterials`) compiles each stock recipe's
+SkSL, which is not the pipeline.
+
+The pipelines a sketch's effects need should be built before its first
+frame and off the render thread. Graphite ships `PrecompileContext` for
+exactly this, and `ContextOptions` can report each pipeline's key as it
+is created so a later launch precompiles the set; the material warm-up
+is the seam it belongs beside, and a stock effect stack — the bloom's
+stages, the CRT — should be part of what it warms. A test should open a
+sketch twice in one process and assert that the second open's first
+frame carries no pipeline creation, and that precompiling a recorded
+key set before the first open removes the stall from it too.
+
