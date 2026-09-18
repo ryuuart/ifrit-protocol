@@ -17,12 +17,12 @@ set(SIGIL_MATERIAL_KIT_SHADER_DIR "${CMAKE_CURRENT_LIST_DIR}/shaders"
 
 find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilMaterialKit
-  SOURCES Environments.cpp Globe.cpp Grained.cpp LayerStyles.cpp
+  SOURCES Crt.cpp Environments.cpp Globe.cpp Grained.cpp LayerStyles.cpp
           Patterns.cpp Ramps.cpp Recipes.cpp Pbr.cpp Reflections.cpp
           TextPaint.cpp
-  HEADERS Environments.h Globe.h Grained.h LayerStyles.h Patterns.h Ramps.h
+  HEADERS Crt.h Environments.h Globe.h Grained.h LayerStyles.h Patterns.h Ramps.h
           Recipes.h Pbr.h Reflections.h TextPaint.h
-  PUBLIC SigilMaterialPattern SigilMaterialColor SigilMaterialMask
+  PUBLIC SigilMaterialField SigilMaterialPattern SigilMaterialColor SigilMaterialMask
          Boost::container)
 sigil_shader_sources(SigilMaterialKit
   DIR ${SIGIL_MATERIAL_KIT_SHADER_DIR} NAMESPACE sigil::material::kit)

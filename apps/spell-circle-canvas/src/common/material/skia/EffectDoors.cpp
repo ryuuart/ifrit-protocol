@@ -96,7 +96,9 @@ bool Effect::anyChildNeedsContext() const {
   for (const auto& [name, child] : m_slots)
     if (child && (child->isAnimated() || child->geometryDependent()))
       return true;
-  return false;
+  // A chain is retained only because a side needs a paint frame, and it
+  // has no precomposed filter to stand in for it.
+  return m_chainA != nullptr;
 }
 
 sk_sp<SkShader> Effect::childShaderFor(std::string_view name,

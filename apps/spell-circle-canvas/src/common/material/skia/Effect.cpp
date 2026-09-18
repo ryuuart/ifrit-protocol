@@ -39,17 +39,22 @@ Effect Effect::filter(sk_sp<SkColorFilter> f) {
 }
 
 Effect Effect::recipe(const Material& material) {
+  return recipe(material, 0.0f);
+}
+
+Effect Effect::recipe(const Material& material, float sampleRadius) {
   static constexpr std::string_view kContent[] = {"content"};
   std::unique_ptr<SkRuntimeShaderBuilder> built =
       skia::builder(material, {}, {}, kContent);
   if (!built) return {};
-  Effect effect =
-      filter(SkImageFilters::RuntimeShader(*built, "content", nullptr));
+  Effect effect = filter(SkImageFilters::RuntimeShader(
+      *built, std::max(0.0f, sampleRadius), "content", nullptr));
   if (!effect.m_filter) return {};
   std::optional<Material> comparable;
   if (!material.isAnimated()) comparable = material;
-  effect.m_recipeSnapshot = std::make_shared<const RecipeSnapshot>(
-      RecipeSnapshot{std::move(comparable), sk_ref_sp(built->effect())});
+  effect.m_recipeSnapshot =
+      std::make_shared<const RecipeSnapshot>(RecipeSnapshot{
+          std::move(comparable), sk_ref_sp(built->effect()), sampleRadius});
   return effect;
 }
 
@@ -178,9 +183,14 @@ Effect Effect::then(const Effect& next) const {
 
 sk_sp<SkImageFilter> Effect::resolvedImageFilter(
     const PaintFrame* paintFrame) const {
-  if (m_chainA)
+  if (m_chainA) {
+    if (m_chainBlend)
+      return SkImageFilters::Blend(*m_chainBlend,
+                                   m_chainA->resolvedImageFilter(paintFrame),
+                                   m_chainB->resolvedImageFilter(paintFrame));
     return SkImageFilters::Compose(m_chainB->resolvedImageFilter(paintFrame),
                                    m_chainA->resolvedImageFilter(paintFrame));
+  }
   // A context-needing source (live or geometry tier) has to be re-resolved
   // per paint; a static one is already in the snapshot. Same question
   // Material::build's memo asks of its slots, same answer.
@@ -302,9 +312,16 @@ static bool slotsEqual(
 bool Effect::operator==(const Effect& o) const {
   if (isAnimated() || o.isAnimated())
     return false;  // live never prunes — the material rule
+  // A retained chain whose sides need only geometry carries no filter of
+  // its own, so it compares by its sides and how they join.
+  if (m_chainA || o.m_chainA)
+    return m_chainA && o.m_chainA && m_chainBlend == o.m_chainBlend &&
+           *m_chainA == *o.m_chainA && *m_chainB == *o.m_chainB;
   if (m_recipeSnapshot || o.m_recipeSnapshot) {
     if (!m_recipeSnapshot || !o.m_recipeSnapshot) return false;
-    if (m_recipeSnapshot->program != o.m_recipeSnapshot->program) return false;
+    if (m_recipeSnapshot->program != o.m_recipeSnapshot->program ||
+        m_recipeSnapshot->sampleRadius != o.m_recipeSnapshot->sampleRadius)
+      return false;
     if (!m_recipeSnapshot->material || !o.m_recipeSnapshot->material)
       return m_filter == o.m_filter;
     return *m_recipeSnapshot->material == *o.m_recipeSnapshot->material;

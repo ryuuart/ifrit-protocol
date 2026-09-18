@@ -1,0 +1,16 @@
+// A lit source overexposed: where the straight colour is brighter than the
+// bright pass's knee, it moves this share of the way toward white at its
+// own peak, so the core of a glow reads lighter than the halo around it.
+// Colour below the threshold is untouched.
+uniform float uThreshold;
+uniform float uTop;
+uniform float uWhitening;
+
+half4 main(half4 color) {
+  float a = max(float(color.a), 1e-4);
+  float3 straight = float3(color.rgb) / a;
+  float peak = max(max(straight.r, straight.g), straight.b);
+  float lit = smoothstep(uThreshold, uTop, peak);
+  float3 core = mix(straight, float3(peak), uWhitening * lit);
+  return half4(half3(core * float(color.a)), color.a);
+}

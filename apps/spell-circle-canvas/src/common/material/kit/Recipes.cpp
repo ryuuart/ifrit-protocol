@@ -10,6 +10,7 @@
 #include <include/core/SkPath.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSurface.h>
+#include <sigilmaterial/kit/Crt.h>
 #include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Globe.h>
 #include <sigilmaterial/kit/Grained.h>
@@ -44,7 +45,10 @@ std::vector<Material> everyRecipe() {
   // A time other than zero, because a body whose motion is folded away at
   // t = 0 is not the body that runs.
   constexpr float kSeconds = 1.25f;
+  Material screen = crt(bounds, kSeconds);
+  screen.slot("content", stand(SK_ColorCYAN));
   return {
+      std::move(screen),
       surface({}, Reflection::SplitSum),
       surface({}, Reflection::Additive),
       unlit(),

@@ -5,8 +5,8 @@ set(SIGIL_MATERIAL_FIELD_SHADER_DIR "${CMAKE_CURRENT_LIST_DIR}/shaders"
     CACHE INTERNAL "the field feature's shader modules")
 set(_shaders ${SIGIL_MATERIAL_FIELD_SHADER_DIR})
 sigil_library(SigilMaterialField
-  SOURCES Field.cpp
-  HEADERS Field.h
+  SOURCES Field.cpp Crt.cpp
+  HEADERS Field.h Crt.h
   PUBLIC SigilMaterialTexture SigilMaterialColor)
 sigil_shader_sources(SigilMaterialField
   DIR ${_shaders} NAMESPACE sigil::material::field)

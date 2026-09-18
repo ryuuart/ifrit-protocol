@@ -1,0 +1,62 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) Filippo Scognamiglio and contributors
+
+float noise(float2 p) {
+  return fract(sin(dot(p, float2(12.9898, 78.233))) * 43758.5453);
+}
+
+half3 source(float2 p) {
+  float2 uv = (p - uBounds.xy) / max(uBounds.zw, float2(1));
+  if (min(uv.x, uv.y) < 0 || max(uv.x, uv.y) >= 1) return half3(0);
+  return content.eval(p).rgb;
+}
+
+// A Gaussian-weighted disc distributes samples across the halo instead of
+// copying the source at a few widely separated offsets. The same kernel
+// serves a material and a layer effect without a separate bloom texture.
+half3 halo(float2 p, float radius) {
+  half3 light = half3(0);
+  float total = 0;
+  for (int i = 0; i < 96; ++i) {
+    float r = sqrt((float(i) + 0.5) / 96.0);
+    float angle = float(i) * 2.39996323;
+    float weight = exp(-4.5 * r * r);
+    light += source(p + radius * r * float2(cos(angle), sin(angle))) * weight;
+    total += weight;
+  }
+  return light / total;
+}
+
+half4 main(float2 p) {
+  float2 size = max(uBounds.zw, float2(1));
+  float2 uv = (p - uBounds.xy) / size;
+  if (min(uv.x, uv.y) < 0 || max(uv.x, uv.y) >= 1) return half4(0);
+  float2 cc = uv - 0.5;
+  float dist = dot(cc, cc) * uCurvature;
+  float2 warped = uv + cc * (1 + dist) * dist;
+  if (min(warped.x, warped.y) < 0 || max(warped.x, warped.y) >= 1)
+    return half4(0, 0, 0, 1);
+  float frame = floor(uTime * 60);
+  float2 q = uBounds.xy + warped * size;
+  q.x += (noise(float2(floor(q.y), frame)) - 0.5) * uJitter;
+  q.x += sin(warped.y * 24 + uTime * 4) * uSync;
+  half3 texel = source(q);
+  if (uRgbShift != 0) {
+    half3 left = source(q - float2(uRgbShift, 0));
+    half3 right = source(q + float2(uRgbShift, 0));
+    texel = left * half3(0.10, 0.20, 0.30) +
+            right * half3(0.30, 0.20, 0.10) + texel * 0.60;
+  }
+  half3 high = ((1.0 + 0.30) - 0.2 * texel) * texel;
+  half3 low = ((1.0 - 0.30) + 0.1 * texel) * texel;
+  float mask = 1 - abs(fract((q.y - uBounds.y) / max(uScanPitch, 1)) * 2 - 1);
+  texel = mix(texel, mix(low, high, mask), clamp(uRaster, 0, 1));
+  if (uBloom > 0) {
+    half3 light = halo(q, uBloomRadius) * 0.7 + halo(q, uBloomRadius * 3) * 0.3;
+    texel += clamp(light * uBloom, 0, 0.5);
+  }
+  texel *= 1 - clamp(uVignette * dot(cc, cc) * 2, 0, 1);
+  texel *= uBrightness * (1 + (noise(float2(frame, 7)) - 0.5) * uFlicker);
+  texel += half3((noise(floor(p) + float2(frame, frame * 0.37)) - 0.5) * uNoise);
+  return half4(clamp(texel, 0, 1), 1);
+}

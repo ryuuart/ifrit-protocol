@@ -96,6 +96,32 @@ is a layer: a pixel half covered by white is white, and a gate on the
 premultiplied colour would call it grey and eat the edge of every source
 there is.
 
+A glow is made of stages, each an ordinary effect chained with `then()`:
+`Effect::blur(sigma)` spreads light; `Effect::dilate(pixels)` grows its
+coverage outward first, so the colour carries past the source as a rounded
+body — a blur at one and a half times the distance with its coverage
+quadrupled, which restores an edge's full coverage one distance out, so it
+spreads a light (a bright pass, or a layer on transparency) and is only a
+blur over an opaque ground; `Effect::deepen(amount)` lets faint light lose
+its weaker channels first, raising the straight colour to one plus the
+amount times the missing coverage, so a halo sinks toward its strongest
+channel as it thins — orange toward red, yellow toward orange, a
+blue-leaning cyan toward blue; and `Effect::whiten(amount, threshold,
+knee)` moves a lit core toward white at its own peak, the other end of the
+same tone curve. `emit(light, mode)` is the one join `then()` cannot say:
+the light runs over the same input the effect does and is blended over its
+output, so `Effect().emit(light)` is the layer with its light screened over
+it, and a second `emit` stacks another light of the layer rather than a
+light of the first.
+
+`skia::bloom` from `<sigilmaterial/skia/Bloom.h>` is those stages composed:
+the bright pass, dilated, blurred at a near and a broad radius, each
+deepened and weighted, added together under an opacity ceiling that keeps
+dark lettering visible inside luminous panels, and emitted over the source
+after that source's own softness blur and whitening. Its
+`skia::BloomParameters` name each stage's amount. Hold the effect so its
+filter graph is shared across descriptions.
+
 `phosphorBloom()` is the display post-process: the same bright pass,
 gated premultiplied because it emits light to add rather than a layer,
 feeding three radii whose RGB channels have different reach, so the

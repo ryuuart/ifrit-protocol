@@ -1,0 +1,17 @@
+// Faint light loses its weaker channels first, the way a film or tone
+// curve's toe answers it: the straight colour, normalised to its peak, is
+// raised to 1 + uDeepening × (1 − coverage), so a dense layer keeps its
+// colour and a thin one sinks toward its strongest channel — orange toward
+// red, yellow toward orange, a blue-leaning cyan toward blue — while its
+// brightest channel holds. Coverage is kept.
+uniform float uDeepening;
+
+half4 main(half4 color) {
+  float a = max(float(color.a), 1e-4);
+  float3 straight = float3(color.rgb) / a;
+  float peak = max(max(straight.r, straight.g), straight.b);
+  float3 hue = straight / max(peak, 1e-4);
+  float exponent = 1.0 + uDeepening * (1.0 - clamp(float(color.a), 0.0, 1.0));
+  float3 deep = clamp(pow(hue, float3(exponent)) * peak, 0.0, 1.0);
+  return half4(half3(deep * float(color.a)), color.a);
+}

@@ -5,6 +5,7 @@
  */
 
 #include "sigilmaterial/field/Field.h"
+#include <sigilmaterial/field/Crt.h>
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
@@ -178,6 +179,9 @@ std::vector<Material> everyRecipe() {
     content->getCanvas()->clear(SK_ColorMAGENTA);
     warp.slot("content", Texture::of(content->makeImageSnapshot()));
   }
+  Material screen = crt({.uBounds = {0, 0, 4, 4}});
+  if (content) screen.slot("content", Texture::of(content->makeImageSnapshot()));
+  all.push_back(std::move(screen));
   all.push_back(std::move(warp));
   return all;
 }

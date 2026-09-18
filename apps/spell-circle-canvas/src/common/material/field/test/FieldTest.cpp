@@ -9,6 +9,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/field/Crt.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/Texture.h>
@@ -190,4 +191,57 @@ TEST(Field, EveryStockBodyCompiles) {
 TEST(Field, TheShaderTableHoldsEveryFileTheDirectoryDoes) {
   sigil::test::expectShaderTableIsWholeDirectory(
       field::shaderSources(), SIGIL_MATERIAL_FIELD_SHADER_DIR);
+}
+
+TEST(Field, CrtZeroStrengthPreservesColourAndHonoursBounds) {
+  field::CrtParameters p{.uBounds = {8, 8, 16, 16}};
+  Material screen = field::crt(p);
+  screen.slot("content", Texture::of(test::solid(SK_ColorRED, 32, 32)));
+  ASSERT_NE(skia::shader(screen, {}), nullptr);
+  const auto pixels = render(screen, 32, 32);
+  EXPECT_EQ(pixels.getColor(16, 16), SK_ColorRED);
+  EXPECT_EQ(pixels.getColor(7, 16), SK_ColorTRANSPARENT);
+  EXPECT_EQ(pixels.getColor(24, 16), SK_ColorTRANSPARENT);
+  p.uCurvature = 1;
+  Material curved = field::crt(p);
+  curved.slot("content", Texture::of(test::solid(SK_ColorRED, 32, 32)));
+  const auto glass = render(curved, 32, 32);
+  EXPECT_EQ(glass.getColor(8, 8), SK_ColorBLACK);
+  EXPECT_EQ(glass.getColor(16, 16), SK_ColorRED);
+}
+
+TEST(Field, CrtBloomSpreadsLightAndExplicitTimeIsRepeatable) {
+  SkBitmap source;
+  source.allocPixels(SkImageInfo::MakeN32Premul(32, 32));
+  source.eraseColor(SK_ColorBLACK);
+  SkCanvas canvas(source);
+  SkPaint paint;
+  paint.setColor(SK_ColorGREEN);
+  canvas.drawRect(SkRect::MakeXYWH(14, 0, 4, 32), paint);
+  const auto texture = Texture::of(source.asImage());
+  field::CrtParameters p{.uBounds = {0, 0, 32, 32}, .uBloomRadius = 2};
+  auto make = [&] {
+    Material m = field::crt(p);
+    m.slot("content", texture);
+    return m;
+  };
+  const auto plain = render(make(), 32, 32);
+  p.uBloom = 1;
+  const auto glow = render(make(), 32, 32);
+  EXPECT_GT(SkColorGetG(glow.getColor(12, 16)),
+            SkColorGetG(plain.getColor(12, 16)));
+  p.uBloomRadius = 4.8f;
+  p.uBloom = 1.6f;
+  const auto wide = render(make(), 32, 32);
+  // Light fills the gap between the near core and the outer halo.
+  EXPECT_GT(SkColorGetG(wide.getColor(6, 16)), 0);
+  EXPECT_GT(SkColorGetG(wide.getColor(10, 16)),
+            SkColorGetG(wide.getColor(6, 16)));
+  p.uNoise = 0.3f;
+  p.uTime = 1;
+  const auto first = render(make(), 32, 32);
+  EXPECT_TRUE(test::identical(first, render(make(), 32, 32)));
+  p.uTime = 2;
+  EXPECT_GT(test::differing(first, render(make(), 32, 32)), 0);
+  EXPECT_GE(field::crtSampleRadius(p), p.uBloomRadius * 3);
 }

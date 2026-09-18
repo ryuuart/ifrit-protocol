@@ -11,6 +11,7 @@
  * filtered layer proves two frames asked for the same one.
  */
 
+#include <include/core/SkBlendMode.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkColorFilter.h>
 #include <include/core/SkImageFilter.h>
@@ -61,11 +62,13 @@ class Effect {
   /** A SigilMaterial recipe as the effect: its program runs over the
    *  layer, which arrives in the slot named `content`; every other
    *  slot and every uniform is bound from the material as it stands now.
+   *  sampleRadius bounds the largest local-coordinate source offset.
    *  Built once: the material's bindings are read at construction, so
    *  animate by re-describing. A static material compares by its value
    *  and compiled program; a material with live inputs compares by the
    *  built filter's identity because those inputs were sampled once. */
   static Effect recipe(const Material& material);
+  static Effect recipe(const Material& material, float sampleRadius);
   /** THE SAME RECIPE, LOWERED FOR THE SURFACE IT WILL LAND ON.
    *
    *  A recipe that declares itself `channelwise` maps each channel
@@ -109,6 +112,35 @@ class Effect {
    *  a lamp both do, and what a luminance gate would refuse a deep blue
    *  source. */
   static Effect brightPass(float threshold = 0.68f, float knee = 0.30f);
+  /** The layer blurred by a Gaussian of @p sigma local pixels in both
+   *  directions — the stage a glow spreads its light with. */
+  static Effect blur(float sigma);
+  /** THE ROUNDED SPREAD: every edge grown outward by @p pixels, so the
+   *  layer's colour carries past it as a body before anything feathers
+   *  it, as a shadow's spread does. A blur at one and a half times the
+   *  distance leaves a quarter of an edge's coverage one distance out, and
+   *  quadrupling coverage restores it there, so corners stay round and
+   *  the gaps between letters stay open until the spread reaches them —
+   *  where a square morphological kernel would fill them as plates. The
+   *  straight colour is kept. It grows COVERAGE, so over an opaque ground
+   *  it is only a blur: spread a light — `brightPass()`, which carries
+   *  brightness as coverage, or a layer drawn on transparency. */
+  static Effect dilate(float pixels);
+  /** FAINT LIGHT LOSES ITS WEAKER CHANNELS FIRST, as a tone curve's toe
+   *  drops them: the straight colour, normalised to its peak, is raised
+   *  to 1 + @p amount × (1 − coverage), so a dense layer keeps its colour
+   *  and a thin one sinks toward its strongest channel — orange toward
+   *  red, yellow toward orange, a blue-leaning cyan toward blue — with its
+   *  brightest channel held. Over a blurred light, the halo deepens as it
+   *  fades. */
+  static Effect deepen(float amount);
+  /** THE OTHER END OF THAT CURVE: where the straight colour's peak is
+   *  above @p threshold, faded in over @p knee, it moves @p amount of the
+   *  way toward white at that peak, as an overexposed core does, so a lit
+   *  shape reads lighter than the deeper light around it. Colour below
+   *  the threshold is untouched. */
+  static Effect whiten(float amount, float threshold = 0.2f,
+                       float knee = 0.2f);
   /** Display bloom over the completed layer. Pixels above @p threshold feed
    *  three concentric kernels; their red, green and blue channels are
    *  recombined with progressively different reach — red the widest, blue
@@ -287,6 +319,16 @@ class Effect {
    *  Effect::shader(colorize)). Static chains precompose once; a chain
    *  with a live side re-composes at each paint. */
   Effect then(const Effect& next) const;
+  /** THE LAYER AND A LIGHT MADE FROM IT: `light` runs over the same
+   *  input this effect does, and its result is blended over this effect's
+   *  own output with @p mode — so `Effect().emit(light)` is the layer with
+   *  its light screened over it, and `whitened.emit(light)` is a whitened
+   *  core under a light drawn from the untouched layer. Each `emit` reads
+   *  that same input, so lights stack rather than compound: a second
+   *  `emit` adds a light of the layer, never a light of the first light.
+   *  Static sides blend once; a live side re-blends at each paint. */
+  Effect emit(const Effect& light,
+              SkBlendMode mode = SkBlendMode::kScreen) const;
 
   const sk_sp<SkImageFilter>& imageFilter() const { return m_filter; }
   /** The colour filter, when the effect is one — set only by
@@ -347,6 +389,7 @@ class Effect {
   struct RecipeSnapshot {
     std::optional<Material> material;
     sk_sp<const SkRuntimeEffect> program;
+    float sampleRadius = 0;
   };
 
   sk_sp<SkImageFilter> m_filter;
@@ -385,9 +428,11 @@ class Effect {
   // value, and filling a slot replaces the pointer rather than mutating
   // what another copy is holding.
   std::vector<std::pair<std::string, std::shared_ptr<const Paint>>> m_slots;
-  // then()-chain retained only when a side is live (static chains
-  // precompose into m_filter and carry no nodes).
+  // then()- or emit()-chain retained only when a side needs a paint
+  // frame (static chains precompose into m_filter and carry no nodes).
   std::shared_ptr<const Effect> m_chainA, m_chainB;
+  // emit()'s blend of B over A; empty for then(), which composes B after A.
+  std::optional<SkBlendMode> m_chainBlend;
 
   /** Does any child need a PaintFrame to resolve (live or geometry
    *  tier)? Material::build's memo asks exactly this of its own children,
@@ -416,14 +461,14 @@ class Effect {
   static void fieldPin(Effect& v) {
     auto& [filter, colorFilter, recipeSnapshot, effect, uniforms, uniforms2,
            uniforms4, uniformArrays, bound, blocks, directionalBlur,
-           parametricBlur, blurLevels, gatheredHalo, children, chainA, chainB] =
-        v;
+           parametricBlur, blurLevels, gatheredHalo, children, chainA, chainB,
+           chainBlend] = v;
     static_assert(
         std::tuple_size_v<decltype(std::tie(
                 filter, colorFilter, recipeSnapshot, effect, uniforms,
                 uniforms2, uniforms4, uniformArrays, bound, blocks,
                 directionalBlur, parametricBlur, blurLevels, gatheredHalo,
-                children, chainA, chainB))> == 17,
+                children, chainA, chainB, chainBlend))> == 18,
         "Effect gained or lost a member — rule on it in "
         "Effect::operator==, then bump this count. "
         "(m_colorFilter compares by pointer, like m_filter, an "
@@ -437,8 +482,9 @@ class Effect {
         "while m_gatheredHalo is derived from nothing and is "
         "compared beside the shader recipe; "
         "m_bound and m_blocks make the effect isAnimated(), which "
-        "operator== already refuses; m_chainA/B only exist on a "
-        "live chain, ditto.)");
+        "operator== already refuses; m_chainA/B and m_chainBlend "
+        "exist only on a chain with a side that needs a paint frame, "
+        "and compare side by side with the blend.)");
   }
 };
 
