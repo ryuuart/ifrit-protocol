@@ -1,0 +1,136 @@
+{
+ "coverage": {
+  "IfritQt": {
+   "entities": 6,
+   "pages": 0,
+   "bound": 0,
+   "values": 3
+  },
+  "SigilCompose": {
+   "entities": 650,
+   "pages": 23,
+   "bound": 180,
+   "values": 238
+  },
+  "SigilCore": {
+   "entities": 105,
+   "pages": 0,
+   "bound": 2,
+   "values": 53
+  },
+  "SigilData": {
+   "entities": 59,
+   "pages": 0,
+   "bound": 28,
+   "values": 25
+  },
+  "SigilDraw": {
+   "entities": 93,
+   "pages": 0,
+   "bound": 56,
+   "values": 50
+  },
+  "SigilGeometry": {
+   "entities": 471,
+   "pages": 0,
+   "bound": 32,
+   "values": 199
+  },
+  "SigilIO": {
+   "entities": 45,
+   "pages": 0,
+   "bound": 9,
+   "values": 24
+  },
+  "SigilImage": {
+   "entities": 21,
+   "pages": 0,
+   "bound": 2,
+   "values": 11
+  },
+  "SigilMaterial": {
+   "entities": 304,
+   "pages": 6,
+   "bound": 65,
+   "values": 108
+  },
+  "SigilMeasure": {
+   "entities": 27,
+   "pages": 0,
+   "bound": 0,
+   "values": 14
+  },
+  "SigilMotion": {
+   "entities": 105,
+   "pages": 0,
+   "bound": 34,
+   "values": 47
+  },
+  "SigilPython": {
+   "entities": 59,
+   "pages": 0,
+   "bound": 1,
+   "values": 11
+  },
+  "SigilScry": {
+   "entities": 9,
+   "pages": 0,
+   "bound": 0,
+   "values": 8
+  },
+  "SigilSeer": {
+   "entities": 22,
+   "pages": 0,
+   "bound": 0,
+   "values": 9
+  },
+  "SigilSketch": {
+   "entities": 215,
+   "pages": 0,
+   "bound": 0,
+   "values": 112
+  },
+  "SigilSkia": {
+   "entities": 15,
+   "pages": 0,
+   "bound": 0,
+   "values": 7
+  },
+  "SigilSubstance": {
+   "entities": 6,
+   "pages": 0,
+   "bound": 0,
+   "values": 6
+  },
+  "SigilUsd": {
+   "entities": 11,
+   "pages": 0,
+   "bound": 0,
+   "values": 6
+  },
+  "SigilVideo": {
+   "entities": 17,
+   "pages": 0,
+   "bound": 0,
+   "values": 13
+  },
+  "SigilWeave": {
+   "entities": 226,
+   "pages": 0,
+   "bound": 82,
+   "values": 119
+  },
+  "SigilWorld": {
+   "entities": 138,
+   "pages": 0,
+   "bound": 39,
+   "values": 58
+  },
+  "SpellCircle": {
+   "entities": 34,
+   "pages": 0,
+   "bound": 0,
+   "values": 29
+  }
+ }
+}

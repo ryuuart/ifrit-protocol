@@ -40,7 +40,7 @@ import urllib.request
 import webbrowser
 from pathlib import Path
 
-from sigil import tree
+from sigil import reference, tree
 from sigil.assets import Asset, fetch
 
 # jothepro/doxygen-awesome-css, MIT. The commit release v2.4.2 points at.
@@ -537,14 +537,42 @@ def warnings_sweep(
     return found
 
 
+WAYS_IN = (
+    (
+        "overview/index.html",
+        "Overview",
+        "What SpellCircle is, and what the libraries are",
+    ),
+    ("guides/index.html", "Guides", "One thing you want to do, start to finish"),
+    (
+        "reference/index.html",
+        "Reference",
+        "Every library and every kind: what there is to reach for",
+    ),
+    (
+        "values/index.html",
+        "Values",
+        "Every value in the tree: what makes one, and what takes one",
+    ),
+)
+
+
 def write_index(manifest: Manifest) -> None:
     """The landing page.
 
-    Doxygen writes one self-contained site per library and has no notion
-    of a set of them, so the set gets its own page. Registration order is
-    subdirectory order, which is a build concern and means nothing to a
-    reader looking for a library by name.
+    It opens on the way in rather than on the letter of the API: a
+    reader who does not yet know a name cannot start from an
+    alphabetical list of libraries. Doxygen writes one self-contained
+    site per library and has no notion of a set of them, so the set
+    gets its own list underneath. Registration order is subdirectory
+    order, which is a build concern and means nothing to a reader
+    looking for a library by name.
     """
+    ways = "".join(
+        f'  <li><a href="{href}"><b>{title}</b><span>{what}</span></a></li>\n'
+        for href, title, what in WAYS_IN
+        if (manifest.root / href).exists()
+    )
     cards = "".join(
         f'  <li><a href="{library.name}/html/index.html"><b>{library.name}</b>'
         f"<span>{library.brief}</span></a></li>\n"
@@ -555,12 +583,13 @@ def write_index(manifest: Manifest) -> None:
         """<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SpellCircle libraries</title>
+<title>SpellCircle</title>
 <style>
   :root { color-scheme: light dark; }
   body { font: 16px/1.6 -apple-system, system-ui, sans-serif;
          max-width: 46rem; margin: 4rem auto; padding: 0 1.5rem; }
   h1 { font-size: 1.5rem; margin-bottom: .25rem; }
+  h2 { font-size: 1.05rem; margin: 2.2rem 0 .25rem; }
   p.lede { color: GrayText; margin-top: 0; }
   ul { list-style: none; padding: 0; }
   li { margin: .5rem 0; }
@@ -571,9 +600,17 @@ def write_index(manifest: Manifest) -> None:
   b { display: block; }
   span { color: GrayText; font-size: .9rem; }
 </style></head><body>
-<h1>SpellCircle libraries</h1>
-<p class="lede">Generated from the headers. Each library's README is its
-front page, and types resolve across library boundaries.</p>
+<h1>SpellCircle</h1>
+<p class="lede">A receiver for network-driven vector diagrams, over a
+set of independent libraries that draw, lay out, set type and move.</p>
+<ul>
+"""
+        + ways
+        + """</ul>
+<h2>The literal API</h2>
+<p class="lede">One Doxygen site per library, generated from the
+headers. Each library's README is its front page, and types resolve
+across library boundaries.</p>
 <ul>
 """
         + cards
@@ -594,24 +631,45 @@ def stage_container(manifest: Manifest) -> None:
         shutil.copyfile(manifest.templates / name, manifest.root / staged)
 
 
-def generate(manifest_path: Path, libraries: list | None, xml: bool = True) -> int:
+def reference_options(arguments) -> reference.Options:
+    """What the reference layer is asked for, from the verb's flags."""
+    application = Path(__file__).resolve().parents[2]
+    return reference.Options(
+        package=application.parent / "python" / "sigil",
+        binding_sources=[
+            application / "src" / "common" / "python",
+            application / "src" / "sketch" / "python",
+        ],
+        example_images=arguments.example_images,
+        report=arguments.report,
+        strict=arguments.strict,
+    )
+
+
+def generate(manifest_path: Path, arguments) -> int:
     manifest = Manifest(manifest_path)
     manifest.root.mkdir(parents=True, exist_ok=True)
     manifest.work.mkdir(parents=True, exist_ok=True)
-    fetch(THEME, manifest.work / "theme", quiet=True)
+    libraries = arguments.library
 
-    template = (manifest.templates / "Doxyfile.in").read_text()
-    index_pass(manifest, template)
-    wanted = [manifest.find(name) for name in libraries] if libraries else None
-    html_pass(manifest, template, wanted or manifest.libraries)
-    if xml:
-        xml_pass(manifest, template, wanted or manifest.libraries)
-    if wanted:
-        return 0
+    if arguments.doxygen:
+        fetch(THEME, manifest.work / "theme", quiet=True)
+        template = (manifest.templates / "Doxyfile.in").read_text()
+        index_pass(manifest, template)
+        wanted = [manifest.find(name) for name in libraries] if libraries else None
+        html_pass(manifest, template, wanted or manifest.libraries)
+        if arguments.xml:
+            xml_pass(manifest, template, wanted or manifest.libraries)
+
+    code = 0
+    if arguments.reference:
+        code = reference.build(manifest, reference_options(arguments))
+    if libraries:
+        return code
     write_index(manifest)
     stage_container(manifest)
     print(f"Documentation written to {manifest.root / 'index.html'}")
-    return 0
+    return code
 
 
 def build_target() -> int:
@@ -688,6 +746,35 @@ def main(argv: list) -> int:
         help="with --manifest, skip the inventory pass and write only the sites",
     )
     parser.add_argument(
+        "--no-reference",
+        dest="reference",
+        action="store_false",
+        help="with --manifest, write the Doxygen sites and nothing above them",
+    )
+    parser.add_argument(
+        "--reference-only",
+        dest="doxygen",
+        action="store_false",
+        help="with --manifest, rebuild only the overview and reference layer, "
+        "reading the inventory an earlier run wrote — the loop while prose moves",
+    )
+    parser.add_argument(
+        "--example-images",
+        action="store_true",
+        help="render every page's example in both languages, which compiles "
+        "a sketch per C++ example",
+    )
+    parser.add_argument(
+        "--report",
+        action="store_true",
+        help="print every entity with no page, and keep the coverage ledger",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="with --report, fail when coverage has dropped since the ledger",
+    )
+    parser.add_argument(
         "--serve",
         action="store_true",
         help="serve the built sites from a container instead of opening them",
@@ -701,7 +788,7 @@ def main(argv: list) -> int:
     arguments = parser.parse_args(argv)
 
     if arguments.manifest:
-        return generate(arguments.manifest, arguments.library, arguments.xml)
+        return generate(arguments.manifest, arguments)
 
     code = build_target()
     if code != 0:

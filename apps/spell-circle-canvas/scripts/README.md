@@ -100,6 +100,16 @@ the class-scope probe path. It is the only check that notices the
 EXTRACTOR narrowing, since a generator that silently probes less still
 emits a translation unit that compiles green.
 
+The reference generator keeps fixtures of the same shape and for the
+same reason, under `scripts/sigil/reference/test/` as one ctest entry,
+`reference_generator`: a small tree carrying every shape its three
+readers have to handle — a node type with verbs, a factory, a kit
+component, a value with a constructor, an enumeration, a role union, a
+binding chain whose lambda bodies must not cut the chain, and a public
+Python name that renames the native one. A reader that quietly stops
+matching writes a thinner site that still looks like a site, so only
+the fixtures see it. Pure Python: no build tree, no Doxygen.
+
 ## Configuring — `setup`
 
 The setup verb discovers Qt 6.11 or newer and vcpkg, writes the uncommitted
@@ -649,6 +659,30 @@ the same reason, with one edit applied to it: the topics move ahead of
 the related pages, so a reader meets the features before an alphabetical
 index. A Doxyfile is written only when its content moved, since Doxygen
 re-runs from a timestamp.
+
+AFTER THE THREE PASSES the verb writes the OVERVIEW AND REFERENCE
+LAYER, which is a site of its own beside the Doxygen ones and the only
+consumer of the inventory. The Doxygen sites are the literal API; this
+layer is the discovery surface over it, and it answers two questions
+the literal API cannot: what is there to reach for — a catalogue split
+by what a thing IS, with an index per kind — and what do I make to pass
+to it, which is a page per value carrying what makes one, everywhere
+one is taken, and everything that hands one back, gathered across every
+library rather than inside one. It reads the XML, the Python
+declaration stubs under `apps/python/sigil`, and the `.def` calls in
+the binding sources, and joins the three so that one page carries both
+spellings and a badge when they diverge. Nothing in it runs Doxygen:
+`--reference-only` writes the layer alone from an inventory an earlier
+run left behind, in about a second over the whole tree, which is the
+loop while prose is moving; `--no-reference` leaves it out;
+`--example-images` renders each page's example in both languages;
+`--report` prints every entity with no page by name and keeps
+`docs/reference_coverage.json`, and `--strict` fails when that ledger
+shows coverage has DROPPED — which belongs in the one refinement pass
+and nowhere else, since a documentation gate between edits is what the
+repository's code-fast rule forbids. `docs/REFERENCE.md` is the canon
+for the layer, including how a page is written and where its prose
+lives.
 
 `sigil.py docs` with no `--manifest` drives the `docs` build target
 instead, opening the pages when they are written or serving them from a

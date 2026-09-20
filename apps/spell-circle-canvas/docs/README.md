@@ -13,12 +13,23 @@ The target is absent when Doxygen is not installed, and the build says
 so at configure time. `brew install doxygen graphviz` — graphviz is
 optional and adds inheritance graphs.
 
+**This file is the canon for the literal API — the per-library Doxygen
+sites and how they are produced.** The discovery layer above them, the
+overview and reference site that catalogues what there is to reach for
+and what makes each value, is `REFERENCE.md`. It is written by the
+same `docs` target, from the XML inventory the third pass leaves here,
+and it never runs Doxygen itself.
+
 ## What is in here
 
 | File | What it is |
 | --- | --- |
 | `Doxyfile.in` | The settings every library's site shares, and the ones each pass overrides. |
 | `custom.css` | Project overrides, loaded after the theme. |
+| `reference.css`, `reference.js` | The overview-and-reference layer's own styling and behaviour, loaded by no Doxygen page. |
+| `REFERENCE.md` | The canon for that layer: what is generated, what is written, how a page is added. |
+| `reference_coverage.json` | Its ledger: pages written per library. |
+| `overview/`, `guides/`, `glossary.md` | Its hand-written chapters, the ones that belong to no library. |
 | `Dockerfile`, `nginx.conf`, `dockerignore` | Serving the generated site. |
 
 The generation itself is `scripts/sigil.py docs`: the three passes, the
@@ -36,12 +47,12 @@ Nothing here is generated, and nothing here is vendored. The theme is
 downloaded at build time.
 
 The build writes two directories. `build/docs/` is the output: the
-sites, the landing page and the container files, and nothing else — it
-is what gets served. `build/docs-build/` holds the intermediates: the
-rendered Doxyfiles, the tag files, the theme, the generated header and
-layout, the XML inventory, and the warning logs a documentation check
-reads. Either can be deleted; the next `docs` build writes back whatever
-is missing.
+sites, the landing page, the overview-and-reference layer and the
+container files, and nothing else — it is what gets served.
+`build/docs-build/` holds the intermediates: the rendered Doxyfiles,
+the tag files, the theme, the generated header and layout, the XML
+inventory, and the warning logs a documentation check reads. Either can
+be deleted; the next `docs` build writes back whatever is missing.
 
 ## Adding a library
 
@@ -114,6 +125,14 @@ of the comments rather than a person reading them. It is the one pass
 with `EXTRACT_ALL` on: a site leaves out what carries no comment, while
 an inventory that left out the same things would be missing exactly the
 entities a reader cannot otherwise discover. `--no-xml` skips it.
+
+The overview-and-reference layer is written after those three, out of
+that inventory plus the Python declaration stubs and the binding
+sources. It is the only consumer of the XML. `--no-reference` leaves it
+out; `--reference-only` writes it alone, reading an inventory an
+earlier run left behind, which takes about a second over the whole tree
+and is the loop to use while prose is moving. `REFERENCE.md` is the
+canon for all of it.
 
 A tag file and an inventory are rewritten when a header, a README, or
 the Doxyfile that reads them is newer, so a second `docs` build

@@ -153,6 +153,16 @@ function(sigil_finalize_docs)
     COMMAND ${Python3_EXECUTABLE} ${build_docs} --manifest ${manifest_file}
     COMMENT "Writing the documentation to ${CMAKE_BINARY_DIR}/docs/index.html"
     VERBATIM)
+
+  # The reference generator's own fixtures: a small tree carrying every
+  # shape the three readers have to handle, so a reader that quietly
+  # stops matching fails here rather than writing a thinner site that
+  # still looks like a site. Pure Python, no build tree, no Doxygen.
+  add_test(NAME reference_generator
+    COMMAND ${Python3_EXECUTABLE} -m unittest discover
+            -s ${CMAKE_SOURCE_DIR}/scripts/sigil/reference/test
+            -t ${CMAKE_SOURCE_DIR}/scripts
+            -p "test_*.py")
   foreach(lib IN LISTS libraries)
     add_custom_target(docs-${lib}
       COMMAND ${Python3_EXECUTABLE} ${build_docs} --manifest ${manifest_file}
