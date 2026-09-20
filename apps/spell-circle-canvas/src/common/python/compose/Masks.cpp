@@ -80,9 +80,10 @@ void bindParts(py::module_& composition, py::module_& selections) {
       "marks, the content leaf, the children, or one mark by its local "
       "name. Selections combine with `|`.");
 
-  // Arithmetic, so two bits joined with `|` give the whole number the
-  // `bits` field holds.
-  py::enum_<Parts::Bits>(parts, "Bits", py::arithmetic(),
+  // A plain enumeration. Selections are what an author joins with `|`; an
+  // arithmetic enumeration would add operators of its own, whose operands
+  // and answers pybind11 declares as bare objects.
+  py::enum_<Parts::Bits>(parts, "Bits",
                          "The four things a node paints, as one bit each.")
       .value("kSurface", Parts::kSurface,
              "The fill, and whatever fills the shape.")
@@ -101,7 +102,8 @@ void bindParts(py::module_& composition, py::module_& selections) {
            py::arg("names") = std::vector<std::string>{},
            "A selection holding `bits` and the local mark labels `names`.")
       .def_readwrite("bits", &Parts::bits,
-                     "Which of `Bits` this selection holds.")
+                     "Which of `Bits` this selection holds: the whole number "
+                     "their values join into.")
       .def_readwrite("names", &Parts::names,
                      "The local mark labels this selection reaches, in "
                      "declaration order. Read as a copy.")

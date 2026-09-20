@@ -153,10 +153,16 @@ class Selections(unittest.TestCase):
         self.assertEqual(parts.content().bits, int(bits.kContent))
         self.assertEqual(parts.children().bits, int(bits.kChildren))
         self.assertEqual(parts.all().bits, int(bits.kAll))
-        self.assertEqual(
-            int(bits.kAll),
-            int(bits.kSurface | bits.kMarks | bits.kContent | bits.kChildren),
+        joined = (
+            int(bits.kSurface)
+            | int(bits.kMarks)
+            | int(bits.kContent)
+            | int(bits.kChildren)
         )
+        self.assertEqual(int(bits.kAll), joined)
+        every = parts.surface() | parts.marks() | parts.content() | parts.children()
+        self.assertEqual(every.bits, joined)
+        self.assertEqual(every, parts.all())
 
     def test_a_named_selection_holds_no_bit_and_one_label(self):
         named = parts.named("rule")
