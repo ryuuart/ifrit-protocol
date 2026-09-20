@@ -395,6 +395,28 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
                 const ParagraphLayoutOptions& options, ParagraphLayout& out,
                 std::span<const float> mojikumiAfter = {});
 
+// Appends one shaped segment at its final straight or transformed position,
+// which is the one place a PositionedRun carrying glyphs is made.
+void emitSegment(ParagraphLayout& result, const FlatInterval& flatInterval,
+                 const WordSegment& segment, uint32_t wordIndex,
+                 float penOffset, const ParagraphLayoutOptions& options,
+                 const GlyphFit& fit = {}, float baselineShift = 0);
+
+// How much of the cell a tab opened stands BEFORE the first `alignOn` in it —
+// what a character-aligned stop pulls the cell back by.
+float widthBeforeAlignCharacter(const Paragraph& paragraph,
+                                const std::vector<Word>& words,
+                                const std::vector<uint32_t>& visualWordOrder,
+                                size_t tabVisualIndex, char16_t alignOn,
+                                float cellWidth);
+
+// Sets a stop's leader across the gap it opened, in the style of the text
+// before the tab and only along a straight horizontal line.
+void emitLeader(FontContext& fontContext, const Paragraph& paragraph,
+                ParagraphLayout& result, const FlatInterval& flatInterval,
+                const Word& word, uint32_t wordIndex, const TabStop& stop,
+                float gapStart, float gapEnd);
+
 // Whether a non-final break before `endWordIndex` lands on a soft hyphen.
 inline bool hyphenTakenAt(const std::vector<Word>& words, uint32_t endWordIndex,
                           bool lineIsFinal,

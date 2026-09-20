@@ -18,7 +18,8 @@ find_package(harfbuzz CONFIG REQUIRED COMPONENTS icu)
 sigil_library(SigilWeaveLayout
   SOURCES BandScan.cpp BandScan.h Beside.cpp Blobs.cpp Blobs.h Block.cpp Blocks.cpp
           Ellipsis.cpp Flow.cpp Greedy.cpp InitialLetter.cpp KnuthPlass.cpp
-          LayoutMetrics.cpp LineBreak.cpp Placement.cpp Silhouette.cpp TextContext.cpp
+          LayoutMetrics.cpp LineBreak.cpp Placement.cpp PlacementMojikumi.cpp
+          PlacementSegments.cpp PlacementTabs.cpp Silhouette.cpp TextContext.cpp
           KnuthPlassPrefix.h ParagraphLayoutInternal.h
   HEADERS Beside.h Block.h Breaking.h Flow.h Frame.h InitialLetter.h Justification.h
           LayoutOptions.h Mojikumi.h Overflow.h ParagraphLayout.h
