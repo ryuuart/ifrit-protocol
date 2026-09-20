@@ -7,6 +7,7 @@
 #include <sigilmaterial/color/Ramp.h>
 #include <sigilmaterial/core/Backface.h>
 #include <sigilpython/Bindings.h>
+#include <sigilpython/Extend.h>
 #include <sigilpython/material/Convert.h>
 #include <sigilpython/material/Registration.h>
 
@@ -26,7 +27,7 @@ material::Color materialColor(py::handle value) {
 
 void bindColor(py::module_& root) {
   using material::Color;
-  auto module = root.def_submodule("material");
+  auto module = submodule(root, "material");
   py::class_<Color>(module, "Color")
       .def(py::init<float, float, float, float>(), py::arg("red") = 0,
            py::arg("green") = 0, py::arg("blue") = 0, py::arg("alpha") = 1)
@@ -51,7 +52,7 @@ void bindColor(py::module_& root) {
 
 void bindMaterial(py::module_& root) {
   using namespace material;
-  auto module = root.attr("material").cast<py::module_>();
+  auto module = submodule(root, "material");
   py::enum_<Backface>(module, "Backface")
       .value("Visible", Backface::Visible)
       .value("Hidden", Backface::Hidden);
