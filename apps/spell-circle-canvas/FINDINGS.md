@@ -58,8 +58,8 @@ ordinary paragraph under the same face, size and available measure.
 `src/common/geometry/path/Band.cpp` delegates constant profiles to `parallel`
 but builds varying profiles by sampling each point along the contour and
 displacing it along that point's single tangent normal. On a clockwise
-hexagon, `bandRegion` with `profile::taper(4, 22)` and `Formation::Inward`
-leaves small triangular loops at the inner corners; `Formation::Centered`
+hexagon, `bandRegion` with `profile::taper(4, 22)` and `Formation::Inner`
+leaves small triangular loops at the inner corners; `Formation::Center`
 shows the same defect on its inner rail. A closed taper also has a width
 discontinuity at its seam because its endpoint widths differ; that seam
 does not account for the loops at the other corners.

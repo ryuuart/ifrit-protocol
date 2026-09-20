@@ -14,9 +14,9 @@
 //
 //   THE CARD    a preserve3d host turning on a bound rotateY under a
 //               perspective, holding a front and a back pre-turned half
-//               round, both with `backface(Backface::Hidden)` — so one
-//               face is drawn and hit at any turn and the other never
-//               shows through it.
+//               round, both with `backface(material::Backface::Hidden)`
+//               — so one face is drawn and hit at any turn and the
+//               other never shows through it.
 //   THE CUBE    six faces of one preserve3d host, each turned about its
 //               own centre and moved half an edge along the cube's axis
 //               in the host's frame (the lanes compose with the translate
@@ -52,6 +52,7 @@
 
 namespace sketch = sigil::sketch;
 namespace motion = sigil::motion;
+namespace material = sigil::material;
 
 using namespace sigil::compose;
 
@@ -163,7 +164,7 @@ struct CardFlip {
           .padding(22)
           .justify(Justify::SpaceBetween)
           .rotateY(turn)
-          .backface(Backface::Hidden)
+          .backface(material::Backface::Hidden)
           .font({.color = kPaper, .track = 1})
           .children({text(title).font({.size = 30}),
                      text(line).font({.size = 14}).width(pct(100))});

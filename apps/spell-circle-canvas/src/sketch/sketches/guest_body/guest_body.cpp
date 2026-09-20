@@ -209,7 +209,7 @@ struct GuestBody {
                             .at({0, 0, -kRelief})
                             .mesh(gm::quad(kScreen + kBezel * 2.0f,
                                            kScreenHeight + kBezel * 2.0f))
-                            .backface(world::Backface::Visible)
+                            .backface(material::Backface::Visible)
                             .fill(material::kit::surface(
                                 {.baseColor = {0.60f, 0.63f, 0.67f, 1.0f},
                                  .metallic = 0.9f,
@@ -217,7 +217,7 @@ struct GuestBody {
                         world::Element()
                             .key("screen")
                             .mesh(gm::quad(kScreen, kScreenHeight))
-                            .backface(world::Backface::Visible)
+                            .backface(material::Backface::Visible)
                             .fill(std::move(screen))})});
     return world::Frame(std::move(root));
   }
