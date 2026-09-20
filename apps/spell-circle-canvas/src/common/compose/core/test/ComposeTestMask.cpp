@@ -6,17 +6,6 @@ namespace {
  *  samples, dressed with one red stroke. The masking family's fixture. */
 Element maskBox() { return box().rect(SkRect::MakeXYWH(20, 20, 100, 100)); }
 
-/** How much red ink is anywhere in a 200×200 host. */
-int redInk(Host& host, int x0 = 0, int y0 = 0, int x1 = 200, int y1 = 200) {
-  int n = 0;
-  for (int y = y0; y < y1; ++y)
-    for (int x = x0; x < x1; ++x)
-      if (SkColorGetR(host.pixel(x, y)) > 140 &&
-          SkColorGetG(host.pixel(x, y)) < 90)
-        ++n;
-  return n;
-}
-
 }  // namespace
 
 // ---- the positioned leaf set --------------------------------------------

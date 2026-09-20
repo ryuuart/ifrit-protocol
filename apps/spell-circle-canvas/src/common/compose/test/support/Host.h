@@ -108,6 +108,17 @@ sigil::weave::TextStyle whiteStyle(float size) {
   return s;
 }
 
+/** How much red ink is anywhere in a 200x200 host. */
+int redInk(Host& host, int x0 = 0, int y0 = 0, int x1 = 200, int y1 = 200) {
+  int n = 0;
+  for (int y = y0; y < y1; ++y)
+    for (int x = x0; x < x1; ++x)
+      if (SkColorGetR(host.pixel(x, y)) > 140 &&
+          SkColorGetG(host.pixel(x, y)) < 90)
+        ++n;
+  return n;
+}
+
 bool anyWhiteIn(Host& host, SkIRect region) {
   for (int y = region.top(); y < region.bottom(); y += 2)
     for (int x = region.left(); x < region.right(); x += 2)
