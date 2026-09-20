@@ -27,7 +27,7 @@ row().children([None])  # error: reportCallIssue,reportArgumentType
 row().children((text("valid"), None))  # error: reportCallIssue,reportArgumentType
 row().children(text("valid"), "implicit text")  # error: reportArgumentType
 row().children(text("valid"), [text("nested")])  # error: reportArgumentType
-graphics("bad", wrong_paint)  # error: reportArgumentType
+graphics("bad", wrong_paint)  # error: reportCallIssue,reportArgumentType
 memo("wrong model", component)  # error: reportArgumentType
 kit.page(box(), titlle="typo")  # error: reportCallIssue
 kit.well(width=120, content="center")  # error: reportArgumentType
