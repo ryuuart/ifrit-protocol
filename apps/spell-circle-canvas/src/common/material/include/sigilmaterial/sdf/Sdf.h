@@ -31,9 +31,11 @@
  *  blurred copies of the same outline. */
 namespace sigil::material::sdf {
 
-/** Which silhouette a Shape stands for. One recipe exists per kind — a
- *  shape does not change kind, it is rebuilt through another factory. */
-enum class Kind : uint8_t { RoundBox, Circle, Star };
+/** WHICH SILHOUETTE a Shape stands for, and the whole of what separates
+ *  one Shape from another apart from its three packed parameters. One
+ *  recipe exists per value here — a shape does not change which it is,
+ *  it is rebuilt through another factory. */
+enum class SdfShape : uint8_t { RoundBox, Circle, Star };
 
 struct Shape;
 struct Style;
@@ -49,7 +51,7 @@ Material material(const Shape& shape, const Style& style);
  *  into [2, points], so a raw triple is not a shape. */
 struct Shape {
  private:
-  Kind kind = Kind::RoundBox;
+  SdfShape kind = SdfShape::RoundBox;
   float p0 = 0, p1 = 0, p2 = 0;
 
   friend Shape roundBox(float radius);
@@ -58,14 +60,14 @@ struct Shape {
   friend Material material(const Shape& shape, const Style& style);
 
  public:
-  Kind kindOf() const { return kind; }
+  SdfShape kindOf() const { return kind; }
   bool operator==(const Shape&) const = default;
 };
 
 /** Rounded box inscribed in the box (radius in px, clamped to half-size). */
 inline Shape roundBox(float radius) {
   Shape s;
-  s.kind = Kind::RoundBox;
+  s.kind = SdfShape::RoundBox;
   s.p0 = radius;
   return s;
 }
@@ -73,7 +75,7 @@ inline Shape roundBox(float radius) {
 /** Circle inscribed in the box. */
 inline Shape circle() {
   Shape s;
-  s.kind = Kind::Circle;
+  s.kind = SdfShape::Circle;
   return s;
 }
 
@@ -139,15 +141,16 @@ inline float minBoxFor(const Style& style, float contentPx) {
   return contentPx + 2.0f * pad(style);
 }
 
-/** The recipe for @p kind, defined once: the SDF prelude, the kind's
- *  distance function, and the one-pass layering. Reads the resolution. */
-const std::shared_ptr<const Recipe>& recipe(Kind kind);
+/** The recipe for @p silhouette, defined once: the SDF prelude, that
+ *  silhouette's distance function, and the one-pass layering. Reads the
+ *  resolution. */
+const std::shared_ptr<const Recipe>& recipe(SdfShape silhouette);
 
 /** The material: @p shape dressed by @p style. Bind `uGlowR`, `uBorderW`
  *  and the rest to animate within the reserve the style computed. */
 Material material(const Shape& shape, const Style& style);
 
-/** An instance of every recipe this feature ships, one per Kind, each
+/** An instance of every recipe this feature ships, one per SdfShape, each
  *  dressed by a style that lights every layer — so what the list reaches
  *  is the whole of each body and not the part a bare fill runs. For a
  *  caller that has to compile every program the feature can ask a

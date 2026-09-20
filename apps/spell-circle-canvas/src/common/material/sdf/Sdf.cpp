@@ -17,7 +17,7 @@ namespace sigil::material::sdf {
 Shape star(int points, float pointiness) {
   const float n = (float)std::max(points, 3);
   Shape s;
-  s.kind = Kind::Star;
+  s.kind = SdfShape::Star;
   s.p0 = n;
   s.p1 = std::clamp(pointiness, 2.0f, n);
   return s;
@@ -36,17 +36,17 @@ std::shared_ptr<const Recipe> make(const char* name,
 
 }  // namespace
 
-const std::shared_ptr<const Recipe>& recipe(Kind kind) {
-  switch (kind) {
-    case Kind::RoundBox: {
+const std::shared_ptr<const Recipe>& recipe(SdfShape silhouette) {
+  switch (silhouette) {
+    case SdfShape::RoundBox: {
       static const auto r = make("sdf.roundBox", "RoundBox.sksl");
       return r;
     }
-    case Kind::Circle: {
+    case SdfShape::Circle: {
       static const auto r = make("sdf.circle", "Circle.sksl");
       return r;
     }
-    case Kind::Star:
+    case SdfShape::Star:
     default: {
       static const auto r = make("sdf.star", "Star.sksl");
       return r;
