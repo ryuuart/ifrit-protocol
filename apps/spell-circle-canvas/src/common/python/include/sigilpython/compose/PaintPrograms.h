@@ -8,12 +8,16 @@
 
 #include <pybind11/pybind11.h>
 #include <sigilcompose/core/Paint.h>
-#include <sigilcompose/draw/Draw.h>
+#include <sigilcore/callable/Callable.h>
 
 #include <memory>
 #include <thread>
 
 class SkCanvas;
+
+namespace sigil::draw {
+class Pen;
+}
 
 namespace sigil::python {
 
@@ -89,7 +93,9 @@ compose::PaintProgram paintProgram(pybind11::handle value);
 
 /** A pen program read from @p value, a callable naming none, one or both
  *  of the pen and the paint context, in that order, on the same terms as
- *  `paintProgram`. */
-compose::PenProgram penProgram(pybind11::handle value);
+ *  `paintProgram`. What it answers is a `compose::PenProgram`, written
+ *  out so this header names the pen without including it. */
+core::Callable<void(draw::Pen&, const compose::PaintContext&)> penProgram(
+    pybind11::handle value);
 
 }  // namespace sigil::python
