@@ -183,8 +183,15 @@ exception through it would leave open.
   `justification`, `shape`, `elements`
 * `compose/Kit.h` — `converted`, `record`, `field`, `wellFields`,
   `contentType`
-* `motion/Convert.h` — `motionAnimatable`, `motionInk`, `motionFill`,
-  `motionEase`, `motionTransition`
+* `material/Convert.h` — `materialColor`
+* `motion/Convert.h` — `TickerHandle`, `TimelineHandle`,
+  `motionAnimatable`, `motionInk`, `motionFill`, `motionEase`,
+  `motionTransition`
+* `draw/Canvas.h` — `CanvasSource`, `BorrowedCanvas`, `penCanvasSource`,
+  `borrowedCanvas`, `canvas`, `invalidateCanvas`
+* `compose/PaintPrograms.h` — `BorrowedPaintContext`, `PaintContextLoan`,
+  `CanvasLoan`, `paintProgram`, `penProgram`
+* `compose/Composer.h` — `ComposerHandle`
 * `io/Hub.h` — `HubHandle`, `retainSessionFeed`
 * `data/Convert.h` — `dataDatabase`, `loadData`
 * `geometry/Casters.h` — the casters that let a Python sequence stand for
@@ -219,6 +226,22 @@ override is cleared; every other surface verb takes the whole set. A paired
 `kit.line` is the one place a value is narrowed silently, and the narrowing
 is the rails', not the verb's: each rail stores one comparable fill, so a
 paint that needs a frame rules the pair in the ink in force.
+
+A TICKER AND A COMPOSER ARE EACH ONE PYTHON CLASS, OWNED OR LENT. A handle
+holds the value it made, or an access function a host supplies, which is
+asked at every call and reports a closed session in the host's own words.
+An owned composer keeps its ticker and a system-backed font context beside
+it, refuses another thread, and refuses every call made from inside its own
+draw; a lent one refuses the size, the clock and the draw, which stay the
+host's. A timeline is read back through its ticker's access, so one that
+outlives its session refuses instead of reading storage that has gone.
+
+A canvas reaches Python as `draw.Canvas` over a canvas source, and the
+source is asked for the canvas at every verb, so a wrapper kept past its
+loan refuses instead of drawing. A pen lends its canvas through
+`penCanvasSource`; a native call that hands a program a canvas and a paint
+context lends both through a loan that ends when it is destroyed, and a
+paint program or a pen program names none, one or both of what it is lent.
 
 These headers let another native adapter use the same conversions and wrapper
 types. A checked hub accepts host-provided access and feed-retention functions;
