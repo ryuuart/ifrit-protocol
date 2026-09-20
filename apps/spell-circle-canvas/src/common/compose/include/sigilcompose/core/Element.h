@@ -58,27 +58,6 @@
 #include <string_view>
 #include <vector>
 
-class SkCanvas;
-
-namespace sigil::image {
-class ImageAsset;
-}
-
-namespace sigil::weave {
-class FontContext;
-// Which glyphs a text verb addresses, and the granularity it addresses
-// them by — the paragraph engine's, in <sigilweave/query/Selector.h> and
-// <sigilweave/paragraph/Unit.h>.
-class Selector;
-class RichText;
-class Story;
-enum class Unit : uint8_t;
-}  // namespace sigil::weave
-
-namespace sigil::material::pattern {
-class Tile;
-}
-
 /** DATA-DRIVEN DRAWING: a scene described as a tree of values, diffed
  *  against the last description and painted through Skia.
  *
@@ -117,22 +96,7 @@ class Tile;
  *  (SigilWorld). */
 namespace sigil::compose {
 
-namespace detail {
-struct ElementNode;
-struct Instance;
-}  // namespace detail
-
-class Composer;
-class Pattern;
-class VarTable;
-// The typography vocabulary the text verbs take, defined under
-// <sigilcompose/typography/>: a call site that dresses its type includes
-// the header that spells the value it passes. Which glyphs a verb
-// addresses is SigilWeave's `Selector`, declared above.
-struct Track;
-struct Annotation;
-struct TextPath;
-// <sigilcompose/core/Derive.h>: the positioning value, declared beside the
+// <sigilcompose/core/Derive.h>: what a node hangs off, declared beside the
 // rest of the derive family because it is resolved by the same pass.
 struct Tether;
 
@@ -185,7 +149,6 @@ class Element : public BoxVerbs<Element>,
                 public BandVerbs<Element> {
  public:
   Element();  ///< An empty box: no size, no fill, no children.
-
 
   /** @name The cascade a node NAMES
    *  The sheet this node and everything under it resolve their classes
@@ -268,13 +231,13 @@ class Element : public BoxVerbs<Element>,
    *  when unstated, so a new constant lands on the frame it arrives. A
    *  value that already carries its own `animate(...)` keeps that one;
    *  this is the node's default for the ones that do not. */
-  Element& transition(
-      motion::Transition t);  // node default for plain constants
+  Element& transition(motion::Transition t);
   /** Container stagger: child i's subtree enters with an EXTRA
    *  order-times-each delay on every `animate()` mount transition under
    *  it, compounding through nested staggered containers. @p from picks
-   *  the origin — declaration order, last child first, or outward from
-   *  the centre. One call, and no per-child delay arithmetic. */
+   *  the origin — declaration order, last child first (a bottom-up
+   *  cascade that leaves the paint order alone), or outward from the
+   *  centre. One call, and no per-child delay arithmetic. */
   Element& staggerChildren(
       std::chrono::milliseconds each,
       motion::Spread::From from = motion::Spread::From::Start);

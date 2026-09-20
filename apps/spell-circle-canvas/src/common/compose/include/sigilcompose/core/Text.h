@@ -10,15 +10,11 @@
  */
 
 #include <sigilcompose/core/Declarations.h>
+#include <sigilmotion/values/Animatable.h>  // choreograph::Output
 #include <sigilweave/style/Style.h>
 
 #include <cstdint>
 #include <string_view>
-
-namespace choreograph {
-template <typename T>
-class Output;
-}
 
 namespace sigil::weave {
 class Selector;

@@ -30,6 +30,11 @@
 #include <type_traits>
 #include <vector>
 
+namespace sigil::image {
+// What the image factory draws, defined in <sigilimage/asset/ImageAsset.h>.
+class ImageAsset;
+}  // namespace sigil::image
+
 namespace sigil::weave {
 // The two composed text values the text factories take, defined in
 // <sigilweave/paragraph/RichText.h> and <sigilweave/layout/Story.h>.
