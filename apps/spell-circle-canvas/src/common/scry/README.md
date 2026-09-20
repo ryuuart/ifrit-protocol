@@ -245,56 +245,56 @@ compositing model, in both directions.
 
 The library's root `CMakeLists.txt` searches for the SDK through
 `src/common/scry/cmake/FindUltralight.cmake` and leaves every target here
-out of the build, with a status line, when it is not installed.
+out of the build, with a status line, when it is not installed. New
+executables that link `SigilScry` must also call
+`ultralight_copy_resources(<target>)` in their `CMakeLists.txt`.
 
 Targets: `SigilScryPlatform`, `SigilScryGpu`, `SigilScryEngine` and the
-`SigilScry` umbrella. Tests (ctest, one binary `scry_test` over every
-feature's `test/`, one entry per case): `platform/test/` exercises the
-handlers without a renderer — the surface's format and alignment, the
-file system's roots, MIME table and synthesized slot files, the logger's
-routing, and the staged resource directory with the runtime probe that
-answers over it; `gpu/test/` drives the Metal driver directly, with
-no renderer and no page, and proves every upload, paint, blit and wrap
-by reading pixels back through Graphite; `engine/test/` runs the
-CPU-mode engine end to end and the GPU-mode one beside it,
-one case per door a page-visible slot can be filled through.
+`SigilScry` umbrella.
+
+[docs/overview/testing.md](../../../docs/overview/testing.md) is the
+contract every library here is built, tested and measured under: one
+`scry_test` over every feature's `test/` and one `scry_bench`, ctest one
+entry per CASE, what a case may pin, and what a label promises. What is
+only true of SigilScry:
+
+- `platform/test/` exercises the handlers without a renderer — the
+  surface's format and alignment, the file system's roots, MIME table
+  and synthesized slot files, the logger's routing, and the staged
+  resource directory with the runtime probe that answers over it.
+- `gpu/test/` drives the Metal driver directly, with no renderer and no
+  page, and proves every upload, paint, blit and wrap by reading pixels
+  back through Graphite.
+- `engine/test/` runs the CPU-mode engine end to end and the GPU-mode
+  one beside it, one case per door a page-visible slot can be filled
+  through.
 
 The GPU suites exist only on Apple and every case in them needs a
-device, so they carry the ctest label `gpu`: a machine without one shows
-them as a lane not run rather than as a lane that passed. Both take the
-one device and Graphite context a process may own from
-`test/SharedGraphite.h`, and read a surface back through SigilSkia's
-`readGraphiteSurface` / `readGraphitePixel`, which stand beside the
-context they turn — the read is turned rather than timed, because the
-submit before it is synchronous and what is left is Skia handing the
-result back, so the loop is bounded by turns of
-`checkAsyncWorkCompletion` and not by a clock. The engine suites
-take the page waits from `engine/test/Wait.h`, where a wait that expires
-says so and names what it was waiting for, rather than reporting the
-colour a page never painted; each of the two files boots the one engine
-its mode needs, for itself. A claim that is about the engine and
-not about how a frame is carried is written once, in
-`engine/test/EngineContract.h`, and asked of each. A process gets one
-renderer, and ctest runs every discovered case in a process of its own,
-which is what keeps the two modes apart in one binary.
+device, so they carry the `gpu` label. Both take the one device and
+Graphite context a process may own from `test/SharedGraphite.h`, and
+read a surface back through SigilSkia's `readGraphiteSurface` /
+`readGraphitePixel`, which stand beside the context they turn — the read
+is turned rather than timed, because the submit before it is synchronous
+and what is left is Skia handing the result back, so the loop is bounded
+by turns of `checkAsyncWorkCompletion` and not by a clock.
 
-The platform cases reach the handlers through the source directory,
-which is a stated exception: the handlers' headers name Ultralight
+The engine suites take the page waits from `engine/test/Wait.h`, where a
+wait that expires says so and names what it was waiting for, rather than
+reporting the colour a page never painted; each of the two files boots
+the one engine its mode needs, for itself. A claim that is about the
+engine and not about how a frame is carried is written once, in
+`engine/test/EngineContract.h`, and asked of each. **A process gets one
+renderer**, and ctest runs every discovered case in a process of its
+own, which is what keeps the two modes apart in one binary — and why
+`scry_bench --gpu` runs the engine's GPU-mode arms as a separate run,
+with the ledger on the CPU mode. Its arms sit in `platform/bench/`,
+`gpu/bench/` (Apple) and `engine/bench/`.
+
+**The platform cases reach the handlers through the source directory,
+which is a stated exception**: the handlers' headers name Ultralight
 types, so they cannot be public, and a test that could reach only
 `LogLevel.h` and `Runtime.h` could assert nothing about the surface, the
-file system or the logger. A case here asserts one thing a header
-promises and is named that promise as a sentence; it pins only what
-editing this library could falsify — a colour a document declares, a
-MIME type, a row stride's alignment and the bytes a buffer must hold —
-never the exact padding an allocator chose. Benchmarks (Google
-Benchmark, through the `benches` target and `scripts/sigil.py bench`):
-one binary, `scry_bench`, with arms in `platform/bench/`, `gpu/bench/`
-(Apple) and `engine/bench/` — `--gpu` runs the engine's GPU-mode arms, a
-separate run because of the one-renderer rule; the ledger runs the CPU
-mode.
-
-New executables that link `SigilScry` must also call
-`ultralight_copy_resources(<target>)` in their `CMakeLists.txt`.
+file system or the logger.
 
 ### Installing the SDK (macOS)
 
