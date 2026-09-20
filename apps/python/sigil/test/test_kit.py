@@ -183,8 +183,8 @@ class GridSheet:
                 .height(80)
                 .children(
                     [
-                        (box().key("rail").area("rail")),
-                        (box().key("body").area("body")),
+                        (box().key("rail").gridArea("rail")),
+                        (box().key("body").gridArea("body")),
                     ]
                 )
             )

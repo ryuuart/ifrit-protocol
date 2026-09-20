@@ -341,7 +341,7 @@ struct DeriveData {
   /** Element::tether(): where this node hangs off a keyed one, resolved
    *  by the derive pass against the anchor's finished geometry. */
   std::optional<Tether> tether;
-  /** Element::area(): the name of the region this child claims of the
+  /** Element::gridArea(): the name of the region this child claims of the
    *  scheme above it, merged into the CellSpan the layout pass hands that
    *  scheme. It lives in this block rather than beside the cell numbers in
    *  LayoutProps because a string on every node in the tree is what the

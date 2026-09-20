@@ -90,8 +90,8 @@ Derived& PlacementVerbs<Derived>::centerAt(SkPoint p) {
 }
 
 template <class Derived>
-Derived& PlacementVerbs<Derived>::cells(int column, int row, int columns,
-                                        int rows) {
+Derived& PlacementVerbs<Derived>::gridCells(int column, int row, int columns,
+                                            int rows) {
   // A span of zero cells would place the child nowhere and size it to
   // nothing, which reads as "it vanished" rather than as a mistake.
   CellSpan& claim = declarations()->layout.cells;
@@ -104,12 +104,12 @@ Derived& PlacementVerbs<Derived>::cells(int column, int row, int columns,
 }
 
 template <class Derived>
-Derived& PlacementVerbs<Derived>::cells(CellSpan span) {
-  return cells(span.column, span.row, span.columns, span.rows);
+Derived& PlacementVerbs<Derived>::gridCells(CellSpan span) {
+  return gridCells(span.column, span.row, span.columns, span.rows);
 }
 
 template <class Derived>
-Derived& PlacementVerbs<Derived>::area(std::string_view name) {
+Derived& PlacementVerbs<Derived>::gridArea(std::string_view name) {
   // The name alone is the claim: the numbers stay at their defaults until
   // the scheme's picture resolves them, and `declared` is left to that
   // resolution, so a name no picture carries flows exactly as an unspoken
@@ -119,7 +119,7 @@ Derived& PlacementVerbs<Derived>::area(std::string_view name) {
 }
 
 template <class Derived>
-Derived& PlacementVerbs<Derived>::cellAlign(Align across, Align down) {
+Derived& PlacementVerbs<Derived>::gridCellAlign(Align across, Align down) {
   // An alignment says where the child sits in whatever cell it gets, and
   // nothing about WHICH cell: `declared` stays as it is, so a child that
   // states only this still flows.

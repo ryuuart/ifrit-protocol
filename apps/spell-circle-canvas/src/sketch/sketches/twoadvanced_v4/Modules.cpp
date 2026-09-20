@@ -141,7 +141,7 @@ auto TwoAdvancedV4::featureSystem() -> Element {
 
   Element panel = bevelPanel(box().column().padding(3), kChrome, 3);
   panel.key("feature")
-      .area("feature")
+      .gridArea("feature")
       .translateX(animate(motion::from(90.0f).to(0.0f),
                           {500ms, &ch::easeOutQuint, 2600ms}))
       .opacity(animate(motion::from(0.0f).to(1.0f),
@@ -237,7 +237,7 @@ auto TwoAdvancedV4::pressUpdates() -> Element {
 
   Element panel = bevelPanel(box().column().padding(3), kChrome, 3);
   panel.key("press")
-      .area("press")
+      .gridArea("press")
       .translateY(animate(motion::from(60.0f).to(0.0f),
                           {420ms, &ch::easeOutQuint, 3250ms}))
       .opacity(animate(motion::from(0.0f).to(1.0f),
@@ -362,7 +362,7 @@ auto TwoAdvancedV4::auxiliary() -> Element {
 
   Element panel = bevelPanel(box().column().padding(3), kChrome, 3);
   panel.key("aux")
-      .area("aux")
+      .gridArea("aux")
       .translateY(animate(motion::from(56.0f).to(0.0f),
                           {400ms, &ch::easeOutQuint, 3100ms}))
       .opacity(animate(motion::from(0.0f).to(1.0f),
@@ -464,7 +464,7 @@ auto TwoAdvancedV4::subSystem() -> Element {
       bevelPanel(box().row().alignItems(Align::Center).padding(14, 0).gap(18),
                  hexColor(0x2E0B0D));
   row.key("subsys")
-      .area("subsys")
+      .gridArea("subsys")
       .background(
           styles::Overlay{hazard.material(), SkBlendMode::kSrcOver, 0.16f})
       .opacity(animate(motion::from(0.0f).to(1.0f),

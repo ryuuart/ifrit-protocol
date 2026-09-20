@@ -1,15 +1,15 @@
 ---
 kind: verb
 library: SigilCompose
-name: cells
-qualified: sigil::compose::Element::cells
+name: gridCells
+qualified: sigil::compose::Element::gridCells
 header: sigilcompose/core/verbs/Placement.h
 group: Flow and placement
-python: sigil.compose.Element.cells
+python: sigil.compose.Element.gridCells
 status: stable
 ---
 
-# cells
+# gridCells
 
 Which cells this child claims of the `layout()` scheme above it, and how
 many it covers. Read by grid-shaped schemes — `layouts::Table`,
@@ -32,5 +32,5 @@ computed.
 
 ## See also
 
-[`area`](area.md) for the named form, `cellAlign` for where the child
+[`gridArea`](gridArea.md) for the named form, `gridCellAlign` for where the child
 sits inside the cell box, and `CellSpan`.

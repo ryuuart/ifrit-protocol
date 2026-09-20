@@ -86,8 +86,8 @@ sound model; nothing below them changes kernel semantics.
   `flexWrap`, `flexGrow`, `flexShrink`, `flexBasis`, `alignItems`, `alignSelf`,
   `justifyContent`.
 - `core/verbs/Placement.h` — `PlacementVerbs`: `absolute`, `cover`,
-  `inset`, `left`, `top`, `right`, `bottom`, `centerAt`, `cells`,
-  `area`, `cellAlign`, `rect`, `at`. `cover` is the one that says a
+  `inset`, `left`, `top`, `right`, `bottom`, `centerAt`, `gridCells`,
+  `gridArea`, `gridCellAlign`, `rect`, `at`. `cover` is the one that says a
   node FILLS the box it stands in, which `absolute` and `inset` said
   between them.
 - `core/verbs/Shape.h` — `ShapeVerbs`: `borderRadius`, `shape`, `clip`.
@@ -318,7 +318,7 @@ fills its container across and grows down the page. A track past the end
 of a list that was given is content-sized.
 
 `Grid::areas` is a picture of the grid drawn out of names, one string per
-row and one token per cell, and `Element::area` is how a child claims one
+row and one token per cell, and `Element::gridArea` is how a child claims one
 of those regions. A name survives what four integers do not: insert a row
 into the picture and every child stays in the region it named, where
 every numbered child after the insertion would have moved a cell. A name
@@ -330,7 +330,7 @@ that do not form a rectangle is reported once and placed at the rectangle
 that bounds it: a picture the author can see is wrong is worth saying so
 about, and refusing to lay the page out at all is not.
 `Grid::across` and `Grid::down` say how a child sits in the box its cells
-make when the child itself said nothing with `Element::cellAlign`.
+make when the child itself said nothing with `Element::gridCellAlign`.
 `Grid::solve` hands back a `Grid::Resolved` — the track sizes and origins
 the rule arrived at — for the same reason the auto table exposes its own:
 a track nothing fills leaves no trace in the placed rects, so a study
@@ -355,8 +355,8 @@ chase each other.
 child CLAIMED of it.** `LayoutInput` carries the container's size, every
 child's measured size and every child's first baseline — all facts a
 layout pass established — plus `LayoutInput::childCells`, one `CellSpan`
-per child, written by `Element::cells` and `Element::cellAlign`, and
-`LayoutInput::childAreas`, the region name `Element::area` wrote, empty
+per child, written by `Element::gridCells` and `Element::gridCellAlign`, and
+`LayoutInput::childAreas`, the region name `Element::gridArea` wrote, empty
 for a child that named none. The name sits beside the span rather than in
 it because a string on the properties of every node in the tree is what the
 node's size budget forbids, and a named region is rare. Both are on the
@@ -376,7 +376,7 @@ layout(layouts::Grid{
     .columns = layouts::repeatTrack(4, layouts::fr()),
     .rows = layouts::repeatTrack(4, layouts::fr()),
     .gap = {8, 8}})
-    .children({header().cells(0, 0, 2, 1), sidebar().cells(3, 0, 1, 3), body()});  // flows into the next unoccupied cell
+    .children({header().gridCells(0, 0, 2, 1), sidebar().gridCells(3, 0, 1, 3), body()});  // flows into the next unoccupied cell
 ```
 
 `layouts::Table` is the HTML automatic table layout: unequal columns

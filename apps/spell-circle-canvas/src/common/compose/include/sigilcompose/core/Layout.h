@@ -331,7 +331,7 @@ void flowCells(std::vector<CellSpan>& spans, int columns, bool dense = false);
  *  measured size (text children measured by SigilWeave), each child's
  *  first-baseline offset from its own top (NaN for children without one) —
  *  what baseline-rhythm schemes (layouts::BaselineGrid) snap by — and the
- *  cells each child claimed with `Element::cells`. */
+ *  cells each child claimed with `Element::gridCells`. */
 struct LayoutInput {
   SkSize container = SkSize::MakeEmpty();
   std::vector<SkSize> childSizes;

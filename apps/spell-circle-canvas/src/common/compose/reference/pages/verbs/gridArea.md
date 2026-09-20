@@ -1,26 +1,26 @@
 ---
 kind: verb
 library: SigilCompose
-name: area
-qualified: sigil::compose::Element::area
+name: gridArea
+qualified: sigil::compose::Element::gridArea
 header: sigilcompose/core/verbs/Placement.h
 group: Flow and placement
-python: sigil.compose.Element.area
+python: sigil.compose.Element.gridArea
 status: stable
 ---
 
-# area
+# gridArea
 
 Which NAMED REGION of the `layout()` scheme above it this child claims —
-the same statement [`cells`](cells.md) makes, with the numbers left to
+the same statement [`gridCells`](gridCells.md) makes, with the numbers left to
 the scheme's own picture of itself.
 
 ## Description
 
 ```cpp
 layout(layouts::Grid{.areas = {"head head", "nav  main"}})
-    .children({masthead().area("head")})
-    .children({sidebar().area("nav")});
+    .children({masthead().gridArea("head")})
+    .children({sidebar().gridArea("nav")});
 ```
 
 **A name survives what four integers do not.** Insert a row into the
@@ -34,4 +34,4 @@ does — rather than landing on cell (0, 0).
 
 ## See also
 
-[`cells`](cells.md), `cellAlign`, `layouts::Grid`.
+[`gridCells`](gridCells.md), `gridCellAlign`, `layouts::Grid`.

@@ -67,7 +67,7 @@ auto TwoAdvancedV4::navBar() -> Element {
                                .alignItems(Align::Center)
                                .padding(6, 0),
                            kChrome);
-  bar.key("nav").area("nav").fill(stripesLive).staggerChildren(40ms);
+  bar.key("nav").gridArea("nav").fill(stripesLive).staggerChildren(40ms);
   // ONE ITEM PER NAME IN THE DOCUMENT'S TAXONOMY, with the hairline that
   // stands each off the one before it interleaved by the run itself.
   bar.children({each(
@@ -131,7 +131,7 @@ auto TwoAdvancedV4::masthead() -> Element {
 
   return box()
       .key("masthead")
-      .area("masthead")
+      .gridArea("masthead")
       .column()
       .translateX(animate(motion::from(320.0f).to(0.0f),
                           {420ms, &ch::easeOutQuint, 1850ms}))
@@ -216,7 +216,7 @@ auto TwoAdvancedV4::legalStrip() -> Element {
       .alignItems(Align::Center)
       .gap(4)
       .key("legal")
-      .area("legal")
+      .gridArea("legal")
       .opacity(animate(motion::from(0.0f).to(1.0f),
                        {400ms, &ch::easeOutQuad, 3750ms}))
       .children(
@@ -304,7 +304,7 @@ auto TwoAdvancedV4::footerDock() -> Element {
     return box()
         .fill(stretchFill(footerGif, 1892, 220))
         .key("dock")
-        .area("dock")
+        .gridArea("dock")
         .opacity(animate(motion::from(0.0f).to(1.0f),
                          {400ms, &ch::easeOutQuad, 3850ms}))
         .foreground(onEdges(path::Edge::Top, stroke(2, Fill::color(kD5),
@@ -323,7 +323,7 @@ auto TwoAdvancedV4::footerDock() -> Element {
           .padding(14, 12)
           .gap(12)
           .key("dock")
-          .area("dock")
+          .gridArea("dock")
           .opacity(animate(motion::from(0.0f).to(1.0f),
                            {400ms, &ch::easeOutQuad, 3850ms}))
           .foreground(

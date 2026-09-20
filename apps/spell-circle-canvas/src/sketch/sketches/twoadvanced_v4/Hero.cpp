@@ -368,7 +368,7 @@ auto TwoAdvancedV4::mainframe() -> Element {
 
   Element panel = bevelPanel(box().column().padding(3), kChrome, 3);
   panel.key("mainframe")
-      .area("mainframe")
+      .gridArea("mainframe")
       .translateY(animate(motion::from(70.0f).to(0.0f),
                           {520ms, &ch::easeOutQuint, 2400ms}))
       .opacity(animate(motion::from(0.0f).to(1.0f),

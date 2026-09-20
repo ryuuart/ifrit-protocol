@@ -111,7 +111,7 @@ compose::Element comparison(Comparison specification) {
         children.push_back(document::label(std::move(one.title))
                                .width(columnWidth)
                                .flexShrink(0)
-                               .cells(int(column), row));
+                               .gridCells(int(column), row));
       ++row;
     }
     if (controls) {
@@ -122,7 +122,7 @@ compose::Element comparison(Comparison specification) {
                     look.font({.size = 10.5f, .mono = true}, look.palette.ash)))
                 .width(columnWidth)
                 .flexShrink(0)
-                .cells(int(column), row));
+                .gridCells(int(column), row));
       ++row;
     }
     children.push_back(box()
@@ -131,12 +131,12 @@ compose::Element comparison(Comparison specification) {
                            .flexShrink(0)
                            .alignItems(Align::Center)
                            .children({std::move(one.figure.flexShrink(0))})
-                           .cells(int(column), row++));
+                           .gridCells(int(column), row++));
     if (notes && !one.note.empty())
       children.push_back(document::caption(std::move(one.note))
                              .width(columnWidth)
                              .flexShrink(0)
-                             .cells(int(column), row));
+                             .gridCells(int(column), row));
   }
   // Grid places already-measured children. Measure its tracks side by side
   // so Yoga cannot shrink the figures as a temporary vertical stack, and

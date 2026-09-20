@@ -22,9 +22,9 @@ TEST(ComposeTable, AColumnIsAsWideAsWhatIsInItAndSharesTheSurplus) {
       {layout(table)
            .width(pct(100))
            .flexGrow(1)
-           .children({box().key("a").width(30).height(20).cells(0, 0)})
-           .children({box().key("b").width(60).height(20).cells(1, 0)})
-           .children({box().key("c").width(90).height(20).cells(2, 0)})}));
+           .children({box().key("a").width(30).height(20).gridCells(0, 0)})
+           .children({box().key("b").width(60).height(20).gridCells(1, 0)})
+           .children({box().key("c").width(90).height(20).gridCells(2, 0)})}));
   host.frame();
   const auto a = host.composer.bounds("a");
   const auto b = host.composer.bounds("b");
@@ -49,10 +49,11 @@ TEST(ComposeTable, ASpanTopsUpColumnsAndRowsDifferently) {
            .width(200)
            .height(200)
            .children(
-               {box().key("wide").width(100).height(10).cells(0, 0, 2, 1)})
+               {box().key("wide").width(100).height(10).gridCells(0, 0, 2, 1)})
            .children(
-               {box().key("tall").width(10).height(100).cells(0, 1, 1, 2)})
-           .children({box().key("small").width(10).height(10).cells(1, 1)})}));
+               {box().key("tall").width(10).height(100).gridCells(0, 1, 1, 2)})
+           .children(
+               {box().key("small").width(10).height(10).gridCells(1, 1)})}));
   host.frame();
   const auto wide = host.composer.bounds("wide");
   const auto tall = host.composer.bounds("tall");
@@ -78,11 +79,14 @@ TEST(ComposeTable, WhatNoChildClaimedFlowsAndAlignsInsideItsCell) {
       {layout(table)
            .width(200)
            .height(100)
-           .children({box().key("pinned").width(20).height(20).cells(1, 0)})
+           .children({box().key("pinned").width(20).height(20).gridCells(1, 0)})
            .children({box().key("flowed").width(20).height(20)})
-           .children(
-               {box().key("right").width(20).height(20).cells(1, 1).cellAlign(
-                   Align::End, Align::Start)})}));
+           .children({box()
+                          .key("right")
+                          .width(20)
+                          .height(20)
+                          .gridCells(1, 1)
+                          .gridCellAlign(Align::End, Align::Start)})}));
   host.frame();
   const auto pinned = host.composer.bounds("pinned");
   const auto flowed = host.composer.bounds("flowed");

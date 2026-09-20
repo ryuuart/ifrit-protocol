@@ -123,7 +123,7 @@ struct Children;
  *
  *  A VERB WHOSE VALUE THIS NODE CANNOT USE IS SILENTLY IGNORED rather
  *  than an error: the text verbs do nothing on a box, `region()` does
- *  nothing off an image leaf, and a `cells()` claim is read only by a
+ *  nothing off an image leaf, and a `gridCells()` claim is read only by a
  *  grid-shaped scheme. That is what lets one kit component say
  *  everything it might mean and let each node take its share.
  *

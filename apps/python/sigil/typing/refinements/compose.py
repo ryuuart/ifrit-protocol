@@ -68,7 +68,7 @@ def inset(self, left: _t.DimensionLike, top: _t.DimensionLike, right: _t.Dimensi
     table.erased(ELEMENT, "ink", "_t.ElementInkLike")
     table.erased(ELEMENT, "alignItems alignSelf", "_t.AlignLike")
     table.erased(ELEMENT, "justifyContent", "_t.JustifyLike")
-    table.erased(ELEMENT, "cellAlign", "_t.AlignLike", "_t.AlignLike")
+    table.erased(ELEMENT, "gridCellAlign", "_t.AlignLike", "_t.AlignLike")
     table.erased(ELEMENT, "at centerAt", "_t.PointLike")
     # An origin takes a length that carries its unit, so the bare number every
     # other dimension accepts as pixels is left out of what these accept.

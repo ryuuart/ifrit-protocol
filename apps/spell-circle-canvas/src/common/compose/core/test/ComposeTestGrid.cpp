@@ -349,9 +349,9 @@ TEST(ComposeGrid, AChildClaimsItsRegionByNameThroughTheComposer) {
                   .areas = {"head head", "nav  main"}})
           .absolute()
           .inset(0)
-          .children({box().key("head").area("head").fill(red()),
-                     box().key("nav").area("nav").fill(green()),
-                     box().key("main").area("main").fill(blue())}));
+          .children({box().key("head").gridArea("head").fill(red()),
+                     box().key("nav").gridArea("nav").fill(green()),
+                     box().key("main").gridArea("main").fill(blue())}));
   host.frame();
   EXPECT_EQ(require(host.composer.bounds("head")),
             SkRect::MakeXYWH(0, 0, 400, 40));
@@ -575,9 +575,10 @@ TEST(ComposeGrid, TextWrapsAtItsResolvedTrackWidthBeforeRowsAreSized) {
            .key("grid")
            .row()
            .alignItems(Align::Start)
-           .children({paragraph().key("paragraph").flexShrink(0).cells(0, 0),
-                      box().height(18).cells(1, 0),
-                      box().key("nextRow").height(20).cells(0, 1)}),
+           .children(
+               {paragraph().key("paragraph").flexShrink(0).gridCells(0, 0),
+                box().height(18).gridCells(1, 0),
+                box().key("nextRow").height(20).gridCells(0, 1)}),
        box().key("following").height(20)}));
   float previousHeight = 0;
   for (const float viewport : {500.0f, 300.0f}) {
@@ -612,7 +613,8 @@ TEST(ComposeGrid, TextWrapsAtItsBoundedWidthBeforeRowsAreSized) {
   for (const bool maximum : {true, false}) {
     const float trackWidth = maximum ? 240 : 80;
     const float expectedWidth = maximum ? 100 : 140;
-    Element bounded = paragraph().key("paragraph").flexShrink(0).cells(0, 0);
+    Element bounded =
+        paragraph().key("paragraph").flexShrink(0).gridCells(0, 0);
     if (maximum)
       bounded.maxWidth(expectedWidth);
     else
@@ -625,7 +627,7 @@ TEST(ComposeGrid, TextWrapsAtItsBoundedWidthBeforeRowsAreSized) {
             .row()
             .alignItems(Align::Start)
             .children({std::move(bounded),
-                       box().key("following").height(20).cells(0, 1)}));
+                       box().key("following").height(20).gridCells(0, 1)}));
     host.frame();
     Host reference(500, 600);
     reference.composer.render(
@@ -678,14 +680,14 @@ TEST(ComposeGrid, WrappedTextKeepsItsDeclaredExtentBounds) {
               {text("Short", styleAt(16))
                    .key("minimum")
                    .minHeight(90)
-                   .cells(0, 0),
+                   .gridCells(0, 0),
                text("A long paragraph whose many words would need more than "
                     "one line when placed within a narrow track.",
                     styleAt(16))
                    .key("maximum")
                    .maxHeight(30)
-                   .cells(1, 0),
-               box().key("following").height(20).cells(0, 1)}));
+                   .gridCells(1, 0),
+               box().key("following").height(20).gridCells(0, 1)}));
   host.frame();
   EXPECT_FLOAT_EQ(require(host.composer.bounds("minimum")).height(), 90);
   EXPECT_FLOAT_EQ(require(host.composer.bounds("maximum")).height(), 30);
@@ -721,8 +723,8 @@ TEST(ComposeGrid, EqualModulesRespectSpansAndFlowIntoFreeCells) {
       {layout(grid)
            .width(pct(100))
            .flexGrow(1)
-           .children({box().key("a").cells(0, 0, 2, 1).fill(red())})
-           .children({box().key("b").cells(3, 0, 1, 3).fill(blue())})
+           .children({box().key("a").gridCells(0, 0, 2, 1).fill(red())})
+           .children({box().key("b").gridCells(3, 0, 1, 3).fill(blue())})
            .children({box().key("c").fill(green())})
            .children({box().key("d").fill(red())})}));
   host.frame();

@@ -596,16 +596,17 @@ void bindCompose(py::module_& module) {
             return self.rect(rect(value));
           },
           py::arg("rect"), fluent)
-      .def("cells", py::overload_cast<int, int, int, int>(&Element::cells),
+      .def("gridCells",
+           py::overload_cast<int, int, int, int>(&Element::gridCells),
            py::arg("column"), py::arg("row"), py::arg("columns") = 1,
            py::arg("rows") = 1, fluent)
-      .def("cells", py::overload_cast<CellSpan>(&Element::cells),
+      .def("gridCells", py::overload_cast<CellSpan>(&Element::gridCells),
            py::arg("span"), fluent)
-      .def("area", &Element::area, py::arg("name"), fluent)
+      .def("gridArea", &Element::gridArea, py::arg("name"), fluent)
       .def(
-          "cellAlign",
+          "gridCellAlign",
           [](Element& self, py::object x, py::object y) -> Element& {
-            return self.cellAlign(alignment(x), alignment(y));
+            return self.gridCellAlign(alignment(x), alignment(y));
           },
           py::arg("horizontal"), py::arg("vertical"), fluent)
       .def("borderRadius", py::overload_cast<Corners>(&Element::borderRadius),

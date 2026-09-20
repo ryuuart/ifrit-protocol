@@ -62,9 +62,9 @@ is placed.
 | [`rect`](pages/verbs/rect.md) | Place the node on a parent-space rectangle — the point and the box at once. |
 | `centerAt` | Centre the node on a parent-space point, measured after layout. |
 | [`tether`](pages/verbs/tether.md) | Hang the node off a keyed one at a stated pair of points, with fallbacks. |
-| [`cells`](pages/verbs/cells.md) | Which cells of the `layout` scheme above this child it claims, and how many it covers. |
-| [`area`](pages/verbs/area.md) | Which NAMED region of the scheme above it this child claims. |
-| `cellAlign` | Where the child sits inside the cell box its span makes. |
+| [`gridCells`](pages/verbs/gridCells.md) | Which cells of the `layout` scheme above this child it claims, and how many it covers. |
+| [`gridArea`](pages/verbs/gridArea.md) | Which NAMED region of the scheme above it this child claims. |
+| `gridCellAlign` | Where the child sits inside the cell box its span makes. |
 
 ## Size and spacing
 
@@ -274,7 +274,7 @@ spelling is the feature's.
   `aspectRatio`, `boxSizing`, `display`.
 - `core/verbs/Placement.h` — the placement verbs `absolute`, `cover`,
   `inset`, `left`, `top`, `right`, `bottom`, `centerAt`,
-  `cells`, `area`, `cellAlign`, `rect`, `at`.
+  `gridCells`, `gridArea`, `gridCellAlign`, `rect`, `at`.
 - `core/verbs/Shape.h` — the region verbs `borderRadius`, `shape`, `clip`.
 - `core/Band.h` — the band formation `centered`, `outward`, `inward`.
 - `core/verbs/Mask.h` — `mask`.

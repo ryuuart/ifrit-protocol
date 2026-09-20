@@ -269,7 +269,7 @@ auto TwoAdvancedV4::audioModule() -> Element {
   Element panel =
       bevelPanel(box().column().padding(9).gap(6), hexColor(0x3E1013));
   panel.key("audio")
-      .area("audio")
+      .gridArea("audio")
       .foreground(styles::Brackets{
           kCyan, 18, 3, 4, shapes::Corner::TopLeft | shapes::Corner::TopRight})
       .foreground(styles::TickRail{mskia::withAlpha(kDust, 0.45f), 7, 3, 6, 1,

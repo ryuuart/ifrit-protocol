@@ -22,14 +22,14 @@ namespace sigil::compose::layouts {
  *  surplus shared out in proportion — the layout every HTML table has run
  *  since tables were how a page was set.
  *
- *  Each child says which cells it takes with `Element::cells` and where it
- *  sits in them with `Element::cellAlign`. A child that says nothing flows
+ *  Each child says which cells it takes with `Element::gridCells` and where it
+ *  sits in them with `Element::gridCellAlign`. A child that says nothing flows
  *  into the next free cell, left to right and then down.
  *
  *      layout(layouts::Table{.width = 500, .spacing = 2, .padding = 1})
- *          .children({masthead().cells(0, 0, 5, 1).cellAlign(Align::End,
- *                                                        Align::Start)})
- *          .children({panel().cells(1, 0, 1, 2)})
+ *          .children({masthead().gridCells(0, 0, 5,
+ * 1).gridCellAlign(Align::End, Align::Start)}) .children({panel().gridCells(1,
+ * 0, 1, 2)})
  *
  *  A COLUMN IS SOLVED BETWEEN TWO WIDTHS, not from one. What its content
  *  WANTS is the widest thing in it; what its content NEEDS is the

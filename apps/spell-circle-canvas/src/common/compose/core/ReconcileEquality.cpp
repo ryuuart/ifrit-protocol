@@ -182,7 +182,7 @@ bool deriveEqual(const Box<DeriveData>& a, const Box<DeriveData>& b) {
   // read differ in the field that produced it and are already unequal.
   // A verb that ever declared a read WITHOUT storing the key behind it
   // would break that, and would have to be compared here.
-  // area(): the region name a child claims of the scheme above it. Two
+  // gridArea(): the region name a child claims of the scheme above it. Two
   // descriptions that name different regions place the child differently
   // and must not prune into each other. `placeReadsMinSizes` needs no rule
   // of its own: it is a property of the scheme type behind `placeFn`, and

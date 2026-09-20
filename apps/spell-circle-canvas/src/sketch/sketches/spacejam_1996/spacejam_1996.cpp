@@ -90,7 +90,8 @@ struct SpaceJam1996 {
     if (s.brs > 0)
       c.children({box().width(0).height(sj::S(18) * (float)s.brs)});
     if (s.asset >= 0) c.children({revealed(s.asset, inFlight)});
-    c.cells(s.col, s.row, s.colspan, s.rowspan).cellAlign(s.across, s.down);
+    c.gridCells(s.col, s.row, s.colspan, s.rowspan)
+        .gridCellAlign(s.across, s.down);
     return c;
   }
 

@@ -120,8 +120,8 @@ struct Track {
  *      layout(layouts::Grid{
  *          .columns = {layouts::px(160), layouts::fr()},
  *          .areas = {"nav content"}, .gap = {12, 12}})
- *          .children({sidebar().area("nav")})
- *          .children({scene().area("content")})
+ *          .children({sidebar().gridArea("nav")})
+ *          .children({scene().gridArea("content")})
  *
  * Tracks resolve their minimums, accommodate content, then divide remaining
  * space among fractional shares. Rows and columns use the same rule.
@@ -150,7 +150,8 @@ struct Grid {
    *  backtracking past the cursor. */
   bool dense = false;
   /** How a child sits in the box its cells make, when the child itself
-   *  did not say with `Element::cellAlign`. `Stretch` sizes it to the box. */
+   *  did not say with `Element::gridCellAlign`. `Stretch` sizes it to the box.
+   */
   Align across = Align::Stretch;
   Align down = Align::Stretch;
 

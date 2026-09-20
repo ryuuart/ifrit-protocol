@@ -517,7 +517,7 @@ constexpr double kReloadAt = 11.5;     // length of one cycle in sketch
  *  HTML gives it.
  *
  *  The children are BUILT from this list and each one carries its own claim
- *  through `Element::cells`, so there is nothing running parallel to them
+ *  through `Element::gridCells`, so there is nothing running parallel to them
  *  that an inserted row could knock out of step. */
 struct Slot {
   int asset = -1;  ///< -1 for the two cells the page leaves empty

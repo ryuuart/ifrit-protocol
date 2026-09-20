@@ -70,8 +70,8 @@ std::vector<layouts::Track> interleave(std::vector<Element>& cells,
   std::vector<Element> out;
   for (size_t i = 0; i < cells.size(); ++i) {
     if (ruled && i % perRow != 0)
-      out.push_back(box().width(width).fill(divider).cellAlign(Align::Start,
-                                                               Align::Stretch));
+      out.push_back(box().width(width).fill(divider).gridCellAlign(
+          Align::Start, Align::Stretch));
     out.push_back(std::move(cells[i]));
   }
   std::vector<layouts::Track> tracks;

@@ -60,18 +60,18 @@ class PlacementVerbs {
   /** WHICH CELLS this child claims of the scheme above it, and how many
    *  it covers — read by grid-shaped schemes and by nothing else. A
    *  span of zero is raised to one. */
-  Derived& cells(int column, int row, int columns = 1, int rows = 1);
+  Derived& gridCells(int column, int row, int columns = 1, int rows = 1);
   /** The same claim as one value — the shape a scheme reads it back as,
    *  so a caller computing a span passes what it computed. */
-  Derived& cells(CellSpan span);
-  /** WHICH NAMED REGION of the scheme above it this child claims. A
-   *  name the scheme's picture does not carry is silent, and the child
-   *  flows into the next free cell. */
-  Derived& area(std::string_view name);
+  Derived& gridCells(CellSpan span);
+  /** WHICH NAMED REGION of the scheme above it this child claims — CSS
+   *  `grid-area`. A name the scheme's picture does not carry is silent,
+   *  and the child flows into the next free cell. */
+  Derived& gridArea(std::string_view name);
   /** Where this child sits INSIDE the cell box its span makes.
    *  `Align::Stretch` sizes it to the box instead of placing it in
    *  one. */
-  Derived& cellAlign(Align across, Align down);
+  Derived& gridCellAlign(Align across, Align down);
   /** Place this node on a parent-space RECT — exactly
    *  `left().top().width().height()`, so it writes the same four fields
    *  as the longhand and prunes identically. Pixels only; right and
