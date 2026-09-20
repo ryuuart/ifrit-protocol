@@ -26,7 +26,7 @@
 namespace sigil::world::light {
 
 /** What an emitter IS, which decides which of its fields mean anything. */
-enum class Kind : uint8_t {
+enum class LightKind : uint8_t {
   Sun,    ///< direction only
   Point,  ///< position and range
   Spot,   ///< position, direction, range and a cone
@@ -35,7 +35,7 @@ enum class Kind : uint8_t {
 /** One emitter. The fields a kind does not use keep their defaults and
  *  are ignored. */
 struct Light {
-  Kind kind = Kind::Point;
+  LightKind kind = LightKind::Point;
   /** Linear colour; alpha is unused. */
   glm::vec4 color = {1, 1, 1, 1};
   float intensity = 1;

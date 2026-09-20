@@ -26,7 +26,7 @@ glm::vec3 unit(const glm::vec3& v) {
 
 Light sun(glm::vec3 direction, glm::vec4 color, float intensity) {
   Light light;
-  light.kind = Kind::Sun;
+  light.kind = LightKind::Sun;
   light.direction = direction;
   light.color = color;
   light.intensity = intensity;
@@ -35,7 +35,7 @@ Light sun(glm::vec3 direction, glm::vec4 color, float intensity) {
 
 Light point(glm::vec3 position, glm::vec4 color, float intensity, float range) {
   Light light;
-  light.kind = Kind::Point;
+  light.kind = LightKind::Point;
   light.position = position;
   light.color = color;
   light.intensity = intensity;
@@ -46,7 +46,7 @@ Light point(glm::vec3 position, glm::vec4 color, float intensity, float range) {
 Light spot(glm::vec3 position, glm::vec3 direction, float outerDeg,
            float innerDeg, glm::vec4 color, float intensity, float range) {
   Light light = point(position, color, intensity, range);
-  light.kind = Kind::Spot;
+  light.kind = LightKind::Spot;
   light.direction = direction;
   light.outerDeg = outerDeg;
   light.innerDeg = innerDeg;
@@ -54,14 +54,14 @@ Light spot(glm::vec3 position, glm::vec3 direction, float outerDeg,
 }
 
 float attenuation(const Light& light, const glm::vec3& at) {
-  if (light.kind == Kind::Sun) return 1.0f;
+  if (light.kind == LightKind::Sun) return 1.0f;
   const glm::vec3 toLight = light.position - at;
   const float distance = std::max(glm::length(toLight), 1e-4f);
   const float x =
       std::clamp(distance / std::max(light.range, 1e-3f), 0.0f, 1.0f);
   const float window = 1.0f - x * x;
   float atten = window * window;
-  if (light.kind == Kind::Spot) {
+  if (light.kind == LightKind::Spot) {
     const float cosAngle = glm::dot(unit(light.direction), unit(-toLight));
     const float outer = std::cos(glm::radians(std::max(light.outerDeg, 0.0f)));
     const float inner = std::cos(glm::radians(
@@ -80,7 +80,7 @@ Directional directional(const Light& light) {
   Directional out;
   out.color = {light.color.r, light.color.g, light.color.b, 1.0f};
   out.intensity = light.intensity;
-  if (light.kind == Kind::Sun) {
+  if (light.kind == LightKind::Sun) {
     out.direction = light.direction;
     return out;
   }

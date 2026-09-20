@@ -29,7 +29,7 @@ std::string Writer::light(std::string_view name,
   Impl& impl = *m_impl;
   if (!impl.stage) return {};
   const std::string path = impl.uniquePath(parent, name);
-  if (light.kind != world::light::Kind::Sun) {
+  if (light.kind != world::light::LightKind::Sun) {
     UsdLuxSphereLight sphere =
         UsdLuxSphereLight::Define(impl.stage, SdfPath(path));
     sphere.AddTranslateOp().Set(
@@ -40,7 +40,7 @@ std::string Writer::light(std::string_view name,
         GfVec3f(light.color.x, light.color.y, light.color.z));
     sphere.GetPrim().SetCustomDataByKey(TfToken("sigil:range"),
                                         VtValue(light.range));
-    if (light.kind == world::light::Kind::Spot) {
+    if (light.kind == world::light::LightKind::Spot) {
       // The cone is UsdLux shaping: it opens around the light's -Z, so
       // the prim is oriented to aim -Z along the direction, the outer
       // angle is the shaping cone angle, and the inner edge is the

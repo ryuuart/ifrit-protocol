@@ -346,7 +346,7 @@ TEST(UsdRead, ASunComesBackAimedWhereItWasPointedAndStandingNowhere) {
   // else: a distant light stands nowhere.
   const world::light::Light* back = lightAt(*lights, "/World/sun");
   ASSERT_TRUE(back);
-  EXPECT_EQ(back->kind, world::light::Kind::Sun);
+  EXPECT_EQ(back->kind, world::light::LightKind::Sun);
   const glm::vec3 aim = glm::normalize(sunLight().direction);
   EXPECT_NEAR(back->direction.x, aim.x, 1e-5f);
   EXPECT_NEAR(back->direction.y, aim.y, 1e-5f);
@@ -366,7 +366,7 @@ TEST(UsdRead, APointLightComesBackWhereItStoodAndAsFarAsItReached) {
 
   const world::light::Light* back = lightAt(*lights, "/World/lamp");
   ASSERT_TRUE(back);
-  EXPECT_EQ(back->kind, world::light::Kind::Point);
+  EXPECT_EQ(back->kind, world::light::LightKind::Point);
   EXPECT_NEAR(back->position.x, 10.0f, 1e-4f);
   EXPECT_NEAR(back->position.y, 100.0f, 1e-4f);
   EXPECT_NEAR(back->position.z, -20.0f, 1e-4f);
@@ -388,7 +388,7 @@ TEST(UsdRead, ASpotComesBackWithItsConeAndTheInnerEdgeTheSoftnessGivesIt) {
   // so it comes back through that arithmetic rather than as itself.
   const world::light::Light* back = lightAt(*lights, "/World/beam");
   ASSERT_TRUE(back);
-  EXPECT_EQ(back->kind, world::light::Kind::Spot);
+  EXPECT_EQ(back->kind, world::light::LightKind::Spot);
   EXPECT_NEAR(back->direction.y, -1.0f, 1e-5f);
   EXPECT_NEAR(back->position.y, 80.0f, 1e-4f);
   EXPECT_FLOAT_EQ(back->outerDeg, 40.0f);
@@ -487,7 +487,7 @@ TEST(UsdRead, ReadsALightAndACameraAnotherToolAuthored) {
   // A shaping cone and no sigil data: a spot whose range is the default,
   // standing where its parent Xform puts it and aimed by its own
   // rotation.
-  EXPECT_EQ(key.kind, world::light::Kind::Spot);
+  EXPECT_EQ(key.kind, world::light::LightKind::Spot);
   EXPECT_NEAR(key.position.y, 200.0f, 1e-4f);
   EXPECT_NEAR(key.direction.y, -1.0f, 1e-5f);
   EXPECT_FLOAT_EQ(key.outerDeg, 30.0f);

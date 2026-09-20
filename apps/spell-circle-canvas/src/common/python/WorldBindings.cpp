@@ -184,10 +184,10 @@ glm::vec4 lightColor(py::handle value) {
 void bindLight(py::module_& module) {
   auto light = module.def_submodule("light");
   using Light = world::light::Light;
-  py::enum_<world::light::Kind>(light, "Kind")
-      .value("Sun", world::light::Kind::Sun)
-      .value("Point", world::light::Kind::Point)
-      .value("Spot", world::light::Kind::Spot);
+  py::enum_<world::light::LightKind>(light, "LightKind")
+      .value("Sun", world::light::LightKind::Sun)
+      .value("Point", world::light::LightKind::Point)
+      .value("Spot", world::light::LightKind::Spot);
   bindRecord<Light>(light, "Light", "Unknown light field: ")
       .def_readwrite("kind", &Light::kind)
       .def_property(

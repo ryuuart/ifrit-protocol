@@ -88,13 +88,13 @@ camera::Camera sourceCamera() {
   return view;
 }
 
-const char* kindName(world::light::Kind kind) {
+const char* kindName(world::light::LightKind kind) {
   switch (kind) {
-    case world::light::Kind::Sun:
+    case world::light::LightKind::Sun:
       return "sun";
-    case world::light::Kind::Point:
+    case world::light::LightKind::Point:
       return "point";
-    case world::light::Kind::Spot:
+    case world::light::LightKind::Spot:
       return "spot";
   }
   return "?";
