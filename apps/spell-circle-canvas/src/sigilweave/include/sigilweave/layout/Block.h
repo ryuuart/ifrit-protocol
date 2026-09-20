@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup layout
+ * @ingroup weave-layout
  *
  * `Block` — a block's setting as a PARTIAL: every field optional, so a call
  * site states the one thing it changes and says nothing about the rest.

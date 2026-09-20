@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup layout
+ * @ingroup weave-layout
  *
  * WHAT BECOMES OF TEXT THAT DOES NOT FIT: the marker it ends with and the
  * number of lines it is held to.

@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup animation
+ * @ingroup weave-animation
  *
  * How one glyph is dressed for a batched draw — where it lands, what it is
  * faded and tinted by, which face it draws with, and the matrix a shear or

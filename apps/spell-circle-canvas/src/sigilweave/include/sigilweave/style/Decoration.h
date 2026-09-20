@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup shaping
+ * @ingroup weave-shaping
  *
  * One line decoration — underline, strikethrough, overline or highlight
  * — as band geometry plus a band fill, resolved with a run's paint at

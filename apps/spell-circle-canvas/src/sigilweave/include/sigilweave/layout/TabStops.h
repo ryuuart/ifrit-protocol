@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup layout
+ * @ingroup weave-layout
  *
  * THE STOPS A TAB ADVANCES TO: where the pen goes, what it aligns there,
  * and what fills the gap behind it.
@@ -26,7 +26,13 @@ namespace sigil::weave {
  * heading and its page number is one string here rather than typed content.
  */
 struct TabStop {
-  enum class Align : uint8_t { kStart, kCenter, kEnd, kCharacter };
+  /** What the stop pins at its position. */
+  enum class Align : uint8_t {
+    kStart,     ///< the text after the tab begins on the stop
+    kCenter,    ///< that text straddles the stop
+    kEnd,       ///< that text ends on the stop
+    kCharacter  ///< the first `alignOn` in it lands on the stop
+  };
   float position = 0;           ///< px from the interval's start
   Align align = Align::kStart;  ///< what the stop pins there
   char16_t alignOn = u'.';      ///< kCharacter: the character pinned

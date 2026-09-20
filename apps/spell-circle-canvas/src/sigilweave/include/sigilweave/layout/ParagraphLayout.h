@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup layout
+ * @ingroup weave-layout
  *
  * The layout stage and its result — the engine's main entry point. Call
  * \code

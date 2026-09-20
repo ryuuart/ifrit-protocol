@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup animation
+ * @ingroup weave-animation
  *
  * One glyph of a finished layout, as an effect sees it: where it rests,
  * what it draws with, and where it sits in the text — which glyph of which

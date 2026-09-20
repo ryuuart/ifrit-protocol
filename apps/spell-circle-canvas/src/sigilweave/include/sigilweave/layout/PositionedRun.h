@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup layout
+ * @ingroup weave-layout
  *
  * What a layout pass leaves behind, run by run: a PositionedRun is one draw
  * call — a shared word blob at an origin, or a fully positioned RSXform

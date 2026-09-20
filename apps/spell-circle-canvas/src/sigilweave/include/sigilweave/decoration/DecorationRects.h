@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup paint
+ * @ingroup weave-paint
  *
  * The decoration walk over a layout's runs: every band rectangle a
  * paragraph's decorations draw, emitted through a callback with its paint

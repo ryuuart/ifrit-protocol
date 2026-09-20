@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup shaping
+ * @ingroup weave-shaping
  *
  * The paint feature's face: the two draws of a finished layout as free
  * functions over the ParagraphLayout members — draw() one blob per run and
@@ -24,6 +24,12 @@ namespace sigil::material {
 class Material;
 }
 
+/** DRAWING A FINISHED LAYOUT: `ParagraphLayout`'s own draw calls as free
+ *  functions, so a caller that holds a layout and a canvas needs nothing
+ *  else. The batched form is the one a scene with many individually
+ *  animated glyphs wants; the plain form resolves each run's ordered
+ *  paint layers from the paragraph's current spans. Layout decides where
+ *  the glyphs are, and nothing here moves them. */
 namespace sigil::weave::paint {
 
 /** Draws every run of @p layout, resolving its ordered paint layers from

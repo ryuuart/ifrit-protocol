@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup weave-layout
+ *
  * `Rule` and `StyleSheet` — the classes a tree states: rules under names,
  * each a type half and a block half, written with the verbs the tree is
  * written with.

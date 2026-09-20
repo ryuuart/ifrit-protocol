@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup layout
+ * @ingroup weave-layout
  *
  * HOW A FRAME SEATS WHAT IT HOLDS — where the first baseline sits and what
  * becomes of the room left over — the band reserved beside every line for
@@ -43,6 +43,9 @@ struct PathTextOptions {
  * near edge to measure from.
  */
 struct FrameOptions {
+  /** What the first baseline's distance from the top of the frame is
+   *  measured as. Two frames of different type seated on the same metric
+   *  start their text at the same height. */
   enum class FirstBaseline : uint8_t {
     kAscent,     ///< the first line's own ascent
     kCapHeight,  ///< the first line's cap height
@@ -50,6 +53,8 @@ struct FrameOptions {
     kLeading,    ///< the first line's whole pitch
     kFixed,      ///< exactly `firstBaselineOffset`
   };
+  /** What becomes of the room left over down the frame once every line
+   *  it holds is placed. */
   enum class Distribute : uint8_t {
     kStart,    ///< the leftover room stays past the last line
     kCenter,   ///< half before the first line, half past the last

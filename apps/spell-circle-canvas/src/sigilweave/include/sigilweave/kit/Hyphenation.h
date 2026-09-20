@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup weave-kit
+ *
  * WHERE WORDS MAY BREAK, as DATA — a shelf of tables rather than a rule
  * the engine holds.
  *

@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup paragraph
+ * @ingroup weave-document
  *
  * The GRANULARITY a passage is addressed by: `Unit`, one enumeration with
  * one spelling — `Unit::Word`.

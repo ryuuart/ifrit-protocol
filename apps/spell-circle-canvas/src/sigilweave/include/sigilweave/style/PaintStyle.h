@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup shaping
+ * @ingroup weave-shaping
  *
  * The paint half of a text style: the foreground pass with the ordered
  * underlays and overlays around it and the line decorations. Resolved at

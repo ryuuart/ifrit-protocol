@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup paint
+ * @ingroup weave-paint
  *
  * A decoration resolved against a run: the band an underline, strikethrough,
  * overline or highlight occupies once the font's metrics have filled in

@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup shaping
+ * @ingroup weave-kit
  *
  * Named OpenType feature presets — CSS font-variant-* vocabulary as
  * ready-made FontFeature values, so styles read
@@ -16,6 +16,12 @@
 
 #include "sigilweave/style/Style.h"
 
+/** THE OPENTYPE FEATURE PRESETS, under the names CSS gives them: tabular
+ *  and old-style figures, the ligature sets, small capitals, fractions,
+ *  positional forms. Each is one `FontFeature` constant, so a style lists
+ *  the ones it wants and combines them freely with a hand-rolled tag.
+ *  Reach for it instead of spelling a four-character tag at a call
+ *  site. */
 namespace sigil::weave::features {
 
 // ── Numerals (CSS font-variant-numeric) ──────────────────────────────────

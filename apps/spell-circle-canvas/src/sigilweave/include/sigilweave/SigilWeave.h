@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup shaping
+ * @ingroup weave-shaping
  *
  * Umbrella header for the SigilWeave engine — a cache-first Skia text
  * layout library built directly on HarfBuzz and ICU (no
@@ -44,34 +44,48 @@
  * bridge).
  */
 
-/** @defgroup unicode Unicode analysis
+/** @defgroup weave-unicode Unicode analysis
  *  Transcoding, scripts, case mapping, segmentation and bidi as plain
  *  values over UTF-16 text (unicode/Unicode.h). */
-/** @defgroup shaping Shaping & fonts
+/** @defgroup weave-shaping Shaping & fonts
  *  Word shaping, the shape cache, font management, fallback, and the style
  *  vocabulary that keys it all (style/Style.h, fonts/FontContext.h,
- *  fonts/Shaper.h, kit/Features.h). */
-/** @defgroup document Document model
+ *  fonts/Shaper.h). */
+/** @defgroup weave-document Document model
  *  Styled UTF-16 text with incremental analysis: Paragraph, spans,
  *  placeholders, words, and the edit history, with the same content as a
  *  comparable value (paragraph/Paragraph.h, paragraph/Word.h,
  *  paragraph/RichText.h). */
-/** @defgroup geometry Flow geometry
+/** @defgroup weave-geometry Flow geometry
  *  The shapes text flows into: blocks, exclusions, vertical columns,
  *  explicit line sets, and paths (layout/Flow.h). */
-/** @defgroup layout Layout
+/** @defgroup weave-layout Layout
  *  Line breaking and placement: layoutParagraph, options, positioned runs,
  *  and the label fast path (layout/ParagraphLayout.h,
  *  layout/LayoutOptions.h, layout/PositionedRun.h,
  *  layout/TextContext.h). */
-/** @defgroup paint Painting & effects
+/** @defgroup weave-paint Painting & effects
  *  Draw-time appearance: paint layers and decoration bands (the
  *  PaintStyle half of style/Style.h; decoration/Decoration.h). */
-/** @defgroup query Query & markers
+/** @defgroup weave-query Query & markers
  *  Range search, selection as a value, and edit-following marker sets
  *  (query/Query.h, query/Selector.h). */
-/** @defgroup animation Animation
+/** @defgroup weave-animation Animation
  *  Per-glyph choreography over finished layouts (choreograph/). */
+/** @defgroup weave-kit Consumer kit
+ *  The discipline a consumer of the engine needs and the engine does not
+ *  impose: layout memoization, glyph bucketing, the hyphenation and
+ *  line-edge tables the engine asks for and holds no opinion about, the
+ *  OpenType feature presets, the one-call label draw, and deterministic
+ *  sample content (kit/). Its own interface target, linked on top of the
+ *  engine. */
+/** @defgroup weave-ports Platform ports
+ *  The system font manager, behind the seam the engine names fonts
+ *  through (ports/SystemFontManager.h). Its own target, so the engine
+ *  itself binds to no operating system. */
+/** @defgroup weave-qt The Qt bridge
+ *  QString and Skia types crossing into the engine's own
+ *  (qt/SigilWeaveQt.h). Its own target, so the engine stays Qt-free. */
 
 #include "sigilweave/choreograph/Choreograph.h"
 #include "sigilweave/decoration/Decoration.h"

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup weave-kit
+ *
  * Keyed glyph-bucket accumulator — the general form of the batching that
  * makes per-glyph choreography affordable. A frame of thousands of
  * individually animated letters must not become thousands of draw calls;

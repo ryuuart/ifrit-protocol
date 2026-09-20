@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup layout
+ * @ingroup weave-layout
  *
  * WHAT A CALLER TELLS THE LAYOUT STAGE, in one value: the settings grouped
  * by the stage that reads them, and the blocks that override them one

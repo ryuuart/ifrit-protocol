@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup animation
+ * @ingroup weave-animation
  *
  * Per-glyph choreography utilities — the "letters leave their lines"
  * pattern (rain, ripples, marquees, staggered reveals) distilled from the

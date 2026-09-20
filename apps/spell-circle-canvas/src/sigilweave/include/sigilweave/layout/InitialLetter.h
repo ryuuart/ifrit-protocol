@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup layout
+ * @ingroup weave-layout
  *
  * THE INITIAL LETTER: a block's opening set large enough to span several
  * lines, with the lines beneath it wrapping the notch it cuts.

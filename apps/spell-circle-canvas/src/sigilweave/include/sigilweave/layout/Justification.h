@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup layout
+ * @ingroup weave-layout
  *
  * HOW A JUSTIFIED LINE IS FITTED: the three passes a line spends its
  * slack in, and the limits each of them works between.

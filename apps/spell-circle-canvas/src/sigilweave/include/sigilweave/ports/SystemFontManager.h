@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup shaping
+ * @ingroup weave-ports
  *
  * Platform system-font-manager factory — the one place SigilWeave's tools,
  * tests, and consumers obtain an SkFontMgr wired to the host operating
@@ -18,6 +18,11 @@
 
 #include <initializer_list>
 
+/** WHERE THE ENGINE MEETS THE OPERATING SYSTEM: the factory that hands
+ *  back the platform's installed font set as a Skia font manager. It is
+ *  the one place a host name appears in SigilWeave, and it is a separate
+ *  target, so the engine itself binds to no operating system and a
+ *  caller with its own font set never links this. */
 namespace sigil::weave::ports {
 
 /**

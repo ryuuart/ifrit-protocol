@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup query
+ * @ingroup weave-query
  *
  * SELECTING TEXT AS A VALUE: `Selector`, which says which of a passage a
  * caller means, and the `selectors::` vocabulary that builds one.

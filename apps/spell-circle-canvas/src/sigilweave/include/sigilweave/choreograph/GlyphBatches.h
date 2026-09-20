@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup animation
+ * @ingroup weave-animation
  *
  * Glyphs grouped by (font, paint pass) so a frame of thousands of animated
  * letters collapses into a handful of drawGlyphsRSXform calls. A glyph is
