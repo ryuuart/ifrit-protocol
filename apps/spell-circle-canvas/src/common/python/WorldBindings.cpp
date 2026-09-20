@@ -121,10 +121,10 @@ void bindSurfaceKit(py::module_& root) {
            {"absorption", &Parameters::absorption}}) {
     parameters.def_property(
         name,
-        [member](const Parameters& self) {
-          const auto& value = self.*member;
-          return std::array<float, 4>{value.r, value.g, value.b, value.a};
-        },
+        // A colour reads back as the colour class it was written with,
+        // so a parameter taken off one surface is a value the next one
+        // accepts without being spelled out into four numbers.
+        [member](const Parameters& self) { return self.*member; },
         [member](Parameters& self, py::handle value) {
           self.*member = color(value);
         });
@@ -170,6 +170,17 @@ void bindSurfaceKit(py::module_& root) {
   kit.def("unlit", &material::kit::unlit, py::arg("parameters") = Parameters{});
 }
 
+/** A light's tint. Four numbers are taken as written, because a light may
+ *  be brighter than white and a colour's channels are read as unit
+ *  values; every other spelling is a colour. */
+glm::vec4 lightColor(py::handle value) {
+  if (!py::isinstance<py::str>(value) && py::isinstance<py::sequence>(value) &&
+      py::len(value) == 4)
+    return py::cast<glm::vec4>(value);
+  const SkColor4f tint = color(value);
+  return {tint.fR, tint.fG, tint.fB, tint.fA};
+}
+
 void bindLight(py::module_& module) {
   auto light = module.def_submodule("light");
   using Light = world::light::Light;
@@ -179,7 +190,9 @@ void bindLight(py::module_& module) {
       .value("Spot", world::light::Kind::Spot);
   bindRecord<Light>(light, "Light", "Unknown light field: ")
       .def_readwrite("kind", &Light::kind)
-      .def_readwrite("color", &Light::color)
+      .def_property(
+          "color", [](const Light& self) { return self.color; },
+          [](Light& self, py::handle value) { self.color = lightColor(value); })
       .def_readwrite("intensity", &Light::intensity)
       .def_readwrite("direction", &Light::direction)
       .def_readwrite("position", &Light::position)
@@ -187,15 +200,32 @@ void bindLight(py::module_& module) {
       .def_readwrite("innerDeg", &Light::innerDeg)
       .def_readwrite("outerDeg", &Light::outerDeg)
       .def(py::self == py::self);
-  light.def("sun", &world::light::sun, py::arg("direction"),
-            py::arg("color") = glm::vec4(1), py::arg("intensity") = 1);
-  light.def("point", &world::light::point, py::arg("position"),
-            py::arg("color") = glm::vec4(1), py::arg("intensity") = 1,
-            py::arg("range") = 600);
-  light.def("spot", &world::light::spot, py::arg("position"),
-            py::arg("direction"), py::arg("outerDeg") = 45,
-            py::arg("innerDeg") = 0, py::arg("color") = glm::vec4(1),
-            py::arg("intensity") = 1, py::arg("range") = 600);
+  light.def(
+      "sun",
+      [](const glm::vec3& direction, py::handle tint, float intensity) {
+        return world::light::sun(direction, lightColor(tint), intensity);
+      },
+      py::arg("direction"), py::arg("color") = glm::vec4(1),
+      py::arg("intensity") = 1);
+  light.def(
+      "point",
+      [](const glm::vec3& position, py::handle tint, float intensity,
+         float range) {
+        return world::light::point(position, lightColor(tint), intensity,
+                                   range);
+      },
+      py::arg("position"), py::arg("color") = glm::vec4(1),
+      py::arg("intensity") = 1, py::arg("range") = 600);
+  light.def(
+      "spot",
+      [](const glm::vec3& position, const glm::vec3& direction, float outerDeg,
+         float innerDeg, py::handle tint, float intensity, float range) {
+        return world::light::spot(position, direction, outerDeg, innerDeg,
+                                  lightColor(tint), intensity, range);
+      },
+      py::arg("position"), py::arg("direction"), py::arg("outerDeg") = 45,
+      py::arg("innerDeg") = 0, py::arg("color") = glm::vec4(1),
+      py::arg("intensity") = 1, py::arg("range") = 600);
   light.def("attenuation", &world::light::attenuation, py::arg("light"),
             py::arg("at"));
   light.def("radiance", &world::light::radiance, py::arg("light"));
@@ -215,7 +245,9 @@ void bindWorldKit(py::module_& module) {
       .def_readwrite("fill", &Rig::fill)
       .def_readwrite("back", &Rig::back)
       .def_readwrite("intensity", &Rig::intensity)
-      .def_readwrite("color", &Rig::color);
+      .def_property(
+          "color", [](const Rig& self) { return self.color; },
+          [](Rig& self, py::handle value) { self.color = lightColor(value); });
   bindRecord<Turntable>(kit, "Turntable", "Unknown turntable field: ")
       .def_readwrite("at", &Turntable::at)
       .def_readwrite("radius", &Turntable::radius)

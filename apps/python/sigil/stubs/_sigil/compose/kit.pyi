@@ -248,7 +248,7 @@ class Cells:
 
 class Ladder:
 
-    def __init__(self, *, column: bool=..., count: typing.SupportsInt=..., fill: _t.FillLike=..., pitch: _t.FloatLike=..., thickness: _t.FloatLike=...) -> None:
+    def __init__(self, *, column: bool=..., count: typing.SupportsInt=..., fill: _t.SurfacePaintLike=..., pitch: _t.FloatLike=..., thickness: _t.FloatLike=...) -> None:
         ...
 
     def copy(self) -> Ladder:
@@ -271,11 +271,11 @@ class Ladder:
         ...
 
     @property
-    def fill(self) -> _sigil.compose.Fill:
+    def fill(self) -> _sigil.compose.SurfacePaint:
         ...
 
     @fill.setter
-    def fill(self, value: _t.FillLike, /) -> None:
+    def fill(self, value: _t.SurfacePaintLike, /) -> None:
         ...
 
     @property
@@ -296,7 +296,7 @@ class Ladder:
 
 class Line:
 
-    def __init__(self, *, column: bool=..., fill: _t.FillLike=..., inset: _t.FloatLike=..., length: _t.DimensionLike=..., pair: _sigil.compose.kit.LineCompanion | None=..., thickness: _t.FloatLike=...) -> None:
+    def __init__(self, *, column: bool=..., fill: _t.SurfacePaintLike=..., inset: _t.FloatLike=..., length: _t.DimensionLike=..., pair: _sigil.compose.kit.LineCompanion | None=..., thickness: _t.FloatLike=...) -> None:
         ...
 
     def copy(self) -> Line:
@@ -311,11 +311,11 @@ class Line:
         ...
 
     @property
-    def fill(self) -> _sigil.compose.Fill:
+    def fill(self) -> _sigil.compose.SurfacePaint:
         ...
 
     @fill.setter
-    def fill(self, value: _t.FillLike, /) -> None:
+    def fill(self, value: _t.SurfacePaintLike, /) -> None:
         ...
 
     @property
@@ -352,7 +352,7 @@ class Line:
 
 class LineCompanion:
 
-    def __init__(self, *, dash: collections.abc.Sequence[float]=..., fill: _t.FillLike=..., gap: _t.FloatLike=..., thickness: _t.FloatLike=...) -> None:
+    def __init__(self, *, dash: collections.abc.Sequence[float]=..., fill: _t.SurfacePaintLike=..., gap: _t.FloatLike=..., thickness: _t.FloatLike=...) -> None:
         ...
 
     def copy(self) -> LineCompanion:
@@ -367,11 +367,11 @@ class LineCompanion:
         ...
 
     @property
-    def fill(self) -> _sigil.compose.Fill:
+    def fill(self) -> _sigil.compose.SurfacePaint:
         ...
 
     @fill.setter
-    def fill(self, value: _t.FillLike, /) -> None:
+    def fill(self, value: _t.SurfacePaintLike, /) -> None:
         ...
 
     @property
@@ -840,7 +840,7 @@ def centred(child: _sigil.compose.Element) -> _sigil.compose.Element:
 def disc(centre: _t.PointLike, radius: typing.SupportsFloat) -> _sigil.compose.Element:
     ...
 
-def dot(centre: _t.PointLike, radius: typing.SupportsFloat, ink: _t.FillLike) -> _sigil.compose.Element:
+def dot(centre: _t.PointLike, radius: typing.SupportsFloat, ink: _t.SurfacePaintLike) -> _sigil.compose.Element:
     ...
 
 def figure(text: str) -> _sigil.compose.Element:

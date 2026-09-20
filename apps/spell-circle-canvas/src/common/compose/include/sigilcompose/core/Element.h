@@ -1247,8 +1247,15 @@ class Element {
    *  Supersedes the style's foreground paint. A live material re-resolves
    *  per frame. COMBINES with `fx()`: a letter in flight is painted with
    *  the metric material exactly as a resting one is, so a chrome
-   *  wordmark can also be a staggered entrance. */
-  Element& textFill(material::skia::Paint m);
+   *  wordmark can also be a staggered entrance.
+   *
+   *  Takes everything the node's own fill takes — a colour, a Fill, a
+   *  paint, a material — because both dress the same surface. The two
+   *  spellings a glyph paint cannot hold are the cascade's references
+   *  and a live fill binding: a reference reads the ink in force, which
+   *  is what the glyphs are already painted in, so it leaves them on the
+   *  style's own foreground rather than blanking them. */
+  Element& textFill(SurfacePaint paint);
 
   /** Strokes the GLYPHS, under the fill — engraved display type, an
    *  outlined label, a caption that has to survive over an image.
@@ -1259,8 +1266,11 @@ class Element {
    *  Composes with `textFill()` — the stroke is a pass beneath whatever
    *  fills the letterforms — with the style's own underlays and overlays,
    *  which it joins rather than replaces, and with `fx()`, which carries
-   *  every pass along as the glyph moves. */
-  Element& textStroke(float width, Fill fill);
+   *  every pass along as the glyph moves.
+   *
+   *  The stroke is one comparable Fill on the node, so a static paint
+   *  collapses onto it and a live one strokes with nothing. */
+  Element& textStroke(float width, SurfacePaint paint);
   /** Text leaves only: lay the run out along a PATH instead of a line.
    *  See TextPath. Single-line runs; the node's own box still sizes the
    *  path, so give it the box the curve should be inscribed in

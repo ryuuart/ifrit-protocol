@@ -1,10 +1,11 @@
 """Native value interoperability and ownership across Python drawing calls."""
 
+import runpy
 import tempfile
 import unittest
 from pathlib import Path
 
-from sigil import image, skia, weave
+from sigil import compose, image, material, skia, weave
 from sigil.geometry import mesh
 from sigil.material import field
 from sigil.material import skia as material_skia
@@ -90,6 +91,38 @@ class Scene:
             self.assertEqual(pixels[:4], bytes([34, 204, 136, 255]))
             center = (48 * 96 + 48) * 4
             self.assertNotEqual(pixels[center : center + 4], pixels[:4])
+
+
+class Colors(unittest.TestCase):
+    def test_every_role_union_runs_as_it_is_declared(self):
+        # The fixture beside the typing checks is the declared surface of
+        # the three colouring roles. Running it is the other half of the
+        # promise: what the declarations allow, the bindings accept.
+        fixture = Path(__file__).parent / "typing" / "colors.py"
+        runpy.run_path(str(fixture), run_name="colors")
+
+    def test_one_colour_class_reads_every_spelling(self):
+        self.assertEqual(
+            material.Color("#6e99bb"), material.Color(0x6E / 255, 0x99 / 255, 0xBB / 255)
+        )
+        read = compose.Fill.color((0.25, 0.5, 0.75)).colorValue
+        self.assertIsInstance(read, material.Color)
+        self.assertEqual(read, material.Color(0.25, 0.5, 0.75))
+        # A colour returned by one library is a colour the next accepts.
+        self.assertEqual(Paint.solid(read), Paint.solid((0.25, 0.5, 0.75)))
+        with self.assertRaises(TypeError):
+            compose.Fill.color(7)
+
+    def test_a_flat_mark_refuses_what_it_cannot_hold(self):
+        recipe = material.kit.unlit(material.kit.SurfaceParameters(baseColor="#e75a31"))
+        with self.assertRaises(TypeError):
+            compose.Fill(recipe)
+        with self.assertRaises(TypeError):
+            compose.Fill(Paint.linearUnit((0, 0), (1, 0), [(0, "#000"), (1, "#fff")]))
+        # The same values are a surface paint, which is what the message
+        # sends the author to.
+        self.assertFalse(compose.SurfacePaint(recipe).none())
+        self.assertIsInstance(compose.box().fill(recipe), compose.Element)
 
 
 if __name__ == "__main__":

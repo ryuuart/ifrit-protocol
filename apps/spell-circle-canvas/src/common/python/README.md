@@ -79,7 +79,8 @@ does not extend access to the borrowed pen.
 
 ## Conversion and resource seams
 
-* `ValueBindings.h` — `point`, `rect`
+* `Bindings.h` — `color`
+* `ValueBindings.h` — `point`, `rect`, `bindColor`
 * `ComposeBindings.h` — `dimension`, `fill`, `surfacePaint`, `alignment`,
   `justification`, `shape`, `elements`
 * `MotionBindings.h` — `motionAnimatable`, `motionInk`, `motionFill`,
@@ -90,6 +91,24 @@ does not extend access to the borrowed pen.
 * `WeaveBindings.h` — `bindWeave`
 * `GeometryBindings.h` — `bindGeometry`
 * `WorldBindings.h` — `bindWorld`
+
+ONE COLOUR CLASS REACHES PYTHON. Skia's colour value and SigilMaterial's are
+the same four straight sRGB floats, so only `material::Color` is registered:
+a caster gives every `SkColor4f` parameter the reading `color` performs — the
+colour class, a CSS string, a three- or four-channel sequence — and answers
+every `SkColor4f` return as that class, which is the one with the colour
+verbs on it. `bindColor` registers it ahead of every other library, because
+a signature that names a colour is written when its function is registered
+and reads the class's own name only once the class exists.
+
+Three named unions describe what a colouring parameter accepts, and each
+parameter takes the widest its slot can honour: a colour through `color`, a
+flat mark through `fill`, and anything that colours a surface through
+`surfacePaint`. `fill` collapses a static paint onto the one comparable Fill
+a flat mark holds and refuses a live or geometry-dependent one, naming the
+verb that takes it. A recipe instance converts to a paint wherever Python
+takes a paint; the native constructor stays spelled, because a C++ overload
+set holding both would be ambiguous.
 
 These headers let another native adapter use the same conversions and wrapper
 types. A checked hub accepts host-provided access and feed-retention functions;

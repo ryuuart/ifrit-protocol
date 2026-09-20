@@ -189,6 +189,9 @@ class Pen {
   void background(SkColor4f color);
   /** A material as the ground: a gradient, a shader, a recipe. */
   void background(const material::skia::Paint& paint);
+  /** A recipe instance as the ground, as the fill and the stroke take
+   *  one: the three ground verbs accept the same set. */
+  void background(const material::Material& material);
   /** Every pixel to transparent. */
   void clear();
 

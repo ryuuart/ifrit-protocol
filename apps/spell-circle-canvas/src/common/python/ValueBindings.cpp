@@ -56,8 +56,7 @@ mskia::Paint& uniform(mskia::Paint& paint, const std::string& name,
                       py::handle value) {
   if (py::isinstance<py::int_>(value) || py::isinstance<py::float_>(value))
     return paint.uniform(name, py::cast<float>(value));
-  if (py::isinstance<SkColor4f>(value) ||
-      py::isinstance<material::Color>(value))
+  if (py::isinstance<material::Color>(value))
     return paint.uniform(name, color(value));
   const auto values = py::cast<std::vector<float>>(value);
   if (values.size() == 2)
@@ -216,20 +215,6 @@ void bindValues(py::module_& module) {
       .def("height", &SkSize::height);
   py::implicitly_convertible<py::tuple, SkSize>();
   py::implicitly_convertible<py::list, SkSize>();
-  py::class_<SkColor4f>(skia, "Color")
-      .def(py::init([](float r, float g, float b, float a) {
-             return SkColor4f{r, g, b, a};
-           }),
-           py::arg("r"), py::arg("g"), py::arg("b"), py::arg("a") = 1)
-      .def(py::init([](py::object value) { return color(value); }),
-           py::arg("value"))
-      .def_readwrite("r", &SkColor4f::fR)
-      .def_readwrite("g", &SkColor4f::fG)
-      .def_readwrite("b", &SkColor4f::fB)
-      .def_readwrite("a", &SkColor4f::fA);
-  py::implicitly_convertible<py::tuple, SkColor4f>();
-  py::implicitly_convertible<py::list, SkColor4f>();
-  py::implicitly_convertible<py::str, SkColor4f>();
   py::enum_<SkTileMode>(skia, "TileMode")
       .value("Clamp", SkTileMode::kClamp)
       .value("Repeat", SkTileMode::kRepeat)
@@ -601,6 +586,16 @@ void bindValues(py::module_& module) {
           "uniform",
           [](mskia::Effect& self, const std::string& name,
              py::object value) -> mskia::Effect& {
+            // A colour is four floats here as it is on a paint's
+            // uniform, so one effect and one paint take a colour uniform
+            // written the same way.
+            if (py::isinstance<material::Color>(value) ||
+                py::isinstance<py::str>(value)) {
+              const SkColor4f tint = color(value);
+              return self.uniform(
+                  name,
+                  std::array<float, 4>{tint.fR, tint.fG, tint.fB, tint.fA});
+            }
             if (py::isinstance<py::list>(value) ||
                 py::isinstance<py::tuple>(value))
               return self.uniform(name, value.cast<std::vector<float>>());
@@ -640,6 +635,10 @@ void bindValues(py::module_& module) {
   py::class_<mskia::Paint>(nativePaint, "Paint")
       .def(py::init<>())
       .def(py::init<const mskia::Paint&>(), py::arg("paint"))
+      .def(py::init([](const material::Material& recipe) {
+             return mskia::Paint::recipe(recipe);
+           }),
+           py::arg("material"))
       .def("copy", [](const mskia::Paint& p) { return p; })
       .def_static(
           "solid", [](py::handle c) { return mskia::Paint::solid(color(c)); },
@@ -714,6 +713,11 @@ void bindValues(py::module_& module) {
       .def("isAnimated", &mskia::Paint::isAnimated)
       .def("isNone", &mskia::Paint::isNone)
       .def(py::self == py::self);
+  // A recipe instance is one kind of paint, so everything that takes a
+  // paint takes a material: a slot, a blend layer, an effect's source.
+  // The native constructor stays spelled, because a C++ overload set
+  // holding both would become ambiguous.
+  py::implicitly_convertible<material::Material, mskia::Paint>();
   auto patterns = materials.def_submodule("pattern");
   py::class_<pattern::Tile>(patterns, "Tile")
       .def("seed", &pattern::Tile::seed, py::arg("seed"), fluent)

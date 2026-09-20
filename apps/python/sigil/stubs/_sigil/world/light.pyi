@@ -62,14 +62,6 @@ class Light:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
     @property
-    def color(self) -> _t.Vec4:
-        ...
-
-    @color.setter
-    def color(self, value: _t.Vec4Like) -> None:
-        ...
-
-    @property
     def direction(self) -> _t.Vec3:
         ...
 
@@ -89,10 +81,18 @@ class Light:
     def __eq__(self, other: builtins.object, /) -> bool:
         ...
 
-    def __init__(self, *, kind: Kind=..., color: _t.Vec4Like=..., direction: _t.Vec3Like=..., position: _t.Vec3Like=..., innerDeg: typing.SupportsFloat=..., intensity: typing.SupportsFloat=..., outerDeg: typing.SupportsFloat=..., range: typing.SupportsFloat=...) -> None:
+    def __init__(self, *, kind: Kind=..., direction: _t.Vec3Like=..., position: _t.Vec3Like=..., color: _t.ColorLike | _t.Vec4Like=..., innerDeg: typing.SupportsFloat=..., intensity: typing.SupportsFloat=..., outerDeg: typing.SupportsFloat=..., range: typing.SupportsFloat=...) -> None:
         ...
 
     def copy(self) -> Light:
+        ...
+
+    @property
+    def color(self) -> _t.Vec4:
+        ...
+
+    @color.setter
+    def color(self, value: _t.ColorLike | _t.Vec4Like) -> None:
         ...
 
     @property
@@ -130,14 +130,14 @@ class Light:
 def attenuation(light: Light, at: _t.Vec3Like) -> float:
     ...
 
-def point(position: _t.Vec3Like, color: _t.Vec4Like=(1.0, 1.0, 1.0, 1.0), intensity: typing.SupportsFloat=1, range: typing.SupportsFloat=600) -> Light:
+def point(position: _t.Vec3Like, color: _t.ColorLike | _t.Vec4Like=(1.0, 1.0, 1.0, 1.0), intensity: typing.SupportsFloat=1, range: typing.SupportsFloat=600) -> Light:
     ...
 
 def radiance(light: Light) -> _t.Vec3:
     ...
 
-def spot(position: _t.Vec3Like, direction: _t.Vec3Like, outerDeg: typing.SupportsFloat=45, innerDeg: typing.SupportsFloat=0, color: _t.Vec4Like=(1.0, 1.0, 1.0, 1.0), intensity: typing.SupportsFloat=1, range: typing.SupportsFloat=600) -> Light:
+def spot(position: _t.Vec3Like, direction: _t.Vec3Like, outerDeg: typing.SupportsFloat=45, innerDeg: typing.SupportsFloat=0, color: _t.ColorLike | _t.Vec4Like=(1.0, 1.0, 1.0, 1.0), intensity: typing.SupportsFloat=1, range: typing.SupportsFloat=600) -> Light:
     ...
 
-def sun(direction: _t.Vec3Like, color: _t.Vec4Like=(1.0, 1.0, 1.0, 1.0), intensity: typing.SupportsFloat=1) -> Light:
+def sun(direction: _t.Vec3Like, color: _t.ColorLike | _t.Vec4Like=(1.0, 1.0, 1.0, 1.0), intensity: typing.SupportsFloat=1) -> Light:
     ...

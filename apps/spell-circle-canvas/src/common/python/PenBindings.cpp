@@ -455,6 +455,10 @@ void bindPen(py::module_& root) {
   });
   cls.def("background", [](BorrowedPen& borrowed, py::args args) {
     auto& pen = borrowed.get();
+    if (args.size() == 1 && py::isinstance<material::Material>(args[0])) {
+      pen.background(py::cast<material::Material>(args[0]));
+      return;
+    }
     if (args.size() == 1 && py::isinstance<material::skia::Paint>(args[0])) {
       pen.background(py::cast<material::skia::Paint>(args[0]));
       return;

@@ -169,9 +169,11 @@ struct Line {
   float thickness = 1.0f;
   /** false (default) runs the line ACROSS; true runs it DOWN. */
   bool column = false;
-  /** Fill::none() (default) is `Fill::currentInk()`, so a line under a
-   *  recoloured ancestor is recoloured with it. */
-  Fill fill;
+  /** Empty (default) is `Fill::currentInk()`, so a line under a
+   *  recoloured ancestor is recoloured with it. A rule is a surface like
+   *  any other ground here, so a gradient or a material rules it; a
+   *  paired rule collapses its rails onto one comparable fill each. */
+  SurfacePaint fill;
   /** Held off at BOTH ends, px — the separator that stops short of the
    *  edges it runs between. */
   float inset = 0.0f;
@@ -189,8 +191,8 @@ struct Line {
     /** Between the two rails, px, on the side the pair reads from — the
      *  side a masthead's hairline stands on is under the heavy rule. */
     float gap = 4.0f;
-    /** Fill::none() (default) is the first rail's own. */
-    Fill fill;
+    /** Empty (default) is the first rail's own. */
+    SurfacePaint fill;
     /** Dash on/off intervals, px; empty is solid. */
     std::vector<SkScalar> dash;
   };
@@ -222,8 +224,8 @@ struct Ladder {
   /** false (default) runs the rules ACROSS and stacks them DOWN; true
    *  runs them down and ranges them across, which is the column rhythm. */
   bool column = false;
-  /** Fill::none() (default) is `Fill::currentInk()`, as a line's is. */
-  Fill fill;
+  /** Empty (default) is `Fill::currentInk()`, as a line's is. */
+  SurfacePaint fill;
 };
 
 /** THE LADDER, as deep as `count · pitch`. */

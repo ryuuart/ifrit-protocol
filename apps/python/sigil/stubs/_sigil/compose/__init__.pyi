@@ -5,6 +5,7 @@ import _sigil._types as _t
 import builtins
 import collections.abc
 import typing
+import _sigil.material
 import _sigil.material.skia
 import _sigil.motion
 import _sigil.skia
@@ -756,7 +757,7 @@ class Element:
     def ellipsis(self, marker: str) -> Element:
         ...
 
-    def fill(self, value: _t.PaintLike) -> Element:
+    def fill(self, value: _t.SurfacePaintLike) -> Element:
         ...
 
     def firstBaseline(self, rule: _sigil.weave.FrameOptions.FirstBaseline, offset: typing.SupportsFloat=0.0) -> Element:
@@ -985,10 +986,10 @@ class Element:
     def styleSheet(self, sheet: _sigil.weave.StyleSheet) -> Element:
         ...
 
-    def textFill(self, paint: _sigil.material.skia.Paint) -> Element:
+    def textFill(self, paint: _t.SurfacePaintLike) -> Element:
         ...
 
-    def textStroke(self, width: typing.SupportsFloat, color: _t.ColorLike) -> Element:
+    def textStroke(self, width: typing.SupportsFloat, paint: _t.SurfacePaintLike) -> Element:
         ...
 
     def thread(self, key: str) -> Element:
@@ -1070,7 +1071,7 @@ class Fill:
         ...
 
     @property
-    def colorValue(self) -> _sigil.skia.Color:
+    def colorValue(self) -> _sigil.material.Color:
         ...
 
 class Fit:
@@ -1392,7 +1393,7 @@ class Shadow:
         ...
 
     @property
-    def color(self) -> _sigil.skia.Color:
+    def color(self) -> _sigil.material.Color:
         ...
 
     @color.setter

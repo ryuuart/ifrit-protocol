@@ -5,7 +5,7 @@ import _sigil._types as _t
 import builtins
 import collections.abc
 import typing
-__all__: list[str] = ['BlendMode', 'Color', 'FilterMode', 'Image', 'Matrix', 'MipmapMode', 'Paint', 'PaintStyle', 'Path', 'PathBuilder', 'PathDirection', 'PathFillType', 'PathOp', 'Picture', 'Point', 'Rect', 'RuntimeEffect', 'SamplingOptions', 'Size', 'StrokeCap', 'StrokeJoin', 'TileMode', 'Typeface', 'VertexMode', 'Vertices', 'pathOp']
+__all__: list[str] = ['BlendMode', 'FilterMode', 'Image', 'Matrix', 'MipmapMode', 'Paint', 'PaintStyle', 'Path', 'PathBuilder', 'PathDirection', 'PathFillType', 'PathOp', 'Picture', 'Point', 'Rect', 'RuntimeEffect', 'SamplingOptions', 'Size', 'StrokeCap', 'StrokeJoin', 'TileMode', 'Typeface', 'VertexMode', 'Vertices', 'pathOp']
 
 class BlendMode:
     """
@@ -136,48 +136,6 @@ class BlendMode:
 
     @property
     def value(self) -> int:
-        ...
-
-class Color:
-
-    @typing.overload
-    def __init__(self, r: typing.SupportsFloat, g: typing.SupportsFloat, b: typing.SupportsFloat, a: typing.SupportsFloat=1) -> None:
-        ...
-
-    @typing.overload
-    def __init__(self, value: _t.ColorLike) -> None:
-        ...
-
-    @property
-    def a(self) -> float:
-        ...
-
-    @a.setter
-    def a(self, value: typing.SupportsFloat, /) -> None:
-        ...
-
-    @property
-    def b(self) -> float:
-        ...
-
-    @b.setter
-    def b(self, value: typing.SupportsFloat, /) -> None:
-        ...
-
-    @property
-    def g(self) -> float:
-        ...
-
-    @g.setter
-    def g(self, value: typing.SupportsFloat, /) -> None:
-        ...
-
-    @property
-    def r(self) -> float:
-        ...
-
-    @r.setter
-    def r(self, value: typing.SupportsFloat, /) -> None:
         ...
 
 class FilterMode:
@@ -1045,7 +1003,7 @@ class VertexMode:
 class Vertices:
 
     @staticmethod
-    def MakeCopy(mode: VertexMode, positions: collections.abc.Sequence[Point], texCoords: collections.abc.Sequence[Point]=[], colors: collections.abc.Sequence[Color]=[], indices: collections.abc.Sequence[typing.SupportsInt]=[]) -> Vertices:
+    def MakeCopy(mode: VertexMode, positions: collections.abc.Sequence[Point], texCoords: collections.abc.Sequence[Point]=[], colors: collections.abc.Sequence[_t.ColorLike]=[], indices: collections.abc.Sequence[typing.SupportsInt]=[]) -> Vertices:
         ...
 
 def pathOp(a: Path, b: Path, operation: PathOp) -> Path:

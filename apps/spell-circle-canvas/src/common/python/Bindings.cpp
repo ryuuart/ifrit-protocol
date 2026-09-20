@@ -18,7 +18,10 @@ namespace sigil::python {
 namespace py = pybind11;
 
 SkColor4f color(py::handle value) {
-  if (py::isinstance<SkColor4f>(value)) return py::cast<SkColor4f>(value);
+  // The colour class itself is read first and read directly: the caster
+  // that gives every SkColor4f parameter this reading calls in here, so
+  // asking pybind11 to cast to an SkColor4f would ask for this function
+  // again.
   if (py::isinstance<material::Color>(value)) {
     const auto c = py::cast<material::Color>(value);
     return {c.r, c.g, c.b, c.a};
@@ -26,7 +29,8 @@ SkColor4f color(py::handle value) {
   if (py::isinstance<py::str>(value))
     return draw::parseColor(py::cast<std::string>(value));
   if (!py::isinstance<py::tuple>(value) && !py::isinstance<py::list>(value))
-    throw py::type_error("A color is a string or an RGB or RGBA sequence.");
+    throw py::type_error(
+        "A color is a Color, a CSS string, or an RGB or RGBA sequence.");
   auto channels = py::reinterpret_borrow<py::sequence>(value);
   if (channels.size() != 3 && channels.size() != 4)
     throw py::value_error("A color needs three or four channels.");

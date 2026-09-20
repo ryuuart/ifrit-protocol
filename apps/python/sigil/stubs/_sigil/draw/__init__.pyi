@@ -6,6 +6,7 @@ import builtins
 import collections.abc
 import typing
 import _sigil.compose
+import _sigil.material
 import _sigil.skia
 import _sigil.weave
 from . import brush
@@ -328,7 +329,7 @@ class NoiseField:
 class Pen:
 
     @staticmethod
-    def lerpColor(a: _t.ColorLike, b: _t.ColorLike, amount: typing.SupportsFloat) -> _sigil.skia.Color:
+    def lerpColor(a: _t.ColorLike, b: _t.ColorLike, amount: typing.SupportsFloat) -> _sigil.material.Color:
         ...
 
     @typing.overload
@@ -351,6 +352,10 @@ class Pen:
 
     @typing.overload
     def background(self, paint: _sigil.material.skia.Paint, /) -> None:
+        ...
+
+    @typing.overload
+    def background(self, material: _sigil.material.Material, /) -> None:
         ...
 
     @typing.overload
@@ -394,15 +399,15 @@ class Pen:
         ...
 
     @typing.overload
-    def color(self, value: _t.ColorLike, /) -> _sigil.skia.Color:
+    def color(self, value: _t.ColorLike, /) -> _sigil.material.Color:
         ...
 
     @typing.overload
-    def color(self, gray: _t.FloatLike, alpha: _t.FloatLike=..., /) -> _sigil.skia.Color:
+    def color(self, gray: _t.FloatLike, alpha: _t.FloatLike=..., /) -> _sigil.material.Color:
         ...
 
     @typing.overload
-    def color(self, red: _t.FloatLike, green: _t.FloatLike, blue: _t.FloatLike, alpha: _t.FloatLike=..., /) -> _sigil.skia.Color:
+    def color(self, red: _t.FloatLike, green: _t.FloatLike, blue: _t.FloatLike, alpha: _t.FloatLike=..., /) -> _sigil.material.Color:
         ...
 
     @typing.overload
@@ -513,7 +518,7 @@ class Pen:
     def inheritedFont(self) -> _sigil.weave.Type:
         ...
 
-    def inheritedInk(self) -> _sigil.skia.Color:
+    def inheritedInk(self) -> _sigil.material.Color:
         ...
 
     def isLooping(self) -> bool:
@@ -884,7 +889,7 @@ def dist(x1: typing.SupportsFloat, y1: typing.SupportsFloat, x2: typing.Supports
 def lerp(start: typing.SupportsFloat, stop: typing.SupportsFloat, amount: typing.SupportsFloat) -> float:
     ...
 
-def lerpColor(a: _t.ColorLike, b: _t.ColorLike, amount: typing.SupportsFloat) -> _sigil.skia.Color:
+def lerpColor(a: _t.ColorLike, b: _t.ColorLike, amount: typing.SupportsFloat) -> _sigil.material.Color:
     ...
 
 def mag(x: typing.SupportsFloat, y: typing.SupportsFloat) -> float:

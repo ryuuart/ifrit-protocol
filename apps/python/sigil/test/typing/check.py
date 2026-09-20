@@ -23,6 +23,7 @@ def main():
         root = Path(directory)
         valid = [
             fixtures / "authoring.py",
+            fixtures / "colors.py",
             fixtures / "native_surface.py",
             fixtures / "typography.py",
             fixtures / "world.py",

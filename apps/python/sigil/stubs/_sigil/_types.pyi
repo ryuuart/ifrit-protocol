@@ -17,12 +17,9 @@ __all__ = [
     "FillLike",
     "FloatLike",
     "GradientStops",
-    "InkLike",
     "JsonInput",
     "JsonValue",
     "JustifyLike",
-    "MotionFillLike",
-    "PaintLike",
     "PointBatch",
     "PointLike",
     "RectLike",
@@ -46,13 +43,17 @@ __all__ = [
 
 FloatLike: TypeAlias = SupportsFloat | SupportsIndex
 ColorLike: TypeAlias = (
-    skia.Color
-    | material.Color
+    material.Color
     | str
     | tuple[FloatLike, FloatLike, FloatLike]
     | tuple[FloatLike, FloatLike, FloatLike, FloatLike]
     | list[FloatLike]
 )
+"""A FLAT COLOUR VALUE. The colour class, a CSS string, or three or four
+unit channels. A slot that takes it promises only to read a colour: it
+resolves nothing from the tree and follows no binding, so what it is
+given is what it paints. Colours read back out of the libraries are the
+colour class, so a colour taken off one value passes into the next."""
 PointLike: TypeAlias = skia.Point | Sequence[FloatLike]
 RectLike: TypeAlias = skia.Rect | Sequence[FloatLike]
 SizeLike: TypeAlias = skia.Size | Sequence[FloatLike]
@@ -62,14 +63,33 @@ ScalarLike: TypeAlias = (
 DimensionLike: TypeAlias = (
     FloatLike | str | compose.Dimension | weave.Length | compose.VarRef
 )
-FillLike: TypeAlias = ColorLike | compose.Fill | compose.VarRef | None
-MotionFillLike: TypeAlias = (
-    FillLike | motion.FillTransitioned | motion.ColorTransitioned | motion.FillOutput
+FillLike: TypeAlias = (
+    ColorLike | compose.Fill | compose.VarRef | material.skia.Paint | None
 )
-PaintLike: TypeAlias = MotionFillLike | material.skia.Paint | compose.SurfacePaint
-SurfacePaintLike: TypeAlias = PaintLike | material.Material
-InkLike: TypeAlias = ColorLike | motion.ColorTransitioned | motion.ColorOutput
+"""A FLAT MARK, which may be a reference the tree resolves. Everything a
+colour is, plus a Fill, a custom-property reference, and None for no
+mark at all. A slot that takes it stores one comparable fill, so a paint
+is accepted only where it collapses to one: a solid or a static shader
+passes and a live or geometry-dependent paint raises, naming the verb
+that does take it."""
+SurfacePaintLike: TypeAlias = (
+    FillLike
+    | compose.SurfacePaint
+    | material.Material
+    | motion.FillOutput
+    | motion.FillTransitioned
+    | motion.ColorTransitioned
+)
+"""ANYTHING THAT CAN COLOUR A SURFACE, and the widest of the three.
+Everything a flat mark is, plus a paint of any tier, a recipe instance,
+a bound fill and a fill transition. A slot that takes it resolves
+against the frame it paints at, so a gradient measured on the node and a
+material that reads the clock both belong in it."""
 ElementInkLike: TypeAlias = ColorLike | compose.VarRef
+"""THE INK AN ELEMENT SETS for itself and everything under it. A colour
+or a custom-property reference, and deliberately nothing animatable: a
+bound ink would make every inheriting node volatile, so an ink that has
+to move is set on a fill that names it."""
 AlignLike: TypeAlias = (
     compose.Align | Literal["auto", "start", "center", "end", "stretch", "baseline"]
 )
@@ -95,7 +115,7 @@ DrawCallback: TypeAlias = Callable[[draw.Pen], None]
 ScalarFunction: TypeAlias = Callable[[float], float]
 EaseLike: TypeAlias = motion.Easing | motion.Curve | ScalarFunction | None
 GradientStops: TypeAlias = Iterable[tuple[FloatLike, ColorLike]]
-UniformValue: TypeAlias = int | float | skia.Color | Sequence[FloatLike]
+UniformValue: TypeAlias = int | float | material.Color | Sequence[FloatLike]
 CellValue: TypeAlias = None | bool | int | float | str | data.Instant
 CellInput: TypeAlias = CellValue | data.Flag
 JsonValue: TypeAlias = (

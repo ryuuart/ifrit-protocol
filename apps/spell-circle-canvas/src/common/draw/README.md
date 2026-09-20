@@ -209,7 +209,10 @@ beside the verbs, never a renamed one.
 * **A material is a fill.** `fill(material::skia::Paint)` and
   `stroke(material::skia::Paint)` take this repository's paint value —
   a gradient, an image, an SkSL effect, a blend — and
-  `fill(material::Material)` takes a recipe instance as a shader. A
+  `fill(material::Material)` takes a recipe instance as a shader. The
+  ground takes the same set, `background(material::skia::Paint)` and
+  `background(material::Material)`, so the three verbs that put a
+  colour down accept one vocabulary between them. A
   static paint resolves once, when set; a live one, and one that reads
   the box it paints, is resolved against the pen's clock and canvas on
   every draw. A paint's coordinates are the pen's current space, so a

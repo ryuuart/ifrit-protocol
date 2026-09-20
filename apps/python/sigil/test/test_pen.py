@@ -60,6 +60,19 @@ class PenContracts(unittest.TestCase):
             [chance.Stream.halton(2, i).unit() for i in range(4)], [0, 0.5, 0.25, 0.75]
         )
 
+    def test_the_ground_takes_a_material_as_the_fill_and_the_stroke_do(self):
+        picture = self.render("""
+            from sigil import material
+            recipe = material.kit.unlit(material.kit.SurfaceParameters(baseColor='#e75a31'))
+            pen.background(recipe)
+        """)
+        ground = self.pixel(picture, 16, 16)
+        self.assertEqual(ground[3], 255)
+        # A warm base colour, opaque and reddest of the three channels,
+        # rather than the transparent canvas a refused ground leaves.
+        self.assertGreater(ground[0], ground[1])
+        self.assertGreater(ground[1], ground[2])
+
     def test_clip_and_native_point_batches_share_pen_style(self):
         picture = self.render("""
             pen.background('#000000')

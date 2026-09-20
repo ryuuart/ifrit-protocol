@@ -2,8 +2,10 @@
 
 #include <include/core/SkColor.h>
 #include <pybind11/pybind11.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <cstdint>
+#include <exception>
 #include <functional>
 #include <memory>
 #include <string>
@@ -42,8 +44,9 @@ pybind11::class_<T> bindRecord(pybind11::module_& module, const char* name,
       .def("copy", [](const T& value) { return value; });
 }
 
-/** Reads a native color from a string or an RGB or RGBA sequence whose
- *  channels are between zero and one. Requires the interpreter lock. */
+/** Reads a native color from a colour object, a CSS string, or an RGB or
+ *  RGBA sequence whose channels are between zero and one. Requires the
+ *  interpreter lock. */
 SkColor4f color(pybind11::handle value);
 
 /** A callback-scoped pen. Native extensions pass this same checked wrapper
@@ -149,3 +152,36 @@ class CallbackBoundary {
 };
 
 }  // namespace sigil::python
+
+namespace pybind11::detail {
+
+/** ONE COLOUR CLASS IN PYTHON. Skia's colour and SigilMaterial's are the
+ *  same four straight sRGB floats, so only one of them is a class an
+ *  author meets: every parameter written in Skia's reads whatever
+ *  `sigil::python::color` accepts, and every return answers a
+ *  `material::Color`, which is the richer of the two and the one the
+ *  colour verbs are spelled on. A colour read back is therefore a colour
+ *  that can be passed wherever a colour is taken. */
+template <>
+struct type_caster<SkColor4f> {
+  PYBIND11_TYPE_CASTER(SkColor4f, const_name<sigil::material::Color>());
+
+  bool load(handle input, bool) {
+    if (input.is_none()) return false;
+    // A caster answers whether the value fits, so the reasons colour
+    // reading gives are dropped for the message pybind11 writes from the
+    // signature, which names the parameter that refused the value.
+    try {
+      value = sigil::python::color(input);
+    } catch (const std::exception&) {
+      return false;
+    }
+    return true;
+  }
+
+  static handle cast(const SkColor4f& input, return_value_policy, handle) {
+    return pybind11::cast(sigil::material::Color(input)).release();
+  }
+};
+
+}  // namespace pybind11::detail

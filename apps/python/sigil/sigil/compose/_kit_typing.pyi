@@ -124,7 +124,7 @@ class LineProperties(TypedDict, total=False):
     length: DimensionLike
     thickness: float
     column: bool
-    fill: FillLike
+    fill: SurfacePaintLike
     inset: float
     pair: LineCompanion | None
 
@@ -133,4 +133,4 @@ class LadderProperties(TypedDict, total=False):
     pitch: float
     thickness: float
     column: bool
-    fill: FillLike
+    fill: SurfacePaintLike

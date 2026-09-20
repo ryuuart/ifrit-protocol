@@ -91,6 +91,7 @@ def paint(pen: draw.Pen) -> None:
     pen.fill(ink, draw.CANVAS)
     pen.stroke(ink, draw.SHAPE)
     pen.background(ink)
+    pen.background(material.kit.unlit(material.kit.SurfaceParameters()))
     pen.fill(material.kit.unlit(material.kit.SurfaceParameters(baseColor="#e75a31")))
 
     class Squircle:

@@ -86,7 +86,7 @@ class SurfaceParameters:
         ...
 
     @property
-    def absorption(self) -> typing.Annotated[list[float], 'FixedSize(4)']:
+    def absorption(self) -> _sigil.material.Color:
         ...
 
     @absorption.setter
@@ -102,7 +102,7 @@ class SurfaceParameters:
         ...
 
     @property
-    def baseColor(self) -> typing.Annotated[list[float], 'FixedSize(4)']:
+    def baseColor(self) -> _sigil.material.Color:
         ...
 
     @baseColor.setter
@@ -110,7 +110,7 @@ class SurfaceParameters:
         ...
 
     @property
-    def emissive(self) -> typing.Annotated[list[float], 'FixedSize(4)']:
+    def emissive(self) -> _sigil.material.Color:
         ...
 
     @emissive.setter

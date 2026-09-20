@@ -1,6 +1,5 @@
 from _sigil.skia import (
     BlendMode,
-    Color,
     FilterMode,
     Image,
     Matrix,
@@ -29,7 +28,6 @@ from _sigil.skia import (
 
 __all__ = [
     "BlendMode",
-    "Color",
     "FilterMode",
     "Image",
     "Matrix",

@@ -6,6 +6,7 @@ import builtins
 import collections.abc
 import typing
 import _sigil.draw
+import _sigil.material
 import _sigil.skia
 from . import format
 __all__: list[str] = ['BleedDirection', 'Catalogue', 'Curl', 'Curve', 'Dab', 'DepositOptions', 'Direction', 'Drive', 'Dynamics', 'Engine', 'Gaussian', 'Grain', 'GrainSpace', 'Hatch', 'ImageMask', 'Input', 'Line', 'Mass', 'PlacedPlot', 'Plot', 'PlotType', 'Polygon', 'Position', 'Pressure', 'Response', 'Rotation', 'Sample', 'Sampler', 'Shape', 'Stroke', 'Tip', 'Tool', 'Variation', 'Vortex', 'Wash', 'Wave', 'charcoal', 'dabs', 'deposit', 'flowLine', 'format', 'hatch', 'hatchArray', 'line', 'marker', 'mass', 'massArray', 'paint', 'pencil', 'prepareStroke', 'randomBelow', 'segment', 'spacingOf', 'spline', 'spray', 'stockFields', 'trace', 'warp', 'wash', 'watercolor']
@@ -1579,7 +1580,7 @@ class Tool:
         ...
 
     @property
-    def color(self) -> _sigil.skia.Color:
+    def color(self) -> _sigil.material.Color:
         ...
 
     @color.setter
@@ -1902,7 +1903,7 @@ class Wash:
         ...
 
     @property
-    def color(self) -> _sigil.skia.Color:
+    def color(self) -> _sigil.material.Color:
         ...
 
     @color.setter

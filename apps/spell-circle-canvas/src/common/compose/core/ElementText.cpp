@@ -56,11 +56,11 @@ Element Element::atRest() const {
   return Element{std::move(rest)};
 }
 
-Element& Element::textStroke(float width, Fill fill) {
+Element& Element::textStroke(float width, SurfacePaint paint) {
   auto& t = m_node->textData.ensure();
   t.hasTextStroke = width > 0.0f;
   t.textStrokeWidth = width;
-  t.textStrokeFill = std::move(fill);
+  t.textStrokeFill = paint.collapsedFill();
   return *this;
 }
 

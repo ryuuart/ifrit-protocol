@@ -110,7 +110,7 @@ class Effect:
 
     @staticmethod
     @typing.overload
-    def blur(sigmaMap: Paint, maxSigma: typing.SupportsFloat) -> Effect:
+    def blur(sigmaMap: Paint | _sigil.material.Material, maxSigma: typing.SupportsFloat) -> Effect:
         ...
 
     @staticmethod
@@ -166,7 +166,7 @@ class Effect:
     def isAnimated(self) -> bool:
         ...
 
-    def slot(self, name: str, paint: Paint) -> Effect:
+    def slot(self, name: str, paint: Paint | _sigil.material.Material) -> Effect:
         ...
 
     def then(self, effect: Effect) -> Effect:
@@ -238,7 +238,7 @@ class Paint:
     __hash__: typing.ClassVar[None] = None  # type: ignore[assignment]
 
     @staticmethod
-    def blend(layers: collections.abc.Sequence[tuple[Paint, _sigil.skia.BlendMode]]) -> Paint:
+    def blend(layers: collections.abc.Sequence[tuple[Paint | _sigil.material.Material, _sigil.skia.BlendMode]]) -> Paint:
         ...
 
     @staticmethod
@@ -296,6 +296,10 @@ class Paint:
     def __init__(self, paint: Paint) -> None:
         ...
 
+    @typing.overload
+    def __init__(self, material: _sigil.material.Material) -> None:
+        ...
+
     def amount(self, amount: typing.SupportsFloat) -> Paint:
         ...
 
@@ -314,7 +318,7 @@ class Paint:
     def quantizeTime(self, hz: typing.SupportsFloat) -> Paint:
         ...
 
-    def slot(self, name: str, paint: Paint) -> Paint:
+    def slot(self, name: str, paint: Paint | _sigil.material.Material) -> Paint:
         ...
 
     def uniform(self, name: str, value: _t.UniformValue) -> Paint:

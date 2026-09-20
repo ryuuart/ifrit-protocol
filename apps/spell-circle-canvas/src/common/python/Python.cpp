@@ -14,6 +14,7 @@
 namespace sigil::python {
 void bindLibraries(pybind11::module_& module) {
   bindCore(module);
+  bindColor(module);
   bindValues(module);
   bindMotion(module);
   bindMaterial(module);

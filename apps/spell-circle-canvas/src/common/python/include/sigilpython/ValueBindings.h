@@ -13,6 +13,10 @@ SkPoint point(pybind11::handle value);
 /** A four-number sequence describes x, y, width and height. */
 SkRect rect(pybind11::handle value);
 void bindCore(pybind11::module_& module);
+/** The one colour class Python sees, bound before every other library,
+ *  because a signature naming a colour is written when its function is
+ *  registered and reads the class's own name only once it exists. */
+void bindColor(pybind11::module_& module);
 void bindValues(pybind11::module_& module);
 void bindMaterial(pybind11::module_& module);
 

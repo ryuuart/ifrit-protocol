@@ -19,9 +19,10 @@ std::vector<material::Color> inks(py::iterable values) {
   return result;
 }
 }  // namespace
-void bindMaterial(py::module_& root) {
-  using namespace material;
-  auto module = root.attr("material").cast<py::module_>();
+
+void bindColor(py::module_& root) {
+  using material::Color;
+  auto module = root.def_submodule("material");
   py::class_<Color>(module, "Color")
       .def(py::init<float, float, float, float>(), py::arg("red") = 0,
            py::arg("green") = 0, py::arg("blue") = 0, py::arg("alpha") = 1)
@@ -37,6 +38,16 @@ void bindMaterial(py::module_& root) {
            })
       .def("copy", [](const Color& c) { return c; })
       .def(py::self == py::self);
+  // Every colour spelling reaches a parameter declared as the class
+  // itself, not only the parameters that read a handle by hand.
+  py::implicitly_convertible<py::str, Color>();
+  py::implicitly_convertible<py::tuple, Color>();
+  py::implicitly_convertible<py::list, Color>();
+}
+
+void bindMaterial(py::module_& root) {
+  using namespace material;
+  auto module = root.attr("material").cast<py::module_>();
   py::class_<Oklab>(module, "Oklab")
       .def(py::init([](float x, float y, float z, float alpha) {
              return Oklab{x, y, z, alpha};

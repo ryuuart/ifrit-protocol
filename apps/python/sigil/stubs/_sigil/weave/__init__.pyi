@@ -6,6 +6,7 @@ import builtins
 import collections.abc
 import typing
 import _sigil.draw
+import _sigil.material
 import _sigil.skia
 from . import kit
 from . import selectors
@@ -415,7 +416,7 @@ class Decoration:
         ...
 
     @property
-    def color(self) -> _sigil.skia.Color:
+    def color(self) -> _sigil.material.Color:
         ...
 
     @color.setter
@@ -3161,7 +3162,7 @@ class Type:
         ...
 
     @property
-    def color(self) -> _sigil.skia.Color | None:
+    def color(self) -> _sigil.material.Color | None:
         ...
 
     @color.setter

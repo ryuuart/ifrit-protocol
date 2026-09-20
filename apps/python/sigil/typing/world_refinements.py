@@ -43,24 +43,29 @@ def {name}(self, *resources: str) -> Pass: ...
     for path in ("Pass.clear", "Pass.levels", "Scene.image"):
         erased["_sigil.world." + path] = ["_t.ColorLike"]
 
+    # A light's tint is four numbers as the renderer stores them, so a
+    # light brighter than white stays writable, and it is also a colour,
+    # so the spellings every other colour accepts reach it.
+    tint = "_t.ColorLike | _t.Vec4Like"
     for record, fields in (
         ("_sigil.world.light.Light", {"color": 4, "direction": 3, "position": 3}),
         ("_sigil.world.kit.Rig", {"at": 3, "color": 4}),
         ("_sigil.world.kit.Turntable", {"at": 3}),
     ):
         for name, dimension in fields.items():
+            written = tint if name == "color" else f"_t.Vec{dimension}Like"
             signatures[record + "." + name] = f"""@property
 def {name}(self) -> _t.Vec{dimension}: ...
 @{name}.setter
-def {name}(self, value: _t.Vec{dimension}Like) -> None: ...
+def {name}(self, value: {written}) -> None: ...
 """
     light = "_sigil.world.light"
-    parameters[light + ".sun"] = {"direction": "_t.Vec3Like", "color": "_t.Vec4Like"}
-    parameters[light + ".point"] = {"position": "_t.Vec3Like", "color": "_t.Vec4Like"}
+    parameters[light + ".sun"] = {"direction": "_t.Vec3Like", "color": tint}
+    parameters[light + ".point"] = {"position": "_t.Vec3Like", "color": tint}
     parameters[light + ".spot"] = {
         "position": "_t.Vec3Like",
         "direction": "_t.Vec3Like",
-        "color": "_t.Vec4Like",
+        "color": tint,
     }
     parameters[light + ".attenuation"] = {"at": "_t.Vec3Like"}
     returns[light + ".radiance"] = "_t.Vec3"

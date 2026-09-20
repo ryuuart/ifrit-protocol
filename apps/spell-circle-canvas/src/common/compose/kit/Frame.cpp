@@ -11,8 +11,8 @@ namespace sigil::compose::kit {
 
 Element line(const Line& mark) {
   const bool open = mark.length.unit == Dimension::Unit::Auto;
-  const Fill ink =
-      mark.fill.kind == Fill::Kind::None ? Fill::currentInk() : mark.fill;
+  const SurfacePaint ink =
+      mark.fill.none() ? SurfacePaint{Fill::currentInk()} : mark.fill;
   // A PAIR IS ONE NODE, NOT TWO LINES. Its rails share one route, so the
   // companion's dashes are measured along the same curve the heavy rail is
   // and cannot drift off it; the node is as deep as both rails and the gap
@@ -41,6 +41,10 @@ Element line(const Line& mark) {
   // the companion stands on the far side of the route from the first rail:
   // under a rule that runs across, and after one that runs down.
   const float off = across + second.gap + second.thickness * 0.5f;
+  // A rail stores one comparable Fill, so a paint on a paired rule rides
+  // the rails collapsed: a static gradient keeps its shader, a live one
+  // has no colour to give a rail that is measured without a frame.
+  const Fill railInk = ink.collapsedFill();
   return std::move(
       rule.fill(Fill::none())
           .shape(keyedShape(std::tuple{column, across},
@@ -54,11 +58,11 @@ Element line(const Line& mark) {
                             }))
           .stroke(lines::Rails{
               .rails = {
-                  {.across = 0.0f, .width = mark.thickness, .fill = ink},
+                  {.across = 0.0f, .width = mark.thickness, .fill = railInk},
                   {.across = column ? off : -off,
                    .width = second.thickness,
-                   .fill =
-                       second.fill.kind == Fill::Kind::None ? ink : second.fill,
+                   .fill = second.fill.none() ? railInk
+                                              : second.fill.collapsedFill(),
                    .dash = second.dash}}}));
 }
 

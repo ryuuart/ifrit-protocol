@@ -5,7 +5,7 @@ import _sigil._types as _t
 import builtins
 import collections.abc
 import typing
-import _sigil.skia
+import _sigil.material
 from . import ease
 __all__: list[str] = ['Animatable', 'Bound', 'ColorFrom', 'ColorFromTo', 'ColorOutput', 'ColorTo', 'ColorTransitioned', 'ColorWaypoints', 'Curve', 'Easing', 'FillFrom', 'FillFromTo', 'FillOutput', 'FillTo', 'FillTransitioned', 'FillWaypoints', 'FixedStatus', 'From', 'FromTo', 'Output', 'Ticker', 'To', 'Transition', 'Transitioned', 'Waypoints', 'animate', 'bind', 'clamp01', 'decay', 'ease', 'entrance', 'flash', 'from_', 'phase', 'quantizeTime', 'ramp', 'stepIndex', 'through', 'to', 'transition', 'wiggle']
 
@@ -107,7 +107,7 @@ class ColorFromTo:
 
 class ColorOutput:
 
-    def __call__(self) -> _sigil.skia.Color:
+    def __call__(self) -> _sigil.material.Color:
         ...
 
     def __init__(self, value: _t.ColorLike | None=None) -> None:
@@ -116,10 +116,10 @@ class ColorOutput:
     def disconnect(self) -> None:
         ...
 
-    def endValue(self) -> _sigil.skia.Color:
+    def endValue(self) -> _sigil.material.Color:
         ...
 
-    def get(self) -> _sigil.skia.Color:
+    def get(self) -> _sigil.material.Color:
         ...
 
     def isConnected(self) -> bool:
@@ -129,7 +129,7 @@ class ColorOutput:
         ...
 
     @property
-    def value(self) -> _sigil.skia.Color:
+    def value(self) -> _sigil.material.Color:
         ...
 
     @value.setter
@@ -146,15 +146,15 @@ class ColorTransitioned:
         ...
 
     @property
-    def from_value(self) -> _sigil.skia.Color | None:
+    def from_value(self) -> _sigil.material.Color | None:
         ...
 
     @property
-    def value(self) -> _sigil.skia.Color:
+    def value(self) -> _sigil.material.Color:
         ...
 
     @property
-    def waypoints(self) -> list[tuple[float, _sigil.skia.Color]]:
+    def waypoints(self) -> list[tuple[float, _sigil.material.Color]]:
         ...
 
 class ColorWaypoints:

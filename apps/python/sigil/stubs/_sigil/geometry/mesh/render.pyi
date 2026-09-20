@@ -7,11 +7,19 @@ import collections.abc
 import typing
 import _sigil.geometry.mesh
 import _sigil.geometry.mesh.camera
+import _sigil.material
 import _sigil.skia
 __all__: list[str] = ['Light', 'MeshStyle', 'Mode', 'drawImagePanel', 'drawMesh']
 
 class Light:
-    color: _sigil.skia.Color
+
+    @property
+    def color(self) -> _sigil.material.Color:
+        ...
+
+    @color.setter
+    def color(self, value: _t.ColorLike) -> None:
+        ...
 
     @property
     def direction(self) -> _t.Vec3:
@@ -21,7 +29,7 @@ class Light:
     def direction(self, value: _t.Vec3Like) -> None:
         ...
 
-    def __init__(self, direction: _t.Vec3Like=(-0.5, -0.800000011920929, -0.4000000059604645), color: _sigil.skia.Color=..., intensity: typing.SupportsFloat=1) -> None:
+    def __init__(self, direction: _t.Vec3Like=(-0.5, -0.800000011920929, -0.4000000059604645), color: _t.ColorLike=..., intensity: typing.SupportsFloat=1) -> None:
         ...
 
     @property
@@ -33,9 +41,23 @@ class Light:
         ...
 
 class MeshStyle:
-    ambient: _sigil.skia.Color
+
+    @property
+    def ambient(self) -> _sigil.material.Color:
+        ...
+
+    @ambient.setter
+    def ambient(self, value: _t.ColorLike) -> None:
+        ...
     backfaceCull: bool
-    baseColor: _sigil.skia.Color
+
+    @property
+    def baseColor(self) -> _sigil.material.Color:
+        ...
+
+    @baseColor.setter
+    def baseColor(self, value: _t.ColorLike) -> None:
+        ...
     depthSort: bool
     lit: bool
     mode: Mode

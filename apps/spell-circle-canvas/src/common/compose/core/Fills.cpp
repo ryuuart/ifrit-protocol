@@ -44,6 +44,29 @@ Fill SurfacePaint::resolve(const PaintContext& context) const {
   return resolveFill(std::get<material::skia::Paint>(m_value), context);
 }
 
+Fill SurfacePaint::collapsedFill() const {
+  if (const auto* fill = std::get_if<motion::Animatable<Fill>>(&m_value)) {
+    const Fill* plain = fill->plain();
+    return plain ? *plain : Fill::none();
+  }
+  const auto& paint = std::get<material::skia::Paint>(m_value);
+  if (paint.isAnimated() || paint.geometryDependent()) return Fill::none();
+  return toFill(paint);
+}
+
+std::optional<material::skia::Paint> SurfacePaint::collapsedPaint() const {
+  if (const auto* fill = std::get_if<motion::Animatable<Fill>>(&m_value)) {
+    const Fill* plain = fill->plain();
+    if (!plain || plain->references()) return std::nullopt;
+    if (plain->kind == Fill::Kind::Color)
+      return material::skia::Paint::solid(plain->colorValue);
+    if (plain->kind == Fill::Kind::Shader)
+      return material::skia::Paint::shader(plain->shaderValue);
+    return std::nullopt;
+  }
+  return std::get<material::skia::Paint>(m_value);
+}
+
 bool SurfacePaint::isAnimated() const {
   if (const auto* fill = std::get_if<motion::Animatable<Fill>>(&m_value))
     return fill->binding() != nullptr;
@@ -78,8 +101,8 @@ Fill resolveFill(const material::skia::Paint& paint, const PaintContext& ctx) {
   return Fill::none();
 }
 
-Element& Element::textFill(material::skia::Paint m) {
-  m_node->textData.ensure().metricFill = std::move(m);
+Element& Element::textFill(SurfacePaint paint) {
+  m_node->textData.ensure().metricFill = paint.collapsedPaint();
   return *this;
 }
 

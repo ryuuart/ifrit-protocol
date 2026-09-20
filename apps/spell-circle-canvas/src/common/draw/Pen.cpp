@@ -278,6 +278,10 @@ void Pen::background(const material::skia::Paint& paint) {
   m_canvas->drawRect(SkRect::MakeWH(width, height), ground);
 }
 
+void Pen::background(const material::Material& material) {
+  background(material::skia::Paint::recipe(material));
+}
+
 void Pen::clear() {
   if (!m_canvas || m_clipRecording) return;
   SkPaint erase;

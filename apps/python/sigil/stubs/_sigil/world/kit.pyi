@@ -16,15 +16,7 @@ class Rig:
     def at(self, value: _t.Vec3Like) -> None:
         ...
 
-    @property
-    def color(self) -> _t.Vec4:
-        ...
-
-    @color.setter
-    def color(self, value: _t.Vec4Like) -> None:
-        ...
-
-    def __init__(self, *, at: _t.Vec3Like=..., color: _t.Vec4Like=..., back: typing.SupportsFloat=..., bearing: typing.SupportsFloat=..., distance: typing.SupportsFloat=..., elevation: typing.SupportsFloat=..., extent: typing.SupportsFloat=..., fill: typing.SupportsFloat=..., intensity: typing.SupportsFloat=...) -> None:
+    def __init__(self, *, at: _t.Vec3Like=..., back: typing.SupportsFloat=..., bearing: typing.SupportsFloat=..., color: _t.ColorLike | _t.Vec4Like=..., distance: typing.SupportsFloat=..., elevation: typing.SupportsFloat=..., extent: typing.SupportsFloat=..., fill: typing.SupportsFloat=..., intensity: typing.SupportsFloat=...) -> None:
         ...
 
     def copy(self) -> Rig:
@@ -44,6 +36,14 @@ class Rig:
 
     @bearing.setter
     def bearing(self, value: typing.SupportsFloat, /) -> None:
+        ...
+
+    @property
+    def color(self) -> _t.Vec4:
+        ...
+
+    @color.setter
+    def color(self, value: _t.ColorLike | _t.Vec4Like) -> None:
         ...
 
     @property

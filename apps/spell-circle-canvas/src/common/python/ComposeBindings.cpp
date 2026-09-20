@@ -37,8 +37,7 @@ compose::VarValue variable(py::handle value) {
     const auto text = value.cast<std::string>();
     if (text != "auto" && !text.ends_with("%")) return color(value);
   }
-  if (py::isinstance<SkColor4f>(value) ||
-      py::isinstance<material::Color>(value) ||
+  if (py::isinstance<material::Color>(value) ||
       py::isinstance<py::tuple>(value) || py::isinstance<py::list>(value))
     return color(value);
   return dimension(value);
@@ -115,8 +114,21 @@ compose::Fill fill(py::handle value) {
   if (py::isinstance<compose::Fill>(value)) return value.cast<compose::Fill>();
   if (py::isinstance<compose::VarRef>(value))
     return compose::Fill::var(value.cast<compose::VarRef>());
-  if (py::isinstance<SkShader>(value))
-    return compose::Fill::shader(value.cast<sk_sp<SkShader>>());
+  if (py::isinstance<material::skia::Paint>(value)) {
+    // A flat mark holds one comparable Fill and is measured with no
+    // frame in hand, so a static paint collapses onto it while a live or
+    // geometry-dependent one has no single colour to give.
+    const auto paint = value.cast<material::skia::Paint>();
+    if (paint.isAnimated() || paint.geometryDependent())
+      throw py::type_error(
+          "A live or geometry-dependent paint is not a flat fill. Give it to "
+          "a verb that takes a surface paint, such as Element.fill.");
+    return compose::toFill(paint);
+  }
+  if (py::isinstance<material::Material>(value))
+    throw py::type_error(
+        "A material is not a flat fill. Give it to a verb that takes a "
+        "surface paint, such as Element.fill.");
   return compose::Fill::color(color(value));
 }
 
@@ -529,11 +541,12 @@ void bindCompose(py::module_& module) {
       .def(
           "fill",
           [](Element& self, py::object value) -> Element& {
-            if (py::isinstance<compose::SurfacePaint>(value))
-              return value.cast<compose::SurfacePaint>().apply(self);
-            if (py::isinstance<material::skia::Paint>(value))
-              return self.fill(value.cast<material::skia::Paint>());
-            return self.fill(motionFill(value));
+            // One conversion for every surface-colouring parameter, so a
+            // material reaches the node's fill exactly as it reaches a
+            // stroke's or a kit ground's. Empty is stated rather than
+            // applied, because applying nothing leaves a fill standing.
+            if (value.is_none()) return self.fill(compose::Fill::none());
+            return surfacePaint(value).apply(self);
           },
           py::arg("value"), fluent)
       .def(
@@ -792,13 +805,18 @@ void bindCompose(py::module_& module) {
             return self.region(rect(value));
           },
           py::arg("rect"), fluent)
-      .def("textFill", &Element::textFill, py::arg("paint"), fluent)
+      .def(
+          "textFill",
+          [](Element& self, py::object value) -> Element& {
+            return self.textFill(surfacePaint(value));
+          },
+          py::arg("paint"), fluent)
       .def(
           "textStroke",
           [](Element& self, float width, py::object value) -> Element& {
-            return self.textStroke(width, fill(value));
+            return self.textStroke(width, surfacePaint(value));
           },
-          py::arg("width"), py::arg("color"), fluent);
+          py::arg("width"), py::arg("paint"), fluent);
   for (const auto& [name, setter] : std::initializer_list<std::pair<
            const char*, Element& (Element::*)(motion::Animatable<float>)>>{
            {"opacity", &Element::opacity},

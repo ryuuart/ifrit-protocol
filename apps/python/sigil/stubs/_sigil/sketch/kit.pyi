@@ -8,6 +8,7 @@ import typing
 import types
 import _sigil.compose
 import _sigil.compose.kit
+import _sigil.material
 import _sigil.skia
 import _sigil.weave
 __all__: list[str] = ['Cell', 'Comparison', 'ComparisonCase', 'Page', 'Palette', 'PanelGrid', 'Provide', 'Recess', 'Register', 'Relief', 'Run', 'Spacing', 'Stage', 'Theme', 'TypeScale', 'Voice', 'Well', 'WellContent', 'caption', 'cell', 'cells', 'comparison', 'houseFace', 'houseTheme', 'page', 'panelGrid', 'stage', 'studyTheme', 'theme', 'well']
@@ -185,7 +186,7 @@ class Palette:
         ...
 
     @property
-    def ash(self) -> _sigil.skia.Color:
+    def ash(self) -> _sigil.material.Color:
         ...
 
     @ash.setter
@@ -193,7 +194,7 @@ class Palette:
         ...
 
     @property
-    def cellGround(self) -> _sigil.skia.Color:
+    def cellGround(self) -> _sigil.material.Color:
         ...
 
     @cellGround.setter
@@ -201,7 +202,7 @@ class Palette:
         ...
 
     @property
-    def figure(self) -> _sigil.skia.Color:
+    def figure(self) -> _sigil.material.Color:
         ...
 
     @figure.setter
@@ -209,7 +210,7 @@ class Palette:
         ...
 
     @property
-    def ground(self) -> _sigil.skia.Color:
+    def ground(self) -> _sigil.material.Color:
         ...
 
     @ground.setter
@@ -217,7 +218,7 @@ class Palette:
         ...
 
     @property
-    def ink(self) -> _sigil.skia.Color:
+    def ink(self) -> _sigil.material.Color:
         ...
 
     @ink.setter
@@ -225,7 +226,7 @@ class Palette:
         ...
 
     @property
-    def rule(self) -> _sigil.skia.Color:
+    def rule(self) -> _sigil.material.Color:
         ...
 
     @rule.setter
@@ -331,7 +332,7 @@ class Recess:
         ...
 
     @property
-    def lipDark(self) -> _sigil.skia.Color | None:
+    def lipDark(self) -> _sigil.material.Color | None:
         ...
 
     @lipDark.setter
@@ -339,7 +340,7 @@ class Recess:
         ...
 
     @property
-    def lipLight(self) -> _sigil.skia.Color | None:
+    def lipLight(self) -> _sigil.material.Color | None:
         ...
 
     @lipLight.setter
@@ -447,7 +448,7 @@ class Relief:
         ...
 
     @property
-    def light(self) -> _sigil.skia.Color:
+    def light(self) -> _sigil.material.Color:
         ...
 
     @light.setter
@@ -455,7 +456,7 @@ class Relief:
         ...
 
     @property
-    def shade(self) -> _sigil.skia.Color:
+    def shade(self) -> _sigil.material.Color:
         ...
 
     @shade.setter
@@ -699,7 +700,7 @@ class Stage:
         ...
 
     @property
-    def background(self) -> _sigil.skia.Color | None:
+    def background(self) -> _sigil.material.Color | None:
         ...
 
     @background.setter

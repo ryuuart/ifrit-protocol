@@ -13,6 +13,16 @@ import re
 
 from world_refinements import register as register_world
 
+# The one colour class Python sees. Skia's colour and SigilMaterial's
+# are the same four floats, and the bindings' caster makes this the
+# class every colour is read back as.
+COLOR = "_sigil.material.Color"
+# A recipe instance is one kind of paint, and Python converts one into a
+# paint wherever a paint is taken, so every parameter written as the
+# material paint accepts a material as well.
+MATERIAL = "_sigil.material.Material"
+PAINT = "_sigil.material.skia.Paint"
+
 ERASED: dict[str, list[str]] = {}
 RETURNS: dict[str, str] = {}
 SIGNATURES: dict[str, str] = {}
@@ -41,7 +51,6 @@ register_world(ERASED, RETURNS, SIGNATURES, PARAMETERS)
 # Shared value conversions.
 erased("_sigil.Context", "background", "_t.ColorLike")
 returns("_sigil.Context", "size", "tuple[float, float]")
-erased("_sigil.skia.Color", "__init__", "_t.ColorLike")
 erased("_sigil.skia.Paint", "setColor", "_t.ColorLike")
 erased("_sigil.skia.Path", "Oval Rect", "_t.RectLike")
 erased("_sigil.skia.PathBuilder", "addArc addOval addRect", "_t.RectLike")
@@ -196,7 +205,7 @@ erased(
     "_t.ScalarLike",
 )
 erased(element, "fontSize fontTrack", "_t.FloatLike | _sigil.weave.Length")
-erased(element, "fill", "_t.PaintLike")
+erased(element, "fill", "_t.SurfacePaintLike")
 erased(element, "ink", "_t.ElementInkLike")
 erased(element, "alignItems alignSelf", "_t.AlignLike")
 erased(element, "justify", "_t.JustifyLike")
@@ -205,7 +214,7 @@ erased(element, "at centerAt transformOriginPx", "_t.PointLike")
 erased(element, "rect region", "_t.RectLike")
 erased(element, "shape", "_t.ShapeLike")
 erased(element, "background foreground overlay stroke", "_t.DecorationLike")
-erased(element, "textStroke", "_t.ColorLike")
+erased(element, "textFill textStroke", "_t.SurfacePaintLike")
 erased(element, "echo", "_t.PointLike", "_t.ColorLike")
 erased(element, "var", "_t.DimensionLike | _t.ColorLike")
 # Three arities, each with its own names, and each name usable as a keyword.
@@ -277,7 +286,7 @@ PARAMETERS["_sigil.draw.Pen.image"] = {"image": "Graphics"}
 # paint with or without the fit it is measured in, a material, then the
 # colour forms. All positional-only, because the binding takes no keyword.
 for method in ("background", "fill", "stroke", "color"):
-    result = "_sigil.skia.Color" if method == "color" else "None"
+    result = "_sigil.material.Color" if method == "color" else "None"
     declarations = [f"def {method}(self, value: _t.ColorLike, /) -> {result}: ..."]
     if method in ("fill", "stroke"):
         declarations.append(
@@ -289,6 +298,9 @@ for method in ("background", "fill", "stroke", "color"):
     elif method == "background":
         declarations.append(
             f"def {method}(self, paint: _sigil.material.skia.Paint, /) -> {result}: ..."
+        )
+        declarations.append(
+            f"def {method}(self, material: _sigil.material.Material, /) -> {result}: ..."
         )
     declarations.append(
         f"def {method}(self, gray: _t.FloatLike, alpha: _t.FloatLike = ..., /) -> {result}: ..."
@@ -415,7 +427,7 @@ signatures(
 # Kit fields reuse the conversion policy implemented by field<T>.
 erased("_sigil.compose.kit", "at", "_t.DimensionLike", "_t.DimensionLike")
 erased("_sigil.compose.kit", "disc", "_t.PointLike")
-erased("_sigil.compose.kit", "dot", "_t.PointLike", "_t.FillLike")
+erased("_sigil.compose.kit", "dot", "_t.PointLike", "_t.SurfacePaintLike")
 erased("_sigil.compose.kit", "ring", "_t.PointLike")
 erased("_sigil.sketch.kit", "stage", "_sigil.Context")
 erased("_sigil.sketch.kit.Theme", "font style", "_t.ColorLike")
@@ -507,7 +519,7 @@ PARAMETERS["_sigil.motion.Ticker.addFixed"] = {
 }
 for prefix, input_type, value_type in (
     ("", "_t.FloatLike", "float"),
-    ("Color", "_t.ColorLike", "_sigil.skia.Color"),
+    ("Color", "_t.ColorLike", "_sigil.material.Color"),
     ("Fill", "_t.FillLike", "_sigil.compose.Fill"),
 ):
     erased("_sigil.motion." + prefix + "From", "to", input_type)
@@ -612,7 +624,6 @@ def setter_type(annotation: ast.expr, module: str) -> ast.expr:
     ):
         mappings.update(
             {
-                "_sigil.skia.Color": "_t.ColorLike",
                 "_sigil.skia.Point": "_t.PointLike",
                 "_sigil.skia.Size": "_t.SizeLike",
                 "_sigil.compose.Dimension": "_t.DimensionLike",
@@ -623,9 +634,7 @@ def setter_type(annotation: ast.expr, module: str) -> ast.expr:
             }
         )
     elif module == "_sigil.draw.brush":
-        mappings.update(
-            {"_sigil.skia.Color": "_t.ColorLike", "_sigil.skia.Point": "_t.PointLike"}
-        )
+        mappings.update({"_sigil.skia.Point": "_t.PointLike"})
     if text in mappings:
         return expression(mappings[text])
     if text.endswith(" | None"):
@@ -637,6 +646,13 @@ def setter_type(annotation: ast.expr, module: str) -> ast.expr:
 
 
 def refine(module: str, tree: ast.Module) -> None:
+    # Inside the paint's own module the generated stubs spell it bare,
+    # and Skia's unrelated Paint is spelled bare in its module, so the
+    # name a material paint answers to is decided per module.
+    paint_name = "Paint" if module == "_sigil.material.skia" else PAINT
+    if module == "_sigil.skia":
+        paint_name = ""
+
     def visit(body: list[ast.stmt], path: str, class_name: str | None = None) -> None:
         getters = {
             n.name: n
@@ -675,6 +691,22 @@ def refine(module: str, tree: ast.Module) -> None:
                 output.extend(
                     ast.parse(
                         f"@property\ndef {name}(self) -> _t.Vec{dim}: ...\n@{name}.setter\ndef {name}(self, value: _t.Vec{dim}Like) -> None: ..."
+                    ).body
+                )
+                continue
+            elif (
+                isinstance(node, ast.AnnAssign)
+                and show(node.annotation) == COLOR
+                and path + "." + show(node.target) not in ATTRIBUTES
+            ):
+                # A colour field reads back as the colour class and is
+                # written with any colour spelling, because the binding's
+                # caster reads every one of them.
+                name = show(node.target)
+                output.extend(
+                    ast.parse(
+                        f"@property\ndef {name}(self) -> {COLOR}: ...\n"
+                        f"@{name}.setter\ndef {name}(self, value: _t.ColorLike) -> None: ..."
                     ).body
                 )
                 continue
@@ -750,6 +782,26 @@ def refine(module: str, tree: ast.Module) -> None:
                             arg.annotation
                         ):
                             arg.annotation = expression(PARAMETERS[full][arg.arg])
+                # Every parameter written as a colour reads every colour
+                # spelling, because one caster stands between Python and
+                # the native colour, and a sequence of colours reads them
+                # one by one; a colour RETURNED is the class itself.
+                for arg in all_args:
+                    text = show(arg.annotation)
+                    if COLOR in text:
+                        text = text.replace(COLOR, "_t.ColorLike")
+                        arg.annotation = expression(text)
+                    # The paint's own constructor states the material
+                    # overload the conversion is registered against, so
+                    # widening its paint overload would only repeat it.
+                    if (
+                        paint_name
+                        and paint_name in text
+                        and full != PAINT + ".__init__"
+                    ):
+                        arg.annotation = expression(
+                            text.replace(paint_name, f"({paint_name} | {MATERIAL})")
+                        )
                 if full in RETURNS and not any(
                     show(d).endswith(".setter") for d in node.decorator_list
                 ):
