@@ -2,9 +2,9 @@
 // Copyright (c) Filippo Scognamiglio and contributors
 
 // THE BEAM: the picture a tube draws, in the coordinates it draws it in.
-// Nothing here knows there is glass over it — no curvature, no spread,
-// no light — so raster lines over a flat surface are this body alone,
-// and a glass over it evaluates this at the coordinate it bent to.
+// Nothing here knows there is glass over it — no curvature and no light
+// — so raster lines over a flat surface are this body alone, and a
+// glass over it evaluates this at the coordinate it bent to.
 
 float crtHash(float2 p) {
   return fract(sin(dot(p, float2(12.9898, 78.233))) * 43758.5453);
