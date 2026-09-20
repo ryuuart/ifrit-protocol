@@ -156,6 +156,11 @@ class Sky(unittest.TestCase):
     def picture(self):
         return image.from_rgba(TEXELS, 2, 2)
 
+    def assertReads(self, shown, asked):
+        """The three channels, each the number beside it within a float."""
+        for channel, (read, wanted) in enumerate(zip(shown, asked)):
+            self.assertAlmostEqual(read, wanted, places=5, msg=(channel, shown))
+
     def test_an_environment_with_no_panorama_is_not_one(self):
         self.assertFalse(render.Environment().valid())
         self.assertTrue(render.Environment(levels=[self.picture()]).valid())
@@ -168,6 +173,95 @@ class Sky(unittest.TestCase):
         self.assertEqual(render.environmentIrradiance(empty, (0, 1, 0)), (0, 0, 0))
         self.assertEqual(render.environmentRadiance(empty, (0, 0, 1), 0.5), (0, 0, 0))
         self.assertEqual(render.samplePanorama(None, (0.5, 0.5)), (0, 0, 0))
+
+    def test_a_panorama_is_read_texel_by_texel(self):
+        panorama = self.picture()
+        # Four texels over the whole sphere put each texel's centre a
+        # quarter of the way in, so these four readings are the texels
+        # themselves rather than a blend of any two.
+        for uv, texel in (
+            ((0.25, 0.25), (1, 0, 0)),
+            ((0.75, 0.25), (0, 1, 0)),
+            ((0.25, 0.75), (0, 0, 1)),
+            ((0.75, 0.75), (1, 1, 1)),
+        ):
+            self.assertReads(render.samplePanorama(panorama, uv), texel)
+        # Azimuth wraps and the poles clamp: a turn and a quarter round
+        # is the first texel again, and above the top row is the top row.
+        for uv in ((1.25, 0.25), (0.25, -1)):
+            self.assertReads(render.samplePanorama(panorama, uv), (1, 0, 0))
+
+    def test_a_roughness_picks_among_the_levels(self):
+        sharp = image.from_rgba(bytes([255, 0, 0, 255]) * 4, 2, 2)
+        blurry = image.from_rgba(bytes([0, 255, 0, 255]) * 4, 2, 2)
+        sky = render.Environment(levels=[sharp, blurry])
+        ahead = (0, 0, -1)
+        self.assertReads(render.environmentRadiance(sky, ahead, 0), (1, 0, 0))
+        self.assertReads(render.environmentRadiance(sky, ahead, 1), (0, 1, 0))
+        # A body whose roughness ramps must not step from one blur to the
+        # next, so the two levels either side of the pick are mixed.
+        self.assertReads(render.environmentRadiance(sky, ahead, 0.5), (0.5, 0.5, 0))
+        # The bias moves the pick and nothing else.
+        sky.roughnessBias = 1
+        self.assertReads(render.environmentRadiance(sky, ahead, 0), (0, 1, 0))
+
+    def test_a_second_sky_is_mixed_in_at_the_crossfade(self):
+        red = image.from_rgba(bytes([255, 0, 0, 255]) * 4, 2, 2)
+        green = image.from_rgba(bytes([0, 255, 0, 255]) * 4, 2, 2)
+        sky = render.Environment(
+            levels=[red],
+            irradiance=red,
+            nextLevels=[green],
+            nextIrradiance=green,
+            crossfade=1,
+        )
+        # Both panoramas are sampled and mixed rather than one being
+        # rebuilt, which is what lets a sky change while the frame runs.
+        self.assertReads(render.environmentRadiance(sky, (0, 0, -1), 0), (0, 1, 0))
+        self.assertReads(render.environmentIrradiance(sky, (0, 1, 0)), (0, 1, 0))
+        sky.crossfade = 0.5
+        self.assertReads(render.environmentRadiance(sky, (0, 0, -1), 0), (0.5, 0.5, 0))
+        self.assertReads(render.environmentIrradiance(sky, (0, 1, 0)), (0.5, 0.5, 0))
+
+    def test_each_side_of_a_sky_is_scaled_by_its_own_dial(self):
+        panorama = self.picture()
+        plain = render.Environment(levels=[panorama], irradiance=panorama)
+        bright = render.Environment(levels=[panorama], irradiance=panorama, intensity=2)
+        ahead, up = (0, 0, -1), (0, 1, 0)
+        for lit, dim in zip(
+            render.environmentRadiance(bright, ahead, 0),
+            render.environmentRadiance(plain, ahead, 0),
+        ):
+            self.assertAlmostEqual(lit, dim * 2, places=5)
+        for lit, dim in zip(
+            render.environmentIrradiance(bright, up),
+            render.environmentIrradiance(plain, up),
+        ):
+            self.assertAlmostEqual(lit, dim * 2, places=5)
+        # What a surface mirrors is the specular dial's; what falls on it
+        # is the diffuse dial's, and neither reaches the other side.
+        mirrorless = render.Environment(levels=[panorama], specular=0)
+        self.assertEqual(render.environmentRadiance(mirrorless, ahead, 0), (0, 0, 0))
+        unlit = render.Environment(irradiance=panorama, diffuse=0)
+        self.assertEqual(render.environmentIrradiance(unlit, up), (0, 0, 0))
+
+    def test_turning_the_sky_turns_what_a_direction_reads(self):
+        panorama = self.picture()
+        # The orientation takes a world direction into the panorama's own
+        # frame, so a quarter turn about y reads world +x where the
+        # unturned sky reads world -z.
+        turned = render.Environment(
+            levels=[panorama], orientation=((0, 0, -1), (0, 1, 0), (1, 0, 0))
+        )
+        flat = render.Environment(levels=[panorama])
+        self.assertEqual(
+            render.environmentRadiance(turned, (1, 0, 0), 0),
+            render.environmentRadiance(flat, (0, 0, -1), 0),
+        )
+        self.assertNotEqual(
+            render.environmentRadiance(turned, (1, 0, 0), 0),
+            render.environmentRadiance(flat, (1, 0, 0), 0),
+        )
 
     def test_a_sky_is_turned_by_three_columns(self):
         sky = render.Environment()
@@ -379,6 +473,44 @@ class Panels(unittest.TestCase):
         middle = self.pixel(picture, PLATE // 2, PLATE // 2)
         self.assertGreater(middle[0], 200)
         self.assertLess(middle[1], 60)
+
+    def test_the_sky_itself_is_painted_where_it_is_shown_and_nowhere_else(self):
+        # Every pixel of the plate reads the panorama along the ray the
+        # eye looks through it, so a sky that is one colour everywhere
+        # reaches every corner; at zero strength none of it is drawn.
+        drawing = """
+            sky = render.Environment(
+                levels=[image.from_rgba(bytes([255, 0, 0, 255]) * 4, 2, 2)],
+                backdrop=results['backdrop'])
+            lens = camera.Camera()
+            render.drawBackdrop(pen, sky, lens.projection(1), lens.view())
+        """
+        self.results["backdrop"] = 1
+        shown = self.render(drawing)
+        for spot in ((PLATE // 2, PLATE // 2), (1, 1), (PLATE - 2, PLATE - 2)):
+            sky = self.pixel(shown, *spot)
+            self.assertGreater(sky[0], 150, spot)
+            self.assertLess(sky[1], 60, spot)
+        self.results["backdrop"] = 0
+        hidden = self.render(drawing)
+        self.assertNotEqual(
+            self.pixel(hidden, PLATE // 2, PLATE // 2),
+            self.pixel(shown, PLATE // 2, PLATE // 2),
+        )
+
+    def test_a_triangle_naming_a_vertex_the_mesh_has_not_got_is_refused(self):
+        # An index past the positions would be read inside the executor,
+        # where nothing can answer for it, so the draw is refused at the
+        # seam instead.
+        self.render("""
+            face = mesh.quad(100, 100)
+            face.indices = [0, 1, face.vertexCount()]
+            try:
+                render.drawMesh(pen, face, camera.Matrix(), camera.Camera())
+            except ValueError as error:
+                results['refused'] = str(error)
+        """)
+        self.assertIn("outside the position array", self.results["refused"])
 
     def test_a_primitive_lane_tints_one_triangle_and_not_the_other(self):
         # The quad's two triangles meet along the diagonal from the
