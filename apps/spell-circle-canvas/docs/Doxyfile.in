@@ -16,8 +16,28 @@ EXCLUDE_PATTERNS       = */archive/* */build/* */test/* */bench/*
 # that carry no compatibility promise.
 EXCLUDE_SYMBOLS        = *::detail *::detail::* detail::*
 
+# A class page is only useful when it prints the line a reader has to
+# type, and that line is the path under the library's include root. With
+# FULL_PATH_NAMES off Doxygen reduces every include to a bare basename,
+# which no include directive spells. On, the two strips do the work:
+# STRIP_FROM_INC_PATH takes the include root off an #include, and
+# STRIP_FROM_PATH takes the library root off everything else, so a file
+# page and the identifier of a Markdown page stay short -- and those
+# identifiers are what the tag files hand to every other library's
+# navigation tree.
+FULL_PATH_NAMES        = YES
 STRIP_FROM_PATH        = @SIGIL_DOCS_STRIP@
-FULL_PATH_NAMES        = NO
+STRIP_FROM_INC_PATH    = @SIGIL_DOCS_STRIP_INC@
+
+# The house markers, so a warning a comment states in running prose
+# renders as an admonition the reader cannot walk past. The workaround
+# marker is written `@workaround:` -- the colon keeps the repository-wide
+# grep for `workaround:` enumerating every one of them -- and the sketch
+# takes the stem it is addressed by: `@sketch{ember_decode}`.
+ALIASES                = "trap=@par Trap:^^"
+ALIASES               += "silent=@par Silently does nothing when:^^"
+ALIASES               += "workaround=@par Workaround for a dependency^^"
+ALIASES               += "sketch{1}=@par Seen in the sketch:^^`\1`"
 
 # The house comment style is a /** */ block whose first sentence is the
 # summary, so the brief is taken from that sentence rather than written
@@ -27,20 +47,53 @@ QT_AUTOBRIEF           = YES
 MARKDOWN_ID_STYLE      = GITHUB
 USE_MDFILE_AS_MAINPAGE = @SIGIL_DOCS_MAINPAGE@
 
+# A chapter of a library is named README.md when it stands beside the
+# feature it describes, and left to itself Doxygen would take it for the
+# documentation of that directory: its prose would be reachable only
+# from the directory listing, never from the pages the reader browses.
+IMPLICIT_DIR_DOCS      = NO
+
 # A type carries the prose; its self-evident fields and one-line accessors
 # do not repeat it. Warning about those members would bury the warnings
 # that matter -- an undocumented type -- under roughly thirty times as
 # many that do not.
-EXTRACT_ALL            = NO
+#
+# The curated site is written with it off. The XML pass turns it on,
+# because that pass is an inventory rather than a site: what it writes is
+# read by a generator, not by a person, and an entity missing from an
+# inventory cannot be listed as undocumented.
+EXTRACT_ALL            = @SIGIL_DOCS_EXTRACT_ALL@
 EXTRACT_STATIC         = YES
 WARN_IF_UNDOCUMENTED   = @SIGIL_DOCS_WARN_UNDOCUMENTED@
+# Parameters are documented inline with @p rather than behind @param, and
+# @p is a reference to a parameter rather than an entry for one, so this
+# would report nearly every function in the tree.
 WARN_NO_PARAMDOC       = NO
+# Blank sends the warnings to standard error, which is what a person
+# running the build wants. The documentation tier of `sigil.py check`
+# points it at a file so it can count the findings instead.
+WARN_LOGFILE           = @SIGIL_DOCS_WARN_LOGFILE@
 
 SORT_BRIEF_DOCS        = NO
 SORT_MEMBER_DOCS       = NO
 GENERATE_LATEX         = NO
 GENERATE_HTML          = @SIGIL_DOCS_GENERATE_HTML@
 HTML_OUTPUT            = html
+
+# A group is a feature, which is what a reader browses by, so a class
+# that belongs to one is shown inside it and carries the include line
+# there. The layout puts the groups ahead of the alphabetical indexes;
+# left at the default the reader meets a class list first.
+GROUP_NESTED_COMPOUNDS = YES
+SHOW_GROUPED_MEMB_INC  = YES
+LAYOUT_FILE            = @SIGIL_DOCS_LAYOUT@
+
+# The machine-readable copy of every comment, for a generator that builds
+# a page out of them. The program listing is the bulk of it and no
+# generator reads it.
+GENERATE_XML           = @SIGIL_DOCS_GENERATE_XML@
+XML_OUTPUT             = xml
+XML_PROGRAMLISTING     = NO
 
 # Theme. Doxygen's stock HTML does not respond to viewport width at all;
 # this replaces the stylesheet without altering the generated structure,
@@ -66,7 +119,9 @@ PAGE_OUTLINE_PANEL     = NO
 
 # Cross-library linking: every library emits a tag file naming what it
 # declares, and then every library reads all the others. A type used
-# across a boundary resolves to the page that defines it.
+# across a boundary resolves to the page that defines it. The last entry
+# is cppreference's own tag file, which resolves the standard types every
+# signature in the tree is written in.
 GENERATE_TAGFILE       = @SIGIL_DOCS_TAGFILE@
 TAGFILES               = @SIGIL_DOCS_TAGFILES_IN@
 

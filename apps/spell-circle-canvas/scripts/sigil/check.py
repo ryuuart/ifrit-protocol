@@ -4,6 +4,7 @@
     sigil.py check --all        # whole tree
     sigil.py check --fix        # apply the format fixes, then report
     sigil.py check FILE...      # exactly these files
+    sigil.py check --docs       # …and the documentation tier as well
 
 THE DEFAULT SCOPE IS THE BRANCH'S WORK: everything this branch changed
 since it left main, committed or not, plus untracked files that are not
@@ -15,10 +16,13 @@ Exit status is non-zero when any tool reports a finding. The configs live
 at the repository root (.clang-format with .clang-format-ignore,
 ruff.toml); this verb only selects files and runs the tools against those
 configs. Every tool is required: a missing one fails the run rather than
-letting it pass on partial coverage.
+letting it pass on partial coverage — except the documentation tier,
+which is opt-in: it needs Doxygen and a configured tree, and what it
+finds is a page that reads wrong rather than code that is wrong.
 """
 
 import argparse
+import re
 import shutil
 from pathlib import Path
 
@@ -178,6 +182,118 @@ def check_qmllint(files: list) -> bool:
     return run([*command, *files], capture=False) == 0
 
 
+# Doxygen states an undocumented entity two ways: a whole compound, or
+# one member of one. The first is a finding; the second is the house
+# convention working as intended.
+UNDOCUMENTED_COMPOUND = re.compile(r"warning: Compound (\S+) is not documented")
+UNDOCUMENTED_MEMBER = re.compile(
+    r"warning: Member .* \((\w+)\) of .* is not documented"
+)
+
+# Printed above the audit report, so its counts are read as the
+# convention holding rather than as work nobody has done.
+CONVENTION = """A type carries the prose, and its self-evident fields and one-line
+accessors do not repeat it, so members are counted rather than listed and
+nothing here fails the run. A compound with no comment is the finding: it
+has no page at all."""
+
+
+def docs_scope(files: list):
+    """The manifest, and the libraries any of those files documents.
+
+    None when there is no configured tree: the manifest is the only
+    thing this tier needs from one, and configuring a tree is a
+    heavier thing than a check should decide to do.
+    """
+    manifest = tree.build_dir() / "docs-manifest.txt"
+    if not manifest.exists():
+        return None, []
+    from sigil import docs
+
+    return manifest, docs.libraries_for(manifest, [tree.REPO_DIR / f for f in files])
+
+
+def check_docs(files: list) -> bool:
+    """Every warning Doxygen has about the comments themselves.
+
+    A comment can be perfectly written and still never reach a page: an
+    @file that ate its first word as a filename, an @ingroup naming a
+    group that belongs to another library, a stray token that closes the
+    block early. None of that is visible in the source and all of it is
+    visible here.
+    """
+    section("doxygen (documentation reaches the page)")
+    if not files:
+        print("no files in scope")
+        return True
+    manifest, names = docs_scope(files)
+    if manifest is None:
+        print("SKIPPED: no build tree — run sigil.py setup to write the manifest")
+        return True
+    if not names:
+        print("no documented library in scope")
+        return True
+    from sigil import docs
+
+    findings = docs.warnings_sweep(manifest, names)
+    total = 0
+    offending = 0
+    for name in sorted(findings):
+        lines = findings[name]
+        if not lines:
+            continue
+        offending += 1
+        total += sum(1 for line in lines if "warning:" in line)
+        print(f"\n{name}:")
+        for line in lines:
+            print(f"  {line}")
+    if not total:
+        print(f"{len(names)} libraries clean")
+        return True
+    print(f"\n{total} findings in {offending} of {len(names)} libraries swept")
+    return False
+
+
+def report_undocumented(files: list) -> None:
+    """The audit tier: what carries no comment at all.
+
+    Never a gate. A type carries the prose and its self-evident fields
+    do not repeat it, so a count over members measures the convention
+    rather than the documentation. What is worth reading is the list of
+    whole compounds, which is a work queue. A namespace with no comment
+    of its own is the same kind of finding and cannot appear here:
+    Doxygen writes no page for one and warns about none either, so the
+    inventory the docs build writes is what sees those.
+    """
+    section("doxygen (what carries no comment)")
+    manifest, names = docs_scope(files)
+    if manifest is None or not names:
+        print("SKIPPED: no build tree, or no documented library in scope")
+        return
+    from sigil import docs
+
+    print(CONVENTION)
+    findings = docs.warnings_sweep(manifest, names, undocumented=True)
+    for name in sorted(findings):
+        compounds = []
+        members: dict = {}
+        for line in findings[name]:
+            compound = UNDOCUMENTED_COMPOUND.search(line)
+            member = UNDOCUMENTED_MEMBER.search(line)
+            if compound:
+                compounds.append(compound.group(1))
+            elif member:
+                members[member.group(1)] = members.get(member.group(1), 0) + 1
+        counted = ", ".join(
+            f"{count} {kind}" for kind, count in sorted(members.items())
+        )
+        print(f"\n{name}: {len(compounds)} compounds with no comment")
+        for compound in sorted(compounds):
+            print(f"  {compound}")
+        if counted:
+            print(f"  members with none: {counted}")
+
+
 def main(argv: list) -> int:
     parser = argparse.ArgumentParser(
         prog="sigil.py check",
@@ -194,6 +310,18 @@ def main(argv: list) -> int:
         action="store_true",
         help="apply clang-format and ruff fixes to the scoped files "
         "(qmllint remains report-only)",
+    )
+    parser.add_argument(
+        "--docs",
+        action="store_true",
+        help="also run Doxygen over the scoped libraries and report every "
+        "comment that does not reach a page (needs a configured tree)",
+    )
+    parser.add_argument(
+        "--docs-undocumented",
+        action="store_true",
+        help="with --docs, also list what carries no comment at all; that "
+        "report never fails the run",
     )
     parser.add_argument(
         "files",
@@ -225,6 +353,11 @@ def main(argv: list) -> int:
         ),
         "qmllint": check_qmllint(with_suffixes(scope, {".qml"})),
     }
+    if arguments.docs or arguments.docs_undocumented:
+        documents = with_suffixes(scope, {".h", ".hpp", ".md"})
+        results["doxygen"] = check_docs(documents)
+        if arguments.docs_undocumented:
+            report_undocumented(documents)
 
     section("summary")
     for tool, passed in results.items():

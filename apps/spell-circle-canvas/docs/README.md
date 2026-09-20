@@ -17,13 +17,14 @@ optional and adds inheritance graphs.
 
 | File | What it is |
 | --- | --- |
-| `Doxyfile.in` | The settings every library's site shares. |
+| `Doxyfile.in` | The settings every library's site shares, and the ones each pass overrides. |
 | `custom.css` | Project overrides, loaded after the theme. |
 | `Dockerfile`, `nginx.conf`, `dockerignore` | Serving the generated site. |
 
-The generation itself is `scripts/sigil.py docs`: the two passes, the
-theme download, the HTML header, the rendered Doxyfiles, the landing
-page and the container staging. CMake keeps what only CMake knows —
+The generation itself is `scripts/sigil.py docs`: the three passes, the
+theme and tag-file downloads, the HTML header, the navigation layout,
+the rendered Doxyfiles, the landing page and the container staging.
+CMake keeps what only CMake knows —
 whether Doxygen is installed, where it is, and which libraries
 registered themselves — and writes that to `build/docs-manifest.txt`,
 which is what the script reads. Registration is `sigil_add_docs()` in
@@ -37,9 +38,10 @@ downloaded at build time.
 The build writes two directories. `build/docs/` is the output: the
 sites, the landing page and the container files, and nothing else — it
 is what gets served. `build/docs-build/` holds the intermediates: the
-rendered Doxyfiles, the tag files, the theme, the generated header.
-Either can be deleted; the next `docs` build writes back whatever is
-missing.
+rendered Doxyfiles, the tag files, the theme, the generated header and
+layout, the XML inventory, and the warning logs a documentation check
+reads. Either can be deleted; the next `docs` build writes back whatever
+is missing.
 
 ## Adding a library
 
@@ -57,15 +59,36 @@ sigil_add_docs(
   INPUT ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/README.md
   MAINPAGE ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-  STRIP ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  STRIP ${CMAKE_CURRENT_SOURCE_DIR}/include
+  INCLUDE_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/include)
 ```
+
+`STRIP` is what comes off a path before it is printed or made into a
+page identifier; `INCLUDE_ROOT` is what comes off the `#include` line a
+class page prints, and defaults to `STRIP`. A library root passes both:
+`include/` and the root itself to strip, `include/` as the include root,
+so `<sigilthing/feature/Thing.h>` is the line the page shows while a
+chapter beside the library is named from the library.
+
+EVERY PATH MUST BE ABSOLUTE AND MUST EXIST, and the call fails the
+configure when one is not. Doxygen resolves a relative input against its
+own working directory, finds nothing, and writes a site with that
+chapter silently missing — an absence that looks exactly like a page
+nobody wrote.
 
 Either call must run before `sigil_finalize_docs()`, which the root
 `CMakeLists.txt` invokes after `add_subdirectory(src)`.
 
+A chapter that stands beside the feature it describes is often named
+`README.md` too. Doxygen would take such a file for the documentation of
+its directory, reachable only from the directory listing, so
+`IMPLICIT_DIR_DOCS` is off and a chapter is a page like any other.
+
 ## How it is generated
 
-Generation runs in **two passes**. The libraries reference each other's
+Generation runs in **three passes**.
+
+The first two exist because the libraries reference each other's
 types in both directions — SigilWorld takes SigilGeometry's meshes,
 SigilCompose takes SigilMotion's animatables — and a Doxygen tag file
 can only be read after it has been written. The first pass writes every
@@ -74,18 +97,68 @@ A single pass would resolve only the edges that happen to run in the
 order the subdirectories were added.
 
 The result is that a type used across a library boundary links to the
-page that defines it, in whichever direction it is used.
+page that defines it, in whichever direction it is used. The same
+mechanism links outward: cppreference publishes a tag file of its own,
+which is read by every library, so `std::span` and `std::optional` in a
+signature are links. It is fetched under the same rules as the theme —
+open licence, pinned, hashed, never vendored — out of the release
+archive of the offline book, which is the only place it is published;
+one member is read back out of the archive. A machine that cannot reach
+it still gets its sites, with the standard names left as text. Skia,
+HarfBuzz, ICU, Yoga and Diligent publish no tag file at all, so their
+types stay text everywhere.
 
-A tag file is rewritten when a header, a README, or the Doxyfile that
-reads them is newer than it, so a second `docs` build re-indexes nothing
-and only writes the HTML. `docs-<Lib>` writes one library's site and
-leaves the landing page and the container files alone, but still brings
-every tag file up to date first — that is what its cross-library links
-resolve against.
+The third pass writes the XML inventory into
+`build/docs-build/<Library>/xml/`, for a generator that builds pages out
+of the comments rather than a person reading them. It is the one pass
+with `EXTRACT_ALL` on: a site leaves out what carries no comment, while
+an inventory that left out the same things would be missing exactly the
+entities a reader cannot otherwise discover. `--no-xml` skips it.
+
+A tag file and an inventory are rewritten when a header, a README, or
+the Doxyfile that reads them is newer, so a second `docs` build
+re-indexes nothing and only writes the HTML. `docs-<Lib>` writes one
+library's site and leaves the landing page and the container files
+alone, but still brings every tag file up to date first — that is what
+its cross-library links resolve against.
+
+## What a page says
+
+Three settings are what make a generated page usable, and each one
+answers a question a reader arrives with.
+
+**Which header do I include?** `FULL_PATH_NAMES` is on, with the
+library root stripped from a path and the include root stripped from an
+include, so a class page prints `#include <sigilcompose/core/Element.h>`
+— the line to type — rather than a bare basename that no include
+directive spells.
+
+**What is this library made of?** A `@defgroup` per feature is a topic,
+`GROUP_NESTED_COMPOUNDS` shows a type inside the topic it belongs to,
+and the generated navigation layout puts Topics ahead of the related
+pages, so the first screen is the features rather than an alphabetical
+class list.
+
+**What will this quietly not do?** Four aliases give the house markers a
+rendered form:
+
+| Marker | Renders as |
+| --- | --- |
+| `@trap` | Trap: |
+| `@silent` | Silently does nothing when: |
+| `@workaround:` | Workaround for a dependency |
+| `@sketch{<stem>}` | Seen in the sketch: `<stem>` |
+
+The workaround marker keeps its colon so that `grep -r 'workaround:'`
+still enumerates every one of them, in a comment block and in ordinary
+code alike. Nothing else is aliased: a comment stands alone for a reader
+who has opened no other document, and an alias that expanded to a
+cross-reference would break that.
 
 ## What gets documented
 
-`EXTRACT_ALL` is off. The house convention is that a **type** carries a
+`EXTRACT_ALL` is off for the sites. The house convention is that a
+**type** carries a
 `/** */` block whose first sentence is its summary, and that
 self-evident fields and one-line accessors under a documented type do
 not repeat it. Undocumented entities are therefore not warned about by
@@ -93,10 +166,38 @@ default; `-DSPELLCIRCLE_DOCS_WARN_UNDOCUMENTED=ON` turns the warnings on
 for an audit. Under that flag, an undocumented **type** is a real
 finding and an undocumented one-line accessor usually is not.
 
+The consequence to know: **an undocumented entity is absent from the
+site entirely**, and an undocumented namespace has no page at all, so
+every free function in it is reachable only through a file page. That
+is what makes a missing comment a discovery failure rather than a
+cosmetic one.
+
 `detail` namespaces are excluded. They are implementation scaffolding
 that is only reachable because C++ has no way to hide a header, and
 documenting them would advertise names that carry no compatibility
 promise.
+
+## Checking that a comment arrives
+
+```sh
+python3 scripts/sigil.py check --docs                  # the branch's libraries
+python3 scripts/sigil.py check --docs --all            # every library
+python3 scripts/sigil.py check --docs --docs-undocumented
+```
+
+A comment can be written perfectly and still never reach a page. An
+`@file` with prose on the same line loses the file's documentation to a
+filename that does not exist; an `@ingroup` naming another library's
+group is dropped; a `#` in a URL is read as a link request; a stray
+backtick closes the block early. The tier parses the scoped libraries
+and reports each of those. It writes nothing but a warning log, needs a
+configured tree only for the manifest, and is OPT-IN — it never runs as
+part of an ordinary check, and what it finds is a page that reads wrong
+rather than code that is wrong. `scripts/README.md` is the canon for
+the verb and its scope rule.
+
+`--docs-undocumented` adds the audit report, which never fails a run:
+compounds with no comment listed by name, members counted by kind.
 
 ## The theme
 
@@ -122,7 +223,10 @@ Each rule there confines that overflow to the element causing it.
 The header is generated rather than checked in. Doxygen emits the header
 its own version expects, and a copy frozen in the source tree would
 drift on every Doxygen upgrade — which shows up as a half-styled page
-rather than an error.
+rather than an error. The navigation layout is generated for the same
+reason, with one edit applied to what Doxygen writes: the topics tab
+moves up beside the front page. A layout frozen here would drift into a
+navigation tree missing whatever a later Doxygen added.
 
 ## Serving it
 

@@ -205,7 +205,7 @@ def _digest_of(path: Path, running) -> str:
     return running.hexdigest()
 
 
-def fetch(assets, out: Path, quiet: bool = False) -> None:
+def fetch(assets, out: Path, quiet: bool = False, required: bool = True) -> bool:
     """Downloads what is missing or wrong, leaves what already matches.
 
     The hash is the contract: a file already at its destination is kept
@@ -215,8 +215,15 @@ def fetch(assets, out: Path, quiet: bool = False) -> None:
 
     A download always says so. `quiet` drops the line per file already
     in place, for a caller that fetches as one step of something larger.
+
+    A required asset that will not come down ends the run, since a
+    caller that asked for it cannot do its work without it. Clearing
+    `required` reports the failure and returns false instead, for the
+    caller that has something to do without the file. True means every
+    asset asked for is in place.
     """
     context = ssl.create_default_context()
+    complete = True
     for asset in assets:
         target = out / asset.dest
         if target.exists() and sha256_of(target) == asset.sha256:
@@ -230,11 +237,23 @@ def fetch(assets, out: Path, quiet: bool = False) -> None:
             with urllib.request.urlopen(request, context=context) as response:
                 payload = response.read()
         except (urllib.error.URLError, OSError) as failure:
-            sys.exit(f"{asset.dest}: {failure}")
+            complete = _missed(f"{asset.dest}: {failure}", required)
+            continue
         got = hashlib.sha256(payload).hexdigest()
         if got != asset.sha256:
-            sys.exit(f"{asset.dest}: expected sha256 {asset.sha256}, got {got}")
+            complete = _missed(
+                f"{asset.dest}: expected sha256 {asset.sha256}, got {got}", required
+            )
+            continue
         target.write_bytes(payload)
+    return complete
+
+
+def _missed(reason: str, required: bool) -> bool:
+    if required:
+        sys.exit(reason)
+    print(f"note: {reason}")
+    return False
 
 
 def stage(archive: Path) -> int:

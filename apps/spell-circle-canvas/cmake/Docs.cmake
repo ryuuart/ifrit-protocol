@@ -7,8 +7,8 @@
 # Building the `docs` target writes one browsable site per library under
 # ${CMAKE_BINARY_DIR}/docs, plus an index linking them.
 #
-# The generation itself — the two passes, the theme, the header, the
-# rendered Doxyfiles, the landing page — is the docs verb. What
+# The generation itself — the passes, the theme, the header, the layout,
+# the rendered Doxyfiles, the landing page — is the docs verb. What
 # stays here is what only CMake knows: whether Doxygen is installed,
 # where it is, and which libraries registered themselves.
 
@@ -37,7 +37,8 @@ option(SPELLCIRCLE_DOCS_WARN_UNDOCUMENTED
 # links name every OTHER library, which is not known until every
 # subdirectory has been added.
 function(sigil_add_docs)
-  cmake_parse_arguments(ARG "" "NAME;BRIEF;MAINPAGE" "INPUT;STRIP" ${ARGN})
+  cmake_parse_arguments(ARG "" "NAME;BRIEF;MAINPAGE" "INPUT;STRIP;INCLUDE_ROOT"
+                        ${ARGN})
 
   if(NOT ARG_NAME)
     message(FATAL_ERROR "sigil_add_docs: NAME is required")
@@ -46,14 +47,51 @@ function(sigil_add_docs)
     message(FATAL_ERROR "sigil_add_docs(${ARG_NAME}): INPUT is required")
   endif()
 
+  # An input Doxygen cannot read is a chapter that silently never
+  # appears, and a relative one is read against Doxygen's own working
+  # directory rather than the library's. Both are configure errors: the
+  # site is generated long after the mistake was made, and a missing
+  # page looks exactly like a page nobody wrote. The same pass takes the
+  # `..` out of a path a caller composed, so that every path in the
+  # manifest is the one name for that file and a reader can match one
+  # against another.
+  foreach(name IN ITEMS INPUT STRIP INCLUDE_ROOT MAINPAGE)
+    set(checked)
+    foreach(entry IN LISTS ARG_${name})
+      if(NOT IS_ABSOLUTE ${entry})
+        message(FATAL_ERROR
+          "sigil_add_docs(${ARG_NAME}): ${name} '${entry}' is relative. Name "
+          "it from the directory that owns it -- Doxygen resolves what it is "
+          "given against its own working directory.")
+      endif()
+      if(NOT EXISTS ${entry})
+        message(FATAL_ERROR
+          "sigil_add_docs(${ARG_NAME}): ${name} '${entry}' does not exist")
+      endif()
+      get_filename_component(entry ${entry} ABSOLUTE)
+      list(APPEND checked ${entry})
+    endforeach()
+    set(ARG_${name} ${checked})
+  endforeach()
+
   if(NOT ARG_STRIP)
     set(ARG_STRIP ${ARG_INPUT})
   endif()
+  # Without an include root of its own, a library's include lines are cut
+  # at the same prefixes as its file names.
+  if(NOT ARG_INCLUDE_ROOT)
+    set(ARG_INCLUDE_ROOT ${ARG_STRIP})
+  endif()
+  # The last resort for a path under none of the above: a page named from
+  # the application root rather than from the file system root.
+  list(APPEND ARG_STRIP ${CMAKE_SOURCE_DIR})
 
   set_property(GLOBAL APPEND PROPERTY SIGIL_DOCS_LIBRARIES ${ARG_NAME})
   set_property(GLOBAL PROPERTY SIGIL_DOCS_${ARG_NAME}_BRIEF "${ARG_BRIEF}")
   set_property(GLOBAL PROPERTY SIGIL_DOCS_${ARG_NAME}_INPUT "${ARG_INPUT}")
   set_property(GLOBAL PROPERTY SIGIL_DOCS_${ARG_NAME}_STRIP "${ARG_STRIP}")
+  set_property(GLOBAL PROPERTY SIGIL_DOCS_${ARG_NAME}_INCLUDE_ROOT
+               "${ARG_INCLUDE_ROOT}")
   set_property(GLOBAL PROPERTY SIGIL_DOCS_${ARG_NAME}_MAINPAGE "${ARG_MAINPAGE}")
 endfunction()
 
@@ -97,12 +135,14 @@ function(sigil_finalize_docs)
     get_property(brief GLOBAL PROPERTY SIGIL_DOCS_${lib}_BRIEF)
     get_property(input GLOBAL PROPERTY SIGIL_DOCS_${lib}_INPUT)
     get_property(strip GLOBAL PROPERTY SIGIL_DOCS_${lib}_STRIP)
+    get_property(include_root GLOBAL PROPERTY SIGIL_DOCS_${lib}_INCLUDE_ROOT)
     get_property(mainpage GLOBAL PROPERTY SIGIL_DOCS_${lib}_MAINPAGE)
     string(APPEND manifest "library=${lib}\n")
     string(APPEND manifest "brief=${brief}\n")
     string(APPEND manifest "mainpage=${mainpage}\n")
     string(APPEND manifest "input=${input}\n")
     string(APPEND manifest "strip=${strip}\n")
+    string(APPEND manifest "include_root=${include_root}\n")
   endforeach()
 
   set(manifest_file ${CMAKE_BINARY_DIR}/docs-manifest.txt)

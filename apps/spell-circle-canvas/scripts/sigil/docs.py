@@ -6,7 +6,7 @@
 
 With `--manifest` this IS the generator, and it is what the `docs` and
 `docs-<Lib>` targets run: the manifest is what sigil_finalize_docs()
-writes — name, brief, input directories, path prefix to strip, and the
+writes — name, brief, input directories, path prefixes to strip, and the
 document to use as each site's front page. Without it the verb drives the
 build target instead, which is the way a person asks for the pages.
 
@@ -14,13 +14,17 @@ Documentation is parsed from headers, so the build tree only has to be
 CONFIGURED, never compiled; a first run on a fresh checkout therefore
 stops after configure rather than building the whole application.
 
-Why generation takes two passes, where the theme comes from and why the
+Why generation takes three passes, where the theme comes from and why the
 HTML header is generated rather than checked in is scripts/README.md.
 
 Everything used to produce a site — the rendered Doxyfiles, the tag
-files, the theme, the generated header — lands in the work directory,
-apart from the sites themselves, which are what gets served. Both are
-disposable: this rewrites whatever is missing.
+files, the theme, the generated header and layout, the XML — lands in
+the work directory, apart from the sites themselves, which are what gets
+served. Both are disposable: this rewrites whatever is missing.
+
+The warnings sweep is here too rather than in the check verb, because
+finding a comment that never reached a page is one more way of running
+Doxygen over the same manifest.
 """
 
 import argparse
@@ -29,6 +33,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tarfile
 import time
 import urllib.error
 import urllib.request
@@ -95,6 +100,24 @@ THEME = [
     )
 ]
 
+# cppreference's own Doxygen tag file, which turns every std:: name in
+# every signature into a link. cppreference publishes it only inside the
+# release archive of its offline book, so the archive is what is pinned
+# and one member is read back out of it. Same rules as any other fetch:
+# open licence (CC BY-SA), an immutable release rather than a branch, a
+# declared hash. Skia, HarfBuzz, ICU, Yoga and Diligent publish no tag
+# file, so their types stay unlinked.
+CPPREFERENCE_MEMBER = "cppreference-doxygen-web.tag.xml"
+CPPREFERENCE_SITE = "https://en.cppreference.com/w/"
+CPPREFERENCE = [
+    Asset(
+        "https://github.com/PeterFeicht/cppreference-doc/releases/download/"
+        "v20250209/html-book-20250209.tar.xz",
+        "cppreference-html-book.tar.xz",
+        "ac50671a1f52d7f0ab0911d14450eb35e8c2f812edd0e426b2cd1e3d9db91d6f",
+    )
+]
+
 # $relpath^ is Doxygen's own placeholder for the path back to the output
 # root, so one header works at every depth of the generated tree.
 HEADER_SCRIPTS = """<script type="text/javascript" src="$relpath^doxygen-awesome-darkmode-toggle.js"></script>
@@ -128,13 +151,16 @@ class Library:
         self.mainpage = ""
         self.input: list = []
         self.strip: list = []
+        self.include_root: list = []
 
     def sources(self) -> list:
         """Every file Doxygen will read for this library.
 
         An INPUT entry is either a directory to walk or a single file
         named outright, which is how a library's README joins its
-        headers.
+        headers. An entry that is neither stops the run: Doxygen would
+        take it for a path relative to its own working directory, warn
+        once, and write a site with that chapter silently missing.
         """
         found = []
         for entry in self.input:
@@ -142,9 +168,22 @@ class Library:
             if path.is_dir():
                 for pattern in SOURCE_PATTERNS:
                     found.extend(path.rglob(pattern))
-            else:
+            elif path.is_file():
                 found.append(path)
+            else:
+                sys.exit(
+                    f"{self.name}: no documentation input at {entry} — "
+                    "the manifest names a file or directory that is not there"
+                )
         return found
+
+    def covers(self, path: Path) -> bool:
+        """Whether this library's site is built from that file."""
+        for entry in self.input:
+            root = Path(entry)
+            if path == root or root in path.parents:
+                return True
+        return False
 
 
 class Manifest:
@@ -163,7 +202,7 @@ class Manifest:
                 self.libraries.append(current)
             elif current is None:
                 settings[key] = value
-            elif key in ("input", "strip"):
+            elif key in ("input", "strip", "include_root"):
                 setattr(current, key, [part for part in value.split(";") if part])
             else:
                 setattr(current, key, value)
@@ -222,6 +261,57 @@ def make_header(manifest: Manifest) -> Path:
     return out
 
 
+def make_layout(manifest: Manifest) -> Path:
+    """Doxygen's own navigation layout, with the topics moved to the front.
+
+    A topic is a feature, which is what a reader browses by; left where
+    Doxygen puts it the reader meets the related pages and then an
+    alphabetical class list first. Like the header, the layout is
+    generated rather than checked in — Doxygen writes the layout its own
+    version expects, and a frozen copy drifts into a half-built
+    navigation tree on an upgrade rather than an error.
+    """
+    work = manifest.work / "layout-work"
+    work.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [manifest.doxygen, "-l", "DoxygenLayout.xml"],
+        cwd=work,
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+    lines = (work / "DoxygenLayout.xml").read_text().splitlines(keepends=True)
+    topics = [index for index, line in enumerate(lines) if '"topics"' in line]
+    main = [index for index, line in enumerate(lines) if '"mainpage"' in line]
+    if not topics or not main:
+        sys.exit("doxygen's generated layout has no mainpage or topics tab")
+    moved = lines.pop(topics[0])
+    lines.insert(main[0] + 1, moved)
+    out = manifest.work / "DoxygenLayout.xml"
+    write_if_changed(out, "".join(lines))
+    return out
+
+
+def cppreference_tagfile(manifest: Manifest) -> str:
+    """The `tagfile=destination` entry that links the standard library.
+
+    An empty string when the archive did not come down: a machine with
+    no network still gets its sites, with std:: names left as text.
+    """
+    out = manifest.work / "cppreference"
+    tagfile = out / CPPREFERENCE_MEMBER
+    if not tagfile.exists():
+        if not fetch(CPPREFERENCE, out, quiet=True, required=False):
+            print("note: no cppreference tag file — std:: names will not link")
+            return ""
+        archive = out / CPPREFERENCE[0].dest
+        with tarfile.open(archive) as book:
+            member = book.extractfile(CPPREFERENCE_MEMBER)
+            if member is None:
+                sys.exit(f"{archive} holds no {CPPREFERENCE_MEMBER}")
+            tagfile.write_bytes(member.read())
+    return f"{tagfile}={CPPREFERENCE_SITE}"
+
+
 def doxyfile_values(manifest: Manifest, library: Library, **overrides) -> dict:
     values = {
         "SIGIL_DOCS_NAME": library.name,
@@ -229,13 +319,20 @@ def doxyfile_values(manifest: Manifest, library: Library, **overrides) -> dict:
         "SIGIL_DOCS_OUTPUT": str(manifest.root / library.name),
         "SIGIL_DOCS_INPUT": CONTINUE.join(library.input),
         "SIGIL_DOCS_STRIP": CONTINUE.join(library.strip or library.input),
+        "SIGIL_DOCS_STRIP_INC": CONTINUE.join(
+            library.include_root or library.strip or library.input
+        ),
         "SIGIL_DOCS_MAINPAGE": library.mainpage,
+        "SIGIL_DOCS_EXTRACT_ALL": "NO",
         "SIGIL_DOCS_GENERATE_HTML": "NO",
+        "SIGIL_DOCS_GENERATE_XML": "NO",
         "SIGIL_DOCS_TAGFILE": "",
         "SIGIL_DOCS_TAGFILES_IN": "",
         "SIGIL_DOCS_WARN_UNDOCUMENTED": "NO",
+        "SIGIL_DOCS_WARN_LOGFILE": "",
         "SIGIL_DOCS_HAVE_DOT": "NO",
         "SIGIL_DOCS_HEADER": "",
+        "SIGIL_DOCS_LAYOUT": "",
         "SIGIL_DOCS_STYLESHEETS": "",
         "SIGIL_DOCS_EXTRA_FILES": "",
     }
@@ -243,18 +340,44 @@ def doxyfile_values(manifest: Manifest, library: Library, **overrides) -> dict:
     return values
 
 
-def run_doxygen(manifest: Manifest, doxyfile: Path, library: Library) -> None:
-    (manifest.root / library.name).mkdir(parents=True, exist_ok=True)
-    subprocess.run([manifest.doxygen, str(doxyfile)], check=True)
+def run_doxygen(
+    manifest: Manifest, doxyfile: Path, output: Path, silent: bool = False
+) -> None:
+    """Runs one Doxyfile. `silent` is for a run whose warnings are going
+    to a log the caller reads, where the same lines on the console would
+    be a second copy of what it is about to report."""
+    output.mkdir(parents=True, exist_ok=True)
+    finished = subprocess.run(
+        [manifest.doxygen, str(doxyfile)], stderr=subprocess.PIPE, text=True
+    )
+    if not silent or finished.returncode != 0:
+        for line in finished.stderr.splitlines():
+            # workaround: cppreference's published tag file gives a dozen
+            # std::experimental members a name that is not a name, and
+            # Doxygen reports each of them against every library that
+            # reads the file. They are that file's defects, not this
+            # tree's.
+            if CPPREFERENCE_MEMBER not in line:
+                print(line, file=sys.stderr)
+    if finished.returncode != 0:
+        sys.exit(f"doxygen failed on {doxyfile}")
+
+
+def newer_than(product: Path, inputs: list) -> bool:
+    """Whether a generated file already answers for everything it reads.
+
+    The rule the build applies to any other generated file: a product is
+    stale when a header, a README or the Doxyfile that reads them is
+    newer than it.
+    """
+    if not product.exists():
+        return False
+    stamp = product.stat().st_mtime
+    return all(source.stat().st_mtime <= stamp for source in inputs)
 
 
 def index_pass(manifest: Manifest, template: str) -> None:
-    """Pass one: every tag file, no HTML.
-
-    A tag file is re-indexed when a header, a README or the Doxyfile that
-    reads them is newer than it, which is the same rule the build applies
-    to any other generated file.
-    """
+    """Pass one: every tag file, no HTML."""
     for library in manifest.libraries:
         tagfile = manifest.work / f"{library.name}.tag"
         doxyfile = manifest.work / library.name / "Doxyfile.tags"
@@ -265,13 +388,10 @@ def index_pass(manifest: Manifest, template: str) -> None:
                 doxyfile_values(manifest, library, SIGIL_DOCS_TAGFILE=str(tagfile)),
             ),
         )
-        inputs = [*library.sources(), doxyfile]
-        if tagfile.exists():
-            stamp = tagfile.stat().st_mtime
-            if all(source.stat().st_mtime <= stamp for source in inputs):
-                continue
+        if newer_than(tagfile, [*library.sources(), doxyfile]):
+            continue
         print(f"Indexing {library.name} for cross-library links")
-        run_doxygen(manifest, doxyfile, library)
+        run_doxygen(manifest, doxyfile, manifest.root / library.name)
 
 
 def html_pass(manifest: Manifest, template: str, wanted: list) -> None:
@@ -280,16 +400,21 @@ def html_pass(manifest: Manifest, template: str, wanted: list) -> None:
     stylesheets = [theme / name for name in THEME_CSS]
     stylesheets.append(manifest.templates / "custom.css")
     header = make_header(manifest)
+    layout = make_layout(manifest)
+    standard = cppreference_tagfile(manifest)
 
     for library in wanted:
         # `tag=path` points a resolved name at the site that documents
         # it. The path is relative so the whole docs tree can be moved or
-        # served from anywhere.
+        # served from anywhere. cppreference's destination is its own
+        # site, which no move affects.
         tagfiles = [
             f"{manifest.work / other.name}.tag=../../{other.name}/html"
             for other in manifest.libraries
             if other.name != library.name
         ]
+        if standard:
+            tagfiles.append(standard)
         doxyfile = manifest.work / library.name / "Doxyfile"
         write_if_changed(
             doxyfile,
@@ -303,6 +428,7 @@ def html_pass(manifest: Manifest, template: str, wanted: list) -> None:
                     SIGIL_DOCS_WARN_UNDOCUMENTED=manifest.warn_undocumented,
                     SIGIL_DOCS_HAVE_DOT=manifest.have_dot,
                     SIGIL_DOCS_HEADER=str(header),
+                    SIGIL_DOCS_LAYOUT=str(layout),
                     SIGIL_DOCS_STYLESHEETS=CONTINUE.join(
                         str(path) for path in stylesheets
                     ),
@@ -313,7 +439,102 @@ def html_pass(manifest: Manifest, template: str, wanted: list) -> None:
             ),
         )
         print(f"Writing the {library.name} documentation")
-        run_doxygen(manifest, doxyfile, library)
+        run_doxygen(manifest, doxyfile, manifest.root / library.name)
+
+
+def xml_pass(manifest: Manifest, template: str, wanted: list) -> None:
+    """Pass three: the XML inventory, no HTML and no tag file.
+
+    A curated site leaves out what nobody has documented yet. A
+    generator reading this cannot: an Element verb with no comment is
+    still a verb, and a list missing it is not a list. So this pass alone
+    extracts everything, into the work directory beside the other
+    intermediates, and the site it is generated next to does not move.
+    """
+    for library in wanted:
+        output = manifest.work / library.name
+        # Not Doxyfile.xml: Doxygen writes a file of that name, holding
+        # the configuration it ran with, into the XML it generates.
+        doxyfile = output / "Doxyfile.inventory"
+        write_if_changed(
+            doxyfile,
+            render_doxyfile(
+                template,
+                doxyfile_values(
+                    manifest,
+                    library,
+                    SIGIL_DOCS_OUTPUT=str(output),
+                    SIGIL_DOCS_EXTRACT_ALL="YES",
+                    SIGIL_DOCS_GENERATE_XML="YES",
+                ),
+            ),
+        )
+        if newer_than(output / "xml" / "index.xml", [*library.sources(), doxyfile]):
+            continue
+        print(f"Writing the {library.name} inventory")
+        run_doxygen(manifest, doxyfile, output)
+
+
+# What a sweep cannot judge: no tag file is read, so every name that
+# lives in another library is unresolvable here by construction. The
+# cross-library links are what the real build checks.
+UNRESOLVED = "unable to resolve reference"
+
+
+def libraries_for(manifest_path: Path, files: list) -> list:
+    """The libraries whose sites are built from any of those files."""
+    manifest = Manifest(manifest_path)
+    return [
+        library.name
+        for library in manifest.libraries
+        if any(library.covers(path) for path in files)
+    ]
+
+
+def warnings_sweep(
+    manifest_path: Path, names: list, undocumented: bool = False
+) -> dict:
+    """Parse each named library and hand back what Doxygen warned about.
+
+    Parse only: no HTML, no XML, no tag file, nothing written but the
+    log. What it finds is documentation that never reached a page — an
+    @file that ate its own first word, an @ingroup naming no group, a
+    comment block a stray token closed early — which the site shows as
+    an absence rather than an error.
+
+    With `undocumented` it asks the other question, the one the house
+    convention answers deliberately: which entities carry no comment at
+    all.
+    """
+    manifest = Manifest(manifest_path)
+    manifest.work.mkdir(parents=True, exist_ok=True)
+    template = (manifest.templates / "Doxyfile.in").read_text()
+    tier = "undocumented" if undocumented else "warnings"
+    found = {}
+    for library in manifest.libraries:
+        if library.name not in names:
+            continue
+        output = manifest.work / library.name
+        log = output / f"{tier}.log"
+        doxyfile = output / f"Doxyfile.{tier}"
+        write_if_changed(
+            doxyfile,
+            render_doxyfile(
+                template,
+                doxyfile_values(
+                    manifest,
+                    library,
+                    SIGIL_DOCS_OUTPUT=str(output),
+                    SIGIL_DOCS_WARN_UNDOCUMENTED="YES" if undocumented else "NO",
+                    SIGIL_DOCS_WARN_LOGFILE=str(log),
+                ),
+            ),
+        )
+        log.unlink(missing_ok=True)
+        run_doxygen(manifest, doxyfile, output, silent=True)
+        lines = log.read_text().splitlines() if log.exists() else []
+        found[library.name] = [line for line in lines if UNRESOLVED not in line]
+    return found
 
 
 def write_index(manifest: Manifest) -> None:
@@ -373,7 +594,7 @@ def stage_container(manifest: Manifest) -> None:
         shutil.copyfile(manifest.templates / name, manifest.root / staged)
 
 
-def generate(manifest_path: Path, libraries: list | None) -> int:
+def generate(manifest_path: Path, libraries: list | None, xml: bool = True) -> int:
     manifest = Manifest(manifest_path)
     manifest.root.mkdir(parents=True, exist_ok=True)
     manifest.work.mkdir(parents=True, exist_ok=True)
@@ -381,10 +602,12 @@ def generate(manifest_path: Path, libraries: list | None) -> int:
 
     template = (manifest.templates / "Doxyfile.in").read_text()
     index_pass(manifest, template)
-    if libraries:
-        html_pass(manifest, template, [manifest.find(name) for name in libraries])
+    wanted = [manifest.find(name) for name in libraries] if libraries else None
+    html_pass(manifest, template, wanted or manifest.libraries)
+    if xml:
+        xml_pass(manifest, template, wanted or manifest.libraries)
+    if wanted:
         return 0
-    html_pass(manifest, template, manifest.libraries)
     write_index(manifest)
     stage_container(manifest)
     print(f"Documentation written to {manifest.root / 'index.html'}")
@@ -459,6 +682,12 @@ def main(argv: list) -> int:
         "the landing page and the container files are left alone",
     )
     parser.add_argument(
+        "--no-xml",
+        dest="xml",
+        action="store_false",
+        help="with --manifest, skip the inventory pass and write only the sites",
+    )
+    parser.add_argument(
         "--serve",
         action="store_true",
         help="serve the built sites from a container instead of opening them",
@@ -472,7 +701,7 @@ def main(argv: list) -> int:
     arguments = parser.parse_args(argv)
 
     if arguments.manifest:
-        return generate(arguments.manifest, arguments.library)
+        return generate(arguments.manifest, arguments.library, arguments.xml)
 
     code = build_target()
     if code != 0:

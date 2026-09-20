@@ -101,12 +101,25 @@ function(sigil_library_root name)
   set(SIGIL_HEADER_NAMESPACE ${namespaces} PARENT_SCOPE)
   set(SIGIL_TEST_DIR ${root}/test PARENT_SCOPE)
   set(SIGIL_BENCH_DIR ${root}/bench PARENT_SCOPE)
+  # DOCS names a chapter beside the library, so it is resolved here.
+  # Handed on relative, Doxygen would resolve it against its own working
+  # directory, find nothing, and drop the chapter from the site.
+  set(chapters)
+  foreach(chapter IN LISTS ARG_DOCS)
+    get_filename_component(chapter ${chapter} ABSOLUTE BASE_DIR ${root})
+    list(APPEND chapters ${chapter})
+  endforeach()
+  # Both strips: a header's include line is the path under include/, and
+  # everything else -- the README, a chapter -- is named from the library
+  # root. Doxygen strips the longest prefix that matches, so a header
+  # takes the first entry and a chapter the second.
   sigil_add_docs(
     NAME ${name}
     BRIEF "${ARG_BRIEF}"
-    INPUT ${root}/include ${root}/README.md ${ARG_DOCS}
+    INPUT ${root}/include ${root}/README.md ${chapters}
     MAINPAGE ${root}/README.md
-    STRIP ${root}/include)
+    STRIP ${root}/include ${root}
+    INCLUDE_ROOT ${root}/include)
 endfunction()
 
 # sigil_library(<Target> [SOURCES <file>...] [HEADERS <file>...]
