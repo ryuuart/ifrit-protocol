@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "Caches.h"
 #include "Fetch.h"
 #include "Residency.h"
 #include "sigilio/hub/Hub.h"
@@ -52,8 +53,8 @@ std::shared_ptr<const Bytes> Hub::fetch(std::string_view uri) {
   detail::NetworkAccess network;
   {
     const std::lock_guard lock(m_mutex);
-    const auto cached = m_entries.find(key);
-    if (cached != m_entries.end() && cached->second.bytes)
+    const auto cached = m_caches->entries.find(key);
+    if (cached != m_caches->entries.end() && cached->second.bytes)
       return cached->second.bytes;
     network = {m_networkCacheDirectory, m_networkPolicy, m_networkTransport};
   }
@@ -62,10 +63,11 @@ std::shared_ptr<const Bytes> Hub::fetch(std::string_view uri) {
   if (!fetched.bytes)
     return nullptr;  // not cached: heals as soon as the file appears
   const std::lock_guard lock(m_mutex);
-  auto it = m_entries.find(key);
-  if (it != m_entries.end() && it->second.bytes) return it->second.bytes;
-  if (it == m_entries.end()) {
-    it = m_entries.emplace(key, Entry{}).first;
+  auto it = m_caches->entries.find(key);
+  if (it != m_caches->entries.end() && it->second.bytes)
+    return it->second.bytes;
+  if (it == m_caches->entries.end()) {
+    it = m_caches->entries.emplace(key, Caches::Entry{}).first;
     it->second.uri = std::string(uri);
     it->second.path = std::move(fetched.path);
     it->second.mtime = fetched.mtime;
@@ -104,8 +106,8 @@ size_t Hub::preload(std::span<const std::string_view> uris) {
     for (std::string_view uri : uris) {
       if (!seen.emplace(uri).second) continue;
       const std::string key = cacheKey(uri, nullptr);
-      const auto cached = m_entries.find(key);
-      if (cached != m_entries.end() && cached->second.bytes) {
+      const auto cached = m_caches->entries.find(key);
+      if (cached != m_caches->entries.end() && cached->second.bytes) {
         ++ready;
         continue;
       }
@@ -126,13 +128,13 @@ size_t Hub::preload(std::span<const std::string_view> uris) {
   {
     const std::lock_guard lock(m_mutex);
     for (Pending& ask : pending) {
-      Entry& entry = m_entries[ask.key];
+      Caches::Entry& entry = m_caches->entries[ask.key];
       if (entry.bytes) {
         ++ready;
         continue;
       }
       if (!ask.fetched.bytes) {
-        if (entry.uri.empty()) m_entries.erase(ask.key);
+        if (entry.uri.empty()) m_caches->entries.erase(ask.key);
         continue;
       }
       entry.bytes = std::move(ask.fetched.bytes);
@@ -150,18 +152,19 @@ size_t Hub::preload(std::span<const std::string_view> uris) {
 size_t Hub::discardUnretained() {
   const std::lock_guard cacheLock(m_mutex);
   if (!m_residency) {
-    const size_t discarded = m_entries.size();
-    m_entries.clear();
+    const size_t discarded = m_caches->entries.size();
+    m_caches->entries.clear();
     return discarded;
   }
 
   const std::lock_guard residencyLock(m_residency->mutex);
   size_t discarded = 0;
-  for (auto entry = m_entries.begin(); entry != m_entries.end();) {
+  for (auto entry = m_caches->entries.begin();
+       entry != m_caches->entries.end();) {
     if (m_residency->pins.contains(entry->second.uri)) {
       ++entry;
     } else {
-      entry = m_entries.erase(entry);
+      entry = m_caches->entries.erase(entry);
       ++discarded;
     }
   }
@@ -182,8 +185,8 @@ std::shared_ptr<const void> Hub::loadView(const std::string& key,
   detail::NetworkAccess network;
   {
     const std::lock_guard lock(m_mutex);
-    const auto entry = m_entries.find(key);
-    if (entry != m_entries.end()) {
+    const auto entry = m_caches->entries.find(key);
+    if (entry != m_caches->entries.end()) {
       if (const auto view = entry->second.views.find(type);
           view != entry->second.views.end() && view->second.value)
         return view->second.value;
@@ -208,7 +211,7 @@ std::shared_ptr<const void> Hub::loadView(const std::string& key,
   if (!value) return nullptr;
 
   const std::lock_guard lock(m_mutex);
-  auto [entry, inserted] = m_entries.try_emplace(key);
+  auto [entry, inserted] = m_caches->entries.try_emplace(key);
   if (!inserted) {
     if (const auto view = entry->second.views.find(type);
         view != entry->second.views.end() && view->second.value)
@@ -220,7 +223,7 @@ std::shared_ptr<const void> Hub::loadView(const std::string& key,
   }
   // The encoded bytes are not kept unless fetch() asked for them, so
   // a decode-only workload never holds them alive beside the value.
-  View& view = entry->second.views[type];
+  Caches::View& view = entry->second.views[type];
   view.value = std::move(value);
   view.decode = decode;
   return view.value;
@@ -232,13 +235,13 @@ std::shared_ptr<const void> Hub::loadRegisteredView(const std::string& key,
   Redecode decode;
   {
     const std::lock_guard lock(m_mutex);
-    const auto entry = m_entries.find(key);
-    if (entry != m_entries.end())
+    const auto entry = m_caches->entries.find(key);
+    if (entry != m_caches->entries.end())
       if (const auto view = entry->second.views.find(type);
           view != entry->second.views.end() && view->second.value)
         return view->second.value;
-    const auto registered = m_decoders.find(type);
-    if (registered != m_decoders.end()) decode = registered->second;
+    const auto registered = m_caches->decoders.find(type);
+    if (registered != m_caches->decoders.end()) decode = registered->second;
   }
   return loadView(key, uri, type, decode);
 }
@@ -322,8 +325,8 @@ bool Hub::poll() {
   std::vector<Reload> pending;
   {
     const std::lock_guard lock(m_mutex);
-    pending.reserve(m_entries.size());
-    for (const auto& [key, entry] : m_entries) {
+    pending.reserve(m_caches->entries.size());
+    for (const auto& [key, entry] : m_caches->entries) {
       if (isNetworkUri(entry.uri))
         continue;  // no mtime to watch: network entries stay as fetched
       Reload reload{key, entry.uri, entry.mtime, entry.bytes != nullptr, {}};
@@ -358,16 +361,16 @@ bool Hub::poll() {
   bool changed = false;
   const std::lock_guard lock(m_mutex);
   for (Outcome& outcome : outcomes) {
-    const auto found = m_entries.find(outcome.reload->key);
-    if (found == m_entries.end() ||
+    const auto found = m_caches->entries.find(outcome.reload->key);
+    if (found == m_caches->entries.end() ||
         found->second.mtime != outcome.reload->mtime)
       continue;  // replaced or dropped since the snapshot: not ours
     if (outcome.vanished) {
-      m_entries.erase(found);  // vanished: next ask sees the truth
+      m_caches->entries.erase(found);  // vanished: next ask sees the truth
       changed = true;
       continue;
     }
-    Entry& entry = found->second;
+    Caches::Entry& entry = found->second;
     Reloaded& reloaded = *outcome.reloaded;
     for (auto& [type, value] : reloaded.views) {
       const auto view = entry.views.find(type);

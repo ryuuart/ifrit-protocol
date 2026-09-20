@@ -5,15 +5,18 @@
 # stock value over it that a shader catalogue is. A preload fans its fetches
 # out through SigilCoreSchedule's blocking seam, which is where a call that
 # waits on a disk or a server belongs; libcurl backs the http(s):// URIs
-# (fetch + on-disk cache). Both are implementation and stay private.
+# (fetch + on-disk cache). Both are implementation and stay private. So is
+# Boost: the hub's tables live in Caches.h, which no public header includes,
+# so nothing that asks the hub for a resource compiles against Boost.
 find_package(CURL CONFIG REQUIRED)
 find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilIOHub
   SOURCES Cache.cpp Decoders.cpp Feed.cpp Feeds.cpp Mounts.cpp Network.cpp
-          Recording.cpp Retention.cpp Selection.cpp Fetch.h Residency.h
+          Recording.cpp Retention.cpp Selection.cpp Caches.h Fetch.h
+          Residency.h
   HEADERS Feed.h Hub.h Network.h Recording.h TextCatalog.h
-  PUBLIC SigilIOSource SigilImageDecode SigilCoreCallable Boost::container
-  PRIVATE SigilCoreSchedule CURL::libcurl)
+  PUBLIC SigilIOSource SigilImageDecode SigilCoreCallable
+  PRIVATE SigilCoreSchedule CURL::libcurl Boost::container)
 
 # The test builds its own PNG fixtures through the image encoder and
 # writes its own EXR ones through OIIO directly — the library itself

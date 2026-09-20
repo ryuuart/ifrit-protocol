@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "Caches.h"
 #include "Fetch.h"
 #include "sigilio/hub/Feed.h"
 #include "sigilio/hub/Hub.h"
@@ -47,13 +48,14 @@ std::filesystem::path feedFile(const Hub& hub, std::string_view uri) {
 
 void Hub::setFeedTransport(std::string scheme, FeedTransport transport) {
   const std::lock_guard lock(m_mutex);
-  m_feedTransports.insert_or_assign(std::move(scheme), std::move(transport));
+  m_caches->feedTransports.insert_or_assign(std::move(scheme),
+                                            std::move(transport));
 }
 
 FeedTransport Hub::feedTransport(std::string_view scheme) const {
   const std::lock_guard lock(m_mutex);
-  const auto registered = m_feedTransports.find(scheme);
-  return registered == m_feedTransports.end() ? FeedTransport{}
+  const auto registered = m_caches->feedTransports.find(scheme);
+  return registered == m_caches->feedTransports.end() ? FeedTransport{}
                                               : registered->second;
 }
 
@@ -136,8 +138,9 @@ std::shared_ptr<Feed> Hub::feed(std::string_view uri, Feed::Policy policy) {
   FeedTransport transport;
   {
     const std::lock_guard lock(m_mutex);
-    const auto registered = m_feedTransports.find(scheme);
-    if (registered != m_feedTransports.end()) transport = registered->second;
+    const auto registered = m_caches->feedTransports.find(scheme);
+    if (registered != m_caches->feedTransports.end())
+      transport = registered->second;
   }
   if (!transport) {
     made->fail("no feed transport registered for \"" + std::string(scheme) +

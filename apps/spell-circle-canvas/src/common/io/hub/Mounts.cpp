@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iterator>
 
+#include "Caches.h"
 #include "Fetch.h"
 #include "sigilio/hub/Hub.h"
 
@@ -91,8 +92,8 @@ bool Hub::write(std::string_view uri, const void* bytes, size_t size) {
   // matched on the uri each entry carries rather than on its key, since
   // a key is never parsed back into the URI it was built from.
   const std::lock_guard lock(m_mutex);
-  for (auto it = m_entries.begin(); it != m_entries.end();)
-    it = it->second.uri == uri ? m_entries.erase(it) : std::next(it);
+  for (auto it = m_caches->entries.begin(); it != m_caches->entries.end();)
+    it = it->second.uri == uri ? m_caches->entries.erase(it) : std::next(it);
   return true;
 }
 

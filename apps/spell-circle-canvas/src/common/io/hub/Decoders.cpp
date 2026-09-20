@@ -4,11 +4,12 @@
  * typed ask with the decoder registered for its type.
  */
 
+#include "Caches.h"
 #include "sigilio/hub/Hub.h"
 
 namespace sigil::io {
 
-Hub::Hub() {
+Hub::Hub() : m_caches(std::make_unique<Caches>()) {
   registerDecoder<sigil::image::ImageAsset>(
       [](const Bytes& bytes, std::string_view hint) {
         return sigil::image::decodeImage(bytes.bytes.data(), bytes.bytes.size(),
@@ -25,13 +26,13 @@ Hub::~Hub() = default;
 
 void Hub::setDecoder(std::type_index type, Redecode decode) {
   const std::lock_guard lock(m_mutex);
-  m_decoders[type] = std::move(decode);
+  m_caches->decoders[type] = std::move(decode);
 }
 
 Hub::Redecode Hub::registeredDecoder(std::type_index type) const {
   const std::lock_guard lock(m_mutex);
-  const auto it = m_decoders.find(type);
-  return it == m_decoders.end() ? Redecode{} : it->second;
+  const auto it = m_caches->decoders.find(type);
+  return it == m_caches->decoders.end() ? Redecode{} : it->second;
 }
 
 }  // namespace sigil::io
