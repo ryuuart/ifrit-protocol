@@ -5,8 +5,8 @@
  *
  * Placement, as verbs: taking a node out of the flow and saying where
  * it stands instead — the insets, the pins, the two shorthands over
- * them, the centre point, the anchor it hangs off, and the cell a
- * grid-shaped scheme puts it in.
+ * them, the centre point, and the cell a grid-shaped scheme puts it
+ * in.
  */
 
 #include <include/core/SkPoint.h>
@@ -17,10 +17,6 @@
 #include <string_view>
 
 namespace sigil::compose {
-
-// <sigilcompose/core/Derive.h>: the positioning value, declared beside
-// the rest of the derive family because it is resolved by the same pass.
-struct Tether;
 
 /** OUT OF THE FLOW, AND WHERE INSTEAD. Every verb here but the cell
  *  claim implies `absolute()`; lengths are `Dimension`s, so a bare
@@ -61,11 +57,6 @@ class PlacementVerbs {
   /** Pin the node's BOTTOM edge @p d above the parent's. Pinning top
    *  and bottom both stretches the node between them. */
   Derived& bottom(Dimension d);
-  /** HANG THIS NODE OFF A KEYED ONE, at a stated pair of points, with a
-   *  list of places to try when the first will not fit. Resolved after
-   *  layout, against the geometry the anchor resolved to, and
-   *  re-resolved whenever it moves. */
-  Derived& tether(Tether t);
   /** CENTRE this node ON a parent-space point, resolved after
    *  measurement so an intrinsic-size node centres correctly. */
   Derived& centerAt(SkPoint p);

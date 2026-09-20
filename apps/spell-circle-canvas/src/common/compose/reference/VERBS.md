@@ -272,7 +272,7 @@ spelling is the feature's.
   `width`, `height`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`,
   `aspect`.
 - `core/verbs/Placement.h` — the placement verbs `absolute`, `cover`,
-  `inset`, `left`, `top`, `right`, `bottom`, `tether`, `centerAt`,
+  `inset`, `left`, `top`, `right`, `bottom`, `centerAt`,
   `cells`, `area`, `cellAlign`, `rect`, `at`.
 - `core/verbs/Shape.h` — the region verbs `corners`, `shape`, `clip`.
 - `core/Band.h` — the band formation `centered`, `outward`, `inward`.
@@ -300,6 +300,6 @@ spelling is the feature's.
   `spanStyle`, `atRest`.
 - `core/Image.h` — `region`.
 - `core/Element.h` — the cascade a node names, `styleSheet`,
-  `styleClass` and `role`; `key`, `hitTestable`, `cache`, `bakeScale`,
-  `transition`, `staggerChildren`; and `children`, whose runs are the
-  `Children` value.
+  `styleClass` and `role`; `tether`, `key`, `hitTestable`, `cache`,
+  `bakeScale`, `transition`, `staggerChildren`; and `children`, whose
+  runs are the `Children` value.

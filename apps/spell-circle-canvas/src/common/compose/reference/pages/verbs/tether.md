@@ -3,7 +3,7 @@ kind: verb
 library: SigilCompose
 name: tether
 qualified: sigil::compose::Element::tether
-header: sigilcompose/core/verbs/Placement.h
+header: sigilcompose/core/Element.h
 group: Flow and placement
 status: stable
 ---
@@ -46,6 +46,10 @@ flick into it a frame after the anchor moved.
 **Last wins, and the previous tether's reads go with it.** A box hangs
 off exactly one anchor at a time; one re-tethered would otherwise keep
 waiting on every node it was ever tethered to.
+
+**It is the node's own and not a property.** Registering what a node
+reads off another is something only the node can do; a value that
+merely stated where to hang would leave those reads unregistered.
 
 ## See also
 

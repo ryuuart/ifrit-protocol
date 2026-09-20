@@ -83,10 +83,10 @@ sound model; nothing below them changes kernel semantics.
 - `core/verbs/Flex.h` — `FlexVerbs`: `row`, `column`, `wrapLines`,
   `grow`, `shrink`, `basis`, `alignItems`, `alignSelf`, `justify`.
 - `core/verbs/Placement.h` — `PlacementVerbs`: `absolute`, `cover`,
-  `inset`, `left`, `top`, `right`, `bottom`, `tether`, `centerAt`,
-  `cells`, `area`, `cellAlign`, `rect`, `at`. `cover` is the one that
-  says a node FILLS the box it stands in, which `absolute` and `inset`
-  said between them.
+  `inset`, `left`, `top`, `right`, `bottom`, `centerAt`, `cells`,
+  `area`, `cellAlign`, `rect`, `at`. `cover` is the one that says a
+  node FILLS the box it stands in, which `absolute` and `inset` said
+  between them.
 - `core/verbs/Shape.h` — `ShapeVerbs`: `corners`, `shape`, `clip`.
 - `core/Band.h` — `BandVerbs`: `centered`, `outward`, `inward`.
 - `core/verbs/Mask.h` — `MaskVerbs`: `mask`, in both its forms.
@@ -115,9 +115,10 @@ sound model; nothing below them changes kernel semantics.
 - `core/Image.h` — `ImageVerbs`: `region`.
 - `core/Element.h` — `Element` and its builders: the verb mixins it
   inherits, the cascade it NAMES with `styleSheet`, `role` and
-  `styleClass`, its identity with `key`, `hitTestable`, `cache`,
-  `bakeScale`, `transition` and `staggerChildren`, and `children` with
-  the `Children` value its runs are.
+  `styleClass`, the anchor it hangs off with `tether`, its identity
+  with `key`, `hitTestable`, `cache`, `bakeScale`, `transition` and
+  `staggerChildren`, and `children` with the `Children` value its runs
+  are.
 - `core/Factories.h` — the functions that start one: `box`, `stack`,
   `positioned`, `text`, `frame`, `image` (an `image::ImageAsset`, or a
   raw `SkImage` with a `material::skia::Fit` — `Stretch`, `Contain`,

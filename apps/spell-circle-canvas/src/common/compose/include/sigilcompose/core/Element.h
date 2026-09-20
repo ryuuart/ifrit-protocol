@@ -220,6 +220,17 @@ class Element : public BoxVerbs<Element>,
   Element& styleClass(std::string_view names);
   /** @} */
 
+  /** HANG THIS NODE OFF A KEYED ONE, at a stated pair of points, with a
+   *  list of places to try when the first will not fit. It takes the
+   *  node out of the flow, and where it lands is an answer of the
+   *  layout: resolved against the geometry the anchor resolved to, and
+   *  re-resolved whenever that moves.
+   *
+   *  It is the node's own and not a property, because it REGISTERS what
+   *  this node reads off another; something that only stated the value
+   *  would leave those reads unregistered and the box a pass behind. */
+  Element& tether(Tether t);
+
   /** @name Identity, caching, transitions
    *  Who the node is across describes, whether it answers a hit, what
    *  the painter is allowed to keep of it, and how its plain constants
