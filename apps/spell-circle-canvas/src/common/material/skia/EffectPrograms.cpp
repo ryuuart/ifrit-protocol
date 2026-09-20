@@ -4,11 +4,11 @@
  * that halo back over the source, the deepening and whitening of a
  * light, and the mix a parametric blur interpolates through.
  *
- * They were a function-local static beside each factory, which is
- * enough for a consumer that only draws. It is not enough for one that
- * wants a device backend to give each program a name it can write down:
- * a name is given to the OBJECT, so the list has to be whole, in one
- * order, and the very objects the factories go on to use.
+ * One list rather than one compiled behind each factory, because a
+ * device backend that gives each of these a name it can write down
+ * gives that name to the OBJECT and not to its source: the list has to
+ * be whole, in one fixed order, and made of the very objects the
+ * factories go on to use.
  */
 
 #include <include/core/SkTypes.h>  // SkDebugf

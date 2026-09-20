@@ -959,6 +959,26 @@ detail. A registered compiler can therefore receive concurrent calls for
 different keys; a backend with thread-affine work must marshal that work at
 its own executor seam.
 
+**Every body an effect is built out of, as one list.**
+`skia::everyEffectProgram()` in `<sigilmaterial/skia/Effect.h>` answers a
+`std::span<const sk_sp<SkRuntimeEffect>>` holding the compiled SkSL an
+`skia::Effect` runs — the bright pass and phosphor halo a bloom gathers,
+the tap that lays that halo back, a light's deepening and whitening, and
+a parametric blur's mix. The recipes a `skia::Paint` runs are not among
+them; those are reached through the program cache, one per recipe.
+
+They are the very objects the effects go on to use, not copies. A device
+backend can be asked to give a runtime effect a name that outlives the run,
+so a device program built over one can be written down and rebuilt at the
+next launch instead of compiled again — and the name is given to the OBJECT,
+so an effect compiled a second time from the same source is a stranger to
+it. An effect's place in the list is part of its name, which is why the
+order is fixed and why a body that would not compile is absent from the list
+rather than null in it: the list is what is really there, and a machine that
+loses a body offers a shorter one. Reach for this when declaring effects to
+such a backend. Asking compiles all of them, which is a handful of small
+programs beside the device programs they are inlined into.
+
 ## Where the stock shaders live
 
 Every body this library ships is a `.sksl` or `.slang` file in the
