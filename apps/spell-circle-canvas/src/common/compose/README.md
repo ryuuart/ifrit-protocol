@@ -636,111 +636,83 @@ What it refuses to be:
 
 ## Build and test
 
-The library is one feature target per directory, and a consumer links the
-tier it draws with: `SigilComposeCore` (`core/` — the kernel: elements,
-layout, paint, transitions, text, the feed and the instanced leaf, as
-the host of SigilCore's reconciler),
-`SigilComposeTypography` (`typography/` — the text vocabulary and the
-engine behind dressed type), `SigilComposeBrush`
-(`brush/` — decorations, lines, brushes, the stroke grammar's engine and
-the mask gates, with `kit/Flourish.h`, `kit/Ornament.h`, `kit/Plate.h`
-and `kit/Strokes.h`),
-`SigilComposeTexture` (`texture/` — a scene
-painted into a surface and handed out as a texture value),
-`SigilComposeVideo` (`video/` — a streaming SigilVideo clip sampled from the
-motion clock),
+[docs/overview/testing.md](../../../docs/overview/testing.md) is the
+contract every library here is built, tested and measured under: one
+`compose_test` over every feature's `test/` and one `compose_bench` over
+every feature's `bench/`, ctest one entry per CASE, what a case may pin,
+and what a label promises. What is only true of SigilCompose:
+
+**The library is one feature target per directory, and a consumer links
+the tier it draws with**: `SigilComposeCore` (`core/` — the kernel:
+elements, layout, paint, transitions, text, the feed and the instanced
+leaf, as the host of SigilCore's reconciler), `SigilComposeTypography`
+(`typography/` — the text vocabulary and the engine behind dressed
+type), `SigilComposeBrush` (`brush/` — decorations, lines, brushes, the
+stroke grammar's engine and the mask gates, with `kit/Flourish.h`,
+`kit/Ornament.h`, `kit/Plate.h` and `kit/Strokes.h`),
+`SigilComposeTexture` (`texture/` — a scene painted into a surface and
+handed out as a texture value), `SigilComposeVideo` (`video/` — a
+streaming SigilVideo clip sampled from the motion clock),
 `SigilComposeWeb` (`web/` — header-only, present only with SigilScry),
 `SigilComposeDraw` (`draw/` — the door to SigilDraw's pen, both ways),
 `SigilComposeTesting` (`testing/`) and `SigilComposeKit` (`kit/` — the
 shelves: the silhouette catalog spelled for a node, the layout schemes
-and the grid, the routers, the placers, the typesetting furniture and the
-kinetic type presets). Each directory holds the target's sources,
+and the grid, the routers, the placers, the typesetting furniture and
+the kinetic type presets). Each directory holds the target's sources,
 its internal headers, its `test/` and its `bench/`; the public headers
 sit under `include/sigilcompose/<feature>/`. A harness several features
 compose against belongs to none of them, so the shared ones sit at the
-library root: `test/support/`, `test/assets/` and `bench/BenchSupport.h`. Every consumer in this
-repository — SigilSketch, the benches and the tests — links the
-feature targets it draws with by name, so a dependency on a tier is a
-stated fact.
+library root: `test/support/`, `test/assets/` and `bench/BenchSupport.h`.
 `SigilCompose` remains as the whole-library name for a consumer outside
 this tree, the way `SigilWeave`, `SigilMotion` and `SigilGeometry` each
 keep one: it is Kit, Brush and Typography, which between them reach
 Core, never the web leaf. The sketch library links it — a sketch draws
 with the whole vocabulary and names no tier — and every other consumer
-here names the feature targets it draws with. From
-`apps/spell-circle-canvas`:
+here names the feature targets it draws with.
 
-```sh
-python3 scripts/sigil.py setup --config Release
-cmake --build build --config Release
-ctest --test-dir build -C Release --output-on-failure
-```
-
-Registered tests. The library has ONE test binary, `compose_test`, built
-from every feature's `test/` directory; ctest discovers one entry per
-CASE out of it, so `ctest -R 'ComposeGrid\.'` selects a suite and
-`ctest -R 'ComposeContent.AKeyedShapeSettlesOnTheValueItClosesOver'` one
-case, with no target behind either. What locates a case is that a suite
-is named for the feature it covers and its file sits in that feature's
-directory. The kernel's suites are in `core/test/` (elements, the
-reconciler, layout, paint, transitions, text at rest, the feed, the
-instanced leaf and the shelf it packs on, masks, the depth lanes and the
-shared space, tethers and the field walks), the text engine's in `typography/test/` (text data, the
-text pass, vertical writing, motion along paths, the paragraph controls,
-rich spans, the variation drive), the stroke and decoration engine's in
-`brush/test/` (decorations on shapes and on type, lines, the brush kinds
-and the engine under them, the stroke grammar, stamps and strips, the
-mask gates, the paint values this tier spells over SigilMaterial, the
-pixel styles and the kit's stroke presets), the kit's in `kit/test/` (the
+Where a suite sits is what locates it. The kernel's are in `core/test/`
+(elements, the reconciler, layout, paint, transitions, text at rest, the
+feed, the instanced leaf and the shelf it packs on, masks, the depth
+lanes and the shared space, tethers and the field walks); the text
+engine's in `typography/test/` (text data, the text pass, vertical
+writing, motion along paths, the paragraph controls, rich spans, the
+variation drive); the stroke and decoration engine's in `brush/test/`
+(decorations on shapes and on type, lines, the brush kinds and the
+engine under them, the stroke grammar, stamps and strips, the mask
+gates, the paint values this tier spells over SigilMaterial, the pixel
+styles and the kit's stroke presets); the kit's in `kit/test/` (the
 kit's own values, the grid, columns of one story, silhouettes and layout
 schemes, routers, placers, pixel art and its sheet, travel, and the
-queries, studio and instruments over them), and one apiece in `texture/test/` (textures as
-element content), `draw/test/` (a pen program hosted in a node),
-`video/test/` (video frames as element content) and `web/test/` (the
-Ultralight leaf, present only where the SDK was found). The library's own
-sit at the root: the generated probes over this page, `TYPOGRAPHY.md` and
-every chapter under `reference/`,
-the GPU read-backs, and `api_doc_probes_self_test`, which is a
-Python run rather than a case. `compose_header_self_test` is the other
-one: every public header compiled first and alone, which is what makes
-"each header stands on its own" a build fact rather than a claim.
+queries, studio and instruments over them); and one apiece in
+`texture/test/` (textures as element content), `draw/test/` (a pen
+program hosted in a node), `video/test/` (video frames as element
+content) and `web/test/` (the Ultralight leaf, present only where the
+SDK was found). The library's own sit at the root: the generated probes
+over this page, `TYPOGRAPHY.md` and every chapter under `reference/`,
+and the GPU read-backs. `compose_header_self_test` stands beside them —
+every public header compiled first and alone, which is what makes "each
+header stands on its own" a build fact rather than a claim.
 
-One file per subject, named for what it asserts — a case is found by
-opening the file its subject names, not by searching for its case name.
 The translation units share `test/support/Host.h` — the
 composer-in-a-raster-surface harness — through a support header of their
-own that includes only what they use, and the font context that harness
-holds is the tree-wide `src/test/Fonts.h`. A case that skips or vanishes
-without something says so with a ctest label, and the label is attached
-to the cases that need it rather than to the binary: `gpu` on
-`ComposeGpu`, `DirectImageDraw` and `ComposeTexture`, `ultralight` on
-`ComposeWeb`, and `fonts` on the two that ask the MACHINE for a face —
-the vertical suite, whose Japanese prose needs a whole CJK family, and
-the one case that asks the installed italics whether their ink overhangs
-the advance. Every other case sets its faces from the instruments this
-repository ships, so it answers the same on any machine.
+own that includes only what they use. Committed test assets sit in
+`test/assets/`, and the faces more than one library asks of are the
+tree's, reached as `sigil::test::instrument::variable()` and its
+siblings.
 
-A case here asserts one thing a header promises and is named that
-promise as a sentence. It pins only what editing this library could
-falsify — a caching count, a closed form, a field walk, one description
-drawn two ways — never an anti-aliased byte, a fitted tolerance, a count
-the machine's fonts could move, or elapsed time: pixel identity is the
-plate ledger's to judge and timing is the bench ledger's. A claim made N
-times with one thing varying is one `TEST_P` whose parameter is that
-thing. Committed test assets sit in `test/assets/`, and the faces more than one
-library asks of — a ligature, an advance-moving axis beside an
-advance-holding one, zero-advance combining marks — in the tree's own
-`src/test/assets/`, reached as `sigil::test::instrument::variable()` and
-its siblings, so a claim about a face is a claim about a face this
-repository ships. The benchmarks are
-executables, not tests.
-There is one benchmark binary, `compose_bench`, and a claim about how a
-cost GROWS lives in it rather than in a ctest wall-clock ceiling, because
-a single size cannot show a rate. Its arms sit in each feature's `bench/`
-over the shared `bench/BenchSupport.h`; it is built by the `benches`
-target, lands in `bin/<config>/benches/` and is run by
-`sigil.py bench`. Anything resembling a performance claim
-belongs to it and to the plate ledger, never to prose.
+Labels are attached to the cases that need them rather than to the
+binary: `gpu` on `ComposeGpu`, `DirectImageDraw` and `ComposeTexture`,
+`ultralight` on `ComposeWeb`, and `fonts` on the two that ask the
+MACHINE for a face — the vertical suite, whose Japanese prose needs a
+whole CJK family, and the one case that asks the installed italics
+whether their ink overhangs the advance. Every other case sets its faces
+from the instruments this repository ships, so it answers the same on
+any machine.
+
+`compose_bench`'s arms sit in each feature's `bench/` over the shared
+`bench/BenchSupport.h`. **A claim about how a cost GROWS lives there
+rather than in a ctest wall-clock ceiling**, because a single size
+cannot show a rate.
 
 **Which node in a scene is slow** is a different question, and the
 painter answers it two ways. `Composer::setProfiling` fills
@@ -762,43 +734,3 @@ tier that cannot reach the kernel's internal headers still reports
 through the same door. A warning is emitted at most once per distinct
 cause, guarded by `thread_local` state, because a description re-runs
 every frame and a mistake in one is a mistake in all of them.
-
-**Looking at any of it** goes through SigilSketch, which is where every
-renderable thing in this repository lives: one file per scene, one
-registry, one application (Sketchbook) and one headless renderer.
-`src/sketch/README.md` is the canon for it — how a sketch is written and
-registered, how the live host reloads one, and how the plates a
-byte-identity sweep hashes are made. Nothing here hosts a catalogue of
-its own.
-
-### The generated doc-probe translation unit
-
-The doc-probe translation unit is a C++ file that does not exist in the
-source tree.
-`src/test/docs/api_doc_probes.py` reads this document, `TYPOGRAPHY.md` and
-every chapter under `reference/` —
-all of them are the library's canon, and prose nobody compiles is prose that goes
-stale — extracts every qualified name an author could copy out of them — from fenced code blocks **and** from
-inline `code` spans, because the prose carries as many names as the
-examples do — and emits probes that only compile if the headers still spell
-those names that way. A member is probed through a `requires` expression, a
-namespace-scope entity through a using-declaration, and a designated
-initialiser through the initialiser itself, which is a stricter question
-than whether the name resolves.
-
-A BARE name is checked too wherever the document says which header owns
-it: every backticked name in a bullet that opens with a header path —
-[reference/HEADERS.md](reference/HEADERS.md) is nothing else — is looked up in that header's own text,
-and a name no header of the library spells fails the run exactly as a
-qualified one does. A name some other header spells is reported as
-misfiled rather than missing. Outside such a bullet an unqualified name is
-still invisible to the guard, because resolving one would mean resolving
-it the way a compiler does.
-
-The consequence is the point: a name written here that drifts out from
-under the prose is a build break, not a confident wrong answer. Names the
-document mentions on purpose without their existing — a worked example's
-own host type, a spelling recorded because it was removed — go in the
-generator's exclusion table with a reason. A documented name that resolves
-to nothing and is not excluded fails the generator, so the guard cannot go
-quiet.
