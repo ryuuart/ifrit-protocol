@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-brush
+ *
  * A mass of curved hand gestures filling a polygon.
  */
 

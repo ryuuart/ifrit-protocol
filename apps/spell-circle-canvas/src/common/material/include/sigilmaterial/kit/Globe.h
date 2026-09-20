@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-kit
+ *
  * A GLOBE: a sphere seen orthographically, ruled with a graticule and
  * lit from one direction, generated per pixel over the disc inscribed in
  * the node it fills.

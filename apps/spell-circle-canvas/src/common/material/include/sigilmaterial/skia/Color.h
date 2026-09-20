@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-skia
+ *
  * The colour bridge between Skia and this library: `SkColor4f` in, this
  * library's `Color` out, and back — and the colour verbs answered in
  * Skia's colour, so a renderer-side caller reaches this library's

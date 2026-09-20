@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-path
+ *
  * SigilGeometry blend — a study of Illustrator's Object > Blend, built
  * on the polyline resampling currency. The tool that made 90s
  * airbrush ribbons, smooth-color type halos, and every "morph a star
@@ -37,6 +39,13 @@
 
 class SkCanvas;
 
+/** THE STEPS BETWEEN TWO OUTLINES, paint and all. A blend runs between
+ *  consecutive keys — two or more shapes with their paint attributes —
+ *  and answers the intermediate shapes at a spacing the caller names.
+ *  It stands on the polyline resampling currency, so shapes that do not
+ *  already correspond are made to correspond before they interpolate.
+ *  This is the airbrush ribbon, the smooth-colour halo and the star
+ *  becoming a circle in eight steps. */
 namespace sigil::geometry::path::blend {
 
 /** One end (or waypoint) of a blend: an outline plus the paint

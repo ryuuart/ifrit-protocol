@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-core
+ *
  * UniformBlock — the caller-owned, revisioned float buffer behind a live
  * array uniform.
  */

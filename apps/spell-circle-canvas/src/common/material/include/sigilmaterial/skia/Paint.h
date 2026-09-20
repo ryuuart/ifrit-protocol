@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-skia
+ *
  * THE SKIA PAINT: this library's material model as a Skia shader. A small
  * tree of paint nodes that compiles to ONE `sk_sp<SkShader>` (layers via
  * SkShaders::Blend, never stacked saveLayer) or a plain solid colour.
@@ -68,6 +70,18 @@
 
 class SkImage;
 
+/** The Skia-facing half of this library: what a material BECOMES when a
+ *  Skia canvas has to draw it. `Paint` is the value — a small tree of
+ *  paint nodes built through static factories (a colour, a gradient, an
+ *  image, a recipe-backed shader, a blend of two) that compiles to one
+ *  `sk_sp<SkShader>` or to a plain solid colour. Beside it sit the
+ *  post-processing `Effect` over a rendered layer, the conversions
+ *  between Skia's colour and this library's, and the one call that fills
+ *  a path with a material.
+ *
+ *  This is where a consumer's own fill value ends up: anything richer
+ *  than a colour is a `Paint`, and `sigil::material`'s recipes reach a
+ *  canvas through `Paint::recipe()`. */
 namespace sigil::material::skia {
 
 /** WHAT ONE DRAW SUPPLIES — the values a paint is resolved against that
@@ -120,9 +134,13 @@ struct Stop {
  *  Element::fill(). */
 class Paint {
  public:
-  Paint() = default;  // none (fully transparent — draws nothing)
+  Paint() = default;  ///< none (fully transparent — draws nothing)
 
-  // ---- leaves --------------------------------------------------------------
+  /** @name Leaves
+   *  The paints that are not made of other paints: a colour, the
+   *  gradients, an image or a caller-owned raster, a hand-built
+   *  shader, an SkSL body, and a recipe instance.
+   *  @{ */
   static Paint solid(SkColor4f color);
   /** N-stop linear ramp between two points (working-space colors). */
   static Paint linear(SkPoint a, SkPoint b, std::vector<Stop> stops,
@@ -203,8 +221,12 @@ class Paint {
   static Paint recipe(sigil::material::Material material);
   /** The `Material` instance behind a recipe() paint, or null. */
   const sigil::material::Material* recipeMaterial() const;
+  /** @} */
 
-  // ---- combinator ----------------------------------------------------------
+  /** @name The combinator
+   *  The one paint made of other paints: layers composited into a
+   *  single flattened shader.
+   *  @{ */
   /** Layer materials into ONE flattened shader: layers paint bottom-to-top,
    *  each composited over the accumulation with its SkBlendMode. The first
    *  layer IS the accumulation, so both of its layer properties are
@@ -217,8 +239,12 @@ class Paint {
    * correct current form — the blend simply inherits its layers' volatility
    * tier. */
   static Paint blend(std::vector<std::pair<Paint, SkBlendMode>> layers);
+  /** @} */
 
-  // ---- unit-space ramps ----------------------------------------------------
+  /** @name Unit-space ramps
+   *  The same gradients authored in the box's UNIT SQUARE rather
+   *  than in pixels, for a box whose size the layout decides.
+   *  @{ */
   /** The same linear ramp as linear(), authored in the node's UNIT SQUARE:
    *  (0,0) is the box's top-left, (1,1) its bottom-right, whatever the box
    *  turns out to be.
@@ -264,8 +290,13 @@ class Paint {
    *  wash and not for a lamp; for a true circle, put it on a square node. */
   static Paint glowUnit(SkPoint center01, float radius01,
                         std::vector<Stop> stops);
+  /** @} */
 
-  // ---- uniforms ------------------------------------------------------------
+  /** @name Uniforms and layer properties
+   *  What is set on a paint after it is built: named uniforms baked
+   *  in or bound to a moving value, and the properties that say how
+   *  the paint sits in the layer it paints.
+   *  @{ */
   /** Set / bind a NAMED uniform. This is meaningful ONLY on an sksl()
    *  material — the one kind that has named uniforms to hook against:
    *   - `uniform(name, value)` bakes a constant in; the material stays static.
@@ -512,8 +543,13 @@ class Paint {
    *  declares uTime; warned and ignored otherwise, and 0 restores
    *  continuous time. */
   Paint& quantizeTime(float hz);
+  /** @} */
 
-  // ---- resolution ----------------------------------------------------------
+  /** @name Resolution
+   *  What a consumer asks a finished paint: which volatility tier it
+   *  rides, what it is made of, and the shader or the colour to draw
+   *  with.
+   *  @{ */
   /** THE VOLATILITY DECLARATION — the same word every value in this tree
    *  answers with. True once any `motion::Animatable<float>`
    *  uniform is bound OR the effect reads uTime or uContentScale (both
@@ -581,6 +617,7 @@ class Paint {
    *  or a cache keyed on whatever varies — and hold the resulting Paint
    *  rather than re-minting it. */
   bool operator==(const Paint& o) const;
+  /** @} */
 
  private:
   /** Does THIS material carry a pan channel at all (the layer-local

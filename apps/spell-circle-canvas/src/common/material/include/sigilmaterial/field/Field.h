@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-field
+ *
  * Shader fields — surfaces evaluated per pixel rather than baked as a
  * tile: the halftone ramp, Perlin noise, luminance grain, the tube
  * overlay of a scanline, a mask and a bloom, and the ripple that
@@ -15,6 +17,12 @@
 #include <glm/vec2.hpp>
 #include <memory>
 
+/** Surfaces evaluated PER PIXEL rather than baked as a tile: the
+ *  halftone ramp, Perlin noise, luminance grain, the tube overlay a CRT
+ *  is made of, and the ripple. Reach for a field when the surface has no
+ *  repeat to exploit, or when a parameter moves every frame and a baked
+ *  tile would have to be regenerated; reach for `pattern` when one tile
+ *  can be baked once and repeated. */
 namespace sigil::material::field {
 
 /** The halftone ramp's ABI. */

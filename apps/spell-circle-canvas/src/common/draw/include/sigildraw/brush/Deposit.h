@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-brush
+ *
  * Deposition: a tool laid along dabs or a stroke through the pen.
  */
 
@@ -44,6 +46,8 @@ void paint(Pen& pen, const Tool& tool, std::span<const Sample> stroke);
 /** Straight and smoothed conveniences over the stroke constructors. */
 void line(Pen& pen, const Tool& tool, SkPoint from, SkPoint to,
           float startPressure = 1.0f, float endPressure = 1.0f);
+/** The curve through @p controls at @p curvature, sampled and then
+ *  deposited. */
 void spline(Pen& pen, const Tool& tool, std::span<const Sample> controls,
             float curvature = 0.5f);
 

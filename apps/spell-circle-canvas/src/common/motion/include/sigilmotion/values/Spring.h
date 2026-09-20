@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-values
+ *
  * The damped-overshoot stepper: a value flying at a target under a
  * spring, carrying its own velocity, stated in seconds of period and a
  * damping ratio.

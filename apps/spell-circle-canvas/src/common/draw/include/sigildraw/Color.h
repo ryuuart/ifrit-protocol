@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-pen
+ *
  * How p5 reads numbers and strings as a colour: the colour model with the
  * range of each channel, and the parse of a CSS colour string.
  */
@@ -45,6 +47,7 @@ inline SkColor4f colorFrom(const ColorMode& mode, float v1, float v2,
                            float v3) {
   return colorFrom(mode, v1, v2, v3, mode.maxA);
 }
+/** A grey at @p mode's own alpha maximum. */
 inline SkColor4f colorFrom(const ColorMode& mode, float gray) {
   return colorFrom(mode, gray, mode.maxA);
 }

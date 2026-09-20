@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-pen
+ *
  * p5's calculation functions that hold no state: free functions, so a
  * pasted `map(...)` needs no pen in front of it. What reads or writes a
  * pen — `random`, `noise`, `millis` — is a verb on the pen instead.

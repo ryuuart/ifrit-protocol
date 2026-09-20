@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * Seeded, deterministic noise read at a POSITION.
  *
  * The integer mixers and the unit floats squeezed out of them —

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-bind
+ *
  * The value-noise field behind `Bound::wiggle()`: a 32-bit avalanche
  * hash, the seeded lattice, one quintic-smoothed octave, and the
  * normalised fractal sum. Integers and cmath only.

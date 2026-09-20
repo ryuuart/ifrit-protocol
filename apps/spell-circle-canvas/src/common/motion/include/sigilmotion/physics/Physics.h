@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-physics
+ *
  * The umbrella over the physics feature: the point set and its lanes,
  * the grid that answers what is near what, the forces that push on it,
  * the constraints that hold it together, the stepper that advances it,

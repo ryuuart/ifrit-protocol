@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-color
+ *
  * ONE COLOUR RAMP AS A VALUE: the stops, the space they are walked in,
  * the shape of the walk, which way round it runs, and the numbers its
  * ends stand for. It answers a colour for a number, and it is callable,

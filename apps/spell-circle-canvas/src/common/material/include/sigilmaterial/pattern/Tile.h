@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-pattern
+ *
  * Tile — a repeating texture baked once from a program: a recipe for one
  * tile plus a mapping (scale, rotation, offset). The tile bakes ONCE into
  * an image memoised on shared state; regeneration is explicit — `seed(n)`
@@ -24,6 +26,13 @@
 #include <functional>
 #include <memory>
 
+/** Procedural patterns: one tile baked once from a program and repeated
+ *  under a mapping of scale, rotation and offset, the stock tile
+ *  generators over it, and the woven cloth a sett and a weave make.
+ *  Reach for a pattern when the surface repeats, so the generator runs
+ *  once for a tile instead of once per pixel; reach for `field` when it
+ *  does not. Regeneration is always explicit — a tile with the same seed
+ *  is the same tile. */
 namespace sigil::material::pattern {
 
 /** Draws ONE tile into [0,0 .. size); `seed` is the tile's current seed —

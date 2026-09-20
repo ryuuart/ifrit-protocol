@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * Small numeric routines every geometry tool reaches for and none should
  * spell twice.
  */
@@ -31,6 +33,7 @@ inline constexpr float kRadToDeg = 57.29578f;
  *  `deg / 57.29578f` is a divide by a rounded reciprocal, which is a third
  *  answer again. These are the one rounding. */
 inline constexpr float radians(float deg) { return deg * kDegToRad; }
+/** Radians to degrees, through the same single rounding. */
 inline constexpr float degrees(float rad) { return rad * kRadToDeg; }
 
 /** Locates the boundary in [lo, hi] where a predicate stops holding, by

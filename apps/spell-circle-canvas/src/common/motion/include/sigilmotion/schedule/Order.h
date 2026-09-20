@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-schedule
+ *
  * The five orderings a cascade deals its delays in, the seeded
  * permutation behind the scattered one, and the ranking that deals them
  * in an order the caller states.

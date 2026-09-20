@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-kit
+ *
  * The metallic-roughness surface — the shading model the authoring tools
  * export for and glTF, USD's preview surface and every scanned material
  * set are written against. One parameter struct is its ABI: base colour,

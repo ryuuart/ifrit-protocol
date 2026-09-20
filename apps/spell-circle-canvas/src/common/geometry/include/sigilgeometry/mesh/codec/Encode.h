@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-mesh
+ *
  * SigilGeometry save — geometry OUT to the interchange world, the return
  * leg of the readers in Decode.h. PLY is the carrier, being the one
  * widely read format
@@ -40,6 +42,11 @@
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/pop/Points.h"
 
+/** THE WRITERS — geometry out to the interchange world, the return leg
+ *  of the readers. PLY is the carrier, being the one widely read format
+ *  where arbitrary per-vertex attributes are first-class, so a cloud's
+ *  every lane survives the round trip; the other formats carry what
+ *  they can carry. */
 namespace sigil::geometry::mesh::codec::encode {
 
 /** Format choice. Binary keeps the text header but writes rows as raw
@@ -93,6 +100,7 @@ bool ply(const std::filesystem::path& file, const Mesh& mesh,
          const PlyOptions& options = {});
 /** The `.geo` conveniences, declining on the same terms. */
 bool geo(const std::filesystem::path& file, const Cloud& cloud);
+/** The same for a mesh, whose vertices become the file's points. */
 bool geo(const std::filesystem::path& file, const Mesh& mesh);
 
 }  // namespace sigil::geometry::mesh::codec::encode

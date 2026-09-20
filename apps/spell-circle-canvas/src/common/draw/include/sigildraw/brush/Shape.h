@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-brush
+ *
  * The shape source: the artwork a tool stamps at every dab.
  */
 

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-mesh
+ *
  * The seam a mesh draw executes through, as a VALUE. `Runtime` holds an
  * `Executor` — the steps a draw is made of — so the same drawMesh()
  * call, the same MeshStyle and the same geometry run on whichever

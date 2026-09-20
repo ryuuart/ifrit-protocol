@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-values
+ *
  * Animatable<T>, the property slot that holds exactly one of a
  * constant, a constant with its own transition, a live Output, or an
  * Output shaped through a bound chain — the fat forms behind one

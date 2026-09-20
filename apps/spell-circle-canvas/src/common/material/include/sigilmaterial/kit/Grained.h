@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-kit
+ *
  * Grained surfaces — stone, timber, latten and board — as recipes: a
  * ramp of the material's tones, a luminance grain over it and a seeded
  * speckle on top, each generated per pixel from its parameters and a
@@ -129,8 +131,11 @@ struct BoardParameters {
 /** The recipes, defined once. None declares a slot: every field is
  *  computed from the parameters and the seed. */
 const std::shared_ptr<const Recipe>& stoneRecipe();
+/** The timber recipe. */
 const std::shared_ptr<const Recipe>& timberRecipe();
+/** The latten recipe. */
 const std::shared_ptr<const Recipe>& lattenRecipe();
+/** The board recipe. */
 const std::shared_ptr<const Recipe>& boardRecipe();
 
 /** A stone at @p parameters. */

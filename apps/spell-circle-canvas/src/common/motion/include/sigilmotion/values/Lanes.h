@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-values
+ *
  * A node's animation lanes — every Animatable<float> a description
  * carries that the host holds a motion for, ADDRESSED by where that
  * motion lives on the node — and the retarget of a patch: bending the

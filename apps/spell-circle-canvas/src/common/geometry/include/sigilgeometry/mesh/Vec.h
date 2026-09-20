@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-mesh
+ *
  * The tiny safety vocabulary over glm the library's translation units
  * share, and the one orientation basis every stamp is placed with —
  * public, because the GPU instancing path stamps with the same basis.

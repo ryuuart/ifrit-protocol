@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-mesh
+ *
  * SigilGeometry points — a Houdini-flavored miniature: a Cloud is
  * positions plus NAMED ATTRIBUTE LANES (scalars, vectors, colors),
  * generators put points places (a spline, a ring, a grid, a mesh
@@ -78,6 +80,11 @@ struct Cloud {
   bool operator==(const Cloud&) const = default;
 };
 
+/** THE GENERATORS THAT PUT POINTS PLACES: along a spline, around a
+ *  ring, over a grid, across a mesh surface, through a box. Each answers
+ *  a cloud already carrying the lanes its own shape implies — an arc
+ *  length, a surface normal, a row-major position — so a stamp or a
+ *  cook downstream has something to read without a second pass. */
 namespace points {
 
 /** @p count points along the spline, arc-length spaced; writes "t"

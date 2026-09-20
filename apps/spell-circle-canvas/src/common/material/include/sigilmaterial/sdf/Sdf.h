@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-sdf
+ *
  * Signed-distance surfaces — shape, border, glow and soft shadow in ONE
  * shader pass over Inigo Quilez's 2D distance operators. One recipe per
  * silhouette kind; every style parameter is a uniform, so a pulsing border
@@ -21,6 +23,12 @@
 #include <memory>
 #include <vector>
 
+/** Silhouettes described by their SIGNED DISTANCE, so shape, border,
+ *  glow and soft shadow all fall out of one number and are painted in
+ *  one pass. One recipe per silhouette kind; every style parameter is a
+ *  uniform, so a border that pulses or a shadow that moves changes no
+ *  program. Reach for this instead of stacking a fill, a stroke and two
+ *  blurred copies of the same outline. */
 namespace sigil::material::sdf {
 
 /** Which silhouette a Shape stands for. One recipe exists per kind — a

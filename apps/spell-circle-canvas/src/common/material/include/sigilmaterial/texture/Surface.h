@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-texture
+ *
  * bevelNormals(): a normal map derived from an outline's coverage, so a
  * flat shape shades as though it had a rounded shoulder. It encodes
  * device-space normals (+y down, +z toward the viewer) and produces a

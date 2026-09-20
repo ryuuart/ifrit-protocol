@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-mesh
+ *
  * The SWEPT OPERATOR: one 2D profile carried along a rail into a Mesh.
  * A circle makes a tube, a two-point line makes a ribbon, any flattened
  * outline makes an extrusion.

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-hardware
+ *
  * NAMES FOR DEVICE RESOURCES, AND THE STORE THAT ISSUES THEM.
  *
  * A handle is a slot and the generation of that slot when the name was
@@ -63,8 +65,11 @@ bool operator!=(const TypedHandle<A>&, const TypedHandle<B>&) = delete;
 struct TextureTag;
 struct BufferTag;
 struct FenceTag;
+/** The name a texture on a device is called by. */
 using TextureHandle = TypedHandle<TextureTag>;
+/** The name a buffer on a device is called by. */
 using BufferHandle = TypedHandle<BufferTag>;
+/** The name a fence timeline on a device is called by. */
 using FenceHandle = TypedHandle<FenceTag>;
 
 /**

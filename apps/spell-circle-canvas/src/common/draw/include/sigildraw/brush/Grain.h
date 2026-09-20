@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-brush
+ *
  * The grain source: a texture the mark is laid through.
  */
 

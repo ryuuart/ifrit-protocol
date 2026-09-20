@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-color
+ *
  * THE PALETTE A PICTURE IS MADE OF: a run of pixels in, a fixed table of
  * the colours that stand for them out.
  *

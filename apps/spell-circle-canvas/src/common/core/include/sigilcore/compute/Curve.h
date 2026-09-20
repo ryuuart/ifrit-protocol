@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-compute
+ *
  * A SHAPED CURVE AS A COMPARABLE VALUE: the shape and the numbers that
  * shape it, side by side, so a curve carrying parameters can still be
  * proved the same curve.
@@ -31,6 +33,12 @@
 
 #include <cmath>
 
+/** THE SHAPED CURVE A UNIT POSITION IS RESHAPED BY, as a value that can
+ *  still be compared: the shape and the numbers that parameterise it
+ *  kept side by side, plus the house shapes over it. It sits this low
+ *  because an animation's easing, a colour ramp's walk and a keyed
+ *  track's segment are all the same value, and every one of them has to
+ *  answer whether two curves are the same curve. */
 namespace sigil::core::curve {
 
 /** A CURVE THAT CARRIES ITS OWN PARAMETERS, and can still be compared. */

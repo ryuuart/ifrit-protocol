@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-values
+ *
  * The keyframe builders: Transitioned<T>, the value together with how
  * it moves, and the `animate(from(a).to(b))`, `animate(to(v))` and
  * `animate(through({…}))` spellings that build one.
@@ -78,10 +80,12 @@ struct From {
   T value;
   FromTo<T> to(T target) { return {std::move(value), std::move(target)}; }
 };
+/** The value a property enters from; `.to(b)` completes it. */
 template <typename T>
 From<T> from(T v) {
   return {std::move(v)};
 }
+/** The value a property ramps to whenever the argument changes. */
 template <typename T>
 To<T> to(T v) {
   return {std::move(v)};

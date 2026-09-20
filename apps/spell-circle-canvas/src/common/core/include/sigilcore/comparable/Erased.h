@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-comparable
+ *
  * Comparable type erasure — Erased, the one shape a seam value takes: a
  * set of operations behind an abstract interface, held with the value
  * that implements them so two holders can ask whether they carry the

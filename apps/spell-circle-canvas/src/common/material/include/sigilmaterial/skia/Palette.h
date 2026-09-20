@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-skia
+ *
  * THE PALETTE A PICTURE IS MADE OF, from a picture Skia holds: the one
  * crossing between an image and the colour leaf's extraction.
  *

@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * A PATH READ AS SEGMENTS: the pieces between its nodes, each with the
  * control points that bend it, and the way back to a path.
  *

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-physics
+ *
  * WHAT IS BORN, AGES AND DIES: a point set with the two attributes that make
  * a point a particle, the attributes a consumer names for itself, and the
  * emitter that fills all of them from a seeded stream.
@@ -113,6 +115,7 @@ struct Attribute {
  *  them: `Particles::attribute` asked for one would add an attribute of
  *  that name which nothing reads. */
 inline constexpr std::string_view kAge = "age";
+/** The name of the vector a particle's total lifespan lives in. */
 inline constexpr std::string_view kLife = "life";
 
 /** A POINT SET THAT IS BORN, AGES AND DIES.

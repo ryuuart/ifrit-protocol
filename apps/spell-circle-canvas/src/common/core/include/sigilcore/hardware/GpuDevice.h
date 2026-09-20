@@ -1,4 +1,22 @@
 #pragma once
+
+/** @file
+ * @ingroup core-hardware
+ *
+ * The device seam: a GPU device and its one command queue, the textures
+ * and fences that live on it, and the native objects either side of the
+ * seam is spelled in — Metal's and Vulkan's own handles, bridged to
+ * opaque values so no graphics header travels with this one.
+ */
+
+/** @defgroup core-hardware The device seam
+ *  The GPU device itself: one device and its one command queue, created
+ *  here or adopted from a host that owns them, with the textures and
+ *  fences living on it named by handles that go stale rather than
+ *  dangle, and destruction that waits out the frames still in flight. It
+ *  knows nothing about what draws — no Skia, no Diligent, no Qt — which
+ *  is what lets two drawing APIs stand on one device. */
+
 #include <sigilcore/hardware/Fence.h>
 #include <sigilcore/hardware/Handle.h>
 
@@ -8,6 +26,17 @@
 #include <memory>
 #include <string>
 
+/** THE GPU DEVICE SEAM: one device and its one command queue, created
+ *  here or adopted from a host that owns them, with the textures and
+ *  fences living on it named by handles that go stale rather than
+ *  dangle, and destruction that waits out the frames still in flight.
+ *  Every native object either side of the seam is the API's own handle
+ *  bridged to an opaque value, so no graphics header travels with these
+ *  ones.
+ *
+ *  It knows nothing about what draws — no Skia, no Diligent, no Qt — and
+ *  that is what lets two drawing APIs stand on one device instead of
+ *  each creating its own and copying between them. */
 namespace sigil::core::hardware {
 
 /**
@@ -61,10 +90,12 @@ enum class TextureUsage : uint32_t {
   ShaderWrite = 1u << 1u,
   RenderTarget = 1u << 2u,
 };
+/** The union of two usage selections. */
 constexpr TextureUsage operator|(TextureUsage a, TextureUsage b) {
   return static_cast<TextureUsage>(static_cast<uint32_t>(a) |
                                    static_cast<uint32_t>(b));
 }
+/** Whether @p set includes the usage @p flag names. */
 constexpr bool has(TextureUsage set, TextureUsage flag) {
   return (static_cast<uint32_t>(set) & static_cast<uint32_t>(flag)) != 0;
 }

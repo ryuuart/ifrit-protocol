@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-mesh
+ *
  * SigilGeometry pop — POP-style point combinators as VALUES. A Chain is
  * a description (nondestructive: edit a field, re-describe) over the
  * Cloud vocabulary in Points.h. The LANGUAGE and its host executor share

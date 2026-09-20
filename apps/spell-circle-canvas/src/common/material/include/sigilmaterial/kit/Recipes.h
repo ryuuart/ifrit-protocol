@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-kit
+ *
  * ONE INSTANCE OF EVERY RECIPE THE KIT SHIPS, as a list.
  *
  * A recipe is only half a thing a backend can compile: the other half is
@@ -21,6 +23,14 @@
 
 #include <vector>
 
+/** The PRESETS: functions that fix a primitive's parameters into
+ *  something already worth looking at — named ramps and skies, the
+ *  metallic-roughness surface, grained stone and timber, reflective gold
+ *  and chrome and glass, the pattern panels, the layer-style colour
+ *  tables and the animated text paints. Nothing here decides anything a
+ *  caller could have decided; each is one call away from the primitive
+ *  it dresses, so a caller who wants other numbers reaches past the kit
+ *  into the feature that owns them. */
 namespace sigil::material::kit {
 
 /** An instance of every recipe the kit ships, one apiece: the two

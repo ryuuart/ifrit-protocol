@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-path
+ *
  * Where a set of paths cross each other, and which one is on top there.
  *
  * A crossing is DISCOVERED, never authored: `discoverCrossings` flattens
@@ -230,6 +232,11 @@ class CrossingRule {
   mutable boost::unordered_flat_map<size_t, Order> m_walk;
 };
 
+/** THE STOCK RULES for deciding which strand is on top at a crossing,
+ *  each a named spelling of a sequence the caller could have written
+ *  out. They exist because a rule with a name says what the drawing
+ *  MEANS — a plain weave, a braid, a knot — where the same rule spelled
+ *  as an order per crossing says only what it does. */
 namespace crossing {
 /** Over, under, over, under — the plain-weave rule, and formally just
  *  `sequence({Over, Under})`. Both spellings exist because they name two
@@ -237,6 +244,8 @@ namespace crossing {
 inline CrossingRule alternate() {
   return CrossingRule::sequence({Order::Over, Order::Under});
 }
+/** The orders of @p pattern repeated over the crossings in the order
+ *  they were discovered. */
 inline CrossingRule sequence(std::vector<Order> pattern) {
   return CrossingRule::sequence(std::move(pattern));
 }
@@ -279,6 +288,7 @@ inline CrossingRule alternateAlong() {
  *  endpoint touches, such as a shared polygon vertex, are meetings rather
  *  than crossings, and reporting them would put a knot at every corner. */
 std::vector<Crossing> discoverCrossings(std::span<const SkPath> strands);
+/** The same discovery over a brace list of strands. */
 inline std::vector<Crossing> discoverCrossings(
     std::initializer_list<SkPath> strands) {
   return discoverCrossings(

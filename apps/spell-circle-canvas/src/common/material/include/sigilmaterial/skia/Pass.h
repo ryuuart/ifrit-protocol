@@ -1,6 +1,10 @@
 #pragma once
 
-/** @file The layer and per-unit data supplied when a paint resolves a pass. */
+/** @file
+ * @ingroup material-skia
+ *
+ * The layer and per-unit data supplied when a paint resolves a pass.
+ */
 
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkShader.h>

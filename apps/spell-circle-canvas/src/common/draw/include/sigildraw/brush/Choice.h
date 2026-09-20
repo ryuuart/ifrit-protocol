@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-brush
+ *
  * A weighted choice from the pen's random stream.
  */
 

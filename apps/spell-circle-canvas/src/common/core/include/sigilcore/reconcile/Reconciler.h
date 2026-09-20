@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-reconcile
+ *
  * The keyed reconciler — descriptions reconciled onto a retained tree:
  * memo resolution, the identity prune, matching children by key and then
  * by position, mounting what is new, retiring what is gone, and the key
@@ -22,6 +24,20 @@
 #include "sigilcore/reconcile/Host.h"
 #include "sigilcore/reconcile/Stats.h"
 
+/** THE KERNELS A RETAINED RUNTIME IS HOSTED ON, and the leaves under
+ *  them. The reconciler takes descriptions built fresh every frame and
+ *  reconciles them onto a tree the host retains, touching only what
+ *  changed; the caching proof decides, from what a host declares and
+ *  what its children answered, whether a subtree may be kept between
+ *  frames. Both own the DECISION and never the thing — layout state,
+ *  paint caches and running motions are the host's, reached through
+ *  named operations the host implements on itself.
+ *
+ *  The nested namespaces are the leaves a library far from any
+ *  reconciler links on its own: `noise`, `chance`, `hash` and `curve`
+ *  for the arithmetic several libraries must agree on to the bit,
+ *  `schedule` for where independent work runs, `hardware` for the GPU
+ *  device seam, and `environment` for the inherited-value channel. */
 namespace sigil::core {
 
 /** The hash of an addressable key, taking the key as the view a caller

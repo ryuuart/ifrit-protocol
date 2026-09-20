@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-kit
+ *
  * Reflective surfaces — gold foil, stainless chrome, glass — as recipes
  * over two textures: a normal map saying where the surface points and an
  * environment saying what it reflects. Real reflection models sampled

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-reconcile
+ *
  * The host contract — what a retained runtime supplies so the reconciler
  * can drive it: how a description is read, and what the host does when the
  * reconciler mounts a node, finds its description changed, reorders a

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-core
+ *
  * Reflection over a parameter struct — the ABI between a material's author
  * and the shader that reads it. A plain aggregate of uniform-typed fields
  * is walked by name and offset with no macro and no registration, and

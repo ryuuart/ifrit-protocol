@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-mesh
+ *
  * A pose along a spline: where the curve is at an arc length, and the
  * moving frame it carries there.
  *

@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * TWO OUTLINES INTERPOLATED EXACTLY. Where two paths have the same nodes
  * in the same order — what `compatible()` answers `Yes` to — the
  * in-between is every node's own weighted average, verb for verb, curves

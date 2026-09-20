@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * Polylines — a path flattened to points, resampled to a count, aligned
  * to another for interpolation. Everything that treats an outline as a
  * list of vertices starts here: shape blending, roughening, corner

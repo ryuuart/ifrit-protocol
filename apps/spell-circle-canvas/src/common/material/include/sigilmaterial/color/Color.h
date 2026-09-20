@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-color
+ *
  * A straight-alpha sRGB colour that uploads as one float4, and the two
  * round trips a colour is reasoned about through: OKLab, under every
  * perceptual interpolation — with OKLCH, its polar form, where a hue and
@@ -298,8 +300,8 @@ constexpr Color mixToward(Color c, Color target, float t, float a) {
  *  This is the mix that answers a question about QUANTITIES — how much
  *  pigment, how much light, how much of one exposure over another — and
  *  it is a different answer from `mixToward`'s. Half way between black
- *  and white in code values is #808080, which carries a fifth of white's
- *  light; half way in linear light is near #BCBCBC, which carries half.
+ *  and white in code values is `#808080`, which carries a fifth of white's
+ *  light; half way in linear light is near `#BCBCBC`, which carries half.
  *  Neither is wrong: `mixToward` walks the numbers a file stores, this
  *  walks the light they stand for, and `lerpOklab` walks what an eye
  *  reports. Say which one the drawing means. */
@@ -482,6 +484,9 @@ inline RampBracket rampBracket(std::span<const RampStop> stops, float t) {
   return {last, last, 0.0f};
 }
 
+/** The colour a run of @p stops answers at position @p t, mixed
+ *  straight in sRGB between the two the bracket names; an empty run
+ *  answers a fully transparent colour. */
 inline Color sampleRamp(std::span<const RampStop> stops, float t) {
   if (stops.empty()) return {0, 0, 0, 0};
   const RampBracket b = rampBracket(stops, t);

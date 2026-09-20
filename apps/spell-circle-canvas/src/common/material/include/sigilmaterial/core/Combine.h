@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-core
+ *
  * Stacking one material over another through a mask — the combinator
  * that makes local variation (rust over steel, dirt in the crevices) a
  * composition of materials rather than a bespoke recipe per pair.

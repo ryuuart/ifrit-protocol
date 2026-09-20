@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-kit
+ *
  * A SILHOUETTE FILLED WITH LINES, as one path.
  *
  * The scanline lattice already answers what lies inside a set of rings,

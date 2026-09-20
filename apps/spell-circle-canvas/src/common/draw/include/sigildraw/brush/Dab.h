@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-brush
+ *
  * Device input, and the evenly spaced dabs a tool deposits.
  */
 

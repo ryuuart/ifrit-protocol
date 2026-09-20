@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-retained
+ *
  * What a pen keeps between frames on behalf of a guest: a store keyed by
  * the call site that painted the guest.
  */
@@ -34,6 +36,10 @@ struct Slot {
   }
 };
 
+/** A slot's hash, so the store can key a table on one. It folds the
+ *  file's TEXT rather than its pointer, because two translation units
+ *  compiled from the same file may hold two copies of the name and a
+ *  guest painted from either has to find the same entry. */
 struct SlotHash {
   size_t operator()(const Slot& s) const {
     size_t hash = 0;

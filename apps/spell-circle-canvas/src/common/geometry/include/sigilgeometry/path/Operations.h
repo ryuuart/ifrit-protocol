@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-path
+ *
  * SigilGeometry path operations — the Pathfinder panel and the Distort
  * menu, as values. Three families:
  *
@@ -40,6 +42,12 @@
 #include <span>
 #include <vector>
 
+/** THE PATHFINDER PANEL AND THE DISTORT MENU, as values: the booleans
+ *  over two outlines, the self-intersection cleanup and the stroke
+ *  expansion beside them, the corner treatments over a polyline, and the
+ *  warps that bend an outline without changing its node count. Every one
+ *  is a pure function — a path in, a path out — and a failure comes back
+ *  as an empty path rather than an error. */
 namespace sigil::geometry::path::operations {
 
 /** Everything either shape covers. */
@@ -54,9 +62,12 @@ SkPath exclude(const SkPath& a, const SkPath& b);
  *  vector or a span as it stands, a brace list, or a view that builds them
  *  as it is walked (`lines | std::views::transform(expand)`). */
 SkPath unite(std::span<const SkPath> paths);
+/** The same union over a brace list. */
 inline SkPath unite(std::initializer_list<SkPath> paths) {
   return unite(std::span<const SkPath>(paths.begin(), paths.size()));
 }
+/** The same union over any range of paths, including a view that
+ *  builds them as it is walked. */
 template <std::ranges::input_range R>
   requires(!std::convertible_to<R &&, std::span<const SkPath>> &&
            std::convertible_to<std::ranges::range_reference_t<R>, SkPath>)

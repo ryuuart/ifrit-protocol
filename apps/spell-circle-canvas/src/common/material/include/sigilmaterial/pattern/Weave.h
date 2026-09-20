@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-pattern
+ *
  * WOVEN CLOTH as one generator: a sett expanded into a threadcount, and
  * the threadcount read through a weave to say which thread is on top at
  * every crossing.

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-mesh
+ *
  * THE POINT OPERATORS AS ONE PIECE OF ARITHMETIC, and the description a
  * dispatch of them is.
  *

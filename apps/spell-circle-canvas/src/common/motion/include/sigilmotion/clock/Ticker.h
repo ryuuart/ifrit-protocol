@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-clock
+ *
  * The ticker: a master choreograph::Timeline stepped from frame deltas
  * beside any registered steppables, Outputs derived through a bound
  * chain, and the report of whether anything still moves.

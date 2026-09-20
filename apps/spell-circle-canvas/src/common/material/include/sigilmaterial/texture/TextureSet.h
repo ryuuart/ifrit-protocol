@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-texture
+ *
  * Texture sets — the folder a material authoring tool exports, read
  * back as textures by role.
  *
@@ -28,6 +30,12 @@
 #include <string_view>
 #include <vector>
 
+/** The folders a material authoring tool exports, read back as textures
+ *  by ROLE. A scanned or authored surface arrives as a directory of
+ *  images whose roles are spelled in their file names; this reads the
+ *  names, answers a map per role, and hands a recipe its slots. The
+ *  texture VALUE itself, the environment map, the bevel normals and the
+ *  atlas are the enclosing `sigil::material` namespace's. */
 namespace sigil::material::texture {
 
 /** What a map is FOR. Packed is a three-channel occlusion (R),

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-values
+ *
  * A NUMBER GIVEN AT SEVERAL TIMES, and what it does between them: the
  * keyed steps as one value, read at any time in the caller's own units.
  *

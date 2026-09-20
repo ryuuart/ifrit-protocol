@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-brush
+ *
  * Procreate `.brush` files, read for their two images.
  *
  * A `.brush` is a zip. WHAT IS HONOURED: the shape artwork and the grain

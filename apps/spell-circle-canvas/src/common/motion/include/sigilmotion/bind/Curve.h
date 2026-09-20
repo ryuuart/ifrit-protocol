@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-bind
+ *
  * THE SHAPED CURVE A BINDING, A TRANSITION AND A KEYED STEP READ — the
  * comparable curve value SigilCore's compute leaf owns, named here under
  * the word an animation reaches for it by.
@@ -8,6 +10,12 @@
 
 #include <sigilcore/compute/Curve.h>
 
+/** THE SHAPES A UNIT POSITION IS RESHAPED BY: the curve value itself and
+ *  the house eases named over it — the quadratic, cubic and quintic
+ *  families, the back and elastic overshoots, the bounce, and the steps.
+ *  Every binding, transition and keyed step takes one of these, so the
+ *  word an animation reaches for a curve by is the same wherever it is
+ *  spelled. */
 namespace sigil::motion::ease {
 
 /** A CURVE THAT CARRIES ITS OWN PARAMETERS, and can still be compared.

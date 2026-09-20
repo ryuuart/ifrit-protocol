@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-mesh
+ *
  * SigilGeometry curves — splines that cross space, held as VALUES. A
  * Spline3 is control points + a type + closure: edit any of them and
  * re-evaluate; nothing downstream is baked until asked. Two consumers,
@@ -29,6 +31,13 @@
 #include "sigilgeometry/mesh/curve/Frame.h"
 #include "sigilgeometry/path/Polyline.h"
 
+/** SPLINES THAT CROSS SPACE, HELD AS VALUES: control points, the rule
+ *  that reads them, and whether the curve closes. Nothing downstream is
+ *  baked until it is asked for, so editing any of the three and
+ *  re-evaluating is the whole edit cycle. One spline serves as the rail
+ *  a body is swept or hung along, as the spine a point cloud is scattered
+ *  on, and — projected under a camera — as the 2D outline that draws the
+ *  same curve over the scene that reads it. */
 namespace sigil::geometry::mesh::curve {
 
 /** A 3D curve as control points plus the rule that reads them. Linear
@@ -38,6 +47,7 @@ namespace sigil::geometry::mesh::curve {
  *  cover unequal arc length wherever the control points bunch up;
  *  `sampleArcLength()` is what trades that for even spacing. */
 struct Spline3 {
+  /** Which rule reads the control points. */
   enum class Type : uint8_t { Linear, CatmullRom, Bezier };
 
   std::vector<glm::vec3> points;

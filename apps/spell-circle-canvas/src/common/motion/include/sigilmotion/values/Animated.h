@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-values
+ *
  * An `Animatable<float>` while it is MOVING: the held motion a ticker
  * runs for it, the value it reads as this frame, whether it is moving at
  * all, the retarget that bends a running ramp onto a new endpoint, and
@@ -45,7 +47,7 @@ template <typename T>
 struct ResolvedProperty {
   T target{};
   const choreograph::Output<T>* binding = nullptr;
-  const Transition* transition = nullptr;  // the value's own or the default
+  const Transition* transition = nullptr;  ///< the value's own or the default
 };
 
 /** Reads one animatable against a transition the caller supplies as its

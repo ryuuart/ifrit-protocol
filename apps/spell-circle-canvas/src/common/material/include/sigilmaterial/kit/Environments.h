@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-kit
+ *
  * Two named skies, baked with no assets.
  *
  * `EnvironmentMap::baked()` is the seam: a function from an equirectangular

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-physics
+ *
  * WHAT PUSHES ON A POINT SET: one force value with a kind and the properties
  * each kind reads, and the stock values that name the ones a study
  * reaches for.

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-mesh
+ *
  * The POP OPERATOR VOCABULARY: the attribute a filter addresses, the
  * twenty-five operator descriptions themselves, and the Chain that
  * sequences them. Every one is a VALUE — a description, nondestructive:
@@ -65,6 +67,8 @@ inline int32_t builtinIndex(const AttributeReference& attribute) {
   if (attribute.name == "Tex") return 5;
   return -1;
 }
+/** How many slots the table above names, so a chain numbers its own
+ *  attributes from here on and never collides with a built-in. */
 inline constexpr int32_t kBuiltinSlots = 6;
 /** Generator: scatter count points along a window of a closed
  *  loop — writes P, T, Dir (the tangent), Scale = 1. */
@@ -259,7 +263,10 @@ struct Sort {
  *  flips inside and outside before combining. Reads any lane's xyz —
  *  P by default, but "select by direction" is one field away. */
 struct Select {
+  /** The region a point is tested against. */
   enum class Shape : int32_t { Sphere = 0, Box = 1 };
+  /** How this region folds into whatever the selection lane already
+   *  holds, so several regions build one selection. */
   enum class Combine : int32_t {
     Replace = 0,
     Union = 1,
@@ -318,6 +325,7 @@ struct Peak {
  *  turn on library trigonometry, so like Noise this operator has no
  *  portable kernel and a device executor declines it. */
 struct Deform {
+  /** Which deformation to run. */
   enum class Kind : int32_t { Twist = 0, Taper = 1, Bend = 2 };
   Kind kind = Kind::Twist;
   float amount = 90;
@@ -476,6 +484,7 @@ using Operation =
                  MeshScatter, Fill, Atlas, Promote, Lookup, Sort, Select,
                  Affine, Peak, Deform, Mix, PointSet, Delete, Normal, Relax,
                  Cluster, Transfer>;
+/** A run of operations applied to a cloud in order — the whole cook. */
 using Chain = std::vector<Operation>;
 
 /** The operator's own name — "Jitter", "Select", "PointSet" — for a

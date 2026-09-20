@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * A RECTANGLE OF CELLS THAT STEPS, and the two buffers that make a step
  * mean something.
  *

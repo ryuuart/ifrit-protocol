@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-brush
+ *
  * How the device drives a mark: one curve type, read against pressure,
  * speed or tilt, applied to size, opacity and flow.
  */

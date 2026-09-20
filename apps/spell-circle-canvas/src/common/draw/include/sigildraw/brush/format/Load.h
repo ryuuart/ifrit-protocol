@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-brush
+ *
  * Brushes as resources: the native format, and the one decoder that
  * answers every form of it.
  *
@@ -17,12 +19,20 @@
 #include <string>
 #include <string_view>
 
+/** THE BRUSH FILES A PAINTING APPLICATION EXPORTS, read into this
+ *  library's tool: the native directory or archive of a description plus
+ *  its artwork, and the two vendor formats. What a vendor format carries
+ *  and this library has no place for is dropped rather than
+ *  approximated, so a loaded brush is the part of the original this
+ *  library can actually paint with. */
 namespace sigil::draw::brush::format {
 
 /** The name a native brush's description carries inside a directory or
  *  an archive, beside `shape.png` and the optional `grain.png`. */
 inline constexpr std::string_view kDescriptionName = "brush.json";
+/** The shape artwork's name beside the description. */
 inline constexpr std::string_view kShapeName = "shape.png";
+/** The optional grain texture's name beside the description. */
 inline constexpr std::string_view kGrainName = "grain.png";
 
 /** A brush built from its three parts, any of which may be absent: the

@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * NODES TAKEN AWAY. The other half of the node arithmetic: an outline
  * that came out of a tracer, a sampler, a boolean or a hand carries
  * nodes that say nothing — a node in the middle of a straight run, a

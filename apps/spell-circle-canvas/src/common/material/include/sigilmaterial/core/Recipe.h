@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-core
+ *
  * Recipe — a material's definition: the parameter struct that is its ABI,
  * one body per shading language, the slots it samples and the
  * frame values it reads. A recipe is defined once and shared; every

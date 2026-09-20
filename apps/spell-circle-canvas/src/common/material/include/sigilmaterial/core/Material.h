@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-core
+ *
  * Material — an instance of a recipe: the recipe, its parameter values
  * mirrored as upload bytes, the live bindings that overwrite fields at
  * resolve, the materials filling its slots, and the instance-side
@@ -27,6 +29,19 @@
 #include <utility>
 #include <vector>
 
+/** Materials as recipe instances, and everything a surface is described
+ *  with. A recipe is a definition — a plain struct of uniform-typed
+ *  fields that is its ABI, one shader body per language, the slots it
+ *  samples and the per-frame values it reads. A material is one instance
+ *  of a recipe, and resolving an instance against a frame answers the
+ *  compiled program for a renderer's shading language plus the bytes to
+ *  upload, memoised until an input changes.
+ *
+ *  Reach for this namespace to describe WHAT a surface is. The nested
+ *  namespaces are where it is described from: `skia` and `slang` are the
+ *  backends that compile a recipe, `texture` the images that fill its
+ *  slots, `pattern`, `sdf` and `field` the generators that need no
+ *  image, and `kit` and `stock` the values already built. */
 namespace sigil::material {
 
 /** A recipe instance.

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-path
+ *
  * THE ONE WAY GEOMETRY DEVIATES: a comparable `SkPath -> SkPath` value.
  *
  * A shaper bends ONE CONTINUOUS MARK — a wave, a zigzag, a jitter, an

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-bind
+ *
  * The chain builder: `bind(&output)` returns a Bound whose stage verbs
  * fill a BoundFloat, and `wiggle(&output, …)` is the pure-noise
  * spelling of the same chain. Converts implicitly into any
@@ -248,6 +250,7 @@ Bound bind(const choreograph::Output<float>* source);
 inline Bound bind(std::shared_ptr<const choreograph::Output<float>> source) {
   return Bound(std::move(source));
 }
+/** The same for a mutable shared source. */
 inline Bound bind(std::shared_ptr<choreograph::Output<float>> source) {
   return Bound(std::move(source));
 }

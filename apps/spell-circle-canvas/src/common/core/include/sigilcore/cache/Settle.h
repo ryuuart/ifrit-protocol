@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-cache
+ *
  * The stability release: the proof that a node which DECLARES volatility
  * is nevertheless holding still, and the three sides of the protocol that
  * keeps that proof honest.

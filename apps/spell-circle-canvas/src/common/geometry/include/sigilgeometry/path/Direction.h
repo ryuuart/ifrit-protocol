@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * WHICH WAY ROUND AN OUTLINE IS DRAWN, and the two things that travel
  * with it: what order its contours come in, and which node each of them
  * starts at.

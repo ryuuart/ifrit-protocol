@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-mesh
+ *
  * THE SINKS a cooked chain is spent into: the pairs of points near
  * enough to be joined, one Mesh with a stamp at every point, one Mesh
  * with a profile carried along the points as a rail, and camera-facing

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-pen
+ *
  * p5's constants, spelled as p5 spells them: the words a verb takes, the
  * caps and joins, the shape kinds, the angle and colour models, and the
  * angles.
@@ -84,10 +86,17 @@ enum Constant : uint8_t {
   SUBTRACT,
 };
 
-inline constexpr float PI = 3.14159265358979323846f;
-inline constexpr float TWO_PI = 2.0f * PI;
-inline constexpr float TAU = TWO_PI;
-inline constexpr float HALF_PI = 0.5f * PI;
-inline constexpr float QUARTER_PI = 0.25f * PI;
+/** @name p5's angle constants
+ *  Half a turn, a whole turn under both of its names, and the two
+ *  fractions a sketch reaches for, all in the float the pen computes
+ *  in. They are radians whatever the pen's angle mode is, since a
+ *  constant cannot be read in a mode.
+ *  @{ */
+inline constexpr float PI = 3.14159265358979323846f;  ///< half a turn
+inline constexpr float TWO_PI = 2.0f * PI;             ///< a whole turn
+inline constexpr float TAU = TWO_PI;                   ///< a whole turn
+inline constexpr float HALF_PI = 0.5f * PI;            ///< a quarter turn
+inline constexpr float QUARTER_PI = 0.25f * PI;        ///< an eighth of a turn
+/** @} */
 
 }  // namespace sigil::draw

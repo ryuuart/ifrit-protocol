@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-compute
+ *
  * Hashes that identify rather than randomize: the FNV-1a fold a cache
  * key is accumulated with, and the stirring step that folds one more
  * word into a hash already in hand.
@@ -20,6 +22,13 @@
 #include <cstdint>
 #include <string_view>
 
+/** HASHES THAT IDENTIFY RATHER THAN RANDOMIZE: the fold a cache key is
+ *  accumulated with, and the stirring step that folds one more word into
+ *  a hash already in hand. They answer "is this the same thing as that",
+ *  so their outputs land in bucket numbers and cache keys, and the
+ *  constants are fixed by the agreement between the places that compute
+ *  them. For a draw that must look random, reach for `noise` or
+ *  `chance` instead. */
 namespace sigil::core::hash {
 
 /** The word a fold starts from.

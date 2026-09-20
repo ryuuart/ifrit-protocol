@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-kit
+ *
  * The stock values over two of this library's seams: what bends one
  * continuous mark, and the oscillating width law a strand that trades
  * sides is written as. Both live in `shapers::`, because a kit composes
@@ -30,6 +32,16 @@
 #include <cmath>
 #include <vector>
 
+/** THE STOCK VALUES OVER TWO SEAMS: what bends one continuous mark, and
+ *  the width law a strand that trades sides is written as. Each is a
+ *  comparable struct carrying its seam's required member, so a value
+ *  here is interchangeable with one a consumer wrote.
+ *
+ *  They stand in their own namespace rather than in either seam's,
+ *  because a kit composes over a seam and does not grow it: a seam's
+ *  namespace whose contents changed with which kit header a consumer
+ *  happened to include would be a namespace nobody could read off the
+ *  seam's own directory. */
 namespace sigil::geometry::shapers {
 
 /** A smooth oscillation across the mark — the wave every wavy rule,
@@ -199,18 +211,29 @@ struct Zigzag {
 inline Wave wave(float amplitude, float wavelength, float phase = 0.0f) {
   return Wave{amplitude, wavelength, phase};
 }
+/** A sawtooth across the mark: @p amplitude px either side, one tooth
+ *  every @p wavelength px. */
 inline Zigzag zigzag(float amplitude = 4.0f, float wavelength = 24.0f) {
   return Zigzag{amplitude, wavelength};
 }
+/** Every corner of the mark rounded to @p radius px. */
 inline Rounded rounded(float radius = 6.0f) { return Rounded{radius}; }
+/** Every corner of the mark cut off @p cut px along each leg. */
 inline Chamfer chamfered(float cut = 6.0f) { return Chamfer{cut}; }
+/** A square wave across the mark: @p amplitude px either side, one
+ *  period every @p wavelength px. */
 inline Square square(float amplitude = 5.0f, float wavelength = 32.0f) {
   return Square{amplitude, wavelength};
 }
+/** The mark resampled every @p segmentLength px and each point pushed
+ *  up to @p deviation px off it, re-rolled by @p seed — the hand-drawn
+ *  line. */
 inline Jitter jitter(float segmentLength = 8.0f, float deviation = 2.0f,
                      uint32_t seed = 7) {
   return Jitter{segmentLength, deviation, seed};
 }
+/** The mark moved @p px sideways along its own normal, sampled every
+ *  @p step px. */
 inline Offset offset(float px, float step = 4.0f) { return Offset{px, step}; }
 
 }  // namespace sigil::geometry::shapers

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-brush
+ *
  * Photoshop `.abr` brush libraries, read for their sampled tips.
  *
  * WHAT IS HONOURED: file versions 6, 7 and 10, and in them every SAMPLED

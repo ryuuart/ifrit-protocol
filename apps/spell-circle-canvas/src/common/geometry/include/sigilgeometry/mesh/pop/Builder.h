@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-mesh
+ *
  * THE ARTIST'S SPELLING over the operator vocabulary: one entry verb
  * per kind of source, chained intent verbs with loud defaults, and a
  * result that IS the Chain — nothing hides in the builder, so reach

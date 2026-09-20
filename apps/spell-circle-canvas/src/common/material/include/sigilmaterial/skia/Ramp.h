@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-skia
+ *
  * A ramp of stops as Skia takes it.
  *
  * `RampStop` is the colour leaf's value — a position and a colour, and
@@ -32,6 +34,7 @@ namespace sigil::material::skia {
  *  written where it is used. */
 sk_sp<SkShader> verticalRamp(float y0, float y1,
                              std::span<const RampStop> ramp);
+/** The same gradient from a brace list of stops. */
 inline sk_sp<SkShader> verticalRamp(float y0, float y1,
                                     std::initializer_list<RampStop> ramp) {
   return verticalRamp(y0, y1,
@@ -40,6 +43,7 @@ inline sk_sp<SkShader> verticalRamp(float y0, float y1,
 
 /** The same stops over the unit square, top to bottom. */
 Paint unitRamp(std::span<const RampStop> ramp);
+/** The same unit-square paint from a brace list of stops. */
 inline Paint unitRamp(std::initializer_list<RampStop> ramp) {
   return unitRamp(std::span<const RampStop>(ramp.begin(), ramp.size()));
 }

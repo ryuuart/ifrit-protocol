@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-mesh
+ *
  * SigilGeometry model decode — files into the Mesh currency.
  *
  * Six formats cover the practical interchange world:

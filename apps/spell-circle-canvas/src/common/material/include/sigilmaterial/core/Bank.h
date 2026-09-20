@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-core
+ *
  * A bounded, seeded BANK of material instances: the N materials a paving
  * of a thousand pieces shares, keyed by the recipe, its parameters and
  * each piece's seed folded into one of N buckets.

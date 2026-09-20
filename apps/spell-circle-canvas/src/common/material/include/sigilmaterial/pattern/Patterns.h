@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-pattern
+ *
  * The stock tile generators — every one fully parameterised: a halftone
  * dot grid, stripes, a coloured sequence of runs, a checker, grid lines
  * and a seeded speckle. Each returns a Tile: `texture()` samples it,

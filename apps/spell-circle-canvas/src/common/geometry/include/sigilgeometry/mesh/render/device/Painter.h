@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-device
+ *
  * The mesh painter that draws on a device: the same `MeshStyle`, the
  * same geometry and the same canvas, rasterised instead of sorted.
  */
