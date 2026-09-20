@@ -2,7 +2,10 @@
  * The fields: the halftone ramp swells downward and its band remaps,
  * grain is monochrome and varies, noise compares by its parameters and
  * shades, a ripple displaces the content it is handed, and the CRT
- * overlay stripes and vignettes in alpha alone.
+ * overlay stripes and vignettes in alpha alone. Then the screen: what a
+ * tube's light reaches and where it lands, each of the three subjects
+ * it is composed of on its own, and the composition read back as its
+ * beam under its glass.
  */
 
 #include <gtest/gtest.h>
@@ -198,21 +201,18 @@ TEST(Field, TheShaderTableHoldsEveryFileTheDirectoryDoes) {
 
 namespace {
 
-/** The screen over a rendered LAYER: @p source painted into a layer that
- *  carries the CRT as an effect. That is the path that gives the recipe
- *  an EXECUTOR, which is what fills its bloom slot from the layer
- *  blurred — a fill has no layer and must bind that slot itself. */
-SkBitmap throughScreen(const field::CrtParameters& parameters,
-                       const sk_sp<SkImage>& source, int side) {
+/** @p source painted into a LAYER that carries @p effect. That is the
+ *  path that gives a recipe an EXECUTOR, which is what fills a slot
+ *  declared as one the executor fills — a fill has no layer and must
+ *  bind such a slot itself. */
+SkBitmap throughEffect(const skia::Effect& effect, const sk_sp<SkImage>& source,
+                       int side) {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(side, side));
   SkCanvas& canvas = *surface->getCanvas();
   canvas.clear(SK_ColorTRANSPARENT);
   SkPaint layer;
-  layer.setImageFilter(
-      skia::Effect::recipe(field::crt(parameters),
-                           field::crtSampleRadius(parameters))
-          .resolvedImageFilter(nullptr));
+  layer.setImageFilter(effect.resolvedImageFilter(nullptr));
   canvas.saveLayer(nullptr, &layer);
   canvas.drawImage(source, 0, 0);
   canvas.restore();
@@ -221,6 +221,19 @@ SkBitmap throughScreen(const field::CrtParameters& parameters,
   EXPECT_TRUE(surface->makeImageSnapshot()->readPixels(nullptr,
                                                        bitmap.pixmap(), 0, 0));
   return bitmap;
+}
+
+/** The same, for a material run over the layer at @p reach. */
+SkBitmap throughLayer(const Material& material, float reach,
+                      const sk_sp<SkImage>& source, int side) {
+  return throughEffect(skia::Effect::recipe(material, reach), source, side);
+}
+
+/** The whole screen over a rendered layer. */
+SkBitmap throughScreen(const field::CrtParameters& parameters,
+                       const sk_sp<SkImage>& source, int side) {
+  return throughLayer(field::crt(parameters),
+                      field::crtSampleRadius(parameters), source, side);
 }
 
 /** A black field of @p side pixels with one bright vertical band @p wide
@@ -344,4 +357,136 @@ TEST(Field, TheTubesLightIsDrawnFromTheWholeLayerAndLandsOnlyInsideIt) {
   EXPECT_GT(SkColorGetG(lit.getColor(25, 32)), 0);
   EXPECT_GT(SkColorGetG(lit.getColor(25, 32)),
             SkColorGetG(lit.getColor(38, 32)));
+}
+
+// ---- the screen's three subjects, each on its own ------------------------
+
+TEST(Field, TheBeamAloneRastersAPictureAndBendsNothing) {
+  // The scanlines over a flat surface, with no glass anywhere: the
+  // raster is the same lines at the same pitch across the whole
+  // picture, which is what says nothing is bending them.
+  const field::CrtBeamParameters parameters{
+      .uBounds = {0, 0, 64, 64}, .uScanPitch = 4, .uRaster = 1.0f};
+  Material beam = field::crtBeam(parameters);
+  beam.slot("content", Texture::of(test::solid(SK_ColorGRAY, 64, 64)));
+  ASSERT_NE(skia::shader(beam, {}), nullptr);
+  const SkBitmap lit = render(beam, 64, 64);
+  int low = 256;
+  int high = 0;
+  for (int y = 0; y < 64; ++y) {
+    EXPECT_EQ(lit.getColor(2, y), lit.getColor(32, y)) << "row " << y;
+    if (y + 4 < 64)
+      EXPECT_EQ(lit.getColor(32, y), lit.getColor(32, y + 4)) << "row " << y;
+    low = std::min(low, test::luminance(lit.getColor(32, y)));
+    high = std::max(high, test::luminance(lit.getColor(32, y)));
+  }
+  EXPECT_GT(high - low, 8);
+  // The guns are the beam's: spread apart, the picture's edges carry
+  // colour along them where the flat grey has none.
+  field::CrtBeamParameters spread = parameters;
+  spread.uRgbShift = 2.0f;
+  Material converging = field::crtBeam(spread);
+  const sk_sp<SkImage> band = bandAt(64, 40, 4);
+  converging.slot("content", Texture::of(band));
+  Material straight = field::crtBeam(parameters);
+  straight.slot("content", Texture::of(band));
+  EXPECT_GT(test::differing(render(converging, 64, 64), render(straight, 64, 64)),
+            0);
+  // And the beam asks for no reach of its own until a gun or the sweep
+  // takes a reading off the pixel it was asked for.
+  EXPECT_FLOAT_EQ(field::crtBeamSampleRadius(parameters), 0.0f);
+  EXPECT_FLOAT_EQ(
+      field::crtBeamSampleRadius({.uRgbShift = 2, .uJitter = 2, .uSync = 1}),
+      5.0f);
+}
+
+TEST(Field, TheBloomSourceAloneIsTheLayerBlurredInsideTheTube) {
+  // The light a picture throws, as a layer of its own: the executor's
+  // blur of the layer, read once — the same pixels Effect::blur makes
+  // of the same layer at the same sigma.
+  const sk_sp<SkImage> band = brightBand(64, 4);
+  const field::CrtBloomParameters whole{.uBounds = {0, 0, 64, 64},
+                                        .uBloomRadius = 6};
+  EXPECT_TRUE(test::identical(throughLayer(field::crtBloom(whole), 0, band, 64),
+                              throughEffect(skia::Effect::blur(6), band, 64)));
+  // And kept inside the tube: the same light with the bounds drawn in
+  // stands where the tube is and nowhere else.
+  const field::CrtBloomParameters inset{.uBounds = {24, 0, 16, 64},
+                                        .uBloomRadius = 6};
+  const SkBitmap kept = throughLayer(field::crtBloom(inset), 0, band, 64);
+  EXPECT_EQ(SkColorGetA(kept.getColor(10, 32)), 0u);
+  EXPECT_GT(SkColorGetG(kept.getColor(30, 32)), 0);
+}
+
+TEST(Field, TheGlassAloneIsTheIdentityUntilItIsCurvedOrLit) {
+  // The barrel over any surface: with nothing to bend, light or darken,
+  // what comes out of the glass is what went into it, pixel for pixel.
+  const sk_sp<SkImage> band = bandAt(64, 40, 4);
+  SkBitmap drawn;
+  drawn.allocPixels(SkImageInfo::MakeN32Premul(64, 64));
+  ASSERT_TRUE(band->readPixels(nullptr, drawn.pixmap(), 0, 0));
+  const field::CrtGlassParameters flat{.uBounds = {0, 0, 64, 64}};
+  EXPECT_TRUE(test::identical(
+      throughLayer(field::crtGlass(flat), field::crtGlassSampleRadius(flat),
+                   band, 64),
+      drawn));
+  // Curved, the band is read from somewhere else; lit, the black beside
+  // it carries the light it throws. Neither is the picture it was
+  // handed, and the bend is the only one of the two that reaches.
+  field::CrtGlassParameters curved = flat;
+  curved.uCurvature = 0.4f;
+  EXPECT_GT(test::differing(
+                throughLayer(field::crtGlass(curved),
+                             field::crtGlassSampleRadius(curved), band, 64),
+                drawn),
+            0);
+  field::CrtGlassParameters lit = flat;
+  lit.uBloomRadius = 6;
+  lit.uBloom = 1.6f;
+  EXPECT_GT(test::differing(
+                throughLayer(field::crtGlass(lit),
+                             field::crtGlassSampleRadius(lit), band, 64),
+                drawn),
+            0);
+  EXPECT_GT(field::crtGlassSampleRadius(curved), 0);
+  EXPECT_FLOAT_EQ(field::crtGlassSampleRadius(lit), 0.0f);
+}
+
+TEST(Field, TheWholeScreenIsItsBeamUnderItsGlass) {
+  // The composition taken apart. Given nothing to bend, light or
+  // darken, the whole screen IS the beam under it — the same picture
+  // the scanlines alone make of the same layer, guns, sweep and grain
+  // included — which is what says the glass reads the beam and adds
+  // nothing of its own on the way.
+  const sk_sp<SkImage> band = bandAt(64, 20, 6);
+  const field::CrtParameters screen{.uBounds = {0, 0, 64, 64},
+                                    .uRgbShift = 0.8f,
+                                    .uScanPitch = 3,
+                                    .uRaster = 0.45f,
+                                    .uNoise = 0.012f,
+                                    .uJitter = 1.5f,
+                                    .uFlicker = 0.2f,
+                                    .uSync = 0.8f,
+                                    .uTime = 1.25f};
+  const field::CrtBeamParameters beam{.uBounds = {0, 0, 64, 64},
+                                      .uRgbShift = 0.8f,
+                                      .uScanPitch = 3,
+                                      .uRaster = 0.45f,
+                                      .uNoise = 0.012f,
+                                      .uJitter = 1.5f,
+                                      .uFlicker = 0.2f,
+                                      .uSync = 0.8f,
+                                      .uTime = 1.25f};
+  EXPECT_TRUE(test::identical(
+      throughScreen(screen, band, 64),
+      throughLayer(field::crtBeam(beam), field::crtBeamSampleRadius(beam), band,
+                   64)));
+  // And the whole screen's reach is its passes' reaches together.
+  field::CrtParameters curved = screen;
+  curved.uCurvature = 0.2f;
+  EXPECT_FLOAT_EQ(
+      field::crtSampleRadius(curved),
+      field::crtBeamSampleRadius(beam) +
+          field::crtGlassSampleRadius({.uBounds = curved.uBounds,
+                                       .uCurvature = curved.uCurvature}));
 }

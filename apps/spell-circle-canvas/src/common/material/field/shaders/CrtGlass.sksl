@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) Filippo Scognamiglio and contributors
+
+// THE GLASS: the one place a coordinate is bent, and the only place a
+// screen pays for its curvature. The picture crtScreen answers with and
+// the light crtLight carries are read at the bent coordinate, once
+// each, however many passes stand under the glass.
+half4 crtGlass(float2 p) {
+  float2 size = max(uBounds.zw, float2(1));
+  float2 uv = (p - uBounds.xy) / size;
+  if (min(uv.x, uv.y) < 0 || max(uv.x, uv.y) >= 1) return half4(0);
+  float2 cc = uv - 0.5;
+  float dist = dot(cc, cc) * uCurvature;
+  float2 warped = uv + cc * (1 + dist) * dist;
+  // Past the corners the bend pushes off the picture there is tube and
+  // no signal, which is black glass rather than nothing at all.
+  if (min(warped.x, warped.y) < 0 || max(warped.x, warped.y) >= 1)
+    return half4(0, 0, 0, 1);
+  float2 q = uBounds.xy + warped * size;
+  // ONE READING OF WHAT IS UNDER THE GLASS, at the bent coordinate: a
+  // second reading is a second whole pass of whatever stands there.
+  half3 texel = crtScreen(q).rgb;
+  if (uBloom > 0) texel += clamp(crtLight(q).rgb * uBloom, 0, 0.5);
+  texel *= 1 - clamp(uVignette * dot(cc, cc) * 2, 0, 1);
+  return half4(clamp(texel, 0, 1), 1);
+}

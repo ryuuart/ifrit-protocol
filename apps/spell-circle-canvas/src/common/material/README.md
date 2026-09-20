@@ -69,7 +69,7 @@ directory, each a static archive that links only what sits beneath it:
 | `SigilMaterialOcio` | `ocio::` — `available()`, and the OCIO `viewTransform`, `convert`, `exponent` as baked materials, over the 3D-LUT `lutRecipe()` and the per-channel `responseRecipe()` | SigilMaterialTexture; OpenColorIO privately, when found |
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material`, `everyRecipe` | SigilMaterialCore, SigilMaterialColor |
 | `SigilMaterialPattern` | `pattern::Tile` and the stock tiles; `pattern::Cloth`, the woven cloth, with `threadcount`, `pivots`, `Weave` and `warpUp` under it | SigilMaterialTexture, SigilMaterialColor; SigilCoreCompute privately |
-| `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay`, `crt`, `everyRecipe` | SigilMaterialTexture, SigilMaterialColor |
+| `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay`, the screen `crt` and the three subjects it composes, `crtBeam`, `crtBloom` and `crtGlass`, `everyRecipe` | SigilMaterialTexture, SigilMaterialColor |
 | `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors`; `skia::verticalRamp` and `skia::unitRamp`, the two crossings a list of `RampStop`s reaches Skia through (a span, with a brace list written where it is used), with `skia::paletteImage` and `skia::paletteLookup` the palette's two beside them; `skia::palette`, the picture read down to the table it is made of; `skia::Paint`, the model as ONE shader, with `skia::PassInputs` for a pass over a layer; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore, Boost.Container; Slang privately |
 | `SigilMaterialKit` | the presets: the colour CRT `kit::crt`; the named ramps `kit::viridis`, `kit::magma`, `kit::inferno`, `kit::plasma`, `kit::turbo`, `kit::redBlue`, `kit::brownTeal` and the generated `kit::cubehelix`; the metallic-roughness `kit::surface` and `kit::unlit`; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board` with `kit::lattenTone` reading the last one's ladder on the CPU; the orthographic `kit::globe`; `kit::girih8` and its palettes; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; `kit::studioEnvironment` and `kit::sunsetEnvironment`, the two named skies; and `kit::everyRecipe`, one instance of each of the above | SigilMaterialField, SigilMaterialPattern, SigilMaterialColor, SigilMaterialMask, Boost.Container |
@@ -840,36 +840,58 @@ tube.
 
 ### CRT screens
 
-`field::crt` in `<sigilmaterial/field/Crt.h>` resamples a `content` slot
-through a curved screen with RGB spread, beam rasterization, bloom,
-grain, vignette, jitter, horizontal sync and flicker. Its
-`field::CrtParameters` use local pixels and explicit seconds, so a still
-is deterministic. Zero effect strengths preserve source RGB inside the
-bounds. The screen is opaque black beneath transparent source content;
-outside its rectangular bounds it is transparent. Burn-in needs frame
-history and is not included.
+A screen is THREE SUBJECTS, and `<sigilmaterial/field/Crt.h>` holds each
+of them as a recipe of its own:
+
+- `field::crtBeam` — what the tube draws, in the coordinates it draws it
+  in: the picture in the `content` slot read line by line with the guns
+  converging `uRgbShift` apart, rastered at `uScanPitch` by `uRaster`,
+  swept sideways by `uJitter` and `uSync`, carrying the supply's
+  `uFlicker` and the signal's `uNoise` at `uBrightness`. The scanlines
+  alone, for a flat surface.
+- `field::crtBloom` — the light that picture throws: the layer blurred
+  at `uBloomRadius` and kept inside the bounds. The bloom source alone,
+  as a layer to add over whatever threw it.
+- `field::crtGlass` — the glass over both: the barrel at `uCurvature`,
+  the light from the `bloom` slot at `uBloom`, the corner falloff at
+  `uVignette`. The barrel alone, for any surface that wants a tube's
+  curvature over it. What stands under the glass is read ONCE, at the
+  bent coordinate, because in one program a second reading is a second
+  whole pass of whatever is under there — which is why the guns are the
+  beam's and not the glass's.
+
+`field::crt` is their composition and the whole screen: one program, in
+which the glass reads the beam where it would read a bound picture, so
+the coordinate is bent ONCE and the beam is drawn at the coordinate it
+was bent to. Its `field::CrtParameters` are the three parameter sets
+under one name, in local pixels and explicit seconds, so a still is
+deterministic. Zero strengths preserve source RGB inside the bounds. The
+screen is opaque black beneath transparent source content; outside its
+rectangular bounds it is transparent. Burn-in needs frame history and is
+not included.
 
 The tube's light is a SECOND slot, `bloom`, declared as one an executor
 fills from the same layer blurred at `uBloomRadius` — a Gaussian sigma
-in local pixels — and read once at the warped coordinate. So the bloom
-is spread flat and sampled through the curvature, its cost follows its
-own radius, and how far it reaches is not capped by a tap count. The
-blur is taken over the whole layer, so a bright thing drawn outside the
-bounds lights the glass near that edge; where the light lands is gated
-by the bounds exactly as the picture is. An ordinary fill has no layer
-and therefore no executor: the body spells the slot at every strength,
-so bind a source to `bloom` as well whatever `uBloom` is, or the
-compiler refuses the material by name.
+in local pixels — and read once at the bent coordinate. So the bloom is
+spread flat and sampled through the curvature, its cost follows its own
+radius, and how far it reaches is not capped by a tap count. The blur is
+taken over the whole layer, so a bright thing drawn outside the bounds
+lights the glass near that edge; where the light lands is gated by the
+bounds exactly as the picture is. An ordinary fill has no layer and
+therefore no executor: the bodies of `crt`, `crtGlass` and `crtBloom`
+spell that slot at every strength, so bind a source to `bloom` as well
+whatever `uBloom` is, or the compiler refuses the material by name.
 
 `kit::crt` in `<sigilmaterial/kit/Crt.h>` supplies a restrained colour CRT
 preset. The material stays renderer-independent; fill its `content` and
 `bloom` slots with textures for a material, or pass it to
 `skia::Effect::recipe` for a rendered layer, which fills `bloom` itself.
 Pass a conservative local sampling radius to the effect;
-`field::crtSampleRadius` calculates it from a parameter struct, and it
-covers the warp, the shift, the jitter and the sync — never the bloom,
-which asks for no reach of its own. When changing uniforms on the
-preset, update that radius to cover them.
+`field::crtSampleRadius` calculates it from a parameter struct as the sum
+of its passes' own — `field::crtGlassSampleRadius`, the warp, and
+`field::crtBeamSampleRadius`, the guns, the jitter and the sync — and
+never the bloom, which asks for no reach of its own. When changing
+uniforms on the preset, update that radius to cover them.
 
 ```cpp
 #include <sigilmaterial/kit/Crt.h>

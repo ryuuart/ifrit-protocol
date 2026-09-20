@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) Filippo Scognamiglio and contributors
+
+// THE BEAM: the picture a tube draws, in the coordinates it draws it in.
+// Nothing here knows there is glass over it — no curvature, no spread,
+// no light — so raster lines over a flat surface are this body alone,
+// and a glass over it evaluates this at the coordinate it bent to.
+
+float crtHash(float2 p) {
+  return fract(sin(dot(p, float2(12.9898, 78.233))) * 43758.5453);
+}
+
+// The signal where the picture is, and nothing outside it: a sweep the
+// clock displaced past the edge of the tube carries no signal back.
+half3 crtPicture(float2 p) {
+  float2 uv = (p - uBounds.xy) / max(uBounds.zw, float2(1));
+  if (min(uv.x, uv.y) < 0 || max(uv.x, uv.y) >= 1) return half3(0);
+  return content.eval(p).rgb;
+}
+
+half4 crtBeam(float2 p) {
+  float2 size = max(uBounds.zw, float2(1));
+  float2 uv = (p - uBounds.xy) / size;
+  if (min(uv.x, uv.y) < 0 || max(uv.x, uv.y) >= 1) return half4(0);
+  float frame = floor(uTime * 60);
+  // WHERE THE LINE WAS READ FROM, which is where the sweep was when it
+  // drew it: an unsteady clock jitters each line of the frame by its own
+  // amount, and a sync that is off bends the whole column slowly.
+  float2 q = p;
+  q.x += (crtHash(float2(floor(p.y), frame)) - 0.5) * uJitter;
+  q.x += sin(uv.y * 24 + uTime * 4) * uSync;
+  half3 texel = crtPicture(q);
+  // Three guns converge a little apart, so each channel is read where
+  // its own gun put it and an edge carries colour along it. It is read
+  // HERE, of the picture, rather than of the finished line: a reading
+  // of the line would be the whole sweep taken three times over.
+  if (uRgbShift != 0) {
+    half3 left = crtPicture(q - float2(uRgbShift, 0));
+    half3 right = crtPicture(q + float2(uRgbShift, 0));
+    texel = left * half3(0.10, 0.20, 0.30) +
+            right * half3(0.30, 0.20, 0.10) + texel * 0.60;
+  }
+  // The raster: a bright line and a dark one per pitch, the bright one
+  // lifted and the dark one held down by what the phosphor already
+  // carries, so a lit grey gains lines and an unlit black does not.
+  half3 high = ((1.0 + 0.30) - 0.2 * texel) * texel;
+  half3 low = ((1.0 - 0.30) + 0.1 * texel) * texel;
+  float mask = 1 - abs(fract((q.y - uBounds.y) / max(uScanPitch, 1)) * 2 - 1);
+  texel = mix(texel, mix(low, high, mask), clamp(uRaster, 0, 1));
+  // The supply and the signal: every frame stands a little brighter or
+  // dimmer than the one before it, and the line carries its own grain.
+  texel *= uBrightness * (1 + (crtHash(float2(frame, 7)) - 0.5) * uFlicker);
+  texel +=
+      half3((crtHash(floor(p) + float2(frame, frame * 0.37)) - 0.5) * uNoise);
+  return half4(clamp(texel, 0, 1), 1);
+}

@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) Filippo Scognamiglio and contributors
+
+// THE TUBE'S LIGHT: the layer already blurred, read once. The blur is an
+// EXECUTOR's — a separable Gaussian at uBloomRadius over the whole layer
+// — so the cost of the light follows its own radius and no tap count
+// caps how far it may reach before it starts leaving copies of fine
+// lettering. It is taken over the WHOLE layer, so something bright
+// standing outside the tube lights the glass near that edge the way a
+// lamp beside a monitor does; where the light LANDS is the tube's
+// rectangle and nowhere else.
+half4 crtLight(float2 p) {
+  float2 uv = (p - uBounds.xy) / max(uBounds.zw, float2(1));
+  if (min(uv.x, uv.y) < 0 || max(uv.x, uv.y) >= 1) return half4(0);
+  return bloom.eval(p);
+}

@@ -179,16 +179,29 @@ std::vector<Material> everyRecipe() {
     content->getCanvas()->clear(SK_ColorMAGENTA);
     warp.slot("content", Texture::of(content->makeImageSnapshot()));
   }
+  // The whole screen and each of the three subjects it composes, since
+  // every one of them is a program a backend can be asked for.
   Material screen = crt({.uBounds = {0, 0, 4, 4}});
+  Material beam = crtBeam({.uBounds = {0, 0, 4, 4}});
+  Material light = crtBloom({.uBounds = {0, 0, 4, 4}});
+  Material glass = crtGlass({.uBounds = {0, 0, 4, 4}});
   if (content) {
-    // Both slots, because a slot nothing fills generates a different
-    // program from the one a backend will really run — and the bloom
-    // slot is the executor's where there is a layer, which a catalogue
-    // entry has not got.
-    screen.slot("content", Texture::of(content->makeImageSnapshot()));
-    screen.slot("bloom", Texture::of(content->makeImageSnapshot()));
+    // Both slots wherever a recipe declares both, because a slot nothing
+    // fills generates a different program from the one a backend will
+    // really run — and the bloom slot is the executor's where there is a
+    // layer, which a catalogue entry has not got.
+    const auto stand = Texture::of(content->makeImageSnapshot());
+    screen.slot("content", stand);
+    screen.slot("bloom", stand);
+    beam.slot("content", stand);
+    light.slot("bloom", stand);
+    glass.slot("content", stand);
+    glass.slot("bloom", stand);
   }
   all.push_back(std::move(screen));
+  all.push_back(std::move(beam));
+  all.push_back(std::move(light));
+  all.push_back(std::move(glass));
   all.push_back(std::move(warp));
   return all;
 }
