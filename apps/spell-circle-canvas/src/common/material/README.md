@@ -1005,114 +1005,25 @@ a node's fill and routes it, and holds no paint model of its own.
 
 ## Building and testing
 
-```sh
-ctest --test-dir build -C Release --output-on-failure
-python3 scripts/sigil.py bench --benches material_bench
-```
-
-A case here asserts one thing this library promises through its public
-headers and is named that promise as a sentence, so a failure line reads
-as the claim that broke. It pins only what editing this library could
-falsify — a reflected layout against the struct's own `offsetof`, a
-compile count, a closed form, one material shaded two ways — never a
-byte layout the compiler chose, an anti-aliased pixel, a fitted tolerance
-or elapsed time: pixel identity is the plate ledger's to judge and timing
-is the bench ledger's. A claim made N times with one thing varying is one
-`TEST_P` whose parameter is that thing, with a name per row — the shading
-terms against their closed forms, the reserved parameter names a body may
-not redeclare, and the file names the texture tools write.
-
-**The library has one test binary, `material_test`**, built from every
-feature's `test/` directory; ctest discovers one entry per CASE out of
-it, so `ctest -R '^Ramp\.'` selects a suite and
-`ctest -R 'Dither.ARoundedRampAveragesToTheValueItWasAskedFor'` one
-case, with no target behind either. Each feature's cases are named for
-the feature they cover:
+[docs/overview/testing.md](../../../docs/overview/testing.md) is the
+contract every library here is built, tested and measured under: one
+`material_test` over every feature's `test/` and one `material_bench`,
+ctest one entry per CASE, what a case may pin, and what a label
+promises. What is only true of SigilMaterial:
 
 | suites | what they prove | label |
 |---|---|---|
-| `core/test/` | the value model, with no renderer in reach | — |
-| `color/`, `sdf/`, `pattern/`, `field/`, `ocio/` | the primitives, the colour leaf, the view transforms | `ocio` on `Ocio` |
-| `texture/test/` | the image side | — |
+| `core/test/` | the value model, with no renderer in reach: parameters reflection — including that the schema IS the parameter struct's own layout, read off `offsetof` rather than off the numbers this compiler happened to choose — recipe identity against definition equality, the program cache's keys, a compile held open until every concurrent request has arrived so the fold is asked without a clock, the field it names once when a compiled body never reads it, material equality, bindings, slots and tiers, what `over()` stacks, and `UniformBlock` revisioning | — |
+| `color/test/` | the four suites that hold to closed forms rather than to colours this code once answered: `Color` (the transfer function and the OKLab round trip against their own inverses, the three mixes separated by where their midpoint lands, a palette read exactly where a ramp is read between), `Ramp` (the decisions one at a time — the ends are the stops and outside them is flat, the domain is the caller's numbers, reverse and easing move the position and not the stops, each space walks its own path while both ends round-trip, two stops at one position are an edge with nothing across it, a table read at band centres comes back a ramp), `Harmony` (the polar round trip, a rotation giving up chroma alone, each scheme its own set of angles with the base first) and `Dither` (the ordered matrix holding every threshold once and averaging a half, the noise averaging the same with no period to find, a dithered ramp coming back at the value it was asked for). `Extract` holds the two methods apart by what each is for and pins the determinism and the stride | — |
+| `sdf/`, `pattern/`, `field/test/` | the primitives beneath the leaf: the SDF surfaces, the tile mechanism and the stock generators over it, and the fields | — |
+| `ocio/test/` | the bake: an exponent baked to a response row, that row lowered to a table an eight-bit surface admits, and the program held to what it paints across a whole ramp, while a float surface and a channel-mixing transform keep the program. A config that cannot be read failing soft is asked unconditionally, since that needs no OpenColorIO | `ocio` on `Ocio` |
+| `texture/test/` | the image side: the sources and their identity across the erasure, the sampling dials, the environment map, the bevel producer, the atlas readers and packer, and the tools' file names — one row per name, so a failure says which tool's spelling moved rather than that a list changed | — |
 | `mask/test/` | that a mask shapes what it reads, and that reshaping something that is not a mask changes nothing | — |
-| `kit/test/` | the presets, the shading terms and the named ramps | — |
-| `skia/test/` | the SkSL backend, and the palette read off a picture | — |
+| `kit/test/` | every preset compiled and a fill staying inside its path, a surface dressed from a decoded set, a stack shaded at both ends of its mask, every shading term against its closed form, the named ramps asked for the properties they were chosen for rather than their stop lists, and the sampler budget: a stack asks a device for its operands' samplers and no more, and a tree over the limit is refused with the count and the limit named rather than drawn | — |
+| `skia/test/` | the SkSL backend — a two-uniform recipe compiled through the cache shading a raster byte identical to the same SkSL compiled and filled by hand, the four parameter names a body may not redeclare and the three spellings that must still compile — and `SkiaPalette`, a picture's own colours coming back | — |
 | `slang/test/` | the Slang backend, with no device | — |
 | `stock/test/` | that the catalogue holds every feature catalogue, and that the warm-up compiles every program it gathered | — |
 | `MaterialGpu` | every body this library ships, on a device | `gpu` |
-
-The core's cases cover parameters reflection —
-including that the schema IS the parameter struct's own layout, read off
-`offsetof` rather than off the numbers this compiler happened to choose —
-recipe identity against definition equality, the program cache's keys, a
-compile held open until every concurrent request has arrived so the fold
-is asked without a clock, the field it names once when a compiled body
-never reads it, material equality, bindings, slots and tiers, which
-slots each target's declarations carry, what `over()` stacks, and
-`UniformBlock` revisioning.
-
-The primitive suites cover the leaf beneath them: the
-colour value's transfer function and OKLab round trips and its
-perceptual midpoint, the SDF surfaces, the tile mechanism and the stock
-generators over it, the fields, and the OpenColorIO bake — an exponent
-baked to a response row, that row lowered to a table an eight-bit
-surface admits, holding it to what the program paints across a whole
-ramp, while a float surface and a channel-mixing transform keep the
-program. The view-transform cases skip where the transforms are
-unavailable, which is what the `ocio` label says; a config that cannot
-be read failing soft is asked unconditionally, because that needs no
-OpenColorIO to ask.
-
-The colour leaf's four suites hold to closed forms rather than to
-colours this code once answered. `Color` holds the transfer function and
-the OKLab round trip to their own inverses, separates the three mixes by
-where their midpoint lands, and
-pins that a palette is read exactly — `nearest` clamped at both ends and
-never a blend — where a ramp is read between. `Ramp` asks the decisions
-one at a time: the ends are the stops and outside them is flat, the
-domain is the caller's own numbers, reverse and easing move the position
-and not the stops, each space walks its own path while both ends still
-round-trip, two stops at one position are an edge with nothing across
-it, a table is read at band centres and comes back a ramp, and the value
-is an interpolator anything that takes one can call. `Harmony` pins the
-polar round trip, that a rotation gives up chroma alone and holds the
-lightness, and that each scheme is its own set of angles with the base
-first. `Dither` asserts what a threshold pattern promises rather than
-what it looks like: the ordered matrix holds every threshold once and
-averages a half, the noise averages the same with no period to find, and
-a dithered ramp comes back at the value it was asked for. `Extract`
-holds the two methods apart by what each is for — the table is the
-colours a picture actually holds, the divided boxes cover the range they
-were given — and pins the determinism and the stride, with
-`closestEntry` answering -1 for a table with no entries.
-
-The named maps are the kit's `Ramps` suite, and it asks the properties
-the maps were chosen for rather than their stop lists: the ends are the
-colours the tables are published with, every sequential map climbs in
-lightness the whole way, the rainbow is brightest in its middle and so
-says nothing about which value is larger, the diverging pair is pale in
-the middle and opposed at its ends, and the helix is its props and still
-reads as grey. `SkiaPalette` is the one crossing beside them — a
-picture's own colours coming back, a picture larger than the read size
-scaled into it rather than sampled down, and nothing to read answering
-an empty table.
-
-The texture suites cover the image side: the sources and their
-identity across the erasure, the sampling dials, the environment map, the
-bevel producer, the atlas readers and packer, and the tools' file names —
-one row per name, so a failure says which tool's spelling moved rather
-than that a list changed. The Skia backend's suite compiles a two-uniform
-recipe through the cache and checks the raster it shades is byte
-identical to the same SkSL compiled and filled by hand, and states the
-four parameter names a body may not redeclare together with the three
-spellings that must still compile. The kit's suite compiles every
-preset and checks a fill stays inside its path, dresses a surface from a
-decoded set, shades a stack at both ends of its mask, and holds every
-shading term to its closed form. Two of its cases are the sampler
-budget: that a stack asks a device for its operands' samplers and no
-more — an undressed surface fills seven slots and its SkSL program
-declares the two that body samples — and that a tree over the limit is
-refused, with the count and the limit named, rather than drawn.
 
 The `MaterialGpu` suite belongs to the whole library rather than to a
 feature: every other suite shades on a raster surface, where a body is
@@ -1124,30 +1035,28 @@ installs a shader-error handler through
 answer — plus a stack per blend, the whole terms text, and the ocio bake
 where OpenColorIO is available — through the same `skia::Paint` a
 consumer draws it through, demanding that not one reports an error. It
-is labelled `gpu` and needs Metal, and it carries its own control: the
-collision the reserved names exist to prevent, built as a raw runtime
-effect so it reaches the device, must be reported — which is what proves
-the handler is wired to anything at all. Run it with
+needs Metal, and it carries its own control: the collision the reserved
+names exist to prevent, built as a raw runtime effect so it reaches the
+device, must be reported — which is what proves the handler is wired to
+anything at all.
 
 ```sh
 ctest --test-dir build -C Release -R '^MaterialGpu\.'
 ```
 
-One file per subject, named for what it asserts. **The fixtures more than
-one file needs live once, in `test/support/`**: `Shade.h` holds the two
-ways of drawing a material — the shader over a whole surface, which asks
-what a body computes at each point, and a fill over a path, which asks
-what a caller painting a shape gets — beside the readings taken off the
-result. A directory a case writes into is `sigil::test::ScratchDir` from
-the tree-wide `src/test/`, keyed by process id and emptied both ways, so
-two runs side by side never read each other's files.
+**The fixtures more than one file needs live once, in `test/support/`**:
+`Shade.h` holds the two ways of drawing a material — the shader over a
+whole surface, which asks what a body computes at each point, and a fill
+over a path, which asks what a caller painting a shape gets — beside the
+readings taken off the result. A directory a case writes into is
+`sigil::test::ScratchDir`, the tree's own.
 
-The acceptance pieces are the
-`material_lab`, `material_atlas`, `material_slots`, `stock_materials`,
-`text_paints`, `reflection_lab`, `env_faces`, `env_lanes`,
-`shapeworks_lab` and `mesh_normal_bridge` sketches under
-`src/sketch/sketches/`, whose surfaces are shaded here. SigilCompose is the largest consumer: its
-`Material::recipe` resolves a material through this library's cache with
-the frame built from its paint context, and its patterns, SDF fills,
-layer styles and view transforms are the primitives and presets here
-spelled as compose values.
+The acceptance pieces are the `material_lab`, `material_atlas`,
+`material_slots`, `stock_materials`, `text_paints`, `reflection_lab`,
+`env_faces`, `env_lanes`, `shapeworks_lab` and `mesh_normal_bridge`
+sketches under `src/sketch/sketches/`, whose surfaces are shaded here.
+SigilCompose is the largest consumer: its `Material::recipe` resolves a
+material through this library's cache with the frame built from its
+paint context, and its patterns, SDF fills, layer styles and view
+transforms are the primitives and presets here spelled as compose
+values.
