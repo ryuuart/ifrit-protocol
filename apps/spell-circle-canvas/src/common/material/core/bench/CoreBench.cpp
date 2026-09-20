@@ -5,7 +5,13 @@
  */
 
 #include <benchmark/benchmark.h>
-#include <sigilmaterial/Material.h>
+#include <sigilmaterial/core/Combine.h>
+#include <sigilmaterial/core/FrameData.h>
+#include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/core/Parameters.h>
+#include <sigilmaterial/core/Program.h>
+#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/core/Target.h>
 
 #include <array>
 #include <memory>

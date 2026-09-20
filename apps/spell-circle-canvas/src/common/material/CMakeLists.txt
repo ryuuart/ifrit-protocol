@@ -22,10 +22,10 @@
 # target that links the primitives and the kit together.
 # `SigilMaterial` is the umbrella: an
 # interface over every feature, for a consumer of the whole library.
-# <sigilmaterial/Material.h> is the umbrella header over the core.
 sigil_library_root(SigilMaterial
   BRIEF "Materials as recipe instances: reflected parameters, per-target bodies, one program cache"
-  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/COLOUR.md
+  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox
+       ${CMAKE_CURRENT_SOURCE_DIR}/COLOUR.md
        ${CMAKE_CURRENT_SOURCE_DIR}/PAINT.md
        ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md)
 

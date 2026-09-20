@@ -1,11 +1,6 @@
-#pragma once
-
-/** @file
- * @ingroup material-core
- *
- * The umbrella over the core feature: recipes, materials, programs and
- * the values between them. Backends are included by their own headers.
- */
+// The documentation groups whose members are spread over several of this
+// library's headers, declared where no header has to include another to
+// reach them.
 
 /** @defgroup material-core The recipe seam
  *  A recipe is a material's definition — the parameter struct that is its
@@ -60,16 +55,3 @@
  *  metallic-roughness surface, grained and reflective surfaces, the
  *  pattern panels, the layer-style tables and the animated text paints
  *  (kit/Recipes.h). */
-
-#include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/core/Bank.h>
-#include <sigilmaterial/core/Combine.h>
-#include <sigilmaterial/core/FrameData.h>
-#include <sigilmaterial/core/Leaf.h>
-#include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Parameters.h>
-#include <sigilmaterial/core/Program.h>
-#include <sigilmaterial/core/Recipe.h>
-#include <sigilmaterial/core/Target.h>
-#include <sigilmaterial/core/Terms.h>
-#include <sigilmaterial/core/UniformBlock.h>

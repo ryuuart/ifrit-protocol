@@ -5,7 +5,9 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilmaterial/Material.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/Parameters.h>
+#include <sigilmaterial/core/Target.h>
 
 #include <array>
 #include <cstddef>

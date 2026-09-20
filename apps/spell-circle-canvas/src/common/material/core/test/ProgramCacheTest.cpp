@@ -6,7 +6,10 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilmaterial/Material.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/Program.h>
+#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/core/Target.h>
 #include <sigilshaders/MaterialCore.h>
 
 #include <atomic>

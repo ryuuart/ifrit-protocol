@@ -5,7 +5,11 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilmaterial/Material.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/FrameData.h>
+#include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/core/Target.h>
 
 #include <memory>
 #include <string>
