@@ -19,7 +19,15 @@ namespace sigil::material::field {
 /** A screen in local coordinates. Distances are local pixels; strengths
  * are nonnegative. Zero strengths preserve the content inside the bounds.
  * Time is explicit: re-describe to advance noise, flicker and sync.
- * The screen is opaque; transparent source pixels read as black glass. */
+ * The screen is opaque; transparent source pixels read as black glass.
+ *
+ * THE SUPPLY IS THE BEAM'S. `uBrightness` and `uFlicker` modulate the
+ * picture the tube draws and nothing else, so the light over it holds
+ * the strength `uBloom` names while the picture dims and stutters. And
+ * the picture is finished before the glass reads it — rastered,
+ * grained, and clamped to what a display can carry — so the light is
+ * added to a highlight that already stands at white, and `uVignette`
+ * then darkens the picture and the light over it together. */
 struct CrtParameters {
   glm::vec4 uBounds{0, 0, 1, 1};  ///< left, top, width, height
   float uCurvature = 0;
@@ -42,7 +50,8 @@ struct CrtParameters {
  * `uRgbShift` apart, rastered at `uScanPitch`, swept by `uJitter` and
  * `uSync`, and carrying the supply's `uFlicker` and the signal's
  * `uNoise` at `uBrightness`. No curvature and no light — those are the
- * glass's and the bloom's. */
+ * glass's and the bloom's. What it draws is opaque and clamped to what
+ * a display can carry; outside the bounds it draws nothing at all. */
 struct CrtBeamParameters {
   glm::vec4 uBounds{0, 0, 1, 1};  ///< left, top, width, height
   float uRgbShift = 0;
@@ -65,7 +74,13 @@ struct CrtBloomParameters {
 
 /** The glass over a screen: the barrel at `uCurvature`, the light from
  * the `bloom` slot at `uBloom`, and the corner falloff at `uVignette`.
- * What is under the glass is read ONCE, at the bent coordinate. */
+ * What is under the glass is read ONCE, at the bent coordinate.
+ *
+ * The glass is opaque wherever it stands: inside the bounds every pixel
+ * comes back at full alpha, so a transparent region of what is under it
+ * reads as black glass rather than staying transparent, and a surface
+ * that wants the barrel over part of its content gets a filled
+ * rectangle the size of the bounds. Outside them nothing is drawn. */
 struct CrtGlassParameters {
   glm::vec4 uBounds{0, 0, 1, 1};  ///< left, top, width, height
   float uCurvature = 0;

@@ -855,10 +855,11 @@ of them as a recipe of its own:
 - `field::crtGlass` — the glass over both: the barrel at `uCurvature`,
   the light from the `bloom` slot at `uBloom`, the corner falloff at
   `uVignette`. The barrel alone, for any surface that wants a tube's
-  curvature over it. What stands under the glass is read ONCE, at the
-  bent coordinate, because in one program a second reading is a second
-  whole pass of whatever is under there — which is why the guns are the
-  beam's and not the glass's.
+  curvature over it, and opaque wherever it stands, so a transparent
+  region of what is under it reads as black glass. What stands under
+  the glass is read ONCE, at the bent coordinate, because in one
+  program a second reading is a second whole pass of whatever is under
+  there — which is why the guns are the beam's and not the glass's.
 
 `field::crt` is their composition and the whole screen: one program, in
 which the glass reads the beam where it would read a bound picture, so
@@ -869,6 +870,14 @@ deterministic. Zero strengths preserve source RGB inside the bounds. The
 screen is opaque black beneath transparent source content; outside its
 rectangular bounds it is transparent. Burn-in needs frame history and is
 not included.
+
+The supply is the BEAM'S. `uBrightness` and `uFlicker` modulate the
+picture the tube draws and nothing else, so the light over it holds the
+strength `uBloom` names while the picture dims and stutters. And the
+beam's picture is finished before the glass reads it — rastered,
+grained and clamped to what a display can carry — so the light is added
+to a highlight already standing at white, and `uVignette` darkens the
+picture and the light over it together.
 
 The tube's light is a SECOND slot, `bloom`, declared as one an executor
 fills from the same layer blurred at `uBloomRadius` — a Gaussian sigma
