@@ -47,6 +47,21 @@ class Spellings(unittest.TestCase):
         self.assertIs(compose.by.edge, by.edge)
         self.assertIs(compose.parts.named, parts.named)
 
+    def test_each_name_reports_the_module_an_author_imports(self):
+        for value in (
+            Region,
+            Region.Kind,
+            Parts,
+            Parts.Bits,
+            Gate,
+            Gate.Kind,
+            Gate.Channel,
+        ):
+            with self.subTest(value=value.__qualname__):
+                self.assertEqual(value.__module__, "sigil.compose")
+        self.assertEqual(by.edge.__module__, "sigil.compose.by")
+        self.assertEqual(parts.named.__module__, "sigil.compose.parts")
+
     def test_the_modules_carry_the_native_factories(self):
         for name in ("all", "marks", "surface", "content", "children", "named"):
             with self.subTest(name=name):
@@ -65,9 +80,7 @@ class Spellings(unittest.TestCase):
                 self.assertTrue(callable(getattr(by, name)))
 
     def test_the_nested_enumerations_carry_the_native_values(self):
-        self.assertEqual(
-            list(Region.Kind.__members__), ["Own", "Rect", "Oval", "Path"]
-        )
+        self.assertEqual(list(Region.Kind.__members__), ["Own", "Rect", "Oval", "Path"])
         self.assertEqual(
             list(Parts.Bits.__members__),
             ["kSurface", "kMarks", "kContent", "kChildren", "kAll"],
@@ -107,9 +120,7 @@ class Regions(unittest.TestCase):
         self.assertNotEqual(Region.rect((0, 0, 10, 10)), Region.rect((0, 0, 10, 11)))
         circle = skia.Path.Circle(5, 5, 5)
         self.assertEqual(Region.path(circle), Region.path(path=circle))
-        self.assertNotEqual(
-            Region.path(circle), Region.path(skia.Path.Circle(5, 5, 6))
-        )
+        self.assertNotEqual(Region.path(circle), Region.path(skia.Path.Circle(5, 5, 6)))
 
     def test_a_region_resolves_to_the_path_it_covers(self):
         own = skia.Path.Rect((0, 0, 40, 30))
@@ -352,7 +363,7 @@ class Session(unittest.TestCase):
             "import builtins\n"
             "from _sigil import compose as native\n"
             "from sigil import material, motion, skia\n"
-            "from sigil.compose import box\n"
+            "from sigil.compose import box, spans\n"
             "from sigil.sketch import sketch\n"
             "by, parts = native.by, native.parts\n"
             "Region, Paint = native.Region, material.Paint\n"
@@ -384,6 +395,14 @@ class Session(unittest.TestCase):
     def test_an_edge_gate_shows_the_fraction_before_the_edge(self):
         self.render("plate().mask(by.edge(0, 0.5))")
         self.assertEqual(self.pixel(self.LEFT), self.WHITE)
+        self.assertEqual(self.pixel(self.RIGHT), self.BLACK)
+
+    def test_a_spans_gate_shows_the_run_of_the_boundary_it_names(self):
+        self.render("plate().mask(by.spans(spans.upTo(1.0)))")
+        self.assertEqual(self.pixel(self.LEFT), self.WHITE)
+        self.assertEqual(self.pixel(self.RIGHT), self.WHITE)
+        self.render("plate().mask(by.spans(spans.upTo(0.0)))")
+        self.assertEqual(self.pixel(self.LEFT), self.BLACK)
         self.assertEqual(self.pixel(self.RIGHT), self.BLACK)
 
     def test_a_shape_gate_keeps_its_region_and_outside_keeps_the_rest(self):
