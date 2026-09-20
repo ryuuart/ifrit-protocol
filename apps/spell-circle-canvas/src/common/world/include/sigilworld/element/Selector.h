@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup world-element
  * Which nodes a thing addresses, as a comparable value: the four terms —
  * a tag, a key, everything under a key, a material — and the three
  * combinators that build an expression out of them.

@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup world-frame
  * What a pass is allowed to see: the bodies a frame extracted, the
  * emitters, the viewpoint and the extent. It is read-only and it is the
  * ONLY door onto the scene an execution has — the description tree is
@@ -97,6 +98,8 @@ struct SurfaceTerms {
   float thickness = 0;
   glm::vec3 absorption{0, 0, 0};
 };
+/** The shading terms @p material carries, or the ones that leave the
+ *  shading where it was when it carries none. */
 SurfaceTerms surfaceTermsOf(const ::sigil::material::Material* material);
 
 /** AN EMITTER AS THE MESH PAINTER TAKES IT: the one directional reading

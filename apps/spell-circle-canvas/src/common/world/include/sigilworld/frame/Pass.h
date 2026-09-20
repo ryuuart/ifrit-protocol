@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup world-frame
  * A PASS: one stage of making a frame, declared as a comparable value —
  * what it reads, what it writes, which bodies it addresses, and the work
  * it does. A pass is never a scene child: it is a step of turning the
@@ -111,9 +112,13 @@ using PassBody = core::Erased<PassBodyOperations>;
 class Pass {
  public:
   Pass() = default;
+  /** A pass of @p stage called @p name, declaring nothing yet. The name
+   *  is what a resource declaration and an error message address. */
   Pass(Stage stage, std::string name);
 
-  // ---- what it touches ----
+  /** @name What it touches
+   *  The resources the ordering reads the pass's position out of.
+   *  @{ */
   /** Resources this pass reads, in the order it reads them. */
   template <std::convertible_to<std::string_view>... N>
   Pass& reads(N&&... names) {
@@ -131,8 +136,12 @@ class Pass {
    *  nothing: a pass may name its own output here, which is what makes
    *  a feedback loop declarable without a cycle. */
   Pass& previous(std::string name);
+  /** @} */
 
-  // ---- which bodies ----
+  /** @name Which bodies
+   *  Which of the scene's bodies the pass addresses, and how the
+   *  selection is realised.
+   *  @{ */
   /** The bodies this pass addresses. A pass that narrows nothing
    *  addresses every one of them. */
   Pass& only(Selector selector);
@@ -142,8 +151,11 @@ class Pass {
   /** Override how the selection is realised, for a pass that knows
    *  better than the rule. */
   Pass& realise(Selection realisation);
+  /** @} */
 
-  // ---- the work ----
+  /** @name The work
+   *  What the pass actually does when its turn comes.
+   *  @{ */
   /** What a geometry pass clears its target to before it paints. */
   Pass& clear(SkColor4f colour);
   /** The points a compute pass cooks, and the executor it cooks them
@@ -168,32 +180,54 @@ class Pass {
    *  copies, so a frame carrying one never prunes on it. The view and the
    *  targets are both offered and it names the ones it reads. */
   Pass& body(core::Callable<void(const View&, Targets&)> fn);
+  /** @} */
 
-  // ---- what it declared ----
+  /** @name What it declared
+   *  Everything the verbs above set, read back by the ordering and the
+   *  executor.
+   *  @{ */
+  /** Which stage this pass is. */
   [[nodiscard]] Stage stage() const { return m_stage; }
+  /** The name the pass was made under. */
   [[nodiscard]] const std::string& name() const { return m_name; }
+  /** The resources declared read, in declaration order. */
   [[nodiscard]] std::span<const std::string> reads() const { return m_reads; }
+  /** The resources declared written, in declaration order. */
   [[nodiscard]] std::span<const std::string> writes() const { return m_writes; }
+  /** The resources declared read as they stood last frame. */
   [[nodiscard]] std::span<const std::string> previous() const {
     return m_previous;
   }
+  /** The selector the pass narrows by; meaningless unless it narrowed. */
   [[nodiscard]] const Selector& selector() const { return m_selector; }
+  /** Whether the pass narrowed at all, rather than addressing every
+   *  body. */
   [[nodiscard]] bool narrowed() const { return m_narrowed; }
+  /** The surface the selection is drawn again in, where one was set. */
   [[nodiscard]] const std::optional<::sigil::material::Material>& variant()
       const {
     return m_variant;
   }
+  /** How the selection is realised, `Selection::Auto` unless overridden. */
   [[nodiscard]] Selection realisation() const { return m_realisation; }
+  /** The colour a geometry pass clears to; transparent black by
+   *  default. */
   [[nodiscard]] SkColor4f clear() const { return m_clear; }
+  /** The points a compute pass cooks; empty on every other stage. */
   [[nodiscard]] const geometry::mesh::pop::Chain& chain() const {
     return m_chain;
   }
+  /** The executor the chain is cooked on; the CPU one by default. */
   [[nodiscard]] const geometry::mesh::pop::Runtime& popRuntime() const {
     return m_popRuntime;
   }
+  /** The body stood at every point the pass reads; empty when none. */
   [[nodiscard]] const geometry::mesh::Mesh& stamp() const { return m_stamp; }
+  /** The one post operation the pass carries, if any. */
   [[nodiscard]] const PostOperation& operation() const { return m_operation; }
+  /** The escape body the pass runs instead of its stage's work. */
   [[nodiscard]] const PassBody& body() const { return m_body; }
+  /** @} */
 
   /** Value equality, field by field. A pass carrying a lambda body is
    *  equal only to its own copies, because a callable is not a value. */
@@ -228,10 +262,6 @@ Pass computePass(std::string name);
 /** A pass that reads targets and writes one. */
 Pass postPass(std::string name);
 
-/** WHAT THE ORDERING DECIDED about one pass, in terms an execution can
- *  act on without knowing how the decision was made. It points at the
- *  pass it describes, so it stands only as long as the passes it was
- *  built from do. */
 /** ONE COVERAGE a geometry pass paints for a masked pass behind it: the
  *  resource it goes into, and whose coverage it is. Two masked passes
  *  behind the same producer asking for the same selection share one
@@ -242,6 +272,10 @@ struct Coverage {
   Selector of;
 };
 
+/** WHAT THE ORDERING DECIDED about one pass, in terms an execution can
+ *  act on without knowing how the decision was made. It points at the
+ *  pass it describes, so it stands only as long as the passes it was
+ *  built from do. */
 struct PassWork {
   const Pass* pass = nullptr;
   Selection realisation = Selection::None;

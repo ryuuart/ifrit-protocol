@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup world-diligent
  * The GPU executor, as a VALUE: the same Frame, the same passes and the
  * same declarations, performed on a device instead of on the CPU.
  */
@@ -14,6 +15,11 @@ namespace sigil::geometry::device {
 class Device;
 }  // namespace sigil::geometry::device
 
+/** THE DEVICE SIDE OF SIGILWORLD, ON DILIGENT ENGINE: the executor that
+ *  records a frame's passes on a graphics device, and the import that
+ *  brings a mesh across to it. Reach for it to run a frame on real
+ *  hardware; everything above it is written against the executor seam
+ *  and never names this catalogue. */
 namespace sigil::world::diligent {
 
 /**

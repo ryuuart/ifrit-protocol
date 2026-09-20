@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup scry-engine
  * The WebImage: a named slot a page displays as `<img src="name.imgsrc">`
  * and native code fills — painted through an SkCanvas, copied from
  * raster pixels, or blitted from a texture on the engine's device.
@@ -57,8 +58,11 @@ class WebImage {
  public:
   ~WebImage();
 
+  /** The name a page addresses this image by. */
   const std::string& name() const;
+  /** The image's width in pixels. */
   int width() const;
+  /** The image's height in pixels. */
   int height() const;
 
   /**

@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup world-light
  * Emitters as plain values: a sun, a point light and a spot, each a
  * comparable struct of where it is, which way it faces, what colour it
  * is and how far it reaches. Nothing here renders, uploads or holds a
@@ -18,6 +19,10 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 
+/** WHAT EMITS LIGHT IN A SET: the sun, the point, the spot, and the
+ *  fields each of those reads. Reach for it to build the value an
+ *  element's `light()` verb carries; where an emitter STANDS is the
+ *  element's transform and no part of this catalogue. */
 namespace sigil::world::light {
 
 /** What an emitter IS, which decides which of its fields mean anything. */

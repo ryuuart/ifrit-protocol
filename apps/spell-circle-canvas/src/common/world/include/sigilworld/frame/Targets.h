@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup world-frame
  * The resources a frame's passes write and read: named surfaces, the
  * images they stood as at the end of the frame before, and the point
  * sets a compute pass cooks.
@@ -39,6 +40,7 @@ class Targets {
   /** The size every surface here is made at. Setting a different one
    *  drops everything, including what `previous()` would have said. */
   void extent(SkISize size);
+  /** The size every surface here is made at; empty until one is set. */
   [[nodiscard]] SkISize extent() const { return m_extent; }
 
   /** Point @p name at surface slot @p slot. A negative slot gives the
@@ -63,6 +65,7 @@ class Targets {
 
   /** The point set @p name, made empty on the first ask. */
   geometry::mesh::Cloud* points(std::string_view name);
+  /** The point set @p name as it stands; null when nothing made it. */
   [[nodiscard]] const geometry::mesh::Cloud* points(
       std::string_view name) const;
 

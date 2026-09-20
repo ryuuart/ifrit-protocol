@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup world-element
  * The description of one node of a 3D scene: where it stands, what it is
  * made of, what it is called, and the children under it, as chaining
  * setters over a copy-on-write value.
@@ -33,6 +34,13 @@
 #include <utility>
 #include <vector>
 
+/** THREE-DIMENSIONAL SURFACES, DESCRIBED THE WAY A PAGE IS. A scene is
+ *  an element tree built fresh every frame — where each node stands,
+ *  what it is made of, the body it carries, the light it emits, the
+ *  children under it — reconciled into a retained scene and drawn by a
+ *  frame of passes on a device runtime. Reach for it when a drawing has
+ *  depth, a camera or a light in it. It consumes SigilGeometry's meshes
+ *  and SigilMaterial's surfaces and hands neither back. */
 namespace sigil::world {
 
 struct ElementNode;
@@ -59,7 +67,9 @@ class Element {
  public:
   Element();
 
-  // ---- identity and composition ----
+  /** @name Identity and composition
+   *  What the node is called, and what stands under it.
+   *  @{ */
   /** The author-owned identity: what the reconciler matches a child by
    *  across describes, and what a scene addresses the node by. */
   Element& key(std::string_view k);
@@ -77,14 +87,25 @@ class Element {
     return *this;
   }
 
-  // ---- placement ----
+  /** @} */
+
+  /** @name Placement
+   *  Where the node stands and which way it faces: the lanes, the
+   *  escape hatch, and the curve a node can ride.
+   *  @{ */
   /** The node's position — `translateX/Y/Z` in one call. */
   Element& at(glm::vec3 position);
+  /** The node's position along x, in scene units; 0 by default. */
   Element& translateX(motion::Animatable<float> v);
+  /** The node's position along y, in scene units; 0 by default. */
   Element& translateY(motion::Animatable<float> v);
+  /** The node's position along z, in scene units; 0 by default. */
   Element& translateZ(motion::Animatable<float> v);
+  /** The turn about x, in degrees; 0 by default. */
   Element& rotateX(motion::Animatable<float> degrees);
+  /** The turn about y, in degrees; 0 by default. */
   Element& rotateY(motion::Animatable<float> degrees);
+  /** The turn about z, in degrees; 0 by default. */
   Element& rotateZ(motion::Animatable<float> degrees);
   /** A turn about a direction the three axis lanes cannot spell. It
    *  applies after them. */
@@ -92,8 +113,11 @@ class Element {
   /** Uniform scale — writes all three scale lanes, so binding it binds
    *  all three to one output. */
   Element& scale(motion::Animatable<float> factor);
+  /** The scale along x, as a factor; 1 by default. */
   Element& scaleX(motion::Animatable<float> factor);
+  /** The scale along y, as a factor; 1 by default. */
   Element& scaleY(motion::Animatable<float> factor);
+  /** The scale along z, as a factor; 1 by default. */
   Element& scaleZ(motion::Animatable<float> factor);
   /** The point the rotations and scales turn about, in the node's own
    *  coordinates. */
@@ -112,13 +136,21 @@ class Element {
   Element& along(geometry::mesh::curve::Spline3 spline,
                  motion::Animatable<float> distance);
 
-  // ---- what it is made of ----
+  /** @} */
+
+  /** @name What it is made of
+   *  The surface every face of the body is shaded by.
+   *  @{ */
   /** The surface. */
   Element& fill(material::Material m);
   /** …and the per-face form: one material per slot, in slot order. */
   Element& fill(std::span<const material::Material> slots);
+  /** @} */
 
-  // ---- geometry ----
+  /** @name Geometry
+   *  The body itself: a mesh, a cloud of points, a cooked chain, or a
+   *  value that builds one.
+   *  @{ */
   /** A formed mesh. */
   Element& mesh(geometry::mesh::Mesh m);
   /** Whether reverse-wound faces are culled or drawn. A flat panel that
@@ -148,7 +180,12 @@ class Element {
   Element& window(motion::Animatable<float> head,
                   motion::Animatable<float> span);
 
-  // ---- membership, emitters, viewpoints ----
+  /** @} */
+
+  /** @name Membership, emitters and viewpoints
+   *  What the node answers to when something selects on it, and the
+   *  light, sky and camera it can carry.
+   *  @{ */
   /** A word this node answers to, for whatever selects on it. Repeated
    *  calls append. */
   Element& tag(std::string word);
@@ -181,6 +218,8 @@ class Element {
    *  from everywhere, and how much of it a surface mirrors. Pushing one
    *  and not the other is a look, not a physical claim. */
   Element& diffuse(motion::Animatable<float> v);
+  /** How much of the map a surface mirrors, as a factor on what the map
+   *  supplies; 1 by default. */
   Element& specular(motion::Animatable<float> v);
   /** Added to every surface's roughness before it picks a prefiltered
    *  level, so a whole set softens without a material being edited. */
@@ -199,6 +238,8 @@ class Element {
    *  it, so the dial is also the switch — blurred by @p blur in the same
    *  roughness units a reflection reads. */
   Element& backdrop(motion::Animatable<float> intensity);
+  /** How blurred the shown sky is, in the same roughness units a
+   *  reflection reads; 0, a sharp panorama, by default. */
   Element& backdropBlur(motion::Animatable<float> v);
 
   /** A viewpoint standing where this node stands, on the same terms as
@@ -206,7 +247,12 @@ class Element {
    *  transform. */
   Element& camera(geometry::mesh::camera::Camera c);
 
-  // ---- caching and transitions ----
+  /** @} */
+
+  /** @name Caching and transitions
+   *  What the node asks of the cache, and how its values and its
+   *  children's entrances move.
+   *  @{ */
   /** What the author asked of this node's cache. */
   Element& cache(core::Cache c);
   /** The node's default transition, for the plain constants on it. */
@@ -218,6 +264,7 @@ class Element {
    *  grandchild enters after its parent did. Only children that actually
    *  mount are delayed. */
   Element& staggerChildren(motion::Spread spread);
+  /** @} */
 
   // ---- integer-literal sugar --------------------------------------------
   // `rotateY(-8)` — an int does not convert into the Animatable variant on
@@ -278,6 +325,7 @@ class Element {
   [[nodiscard]] const std::shared_ptr<ElementNode>& node() const {
     return m_node.value;
   }
+  /** @private wraps a description the reconciler already holds. */
   explicit Element(std::shared_ptr<ElementNode> n) : m_node(std::move(n)) {}
 
  private:

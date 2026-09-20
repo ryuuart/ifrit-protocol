@@ -19,6 +19,7 @@ namespace sigil::substance {
  *  with a toggle widget). `choices` lists a combobox's labels in value
  *  order; `image` and `text` inputs carry no numbers. */
 struct Parameter {
+  /** What the input holds, which decides how many numbers it takes. */
   enum class Kind : uint8_t {
     Float,
     Float2,
@@ -32,6 +33,7 @@ struct Parameter {
     Text,
     Other,
   };
+  /** The control the author asked for, for a tool that builds one. */
   enum class Widget : uint8_t {
     None,
     Slider,
@@ -54,6 +56,8 @@ struct Parameter {
   std::vector<float> minimum;
   std::vector<float> maximum;
   std::vector<std::pair<int, std::string>> choices;
+  /** How many numbers a value of this input takes, read off the
+   *  authored defaults. */
   int components() const { return (int)defaults.size(); }
 };
 

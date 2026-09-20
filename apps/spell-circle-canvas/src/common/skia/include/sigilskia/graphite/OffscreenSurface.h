@@ -1,4 +1,11 @@
 #pragma once
+
+/** @file
+ * @ingroup skia-graphite
+ * An SkSurface over a texture someone else owns, for a frame's worth of
+ * drawing, with the fences that say when the device may have it back.
+ */
+
 #include <include/core/SkRefCnt.h>
 // The names a device gives its resources. Handles and fence values are
 // plain values with no device code behind them; the entry points here

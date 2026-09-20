@@ -22,14 +22,18 @@ class Package {
    *  when the engine cannot start. */
   static std::unique_ptr<Package> load(const void* bytes, size_t size,
                                        std::string* error = nullptr);
+  /** The same from a file on disk, read in one go. */
   static std::unique_ptr<Package> load(const std::filesystem::path& file,
                                        std::string* error = nullptr);
   ~Package();
   Package(const Package&) = delete;
   Package& operator=(const Package&) = delete;
 
+  /** How many graphs the archive holds. */
   size_t graphCount() const;
+  /** The graph at @p index, which must be below `graphCount()`. */
   Graph& graph(size_t index);
+  /** The graph at @p index, read only. */
   const Graph& graph(size_t index) const;
   /** By label or url; null when absent. */
   Graph* find(std::string_view labelOrUrl);

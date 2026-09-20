@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup world-frame
  * The seam a pass executes through, as a VALUE. `Runtime` holds an
  * `Executor` — the one operation a pass is performed by — so the same
  * Frame, the same passes and the same declarations run on whichever
@@ -60,6 +61,7 @@ class Runtime : public core::Erased<Executor> {
  public:
   using core::Erased<Executor>::Erased;
   Runtime() = default;
+  /** A runtime standing for @p erased, which IS the executor it holds. */
   Runtime(core::Erased<Executor> erased)  // NOLINT: a Runtime IS its value
       : core::Erased<Executor>(std::move(erased)) {}
 

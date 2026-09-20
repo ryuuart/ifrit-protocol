@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup world-element
  * What a node is made of: the four shapes a geometry slot takes — a
  * formed mesh, a cloud with the body stamped at every point, a point
  * chain with the runtime that cooks it, or a generator that builds its

@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup world-element
  * The payload an Element carries: every field of one node's description,
  * and the comparison that decides whether two of them are provably the
  * same node described twice.

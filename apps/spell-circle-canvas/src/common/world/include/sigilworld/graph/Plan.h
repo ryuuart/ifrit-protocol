@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup world-graph
  * The frame graph: the order a frame's passes run in, derived from what
  * they declared they read and write; the surfaces two resources share
  * when their live ranges do not overlap; the barriers a backend needs
@@ -21,6 +22,11 @@
 #include <string_view>
 #include <vector>
 
+/** WHAT A FRAME WILL DO, WORKED OUT BEFORE ANY OF IT IS RECORDED: the
+ *  passes in an order that respects what each reads and writes, the
+ *  resources they need placed, and the barriers between them. Reach for
+ *  it to see or check a frame's shape without a device; an executor
+ *  reads the plan rather than the passes. */
 namespace sigil::world::graph {
 
 /** Which way a step touches a resource. */
@@ -84,7 +90,10 @@ class Plan {
   /** The passes in execution order, each with what the ordering decided
    *  about it. Empty when the plan failed. */
   [[nodiscard]] std::span<const PassWork> steps() const { return m_steps; }
+  /** The hazards between the steps, in execution order. */
   [[nodiscard]] std::span<const Barrier> barriers() const { return m_barriers; }
+  /** Every resource any pass named, with what the ordering decided
+   *  about it. */
   [[nodiscard]] std::span<const Resource> resources() const {
     return m_resources;
   }
@@ -104,6 +113,7 @@ class Plan {
   /** What stopped the plan being built, naming the passes. Empty when
    *  it was built. */
   [[nodiscard]] const std::string& error() const { return m_error; }
+  /** Whether the plan was built at all. */
   explicit operator bool() const { return m_error.empty(); }
 
  private:

@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup world-frame
  * A FRAME: the scene to draw, the passes that draw it, and the
  * readbacks the caller wants — three declared things and nothing else.
  * A frame states no order: the order is derived from what its passes
@@ -42,6 +43,8 @@ class Readback {
   };
 
   Readback() = default;
+  /** A readback of the resource called @p name, with nothing to do
+   *  with it yet. */
   explicit Readback(std::string name) : m_name(std::move(name)) {}
 
   /** What to do with the resource when it comes back. The result is
@@ -52,7 +55,9 @@ class Readback {
     return *this;
   }
 
+  /** The resource this readback asks for. */
   [[nodiscard]] const std::string& name() const { return m_name; }
+  /** What was set to run on the result; empty when nothing was. */
   [[nodiscard]] const core::Callable<void(const Result&)>& callback() const {
     return m_callback;
   }
@@ -75,6 +80,8 @@ Readback readback(std::string name);
 class Frame {
  public:
   Frame() = default;
+  /** A frame that is nothing but @p scene, drawn from the viewpoint the
+   *  tree declares. */
   Frame(Element scene)  // NOLINT: a frame with no passes IS its scene
       : m_scene(std::move(scene)) {}
 
@@ -96,16 +103,24 @@ class Frame {
    *  image any pass wrote. */
   Frame& present(std::string name);
 
+  /** The tree this frame describes. */
   [[nodiscard]] const Element& scene() const { return m_scene; }
+  /** The size the targets are made at; zero when none was declared. */
   [[nodiscard]] SkISize extent() const { return m_extent; }
+  /** The frame's own viewpoint, used where the tree declares none. */
   [[nodiscard]] const geometry::mesh::camera::Camera& camera() const {
     return m_camera;
   }
+  /** The passes as they were added, which is not the order they run in. */
   [[nodiscard]] std::span<const Pass> passes() const { return m_passes; }
+  /** The readbacks asked for, in the order they were asked. */
   [[nodiscard]] std::span<const Readback> readbacks() const {
     return m_readbacks;
   }
+  /** The executor the passes run on. */
   [[nodiscard]] const Runtime& runtime() const { return m_runtime; }
+  /** The resource the finished picture is in; empty means the last
+   *  image any pass wrote. */
   [[nodiscard]] const std::string& present() const { return m_present; }
 
  private:

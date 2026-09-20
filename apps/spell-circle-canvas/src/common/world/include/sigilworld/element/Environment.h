@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup world-element
  * The environment a set stands in: a panorama placed in the scene, what
  * of it reaches a surface, and how much of it is shown behind one.
  *

@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup skia-graphite
  * A canvas that keeps a scene's painting order on a device whose
  * destination reads cost the depth attachment.
  *
@@ -54,6 +55,8 @@ class GraphiteContext;
  */
 class PaintOrderCanvas : public SkPaintFilterCanvas {
  public:
+  /** Wraps @p target, which must be @p context's own canvas; both must
+   *  outlive this one. */
   PaintOrderCanvas(GraphiteContext& context, SkCanvas* target);
 
   /** Whether @p context is a backend whose destination reads cost the
@@ -67,9 +70,13 @@ class PaintOrderCanvas : public SkPaintFilterCanvas {
    *  for the fence. */
   int fences() const { return m_fences; }
 
+  /** The recorder the wrapped canvas draws into, so a helper that
+   *  promotes a texture finds it through this canvas too. */
   skgpu::graphite::Recorder* recorder() const override;
 
  protected:
+  /** Closes the recording after a draw whose paint makes the backend
+   *  read the destination, and leaves the paint alone. */
   bool onFilter(SkPaint& paint) const override;
 
   /** Plays a picture back through this canvas rather than handing it to
@@ -78,10 +85,23 @@ class PaintOrderCanvas : public SkPaintFilterCanvas {
   void onDrawPicture(const SkPicture* picture, const SkMatrix* matrix,
                      const SkPaint* paint) override;
 
+  /** @name Layer bookkeeping
+   *  A layer whose own paint reads the destination is composited by its
+   *  restore, so the restore is the draw that has to end the pass.
+   *  These four track which layer that is.
+   *  @{ */
+  /** Opens a layer entry that reads nothing. */
   void willSave() override;
+  /** Opens a layer entry, recording whether @p rec's paint reads the
+   *  destination. */
   SaveLayerStrategy getSaveLayerStrategy(const SaveLayerRec& rec) override;
+  /** Takes the innermost layer entry off, remembering whether its
+   *  composite reads the destination. */
   void willRestore() override;
+  /** Closes the recording when the composite just performed read the
+   *  destination. */
   void didRestore() override;
+  /** @} */
 
  private:
   /** Closes the recording, so everything described so far is one render

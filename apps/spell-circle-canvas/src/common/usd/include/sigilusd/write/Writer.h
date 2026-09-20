@@ -49,6 +49,8 @@ struct WriteOptions {
  *  made unique. save() writes the file the path's extension asks for. */
 class Writer {
  public:
+  /** Opens a stage that will be written to @p file, whose extension
+   *  decides the format, under @p options. */
   explicit Writer(const std::filesystem::path& file, WriteOptions options = {});
   ~Writer();
   Writer(const Writer&) = delete;

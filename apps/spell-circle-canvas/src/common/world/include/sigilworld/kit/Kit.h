@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup world-kit
  * Presets: elements composed out of the verbs a tree is already written
  * in — a three-point rig, a turntable, and a set with both over a
  * ground plane — and the rails a body rides: the turntable's ring, a
@@ -24,6 +25,11 @@
 #include <glm/vec4.hpp>
 #include <optional>
 
+/** STOCK ARRANGEMENTS OVER THE ELEMENT MODEL: values that compose the
+ *  same verbs an author would write, so a set is described in one call
+ *  instead of a dozen. Reach for it for a lighting rig or another
+ *  well-worn arrangement. Nothing here decides anything the element
+ *  model does not already say. */
 namespace sigil::world::kit {
 
 /** WHERE THREE LIGHTS STAND ROUND A SUBJECT.

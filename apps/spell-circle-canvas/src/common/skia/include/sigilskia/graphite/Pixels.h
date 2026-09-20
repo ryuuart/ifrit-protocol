@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup skia-graphite
  * An image's pixels in the form a device texture takes them.
  *
  * A decoded HDR panorama lands as 32-bit float RGBA, which keeps the
