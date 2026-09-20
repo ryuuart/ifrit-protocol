@@ -12,12 +12,12 @@
 #include <sigilmaterial/core/Parameters.h>
 #include <sigilmaterial/core/Target.h>
 
-#include <boost/container/map.hpp>
 #include <cstdint>
 #include <memory>
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace sigil::material {
@@ -195,7 +195,9 @@ class Recipe {
   std::string m_name;
   Schema m_parameters;
   Schema m_layout;
-  boost::container::map<Target, std::string> m_bodies;
+  /** One body per target, sorted by target: `targets()` promises that
+   *  order, and definition equality compares the bodies in it. */
+  std::vector<std::pair<Target, std::string>> m_bodies;
   std::vector<std::string> m_slots;
   /** The subset of m_slots an executor fills from the layer. */
   std::vector<LayerSlot> m_layerSlots;

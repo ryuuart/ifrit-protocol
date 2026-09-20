@@ -5,6 +5,8 @@
 
 #include "sigilmaterial/core/Recipe.h"
 
+#include <algorithm>
+
 #include "sigilmaterial/core/Program.h"  // reportOnce
 
 namespace sigil::material {
@@ -72,7 +74,15 @@ Recipe Recipe::of(std::string name, const Schema& parameters) {
 }
 
 Recipe& Recipe::body(Target target, std::string source) {
-  m_bodies[target] = std::move(source);
+  const auto at = std::lower_bound(
+      m_bodies.begin(), m_bodies.end(), target,
+      [](const std::pair<Target, std::string>& held, Target wanted) {
+        return held.first < wanted;
+      });
+  if (at != m_bodies.end() && at->first == target)
+    at->second = std::move(source);
+  else
+    m_bodies.insert(at, {target, std::move(source)});
   rescan();
   return *this;
 }
@@ -137,8 +147,9 @@ void Recipe::relayout() {
 }
 
 const std::string* Recipe::body(Target target) const {
-  auto it = m_bodies.find(target);
-  return it == m_bodies.end() ? nullptr : &it->second;
+  for (const auto& [held, source] : m_bodies)
+    if (held == target) return &source;
+  return nullptr;
 }
 
 bool Recipe::readsField(std::string_view name) const {
