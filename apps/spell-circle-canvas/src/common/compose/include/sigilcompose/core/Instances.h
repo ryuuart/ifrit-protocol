@@ -3,17 +3,18 @@
 /** @file
  * @ingroup compose-core
  *
- * SigilCompose instanced leaf — thousands of repeated sprites as ONE leaf: an
- * ATLAS baked once from element trees, a user-owned struct-of-arrays POOL,
+ * SigilCompose instanced leaf — thousands of repeated sprites as ONE leaf:
+ * a CELL SHEET baked once from element trees, a user-owned
+ * struct-of-arrays POOL,
  * and one atlas draw per frame. Node-graph ports, inventory cells, confetti,
  * tick arrays, radial menus — things that would otherwise be N Yoga
  * subtrees.
  *
  * The three parts:
- *  - The ATLAS is a recipe: register cells (element trees at a fixed logical
- *    size) and the sheet bakes ONCE on first stamp, oversampled so stamps at
- *    scales up to `oversample` never magnify baked pixels. Hold it wherever
- *    you hold assets; it outlives any one describe.
+ *  - The CELL SHEET is a recipe: register cells (element trees at a fixed
+ *    logical size) and the sheet bakes ONCE on first stamp, oversampled so
+ *    stamps at scales up to `oversample` never magnify baked pixels. Hold
+ *    it wherever you hold assets; it outlives any one describe.
  *  - The POOL is yours: plain parallel arrays (position / rotation / uniform
  *    scale / tint / frame). Mutate it directly, from a ticker, or by copying
  *    out of an ECS — no registry type crosses this seam. It can also carry
@@ -64,7 +65,7 @@
  *  inventory cells, confetti, tick arrays, radial menus: anything that
  *  would otherwise be N layout subtrees.
  *
- *  Three parts. An ATLAS is a recipe — element trees registered as cells
+ *  Three parts. A CELL SHEET is a recipe — element trees registered as cells
  *  and baked once into one oversampled sheet, held wherever assets are
  *  held. A POOL is the caller's own parallel arrays of position,
  *  rotation, scale, tint and frame, mutated directly with no registry
@@ -226,7 +227,7 @@ class Pool {
 };
 
 // ---------------------------------------------------------------------------
-// Atlas — flyweight cells baked once from element trees
+// CellSheet — flyweight cells baked once from element trees
 
 /** A sprite sheet of element-tree cells. Cells register up front at a
  *  LOGICAL size; the sheet bakes lazily on the first stamp, which is where
@@ -234,13 +235,13 @@ class Pool {
  *  scale up to `oversample` never magnify baked pixels. Registering another
  *  cell after the bake drops the sheet and the next stamp bakes it again,
  *  so cells are cheap to add at setup and expensive to add per frame. */
-class Atlas {
+class CellSheet {
  public:
   /** How stamps sample the baked sheet. Linear is right for soft sprites
    *  and wrong for a pixel grid — a tilemap, a bitmap font sheet, any
    *  deliberately blocky art — where it softens every edge; pass
    *  kNearest for those. */
-  Atlas& filter(SkFilterMode mode) {
+  CellSheet& filter(SkFilterMode mode) {
     if (mode != m_filter) {
       m_filter = mode;
       ++m_revision;
@@ -249,7 +250,7 @@ class Atlas {
   }
   SkFilterMode filter() const { return m_filter; }
 
-  explicit Atlas(float oversample = 2.0f)
+  explicit CellSheet(float oversample = 2.0f)
       : m_oversample(std::max(0.5f, oversample)) {}
 
   /** Registers one cell; returns its frame index for Pool::frames(). The
@@ -258,7 +259,7 @@ class Atlas {
    *  it, so intrinsic sizing is not an option here. */
   int cell(Element tree, SkSize logicalSize);
 
-  /** WHAT THE ATLAS HAS BECOME, counted. A registration or a filter
+  /** WHAT THE SHEET HAS BECOME, counted. A registration or a filter
    *  change makes the sheet a different picture, and a memo that keyed on
    *  the pool alone would replay the picture recorded from the old one. */
   uint64_t revision() const { return m_revision; }
@@ -362,7 +363,8 @@ enum class Mode {
  *
  *  Alpha does not exempt an instance: a fully faded stamp still picks, the
  *  same way a transparent Element still hit-tests. */
-std::optional<size_t> pick(const Pool& pool, const Atlas& atlas, SkPoint point);
+std::optional<size_t> pick(const Pool& pool, const CellSheet& atlas,
+                           SkPoint point);
 
 /** The single-draw stamping leaf. It FILLS ITS PARENT (absolute, inset 0),
  *  so wrap it in a sized or positioned box and the pool's positions are
@@ -375,7 +377,7 @@ std::optional<size_t> pick(const Pool& pool, const Atlas& atlas, SkPoint point);
  *  that once, so overlapping sprites could never accumulate. Additive
  *  particle work depends on the accumulation — brightness there IS the
  *  overlap count — and only a per-sprite mode gives it. */
-Element instances(std::shared_ptr<Atlas> atlas,
+Element instances(std::shared_ptr<CellSheet> atlas,
                   std::shared_ptr<const Pool> pool, Mode mode = Mode::Data,
                   SkBlendMode blend = SkBlendMode::kSrcOver);
 

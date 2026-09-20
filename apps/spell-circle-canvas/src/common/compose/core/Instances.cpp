@@ -142,7 +142,7 @@ void Pool::fly(float seconds, const std::function<float(float)>& ease) {
   ++m_revision;
 }
 
-int Atlas::cell(Element tree, SkSize logicalSize) {
+int CellSheet::cell(Element tree, SkSize logicalSize) {
   tree.width(logicalSize.width()).height(logicalSize.height());
   m_cells.push_back({std::move(tree), logicalSize});
   // The new cell list needs a new sheet image.
@@ -151,7 +151,7 @@ int Atlas::cell(Element tree, SkSize logicalSize) {
   return (int)m_cells.size() - 1;
 }
 
-int Atlas::uniformVariants(int count, SkSize logicalSize,
+int CellSheet::uniformVariants(int count, SkSize logicalSize,
                            const core::Callable<Element(int)>& make) {
   int first = -1;
   for (int v = 0; v < count; ++v) {
@@ -161,7 +161,7 @@ int Atlas::uniformVariants(int count, SkSize logicalSize,
   return first;
 }
 
-int Atlas::sizedVariants(
+int CellSheet::sizedVariants(
     int count, const core::Callable<std::pair<Element, SkSize>(int)>& make) {
   int first = -1;
   for (int v = 0; v < count; ++v) {
@@ -172,7 +172,7 @@ int Atlas::sizedVariants(
   return first;
 }
 
-bool Atlas::ensureBaked(sigil::weave::FontContext& fonts) {
+bool CellSheet::ensureBaked(sigil::weave::FontContext& fonts) {
   if (m_sheet) return true;
   if (m_cells.empty()) return false;
   // Shelf pack in baked pixels. Flush, with no gutter: every stamp reads
@@ -209,7 +209,7 @@ bool Atlas::ensureBaked(sigil::weave::FontContext& fonts) {
 
 namespace detail {
 
-void stamp(SkCanvas& canvas, const PaintContext& ctx, Atlas& atlas,
+void stamp(SkCanvas& canvas, const PaintContext& ctx, CellSheet& atlas,
            const Pool& pool, SkBlendMode blend) {
   if (!ctx.fonts || pool.size() == 0 || !atlas.ensureBaked(*ctx.fonts)) return;
   const float inv = 1.0f / atlas.oversample();
@@ -299,7 +299,7 @@ void stamp(SkCanvas& canvas, const PaintContext& ctx, Atlas& atlas,
 
 }  // namespace detail
 
-std::optional<size_t> pick(const Pool& pool, const Atlas& atlas,
+std::optional<size_t> pick(const Pool& pool, const CellSheet& atlas,
                            SkPoint point) {
   const auto positions = pool.positions();
   const auto rotations = pool.rotations();
@@ -335,7 +335,7 @@ std::optional<size_t> pick(const Pool& pool, const Atlas& atlas,
   return std::nullopt;
 }
 
-Element instances(std::shared_ptr<Atlas> atlas,
+Element instances(std::shared_ptr<CellSheet> atlas,
                   std::shared_ptr<const Pool> pool, Mode mode,
                   SkBlendMode blend) {
   if (mode == Mode::Live) {
