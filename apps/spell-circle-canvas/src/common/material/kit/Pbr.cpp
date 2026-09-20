@@ -157,7 +157,10 @@ SurfaceParameters SurfaceParameters::gold() {
 
 SurfaceParameters SurfaceParameters::metal(Color tint, float roughness) {
   SurfaceParameters p;
-  p.baseColor = tint;
+  // The field is light and the argument is the encoded colour, so the
+  // transfer function is inverted here, where the colour enters, and the
+  // body downstream multiplies two quantities of the same kind.
+  p.baseColor = srgbToLinear(tint);
   p.metallic = 1;
   p.roughness = roughness;
   return p;
@@ -166,7 +169,7 @@ SurfaceParameters SurfaceParameters::metal(Color tint, float roughness) {
 SurfaceParameters SurfaceParameters::dielectric(Color baseColor,
                                                 float roughness) {
   SurfaceParameters p;
-  p.baseColor = baseColor;
+  p.baseColor = srgbToLinear(baseColor);
   p.metallic = 0;
   p.roughness = roughness;
   return p;

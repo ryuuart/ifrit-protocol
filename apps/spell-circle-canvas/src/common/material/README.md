@@ -647,7 +647,12 @@ each packed map is read from, the cutout threshold and the glass terms,
 which are transmission, index of refraction, thickness and the
 Beer-Lambert absorption a medium takes out of what passes through it —
 under two recipes over the same ABI: `kit::surface()` takes light,
-`kit::unlit()` is its own light. `SurfaceParameters::chrome()`, `gold()`,
+`kit::unlit()` is its own light. Its colours are LINEAR LIGHT, because a
+body multiplies each of them by the sample of the map in its slot and a
+sample is light; a `Color` is the encoded sRGB number, so
+`metal(tint, roughness)` and `dielectric(colour, roughness)` store
+`srgbToLinear` of what they are handed and a field assigned directly is
+the light itself. `SurfaceParameters::chrome()`, `gold()`,
 `metal(tint, roughness)`, `dielectric(colour, roughness)` and `glass()`
 are the compositions the kit ships. `Reflection` is how the environment
 reaches a lit surface — `SplitSum`, where the surface's own reflectance

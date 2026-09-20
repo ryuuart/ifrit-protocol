@@ -220,6 +220,48 @@ TEST(Surface, BothRecipesCompileAndShade) {
   EXPECT_FALSE(kit::surface(parameters) == kit::unlit(parameters));
 }
 
+TEST(Surface, AnAuthoredColourBecomesLightExactlyOnce) {
+  // Mid-grey as an author types it, and the quantity of light it stands
+  // for. A builder takes the first and the parameter holds the second.
+  const float encoded = 0.5f;
+  const float light = srgbToLinear(encoded);
+  const kit::SurfaceParameters authored =
+      kit::SurfaceParameters::dielectric({encoded, encoded, encoded, 1}, 0.5f);
+  EXPECT_FLOAT_EQ(authored.baseColor.r, light);
+  EXPECT_FLOAT_EQ(authored.baseColor.g, light);
+  EXPECT_FLOAT_EQ(authored.baseColor.b, light);
+  EXPECT_FLOAT_EQ(authored.baseColor.a, 1.0f);
+
+  // The body multiplies the base colour by the sample of its map, so a
+  // colour written into the parameter and the same light sampled out of
+  // a flat map have to shade to one place — which they only do if the
+  // transfer function was applied on the way in and nowhere else.
+  const int step = (int)std::lround(light * 255.0f);
+  kit::SurfaceParameters white;
+  white.baseColor = {1, 1, 1, 1};
+  Material sampled = kit::unlit(white);
+  sampled.slot(kit::kBaseColorSlot,
+               Texture::of(test::solid(
+                               SkColorSetARGB(255, step, step, step), 4, 4))
+                   .tile(SkTileMode::kClamp));
+  const SkColor fromParameter = test::shade(kit::unlit(authored), 4, 4).getColor(1, 1);
+  const SkColor fromMap = test::shade(sampled, 4, 4).getColor(1, 1);
+  EXPECT_NEAR((int)SkColorGetR(fromParameter), (int)SkColorGetR(fromMap), 1);
+  EXPECT_NEAR((int)SkColorGetG(fromParameter), (int)SkColorGetG(fromMap), 1);
+  EXPECT_NEAR((int)SkColorGetB(fromParameter), (int)SkColorGetB(fromMap), 1);
+
+  // And it is the light that reaches the surface rather than the number
+  // the colour was spelled with: half the code value is a fifth of the
+  // light, which is nowhere near half way up.
+  EXPECT_LT((int)SkColorGetR(fromParameter), 80);
+
+  // A colour goes back the way it came, so a parameter read off one
+  // surface can be typed into the next.
+  const Color readBack = linearToSrgb(authored.baseColor);
+  EXPECT_NEAR(readBack.r, encoded, 1e-5f);
+  EXPECT_NEAR(readBack.a, 1.0f, 1e-6f);
+}
+
 TEST(Surface, DressesADecodedSet) {
   const sk_sp<SkImage> image = [] {
     sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2, 2));
