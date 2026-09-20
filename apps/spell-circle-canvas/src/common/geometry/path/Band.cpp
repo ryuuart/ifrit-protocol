@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "OffsetInternal.h"
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/path/Skia.h"
@@ -133,11 +134,10 @@ SkPath bandRegionImpl(const SkPath& spine, const Profile& width,
   // across all contours closed ONCE bridges between them with a filled
   // chord, which fills the gap between two concentric ring spines.
   //
-  // BOTH RAILS GO THROUGH profileOffset, which is the other half: a
-  // constant width then rides parallel's corner repair (real
-  // vertices, arc outside a turn, miter inside) instead of a naive
-  // sample-and-displace that leaves a spur on the inside of every
-  // rectangle.
+  // BOTH RAILS GO THROUGH profileOffset, which is the other half: every
+  // rail then takes the real-vertex repair (arc outside a turn, miter
+  // inside) rather than the spur a sample-and-displace walk leaves on the
+  // inside of every rectangle.
   //
   // Sign and frame, the one convention for the whole band family: positive
   // `across` is LEFT of travel, which with y pointing down is OUTSIDE a
@@ -313,23 +313,20 @@ SkPath profileOffset(const SkPath& spine, const Profile& profile) {
   if (spine.isEmpty()) return SkPath();
   const float total = totalLength(spine);
   if (total <= 0) return SkPath();
-  // A CONSTANT profile is a parallel, and parallel already does
-  // parallels exactly — it finds the real vertices and joins them (arc
-  // outside a turn, miter inside) instead of chording across. The naive
-  // sample-and-displace walk below cannot: at a hard corner it offsets one
-  // sampled point along ONE edge's normal, which leaves a spur on the
-  // inside of every rectangle. Delegating rather than growing a second
-  // corner repair here is deliberate — two repairs would drift apart.
-  // No sign conversion is needed: `parallel` is LEFT of travel, which is
-  // this file's frame exactly.
+  // A CONSTANT profile IS a parallel, and `parallel` answers a parallel
+  // in its own terms — for a law that never changes, every number the
+  // walk below computes is a number `parallel` already computes, so
+  // delegating is the way the two stay the same rail to the bit. No sign
+  // conversion is needed: `parallel` is LEFT of travel, which is this
+  // file's frame exactly.
   //
   // Constancy is detected by SAMPLING, and that is a real limitation, not
   // a rounding detail: a stepped profile whose period divides the sample
   // spacing reads as constant. Sampled at 97 points (prime, so no profile
   // whose period is a simple fraction aligns with it) offset by half a
   // step (so a value read exactly at 0, 1/2, 1 cannot be the whole basis).
-  // A profile that defeats this still gets a correct-shaped answer — the
-  // exact-corner parallel — just not the varying one it asked for.
+  // A profile that defeats this is offset by its own first sample, which
+  // is a rail of the wrong width rather than a broken one.
   {
     const float first = profile.acrossAt(0.5f / 97.0f, total);
     bool constant = true;
@@ -338,40 +335,54 @@ SkPath profileOffset(const SkPath& spine, const Profile& profile) {
     if (constant) return first == 0.0f ? spine : parallel(spine, first);
   }
   SkPathBuilder out(spine.getFillType());
-  SkContourMeasureIter iter(spine, false);
   float consumed = 0;
-  while (sk_sp<SkContourMeasure> contour = iter.next()) {
-    const float len = contour->length();
+  for (const Contour& contour : Contour::of(spine)) {
+    const float len = contour.length();
     const float base = consumed;
     consumed += len;
-    if (len <= 0) continue;
     const int steps = std::max(8, (int)std::ceil(len / 2.0f));
+    const float stride = len / (float)steps;
+    // The band's frame: positive across is LEFT of travel, which with y
+    // down is outside a clockwise path. One body for the band's rails
+    // and a relative strand, so the two cannot drift apart.
+    //
+    // ONE non-finite sample would delete the WHOLE band: Skia draws none
+    // of a path that contains a non-finite vertex, and says nothing. An
+    // author profile only has to misbehave at a single parameter value to
+    // hit this — sqrt(sin(pi*along)) rounds to a tiny negative at
+    // along == 1 — so a non-finite width is clamped to a LOCAL pinch down
+    // to the spine rather than allowed to erase everything.
+    const auto acrossAt = [&](float distance) {
+      const float width =
+          profile.acrossAt(total > 0 ? (base + distance) / total : 0.0f, total);
+      return std::isfinite(width) ? width : 0.0f;
+    };
+    // THE REAL VERTICES, JOINED. Displacing each sample along its own
+    // single tangent normal overshoots every corner the contour turns
+    // toward the offset side: the two offset edges meet BEFORE the
+    // vertex's perpendicular foot, so the samples nearest the corner sit
+    // past the meeting and the walk doubles back into a small loop. A
+    // cornerless contour has no joins and is walked exactly as it always
+    // was.
+    const std::vector<OffsetJoin> joins =
+        offsetJoins(contour, acrossAt, stride);
+    size_t next = 0;
     bool started = false;
     for (int k = 0; k <= steps; ++k) {
       const float d = len * (float)k / (float)steps;
-      SkPoint pos;
-      SkVector tan;
-      if (!contour->getPosTan(d, &pos, &tan)) continue;
-      // The band's frame: positive across is LEFT of travel, which with y
-      // down is outside a clockwise path. One body for the band's rails
-      // and a relative strand, so the two cannot drift apart.
-      float w = profile.acrossAt(total > 0 ? (base + d) / total : 0.0f, total);
-      // ONE non-finite sample would delete the WHOLE band: Skia draws none
-      // of a path that contains a non-finite vertex, and says nothing. An
-      // author profile only has to misbehave at a single parameter value to
-      // hit this — sqrt(sin(pi*along)) rounds to a tiny negative at
-      // along == 1 — so a non-finite width is clamped to a LOCAL pinch down
-      // to the spine rather than allowed to erase everything.
-      if (!std::isfinite(w)) w = 0.0f;
-      const SkPoint at{pos.fX + tan.y() * w, pos.fY - tan.x() * w};
-      if (!started) {
-        out.moveTo(at);
-        started = true;
-      } else {
-        out.lineTo(at);
-      }
+      while (next < joins.size() && joins[next].distance <= d)
+        appendOffsetJoin(out, joins[next++], started);
+      const auto sample = contour.at(d);
+      if (!sample) continue;
+      if (swallowedByJoin(joins, contour, d)) continue;
+      const float width = acrossAt(d);
+      appendOffsetPoint(out,
+                        {sample->position.x + sample->tangent.y * width,
+                         sample->position.y - sample->tangent.x * width},
+                        started);
     }
-    if (started && contour->isClosed()) out.close();
+    while (next < joins.size()) appendOffsetJoin(out, joins[next++], started);
+    if (started && contour.closed()) out.close();
   }
   return out.detach();
 }

@@ -13,9 +13,16 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkRect.h>
 
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
+#include <vector>
 
 #include "sigilgeometry/path/Band.h"
+#include "sigilgeometry/path/Contour.h"
+#include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/path/Profile.h"
 #include "sigilgeometry/path/Shaper.h"
 
@@ -141,6 +148,177 @@ TEST(Profile, APxKeyedLawIsConvertedOnceByTheSeam) {
 
 // ---------------------------------------------------------------------------
 // The band a width law cuts.
+
+namespace {
+/** A width that VARIES and comes back: positive throughout, and equal at
+ *  0 and 1, so a closed contour's seam is not a width step and a corner
+ *  is the only thing under test. */
+struct Swell {
+  float base = 12.0f;
+  float swing = 6.0f;
+  float across(float along) const {
+    return base + swing * std::sin(2.0f * 3.14159265f * along);
+  }
+  float max() const { return std::abs(base) + std::abs(swing); }
+  bool operator==(const Swell&) const = default;
+};
+
+/** HOW MANY LOOPS A RAIL DOUBLES BACK INTO: the times it crosses itself
+ *  with more than `shorterRunsAreOnePlace` of rail between the two
+ *  crossing edges, counted over its flattened contours. A rail is one
+ *  curve beside another and never a knot.
+ *
+ *  Neighbouring edges share a point and are not a crossing; on a closed
+ *  ring the first and last edges are neighbours too. The length bound is
+ *  the spacing the rail was sampled at: nearer than one sample, a join's
+ *  own points and the samples beside it stand for the same place on the
+ *  spine, and what they enclose is a hairline rather than a corner the
+ *  walk turned inside out. */
+int cornerLoops(const SkPath& rail, float shorterRunsAreOnePlace) {
+  int found = 0;
+  for (const Polyline& ring : flatten(rail)) {
+    const size_t count = ring.points.size();
+    const size_t edges = count < 2 ? 0 : (ring.closed ? count : count - 1);
+    // Where each vertex sits along the rail, so a loop is measured in rail
+    // length rather than in vertices — a join writes several points into
+    // one place and a straight run writes one point per sample.
+    std::vector<float> along(count, 0.0f);
+    for (size_t i = 1; i < count; ++i)
+      along[i] =
+          along[i - 1] + glm::distance(ring.points[i - 1], ring.points[i]);
+    for (size_t first = 0; first + 2 < edges; ++first)
+      for (size_t second = first + 2; second < edges; ++second) {
+        if (ring.closed && first == 0 && second == edges - 1) continue;
+        if (along[second] - along[first] <= shorterRunsAreOnePlace) continue;
+        const Polyline later{
+            {ring.points[second], ring.points[(second + 1) % count]}};
+        found += (int)edgeCrossings(later, ring.points[first],
+                                    ring.points[(first + 1) % count])
+                     .size();
+      }
+  }
+  return found;
+}
+
+/** The spacing `profileOffset` walks a contour at, which is the rail's
+ *  own resolution: a step of about two pixels, or an eighth of a short
+ *  contour. */
+float railSampleStep(const SkPath& spine) {
+  const float len = Contour::of(spine).front().length();
+  return len / (float)std::max(8, (int)std::ceil(len / 2.0f));
+}
+
+/** A regular polygon wound CLOCKWISE in Skia's y-down space, which is
+ *  the winding that makes "inward" unambiguous. */
+SkPath clockwisePolygon(int sides, float radius, float centre) {
+  SkPathBuilder b;
+  for (int k = 0; k < sides; ++k) {
+    const float angle = 2.0f * 3.14159265f * (float)k / (float)sides;
+    const SkPoint at{centre + radius * std::cos(angle),
+                     centre + radius * std::sin(angle)};
+    if (k == 0)
+      b.moveTo(at);
+    else
+      b.lineTo(at);
+  }
+  b.close();
+  return b.detach();
+}
+}  // namespace
+
+TEST(Band, AVaryingRailJoinsAtTheRealVerticesInsteadOfLoopingAtACorner) {
+  const SkPath hexagon = clockwisePolygon(6, 100.0f, 200.0f);
+  ASSERT_GT(flatten(hexagon).front().signedArea(), 0.0f) << "clockwise";
+
+  // The four rails the two formations under test cut, spelled as the laws
+  // the band folds its formation into: positive across is LEFT of travel,
+  // which on a clockwise path is outward, so the negative laws are the
+  // inner rails — the side a turn bends toward and the side that loops.
+  const Profile outward = Swell{};
+  const Profile inward = Swell{-12.0f, -6.0f};
+  const Profile halfOut = Swell{6.0f, 3.0f};
+  const Profile halfIn = Swell{-6.0f, -3.0f};
+  // A rail displaced along one sampled normal per point doubles back
+  // wherever the turn is toward the offset side: the two offset edges
+  // meet BEFORE the vertex's perpendicular foot, so the samples nearest
+  // the corner have already overshot it. Joined at the real vertex it
+  // does not.
+  const float step = railSampleStep(hexagon);
+  EXPECT_EQ(cornerLoops(profileOffset(hexagon, outward), step), 0) << "outward";
+  EXPECT_EQ(cornerLoops(profileOffset(hexagon, inward), step), 0) << "inward";
+  EXPECT_EQ(cornerLoops(profileOffset(hexagon, halfOut), step), 0)
+      << "centered, outer rail";
+  EXPECT_EQ(cornerLoops(profileOffset(hexagon, halfIn), step), 0)
+      << "centered, inner rail";
+
+  // …and the bands built from them still occupy the side they name.
+  const SkPath inwardBand = bandRegion(hexagon, Swell{}, Formation::Inward);
+  const SkPath centeredBand = bandRegion(hexagon, Swell{}, Formation::Centered);
+  ASSERT_FALSE(inwardBand.isEmpty());
+  ASSERT_FALSE(centeredBand.isEmpty());
+  EXPECT_NEAR(inwardBand.getBounds().right(), 300.0f, 1.0f);
+  EXPECT_GT(centeredBand.getBounds().right(), 300.0f);
+
+  // …and the law still holds ALONG each edge: at every edge's midpoint the
+  // rail stands the width the law says, on the side the frame says.
+  const SkPath rail = profileOffset(hexagon, outward);
+  const std::vector<Contour> spine = Contour::of(hexagon);
+  ASSERT_EQ(spine.size(), 1u);
+  const float len = spine.front().length();
+  for (int edge = 0; edge < 6; ++edge) {
+    const float distance = len * ((float)edge + 0.5f) / 6.0f;
+    const auto at = spine.front().at(distance);
+    ASSERT_TRUE(at.has_value());
+    const float width = outward.acrossAt(distance / len, len);
+    const glm::vec2 want{at->position.x + at->tangent.y * width,
+                         at->position.y - at->tangent.x * width};
+    float nearest = 1e9f;
+    for (const Polyline& ring : flatten(rail))
+      for (const glm::vec2& point : ring.points)
+        nearest = std::min(nearest, glm::distance(point, want));
+    EXPECT_LT(nearest, 1.5f) << "edge " << edge;
+  }
+}
+
+TEST(Band, AnOpenVaryingRailJoinsItsCornersAndLeavesItsEndsAlone) {
+  // An open zigzag: one corner turns each way, so for a given side one is
+  // the inside of the turn and the other the outside — which separates
+  // corner joining from anything a closed contour's seam does. The turns
+  // are the hexagon's, near 120° of interior angle: the miter a corner
+  // collapses to reaches `radius / tan(half the interior angle)` past the
+  // vertex, so at a right angle and wider it is inside the window of
+  // samples the join stands for, and below one it is not.
+  SkPathBuilder b;
+  b.moveTo(60, 300);
+  b.lineTo(200, 220);
+  b.lineTo(340, 300);
+  b.lineTo(480, 220);
+  const SkPath zigzag = b.detach();
+  const Profile left = Swell{10.0f, 4.0f};
+  const Profile right = Swell{-10.0f, 4.0f};
+  const float step = railSampleStep(zigzag);
+  EXPECT_EQ(cornerLoops(profileOffset(zigzag, left), step), 0)
+      << "left of travel";
+  EXPECT_EQ(cornerLoops(profileOffset(zigzag, right), step), 0) << "right";
+
+  // The ends are where the spine's ends are, displaced by the law there:
+  // a corner join never moved them.
+  const std::vector<Contour> spine = Contour::of(zigzag);
+  ASSERT_EQ(spine.size(), 1u);
+  const float len = spine.front().length();
+  const std::vector<Polyline> rail = flatten(profileOffset(zigzag, left));
+  ASSERT_EQ(rail.size(), 1u);
+  for (const float distance : {0.0f, len}) {
+    const auto at = spine.front().at(distance);
+    ASSERT_TRUE(at.has_value());
+    const float width = left.acrossAt(distance / len, len);
+    const glm::vec2 want{at->position.x + at->tangent.y * width,
+                         at->position.y - at->tangent.x * width};
+    const glm::vec2 end = distance == 0.0f ? rail.front().points.front()
+                                           : rail.front().points.back();
+    EXPECT_LT(glm::distance(end, want), 0.5f) << "at " << distance;
+  }
+}
 
 TEST(Band, AConstantProfileRidesParallelsCornerRepair) {
   SkPathBuilder b;

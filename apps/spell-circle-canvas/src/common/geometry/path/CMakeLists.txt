@@ -26,7 +26,8 @@ sigil_library(SigilGeometryPath
           Direction.cpp Distorts.cpp Edges.cpp
           Extremes.cpp Fit.cpp Hull.cpp Interpolate.cpp Lattice.cpp
           Multigrid.cpp
-          Neighbours.cpp Noise.cpp Operations.cpp OperationsInternal.h Polyline.cpp Pose.cpp
+          Neighbours.cpp Noise.cpp OffsetInternal.h
+          Operations.cpp OperationsInternal.h Polyline.cpp Pose.cpp
           Projection.cpp
           Scatter.cpp
           Segments.cpp Strips.cpp Symmetry.cpp Tidy.cpp Trace.cpp

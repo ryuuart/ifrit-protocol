@@ -16,6 +16,7 @@
 #include <glm/geometric.hpp>
 #include <utility>
 
+#include "OffsetInternal.h"
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Skia.h"
 
@@ -141,92 +142,110 @@ std::vector<Contour::Corner> Contour::corners(float angleDeg, float minSpacing,
   return corners;
 }
 
+std::vector<OffsetJoin> offsetJoins(
+    const Contour& contour,
+    const std::function<float(float distance)>& acrossAt, float stride) {
+  std::vector<OffsetJoin> joins;
+  for (const Contour::Corner& hit :
+       contour.corners(20.0f, std::max(stride, 1.0f), stride)) {
+    const auto vertex = contour.at(hit.distance);
+    if (!vertex) continue;
+    // `beside` measures to the right of travel; the offset is asked for
+    // on the left.
+    const float side = -acrossAt(hit.distance);
+    OffsetJoin join;
+    join.distance = hit.distance;
+    join.radius = std::abs(side);
+    join.vertex = vertex->position;
+    join.entering = beside({join.vertex, hit.in}, side);
+    join.leaving = beside({join.vertex, hit.out}, side);
+    const float turn = hit.in.x * hit.out.y - hit.in.y * hit.out.x;
+    if (turn * side >= 0.0f && std::abs(turn) > 1e-4f) {
+      // The two offset edges are struck along the SOURCE tangents: a
+      // width that changes along the contour slants each offset edge
+      // against the edge it came from, and the corner is read from the
+      // width AT THE VERTEX rather than from either edge's slant.
+      const glm::vec2 apart = join.leaving - join.entering;
+      const float reach = (apart.x * hit.out.y - apart.y * hit.out.x) / turn;
+      if (std::abs(reach) <= join.radius * 4.0f) {  // a near-reversal miters
+        join.miter = true;                          // to infinity — bevel
+        join.point = {join.entering.x + hit.in.x * reach,
+                      join.entering.y + hit.in.y * reach};
+      }
+    } else if (turn * side < 0.0f) {
+      join.arc = true;
+      join.startRadians = std::atan2(join.entering.y - join.vertex.y,
+                                     join.entering.x - join.vertex.x);
+      const float leavingRadians = std::atan2(join.leaving.y - join.vertex.y,
+                                              join.leaving.x - join.vertex.x);
+      join.sweepRadians = leavingRadians - join.startRadians;
+      while (join.sweepRadians > kPi) join.sweepRadians -= kTau;
+      while (join.sweepRadians < -kPi) join.sweepRadians += kTau;
+    }
+    joins.push_back(join);
+  }
+  return joins;
+}
+
+void appendOffsetPoint(SkPathBuilder& out, glm::vec2 point, bool& started) {
+  if (started) {
+    out.lineTo(toSk(point));
+  } else {
+    out.moveTo(toSk(point));
+    started = true;
+  }
+}
+
+void appendOffsetJoin(SkPathBuilder& out, const OffsetJoin& join,
+                      bool& started) {
+  if (join.miter) {
+    appendOffsetPoint(out, join.point, started);
+    return;
+  }
+  appendOffsetPoint(out, join.entering, started);
+  if (join.arc) {
+    const SkRect oval = SkRect::MakeLTRB(
+        join.vertex.x - join.radius, join.vertex.y - join.radius,
+        join.vertex.x + join.radius, join.vertex.y + join.radius);
+    out.arcTo(oval, join.startRadians * kRadToDeg,
+              join.sweepRadians * kRadToDeg, false);
+  }
+  appendOffsetPoint(out, join.leaving, started);
+}
+
+bool swallowedByJoin(std::span<const OffsetJoin> joins, const Contour& contour,
+                     float distance) {
+  const float len = contour.length();
+  for (const OffsetJoin& join : joins)
+    if (join.miter && ((distance > join.distance - join.radius &&
+                        distance < join.distance + join.radius) ||
+                       (contour.closed() && join.distance < join.radius &&
+                        distance > len - (join.radius - join.distance))))
+      return true;
+  return false;
+}
+
 SkPath parallel(const SkPath& path, float across, float step) {
   if (across == 0) return path;
   // `beside` measures to the right of travel; the parallel is asked for
   // on the left.
   const float side = -across;
   const float stride = std::isfinite(step) ? std::max(step, 0.5f) : 0.5f;
-  const float radius = std::abs(side);
   SkPathBuilder out(path.getFillType());
   for (const Contour& contour : Contour::of(path)) {
     const float len = contour.length();
-    struct Join {
-      float d = 0;
-      bool miter = false;
-      glm::vec2 pt{0, 0};  // miter: the single replacement point
-      glm::vec2 pIn{0, 0}, pOut{0, 0};
-      glm::vec2 vertex{0, 0};
-      float a0 = 0, sweep = 0;
-      bool arc = false;
-    };
-    std::vector<Join> joins;
-    for (const Contour::Corner& hit :
-         contour.corners(20.0f, std::max(stride, 1.0f), stride)) {
-      const auto v = contour.at(hit.distance);
-      if (!v) continue;
-      Join j;
-      j.d = hit.distance;
-      j.vertex = v->position;
-      j.pIn = beside({j.vertex, hit.in}, side);
-      j.pOut = beside({j.vertex, hit.out}, side);
-      const float turn = hit.in.x * hit.out.y - hit.in.y * hit.out.x;
-      if (turn * side >= 0.0f && std::abs(turn) > 1e-4f) {
-        const glm::vec2 d = j.pOut - j.pIn;
-        const float t = (d.x * hit.out.y - d.y * hit.out.x) / turn;
-        if (std::abs(t) <= radius * 4.0f) {  // a near-reversal miters to
-          j.miter = true;                    // infinity — bevel instead
-          j.pt = {j.pIn.x + hit.in.x * t, j.pIn.y + hit.in.y * t};
-        }
-      } else if (turn * side < 0.0f) {
-        j.arc = true;
-        j.a0 = std::atan2(j.pIn.y - j.vertex.y, j.pIn.x - j.vertex.x);
-        const float a1 =
-            std::atan2(j.pOut.y - j.vertex.y, j.pOut.x - j.vertex.x);
-        j.sweep = a1 - j.a0;
-        while (j.sweep > kPi) j.sweep -= kTau;
-        while (j.sweep < -kPi) j.sweep += kTau;
-      }
-      joins.push_back(j);
-    }
+    const std::vector<OffsetJoin> joins =
+        offsetJoins(contour, [across](float) { return across; }, stride);
     size_t next = 0;
-    bool first = true;
-    const auto push = [&](glm::vec2 p) {
-      if (first) {
-        out.moveTo(toSk(p));
-        first = false;
-      } else {
-        out.lineTo(toSk(p));
-      }
-    };
+    bool started = false;
     for (float d = 0;; d += stride) {
       const float at = std::min(d, len);
-      while (next < joins.size() && joins[next].d <= at) {
-        const Join& j = joins[next++];
-        if (j.miter) {
-          push(j.pt);
-        } else {
-          push(j.pIn);
-          if (j.arc) {
-            const SkRect oval =
-                SkRect::MakeLTRB(j.vertex.x - radius, j.vertex.y - radius,
-                                 j.vertex.x + radius, j.vertex.y + radius);
-            out.arcTo(oval, j.a0 * kRadToDeg, j.sweep * kRadToDeg, false);
-          }
-          push(j.pOut);
-        }
-      }
-      const auto s = contour.at(at);
-      if (!s) break;
-      bool swallowed = false;
-      for (const Join& j : joins)
-        if (j.miter &&
-            ((at > j.d - radius && at < j.d + radius) ||
-             (contour.closed() && j.d < radius && at > len - (radius - j.d)))) {
-          swallowed = true;
-          break;
-        }
-      if (!swallowed) push(beside(*s, side));
+      while (next < joins.size() && joins[next].distance <= at)
+        appendOffsetJoin(out, joins[next++], started);
+      const auto sample = contour.at(at);
+      if (!sample) break;
+      if (!swallowedByJoin(joins, contour, at))
+        appendOffsetPoint(out, beside(*sample, side), started);
       if (at >= len) break;
     }
     if (contour.closed()) out.close();

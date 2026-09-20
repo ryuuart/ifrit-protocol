@@ -27,8 +27,11 @@ namespace sigil::geometry::path {
 enum class Formation : uint8_t { Centered, Outward, Inward };
 
 /** Displace a path in its own (along, across) frame — the primitive
- *  behind a relative strand, and exactly the band's frame. A constant
- *  profile delegates to `parallel`, which means the same side.
+ *  behind a relative strand, and exactly the band's frame. Whatever the
+ *  law, a corner is joined at the contour's REAL VERTEX — arc outside a
+ *  turn, miter inside — rather than chorded across; a constant profile
+ *  delegates to `parallel`, which means the same side and answers the
+ *  same rail to the bit.
  *
  *  It is `operations::offset` under a WIDTH LAW rather than a distance, which
  *  is a different axis of generality and not a case of it: the operator
@@ -38,10 +41,10 @@ enum class Formation : uint8_t { Centered, Outward, Inward };
 SkPath profileOffset(const SkPath& spine, const Profile& profile);
 
 /** THE REGION a band occupies: the spine walked at both profile rails,
- *  per contour, through `profileOffset` — so corners get `parallel`'s
- *  real-vertex repair (arc outside a turn, miter inside) instead of the
+ *  per contour, through `profileOffset` — so corners get the real-vertex
+ *  repair (arc outside a turn, miter inside) instead of the
  *  sample-and-displace spur a naive walk leaves on the inside of every
- *  rectangle.
+ *  rectangle, whether the width is constant or varies.
  *
  *  Public because a varying-width MARK along a spine IS this region: a
  *  milled groove, or a ribbon, is this band filled. Sharing one geometry
