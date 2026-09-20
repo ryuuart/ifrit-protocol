@@ -84,7 +84,7 @@ Effect Effect::recipe(const Material& material, float sampleRadius) {
   // one named input each, so a body needing a blurred copy of its input
   // reads one tap of it rather than gathering the blur per pixel.
   std::vector<std::string_view> leave{"content"};
-  std::vector<sk_sp<SkImageFilter>> inputs{nullptr};
+  std::vector<const LayerSlot*> derived;
   for (const LayerSlot& slot : material.recipe().layerSlots()) {
     if (slot.name == "content") continue;
     // An author who filled it wins: their source is bound by the
@@ -92,11 +92,18 @@ Effect Effect::recipe(const Material& material, float sampleRadius) {
     if (material.slot(slot.name) || material.leaf(slot.name)) continue;
     if (!material.recipe().samples(Target::SkSL, slot.name)) continue;
     leave.push_back(slot.name);
-    inputs.push_back(layerFilterFor(material, slot));
+    derived.push_back(&slot);
   }
   std::unique_ptr<SkRuntimeShaderBuilder> built =
       skia::builder(material, {}, {}, leave);
   if (!built) return {};
+  // The amounts come AFTER the builder, from the resolve it has just
+  // made: the backend registers its compiler on that call and memoises
+  // what it sampled, so reading a field first would look the program up
+  // before there was one to find and report a recipe that compiles.
+  std::vector<sk_sp<SkImageFilter>> inputs{nullptr};
+  for (const LayerSlot* slot : derived)
+    inputs.push_back(layerFilterFor(material, *slot));
   const float reach = std::max(0.0f, sampleRadius);
   Effect effect =
       leave.size() == 1
