@@ -1,6 +1,7 @@
 #include <pybind11/stl.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
+#include <sigilpython/skia/Values.h>
 #include <sigilpython/weave/Registration.h>
 #include <sigilweave/kit/Features.h>
 #include <sigilweave/kit/Labels.h>
