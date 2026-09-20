@@ -74,6 +74,29 @@ class MovedNames(unittest.TestCase):
         for value in (native.Mesh, native.Edge, native.ExtrudeOptions):
             self.assertEqual(value.__module__, "sigil.geometry.mesh")
 
+    def test_the_readings_the_tier_gained_are_reached_by_their_public_name(self):
+        # An author imports the public package, so a reading the module
+        # registers that the package does not re-export is a reading
+        # nobody can call.
+        for name in (
+            "Edge",
+            "ExtrudeOptions",
+            "PlatonicOptions",
+            "RevolveOptions",
+            "bakePrimitiveColor",
+            "basisFor",
+            "edges",
+            "faceCentroid",
+            "faceCount",
+            "faceNormal",
+            "faceUp",
+            "kNoFace",
+            "normalized",
+            "opposedFace",
+        ):
+            self.assertIs(getattr(mesh, name), getattr(native, name), name)
+            self.assertIn(name, mesh.__all__)
+
     def test_the_generators_answer_what_they_answered(self):
         solid = native.platonic(native.Platonic.Dodecahedron, radius=63)
         self.assertEqual(solid.triangleCount(), 36)
