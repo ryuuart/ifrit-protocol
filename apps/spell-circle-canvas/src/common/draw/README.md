@@ -253,10 +253,14 @@ beside the verbs, never a renamed one.
   arc, a `beginShape` outline, the outline of a per-corner mesh, a
   glyph's stroke — except `point`, which is a disc and not a stroke.
 * **A silhouette is a shape.** `shape(silhouette, x, y, w, h)` fits any
-  value with `path(SkSize)` — the geometry kit's `star`, `polygon`,
-  `squircle`, `blob`, `annulus`, or one of your own — to the box the
-  rect mode reads from the four numbers, and `shape(SkPath)` draws a
-  path as it stands. p5's primitives themselves go straight to the
+  comparable value with `path(SkSize)` — the geometry kit's `star`,
+  `polygon`, `squircle`, `blob`, `annulus`, or one of your own — to the
+  box the rect mode reads from the four numbers, and `shape(SkPath)`
+  draws a path as it stands. The concept a value answers is the geometry
+  kit's, declared beside the generators, and it asks for comparability
+  because an empty closure's compiler-written equality is vacuously true
+  and would call two different drawings the same one. p5's primitives
+  themselves go straight to the
   canvas: a circle is `drawOval`, a rounded rect is an `SkRRect`, an arc
   is `drawArc`, and nothing here re-derives what Skia already draws.
 * **Text is shaped.** `text` goes through SigilWeave — kerned, itemised,
@@ -405,8 +409,7 @@ src/common/draw/
   include/sigildraw/
     Draw.h        the umbrella
     Pen.h         the pen
-    PenTypes.h    Frame, ClipOptions, and the Retainable and Silhouette
-                  concepts
+    PenTypes.h    Frame, ClipOptions, and the Retainable concept
     Constants.h   p5's words and angles
     Color.h       ColorMode, colorFrom(), parseColor()
     Noise.h       NoiseField
@@ -504,50 +507,36 @@ src/common/draw/
   artwork inside a brush to SigilImage. Where the bytes came from —
   URIs, mounts, caching, reload — is SigilIO's, and no file is opened
   here in either direction.
-* **Never reads the wall.** Every number a pen answers about time comes
-  from the frame it was given.
-
 ## Build and test
 
-From `apps/spell-circle-canvas`:
+[docs/overview/testing.md](../../../docs/overview/testing.md) is the
+contract every library here is built, tested and measured under: one
+`draw_test` over every feature's `test/` and one `draw_bench`, ctest one
+entry per CASE, what a case may pin, and what a label promises. Targets:
+`SigilDraw`, `SigilDrawBrush` and `SigilDrawBrushFormat`, one per
+feature directory (`.`, `brush/`, `brush/format/`). What is only true of
+SigilDraw:
 
-Targets: `SigilDraw`, `SigilDrawBrush` and `SigilDrawBrushFormat` — one
-per feature directory (`.`, `brush/`, `brush/format/`) — with one test
-binary, `draw_test`, over every one of their `test/` directories and one
-benchmark binary, `draw_bench`, over the two `bench/` ones.
-
-```sh
-cmake --build build --config Release --target draw_test draw_bench
-ctest --test-dir build -C Release --output-on-failure
-./build/bin/Release/benches/draw_bench
-```
-
-`draw_test` holds p5's semantics to the pen — a rect at `rectMode(CENTER)`
-lands where p5 says, `push`/`pop` restores fill and transform, an arc
-fills the pie unless `CHORD`, one seed gives one sequence on every pen
-and a draw lands inside the range it was asked for, `noise` at a
-lattice corner is the corner the field names, `noSmooth` sampling an image
-nearest-neighbour, a `fill` between two vertices colouring the corners
-either side of it — and this library's own: a material as a fill, a
-silhouette as a shape, a guest retained per call site, the canvas
-carrying the pen's transform, an offscreen buffer formed at the host's
-density or a declared floor and put down in canvas units and keeping
-what it held across a
-resize, a pen beginning in an inherited ink and font and dropping both
-for whatever the program set itself, a unit-space material ramping
-across the frame under `CANVAS` and across each box under `SHAPE`, a
-built `SkVertices` drawn with the pen's fill and moved by the pen's
-transform, and both paints answering null where the style says there is
-nothing to draw with. The text cases hold text shaped and centred by its
-alignment, seated by its box, black until a fill is set and in the ink
-once one was seeded; they shape
+`draw_test` holds p5's semantics to the pen — a rect at
+`rectMode(CENTER)` lands where p5 says, `push`/`pop` restores fill and
+transform, an arc fills the pie unless `CHORD`, one seed gives one
+sequence on every pen and a draw lands inside the range it was asked
+for, `noise` at a lattice corner is the corner the field names,
+`noSmooth` sampling an image nearest-neighbour, a `fill` between two
+vertices colouring the corners either side of it — and this library's
+own: a material as a fill, a silhouette as a shape, a guest retained per
+call site, the canvas carrying the pen's transform, an offscreen buffer
+formed at the host's density or a declared floor and put down in canvas
+units and keeping what it held across a resize, a pen beginning in an
+inherited ink and font and dropping both for whatever the program set
+itself, a unit-space material ramping across the frame under `CANVAS`
+and across each box under `SHAPE`, a built `SkVertices` drawn with the
+pen's fill and moved by the pen's transform, and both paints answering
+null where the style says there is nothing to draw with. The text cases
+hold text shaped and centred by its alignment, seated by its box, black
+until a fill is set and in the ink once one was seeded; they shape
 against the tree's instrument face, so they pin relations rather than
-pixels. The one case that names no face reads the machine's own
-families, and it alone — the `PenMachineFace` suite — carries the
-`fonts` ctest label. `draw_bench` times ten thousand circles filled and stroked,
-ten thousand rects, a screen of text, a translucent background and a
-thousand noise samples per frame; it builds through the `benches` target
-and runs through `scripts/sigil.py bench`.
+pixels.
 
 The brush cases are one file per subject: the sampler's spacing across
 uneven events and the first dab's heading; segment and spline pressure;
@@ -566,28 +555,29 @@ both axes and the angle jitter on top of the heading; the grain standing
 still in the pen's space or riding the stamp, and how much of the canvas
 its depth may take; the trace that follows any callable direction, the
 stock fields as values with the vortex turning clockwise, and the warp
-that closes its path; and the engine — selection and state, the pen's units and clock,
-one clip over every interior and the outline, a closed shape's outline
-on its bent interior, plots placed where they were drawn, live input
-across event batches, the first live dab's heading, and cancel.
-The brush-format cases build every fixture in memory — a tip drawn
-and encoded to PNG, a zip written entry by entry, an `.abr` written
-field by field — so no case reads a file this repository ships: a native
+that closes its path; and the engine — selection and state, the pen's
+units and clock, one clip over every interior and the outline, a closed
+shape's outline on its bent interior, plots placed where they were
+drawn, live input across event batches, the first live dab's heading,
+and cancel.
+
+The brush-format cases build every fixture in memory — a tip drawn and
+encoded to PNG, a zip written entry by entry, an `.abr` written field by
+field — so no case reads a file this repository ships: a native
 directory through a table and through a hub, the packed archive, the
 `.brush` giving up its two pictures, the `.abr` giving up both its
 sampled tips at either subversion, and bytes that are no brush answering
 nothing.
 
 The cases that put pixels down draw on one fixture,
-`test/support/Paper.h` — a pen
-over a raster surface with the pixels readable back — whose font context
-is the tree-wide `src/test/Fonts.h`, so one process shapes against one
-memoised context. A case asserts one thing the pen promises and is
-named that promise as a sentence; it pins only what editing this library
-could falsify, and the one case whose claim depends on the machine's
-faces — the `PenMachineFace` suite — carries the `fonts` label.
+`test/support/Paper.h` — a pen over a raster surface with the pixels
+readable back. The one case that names no face reads the machine's own
+families, and it alone — the `PenMachineFace` suite — carries the
+`fonts` label.
 
-The brush arms of `draw_bench` measure sampling, a field-traced watercolor mark,
-hatching, a curved dry mass, a pigment wash, and one stroke of an
-imported brush — the shape stamped per dab, alone and under each of the
-two grain spaces.
+`draw_bench` times ten thousand circles filled and stroked, ten thousand
+rects, a screen of text, a translucent background and a thousand noise
+samples per frame; its brush arms measure sampling, a field-traced
+watercolor mark, hatching, a curved dry mass, a pigment wash, and one
+stroke of an imported brush — the shape stamped per dab, alone and under
+each of the two grain spaces.
