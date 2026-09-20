@@ -3,37 +3,22 @@
 /** @file
  * @ingroup data-decode
  * A FLATBUFFER AS A VALUE, and the decoder that puts one on a hub.
- *
  * There are two of them, for the two things a holder may know about the
  * message: `FlatBuffer<Root>` where a generated header names the root,
  * and `SchemaBuffer` where a schema token names it instead. The first
  * reads fields through the generated accessors; the second reads the
- * schema's own JSON form, which is all a holder with no generated
- * header can name a field by.
+ * schema's own JSON form.
  *
  * A FlatBuffer is read in place: its root is a pointer into its bytes,
  * so the value IS the bytes, verified once against the schema and read
  * through the generated accessors from then on. The decoder answers a
  * Root for the bytes a hub hands it whether they are the buffer itself
- * or the schema's own JSON form — a scene written by hand, or sent by
- * something that speaks JSON — which the schema converts. After
- * `registerFlatBuffer<Root>(hub)`, `hub.load<FlatBuffer<Root>>(uri)` answers,
- * cached and reloaded like any resource the hub holds.
+ * or the schema's own JSON form, which the schema converts.
  *
- * THE SCHEMA COMES FROM THE GENERATED CODE. A header written with
- * `flatc --cpp -b --schema --bfbs-gen-embed` carries the binary schema
- * beside every root, as `Root::BinarySchema`, so nothing here reads a
- * schema file. A header written without it still decodes the buffer
- * itself; only the JSON form needs the schema, and a Root that carries
- * none refuses that form.
- *
- * Speaks io's byte vocabulary and flatbuffers, and nothing else of io:
- * `registerFlatBuffer` is a template over the hub. Of flatbuffers it
- * opens the buffer's own header alone — the verifier that checks bytes
- * and the accessor that reads a root out of them — because that is what
- * this value IS. The reader that converts the JSON form is named
- * nowhere here: the conversion goes through a schema token, which is one
- * pointer to a state defined out of sight.
+ * THE SCHEMA COMES FROM THE GENERATED CODE, as `Root::BinarySchema`, so
+ * nothing here reads a schema file and a Root carrying none refuses the
+ * JSON form. Speaks io's byte vocabulary and flatbuffers, and nothing
+ * else of io.
  */
 
 #include <flatbuffers/flatbuffers.h>
@@ -142,18 +127,11 @@ void registerFlatBuffer(Hub& hub) {
 
 /** A FLATBUFFER WHOSE ROOT A SCHEMA NAMES rather than a generated C++
  *  type: the same bytes, verified against that root through the schema
- *  token and read back through it.
- *
- *  It is what a holder that has no generated header carries — a tool
- *  handed a `.bfbs`, a process that compiles no header at all — and it
- *  answers the buffer's own JSON form rather than typed accessors,
- *  since the names of the fields are in the schema and nowhere in the
- *  message. Where the generated root IS in reach, `FlatBuffer<Root>`
- *  reads the same bytes field by field and converts nothing.
- *
- *  The value is the bytes, as a FlatBuffer is; the schema rides along
- *  because reading a field needs it, and costs the one pointer a
- *  token is. */
+ *  token and read back through it. What a holder that compiles no
+ *  generated header carries; the value is the bytes, and the schema
+ *  rides along for the one pointer a token is.
+ *  @trap It answers the buffer's own JSON form and not typed
+ *  accessors, the names of the fields being in the schema alone. */
 class SchemaBuffer {
  public:
   /** Takes ownership of @p bytes, which are read through @p schema as
@@ -171,7 +149,8 @@ class SchemaBuffer {
   /** THE BUFFER AS THE SCHEMA'S OWN JSON FORM, which is how a holder
    *  with no generated accessors reads a field. Nothing where the bytes
    *  are not the root after all, and @p why says so where it is asked
-   *  for. The form is made on each ask rather than held, the value
+   *  for.
+   *  @trap The form is made on each ask rather than held, the value
    *  being the bytes. */
   [[nodiscard]] std::optional<std::string> text(
       std::string* why = nullptr) const {
@@ -234,10 +213,10 @@ struct SchemaBufferDecoder {
 };
 
 /** Puts the decoder for @p schema on @p hub, so `load<SchemaBuffer>`
- *  answers. A hub holds one decoder per type and a SchemaBuffer is one
- *  type however many schemas there are, so a second call replaces the
- *  schema later asks are read through: a hub reading two wires of
- *  different schemas at once wants a hub for each. */
+ *  answers.
+ *  @trap A hub holds one decoder per type and a SchemaBuffer is one
+ *  type however many schemas there are, so a second call REPLACES the
+ *  schema later asks are read through. */
 template <typename Hub>
 void registerSchemaBuffer(Hub& hub, Schema schema) {
   hub.template registerDecoder<SchemaBuffer>(

@@ -8,12 +8,8 @@
  * time column of instants, and one bit per cell saying whether the
  * source had a value there at all.
  *
- * It is a value: copied, compared and returned. Every reshaping —
- * selecting columns, filtering rows, sorting, grouping — answers a new
- * table and leaves this one alone, and every one of them is the same
- * row-picking underneath, so a filter and a sort compose without either
- * knowing about the other.
- *
+ * It is a value: every reshaping answers a new table and leaves this
+ * one alone, and every one of them is the same row-picking underneath.
  * Standard library only.
  */
 
@@ -155,20 +151,8 @@ class Column {
   std::vector<bool> m_absent;
 };
 
-/** THE TABLE.
- *
- *  ```
- *  Table t;
- *  t.add("month", std::vector<std::string>{"Jan", "Feb"});
- *  t.add("deaths", std::vector<double>{2761, 2120});
- *  t.derive("root", [&](size_t row) {
- *    return std::sqrt(t.column<double>("deaths")[row]);
- *  });
- *
- *  const Table worst = t.sort("deaths", Order::Descending);
- *  for (double d : worst.column<double>("deaths")) mark(d);
- *  ```
- */
+/** THE TABLE: named columns added, derived, selected, filtered, sorted
+ *  and grouped, every one of those answering a new table. */
 class Table {
  public:
   /** One key and the rows that carry it. */
@@ -273,9 +257,9 @@ class Table {
   }
 
   /** THE ROWS ORDERED BY @p name, ties keeping the order they had.
-   *  Missing cells go last whichever way the order runs, because a gap
-   *  is not the smallest value — it is no value. An unknown column
-   *  leaves the order alone. */
+   *  Missing cells go LAST whichever way the order runs, because a gap
+   *  is not the smallest value — it is no value.
+   *  @silent an unknown column, which leaves the order alone. */
   Table sort(std::string_view name, Order order = Order::Ascending) const;
 
   /** THE ROWS GATHERED BY THE VALUE IN @p name, groups in the order

@@ -3,39 +3,16 @@
 /** @file
  * @ingroup data-values
  * WHAT A GENERATED VALUE HEADER STANDS ON: the readings and the
- * writings every schema needs, with no schema in any of them.
+ * writings every schema needs, with no schema in any of them. A
+ * generated accessor answers a pointer into the bytes; a consumer that
+ * wants a value — something it can copy, hold past the bytes, compare
+ * and edit — spells the same conversions at every field, and these are
+ * those conversions, written once.
  *
- * A FlatBuffer is read in place, and a generated accessor answers a
- * pointer into the bytes: a string is a `flatbuffers::String*` that may
- * be null, a vector is a `flatbuffers::Vector*` that may be null, and a
- * struct is a pointer at an offset. A consumer that wants a value —
- * something it can copy, hold past the bytes, compare and edit — spells
- * the same three conversions at every field. These are those
- * conversions, written once.
- *
- * ABSENT IS THE EMPTY VALUE for a string and for a vector: the wire
- * carries no difference between a field left out and one written empty,
- * so a reading that answered an optional would invent one. A field the
- * schema declares REQUIRED is the exception, and the generated reading
- * refuses a buffer that left it out rather than answering an empty
- * value for it.
- *
- * THE VERIFIER IS RUN IN ONE PLACE: `rootOf()`, which every generated
- * reading of a whole buffer goes through, so bytes that are not the
- * schema's answer nothing rather than a reading of whatever they were.
- * Reading a table that is already inside a verified buffer runs no
- * second verification.
- *
- * A VALUE'S OWN READING IS NAMED ONCE. `Read<Value>` is the seam a
- * generated header specializes: it says how that value is read out of
- * bytes, so a reader that names the value type reaches the reading
- * without naming it, and a door templated over the value compiles
- * against this header alone.
- *
- * Of flatbuffers this opens the buffer's own header alone — the
- * builder, the verifier, the vector and the string — because a value is
- * read off those and written back through them. Nothing here knows a
- * schema, and nothing here is generated.
+ * ABSENT IS THE EMPTY VALUE for a string and for a vector, a REQUIRED
+ * field being the exception. THE VERIFIER IS RUN IN ONE PLACE,
+ * `rootOf()`. Nothing here knows a schema, and nothing here is
+ * generated.
  */
 
 #include <flatbuffers/flatbuffers.h>
@@ -229,17 +206,12 @@ auto writeEach(flatbuffers::FlatBufferBuilder& into,
 }
 
 /** HOW ONE VALUE IS READ OUT OF BYTES, for a reader that names the
- *  value and not the reading. A specialization declares
- *
- *      static std::optional<Value> from(std::span<const std::byte> bytes);
- *
- *  which verifies the bytes against that value's root and answers
- *  nothing where they are not it. A generated header writes one for
- *  every table of its schema, beside the reading it stands on.
- *
- *  The primary template is left UNDEFINED, so a value nobody wrote a
- *  reading for is a name that cannot be completed rather than a reading
- *  that always answers nothing. */
+ *  value and not the reading. A specialization declares one static
+ *  `from(std::span<const std::byte>)` answering an optional Value,
+ *  which a generated header writes for every table of its schema.
+ *  @trap The primary template is left UNDEFINED, so a value nobody
+ *  wrote a reading for is a name that cannot be completed rather than
+ *  a reading that always answers nothing. */
 template <class Value>
 struct Read;
 
