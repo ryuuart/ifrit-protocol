@@ -191,39 +191,42 @@ encoding are outside this surface.
 
 ## Build and test
 
-From `apps/spell-circle-canvas`:
-
-```sh
-python3 scripts/sigil.py setup --config Release
-cmake --build build --config Release --target video_test
-ctest --test-dir build -C Release --output-on-failure
-```
+[docs/overview/testing.md](../../../docs/overview/testing.md) is the
+contract every library here is built, tested and measured under: one
+`video_test` and one `video_bench`, ctest one entry per CASE, what a
+case may pin, and what a label promises. What is only true of
+SigilVideo:
 
 The encode cases create a short MP4 in memory, decode it through
-`SigilVideoDecode`, and check its timing and that the colours it was given
-read back through the CPU executor, beside the odd dimensions an encoder
-refuses, what a finished encoder refuses, the frameless finish it refuses,
-and the extensions `formatForPath` recognises. One of them re-containers
-that MP4 as a bare H.264 elementary stream, which is a stream whose frames
-carry no timestamps at all, and asks it for frames on either side of the
-playhead. The decode cases cover input that is not a video (one parameterised
-case over no bytes at all and bytes of something else), alpha, seeking,
-a non-looping and a looping `draw` outside the duration,
-the cache's capacity, `Playback` in its synchronous mode
-(`workerThreads = 0`, so a request is decoded before it returns) and its
-worker pool torn down with requests still in flight — nothing in either
-waits on a clock — and what
-`HardwarePreference::Required` means — device frames or no frames,
-asserted on whichever arm this build takes rather than on one platform. The `VideoDevice` suite
-exercises the native device path on a Graphite Metal surface where the
-platform makes VideoToolbox available; it carries the `gpu` ctest label.
-`video_bench` measures independent mixed-resolution clocks through
-the device path in two arms: `BM_RenderThread` pulls every stream with
-`frameAt` on the thread that presents, and `BM_WorkerPool` drives the same
-streams through `Playback` paced at the presentation rate, timing the render
-thread's own work alone. Each arm prints a `VIDEO_DEVICE` line stating how
-many hardware decompression sessions the device granted and the native,
-ready and fresh frame percentages beside the frame time. `--streams`,
-`--surfaces`, `--rate` and `--workers` override the arms' own counts; a
-stream count past what the device will grant sessions for is what makes the
-native percentage report where that limit lies.
+`SigilVideoDecode`, and check its timing and that the colours it was
+given read back through the CPU executor, beside the odd dimensions an
+encoder refuses, what a finished encoder refuses, the frameless finish
+it refuses, and the extensions `formatForPath` recognises. One of them
+re-containers that MP4 as a bare H.264 elementary stream, which is a
+stream whose frames carry no timestamps at all, and asks it for frames
+on either side of the playhead.
+
+The decode cases cover input that is not a video (one parameterised case
+over no bytes at all and bytes of something else), alpha, seeking, a
+non-looping and a looping `draw` outside the duration, the cache's
+capacity, `Playback` in its synchronous mode (`workerThreads = 0`, so a
+request is decoded before it returns) and its worker pool torn down with
+requests still in flight — nothing in either waits on a clock — and what
+`HardwarePreference::Required` means: device frames or no frames,
+asserted on whichever arm this build takes rather than on one platform.
+
+The `VideoDevice` suite exercises the native device path on a Graphite
+Metal surface where the platform makes VideoToolbox available; it
+carries the `gpu` label.
+
+`video_bench` measures independent mixed-resolution clocks through the
+device path in two arms: `BM_RenderThread` pulls every stream with
+`frameAt` on the thread that presents, and `BM_WorkerPool` drives the
+same streams through `Playback` paced at the presentation rate, timing
+the render thread's own work alone. Each arm prints a `VIDEO_DEVICE`
+line stating how many hardware decompression sessions the device
+granted and the native, ready and fresh frame percentages beside the
+frame time. `--streams`, `--surfaces`, `--rate` and `--workers` override
+the arms' own counts; a stream count past what the device will grant
+sessions for is what makes the native percentage report where that
+limit lies.
