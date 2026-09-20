@@ -38,10 +38,10 @@ namespace sigil::weave::ports {
  */
 sk_sp<SkFontMgr> systemFontManager();
 
+namespace detail {
 /** A chain spelled out at a call site, as the views the resolving calls
  *  read. A name written as a null pointer becomes an empty view, which
  *  those calls pass over. */
-namespace detail {
 inline std::vector<std::string_view> familyChain(
     std::initializer_list<const char*> families) {
   std::vector<std::string_view> chain;
