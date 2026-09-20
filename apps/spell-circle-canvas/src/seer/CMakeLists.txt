@@ -15,7 +15,8 @@
 #
 # Two targets: the archive below, and the application over it in app/.
 sigil_library_root(SigilSeer
-  BRIEF "Seer: every wire a sketch listens on, what arrives there, and what is sent back")
+  BRIEF "Seer: every wire a sketch listens on, what arrives there, and what is sent back"
+  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/reference/WIRES.md)
 
 add_subdirectory(wire)
 
@@ -31,9 +32,11 @@ add_subdirectory(app)
 # this library's own headers do not is opened here.
 sigil_doc_probes(seer
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/WIRES.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../common/io/include/sigilio
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/data/include/sigildata
   PRELUDES "<sigilio/hub/Feed.h>" "<sigilio/hub/Hub.h>"
            "<sigildata/decode/FlatBuffer.h>" "<sigildata/decode/Midi.h>"
            "<sigildata/decode/ArtNet.h>"
+  FLOORS 22,5,20,0,0
   LIBRARIES SigilSeerWire SigilDataDecode)
