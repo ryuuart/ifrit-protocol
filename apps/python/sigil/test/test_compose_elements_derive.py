@@ -650,6 +650,12 @@ class Session(unittest.TestCase):
             + textwrap.indent(textwrap.dedent(drawing).strip("\n"), "    ")
         )
 
+    def assertNumbers(self, actual, expected):
+        """Every number of @p actual beside its peer, within a layout's rounding."""
+        self.assertEqual(len(actual), len(expected))
+        for value, wanted in zip(actual, expected, strict=True):
+            self.assertAlmostEqual(value, wanted, places=3)
+
     def red(self, picture, x, y):
         """Whether the canvas is stroke red at @p x, @p y, at any density."""
         column = x * picture.width() // self.SIZE[0]
@@ -712,7 +718,9 @@ class Routes(Session):
                 wire(compose.connector('a', 'b', under)),
             ))
         """)
-        self.assertEqual(self.results["rects"], [(4, 12, 8, 8), (52, 12, 8, 8)])
+        from_, to = self.results["rects"]
+        self.assertNumbers(from_, (4, 12, 8, 8))
+        self.assertNumbers(to, (52, 12, 8, 8))
         self.assertEqual(self.results["kinds"], ["Rect", "Rect"])
         self.assertTrue(self.red(picture, 30, 28))
         self.assertFalse(self.red(picture, 30, 16))
@@ -746,7 +754,11 @@ class Routes(Session):
         """)
         # A bound anchor is its normalized point on the node's rect, and a
         # free one is the point it was given.
-        self.assertEqual(self.results["run"], [(8, 16), (32, 4), (52, 16)])
+        self.assertEqual(len(self.results["run"]), 3)
+        for point, wanted in zip(
+            self.results["run"], [(8, 16), (32, 4), (52, 16)], strict=True
+        ):
+            self.assertNumbers(point, wanted)
         self.assertTrue(self.red(picture, 32, 4))
 
     def test_a_tether_hangs_a_box_where_place_says(self):
@@ -759,8 +771,8 @@ class Routes(Session):
             results['tip'] = edges(probe.bounds('tip'))
             results['placed'] = edges(above.place(probe.bounds('dial'), (10, 6)))
         """)
-        self.assertEqual(self.results["tip"], (23, 8, 10, 6))
-        self.assertEqual(self.results["placed"], self.results["tip"])
+        self.assertNumbers(self.results["tip"], (23, 8, 10, 6))
+        self.assertNumbers(self.results["placed"], self.results["tip"])
 
     def test_a_fallback_is_taken_when_the_stated_tether_does_not_fit(self):
         self.frame("""
@@ -773,7 +785,7 @@ class Routes(Session):
             results['tip'] = edges(probe.bounds('tip'))
         """)
         # Above would leave the composer's bounds by four pixels.
-        self.assertEqual(self.results["tip"], (23, 12, 10, 6))
+        self.assertNumbers(self.results["tip"], (23, 12, 10, 6))
 
     def test_a_tether_to_a_key_nothing_carries_places_nothing(self):
         self.frame("""
@@ -784,7 +796,7 @@ class Routes(Session):
             ))
             results['tip'] = edges(probe.bounds('tip'))
         """)
-        self.assertEqual(self.results["tip"], (5, 7, 10, 6))
+        self.assertNumbers(self.results["tip"], (5, 7, 10, 6))
 
 
 class Lifetimes(Session):
