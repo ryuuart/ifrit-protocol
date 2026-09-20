@@ -345,6 +345,7 @@ class Verb(unittest.TestCase):
 class Session(unittest.TestCase):
     """A scene rendered through the native host, read back pixel by pixel."""
 
+    SIZE = 40
     LEFT, RIGHT = (5, 20), (35, 20)
     TOP_LEFT, BOTTOM_LEFT = (5, 5), (5, 35)
     WHITE, BLACK = (255, 255, 255, 255), (0, 0, 0, 255)
@@ -357,40 +358,46 @@ class Session(unittest.TestCase):
         self.addCleanup(delattr, builtins, "_sigil_mask_results")
 
     def render(self, element):
+        """Render @p element as the one child of a sketch's root."""
+        size, half = self.SIZE, self.SIZE // 2
         source = Path(self.directory.name) / "scene.py"
         output = Path(self.directory.name) / "scene.png"
         source.write_text(
             "import builtins\n"
             "from _sigil import compose as native\n"
-            "from sigil import material, motion, skia\n"
+            "from sigil import material, motion\n"
             "from sigil.compose import box, spans\n"
             "from sigil.sketch import sketch\n"
             "by, parts = native.by, native.parts\n"
             "Region, Paint = native.Region, material.Paint\n"
             "results = builtins._sigil_mask_results\n"
             "def plate():\n"
-            "    return box().width(40).height(40).fill('#ffffff')\n"
-            "LEFT_HALF = Region.rect((0, 0, 20, 40))\n"
-            "TOP_HALF = Region.rect((0, 0, 40, 20))\n"
-            "@sketch(size=(40, 40), background='#000000', capture_at=0)\n"
+            f"    return box().width({size}).height({size}).fill('#ffffff')\n"
+            f"LEFT_HALF = Region.rect((0, 0, {half}, {size}))\n"
+            f"TOP_HALF = Region.rect((0, 0, {size}, {half}))\n"
+            f"@sketch(size=({size}, {size}), background='#000000', capture_at=0)\n"
             "class Scene:\n"
             "    def setup(self, ctx):\n"
-            "        ctx.render(\n"
+            "        ctx.render(box().children([\n"
             + textwrap.indent(textwrap.dedent(element).strip(), "            ")
-            + "\n        )\n"
+            + "\n        ]))\n"
         )
         render_file(source, output, at=0)
         self.picture = image.decode(output.read_bytes())
 
     def pixel(self, point):
+        """The colour at a canvas point, at whatever density the frame has."""
         x, y = point
-        offset = 4 * (y * self.picture.width() + x)
+        column = x * self.picture.width() // self.SIZE
+        row = y * self.picture.height() // self.SIZE
+        offset = 4 * (row * self.picture.width() + column)
         return tuple(self.picture.rgba()[offset : offset + 4])
 
     def test_an_unmasked_plate_covers_the_frame(self):
         self.render("plate()")
-        self.assertEqual(self.pixel(self.LEFT), self.WHITE)
-        self.assertEqual(self.pixel(self.RIGHT), self.WHITE)
+        for point in (self.LEFT, self.RIGHT, self.TOP_LEFT, self.BOTTOM_LEFT):
+            with self.subTest(point=point):
+                self.assertEqual(self.pixel(point), self.WHITE)
 
     def test_an_edge_gate_shows_the_fraction_before_the_edge(self):
         self.render("plate().mask(by.edge(0, 0.5))")
