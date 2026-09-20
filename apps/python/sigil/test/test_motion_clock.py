@@ -24,6 +24,7 @@ import weakref
 from pathlib import Path
 
 from _sigil import motion as native
+from sigil import motion
 from sigil.motion import Output, bind, ease
 from sigil.sketch import render_file
 
@@ -33,6 +34,29 @@ from sigil.sketch import render_file
 FIXED_RATE = 27.0
 FRAME = 0.05
 CATCH_UP = 2
+
+# Every name this package registers, as an author writes it.
+SURFACE = (
+    "FrameClock",
+    "FrameClockOptions",
+    "Phrase",
+    "Ticker",
+    "Timeline",
+    "hold",
+    "holdUntil",
+    "rampTo",
+    "setValue",
+)
+
+
+class Spellings(unittest.TestCase):
+    def test_the_package_re_exports_everything_the_clock_registers(self):
+        # A registration the package does not follow is a name an author
+        # cannot reach at all, so the two lists are asked to agree.
+        for name in SURFACE:
+            with self.subTest(name=name):
+                self.assertIs(getattr(motion, name), getattr(native, name))
+                self.assertIn(name, motion.__all__)
 
 
 class Clock(unittest.TestCase):
