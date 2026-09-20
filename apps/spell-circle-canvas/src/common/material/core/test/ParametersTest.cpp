@@ -1,6 +1,7 @@
 /** @file
  * The parameter struct as a layout: reflection names, counts and offsets in
- * declaration order, the walk over the fields, and the declarations each
+ * declaration order, the walk over the fields, the same layout computed
+ * from a field list no C++ type stands behind, and the declarations each
  * target's compiler reads.
  */
 
@@ -77,6 +78,55 @@ TEST(Parameters, TheFieldWalkVisitsEveryFieldInDeclarationOrder) {
     (void)value;
   });
   EXPECT_EQ(names, "f v2 v4 arr c ");
+}
+
+TEST(Parameters, APackedFieldListLaysOutTheWayTheStructOfThoseFieldsDoes) {
+  // The door for an ABI no C++ type stands behind. It is the SAME layout
+  // the compiler gives the struct, which is what lets a definition
+  // assembled at run time upload through a body written for the struct.
+  const Schema packed = packedSchema({
+      {.name = "f", .kind = ParameterType::Float},
+      {.name = "v2", .kind = ParameterType::Vec2},
+      {.name = "v4", .kind = ParameterType::Vec4},
+      {.name = "arr", .kind = ParameterType::FloatArray, .floats = 3},
+      {.name = "c", .kind = ParameterType::Color},
+  });
+  EXPECT_TRUE(packed == schema<EveryKind>());
+  // A float count the caller spelled for a kind that states its own is
+  // the kind's.
+  const Schema matrix = packedSchema({
+      {.name = "uWorld", .kind = ParameterType::Mat3, .floats = 2},
+      {.name = "uScale", .kind = ParameterType::Float, .floats = 4},
+  });
+  ASSERT_EQ(matrix.fields.size(), 2u);
+  EXPECT_EQ(matrix.fields[0].floats, 9u);
+  EXPECT_EQ(matrix.fields[1].offset, 9 * sizeof(float));
+  EXPECT_EQ(matrix.byteSize, 10 * sizeof(float));
+  EXPECT_EQ(packedSchema({}).byteSize, 0u);
+}
+
+TEST(Parameters, APackedFieldListLeavesOutARepeatedNameAndAnEmptyArray) {
+  // Both would make a layout nothing downstream can be asked: two fields
+  // of one name are one uniform to `find()` and two declarations to a
+  // compiler, and an array of no floats declares `float name[0]`.
+  testing::internal::CaptureStderr();
+  const Schema packed = packedSchema({
+      {.name = "uTone", .kind = ParameterType::Color},
+      {.name = "uTone", .kind = ParameterType::Float},
+      {.name = "uBars", .kind = ParameterType::FloatArray},
+      {.name = "uScale", .kind = ParameterType::Float},
+  });
+  const std::string said = testing::internal::GetCapturedStderr();
+  EXPECT_NE(said.find("\"uTone\""), std::string::npos) << said;
+  EXPECT_NE(said.find("\"uBars\""), std::string::npos) << said;
+  ASSERT_EQ(packed.fields.size(), 2u);
+  EXPECT_EQ(packed.fields[0].name, "uTone");
+  EXPECT_EQ(packed.fields[0].kind, ParameterType::Color);
+  EXPECT_EQ(packed.fields[1].name, "uScale");
+  // What is left out takes no bytes with it: the layout is the fields
+  // that came back.
+  EXPECT_EQ(packed.fields[1].offset, 4 * sizeof(float));
+  EXPECT_EQ(packed.byteSize, 5 * sizeof(float));
 }
 
 TEST(Parameters, EachTargetSpellsTheDeclarationsItsCompilerReads) {

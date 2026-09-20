@@ -192,6 +192,17 @@ const Schema& schema() {
   return s;
 }
 
+/** The upload layout of @p fields in the order given, laid out by the rule
+ *  `schema<P>()` applies to a struct: each field's float count read off its
+ *  kind — a `FloatArray` keeps the count it states — each offset the
+ *  running sum, and `byteSize` the total. The door for an ABI NO C++ TYPE
+ *  STANDS BEHIND: a definition assembled while the library runs, whose
+ *  fields belong to no one struct. A repeated name and a `FloatArray` of
+ *  no floats are each reported once and the field left out, so what comes
+ *  back is a layout `find()` answers unambiguously and `declare()` can
+ *  emit. */
+Schema packedSchema(std::vector<Field> fields);
+
 /** The uniform declaration of one field in @p target's syntax, with its
  *  trailing newline. */
 std::string declare(const Field& field, Target target);
