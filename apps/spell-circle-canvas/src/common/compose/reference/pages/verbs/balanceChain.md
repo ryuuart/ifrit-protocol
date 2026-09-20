@@ -5,6 +5,7 @@ name: balanceChain
 qualified: sigil::compose::Element::balanceChain
 header: sigilcompose/core/Text.h
 group: Content
+python: sigil.compose.Element.balanceChain
 status: stable
 ---
 
@@ -17,6 +18,10 @@ after it up to the next frame that opens one, or the chain's end.
 
 ```cpp
 Element& balanceChain(uint32_t throughLine = ~0u);
+```
+
+```python
+def balanceChain(self, throughLine: int = 4294967295) -> Element: ...
 ```
 
 ```cpp

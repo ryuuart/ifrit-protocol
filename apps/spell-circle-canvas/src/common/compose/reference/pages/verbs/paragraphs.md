@@ -21,6 +21,11 @@ Element& paragraphs(std::vector<sigil::weave::ParagraphStyle> blocks);
 Element& paragraphs(std::span<const std::string_view> names);
 ```
 
+```python
+def paragraphs(self, blocks: Sequence[weave.ParagraphStyle]) -> Element: ...
+def paragraphs(self, names: Sequence[str]) -> Element: ...
+```
+
 ```cpp
 text(weave::rich(body).add(u8"A heading\nand its body text\nand more"))
     .paragraphs({headingStyle, bodyStyle});

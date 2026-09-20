@@ -5,6 +5,7 @@ name: atRest
 qualified: sigil::compose::Element::atRest
 header: sigilcompose/core/Text.h
 group: Content
+python: sigil.compose.Element.atRest
 status: stable
 ---
 
@@ -19,6 +20,10 @@ something to place beside the moving copy rather than a state of it.
 
 ```cpp
 [[nodiscard]] Element atRest() const;
+```
+
+```python
+def atRest(self) -> Element: ...
 ```
 
 ## Description

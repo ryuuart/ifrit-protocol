@@ -24,6 +24,14 @@ template <typename K, typename F>
 Element& shape(K key, F fn);   // shape(keyedShape(key, fn))
 ```
 
+```python
+def shape(self, value: ShapeLike) -> Element: ...
+```
+
+In Python a shape is a `compose.Shape`, a `skia.Path` already cooked, or
+a function of the box's width and height that answers a path. The keyed
+spelling is C++ only.
+
 ## Description
 
 **It overrides [`corners`](corners.md) outright.** The fill surface,

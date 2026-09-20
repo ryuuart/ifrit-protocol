@@ -5,6 +5,7 @@ name: annotate
 qualified: sigil::compose::Element::annotate
 header: sigilcompose/core/Text.h
 group: Content
+python: sigil.compose.Element.annotate
 status: stable
 ---
 
@@ -17,6 +18,10 @@ down a column, a gloss under a phrase.
 
 ```cpp
 Element& annotate(Annotation reading);
+```
+
+```python
+def annotate(self, reading: Annotation) -> Element: ...
 ```
 
 ```cpp

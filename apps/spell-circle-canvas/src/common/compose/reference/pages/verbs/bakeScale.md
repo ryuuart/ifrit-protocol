@@ -22,7 +22,7 @@ Element& bakeScale(float factor);
 ```
 
 ```python
-def bake_scale(self, factor: float) -> Element: ...
+def bakeScale(self, scale: float) -> Element: ...
 ```
 
 ## Description

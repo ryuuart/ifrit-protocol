@@ -21,6 +21,10 @@ the lines under it wrapping the notch it cuts.
 Element& initialLetter(sigil::weave::InitialLetter initial);
 ```
 
+```python
+def initialLetter(self, initial: weave.InitialLetter) -> Element: ...
+```
+
 ```cpp
 text(body, bodyStyle).initialLetter({.lines = 3});
 text(body, bodyStyle).initialLetter({.lines = 3, .sink = 1});

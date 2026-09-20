@@ -21,7 +21,7 @@ Element& flowAround(std::string_view key, float margin = 0.0f);
 ```
 
 ```python
-def flow_around(self, key: str, margin: float = 0.0) -> Element: ...
+def flowAround(self, key: str, margin: float = 0.0) -> Element: ...
 ```
 
 ## Description

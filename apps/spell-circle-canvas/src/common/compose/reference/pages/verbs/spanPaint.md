@@ -5,6 +5,7 @@ name: spanPaint
 qualified: sigil::compose::Element::spanPaint
 header: sigilcompose/core/Text.h
 group: Content
+python: sigil.compose.Element.spanPaint
 status: stable
 ---
 
@@ -18,6 +19,11 @@ underline, an added glow pass.
 ```cpp
 Element& spanPaint(sigil::weave::Selector where,
                    sigil::weave::PaintStyle paint);
+```
+
+```python
+def spanPaint(self, where: weave.Selector,
+              paint: weave.PaintStyle) -> Element: ...
 ```
 
 ## Description

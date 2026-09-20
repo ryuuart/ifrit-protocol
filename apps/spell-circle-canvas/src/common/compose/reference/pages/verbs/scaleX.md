@@ -21,7 +21,7 @@ Element& scaleX(motion::Animatable<float> factor);
 ```
 
 ```python
-def scale_x(self, factor: float | motion.Animatable) -> Element: ...
+def scaleX(self, value: ScalarLike) -> Element: ...
 ```
 
 ## Description

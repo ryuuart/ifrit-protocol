@@ -5,6 +5,7 @@ name: thread
 qualified: sigil::compose::Element::thread
 header: sigilcompose/core/Text.h
 group: Content
+python: sigil.compose.Element.thread
 status: stable
 ---
 
@@ -17,6 +18,10 @@ The frame this one fills into — the next link of a chain over one
 
 ```cpp
 Element& thread(std::string_view key);
+```
+
+```python
+def thread(self, key: str) -> Element: ...
 ```
 
 ```cpp

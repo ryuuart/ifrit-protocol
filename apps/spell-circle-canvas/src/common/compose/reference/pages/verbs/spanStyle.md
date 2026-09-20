@@ -5,6 +5,7 @@ name: spanStyle
 qualified: sigil::compose::Element::spanStyle
 header: sigilcompose/core/Text.h
 group: Content
+python: sigil.compose.Element.spanStyle
 status: stable
 ---
 
@@ -20,6 +21,12 @@ with a partial laid over the style the range is already set in.
 Element& spanStyle(sigil::weave::Selector where,
                    sigil::weave::TextStyle style);
 Element& spanStyle(sigil::weave::Selector where, sigil::weave::Type partial);
+```
+
+```python
+def spanStyle(self, where: weave.Selector,
+              style: weave.TextStyle) -> Element: ...
+def spanStyle(self, where: weave.Selector, type: weave.Type) -> Element: ...
 ```
 
 ## Description
