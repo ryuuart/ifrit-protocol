@@ -26,11 +26,9 @@ class SkData;
 /** What a picture MEANS, for a caller that already has its bytes: the
  *  decoded document and its frames, the metadata a probe reads, the
  *  encoders that write pixels back out, and the coverage and distance
- *  answers a silhouette question needs. Reach for it to turn encoded
- *  bytes into something drawable, to ask what a file is without paying
- *  for its pixels, or to write pixels out again. Where those bytes come
- *  from — a path, a URI, a mount, a cache — belongs to whoever fetched
- *  them; nothing here opens a file. */
+ *  answers a silhouette question needs. Where those bytes come from —
+ *  a path, a URI, a mount, a cache — belongs to whoever fetched them;
+ *  nothing here opens a file. */
 namespace sigil::image {
 
 /** Cheap metadata from encoded bytes, no pixel decode. */
@@ -54,21 +52,13 @@ struct Frame {
 
 /**
  * A decoded image document — still or animated — ready to draw on any
- * SkCanvas (the offscreen scene canvases included; upload to the GPU
- * happens implicitly on first draw through a Graphite recorder).
+ * SkCanvas, with every frame fully composited at decode time, so
+ * drawing frame N never depends on frame N-1. PNG, JPEG, WebP, GIF and
+ * AVIF, animation included where the format carries it.
  *
- * Formats: PNG, JPEG, WebP, GIF, and AVIF, including animation for the
- * formats that carry it (GIF, animated WebP, animated AVIF/AVIS). Every
- * frame is fully composited at decode time — disposal and blend semantics
- * of the source format are already applied, so drawing frame N never
- * depends on frame N-1.
- *
- * Decoding is CPU-side and eager: an asset's frames stay resident for its
- * lifetime, which fits canvas-drawing workloads (decode once at import,
- * draw per frame). Not for streaming video-sized content.
- *
- * Bytes in, never a path: where bytes come from (files, URIs, caches)
- * is SigilIO's concern, and this type only ever sees memory.
+ * Decoding is CPU-side and EAGER: an asset's frames stay resident for
+ * its lifetime, which fits decode once at import and draw per frame,
+ * and does not fit streaming video-sized content.
  */
 class ImageAsset {
  public:
@@ -81,9 +71,8 @@ class ImageAsset {
   static std::optional<ImageProbe> probe(sk_sp<SkData> encoded);
 
   /** Wraps an already-rendered still image as a one-frame asset — the
-   *  bridge for textures generated on an intermediate canvas/surface
-   *  (procedural nine-slice frames, baked patterns). Null images yield
-   *  an empty asset. */
+   *  bridge for a texture generated on an intermediate canvas or
+   *  surface. A null image yields an empty asset. */
   static ImageAsset wrap(sk_sp<SkImage> image);
 
   /** Width of every frame, in pixels; 0 for an empty asset. */
@@ -99,18 +88,15 @@ class ImageAsset {
   /** Sum of all frame durations; 0 for still images. */
   float totalDurationMs() const { return m_totalDurationMs; }
 
-  /** The repetition count of an animation that never stops, which is
-   *  the common case for GIFs and stickers. */
+  /** The repetition count of an animation that never stops. */
   static constexpr int kInfinite = -1;
   /** Number of times the animation plays, or kInfinite. Still images
    *  report kInfinite. */
   int repetitionCount() const { return m_repetitionCount; }
 
-  /**
-   * The frame to show at `milliseconds` since playback start, looping
-   * according to repetitionCount() — a finished finite animation holds its
-   * last frame. Still images always return the one frame.
-   */
+  /** The frame to show at @p milliseconds since playback start, looping
+   *  according to repetitionCount(). A finished finite animation holds
+   *  its last frame, and a still always answers its one frame. */
   const Frame& frameAt(double milliseconds) const;
 
  private:

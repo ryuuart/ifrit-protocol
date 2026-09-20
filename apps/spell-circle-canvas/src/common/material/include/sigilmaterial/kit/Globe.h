@@ -3,29 +3,12 @@
 /** @file
  * @ingroup material-kit
  *
- * A GLOBE: a sphere seen orthographically, ruled with a graticule and
- * lit from one direction, generated per pixel over the disc inscribed in
- * the node it fills.
- *
- * The projection is the one a globe on a page has and an attitude
- * indicator has: no perspective, so the disc IS the sphere and the
- * foreshortening toward the limb is the projection's own. The near
- * hemisphere is the only one sampled — the far side of a solid sphere is
- * not visible — and the whole reading is an inverse projection: the pixel
- * to a point on the sphere, that point carried back into the sphere's own
- * frame by undoing heading, pitch and roll, and latitude and longitude
- * read off the result.
- *
- * EVERY LINE IS A PLANE DISTANCE. A meridian is the plane through the
- * poles at its longitude and a parallel the plane at its own sine, so a
- * rule's width is measured in the sphere's space rather than in the
- * angle, and the crowding toward the limb and toward the poles comes out
- * of the arithmetic instead of being drawn.
- *
- * ONE TEXT, BOTH LANGUAGES. The whole reading is written in Slang and
- * crossed into SkSL, and each target's body is that reading plus the one
- * line that spells the return in its own types, so the ball a device
- * shades and the ball a raster surface paints cannot part company.
+ * A GLOBE: a sphere seen ORTHOGRAPHICALLY, ruled with a graticule and
+ * lit from one direction, generated per pixel over the disc inscribed
+ * in the node it fills. There is no perspective, so the disc IS the
+ * sphere, and only the near hemisphere is sampled. Every line is a
+ * PLANE DISTANCE, so the crowding toward the limb and the poles falls
+ * out of the arithmetic. The reading is one text, crossed into SkSL.
  */
 
 #include <sigilmaterial/color/Color.h>
@@ -38,34 +21,13 @@
 namespace sigil::material::kit {
 
 /** THE GLOBE'S DIALS: the two hemispheres and how each fades toward its
- *  pole, the attitude, the graticule's three pitches and weights, and the
- *  one light.
- *
- *  `sky` and `ground` are the colours AT THE HORIZON and `skyPole` and
- *  `groundPole` the colours at the poles, so a navball's blue-over-brown
- *  and a cartographer's plain globe are the same four fields.
- *  `horizonBlend` is the half-width, in sphere radii, of the crossfade
- *  between them, which keeps the equator from stepping.
- *
- *  `yaw`, `pitch` and `roll` are RADIANS and turn the sphere under a
- *  fixed eye: yaw spins it about its own poles, pitch tips it toward the
- *  viewer, roll turns the picture. `minorDeg` is the fine graticule's
- *  pitch in degrees, ruled both ways; `meridianDeg` and `parallelDeg` are
- *  the pitches of the heavier rules, which need not agree. `lineWidth` is
- *  the fine rule's width in pixels and scales every rule with it;
- *  `minorWeight`, `majorWeight` and `horizonWeight` are how opaquely each
- *  is laid in `grid`'s colour, and the horizon is drawn last so it reads
- *  over both.
- *
- *  `ambient` and `diffuse` are the light a point keeps at the limb and
- *  the light it gains facing the eye — the falloff that makes the disc
- *  read as a ball. `light` is the direction the specular comes from (its
- *  w is unread), `shininess` its exponent and `specular` its strength.
- *  `edgeFeather` is the limb's antialiasing, in pixels: the alpha the
- *  globe returns falls to nothing across it, so the disc has no jagged
- *  rim and nothing outside it is painted. `fill` is how much of the
- *  inscribed disc the sphere takes, for a globe that has to sit inside a
- *  bezel drawn in the same box. */
+ *  pole, the attitude, the graticule's three pitches and weights, and
+ *  the one light. The hemisphere colours are the ones AT THE HORIZON,
+ *  with a second pair at the poles; the attitude is in RADIANS, the
+ *  graticule's pitches in DEGREES, and every width and feather in
+ *  pixels.
+ *  @trap The alpha falls to nothing across `edgeFeather`, so nothing
+ *  outside the disc is painted. */
 struct GlobeParameters {
   Color sky = {0.24f, 0.48f, 0.71f, 1};
   Color skyPole = {0.12f, 0.30f, 0.49f, 1};

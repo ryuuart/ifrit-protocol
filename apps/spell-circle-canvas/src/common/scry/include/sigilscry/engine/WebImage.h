@@ -24,35 +24,14 @@ class WebEngine;
 
 /**
  * Skia content composited *into* web pages — the reverse direction of
- * WebView's output. Created via WebEngine::createImage(name, w, h);
- * reference it from HTML wherever an image URL is accepted:
- *
- * @code{.html}
- *   <img src="name.imgsrc" />
- * @endcode
- *
- * (The engine's FileSystem synthesizes the .imgsrc indirection Ultralight
- * expects; any path whose filename is `<name>.imgsrc` resolves to the
- * image registered under `<name>`.)
- *
- * Ways to supply pixels, safest first:
- *  - paint(painter): hands you an SkCanvas already targeting the image's
- *    pixels — a Graphite surface on the web thread's recorder (GPU) or
- *    the shared bitmap (CPU) — and handles the GPU flush and the
- *    invalidate in the same step. Mode-agnostic; nothing to forget.
- *    Raster images drawn there upload through the recorder's image
- *    provider like anywhere else.
- *  - update(pixmap) / update(rasterImage): copies raster pixels in and
- *    invalidates. Works on CPU and GPU engines alike.
- *  - updateTexture(texture): GPU engines — blit-copies a texture named on
- *    the engine's device (e.g. one another renderer produced) into the
- *    slot and invalidates.
- *  - GPU engines, expert path: render straight into the texture behind
- *    texture() with your own Graphite recorder over the engine's device,
- *    submit that work, then call invalidate() — in that order.
- *
- * Holding a WebImage keeps its WebEngine alive; destroying it
+ * WebView's output. WebEngine::createImage registers one under a name,
+ * and a page displays it as `<img src="name.imgsrc" />`: any path whose
+ * filename is `<name>.imgsrc` resolves to the image registered under
+ * `<name>`. Holding one keeps its WebEngine alive, and destroying it
  * unregisters the name.
+ *
+ * Pixels arrive through paint(), update() or updateTexture(), in that
+ * order of safety.
  */
 class WebImage {
  public:
@@ -66,43 +45,44 @@ class WebImage {
   int height() const;
 
   /**
-   * Draws into the image via @p painter and republishes it — wrap,
-   * flush, and invalidate handled internally, so partial updates can't
-   * be observed and no step can be forgotten. Safe from any thread; the
-   * callback runs on the web thread (blocking the caller until done), so
-   * don't call other engine APIs that post-and-wait from inside it.
-   * The canvas is not cleared first; returns false if the backend wrap
-   * failed.
+   * Draws into the image via @p painter and republishes it — the wrap,
+   * the flush and the invalidate handled internally, so a partial
+   * update cannot be observed. Safe from any thread, and the canvas is
+   * not cleared first. False if the backend wrap failed.
+   * @trap The callback runs on the web thread, blocking the caller, so
+   * nothing inside it may call an engine door that posts and waits.
    */
   bool paint(const std::function<void(SkCanvas&)>& painter);
 
-  /** Copies @p pixels (converted to premultiplied BGRA) into the image
-   *  and invalidates it. Safe from any thread. False if the pixels could
-   *  not be converted. */
+  /** Copies @p pixels, converted to premultiplied BGRA, into the image
+   *  and invalidates it. Safe from any thread; false if the pixels
+   *  could not be converted. */
   bool update(const SkPixmap& pixels);
 
   /**
-   * Updates from an SkImage. Raster-backed images are copied in on any
-   * engine. Texture-backed (Graphite) images are recorder-bound and
-   * cannot be read from here — pass the underlying native texture to
-   * updateTexture(), or draw via paint(); this overload logs a warning
-   * and returns false for them.
+   * Updates from an SkImage, copying a raster-backed one in on any
+   * engine.
+   * @silent @p image is texture-backed: a Graphite image is
+   * recorder-bound and cannot be read from here, so this warns and
+   * answers false. Pass its texture to updateTexture(), or draw through
+   * paint().
    */
   bool update(const sk_sp<SkImage>& image);
 
   /**
-   * GPU engines: blit-copies @p texture, named on the engine's GpuDevice,
-   * into the slot and invalidates it, on the web thread. The copy is
-   * clamped to the smaller of the two sizes. Safe from any thread; the
-   * texture must stay alive until this returns. False on CPU engines or
-   * for a stale handle.
+   * GPU engines: blit-copies @p texture, named on the engine's
+   * GpuDevice, into the slot and invalidates it, on the web thread. The
+   * copy is clamped to the smaller of the two sizes, and it is safe
+   * from any thread. False on a CPU engine or for a stale handle.
+   * @trap @p texture must stay alive until this returns.
    */
   bool updateTexture(sigil::core::hardware::TextureHandle texture);
 
   /** GPU engines: the texture backing this image, named on the engine's
    *  GpuDevice and valid for the WebImage's lifetime; `exportNative`
-   *  there hands the native object out. Null on CPU engines. After
-   *  rendering into it, call invalidate(). */
+   *  there hands the native object out. Null on CPU engines.
+   *  @trap Rendering into it directly means submitting that work and
+   *  then calling invalidate(), in that order. */
   sigil::core::hardware::TextureHandle texture() const;
 
   /** Notifies pages displaying this image that it changed and should be

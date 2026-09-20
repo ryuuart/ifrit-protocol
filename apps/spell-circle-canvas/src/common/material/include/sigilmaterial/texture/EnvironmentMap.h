@@ -3,22 +3,13 @@
 /** @file
  * @ingroup material-texture
  *
- * The environment map: what a surface sees when it looks past the lights.
- * A panorama sampled by a normal for everything that falls on a body from
- * around it, and by a reflected view vector for what the body mirrors.
- *
- * ONE internal form — an equirectangular image, u = azimuth, v = 0 at the
- * zenith. Every source resolves to it while the value is being built: a
- * lat-long panorama, six cube faces, a cube sheet, a procedural bake, or
- * any image a caller produced. A cube source and a lat-long source
- * therefore shade identically once loaded, and a consumer has one
- * sampling path to write rather than one per source.
- *
- * Two derived readings sit beside the panorama, each cached with it:
- * `image(roughness)` is the specular side — nine wrap-aware blurs a
- * reflection picks by how rough the surface is — and `irradiance()` is
- * the diffuse side, the same panorama convolved with a cosine lobe, which
- * is the value a Lambertian body multiplies its albedo by.
+ * The environment map: what a surface sees when it looks past the
+ * lights. ONE internal form — an equirectangular image, u = azimuth,
+ * v = 0 at the zenith — which every source resolves to as the value is
+ * built, so a cube source and a lat-long source shade identically. Two
+ * derived readings sit beside it, each cached with it: the specular
+ * side as nine wrap-aware blurs, the diffuse side convolved with a
+ * cosine lobe.
  */
 
 #include <include/core/SkColor.h>
@@ -76,17 +67,11 @@ class EnvironmentMap {
   static EnvironmentMap fromFaces(const Faces& faces, int width = 0);
 
   /** One image holding all six faces, in whichever of the four layouts
-   *  its aspect ratio names: a 4:3 horizontal cross, a 3:4 vertical
+   *  its ASPECT RATIO names: a 4:3 horizontal cross, a 3:4 vertical
    *  cross, a 6:1 row or a 1:6 column, each in the +x -x +y -y +z -z
-   *  order faces are named in.
-   *
-   *  A cube map reaches this library as an ordinary image because that is
-   *  what the image library decodes: PNG, JPEG, WebP, AVIF, and — where
-   *  the OpenImageIO backend is built — EXR, HDR, TIFF and PSD. The two
-   *  containers that hold six faces and a mip chain in one file decode
-   *  to the 1:6 column: a KTX 1 or 2 through the image library's own
-   *  reader (uncompressed texels), a DDS through OpenImageIO, faces in
-   *  the +x -x +y -y +z -z order from the top at the base mip level. */
+   *  order faces are named in. A container that holds six faces and a
+   *  mip chain in one file decodes to the 1:6 column, faces in that same
+   *  order from the top at the base mip level. */
   static EnvironmentMap fromCubeMap(sk_sp<SkImage> sheet);
 
   bool valid() const { return m_state != nullptr; }

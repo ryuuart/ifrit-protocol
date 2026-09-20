@@ -3,19 +3,12 @@
 /** @file
  * @ingroup material-skia
  *
- * A ramp of stops as Skia takes it.
- *
- * `RampStop` is the colour leaf's value — a position and a colour, and
- * nothing about how it is drawn. Two of these are the ramp's crossing:
- * the same stops as a shader over a vertical span in the coordinates a
- * node is painted in, and as a paint over the unit square, which is what
- * a text fill and a mask take. Both clamp outside their span, because a
- * ramp carries no answer for what lies beyond its ends.
- *
- * The other two are the PALETTE's, and a palette is not a ramp: it says
- * there is nothing between its entries, so its crossing samples nearest
- * and never blends. `Palette::at` is the same table read on the CPU —
- * one seam, two executors.
+ * A ramp of stops as Skia takes it: the same stops as a shader over a
+ * vertical span in the coordinates a node is painted in, and as a paint
+ * over the unit square, which is what a text fill and a mask take. Both
+ * clamp outside their span. The other two crossings are the PALETTE's,
+ * and a palette is not a ramp — it says there is nothing between its
+ * entries, so its crossing samples nearest and never blends.
  */
 
 #include <include/core/SkRefCnt.h>

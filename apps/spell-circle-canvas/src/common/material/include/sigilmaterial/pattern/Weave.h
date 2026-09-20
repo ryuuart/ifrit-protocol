@@ -5,28 +5,11 @@
  *
  * WOVEN CLOTH as one generator: a sett expanded into a threadcount, and
  * the threadcount read through a weave to say which thread is on top at
- * every crossing.
- *
- * A cloth is two sequences of coloured threads and one rule that
- * interlaces them. The WARP runs down the loom and the WEFT across it;
- * the SETT is the run of colour counts a threadcount is written in ("18
- * black, 6 blue, 2 black" is three runs), and the WEAVE says, at the
- * crossing of warp end x and weft pick y, which of the two is above the
- * other. Every check is that one generator at another sett and another
- * weave: a tartan is a reflective sett under a 2/2 twill, gingham is a
- * two-colour sett under a plain weave, houndstooth is a four-and-four
- * sett under the same twill the tartan uses.
- *
- * THE THREADS ARE INDICES, not colours. A threadcount is the cloth's
- * identity and the shade card is a variable — the same count woven in
- * two dyers' blues is the same cloth — so a run names a shade by its
- * place in the cloth's palette and the palette is held beside it. That
- * caps a cloth at 256 shades, which is the same cap a palette-indexed
- * image carries.
- *
- * The reading is arithmetic and answers a single crossing, so the cloth
- * is read the same way whether a caller wants one thread, a window of
- * pixels or a repeating tile.
+ * every crossing. The WARP runs down the loom and the WEFT across it,
+ * and every check is that generator at another sett and weave. THE
+ * THREADS ARE INDICES into the cloth's palette, which caps a cloth at
+ * 256 shades. The reading answers a single crossing, so one thread and
+ * a whole tile are read the same way.
  */
 
 #include <include/core/SkImage.h>
@@ -51,21 +34,14 @@ struct ThreadRun {
   constexpr auto operator<=>(const ThreadRun&) const = default;
 };
 
-/** WHETHER A RUN LIST IS THE WHOLE REPEAT OR HALF OF IT.
- *
- *  A threadcount is published both ways. `Asymmetric` takes the runs as
- *  the whole repeat and expands them once. `Reflective` takes them as
- *  the HALF SETT and follows it with its own mirror image, so n threads
- *  become a repeat of 2n whose two pivots are the gaps at the half's two
- *  ends. A register that prints a pivot run at half its width is
- *  spelling exactly that: the two halves put the two halves of the run
- *  back together at the pivot.
- *
- *  Expanding a reflective sett as though it were the whole repeat gives
- *  a cloth of half the right size that still looks like the design, and
- *  taking a whole repeat as a half gives one of twice the right size
- *  that does too — which is why the symmetry is asked for rather than
- *  inferred. */
+/** WHETHER A RUN LIST IS THE WHOLE REPEAT OR HALF OF IT, since a
+ *  threadcount is published both ways. `Asymmetric` expands the runs
+ *  once; `Reflective` takes them as the HALF SETT and follows them with
+ *  their mirror, so n threads become a repeat of 2n whose pivots are the
+ *  gaps at the half's two ends.
+ *  @trap Reading either as the other gives a cloth of half or twice the
+ *  right size that still looks like the design, which is why the
+ *  symmetry is asked for rather than inferred. */
 enum class Symmetry : uint8_t { Asymmetric, Reflective };
 
 /** The threadcount @p runs spell: one shade index per thread. */

@@ -32,18 +32,13 @@ Tile stripes(float on, float off, Color color);
  *  which is a sequence over a sequence and not one pattern. */
 enum class Axis : uint8_t { U, V };
 
-/** A COLOURED SEQUENCE of runs along @p along — a tartan sett, an awning,
- *  a ribbon edge: as many colours as there are runs. Each run is {width
- *  px, colour}; the period is their sum; @p phase slides the whole
- *  sequence along that axis (px, wrapped). If no run has a positive width
- *  the result draws nothing.
- *
- *  The axis is HERE rather than left to `rotate(90)` because the two are
- *  not the same tile: rotating remaps the sampling of a tile whose repeat
- *  is one period by an arbitrary eight pixels, so it happens to read
- *  right only while the other direction is constant — which stops being
- *  true the moment such a tile is stacked under another. Asking for the
- *  axis bakes the runs down the tile instead. */
+/** A COLOURED SEQUENCE of runs along @p along — a tartan sett, an
+ *  awning, a ribbon edge. Each run is {width px, colour}, the period is
+ *  their sum, and @p phase slides the sequence along that axis in px,
+ *  wrapped.
+ *  @trap The axis is asked for rather than left to a rotation, because
+ *  rotating remaps the sampling instead of baking the runs down the
+ *  tile. No run of positive width draws nothing. */
 Tile sequence(std::vector<std::pair<float, Color>> runs, float phase = 0.0f,
               Axis along = Axis::U);
 

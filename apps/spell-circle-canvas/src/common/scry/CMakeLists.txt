@@ -46,11 +46,15 @@ sigil_library(SigilScry
 # boundary section as the dependencies they are, not as C++ names.
 sigil_doc_probes(scry
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/WebEngine.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/WebImage.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/WebView.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../skia/include/sigilskia
            ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
   PRELUDES "<sigilcore/hardware/GpuDevice.h>"
            "<sigilskia/graphite/OffscreenSurface.h>"
   EXCLUDE "Ultralight::Ultralight=a CMake target name, not a C++ name"
           "Ultralight::AppCore=a CMake target name, not a C++ name"
-  FLOORS 2,0,0,0,0
+  FLOORS 2,18,22,7,0
   LIBRARIES SigilScry SigilSkiaGraphite SigilCoreHardware)

@@ -4,12 +4,10 @@
  * @ingroup material-skia
  *
  * THE PALETTE A PICTURE IS MADE OF, from a picture Skia holds: the one
- * crossing between an image and the colour leaf's extraction.
- *
- * The choosing is `material::palette` over a run of colours and knows
- * nothing about images. What is here is the read: the picture down to a
- * size worth reading, its pixels as straight sRGB, and the table that
- * comes back.
+ * crossing between an image and the colour leaf's extraction. The
+ * choosing knows nothing about images; what is here is the read — the
+ * picture down to a size worth reading, its pixels as straight sRGB,
+ * and the table that comes back.
  */
 
 #include <include/core/SkImage.h>

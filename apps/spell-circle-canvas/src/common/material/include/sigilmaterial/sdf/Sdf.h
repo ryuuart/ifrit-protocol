@@ -5,13 +5,11 @@
  *
  * Signed-distance surfaces — shape, border, glow and soft shadow in ONE
  * shader pass over Inigo Quilez's 2D distance operators. One recipe per
- * silhouette kind; every style parameter is a uniform, so a pulsing border
- * or a breathing glow is a bound scalar and however many differently
- * styled instances there are, three programs compile and no more.
- *
- * Distances are computed in aspect-corrected PIXEL space over the node's
- * resolution, never uv, so borders stay even on a stretched box. The
- * anti-alias half-width is 0.75 px in the material's own space.
+ * silhouette kind, and every style parameter is a uniform, so however
+ * many differently styled instances there are, three programs compile
+ * and no more. Distances are computed in aspect-corrected PIXEL space
+ * over the node's resolution, never uv, so borders stay even on a
+ * stretched box.
  */
 
 #include <sigilmaterial/color/Color.h>
@@ -79,17 +77,12 @@ inline Shape circle() {
   return s;
 }
 
-/** N-pointed star. `pointiness` is m in [2, points], and it runs from
- *  blunt to sharp: m = 2 IS THE REGULAR POLYGON — `star(6, 2)` is the
- *  hexagon — and values toward `points` narrow the arms until, at m =
- *  points exactly, they close to nothing and the shape is empty.
- *
- *  The dial is the edge half-angle behind it: the body sets the arm's
- *  flank normal at pi/m, so at m = 2 the flank is square to the vertex
- *  ray and the flanks meet as a polygon's sides do. It is the convention
- *  of the distance operator this shape is, and the reason it is not
- *  turned round here is that a caller reading any other source of the
- *  same operator would then be reading a different dial. */
+/** N-pointed star. `pointiness` is m in [2, points] and runs from blunt
+ *  to sharp: m = 2 IS THE REGULAR POLYGON, so `star(6, 2)` is the
+ *  hexagon. It is the edge half-angle behind the arm's flank, which is
+ *  the convention of the distance operator this shape is.
+ *  @trap At m = points exactly the arms close to nothing and the shape
+ *  is empty. */
 Shape star(int points, float pointiness);
 
 /** How the silhouette is dressed. Layer order (back to front): shadow,

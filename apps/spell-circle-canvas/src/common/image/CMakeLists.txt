@@ -35,11 +35,16 @@ sigil_library(SigilImage
 # carries.
 sigil_doc_probes(image
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/embeddedPngs.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/ChannelData.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/DistanceField.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/ImageAsset.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../io/include/sigilio
   PRELUDES "<sigilio/hub/Hub.h>"
            "<include/core/SkData.h>"
   EXCLUDE "unofficial::skia::skia=a CMake target name, not a C++ name"
           "OIIO::ImageOutput=OpenImageIO's own, named as the dependency it is: its headers are not scanned"
           "OIIO::ImageInput=OpenImageIO's own, named as the dependency it is: its headers are not scanned"
-  FLOORS 10,5,4,0,0
+  FLOORS 14,33,18,22,0
   LIBRARIES SigilImage SigilIOHub)
