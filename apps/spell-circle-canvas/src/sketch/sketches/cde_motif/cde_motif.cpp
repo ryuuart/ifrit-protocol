@@ -326,7 +326,7 @@ struct CdeMotifSketch {
         box()
             .row()
             .gap(10)
-            .justify(Justify::SpaceBetween)
+            .justifyContent(Justify::SpaceBetween)
             .children(
                 {cde::pushButton(page["buttons"][0].text(), false, true),
                  cde::pushButton(page["buttons"][1].text()),
@@ -425,7 +425,7 @@ struct CdeMotifSketch {
         kit::formatted("B = %5d      branch %-6s      f = (%d, %d, %d)",
                        d.brightness, branch, d.fSel, d.fBs, d.fTs);
 
-    Element proof = box().column().gap(1).justify(Justify::Center);
+    Element proof = box().column().gap(1).justifyContent(Justify::Center);
     for (const measure::Check& c : derivation().rows)
       proof.children({cde::label(c.line(22, 9), 10.0f, c.pass ? s.fg : s.bs)});
 

@@ -39,7 +39,7 @@ def panel(caption: str, plate: compose.Element) -> compose.Element:
         .height(120)
         .borderRadius(14)
         .fill(VEIL)
-        .justify("center")
+        .justifyContent("center")
         .alignItems("center")
         .children(compose.text(caption, size=14, color=INK))
     )
@@ -66,6 +66,6 @@ class BackdropVerb:
             .row()
             .gap(20)
             .padding(30)
-            .justify("center")
+            .justifyContent("center")
             .alignItems("center"),
         )

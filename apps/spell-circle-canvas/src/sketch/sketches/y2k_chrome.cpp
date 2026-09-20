@@ -136,7 +136,7 @@ inline Element gelPill(std::string_view label, SkColor4f tint, float w = kPillW,
       .style(kit::aquaGel(tint))  // body + gloss + hairline, no .fill()
       .row()
       .alignItems(Align::Center)
-      .justify(Justify::Center)
+      .justifyContent(Justify::Center)
       .children({text(label).styleClass("gelLabel").font(gelGround(tint))});
 }
 
@@ -247,7 +247,7 @@ inline Element plasticButton(std::string_view label) {
       .stroke(stroke(1, Fill::color(hexColor(0x000000))))  // keyline
       .row()
       .alignItems(Align::Center)
-      .justify(Justify::Center)
+      .justifyContent(Justify::Center)
       .children({text(label, type(13, hexColor(0xFFFFFF), 0.5f, 600))});
 }
 
@@ -418,12 +418,12 @@ struct Y2kChrome {
                        box()
                            .inset(0, horizonY - 9, 26, 0)
                            .row()
-                           .justify(Justify::End)
+                           .justifyContent(Justify::End)
                            .children({yc::glint(18, 18, 0.9f)}),
                        box()
                            .inset(0, 4, 110, 0)
                            .row()
-                           .justify(Justify::End)
+                           .justifyContent(Justify::End)
                            .children({yc::glint(13, 12, 0.85f)})});
 
     // ---- tagline: styles::textGlow, chained for the hotter double glow ----
@@ -434,7 +434,7 @@ struct Y2kChrome {
         // the cached raster 24px of transparent room for its 7px glow.
         box()
             .row()
-            .justify(Justify::Center)
+            .justifyContent(Justify::Center)
             .padding(0, 24)
             .margin(0, -12, 0, -24)
             .cache(Cache::Texture)
@@ -451,7 +451,7 @@ struct Y2kChrome {
     Element pills =
         box()
             .row()
-            .justify(Justify::Center)
+            .justifyContent(Justify::Center)
             .gap(22)
             .margin(0, 18, 0, 0)
             .key("pills")
@@ -476,7 +476,7 @@ struct Y2kChrome {
     Element abCard =
         box()
             .row()
-            .justify(Justify::Center)
+            .justifyContent(Justify::Center)
             .margin(0, 16, 0, 0)
             .opacity(animate(motion::from(0.0f).to(1.0f), {500ms}))
             .children(
@@ -581,7 +581,7 @@ struct Y2kChrome {
                           {box().grow(0.55f),
                            box()
                                .row()
-                               .justify(Justify::Center)
+                               .justifyContent(Justify::Center)
                                .children({wordmark}),
                            tagline, pills, abCard, box().grow(1),
                            // 3D groove rule - the <hr> of the period

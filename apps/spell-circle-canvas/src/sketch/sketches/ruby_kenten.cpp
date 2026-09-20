@@ -223,7 +223,7 @@ struct RubyKenten {
                  .top(158)
                  .row()
                  .gap(20)
-                 .justify(Justify::End)
+                 .justifyContent(Justify::End)
                  .children({f::column("KENTEN · CLUSTER",
                                       "one sesame a character, reserving "
                                       "nothing",

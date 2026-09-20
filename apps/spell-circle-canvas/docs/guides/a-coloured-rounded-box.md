@@ -31,7 +31,7 @@ struct FirstBox {
   Element describe() const {
     return box()
         .cover()
-        .justify(Justify::Center)
+        .justifyContent(Justify::Center)
         .alignItems(Align::Center)
         .children({box().width(220).height(140).borderRadius({16}).fill(kAccent)});
   }
@@ -71,7 +71,7 @@ class FirstBox:
                 compose.box().width(220).height(140).borderRadius(16).fill(ACCENT)
             )
             .cover()
-            .justify("center")
+            .justifyContent("center")
             .alignItems("center")
         )
 ```
@@ -89,7 +89,7 @@ and starts a tree. An element is a cheap value, built fresh every frame
 and thrown away — you do not keep one and mutate it. The other factories
 are on [the element index](/reference/SigilCompose/elements/index.html).
 
-**`.width`, `.borderRadius`, `.fill`, `.justify`** are **verbs**: members that
+**`.width`, `.borderRadius`, `.fill`, `.justifyContent`** are **verbs**: members that
 return the element by reference, so they chain. The order you say them
 in does not matter. They are grouped by concern on
 [the verb index](/reference/SigilCompose/verbs/index.html).

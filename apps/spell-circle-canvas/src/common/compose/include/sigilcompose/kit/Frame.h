@@ -131,7 +131,7 @@ inline Element dot(SkPoint centre, float radius, SurfacePaint fill) {
 }
 
 /** WHAT IS IN IT STANDS IN THE MIDDLE, both ways — `alignItems(Center)`
- *  and `justify(Center)`, which always travel together and say one thing
+ *  and `justifyContent(Center)`, which always travel together and say one thing
  *  between them: an icon in its cell, a glyph in its key, a figure in its
  *  well, a picture in the room it was given.
  *
@@ -141,7 +141,7 @@ inline Element dot(SkPoint centre, float radius, SurfacePaint fill) {
  *  It decides nothing else: the box it returns is an ordinary one, so the
  *  size, the ground and the direction are the caller's. */
 [[nodiscard]] inline Element centred() {
-  return box().alignItems(Align::Center).justify(Justify::Center);
+  return box().alignItems(Align::Center).justifyContent(Justify::Center);
 }
 /** The same round one child, which is what most of them hold. */
 [[nodiscard]] inline Element centred(Element child) {

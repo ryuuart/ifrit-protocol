@@ -120,7 +120,7 @@ auto WinampBase::textKey(float x, float y, float w, float h, const char* label,
                          float cell) -> Element {
   using namespace wa;
   return key(x, y, w, h, box())
-      .justify(Justify::Center)
+      .justifyContent(Justify::Center)
       .alignItems(Align::Center)
       .children({t(label, pix(cell))});
 }
@@ -133,7 +133,7 @@ auto WinampBase::titleBar(float wN, const char* label, bool wide, bool hasMin,
   const auto wbtn = [this, hN](float x, const char* g) {
     return raised(at(box(), x, (hN - 9) * 0.5f, 9, 9)
                       .fill(dark(kTitle, 0.35f))
-                      .justify(Justify::Center)
+                      .justifyContent(Justify::Center)
                       .alignItems(Align::Center),
                   mskia::withAlpha(hexColor(0x5A5A82), 0.8f),
                   hexColor(0x0E0E16))
@@ -142,7 +142,7 @@ auto WinampBase::titleBar(float wN, const char* label, bool wide, bool hasMin,
   // the wordmark and the egg stand in the same box, crossfaded
   const auto centred = [hN, wN](Element run) {
     return at(box(), 0, (hN - 8) * 0.5f, wN, 8)
-        .justify(Justify::Center)
+        .justifyContent(Justify::Center)
         .alignItems(Align::Center)
         .children({std::move(run)});
   };

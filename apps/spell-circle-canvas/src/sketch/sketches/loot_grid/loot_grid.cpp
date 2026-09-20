@@ -152,7 +152,7 @@ struct LootGrid {
                   1.0f, Fill::color({rc.fR, rc.fG, rc.fB, lit ? 0.8f : 0.34f})))
               .row()
               .alignItems(Align::Center)
-              .justify(Justify::Center)
+              .justifyContent(Justify::Center)
               .children({lt::artwork(item.art, w * 0.76f, h * 0.80f, item.tint,
                                      item.art == lt::Art::Potion)});
       // A set or a unique GLOWS — the one thing besides the tooltip's

@@ -43,7 +43,7 @@ Element well(const Well& spec) {
   plate.content.reset();
   Element surface = well(plate, spec.placed ? stack() : box());
   if (spec.content)
-    surface.alignItems(spec.content->across).justify(spec.content->down);
+    surface.alignItems(spec.content->across).justifyContent(spec.content->down);
   return surface;
 }
 

@@ -263,7 +263,7 @@ struct Caption {
     body = well(plate, std::move(body));
   } else if (caption.justify != Align::Auto) {
     body.alignItems(caption.justify);
-    body.justify(down);
+    body.justifyContent(down);
   }
   Element column = box().column().alignItems(caption.align);
   // The space above each part is that part's own margin rather than the

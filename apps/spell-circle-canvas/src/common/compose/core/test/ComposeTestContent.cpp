@@ -387,7 +387,7 @@ TEST(ComposeContent, APictureMeetsItsBoxTheWayTheFitSays) {
                             .width(100)
                             .height(100)
                             .alignItems(Align::Center)
-                            .justify(Justify::Center)
+                            .justifyContent(Justify::Center)
                             .children({image(picture, fit).key("fig")})}));
     host.frame();
     const std::optional<SkRect> fig = host.composer.bounds("fig");

@@ -105,7 +105,7 @@ Element TwoAdvancedV3::wordmark() {
     mark.borderRadius({23})
         .stroke(stroke(3, Fill::color(kNear), PathFormat::Align::Inner))
         .alignItems(Align::Center)
-        .justify(Justify::Center)
+        .justifyContent(Justify::Center)
         .children({t(
             "2a", sigil::weave::kit::tracked(grotBold(), 18, kNear, 0, 1.0f))});
   }
@@ -292,7 +292,7 @@ Element TwoAdvancedV3::bootOverlay() {
     lockup.fill(kNear).mask(by::alpha(stretchFill(pageLogo, 197, 94)));
   else
     lockup.alignItems(Align::Center)
-        .justify(Justify::Center)
+        .justifyContent(Justify::Center)
         .children(
             {text(boot["wordmark"], sigil::weave::kit::tracked(
                                         grotBold(), 24, kNear, 200, 1.0f))});

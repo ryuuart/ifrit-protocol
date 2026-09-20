@@ -187,7 +187,7 @@ struct EvaMagiDefense {
                     .column()
                     .alignItems(L.role == LabelRole::Country ? Align::Start
                                                              : Align::Center)
-                    .justify(Justify::Center)
+                    .justifyContent(Justify::Center)
                     .gap(labelStyle.lineGap)
                     .ink(ink)
                     .key(std::string(keyTag) + std::to_string(keyIndex));

@@ -45,7 +45,7 @@ struct FillVerb {
         .row()
         .gap(28)
         .padding(24)
-        .justify(Justify::Center)
+        .justifyContent(Justify::Center)
         .alignItems(Align::Center)
         .ink(kAccent)
         .children({

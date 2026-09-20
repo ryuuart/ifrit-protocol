@@ -217,7 +217,7 @@ class Scene:
                 .size(24, 16)
                 .row()
                 .alignItems(raw.Align.Auto)
-                .justify(raw.Justify.SpaceBetween)
+                .justifyContent(raw.Justify.SpaceBetween)
                 .children(children)
             )
         elif {mode!r} == "string":
@@ -226,7 +226,7 @@ class Scene:
                 .size(24, 16)
                 .row()
                 .alignItems("auto")
-                .justify("space_between")
+                .justifyContent("space_between")
                 .children(children)
             )
         else:
@@ -235,7 +235,7 @@ class Scene:
                 .width(24)
                 .height(16)
                 .alignItems("auto")
-                .justify("space_between")
+                .justifyContent("space_between")
                 .children(children)
             ).row()
         ctx.render(root)
@@ -249,7 +249,7 @@ class Scene:
         self.assertIn(b"\x00\xff\x00\xff", colors)
         self.assertEqual(render("string"), expected)
         self.assertEqual(render("convenience"), expected)
-        for method in ("alignItems", "alignSelf", "justify"):
+        for method in ("alignItems", "alignSelf", "justifyContent"):
             with (
                 self.subTest(method=method),
                 self.assertRaisesRegex(ValueError, "Unknown"),

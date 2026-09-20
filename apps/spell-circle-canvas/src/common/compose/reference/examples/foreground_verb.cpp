@@ -38,7 +38,7 @@ Element tile(const char* caption, Element plate) {
                     .cover()
                     .borderRadius({10})
                     .fill(kPlate)
-                    .justify(Justify::Center)
+                    .justifyContent(Justify::Center)
                     .alignItems(Align::Center)
                     .children(
                         {text("A FULL-BLEED CHILD")

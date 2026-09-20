@@ -47,5 +47,5 @@ class TextFillVerb:
             .column()
             .gap(18)
             .padding(28)
-            .justify("center")
+            .justifyContent("center")
         )

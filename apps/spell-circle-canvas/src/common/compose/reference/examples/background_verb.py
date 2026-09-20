@@ -25,7 +25,7 @@ def cell(caption: str, plate: compose.Element) -> compose.Element:
         .basis(0)
         .grow(1)
         .alignItems("center")
-        .justify("center")
+        .justifyContent("center")
     )
 
 

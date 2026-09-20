@@ -159,7 +159,7 @@ struct FeedVitals {
                                    })),
                            box()
                                .row()
-                               .justify(Justify::SpaceBetween)
+                               .justifyContent(Justify::SpaceBetween)
                                .padding(16, 0)
                                .children({text("−4 s").styleClass("readout"),
                                           text("−3 s").styleClass("readout"),

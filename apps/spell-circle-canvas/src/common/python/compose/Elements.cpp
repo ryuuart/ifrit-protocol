@@ -573,9 +573,9 @@ void bindCompose(py::module_& module) {
           },
           py::arg("alignment"), fluent)
       .def(
-          "justify",
+          "justifyContent",
           [](Element& self, py::object value) -> Element& {
-            return self.justify(justification(value));
+            return self.justifyContent(justification(value));
           },
           py::arg("alignment"), fluent)
       .def(

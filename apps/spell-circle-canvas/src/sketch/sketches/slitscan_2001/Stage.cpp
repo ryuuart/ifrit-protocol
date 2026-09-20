@@ -142,7 +142,7 @@ auto SlitScan2001::filmFrame() -> Element {
                .children(
                    {box()
                         .row()
-                        .justify(Justify::SpaceBetween)
+                        .justifyContent(Justify::SpaceBetween)
                         .children(
                             {t(kit::formatted("MACHINE TIME %lld h %02lld m  @ "
                                               "2880 : 1%s",

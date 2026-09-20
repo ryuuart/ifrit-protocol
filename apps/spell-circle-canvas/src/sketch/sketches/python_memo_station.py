@@ -107,7 +107,7 @@ class MemoStation:
                 (
                     row()
                     .width(864)
-                    .justify("space_between")
+                    .justifyContent("space_between")
                     .children(
                         doc.eyebrow("STATION / 04"),
                         doc.label("LIVE READINGS"),
@@ -124,7 +124,7 @@ class MemoStation:
                 (
                     row()
                     .width(864)
-                    .justify("space_between")
+                    .justifyContent("space_between")
                     .children(
                         doc.footer("SENSOR ARRAY"),
                         doc.footer("NATIVE COMPOSITION / PYTHON MODELS"),

@@ -105,7 +105,7 @@ compose::Element gauge(const Gauge& dial) {
              .absolute()
              .inset(0)
              .alignItems(Align::Center)
-             .justify(compose::Justify::Center)
+             .justifyContent(compose::Justify::Center)
              .children({document::paragraph(dial.reading)
                             .role(weave::rule("paragraph")
                                       .font(look.font(look.type.captionLabel,

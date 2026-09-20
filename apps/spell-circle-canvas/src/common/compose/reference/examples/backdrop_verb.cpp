@@ -41,7 +41,7 @@ Element panel(const char* caption, Element plate) {
       .height(120)
       .borderRadius({14})
       .fill(kVeil)
-      .justify(Justify::Center)
+      .justifyContent(Justify::Center)
       .alignItems(Align::Center)
       .children({text(caption).font({.size = 14, .color = kInk})});
 }
@@ -62,7 +62,7 @@ struct BackdropVerb {
             .row()
             .gap(20)
             .padding(30)
-            .justify(Justify::Center)
+            .justifyContent(Justify::Center)
             .alignItems(Align::Center)
             .children({panel("the veil alone", box()),
                        // The lattice under this panel is blurred before

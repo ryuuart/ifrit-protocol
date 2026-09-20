@@ -7,7 +7,7 @@ auto KspMapView::infoHead(const Utf8& label) -> Element {
   if (label.empty()) return box();
   return box()
       .height(19)
-      .justify(Justify::Center)
+      .justifyContent(Justify::Center)
       .padding(0, 0, 0, 8)
       .fill(ksp::kCardStrip)
       .children({kit::section(label)});
@@ -38,7 +38,7 @@ auto KspMapView::infoCard() -> Element {
           .children(
               {box()
                    .height(26)
-                   .justify(Justify::Center)
+                   .justifyContent(Justify::Center)
                    .fill(kOrange)
                    .children({text(page["vessel"])
                                   .font({.face = sansB(),
@@ -46,7 +46,7 @@ auto KspMapView::infoCard() -> Element {
                                          .color = hexColor(0xFFFFFF)})}),
                box()
                    .height(19)
-                   .justify(Justify::Center)
+                   .justifyContent(Justify::Center)
                    .fill(kCardSub)
                    .children({text(page["tab"])
                                   .font({.face = sansB(),

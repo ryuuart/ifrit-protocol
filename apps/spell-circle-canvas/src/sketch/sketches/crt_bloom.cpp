@@ -118,7 +118,7 @@ Element panel(Element construction) {
       .height(kPanelH)
       .fill(Fill::color(kGround))
       .alignItems(Align::Center)
-      .justify(Justify::Center)
+      .justifyContent(Justify::Center)
       .children({std::move(construction), tube()});
 }
 
@@ -146,7 +146,7 @@ struct CrtBloom {
     Element built =
         panel(stack()
                   .alignItems(Align::Center)
-                  .justify(Justify::Center)
+                  .justifyContent(Justify::Center)
                   .children({kit::centred(headline(kHalo))
                                  .cover()
                                  .zIndex(1)

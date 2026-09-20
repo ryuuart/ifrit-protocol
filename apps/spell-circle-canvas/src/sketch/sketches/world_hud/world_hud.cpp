@@ -382,7 +382,7 @@ struct WorldHud {
                  .left(0)
                  .right(0)
                  .bottom(-19)
-                 .justify(Justify::Center)
+                 .justifyContent(Justify::Center)
                  .children({text("1204, -388")
                                 .font(wh::line(10, 1.2f))
                                 .ink(wh::kInkDim)})});
@@ -436,7 +436,7 @@ struct WorldHud {
               // the remaining part need no second element.
               .foreground(drainRing(p.color, p.left))
               .alignItems(Align::Center)
-              .justify(Justify::Center)
+              .justifyContent(Justify::Center)
               // the drain: a dark wipe from the bottom, under the label
               .children({box()
                              .left(0)

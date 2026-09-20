@@ -450,7 +450,7 @@ struct Ds2Bench {
              .width(kRuleW)
              .row()
              .alignItems(Align::Center)
-             .justify(Justify::SpaceBetween)
+             .justifyContent(Justify::SpaceBetween)
              .zIndex(8)
              .children({text(c.caption).styleClass("circuit"),
                         text(slots).styleClass("slots")}),

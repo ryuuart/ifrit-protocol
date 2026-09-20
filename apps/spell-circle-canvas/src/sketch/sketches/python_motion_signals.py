@@ -123,7 +123,7 @@ class MotionSignals:
         )
         header = (
             row()
-            .justify("space_between")
+            .justifyContent("space_between")
             .alignItems("center")
             .width(WIDTH)
             .children(
@@ -149,7 +149,7 @@ class MotionSignals:
         footer = (
             row()
             .width(WIDTH)
-            .justify("space_between")
+            .justifyContent("space_between")
             .children(
                 doc.footer("RETAINED COMPONENTS").fontSize(11).ink(MUTED),
                 doc.footer("OUTPUT → BIND → PROPERTY").fontSize(11).ink("#a8bcae"),

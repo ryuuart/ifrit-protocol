@@ -56,7 +56,7 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
   // stretched-wide to rest as the section engages.
   art.children({at(box()
                        .row()
-                       .justify(Justify::End)
+                       .justifyContent(Justify::End)
                        .alignItems(Align::Center)
                        .gap(10)
                        .children({box().grow(1).height(1).fill(
@@ -83,9 +83,10 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
                                 PathFormat::Align::Inner))
 
                  .children({t(s, micro(9, kNear, 200))})});
-    art.children({at(box().row().justify(Justify::Center).children({tabs}),
-                     kStageW / 2 - 220, 26, 440, 17)
-                      .opacity(settle)});
+    art.children(
+        {at(box().row().justifyContent(Justify::Center).children({tabs}),
+            kStageW / 2 - 220, 26, 440, 17)
+             .opacity(settle)});
   }
   // RETURN TO MAIN, bottom right.
   const data::Json& voice = doc["art"];

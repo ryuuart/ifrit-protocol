@@ -51,7 +51,7 @@ class DataGarden:
         summary = (
             row()
             .width(892)
-            .justify("space_between")
+            .justifyContent("space_between")
             .padding(19, 0)
             .children(
                 (
@@ -116,7 +116,7 @@ class DataGarden:
                 (
                     row()
                     .width(892)
-                    .justify("space_between")
+                    .justifyContent("space_between")
                     .children(
                         doc.eyebrow("FIELDNOTES / 08").fontSize(12).ink(MUTED),
                         doc.label("CONTROLLED CULTIVATION").fontSize(11).ink(MUTED),
@@ -125,7 +125,7 @@ class DataGarden:
                 (
                     row()
                     .width(892)
-                    .justify("space_between")
+                    .justifyContent("space_between")
                     .alignItems("center")
                     .children(
                         (
@@ -163,7 +163,7 @@ class DataGarden:
                                 (
                                     row()
                                     .width(560)
-                                    .justify("space_between")
+                                    .justifyContent("space_between")
                                     .children(
                                         doc.h2("LIGHT × HEIGHT").fontSize(12).ink(INK),
                                         legend,

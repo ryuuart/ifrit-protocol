@@ -25,7 +25,7 @@ def cell(caption: str, plate: compose.Element) -> compose.Element:
             .fill(PLATE)
             .column()
             .gap(8)
-            .justify("center")
+            .justifyContent("center")
             .alignItems("center")
             .children(
                 compose.text("SIGNAL", size=26, color=INK).fontTrack(3),

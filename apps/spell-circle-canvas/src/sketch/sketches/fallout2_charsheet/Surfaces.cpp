@@ -96,7 +96,7 @@ auto Fallout2CharSheet::raised(fo::Rect r, float radius) -> Element {
 
 auto Fallout2CharSheet::centred(fo::Rect r, Element child) -> Element {
   Element e = fo::atR(box(), r);
-  e.justify(Justify::Center).alignItems(Align::Center);
+  e.justifyContent(Justify::Center).alignItems(Align::Center);
   e.children({std::move(child)});
   return e;
 }
@@ -133,7 +133,7 @@ auto Fallout2CharSheet::chrome() -> Element {
       {14, 0, 140, 26}, {155, 0, 82, 26}, {238, 0, 76, 26}};
   for (int i = 0; i < 3; ++i) {
     Element p = raised(plaques[i], 3.0f);
-    p.justify(Justify::Center).alignItems(Align::Center);
+    p.justifyContent(Justify::Center).alignItems(Align::Center);
     // A 26-unit run does not fit a 26-unit plaque: its line box is the caps
     // plus a rise above and a descent below that no capital uses, so it
     // overflows, pins to the top, and lands its caps on the lower bevel

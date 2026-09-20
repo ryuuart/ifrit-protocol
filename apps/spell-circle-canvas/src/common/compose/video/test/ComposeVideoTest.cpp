@@ -64,7 +64,7 @@ TEST(ComposeVideo, ClipIsALiveSizedLeaf) {
   composer.render(box()
                       .fill(Fill::color({0, 0, 1, 1}))
                       .alignItems(Align::Center)
-                      .justify(Justify::Center)
+                      .justifyContent(Justify::Center)
                       .children({video(clip)}));
 
   sk_sp<SkSurface> surface =

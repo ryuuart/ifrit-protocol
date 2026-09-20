@@ -689,7 +689,7 @@ struct AeroDesktop {
       return box()
           .inset(0, 52, 0, 0)
           .row()
-          .justify(Justify::Center)
+          .justifyContent(Justify::Center)
           .children({text(label).ink(c)});
     };
     return box()

@@ -221,7 +221,7 @@ TEST(ComposeBox, ContentsHandsANodesChildrenToItsParentsLine) {
         {box()
              .row()
              .width(200)
-             .justify(Justify::SpaceBetween)
+             .justifyContent(Justify::SpaceBetween)
              .children(
                  {box().key("a").width(40).height(40).fill(red()),
                   box().key("wrapper").display(wrapper).children(

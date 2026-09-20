@@ -51,7 +51,7 @@ class FirstPythonSketch:
             .cover()
             .column()
             .gap(22)
-            .justify("center")
+            .justifyContent("center")
             .alignItems("center")
         )
 ```
@@ -87,7 +87,7 @@ immediately.
 **Children are positional.** `compose.box(a, b)` is C++'s
 `box().children({a, b})`. Unpack a list with `*`, as above.
 
-**Enumerations are strings.** `.justify("center")` is
+**Enumerations are strings.** `.justifyContent("center")` is
 `Justify::Center`, `.alignItems("center")` is `Align::Center`. The
 native enumeration values work too where you prefer them.
 

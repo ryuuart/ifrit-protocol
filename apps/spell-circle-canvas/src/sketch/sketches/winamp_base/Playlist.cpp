@@ -62,7 +62,7 @@ auto WinampBase::playlistWindow() -> Element {
                          }),
                     key(W - 44, 14, 22, 18, box())
                         .column()
-                        .justify(Justify::Center)
+                        .justifyContent(Justify::Center)
                         .alignItems(Align::Center)
                         .children({t("LIST", pix(3.8f)), t("OPTS", pix(3.8f))}),
                     // running-time readout

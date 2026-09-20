@@ -54,7 +54,7 @@ auto WinampBase::mainWindow() -> Element {
                   mskia::withAlpha(hexColor(0x4A4A70), 0.5f),
                   hexColor(0x08080E))
         .children({at(box(), 1, 2, wN - 2, 6)
-                       .justify(Justify::End)
+                       .justifyContent(Justify::End)
                        .alignItems(Align::Center)
                        .children({t(v, pix(4.6f))})});
   };
@@ -69,7 +69,7 @@ auto WinampBase::mainWindow() -> Element {
     if (ink) run.ink(*ink);
     return at(box(), x, 41, wN, 12)
         .alignItems(Align::Center)
-        .justify(Justify::Center)
+        .justifyContent(Justify::Center)
         .children({std::move(run)});
   };
   // The display's lettering is TEXT.BMP's green: the marquee, the readouts and
@@ -94,7 +94,7 @@ auto WinampBase::mainWindow() -> Element {
                          [this](const Clutter& c) {
                            return at(box(), 0, c.y, 8, c.h)
                                .alignItems(Align::Center)
-                               .justify(Justify::Center)
+                               .justifyContent(Justify::Center)
                                .children(
                                    {t(c.letter, pix(3.4f)).ink(kCaption)});
                          }),

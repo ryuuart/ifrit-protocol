@@ -25,7 +25,7 @@ def cell(caption: str, label: compose.Element) -> compose.Element:
             .height(120)
             .borderRadius(10)
             .fill(BUSY)
-            .justify("center")
+            .justifyContent("center")
             .alignItems("center"),
             compose.text(caption, size=12, color=ASH),
         )

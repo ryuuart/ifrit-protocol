@@ -37,7 +37,7 @@ Element cell(const char* caption, Element plate) {
                      .fill(kPlate)
                      .column()
                      .gap(8)
-                     .justify(Justify::Center)
+                     .justifyContent(Justify::Center)
                      .alignItems(Align::Center)
                      .children({text("SIGNAL").font(
                                     {.size = 26, .color = kInk, .track = 3}),

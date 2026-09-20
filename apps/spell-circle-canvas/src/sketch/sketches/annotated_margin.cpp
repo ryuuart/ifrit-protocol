@@ -195,7 +195,7 @@ struct AnnotatedMargin {
                  [&](const TextUnit& unit) {
                    return box()
                        .width(m::kNoteMeasure)
-                       .justify(Justify::End)
+                       .justifyContent(Justify::End)
                        .row()
                        .gap(8)
                        .children(

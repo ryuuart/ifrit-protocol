@@ -67,7 +67,7 @@ def run_figure(mode: int) -> Element:
             selected.style("signal"),
             Type(color=TEAL, weight=700, decorations=(highlight,)),
         )
-    return specimen(column(line).justify("center"), 194)
+    return specimen(column(line).justifyContent("center"), 194)
 
 
 def curved_figure() -> Element:

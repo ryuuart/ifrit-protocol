@@ -299,7 +299,7 @@ struct AstralTome {
                        .bottom(0)
                        .height(at::kBandH)
                        .column()
-                       .justify(Justify::Center)
+                       .justifyContent(Justify::Center)
                        .padding(34.0f, 0.0f)
                        .gap(5.0f)
                        .zIndex(20)

@@ -50,7 +50,7 @@ is placed.
 | `flexWrap` | What becomes of children that overflow the main axis: `FlexWrap::NoWrap`, `Wrap`, `WrapReverse`. The bare call wraps. |
 | `alignItems` | Where the children sit on the cross axis. |
 | `alignSelf` | Where THIS child sits on its parent's cross axis, whatever the parent said. |
-| `justify` | Where the children sit along the main axis, and how the slack is shared. |
+| `justifyContent` | Where the children sit along the main axis, and how the slack is shared. |
 | `absolute` | Take this node out of the flow; its insets place it. |
 | [`cover`](pages/verbs/cover.md) | Fill the box it stands in — out of the flow and stretched to the parent. |
 | `inset` | How far in from the parent's edges this node's own stand: one length for all four, or four. |
@@ -268,7 +268,7 @@ spelling is the feature's.
 
 - `core/verbs/Flex.h` — the flex verbs `flexDirection`, `row`, `column`,
   `flexWrap`, `grow`, `shrink`, `basis`, `alignItems`, `alignSelf`,
-  `justify`.
+  `justifyContent`.
 - `core/verbs/Box.h` — the box verbs `gap`, `padding`, `margin`,
   `width`, `height`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`,
   `aspect`, `boxSizing`, `display`.

@@ -32,9 +32,9 @@ assert_type(tree, compose.Element)
 assert_type(
     tree.padding(all=8).margin(left=1, top=2, right=3, bottom=4), compose.Element
 )
-assert_type(tree.alignItems("auto").justify("space_between"), compose.Element)
+assert_type(tree.alignItems("auto").justifyContent("space_between"), compose.Element)
 assert_type(
-    tree.alignItems(compose.Align.Auto).justify(compose.Justify.End), compose.Element
+    tree.alignItems(compose.Align.Auto).justifyContent(compose.Justify.End), compose.Element
 )
 assert_type(motion.from_(0).to(1), motion.FromTo)
 assert_type(motion.animate(motion.from_(0).to(1)), motion.Transitioned)

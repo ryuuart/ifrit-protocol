@@ -47,7 +47,7 @@ struct TextFillVerb {
         .column()
         .gap(18)
         .padding(28)
-        .justify(Justify::Center)
+        .justifyContent(Justify::Center)
         .children({
             text("CHROME").font({.size = 64, .track = 2}).textFill(chrome()),
             text("SET SMALLER")

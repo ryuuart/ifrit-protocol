@@ -403,7 +403,7 @@ struct Flourish {
              box()
                  .row()
                  .gap(2)
-                 .justify(Justify::Center)
+                 .justifyContent(Justify::Center)
                  .children(std::move(frieze)),
              text(u8"— a stress test that chose to be beautiful —")
                  .font({.size = 11})

@@ -61,7 +61,7 @@ Element cell(const char* caption, Element leaf) {
                      .borderRadius({8})
                      .fill(kCell)
                      .clip()
-                     .justify(Justify::Center)
+                     .justifyContent(Justify::Center)
                      .alignItems(Align::Center)
                      .children({std::move(leaf)}),
                  text(caption).font({.size = 12, .color = kAsh})});

@@ -255,7 +255,7 @@ class LiveSignals:
                 (
                     row()
                     .width(1004)
-                    .justify("space_between")
+                    .justifyContent("space_between")
                     .children(
                         doc.eyebrow("FIELD INSTRUMENTS / 03").fontSize(11).ink(MUTED),
                         doc.label("JSON IN · JSON OUT").fontSize(11).ink(MUTED),
@@ -264,7 +264,7 @@ class LiveSignals:
                 (
                     row()
                     .width(1004)
-                    .justify("space_between")
+                    .justifyContent("space_between")
                     .alignItems("center")
                     .children(
                         doc.h1("Signals, received.").fontSize(48).ink(INK),
@@ -330,7 +330,7 @@ class LiveSignals:
                                 (
                                     row()
                                     .width(606)
-                                    .justify("space_between")
+                                    .justifyContent("space_between")
                                     .children(
                                         doc.h2("RECENT ARRIVALS")
                                         .fontSize(11)

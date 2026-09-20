@@ -35,7 +35,7 @@ Element cell(const char* caption, Element label) {
                      .height(120)
                      .borderRadius({10})
                      .fill(kBusy)
-                     .justify(Justify::Center)
+                     .justifyContent(Justify::Center)
                      .alignItems(Align::Center)
                      .children({std::move(label)}),
                  text(caption).font({.size = 12, .color = kAsh})});

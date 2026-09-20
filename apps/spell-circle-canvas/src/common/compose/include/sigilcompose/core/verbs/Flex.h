@@ -58,7 +58,7 @@ class FlexVerbs {
   /** HOW THIS NODE'S CHILDREN ARE DISTRIBUTED ALONG its main axis, and
    *  what becomes of the room left over — CSS `justify-content`.
    *  `Justify::Start` when unstated. */
-  Derived& justify(Justify j);
+  Derived& justifyContent(Justify j);
 
  private:
   Derived& self() { return static_cast<Derived&>(*this); }

@@ -160,7 +160,7 @@ auto SlitScan2001::sidebar() -> Element {
       .width(kSideW)
       .height(kBodyH)
       .shrink(0)
-      .justify(Justify::SpaceBetween)
+      .justifyContent(Justify::SpaceBetween)
       .staggerChildren(85ms)
       .children({s1Quote(), s2Lens(), s3Law(), s4Sampling()});
 }

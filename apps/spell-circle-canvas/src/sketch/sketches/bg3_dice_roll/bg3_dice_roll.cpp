@@ -778,7 +778,7 @@ struct Bg3DiceRoll {
                        .top(bg3::kH)
                        .height(bg3::kBandH)
                        .column()
-                       .justify(Justify::Center)
+                       .justifyContent(Justify::Center)
                        .padding(56.0f, 0.0f)
                        .gap(7.0f)
                        .zIndex(30)

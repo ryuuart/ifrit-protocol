@@ -51,7 +51,7 @@ class FillVerb:
             .row()
             .gap(28)
             .padding(24)
-            .justify("center")
+            .justifyContent("center")
             .alignItems("center")
             .ink(ACCENT)
         )

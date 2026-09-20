@@ -41,7 +41,7 @@ def cell(caption: str, leaf: compose.Element) -> compose.Element:
             .borderRadius(8)
             .fill(CELL)
             .clip()
-            .justify("center")
+            .justifyContent("center")
             .alignItems("center"),
             compose.text(caption, size=12, color=ASH),
         )

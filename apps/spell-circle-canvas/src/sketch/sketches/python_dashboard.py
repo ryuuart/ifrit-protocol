@@ -93,7 +93,7 @@ def signal_panel():
         .children(
             (
                 row()
-                .justify("space_between")
+                .justifyContent("space_between")
                 .alignItems("center")
                 .children(
                     (
@@ -133,7 +133,7 @@ def signal_panel():
             ),
             (
                 row()
-                .justify("space_between")
+                .justifyContent("space_between")
                 .children(
                     text("00:00", size=11, color=MUTED),
                     text("00:24", size=11, color=MUTED),
@@ -156,7 +156,7 @@ class Dashboard:
             .children(
                 (
                     row()
-                    .justify("space_between")
+                    .justifyContent("space_between")
                     .alignItems("center")
                     .children(
                         (
@@ -197,7 +197,7 @@ class Dashboard:
                 signal_panel(),
                 (
                     row()
-                    .justify("space_between")
+                    .justifyContent("space_between")
                     .children(
                         doc.footer("Three readings. One continuous field.")
                         .fontSize(12)

@@ -61,7 +61,7 @@ Derived& FlexVerbs<Derived>::alignSelf(Align a) {
 }
 
 template <class Derived>
-Derived& FlexVerbs<Derived>::justify(Justify j) {
+Derived& FlexVerbs<Derived>::justifyContent(Justify j) {
   declarations()->layout.justify = j;
   return self();
 }

@@ -75,7 +75,7 @@ Element chain(const std::string& key, const weave::Story& story,
       .row()
       .gap(24)
       .width(501)
-      .justify(Justify::Center)
+      .justifyContent(Justify::Center)
       .children({leaf(1), leaf(2)});
 }
 

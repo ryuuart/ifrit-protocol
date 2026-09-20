@@ -59,7 +59,7 @@ auto WinampBase::eqWindow() -> Element {
                  each(kScale,
                       [this](const Mark& m) {
                         return at(box(), 38, m.y, 38, 7)
-                            .justify(Justify::End)
+                            .justifyContent(Justify::End)
                             .alignItems(Align::Center)
                             .children({t(m.words, pix(3.6f)).ink(m.ink)});
                       }),
@@ -68,7 +68,7 @@ auto WinampBase::eqWindow() -> Element {
                      .children({t("PREAMP", pix(3.6f))}),
                  each(kBands, [this](const char* words, size_t i) {
                    return at(box(), 76.0f + 18.0f * (float)i, 104, 18, 7)
-                       .justify(Justify::Center)
+                       .justifyContent(Justify::Center)
                        .alignItems(Align::Center)
                        .children({t(words, pix(3.6f))});
                  })});

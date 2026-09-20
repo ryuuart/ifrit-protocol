@@ -76,7 +76,7 @@ struct Pulse {
   }
 
   Element describe() const {
-    return box().cover().justify(Justify::Center).alignItems(Align::Center)
+    return box().cover().justifyContent(Justify::Center).alignItems(Align::Center)
         .children({box().width(220).height(140).borderRadius({16}).fill(&tint)});
   }
 };

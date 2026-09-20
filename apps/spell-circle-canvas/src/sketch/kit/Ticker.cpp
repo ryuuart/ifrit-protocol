@@ -82,7 +82,7 @@ compose::Element timeline(const Timeline& scale) {
              .left(compose::pct(std::clamp(mark.at, 0.0f, 1.0f) * 100))
              .width(0)
              .row()
-             .justify(compose::Justify::Center)
+             .justifyContent(compose::Justify::Center)
              .children({std::move(label.shrink(0))})});
   }
   if (!scale.below && any) {

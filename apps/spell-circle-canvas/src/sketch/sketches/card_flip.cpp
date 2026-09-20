@@ -162,7 +162,7 @@ struct CardFlip {
           .foreground(stroke(1.5f, Fill::color(kEdge)))
           .column()
           .padding(22)
-          .justify(Justify::SpaceBetween)
+          .justifyContent(Justify::SpaceBetween)
           .rotateY(turn)
           .backface(material::Backface::Hidden)
           .font({.color = kPaper, .track = 1})

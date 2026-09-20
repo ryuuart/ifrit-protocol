@@ -31,7 +31,7 @@ def cell(caption: str, plate: compose.Element) -> compose.Element:
             .borderRadius(10)
             .fill(PLATE)
             .clip()
-            .justify("center")
+            .justifyContent("center")
             .alignItems("center")
             .children(compose.text("47", size=52, color=INK)),
             compose.text(caption, size=12, color=ASH),

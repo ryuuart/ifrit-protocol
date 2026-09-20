@@ -301,7 +301,7 @@ struct TwoAdvancedEquipment {
                    box().grow(1),
                    box()
                        .row()
-                       .justify(Justify::End)
+                       .justifyContent(Justify::End)
                        .children({img("ecom-viewdetails.gif", 84, 16)})})}),
          box().height(6)});
     return block;

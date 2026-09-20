@@ -29,7 +29,7 @@ Element cell(const char* caption, Element plate) {
       .basis(0)
       .grow(1)
       .alignItems(Align::Center)
-      .justify(Justify::Center)
+      .justifyContent(Justify::Center)
       .children({plate.width(160).height(100).borderRadius({12}),
                  text(caption).font({.size = 12, .color = kAsh})});
 }

@@ -84,7 +84,7 @@ sound model; nothing below them changes kernel semantics.
   `boxSizing`, `display`.
 - `core/verbs/Flex.h` — `FlexVerbs`: `flexDirection`, `row`, `column`,
   `flexWrap`, `grow`, `shrink`, `basis`, `alignItems`, `alignSelf`,
-  `justify`.
+  `justifyContent`.
 - `core/verbs/Placement.h` — `PlacementVerbs`: `absolute`, `cover`,
   `inset`, `left`, `top`, `right`, `bottom`, `centerAt`, `cells`,
   `area`, `cellAlign`, `rect`, `at`. `cover` is the one that says a
@@ -760,7 +760,7 @@ to, which a caller otherwise writes as a padded column at a gap of
 `pitch - thickness`, the one subtraction a ruled bed spells twice and
 gets wrong once) and `kit/Frame.h`'s nine-slice frame,
 `kit::centred` (a container whose content stands in the middle both ways,
-since `alignItems(Center)` and `justify(Center)` always travel together
+since `alignItems(Center)` and `justifyContent(Center)` always travel together
 and say one thing between them, with an overload round the one child most
 of them hold),
 the pixel art in `kit/Sprites.h` — `kit::PixelInk`, a canvas and a cell

@@ -54,7 +54,7 @@ struct DeviceImportProbe {
     ctx.composer.render(
         stack()
             .alignItems(Align::Center)
-            .justify(Justify::Center)
+            .justifyContent(Justify::Center)
             .children({text(
                 imported ? u8"imported" : u8"no device",
                 weave::textStyle({.size = 22, .color = hexColor(0xd8e2f0)}))}));

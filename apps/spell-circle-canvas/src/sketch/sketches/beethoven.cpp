@@ -205,7 +205,7 @@ struct Beethoven {
                   box()
                       .width(56 * bp::kScale)
                       .row()
-                      .justify(Justify::End)
+                      .justifyContent(Justify::End)
                       .children({text(g.label)}),
                   box()
                       .column()

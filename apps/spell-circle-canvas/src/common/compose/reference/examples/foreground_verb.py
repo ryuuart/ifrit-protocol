@@ -34,7 +34,7 @@ def tile(caption: str, plate: compose.Element) -> compose.Element:
                 .cover()
                 .borderRadius(10)
                 .fill(PLATE)
-                .justify("center")
+                .justifyContent("center")
                 .alignItems("center")
             ),
             compose.text(caption, size=12, color=ASH),

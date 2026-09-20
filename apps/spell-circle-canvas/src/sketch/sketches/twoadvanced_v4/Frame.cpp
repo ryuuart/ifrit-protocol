@@ -63,7 +63,7 @@ auto TwoAdvancedV4::navBar() -> Element {
   using namespace tav;
   Element bar = bevelPanel(box()
                                .row()
-                               .justify(Justify::SpaceEvenly)
+                               .justifyContent(Justify::SpaceEvenly)
                                .alignItems(Align::Center)
                                .padding(6, 0),
                            kChrome);
