@@ -1,6 +1,7 @@
 // The one documentation claim the generated probe TU cannot make.
 //
-// ComposeApiDocProbes.cpp is generated from README.md and TYPOGRAPHY.md on
+// ComposeApiDocProbes.cpp is generated from README.md, TYPOGRAPHY.md and the
+// chapters under reference/ on
 // every build and fails when a documented name no header declares: it
 // proves every name the prose spells EXISTS. It cannot prove that a value
 // an author meets in a profile reads as words rather than as blank space,

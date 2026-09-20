@@ -73,7 +73,18 @@ sigil_library_root(SigilCompose
        ${CMAKE_CURRENT_SOURCE_DIR}/reference/ELEMENTS.md
        ${CMAKE_CURRENT_SOURCE_DIR}/reference/VERBS.md
        ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/reference/COLOURING.md)
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/COLOURING.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/CASCADE.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/DEPTH.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/HEADERS.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/CACHING.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/TRAPS.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/TEXT_FX.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/TEXT_PATH.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/RICH_TEXT.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/PARAGRAPHS.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/BESIDE_TEXT.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/reference/VERTICAL_TEXT.md)
 
 # Dependencies point down this list. testing/ precedes the features whose
 # test binaries link it; kit/ links the tiers above it.
@@ -103,9 +114,10 @@ sigil_library(SigilCompose
 # The cross-feature tests, which are the library's rather than one tier's.
 
 # The engine walkthroughs and the compile check over the prose.
-# Every API name README.md, TYPOGRAPHY.md, the reference's catalogue
+# Every API name README.md, TYPOGRAPHY.md, the chapters those two index,
+# the reference's catalogue
 # indexes and its entity pages spell, compiled against the headers that
-# own it — every one of them, because the type chapter, the catalogue
+# own it — every one of them, because a chapter, the catalogue
 # and an entity's own page are the same canon as the page that links
 # them. The testing tier's own include root is scanned beside the
 # library's, since the walkthroughs spell the harness the cases are
@@ -118,6 +130,17 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/VERBS.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/COLOURING.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/CASCADE.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/DEPTH.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/HEADERS.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/CACHING.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/TRAPS.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/TEXT_FX.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/TEXT_PATH.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/RICH_TEXT.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/PARAGRAPHS.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/BESIDE_TEXT.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/VERTICAL_TEXT.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Corners.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Dimension.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Fill.md

@@ -14,10 +14,30 @@ from.
 - [COLOURING.md](COLOURING.md) — the chapter over the four values that
   all mean "what colour is this", and which one a verb wants.
 
+Beside them are the model's own chapters, each linked from the section
+of the library README it was written under:
+
+- [CASCADE.md](CASCADE.md) — what flows down the tree, and how a role or
+  a class resolves against a sheet.
+- [DEPTH.md](DEPTH.md) — the depth lanes, the shared space and the
+  projection.
+- [HEADERS.md](HEADERS.md) — every public header, feature by feature,
+  and the names it owns.
+- [CACHING.md](CACHING.md) — the declared-volatility contract.
+- [TRAPS.md](TRAPS.md) — the silent no-ops, lifetime, pruning and
+  ordering.
+
+And the type chapter's own chapters, indexed by
+[TYPOGRAPHY.md](../TYPOGRAPHY.md): [TEXT_FX.md](TEXT_FX.md),
+[TEXT_PATH.md](TEXT_PATH.md), [RICH_TEXT.md](RICH_TEXT.md),
+[PARAGRAPHS.md](PARAGRAPHS.md), [BESIDE_TEXT.md](BESIDE_TEXT.md) and
+[VERTICAL_TEXT.md](VERTICAL_TEXT.md).
+
 Under `pages/` is one page per entity — `elements/`, `verbs/` and
 `types/` — and under `examples/` the drawn example each page shows. The
 library's own `README.md`, one directory up, stays the canon for the
-MODEL — the phases, the caching, the cascade, the boundaries. This is
+MODEL — the phases, the write paths, the boundaries, and where each
+chapter above is. This is
 the catalogue over it, and a sentence here that disagrees with the
 README is a defect in this directory.
 
@@ -81,7 +101,8 @@ draws through `compose.pen`.
 ## How this stays true
 
 Every document here is listed in the compose library's
-`sigil_doc_probes()` call — the three indexes, the colour chapter, every
+`sigil_doc_probes()` call — the three indexes, the colour chapter, the
+model's chapters and the type chapter's, every
 page, and this file — so each qualified name it spells is compiled
 against the header that owns it, and the bare names of a bullet that
 opens with a header path are checked against that header. A rename the
