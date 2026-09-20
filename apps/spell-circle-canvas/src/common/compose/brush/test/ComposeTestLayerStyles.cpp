@@ -138,7 +138,7 @@ TEST(ComposeStyles, RippleDisplacesTheLayer) {
   auto bar = [](bool warped) {
     Element e =
         box().absolute().inset(20, 96, 20, 96).fill(Fill::color({1, 0, 0, 1}));
-    if (warped) e.effect(styles::ripple(10, 60));
+    if (warped) e.filter(styles::ripple(10, 60));
     return box().children({std::move(e)});
   };
   Host flat, warped;

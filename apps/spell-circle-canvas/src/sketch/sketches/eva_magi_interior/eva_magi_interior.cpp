@@ -320,7 +320,7 @@ struct EvaMagiInterior {
                                        scanner()}),
                         diagnostic(), slot("status")})
              .fill(mskia::Paint::solid(kGround))
-             .effect(evangelion::crt(1440, 1052))}));
+             .filter(evangelion::crt(1440, 1052))}));
     ctx.composer.renderSlot("status", status());
   }
 

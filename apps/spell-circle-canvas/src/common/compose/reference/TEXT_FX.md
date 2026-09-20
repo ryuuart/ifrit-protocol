@@ -390,7 +390,7 @@ field rather than in the body's text; any other material warns once and
 the track draws its glyphs at rest. `main(xy)` runs in the node's own px, the layer is sampled at the
 device's resolution (a 2x host stays sharp with no supersampled bake), and
 the pass is BOUNDED: it paints the node's box grown by the track's `reach`
-and nothing outside it, unlike an `Element::effect` shader pass. The
+and nothing outside it, unlike an `Element::filter` shader pass. The
 per-unit rects and times are resolved from the SAME cascade
 `Composer::beatsOf` reports, so a pass, a mark and the glyphs cannot
 disagree about the schedule.

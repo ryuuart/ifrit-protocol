@@ -231,7 +231,7 @@ enum class Ground { Black, LitIsolated };
 Element latticeScene(Cache mode, Ground ground) {
   Element g = lattice(mode);
   if (ground == Ground::LitIsolated)
-    g.effect(
+    g.filter(
         material::skia::Effect::filter(SkImageFilters::Offset(0, 0, nullptr)));
   Element wrapped = box()
                         .cache(Cache::None)

@@ -335,7 +335,7 @@ struct Flourish {
                    .key(bloom ? "titleBloom" : "title")
                    .opacity(&titleFade);
       if (bloom)
-        t.effect(sigil::material::skia::Effect::filter(
+        t.filter(sigil::material::skia::Effect::filter(
                      SkImageFilters::Blur(6, 6, nullptr)))
             .blend(SkBlendMode::kPlus);
       else

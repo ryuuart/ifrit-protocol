@@ -46,7 +46,7 @@ read before the four rows under *The surface*.
 
 | Value | What it is | Make one | Passed to |
 |---|---|---|---|
-| `material::skia::Effect` | A filter over pixels: blurs, glows, colour programs, recipes. | `Effect::blur`, `Effect::glow`, `Effect::filter`, `Effect::recipe`, `Effect::directionalBlur` | `Element::effect`, `Element::backdrop` |
+| `material::skia::Effect` | A filter over pixels: blurs, glows, colour programs, recipes. | `Effect::blur`, `Effect::glow`, `Effect::filter`, `Effect::recipe`, `Effect::directionalBlur` | `Element::filter`, `Element::backdrop` |
 | `Cache` | How a node's paint is held: `Auto`, `Picture`, `Texture`, `Group`, `None`. | The enumeration itself | `Element::cache` |
 | `PaintContext` | What a paint program is handed: the box, the outline, the clock, the ink, the font, the properties. | The composer builds it; a program reads it | Every `PaintProgram` and every decoration |
 | `PaintProgram` | A drawing on a canvas that names only the parameters it reads. | Any callable taking a prefix of `(SkCanvas&, const PaintContext&)` | `custom`, and `Decoration` |

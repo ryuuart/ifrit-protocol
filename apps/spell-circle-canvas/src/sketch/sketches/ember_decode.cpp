@@ -38,7 +38,7 @@
 //  - the layer is sampled at the device's resolution, so a 2x host stays
 //    sharp with no supersampled bake;
 //  - the pass is BOUNDED to the node's box plus the track's reach, unlike a
-//    raw Element::effect shader pass.
+//    raw Element::filter shader pass.
 //
 // WHAT REMAINS OUTSIDE THE ENGINE, stated because it shaped this file: a
 // cascade opens each unit once — there is no "in, hold, burn off" as one

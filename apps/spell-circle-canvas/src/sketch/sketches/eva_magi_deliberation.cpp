@@ -188,7 +188,7 @@ struct EvaMagiDeliberation {
         {box()
              .inset(0)
              .fill(mskia::Paint::solid(kGround))
-             .effect(evangelion::crt(layout.canvasWidth, layout.canvasHeight))
+             .filter(evangelion::crt(layout.canvasWidth, layout.canvasHeight))
              .cache(Cache::Texture)
              .key("crt")
              .children({backplane(), module(2, "BALTHASAR"),

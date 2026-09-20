@@ -187,7 +187,7 @@ auto KspMapView::orbits(sketch::SketchContext& ctx) -> Element {
                                  .autoFlip = true})),
        // The hero: the current orbit, drawn on with a trim reveal and dressed
        // in the organic 4-layer additive glow (a LayeredBrush, not a
-       // frame-level effect()).
+       // frame-level filter()).
        full(
            box()
                .shape(trajectory(cur, {0, 360, 360}))

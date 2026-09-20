@@ -199,7 +199,7 @@ auto RotaConvocationis::sigillum(int k) -> Element {
            .centerAt({kSealR, kSealR})
            .hitTestable(false)
            .rotate(motion::bind(&sealUpright).target(0.0f, 360.0f))
-           .effect(styles::textGlow(kHalo, 3.0f))
+           .filter(styles::textGlow(kHalo, 3.0f))
            .fx({.effect = fx::hold(fx::scramble(U"IVXLC", 12)),
                 .stagger = {.eachMs = 90, .durationMs = 620},
                 .progress = beat(at + 0.55, at + 0.55 + sealSpanS * 0.9)})
@@ -258,7 +258,7 @@ auto RotaConvocationis::monogramma() -> Element {
       .key("monogramma")
       .centerAt(kEye)
       .hitTestable(false)
-      .effect(styles::textGlow(kHalo, 7.0f))
+      .filter(styles::textGlow(kHalo, 7.0f))
       .fx({.effect = fx::hold(fx::spinIn(90.0f, 14.0f)),
            .stagger = letters,
            .progress = beat(tHub, tHub + hubSpanS)})

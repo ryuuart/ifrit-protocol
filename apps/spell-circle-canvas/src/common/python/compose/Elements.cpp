@@ -708,7 +708,7 @@ void bindCompose(py::module_& module) {
           },
           py::arg("offset"), py::arg("ink"), fluent)
       .def("annotate", &Element::annotate, py::arg("reading"), fluent)
-      .def("effect", &Element::effect, py::arg("effect"), fluent)
+      .def("filter", &Element::filter, py::arg("effect"), fluent)
       .def("backdrop", &Element::backdrop, py::arg("effect"), fluent)
       .def("appear", &Element::appear, py::arg("entrance"), fluent)
       .def("blend", &Element::blend, py::arg("mode"), fluent)

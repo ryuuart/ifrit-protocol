@@ -20,7 +20,7 @@ TEST(ComposeEffects, LayerEffectBlursNode) {
                           .inset(70, 70, 70, 70)
                           .absolute()
                           .fill(red())
-                          .effect(material::skia::Effect::filter(
+                          .filter(material::skia::Effect::filter(
                               SkImageFilters::Blur(8, 8, nullptr)))}));
   host.frame();
   // Blur bleeds outside the crisp box bounds and softens the center edge.
@@ -70,7 +70,7 @@ TEST(ComposeEffects, TextureBakesEffectOnce) {
                         .width(60)
                         .height(60)
                         .fill(green())
-                        .effect(material::skia::Effect::filter(
+                        .filter(material::skia::Effect::filter(
                             SkImageFilters::Blur(4, 4, nullptr)))
                         .cache(Cache::Texture)));
   host.frame();
@@ -102,7 +102,7 @@ TEST(ComposeEffects, ALiveLayerEffectOverStaticContentFiltersOneBake) {
   Host host;
   choreograph::Output<float> maxSigma{1.0f};
   host.composer.render(profiledUnder(
-      box().key("racked").width(60).height(60).fill(green()).effect(
+      box().key("racked").width(60).height(60).fill(green()).filter(
           material::skia::Effect::blur(sigmaMap(), 14.0f)
               .uniform("maxSigma", &maxSigma))));
   host.frame();
@@ -185,7 +185,7 @@ TEST(ComposeEffects, ALiveUniformAnimatesWithoutRedescribe) {
            .inset(0, 0, 140, 140)
            .absolute()
            .fill(green())
-           .effect(material::skia::Effect::shader(effect).uniform("uK", &k))}));
+           .filter(material::skia::Effect::shader(effect).uniform("uK", &k))}));
   host.frame();
   EXPECT_GT(SkColorGetG(host.pixel(30, 30)), 200u);  // uK=1 → full green
   k = 0.25f;     // move the bound uniform — NO re-describe
@@ -210,7 +210,7 @@ TEST(ComposeEffects, AStaticShaderEffectPrunesByRecipe) {
   ASSERT_TRUE(effect) << err.c_str();
   Host host;
   auto tree = [&](float uK) {
-    return box().children({box().width(60).height(60).fill(green()).effect(
+    return box().children({box().width(60).height(60).fill(green()).filter(
         material::skia::Effect::shader(effect, {{"uK", uK}}))});
   };
   host.composer.render(tree(0.5f));
@@ -256,7 +256,7 @@ TEST(ComposeEffects, LiveChainsRecomposeAndStaticChainsStayCheap) {
                                            .inset(0, 0, 140, 140)
                                            .absolute()
                                            .fill(green())
-                                           .effect(liveChain)}));
+                                           .filter(liveChain)}));
   host.frame();
   const unsigned g = SkColorGetG(host.pixel(30, 30));
   EXPECT_GT(g, 90u);
@@ -279,7 +279,7 @@ TEST(ComposeEffects, ADirectionalBlurAtAnAxisAngleIsBlurBitwise) {
                                              .inset(70, 70, 70, 70)
                                              .absolute()
                                              .fill(green())
-                                             .effect(std::move(e))}));
+                                             .filter(std::move(e))}));
     host.frame();
   };
   Host ported, hand, swapped;
@@ -308,7 +308,7 @@ TEST(ComposeEffects, ADirectionalBlurAtAnArbitraryAngleSmearsAlongIt) {
            .inset(80, 80, 80, 80)
            .absolute()
            .fill(green())
-           .effect(material::skia::Effect::directionalBlur(18, 45))}));
+           .filter(material::skia::Effect::directionalBlur(18, 45))}));
   host.frame();
   const unsigned along = SkColorGetG(host.pixel(125, 125));
   const unsigned acrossAxis = SkColorGetG(host.pixel(75, 125));
@@ -324,7 +324,7 @@ TEST(ComposeEffects, AStaticDirectionalBlurPrunesByRecipe) {
   // changed angle.
   Host host;
   auto tree = [&](float angle) {
-    return box().children({box().width(60).height(60).fill(green()).effect(
+    return box().children({box().width(60).height(60).fill(green()).filter(
         material::skia::Effect::directionalBlur(12, angle, 4))});
   };
   host.composer.render(tree(30));
@@ -353,7 +353,7 @@ TEST(ComposeEffects, ABoundDirectionalBlurAngleAnimatesWithoutRedescribe) {
            .inset(80, 80, 80, 80)
            .absolute()
            .fill(green())
-           .effect(material::skia::Effect::directionalBlur(18, 0).uniform(
+           .filter(material::skia::Effect::directionalBlur(18, 0).uniform(
                "angle", &angle))}));
   host.frame();
   // angle 0: the streak runs horizontally — ink right of the box, a
@@ -428,7 +428,7 @@ void stripePlate(Host& host, material::skia::Effect e) {
                                            .inset(40, 40, 40, 40)
                                            .absolute()
                                            .fill(stripeFill())
-                                           .effect(std::move(e))}));
+                                           .filter(std::move(e))}));
   host.frame();
 }
 
@@ -472,7 +472,7 @@ TEST(ComposeEffects, AStaticParamBlurPrunesByRecipeAndByItsMap) {
   // pruned node sampling last frame's map forever.
   Host host;
   auto tree = [&](float maxSigma, material::skia::Paint map) {
-    return box().children({box().width(60).height(60).fill(green()).effect(
+    return box().children({box().width(60).height(60).fill(green()).filter(
         material::skia::Effect::blur(std::move(map), maxSigma))});
   };
   host.composer.render(tree(10, focalRamp()));
@@ -557,7 +557,7 @@ TEST(ComposeEffects, AnEffectChildFillsASecondDeclaredShaderSlot) {
                           .inset(40, 40, 40, 40)
                           .absolute()
                           .fill(green())
-                          .effect(material::skia::Effect::shader(fx).slot(
+                          .filter(material::skia::Effect::shader(fx).slot(
                               "param", focalRamp()))}));
   host.frame();
   // The ramp modulates the green layer left (0) to right (1) — and the
@@ -579,7 +579,7 @@ TEST(ComposeEffects, AnEffectChildFillsASecondDeclaredShaderSlot) {
            .inset(40, 40, 40, 40)
            .absolute()
            .fill(green())
-           .effect(material::skia::Effect::shader(fx).slot(
+           .filter(material::skia::Effect::shader(fx).slot(
                "param",
                material::skia::Paint::solid({0.5f, 0.5f, 0.5f, 1})))}));
   flat.frame();

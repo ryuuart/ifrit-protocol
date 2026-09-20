@@ -355,9 +355,8 @@ struct EvaMagiDefense {
          // above both — a panel hides the ribbon under it, halo and all.
          camera(ribbonGlow()), camera(art()), camera(collapsingLayer(0)),
          camera(collapsingLayer(1))});
-    root.children({std::move(picture)
-                       .effect(evangelion::crt(kW, kH))
-                       .key("crt")});
+    root.children(
+        {std::move(picture).filter(evangelion::crt(kW, kH)).key("crt")});
 
     root.children({
                    // phosphor flicker: an alpha-0 plane 99% of the time, so it

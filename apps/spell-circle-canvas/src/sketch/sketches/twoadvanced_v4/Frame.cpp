@@ -149,7 +149,7 @@ auto TwoAdvancedV4::masthead() -> Element {
                     box().column().gap(6).children(
                         {t("2ADVANCED STUDIOS",
                            cut(blackFace(), 25, kCyan, 80, 0.90f))
-                             .effect(styles::textGlow(
+                             .filter(styles::textGlow(
                                  mskia::withAlpha(kGlow, 0.55f), 6)),
                          t("PROGRESSIVE DESIGN TECHNOLOGY",
                            micro(12, kDust, 240)),

@@ -450,7 +450,7 @@ struct PersonaMenu {
         .cache(Cache::Texture)
         .children({text(r.label)
                        .font(nn::menuType(41, r.color, 1.8f))
-                       .effect(styles::textGlow({0, 0, 0, 0.5f}, 3.5f))});
+                       .filter(styles::textGlow({0, 0, 0, 0.5f}, 3.5f))});
   }
 
   /** The selected sticker: black label at 1.5x on a
@@ -582,7 +582,7 @@ struct PersonaMenu {
                  .alignItems(Align::End)
                  .children({text("07/22")
                                 .font(nn::menuType(38, nn::kPaper, 2.0f))
-                                .effect(styles::textGlow({0, 0, 0, 0.45f}, 3)),
+                                .filter(styles::textGlow({0, 0, 0, 0.45f}, 3)),
                             box()
                                 .column()
                                 .margin(11, 0, 0, 5)
@@ -767,7 +767,7 @@ struct PersonaMenu {
                  .opacity(animate(motion::from(0.0f).to(1.0f), {300ms}))
                  .children({text("PERSONA")
                                 .font(nn::menuType(30, nn::kPaper, 2))
-                                .effect(styles::textGlow({0, 0, 0, 0.5f}, 3)),
+                                .filter(styles::textGlow({0, 0, 0, 0.5f}, 3)),
                             box()
                                 .row()
                                 .alignItems(Align::Center)

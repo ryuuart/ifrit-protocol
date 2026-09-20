@@ -240,7 +240,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
                 {1.0f, mskia::withAlpha(kTealBar, 0.0f)}}))
            // smear the reflection down into the water: sigma 26
            // along the 90° axis (straight down), 14 across it
-           .effect(mskia::Effect::directionalBlur(26, 90, 14))
+           .filter(mskia::Effect::directionalBlur(26, 90, 14))
            .opacity(0.78f)
            .blend(SkBlendMode::kPlus),
        // the specular COLUMN — the vertical smear of a light in water, and
@@ -257,7 +257,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
                 {1.00f, mskia::withAlpha(kGlow, 0.0f)}}))
            // soften the column's sides: sigma 10 along the 0° axis
            // (horizontal), only 3 down its length
-           .effect(mskia::Effect::directionalBlur(10, 0, 3))
+           .filter(mskia::Effect::directionalBlur(10, 0, 3))
            .blend(SkBlendMode::kPlus)});
   scene.children(
       {water,
@@ -278,7 +278,7 @@ auto TwoAdvancedV4::hero(float w, float h) -> Element {
        // back over itself. Built `still` so it is provably static and the
        // Texture bake is paid once, not per frame.
        heroScene(w, h, true)
-           .effect(mskia::Effect::filter(SkImageFilters::Blur(22, 22, nullptr)))
+           .filter(mskia::Effect::filter(SkImageFilters::Blur(22, 22, nullptr)))
            .opacity(0.34f)
            .blend(SkBlendMode::kPlus)
            .cache(Cache::Texture)

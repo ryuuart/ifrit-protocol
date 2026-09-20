@@ -96,7 +96,7 @@ struct Ds2Bench {
                                     {1.0f, hexColor(0x080F16, a * 0.2f)}}))
                // the strut melts vertically out of focus: 18 along
                // the vertical, 12 across
-               .effect(Effect::directionalBlur(18, 90, 12))
+               .filter(Effect::directionalBlur(18, 90, 12))
                .zIndex(0)});
     };
     // THE MACHINE ROOM, so the panel has something to be glass OVER.
@@ -120,7 +120,7 @@ struct Ds2Bench {
                                            {{0.0f, hexColor(0x2A4A52, 0.34f)},
                                             {0.45f, hexColor(0x3E6A6E, 0.26f)},
                                             {1.0f, hexColor(0x0C1A20, 0.09f)}}))
-                       .effect(Effect::directionalBlur(22, 90, 16))
+                       .filter(Effect::directionalBlur(22, 90, 16))
                        .zIndex(0)});
     // …and a bank of pipes crossing the wall behind the right half.
     for (int i = 0; i < 5; ++i)
@@ -132,7 +132,7 @@ struct Ds2Bench {
                                    {{0.0f, hexColor(0x25444E, 0.30f)},
                                     {0.5f, hexColor(0x1A3038, 0.20f)},
                                     {1.0f, hexColor(0x0A1218, 0.07f)}}))
-               .effect(Effect::directionalBlur(9, 0, 14))
+               .filter(Effect::directionalBlur(9, 0, 14))
                .zIndex(0),
            box()
                .rect(SkRect::MakeXYWH(-40.0f, 2.0f, kW + 80, 28.0f))
@@ -140,7 +140,7 @@ struct Ds2Bench {
                                    {{0.0f, hexColor(0x243B47, 0.5f)},
                                     {1.0f, hexColor(0x0A141C, 0.25f)}}))
                // 10 along the vertical, 7 across
-               .effect(Effect::directionalBlur(10, 90, 7))
+               .filter(Effect::directionalBlur(10, 90, 7))
                .zIndex(0)});
     root.children({std::move(room)});
   }
@@ -249,7 +249,7 @@ struct Ds2Bench {
                       .fx({.effect = fx::typeOn(),
                            .stagger = {.eachMs = 26, .durationMs = 190},
                            .progress = animate(from(0.0f).to(1.0f), {760ms})})
-                      .effect(styles::textGlow(mskia::withAlpha(kCyan, 0.5f),
+                      .filter(styles::textGlow(mskia::withAlpha(kCyan, 0.5f),
                                                5.0f))}),
          box()
              .at({kPX + 34, kRuleY + 13})

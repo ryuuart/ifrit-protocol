@@ -58,4 +58,4 @@ every ancestor, the automatic bake.
 ## See also
 
 [`opacity`](opacity.md) for the other group-forming verb,
-[`effect`](effect.md), [`backdrop`](backdrop.md), and `cache`.
+[`filter`](filter.md), [`backdrop`](backdrop.md), and `cache`.

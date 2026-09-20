@@ -443,7 +443,7 @@ struct Y2kChrome {
                 {text("· t h e   f u t u r e   i s   "
                       "c h r o m e ·",
                       yc::type(14, hexColor(0x7FD0FF), 2.5f, 650))
-                     .effect(styles::textGlow({1.0f, 1.0f, 1.0f, 0.95f}, 2)
+                     .filter(styles::textGlow({1.0f, 1.0f, 1.0f, 0.95f}, 2)
                                  .then(styles::textGlow(
                                      {0.36f, 0.80f, 1.0f, 0.9f}, 7)))});
 

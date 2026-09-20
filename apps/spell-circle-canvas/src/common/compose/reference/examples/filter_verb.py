@@ -1,7 +1,7 @@
-"""effect — the node's own rendered layer post-processed: the whole
+"""filter — the node's own rendered layer post-processed: the whole
 subtree, its children included, goes through the filter.
 
-The Python twin of effect_verb.cpp. A reference example: it is rendered
+The Python twin of filter_verb.cpp. A reference example: it is rendered
 with ``sigil render`` and belongs to no sketch registry.
 """
 
@@ -16,7 +16,7 @@ ASH = "#8ea0ad"
 
 def cell(caption: str, plate: compose.Element) -> compose.Element:
     """The same subtree — a plate, a word and a rule — under each
-    effect."""
+    filter."""
     return (
         compose.box(
             plate.width(compose.pct(100))
@@ -42,20 +42,20 @@ def cell(caption: str, plate: compose.Element) -> compose.Element:
 
 
 @sketch(size=(640, 250), background=GROUND, capture_at=0)
-class EffectVerb:
+class FilterVerb:
     def setup(self, ctx: SketchContext) -> None:
         ctx.render(self.describe())
 
     def describe(self) -> compose.Element:
         return (
             compose.box(
-                cell("no effect", compose.box()),
+                cell("no filter", compose.box()),
                 cell(
-                    "effect(blur)", compose.box().effect(material.Effect.blur(3))
+                    "filter(blur)", compose.box().filter(material.Effect.blur(3))
                 ),
                 cell(
-                    "effect(glow)",
-                    compose.box().effect(material.Effect.glow("#3fd6b0", 9)),
+                    "filter(glow)",
+                    compose.box().filter(material.Effect.glow("#3fd6b0", 9)),
                 ),
             )
             .row()

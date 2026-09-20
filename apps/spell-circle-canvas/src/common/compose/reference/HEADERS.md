@@ -102,7 +102,7 @@ sound model; nothing below them changes kernel semantics.
   `overlay`, `foreground`, `stroke`, `style`, `echo`, `boundary`,
   `threshold`.
 - `core/verbs/Effects.h` — `EffectVerbs`: `opacity`, `appear`, `blend`,
-  `effect`, `backdrop`.
+  `filter`, `backdrop`.
 - `core/verbs/Transform.h` — `TransformVerbs`: `translateX`,
   `translateY`, `travel`, `rotate`, `scale`, `scaleX`, `scaleY`,
   `skewX`, `skewY`, `transformOrigin`, `zIndex`.

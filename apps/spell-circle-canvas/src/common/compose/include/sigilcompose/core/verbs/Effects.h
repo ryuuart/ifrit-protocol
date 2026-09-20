@@ -32,9 +32,10 @@ class EffectVerbs {
   /** HOW THE NODE'S PAINT COMBINES with what is already beneath it —
    *  any Skia blend mode. `SkBlendMode::kSrcOver` when unstated. */
   Derived& blend(SkBlendMode mode);
-  /** Post-processes this node's rendered layer. Baked once under
+  /** POST-PROCESSES THIS NODE'S RENDERED LAYER, its subtree included —
+   *  CSS `filter`. None when unstated. Baked once under
    *  `Cache::Texture`. */
-  Derived& effect(material::skia::Effect e);
+  Derived& filter(material::skia::Effect e);
   /** Filters what is already painted beneath this node's bounds before
    *  the node paints — CSS `backdrop-filter`. Incompatible with
    *  `Cache::Texture`, since the backdrop depends on the live

@@ -230,7 +230,7 @@ Element blurredChildUnderAGroup() {
                       .width(40)
                       .height(40)
                       .fill(Fill::color({1, 1, 1, 1}))
-                      .effect(material::skia::Effect::filter(
+                      .filter(material::skia::Effect::filter(
                           SkImageFilters::Blur(10, 10, nullptr)))});
   page.children({std::move(group)});
   return page;
@@ -299,7 +299,7 @@ Element ruledNodeUnder(Layer layer) {
     // A COLOUR FILTER as the layer effect: it maps each pixel where it
     // stands and moves no ink at all, so what the layer's bounds did to the
     // picture is the only thing between the two renders.
-    rules.effect(material::skia::Effect::filter(
+    rules.filter(material::skia::Effect::filter(
         SkColorFilters::Blend(SK_ColorGREEN, SkBlendMode::kModulate)));
   page.children({std::move(rules)});
   return page;

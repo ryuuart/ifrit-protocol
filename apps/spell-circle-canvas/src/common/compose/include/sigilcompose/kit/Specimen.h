@@ -211,7 +211,7 @@ struct Caption {
  *  @p caption says.
  *
  *      kit::cell(voice, "blur(14, 14)", "all or nothing",
- *                subject().key("flat").effect(blur))
+ *                subject().key("flat").filter(blur))
  *
  *  THE LABEL HAS ROLE `label` and the note has role `caption`,
  *  resolved through the `weave::StyleSheet` where the cell lands — nothing else

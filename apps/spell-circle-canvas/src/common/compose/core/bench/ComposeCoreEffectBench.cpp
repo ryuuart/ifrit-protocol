@@ -33,7 +33,7 @@ Element bloomBlock(Cache mode) {
   return box()
       .padding(24)
       .cache(mode)
-      .effect(sigil::material::skia::Effect::filter(
+      .filter(sigil::material::skia::Effect::filter(
           SkImageFilters::Blur(12, 12, nullptr)))
       .children({text(u8"BLOOM PIPELINE", style)});
 }
@@ -84,7 +84,7 @@ Element haloedBand(Boundary boundary, const choreograph::Output<float>* turn) {
                      .boundary(boundary)
                      .transformOrigin(pct(50), pct(50))
                      .rotate(sigil::motion::bind(turn).target(0.0f, 360.0f))
-                     .effect(sigil::material::skia::Effect::glow(
+                     .filter(sigil::material::skia::Effect::glow(
                          {0.35f, 0.85f, 1.0f, 1.0f}, 6.0f));
   for (int i = 0; i < 24; ++i) {
     const float a = (float)i * (float)(2 * M_PI) / 24.0f;
@@ -263,7 +263,7 @@ Element varyingPanel(int side, sigil::material::skia::Effect e) {
       .width((float)side)
       .height((float)side)
       .fill(stripeTarget())
-      .effect(std::move(e));
+      .filter(std::move(e));
 }
 
 enum class BlurArm { Pyramid, Naive, ConstantMax };

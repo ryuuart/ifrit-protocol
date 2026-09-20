@@ -170,7 +170,7 @@ auto ChevreulCircle::aStaircase(const std::array<SkColor4f, 20>& ramp, float y,
                        .key(kit::formatted("%s%d", keyBase, b))
                        .fill(Fill::color(ramp[(size_t)b]));
     if (graded)
-      band.effect(Effect::recipe(ocio::exponent(2.2f))).cache(Cache::Texture);
+      band.filter(Effect::recipe(ocio::exponent(2.2f))).cache(Cache::Texture);
     if (withGap)
       band.translateX(bind(&demo)
                           .window(0.30f, 0.50f)

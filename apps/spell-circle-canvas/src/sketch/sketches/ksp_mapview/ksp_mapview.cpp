@@ -24,7 +24,7 @@ auto KspMapView::describe(sketch::SketchContext& ctx) -> Element {
   // describe is what it costs.
   Element bloom =
       mapLayer(ctx)
-          .effect(
+          .filter(
               Effect::brightPass(0.68f, 0.30f)
                   .then(Effect::filter(SkImageFilters::Blur(4, 4, nullptr))))
           .blend(SkBlendMode::kPlus)

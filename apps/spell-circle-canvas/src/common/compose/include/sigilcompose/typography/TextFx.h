@@ -138,7 +138,7 @@ inline constexpr float kNominalSizePx = 96.0f;
  *  nested cascade there is one entry per (outer, inner) beat, matching the
  *  beats the query reports.
  *
- *  THE PASS IS BOUNDED, unlike a raw `Element::effect` shader: it paints
+ *  THE PASS IS BOUNDED, unlike a raw `Element::filter` shader: it paints
  *  the node's box grown by the track's `reach` and nothing outside it. An
  *  effect built here declares the material's `bleed()` as its reach, so a
  *  pass that marks beyond the letters says how far on the value that

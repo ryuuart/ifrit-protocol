@@ -40,7 +40,7 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
                             gapMask, SkTileMode::kClamp, SkTileMode::kClamp,
                             SkMatrix::Scale(kStageW / (float)gapMask->width(),
                                             kArtH / (float)gapMask->height()))))
-                        .effect(mskia::Effect::filter(cloudLook))
+                        .filter(mskia::Effect::filter(cloudLook))
                         .opacity(0.95f)});
     }
     // Idle beacon on the art's readout cluster: the one light that

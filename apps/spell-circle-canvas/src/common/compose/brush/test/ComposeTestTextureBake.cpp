@@ -320,7 +320,7 @@ TEST(ComposeCache, SparseFurnitureSurvivesAFractionalCaptureScale) {
     return box()
         .inset(0)
         .cache(Cache::None)
-        .effect(
+        .filter(
             material::skia::Effect::filter(SkImageFilters::Blur(1, 1, nullptr)))
         .children({std::move(furniture)});
   };

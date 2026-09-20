@@ -47,7 +47,7 @@ auto SlitScan2001::filmFrame() -> Element {
                                SkBlendMode::kPlus)});
   };
   Element accumulation =
-      raw().effect(Effect::shader(transfer, {{"k", transferK()}}));
+      raw().filter(Effect::shader(transfer, {{"k", transferK()}}));
   // THE CORE. Where the two planes converge the camera is looking
   // straight down the corridor, and every stamp in both exposures has
   // been laid on top of every other: on the Star Gate frame the
@@ -81,7 +81,7 @@ auto SlitScan2001::filmFrame() -> Element {
   // added -- so it is still the accumulation, not a painted glow.
   Element halation =
       raw()
-          .effect(Effect::shader(transfer, {{"k", transferK() * 0.55f}})
+          .filter(Effect::shader(transfer, {{"k", transferK() * 0.55f}})
                       .then(Effect::filter(
                           SkImageFilters::Blur(9.0f, 9.0f, nullptr))))
           .blend(SkBlendMode::kPlus)
@@ -202,7 +202,7 @@ auto SlitScan2001::rigStrip() -> Element {
                                    instancing::instances(atlas, monB,
                                                          instancing::Mode::Live,
                                                          SkBlendMode::kPlus)})
-                        .effect(Effect::shader(transfer, {{"k", 2.4f}})),
+                        .filter(Effect::shader(transfer, {{"k", 2.4f}})),
                     t("THIS EXPOSURE",
                       {.size = 8, .color = al(kCold, 0.85f), .track = 1.4f})
                         .at({8, 5}),

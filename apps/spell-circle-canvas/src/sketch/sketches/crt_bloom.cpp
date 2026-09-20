@@ -133,7 +133,7 @@ struct CrtBloom {
 
     // LEFT — one node. The effect owns the whole construction.
     Element primitive =
-        panel(headline(kCore).effect(mskia::Effect::glow(kHalo, kSigma)));
+        panel(headline(kCore).filter(mskia::Effect::glow(kHalo, kSigma)));
 
     // RIGHT — two nodes in the same place, the second blurred and ADDED.
     // The blur is spelled as an axis-aligned directional blur rather than
@@ -150,7 +150,7 @@ struct CrtBloom {
                   .children({kit::centred(headline(kHalo))
                                  .cover()
                                  .zIndex(1)
-                                 .effect(mskia::Effect::directionalBlur(
+                                 .filter(mskia::Effect::directionalBlur(
                                      kSigma, 0.0f, kSigma))
                                  .blend(SkBlendMode::kPlus)
                                  .cache(Cache::Texture),

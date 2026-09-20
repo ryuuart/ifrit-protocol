@@ -317,7 +317,7 @@ auto ChevreulCircle::verify(sketch::SketchContext& ctx) -> void {
                             .width(32)
                             .height(32)
                             .fill(Fill::color(gamme[9]))
-                            .effect(Effect::recipe(ocio::exponent(2.2f))),
+                            .filter(Effect::recipe(ocio::exponent(2.2f))),
                         *ctx.fonts, {32, 32}, kN32_SkColorType);
     if (r.valid()) {
       const SkColor4f got = r.at(16, 16);

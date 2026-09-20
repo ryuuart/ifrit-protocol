@@ -347,7 +347,7 @@ struct AeroDesktop {
                  .font({.size = 12.5f,
                         .color = SkColor4f{0.05f, 0.05f, 0.05f, 1}})
                  .inset(0, 0, 0, 0)
-                 .effect(styles::textGlow({1, 1, 1, 0.90f}, 2.2f)
+                 .filter(styles::textGlow({1, 1, 1, 0.90f}, 2.2f)
                              .then(styles::textGlow({1, 1, 1, 0.50f}, 4.5f)))});
   }
 
@@ -450,7 +450,7 @@ struct AeroDesktop {
                          {box()
                               .inset(0)
                               .fill(Paint::sksl(aurora).uniform("uTime", 0.75f))
-                              .effect(sigil::material::skia::Effect::filter(
+                              .filter(sigil::material::skia::Effect::filter(
                                   SkImageFilters::Blur(3, 3, nullptr)))}),
                  // ...then the colorization tint stack over it
                  box().inset(0).fill(ad::glassTint(ad::kWW, ad::kWH)),
@@ -632,7 +632,7 @@ struct AeroDesktop {
                      {box()
                           .inset(0)
                           .fill(Paint::sksl(aurora).uniform("uTime", 0.75f))
-                          .effect(sigil::material::skia::Effect::filter(
+                          .filter(sigil::material::skia::Effect::filter(
                               SkImageFilters::Blur(3, 3, nullptr)))}),
              box().inset(0).fill(Paint::blend({
                  {Paint::solid({0.02f, 0.05f, 0.10f, 0.52f}),
@@ -699,7 +699,7 @@ struct AeroDesktop {
         .font({.size = 11.5f})
         .children({box().inset(24, 2, 24, 26).children({std::move(glyph)}),
                    lbl({0, 0, 0, 0.85f})
-                       .effect(sigil::material::skia::Effect::filter(
+                       .filter(sigil::material::skia::Effect::filter(
                            SkImageFilters::Blur(1.6f, 1.6f, nullptr))),
                    lbl({1, 1, 1, 0.95f})});
   }

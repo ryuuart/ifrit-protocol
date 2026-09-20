@@ -154,8 +154,8 @@ inline Overlay gradientOverlay(material::skia::Paint gradient,
 
 /** Text (or any layer) glow: the node's rendered layer re-emitted blurred
  *  beneath itself — a drop shadow at zero offset, which keeps the content
- *  on top. Attach with `.effect()`, and chain with `.then()` for a tighter
- *  core over a wider halo: `text(...).effect(styles::textGlow(cyan, 6))`.
+ *  on top. Attach with `.filter()`, and chain with `.then()` for a tighter
+ *  core over a wider halo: `text(...).filter(styles::textGlow(cyan, 6))`.
  *  The kernel's `Effect::glow`, under the name this family gives it. */
 inline material::skia::Effect textGlow(SkColor4f color, float sigma) {
   return material::skia::Effect::glow(color, sigma);
@@ -165,7 +165,7 @@ inline material::skia::Effect textGlow(SkColor4f color, float sigma) {
  *  displacement field — y shifted by a sine of x, or with `vertical`, x by
  *  a sine of y. Water reads convincingly at an amplitude of a few percent
  *  of the node's height with only a couple of waves across it. Attach with
- *  `.effect()` to warp the node's own layer, or `.backdrop()` to warp what
+ *  `.filter()` to warp the node's own layer, or `.backdrop()` to warp what
  *  is beneath it.
  *
  *  An Effect is a STATIC value, so animating this means re-describing with

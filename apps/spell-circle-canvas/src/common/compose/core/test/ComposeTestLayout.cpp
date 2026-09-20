@@ -242,7 +242,7 @@ TEST(ComposePaintBounds, PerAxisScaleReachesTheParentsChildBoundsUnion) {
       box().children({box()
                           .absolute()
                           .rect(SkRect::MakeXYWH(20, 20, 40, 40))
-                          .effect(material::skia::Effect::filter(
+                          .filter(material::skia::Effect::filter(
                               SkImageFilters::Offset(0, 0, nullptr)))
                           .children({box()
                                          .absolute()

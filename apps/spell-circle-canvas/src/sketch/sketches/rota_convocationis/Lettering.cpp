@@ -203,7 +203,7 @@ auto RotaConvocationis::nomina() -> Element {
           .styleClass("ring")
           .font({.size = nomSize, .color = kGold, .track = 4.2f})
           .key("nomina")
-          .effect(styles::textGlow(kHalo, 6.0f))
+          .filter(styles::textGlow(kHalo, 6.0f))
           .rect(sigil::geometry::path::centred(kEye,
                                                {2 * rNom * kR, 2 * rNom * kR}))
           .hitTestable(false)

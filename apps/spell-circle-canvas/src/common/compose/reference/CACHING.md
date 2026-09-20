@@ -43,7 +43,7 @@ anything holding an incomparable callable compares *unequal* and never
 prunes.
 
 **A LIVE LAYER EFFECT OVER STATIC CONTENT IS APPLIED TO A BAKE.** A node
-whose only volatility is its own `effect()`'s bound parameters — nothing
+whose only volatility is its own `filter()`'s bound parameters — nothing
 live in its children, its material, its scalars or its decorations —
 still declares itself volatile, because the pixels it composites do
 change. But the volatility is applied *outside* the content, so the
@@ -57,7 +57,7 @@ clock rather than a gated outline.
 
 **A STATIC LAYER EFFECT OVER SETTLED CONTENT IS RUN OVER THE BAKE, NOT
 INSIDE IT.** A node holding a `Cache::Texture` bake and wearing an
-`effect()` that never changes takes its bake in two steps: the content
+`filter()` that never changes takes its bake in two steps: the content
 rasterizes into a surface with the effect left out, and the effect runs
 over that image into the surface the node holds. What that replaces is
 the layer the filter opened *inside* the content raster — allocated over

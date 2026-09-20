@@ -25,7 +25,7 @@ Derived& EffectVerbs<Derived>::blend(SkBlendMode mode) {
 }
 
 template <class Derived>
-Derived& EffectVerbs<Derived>::effect(material::skia::Effect e) {
+Derived& EffectVerbs<Derived>::filter(material::skia::Effect e) {
   declarations()->fxData.ensure().layerEffect = std::move(e);
   return self();
 }

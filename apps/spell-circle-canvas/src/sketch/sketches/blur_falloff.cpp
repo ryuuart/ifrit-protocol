@@ -124,7 +124,7 @@ sketch::kit::ComparisonCase panel(const char* caseTitle, const char* call,
           .control = call,
           .figure = box().column().gap(12).children(
               {box().width(kPanel).height(74).fill(std::move(map)),
-               subject().key(std::move(key)).effect(std::move(e))}),
+               subject().key(std::move(key)).filter(std::move(e))}),
           .note = note};
 }
 

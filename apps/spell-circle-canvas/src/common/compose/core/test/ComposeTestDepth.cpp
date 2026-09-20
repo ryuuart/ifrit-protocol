@@ -223,7 +223,7 @@ TEST(ComposeDepth, AGroupingPropertyFlattensTheSpaceItStandsOn) {
     e.mask(by::shape(Region::rect(SkRect::MakeWH(200, 200))));
   });
   flattened("a layer effect", [](Element& e) {
-    e.effect(
+    e.filter(
         material::skia::Effect::filter(SkImageFilters::Blur(1, 1, nullptr)));
   });
   flattened("a backdrop effect", [](Element& e) {
