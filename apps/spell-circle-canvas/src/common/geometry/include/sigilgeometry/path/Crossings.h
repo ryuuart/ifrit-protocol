@@ -21,8 +21,8 @@
 #include <include/core/SkPath.h>
 #include <include/core/SkPoint.h>
 
+#include <algorithm>
 #include <any>
-#include <boost/unordered/unordered_flat_map.hpp>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -183,8 +183,13 @@ class CrossingRule {
         }
         break;
       case Kind::AlternatingAlong: {
-        const auto found = m_walk.find(c.index);
-        if (found != m_walk.end()) return found->second;
+        const auto found = std::lower_bound(
+            m_walk.begin(), m_walk.end(), c.index,
+            [](const std::pair<size_t, Order>& walked, size_t index) {
+              return walked.first < index;
+            });
+        if (found != m_walk.end() && found->first == c.index)
+          return found->second;
         // Not prepared, or a crossing that was not in the set it was
         // prepared with: list order, which is what every rule falls back
         // to when it has nothing to say.
@@ -225,11 +230,12 @@ class CrossingRule {
   std::function<void(std::span<const Crossing>)> m_prepare;
   std::any m_held;
   std::function<bool(const std::any&, const std::any&)> m_equals;
-  /** What `prepare` worked out, by crossing ordinal. Mutable and outside
-   *  equality: it is a function of the geometry the holder discovered,
-   *  not of anything the author wrote, so two rules that differ only in
-   *  whether they have been prepared are the same rule. */
-  mutable boost::unordered_flat_map<size_t, Order> m_walk;
+  /** What `prepare` worked out, sorted by crossing ordinal so `decide`
+   *  can binary-search it. Mutable and outside equality: it is a
+   *  function of the geometry the holder discovered, not of anything the
+   *  author wrote, so two rules that differ only in whether they have
+   *  been prepared are the same rule. */
+  mutable std::vector<std::pair<size_t, Order>> m_walk;
 };
 
 /** THE STOCK RULES for deciding which strand is on top at a crossing,

@@ -28,6 +28,20 @@ void CrossingRule::prepare(std::span<const Crossing> all) const {
   if (m_kind != Kind::AlternatingAlong) return;
   m_walk.clear();
   if (all.empty()) return;
+  // `m_walk` is read by binary search, so a pass puts its answer where
+  // the ordinal belongs rather than at the end.
+  const auto walked = [this](size_t crossing, Order order, bool overwrite) {
+    const auto at = std::lower_bound(
+        m_walk.begin(), m_walk.end(), crossing,
+        [](const std::pair<size_t, Order>& entry, size_t index) {
+          return entry.first < index;
+        });
+    if (at != m_walk.end() && at->first == crossing) {
+      if (overwrite) at->second = order;
+      return;
+    }
+    m_walk.insert(at, {crossing, order});
+  };
   // ONE PASS PER STRAND PER CROSSING: a crossing joins two strands and
   // is met once on each, so the walk that decides it is not the list of
   // crossings but the list of passes.
@@ -65,9 +79,9 @@ void CrossingRule::prepare(std::span<const Crossing> all) const {
     // cannot both go over, so the pass on `a` assigns and the pass on
     // `b` only fills a crossing nothing has answered yet.
     if (pass.onA)
-      m_walk[pass.crossing] = over ? Order::Over : Order::Under;
+      walked(pass.crossing, over ? Order::Over : Order::Under, true);
     else
-      m_walk.emplace(pass.crossing, over ? Order::Under : Order::Over);
+      walked(pass.crossing, over ? Order::Under : Order::Over, false);
   }
 }
 
