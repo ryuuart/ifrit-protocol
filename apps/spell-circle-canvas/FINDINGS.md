@@ -106,33 +106,6 @@ one. A test should fill an element with a recipe material and assert the
 pixels match the same material passed as a `SurfacePaint`, and that the
 deleted `Pattern` and `Tile` overloads still refuse.
 
-## `SurfaceParameters` takes sRGB numbers into fields documented as linear
-
-`material::kit::SurfaceParameters` is introduced as "The
-metallic-roughness ABI. Colours are LINEAR"
-(`src/common/material/include/sigilmaterial/kit/Pbr.h`), and its
-`baseColor`, `emissive` and `absorption` are `material::Color`, which
-documents itself as "four straight (not premultiplied) components in
-sRGB" (`include/sigilmaterial/color/Color.h`). Every writer supplies
-sRGB: `SurfaceParameters::metal(tint, roughness)` and `::dielectric`
-take a colour and store it unchanged, and the Python setters in
-`src/common/python/world/World.cpp` read a CSS string through
-`python::color` into the same field, so
-`SurfaceParameters(baseColor="#804000")` writes sRGB-encoded numbers
-into a linear field with no report. The stock values are linear —
-`gold()` carries gold's linear reflectance — and
-`kit/shaders/Surface.sksl` multiplies `baseColor` by the map sample, so
-an authored colour and a sampled texel are meant to be in one space.
-
-The struct should hold linear values, because that is what the shader
-multiplies. A test should assert that a base colour written as an sRGB
-mid-grey shades identically to a flat map whose sampled value is that
-grey's linear equivalent — exactly one transfer conversion on the way in
-— and that a colour read back comes out in the space it was written in.
-Either the struct takes a colour type of its own that says it is linear,
-or the setters and the two static helpers convert; the two header
-sentences cannot both stand.
-
 ## `ksp_mapview` describes its map twice for a light that keeps its source
 
 A bright pass is a colour program: `skia::Effect::brightPass` sets a
@@ -181,71 +154,53 @@ MAGI screen is the one the `bloom` slot's executor fills — and that the
 screen each describes asks for that light, with `uBloom` above zero.
 The rebased plates are what hold the radius and strength chosen.
 
-## The device sweep's shader-error sink collects without a lock
+## A stack's programs cannot be stood up before the sketch wearing it is read
 
-`skgpu::ShaderErrorHandler::compileError` is called from the pipeline
-pool, because `GraphiteContext` sets `fExecutor` and Graphite runs each
-pipeline creation task on it — several at once for a scene whose stages
-fail together. `ErrorSink` in
-`src/common/material/test/MaterialGpuTest.mm` is a process-wide handler
-that appends to a bare `std::string` with no lock, and the SigilSkia
-README names SigilMaterial's device sweep as what that handler is built
-on. It survives on one property of its caller: `shadeOnGpu` draws and
-submits one shader at a time, so two reports never land together.
+Sketchbook stands its device programs up before the canvas draws: every
+stock body is declared before the first Graphite context exists, the
+programs a run builds are written down under the platform cache
+location, and the next launch replays that set on a worker while the
+canvas holds its frames. A headless `--gpu` sweep now declares and
+records the same way and fills a store that stands empty, so a machine
+that has swept arrives at its first interactive open with the set
+already there.
 
-A collector called from a pool must guard what it collects into, as
-`PipelineLog` in `src/common/skia/graphite/test/GraphiteTest.mm` already
-does. A test should call the sink's `compileError` from several threads
-at once and assert that every report arrives whole.
+What is left is a store that is cold for the STACK a sketch wears, which
+is what an effect pass hits after every shader edit. Nothing can be
+replayed then, and what stands up instead is only the effect bodies that
+declare no child: a described paint is expanded into every combination
+it allows, so offering a child as an image makes a two-child body
+hundreds of programs — the device is asked to hold hundreds it may never
+draw, the driver stops compiling once its compiled variants no longer
+fit, and the warm-up never returns. A composed stack, which is what the
+MAGI studies wear and what costs the most, cannot be described ahead
+from the catalogue at all: the backend inlines the whole chain into one
+program and which chain a sketch wears is not known until the sketch has
+been read.
 
-## A sketch's first frame still waits for the programs a chain of stages needs
-
-Sketchbook now stands its device programs up before the canvas draws:
-every stock body is declared before the first Graphite context exists,
-the programs a run builds are written down under the platform cache
-location with the descriptions they were built under, and the next
-launch replays that set on a worker while the canvas holds its frames.
-Opening `crt_bloom` in the window twice over one store takes the
-programs a draw builds from nine to one, which `sketch_pipeline_warmup`
-asserts.
-
-What is left is the FIRST open on a machine, which is still the one an
-effect pass does after every shader edit. Nothing can be replayed then,
-and what stands up instead is only the effect bodies that declare no
-child: a described paint is expanded into every combination it allows,
-so offering a child as an image makes a two-child body hundreds of
-programs — the device is asked to hold hundreds it may never draw, the
-driver stops compiling once its compiled variants no longer fit, and the
-warm-up never returns. A composed stack, which is what the MAGI studies
-wear and what costs the most, cannot be described ahead at all: the
-backend inlines the whole chain into one program and which chain a
-sketch wears is not known until the sketch has been read.
-
-Two routes are worth trying, and neither was. A sketch declares what it
+One route reaches it and has not been taken. A sketch declares what it
 draws before it draws it, so the host could describe the stacks a
 SELECTED sketch wears — from its own description rather than from the
-catalogue — and precompile those, which is the only way to reach a
-composed program ahead of its first frame. And the sweep and `--frame`
-lanes neither declare nor record, because their device context is
-created before the material warm-up joins; a batch run has no frame
-anyone watches, but it draws the same programs, and letting it fill the
-store would make the first interactive open of a machine the cheap one.
+catalogue — and precompile those. It is the same route the browser
+flipping between sketches needs, where each new sketch brings a stack
+the context has never built. A second open of the SAME sketch inside one
+process is not that case and is nothing to remove: the programs are
+already standing in the context's own in-memory cache, which is what the
+tally counts as found, so it builds nothing whether a recorded set
+exists or not.
 
-`sketch_pipeline_warmup` covers the second LAUNCH and not the second
-open inside one process, deliberately: within one process the programs
-are already standing in the context's own in-memory cache, which is what
-the tally counts as found, so a second open of the same sketch builds
-nothing whether or not a recorded set exists. Nothing there is this
-feature's to remove. What the in-process case would show is a different
-subject — the browser flipping between sketches, where each new sketch
-brings a stack the context has never built — and that is what the route
-of describing a SELECTED sketch's stacks ahead of opening it would
-serve. A test for it belongs with that route rather than with this one.
+`--frame` is not a way in and is not the missing half: a capture
+photographs a canvas on a raster surface so the picture is reproducible,
+and a set is drawn by the device's own renderer, so the lane builds no
+Graphite program at all and has nothing to record. Only the `--gpu`
+sweep and the window build them.
 
 A test should open a sketch in the window with a cold store and assert
-that the stack's programs are standing before its first frame, and that
-a headless run of the same sketch leaves a store the window run then
-replays.
+that its stack's programs are standing before its first frame, and that
+the set a headless sweep left is the one that open replays —
+`sketch_pipeline_cold_store` asserts what the sweep leaves and
+`sketch_pipeline_warmup` what a second launch replays, but nothing yet
+joins the two lanes end to end.
 
 ## Replaying a recorded pipeline key walks a null name
 
