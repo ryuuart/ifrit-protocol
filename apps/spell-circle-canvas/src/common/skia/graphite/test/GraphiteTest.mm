@@ -784,22 +784,27 @@ std::unique_ptr<GraphiteContext> watchedContext() {
 
 }  // namespace
 
-TEST(SigilSkiaGraphite, ASecondDrawOfTheSameSceneBuildsNoPipeline) {
+TEST(SigilSkiaGraphite, TheReporterIsToldOfEveryPipelineBuiltAndEveryOneFound) {
   SKIP_WITHOUT_METAL();
+  // WHAT THIS STANDS FOR is the reporter's wiring, not a stall removed:
+  // that a second draw of one scene reuses the programs of the first is
+  // Graphite's own cache and was true before anything here was written.
+  // What is new is that both halves are visible — a warm-up can only act
+  // on which pipelines a scene asked for and which of them it found.
   PipelineLog log;
   GraphiteContext::reportPipelinesTo(&log);
   std::unique_ptr<GraphiteContext> ctx = watchedContext();
   ASSERT_NE(ctx, nullptr);
 
   ASSERT_TRUE(drawTheTintedScene(*ctx));
-  EXPECT_GT(log.addedCount(), 0) << "the first draw built no pipeline at all";
+  EXPECT_GT(log.addedCount(), 0) << "no build was reported at all";
+  EXPECT_EQ(log.addedAheadCount(), 0)
+      << "nothing was precompiled, so nothing was built ahead of a draw";
 
-  // THE SECOND OPEN OF THE SAME SKETCH. Every program the scene needs is
-  // standing, so the frame waits for none of them.
   log.clear();
   ASSERT_TRUE(drawTheTintedScene(*ctx));
   EXPECT_EQ(log.addedCount(), 0);
-  EXPECT_GT(log.foundCount(), 0);
+  EXPECT_GT(log.foundCount(), 0) << "no find was reported at all";
 
   ctx.reset();
   GraphiteContext::reportPipelinesTo(nullptr);

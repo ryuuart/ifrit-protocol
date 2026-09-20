@@ -321,7 +321,11 @@ into a pipeline scrolls past forever rather than failing anything.
 in Skia's place so a caller can act on it; it is read when the context is
 created, so install it first. Unset, Skia prints the generated shader and
 the compiler's errors to stderr. SigilMaterial's device sweep is built on
-this.
+this. The compile that failed ran on the thread pool every context
+builds its pipelines on, so the handler is called from that pool and
+from several of its threads at once when a scene's stages fail
+together — a handler that collects its reports has to guard what it
+collects into.
 
 ## The pipeline a draw waits for
 
@@ -339,8 +343,11 @@ after another. Two entry points make the rest addressable:
 context builds or finds, with a serialised key for each it can
 serialise; `GraphiteContext::precompile` rebuilds a set of those keys,
 on whichever thread calls it, so a launch that recorded what the last
-one needed can stand the programs up before anything draws. Both are
-read when the context is created, so install the reporter first.
+one needed can stand the programs up before anything draws. The reporter
+is read when the context is created, so install it first — and it is
+reached from the pool, because the thread that built a pipeline is the
+one that reports it, so a reporter that counts or collects has to be
+thread-safe.
 
 `GraphiteContext::registerRuntimeEffects` is the precondition on the
 second: a key naming an undeclared runtime effect is not serialisable at

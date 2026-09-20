@@ -76,7 +76,8 @@ class CachingImageProvider final : public skgpu::graphite::ImageProvider {
 
 /** Where a failed shader compile is reported, for every context built
  *  after it is set. Atomic because the contexts are built on whichever
- *  thread owns the device. */
+ *  thread owns the device, and the handler itself is reached from the
+ *  pipeline pool, which is where the compile that failed ran. */
 std::atomic<skgpu::ShaderErrorHandler*>& shaderErrorSink() {
   static std::atomic<skgpu::ShaderErrorHandler*> sink{nullptr};
   return sink;
@@ -84,7 +85,9 @@ std::atomic<skgpu::ShaderErrorHandler*>& shaderErrorSink() {
 
 /** Where a pipeline Graphite builds or finds is reported, for every
  *  context built after it is set. Atomic for the same reason as the
- *  handler above, and read on whichever thread recorded the draw. */
+ *  handler above. An add is reported from the pool thread that built
+ *  the pipeline and a find from the thread that recorded the draw, so
+ *  the reporter behind it is reached concurrently. */
 std::atomic<GraphiteContext::PipelineReporter*>& pipelineSink() {
   static std::atomic<GraphiteContext::PipelineReporter*> sink{nullptr};
   return sink;

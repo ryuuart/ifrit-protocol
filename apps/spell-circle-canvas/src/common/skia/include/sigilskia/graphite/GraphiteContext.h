@@ -133,7 +133,13 @@ class GraphiteContext {
    *  this factory builds afterwards, which is what makes such a failure
    *  observable — so set it BEFORE the context is created. Process-wide;
    *  the caller keeps ownership and must outlive the contexts. Null
-   *  restores Skia's own reporting. */
+   *  restores Skia's own reporting.
+   *
+   *  The compile that fails runs on the pool every context builds its
+   *  pipelines on, so the handler is called FROM THAT POOL and from
+   *  several of its threads at once when a scene's stages fail
+   *  together: a handler that collects must guard what it collects
+   *  into, and one that counts must count atomically. */
   static void reportShaderErrorsTo(skgpu::ShaderErrorHandler* handler);
 
   /** WHAT GRAPHITE DID WITH A PIPELINE, as it did it.
@@ -160,8 +166,14 @@ class GraphiteContext {
 
   /** Given to every context this factory builds afterwards, so set it
    *  BEFORE the context is created. Process-wide; the caller keeps
-   *  ownership and must outlive the contexts. Called on whichever
-   *  thread recorded the draw. Null reports nothing. */
+   *  ownership and must outlive the contexts. Null reports nothing.
+   *
+   *  THE REPORTER MUST BE THREAD-SAFE. A pipeline is built on the pool
+   *  every context compiles on, and `added` is called from the thread
+   *  that built it — several at once for a scene whose stages are
+   *  built beside each other. `found` arrives on whichever thread
+   *  asked for the pipeline, which is the thread that recorded the
+   *  draw, and may run at the same time as an `added` for another one. */
   static void reportPipelinesTo(PipelineReporter* reporter);
 
   /** THE RUNTIME EFFECTS A SERIALISED PIPELINE KEY MAY NAME.
