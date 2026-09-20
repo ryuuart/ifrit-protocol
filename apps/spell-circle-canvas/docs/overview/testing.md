@@ -126,10 +126,11 @@ still spell those names that way. A documented name no header declares
 fails the generator, so a rename the prose missed is a build break rather
 than a confident wrong answer.
 
-`sigil_header_self_test()` is the companion guard a library may add:
-every public header compiled first and alone, and then twice, which is
-what makes "each header stands on its own" a build fact rather than a
-claim.
+`sigil_header_self_test()` is the companion guard a library may add: one
+generated translation unit per public header, holding that header twice
+— the first line proving it stands alone, the second that it can be
+included again — which is what makes "each header stands on its own" a
+build fact rather than a claim.
 
 `apps/spell-circle-canvas/scripts/README.md` is the canon for what the
 probe guard checks and what it structurally cannot see.
