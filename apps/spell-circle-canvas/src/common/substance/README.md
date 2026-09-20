@@ -146,21 +146,23 @@ that hash.
 
 ## Build and test
 
-Targets: `SigilSubstance`, `substance_test` (ctest) and `substance_bench`
-(Google Benchmark, through the `benches` target and
-`scripts/sigil.py bench`).
+[docs/overview/testing.md](../../../docs/overview/testing.md) is the
+contract every library here is built, tested and measured under: one
+`substance_test` and one `substance_bench` beside `SigilSubstance`,
+ctest one entry per CASE, what a case may pin, and what a label
+promises. What is only true of SigilSubstance:
 
-```sh
-ctest --test-dir build -C Release -R '^Substance' --output-on-failure
-build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
-    --sketch substance_swatches
-```
-
-The test and the benchmark render the SDK's own sample archives
-(`assets/Autumn_Leaves.sbsar`, and `assets/Post_Illumination.sbsar` for
-the composition cases), found through the SDK directory the build was
-configured from. Without the SDK there is no `substance_test` at all —
-the target is left out of the build with the library.
+Without the SDK there is no `substance_test` at all — the target leaves
+the build with the library. The test and the benchmark render the SDK's
+own sample archives (`assets/Autumn_Leaves.sbsar`, and
+`assets/Post_Illumination.sbsar` for the composition cases), found
+through the SDK directory the build was configured from. Where a sample
+is not there the case skips naming the file and the benchmark registers
+nothing, so an SDK installed without its samples reports the fact
+rather than failing; the binary carries the `substance` label for
+exactly that reason. The refusal rows and the engine version need no
+sample and run either way. The engine dylib itself is a link-time
+dependency: a binary built against the SDK does not start without it.
 
 One case per promise: the engine reports its version, a package finds
 every graph by the url and the label it reports, a graph describes its
@@ -174,11 +176,9 @@ image input takes an image whose size is not the graph's own, and two
 graphs compose through image inputs. What is not a package is one
 parameterised case over the two doors a package is loaded through —
 bytes that are not an archive, and a file that is not there — each
-answering no package and saying why. When a sample is not
-there the case skips with a message naming the file and the benchmark
-registers nothing, so an SDK installed without its samples reports the
-fact rather than failing; the binary carries the `substance` ctest
-label for exactly that reason. The refusal rows and the engine
-version need no sample and run either way. The engine dylib itself is a
-link-time dependency: a binary built against the SDK does not start
-without it.
+answering no package and saying why.
+
+```sh
+build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
+    --sketch substance_swatches
+```
