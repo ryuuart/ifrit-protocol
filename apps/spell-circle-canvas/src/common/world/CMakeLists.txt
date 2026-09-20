@@ -8,7 +8,8 @@
 # The fixtures every test binary here shares live in test/, on no
 # library's include path: nothing shipped may reach a fixture.
 sigil_library_root(SigilWorld
-  BRIEF "3D scenes as values, executed on a GPU over a shared device")
+  BRIEF "3D scenes as values, executed on a GPU over a shared device"
+  DOCS reference/DEVICE.md reference/STUDIES.md)
 
 # The light feature stands alone: emitter VALUES over glm, with no
 # device and no registry, so a consumer that only needs to say where the
@@ -53,7 +54,10 @@ sigil_library(SigilWorld
             SigilWorldLight SigilWorldKit SigilWorldDiligent)
 
 # Every API name the prose spells, compiled against the headers that own
-# it. The libraries this one stands on are scanned so a borrowed name
+# it — the README and both chapters under reference/, because a chapter
+# is the same canon as the page that links it, and the device tier's own
+# vocabulary lives there.
+# The libraries this one stands on are scanned so a borrowed name
 # resolves where it lives: the mesh currency and its runtimes, the
 # reconcile phases and the settle policy, the shader compiler, and the
 # schedule whose cascade order means the same thing in a set as in a line
@@ -61,6 +65,8 @@ sigil_library(SigilWorld
 # include root here carries.
 sigil_doc_probes(world
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/DEVICE.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/STUDIES.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry
            ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial
