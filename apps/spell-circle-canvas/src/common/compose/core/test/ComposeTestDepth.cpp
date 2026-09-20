@@ -386,7 +386,7 @@ TEST(ComposeDepth, AHiddenBackfaceIsNeitherPaintedNorHit) {
   // hidden it is neither drawn nor hit and the card beneath shows and
   // answers; with its back visible it covers the other, mirrored, and
   // answers the hit itself. The same half turn about x hides it too.
-  const auto pair = [](Backface facing, float rx, float ry) {
+  const auto pair = [](material::Backface facing, float rx, float ry) {
     return box().children({box()
                                .key("under")
                                .absolute()
@@ -402,24 +402,24 @@ TEST(ComposeDepth, AHiddenBackfaceIsNeitherPaintedNorHit) {
                                .backface(facing)});
   };
   Host host(200, 200);
-  host.composer.render(pair(Backface::Hidden, 0, 180));
+  host.composer.render(pair(material::Backface::Hidden, 0, 180));
   host.frame();
   EXPECT_EQ(host.pixel(100, 100), SK_ColorGREEN);
   EXPECT_EQ(host.composer.hitTest({100, 100}).value_or(""), "under");
 
-  host.composer.render(pair(Backface::Visible, 0, 180));
+  host.composer.render(pair(material::Backface::Visible, 0, 180));
   host.frame();
   EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);
   EXPECT_EQ(host.composer.hitTest({100, 100}).value_or(""), "over");
 
-  host.composer.render(pair(Backface::Hidden, 180, 0));
+  host.composer.render(pair(material::Backface::Hidden, 180, 0));
   host.frame();
   EXPECT_EQ(host.pixel(100, 100), SK_ColorGREEN);
   EXPECT_EQ(host.composer.hitTest({100, 100}).value_or(""), "under");
 
   // Facing the viewer — including a turn short of a quarter — the front
   // is drawn whichever way the backface is set.
-  host.composer.render(pair(Backface::Hidden, 0, 60));
+  host.composer.render(pair(material::Backface::Hidden, 0, 60));
   host.frame();
   EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);
   EXPECT_EQ(host.composer.hitTest({100, 100}).value_or(""), "over");
@@ -438,7 +438,7 @@ TEST(ComposeDepth, AMirrorIsNotABackface) {
                           .fill(red())
                           .scaleX(-1)
                           .rotateY(0)
-                          .backface(Backface::Hidden)}));
+                          .backface(material::Backface::Hidden)}));
   host.frame();
   EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);
   EXPECT_EQ(host.composer.hitTest({100, 100}).value_or(""), "card");
@@ -457,7 +457,7 @@ TEST(ComposeDepth, AFlippingCardShowsOneFaceAtATime) {
           .rect(SkRect::MakeXYWH(50, 50, 100, 100))
           .fill(std::move(fill))
           .rotateY(ry)
-          .backface(Backface::Hidden);
+          .backface(material::Backface::Hidden);
     };
     return box().perspective(600).children(
         {box()

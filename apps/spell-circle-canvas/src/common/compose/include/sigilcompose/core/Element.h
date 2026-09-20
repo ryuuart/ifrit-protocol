@@ -1070,8 +1070,15 @@ class Element {
    *  front of its own plane and is drawn before its children. */
   Element& preserve3d(bool on = true);
   /** Whether the back of this node's plane is drawn when a depth lane has
-   *  turned it away — see `Backface`. Visible by default. */
-  Element& backface(Backface facing);
+   *  turned it away. A node is a plane, and `rotateX` or `rotateY` past a
+   *  quarter turn shows the viewer its back: the same paint, mirrored.
+   *  `material::Backface::Hidden` draws nothing then and answers no hit,
+   *  which is what the two faces of a flipping card need. Visible by
+   *  default, and what a node with no depth lane always is. The side is
+   *  decided by the node's whole projection — its own lanes, every shared
+   *  space above it and the perspective it is seen through — never by a 2D
+   *  mirror, so `scaleX(-1)` stays visible. */
+  Element& backface(material::Backface facing);
   template <std::integral T>
   Element& rotateX(T deg) {
     return rotateX(motion::Animatable<float>((float)deg));

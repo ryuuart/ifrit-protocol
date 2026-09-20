@@ -164,7 +164,7 @@ dials `intensity` and `emission`, and `camera`.
 
 A closed solid keeps its reverse-wound triangles hidden by default. A sheet,
 screen or other open surface that must remain visible as the viewpoint passes
-behind it declares `backface(Backface::Visible)`; the choice reaches both the
+behind it declares `backface(material::Backface::Visible)`; the choice reaches both the
 CPU rasterizer and the device pipeline.
 
 ## Mental model

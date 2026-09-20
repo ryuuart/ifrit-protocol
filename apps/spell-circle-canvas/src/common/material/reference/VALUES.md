@@ -40,6 +40,7 @@ top:
 - `color/Ramp.h` — `Ramp`, `RampSpace`, `HueArc`, `palette`, `ramp`
 - `color/Harmony.h` — `harmony`, `rotateHue`, `Scheme`
 - `color/Extract.h` — `palette`, `closestEntry`, `PaletteOptions`
+- `core/Backface.h` — `Backface`
 - `core/Material.h` — `Material`
 - `core/Leaf.h` — `Leaf`
 - `skia/Paint.h` — `Paint`, `PaintFrame`, `Stop`, `Fit`

@@ -73,7 +73,7 @@ void perturb(Cache& v) { v = Cache::None; }
 
 void perturb(Boundary& v) { v = Boundary::Glyphs; }
 
-void perturb(Backface& v) { v = Backface::Hidden; }
+void perturb(material::Backface& v) { v = material::Backface::Hidden; }
 
 void perturb(SkBlendMode& v) { v = SkBlendMode::kMultiply; }
 

@@ -53,7 +53,7 @@ struct Placement {
 struct Body {
   const geometry::mesh::Mesh* mesh = nullptr;
   uint64_t id = 0;
-  Backface backface = Backface::Hidden;
+  material::Backface backface = material::Backface::Hidden;
 };
 
 /** What the surface is: the colour a tier with no compiler to run a

@@ -86,7 +86,7 @@ std::optional<std::string> Composer::Impl::hitInstance(
     // The back of a plane whose backface is hidden was not drawn, and
     // answers no hit either.
     if (placed && node.depthData &&
-        node.depthData->backface == Backface::Hidden && facesAway(m))
+        node.depthData->backface == material::Backface::Hidden && facesAway(m))
       placed = false;
   } else {
     // The inverse comes from SkMatrix::invert of that same matrix producer

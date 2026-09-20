@@ -142,7 +142,7 @@ Element& Element::mesh(geometry::mesh::Mesh m) {
   return *this;
 }
 
-Element& Element::backface(Backface facing) {
+Element& Element::backface(material::Backface facing) {
   m_node->backface = facing;
   return *this;
 }

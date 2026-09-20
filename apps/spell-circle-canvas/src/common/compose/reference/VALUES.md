@@ -101,7 +101,7 @@ scheme of your own is C++ only.
 
 - `core/Paint.h` — `Fill`, with `Fill::color`, `Fill::shader`,
   `Fill::none`, `Fill::currentInk` and `Fill::var`; `hexColor`, the one
-  colour spelling here; `Corners`; `Backface`; `PaintContext`, and the
+  colour spelling here; `Corners`; `PaintContext`, and the
   `KeyState` and `PromotionPolicy` it carries; `PaintProgram`;
   `StampCache`; `resolveRef`, `toFill`, `resolveFill` and `frameOf`; and
   the gradient fills `linearGradient` and `radialGradient`.

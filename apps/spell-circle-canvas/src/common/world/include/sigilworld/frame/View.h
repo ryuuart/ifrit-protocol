@@ -15,6 +15,7 @@
 #include <include/core/SkSize.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilgeometry/mesh/render/Shading.h>
+#include <sigilmaterial/core/Backface.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilworld/element/Element.h>
 #include <sigilworld/element/Environment.h>
@@ -37,7 +38,7 @@ struct Draw {
   glm::mat4 world{1.0f};
   const geometry::mesh::Mesh* mesh = nullptr;
   /** Whether reverse-wound faces survive rasterization. */
-  Backface backface = Backface::Hidden;
+  material::Backface backface = material::Backface::Hidden;
   /** WHICH COOKED ARTEFACT those triangles are, named by a number no
    *  other artefact ever has. An executor that keeps something of its
    *  own per geometry — a device's uploaded buffers — keys on this and

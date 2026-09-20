@@ -71,7 +71,7 @@ as CSS's grouping properties force a flat transform style: its children
 are projected one by one onto its plane, in tree order, with no depth
 between them.
 
-**`Element::backface`** with `Backface::Hidden` draws nothing and answers
+**`Element::backface`** with `material::Backface::Hidden` draws nothing and answers
 no hit while the plane's back faces the viewer — decided by the
 inverse-transposed normal of the node's whole projection, so a half turn
 about x or y hides it and a `scaleX(-1)` mirror does not. A flipping card

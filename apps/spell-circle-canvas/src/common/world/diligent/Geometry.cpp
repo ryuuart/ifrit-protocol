@@ -405,7 +405,7 @@ void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
              flat ? nullptr : body.texture, view.lights, view.environment,
              view.orientation, lit && body.lit,
              /*depthWrite=*/colour.a >= 1.0f,
-             /*cull=*/body.backface == Backface::Hidden);
+             /*cull=*/body.backface == material::Backface::Hidden);
   }
 }
 

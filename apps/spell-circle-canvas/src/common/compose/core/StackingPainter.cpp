@@ -67,7 +67,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     flat = depth->asM33();
     ownHidden =
         !flat->invert(nullptr) ||
-        (node.depthData && node.depthData->backface == Backface::Hidden &&
+        (node.depthData && node.depthData->backface == material::Backface::Hidden &&
          facesAway(*depth));
     if (ownHidden && !spaceHost) return;
   }

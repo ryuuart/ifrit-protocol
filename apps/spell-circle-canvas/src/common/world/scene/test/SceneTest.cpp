@@ -110,11 +110,11 @@ TEST_F(WorldScene, AVisibleBackfaceKeepsAPlaneUnderAnOrbit) {
   behind.eye.z = -320;
 
   scene.render(Element().key("root").children(
-      {Element().key("card").mesh(card(24)).backface(Backface::Hidden)}));
+      {Element().key("card").mesh(card(24)).backface(material::Backface::Hidden)}));
   EXPECT_FALSE(hasInk(plate(scene, behind)));
 
   scene.render(Element().key("root").children(
-      {Element().key("card").mesh(card(24)).backface(Backface::Visible)}));
+      {Element().key("card").mesh(card(24)).backface(material::Backface::Visible)}));
   EXPECT_TRUE(hasInk(plate(scene, behind)));
 }
 

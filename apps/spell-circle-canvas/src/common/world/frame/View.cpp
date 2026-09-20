@@ -58,7 +58,7 @@ void dress(::sigil::geometry::mesh::render::MeshStyle& style,
   style.tileTexture = sampling.tile;
   style.filter = sampling.filter;
   style.lit = body.lit;
-  style.backfaceCull = body.backface == Backface::Hidden;
+  style.backfaceCull = body.backface == material::Backface::Hidden;
   const SurfaceTerms terms = surfaceTermsOf(body.material);
   style.metallic = terms.metallic;
   style.roughness = terms.roughness;

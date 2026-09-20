@@ -500,7 +500,7 @@ struct DepthData {
   /// The transform origin's depth, beside PaintProps::originX/originY.
   float originZ = 0.0f;
   bool preserve3d = false;
-  Backface backface = Backface::Visible;
+  material::Backface backface = material::Backface::Visible;
 };
 
 /** THE CASCADE A NODE DECLARES — Element::font, Element::ink and

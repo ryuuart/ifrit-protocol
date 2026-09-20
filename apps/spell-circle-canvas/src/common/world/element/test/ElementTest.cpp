@@ -190,11 +190,11 @@ INSTANTIATE_TEST_SUITE_P(EveryFieldADescriptionCarries, DescribedField,
 
 TEST(WorldElement, BackfaceVisibilityReachesThePrune) {
   const Element hidden = Element().key("body");
-  const Element visible = Element().key("body").backface(Backface::Visible);
+  const Element visible = Element().key("body").backface(material::Backface::Visible);
   EXPECT_FALSE(propertiesEqual(*hidden.node(), *visible.node()));
   EXPECT_TRUE(propertiesEqual(
       *visible.node(),
-      *Element().key("body").backface(Backface::Visible).node()));
+      *Element().key("body").backface(material::Backface::Visible).node()));
 }
 
 TEST(WorldElement, TheGeometrySlotsValueTypeIsTheKind) {

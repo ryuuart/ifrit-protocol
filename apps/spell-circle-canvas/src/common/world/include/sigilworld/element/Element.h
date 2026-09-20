@@ -11,6 +11,7 @@
 #include <sigilcore/reconcile/Memo.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
+#include <sigilmaterial/core/Backface.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Animatable.h>
@@ -44,11 +45,6 @@
 namespace sigil::world {
 
 struct ElementNode;
-
-/** WHICH SIDES OF A BODY'S TRIANGLES ARE DRAWN. Hidden is the default for
- *  closed solids; Visible keeps the reverse side of a sheet or panel when
- *  the viewpoint passes behind it. */
-enum class Backface { Hidden, Visible };
 
 /** ONE NODE OF A 3D SCENE, as a value.
  *
@@ -154,9 +150,10 @@ class Element {
   /** A formed mesh. */
   Element& mesh(geometry::mesh::Mesh m);
   /** Whether reverse-wound faces are culled or drawn. A flat panel that
-   *  must survive an orbit uses `backface(Backface::Visible)`; a closed
+   *  must survive an orbit uses `backface(material::Backface::Visible)`; a
+   *  closed
    *  solid normally keeps the default `Hidden`. */
-  Element& backface(Backface facing);
+  Element& backface(material::Backface facing);
   /** Points, with `stamp()` standing at each of them. */
   Element& cloud(geometry::mesh::Cloud c);
   /** A point chain and the runtime that cooks it, with `stamp()`

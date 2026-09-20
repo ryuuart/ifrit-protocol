@@ -118,7 +118,7 @@ Element& Element::preserve3d(bool on) {
   return *this;
 }
 
-Element& Element::backface(Backface facing) {
+Element& Element::backface(material::Backface facing) {
   m_node->depthData.ensure().backface = facing;
   return *this;
 }
