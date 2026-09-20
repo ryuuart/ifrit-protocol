@@ -188,7 +188,8 @@ exception through it would leave open.
 * `io/Hub.h` — `HubHandle`, `retainSessionFeed`
 * `data/Convert.h` — `dataDatabase`, `loadData`
 * `geometry/Casters.h` — the casters that let a Python sequence stand for
-  a glm vector, which declare no name of their own
+  a glm vector of floats or of whole numbers, and three sequences of three
+  for a rotation counted by columns; they declare no name of their own
 
 ONE COLOUR CLASS REACHES PYTHON. Skia's colour value and SigilMaterial's are
 the same four straight sRGB floats, so only `material::Color` is registered:

@@ -11,7 +11,6 @@
 #include <sigilpython/geometry/Registration.h>
 #include <sigilpython/skia/Values.h>
 
-#include <array>
 #include <exception>
 #include <glm/glm.hpp>
 #include <utility>
@@ -23,21 +22,6 @@ namespace camera = mesh::camera;
 namespace render = mesh::render;
 
 namespace {
-
-// A ROTATION IS COUNTED BY COLUMNS, as the camera's matrix is and as glm
-// counts one: the three vectors below are where the panorama's own x, y
-// and z axes point, in that order.
-constexpr glm::length_t kAxisCount = 3;
-
-/** The three columns of @p value, each of them three numbers. */
-py::tuple orientationColumns(const glm::mat3& value) {
-  return py::make_tuple(value[0], value[1], value[2]);
-}
-
-/** The rotation @p columns describe, column by column. */
-glm::mat3 orientationOf(const std::array<glm::vec3, kAxisCount>& columns) {
-  return glm::mat3(columns[0], columns[1], columns[2]);
-}
 
 /** Runs @p body over @p canvas through a pen of its own, so a panel's
  *  author draws with the same verbs and the same checks as the frame
@@ -122,15 +106,9 @@ void bindGeometryMeshRender(py::module_& module) {
       .def_readwrite("nextLevels", &render::Environment::nextLevels)
       .def_readwrite("nextIrradiance", &render::Environment::nextIrradiance)
       .def_readwrite("crossfade", &render::Environment::crossfade)
-      .def_property(
-          "orientation",
-          [](const render::Environment& value) {
-            return orientationColumns(value.orientation);
-          },
-          [](render::Environment& value,
-             const std::array<glm::vec3, kAxisCount>& columns) {
-            value.orientation = orientationOf(columns);
-          })
+      // The rotation is read and answered by columns: where the
+      // panorama's own x, y and z axes point, in that order.
+      .def_readwrite("orientation", &render::Environment::orientation)
       .def_readwrite("tint", &render::Environment::tint)
       .def_readwrite("intensity", &render::Environment::intensity)
       .def_readwrite("diffuse", &render::Environment::diffuse)
