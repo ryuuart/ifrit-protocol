@@ -275,131 +275,70 @@ count and truncating it would read a different file.
 
 ## Build and test
 
-From `apps/spell-circle-canvas`:
-
-```sh
-python3 scripts/sigil.py setup --config Release
-cmake --build build --config Release --target io_test
-ctest --test-dir build -C Release --output-on-failure
-```
+[docs/overview/testing.md](../../../docs/overview/testing.md) is the
+contract every library here is built, tested and measured under: one
+`io_test` over every feature's `test/` and one `io_bench`, ctest one
+entry per CASE, what a case may pin, and what a label promises. What is
+only true of SigilIO:
 
 Targets: `SigilIOSource` (`source/` — headers, the archive source, and
 the two places only the platform can name, where the running binary
-stands and where a process may leave throwaway files) with
-`source/test/`, whose `SourceVocabulary`, `SinkVocabulary` and `Places`
-suites check the concepts against a fixture source, a fixture decoder and
-a fixture sink with no hub in the binary, `writeBytes` against a real
-scratch directory, and whose `IOArchive` suite reads zips written by
-hand, one of which claims an entry a thousand times the file it is in; `SigilIOHub` (static library, `hub/` — mounts, selection,
-cache, retention, network and the decoder registry, split behind the
-private `hub/Fetch.h` and `hub/Residency.h`) with `hub/test/`, whose
-`IOHub`, `IOSource`, `IOChannels`, `IOResourceLease`, `IONetwork`,
-`IOOiio`, `IOTextCatalog` and `IOFeed` suites cover it — `IOSource` being the hub
-answering as a `ByteSource`, which is the seam a consumer that only
-wants bytes stands on; and `io_bench` (Google Benchmark, built
-by the `benches` target and run from a Release build through
-`scripts/sigil.py bench`: `Hub::fetch` on a cache hit and `load<T>` on a
-decoded view per call and `resolve` per URI against the mount table — the
-disk kept out of every timed loop — and THE WIRES' OWN ARMS beside them,
-one per door with both ends of that door standing in the binary, a batch
-of messages sent through one feed and counted arrived on the feed at the
-other, so what such a row says is the messages a second that door
-carries end to end, the WebRTC arm among them with both ends of one
-conversation standing in the one process, which the library under that
-door survives now that it comes from the registry with its throws
-guarded); `SigilIOTransport` (static
-library, `transport/` — the UDP transport and the one thread its
-sockets run on, behind the private `transport/IoThread.h`, the
-WebSocket listener and the loop each one holds, the WebSocket client
-and the session each of its feeds runs on a thread of its own, the
-shared memory reader, whose looks run on a thread of that same private
-kind, the MIDI transport, which starts no thread at all, the serial
-transport, whose ports run on a thread of that same private kind, the
-gRPC transport, which starts none either, gRPC calling back onto
-threads of its own, the QUIC transport, which starts none either, msquic
-running workers of its own, and the WebRTC transport, which starts none either
-and whose wire format — the introductions two ends make — stands beside
-it behind the private `transport/Introduction.h`) with
-`transport/test/`, whose `IOUdp` suite binds real ports on the loopback
-and sends its own datagrams through raw sockets, whose `IOWebSocket`
-suite does the same with a websocket peer it writes out by hand, upgrade
-request and masked frames and all, and with one plain HTTP request for
-the pages a listener's query stands that same port over — which a case
-may do to prove what the listener answers, while a transport stands on a
-library that speaks the protocol instead — whose `IOWebSocketClient` suite calls a
-listener this same process is holding, so both ends of a session stand in
-one binary, and whose `IOSharedMemory` suite writes the regions it
-reads through `SharedMemoryWriter`, so both ends of a region do too —
-one of its cases writing without pause from a thread of its own while
-another reads, which is the only way the count that brackets a message
-can be shown to work — and whose `IOMidi` suite MAKES the port it then
-opens back by name, so both ends of a cable stand in one binary with no
-controller plugged in, and skips with the reason where the system
-offers no port made rather than found, and whose `IOSerial` suite MAKES
-the port it then opens, a pseudo-terminal pair whose slave the feed
-opens by the path the system named it while the case writes the
-readings into the master — a port with a path being the whole of what
-that transport asks of a board — and skips with the reason where the
-system hands over no such pair, and whose `IOGrpc` suite calls a server
-this same process is holding, so both ends of a method stand in one
-binary with no stub generated for either, and whose `IOQuic` suite calls
-a port this same process is holding, so both ends of a connection stand
-in one binary — that port has to answer for itself, so each case WRITES
-a self-signed certificate and the key that goes with it into its own
-scratch directory with OpenSSL and the call reaches the pair the way a
-machine on a stage is reached, and a case that could make no pair says so
-rather than passing — and whose `IOWebRtc` suite
-STARTS A PEER IN A PROCESS OF ITS OWN — this same binary, run again on
-the one case of `IOWebRtcPeer`, which takes the room up, SAYS ON ITS OWN
-OUTPUT THAT IT IS UP, keeps saying what its environment told it to say
-and echoes back whatever it hears — because a door with nothing in the
-middle of it has its two ends on two machines. That line is read back
-off the process before anything is judged: a process starting is the
-machine's to answer for and the pairing after it is this transport's, so
-the two are waited on apart, generously and with no verdict on the
-first, and a peer that never came up stands its case down naming the
-machine while a pairing that does not come once both ends are up fails
-saying the transport did not make it. One case holds both ends in this
-process on purpose, a dozen pairs over, since two ends inside one
-process share the one thread every end's routes are found on, and what
-that case asserts is the process still standing and the pairs carrying a
-message at all. Every door in it opens on the port zero names and is
-dialled at the port it answers, so nothing here is guessed, and it
-dispatches on every look, an introduction crossing on the frame. Its
-peer case is skipped where no room was named for it, which is what a
-sweep of the whole binary does with it; and `SigilIO`, the umbrella over
-the source and the hub.
+stands and where a process may leave throwaway files); `SigilIOHub`
+(`hub/` — mounts, selection, cache, retention, network and the decoder
+registry, split behind the private `hub/Fetch.h` and
+`hub/Residency.h`); `SigilIOTransport` (`transport/` — the wires, with
+the one thread kind their sockets, looks and ports run on behind the
+private `transport/IoThread.h` and the introductions two WebRTC ends
+make behind `transport/Introduction.h`); and `SigilIO`, the umbrella
+over the source and the hub.
 
-There is one test binary, `io_test`, built from every feature's `test/`
-directories, and ctest discovers one entry per CASE out of it, so a
-suite or a case is selected by name with no target behind it —
-`-R '^IOHub\.'` for the hub's cases, `-R '^Places\.'` for the platform's.
+| Suites | What they stand on |
+|---|---|
+| `SourceVocabulary`, `SinkVocabulary`, `Places` | the concepts against a fixture source, a fixture decoder and a fixture sink with no hub in the binary, and `writeBytes` against a real scratch directory |
+| `IOArchive` | zips written by hand, one of which claims an entry a thousand times the file it is in |
+| `IOHub`, `IOSource`, `IOChannels`, `IOResourceLease`, `IONetwork`, `IOOiio`, `IOTextCatalog`, `IOFeed` | the hub, `IOSource` being the hub answering as a `ByteSource` — the seam a consumer that only wants bytes stands on |
+| `IOUdp` | real ports on the loopback, with the datagrams sent through raw sockets |
+| `IOWebSocket` | a websocket peer written out by hand, upgrade request and masked frames and all, plus one plain HTTP request for the pages a listener's query stands that same port over |
+| `IOWebSocketClient`, `IOGrpc`, `IOQuic` | a listener, a server or a port this same process is holding, so both ends stand in one binary with no stub generated for either. Each `IOQuic` case WRITES a self-signed certificate and its key into its own scratch directory with OpenSSL, because a port has to answer for itself, and a case that could make no pair says so rather than passing |
+| `IOSharedMemory` | regions this binary writes through `SharedMemoryWriter` and reads back, one case writing without pause from a thread of its own while another reads — the only way the count that brackets a message can be shown to work |
+| `IOMidi`, `IOSerial` | a port this binary MAKES and then opens back: a virtual cable by name, and a pseudo-terminal pair whose slave the feed opens by the path the system named it while the case writes the readings into the master. Each skips, with the reason, where the system offers no such port |
+| `IOWebRtc` | a peer in a process of its own — this same binary, run again on the one case of `IOWebRtcPeer` — because a door with nothing in the middle of it has its two ends on two machines |
 
-Its cases take their scratch directory from `src/test/ScratchDir.h`, the
-repository-level test support header: a directory named after the
-case and the process, emptied on the way in and removed on the way out.
-The hub cases open most of themselves from a `MountedHub` fixture —
-one such directory mounted at `res://`, which is the whole of what a hub
+The WebRTC peer SAYS ON ITS OWN OUTPUT THAT IT IS UP, and that line is
+read back off the process before anything is judged: a process starting
+is the machine's to answer for and the pairing after it is this
+transport's, so the two are waited on apart, generously and with no
+verdict on the first, and a peer that never came up stands its case down
+naming the machine while a pairing that does not come once both ends are
+up fails saying the transport did not make it. One case holds both ends
+in this process on purpose, a dozen pairs over, since two ends inside
+one process share the one thread every end's routes are found on, and
+what it asserts is the process still standing and the pairs carrying a
+message at all. Every door opens on the port zero names and is dialled
+at the port it answers, so nothing is guessed. The peer case is skipped
+where no room was named for it, which is what a sweep of the whole
+binary does with it.
+
+The hub cases open most of themselves from a `MountedHub` fixture — one
+scratch directory mounted at `res://`, which is the whole of what a hub
 needs before it can be asked anything — and force a distinct mtime
 through one `touchForward()` helper rather than by sleeping, since a
 filesystem's timestamp granularity is not this test's running time.
 
-Two parts of the hub's cases carry a ctest label, because each needs
-something the machine may not have. The `IOOiio` suite is the EXR cases,
-which compile only where OpenImageIO is found at configure time — the
-test uses it to *write* its fixtures, while the library itself never
-calls it — and carries the `oiio` label. The live-network case fetches a
-pinned immutable URL once and reads it back through a fresh hub locked
-`Offline`; it is a ctest entry of its own,
-`IONetwork.LiveFetchThenOfflineRoundTrip`, labelled `network`, and it
-skips itself where there is no route, so `-LE network` is how a run
-leaves it out rather than how it avoids failing. Every other network
-case is a pre-seeded disk cache, with a stub transport standing in for
-libcurl where a fetch has to succeed or fail, so libcurl itself is
-untested by default.
+| Label | On | Means |
+|---|---|---|
+| `oiio` | `IOOiio` | the EXR cases, compiled only where OpenImageIO is found at configure time. The test uses it to *write* its fixtures; the library itself never calls it |
+| `network` | `IONetwork.LiveFetchThenOfflineRoundTrip` | a route: the case fetches a pinned immutable URL once and reads it back through a fresh hub locked `Offline`. It skips itself where there is none, so `-LE network` is how a run leaves it out rather than how it avoids failing |
 
-A case here asserts one thing a header promises and is named that
-promise as a sentence. It pins only what editing this library could
-falsify — a cache hit, a selection, a URI resolution, bytes in and the
-same bytes out — never how many bytes a server happens to hold, nor how
-long a fetch took.
+Every other network case is a pre-seeded disk cache, with a stub
+transport standing in for libcurl where a fetch has to succeed or fail,
+so libcurl itself is untested by default.
+
+`io_bench` times `Hub::blob` on a cache hit, `load<T>` on a decoded view
+per call and `resolve` per URI against the mount table — the disk kept
+out of every timed loop — and THE WIRES' OWN ARMS beside them, one per
+door with both ends of that door standing in the binary: a batch of
+messages sent through one feed and counted arrived on the feed at the
+other, so what such a row says is the messages a second that door
+carries end to end. The WebRTC arm is among them, both ends of one
+conversation in the one process.
