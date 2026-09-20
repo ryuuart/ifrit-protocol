@@ -95,7 +95,9 @@ class Contour {
    *  `minSpacing` apart, found by walking the contour in `step`-length
    *  strides and bisecting to the turn. The distance answered is the
    *  last one at which the incoming tangent still holds, which at a real
-   *  vertex is the vertex itself. A closed contour's seam counts.
+   *  vertex is the vertex itself when a sample lands on it and a
+   *  bisection's last fraction short of it when none does. A closed
+   *  contour's seam counts.
    *  `sharpestDeg`, when given, receives the largest turn seen whether or
    *  not it crossed the threshold, so a caller can explain an empty
    *  result. */
@@ -109,13 +111,15 @@ class Contour {
 };
 
 /** The curve a constant distance `across` to the side of every contour,
- *  built by walking in `step`-length strides: outer corners take a round
- *  join, inner corners a miter (or a bevel where a miter would run
- *  away), and the samples a join already answers for are dropped —
- *  a join stands for its own vertex, and a miter for everything within
- *  the reach it takes back from it, which below a right angle is further
- *  than the offset itself. Positive `across` is to the left of the
- *  direction of travel in Skia's y-down space.
+ *  built by walking in `step`-length strides: outer corners take a
+ *  round join, inner corners a miter — cut back no further than the
+ *  neighbouring corner, so a turn near a reversal becomes the chord
+ *  across it rather than a meeting that never comes — and the samples a
+ *  join already answers for are dropped. A join stands for its own
+ *  vertex, and a corner the contour turns INTO for everything within
+ *  the reach its two offset edges fold across, which below a right
+ *  angle is further than the offset itself. Positive `across` is to the
+ *  left of the direction of travel in Skia's y-down space.
  *
  *  This is the RAIL — one curve, not a region — and it is the walk
  *  `operations::offset` performs at either end of its position dial, where the

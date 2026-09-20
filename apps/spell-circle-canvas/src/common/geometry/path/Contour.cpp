@@ -156,9 +156,31 @@ std::vector<Contour::Corner> Contour::corners(float angleDeg, float minSpacing,
 std::vector<OffsetJoin> offsetJoins(
     const Contour& contour,
     const std::function<float(float distance)>& acrossAt, float stride) {
+  const std::vector<Contour::Corner> corners =
+      contour.corners(20.0f, std::max(stride, 1.0f), stride);
+  const float len = contour.length();
+  const size_t count = corners.size();
+  // HOW MUCH CONTOUR A CORNER HAS TO ITSELF, each way, before the next
+  // corner — around the seam where the contour is closed and up to its
+  // own ends where it is not. Nothing a corner does reaches past its
+  // neighbour: the fold a turn makes is between the two edges this
+  // vertex sits between, and past the next vertex the contour has
+  // turned away.
+  const auto behind = [&](size_t k) {
+    if (k > 0) return corners[k].distance - corners[k - 1].distance;
+    if (!contour.closed()) return corners[k].distance;
+    return count > 1 ? len - corners.back().distance + corners[k].distance
+                     : len;
+  };
+  const auto ahead = [&](size_t k) {
+    if (k + 1 < count) return corners[k + 1].distance - corners[k].distance;
+    if (!contour.closed()) return len - corners[k].distance;
+    return count > 1 ? len - corners[k].distance + corners.front().distance
+                     : len;
+  };
   std::vector<OffsetJoin> joins;
-  for (const Contour::Corner& hit :
-       contour.corners(20.0f, std::max(stride, 1.0f), stride)) {
+  for (size_t k = 0; k < count; ++k) {
+    const Contour::Corner& hit = corners[k];
     const auto vertex = contour.at(hit.distance);
     if (!vertex) continue;
     // `beside` measures to the right of travel; the offset is asked for
@@ -178,19 +200,35 @@ std::vector<OffsetJoin> offsetJoins(
       // width AT THE VERTEX rather than from either edge's slant.
       const glm::vec2 apart = join.leaving - join.entering;
       const float reach = (apart.x * hit.out.y - apart.y * hit.out.x) / turn;
-      if (std::abs(reach) <= join.radius * 4.0f) {  // a near-reversal miters
-        join.miter = true;                          // to infinity — bevel
-        join.point = {join.entering.x + hit.in.x * reach,
-                      join.entering.y + hit.in.y * reach};
-        // The miter sits `reach` back from where the two offset edges
-        // end, so every sample within that of the vertex stands past it
-        // and the join answers for it. Below a right angle the reach is
-        // longer than the offset; at one it is the offset exactly; above
-        // one the offset is the wider of the two, and it is still the
-        // corner's own place, because that is how far the rail stands
-        // from the spine there.
-        join.answers = std::max(join.radius, std::abs(reach));
-      }
+      // A TURN INTO THE OFFSET FOLDS THE TWO OFFSET EDGES ACROSS EACH
+      // OTHER, and they meet `reach` back from where they end — the
+      // offset over the tangent of half the interior angle, which at a
+      // right angle is the offset, above one less and below one more.
+      // There is no limit to cap that by: the meeting retreats ALONG
+      // the edges rather than spiking away from them, and what bounds
+      // it is the edge it retreats down. Cut each edge no further back
+      // than its neighbouring corner and the two cuts are one point
+      // wherever the corner has the room for it, and the chord across
+      // the corner where it does not.
+      const float fold = std::abs(reach);
+      const float towards = reach < 0 ? -1.0f : 1.0f;
+      const float room = behind(k), roomOn = ahead(k);
+      const float back = towards * std::min(fold, room);
+      const float on = towards * std::min(fold, roomOn);
+      join.miter = true;
+      join.cutEntering = {join.entering.x + hit.in.x * back,
+                          join.entering.y + hit.in.y * back};
+      join.cutLeaving = room >= fold && roomOn >= fold
+                            ? join.cutEntering
+                            : glm::vec2{join.leaving.x - hit.out.x * on,
+                                        join.leaving.y - hit.out.y * on};
+      // Every sample inside the fold stands past the meeting, so the
+      // join answers for it. At a corner blunter than a right angle the
+      // offset is the wider of the two and it is still the corner's own
+      // place, because that is how far the rail stands from the spine
+      // there.
+      join.answersBefore = std::min(std::max(join.radius, fold), room);
+      join.answersAfter = std::min(std::max(join.radius, fold), roomOn);
     } else if (turn * side < 0.0f) {
       join.arc = true;
       join.startRadians = std::atan2(join.entering.y - join.vertex.y,
@@ -225,7 +263,8 @@ void appendOffsetPoint(SkPathBuilder& out, glm::vec2 point, bool& started) {
 void appendOffsetJoin(SkPathBuilder& out, const OffsetJoin& join,
                       bool& started) {
   if (join.miter) {
-    appendOffsetPoint(out, join.point, started);
+    appendOffsetPoint(out, join.cutEntering, started);
+    appendOffsetPoint(out, join.cutLeaving, started);
     return;
   }
   appendOffsetPoint(out, join.entering, started);
@@ -242,13 +281,13 @@ void appendOffsetJoin(SkPathBuilder& out, const OffsetJoin& join,
 bool swallowedByJoin(std::span<const OffsetJoin> joins, const Contour& contour,
                      float distance) {
   const float len = contour.length();
+  const bool wraps = contour.closed() && len > 0;
   for (const OffsetJoin& join : joins) {
-    const float answers = join.answers;
-    if (answers <= 0) continue;
-    if ((distance > join.distance - answers &&
-         distance < join.distance + answers) ||
-        (contour.closed() && join.distance < answers &&
-         distance > len - (answers - join.distance)))
+    float delta = distance - join.distance;
+    // A closed contour has no first place and no last, so two of its
+    // places are as far apart as the nearer way round the seam.
+    if (wraps) delta = wrap(delta + len * 0.5f, len) - len * 0.5f;
+    if (delta < 0 ? -delta < join.answersBefore : delta < join.answersAfter)
       return true;
   }
   return false;

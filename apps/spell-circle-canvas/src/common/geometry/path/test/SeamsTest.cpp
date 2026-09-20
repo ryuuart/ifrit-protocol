@@ -18,6 +18,7 @@
 #include <cstddef>
 #include <glm/geometric.hpp>
 #include <glm/vec2.hpp>
+#include <utility>
 #include <vector>
 
 #include "sigilgeometry/path/Band.h"
@@ -404,15 +405,34 @@ TEST(Band, ARailStandsItsWholeWidthOffEveryCornerItTurnsAround) {
     EXPECT_GE(nearestTo(varying, at->position), width - 0.002f)
         << "varying at " << distance;
   }
+
+  // …AND THE RAIL NEVER CROSSES ITSELF, at any scale and on a spine
+  // whose corners do NOT fall on the walk's samples. A join stands for
+  // its vertex and the walk writes no sample at that vertex, so there
+  // is not even the hairline a point written twice leaves — which is
+  // what `0` rather than a sample step asks of the count here.
+  for (const int sides : {3, 5, 6, 7})
+    for (const float radius : {100.0f, 137.0f})
+      for (const float width : {12.0f, -12.0f}) {
+        const SkPath polygon = clockwisePolygon(sides, radius, 200.0f);
+        EXPECT_EQ(cornerLoops(parallel(polygon, width, 2.0f), 0.0f), 0)
+            << "constant " << width << " on a " << sides << "-gon of "
+            << radius;
+        EXPECT_EQ(
+            cornerLoops(profileOffset(polygon, Swell{width, width * 0.5f}),
+                        0.0f),
+            0)
+            << "varying " << width << " on a " << sides << "-gon of " << radius;
+      }
 }
 
 TEST(Band, ACornerSharperThanARightAngleLeavesNoSpurEitherSide) {
-  // The miter a corner collapses to sits back from the vertex by
-  // `radius / tan(half the interior angle)`: at a right angle exactly
-  // the offset, above one less, and BELOW one further — so a window of
-  // the offset alone leaves the samples between the two standing in the
-  // rail, each of them already past the miter, and each closing a small
-  // loop toward the offset side.
+  // The two offset edges of a turn INTO the offset fold across each
+  // other `radius / tan(half the interior angle)` back from the vertex:
+  // at a right angle exactly the offset, above one less, and BELOW one
+  // further — so a window of the offset alone leaves the samples between
+  // the two standing in the rail, each of them already past the fold,
+  // and each closing a small loop toward the offset side.
   for (const float interior :
        {150.0f, 120.0f, 90.0f, 75.0f, 60.0f, 45.0f, 30.0f}) {
     const SkPath spine = zigzagOfInteriorAngle(interior);
@@ -427,6 +447,77 @@ TEST(Band, ACornerSharperThanARightAngleLeavesNoSpurEitherSide) {
           0)
           << "varying " << width << " at " << interior << "°";
     }
+  }
+  // A CONSTANT rail holds far into the acute, where the fold reaches
+  // several times the offset and no bound but the neighbouring corner
+  // stops it. A law that VARIES is struck from the width at the vertex
+  // and read again at the window's ends, and by this sharpness those
+  // are two different widths — which is a separate matter from the
+  // window, and the reason the sweep above stops where it does.
+  for (const float interior : {25.0f, 20.0f, 15.0f, 10.0f}) {
+    const SkPath spine = zigzagOfInteriorAngle(interior);
+    const float step = railSampleStep(spine);
+    for (const float width : {12.0f, -12.0f})
+      EXPECT_EQ(cornerLoops(parallel(spine, width, step), step), 0)
+          << "constant " << width << " at " << interior << "°";
+  }
+}
+
+TEST(Band, AFoldReachesNoFurtherThanTheCornerBesideIt) {
+  // A long edge, a 30° corner whose two offset edges fold 44.8 px back
+  // from it against a 12 px law, a 25 px edge, a corner turning the
+  // other way, and another long edge. A fold is between the two edges
+  // ITS OWN vertex sits between: past the next vertex the contour has
+  // turned away, and the rail there stands off an edge this corner
+  // never met.
+  const float turn = 150.0f * 3.14159265f / 180.0f;
+  SkPathBuilder b;
+  b.moveTo(60, 300);
+  b.lineTo(200, 300);
+  const SkPoint corner{200.0f + 25.0f * std::cos(turn),
+                       300.0f + 25.0f * std::sin(turn)};
+  b.lineTo(corner);
+  b.lineTo(corner.fX + 140.0f, corner.fY);
+  const SkPath spine = b.detach();
+  const std::vector<Contour> contour = Contour::of(spine);
+  ASSERT_EQ(contour.size(), 1u);
+
+  // One side of travel turns into the first corner and the other into
+  // the second, so each says what the OTHER corner's fold would have
+  // swallowed: 44.8 px past the short edge, and 19.8 px back before it.
+  const std::vector<std::pair<float, std::vector<float>>> beyond{
+      {-12.0f, {170.0f, 178.0f, 184.0f}}, {12.0f, {124.0f, 130.0f, 138.0f}}};
+  for (const auto& [across, distances] : beyond) {
+    const SkPath rail = parallel(spine, across, 2.0f);
+    EXPECT_EQ(cornerLoops(rail, 2.0f), 0) << "across " << across;
+    for (const float distance : distances) {
+      const auto at = contour.front().at(distance);
+      ASSERT_TRUE(at.has_value());
+      const glm::vec2 want{at->position.x + at->tangent.y * across,
+                           at->position.y - at->tangent.x * across};
+      EXPECT_LT(nearestTo(rail, want), 0.01f)
+          << "across " << across << " at " << distance;
+    }
+  }
+
+  // …and an open rail begins where its spine begins however sharp the
+  // corner past its first edge: a fold cannot reach back along a
+  // contour that has stopped.
+  SkPathBuilder stub;
+  stub.moveTo(60, 300);
+  stub.lineTo(80, 300);
+  stub.lineTo(80.0f + 140.0f * std::cos(turn),
+              300.0f + 140.0f * std::sin(turn));
+  const SkPath shortFirstEdge = stub.detach();
+  const std::vector<Contour> stubContour = Contour::of(shortFirstEdge);
+  ASSERT_EQ(stubContour.size(), 1u);
+  for (const float across : {12.0f, -12.0f}) {
+    const auto at = stubContour.front().at(0.0f);
+    ASSERT_TRUE(at.has_value());
+    const glm::vec2 want{at->position.x + at->tangent.y * across,
+                         at->position.y - at->tangent.x * across};
+    EXPECT_LT(nearestTo(parallel(shortFirstEdge, across, 2.0f), want), 0.01f)
+        << "the start, across " << across;
   }
 }
 
