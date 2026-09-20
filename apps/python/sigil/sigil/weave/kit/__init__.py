@@ -6,7 +6,9 @@ from _sigil.weave.kit import (
     dropShadow,
     englishHyphenationPatterns,
     glow,
+    makeStyle,
     outline,
+    tracked,
 )
 
 from . import (
@@ -21,5 +23,7 @@ __all__ = [
     "glow",
     "hanging",
     "kinsoku",
+    "makeStyle",
     "outline",
+    "tracked",
 ]
