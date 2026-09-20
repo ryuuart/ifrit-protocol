@@ -1,6 +1,8 @@
 // The studio instruments: the meters that draw a schedule back onto the
 // scene, the console's per-column feeds, and the report that lands a
-// measured table in one.
+// measured table in one — and the instruments' own vocabulary: one
+// name per colour look, a typed options value, and the verdict a check
+// prints into a scene.
 
 #include <include/core/SkBBHFactory.h>
 #include <include/core/SkFont.h>
@@ -252,3 +254,155 @@ TEST(ComposeReport, ATableLandsInTheFeedRowByRowInTheInkOfItsStanding) {
   EXPECT_EQ(ring.rows().back().value.style, "bad");
 }
 
+// -------------------------------------------------------------------------
+// The instruments' own vocabulary: one name per colour look instead of
+// one body per call site, a typed options value where positional
+// arguments run out, and the verdict a check prints into a scene.
+
+TEST(ComposeStudio, TheColourOpsAreOneNamePerLookInsteadOfOneBodyPerCallSite) {
+  // hexColor() is the one colour spelling this library carries, and it
+  // answers SigilMaterial's arithmetic in Skia's colour.
+  constexpr SkColor4f rubric = hexColor(0x8C2F22);
+  static_assert(hexColor(0xFFFFFF).fR == 1.0f,
+                "must stay constexpr — the "
+                "palettes are constexpr");
+  EXPECT_FLOAT_EQ(rubric.fR, 0x8C / 255.0f);
+  EXPECT_FLOAT_EQ(rubric.fG, 0x2F / 255.0f);
+  EXPECT_FLOAT_EQ(rubric.fB, 0x22 / 255.0f);
+  EXPECT_FLOAT_EQ(rubric.fA, 1.0f);
+  EXPECT_FLOAT_EQ(hexColor(0x000000, 0.25f).fA, 0.25f);
+  EXPECT_EQ(rubric, material::skia::toSkColor(material::rgb(0x8C2F22)))
+      << "the same colour SigilMaterial's own spelling answers";
+
+  // phase() wraps and never NaNs on a zero period.
+  EXPECT_FLOAT_EQ(motion::phase(0.0, 4.0), 0.0f);
+  EXPECT_FLOAT_EQ(motion::phase(3.0, 4.0), 0.75f);
+  EXPECT_FLOAT_EQ(motion::phase(9.0, 4.0), 0.25f);
+  EXPECT_FLOAT_EQ(motion::phase(1.0, 0.0), 0.0f);
+}
+
+TEST(ComposeStudio, ATypedOptionsValueCarriesWhatPositionalArgumentsCannot) {
+  // GalleryCore.h:35 already ships styleAt(size, SkColor) and sixteen
+  // gallery scene headers wrote their own type() anyway — because they
+  // needed a face, or tracking, or condensation, or a wght variation
+  // (ScenesInventory.h:99), or slnt instead (ScenesSkillTree.h:122). This
+  // test asserts exactly the fields a positional two-argument helper could
+  // not reach; if it ever shrinks to size+colour, the extraction has failed
+  // the same way its predecessor did.
+  const sigil::weave::TextStyle s =
+      weave::textStyle({.size = 18.0f,
+                        .color = SkColor4f{0.2f, 0.4f, 0.6f, 1},
+                        .track = 1.25f,
+                        .condense = 0.94f,
+                        .weight = 650.0f,
+                        .slant = -10.0f,
+                        .aliased = true});
+  EXPECT_FLOAT_EQ(s.shaping.fontSize, 18.0f);
+  EXPECT_FLOAT_EQ(s.shaping.letterSpacing, 1.25f);
+  EXPECT_FLOAT_EQ(s.shaping.scaleX, 0.94f);
+  EXPECT_TRUE(s.shaping.aliased);
+  ASSERT_EQ(s.shaping.variations.size(), 2u);
+  EXPECT_EQ(std::string(s.shaping.variations[0].tag, 4), "wght");
+  EXPECT_FLOAT_EQ(s.shaping.variations[0].value, 650.0f);
+  EXPECT_EQ(std::string(s.shaping.variations[1].tag, 4), "slnt");
+  const SkColor4f c = s.paint.foreground.getColor4f();
+  EXPECT_FLOAT_EQ(c.fB, 0.6f);
+
+  // Defaults leave design space alone — an unvaried style must not carry a
+  // wght entry, or every default style occupies its own varied-face memo.
+  EXPECT_TRUE(weave::textStyle({.size = 12}).shaping.variations.empty());
+
+  // It equals a hand-built style, so a study migrating to it prunes.
+  sigil::weave::TextStyle byHand;
+  byHand.shaping.fontSize = 18.0f;
+  byHand.shaping.letterSpacing = 1.25f;
+  byHand.shaping.scaleX = 0.94f;
+  byHand.shaping.aliased = true;
+  byHand.paint.foreground.setColor4f({0.2f, 0.4f, 0.6f, 1}, nullptr);
+  byHand.paint.foreground.setAntiAlias(true);
+  byHand.variation("wght", 650.0f);
+  byHand.variation("slnt", -10.0f);
+  EXPECT_TRUE(s == byHand) << "type() does not build the TextStyle it declares";
+
+  // And it actually lays out — a TextStyle that measures to nothing would
+  // satisfy every field assertion above.
+  const SkSize measured =
+      intrinsicSize(text(u8"Wm", weave::textStyle({.size = 40})), fonts());
+  EXPECT_GT(measured.width(), 10.0f);
+  EXPECT_GT(measured.height(), 10.0f);
+}
+
+TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
+  // A figure that prints its own verification is worthless if the printed
+  // verdict is written by hand next to the numbers: the string and the claim
+  // are then unconnected, and the plate cannot be falsified by its own
+  // output. sigil::measure::check() derives the verdict FROM the two values it
+  // prints, so a wrong number changes the word beside it.
+  const sigil::measure::Check ok =
+      sigil::measure::check("northern column", 422000 - 22000, 400000);
+  EXPECT_TRUE(ok.pass);
+  EXPECT_NE(ok.line().find("400000"), std::string::npos);
+  EXPECT_NE(ok.line().find("PASS"), std::string::npos);
+  EXPECT_EQ(ok.line().find("FAIL"), std::string::npos);
+
+  const sigil::measure::Check bad =
+      sigil::measure::check("Berezina", 20000 + 30000, 49000);
+  EXPECT_FALSE(bad.pass);
+  EXPECT_NE(bad.line().find("FAIL want 50000"), std::string::npos)
+      << "a failing check must print what it wanted, or the plate says "
+         "nothing an author can act on: "
+      << bad.line();
+
+  // A long label is not truncated — sigillum_aemeth.cpp:1719 documents four
+  // checks silently losing their units to a feed column that clipped.
+  const std::string wide =
+      sigil::measure::check(std::string(80, 'L'), 1, 1).line(44);
+  EXPECT_NE(wide.find(std::string(80, 'L')), std::string::npos);
+
+  // Floats need a tolerance the STUDY chooses; there is no default.
+  EXPECT_TRUE(sigil::measure::check("R", 257.972, 257.9715, 0.001).pass);
+  EXPECT_FALSE(sigil::measure::check("R", 257.972, 257.9, 0.001).pass);
+  EXPECT_NE(
+      sigil::measure::check("R", 257.972, 257.9, 0.001).line().find("\xc2\xb1"),
+      std::string::npos);
+
+  EXPECT_TRUE(sigil::measure::check("winding", std::string_view("kCW"),
+                                    std::string_view("kCW"))
+                  .pass);
+  EXPECT_FALSE(sigil::measure::check("closed", false).pass);
+  EXPECT_TRUE(sigil::measure::check("closed", true).pass);
+
+  const sigil::measure::Check checks[] = {ok, bad,
+                                          sigil::measure::check("x", true)};
+  EXPECT_EQ(sigil::measure::failures(checks), 1);
+  EXPECT_EQ(sigil::measure::failures(
+                std::span<const sigil::measure::Check>{checks, 1}),
+            0);
+
+  // report() lands the line in the feed under the style name the VERDICT
+  // chose — that link is the whole primitive.
+  feed::TextRing ring;
+  test::report(ring, ok, "pass", "fail");
+  test::report(ring, bad, "pass", "fail");
+  ASSERT_EQ(ring.size(), 2u);
+  EXPECT_EQ(ring.rows()[0].value.style, "pass");
+  EXPECT_EQ(ring.rows()[1].value.style, "fail");
+  EXPECT_NE(ring.rows()[1].value.text.bytes().find(u8"FAIL"),
+            std::u8string::npos);
+
+  // And it renders: a plate whose checks never reach the screen is the
+  // situation this replaces.
+  Host host(200, 60);
+  feed::TextOptions style;
+  style.styles = kit::tinted(nullptr, 9, {1, 1, 1, 1},
+                             {{"pass", {0, 1, 0, 1}}, {"fail", {1, 0, 0, 1}}});
+  host.composer.render(box()
+                           .fill(Fill::color({0, 0, 0, 1}))
+                           .children({feed::feed(ring, style).at({4, 4})}));
+  host.frame();
+  int inked = 0;
+  for (int y = 0; y < 40; ++y)
+    for (int x = 0; x < 200; ++x)
+      if (host.pixel(x, y) != SK_ColorBLACK) ++inked;
+  EXPECT_GT(inked, 50) << "the reported checks drew nothing";
+}

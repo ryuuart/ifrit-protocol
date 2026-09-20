@@ -4,7 +4,8 @@
 // a calendar ring need — the glyph paints textFill and textStroke put on
 // the letters rather than the box, and the metrics a placement solves
 // from: the cap slack, the pen positions across a run, the cap height
-// off the face, and what fitting or condensing a run to a width moves.
+// off the face, what fitting or condensing a run to a width moves, and
+// the edges an aliased run draws.
 
 #include "support/TextTestSupport.h"
 
@@ -710,4 +711,103 @@ TEST(ComposeText, TheCondenseClosesOnlyWhatTheSizeFloorLeftOver) {
       u8"CONDENSED TO FIT", whiteStyle(64), 10.0f, fonts(), {.minSize = 48.0f});
   EXPECT_FLOAT_EQ(refused.shaping.fontSize, 48.0f);
   EXPECT_GT(widthOf(refused), 10.0f);
+}
+
+// -------------------------------------------------------------------------
+// Which way the glyphs face on a ring, and the edges an aliased run
+// draws.
+
+TEST(ComposeText, RingWindingDecidesWhichWayTheGlyphsFace) {
+  // Direction is not a detail on a text baseline. onPath orients to the
+  // tangent, so a clockwise ring puts glyph-up radially OUTWARD
+  // (Nightingale's 1858 plate) and a counter-clockwise one puts it INWARD
+  // (Chevreul's 1864 limb) — both uniform engraver's conventions,
+  // opposite in sign, which is why a ring inscription so often ends up
+  // hand-rolling an OutlineFunction over a default nobody chose.
+  //
+  // The two assertions are chosen so as NOT to depend on knowing which
+  // quadrant Skia's addOval starts in: the directed overload at kCW is
+  // EXACTLY the undirected one — a strict superset, not a near-miss — and
+  // kCCW is observably different. Anything that names a specific expected
+  // position is asserting an inference about Skia rather than a property of
+  // this library.
+  auto render = [](std::function<SkPath(SkSize)> path) {
+    auto host = std::make_unique<Host>(300, 300);
+    host->composer.render(
+        box().children({text(u8"RING INSCRIPTION", whiteStyle(30))
+                            .width(240)
+                            .height(240)
+                            .absolute()
+                            .left(30)
+                            .top(30)
+                            .onPath({.path = std::move(path),
+                                     .at = 0.25f,
+                                     .align = TextPath::Align::Center,
+                                     .offset = 0.0f})}));
+    host->frame();
+    return host;
+  };
+  auto differing = [](Host& a, Host& b) {
+    int n = 0;
+    for (int y = 0; y < 300; ++y)
+      for (int x = 0; x < 300; ++x) n += a.pixel(x, y) != b.pixel(x, y);
+    return n;
+  };
+  auto inked = [](Host& h) {
+    int n = 0;
+    for (int y = 0; y < 300; ++y)
+      for (int x = 0; x < 300; ++x) n += h.pixel(x, y) != SK_ColorBLACK;
+    return n;
+  };
+
+  auto cw = render(geometry::shapes::circle(SkPathDirection::kCW));
+  auto ccw = render(geometry::shapes::circle(SkPathDirection::kCCW));
+  auto plain = render(geometry::shapes::circle());
+
+  ASSERT_GT(inked(*cw), 300);
+  ASSERT_GT(inked(*ccw), 300);
+  // The winding is observable — the run faces the other way.
+  EXPECT_GT(differing(*cw, *ccw), 500);
+  // …and the directed overload's default IS the undirected one.
+  EXPECT_EQ(differing(*cw, *plain), 0);
+}
+
+TEST(ComposeText, AliasedTextHasHardEdges) {
+  // Skia takes glyph edging from the FONT, never the paint, so
+  // `paint.foreground.setAntiAlias(false)` is silently ignored on text.
+  // Without a field on the shaping style there is no way to ask for aliased
+  // type at all, and the only recourse is a raw kAlias SkFont drawn inside a
+  // decoration on a hand-measured box — which forfeits shaping, bidi,
+  // fallback and flowAround. One field buys it back; this is not a
+  // bitmap-font path, just an edging switch.
+  // 33 px in the instrument face puts every letter's stems at 3.3 and 16.5
+  // px into its cell and its top at 23.1 px, so no edge lies on the pixel
+  // grid and each stem leaves a partial pixel on every row it spans but
+  // the two its own top and bottom edges cut.
+  constexpr int kGlyphs = 4;
+  constexpr int kPartialPerGlyph = 2 * 21;
+  auto greys = [](bool aliased) {
+    auto style = whiteStyle(33);
+    style.shaping.aliased = aliased;
+    Host host(240, 100);
+    host.composer.render(box().padding(12).children({text(u8"AVWM", style)}));
+    host.frame();
+    int partial = 0, full = 0;
+    for (int y = 0; y < 100; ++y)
+      for (int x = 0; x < 240; ++x) {
+        const int r = SkColorGetR(host.pixel(x, y));
+        full += r > 250;
+        partial += r > 15 && r < 240;  // an antialiased edge pixel
+      }
+    return std::pair<int, int>{full, partial};
+  };
+
+  const auto soft = greys(false);
+  const auto hard = greys(true);
+  ASSERT_GT(soft.first, 200);  // both actually drew
+  ASSERT_GT(hard.first, 200);
+  // Antialiased type is fringed with partial coverage; aliased type is
+  // not — every pixel is on or off.
+  EXPECT_GE(soft.second, kGlyphs * kPartialPerGlyph);
+  EXPECT_LT(hard.second, soft.second / 8);
 }

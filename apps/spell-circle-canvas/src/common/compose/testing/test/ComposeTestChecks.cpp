@@ -11,7 +11,8 @@
 //
 // Then the shapes a bounding box cannot answer for at all: a
 // subdivision whose overlap and gap cancel, an outline that is not a
-// box, and the arcs a contour leaves dangling.
+// box, the arcs a contour leaves dangling, and the rasterized scene
+// every one of them is handed.
 
 #include "support/CoreTestSupport.h"
 
@@ -396,4 +397,42 @@ TEST(ComposeDebug, ClosedContoursHaveNoEndpointsAndSaySo) {
   EXPECT_EQ(m.closedContours, 1u);
   EXPECT_EQ(m.points.size(), 3u);         // the chain's three endpoints
   EXPECT_EQ(m.outside(2, 2).size(), 2u);  // its two loose ends
+}
+
+// -------------------------------------------------------------------------
+// The scene rasterized and read back, which is what the other checks
+// are handed.
+
+TEST(ComposeDebug, RasterizeReadsBackWhatWasDrawn) {
+  // Checking a claim against PIXELS rather than against the description that
+  // produced them otherwise means hand-rolling a surface, a draw and a
+  // read-back at every call site.
+  //
+  // The F16 default is the non-obvious half. Measuring a falloff whose tail
+  // sits at a small fraction of its peak, an 8-bit read-back quantises that
+  // tail to a couple of levels — which yields a confident wrong exponent
+  // rather than an obviously broken one.
+  const auto r = test::rasterize(
+      box().absolute().inset(0).fill(Fill::color({1.0f, 0.25f, 0.0f, 1})),
+      fonts(), {32, 32});
+  ASSERT_TRUE(r.valid());
+  EXPECT_EQ(r.width(), 32);
+  const SkColor4f c = r.at(16, 16);
+  EXPECT_NEAR(c.fR, 1.0f, 0.02f);
+  EXPECT_NEAR(c.fG, 0.25f, 0.02f);
+  EXPECT_NEAR(c.fB, 0.0f, 0.02f);
+
+  // The point of F16: a ratio far below 8-bit resolution survives.
+  // 1/500 of full scale is 0.51 of a 255-step — it quantises to 0 or 1
+  // in N32 and is measurable in float.
+  const float faint = 1.0f / 500.0f;
+  const auto dim = test::rasterize(
+      box().absolute().inset(0).fill(Fill::color({faint, faint, faint, 1})),
+      fonts(), {8, 8});
+  ASSERT_TRUE(dim.valid());
+  EXPECT_NEAR(dim.at(4, 4).fR, faint, faint * 0.25f);
+
+  // Out of bounds is transparent rather than undefined.
+  EXPECT_EQ(r.at(-1, 0).fA, 0.0f);
+  EXPECT_EQ(r.at(0, 999).fA, 0.0f);
 }

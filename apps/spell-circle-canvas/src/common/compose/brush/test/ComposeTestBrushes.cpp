@@ -1,6 +1,7 @@
 // The brush kinds as values: the ribbon, the pattern, the scatter and the
 // art, what each paints along a run, the corner tile that sits on a bend,
-// and the corner shapes a silhouette is cut to.
+// the corner shapes a silhouette is cut to, and how far a ribbon
+// reaches when its profile rather than its own defaults decides.
 
 #include <utility>
 
@@ -477,4 +478,57 @@ TEST(ComposeBrushes, ACompositeBlendsWhenAnythingInsideItDoes) {
   EXPECT_TRUE(Decoration(inset(4, BlendingMark{})).blends());
   // And a composite of marks that do not blend does not.
   EXPECT_FALSE(Decoration(brush::layers({ContextProbe{}})).blends());
+}
+
+// -------------------------------------------------------------------------
+// How far a ribbon reaches when its profile, not its own defaults,
+// decides.
+
+namespace {
+
+/** A flow band's width law: wide at the start, narrow at the end, with the
+ *  wide end far larger than any ribbon's default widths. That gap is the
+ *  point — it is what makes an under-declared reach visible. */
+struct FlowLaw {
+  float start = 166.0f, end = 12.0f;
+  float across(float along) const { return start + (end - start) * along; }
+  float max() const { return std::max(start, end); }
+  bool operator==(const FlowLaw&) const = default;
+};
+
+}  // namespace
+
+TEST(ComposeBrushes, ARibbonsReachIsDERIVEDFromItsProfile) {
+  // bleed() grows the recording cull, so it has to know how far the widest
+  // part of a ribbon reaches. A width supplied as a callable cannot be
+  // asked, so the declared reach falls back to the fixed widths underneath
+  // it and a much wider band is silently CLIPPED — which reads as a
+  // rendering bug rather than as a missing declaration.
+  //
+  // `max()` is REQUIRED by the Profile concept, so the number cannot go
+  // unsaid: the trap is structurally impossible rather than merely
+  // documented.
+  //
+  // Asserted on bleed() DIRECTLY. Observing the cull through rendered pixels
+  // gives the same answer either way, because what reaches the canvas also
+  // depends on cache-mode decisions this test is not pinning.
+  brush::Ribbon plain;
+  plain.widthStart = 12.0f;
+  plain.widthEnd = 4.0f;
+  EXPECT_FLOAT_EQ(plain.bleed(), 12.0f);
+
+  brush::Ribbon flow = plain;
+  flow.width = geometry::path::Profile(FlowLaw{});
+  EXPECT_FLOAT_EQ(flow.bleed(), 166.0f)
+      << "the profile knows its own reach; nobody had to declare it";
+
+  // A profile is not optional-with-a-fallback: once set it OWNS the reach,
+  // so the fixed widths underneath it never inflate the cull either.
+  flow.width = geometry::path::Profile(FlowLaw{2.0f, 2.0f});
+  EXPECT_FLOAT_EQ(flow.bleed(), 2.0f);
+
+  // And it participates in equality, so changing the law repatches.
+  brush::Ribbon a = plain, b = plain;
+  b.width = geometry::path::Profile(FlowLaw{});
+  EXPECT_FALSE(a == b);
 }

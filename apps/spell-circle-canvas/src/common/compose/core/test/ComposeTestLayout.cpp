@@ -1,7 +1,8 @@
 // The box a node is given and the order siblings paint in: flex sizing and
 // fills, a user layout scheme placing its own cells, z-index and the
 // composite an opacity or blend implies, per-axis scale about a transform
-// origin, and the child-bounds union a parent reports.
+// origin, the child-bounds union a parent reports, and the placement
+// longhand beside the two shorthands that must describe the same node.
 
 #include "support/CoreTestSupport.h"
 
@@ -313,4 +314,167 @@ TEST(ComposeLayout, ACoveringNodeGivenASizeStandsInTheFlowAgain) {
   EXPECT_FLOAT_EQ(pinned->top(), 5.0f);
   EXPECT_FLOAT_EQ(next->top(), 0.0f)
       << "a pinned node holds no place in the flow";
+}
+
+// -------------------------------------------------------------------------
+// The placement longhand and its two shorthands: the rect that names
+// the whole box, the corner pin that leaves the node to size itself,
+// and the edge setter that makes a node absolute by itself.
+
+TEST(ComposePlacement, RectIsTheLonghandAndPrunesIdentically) {
+  // rect() is sugar for .absolute().left().top().width().height(), and the
+  // entire safety argument is that it describes the SAME node. So a
+  // re-describe that swaps one spelling for the other must prune to zero
+  // patches and must not move a pixel — anything less and the two spellings
+  // are different nodes wearing one name.
+  Host host(200, 200);
+  const SkRect r = SkRect::MakeXYWH(40, 60, 50, 30);
+
+  auto longhand = [&] {
+    return box().children({box()
+                               .key("plate")
+                               .absolute()
+                               .left(40)
+                               .top(60)
+                               .width(50)
+                               .height(30)
+                               .fill(red())});
+  };
+  auto terse = [&] {
+    return box().children({box().key("plate").rect(r).fill(red())});
+  };
+
+  host.composer.render(longhand());
+  host.frame();
+  const auto boundsLonghand = host.composer.bounds("plate");
+  ASSERT_TRUE(boundsLonghand.has_value());
+  EXPECT_EQ(*boundsLonghand, r);
+  EXPECT_EQ(host.pixel(45, 65), SK_ColorRED);    // inside
+  EXPECT_EQ(host.pixel(45, 55), SK_ColorBLACK);  // above the top edge
+  EXPECT_EQ(host.pixel(95, 65), SK_ColorBLACK);  // right of the right edge
+
+  // Re-describe with rect(). Equal properties => the reconciler prunes it.
+  host.composer.render(terse());
+  host.frame();
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "rect() described a node the reconciler considered DIFFERENT from "
+         "the longhand — it is not writing the same LayoutProps fields";
+  EXPECT_EQ(host.composer.bounds("plate"), boundsLonghand);
+  EXPECT_EQ(host.pixel(45, 65), SK_ColorRED);
+  EXPECT_EQ(host.pixel(45, 55), SK_ColorBLACK);
+
+  // And back the other way, so neither direction is the privileged one.
+  host.composer.render(longhand());
+  host.frame();
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+
+  // NEGATIVE CONTROL — without this the two assertions above pass on a
+  // composer that never patches anything, which is exactly the vacuous
+  // shape this program keeps finding. A different rect MUST patch.
+  host.composer.render(box().children(
+      {box().key("plate").rect(SkRect::MakeXYWH(41, 60, 50, 30)).fill(red())}));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().patchedNodes, 1u)
+      << "the patch counter is not live, so the zeroes above prove nothing";
+  EXPECT_EQ(host.pixel(45, 55), SK_ColorBLACK);
+  EXPECT_EQ(require(host.composer.bounds("plate")).fLeft, 41.0f);
+}
+
+TEST(ComposePlacement, AtPinsTheCornerAndLeavesTheNodeToSizeItself) {
+  // The 187-site half of the longhand that carries no box: .left().top()
+  // on a node that measures itself from its content.
+  Host host(300, 200);
+  auto longhand = [] {
+    return box().children({text(u8"Wm", styleAt(20))
+                               .key("cap")
+                               .absolute()
+                               .left(30)
+                               .top(40)});
+  };
+  auto terse = [] {
+    return box().children({text(u8"Wm", styleAt(20)).key("cap").at({30, 40})});
+  };
+
+  host.composer.render(longhand());
+  host.frame();
+  const auto measured = host.composer.bounds("cap");
+  ASSERT_TRUE(measured.has_value());
+  EXPECT_FLOAT_EQ(measured->fLeft, 30.0f);
+  EXPECT_FLOAT_EQ(measured->fTop, 40.0f);
+  // Sized by its content, not by the caller: this is what rect() cannot do
+  // and is why at() exists separately (ScenesPersona.h:438-447 is the
+  // gallery case that rect() cannot serve at all).
+  EXPECT_GT(measured->width(), 1.0f);
+
+  host.composer.render(terse());
+  host.frame();
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "at() is not left().top()";
+  EXPECT_EQ(host.composer.bounds("cap"), measured);
+
+  // Negative control, as above.
+  host.composer.render(
+      box().children({text(u8"Wm", styleAt(20)).key("cap").at({31, 40})}));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().patchedNodes, 1u);
+}
+
+TEST(ComposeLayout, AnEdgeSetterMakesANodeAbsoluteAndAloneAbsoluteStillDoes) {
+  // Every edge setter sets layout.absolute itself, so `.absolute()` before
+  // or after one writes a bool that is already written and can be left
+  // out. It cannot be left out of a node that pins no edge, though, which
+  // is the shape a blind removal would silently un-absolute.
+  Host host(200, 200);
+
+  auto withRedundant = [] {
+    return box().children({box()
+                               .key("p")
+                               .absolute()
+                               .left(30)
+                               .top(30)
+                               .width(20)
+                               .height(20)
+                               .fill(red())});
+  };
+  auto without = [] {
+    return box().children({box()
+                               .key("p")
+                               .left(30)
+                               .top(30)
+                               .width(20)
+                               .height(20)
+                               .fill(red())});
+  };
+  host.composer.render(withRedundant());
+  host.frame();
+  const auto pinned = host.composer.bounds("p");
+  ASSERT_TRUE(pinned.has_value());
+  EXPECT_EQ(*pinned, SkRect::MakeXYWH(30, 30, 20, 20));
+
+  host.composer.render(without());
+  host.frame();
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "dropping a redundant .absolute() changed the description";
+  EXPECT_EQ(host.composer.bounds("p"), pinned);
+  EXPECT_EQ(host.pixel(35, 35), SK_ColorRED);
+
+  // The 48-call shape the sweep must NOT touch: absolute with a size and no
+  // pinned edge. Here .absolute() is the only thing taking it out of flow,
+  // so removing it moves the node behind its sibling.
+  Host flow(200, 200);
+  flow.composer.render(box().row().children(
+      {box().width(60).height(20).fill(green()),
+       box().key("q").absolute().width(20).height(20).fill(red())}));
+  flow.frame();
+  ASSERT_TRUE(flow.composer.bounds("q").has_value());
+  EXPECT_FLOAT_EQ(require(flow.composer.bounds("q")).fLeft, 0.0f);
+
+  flow.composer.render(
+      box().row().children({box().width(60).height(20).fill(green()),
+                            box().key("q").width(20).height(20).fill(red())}));
+  flow.frame();
+  EXPECT_FLOAT_EQ(require(flow.composer.bounds("q")).fLeft, 60.0f)
+      << "if this is still 0 then .absolute() alone is ALSO redundant and "
+         "the sweep's predicate is over-cautious; if it is 60 the predicate "
+         "is exactly right";
 }
