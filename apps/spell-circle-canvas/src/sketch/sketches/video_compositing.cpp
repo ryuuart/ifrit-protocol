@@ -72,7 +72,7 @@ constexpr std::string_view kAlphaVideo =
     "dancer1.webm";
 
 std::shared_ptr<video::Video> loadVideo(io::Hub& hub, std::string_view uri) {
-  const std::shared_ptr<const io::Bytes> encoded = hub.blob(uri);
+  const std::shared_ptr<const io::Bytes> encoded = hub.fetch(uri);
   if (!encoded || encoded->bytes.empty()) return nullptr;
   return video::decodeVideo(encoded->bytes.data(), encoded->bytes.size(),
                             {.cachedFrames = 8}, std::filesystem::path(uri));

@@ -266,7 +266,7 @@ void SeerSession::replay(const QString& uri, const QUrl& file) {
 void SeerSession::loadSchema(const QUrl& file) {
   const std::filesystem::path path = pathOf(file);
   const std::shared_ptr<const sigil::io::Bytes> bytes =
-      m_wires.hub().blob(path.string());
+      m_wires.hub().fetch(path.string());
   if (!bytes) {
     setNote(QStringLiteral("the schema could not be read: ") +
             QString::fromStdString(path.string()));

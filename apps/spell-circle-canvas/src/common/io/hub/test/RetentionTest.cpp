@@ -97,7 +97,7 @@ TEST_F(IOHub, ResourceLeaseRetainsTheUnionOfMultipleSelectors) {
             (std::vector<std::string>{"plugin://compose/nested/b.slang",
                                       "res://material/a.sksl"}));
   EXPECT_EQ(shaders.preload(), 2u);
-  auto loose = hub.blob("res://loose.txt");
+  auto loose = hub.fetch("res://loose.txt");
   ASSERT_NE(loose, nullptr);
 
   dir.write("material/a.sksl", "changed material");

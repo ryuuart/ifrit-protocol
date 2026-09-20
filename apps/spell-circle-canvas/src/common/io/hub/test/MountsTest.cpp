@@ -30,8 +30,7 @@ TEST_F(IOSource, HubFetchesAndErasesToAnyByteSource) {
   auto fetched = hub.fetch("res://notes/hello.txt");
   ASSERT_NE(fetched, nullptr);
   EXPECT_EQ(fetched->asText(), "carry the coal");
-  // fetch() and blob() are one cache entry.
-  EXPECT_EQ(fetched, hub.blob("res://notes/hello.txt"));
+  EXPECT_EQ(fetched, hub.fetch("res://notes/hello.txt"));
 
   AnyByteSource any(hub);
   ASSERT_TRUE(any);
@@ -49,15 +48,15 @@ TEST_F(IOHub, MountsResolveLongestPrefix) {
   EXPECT_TRUE(hub.resolve("other://x").empty());
 }
 
-TEST_F(IOHub, BlobAndTextLoadThroughMounts) {
+TEST_F(IOHub, FetchAndTextLoadThroughMounts) {
   dir.write("notes/hello.txt", "carry the coal");
   auto text = hub.text("res://notes/hello.txt");
   ASSERT_TRUE(text.has_value());
   EXPECT_EQ(*text, "carry the coal");
-  auto bytes = hub.blob("res://notes/hello.txt");
+  auto bytes = hub.fetch("res://notes/hello.txt");
   ASSERT_NE(bytes, nullptr);
   EXPECT_EQ(bytes->bytes.size(), 14u);
-  EXPECT_EQ(hub.blob("res://missing.bin"), nullptr);
+  EXPECT_EQ(hub.fetch("res://missing.bin"), nullptr);
 }
 
 TEST_F(IOHub, MissingFilesHealWithoutStaleCache) {
@@ -80,7 +79,7 @@ TEST_F(IOHub, AMountNamesNothingAboveItsDirectory) {
   const std::string climbing =
       "res://inside/../" + above.path.filename().string() + "/sibling.txt";
   EXPECT_TRUE(hub.resolve(climbing).empty());
-  EXPECT_EQ(hub.blob(climbing), nullptr);
+  EXPECT_EQ(hub.fetch(climbing), nullptr);
   EXPECT_EQ(hub.text("res://inside/../inside/secret.txt"), std::nullopt);
   EXPECT_TRUE(hub.select("res://inside/../*/*.txt").empty());
   EXPECT_TRUE(hub.select("res://inside/..").empty());
@@ -93,8 +92,8 @@ TEST_F(IOHub, AMountNamesNothingAboveItsDirectory) {
 // whether something is there would have taken for a resource.
 TEST_F(IOHub, ADirectoryAnswersNoBytes) {
   dir.write("shaders/a.sksl", "a");
-  EXPECT_EQ(hub.blob("res://shaders"), nullptr);
-  EXPECT_EQ(hub.blob("res://shaders/"), nullptr);
+  EXPECT_EQ(hub.fetch("res://shaders"), nullptr);
+  EXPECT_EQ(hub.fetch("res://shaders/"), nullptr);
   EXPECT_EQ(hub.text("res://shaders"), std::nullopt);
   EXPECT_EQ(hub.image("res://shaders"), nullptr);
   EXPECT_FALSE(hub.probe("res://shaders").has_value());
@@ -110,7 +109,7 @@ TEST_F(IOHub, FileUrlsLoadAsLocalPaths) {
   auto text = hub.text(url);
   ASSERT_TRUE(text.has_value());
   EXPECT_EQ(*text, "no mount needed");
-  auto bytes = hub.blob(url);
+  auto bytes = hub.fetch(url);
   ASSERT_NE(bytes, nullptr);
   EXPECT_EQ(bytes->bytes.size(), 15u);
 }

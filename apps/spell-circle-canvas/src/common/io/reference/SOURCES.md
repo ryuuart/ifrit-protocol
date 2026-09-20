@@ -17,7 +17,7 @@ remainder that climbs out through `..` resolves to nothing — for a
 fetch, for `resolve()` and for a selector alike. A URI that names a
 directory rather than a file answers nothing too: the hub answers bytes.
 
-The cache holds one entry per URI. An entry carries the blob and one
+The cache holds one entry per URI. An entry carries the bytes and one
 decoded view per type — the image, the channel data, and whatever
 `load<T>()` has been asked for — each populated the first time its
 accessor is asked. Asking for bytes never decodes, and a later `image()`,

@@ -8,7 +8,7 @@ PATH_INPUT = "os.PathLike[str] | os.PathLike[bytes] | str | bytes"
 
 
 def register(table: Table) -> None:
-    table.returns("_sigil.io.Hub", "blob fetch", "bytes | None")
+    table.returns("_sigil.io.Hub", "fetch", "bytes | None")
     table.returns("_sigil.io.Feed", "latest", "bytes | None")
     table.erased("_sigil.io.Hub", "write", "collections.abc.Buffer")
     table.erased("_sigil.io.ResourceLease", "__exit__", "object", "object", "object")

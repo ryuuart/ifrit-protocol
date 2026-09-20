@@ -33,9 +33,9 @@ struct TableSource {
   std::shared_ptr<const Bytes> fetch(std::string_view uri) {
     const auto it = table.find(uri);
     if (it == table.end()) return nullptr;
-    auto blob = std::make_shared<Bytes>();
-    for (const char c : it->second) blob->bytes.push_back((std::byte)c);
-    return blob;
+    auto loaded = std::make_shared<Bytes>();
+    for (const char c : it->second) loaded->bytes.push_back((std::byte)c);
+    return loaded;
   }
 };
 static_assert(ByteSource<TableSource>);

@@ -3983,19 +3983,19 @@
    }
   },
   "io_bench": {
-   "BM_Blob_CacheHit/1": {
+   "BM_Fetch_CacheHit/1": {
     "real_ns": 19.4850148069431,
     "cpu_ns": 19.484419984669007,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Blob_CacheHit/64": {
+   "BM_Fetch_CacheHit/64": {
     "real_ns": 2243.644616574262,
     "cpu_ns": 2242.890861179816,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Blob_CacheHit/1024": {
+   "BM_Fetch_CacheHit/1024": {
     "real_ns": 108584.41475316086,
     "cpu_ns": 108558.17610062887,
     "unit": "us",

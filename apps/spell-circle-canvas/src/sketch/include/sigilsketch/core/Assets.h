@@ -34,7 +34,7 @@ namespace sigil::sketch {
  *  `sketch://`, under which a sketch's own files stand. `image()` keeps the
  *  forgiving contract a live-edited file wants — a magenta placeholder
  *  stands in for a missing or undecodable file and heals the moment one
- *  appears — and `hub()` opens the full resource surface (text, blobs,
+ *  appears — and `hub()` opens the full resource surface (text, bytes,
  *  metadata probes, EXR layers, PSD) without the sketch ever touching
  *  the filesystem. */
 class Assets {
@@ -82,7 +82,7 @@ class Assets {
    *  states the default it wants where it reads. */
   std::shared_ptr<const sigil::data::Json> json(std::string_view name);
 
-  /** The full resource hub (text/blob/probe/EXR layers…) with the
+  /** The full resource hub (text/bytes/probe/EXR layers…) with the
    *  sketch's assets directory mounted at "res://". */
   sigil::io::Hub& hub() { return m_hub; }
 

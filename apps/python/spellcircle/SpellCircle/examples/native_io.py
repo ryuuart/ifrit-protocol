@@ -81,7 +81,7 @@ def roundtrip(scene: SceneDefinition, output: Path) -> SceneDefinition:
         uri = f"scene://{output.name}"
         if not hub.write(uri, received):
             raise OSError(f"Could not write {output}")
-        stored = hub.blob(uri)
+        stored = hub.fetch(uri)
         if stored != received:
             raise OSError(f"Mounted file bytes differ from the datagram: {output}")
         if decode_scene(stored) != decoded:

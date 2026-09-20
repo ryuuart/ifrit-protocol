@@ -1,6 +1,6 @@
 /** @file
  * io_hub_bench — the hub's hot paths per call, with the disk kept
- * out of the loop: a blob served from the entry cache, a typed load
+ * out of the loop: bytes served from the entry cache, a typed load
  * whose view is already decoded (the registry dispatch and cache lookup
  * that every frame-rate consumer pays), URI resolution against the mount
  * table. The one file each URI names is written once, before timing.
@@ -48,18 +48,18 @@ void countCalls(benchmark::State& state, int64_t calls) {
 
 /** A cache hit: the bytes were fetched once before timing, so each call
  *  is the key construction and the entry lookup. */
-void BM_Blob_CacheHit(benchmark::State& state) {
+void BM_Fetch_CacheHit(benchmark::State& state) {
   Mounted fixture((int)state.range(0));
-  for (const std::string& uri : fixture.uris) (void)fixture.hub.blob(uri);
+  for (const std::string& uri : fixture.uris) (void)fixture.hub.fetch(uri);
   for ([[maybe_unused]] auto iteration : state) {
     for (const std::string& uri : fixture.uris) {
-      std::shared_ptr<const Bytes> bytes = fixture.hub.blob(uri);
+      std::shared_ptr<const Bytes> bytes = fixture.hub.fetch(uri);
       benchmark::DoNotOptimize(bytes.get());
     }
   }
   countCalls(state, (int64_t)fixture.uris.size());
 }
-BENCHMARK(BM_Blob_CacheHit)
+BENCHMARK(BM_Fetch_CacheHit)
     ->Arg(1)
     ->Arg(64)
     ->Arg(1024)

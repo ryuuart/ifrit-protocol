@@ -26,7 +26,7 @@ class NativeIO(unittest.TestCase):
 
             reader = io.Hub()
             reader.mount("saved://", Path(directory))
-            stored = reader.blob("saved://nested/scene.bin")
+            stored = reader.fetch("saved://nested/scene.bin")
             self.assertEqual(stored, encode_scene(expected))
             self.assertEqual(decode_scene(stored), expected)
             self.assertEqual(reader.resolve("saved://nested/scene.bin"), output)

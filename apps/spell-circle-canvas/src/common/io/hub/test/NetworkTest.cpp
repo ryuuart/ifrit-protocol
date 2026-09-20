@@ -135,7 +135,7 @@ TEST(IONetwork, CacheProbeDistinguishesMissingAndEmptyWithoutCreatingFiles) {
     ++requests;
     return std::optional<std::vector<std::byte>>{};
   });
-  auto bytes = offline.blob(url);
+  auto bytes = offline.fetch(url);
   ASSERT_NE(bytes, nullptr);
   EXPECT_TRUE(bytes->bytes.empty());
   EXPECT_EQ(requests, 0u);
@@ -224,9 +224,9 @@ TEST(IONetwork, PollSkipsNetworkEntries) {
   ASSERT_TRUE(seedNetworkCache(url, bytesOf("abc"), cache.path));
   Hub hub;
   hub.setNetworkCacheDirectory(cache.path);
-  ASSERT_NE(hub.blob(url), nullptr);
+  ASSERT_NE(hub.fetch(url), nullptr);
   EXPECT_FALSE(hub.poll());  // no mtime to watch, nothing erased
-  auto again = hub.blob(url);
+  auto again = hub.fetch(url);
   ASSERT_NE(again, nullptr);
   EXPECT_EQ(again->bytes.size(), 3u);
 }
@@ -240,7 +240,7 @@ TEST(IONetwork, OfflinePolicyServesCacheAndNeverFetches) {
   hub.setNetworkPolicy(NetworkPolicy::Offline);
   EXPECT_EQ(hub.text(cached), "kept");
   // A miss fails without touching the network (fake host untried).
-  EXPECT_EQ(hub.blob("https://fake.invalid/missing.txt"), nullptr);
+  EXPECT_EQ(hub.fetch("https://fake.invalid/missing.txt"), nullptr);
 }
 
 TEST(IONetwork, RefreshPolicyFallsBackToCacheOnFetchFailure) {
@@ -270,7 +270,7 @@ TEST(IONetwork, FetchedBytesPersistWholeOrNotAtAll) {
     return std::optional<std::vector<std::byte>>{
         std::vector<std::byte>{std::byte{'o'}, std::byte{'k'}}};
   });
-  auto fetched = hub.blob(url);
+  auto fetched = hub.fetch(url);
   ASSERT_NE(fetched, nullptr);
   EXPECT_EQ(fetched->asText(), "ok");
   // Persisted under the cache name, and nothing partial beside it.
@@ -311,7 +311,7 @@ TEST(IONetwork, TwoConcurrentFetchesOfOneUrlCommitOneWholeFile) {
   std::shared_ptr<const Bytes> fetched[2];
   std::thread askers[2];
   for (int i = 0; i != 2; ++i)
-    askers[i] = std::thread([&, i] { fetched[i] = hub.blob(url); });
+    askers[i] = std::thread([&, i] { fetched[i] = hub.fetch(url); });
   for (std::thread& asker : askers) asker.join();
 
   EXPECT_EQ(fetches.load(), 2u);
@@ -349,14 +349,14 @@ TEST(IONetwork, LiveFetchThenOfflineRoundTrip) {
       "Models/Duck/glTF-Binary/Duck.glb";
   Hub online;
   online.setNetworkCacheDirectory(cache.path);
-  auto fetched = online.blob(url);
+  auto fetched = online.fetch(url);
   if (!fetched) GTEST_SKIP() << "no route to " << url;
   EXPECT_FALSE(fetched->bytes.empty());
 
   Hub offline;
   offline.setNetworkCacheDirectory(cache.path);
   offline.setNetworkPolicy(NetworkPolicy::Offline);
-  auto replay = offline.blob(url);
+  auto replay = offline.fetch(url);
   ASSERT_NE(replay, nullptr);
   EXPECT_EQ(replay->bytes, fetched->bytes);
 }

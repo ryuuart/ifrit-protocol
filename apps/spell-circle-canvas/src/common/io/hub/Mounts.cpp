@@ -31,11 +31,11 @@ std::shared_ptr<const Bytes> readFile(const std::filesystem::path& path) {
   const std::streamsize size = stream.tellg();
   if (size < 0) return nullptr;
   stream.seekg(0);
-  auto blob = std::make_shared<Bytes>();
-  blob->bytes.resize((size_t)size);
-  if (!stream.read(reinterpret_cast<char*>(blob->bytes.data()), size))
+  auto loaded = std::make_shared<Bytes>();
+  loaded->bytes.resize((size_t)size);
+  if (!stream.read(reinterpret_cast<char*>(loaded->bytes.data()), size))
     return nullptr;
-  return blob;
+  return loaded;
 }
 
 /** The local filesystem path a non-network URI means: file:// strips
@@ -61,9 +61,9 @@ FetchResult fetchResource(const Hub& hub, const NetworkAccess& network,
   if (!std::filesystem::is_regular_file(path, ec) || ec) return {};
   const auto mtime = std::filesystem::last_write_time(path, ec);
   if (ec) return {};
-  auto blob = readFile(path);
-  if (!blob) return {};
-  return {std::move(blob), std::move(path), mtime};
+  auto loaded = readFile(path);
+  if (!loaded) return {};
+  return {std::move(loaded), std::move(path), mtime};
 }
 
 }  // namespace detail

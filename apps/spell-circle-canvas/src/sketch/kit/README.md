@@ -775,8 +775,8 @@ A leaf may not invent what an ancestor should own.
   in compose's own types.
 * A memoised typeface — `weave::ports::face()`. This library holds no
   font cache; it holds the one face its own theme is set in.
-* A resource that is not the sketch's own words — an image, a video, a
-  blob, a probe, a table, a database — `ctx.assets`. `passage` and
+* A resource that is not the sketch's own words — an image, a video, raw
+  bytes, a probe, a table, a database — `ctx.assets`. `passage` and
   `Document` are the two readers here, and they are here because the words
   are the only resource whose exact bytes decide a plate.
 * The mapping a plot's two axes are — `data::Scale`, with its domain, its

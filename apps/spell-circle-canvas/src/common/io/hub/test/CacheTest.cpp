@@ -1,5 +1,5 @@
 /** @file
- * The cache and what lives in one entry: the blob and each decoded view
+ * The cache and what lives in one entry: the bytes and each decoded view
  * populated independently, the registered decoders a load runs, the
  * probe that caches nothing, the poll that re-decodes a changed file,
  * and the write that goes back out through the mount it reads by.
@@ -99,38 +99,38 @@ TEST_F(IOHub, LoadImageAssetIsTheImageView) {
   EXPECT_EQ(image->width(), 3);
 }
 
-// blob(), image(), and channels() are independent views of one
+// fetch(), image(), and channels() are independent views of one
 // resource: asking for one must not null a later ask for another.
-TEST_F(IOHub, BlobThenImageThenChannelsAllAnswer) {
+TEST_F(IOHub, FetchThenImageThenChannelsAllAnswer) {
   writePng(dir.path / "logo.png", 1, SK_ColorRED);
-  ASSERT_NE(hub.blob("res://logo.png"), nullptr);
+  ASSERT_NE(hub.fetch("res://logo.png"), nullptr);
   auto image = hub.image("res://logo.png");
   ASSERT_NE(image, nullptr);
   EXPECT_EQ(image->width(), 1);
   ASSERT_NE(hub.channels("res://logo.png"), nullptr);
   // The earlier views are still served, not evicted by the later asks.
-  EXPECT_NE(hub.blob("res://logo.png"), nullptr);
+  EXPECT_NE(hub.fetch("res://logo.png"), nullptr);
   EXPECT_NE(hub.image("res://logo.png"), nullptr);
 }
 
-// blob() never decodes: bytes no image codec accepts still load, and
+// fetch() never decodes: bytes no image codec accepts still load, and
 // the failed image() ask that follows does not disturb them. This is
-// the observable face of "asking for bytes costs no decode" — a blob
+// the observable face of "asking for bytes costs no decode" — a fetch
 // ask cannot depend on decodability in any way.
-TEST_F(IOHub, BlobAloneDoesNotDecode) {
+TEST_F(IOHub, FetchAloneDoesNotDecode) {
   dir.write("fake.png", "not an image at all");
-  auto bytes = hub.blob("res://fake.png");
+  auto bytes = hub.fetch("res://fake.png");
   ASSERT_NE(bytes, nullptr);
   EXPECT_EQ(hub.image("res://fake.png"), nullptr);
-  EXPECT_NE(hub.blob("res://fake.png"), nullptr);
+  EXPECT_NE(hub.fetch("res://fake.png"), nullptr);
 }
 
-// image() after blob() decodes the bytes the entry already holds:
+// image() after fetch() decodes the bytes the entry already holds:
 // with the file deleted in between, the cached bytes are the only
 // possible source, and no second read of the source happens.
 TEST_F(IOHub, ImageDecodesOnDemandFromCachedBytes) {
   writePng(dir.path / "logo.png", 1, SK_ColorRED);
-  ASSERT_NE(hub.blob("res://logo.png"), nullptr);
+  ASSERT_NE(hub.fetch("res://logo.png"), nullptr);
   fs::remove(dir.path / "logo.png");
   auto image = hub.image("res://logo.png");
   ASSERT_NE(image, nullptr);

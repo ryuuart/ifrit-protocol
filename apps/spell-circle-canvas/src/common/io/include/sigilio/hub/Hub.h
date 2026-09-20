@@ -11,7 +11,7 @@
  * typed:
  *
  *   hub.mount("res://", assetsDir);
- *   auto bytes = hub.blob("res://data/table.bin");
+ *   auto bytes = hub.fetch("res://data/table.bin");
  *   auto text  = hub.text("res://shaders/glow.sksl");
  *   auto img   = hub.image("res://ui/logo.png");            // stills+anim
  *   auto hdr   = hub.image("res://light/probe.exr",         // OIIO: EXR,
@@ -198,7 +198,7 @@ struct ResourceInfo {
 /**
  * The resource hub: mount prefixes, ask for resources by URI.
  *
- * Each URI is cached as one entry whose blob and decoded views are
+ * Each URI is cached as one entry whose bytes and decoded views are
  * independent: each populates the first time its accessor is asked, and
  * asking for one never affects another. A view is one decoded type —
  * image(), channels() and load<T>() each populate their own — and an
@@ -251,12 +251,10 @@ class Hub {
   void setNetworkTransport(NetworkTransport transport);
 
   /** Raw bytes; null when unresolvable/unreadable. Never decodes:
-   *  bytes load and cache whether or not any decoder accepts them. */
-  std::shared_ptr<const Bytes> blob(std::string_view uri);
-
-  /** The ByteSource spelling of blob(): the same bytes, the same cache
-   *  entry. */
-  std::shared_ptr<const Bytes> fetch(std::string_view uri) { return blob(uri); }
+   *  bytes load and cache whether or not any decoder accepts them. This
+   *  is the ByteSource spelling, and the hub's only one — asking for
+   *  bytes has one name here and in every other source. */
+  std::shared_ptr<const Bytes> fetch(std::string_view uri);
 
   /** Stores @p size bytes under @p uri, through the same mount table a
    *  read resolves by, creating the directories above the file. What
@@ -316,7 +314,7 @@ class Hub {
   /** The resource decoded as a T through the decoder registered for T;
    *  null on failure, and null (with no fetch) when no decoder is
    *  registered for T. Decodes on the first ask, from bytes a prior
-   *  blob() ask already cached when they are present, and caches the
+   *  fetch() ask already cached when they are present, and caches the
    *  result as one view of the URI's entry. load<ImageAsset>(uri) is
    *  image(uri) and shares its view. */
   template <typename T>
@@ -325,7 +323,7 @@ class Hub {
         cacheKey(uri, nullptr), uri, std::type_index(typeid(T))));
   }
 
-  /** UTF-8 text convenience over blob(). */
+  /** UTF-8 text convenience over fetch(). */
   std::optional<std::string> text(std::string_view uri);
 
   /** The regular-file URIs named by @p selector, in lexical order.
@@ -367,7 +365,7 @@ class Hub {
   size_t discardUnretained();
 
   /** Decoded image (stills and animations); null on failure. Decodes
-   *  on this first ask, from bytes a prior blob() ask already cached
+   *  on this first ask, from bytes a prior fetch() ask already cached
    *  when they are present (no second read of the source). At default
    *  options this is the ImageAsset decoder registered on the hub, so
    *  it answers whatever load<ImageAsset>() answers; with a layer or
@@ -472,7 +470,7 @@ class Hub {
     Redecode decode;
   };
 
-  /** One cached resource. The blob and each decoded view are
+  /** One cached resource. The bytes and each decoded view are
    *  independent, each populated the first time its accessor asks;
    *  asking for bytes never decodes, and decoding never drops bytes
    *  already served. An image decoded with a layer or explicit size
@@ -492,7 +490,7 @@ class Hub {
    *  views back into agreement. */
   struct Entry {
     std::string uri;
-    std::shared_ptr<const Bytes> blob;
+    std::shared_ptr<const Bytes> bytes;
     boost::container::flat_map<std::type_index, View> views;
     std::filesystem::path path;
     std::filesystem::file_time_type mtime;
@@ -505,14 +503,14 @@ class Hub {
     std::string key;
     std::string uri;
     std::filesystem::file_time_type mtime;
-    bool holdsBlob = false;
+    bool holdsBytes = false;
     std::vector<std::pair<std::type_index, Redecode>> decodes;
   };
 
   /** What poll() commits for one changed entry: the fresh bytes and
    *  every view decoded from them. */
   struct Reloaded {
-    std::shared_ptr<const Bytes> blob;
+    std::shared_ptr<const Bytes> bytes;
     std::filesystem::path path;
     std::filesystem::file_time_type mtime;
     std::vector<std::pair<std::type_index, std::shared_ptr<const void>>> views;
@@ -543,7 +541,7 @@ class Hub {
   mountedDirectories() const;
   std::shared_ptr<detail::Residency> residency();
 
-  /** The map key for an ask: the URI alone for blob()/text()/
+  /** The map key for an ask: the URI alone for fetch()/text()/
    *  channels() and default-options image(); with a layer or size
    *  set, the URI plus each option behind a '\0' separator — a byte
    *  no URI that names a real resource can contain, so option

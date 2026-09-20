@@ -38,7 +38,7 @@ sigil::io::Hub hub;
 hub.mount("res://", "/opt/myapp/assets");
 
 auto shader = hub.text("res://shaders/glow.sksl");   // std::optional<std::string>
-auto table  = hub.blob("res://data/table.bin");      // shared_ptr<const Bytes>
+auto table  = hub.fetch("res://data/table.bin");      // shared_ptr<const Bytes>
 auto logo   = hub.image("res://ui/logo.png");        // stills and animations
 auto icon   = hub.image("res://ui/mark.svg", {.width = 256});
 auto layer  = hub.image("res://light/probe.exr", {.layer = "diffuse"});
@@ -298,7 +298,7 @@ private `hub/Fetch.h` and `hub/Residency.h`) with `hub/test/`, whose
 answering as a `ByteSource`, which is the seam a consumer that only
 wants bytes stands on; and `io_bench` (Google Benchmark, built
 by the `benches` target and run from a Release build through
-`scripts/sigil.py bench`: `Hub::blob` on a cache hit and `load<T>` on a
+`scripts/sigil.py bench`: `Hub::fetch` on a cache hit and `load<T>` on a
 decoded view per call and `resolve` per URI against the mount table — the
 disk kept out of every timed loop — and THE WIRES' OWN ARMS beside them,
 one per door with both ends of that door standing in the binary, a batch

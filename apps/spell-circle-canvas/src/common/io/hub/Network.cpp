@@ -115,12 +115,12 @@ FetchResult fetchNetwork(const NetworkAccess& access, std::string_view url) {
   std::error_code ec;
   const auto fromCache = [&]() -> FetchResult {
     if (std::filesystem::exists(cached, ec) && !ec)
-      if (auto blob = readFile(cached))
-        return {std::move(blob), cached, kNetworkMtime};
+      if (auto loaded = readFile(cached))
+        return {std::move(loaded), cached, kNetworkMtime};
     return {};
   };
   if (access.policy != NetworkPolicy::Refresh)
-    if (FetchResult hit = fromCache(); hit.blob) return hit;
+    if (FetchResult hit = fromCache(); hit.bytes) return hit;
   if (access.policy == NetworkPolicy::Offline) return {};
   auto body =
       access.transport ? access.transport(url) : CurlTransport::get(url);
@@ -128,9 +128,9 @@ FetchResult fetchNetwork(const NetworkAccess& access, std::string_view url) {
   // Persistence is best-effort: a fetched resource remains usable when
   // the cache directory cannot accept it.
   (void)persistNetworkResource(cached, *body);
-  auto blob = std::make_shared<Bytes>();
-  blob->bytes = std::move(*body);
-  return {std::move(blob), cached, kNetworkMtime};
+  auto loaded = std::make_shared<Bytes>();
+  loaded->bytes = std::move(*body);
+  return {std::move(loaded), cached, kNetworkMtime};
 }
 
 std::string networkCacheKey(std::string_view url) {

@@ -39,7 +39,7 @@ std::filesystem::path localPath(const Hub& hub, std::string_view uri);
  *  `path` is the decode pathHint (the cache file for network URIs, so
  *  extension-based format hints keep working). */
 struct FetchResult {
-  std::shared_ptr<const Bytes> blob;
+  std::shared_ptr<const Bytes> bytes;
   std::filesystem::path path;
   std::filesystem::file_time_type mtime;
 };

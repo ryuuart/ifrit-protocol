@@ -112,7 +112,7 @@ struct VideoCompose {
     Documents documents;
     io::Hub& hub = ctx.assets.hub();
     for (size_t i = 0; i < kSources.size(); ++i)
-      documents[i] = hub.blob(kSources[i]);
+      documents[i] = hub.fetch(kSources[i]);
 
     Clips clips;
     for (size_t i = 0; i < kSources.size(); ++i)

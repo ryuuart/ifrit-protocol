@@ -99,7 +99,7 @@ std::shared_ptr<sigil::video::Video> Assets::video(
     if (cached.name == name && cached.options == options) return cached.clip;
 
   const std::string uri = uriFor(name);
-  const std::shared_ptr<const sigil::io::Bytes> encoded = m_hub.blob(uri);
+  const std::shared_ptr<const sigil::io::Bytes> encoded = m_hub.fetch(uri);
   if (!encoded) return nullptr;
   std::shared_ptr<sigil::video::Video> clip =
       sigil::video::decodeVideo(encoded->bytes.data(), encoded->bytes.size(),

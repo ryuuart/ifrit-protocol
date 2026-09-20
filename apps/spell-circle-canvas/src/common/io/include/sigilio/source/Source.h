@@ -51,8 +51,6 @@ struct Bytes {
   }
 };
 
-/** A second name for Bytes; the two are one type. */
-using Blob = Bytes;
 
 /** Every byte of @p path, or nothing when it cannot be read whole. A
  *  file that shrank between the size and the read, or that could not be

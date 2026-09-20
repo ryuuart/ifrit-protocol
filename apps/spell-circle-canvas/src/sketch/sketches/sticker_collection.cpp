@@ -73,7 +73,7 @@ const std::string kWebm = "https://raw.githubusercontent.com/samdutton/simpl/" +
                           "/videoalpha/video/dancer1.webm";
 
 std::shared_ptr<video::Video> loadVideo(io::Hub& hub, std::string_view uri) {
-  const std::shared_ptr<const io::Bytes> encoded = hub.blob(uri);
+  const std::shared_ptr<const io::Bytes> encoded = hub.fetch(uri);
   if (!encoded || encoded->bytes.empty()) return nullptr;
   video::DecodeOptions options;
   options.cachedFrames = 8;

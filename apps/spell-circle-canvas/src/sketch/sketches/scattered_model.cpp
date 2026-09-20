@@ -75,7 +75,7 @@ constexpr std::string_view kModel = "res://models/Avocado.glb";
  *  which. */
 std::optional<gm::Mesh> imported(sketch::Assets& assets) {
   const std::string uri(kModel);
-  const std::shared_ptr<const io::Bytes> bytes = assets.hub().blob(uri);
+  const std::shared_ptr<const io::Bytes> bytes = assets.hub().fetch(uri);
   if (!bytes || bytes->bytes.empty()) return std::nullopt;
   const std::optional<gm::codec::decode::Model> model =
       gm::codec::decode::model(bytes->bytes.data(), bytes->bytes.size(), uri);

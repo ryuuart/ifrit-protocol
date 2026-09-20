@@ -1,5 +1,5 @@
 /** @file
- * Entries, cache and poll: the key an ask is cached under, the blob and
+ * Entries, cache and poll: the key an ask is cached under, the bytes and
  * every typed view populated independently on first ask, the probe that
  * caches nothing, and the poll that re-stats every entry and re-decodes
  * the changed ones from one read.
@@ -47,35 +47,35 @@ std::string Hub::cacheKey(std::string_view uri,
   return key;
 }
 
-std::shared_ptr<const Bytes> Hub::blob(std::string_view uri) {
+std::shared_ptr<const Bytes> Hub::fetch(std::string_view uri) {
   const std::string key = cacheKey(uri, nullptr);
   detail::NetworkAccess network;
   {
     const std::lock_guard lock(m_mutex);
     const auto cached = m_entries.find(key);
-    if (cached != m_entries.end() && cached->second.blob)
-      return cached->second.blob;
+    if (cached != m_entries.end() && cached->second.bytes)
+      return cached->second.bytes;
     network = {m_networkCacheDirectory, m_networkPolicy, m_networkTransport};
   }
 
   FetchResult fetched = fetchResource(*this, network, uri);
-  if (!fetched.blob)
+  if (!fetched.bytes)
     return nullptr;  // not cached: heals as soon as the file appears
   const std::lock_guard lock(m_mutex);
   auto it = m_entries.find(key);
-  if (it != m_entries.end() && it->second.blob) return it->second.blob;
+  if (it != m_entries.end() && it->second.bytes) return it->second.bytes;
   if (it == m_entries.end()) {
     it = m_entries.emplace(key, Entry{}).first;
     it->second.uri = std::string(uri);
     it->second.path = std::move(fetched.path);
     it->second.mtime = fetched.mtime;
   }
-  it->second.blob = std::move(fetched.blob);
-  return it->second.blob;
+  it->second.bytes = std::move(fetched.bytes);
+  return it->second.bytes;
 }
 
 std::optional<std::string> Hub::text(std::string_view uri) {
-  auto bytes = blob(uri);
+  auto bytes = fetch(uri);
   if (!bytes) return std::nullopt;
   return std::string(bytes->asText());
 }
@@ -105,7 +105,7 @@ size_t Hub::preload(std::span<const std::string_view> uris) {
       if (!seen.emplace(uri).second) continue;
       const std::string key = cacheKey(uri, nullptr);
       const auto cached = m_entries.find(key);
-      if (cached != m_entries.end() && cached->second.blob) {
+      if (cached != m_entries.end() && cached->second.bytes) {
         ++ready;
         continue;
       }
@@ -127,15 +127,15 @@ size_t Hub::preload(std::span<const std::string_view> uris) {
     const std::lock_guard lock(m_mutex);
     for (Pending& ask : pending) {
       Entry& entry = m_entries[ask.key];
-      if (entry.blob) {
+      if (entry.bytes) {
         ++ready;
         continue;
       }
-      if (!ask.fetched.blob) {
+      if (!ask.fetched.bytes) {
         if (entry.uri.empty()) m_entries.erase(ask.key);
         continue;
       }
-      entry.blob = std::move(ask.fetched.blob);
+      entry.bytes = std::move(ask.fetched.bytes);
       if (entry.uri.empty()) {
         entry.uri = std::move(ask.uri);
         entry.path = std::move(ask.fetched.path);
@@ -174,7 +174,7 @@ std::shared_ptr<const void> Hub::loadView(const std::string& key,
                                           const Redecode& decode) {
   if (!decode) return nullptr;
 
-  // Bytes already cached by a blob() ask are decoded as they are —
+  // Bytes already cached by a fetch() ask are decoded as they are —
   // one read serves every view of the entry; otherwise fetch fresh.
   std::shared_ptr<const Bytes> bytes;
   std::filesystem::path path;
@@ -187,8 +187,8 @@ std::shared_ptr<const void> Hub::loadView(const std::string& key,
       if (const auto view = entry->second.views.find(type);
           view != entry->second.views.end() && view->second.value)
         return view->second.value;
-      if (entry->second.blob) {
-        bytes = entry->second.blob;
+      if (entry->second.bytes) {
+        bytes = entry->second.bytes;
         path = entry->second.path;
         mtime = entry->second.mtime;
       }
@@ -199,8 +199,8 @@ std::shared_ptr<const void> Hub::loadView(const std::string& key,
   FetchResult fetched;
   if (!bytes) {
     fetched = fetchResource(*this, network, uri);
-    if (!fetched.blob) return nullptr;
-    bytes = fetched.blob;
+    if (!fetched.bytes) return nullptr;
+    bytes = fetched.bytes;
     path = fetched.path;
     mtime = fetched.mtime;
   }
@@ -218,7 +218,7 @@ std::shared_ptr<const void> Hub::loadView(const std::string& key,
     entry->second.path = std::move(path);
     entry->second.mtime = mtime;
   }
-  // The encoded bytes are not kept unless blob() asked for them, so
+  // The encoded bytes are not kept unless fetch() asked for them, so
   // a decode-only workload never holds them alive beside the value.
   View& view = entry->second.views[type];
   view.value = std::move(value);
@@ -278,10 +278,10 @@ std::shared_ptr<const Bytes> Hub::probeFetch(std::string_view uri,
     network = {m_networkCacheDirectory, m_networkPolicy, m_networkTransport};
   }
   FetchResult fetched = fetchResource(*this, network, uri);
-  if (!fetched.blob) return nullptr;
-  info.byteSize = fetched.blob->bytes.size();
+  if (!fetched.bytes) return nullptr;
+  info.byteSize = fetched.bytes->bytes.size();
   info.path = std::move(fetched.path);
-  return std::move(fetched.blob);
+  return std::move(fetched.bytes);
 }
 
 std::optional<ResourceInfo> Hub::probe(std::string_view uri) const {
@@ -309,7 +309,7 @@ std::optional<Hub::Reloaded> Hub::reload(const Reload& pending) const {
   }
   reloaded.path = path;
   reloaded.mtime = pending.mtime;
-  if (pending.holdsBlob) reloaded.blob = std::move(bytes);
+  if (pending.holdsBytes) reloaded.bytes = std::move(bytes);
   return reloaded;
 }
 
@@ -326,7 +326,7 @@ bool Hub::poll() {
     for (const auto& [key, entry] : m_entries) {
       if (isNetworkUri(entry.uri))
         continue;  // no mtime to watch: network entries stay as fetched
-      Reload reload{key, entry.uri, entry.mtime, entry.blob != nullptr, {}};
+      Reload reload{key, entry.uri, entry.mtime, entry.bytes != nullptr, {}};
       for (const auto& [type, view] : entry.views)
         if (view.value) reload.decodes.emplace_back(type, view.decode);
       pending.push_back(std::move(reload));
@@ -373,7 +373,7 @@ bool Hub::poll() {
       const auto view = entry.views.find(type);
       if (view != entry.views.end()) view->second.value = std::move(value);
     }
-    if (entry.blob && reloaded.blob) entry.blob = std::move(reloaded.blob);
+    if (entry.bytes && reloaded.bytes) entry.bytes = std::move(reloaded.bytes);
     entry.path = std::move(reloaded.path);
     entry.mtime = reloaded.mtime;
     changed = true;
