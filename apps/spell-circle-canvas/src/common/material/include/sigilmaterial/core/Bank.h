@@ -25,7 +25,9 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
+#include <span>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -53,12 +55,26 @@ class Bank {
    *  a tone, a grain's own seed — and it returns the material whole, so a
    *  blend of several recipes is banked exactly as one recipe is. */
   template <class P, std::invocable<uint32_t> Make>
-    requires std::convertible_to<std::invoke_result_t<Make, uint32_t>, Material>
+    requires std::convertible_to<std::invoke_result_t<Make, uint32_t>,
+                                 Material> &&
+             std::is_aggregate_v<P>
   const Material& get(const std::shared_ptr<const Recipe>& recipe,
                       const P& parameters, uint32_t seed, Make&& make) {
     (void)schema<P>();  // packed floats, so the bytes are the identity
+    return get(recipe, std::span<const std::byte>(bytesOf(parameters)), seed,
+               std::function<Material(uint32_t)>(std::forward<Make>(make)));
+  }
+
+  /** The same, for a caller holding the identity BYTES already packed
+   *  rather than a struct: a definition assembled while the library runs,
+   *  whose fields belong to no C++ type and whose values are therefore
+   *  bytes the caller laid out from the recipe's schema. */
+  const Material& get(const std::shared_ptr<const Recipe>& recipe,
+                      std::span<const std::byte> parameters, uint32_t seed,
+                      const std::function<Material(uint32_t)>& make) {
     const uint32_t b = bucket(seed);
-    Key key{recipe.get(), bytesOf(parameters), b};
+    Key key{recipe.get(),
+            std::vector<std::byte>(parameters.begin(), parameters.end()), b};
     auto it = m_bank.find(key);
     if (it == m_bank.end())
       it = m_bank.emplace(std::move(key), Material(make(b))).first;

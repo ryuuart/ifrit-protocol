@@ -12,7 +12,9 @@
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmaterial/core/Target.h>
 
+#include <cstddef>
 #include <memory>
+#include <span>
 #include <string>
 
 using namespace sigil::material;
@@ -217,4 +219,36 @@ TEST(Bank, TheMakerRunsOncePerBucketAndItsAnswerIsWhatIsBanked) {
                            [&](uint32_t) { return Material(recipe); })
                       .get<float>("uScale"),
                   7.0f);
+}
+
+TEST(Bank, PackedBytesAreTheSameIdentityTheStructIs) {
+  // A caller whose parameters belong to no C++ type holds them as the
+  // bytes the upload takes, and those bytes are the key the struct's
+  // would have been: one bank, whichever door a piece arrives through.
+  Bank bank(4);
+  const std::shared_ptr<const Recipe> recipe = twoRecipe();
+  const TwoParameters parameters{2.0f, {1, 0, 0, 1}};
+  const Material& viaStruct = bank.get(
+      recipe, parameters, 5, [&](uint32_t) { return Material(recipe); });
+  const auto* start = reinterpret_cast<const std::byte*>(&parameters);
+  const std::span<const std::byte> bytes(start, sizeof(parameters));
+  EXPECT_EQ(
+      &bank.get(recipe, bytes, 5, [&](uint32_t) { return Material(recipe); }),
+      &viaStruct);
+  EXPECT_EQ(&bank.get(recipe, bytes, 5 + 4,
+                      [&](uint32_t) { return Material(recipe); }),
+            &viaStruct);
+  EXPECT_EQ(bank.size(), 1u);
+  // The bytes are the whole of the identity: another value is another row,
+  // and the maker's answer is what is banked.
+  const TwoParameters other{3.0f, {1, 0, 0, 1}};
+  const std::span<const std::byte> otherBytes(
+      reinterpret_cast<const std::byte*>(&other), sizeof(other));
+  const Material& made = bank.get(recipe, otherBytes, 5, [&](uint32_t bucket) {
+    Material m(recipe);
+    m.set("uScale", (float)bucket);
+    return m;
+  });
+  EXPECT_FLOAT_EQ(made.get<float>("uScale"), 1.0f);
+  EXPECT_EQ(bank.size(), 2u);
 }
