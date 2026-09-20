@@ -7,6 +7,7 @@
 #include <sigilpython/image/Registration.h>
 #include <sigilpython/skia/Values.h>
 
+#include <memory>
 #include <string>
 
 namespace sigil::python {
@@ -45,7 +46,11 @@ void bindImageValues(py::module_& module) {
       .value("Jpeg", image::Format::Jpeg)
       .value("Webp", image::Format::Webp)
       .value("Exr", image::Format::Exr);
-  py::class_<image::ImageAsset>(images, "ImageAsset")
+  // Held shared, because the image leaf keeps the asset it is given and
+  // compares it by identity: one Python asset is one native asset in
+  // every describe, so the leaf over it prunes.
+  py::class_<image::ImageAsset, std::shared_ptr<image::ImageAsset>>(
+      images, "ImageAsset")
       .def("width", &image::ImageAsset::width)
       .def("height", &image::ImageAsset::height)
       .def("animated", &image::ImageAsset::animated)

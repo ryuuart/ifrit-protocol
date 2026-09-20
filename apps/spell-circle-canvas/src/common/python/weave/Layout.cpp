@@ -235,7 +235,11 @@ void bindWeaveLayout(py::module_& root) {
       .def("language", &kit::PatternHyphenator::language)
       .def("patternCount", &kit::PatternHyphenator::patternCount);
   kit.def("englishHyphenationPatterns", &kit::englishHyphenationPatterns);
-  auto paragraph = py::class_<Paragraph>(module, "Paragraph");
+  // Held shared, because a text leaf keeps the paragraph it is given and
+  // reads a new pointer as new content: one Python paragraph is one
+  // native paragraph in every describe, so its shaping stays warm.
+  auto paragraph =
+      py::class_<Paragraph, std::shared_ptr<Paragraph>>(module, "Paragraph");
   paragraph.def(py::init<>())
       .def(py::init([](const std::u16string& text, const Type& type) {
              Paragraph p;
