@@ -467,33 +467,15 @@ state.
 
 ## Build, test, and see it
 
-From `apps/spell-circle-canvas`:
+[docs/overview/testing.md](../../docs/overview/testing.md) is the
+contract every library here is built, tested and measured under: one
+`weave_test` over every feature's `test/` and one `weave_bench` over
+every feature's `bench/`, ctest one entry per CASE, what a case may pin,
+and what a label promises. What is only true of SigilWeave:
 
-```sh
-python3 scripts/sigil.py setup --config Release
-cmake --build build --config Release
-ctest --test-dir build -C Release --output-on-failure
-```
-
-The library has ONE test binary, `weave_test`, built from every feature's
-own `test/` directory, and ctest discovers one entry per CASE out of it —
-so `ctest -R '^Flow\.'` selects a suite and `-R 'Flow.Case'` one case, with
-no target behind either. A feature's `test/` still states what that feature
-reaches: it names the targets its cases link, and a case that needs
-something a machine may not have carries a label on its suite.
-
-A case asserts one behaviour the library promises through its public
-headers to a caller who has read only this page, and its name is that
-promise written as a sentence, so a failure reads as the claim that broke.
-It pins only what editing this library could falsify — never an
-anti-aliased byte, a fitted tolerance, a count a font or a locale could
-move, or elapsed time. Nothing here reads a clock: what a thing costs is
-the benchmarks' to judge, and what a page looks like is the plate
-ledger's. A claim made N times with one thing varying is one `TEST_P`
-whose parameter is that thing, with its rows named — both breakers over
-one breaking claim, every anchor of a decoration band, every preset text
-paint. One subject to a file, named for the subject: a case is found by
-opening the file its subject names.
+**Nothing here reads a clock.** A feature's `test/` states what that
+feature reaches: it names the targets its cases link, so a case that
+could not have seen a font cannot accidentally have seen one.
 
 What each feature's `test/` holds:
 
@@ -558,58 +540,52 @@ What each feature's `test/` holds:
 | label | on | what a runner must supply |
 |---|---|---|
 | `fonts` | every case in the binary | installed faces broad enough for an unstyled paragraph of mixed scripts and emoji to resolve — the machine's own fallback is what those cases are about, and the port's whole subject is the list it resolves against |
+
 The label sits on the binary rather than on a suite: most of what it
 holds shapes text, and a suite that needs nothing — the Unicode leaf,
 plain values, a committed instrument — is not worth a second label to
-say so.
+say so. A case whose claim is about a script, an axis or a feature names
+the instrument that carries it and skips on nothing; what is left behind
+the label is the handful whose claim IS the machine's font set.
+`ctest -L fonts` selects them, so a runner that knows its own font set
+can require what the rest of the tree lets pass.
 
-
-A case that skips is not coverage on the machine it skipped on, so a case
-whose claim is about a script, an axis or a feature names the instrument
-that carries it and skips on nothing; what is left behind the label is the
-handful whose claim IS the machine's font set. `ctest -L fonts` selects
-them, so a runner that knows its own font set can require what the rest of
-the tree lets pass.
-
-Fixtures live in `test/support/`, and nothing is written twice: `Faces.h`
-holds this library's own committed face, `Paragraphs.h` builds paragraphs
-and the deterministic texts drawn from a word pool, `Layouts.h` takes the
-readings off a finished layout — which runs placed glyphs, where each line
-ended, how wide it is, how many glyphs it placed, whether every run stayed
-inside an interval its band offered, and the two-word setting a decoration
-band is read across — `LayoutSupport.h` carries the breaker parameter a
-breaking claim is held to both ways, `Paints.h` a shader whose colour says
-where it was sampled, `Pixels.h` scans a rendered surface, and
-`Readings.h` the spread of a set of measurements. The font context itself
-is the whole test tree's, `sigil::test::fonts()` from `src/test/Fonts.h`,
-so one process shapes through one cache. `Layouts.h` calls no GoogleTest
+Fixtures live in `test/support/`, and nothing is written twice:
+`Faces.h` holds this library's own committed face, `Paragraphs.h` builds
+paragraphs and the deterministic texts drawn from a word pool,
+`Layouts.h` takes the readings off a finished layout — which runs placed
+glyphs, where each line ended, how wide it is, how many glyphs it
+placed, whether every run stayed inside an interval its band offered,
+and the two-word setting a decoration band is read across —
+`LayoutSupport.h` carries the breaker parameter a breaking claim is held
+to both ways, `Paints.h` a shader whose colour says where it was
+sampled, `Pixels.h` scans a rendered surface, and `Readings.h` the
+spread of a set of measurements. `Layouts.h` calls no GoogleTest
 assertion, so the benchmarks include it and count what the tests count.
 Each binary that needs more has a support header that includes exactly
-the headers its translation units use. `test/assets/` holds the face only
-this library asks for — `VerticalFeatures.ttf`, where every vertical
-feature has its own visible consequence and none share one — with the
-script that generates it beside it, reached through
-`SIGIL_TEST_ASSET_DIR`. The faces more than one library asks for are the
-tree's, under `src/test/assets/` and reached as
-`sigil::test::instrument::sans()` and its siblings: a ligature, an
-advance-moving axis beside an advance-holding one, an A/V pair for an
-optical kerner, zero-advance combining marks, and the coverage for
-Arabic, Devanagari and a supplementary-plane script.
+the headers its translation units use.
 
-The benchmarks own every performance claim about this library — one
-binary, `weave_bench`, with its arms under each feature's `bench/`:
-`unicode/` (itemize, line breaks and bidi per code point, on the Unicode
-leaf alone), `fonts/` (`shapeWord` per word cold and warm), `paragraph/`
+`test/assets/` holds the face only this library asks for —
+`VerticalFeatures.ttf`, where every vertical feature has its own visible
+consequence and none share one — with the script that generates it
+beside it. The tree's own are what more than one library asks for: the
+font context is `sigil::test::fonts()`, so one process shapes through
+one cache, and the faces are `sigil::test::instrument::sans()` and its
+siblings — a ligature, an advance-moving axis beside an advance-holding
+one, an A/V pair for an optical kerner, zero-advance combining marks,
+and the coverage for Arabic, Devanagari and a supplementary-plane
+script.
+
+`weave_bench`'s arms sit under each feature's `bench/`: `unicode/`
+(itemize, line breaks and bidi per code point, on the Unicode leaf
+alone), `fonts/` (`shapeWord` per word cold and warm), `paragraph/`
 (whole paragraphs shaped cold against warm), `layout/`
 (`layoutParagraph` per word, greedy and Knuth-Plass by length, and each
 kind of per-frame update against the same warm relayout) and `paint/`
 (`draw` and `drawBatched` per glyph on a raster surface, with arms that
-differ in one paint feature).
-The corpus they share sits in `bench/support/`, over the same font
-context and the same layout readings the tests use. Build
-them Release through the `benches` target and run them through
-`scripts/sigil.py bench` rather than trusting a number written down
-anywhere:
+differ in one paint feature). The corpus they share sits in
+`bench/support/`, over the same font context and the same layout
+readings the tests use.
 
 ```sh
 cmake --build build --config Release --target benches weave_demo
