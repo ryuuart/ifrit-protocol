@@ -3,7 +3,9 @@ header apiece, pinning a behaviour the generator must keep — a real name
 yields a probe, an unreal one fails the run, an operator spelling is
 exempted AND reported, a header listing's bare names are checked against
 the header they are listed under, a supplied alias leads a qualified
-name, and an external class's member takes the class-scope probe path.
+name, an external class's member takes the class-scope probe path, a
+class whose base clause wraps is still a class, and a member a class
+inherits is checked as that class's own.
 
 The generator is the layer that decides what gets probed at all, so a
 regression here would fail no C++ build — it would silently narrow the
@@ -25,15 +27,43 @@ void spin();
 }
 """
 
+# A node that takes its verbs from mixins over itself. `Knob` names its
+# one base on the line of its own name; `Dial` names two, and the list
+# wraps, which is how every class with more than one family is written.
+MIXIN_HEADER = """\
+namespace fix {
+template <class Derived>
+class TurnVerbs {
+ public:
+  Derived& turn(float degrees);
+  Derived& turn(float degrees, float about);
+};
+template <class Derived>
+class PressVerbs {
+ public:
+  Derived& press();
+};
+class Knob : public TurnVerbs<Knob> {
+ public:
+  int detents;
+};
+class Dial : public TurnVerbs<Dial>,
+             public PressVerbs<Dial> {
+ public:
+  int detents;
+};
+}
+"""
 
-def fixture_generator(md_text, aliases=None):
-    """A Generator run over one in-memory markdown fixture and the fixture
+
+def fixture_generator(md_text, aliases=None, header=FIXTURE_HEADER):
+    """A Generator run over one in-memory markdown fixture and one fixture
     header, in a temp dir so nothing on disk is touched."""
     with tempfile.TemporaryDirectory() as tmp:
         incdir = os.path.join(tmp, "fixinc")
         os.makedirs(incdir)
         with open(os.path.join(incdir, "Fixture.h"), "w", encoding="utf-8") as f:
-            f.write(FIXTURE_HEADER)
+            f.write(header)
         md = os.path.join(tmp, "fixture.md")
         with open(md, "w", encoding="utf-8") as f:
             f.write(md_text)
@@ -142,6 +172,41 @@ def self_test():
         "struct Probe : SkImageFilters { using SkImageFilters::Blur; }" in emitted
         and "#include <include/effects/SkImageFilters.h>" in emitted,
         "class-scope probe and its include are emitted",
+    )
+
+    # A base clause that wraps onto a second line still opens the class:
+    # read as a forward declaration, the class would own no member and
+    # every name a document spells on it would be unresolved.
+    gen = fixture_generator("Count `Dial::detents` first.\n", header=MIXIN_HEADER)
+    check(
+        any(s == "Dial::detents" for _, _, s, _, _ in gen.members)
+        and not gen.unresolved,
+        "a class whose base clause wraps -> its own member is probed",
+    )
+
+    # A member a class inherits is that class's own to a document, and an
+    # overloaded one cannot be named by a probe, so it is checked against
+    # the index — under the class the document spelled, on either line of
+    # a wrapped base clause.
+    gen = fixture_generator("Turn it with `Knob::turn`.\n", header=MIXIN_HEADER)
+    check(
+        any(s == "Knob::turn" for s, _, _ in gen.index_checked)
+        and not gen.members
+        and not gen.unresolved,
+        "an overloaded member from a base -> index-checked on the derived class",
+    )
+    gen = fixture_generator(
+        "`Dial::turn`, then `Dial::press`.\n", header=MIXIN_HEADER
+    )
+    check(
+        {s for s, _, _ in gen.index_checked} == {"Dial::turn", "Dial::press"}
+        and not gen.unresolved,
+        "every base of a wrapped clause hands its members to the class",
+    )
+    gen = fixture_generator("Then `Knob::press` it.\n", header=MIXIN_HEADER)
+    check(
+        not gen.index_checked,
+        "a member of a base the class does not name -> not credited to it",
     )
 
     if failures:
