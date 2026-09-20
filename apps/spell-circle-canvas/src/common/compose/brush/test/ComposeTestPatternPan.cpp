@@ -55,7 +55,7 @@ TEST(ComposePatternPan, ABoundPanMovesThePatternWithNoRedescribe) {
   choreograph::Output<float> panX{0.0f};
   Pattern pat = halfTilePattern();
   pat.sampling(SkSamplingOptions(SkFilterMode::kNearest))
-      .offset(&panX, nullptr);
+      .offset(&panX, std::nullopt);
   Host host(300, 300);
   host.composer.render(pannedPanel(pat));
   host.frame();
@@ -82,7 +82,7 @@ TEST(ComposePatternPan, ASettledBoundPanReleasesVolatilityAndPromotes) {
   choreograph::Output<float> panX{0.0f};
   Pattern pat = halfTilePattern();
   pat.sampling(SkSamplingOptions(SkFilterMode::kNearest))
-      .offset(&panX, nullptr);
+      .offset(&panX, std::nullopt);
   Host host(300, 300);
   host.composer.render(pannedPanel(pat));
   host.composer.setProfiling(true);
@@ -150,7 +150,7 @@ TEST(ComposePatternPan, AMovingBoundPanNeverReleases) {
   choreograph::Output<float> panX{0.0f};
   Pattern pat = halfTilePattern();
   pat.sampling(SkSamplingOptions(SkFilterMode::kNearest))
-      .offset(&panX, nullptr);
+      .offset(&panX, std::nullopt);
   Host host(300, 300);
   host.composer.render(pannedPanel(pat));
   host.composer.setProfiling(true);
@@ -185,7 +185,7 @@ TEST(ComposePatternPan, AnUnboundOffsetStaysDescribeTimeAndPrunes) {
       << "a static pan must not route to the live material slot";
   choreograph::Output<float> panX{0.0f};
   Pattern bound = pat;
-  bound.offset(&panX, nullptr);
+  bound.offset(&panX, std::nullopt);
   EXPECT_TRUE(bound.material().isAnimated())
       << "the bound form must route live";
   EXPECT_FALSE(pat.material().isAnimated())
@@ -228,9 +228,9 @@ TEST(ComposePatternPan, ThePanBindingIsRecipe) {
   choreograph::Output<float> a{0.0f}, b{0.0f};
   Pattern pat = halfTilePattern();
   Pattern p1 = pat, p2 = pat, p3 = pat;
-  p1.offset(&a, nullptr);
-  p2.offset(&b, nullptr);
-  p3.offset(&a, nullptr);
+  p1.offset(&a, std::nullopt);
+  p2.offset(&b, std::nullopt);
+  p3.offset(&a, std::nullopt);
   EXPECT_TRUE(p1.material() == p3.material()) << "same recipe, same binding";
   EXPECT_FALSE(p1.material() == p2.material()) << "a rebound pan must patch";
   EXPECT_FALSE(p1.material() == pat.material()) << "bound differs from unbound";
