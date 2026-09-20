@@ -4,19 +4,12 @@
  * @ingroup weave-unicode
  *
  * The Unicode text analysis a layout engine needs, as plain values over
- * UTF-16 text: transcoding, locale-aware case mapping, script itemization,
- * bidirectional levels, line, word and sentence segmentation, and the
- * per-character properties that decide where a run may break, which glyphs
- * inherit their neighbours' typeface, and how a character stands in a
- * vertical column. Every function takes text or a code point and returns
- * its answer; nothing here holds state a caller can see, and nothing here
- * knows about fonts, styles, or a canvas.
- *
- * Positions are UTF-16 code-unit offsets, as everywhere else in the
- * library. Scratch objects the analyses reuse (break iterators, the bidi
- * analyzer) are thread-local, so every function is safe to call from any
- * thread with no shared state.
- */
+ * UTF-16 text: transcoding, case mapping, script itemization, bidi
+ * levels, segmentation, and the per-character properties a breaker and a
+ * column ask about. Nothing here holds state a caller can see, and
+ * nothing here knows about fonts, styles or a canvas. Positions are
+ * UTF-16 code-unit offsets; the scratch objects the analyses reuse are
+ * thread-local, so every function is safe to call from any thread. */
 
 #include <cstddef>
 #include <cstdint>
@@ -58,12 +51,11 @@ namespace sigil::weave::unicode {
  */
 [[nodiscard]] bool isWhitespace(char32_t codePoint);
 
-/** Whether one UTF-16 unit forces a line break after itself — the four
- * line-break classes that break unconditionally: the mandatory-break
- * characters (VT, FF, LINE SEPARATOR, PARAGRAPH SEPARATOR), CR, LF and
- * NEL. It is a question about the CHARACTER; whether a given BOUNDARY is
- * mandatory is LineBreak::mandatory, which is the segmentation's answer
- * and covers the sequences (CR LF) a character cannot.
+/** Whether one UTF-16 unit forces a line break after itself — VT, FF,
+ * LINE SEPARATOR, PARAGRAPH SEPARATOR, CR, LF and NEL.
+ * @trap It is a question about the CHARACTER: whether a given BOUNDARY is
+ * mandatory is `LineBreak::mandatory`, which covers the sequences a
+ * character cannot.
  */
 [[nodiscard]] bool isHardLineBreak(char16_t unit);
 
@@ -76,9 +68,7 @@ namespace sigil::weave::unicode {
 /** Whether a code point can force right-to-left directionality: its
  * bidirectional class is one of the right-to-left ones, the Arabic
  * letters included. Text with no such code point resolves to one uniform
- * left-to-right level without a full bidirectional pass. It is a property
- * lookup rather than a range test, so a script Unicode adds tomorrow
- * cannot be missed by it.
+ * left-to-right level without a full bidirectional pass.
  */
 [[nodiscard]] bool mayRequireBidi(char32_t codePoint);
 
@@ -94,12 +84,10 @@ namespace sigil::weave::unicode {
 [[nodiscard]] bool isUpperCase(char32_t codePoint);
 
 /** Whether a code point is set in a FULL-WIDTH CELL — East Asian Width
- * Wide or Fullwidth. That is the property behind every question this
- * engine asks about "ideographic" text: a full-width character has no
- * spaces around it and the zero-width gap beside it is what a justified
- * CJK line spends its slack on. It is a character property and not a
- * script one, so fullwidth Latin (Ａ Ｂ Ｃ) set among kanji answers the
- * same way the kanji do.
+ * Wide or Fullwidth, which is the property behind every question this
+ * engine asks about "ideographic" text.
+ * @trap It is a character property and not a script one, so fullwidth
+ * Latin (Ａ Ｂ Ｃ) set among kanji answers the same way the kanji do.
  */
 [[nodiscard]] bool isFullWidth(char32_t codePoint);
 
@@ -178,16 +166,10 @@ void itemize(std::u16string_view text, std::vector<ScriptRun>& runs);
 // ── Line-break classes ─────────────────────────────────────────────────
 
 /** Every code point whose UAX#14 LINE-BREAK CLASS is one a line may not
- * BEGIN with, ascending: the closing punctuation and the closing
- * parentheses, the non-starters, the conditional Japanese starters, the
- * exclamation and question marks, and the infix numeric separators.
- *
- * This is the CLASS a character carries, over the whole of Unicode, and
- * not where a given text actually breaks — that is lineBreaks(), which
- * resolves the classes against each other under its tailoring and already
- * forbids most of what is listed here. A caller wanting a prohibition set
- * narrows this to the characters it means: a convention about full-width
- * punctuation makes no claim about ASCII.
+ * BEGIN with, ascending.
+ * @trap It is the CLASS a character carries over the whole of Unicode,
+ * not where a text breaks — `lineBreaks` already forbids most of it — so
+ * a caller wanting a prohibition set narrows this to what it means.
  */
 [[nodiscard]] std::vector<char32_t> lineStartProhibited();
 
@@ -222,12 +204,11 @@ bool caseMap(std::u16string_view text, Case mapping, std::string_view locale,
 [[nodiscard]] std::u16string caseMapped(std::u16string_view text, Case mapping,
                                         std::string_view locale = {});
 
-/** The SIMPLE lower-case form of ONE code point: one code point in, one
- * out, under no locale. It is the mapping to match text against a table
- * with, because the result stands where its input stood and an offset into
- * it still names the character it came from — where caseMap()'s full
- * mapping may lengthen the text and lose that correspondence. A code point
- * with no lower-case form is returned unchanged.
+/** The SIMPLE lower-case form of ONE code point: one in, one out, under
+ * no locale, so the result stands where its input stood and an offset
+ * into it still names the character it came from — which `caseMap`'s full
+ * mapping may lose. A code point with no lower-case form comes back
+ * unchanged.
  */
 [[nodiscard]] char32_t lowerCased(char32_t codePoint);
 
@@ -244,18 +225,11 @@ struct LineBreak {
   bool operator==(const LineBreak&) const = default;
 };
 
-/** Returns every line-break opportunity in the text (UAX#14), ascending:
- * the offsets a line may end at, each one past the unit it follows, always
- * ending with `text.size()` and never containing 0. Empty text yields one
- * opportunity at 0. A break after a soft hyphen (U+00AD) is reported like
- * any other.
- *
- * `locale` selects the tailoring the segmentation runs under: a BCP 47 tag,
- * optionally carrying ICU's line-break keyword ("ja@lb=strict" sets the
- * strict Japanese rules a printed page uses, "zh@lb=loose" the loose ones),
- * and empty is the untailored root behaviour every text gets by default.
- * Iterators are cached per locale, so alternating between two costs no
- * more than staying in one.
+/** Returns every line-break opportunity in the text (UAX#14), ascending,
+ * each offset one past the unit it follows, always ending with the text's
+ * size and never containing 0; empty text yields one opportunity at 0.
+ * @p locale is the tailoring — a BCP 47 tag, optionally with ICU's
+ * line-break keyword ("ja@lb=strict") — and empty is untailored.
  */
 [[nodiscard]] std::vector<LineBreak> lineBreaks(std::u16string_view text,
                                                 std::string_view locale = {});
@@ -264,12 +238,10 @@ struct LineBreak {
 void lineBreaks(std::u16string_view text, std::vector<LineBreak>& breaks,
                 std::string_view locale = {});
 
-/** Returns every GRAPHEME CLUSTER boundary in the text (UAX#29), ascending,
- * starting with 0 and ending with `text.size()`; the clusters are the
- * ranges between consecutive entries. A cluster is what a reader calls one
- * character, so it is the unit anything cutting text apart must land on:
- * a combining mark, a Hangul syllable, a regional-indicator pair and an
- * emoji ZWJ sequence are each indivisible here. Empty text yields {0}.
+/** Returns every GRAPHEME CLUSTER boundary in the text (UAX#29),
+ * ascending, starting with 0 and ending with the text's size; the
+ * clusters are the ranges between consecutive entries, and are the unit
+ * anything cutting text apart must land on. Empty text yields {0}.
  */
 [[nodiscard]] std::vector<uint32_t> graphemeBoundaries(
     std::u16string_view text);

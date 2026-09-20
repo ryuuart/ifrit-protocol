@@ -4,13 +4,9 @@
  * @ingroup weave-layout
  *
  * `Story` — a text and the block styles it is set under, filled into as
- * many frames as it is given.
- *
- * A story is CONTENT PLUS ITS BLOCK STYLES and nothing else: it holds no
- * layout, no cursor and no frame. Every frame of a chain lays the same
- * story out and resumes at the word the frame before it stopped on, so the
- * cut between two frames moves as either one's measure moves and nobody
- * has to decide where it falls.
+ * many frames as it is given. It holds no layout, no cursor and no
+ * frame: every frame of a chain lays the same story out and resumes
+ * where the one before it stopped.
  */
 
 #include <span>
@@ -24,24 +20,13 @@
 
 namespace sigil::weave {
 
-/** A TEXT AND THE BLOCK STYLES IT IS SET UNDER, filled into as many frames
- *  as it is given.
- *
- *      Story article(rich(body).add(u8"…"));
- *      article.paragraphs({heading, para, para});
- *
- *  THE BLOCKS ARE NUMBERED FROM THE STORY'S START, so the third block is
- *  set the same way whichever frame it happens to land in. Pitch, writing
- *  mode and block styles are the story's, and a frame cannot override them:
- *  a frame that wants a different pitch is a different story. What a frame
- *  decides is its own geometry — its box, its exclusions, a shape it
- *  flows around — and whether it is the last one, which is the only one an
- *  ellipsis belongs on. Overflow on any other frame is the normal case and
- *  is what the next frame is for.
- *
- *  It is a VALUE, for the reason `RichText` is: two stories describing the
- *  same runs under the same block styles are equal, so a caller that
- *  rebuilds its story can ask whether anything actually changed. */
+/** A TEXT AND THE BLOCK STYLES IT IS SET UNDER, filled into as many
+ *  frames as it is given, and a VALUE for the reason `RichText` is. THE
+ *  BLOCKS ARE NUMBERED FROM THE STORY'S START, so the third block is set
+ *  the same way whichever frame it lands in.
+ *  @trap Pitch, writing mode and block styles are the story's and a frame
+ *  cannot override them: a frame that wants a different pitch is a
+ *  different story. */
 class Story {
  public:
   Story() = default;

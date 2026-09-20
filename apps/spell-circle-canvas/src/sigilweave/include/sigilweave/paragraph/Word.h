@@ -4,12 +4,8 @@
  * @ingroup weave-document
  *
  * The atomic layout unit: a Word is the text between two line-break
- * opportunities, measured as content plus trailing glue, carrying its bidi
- * level and break flags, and — once shaped — its segments, each a
- * cache-shared ShapedWord placed at an offset in one of the forms a
- * vertical column can take. WordSegmentList is the segment storage: one
- * segment lives inside the object and only a split word allocates, behind
- * bytes whose container type the library alone sees.
+ * opportunities, measured as content plus trailing glue, carrying its
+ * bidi level and break flags and — once shaped — its segments.
  */
 
 #include <cstddef>

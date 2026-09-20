@@ -25,24 +25,13 @@
 
 namespace sigil::weave {
 
-/** WHAT A BLOCK INHERITS, EVERY FIELD OPTIONAL — A PARTIAL.
- *
- *  It carries the settings a block takes from the passage it stands in
- *  when it says nothing of its own: the pitch and where its room goes,
- *  the alignment, the justification and its last line, the hyphenation,
- *  the tab stops, the first- and last-line indents, the widow and orphan
- *  counts, balanced ragging, the breaking strategy, the writing mode, the
- *  locale the lines break under, and the line tables a house sets CJK
- *  text by. What
- *  a block keeps to itself — its air before and after, its reservation,
- *  its keeps with the next block, its initial letter, its every-line
- *  insets — stays on the whole `ParagraphStyle`, as a margin is a box's
- *  own and not its children's.
- *
- *  A field left unset is the field inherited; a field stated is the
- *  block's own. `overlay()` is one step of that, onto a whole style, and
- *  `toParagraphStyle()` is what a partial names with nothing above it: the
- *  layout's own answer for every field it leaves unset. */
+/** WHAT A BLOCK INHERITS, EVERY FIELD OPTIONAL — A PARTIAL: a field left
+ *  unset is the field inherited, a field stated is the block's own,
+ *  `overlay` is one step of that onto a whole style, and
+ *  `toParagraphStyle` is what a partial names with nothing above it.
+ *  @trap What a block keeps to ITSELF — its air before and after, its
+ *  reservation, its keeps with the next block, its initial letter, its
+ *  every-line insets — is not here but on the whole `ParagraphStyle`. */
 struct Block {
   std::optional<Leading> leading;
   std::optional<bool> halfLeading;
@@ -109,10 +98,9 @@ Block& merge(Block& into, const Block& over);
 /** THE LAYOUT-WIDE FIELDS OF @p options THE BLOCK IN FORCE SETS — the
  *  alignment, the breaking strategy, the hyphenation, the justification
  *  and its last line, the tab stops and the line tables — each where the
- *  partial states it, the rest as the options already hold them. The
- *  per-block fields are `overlay`'s and `toParagraphStyle`'s; the writing
- *  mode and the locale are the Paragraph's and a consumer sets them
- *  there. */
+ *  partial states it.
+ *  @silent the field is per-block, which is `overlay`'s, or the writing
+ *  mode or the locale, which are the Paragraph's. */
 void apply(ParagraphLayoutOptions& options, const Block& block);
 
 }  // namespace sigil::weave

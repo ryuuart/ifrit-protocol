@@ -30,15 +30,10 @@ struct LineMetricsOptions {
   bool operator==(const LineMetricsOptions&) const = default;
 };
 
-/** Where a word may be broken, and which of those breaks a line may take.
- *
- * The two halves are decided at different stages and that is the whole of
- * the split. Where a break MAY fall is segmentation: a soft hyphen already
- * in the text, plus whatever `patterns` finds inside a word under
- * `limits`, and all of that is a fact about the text that the whole layout
- * shares. Which of those opportunities a line actually TAKES is a break
- * decision — the three fields under `limits` — so a block may state its
- * own and the breaker reads the block's.
+/** Where a word may be broken, and which of those breaks a line may
+ * take. Where a break MAY fall is segmentation, and so a fact about the
+ * text the whole layout shares; which of those opportunities a line
+ * actually TAKES is a break decision, and so a block may state its own.
  */
 struct HyphenationOptions {
   /// False removes the break opportunity, not just the hyphen glyph: the
@@ -53,20 +48,11 @@ struct HyphenationOptions {
   float penalty = 50.0f;
 
   /// Where inside a word a break may fall, beyond the soft hyphens the
-  /// author typed. Empty leaves discretionary hyphens the only
-  /// opportunity, which is what a text that says nothing gets. The kit
-  /// ships Liang pattern sets (kit/Hyphenation.h); a caller's own
-  /// implementation is a peer of them. Compared by identity, because two
-  /// hyphenators that are not the same object cannot be shown to answer
-  /// the same way.
-  ///
-  /// HELD, NOT BORROWED: the analysis asks the hyphenator once per word
-  /// and asks again whenever the text changes, which is long after the
-  /// call that set it returned. A hyphenator built for one document — a
-  /// table loaded from that document's own exception list, an
-  /// implementation living in a scripting language — is therefore kept by
-  /// the options and by the paragraph they reach, and one that outlives
-  /// the process is handed over the same way.
+  /// author typed; empty leaves those the only opportunity. The kit ships
+  /// Liang pattern sets, and a caller's own implementation is a peer of
+  /// them. HELD, NOT BORROWED: the options and the paragraph keep it.
+  /// @trap Compared by IDENTITY: two hyphenators that are not the same
+  /// object cannot be shown to answer the same way.
   std::shared_ptr<const Hyphenator> patterns;
 
   /// Which of a word's break points become opportunities at all — a fact
@@ -77,13 +63,10 @@ struct HyphenationOptions {
   /// Most lines in a row that may end in a hyphen; 0 lifts the limit.
   int consecutiveLimit = 0;
   /// The band at the ragged edge inside which a line is already square
-  /// enough, px; 0 lifts it. A line whose last WHOLE word ends inside the
-  /// band is left ragged, because a word broken to reach further is a
-  /// hyphen the page did not need — so the question is asked of the line
-  /// WITHOUT the break, and both breakers ask it the same way. A word that
-  /// is the whole line is still broken: there is nothing else on the line
-  /// for the zone to measure. Ragged setting only — a justified line
-  /// shows its slack in the gaps rather than at the edge.
+  /// enough, px; 0 lifts it. The question is asked of the line WITHOUT
+  /// the break, and a word that is the whole line is still broken.
+  /// @silent the block is justified, a justified line showing its slack
+  /// in the gaps rather than at the edge.
   float zone = 0;
   /// Whether the last word of a block may be broken.
   bool lastWordOfBlock = true;
@@ -99,24 +82,11 @@ struct KnuthPlassOptions {
   /// force a word into exclusion-shape slivers.
   float minimumIntervalWidth = 0.0f;
   /// How many BREAK CANDIDATES the optimizing breaker may weigh for ONE
-  /// BLOCK before it gives up and lets the greedy breaker fill that block
-  /// instead; 0 lifts the floor, which is what a layout that says nothing
-  /// gets. ONE CANDIDATE IS ONE CANDIDATE LINE: one path in the breaker's
-  /// active list carried to the break position under consideration and
-  /// scored there, which is the innermost step of its dynamic program.
-  ///
-  /// It is COUNTED AND NOT TIMED. How many candidates a block weighs is a
-  /// fact about its words and its measure, so the same block at the same
-  /// measure meets or misses the floor every time — the same answer on a
-  /// loaded machine as on an idle one, and a capture of it is a function
-  /// of the declaration alone.
-  ///
-  /// It is a DEGRADE AND NOT A POLICY. The composer is meant to run on
-  /// moving text — that is what it is for — and this is the floor under a
-  /// frame that meets a block it cannot compose inside it: one frame set
-  /// greedily, counted in ParagraphLayout::degradedBlocks, rather than a
-  /// frame that arrives late. A layout that reports degrades every frame
-  /// is asking for a higher floor or a shorter block.
+  /// BLOCK before it gives up and lets the greedy breaker fill that
+  /// block; 0 lifts the floor. One candidate is one candidate LINE. It is
+  /// COUNTED AND NOT TIMED, so the same block at the same measure meets
+  /// or misses it every time, and it is a DEGRADE rather than a policy,
+  /// counted in `ParagraphLayout::degradedBlocks`.
   int candidates = 0;
   bool operator==(const KnuthPlassOptions&) const = default;
 };

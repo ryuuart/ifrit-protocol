@@ -23,13 +23,10 @@ class Material;
 
 namespace sigil::weave {
 
-/** One additional rendering of the positioned glyphs.
- *
- * `paint` is intentionally the complete SkPaint vocabulary rather than a
- * SigilWeave mirror of selected fields: callers may use colors, animated
- * shaders, strokes, mask/image/color filters, path effects, and custom
- * blenders. `offset` moves only this pass, which makes shadows and displaced
- * highlights cheap without saveLayer().
+/** One additional rendering of the positioned glyphs. `paint` is
+ * intentionally the complete SkPaint vocabulary rather than a mirror of
+ * selected fields, and `offset` moves only this pass, which makes shadows
+ * and displaced highlights cheap without a saved layer.
  */
 struct PaintLayer {
   /// Applied as configured, with one reading: a TRANSPARENT colour on it
@@ -40,12 +37,11 @@ struct PaintLayer {
   SkPaint paint;
   SkVector offset = {0, 0};  ///< px translation of this pass only
   /// A SigilMaterial instance this pass shades with, in place of the
-  /// paint's own shader. Held by pointer: the style feature links no
-  /// renderer, so the material is resolved at draw time through the
-  /// resolver the paint feature registers (paint/Paint.h) — a pass whose
-  /// material has no resolver draws with `paint` alone. Compares by
-  /// identity, like every binding: two passes sharing one instance are
-  /// one pass, and two equal instances held separately are two.
+  /// paint's own shader, held by pointer and resolved at draw time
+  /// through the resolver the paint feature registers. It compares by
+  /// identity: two equal instances held separately are two passes.
+  /// @silent no resolver is registered, and then the pass draws with
+  /// `paint` alone.
   std::shared_ptr<const sigil::material::Material> material;
 
   /** Constructs an anti-aliased black fill pass. */

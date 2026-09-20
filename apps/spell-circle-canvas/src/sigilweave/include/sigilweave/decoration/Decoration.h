@@ -3,13 +3,11 @@
 /** @file
  * @ingroup weave-paint
  *
- * A decoration resolved against a run: the band an underline, strikethrough,
- * overline or highlight occupies once the font's metrics have filled in
- * what the style left at zero, the paint that band draws with, and the
- * spans along the run's own axis its band actually covers once skip-ink has
- * cut it around the glyphs' descenders. Deterministic geometry over a
- * PositionedRun, exposed so a test can check the band without drawing it;
- * the draws in the paint feature run over these same functions.
+ * A decoration resolved against a run: the band it occupies once the
+ * font's metrics have filled in what the style left at zero, the paint
+ * that band draws with, and the spans its band actually covers once
+ * skip-ink has cut it. Deterministic geometry over a PositionedRun,
+ * exposed so a test can check a band without drawing it.
  */
 
 #include <include/core/SkColor.h>
@@ -36,27 +34,12 @@ struct ResolvedDecorationBand {
   SkColor color = SK_ColorBLACK;  ///< resolved draw color, never transparent
 };
 
-/** Resolves a decoration's thickness, position, and color against font
- * metrics (deterministic geometry, exposed for tests): explicit values win;
- * zeros fall back to the face's underline/strikeout metrics, a mid-x-height
- * strikethrough, or the ascent line for overlines, with a 1px thickness
- * floor throughout.
- *
- * @p alongColumn resolves the band for a run set DOWN A COLUMN instead. A
- * column has no baseline — an upright glyph's em box is centred on the
- * column axis — so the face's underline and strikeout metrics have nothing
- * to measure from and the em box does the measuring instead: an underline
- * stands clear of the box on the RIGHT of the column, which is the side a
- * vertical setting reads its emphasis line on, an overline on the left, a
- * strikethrough down the axis itself, and a highlight across the whole box.
- * `Decoration::offset` still overrides, and is then a signed distance ACROSS
- * the column (positive to the right).
- *
- * `Decoration::side` chooses between the two anchors an underline and an
- * overline are: the opposite side reads the other one's metric, in either
- * writing mode. A strikethrough and a highlight cross the type rather than
- * standing beside it and have no second side; nor does a decoration with an
- * explicit offset, which names the near edge outright. */
+/** Resolves a decoration's thickness, position and colour against font
+ * metrics: explicit values win, and zeros fall back to the face's
+ * underline and strikeout metrics, a mid-x-height strikethrough or the
+ * ascent line for overlines, thickness floored at one pixel.
+ * @p alongColumn measures from the em box instead, and
+ * `Decoration::offset` is then signed ACROSS the column, positive right. */
 [[nodiscard]] ResolvedDecorationBand resolveDecorationBand(
     const Decoration& decoration, const SkFontMetrics& metrics,
     SkColor foregroundColor, bool alongColumn = false);
@@ -69,12 +52,11 @@ struct ResolvedDecorationBand {
                                           const ResolvedDecorationBand& band);
 
 /** Returns the absolute spans along the run's own axis the decoration
- * actually draws for `run` — one span covering the run's advance, minus
- * glyph-ink intercepts (grown by one thickness of standoff) when the
- * decoration skips ink. A COLUMN RUN ALWAYS ANSWERS ONE SPAN: intercepts
- * are cut out of a horizontal band, which a column's band is not, so a
- * vertical underline draws through its glyphs' ink rather than around it.
- * Empty for transformed and placeholder runs. */
+ * actually draws for @p run — one span covering the run's advance, minus
+ * glyph-ink intercepts grown by one thickness of standoff when the
+ * decoration skips ink. A COLUMN RUN ALWAYS ANSWERS ONE SPAN.
+ * @silent the run is transformed or a placeholder, which answer with no
+ * spans at all. */
 [[nodiscard]] std::vector<std::pair<float, float>> decorationSegments(
     const PositionedRun& run, const Decoration& decoration,
     const ResolvedDecorationBand& band);

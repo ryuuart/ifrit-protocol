@@ -33,13 +33,11 @@ struct TextStyle {
     shaping.variations.emplace_back(tag, value);
     return *this;
   }
-  /** The `wght` axis, fluently: `style.weight(650)`. Every axis set here
-   *  lands in `shaping.variations` and so participates in shaping identity:
-   *  animating one re-shapes the words it covers, which is required for
-   *  `wght` because it moves advances on most faces. To animate weight
-   *  without re-shaping, use a face with an advance-invariant axis (`GRAD`
-   *  on the faces that have it) and drive it at draw time through
-   *  ParagraphLayout::LiveVariations instead of setting it here. */
+  /** The `wght` axis, fluently: `style.weight(650)`.
+   *  @trap Every axis set here lands in `shaping.variations` and so
+   *  re-shapes the words it covers when animated, which `wght` requires
+   *  because it moves advances. An advance-invariant axis is driven at
+   *  draw time through `ParagraphLayout::LiveVariations` instead. */
   TextStyle& weight(float wght) { return variation("wght", wght); }
   /** The optical-size axis, fluently: `style.opticalSize(72)`. */
   TextStyle& opticalSize(float opsz) { return variation("opsz", opsz); }

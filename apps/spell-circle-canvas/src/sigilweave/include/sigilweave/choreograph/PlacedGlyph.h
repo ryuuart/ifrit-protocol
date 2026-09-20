@@ -80,16 +80,11 @@ struct PlacedGlyph {
 template <typename Visitor>
 concept PlacedGlyphVisitor = std::invocable<Visitor&, const PlacedGlyph&>;
 
-/** Visits every placed glyph of `layout` in draw order, each with its rest
- * position, its span's paint, and its position in the text.
- *
- * Enumeration order is stable across relayouts as long as the text itself is
- * unchanged — which is what lets per-glyph particle state keyed by `ordinal`
+/** Visits every placed glyph of @p layout in draw order, each with its
+ * rest position, its span's paint and its position in the text.
+ * Enumeration order is stable across relayouts while the text itself is
+ * unchanged, which is what lets per-glyph state keyed on the ordinal
  * survive a per-frame relayout.
- *
- * The first walk after a text edit resolves sentence boundaries once (see
- * Paragraph::sentenceStarts()); every later walk of unchanged text reuses
- * them.
  */
 template <PlacedGlyphVisitor Visitor>
 inline void forEachPlacedGlyph(const ParagraphLayout& layout,

@@ -5,27 +5,10 @@
  *
  * The style vocabulary every other SigilWeave header speaks, one include
  * over its subjects. A TextStyle splits into two halves on purpose:
- *   - ShapingStyle — typeface, size, letter spacing, language, OpenType
- *     features, vertical form. Baked into the shape-cache key: change any
- *     field and the words it covers are re-shaped. (ShapingStyle.h)
- *   - PaintStyle   — an SkPaint foreground plus ordered glyph-paint passes
- *     behind and above it (PaintLayer.h) and the line decorations
- *     (Decoration.h). Resolved at draw time only: recoloring, animating
- *     a shader, or restyling effects never re-shapes and never relayouts.
- *     (PaintStyle.h)
- *
- * The split is about who owns glyph advances, not about what is visible: a
- * change is paint-side only if it cannot move a glyph. One appearance change
- * escapes PaintStyle without re-shaping — an advance-invariant variable-font
- * axis driven through ParagraphLayout::LiveVariations at draw time
- * (ParagraphLayout.h), which reuses the shaped positions precisely because
- * the axis leaves advances alone.
- *
- * TextStyle.h holds the two halves together; Type.h the PARTIAL a call
- * site names a style's numbers in, every field optional, with Length.h
- * for a size stated against one it does not carry; StyleSheet.h a base
- * style and the named partials over it. Attach styles to text through
- * Paragraph / ParagraphBuilder (Paragraph.h).
+ * ShapingStyle is baked into the shape-cache key, and PaintStyle is
+ * resolved at draw time only. The split is about who owns glyph
+ * advances, not about what is visible: a change is paint-side only if it
+ * cannot move a glyph.
  */
 
 #include "sigilweave/style/Decoration.h"

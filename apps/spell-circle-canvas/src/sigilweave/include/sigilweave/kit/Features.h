@@ -3,15 +3,11 @@
 /** @file
  * @ingroup weave-kit
  *
- * Named OpenType feature presets — CSS font-variant-* vocabulary as
- * ready-made FontFeature values, so styles read
- * `style.shaping.fontFeatures = {features::tabularNumbers}` instead of
- * hand-spelled four-cc tag lists.
- *
- * Every one is a chosen four-cc tag and a value, which is why they are
- * stock rather than engine: nothing here is a mechanism, and a caller
- * spelling the tag by hand reaches the same shaping. Header-only, and
- * every constant combines freely with a hand-rolled feature.
+ * Named OpenType feature presets — the CSS font-variant vocabulary as
+ * ready-made FontFeature values, so a style reads
+ * `features::tabularNumbers` instead of a hand-spelled four-cc tag list.
+ * Each is a chosen tag and a value, so a caller spelling the tag by hand
+ * reaches the same shaping.
  */
 
 #include "sigilweave/style/Style.h"
@@ -62,17 +58,11 @@ inline constexpr FontFeature contextualAlternatesOff{"calt", 0};
 inline constexpr FontFeature swashes{"swsh", 1};
 
 // ── Vertical typesetting (CJK columns) ───────────────────────────────────
-// A column asks the face for more than a line does. Shaping a run
-// top-to-bottom already applies the face's vertical forms ("vert") and
-// reads its vertical metrics; everything below is what a setting asks for
-// on top of that, and each is off until a style names it.
-//
-// A NAMED FEATURE IS NOT GATED ON THE DIRECTION. The shaper runs the
-// lookups a style asks for whichever way the run is set, so a style
-// carrying these and set along a line takes them there too — substituting
-// forms cut for a column, and moving ink off a baseline that was meant to
-// move along a column axis. Carry them on the styles a passage sets
-// vertically.
+// Shaping a run top-to-bottom already applies the face's vertical forms
+// and reads its vertical metrics; everything below is what a setting asks
+// for on top of that, and each is off until a style names it. A NAMED
+// FEATURE IS NOT GATED ON THE DIRECTION, so carry these only on the
+// styles a passage sets vertically.
 /// Suppresses the vertical forms a column takes by default ("vert" 0) —
 /// the brackets and long vowel marks stay in their horizontal shapes.
 inline constexpr FontFeature verticalFormsOff{"vert", 0};

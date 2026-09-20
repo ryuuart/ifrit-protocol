@@ -22,15 +22,12 @@
 
 namespace sigil::weave {
 
-/** HOW A JUSTIFIED LINE RESPACED THE GLYPHS OF A RUN: extra advance after
- *  every glyph, and a horizontal scale on the glyphs themselves.
- *
- *  The identity is neither, which is what every run of a line fitted on its
- *  word gaps alone carries. It is baked into the run's blob, so a caller
- *  that only draws never asks; a caller that reads the glyphs BACK — a
- *  query, a per-glyph effect, a decoration measuring where a run ends —
- *  applies it, or it reads the positions the shaper produced instead of the
- *  ones the line was set at. */
+/** HOW A JUSTIFIED LINE RESPACED THE GLYPHS OF A RUN: extra advance
+ *  after every glyph, and a horizontal scale on the glyphs themselves.
+ *  The identity is neither, which every run of a line fitted on its word
+ *  gaps alone carries, and it is baked into the run's blob.
+ *  @trap A caller that reads the glyphs BACK must apply it, or it reads
+ *  the shaper's positions instead of the ones the line was set at. */
 struct GlyphFit {
   float letterSpacing = 0;  ///< px added after each glyph
   float glyphScale = 1.0f;  ///< horizontal scale on the glyphs
@@ -47,20 +44,12 @@ struct GlyphFit {
 };
 
 /// One draw call: a shared word blob translated to `origin`, or a fully
-/// positioned RSXform blob (contour/rotated intervals) drawn at (0,0).
-/// Placeholder runs carry no blob at all — just the flow position where the
-/// caller should draw its inline object (see
-/// ParagraphLayout::placeholderRects).
-///
-/// A RUN BORROWS ITS GLYPHS AND OWNS NOTHING BUT ITS PLACEMENT. `shaped`
-/// points at a ShapedWord somebody else holds: the paragraph, for every run
-/// set from a word of the text, and the layout itself for the few words a
-/// layout shapes and retains on its own (a tab leader, an overflow marker).
-/// A run is valid exactly
-/// as long as BOTH the paragraph it was set from and the layout that holds
-/// it are alive, and copying a run out of a layout does not extend that —
-/// which is the same rule `wordIndex` and `intervalIndex` already carry,
-/// since they index that paragraph's tables and this layout's intervals.
+/// positioned RSXform blob drawn at the canvas origin. A placeholder run
+/// carries no blob at all, just the flow position where the caller draws
+/// its inline object. A RUN BORROWS ITS GLYPHS AND OWNS NOTHING BUT ITS
+/// PLACEMENT: it is valid exactly as long as BOTH the paragraph it was
+/// set from and the layout holding it are alive, and copying it out of
+/// the layout does not extend that.
 struct PositionedRun {
   sk_sp<SkTextBlob> blob;  ///< null for placeholder runs
   /// Glyph source (batched drawing, choreography) — BORROWED, see above.
@@ -111,13 +100,11 @@ struct LineMetrics {
   }
 };
 
-/// Geometry of one laid-out COLUMN of a vertical paragraph — the counterpart
-/// of LineMetrics, derived on demand from the placed runs
-/// (ParagraphLayout::columnMetrics). A column has no baseline: its reading
-/// axis is y, and the glyphs of every form (upright, rotated, tate-chu-yoko)
-/// centre themselves ACROSS the column's central axis. So the band is the
-/// axis plus the flow's own column pitch, and the extent is how far down the
-/// axis the placed runs reached.
+/// Geometry of one laid-out COLUMN of a vertical paragraph — the
+/// counterpart of LineMetrics, derived on demand from the placed runs. A
+/// column has no baseline: its reading axis is y and every form centres
+/// itself ACROSS the column's central axis, so the band is that axis plus
+/// the flow's own column pitch.
 struct ColumnMetrics {
   int lineIndex = 0;       ///< matches PositionedRun::lineIndex
   float axis = 0;          ///< the column's central axis, x

@@ -4,11 +4,7 @@
  * @ingroup weave-kit
  *
  * The three paint layers everyone writes: a shadow, a glow and an
- * outline.
- *
- * `PaintLayer` is the mechanism — an SkPaint and an offset, drawn under
- * or over the run, with `blurred()` for attaching a blur mask to one.
- * These three are the arrangements of it a caller would otherwise
+ * outline — the arrangements of `PaintLayer` a caller would otherwise
  * assemble by hand every time, with the constants a shadow and a glow
  * are usually asked for already chosen.
  */
@@ -22,12 +18,9 @@
 namespace sigil::weave::kit {
 
 /** A blurred, offset solid copy, normally used as an underlay.
- *
- *  @p spread dilates the source shape (stroke-and-fill) before the blur
- *  mask is applied, so a wide blur keeps a solid core instead of thinning
- *  a hairline glyph outline down to near-transparency. @p intensity
- *  scales @p color's alpha, letting a caller push a pass brighter without
- *  picking a new hex value; above 1 it clamps to fully opaque. */
+ *  @p spread dilates the source shape before the blur mask is applied,
+ *  so a wide blur keeps a solid core; @p intensity scales @p color's
+ *  alpha and clamps to fully opaque above 1. */
 [[nodiscard]] PaintLayer dropShadow(SkColor color = 0x66000000,
                                     SkVector offset = {2, 2},
                                     float blurSigma = 2.0f, float spread = 0.0f,

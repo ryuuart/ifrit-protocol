@@ -3,20 +3,12 @@
 /** @file
  * @ingroup weave-layout
  *
- * The layout stage and its result — the engine's main entry point. Call
- * \code
- *   layoutParagraph(fontContext, paragraph, flow, options)
- * \endcode
- * to break a Paragraph (paragraph/Paragraph.h) into a chosen Flow geometry
- * (Flow.h) and get back a ParagraphLayout: positioned runs plus overflow /
- * ellipsis / placeholder reporting. draw() or drawBatched() paints it to an
- * SkCanvas (paint resolved per span at draw time), or walk `runs` yourself.
- * The options live in LayoutOptions.h and the run and band types in
- * PositionedRun.h; this header holds the result and the two entry points.
- *
- * The draw members are declared here and defined by the paint feature, so
- * a program that calls them links SigilWeavePaint; everything else in this
- * header is SigilWeaveLayout.
+ * The layout stage and its result — the engine's main entry point.
+ * layoutParagraph() breaks a Paragraph into a chosen flow geometry and
+ * returns a ParagraphLayout: positioned runs plus overflow, ellipsis and
+ * placeholder reporting. The draw members are declared here and defined
+ * by the paint feature, so a program that calls them links
+ * SigilWeavePaint; everything else here is SigilWeaveLayout.
  */
 
 #include <include/core/SkPath.h>
@@ -103,16 +95,12 @@ struct ParagraphLayout {
             const PaintStyle* overridePaint = nullptr) const;
 
   /** Draw-time font-variation override, valid only for ADVANCE-INVARIANT
-   *  axes. Every shaped bucket's typeface is swapped for its varied clone
-   *  (memoized by `fonts`) while the glyph positions computed at shaping
-   *  time are reused as they are. That is correct exactly when driving the
-   *  axis leaves every glyph advance alone — GRAD behaves that way on faces
-   *  that have it, whereas wght moves advances on most faces and would leave
-   *  the glyphs sitting at the wrong pen positions. Ask
-   *  FontContext::axisIsAdvanceInvariant before animating an axis here; an
-   *  axis that fails that test belongs in ShapingStyle::variations, which
-   *  re-shapes. Transformed and path runs draw from their baked blobs and
-   *  ignore this override entirely. */
+   *  axes: each bucket's typeface is swapped for its varied clone while
+   *  the positions computed at shaping time are reused as they are. Ask
+   *  `FontContext::axisIsAdvanceInvariant` first; an axis that fails that
+   *  test belongs in `ShapingStyle::variations`, which re-shapes.
+   *  @silent the run is transformed or on a path, both drawing from their
+   *  baked blobs. */
   struct LiveVariations {
     FontContext* fonts = nullptr;
     std::span<const FontVariation> variations;
@@ -142,58 +130,36 @@ struct ParagraphLayout {
       const Paragraph& paragraph) const;
 
   /** Returns per-line geometry derived from the placed runs, ascending by
-   * line index — the building block for selection bands, line backgrounds,
-   * and point-to-line hit-testing that per-span decorations don't cover.
-   *
-   * Derived, not stored: nothing is recorded during layout and calling this
-   * costs one pass over `runs` (metrics resolved per font change). Mixed
-   * fonts on a line report the tallest ascent/deepest descent, matching how
-   * a line box grows — except the initial letter, which is one run several
-   * lines tall and reports its own extent as `PlacedInitial::box`, so the
-   * line it stands on keeps its own band. Straight horizontal lines only:
-   * transformed (path / rotated) and vertical runs are skipped, and lines
-   * whose geometry placed nothing do not appear.
-   */
+   * line index — the building block for selection bands, line backgrounds
+   * and point-to-line hit-testing. Derived, not stored, with mixed fonts
+   * reporting the tallest ascent and deepest descent.
+   * @silent the line is vertical or transformed, or its geometry placed
+   * nothing: those lines do not appear at all. */
   [[nodiscard]] std::vector<LineMetrics> lineMetrics(
       const Paragraph& paragraph) const;
 
   /** Returns the OUTLINE OF EVERY GLYPH this layout placed, as one path in
-   * the layout's own coordinate space.
-   *
-   * Not the ink bounds and not the advance boxes: the actual contours, at
-   * the positions the placement put them, including the per-glyph
-   * transforms a rotated or curved run baked. It is what anything that
-   * dresses letters rather than a box needs — a bevel, a glow, a chrome, a
-   * cut-out — and it is derived, not stored: nothing is recorded during
-   * layout and a caller who never asks pays nothing.
-   *
-   * Glyphs a face reports no path for (bitmap and colour glyphs) are
-   * absent, because they have no contour to give.
-   */
+   * the layout's own coordinate space: not the ink bounds and not the
+   * advance boxes but the actual contours, the per-glyph transforms of a
+   * rotated or curved run included. Derived, not stored.
+   * @trap Glyphs a face reports no path for — bitmap and colour glyphs —
+   * are absent, having no contour to give. */
   [[nodiscard]] SkPath glyphOutline() const;
 
-  /** Returns per-COLUMN geometry for a vertical layout, ascending by column
-   * index — what lineMetrics() is for a horizontal one, and the only one of
-   * the two that answers in a vertical paragraph.
-   *
-   * Derived, not stored: one pass over `runs`, with each run's extent down
-   * the column taken from the pen it was placed at. Every vertical form
-   * counts — upright, rotated and tate-chu-yoko alike — because all three
-   * consume column pitch. Columns that placed nothing do not appear, and a
-   * horizontal layout returns an empty list.
-   */
+  /** Returns per-COLUMN geometry for a vertical layout, ascending by
+   * column index — what `lineMetrics` is for a horizontal one, and the
+   * only one of the two that answers in a vertical paragraph. Every
+   * vertical form counts, all three consuming column pitch.
+   * @silent the layout is horizontal, which answers an empty list, as do
+   * columns that placed nothing. */
   [[nodiscard]] std::vector<ColumnMetrics> columnMetrics(
       const Paragraph& paragraph) const;
 
   /** The shaped words this layout made and OWNS, rather than borrowed
    * from the paragraph: the overflow marker, a tab leader, the glyphs an
-   * initial letter was cut from. No word of the text stands behind them,
-   * so nothing else is holding them.
-   *
-   * A caller that hands one of these on — to a run it re-places, to a
-   * cache, to a language whose values outlive the call — takes a copy of
-   * the handle it wants from here, which keeps the glyphs alive on its
-   * own. Reading the span is not enough: the span dies with the layout.
+   * initial letter was cut from. Nothing else is holding them.
+   * @trap The span dies with the layout: a caller handing one on takes a
+   * copy of the HANDLE from here, which keeps the glyphs alive on its own.
    */
   [[nodiscard]] std::span<const ShapedWordReference> ownedWords() const {
     return m_shapedWords;
@@ -205,37 +171,21 @@ struct ParagraphLayout {
   std::vector<ShapedWordReference> m_shapedWords;
 };
 
-/** Lays `paragraph` out into `geometry`, starting at `firstWord`. Ensures
- * the paragraph is shaped (cache-hot when little changed), breaks it into
- * lines with the configured breaker, and returns positioned runs backed by
- * shared word blobs.
- *
- * `firstWord` IS THE RESUME POINT, and it is the same number the pass
- * before it reported as `firstUnplacedWord` — which is what makes a text
- * fill as many frames as it is given. One paragraph, shaped once, filled
- * frame after frame: every pass reads the same word list and the same warm
- * shape cache, and a word index is a sound cursor because a Word's extent
- * is a fact about the text rather than about any one layout of it. Blocks
- * are numbered from the START of the text however far in a pass begins, so
- * `ParagraphLayoutOptions::blocks` addresses the same block in every frame
- * of a chain.
- *
- * OVERFLOW IS THE NORMAL CASE HERE and is not a cut: a pass that ran out
- * of geometry reports where it stopped and draws no marker unless the
- * caller asked for one. A frame that means to be the last of a chain is
- * the one that sets `OverflowOptions::ellipsis`.
- */
+/** Lays @p paragraph out into @p geometry from @p firstWord: shapes what
+ * is needed, breaks lines with the configured breaker, and returns
+ * positioned runs backed by shared word blobs. @p firstWord IS THE RESUME
+ * POINT, the last pass's `ParagraphLayout::firstUnplacedWord`; blocks are
+ * numbered from the START of the text wherever a pass begins.
+ * @trap OVERFLOW IS NORMAL: no marker unless `OverflowOptions::ellipsis`. */
 ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
                                 FlowGeometry& geometry,
                                 const ParagraphLayoutOptions& options = {},
                                 uint32_t firstWord = 0);
 
-/**
- * Lays a paragraph out as one unconstrained horizontal line whose baseline
- * begins at `baselineOrigin`.
- *
- * This is the ergonomic path for labels and captions: callers do not need to
- * construct a one-entry LineSetFlow or precompute the paragraph width.
+/** Lays a paragraph out as one unconstrained horizontal line whose
+ * baseline begins at @p baselineOrigin — the ergonomic path for labels
+ * and captions, needing neither a one-entry LineSetFlow nor a precomputed
+ * paragraph width.
  */
 ParagraphLayout layoutSingleLine(FontContext& fontContext, Paragraph& paragraph,
                                  SkPoint baselineOrigin,

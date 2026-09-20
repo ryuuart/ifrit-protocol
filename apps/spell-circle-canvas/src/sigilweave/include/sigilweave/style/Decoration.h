@@ -17,55 +17,15 @@
 
 namespace sigil::weave {
 
-/** One line decoration (underline / strikethrough / overline) drawn with a
- * run's resolved paint at draw time.
- *
- * Decorations live on the paint side on purpose: adding, removing, or
- * recoloring one never re-shapes and never relayouts, exactly like paint
- * layers. Thickness and position default to the font's own metrics
- * (SkFontMetrics underline/strikeout values, with sensible fallbacks when a
- * face reports none), so the zero-argument spelling
- * `PaintStyle{...}.addDecoration({})` is a correct underline.
- *
- * By default a decoration spans the decorated range, not individual words:
- * contiguous same-style runs on a line merge into one continuous band that
- * also covers the glue between words (CSS behavior — an underlined sentence
- * is one line, a highlight reads like one marker stroke). Skip-ink breaks
- * come only from glyph ink, never from word gaps. `span = Span::kPerWord`
- * opts back into one band per word (spell-check squiggles, word chips).
- *
- * kHighlight is the background member of the family: a full-text-height
- * band (ascent to descent by default) drawn *beneath* every glyph pass, so
- * with the default range spanning it renders as a continuous highlighter
- * stroke behind the words and their gaps.
- *
- * A decoration separates two concerns: *band geometry* (kind, span, side,
- * thickness, offset, skipInk) and *band fill*. The fill has two spellings:
- * `color` is the lightweight one, and `paint` is the full SkPaint
- * vocabulary — shaders (a shader swapped per frame goes through
- * Paragraph::setPaint() without relayout, exactly like glyph paint), blend
- * modes, mask filters. Glyphs and decorations resolve their fills
- * independently, so a shaded highlight under plain-colored text — or the
- * reverse — needs no coordination between the two. Multi-pass band effects
- * compose the same way glyph passes do: stack several decorations with the
- * same geometry and different fills.
- *
- * Scope: decorations render on straight runs, set either way. Down a column
- * the band turns with the type — an underline runs beside the column on its
- * right, an overline on its left, a strikethrough down the column axis, and
- * a highlight covers the whole em box — and it draws through the glyphs'
- * ink, because skip-ink intercepts are cut out of a horizontal band window
- * that a column's band is not. Transformed runs (on a path, on a rotated
- * interval) carry no band at all: it would have to follow the curve they
- * ride.
- *
- * Which side of the run's axis a band takes is `side`, and the two writing
- * modes disagree about the default: a column's underline stands on the
- * RIGHT, which is the side a vertical setting reads its emphasis line on,
- * where CSS's `auto` would put it on the left. `Side::kOpposite` is that
- * other placement, and it is the same swap along a line — an underline
- * above the type, an overline below it.
- */
+/** One line decoration — underline, strikethrough, overline or highlight
+ * — as band geometry plus a band fill, resolved with a run's paint at
+ * draw time, so adding, removing or recolouring one never re-shapes and
+ * never relayouts. Thickness and position default to the font's own
+ * metrics, making `PaintStyle::addDecoration({})` a correct underline. A
+ * band spans the decorated RANGE by default, covering the glue between
+ * words, and `Span::kPerWord` opts back into one band per word.
+ * @silent the run is transformed, on a path or on a rotated interval: a
+ * band would have to follow the curve it rides. */
 struct Decoration {
   /// Selects which font metric anchors the band by default. kHighlight is
   /// drawn beneath the glyph passes; the others above them.
@@ -80,15 +40,12 @@ struct Decoration {
     kDecoratedRange,  ///< merge contiguous same-style runs, covering gaps
     kPerWord,         ///< one band per word run; breaks at every gap
   };
-  /** Which side of the run's own axis the band anchors on.
-   *
-   * An underline and an overline are one band on opposite sides of that
-   * axis — below the line and above it, right of the column and left of it
-   * — so taking the opposite side is taking the other one's anchor. A
-   * strikethrough and a highlight are anchored ACROSS the type rather than
-   * beside it and have no second side to take, so both ignore this. So does
-   * an explicit `offset`, which names the band's near edge outright and
-   * leaves nothing to choose. */
+  /** Which side of the run's own axis the band anchors on: an underline
+   * and an overline are one band on opposite sides of it, so the opposite
+   * side is the other one's anchor.
+   * @silent the kind crosses the type rather than standing beside it — a
+   * strikethrough, a highlight — or an explicit `offset` already names
+   * the near edge. */
   enum class Side : uint8_t {
     kDefault,   ///< the kind's own side: an underline below the line and
                 ///< right of the column, an overline above it and left
@@ -114,13 +71,10 @@ struct Decoration {
   /// Underlines only: interrupt the line where glyph ink (descenders)
   /// crosses the band, via SkTextBlob::getIntercepts.
   bool skipInk = true;
-  /// Full-vocabulary band fill. When set it is applied verbatim — nothing
-  /// is overridden, exactly like a PaintLayer wrapping a caller-configured
-  /// SkPaint — and it takes precedence over `color`, whose resolution rules
-  /// (including the translucent kHighlight default) no longer apply: alpha,
-  /// anti-aliasing, and everything else are the caller's. Band geometry is
-  /// untouched — the paint fills the same rect segments a plain color
-  /// would, ink skipping included.
+  /// Full-vocabulary band fill, applied verbatim and taking precedence
+  /// over `color`, whose resolution rules — the translucent highlight
+  /// default included — then no longer apply. Band geometry is untouched:
+  /// the paint fills the same rect segments, ink skipping included.
   std::optional<SkPaint> paint;
 
   /** Compares kind, span, side, fill (color and paint override), geometry

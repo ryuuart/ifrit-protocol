@@ -33,14 +33,11 @@ class FontContext;
 [[nodiscard]] std::vector<CharRange> findAllOccurrences(
     const Paragraph& paragraph, std::u8string_view utf8Needle);
 
-/** Returns every non-overlapping occurrence inside the clamped `scope`,
+/** Returns every non-overlapping occurrence inside the clamped @p scope,
  * as if that window were the whole string — a match never extends past
- * either edge.
- *
- * This is the cost control for large documents: scope the query to what
- * the layout actually placed (e.g. up to
- * ParagraphLayout::firstUnplacedWord's textBegin) and the search is bounded
- * by the geometry, not the text.
+ * either edge. It is the cost control for large documents: scope the
+ * query to what the layout actually placed and the search is bounded by
+ * the geometry rather than by the text.
  */
 [[nodiscard]] std::vector<CharRange> findAllOccurrences(
     const Paragraph& paragraph, std::u16string_view needle, CharRange scope);
@@ -68,15 +65,11 @@ std::optional<std::vector<CharRange>> findRegexMatches(
 [[nodiscard]] std::vector<CharRange> wordRanges(Paragraph& paragraph,
                                                 FontContext& fontContext);
 
-/// Named range sets that follow edits. Ranges are adjusted by replaying the
-/// paragraph's recorded edit ops:
-///   - text inserted/removed before a range shifts it;
-///   - a replacement overlapping a range is absorbed into it (the range
-///     grows to cover the inserted text);
-///   - ranges that collapse to empty are dropped.
-///
-/// An insertion exactly at a range's start joins the range; one exactly at
-/// its (exclusive) end does not.
+/// Named range sets that follow edits, adjusted by replaying the
+/// paragraph's recorded edit operations: text inserted or removed before
+/// a range shifts it, an overlapping replacement is absorbed into it, and
+/// a range that collapses to empty is dropped. An insertion exactly at a
+/// range's start joins the range; one at its exclusive end does not.
 class MarkerSet {
  public:
   MarkerSet() = default;

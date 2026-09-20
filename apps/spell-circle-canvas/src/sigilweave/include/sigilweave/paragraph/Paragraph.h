@@ -5,14 +5,8 @@
  *
  * The document model: UTF-16 text carrying normalized style spans, optional
  * inline placeholders, and a horizontal or vertical-RL writing mode. Build
- * one with ParagraphBuilder (fluent addText / pushStyle) or append directly,
- * then edit it in place — replaceText, setPaint, setStyle,
- * appendPlaceholder — with the shape cache absorbing every unchanged word.
- * Hand the finished Paragraph, plus a FontContext and a Flow geometry, to
- * layoutParagraph() (layout/ParagraphLayout.h). The words the analysis
- * produces are the types in Word.h; styling types live in style/Style.h;
- * the range-query and marker conveniences live in the optional
- * query/Query.h.
+ * one with ParagraphBuilder or append directly, edit it in place, and hand
+ * the result to layoutParagraph() with a FontContext and a flow geometry.
  */
 
 #include <cstddef>
@@ -29,22 +23,14 @@
 #include "sigilweave/unicode/Unicode.h"
 
 /** THE TEXT ENGINE: shaping, line breaking and painting for styled text,
- *  built directly on HarfBuzz and ICU over Skia's drawing primitives.
- *
- *  A passage is a `Paragraph` — UTF-16 text carrying normalized style
- *  spans — analysed into `Word`s and shaped through a per-thread
- *  `FontContext` whose cache is keyed on the shaping half of a style, so
- *  an edit reshapes only the words it touched. `layoutParagraph()` breaks
- *  the shaped words into a `FlowGeometry` and answers a
- *  `ParagraphLayout`, which draws, measures and can be queried for the
- *  glyphs a `Selector` addresses.
- *
- *  Reach for it when text must be set rather than merely drawn: mixed
- *  styles in one passage, justification, hyphenation, vertical writing,
- *  text flowing around a shape or along a path, ruby, columns filled from
- *  one story, or per-glyph animation. A single label on a canvas is
- *  cheaper through `kit::drawLabel`. The engine draws; it owns no window,
- *  no device and no document format. */
+ *  built directly on HarfBuzz and ICU over Skia's drawing primitives. A
+ *  passage is a `Paragraph`, analysed into `Word`s and shaped through a
+ *  per-thread `FontContext` so an edit reshapes only the words it
+ *  touched; `layoutParagraph()` breaks them into a `FlowGeometry` and
+ *  answers a `ParagraphLayout`, which draws, measures and is queried by a
+ *  `Selector`. Reach for it when text must be SET rather than merely
+ *  drawn; a single label is cheaper through `kit::drawLabel`. The engine
+ *  draws: it owns no window, no device and no document format. */
 namespace sigil::weave {
 
 class FontContext;
@@ -103,56 +89,32 @@ class Paragraph {
     return m_writingMode;
   }
 
-  /** Sets whether a soft hyphen (U+00AD) opens a break opportunity.
-   *
-   * True (the default) splits the word there, so a breaker may end a line at
-   * the hyphen and render `Word::hyphenGlyph`. False fuses the word back into
-   * one unbreakable `Word` whose text spans the hyphen: no breaker can split
-   * it, no hyphen is ever rendered, and the word wraps or overflows whole.
-   *
-   * Break opportunities are decided during analysis, so this belongs to the
-   * paragraph rather than to a layout pass — changing it re-runs the ICU
-   * segmentation and re-derives the word list. The fused word is a different
-   * string from either half, so it is a different content-addressed shaping
-   * entry; toggling back finds both sets of entries warm.
-   *
-   * `layoutParagraph` sets this from `HyphenationOptions::enabled` before it
-   * analyzes, so callers who go through it never call this directly.
-   */
+  /** Sets whether a soft hyphen (U+00AD) opens a break opportunity. True
+   * (the default) lets a breaker end a line there and render
+   * `Word::hyphenGlyph`; false fuses the word into one unbreakable `Word`
+   * that wraps or overflows whole. Re-runs the ICU segmentation.
+   * @trap `layoutParagraph` sets this from `HyphenationOptions::enabled`,
+   * so a caller going through it must not call this. */
   void setSoftHyphenBreaks(bool enabled);
   /** Returns whether a soft hyphen opens a break opportunity. */
   [[nodiscard]] bool softHyphenBreaks() const noexcept {
     return m_softHyphenBreaks;
   }
 
-  /** Sets what is asked where INSIDE a word may break — see
-   * paragraph/Hyphenation.h.
-   *
-   * Empty (the default) leaves the soft hyphens the author typed as the
-   * only discretionary opportunities. A hyphenator is consulted once per
-   * word during analysis, in the shaping style's own language tag, and the
-   * offsets it names become break opportunities carrying a hyphen glyph
-   * exactly as a typed soft hyphen does. Break opportunities are decided
-   * during analysis, so this belongs to the paragraph: changing it re-runs
-   * the segmentation. It has no effect while soft-hyphen breaks are off,
-   * because that setting is the switch for the whole discretionary idea.
-   *
-   * `layoutParagraph` sets this from `HyphenationOptions::patterns` before
-   * it analyzes, so callers who go through it never call this directly. The
-   * paragraph KEEPS the hyphenator: every re-analysis asks it again, and
-   * those happen for as long as the text is edited, so a hyphenator built
-   * for one document need not be kept alive by anyone else.
-   */
+  /** Sets what is asked where INSIDE a word may break. Empty (the default)
+   * leaves the author's soft hyphens as the only discretionary
+   * opportunities. Consulted once per word during analysis, so setting it
+   * re-runs the segmentation, and the paragraph KEEPS the hyphenator.
+   * @silent soft-hyphen breaks are off, that being the switch for the
+   * whole discretionary idea. */
   void setHyphenator(std::shared_ptr<const Hyphenator> hyphenator,
                      HyphenationLimits limits);
-  /** Sets which characters may not stand at a line's edge — see
-   * KinsokuTable in paragraph/Hyphenation.h.
-   *
-   * A prohibition is a break opportunity that is never opened, so it is
-   * decided during segmentation like every other break opportunity, and
-   * neither breaker learns a rule. `layoutParagraph` sets this from
-   * `ParagraphLayoutOptions::kinsoku` before it analyzes.
-   */
+  /** Sets which characters may not stand at a line's edge. A prohibition
+   * is a break opportunity the segmentation never opens, so no breaker
+   * learns a rule.
+   * @trap `layoutParagraph` sets this from
+   * `ParagraphLayoutOptions::kinsoku`, so a caller going through it must
+   * not call this. */
   void setKinsoku(KinsokuTable table);
   /** THIS PARAGRAPH, TOLD APART FROM EVERY OTHER — a number issued once
    * when it is built and never issued again, so a cache keyed on it cannot
@@ -162,28 +124,18 @@ class Paragraph {
   [[nodiscard]] uint64_t identity() const { return m_identity; }
 
   /** A NUMBER THAT CHANGES WHENEVER THE WORD LIST CAN HAVE CHANGED — an
-   * edit, a restyle, a change of break settings. Anything that keeps an
-   * answer computed from this paragraph's WORDS keys on it, and a change
-   * of content is then a miss rather than a stale answer. It is not the
-   * text revision above, which counts edits alone and stands still while a
-   * style or a break setting moves every word in the paragraph.
-   *
-   * Shaping more of the text does NOT change it: a word's advance is
-   * settled when the word is shaped and never moves after, so an answer
-   * computed over the words a pass had shaped stays the answer.
-   */
+   * edit, a restyle, a change of break settings — so anything keyed on
+   * this paragraph's WORDS misses rather than answering stale.
+   * @trap It is not `revision`, which counts edits alone and stands still
+   * while a restyle moves every word; and shaping more of the text does
+   * not change it, a shaped word's advance never moving after. */
   [[nodiscard]] uint64_t wordRevision() const { return m_wordRevision; }
 
   /** Sets the TAILORING the line segmentation runs under: a BCP 47 tag,
-   * optionally carrying ICU's line-break keyword — "ja@lb=strict" is the
-   * strict Japanese rule set a printed page is set under, "zh@lb=loose"
-   * the loose Chinese one — and empty is the untailored behaviour a text
-   * that says nothing gets.
-   *
-   * It is where a script's own prohibitions come from before any table
-   * does: a tailoring the segmentation applies is a boundary that never
-   * opens, so nothing downstream learns a rule. A KinsokuTable stays the
-   * seam for a HOUSE's additions on top of it.
+   * optionally carrying ICU's line-break keyword — "ja@lb=strict",
+   * "zh@lb=loose" — and empty is the untailored behaviour. It is where a
+   * script's own prohibitions come from before any table does; a
+   * `KinsokuTable` is the seam for a house's additions on top.
    */
   void setLineBreakLocale(std::string locale);
   /** The tailoring the line segmentation runs under. */
@@ -224,13 +176,11 @@ class Paragraph {
    * — the rest hit the cache.
    */
   void setStyle(uint32_t start, uint32_t end, const TextStyle& style);
-  /** Applies draw-time paint to one UTF-16 range without re-analyzing text.
-   *
-   * Same span surgery as setStyle, but shaping keys are untouched and the
-   * text didn't move, so the next ensure* skips ICU re-analysis entirely —
-   * it only re-derives the already-shaped words' segments against the new
-   * span list (pure shape-cache hits unless a boundary lands mid-word).
-   * Cost is bounded by the shaped prefix, not the text.
+  /** Applies draw-time paint to one UTF-16 range without re-analyzing
+   * text. Shaping keys are untouched and the text did not move, so the
+   * next ensure only re-derives the already-shaped words' segments against
+   * the new span list; the cost is bounded by the shaped prefix rather
+   * than by the text.
    */
   void setPaint(uint32_t start, uint32_t end, const PaintStyle& paint);
   /** Applies one paint to sanitized ranges in a single span-list rebuild
@@ -271,22 +221,16 @@ class Paragraph {
    * Runs segmentation + shaping if anything changed since the last call.
    */
   void ensureShaped(FontContext& fontContext);
-  /** Ensures break, bidi, and script analysis without shaping glyphs.
-   *
-   * Segmentation only (ICU boundaries, bidi, scripts — no HarfBuzz work):
-   * words() gets its break/direction structure but no glyphs or widths yet.
-   * ParagraphLayout drives shaping lazily from here, so a paragraph that
-   * overflows its geometry only ever shapes the words that can actually
-   * land.
+  /** Ensures break, bidi and script analysis without shaping glyphs:
+   * segmentation only — ICU boundaries, bidi, scripts, no HarfBuzz work —
+   * so `words` gets its break and direction structure and no glyphs or
+   * widths. Layout drives shaping lazily from here.
    */
   void ensureAnalyzed(FontContext& fontContext);
-  /** Lazily shapes words in `[0, wordCount)`, ascending and idempotent — the
-   * breakers call this just ahead of their frontier.
-   *
-   * A frontier that has already passed `wordCount` answers here, without a
-   * call: both breakers ask this once per word they consider, and on all
-   * but the few words that actually advance the frontier the answer is
-   * that there is nothing to do.
+  /** Lazily shapes words in `[0, wordCount)`, ascending and idempotent —
+   * the breakers call this just ahead of their frontier.
+   * @silent the frontier has already passed @p wordCount, which is the
+   * answer on all but the few words that actually advance it.
    */
   void ensureShapedTo(FontContext& fontContext, uint32_t wordCount) {
     if (!m_dirty && !m_paintDirty && wordCount <= m_shapedWordCount) return;
@@ -300,15 +244,11 @@ class Paragraph {
   const std::vector<Word>& words() const { return m_words; }
 
   /** Returns the UTF-16 offset where each sentence of the text starts,
-   * ascending, the first entry always 0 (empty for empty text). The sentence
-   * containing an offset is the last entry not greater than it.
-   *
+   * ascending, the first entry always 0 and empty for empty text; the
+   * sentence containing an offset is the last entry not greater than it.
    * ICU sentence segmentation, run on first call and reused until the text
-   * changes: a paragraph nobody asks never runs the pass, and one whose text
-   * is unchanged runs it once no matter how many frames read it. Style and
-   * paint edits leave it valid. Independent of ensureAnalyzed() — no shaping,
-   * no words, no fonts are involved.
-   */
+   * changes, and independent of `ensureAnalyzed` — no shaping, no words
+   * and no fonts are involved. */
   [[nodiscard]] std::span<const uint32_t> sentenceStarts() const;
 
   /// Line-height inputs from a span's font (the "strut"): the ascent and

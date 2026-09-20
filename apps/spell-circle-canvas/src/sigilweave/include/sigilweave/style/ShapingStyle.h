@@ -53,16 +53,11 @@ struct FontVariation {
 
 /// Case transformation applied to a span's text just before shaping (CSS
 /// text-transform). The shaped glyphs come from the transformed text while
-/// the Paragraph's stored text, edit ranges, and query results all remain
-/// untransformed — matching how browser engines treat the property as a
-/// rendering effect, not an edit. Because the transformed text is itself
-/// the shape-cache key text, "HELLO" typed directly and "hello" with
-/// kUppercase share one cache entry. Case mapping is locale-sensitive via
-/// ShapingStyle::languageTag (Turkish dotless-i works unprompted).
-///
-/// Caveat: length-changing mappings (German ß → SS) make per-character
-/// cluster indices within such a word approximate for hit-testing; line
-/// breaking runs on the untransformed text.
+/// the paragraph's stored text, edit ranges and query results stay
+/// untransformed, and the mapping is locale-sensitive through
+/// `ShapingStyle::languageTag`. A length-changing mapping (ß → SS) makes
+/// per-character cluster indices inside such a word approximate for
+/// hit-testing; line breaking runs on the untransformed text.
 enum class TextTransform : uint8_t {
   kNone,
   kUppercase,
@@ -95,32 +90,28 @@ struct ShapingStyle {
   float letterSpacing = 0.0f;  ///< px of tracking added after each cluster
                                ///< (in vertical text this is JIS "aki")
   /// Horizontal glyph condensation (CSS font-stretch by transform): glyph
-  /// shapes AND advances scale by this on the x axis. It is how a face with
-  /// no `wdth` axis is condensed or extended. Letter-spacing is NOT scaled
-  /// (matches CSS). Part of the shape-cache key; vertical text condenses
-  /// glyph width only, never column advance.
+  /// shapes AND advances scale by this on the x axis, which is how a face
+  /// with no `wdth` axis is condensed. Letter spacing is not scaled, and
+  /// vertical text condenses glyph width only, never column advance.
   float scaleX = 1.0f;
   /// Extra px added to each word's trailing-whitespace glue (CSS
-  /// word-spacing). Applied after the whitespace is measured, so changing
-  /// it re-derives words at pure shape-cache-hit cost — it is compared for
-  /// restyle detection but is NOT part of the shape-cache key. Negative
-  /// values shrink gaps; the glue is floored at zero.
+  /// word-spacing), applied after the whitespace is measured, so changing
+  /// it re-derives words at shape-cache-hit cost and is NOT part of the
+  /// cache key. Negative shrinks the gaps, and the glue floors at zero.
   float wordSpacing = 0.0f;
-  /// BCP-47 language used both for language-sensitive font fallback and by
-  /// HarfBuzz to select OpenType language systems / localized (`locl`)
-  /// substitutions. It is deliberately part of the shape key: even when the
-  /// resolved typeface is unchanged, language can change its emitted glyphs.
-  /// Bidi direction is analyzed separately and does not come from this tag.
+  /// BCP-47 language, used for language-sensitive font fallback and by
+  /// HarfBuzz to select OpenType language systems and localized (`locl`)
+  /// substitutions. It is part of the shape key, because language can
+  /// change the emitted glyphs of an unchanged face. Bidi direction is
+  /// analyzed separately and does not come from this tag.
   std::string languageTag;  ///< e.g. "ja", "sr", "zh-Hant"; empty → default
   std::vector<FontFeature> fontFeatures;  ///< passed to HarfBuzz verbatim
-  /// Design-space overrides applied to `typeface` (or the context default)
-  /// before shaping — the ergonomic alternative to pre-building a varied
-  /// SkTypeface via SkFontArguments yourself. Resolution goes through
-  /// FontContext's memoized clone cache, so the varied face's uniqueID is a
-  /// stable shape-cache identity and HarfBuzz mirrors the same design
-  /// position Skia rasterizes. Order-sensitive: [{"wght",700},{"wdth",80}]
-  /// and its permutation resolve to equivalent faces but occupy two memo
-  /// entries — keep a consistent order at call sites.
+  /// Design-space overrides applied to the typeface, or the context
+  /// default, before shaping. Resolution goes through the font context's
+  /// memoized clone cache, so the varied face's unique id is a stable
+  /// shape-cache identity. Order-sensitive: a permutation resolves to an
+  /// equivalent face and occupies a second memo entry, so keep one order
+  /// at every call site.
   std::vector<FontVariation> variations;
   /// Case transformation applied before shaping; see TextTransform for the
   /// cache and hit-testing story.
@@ -128,40 +119,20 @@ struct ShapingStyle {
   VerticalForm verticalForm = VerticalForm::kAuto;  ///< ignored in horizontal
                                                     ///< paragraphs
 
-  /** Draw glyphs with HARD edges — no antialiasing.
-   *
-   *  This lives on the style because Skia takes glyph edging from the
-   *  `SkFont`, never from the paint: `paint.foreground.setAntiAlias(false)`
-   *  is silently ignored on text, so a caller has no other way to ask for
-   *  aliased glyphs while still going through shaping, bidi, fallback and
-   *  flow geometry.
-   *
-   *  It selects a rasterisation, not a face. The outlines are unchanged;
-   *  only their coverage is thresholded, which is what small bitmap-era UI
-   *  type looks like. Part of the shape-cache key, since the shaped run
-   *  carries the flag through to the SkFont used at draw time. */
+  /** Draw glyphs with HARD edges — no antialiasing. It selects a
+   *  rasterisation and not a face: the outlines are unchanged and only
+   *  their coverage is thresholded. Part of the shape-cache key, the
+   *  shaped run carrying the flag through to the draw.
+   *  @trap It is the only way to ask, Skia taking glyph edging from the
+   *  `SkFont` and ignoring `setAntiAlias(false)` on text. */
   bool aliased = false;
 
   /** SET EVERY PAIR AS TIGHT AS THIS FACE'S OWN EVEN PAIR, by measuring
-   *  the letters rather than by reading the face's kerning table.
-   *
-   *  A face's kerning is a designer's table of pairs. This is the answer
-   *  when there is none, or when a line mixes faces that never met: each
-   *  adjacent pair's outlines are measured for the narrowest distance
-   *  between them, and the pair is closed — or opened — until that
-   *  distance is the one the face's own reference pair leaves. The face's
-   *  table is switched off while this is on, because the two are answers
-   *  to the same question and a page takes one of them.
-   *
-   *  IT IS AN APPROXIMATION. A designer kerns by judging the white between
-   *  two letters as an area and as a rhythm; this measures a distance in
-   *  bands. A pair a designer would have opened for legibility, and a pair
-   *  whose white is wide but shallow, both come out tighter here. What the
-   *  library does NOT decide is how tight type should be: the reference is
-   *  the face's own even pair, so a loose face stays loose.
-   *
-   *  It reaches between the letters of one word. Two words are separated
-   *  by a space, whose own width is the setting's to spend. */
+   *  the letters rather than by reading the face's kerning table — the
+   *  answer when a face has none, or when a line mixes faces that never
+   *  met. It reaches between the letters of one word only.
+   *  @trap The face's own kerning table is switched off while this is on,
+   *  the two being answers to one question. */
   bool opticalKerning = false;
 
   /** Compares every input that participates in shaping identity. */

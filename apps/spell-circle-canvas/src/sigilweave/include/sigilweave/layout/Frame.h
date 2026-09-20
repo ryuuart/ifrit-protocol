@@ -3,10 +3,9 @@
 /** @file
  * @ingroup weave-layout
  *
- * HOW A FRAME SEATS WHAT IT HOLDS — where the first baseline sits and what
- * becomes of the room left over — the band reserved beside every line for
- * something set alongside the type, and the snapping text on a path is
- * drawn with.
+ * HOW A FRAME SEATS WHAT IT HOLDS — where the first baseline sits and
+ * what becomes of the room left over — the band reserved beside every
+ * line, and the snapping text on a path is drawn with.
  */
 
 #include <cstdint>
@@ -22,25 +21,13 @@ struct PathTextOptions {
   bool operator==(const PathTextOptions&) const = default;
 };
 
-/**
- * How a frame seats the lines it holds — the two decisions a frame makes
- * that no line makes for itself.
- *
- * WHERE THE FIRST BASELINE SITS is otherwise the first line's own ascent,
- * so two frames of different type start their text at different heights;
- * naming a cap height, an x-height or a fixed offset instead pins the first
- * line to something the page can be ruled against.
- *
- * WHAT BECOMES OF THE ROOM LEFT OVER is otherwise nothing: the lines stack
- * from the top and the remainder is air underneath. Centring or seating the
- * text against the far edge translates the whole block; justifying it
- * spreads the remainder BETWEEN the lines, as extra leading, which is what
- * a column of a magazine does to reach its foot.
- *
- * Both need to know how deep the frame is, which a geometry knows and the
- * layout does not, so `extent` states it: 0 leaves both decisions alone.
- * Neither applies to a flow whose intervals ride a contour — a loop has no
- * near edge to measure from.
+/** How a frame seats the lines it holds — the two decisions a frame
+ * makes that no line makes for itself: where the first baseline sits,
+ * otherwise the first line's own ascent, and what becomes of the room
+ * left over, otherwise air under the last line. Both need the frame's
+ * depth, which `FrameOptions::extent` states.
+ * @silent `extent` is 0, or the flow's intervals ride a contour, a loop
+ * having no near edge to measure from.
  */
 struct FrameOptions {
   /** What the first baseline's distance from the top of the frame is
@@ -76,22 +63,12 @@ struct FrameOptions {
   bool operator==(const FrameOptions&) const = default;
 };
 
-/**
- * SPACE RESERVED BESIDE EVERY LINE, over and above the leading — the band
- * something set alongside the type occupies: a reading over a base, a row
- * of emphasis dots, a note in the gutter.
- *
- * It is a LAYOUT INPUT and that is the whole point of it. The band is
- * stated before the text is laid out, from the annotation's own metrics,
- * never from where the base's glyphs turned out to land — so the base is
- * broken and placed once, with the room already in its strut, and the
- * annotation is then placed on the result. Nothing chases anything.
- *
- * `before` is above a line and to the RIGHT of a column, `after` below a
- * line and to the LEFT of one: the sides each writing mode reads its
- * furniture on. Both open the pitch; `before` also moves the baseline down
- * inside the band, so the type stays where the reader expects it and the
- * room appears where the reading goes.
+/** SPACE RESERVED BESIDE EVERY LINE, over and above the leading — the
+ * band a reading, a row of emphasis dots or a gutter note occupies. It is
+ * a LAYOUT INPUT, stated from the annotation's own metrics before the
+ * text is broken, so nothing chases anything. `before` is above a line
+ * and to the RIGHT of a column, `after` below and to the LEFT; both open
+ * the pitch, and `before` also moves the baseline down inside the band.
  */
 struct ReservedBand {
   float before = 0;

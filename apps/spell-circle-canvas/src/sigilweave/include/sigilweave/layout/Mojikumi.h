@@ -14,19 +14,12 @@
 
 namespace sigil::weave {
 
-/**
- * WHICH KIND OF CHARACTER A MOJIKUMI RULE IS ABOUT.
- *
- * Japanese setting spaces full-width characters by the CLASS of the two
- * either side of a gap rather than by the characters themselves: an
- * opening bracket carries its ink in its right half and a closing bracket
- * in its left, so two brackets back to back leave a full em of white
- * between two marks that are each half air, and a page sets them closer.
- *
- * WHICH characters are of which class is a decision, so it is data — a
- * house sets its own — with one exception the engine answers for itself:
- * whether a character stands in a full-width cell at all is a property of
- * the character, not an opinion about it.
+/** WHICH KIND OF CHARACTER A MOJIKUMI RULE IS ABOUT. Japanese setting
+ * spaces full-width characters by the CLASS of the two either side of a
+ * gap rather than by the characters themselves. Which characters are of
+ * which class is a decision, so it is data a house sets; whether a
+ * character stands in a full-width cell at all is a property of the
+ * character and the engine answers it.
  */
 enum class MojikumiClass : uint8_t {
   kOther,      ///< not full-width, or not a class the table names
@@ -39,20 +32,12 @@ enum class MojikumiClass : uint8_t {
   kCount
 };
 
-/**
- * HOW MUCH ROOM STANDS BETWEEN TWO ADJACENT FULL-WIDTH CHARACTERS.
- *
- * `members` names the characters of each class, one character per entry,
- * exactly as a kinsoku table names its prohibitions; a full-width
- * character no entry names is kIdeograph, and everything else is kOther.
- * `room` is then read by the class of the character BEFORE the gap and the
- * class of the one after it, as a fraction of the em: negative closes the
- * gap up, which is what nearly every entry of a real table does.
- *
- * It is applied where the two characters are adjacent across a BREAK
- * OPPORTUNITY, which between full-width characters is nearly every gap
- * there is; two characters shaped inside one word are set by the face and
- * by the shaper, and no table moves them.
+/** HOW MUCH ROOM STANDS BETWEEN TWO ADJACENT FULL-WIDTH CHARACTERS.
+ * `members` names the characters of each class, one per entry; `room` is
+ * read by the class before the gap and the class after it, as a fraction
+ * of the em, negative closing the gap up.
+ * @silent the two characters were shaped inside ONE WORD: a table is
+ * applied across a break opportunity, and the face sets the rest.
  */
 struct MojikumiTable {
   static constexpr size_t kClasses = static_cast<size_t>(MojikumiClass::kCount);

@@ -4,11 +4,10 @@
  * @ingroup weave-shaping
  *
  * Lower-level shaping types the pipeline is built on. A ShapedWord is the
- * immutable, cache-shared result of shaping one word-sized segment with one
- * resolved typeface / script / direction (glyphs, advances, clusters, and a
- * lazily built origin-relative SkTextBlob). Most callers never include this
- * directly — Paragraph owns the shaping and ParagraphLayout owns the
- * placement; reach for it only to inspect or reuse individual glyph runs.
+ * immutable, cache-shared result of shaping one word-sized segment with
+ * one resolved typeface, script and direction. Paragraph owns the shaping
+ * and ParagraphLayout the placement; reach for these only to inspect or
+ * reuse individual glyph runs.
  */
 
 #include <include/core/SkFontMetrics.h>

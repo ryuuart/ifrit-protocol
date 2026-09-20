@@ -13,17 +13,12 @@
 
 namespace sigil::weave {
 
-/** One tab stop: where the pen goes, what it aligns there, and what fills
- * the gap behind it.
- *
- * `kStart` puts the text after the stop, `kEnd` ends it there, `kCenter`
- * straddles it, and `kCharacter` lines the FIRST `alignOn` in the following
- * text up on it — which is the decimal column a table of figures wants, and
- * falls back to `kEnd` for a cell that holds no such character.
- *
- * `leader` is set repeatedly across the gap the stop opened, clipped to it,
- * in the style of the text ahead of the tab: a run of dots between a
- * heading and its page number is one string here rather than typed content.
+/** One tab stop: where the pen goes, what it aligns there, and what
+ * fills the gap behind it. `kCharacter` lines the FIRST `alignOn` in the
+ * following text up on the stop — the decimal column a table of figures
+ * wants — and falls back to `kEnd` for a cell holding no such character.
+ * `leader` is set repeatedly across the gap, clipped to it, in the style
+ * of the text ahead of the tab.
  */
 struct TabStop {
   /** What the stop pins at its position. */
@@ -40,22 +35,14 @@ struct TabStop {
   bool operator==(const TabStop&) const = default;
 };
 
-/** Tab-character handling for straight horizontal flows.
- *
- * A word whose trailing whitespace contains a tab advances the pen to the
- * next stop instead of its measured glue: first through `stops` (ascending,
- * px from each line interval's start), then repeating every `interval` px
- * past the last explicit stop. With no stop ahead (or no configuration at
- * all — the default) tabs keep their shaped space-equivalent width.
- *
- * Both breakers resolve stops identically: greedy fits against tab-resolved
- * widths as it goes, and Knuth-Plass scores every candidate line at its
- * tab-resolved width. Stops are line-local — alignment other than kStart
- * shifts the resolved line as a whole. Tab gaps are rigid under
- * justification, and gaps at or before a line's last tab never stretch or
- * shrink (the following stop would swallow the adjustment and unpin the
- * column); only the gaps past the last tab absorb slack.
- * Scope: straight horizontal intervals, LTR lines.
+/** Tab-character handling for straight horizontal left-to-right flows. A
+ * word whose trailing whitespace contains a tab advances the pen to the
+ * next stop instead of its measured glue: through `stops` first, then
+ * repeating every `interval` px past the last explicit one. Tab gaps are
+ * rigid under justification, and only the gaps past a line's last tab
+ * absorb slack.
+ * @silent no stop lies ahead, or nothing is configured at all, and then
+ * tabs keep their shaped space-equivalent width.
  */
 struct TabStopOptions {
   std::vector<TabStop> stops;  ///< explicit stops, ascending

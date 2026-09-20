@@ -13,18 +13,12 @@
 
 namespace sigil::weave {
 
-/** A DISTANCE THAT MAY BE STATED AGAINST A SIZE IT DOES NOT CARRY.
- *
- *  A style written once and set at several sizes states its distances as
- *  MULTIPLES rather than as pixels: half the type size is one distance at
- *  13 px and another at 48, and a length that had baked the pixels in
- *  would be right at one size and wrong at every other.
- *
- *  PIXELS ARE IMPLICIT, so a plain number already is a length — `13` is
- *  thirteen pixels and takes no suffix. The three relative units name what
- *  they are multiples of, and a `Length` carries nothing else: WHO resolves
- *  one is whoever knows that number, which is the whole reason to keep the
- *  unit and leave the resolution out. */
+/** A DISTANCE THAT MAY BE STATED AGAINST A SIZE IT DOES NOT CARRY — a
+ *  multiple of the type size, of the root size, or of the line height,
+ *  for a style written once and set at several sizes. PIXELS ARE
+ *  IMPLICIT, so a plain number already is a length and takes no suffix. A
+ *  `Length` carries the unit and nothing else: who resolves one is
+ *  whoever knows the number it is a multiple of. */
 struct Length {
   /** What the value is a multiple of. */
   enum class Unit : uint8_t {

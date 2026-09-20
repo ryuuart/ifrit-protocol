@@ -3,16 +3,10 @@
 /** @file
  * @ingroup weave-document
  *
- * The GRANULARITY a passage is addressed by: `Unit`, one enumeration with
- * one spelling — `Unit::Word`.
- *
- * Every question something asks of finished text — which glyphs a
- * selection covers, what a stagger steps over, what an annotation stands
- * beside — is asked at one of these sizes. Five of them are sizes this
- * engine already segments at: the shaper's clusters, the Unicode leaf's
- * word and sentence breaks, the breaker's lines. The sixth is the extent
- * the caller named, which the engine segments at nothing and reads off
- * the question instead.
+ * The GRANULARITY a passage is addressed by: `Unit`, one enumeration.
+ * Every question something asks of finished text is asked at one of its
+ * sizes — five the engine already segments at, and the extent the caller
+ * named, which it segments at nothing and reads off the question.
  */
 
 #include <cstdint>
@@ -25,16 +19,9 @@ namespace sigil::weave {
  *  combining marks, or the several glyphs an emoji sequence shapes to,
  *  are ONE cluster and move together. `Glyph` is the raw shaping unit and
  *  will separate those marks from what they sit on.
- *
- *  `Selection` is the odd one: not a size the engine segments at, but the
- *  extent the CALLER named — one unit per extent a selector addresses,
- *  however many clusters, words or lines that extent turns out to be made
- *  of, and one for each of two extents even where they touch and nothing
- *  divides them. It is what a reading over a compound is placed from,
- *  because a compound is a selection and not a break opportunity: a
- *  breaker may open an opportunity inside one. Nothing numbers it before
- *  the selector is resolved, so it is answered where the selection is and
- *  not off the placement. */
+ *  @trap `Selection` is not a size the engine segments at but the extent
+ *  the CALLER named, so nothing numbers it before the selector is
+ *  resolved. */
 enum class Unit : uint8_t { Glyph, Cluster, Word, Line, Sentence, Selection };
 
 }  // namespace sigil::weave

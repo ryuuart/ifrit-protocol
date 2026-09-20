@@ -23,15 +23,11 @@
 
 namespace sigil::weave {
 
-/**
- * How far apart a block's lines stand — its PITCH, which in a vertical
- * setting is the width of its columns.
- *
- * `face` takes the first span's own line height, which is what a text that
- * says nothing has always used. `multiple` scales that. `absolute` states
- * it outright in px. `grid` states a rhythm rather than a pitch: the
- * block's own height rounds UP to a multiple of it, so blocks set on the
- * same grid share one rhythm however differently their faces are cut.
+/** How far apart a block's lines stand — its PITCH, which in a vertical
+ * setting is the width of its columns. `face` is the first span's own
+ * line height, `multiple` scales that, `absolute` states it in px, and
+ * `grid` states a rhythm instead: the block's own height rounds UP to a
+ * multiple of it.
  */
 struct Leading {
   /** How `value` is read. Each has a factory below that names it. */
@@ -60,20 +56,13 @@ struct Leading {
   bool operator==(const Leading&) const = default;
 };
 
-/**
- * Where a block's lines start and end across the measure.
- *
- * `start` and `end` inset every line of the block from the two ends of
- * whatever interval the geometry offered — the near end being the one the
- * pen enters, so a line and a column read them the same way round.
- * `firstLine` and `lastLine` are added to `start` on the block's first and
- * last line only; a NEGATIVE `firstLine` is the hanging indent a bullet or
- * a number hangs into.
- *
- * An indent is arithmetic on the interval the geometry handed back, so it
- * composes with exclusions and columns without either knowing about it: a
- * line broken into three intervals by a shape is inset at its outermost
- * ends and nowhere in the middle.
+/** Where a block's lines start and end across the measure, in px, from
+ * the two ends of whatever interval the geometry offered — the near end
+ * being the one the pen enters, so a line and a column read them the same
+ * way round. A NEGATIVE `firstLine` is the hanging indent a bullet hangs
+ * into.
+ * @trap An indent is arithmetic on the interval, so a line a shape broke
+ * into three is inset at its outermost ends and nowhere in the middle.
  */
 struct IndentOptions {
   float start = 0;      ///< px inset at the end the pen enters, every line
@@ -83,26 +72,13 @@ struct IndentOptions {
   bool operator==(const IndentOptions&) const = default;
 };
 
-/**
- * Which of a block's lines refuse to be parted from each other.
- *
- * Every one of these is a statement about a FRAME BOUNDARY — a widow
- * stands at the head of the next frame, an orphan at the foot of this one,
- * a kept-together pair straddles the join — so they are settled where the
- * boundary is: the fill runs, and lines the block may not leave behind are
- * taken back out of it and reported as overflow, which is how they reach
- * the next frame of the chain. No break is re-decided and nothing is
- * weighed against spacing, so BOTH BREAKERS obey these identically.
- *
- * A keep never empties a frame. A retraction that would leave the fill
- * with nothing is dropped: the text would arrive at the next frame in
- * exactly the state that emptied this one, and the chain would never
- * advance.
- *
- * `widowLines` is the one that asks about a frame this fill cannot see, so
- * it counts the carried lines at the measure THIS frame's last line was
- * set in. A chain of equal frames — the ordinary one — counts exactly; a
- * chain that changes width counts the carried lines at the wrong measure.
+/** Which of a block's lines refuse to be parted from each other. Each is
+ * a statement about a FRAME BOUNDARY, so each is settled where the
+ * boundary is: the fill runs, and lines the block may not leave behind
+ * are taken back out and reported as overflow. No break is re-decided, so
+ * BOTH BREAKERS obey these identically.
+ * @trap A keep never empties a frame: a retraction that would leave the
+ * fill with nothing is dropped, or the chain would never advance.
  */
 struct KeepOptions {
   /// Fewest lines of the block that may stand alone at the START of a
@@ -120,19 +96,13 @@ struct KeepOptions {
   bool operator==(const KeepOptions&) const = default;
 };
 
-/**
- * ONE BLOCK'S SETTING — the paragraph controls, as one comparable value.
- *
- * Everything above the overrides is the block's own and has no
- * layout-wide counterpart. The four optionals below are the layout-wide
- * settings of the same names: present, the block is set that way; absent,
- * the layout's own answer stands. That is what makes a text with no block
- * styles lay out exactly as one that never heard of them.
- *
- * SPACE BEFORE AND AFTER DO NOT COLLAPSE AND ARE NOT SUPPRESSED. The gap
- * between two blocks is the LARGER of the first's `spaceAfter` and the
- * second's `spaceBefore`, everywhere, including at the head of a frame.
- * One rule, no exceptions to hold in the head.
+/** ONE BLOCK'S SETTING — the paragraph controls, as one comparable
+ * value. Everything above the four optionals is the block's own; each
+ * optional is the layout-wide setting of the same name, the layout's own
+ * answer standing where the block states nothing.
+ * @trap SPACE BEFORE AND AFTER DO NOT COLLAPSE AND ARE NOT SUPPRESSED:
+ * the gap between two blocks is the LARGER of the two, everywhere, the
+ * head of a frame included.
  */
 struct ParagraphStyle {
   Leading leading;  ///< the block's pitch
@@ -147,12 +117,10 @@ struct ParagraphStyle {
   IndentOptions indent;
   KeepOptions keep;
   /// Set the block in the NARROWEST MEASURE THAT STILL TAKES THE SAME
-  /// NUMBER OF LINES, which is what a ragged heading of three lines wants:
-  /// the lines then have nowhere to be long, and that is an even rag. The
-  /// optimizing breaker searches for that measure by bisection and breaks
-  /// against it; placement still sets the lines in the measure the geometry
-  /// gave, so a centred block stays centred on the real one. Ignored by the
-  /// greedy breaker, which takes the first break that fits.
+  /// NUMBER OF LINES, which is what an even rag is. The optimizing
+  /// breaker bisects for that measure and breaks against it; placement
+  /// still sets the lines in the measure the geometry gave, so a centred
+  /// block stays centred on the real one. The greedy breaker ignores it.
   bool balanceRaggedLines = false;
   /// The block's OPENING SET LARGE — sized so its reference metric spans
   /// the lines it is given, seated on the baseline it sinks to, with the

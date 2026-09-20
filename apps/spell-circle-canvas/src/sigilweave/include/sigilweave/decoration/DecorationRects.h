@@ -4,14 +4,9 @@
  * @ingroup weave-paint
  *
  * The decoration walk over a layout's runs: every band rectangle a
- * paragraph's decorations draw, emitted through a callback with its paint
- * already resolved, so a draw only has to put the rectangle on the canvas.
- * Runs on one line that share a style and a font merge into one band that
- * also covers the glue between words, and an underline that skips ink is
- * cut around every member run's glyph intercepts, which are memoized per
- * blob. Both draws of a layout — the immediate one and the batched one —
- * run over this same walk, once for the highlights that sit beneath the
- * glyphs and once for everything that sits above them.
+ * paragraph's decorations draw, emitted through a callback with its
+ * paint already resolved. Both draws of a layout run over this same
+ * walk, once beneath the glyphs and once above them.
  */
 
 #include <include/core/SkFontMetrics.h>

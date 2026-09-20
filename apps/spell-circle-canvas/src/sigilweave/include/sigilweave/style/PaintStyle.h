@@ -20,14 +20,12 @@
 
 namespace sigil::weave {
 
-/** Draw-time glyph appearance with explicit composition order.
- *
- * Underlays are drawn in vector order (back-to-front), followed by
- * `foreground`, then overlays in vector order. The default style owns no
- * vectors and remains exactly one glyph draw. Every added layer costs one
- * additional draw for its style/font bucket; blur and image filters may add
- * backend-specific work beyond that. Updating any paint or shader through
- * Paragraph::setPaint() is visible to an existing ParagraphLayout.
+/** Draw-time glyph appearance with explicit composition order: underlays
+ * in vector order, back to front, then `foreground`, then overlays. The
+ * default style owns no vectors and is exactly one glyph draw, and every
+ * added layer costs one more draw for its style and font bucket.
+ * Updating a paint through `Paragraph::setPaint` is visible to an
+ * existing `ParagraphLayout`.
  */
 struct PaintStyle {
   SkPaint foreground;  ///< the main glyph pass, drawn between the layer lists
@@ -38,15 +36,12 @@ struct PaintStyle {
   /// vs per-word spanning, and the straight-horizontal-runs-only scope.
   std::vector<Decoration> decorations;
 
-  /// How far this span's glyphs sit ABOVE their line's baseline, px —
-  /// negative sinks them below it. Superscripts, subscripts, an inline
-  /// symbol lifted onto the x-height.
-  ///
-  /// It is placement rather than shaping: the advances are the face's own
-  /// either way, so a shifted span costs no re-shape and shares every
-  /// cache entry with an unshifted one. Straight horizontal runs only —
-  /// down a column the same idea is a step ACROSS the axis, which is what
-  /// `Decoration::offset` already means there.
+  /// How far this span's glyphs sit ABOVE their line's baseline, px;
+  /// negative sinks them below it. It is placement rather than shaping,
+  /// so a shifted span costs no re-shape and shares every cache entry
+  /// with an unshifted one.
+  /// @silent the run is set down a column, where the same idea is a step
+  /// across the axis and is `Decoration::offset`.
   float baselineShift = 0;
 
   /** Constructs a single anti-aliased black foreground. */

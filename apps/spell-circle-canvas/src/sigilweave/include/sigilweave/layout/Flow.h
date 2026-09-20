@@ -3,26 +3,12 @@
 /** @file
  * @ingroup weave-geometry
  *
- * The geometry a paragraph flows into. Text is never bound to a rectangle: a
- * "line" is an ordered list of LineIntervals — straight segments in any
- * direction, or spans of an SkPath contour — supplied one line at a time by
- * a FlowGeometry. Ready-made geometries below cover the common cases:
- *   - BlockFlow          a single rectangle.
- *   - ExclusionFlow      a rectangle minus moving flow shapes (a rect, a
- *                        circle, an ellipse, any filled SkPath, an image's
- *                        own alpha, or one a caller writes), in lines or in
- *                        columns.
- *   - VerticalBlockFlow  top-to-bottom CJK columns advancing right to left.
- *   - LineSetFlow        an explicit set of intervals (any origin/direction).
- *   - PathFlow           each SkPath contour becomes a line; glyphs ride the
- *                        tangent via RSXform runs.
- *
- * A contour is the geometry library's `geometry::path::Contour` — one sub-path
- * addressed by arc length — so "distance along" and "closed wraps around"
- * mean the same thing here as anywhere else a path is walked.
- *
- * Implement FlowGeometry yourself for anything else. Pass the chosen
- * geometry to layoutParagraph() in ParagraphLayout.h.
+ * The geometry a paragraph flows into. Text is never bound to a rectangle:
+ * a "line" is an ordered list of LineIntervals — straight segments in any
+ * direction, or spans of an SkPath contour — supplied one line at a time
+ * by a FlowGeometry, of which BlockFlow, ExclusionFlow, VerticalBlockFlow,
+ * LineSetFlow and PathFlow are the ready-made ones. Implement the
+ * interface for anything else, and pass the geometry to layoutParagraph().
  */
 
 #include <include/core/SkPath.h>
@@ -74,64 +60,30 @@ struct LineInterval {
   /// of a degree is not a behaviour anyone wants.
   bool wrapContour = false;
 
-  /// Contour intervals only: arc length consumed per unit of glyph advance.
-  /// Compensates curvature when the glyphs' optical centers ride at a
-  /// different radius than the measured baseline contour — e.g. text on the
-  /// outside of a small circle reads too loose because the centers sit on a
-  /// larger ring than the baseline; advanceScale = rBaseline / rCenter
-  /// restores optical spacing. `length`, fitting, and alignment arithmetic
-  /// all stay in unscaled advance units (set length = arcLength / scale to
-  /// offer the whole contour), only the pen→arc mapping is scaled.
-  ///
-  /// NEGATIVE walks the contour BACKWARDS: the pen still travels forward
-  /// through the text, but its arc position decreases and every glyph faces
-  /// the other way. That is how a run reads right way up along the lower
-  /// half of a ring — the run turns round once, rather than each letter
-  /// turning over and reversing the reading order.
+  /// Contour intervals only: arc length consumed per unit of glyph
+  /// advance, which compensates curvature when the glyphs' optical centres
+  /// ride at a different radius than the measured baseline contour. Only
+  /// the pen-to-arc mapping is scaled; `length`, fitting and alignment
+  /// stay in unscaled advance units. NEGATIVE walks the contour backwards,
+  /// which is how a run reads right way up along a ring's lower half.
   float advanceScale = 1.0f;
 
-  /** Maps a PEN COORDINATE on this interval — travel in advance units from
-   * where the pen enters it — to the baseline point it lands on and the
-   * unit direction it is turned to.
-   *
-   * THIS IS THE PLACEMENT THE LAYOUT ITSELF BAKES. It is public so that a
-   * caller re-placing a transformed run at draw time reads the same
-   * function the blob was built from, and the two can never disagree about
-   * where a glyph on a curve belongs. Anchor the glyph's ADVANCE CENTRE at
-   * the returned point (the pen coordinate for glyph i is the pen at its
-   * start plus half its advance), or accented glyphs drift off the curve.
-   *
-   * `phase` shifts every glyph along the contour by the same arc length,
-   * which is how a marquee runs without laying the paragraph out again. A
-   * contour that WRAPS — flagged closed, or opted in through
-   * `wrapContour` — takes the phase forever and the pen may sit anywhere;
-   * one that does not clamps to its ends. `rotationSteps` snaps the
-   * direction to that many directions (0 keeps it exact) — every distinct
-   * rotation mints a glyph-atlas strike, so an animated curve that does not
-   * snap re-rasterizes every glyph every frame.
-   *
-   * Returns false when the pen fell OUTSIDE a non-wrapping contour and the
-   * result was clamped to its end, so a caller that would rather drop a
-   * glyph than pile it on the last point can. A straight interval and a
-   * wrapping contour always return true. */
+  /** Maps a PEN COORDINATE — travel in advance units from where the pen
+   * enters this interval — to the baseline point it lands on and its unit
+   * direction. @p phase shifts along the contour by an arc length;
+   * @p rotationSteps snaps the direction, 0 keeping it exact. False when
+   * the pen fell OUTSIDE a non-wrapping contour and was clamped to its end.
+   * @trap Anchor the glyph's ADVANCE CENTRE there, or accents drift. */
   bool placeAt(float pen, float phase, int rotationSteps, SkPoint* position,
                SkVector* tangent) const;
 };
 
 /// ONE BAND ASKED OF A GEOMETRY, and everything about it the band's number
-/// alone does not say.
-///
-/// `bandStart` is the whole of why this is a value rather than three
-/// arguments. Bands do not stack at `index · lineHeight`: that is true
-/// only while every line of a passage is the same height; a text whose
-/// blocks lead differently, or which puts air between them, stacks its
-/// bands at distances the LAYOUT accumulates and a geometry could not work
-/// out from a line number. So the layout carries that cursor and the
-/// geometry answers what is available in the band that starts there.
-///
-/// The block context is for a geometry that wants it — a frame grid, a
-/// well cut for one block, a drop cap's notch. A geometry that does not
-/// care ignores it, which is every geometry below.
+/// alone does not say. `bandStart` is why it is a value rather than three
+/// arguments: bands stack at distances the LAYOUT accumulates, not at
+/// `index · lineHeight`, as soon as a text's blocks lead differently. The
+/// block context is for a geometry that wants it — a frame grid, a well
+/// cut for one block, a drop cap's notch — and every stock one ignores it.
 struct LineRequest {
   int index = 0;         ///< 0-based band ordinal, ascending without gaps
   float bandStart = 0;   ///< the band's near edge, along the stacking axis,
@@ -211,18 +163,10 @@ struct Band {
 
 /// A SHAPE TEXT STANDS OFF. One question: which stretches of a band
 /// this shape occupies, along the flow axis — the same shape of answer for
-/// a rectangle, a photograph's alpha and anything a caller writes, which is
-/// why there is no kind to switch on.
-///
-/// THE MARGIN IS A DISC AND NOT A SQUARE. `margin` asks for the set of
-/// points within that distance of the shape: a diagonal edge stands the
-/// text off by exactly the margin and a corner comes out rounded. Every
-/// implementation owes that meaning, because a caller asking two shapes for
-/// six pixels of standoff is asking one question.
-///
-/// A flow shape CACHES what answering costs it — a flattening, a raster, a
-/// distance field — so one belongs to one flow at a time, as an SkPath's
-/// own caches do.
+/// a rectangle, a photograph's alpha and anything a caller writes, which
+/// is why there is no kind to switch on. THE MARGIN IS A DISC AND NOT A
+/// SQUARE, and every implementation owes that meaning. A flow shape
+/// caches what answering costs it, so one belongs to one flow at a time.
 class FlowShape {
  public:
   virtual ~FlowShape() = default;
@@ -261,23 +205,15 @@ namespace flowshape {
  * an ellipse and only the path answer stays exact. */
 [[nodiscard]] std::shared_ptr<FlowShape> ellipse(const SkRect& bounds);
 /** Any filled SkPath — several contours, curves, winding or even-odd fill,
- * so holes and concavities stay available to text. Flattened once and kept.
- * An inverse fill type is read as its own non-inverse self: a flow shape
- * is the region the path encloses.
- *
- * The answer is read off a flattened outline exactly, at any margin: with a
- * standoff the outline is the path unioned with itself stroked at twice the
- * margin, round join and round cap, which is what a disc rolled around the
- * shape sweeps. */
+ * so holes and concavities stay available to text. Flattened once and
+ * kept, and read exactly at any margin. An inverse fill type is read as
+ * its own non-inverse self: a flow shape is the region the path encloses.
+ */
 [[nodiscard]] std::shared_ptr<FlowShape> path(const SkPath& path);
-/** AN IMAGE'S OWN ALPHA, resolved inside `box` in flow coordinates: a pixel
- * is inside where its alpha is greater than `threshold`, a fraction of full
- * opacity. It is the answer for a photograph, a rendered node, a video
- * frame — a flow shape that is neither an outline nor a glyph run.
- *
- * The tolerance is the dial: a soft edge admits words further in as it
- * rises. A new frame re-thresholds and re-measures; a still one costs that
- * once. */
+/** AN IMAGE'S OWN ALPHA, resolved inside @p box in flow coordinates: a
+ * pixel is inside where its alpha is greater than @p threshold, a fraction
+ * of full opacity, so a soft edge admits words further in as the tolerance
+ * rises. A new frame re-thresholds and re-measures. */
 [[nodiscard]] std::shared_ptr<FlowShape> coverage(sk_sp<SkImage> image,
                                                   const SkRect& box,
                                                   float threshold = 0.5f);
@@ -288,14 +224,9 @@ namespace flowshape {
 /// style). Each band subtracts every intersecting flow shape's extent
 /// ACROSS the band, so a line — or a column — shortens, or splits into
 /// several intervals, around them. Exclusions are cheap to move: geometry
-/// is re-evaluated per layout pass.
-///
-/// A COLUMN IS A LINE TURNED A QUARTER TURN, and `FlowAxis` is the whole of
-/// the difference: `kColumns` makes each band a top-to-bottom column, the
-/// columns advancing right to left from the bounds' right edge, and reads
-/// every flow shape's extent down the column instead of across the line.
-/// Pair it with `Paragraph::setWritingMode(WritingMode::kVerticalRL)`,
-/// exactly as `VerticalBlockFlow` is paired.
+/// is re-evaluated per layout pass. A COLUMN IS A LINE TURNED A QUARTER
+/// TURN, and `FlowAxis` is the whole of the difference; pair `kColumns`
+/// with `Paragraph::setWritingMode`, as `VerticalBlockFlow` is paired.
 class ExclusionFlow : public FlowGeometry {
  public:
   /** Creates line bands — or columns — in `bounds`, minus configured

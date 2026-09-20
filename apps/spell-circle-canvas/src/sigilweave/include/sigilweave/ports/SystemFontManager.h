@@ -3,12 +3,10 @@
 /** @file
  * @ingroup weave-ports
  *
- * Platform system-font-manager factory — the one place SigilWeave's tools,
- * tests, and consumers obtain an SkFontMgr wired to the host operating
- * system — and `pickTypeface`, the fallback chain resolved against it. Every
- * platform port hides behind the same call, so adding DirectWrite
- * (Windows) or Fontconfig (Linux) later touches only
- * SystemFontManager.cpp, never a call site.
+ * Platform system-font-manager factory — the one place SigilWeave's
+ * tools, tests and consumers obtain an SkFontMgr wired to the host
+ * operating system — and the fallback chain resolved against it. Every
+ * platform port hides behind the same call.
  */
 
 #include <include/core/SkFontMgr.h>
@@ -28,14 +26,10 @@
  *  caller with its own font set never links this. */
 namespace sigil::weave::ports {
 
-/**
- * Returns the process-wide system font manager (CoreText on macOS).
- *
- * Construction enumerates the installed font set, which is far too slow to
- * repeat per call site, so one shared instance is created lazily and reused
- * for the life of the process. The returned manager is immutable and safe
- * to hand to any number of FontContexts on any thread.
- */
+/** Returns the process-wide system font manager, created lazily and
+ * reused for the life of the process because construction enumerates the
+ * installed font set. It is immutable and safe to hand to any number of
+ * font contexts on any thread. */
 sk_sp<SkFontMgr> systemFontManager();
 
 namespace detail {
@@ -52,25 +46,12 @@ inline std::vector<std::string_view> familyChain(
 }
 }  // namespace detail
 
-/** The first of @p families the system font manager resolves, at @p style.
- *
- *  The chain is the point: reconstructing a reference names a face that may
- *  not be installed on the machine running the code, so callers pass the
- *  face they want followed by the stand-ins they will accept. A family the
- *  chain leaves empty is passed over, so a chain assembled at run time may
- *  carry a blank where it found no name.
- *
- *  The last resort is the default family AT THE REQUESTED STYLE, not at
- *  `SkFontStyle::Normal()` — falling back to Normal would silently drop the
- *  weight the caller asked for.
- *
- *  This is the form a COMPUTED chain takes — one read out of a document, a
- *  settings file or a caller's own list, whose length is not known where
- *  the call is written. The overload below is the same call with the chain
- *  spelled out.
- *
- *  `matchFamilyStyle` walks the system font list, so a chain asked for
- *  more than once goes through `face()` below, which keeps the answer. */
+/** The first of @p families the system font manager resolves, at
+ *  @p style: the face wanted, then the stand-ins accepted, an empty name
+ *  being passed over. The last resort is the default family AT THE
+ *  REQUESTED STYLE. This is the form a COMPUTED chain takes.
+ *  @trap It walks the system font list on every call, so a chain asked
+ *  for more than once goes through `face` instead. */
 sk_sp<SkTypeface> pickTypeface(std::span<const std::string_view> families,
                                SkFontStyle style = SkFontStyle::Normal());
 
@@ -91,29 +72,12 @@ inline sk_sp<SkTypeface> pickTypeface(
                       SkFontStyle(weight, SkFontStyle::kNormal_Width, slant));
 }
 
-/** THE SAME RESOLUTION, HELD. `pickTypeface` walks the installed font
- *  list on every call, so the answer is kept once per (families, style)
- *  for the life of the process and handed back on every later ask.
- *
- *      const sk_sp<SkTypeface> face =
- *          weave::ports::face({"SF Mono", "Menlo", "monospace"});
- *
- *  WHY THIS IS A CALL AND NOT A `static` AT THE CALL SITE. A local
- *  `static` holds one answer per site, so the same four families asked
- *  for in twenty places walk the list twenty times and hand back twenty
- *  faces — and a face is compared by POINTER wherever a style, a memo
- *  key or an inherited value is compared, so two resolutions of one
- *  family never compare equal and everything keyed on them re-does its
- *  work. One holder gives one answer.
- *
- *  Safe from any thread: a describe runs on whichever thread the host
- *  calls on, and the holder is guarded. The face itself is immutable and
- *  shared, exactly as `systemFontManager()`'s is.
- *
- *  This is the form a COMPUTED chain takes; the overload below is the same
- *  call with the chain spelled out. Both reach the one holder, so a chain
- *  assembled at run time and the same chain written as literals are one
- *  entry and one face. */
+/** THE SAME RESOLUTION, HELD once per families-and-style pair for the
+ *  life of the process, and safe from any thread. One holder gives one
+ *  answer, a computed chain and the same chain in literals being one
+ *  entry, and a face is compared by POINTER wherever a style is.
+ *  @trap A `static` at the call site holds one answer per SITE, so the
+ *  same families resolved in twenty places never compare equal. */
 sk_sp<SkTypeface> face(std::span<const std::string_view> families,
                        SkFontStyle style = SkFontStyle::Normal());
 

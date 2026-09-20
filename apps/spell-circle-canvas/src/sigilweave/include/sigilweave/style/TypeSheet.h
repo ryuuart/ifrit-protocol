@@ -19,40 +19,15 @@
 
 namespace sigil::weave {
 
-/** THE TYPE HALF OF A SHEET: a base style and the named partials over it
- * — small, ordered, comparable by value. The sheet a tree states, with a
- * block half beside every name, is `layout/StyleSheet.h`; this is what it
- * hands the paragraph layer, which shapes a rich run written with a name
- * and cannot see a block.
- *
- * The levels of a log, the states a selection switches between, the roles a
- * table's columns take: a handful of treatments fixed once, then addressed
- * at the point of use by a NAME. What carries the name is the content — a
- * row, a span, a cell — so the content stays a plain value and the type
- * treatment stays in one place.
- *
- * **An entry is a PARTIAL, not a whole style.** A class states what it
- * CHANGES — "red", "one size down", "the mono face" — and the base supplies
- * everything it is silent about. That is what lets one sheet serve a
- * document whose base size is decided elsewhere: a class that had to spell
- * the whole style would have to spell the size too, and then a page set
- * larger would take its classes at the wrong size.
- *
- * **Lookup always answers.** A name that was never registered — including
- * the empty name — resolves to the BASE alone. There is no null and no
- * failure mode: a misspelled name shows as content set in the base style,
- * never as content that did not draw. Callers who must know whether a name
- * exists ask `find()`, which returns the partial or null, or `contains()`.
- *
- * **Entries keep insertion order** and `set()` replaces in place, so a
- * sheet built by one call sequence is one value. Equality is exact and
- * order-sensitive — same base, same entries, same order — which is what
- * lets a TypeSheet sit inside a larger comparable value and be diffed with
- * it rather than reasoned about.
- *
- * Lookup is a linear scan. A style sheet names a handful of roles; one
- * large enough for that to matter has stopped being a sheet of named
- * classes and become a document's worth of formatting. */
+/** THE TYPE HALF OF A SHEET: a base style and the named PARTIALS over it,
+ * each stating what it changes while the base supplies the rest. Entries
+ * keep insertion order, `set` replaces in place, and equality is exact
+ * and order-sensitive, so one call sequence is one value. Lookup is a
+ * linear scan over a handful of roles.
+ * @trap Lookup always answers: an unregistered name — the empty one
+ * included — resolves to the BASE alone rather than failing, so a
+ * misspelling shows as content set in the base style. Ask
+ * `TypeSheet::find` or `TypeSheet::contains` to know. */
 class TypeSheet {
  public:
   using Entry = std::pair<std::string, Type>;

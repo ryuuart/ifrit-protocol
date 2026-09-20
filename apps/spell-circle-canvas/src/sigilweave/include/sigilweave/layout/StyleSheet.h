@@ -20,14 +20,9 @@
 namespace sigil::weave {
 
 /** ONE CLASS OF A SHEET: a name, and what it states — a partial over the
- *  type (`font`) and a partial over the block (`block`), either or
- *  both. Spelled as a literal by the half it names, `{"note", {.size = 11}}`
- *  or `{"lead", {.firstLineIndent = 24}}`, or with the verbs:
- *
- *      rule("body").font({.size = 19.5f}).block({.leading =
- * Leading::multiple(1.35f)})
- *
- *  What a rule leaves unsaid is what the node inherits. */
+ *  type and a partial over the block, either or both. Spelled as a
+ *  literal by the half it names, `{"note", {.size = 11}}`, or with the
+ *  verbs. What a rule leaves unsaid is what the node inherits. */
 class Rule {
  public:
   explicit Rule(std::string name) : m_name(std::move(name)) {}
@@ -65,16 +60,11 @@ class Rule {
 
 /** THE CLASSES A TREE STATES, as one value: rules in the order they were
  *  written, comparable by value, and a base style for the runs of a rich
- *  text that name nothing.
- *
- *  A name stated again ADDS to its rule — the later fields standing, the
- *  rest as they were — so a class can be spelled once per half, and a
- *  sheet stated nearer the leaf changes only what it names in the sheet
- *  it stands over. Lookup is a linear scan: a sheet names a handful of
- *  classes, and a scan of a handful beats a hash of one.
- *
- *  `types()` is the type half as a `TypeSheet`, which the paragraph layer
- *  shapes rich runs through; it never sees a block. */
+ *  text that name nothing. Lookup is a linear scan over a handful of
+ *  classes. `StyleSheet::types` is the type half alone, which the
+ *  paragraph layer shapes rich runs through.
+ *  @trap A name stated again ADDS to its rule, the later fields standing
+ *  and the rest as they were, rather than replacing it. */
 class StyleSheet {
  public:
   StyleSheet() = default;

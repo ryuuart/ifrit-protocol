@@ -4,21 +4,10 @@
  * @ingroup weave-query
  *
  * SELECTING TEXT AS A VALUE: `Selector`, which says which of a passage a
- * caller means, and the `selectors::` vocabulary that builds one.
- *
- * The other half of this feature answers a question NOW — `findAllOccurrences`
- * hands back the ranges a needle matches in the paragraph it was given. A
- * selector is the same question written down and not yet asked: a small
- * comparable value that can ride in a larger one, be compared frame to
- * frame, and be resolved again after the text changed or the lines
- * re-broke. Every form here names a position in the text or a granularity
- * to slice; none of them holds a paragraph.
- *
- * RESOLVING one is the caller's, and deliberately so. What a selection
- * means as GLYPHS depends on a layout — which line a word landed on, which
- * cluster a mark belongs to — and this library hands its layout out rather
- * than owning a canonical one. So a selector is a value here and a set of
- * glyphs wherever the glyphs are.
+ * caller means, and the `selectors::` vocabulary that builds one. It is
+ * a question written down and not yet asked, where `findAllOccurrences`
+ * answers one now. RESOLVING one is the caller's: what a selection means
+ * as GLYPHS depends on a layout, and this library owns no canonical one.
  */
 
 #include <cstdint>
@@ -33,24 +22,18 @@
 
 namespace sigil::weave {
 
-/** WHICH OF A PASSAGE A CALLER MEANS, as a comparable value.
- *
- *  Built from `selectors::` (see below), combined with `|` (union), `&`
- *  (intersection) and `!` (complement). A default-constructed selector
- *  addresses EVERYTHING, which is what a caller who names nothing gets.
- *
- *  It is cheap to copy and compares by state, so resolving one can be
- *  cached against the (content, layout, selector) it was resolved for: a
- *  regular expression over a paragraph is matched when the text changes or
- *  reflows rather than once per frame. */
+/** WHICH OF A PASSAGE A CALLER MEANS, as a comparable value: built from
+ *  `selectors::` and combined with `|`, `&` and `!`. A default-constructed
+ *  selector addresses EVERYTHING. It is cheap to copy and compares by
+ *  state, so a resolution can be cached against the content, layout and
+ *  selector it was resolved for. */
 class Selector {
  public:
   Selector() = default;  ///< everything
 
-  /** Within EACH unit of a `selectors::each` selector, keep `n` glyphs from
-   *  wherever `drop()` left off. `take(n)` and `drop(n)` on their own
-   *  partition every unit exactly: no glyph is in both, none is in
-   *  neither. */
+  /** Within EACH unit of a `selectors::each` selector, keep @p n glyphs
+   *  from wherever `drop` left off. The two on their own partition every
+   *  unit exactly: no glyph is in both, none in neither. */
   [[nodiscard]] Selector take(int n) const;
   /** Within each unit, skip the first `n` glyphs and keep the rest. */
   [[nodiscard]] Selector drop(int n) const;
@@ -60,17 +43,11 @@ class Selector {
   [[nodiscard]] Selector operator!() const;
   bool operator==(const Selector& other) const;
 
-  /** The forms a selector can take. Public because resolving one is the
-   *  caller's: a resolver reads the state and answers for its own glyphs.
-   *
-   *  `Named` and `Scope` are the two a CALLER defines. Everything above
-   *  them addresses the text itself — words, lines, sentences, characters,
-   *  patterns — and any resolver over a paragraph answers them the same
-   *  way. Those two address something the caller named: a set of spans
-   *  registered under a name, and a whole passage identified by one. This
-   *  library ships no builder for either, because what a name addresses is
-   *  the caller's to say; `Selector::of` is how a caller spells its own
-   *  form, and the combinators then treat it like any other. */
+  /** The forms a selector can take, public because resolving one is the
+   *  caller's. Everything above `Named` addresses the text itself, and
+   *  any resolver answers those the same way; `Named` and `Scope` address
+   *  something the CALLER named, and this library ships no builder for
+   *  either — `Selector::of` is how a caller spells its own form. */
   enum class Kind : uint8_t {
     All,
     Word,

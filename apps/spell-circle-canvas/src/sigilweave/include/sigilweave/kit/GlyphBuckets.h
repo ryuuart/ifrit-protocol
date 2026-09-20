@@ -4,18 +4,10 @@
  * @ingroup weave-kit
  *
  * Keyed glyph-bucket accumulator — the general form of the batching that
- * makes per-glyph choreography affordable. A frame of thousands of
- * individually animated letters must not become thousands of draw calls;
- * grouping glyphs by whatever determines their draw state (font source,
- * quantized brightness, fade level, …) collapses the frame into a handful
- * of drawGlyphs calls.
- *
- * sigil::weave::GlyphRSXformBatches is the fixed (font, color)+RSXform special
- * case; this template is for effects whose bucket key or placement type is
- * richer. The key is any equality-comparable value — a raw pointer, a
- * std::tuple, or a small struct with a defaulted `==` — and drawing stays a
- * caller lambda so each effect derives paints from its key however it wants
- * (including drawing the same buckets in several passes).
+ * makes per-glyph choreography affordable, grouping glyphs by whatever
+ * determines their draw state. `sigil::weave::GlyphRSXformBatches` is the
+ * fixed font-and-paint RSXform case; this template is for effects whose
+ * bucket key or placement type is richer.
  */
 
 #include <include/core/SkCanvas.h>
@@ -28,21 +20,12 @@
 
 namespace sigil::weave::kit {
 
-/**
- * Glyphs grouped by an arbitrary equality-comparable `Key`, with a parallel
- * per-glyph `Placement` array (SkPoint for drawGlyphs, SkRSXform for
- * drawGlyphsRSXform). Reuse one instance across frames — clear() keeps the
- * allocations. Bucket lookup is a linear scan: effects quantize their keys
- * precisely so the bucket count stays tiny.
- *
- * ```
- * struct Shade { const ShapedWord *font; int level; bool operator==(const Shade
- * &) const = default; }; GlyphBuckets<Shade> m_buckets;
- * ...
- * m_buckets.add({&shaped, level}, glyphId, position);
- * ...
- * m_buckets.drawEach([&](const auto &bucket) { ... one drawGlyphs ... });
- * ```
+/** Glyphs grouped by an arbitrary equality-comparable key, with a
+ * parallel per-glyph placement array — a point for a plain glyph draw, an
+ * RSXform for a transformed one. Reuse one instance across frames, since
+ * `clear` keeps the allocations.
+ * @trap Bucket lookup is a linear scan, so an effect quantizes its keys
+ * precisely and the bucket count stays tiny.
  */
 template <typename Key, typename Placement = SkPoint>
 struct GlyphBuckets {

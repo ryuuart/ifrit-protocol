@@ -56,14 +56,13 @@ class TextLayout {
   ParagraphLayout m_layout;
 };
 
-/** Per-thread text service with internally owned paragraph reuse.
- * One instance serves any number of labels or single-style passages.
- * Exact text and shaping style identify an entry; paint changes reuse its
- * analysis. Geometry is queried on every layout call. A result still held
- * by a caller is isolated before another call changes its paragraph.
- *
- * Editable or mixed-style documents use Paragraph and layoutParagraph
- * directly. This context owns no canonical layout of such a document.
+/** Per-thread text service with internally owned paragraph reuse: one
+ * instance serves any number of labels or single-style passages. Exact
+ * text and shaping style identify an entry, paint changes reuse its
+ * analysis, and a result a caller still holds is isolated before another
+ * call changes its paragraph.
+ * @trap An editable or mixed-style document uses `Paragraph` and
+ * `layoutParagraph` directly; this context owns no canonical layout.
  */
 class TextContext {
  public:

@@ -11,15 +11,12 @@
 
 namespace sigil::weave {
 
-/** Controls spacing when TextAlignment::kJustify is selected.
- *
- * A justified line is fitted in three passes, each spending only what the
- * one before it could not: the WORD GAPS move first, from their desired
- * width towards the near limit; then LETTER SPACING is added between the
- * glyphs; then the glyphs themselves are SCALED across. Shrinking runs the
- * same order. A pass whose limits equal its desired value contributes
- * nothing and costs nothing — which is why a caller who sets none of them
- * gets word spacing alone, as this stage has always done.
+/** Controls spacing when `TextAlignment::kJustify` is selected. A
+ * justified line is fitted in three passes, each spending only what the
+ * one before it could not: the WORD GAPS move first, then LETTER SPACING
+ * is added between the glyphs, then the glyphs are SCALED across.
+ * Shrinking runs the same order, and a pass whose limits equal its
+ * desired value contributes nothing and costs nothing.
  */
 struct JustificationOptions {
   /// Paragraph-final and hard-break-final lines use this alignment unless
@@ -32,30 +29,13 @@ struct JustificationOptions {
   bool expandIdeographicGaps = true;
   float maxIdeographicExpansion = 0.5f;  ///< per-gap cap, fraction of fontSize
 
-  /// A JUSTIFIED LINE IS FITTED IN THREE PASSES — the word gaps, then
-  /// letter spacing between the glyphs, then a horizontal scale on the
-  /// glyphs — and each spends only what the one before it could not. Every
-  /// pass's DESIRED value widens the line before any of them is fitted, and
-  /// its two limits bound what it may add on top of that.
-  ///
-  /// THE GAPS ARE BOUNDED BY `spaceStretch` ONLY WHERE A LATER PASS CAN
-  /// SPEND WHAT THEY MAY NOT — where the letter or glyph limits leave room
-  /// past what those passes were asked for. With both shut, a bound on the
-  /// gaps would open a hole at the right margin that nothing in the line is
-  /// allowed to close, and a hole is worse than a wide gap. What a later
-  /// pass then FAILS to spend — because it reached its own limit — goes
-  /// back to the gaps for the same reason: the bound stood on the claim
-  /// that a later pass takes what the gaps drop, and where that claim
-  /// fails the bound goes with it. So a justified line reaches its measure
-  /// whatever the limits are, and the limits decide only how much of the
-  /// fit stands between the words and how much between the letters.
-  ///
-  /// ROOM ABOVE A DESIRED VALUE IS ROOM THE FIT SPENDS. A glyph scale of
-  /// 0.92 with the limits left at 1 is a scale of 1 on every line that
-  /// needed widening, because the pass reaches through its range before
-  /// the gaps take anything back. A value meant to HOLD says so with its
-  /// limits: pin them either side of it and it is what every justified
-  /// line is set at.
+  // Every pass's DESIRED value widens the line before any of them is
+  // fitted, and its two limits bound what it may add on top. The gaps are
+  // bounded by `spaceStretch` ONLY where a later pass can spend what they
+  // may not, so a justified line reaches its measure whatever the limits
+  // are and they decide only where the fit stands. ROOM ABOVE A DESIRED
+  // VALUE IS ROOM THE FIT SPENDS: a value meant to HOLD pins its limits
+  // either side of itself.
 
   /// The width a justified word gap is AIMED at, as a multiple of the
   /// shaped space width; the elasticity below is measured from it, so the

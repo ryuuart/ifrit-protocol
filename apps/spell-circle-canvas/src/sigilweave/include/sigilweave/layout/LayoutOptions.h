@@ -3,16 +3,11 @@
 /** @file
  * @ingroup weave-layout
  *
- * WHAT A CALLER TELLS THE LAYOUT STAGE, in one value: the settings grouped
- * by the stage that reads them, and the blocks that override them one
- * paragraph at a time. Every group is a header of its own beside this one
- * — breaking, justification, overflow, tab stops, the frame, mojikumi and
- * the paragraph style — and this file is what a caller hands to
- * `layoutParagraph`.
- *
- * Every field is defaulted and every nested group is inert unless its
- * stage runs. Settings that belong to the geometry stay on the geometry
- * (`ExclusionFlow::setMinimumIntervalWidth`, for instance).
+ * WHAT A CALLER TELLS THE LAYOUT STAGE, in one value: the settings
+ * grouped by the stage that reads them, and the blocks that override
+ * them one paragraph at a time. Every field is defaulted and every
+ * nested group is inert unless its stage runs; settings that belong to
+ * the geometry stay on the geometry.
  */
 
 #include <cstdint>
@@ -33,34 +28,19 @@
 
 namespace sigil::weave {
 
-/**
- * Groups the settings of paragraph layout by the stage that reads them.
- *
- * Every member is defaulted, and the common path sets only `alignment`.
- * Each nested group is inert unless its stage runs: `justification`
- * applies under kJustify, `knuthPlass` under kKnuthPlass, `tabStops` only
- * when a word carries a tab, `pathText` only when runs are transformed.
- *
- * The top-level `alignment`, `justification`, `hyphenation` and `tabStops`
- * are the WHOLE LAYOUT'S answer, and a block that states none of its own
- * is set by them. `blocks` overrides them block by block.
+/** Groups the settings of paragraph layout by the stage that reads them.
+ * Every member is defaulted and the common path sets only `alignment`;
+ * each nested group is inert unless its stage runs. The top-level
+ * alignment, justification, hyphenation and tab stops are the WHOLE
+ * LAYOUT'S answer, and `blocks` overrides them block by block.
  */
 struct ParagraphLayoutOptions {
   /// AN INPUT OF THIS LAYOUT IS MOVING — a bound measure, an animating
   /// frame, a text whose content changes frame to frame — so this layout
-  /// is one of a run of them rather than an answer someone asked for once.
-  ///
-  /// It changes two things and nothing else. The break decisions of a
-  /// block set in a UNIFORM measure are kept and reused, keyed on the words
-  /// and on the measure taken to the whole pixel below it, so a measure
-  /// already seen costs no break decision at all and a measure between two
-  /// seen ones is set in the narrower of them. And the block is broken
-  /// against the measure alone rather than against the frame's supply of
-  /// lines, so a frame that only grows or shrinks in DEPTH changes which
-  /// lines it holds and never where they break.
-  ///
-  /// A settled layout sets nothing here and is answered exactly as it has
-  /// always been answered.
+  /// is one of a run of them: break decisions for a block in a UNIFORM
+  /// measure are kept and reused, keyed on the words and the whole-pixel
+  /// measure, and the block is broken against the measure alone rather
+  /// than the frame's supply of lines. A settled layout sets nothing here.
   bool live = false;
   TextAlignment alignment = TextAlignment::kStart;  ///< per-interval placement
   /// Greedy is the fast default; Knuth-Plass trades speed for even spacing.
@@ -77,15 +57,12 @@ struct ParagraphLayoutOptions {
   /// may reserve more.
   ReservedBand reserved;
 
-  /// THE MEASURE THE NEXT FRAME OF THE CHAIN SETS IN, for the one keep
-  /// that has to count lines this frame will not hold. The widow rule asks
-  /// how many lines the remainder takes, and the remainder is set in the
-  /// NEXT frame's measure, which this fill has no other way to learn: only
-  /// whoever holds the chain knows what comes after. 0 says nothing is
-  /// known and the count is taken at the measure this frame's last line
-  /// was set in, which is exact for a chain of equal frames and off by the
-  /// difference for one that changes width. Every other keep is settled
-  /// from lines this frame placed and never reads it.
+  /// THE MEASURE THE NEXT FRAME OF THE CHAIN SETS IN, which only whoever
+  /// holds the chain knows. 0 says nothing is known and the widow count
+  /// is taken at the measure this frame's last line was set in — exact
+  /// for a chain of equal frames, off by the difference for one that
+  /// changes width. Every other keep is settled from lines this frame
+  /// placed and never reads it.
   float nextMeasure = 0;
 
   /// Which characters may not stand at a line's edge (kinsoku shori). A
@@ -104,9 +81,7 @@ struct ParagraphLayoutOptions {
   /// How much of its own advance a full-width character gives up so it
   /// sets closer to its neighbours — tsume, as a fraction of the em,
   /// removed from the gap after every full-width character the mojikumi
-  /// table gives no class of its own. 0 leaves the face's own setting.
-  /// It is applied where mojikumi is applied and stops where that stops:
-  /// at the gaps between words.
+  /// table gives no class of its own; 0 leaves the face's own setting.
   float tsume = 0;
 
   /// One entry per BLOCK — the text between two mandatory breaks — in
