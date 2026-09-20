@@ -18,6 +18,7 @@ from __future__ import annotations
 from .table import Table
 
 COMPOSER = "_sigil.compose.Composer"
+PLANE = COMPOSER + ".CompositePlane"
 
 
 def register(table: Table) -> None:
@@ -33,4 +34,20 @@ def register(table: Table) -> None:
         COMPOSER,
         "setClock",
         "def setClock(self, clock: _sigil.motion.FrameClock | None) -> None: ...",
+    )
+    # The buffer protocol's two slots are C slots, so they carry no
+    # signature of their own: the reading hands out the counts where the
+    # plane keeps them, one byte per device pixel, and the release gives
+    # that view back.
+    table.declares(
+        PLANE,
+        "__buffer__",
+        "def __buffer__(self, flags: int) -> memoryview:\n"
+        '    """The counts as they stand in memory, a row after a row."""\n',
+    )
+    table.declares(
+        PLANE,
+        "__release_buffer__",
+        "def __release_buffer__(self, buffer: memoryview) -> None:\n"
+        '    """Gives back a view taken over the plane\'s own counts."""\n',
     )
