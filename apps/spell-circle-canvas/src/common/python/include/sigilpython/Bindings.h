@@ -25,6 +25,29 @@ namespace sigil::draw {
 class Pen;
 }
 
+namespace sigil::python {
+
+/** THE MEMO `copy.deepcopy` CARRIES: the identity of each object it has
+ *  already copied, against the copy it made. It is an ordinary
+ *  dictionary, and it is a type of its own only so that the signature
+ *  every bound record carries says what is in it. Written with
+ *  pybind11's own `object` the declaration would read `typing.Any`,
+ *  which states no contract at all; written as a bare dictionary it
+ *  would state no key or value type. */
+class DeepCopyMemo : public pybind11::dict {
+ public:
+  using pybind11::dict::dict;
+};
+
+}  // namespace sigil::python
+
+namespace pybind11::detail {
+template <>
+struct handle_type_name<sigil::python::DeepCopyMemo> {
+  static constexpr auto name = const_name("dict[builtins.int, builtins.object]");
+};
+}  // namespace pybind11::detail
+
 /** THE NATIVE LIBRARIES AS ONE PYTHON EXTENSION MODULE. The bindings
  *  themselves, the conversions every one of them shares, and the
  *  ownership that decides when a Python callable held by a native
@@ -61,18 +84,17 @@ T keywordValue(pybind11::kwargs fields,
  *  protocol cannot stand in one. Bound records get it from `bindRecord`;
  *  a class registered by hand takes it in one call.
  *
- *  The memo is spelled as the mapping it is — the identity of each
- *  object already copied against the copy made of it — rather than as a
- *  bare dictionary, because every record in every library carries this
- *  signature and a declaration without its two type arguments is an
+ *  The memo is spelled as `DeepCopyMemo` rather than as a bare
+ *  dictionary because every record in every library carries this
+ *  signature, and a declaration without its key and value types is an
  *  untyped hole in all of them. */
 template <class T, class... Options>
 pybind11::class_<T, Options...>& copyProtocol(
     pybind11::class_<T, Options...>& type) {
-  using Memo = pybind11::typing::Dict<pybind11::int_, pybind11::object>;
   return type.def("__copy__", [](const T& value) { return value; })
       .def(
-          "__deepcopy__", [](const T& value, const Memo&) { return value; },
+          "__deepcopy__",
+          [](const T& value, const DeepCopyMemo&) { return value; },
           pybind11::arg("memo"));
 }
 
