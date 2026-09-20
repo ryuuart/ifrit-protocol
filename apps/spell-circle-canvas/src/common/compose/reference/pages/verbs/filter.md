@@ -47,7 +47,7 @@ runs the filter when the bake is taken, not per frame, so a static
 subtree pays for the filter once.
 
 **It reads the node, not the canvas.** What is beneath the node is not
-in the layer; filtering THAT is [`backdrop`](backdrop.md).
+in the layer; filtering THAT is [`backdropFilter`](backdropFilter.md).
 
 ## Examples
 
@@ -57,5 +57,5 @@ in the layer; filtering THAT is [`backdrop`](backdrop.md).
 
 ## See also
 
-[`backdrop`](backdrop.md), [`blend`](blend.md),
+[`backdropFilter`](backdropFilter.md), [`blend`](blend.md),
 [`opacity`](opacity.md), and `cache` for how the layer is held.

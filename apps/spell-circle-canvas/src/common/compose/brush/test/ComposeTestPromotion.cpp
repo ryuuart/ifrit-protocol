@@ -176,9 +176,14 @@ TEST(ComposeCache, PromotionRefusesABackdropFilter) {
   host.composer.render(profiledUnder(stack().children(
       {box().absolute().inset(0).fill(Fill::color({0.55f, 0.55f, 0.6f, 1})),
        expensivePanel().key("reader").children(
-           {box().absolute().left(20).top(20).width(90).height(90).backdrop(
-               material::skia::Effect::filter(
-                   SkImageFilters::Blur(3, 3, nullptr)))})})));
+           {box()
+                .absolute()
+                .left(20)
+                .top(20)
+                .width(90)
+                .height(90)
+                .backdropFilter(material::skia::Effect::filter(
+                    SkImageFilters::Blur(3, 3, nullptr)))})})));
   for (int i = 0; i < 24; ++i) host.frame();
   const Composer::NodeCost* row = requireRow(host.composer, "reader");
   ASSERT_NE(row, nullptr);

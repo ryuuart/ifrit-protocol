@@ -46,7 +46,7 @@ TEST(ComposeEffects, BackdropFiltersWhatIsBeneath) {
            .height(80)
            .inset(60, 60, 60, 60)
            .absolute()
-           .backdrop(material::skia::Effect::filter(invertFilter))}));
+           .backdropFilter(material::skia::Effect::filter(invertFilter))}));
   host.frame();
   EXPECT_EQ(host.pixel(100, 100), SK_ColorCYAN);  // red inverted inside
   EXPECT_EQ(host.pixel(20, 100), SK_ColorRED);    // untouched outside
@@ -150,8 +150,8 @@ TEST(ComposeEffects, ALiveBackdropEffectIsNeverLiftedOffABake) {
            .height(80)
            .inset(60, 60, 60, 60)
            .absolute()
-           .backdrop(material::skia::Effect::blur(sigmaMap(), 14.0f)
-                         .uniform("maxSigma", &maxSigma))}));
+           .backdropFilter(material::skia::Effect::blur(sigmaMap(), 14.0f)
+                               .uniform("maxSigma", &maxSigma))}));
   host.frame();
   const unsigned baked = host.composer.stats().texturesBaked;
   const std::vector<SkColor> sharp = grab(host);

@@ -65,7 +65,7 @@ recording above the matrices it bakes — while its children keep theirs;
 
 **A grouping property flattens.** A node that composites as one layer — a
 `clip()`, an opacity below 1, a blend that is not source-over, an
-`filter()`, a `backdrop()`, a `mask()`, a `Boundary::Coverage` or an
+`filter()`, a `backdropFilter()`, a `mask()`, a `Boundary::Coverage` or an
 explicit `Cache::Texture` or `Cache::Group` — cannot host a space, exactly
 as CSS's grouping properties force a flat transform style: its children
 are projected one by one onto its plane, in tree order, with no depth

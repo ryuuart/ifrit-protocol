@@ -690,7 +690,7 @@ struct Ds2Bench {
         {box()
              .rect(SkRect::MakeXYWH(kPX + 6, kPY + 30, kPW - 12, 34.0f))
              .translateY(&scanY)
-             .backdrop(styles::ripple(1.0f, 130.0f, 0.0f))
+             .backdropFilter(styles::ripple(1.0f, 130.0f, 0.0f))
              .fill(Paint::linear({0, 0}, {0, 34},
                                  {{0.0f, mskia::withAlpha(kCyan, 0.0f)},
                                   {0.5f, mskia::withAlpha(kCyan, 0.05f)},

@@ -195,7 +195,7 @@ Skia paint by value.
 - `core/verbs/Paint.h` — `fill`
 - `core/verbs/Cascade.h` — `ink`, `var`
 - `core/verbs/Decoration.h` — `background`, `foreground`, `overlay`
-- `core/verbs/Effects.h` — `backdrop`, `filter`, `opacity`
+- `core/verbs/Effects.h` — `backdropFilter`, `filter`, `opacity`
 - `core/verbs/TextStyle.h` — `textFill`, `textStroke`
 
 ## See also

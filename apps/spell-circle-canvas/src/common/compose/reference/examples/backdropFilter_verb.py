@@ -1,7 +1,7 @@
-"""backdrop — what is already painted beneath a node, filtered before
+"""backdropFilter — what is already painted beneath a node, filtered before
 the node paints: the frosted panel over a lattice.
 
-The Python twin of backdrop_verb.cpp. A reference example: it is
+The Python twin of backdropFilter_verb.cpp. A reference example: it is
 rendered with ``sigil render`` and belongs to no sketch registry.
 """
 
@@ -46,7 +46,7 @@ def panel(caption: str, plate: compose.Element) -> compose.Element:
 
 
 @sketch(size=(620, 280), background=GROUND, capture_at=0)
-class BackdropVerb:
+class BackdropFilterVerb:
     def setup(self, ctx: SketchContext) -> None:
         ctx.render(self.describe())
 
@@ -58,8 +58,8 @@ class BackdropVerb:
                 # The lattice under this panel is blurred before the
                 # panel's own translucent fill goes down.
                 panel(
-                    "backdrop(blur)",
-                    compose.box().backdrop(material.Effect.blur(7)),
+                    "backdropFilter(blur)",
+                    compose.box().backdropFilter(material.Effect.blur(7)),
                 ),
             )
             .cover()

@@ -156,7 +156,7 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/gridArea.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/at.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/atRest.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/backdrop.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/backdropFilter.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/background.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/bakeScale.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/balanceChain.md

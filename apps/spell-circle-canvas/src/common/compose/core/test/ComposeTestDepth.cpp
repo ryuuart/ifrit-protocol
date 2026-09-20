@@ -227,7 +227,7 @@ TEST(ComposeDepth, AGroupingPropertyFlattensTheSpaceItStandsOn) {
         material::skia::Effect::filter(SkImageFilters::Blur(1, 1, nullptr)));
   });
   flattened("a backdrop effect", [](Element& e) {
-    e.backdrop(
+    e.backdropFilter(
         material::skia::Effect::filter(SkImageFilters::Blur(1, 1, nullptr)));
   });
   // Additive, so the flattened pair is still readable: a blend that took

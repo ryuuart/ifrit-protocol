@@ -438,7 +438,7 @@ TEST(ComposePaint, BackdropLeavesDecorationsUnclipped) {
       {box()
            .absolute()
            .inset(60, 60, 60, 60)
-           .backdrop(material::skia::Effect::filter(
+           .backdropFilter(material::skia::Effect::filter(
                SkImageFilters::Blur(2, 2, nullptr)))
            .stroke(stroke(10, green(), PathFormat::Align::Outer))}));
   host.frame();

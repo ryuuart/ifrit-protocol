@@ -31,7 +31,7 @@ Derived& EffectVerbs<Derived>::filter(material::skia::Effect e) {
 }
 
 template <class Derived>
-Derived& EffectVerbs<Derived>::backdrop(material::skia::Effect e) {
+Derived& EffectVerbs<Derived>::backdropFilter(material::skia::Effect e) {
   declarations()->fxData.ensure().backdropEffect = std::move(e);
   return self();
 }

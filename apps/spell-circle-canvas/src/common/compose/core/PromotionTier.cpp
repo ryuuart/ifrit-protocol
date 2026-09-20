@@ -108,7 +108,7 @@ void decidePromotion(PaintPass& pass) {
   if (leafBlend != SkBlendMode::kSrcOver || leafOpacity < 1.0f)
     flag(Prom::Composited);
   if (layerEffectOf(node) || node.clipContent) flag(Prom::Filtered);
-  if (inst.subtreeReadsBackdrop)  // incl. this node's own backdrop()
+  if (inst.subtreeReadsBackdrop)  // incl. this node's own backdropFilter()
     flag(Prom::ReadsBackdrop);
   if (rect.width() < 0.5f || rect.height() < 0.5f)
     flag(Prom::TooBig);  // degenerate, not large — same "cannot bake" bucket

@@ -1,5 +1,5 @@
 /** @file
- * backdrop — what is already painted beneath a node, filtered before the
+ * backdropFilter — what is already painted beneath a node, filtered before the
  * node paints: the frosted panel over a lattice.
  *
  * A reference example. It stands outside the sketch registry, so it is
@@ -48,7 +48,7 @@ Element panel(const char* caption, Element plate) {
 
 }  // namespace
 
-struct BackdropVerb {
+struct BackdropFilterVerb {
   void setup(sketch::SketchContext& ctx) {
     ctx.canvas({.size = kCanvas, .background = kGround, .captureSeconds = 0});
     ctx.composer.render(describe());
@@ -67,12 +67,12 @@ struct BackdropVerb {
             .children({panel("the veil alone", box()),
                        // The lattice under this panel is blurred before
                        // the panel's own translucent fill goes down.
-                       panel("backdrop(blur)",
-                             box().backdrop(skia::Effect::blur(7)))}),
+                       panel("backdropFilter(blur)",
+                             box().backdropFilter(skia::Effect::blur(7)))}),
     });
   }
 };
 
-SIGIL_SKETCH(BackdropVerb, "Reference · Compose",
+SIGIL_SKETCH(BackdropFilterVerb, "Reference · Compose",
              "a translucent panel over a lattice, with and without the "
              "backdrop filter")

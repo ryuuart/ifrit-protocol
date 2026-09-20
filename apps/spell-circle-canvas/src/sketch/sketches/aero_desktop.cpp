@@ -10,9 +10,10 @@
 //   out.rgb = tint*colorBalance + tint*luma(blur)*afterglowBalance
 //             + blur*blurBalance
 //
-// which is approximated here as Element::backdrop() with a tight blur sigma
-// (Aero's own blur deviation was small — the glass shows shape, not colour)
-// plus a Paint::blend tint stack in the Windows 7 "Sky" accent (#74B8FC).
+// which is approximated here as Element::backdropFilter() with a tight blur
+// sigma (Aero's own blur deviation was small — the glass shows shape, not
+// colour) plus a Paint::blend tint stack in the Windows 7 "Sky" accent
+// (#74B8FC).
 //
 // The frame anatomy is what makes it read as Aero rather than as a blur:
 // a 1px black silhouette stroked Outer on the frame outline, a 1px white
@@ -153,7 +154,7 @@ inline Paint glassTint(float w, float h) {
       // structure seen through the blur — the one thing that makes a
       // nine-pixel frame read as a band of glass rather than as a pale
       // keyline. The pane's translucency does not come from a live
-      // backdrop(): it is a canvas-aligned frozen copy of the aurora,
+      // backdropFilter(): it is a canvas-aligned frozen copy of the aurora,
       // blurred and clipped to the pane, chosen deliberately so the pane can
       // bake as one texture. That copy resolves correctly underneath, and
       // this wash sits on top of it. Raise the alpha and it simply covers the
@@ -430,7 +431,7 @@ struct AeroDesktop {
             .clip()
             // The DWM pass blurs what's behind the pane -- and behind it
             // is only the wallpaper, static between its 10 Hz steps. A
-            // live backdrop() samples the destination, which keeps this
+            // live backdropFilter() samples the destination, which keeps this
             // whole plane un-bakeable and re-blurring 600x440 every
             // frame; instead blur a frozen-time copy of the SAME aurora
             // shader, extended to full canvas size so the pattern lines

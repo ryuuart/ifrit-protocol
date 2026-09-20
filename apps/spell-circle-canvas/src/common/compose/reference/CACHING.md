@@ -49,7 +49,7 @@ still declares itself volatile, because the pixels it composites do
 change. But the volatility is applied *outside* the content, so the
 content is rasterized ONCE with the effect left out and the effect runs
 over that one image at every blit. The image's identity holds, and the
-bake is held across every value the parameter takes. `backdrop()` is the
+bake is held across every value the parameter takes. `backdropFilter()` is the
 exception and always paints live: it reads what is already on the canvas,
 and a bake holds none of that. A masked node is refused too, since the
 blit-side resolve hands the effect's child materials the node's box and
@@ -67,7 +67,7 @@ arithmetic, is most of what an effect over a large node costs: a small
 sigma paid nearly what a large one did. The picture is the same one, and
 the blit is untouched. The tier is the author's own bake only
 (`Cache::Texture`; automatic promotion refuses a filtered node outright),
-and it is refused to a masked node, a `backdrop()`, and a node whose
+and it is refused to a masked node, a `backdropFilter()`, and a node whose
 subtree composites against the canvas — the same list the live tier
 refuses.
 

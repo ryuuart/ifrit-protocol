@@ -356,7 +356,7 @@ struct Flourish {
         .borderRadius({16})
         .zIndex(3)
         .clip()
-        .backdrop(sigil::material::skia::Effect::filter(
+        .backdropFilter(sigil::material::skia::Effect::filter(
             SkImageFilters::Blur(8, 8, nullptr)))
         .background(sigil::compose::shadow({0, 0, 0, 0.5f}, {0, 6}, 16))
         .fill(flourishParchment(st))

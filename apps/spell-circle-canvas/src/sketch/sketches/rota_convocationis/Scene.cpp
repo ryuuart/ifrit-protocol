@@ -135,8 +135,7 @@ auto RotaConvocationis::wheel() -> Element {
        // which is at the rim and does not travel — the seals pass behind it.
        layer("ferrum")
            .rotate(motion::bind(&sealOrbit).target(0.0f, 360.0f))
-           .children(each(kSeals,
-                          [this](int k) { return sigillum(k); })),
+           .children(each(kSeals, [this](int k) { return sigillum(k); })),
        spur(),
        // the embers: a live pool stamped as one draw, rising off the rim at
        // ignition and drizzling for as long as the circle is charged
@@ -145,9 +144,9 @@ auto RotaConvocationis::wheel() -> Element {
        // THE CREST'S FRINGE: half a second of the frame beneath re-sampled
        // with its channels pulled apart along the radius.
        layer("fringe")
-           .backdrop(mskia::Effect::shader(
-                         fringeFx, {{"uCx", kEye.x()}, {"uCy", kEye.y()}})
-                         .uniform("uSpread", &fringeK))
+           .backdropFilter(mskia::Effect::shader(
+                               fringeFx, {{"uCx", kEye.x()}, {"uCy", kEye.y()}})
+                               .uniform("uSpread", &fringeK))
            .opacity(&fringeA),
        // the scribe: the point of the pen, led round the band by the writing
        // cascade — placed every frame from the schedule read back, so it

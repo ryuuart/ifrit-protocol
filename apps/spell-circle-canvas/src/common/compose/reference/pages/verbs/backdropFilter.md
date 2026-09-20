@@ -1,31 +1,31 @@
 ---
 kind: verb
 library: SigilCompose
-name: backdrop
-qualified: sigil::compose::Element::backdrop
+name: backdropFilter
+qualified: sigil::compose::Element::backdropFilter
 header: sigilcompose/core/verbs/Effects.h
 group: Effects
-python: sigil.compose.Element.backdrop
+python: sigil.compose.Element.backdropFilter
 status: stable
-example: backdrop_verb
+example: backdropFilter_verb
 ---
 
-# backdrop
+# backdropFilter
 
 Filters what is ALREADY PAINTED beneath the node's bounds, before the
 node paints — CSS's `backdrop-filter`. The frosted panel, the blurred
 sheet over a photograph, the tinted glass over a lattice.
 
-<!-- example: backdrop_verb -->
+<!-- example: backdropFilter_verb -->
 
 ## Syntax
 
 ```cpp
-Element& backdrop(material::skia::Effect e);
+Element& backdropFilter(material::skia::Effect e);
 ```
 
 ```python
-def backdrop(self, effect: material.Effect) -> Element: ...
+def backdropFilter(self, effect: material.Effect) -> Element: ...
 ```
 
 ## Parameters
@@ -50,9 +50,9 @@ the node's box: a blur samples what lies under the box and stops there.
 
 ## Examples
 
-- `reference/examples/backdrop_verb.cpp` — two translucent panels over
+- `reference/examples/backdropFilter_verb.cpp` — two translucent panels over
   one lattice, one of them filtering what is under it.
-- `reference/examples/backdrop_verb.py` — the same picture in Python.
+- `reference/examples/backdropFilter_verb.py` — the same picture in Python.
 
 ## See also
 
