@@ -214,6 +214,9 @@ struct Strip {
   glm::vec2 from{0, 0};
   glm::vec2 to{0, 0};
   float width = 1;
+
+  /** Value equality: the same segment cut to the same width. */
+  bool operator==(const Strip&) const = default;
 };
 
 /** HOW A SET OF PIECES IS CUT WHERE IT MEETS ITSELF. */
@@ -276,6 +279,10 @@ struct StripLap {
    *  a half-lap shows on the piece that passes over. Bounded by
    *  `lapLimit`. */
   float halfSpan[2]{0, 0};
+
+  /** Value equality: the same two pieces crossing at the same place.
+   *  The arrays compare element for element. */
+  bool operator==(const StripLap&) const = default;
 };
 
 /** Every place two pieces cross away from their ends. A crossing at an
@@ -312,6 +319,10 @@ struct Roughen {
   bool smooth = true;
   core::chance::Source source = core::chance::Source::Pcg;
 
+  /** Value equality, dial for dial — so a description holding this
+   *  distort can be compared with the one the frame before held. */
+  bool operator==(const Roughen&) const = default;
+
   SkPath apply(const SkPath& path) const;
   SkPath operator()(const SkPath& path) const { return apply(path); }
 };
@@ -322,6 +333,9 @@ struct Zigzag {
   float amplitude = 6;
   float wavelengthPx = 24;
   bool smooth = false;
+
+  /** Value equality, dial for dial. */
+  bool operator==(const Zigzag&) const = default;
 
   SkPath apply(const SkPath& path) const;
   SkPath operator()(const SkPath& path) const { return apply(path); }
@@ -336,6 +350,9 @@ struct PuckerBloat {
   float amount = 0.5f;
   float segmentPx = 6;
 
+  /** Value equality, dial for dial. */
+  bool operator==(const PuckerBloat&) const = default;
+
   SkPath apply(const SkPath& path) const;
   SkPath operator()(const SkPath& path) const { return apply(path); }
 };
@@ -345,6 +362,9 @@ struct PuckerBloat {
 struct Twirl {
   float angleDeg = 60;
   float segmentPx = 6;
+
+  /** Value equality, dial for dial. */
+  bool operator==(const Twirl&) const = default;
 
   SkPath apply(const SkPath& path) const;
   SkPath operator()(const SkPath& path) const { return apply(path); }

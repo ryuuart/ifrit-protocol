@@ -274,4 +274,34 @@ TEST(Contour, CornerWindowsPartitionTheOutline) {
   EXPECT_NEAR(farLen, 40 - 16, 0.1f);
 }
 
+// What is read OFF a contour is a value too: the sample at a distance,
+// the corners found along it, and the pose a caller places something at.
+// Each reading is a function of the contour and the distance, so asking
+// twice answers the same thing.
+TEST(Contours, WhatIsReadOffAContourIsAValue) {
+  const std::vector<Contour> contours = Contour::of(square(100));
+  ASSERT_FALSE(contours.empty());
+  const Contour& edge = contours.front();
+
+  const std::optional<Contour::Sample> here = edge.at(40);
+  ASSERT_TRUE(here.has_value());
+  EXPECT_EQ(here, edge.at(40));
+  Contour::Sample turned = *here;
+  turned.tangent = -turned.tangent;
+  EXPECT_NE(turned, *here);
+
+  const std::vector<Contour::Corner> corners = edge.corners(45);
+  EXPECT_EQ(corners, edge.corners(45));
+  ASSERT_GE(corners.size(), 2u);
+  EXPECT_NE(corners[0], corners[1]);
+
+  const Pose pose = poseAlong(edge, 40);
+  EXPECT_EQ(pose, poseAlong(edge, 40));
+  EXPECT_NE(pose, poseAlong(edge, 41));
+  // The distance a pose was actually taken at is part of it, so two
+  // clamped reads past the same end are one pose.
+  EXPECT_EQ(poseAlong(edge, edge.length() + 10),
+            poseAlong(edge, edge.length() + 20));
+}
+
 }  // namespace

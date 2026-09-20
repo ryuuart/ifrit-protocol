@@ -65,6 +65,10 @@ struct SweepStation {
   float distance = 0;  ///< arc length along this contour
   float fraction = 0;  ///< …as a fraction of `length`
   float length = 0;    ///< the contour's own arc length
+
+  /** Value equality: the same place on the same contour, heading the
+   *  same way. */
+  bool operator==(const SweepStation&) const = default;
 };
 
 /** THE FULL WIDTH of a swept band at one station, in px. A non-finite
@@ -90,6 +94,9 @@ struct Sweep {
   float stepPx = 1.0f;
   SweepJoin join = SweepJoin::Miter;
   float miterLimit = 4.0f;
+
+  /** Value equality: the same stride closed the same way. */
+  bool operator==(const Sweep&) const = default;
 };
 
 /** THE REGION A WIDTH LAW SWEEPS along @p spine, as the UNION of its

@@ -226,3 +226,26 @@ TEST(StripJoinery, AMeetingAtAnEndIsNotALapAndParallelPiecesNeverCross) {
   const Strip parallel[2] = {{{0, 0}, {50, 0}, 10}, {{0, 20}, {50, 20}, 10}};
   EXPECT_TRUE(operations::stripLaps(parallel).empty());
 }
+
+// A piece of stock and the lap where two of them cross are VALUES, the
+// C arrays a lap carries compared element for element, so the whole
+// reading can be compared: stripLaps is a function of the pieces, and
+// asking twice answers the same laps in the same order.
+TEST(Strips, APieceAndTheLapItMakesAreValues) {
+  const Strip pieces[2] = {{{-50, 0}, {50, 0}, 10}, {{0, -50}, {0, 50}, 6}};
+  EXPECT_EQ(pieces[0], pieces[0]);
+  EXPECT_NE(pieces[0], pieces[1]);
+  Strip thicker = pieces[0];
+  thicker.width += 1;
+  EXPECT_NE(thicker, pieces[0]);
+
+  const std::vector<operations::StripLap> laps = operations::stripLaps(pieces);
+  EXPECT_EQ(laps, operations::stripLaps(pieces));
+  ASSERT_EQ(laps.size(), 1u);
+  operations::StripLap swapped = laps.front();
+  swapped.pieces[0] = swapped.pieces[1];
+  EXPECT_NE(swapped, laps.front());
+  operations::StripLap wider = laps.front();
+  wider.halfSpan[1] += 1;
+  EXPECT_NE(wider, laps.front());
+}

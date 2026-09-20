@@ -49,6 +49,10 @@ struct Polyline {
    *  than three points bound nothing and contain nothing. */
   bool contains(glm::vec2 point) const;
   void reverse();
+
+  /** Value equality: the same points in the same order, the same
+   *  closure and the same lane. */
+  bool operator==(const Polyline&) const = default;
 };
 
 /** THE SIGNED AREA OF A RING OF POINTS, without a Polyline to hold them:
@@ -106,6 +110,10 @@ struct Sampled {
 
   /** Plain average of the points. */
   glm::vec2 centroid() const;
+
+  /** Value equality: the same points, the same closure and the same
+   *  remembered length. */
+  bool operator==(const Sampled&) const = default;
 };
 
 /** `count` points spaced evenly by arc length along `contour`. A closed
@@ -123,6 +131,9 @@ std::vector<Sampled> resample(const SkPath& path, int count,
 struct Alignment {
   int offset = 0;
   bool reversed = false;
+
+  /** Value equality: the same roll in the same direction. */
+  bool operator==(const Alignment&) const = default;
 };
 /** The rotation and direction that minimise the summed squared distance
  *  between paired points, searched over every rotation and both

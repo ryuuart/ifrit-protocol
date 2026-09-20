@@ -64,6 +64,10 @@ struct Triangulation {
   [[nodiscard]] float circumradius(size_t triangle) const;
   /** Every point index that shares an edge with `point`. */
   [[nodiscard]] std::vector<uint32_t> adjacent(uint32_t point) const;
+
+  /** Value equality: the same points, the same triangles over them and
+   *  the same neighbours across their edges. */
+  bool operator==(const Triangulation&) const = default;
 };
 
 /** THE DELAUNAY TRIANGULATION of `points`. Fewer than three distinct

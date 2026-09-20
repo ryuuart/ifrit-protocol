@@ -216,3 +216,28 @@ TEST(Hull, TooFewOrCollinearPointsEncloseNothing) {
   EXPECT_TRUE(
       hull(std::vector<glm::vec2>{{0, 0}, {1, 0}, {2, 0}, {3, 0}}).empty());
 }
+
+// A triangulation is a VALUE — the points, the triangles over them and
+// the neighbours across their edges — so one answer can be compared with
+// another rather than walked triangle by triangle. The construction is a
+// function of the points, so triangulating twice answers the same mesh.
+TEST(Triangulate, ATriangulationIsAValue) {
+  const Triangulation once = delaunay(kSquare);
+  EXPECT_EQ(once, delaunay(kSquare));
+  ASSERT_FALSE(once.triangles.empty());
+
+  // A point in the same place is one point to a triangulation, so a set
+  // with a duplicate in it answers the same triangulation.
+  std::vector<glm::vec2> doubled = kSquare;
+  doubled.push_back(kSquare.front());
+  EXPECT_EQ(once, delaunay(doubled));
+
+  // A point that moves the mesh does not.
+  std::vector<glm::vec2> moved = kSquare;
+  moved.push_back({50, 50});
+  EXPECT_NE(once, delaunay(moved));
+
+  Triangulation shifted = once;
+  shifted.points.front().x += 1;
+  EXPECT_NE(once, shifted);
+}

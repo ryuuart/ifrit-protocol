@@ -25,6 +25,9 @@ namespace sigil::geometry::path {
 struct LatticeMark {
   glm::vec2 from{0, 0};
   glm::vec2 to{0, 0};
+
+  /** Value equality: the same two ends in the same order. */
+  bool operator==(const LatticeMark&) const = default;
 };
 
 /** How the lines of a lattice are laid down. */
@@ -87,6 +90,11 @@ struct MultigridFamily {
    *  themselves where they were — and which fractions may be used
    *  together is the regularity rule `multigrid` states. */
   double offset = 0;
+
+  /** Value equality: the same direction at the same spacing and phase.
+   *  Exact, as the arithmetic behind it is — a family read off a
+   *  rounded offset is a different family and tiles differently. */
+  bool operator==(const MultigridFamily&) const = default;
 };
 
 /** `count` families evenly spread, all at one spacing and one phase.
@@ -119,6 +127,10 @@ struct MultigridRhomb {
    *  from its low corner: along the first family's normal, then the
    *  second's, then back. */
   int corners[4]{0, 0, 0, 0};
+
+  /** Value equality: the same two families crossing at the same two
+   *  lines, over the same corners. */
+  bool operator==(const MultigridRhomb&) const = default;
 };
 
 /** A MULTIGRID'S DUAL: every rhomb, over one deduplicated set of
@@ -128,6 +140,9 @@ struct MultigridTiling {
    *  edge is one long whatever the lines that made it were spaced. */
   std::vector<glm::dvec2> vertices;
   std::vector<MultigridRhomb> rhombs;
+
+  /** Value equality: the same corners and the same rhombs over them. */
+  bool operator==(const MultigridTiling&) const = default;
 };
 
 /** How much of a multigrid is dualised, and how near two corners stand

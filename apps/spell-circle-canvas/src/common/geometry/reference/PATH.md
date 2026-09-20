@@ -332,6 +332,11 @@ in no header.
   as parameter structs you apply on demand: `Roughen` (seeded jitter
   along the normal, each contour drawing from its own stream so adding
   one does not re-roll the others), `Zigzag`, `PuckerBloat`, `Twirl`.
+  Each of the four compares dial for dial, so a description holding one
+  can be asked whether it is the description it held last frame. None of
+  them is a `sigil::geometry::path::ShaperScheme`: a distort is APPLIED,
+  and the seam spelling of the same warps is the kit's
+  `shapers::Jitter` and `shapers::Zigzag`.
   `PathOperation` and `chain()` compose them, `offsetBy()` adapts `offset` into
   a step. Beside them two treatments that are neither a boolean nor a
   distortion. `chamferCorners()` cuts every line-line corner with a

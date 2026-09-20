@@ -305,3 +305,50 @@ TEST(Multigrid, ALongerRingSummingToAWholeNumberIsRegularAndComesBackWhole) {
                 .rhombs.size(),
             572);
 }
+
+// A family, a rhomb and the whole tiling are VALUES — the dual is a
+// function of the families and the reach, so dualising twice answers the
+// same corners and the same rhombs over them.
+TEST(Tilings, AFamilyARhombAndTheWholeTilingAreValues) {
+  const std::vector<MultigridFamily> penrose =
+      multigridRing(5, kPenroseOffset);
+  EXPECT_EQ(penrose, multigridRing(5, kPenroseOffset));
+  ASSERT_GE(penrose.size(), 2u);
+  EXPECT_NE(penrose[0], penrose[1]);
+  // A family is exact in its phase: the offsets are what pick one tiling
+  // out of the family a set of directions admits.
+  MultigridFamily nudged = penrose.front();
+  nudged.offset += 1e-9;
+  EXPECT_NE(nudged, penrose.front());
+
+  MultigridOptions options;
+  options.radius = 3;
+  const MultigridTiling tiling = multigrid(penrose, options);
+  ASSERT_FALSE(tiling.rhombs.empty());
+  EXPECT_EQ(tiling, multigrid(penrose, options));
+
+  MultigridTiling clipped = tiling;
+  clipped.rhombs.pop_back();
+  EXPECT_NE(tiling, clipped);
+  EXPECT_NE(tiling.rhombs.front(), tiling.rhombs.back());
+
+  MultigridRhomb relined = tiling.rhombs.front();
+  relined.lines[1] += 1;
+  EXPECT_NE(relined, tiling.rhombs.front());
+}
+
+// A lattice mark is a value, so the whole scan can be compared: the
+// marks are a function of the rings and the options.
+TEST(Tilings, ALatticeMarkIsAValue) {
+  Polyline ring;
+  ring.points = {{0, 0}, {100, 0}, {100, 100}, {0, 100}};
+  ring.closed = true;
+  LatticeOptions options;
+  options.spacing = 20;
+  const std::vector<LatticeMark> marks = lattice({&ring, 1}, options);
+  EXPECT_EQ(marks, lattice({&ring, 1}, options));
+  ASSERT_GE(marks.size(), 2u);
+  EXPECT_NE(marks[0], marks[1]);
+  LatticeMark reversed{marks[0].to, marks[0].from};
+  EXPECT_NE(reversed, marks[0]);
+}

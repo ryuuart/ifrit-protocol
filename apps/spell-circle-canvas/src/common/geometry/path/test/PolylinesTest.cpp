@@ -394,4 +394,40 @@ TEST(Polyline, ReverseTurnsTheWindingAndKeepsTheShape) {
   EXPECT_EQ(ring.points.front(), glm::vec2(0, 100));
 }
 
+// A polyline, the sampling taken off one and the alignment between two
+// are VALUES, which is what lets a whole flattening be compared rather
+// than walked point by point: flatten is a function of the path, so two
+// readings of one path are the same contours.
+TEST(Polylines, TheFlatteningAndItsResamplingAreValues) {
+  const SkPath outline = rect(0, 0, 120, 80);
+  const std::vector<Polyline> once = flatten(outline);
+  EXPECT_EQ(once, flatten(outline));
+  ASSERT_FALSE(once.empty());
+
+  Polyline moved = once.front();
+  EXPECT_EQ(moved, once.front());
+  moved.closed = !moved.closed;
+  EXPECT_NE(moved, once.front());
+  // The lane is part of what a polyline IS: the same points carrying a
+  // value are not the same polyline as the same points carrying none.
+  Polyline laned = once.front();
+  laned.lane.assign(laned.points.size(), 1.0f);
+  EXPECT_NE(laned, once.front());
+
+  const Sampled sampled = resample(once.front(), 32);
+  EXPECT_EQ(sampled, resample(once.front(), 32));
+  Sampled shorter = sampled;
+  shorter.sourceLength += 1;
+  EXPECT_NE(sampled, shorter);
+
+  const Alignment identity = bestAlignment(sampled, sampled);
+  EXPECT_EQ(identity, Alignment{});
+  Alignment rolled = identity;
+  rolled.reversed = true;
+  EXPECT_NE(identity, rolled);
+  // An alignment that changes nothing leaves the sampling it is applied
+  // to the sampling it was.
+  EXPECT_EQ(applyAlignment(sampled, identity), sampled);
+}
+
 }  // namespace

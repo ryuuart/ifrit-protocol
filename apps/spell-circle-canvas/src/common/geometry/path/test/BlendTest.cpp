@@ -6,6 +6,8 @@
 #include <gtest/gtest.h>
 #include <include/core/SkPathBuilder.h>
 
+#include <vector>
+
 #include "sigilgeometry/path/blend/Blend.h"
 
 using namespace sigil::geometry;
@@ -90,4 +92,33 @@ TEST(Blend, TheOklabMidpointReachedThroughTheBlendIsPerceptual) {
   EXPECT_NEAR(mid.fR, mid.fG, 0.01f);
   EXPECT_NEAR(mid.fG, mid.fB, 0.01f);
   EXPECT_FLOAT_EQ(mid.fA, 1.0f);
+}
+
+// A key, the dials between two of them and each step they expand into
+// are VALUES, so a whole blend can be compared: make() is a function of
+// the keys and the options, and expanding twice answers the same steps.
+TEST(Blend, TheKeysTheOptionsAndTheStepsAreValues) {
+  const blend::Key from{SkPath::Circle(100, 100, 50), {1, 0, 0, 1}};
+  const blend::Key to{SkPath::Circle(400, 100, 30), {0, 0, 1, 1}};
+  const blend::Key again{SkPath::Circle(100, 100, 50), {1, 0, 0, 1}};
+  EXPECT_EQ(from, again);
+  EXPECT_NE(from, to);
+
+  blend::Key stroked = from;
+  stroked.stroke = SkColor4f{0, 1, 0, 1};
+  EXPECT_NE(from, stroked);
+
+  blend::Options options;
+  EXPECT_EQ(options, blend::Options{});
+  options.steps = 3;
+  EXPECT_NE(options, blend::Options{});
+
+  const std::vector<blend::Step> steps = blend::make(from, to, options);
+  EXPECT_EQ(steps, blend::make(from, to, options));
+  ASSERT_GE(steps.size(), 2u);
+  EXPECT_NE(steps.front(), steps.back());
+
+  blend::Step later = steps.front();
+  later.t = 1;
+  EXPECT_NE(later, steps.front());
 }

@@ -46,6 +46,10 @@ struct Pose {
   glm::vec2 tangent{1, 0};
   glm::vec2 normal{0, 1};
   float distance = 0;
+
+  /** Value equality: the same place, the same orientation and the same
+   *  distance it was taken at. */
+  bool operator==(const Pose&) const = default;
 };
 
 /** The pose at @p distance along @p contour. A contour that cannot be

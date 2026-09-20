@@ -228,3 +228,22 @@ TEST(Scatter, ALatticeOverAThinDiagonalSliverAnswersFewerPointsNotNone) {
   EXPECT_FALSE(points.empty());
   for (const glm::vec2 point : points) EXPECT_TRUE(sliver.contains(point));
 }
+
+// A region is a VALUE — the rings it is read by, in order — so the area
+// a scatter fills can be compared rather than measured: Region::of is a
+// function of the path, and the same path answers the same region.
+TEST(Scatter, ARegionIsAValue) {
+  const Region rect = Region::of(SkRect::MakeXYWH(0, 0, 100, 60));
+  EXPECT_EQ(rect, Region::of(SkRect::MakeXYWH(0, 0, 100, 60)));
+  EXPECT_NE(rect, Region::of(SkRect::MakeXYWH(0, 0, 100, 61)));
+
+  SkPathBuilder builder;
+  builder.addRect(SkRect::MakeXYWH(0, 0, 100, 60));
+  const SkPath path = builder.detach();
+  EXPECT_EQ(Region::of(path), Region::of(path));
+
+  // A ring added is a ring of the region, so the two are not one area.
+  Region islands = rect;
+  islands.rings.push_back(Region::disc({50, 30}, 10).rings.front());
+  EXPECT_NE(rect, islands);
+}

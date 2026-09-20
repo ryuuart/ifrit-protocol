@@ -48,6 +48,9 @@ class Contour {
   struct Sample {
     glm::vec2 position{0, 0};
     glm::vec2 tangent{1, 0};
+
+    /** Value equality: the same place heading the same way. */
+    bool operator==(const Sample&) const = default;
   };
 
   /** A corner sharper than the threshold: the distance it sits at, and
@@ -56,6 +59,9 @@ class Contour {
     float distance = 0;
     glm::vec2 in{0, 0};
     glm::vec2 out{0, 0};
+
+    /** Value equality: the same distance and the same two tangents. */
+    bool operator==(const Corner&) const = default;
   };
 
   /** Every contour of `path`, in path order. Degenerate (zero-length)

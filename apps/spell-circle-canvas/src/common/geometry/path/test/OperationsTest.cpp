@@ -691,4 +691,66 @@ TEST(PathDistortEndpoints, ZigzagLeavesAnOpenContoursEndsWhereTheyWere) {
   EXPECT_NEAR(points.back().fX, 300.0f, 0.5f);
 }
 
+// The four distorts are VALUES, dial for dial, so a description holding
+// one can be compared with the one the frame before held instead of
+// re-applying the warp to find out whether anything moved.
+TEST(Operations, TheDistortsAreValues) {
+  operations::Roughen roughen;
+  EXPECT_EQ(roughen, operations::Roughen{});
+  roughen.seed = 2;
+  EXPECT_NE(roughen, operations::Roughen{});
+  // The stream a distort draws from is part of what it is: the same
+  // amplitude off a different source is a different roughening.
+  operations::Roughen sequenced = operations::Roughen{};
+  sequenced.source = sigil::core::chance::Source::Halton;
+  EXPECT_NE(sequenced, operations::Roughen{});
+
+  operations::Zigzag zigzag;
+  EXPECT_EQ(zigzag, operations::Zigzag{});
+  zigzag.smooth = true;
+  EXPECT_NE(zigzag, operations::Zigzag{});
+
+  operations::PuckerBloat pucker;
+  EXPECT_EQ(pucker, operations::PuckerBloat{});
+  pucker.amount = -pucker.amount;
+  EXPECT_NE(pucker, operations::PuckerBloat{});
+
+  operations::Twirl twirl;
+  EXPECT_EQ(twirl, operations::Twirl{});
+  twirl.angleDeg += 1;
+  EXPECT_NE(twirl, operations::Twirl{});
+
+  // Two equal distorts warp one outline the same way, which is the
+  // property the comparison stands for.
+  const SkPath star = SkPath::Circle(100, 100, 40);
+  EXPECT_TRUE(operations::Roughen{}.apply(star) ==
+              operations::Roughen{}.apply(star));
+}
+
+// A station of a swept band and the dials the sweep is walked with are
+// values, so a width law that is a function of the station can be told
+// two identical stations apart from two different ones.
+TEST(Operations, ASweptBandsStationAndItsDialsAreValues) {
+  Sweep sweep;
+  EXPECT_EQ(sweep, Sweep{});
+  sweep.join = SweepJoin::Round;
+  EXPECT_NE(sweep, Sweep{});
+
+  std::vector<SweepStation> seen;
+  const SkPath spine = SkPath::Line({0, 0}, {100, 0});
+  const SweepWidth width = [&](const SweepStation& station) {
+    seen.push_back(station);
+    return 8.0f;
+  };
+  Sweep step;
+  step.stepPx = 25;
+  EXPECT_FALSE(sweptRegion(spine, width, step).isEmpty());
+  ASSERT_GE(seen.size(), 2u);
+  EXPECT_EQ(seen.front(), seen.front());
+  EXPECT_NE(seen.front(), seen.back());
+  SweepStation moved = seen.front();
+  moved.fraction += 0.5f;
+  EXPECT_NE(moved, seen.front());
+}
+
 }  // namespace

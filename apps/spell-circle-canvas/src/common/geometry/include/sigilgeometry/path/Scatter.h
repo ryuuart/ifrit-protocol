@@ -67,6 +67,9 @@ struct Region {
    *  which is how `flatten` delivers a path with counters; two rings
    *  wound the same way add, which is what two islands are. */
   [[nodiscard]] float area() const;
+
+  /** Value equality: the same rings in the same order. */
+  bool operator==(const Region&) const = default;
 };
 
 /** HOW THE POINTS ARE SPREAD, and the whole of the difference between

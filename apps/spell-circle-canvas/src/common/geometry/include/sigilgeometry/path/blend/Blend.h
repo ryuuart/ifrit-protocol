@@ -56,6 +56,9 @@ struct Key {
   std::optional<SkColor4f> stroke;
   float strokeWidth = 0;
   float opacity = 1;
+
+  /** Value equality: the same outline wearing the same paint. */
+  bool operator==(const Key&) const = default;
 };
 
 /** What decides how many intermediates fall between one key and the
@@ -96,6 +99,10 @@ struct Options {
   /** Include the keys themselves in the returned sequence (Illustrator
    *  always draws them; turn off to get only the intermediates). */
   bool includeKeys = true;
+
+  /** Value equality, dial for dial — the same spacing over the same
+   *  spine. */
+  bool operator==(const Options&) const = default;
 };
 
 /** One drawable step of the blend, keys included when asked. `t` runs 0
@@ -107,6 +114,10 @@ struct Step {
   float strokeWidth = 0;
   float opacity = 1;
   float t = 0;
+
+  /** Value equality: the same outline wearing the same paint at the
+   *  same place in the sequence. */
+  bool operator==(const Step&) const = default;
 };
 
 /** Expand the blend: every step's outline and paint, back-to-front in
