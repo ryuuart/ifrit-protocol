@@ -1,6 +1,7 @@
-"""Conversion seams of the immediate pen, its canvas and offscreen graphics.
+"""Conversion seams of the immediate pen and its offscreen graphics.
 
-Canvas and pen conversions retain native paint and colour distinctions.
+Pen conversions retain native paint and colour distinctions. The canvas
+a pen lends is the canvas seam's own subject, and so is its fragment.
 """
 
 from __future__ import annotations
@@ -9,9 +10,6 @@ from .table import Table
 
 
 def register(table: Table) -> None:
-    table.erased("_sigil.draw.Canvas", "clear", "_t.ColorLike")
-    table.erased("_sigil.draw.Canvas", "clipRect drawRect", "_t.RectLike")
-    table.erased("_sigil.draw.Canvas", "drawPoints", "_t.PointBatch")
     table.returns("_sigil.draw.Graphics", "extent", "tuple[float, float]")
     table.parameters("_sigil.draw.Graphics.draw", program="_t.DrawCallback")
     table.parameters("_sigil.draw.on", program="_t.DrawCallback")

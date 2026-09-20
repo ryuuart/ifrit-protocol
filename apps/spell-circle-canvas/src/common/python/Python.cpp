@@ -33,6 +33,10 @@ void bindLibraries(pybind11::module_& module) {
   bindCoreCompute(module);
   bindSkiaEffects(module);
   bindSkiaPaths(module);
+  // Every binding that draws through Skia rather than through the pen
+  // takes or answers this canvas, and several of them register here,
+  // ahead of the pen the first canvas is lent by.
+  bindDrawCanvasSeam(module);
   bindSkiaSurfaces(module);
   bindSkiaFonts(module);
   bindImageValues(module);
@@ -102,7 +106,6 @@ void bindLibraries(pybind11::module_& module) {
   bindComposeLayerStyles(module);
   bindComposePixelStyles(module);
   bindPen(module);
-  bindDrawCanvasSeam(module);
   bindDrawStandalonePen(module);
   bindWeaveLayout(module);
   bindWeaveShaping(module);

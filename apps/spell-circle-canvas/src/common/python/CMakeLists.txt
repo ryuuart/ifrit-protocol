@@ -47,7 +47,7 @@ sigil_library(SigilPython
   HEADERS
     Bindings.h Extend.h PublicNames.h Python.h compose/Convert.h
     compose/Kit.h compose/Registration.h core/Registration.h data/Convert.h
-    data/Registration.h draw/Registration.h geometry/Casters.h
+    data/Registration.h draw/Canvas.h draw/Registration.h geometry/Casters.h
     geometry/Registration.h image/Registration.h io/Hub.h io/Registration.h
     material/Registration.h measure/Registration.h motion/Convert.h
     motion/Registration.h scry/Registration.h skia/Registration.h
