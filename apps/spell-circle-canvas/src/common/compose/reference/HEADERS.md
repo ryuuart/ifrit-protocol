@@ -106,8 +106,18 @@ sound model; nothing below them changes kernel semantics.
 - `core/verbs/Depth.h` — `DepthVerbs`: `rotateX`, `rotateY`, `rotateZ`,
   `translateZ`, `scaleZ`, `perspective`, `perspectiveOrigin`,
   `transformOrigin3d`, `preserve3d`, `backface`.
+- `core/verbs/TextStyle.h` — `TextStyleVerbs`: `paragraphs`,
+  `initialLetter`, `firstBaseline`, `distribute`, `reserve`, `live`,
+  `ellipsis`, `maxLines`, `textFill`, `textStroke`, `flowAround`.
+- `core/Text.h` — `TextContentVerbs`: `fx`, `variationDrive`, `mark`,
+  `annotate`, `thread`, `balanceChain`, `onPath`, `spanPaint`,
+  `spanStyle`, `atRest`.
+- `core/Image.h` — `ImageVerbs`: `region`.
 - `core/Element.h` — `Element` and its builders: the verb mixins it
-  inherits, its own identity and structure, and `Children`.
+  inherits, the cascade it NAMES with `styleSheet`, `role` and
+  `styleClass`, its identity with `key`, `hitTestable`, `cache`,
+  `bakeScale`, `transition` and `staggerChildren`, and `children` with
+  the `Children` value its runs are.
 - `core/Factories.h` — the functions that start one: `box`, `stack`,
   `positioned`, `text`, `frame`, `image` (an `image::ImageAsset`, or a
   raw `SkImage` with a `material::skia::Fit` — `Stretch`, `Contain`,

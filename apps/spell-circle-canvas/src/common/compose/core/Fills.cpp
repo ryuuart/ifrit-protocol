@@ -103,19 +103,4 @@ Fill resolveFill(const material::skia::Paint& paint, const PaintContext& ctx) {
   return Fill::none();
 }
 
-Element& Element::textFill(SurfacePaint paint) {
-  detail::TextData& text = m_node->textData.ensure();
-  // An empty paint CLEARS the override, because that is what asking for
-  // no glyph paint means. A fill the slot cannot store — the ink in
-  // force, a custom property, a bound fill — leaves whatever paint the
-  // glyphs already carry: blanking it would repaint them in a colour
-  // nobody named, and the reference the caller wrote is the colour they
-  // are painted in without an override anyway.
-  if (paint.none())
-    text.metricFill.reset();
-  else if (std::optional<material::skia::Paint> stored = paint.collapsedPaint())
-    text.metricFill = std::move(stored);
-  return *this;
-}
-
 }  // namespace sigil::compose

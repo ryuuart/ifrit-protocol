@@ -152,10 +152,14 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/elements/image.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/elements/stack.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/elements/text.md
+${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/annotate.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/area.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/at.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/atRest.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/backdrop.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/background.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/bakeScale.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/balanceChain.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/blend.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/block.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/boundary.md
@@ -165,22 +169,31 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/cover.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/effect.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/fill.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/flowAround.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/font.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/foreground.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/initialLetter.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/ink.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/live.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/mark.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/mask.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/opacity.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/overlay.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/paragraphs.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/preserve3d.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/rect.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/sampling.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/scaleX.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/shape.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/spanPaint.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/spanStyle.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/stroke.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/tether.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textFill.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textStroke.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/thread.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/threshold.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/variationDrive.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/testing/include/sigilcompose
            ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../core/include

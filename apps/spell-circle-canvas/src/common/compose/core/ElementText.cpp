@@ -1,14 +1,13 @@
 /** @file
- * The text leaf's own verbs: the glyph stroke, the overflow, the
- * frame, the frame chain and the exclusion — with the leaf's options'
- * fold onto SigilWeave's layout options and the UTF-16 boundary the leaf
- * speaks to it across — and the leaf as it stands at rest, which is a
- * copy of its description. The verbs that dress type are declared beside
- * these and defined by the typography tier.
+ * The text leaf's own content — the frame it fills into, the balanced
+ * run it opens, and the leaf as it stands at rest, which is a copy of
+ * its description. The verbs that dress type are declared beside these
+ * and defined by the typography tier.
  */
 
 #include <include/core/SkTypes.h>  // SkDebugf — the rest-of-non-text diagnostic
-#include <sigilweave/unicode/Unicode.h>
+
+#include <algorithm>
 
 #include "ComposeInternal.h"
 
@@ -27,11 +26,13 @@ void warnAtRestOfNonText() {
 }
 }  // namespace
 
-Element Element::atRest() const {
-  const std::shared_ptr<detail::ElementNode>& source = node();
+template <class Derived>
+Element TextContentVerbs<Derived>::atRest() const {
+  const std::shared_ptr<detail::ElementNode>& source =
+      detail::NodeAccess::node(self());
   if (source->kind != detail::Kind::Text || !source->textData) {
     warnAtRestOfNonText();
-    return *this;
+    return Element{source};
   }
   // A COPY OF THE DESCRIPTION, not a re-description: the copy has to be
   // the same paragraph, laid out the same way, at the same width, or the
@@ -56,142 +57,31 @@ Element Element::atRest() const {
   return Element{std::move(rest)};
 }
 
-Element& Element::textStroke(float width, SurfacePaint paint) {
-  auto& t = m_node->textData.ensure();
-  t.hasTextStroke = width > 0.0f;
-  t.textStrokeWidth = width;
-  // The outline is one comparable Fill on the node, so a plain fill and
-  // a static paint collapse onto it. A live or geometry-dependent paint
-  // has no single colour to give a slot that is measured without a
-  // frame, and the glyphs are outlined in the ink in force rather than
-  // in the black an empty fill would leave them.
-  t.textStrokeFill = paint.collapsedFill().value_or(Fill::currentInk());
-  return *this;
-}
-
-Element& Element::ellipsis(Utf8 marker) {
-  detail::TextOptions& options = m_node->textData.ensure().options;
-  options.ellipsis = weave::unicode::toUtf16(marker.bytes());
-  options.set |= detail::TextOptions::kEllipsis;
-  return *this;
-}
-
-Element& Element::paragraphs(std::vector<sigil::weave::ParagraphStyle> blocks) {
-  detail::TextOptions& options = m_node->textData.ensure().options;
-  options.blocks = std::move(blocks);
-  options.set |= detail::TextOptions::kBlocks;
-  // The two spellings are alternatives, and the last one written stands.
-  options.blockClassNames.clear();
-  options.set &= ~(uint32_t)detail::TextOptions::kBlockClasses;
-  return *this;
-}
-
-Element& Element::paragraphs(std::span<const std::string_view> names) {
-  // The names are kept; they resolve against the block sheet in force
-  // where the leaf lands, when it lays out, and lie over the block in
-  // force there.
-  detail::TextOptions& options = m_node->textData.ensure().options;
-  options.blockClassNames.assign(names.begin(), names.end());
-  options.set |= detail::TextOptions::kBlockClasses;
-  options.blocks.clear();
-  options.set &= ~(uint32_t)detail::TextOptions::kBlocks;
-  return *this;
-}
-
-Element& Element::initialLetter(sigil::weave::InitialLetter initial) {
-  detail::TextOptions& options = m_node->textData.ensure().options;
-  // The initial belongs to the passage's first block, whichever way that
-  // block is styled — a whole style, a name, or the block in force — so
-  // it is kept apart and applied to the first block when the leaf lays
-  // out.
-  options.initial = std::move(initial);
-  options.set |= detail::TextOptions::kInitialLetter;
-  return *this;
-}
-
-Element& Element::firstBaseline(sigil::weave::FrameOptions::FirstBaseline rule,
-                                float offset) {
-  detail::TextOptions& options = m_node->textData.ensure().options;
-  options.frame.firstBaseline = rule;
-  options.frame.firstBaselineOffset = offset;
-  options.set |= detail::TextOptions::kFrame;
-  return *this;
-}
-
-Element& Element::distribute(sigil::weave::FrameOptions::Distribute rule,
-                             float maximumInterlineSpacing) {
-  detail::TextOptions& options = m_node->textData.ensure().options;
-  options.frame.distribute = rule;
-  options.frame.maximumInterlineSpacing = maximumInterlineSpacing;
-  options.set |= detail::TextOptions::kFrame;
-  return *this;
-}
-
-Element& Element::live(bool on, int candidates) {
-  detail::TextOptions& options = m_node->textData.ensure().options;
-  options.live = on;
-  options.candidates = candidates;
-  options.set |= detail::TextOptions::kLive;
-  return *this;
-}
-
-Element& Element::balanceChain(uint32_t throughLine) {
-  detail::TextData& text = m_node->textData.ensure();
-  text.balanceChain = true;
-  text.balanceThroughLine = throughLine;
-  return *this;
-}
-
-Element& Element::reserve(sigil::weave::ReservedBand band) {
-  detail::TextOptions& options = m_node->textData.ensure().options;
-  options.reserved = band;
-  options.set |= detail::TextOptions::kReserved;
-  return *this;
-}
-
-Element& Element::thread(std::string_view key) {
-  m_node->textData.ensure().threadTo = std::string(key);
+template <class Derived>
+Derived& TextContentVerbs<Derived>::thread(std::string_view key) {
+  detail::ElementNode* node = declarations();
+  node->textData.ensure().threadTo = std::string(key);
   // A frame is cut where the frame before it stopped, so it reads the
   // FINEST answer that frame produces — its units, not its box. The link
   // itself is LAST-WINS, so the read is replaced rather than added to: a
   // frame threads into exactly one frame, and a chain that named another
   // one first no longer waits for it.
-  detail::DeriveData& derive = m_node->deriveData.ensure();
+  detail::DeriveData& derive = node->deriveData.ensure();
   std::erase_if(derive.reads, [](const sigil::core::Read& read) {
     return read.facet == sigil::core::Facet::Units;
   });
   derive.reads.push_back({std::string(key), sigil::core::Facet::Units});
-  return *this;
+  return self();
 }
 
-Element& Element::maxLines(int lines) {
-  detail::TextOptions& options = m_node->textData.ensure().options;
-  options.maxLines = lines;
-  options.set |= detail::TextOptions::kMaxLines;
-  return *this;
+template <class Derived>
+Derived& TextContentVerbs<Derived>::balanceChain(uint32_t throughLine) {
+  detail::TextData& text = declarations()->textData.ensure();
+  text.balanceChain = true;
+  text.balanceThroughLine = throughLine;
+  return self();
 }
 
-Element& Element::flowAround(std::string_view key, float margin) {
-  detail::DeriveData& derive = m_node->deriveData.ensure();
-  derive.flowAroundKeys.emplace_back(key);
-  derive.flowAroundMargin = margin;
-  // An exclusion subtracts the target's SILHOUETTE where it declares one,
-  // which is a read of its outline and not merely of its box.
-  derive.reads.push_back({std::string(key), sigil::core::Facet::Outline});
-  return *this;
-}
-
-void detail::TextOptions::applyTo(
-    sigil::weave::ParagraphLayoutOptions& options) const {
-  if (set & kEllipsis) options.overflow.ellipsis = ellipsis;
-  if (set & kMaxLines) options.overflow.maxLines = maxLines;
-  if (set & kBlocks) options.blocks = blocks;
-  if (set & kFrame) options.frame = frame;
-  if (set & kLive) {
-    options.live = live;
-    options.knuthPlass.candidates = candidates;
-  }
-  if (set & kReserved) options.reserved = reserved;
-}
+template class TextContentVerbs<Element>;
 
 }  // namespace sigil::compose

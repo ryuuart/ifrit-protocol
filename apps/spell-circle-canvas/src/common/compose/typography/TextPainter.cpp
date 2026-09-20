@@ -103,24 +103,31 @@ TextData& dressedText(TextData& text) {
 // ---------------------------------------------------------------------------
 // The verbs
 
-Element& Element::onPath(TextPath spec) {
-  dressedText(m_node->textData.ensure()).onPath = std::move(spec);
-  return *this;
+template <class Derived>
+Derived& TextContentVerbs<Derived>::onPath(TextPath spec) {
+  dressedText(declarations()->textData.ensure()).onPath = std::move(spec);
+  return self();
 }
 
-Element& Element::fx(Track track) {
-  dressedText(m_node->textData.ensure()).tracks.push_back(std::move(track));
-  return *this;
+template <class Derived>
+Derived& TextContentVerbs<Derived>::fx(Track track) {
+  dressedText(declarations()->textData.ensure())
+      .tracks.push_back(std::move(track));
+  return self();
 }
 
-Element& Element::annotate(Annotation reading) {
-  detail::TextData& text = dressedText(m_node->textData.ensure());
+template <class Derived>
+Derived& TextContentVerbs<Derived>::annotate(Annotation reading) {
+  detail::TextData& text = dressedText(declarations()->textData.ensure());
   text.annotations.push_back(std::move(reading));
-  return *this;
+  return self();
 }
 
-Element& Element::mark(sigil::weave::Selector where, Element what) {
-  detail::TextData& text = dressedText(m_node->textData.ensure());
+template <class Derived>
+Derived& TextContentVerbs<Derived>::mark(sigil::weave::Selector where,
+                                         Element what) {
+  detail::ElementNode* node = declarations();
+  detail::TextData& text = dressedText(node->textData.ensure());
   // A KEY IS THE ANCHOR'S HANDLE, so a mark that carries none is given one
   // from its declaration order: the layout looks its rect up by key, and
   // the reconciler matches children by key. The generated name is namespaced
@@ -129,12 +136,13 @@ Element& Element::mark(sigil::weave::Selector where, Element what) {
   if (what.node()->key.empty())
     what.key("mark#" + std::to_string(text.marks.size()));
   text.marks.push_back({std::move(where), what.node()->key});
-  append(std::move(what));
-  return *this;
+  node->children.push_back(std::move(what));
+  return self();
 }
 
-Element& Element::variationDrive(const char (&tag)[5],
-                                 const choreograph::Output<float>* value) {
+template <class Derived>
+Derived& TextContentVerbs<Derived>::variationDrive(
+    const char (&tag)[5], const choreograph::Output<float>* value) {
   // SUGAR over fx(): an axis coordinate is a per-glyph deviation like a
   // shove or a fade, so the drive is a whole-text track and composes with
   // whatever other tracks the element carries. A second, parallel text path
@@ -148,7 +156,7 @@ Element& Element::variationDrive(const char (&tag)[5],
   // one thing it is good for here: declaring the paint volatility, so the
   // node repaints while the drive moves and settles when it stops.
   const sigil::weave::FontVariation coordinate(tag, 0.0f);
-  detail::TextData& text = dressedText(m_node->textData.ensure());
+  detail::TextData& text = dressedText(declarations()->textData.ensure());
   // The effect's key IS its identity, and a drive is identified by its axis
   // and by its place among the element's tracks — declaration order, the
   // handle a keyless mark takes for the same reason. WHICH Output feeds it
@@ -177,39 +185,59 @@ Element& Element::variationDrive(const char (&tag)[5],
       /*reach=*/0.0f, /*curves=*/{}, /*displaces=*/false);
   track.progress = value;
   text.tracks.push_back(std::move(track));
-  return *this;
+  return self();
 }
 
-Element& Element::spanPaint(sigil::weave::Selector where,
-                            sigil::weave::PaintStyle paint) {
+template <class Derived>
+Derived& TextContentVerbs<Derived>::spanPaint(sigil::weave::Selector where,
+                                              sigil::weave::PaintStyle paint) {
   detail::SpanRestyle restyle;
   restyle.where = std::move(where);
   restyle.style.paint = std::move(paint);
   restyle.paintOnly = true;
-  dressedText(m_node->textData.ensure())
+  dressedText(declarations()->textData.ensure())
       .spanRestyles.push_back(std::move(restyle));
-  return *this;
+  return self();
 }
 
-Element& Element::spanStyle(sigil::weave::Selector where,
-                            sigil::weave::TextStyle style) {
+template <class Derived>
+Derived& TextContentVerbs<Derived>::spanStyle(sigil::weave::Selector where,
+                                              sigil::weave::TextStyle style) {
   detail::SpanRestyle restyle;
   restyle.where = std::move(where);
   restyle.style = std::move(style);
-  dressedText(m_node->textData.ensure())
+  dressedText(declarations()->textData.ensure())
       .spanRestyles.push_back(std::move(restyle));
-  return *this;
+  return self();
 }
 
-Element& Element::spanStyle(sigil::weave::Selector where,
-                            sigil::weave::Type partial) {
+template <class Derived>
+Derived& TextContentVerbs<Derived>::spanStyle(sigil::weave::Selector where,
+                                              sigil::weave::Type partial) {
   detail::SpanRestyle restyle;
   restyle.where = std::move(where);
   restyle.partial = std::move(partial);
-  dressedText(m_node->textData.ensure())
+  dressedText(declarations()->textData.ensure())
       .spanRestyles.push_back(std::move(restyle));
-  return *this;
+  return self();
 }
+
+// The seven members of the text-content family this tier defines, named
+// one by one: the family's other members are instantiated where they are
+// defined, in the kernel.
+template Element& TextContentVerbs<Element>::onPath(TextPath);
+template Element& TextContentVerbs<Element>::fx(Track);
+template Element& TextContentVerbs<Element>::annotate(Annotation);
+template Element& TextContentVerbs<Element>::mark(sigil::weave::Selector,
+                                                  Element);
+template Element& TextContentVerbs<Element>::variationDrive(
+    const char (&)[5], const choreograph::Output<float>*);
+template Element& TextContentVerbs<Element>::spanPaint(
+    sigil::weave::Selector, sigil::weave::PaintStyle);
+template Element& TextContentVerbs<Element>::spanStyle(
+    sigil::weave::Selector, sigil::weave::TextStyle);
+template Element& TextContentVerbs<Element>::spanStyle(sigil::weave::Selector,
+                                                       sigil::weave::Type);
 
 // ---------------------------------------------------------------------------
 // The fold

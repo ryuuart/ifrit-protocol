@@ -1,0 +1,42 @@
+---
+kind: verb
+library: SigilCompose
+name: bakeScale
+qualified: sigil::compose::Element::bakeScale
+header: sigilcompose/core/Element.h
+group: Caching
+python: sigil.compose.Element.bakeScale
+status: stable
+---
+
+# bakeScale
+
+Texture-bake resolution multiplier, `Cache::Texture` only: the bake
+rasterizes at `factor` times the device scale and the blit scales it
+back up with linear sampling. The value is clamped to 0.1–1.
+
+## Syntax
+
+```cpp
+Element& bakeScale(float factor);
+```
+
+```python
+def bake_scale(self, factor: float) -> Element: ...
+```
+
+## Description
+
+**ALMOST ALWAYS THE WRONG LEVER.** It cheapens the BAKE, which happens
+once, and taxes every BLIT with an upscaling resample, which happens
+forever — backwards for the bake-once, blit-every-frame node
+`Cache::Texture` exists for.
+
+**Reach for it only when something forces FREQUENT re-bakes** — a live
+material stepping at its own rate, a resizing node — AND the content is
+soft enough to survive the resample. Sharp text and one-pixel hairlines
+never belong under a reduced bake.
+
+## See also
+
+`cache`, `Cache`.

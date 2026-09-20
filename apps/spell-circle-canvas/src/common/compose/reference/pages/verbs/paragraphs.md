@@ -1,0 +1,51 @@
+---
+kind: verb
+library: SigilCompose
+name: paragraphs
+qualified: sigil::compose::Element::paragraphs
+header: sigilcompose/core/verbs/TextStyle.h
+group: The text leaf
+python: sigil.compose.Element.paragraphs
+status: stable
+---
+
+# paragraphs
+
+How each BLOCK of this passage is set — one entry per block, in block
+order, a block being the text between two hard breaks.
+
+## Syntax
+
+```cpp
+Element& paragraphs(std::vector<sigil::weave::ParagraphStyle> blocks);
+Element& paragraphs(std::span<const std::string_view> names);
+```
+
+```cpp
+text(weave::rich(body).add(u8"A heading\nand its body text\nand more"))
+    .paragraphs({headingStyle, bodyStyle});
+```
+
+## Description
+
+**A block past the end of the list is set by this leaf's own fields
+alone** — its alignment, justification, hyphenation and tab stops — so
+one entry styles the first block and leaves the rest plain, which is
+what a heading over a body wants.
+
+`weave::ParagraphStyle` carries the leading, the air before and after,
+the four indents, the keeps, and whichever of the four layout-wide
+settings the block overrides; each of those falls back to this leaf's
+own where the block leaves it unset.
+
+**The name form resolves through the block half of the sheet in force
+where the leaf LANDS**, when it lays out, and lies over the block in
+force there — so a named block keeps the leading it inherits and changes
+only what its rule says. A name no sheet in force carries warns once and
+changes nothing about its block.
+
+**The two spellings are alternatives**, and the last one written stands.
+
+## See also
+
+`block`, `initialLetter`, `weave::ParagraphStyle`, `styleSheet`.

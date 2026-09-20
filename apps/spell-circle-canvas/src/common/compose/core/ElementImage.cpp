@@ -6,9 +6,12 @@
 
 namespace sigil::compose {
 
-Element& Element::region(SkRect sourceRect) {
-  m_node->imageData.ensure().region = sourceRect;
-  return *this;
+template <class Derived>
+Derived& ImageVerbs<Derived>::region(SkRect sourceRect) {
+  declarations()->imageData.ensure().region = sourceRect;
+  return self();
 }
+
+template class ImageVerbs<Element>;
 
 }  // namespace sigil::compose

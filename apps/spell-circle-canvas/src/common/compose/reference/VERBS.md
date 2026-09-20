@@ -292,13 +292,14 @@ spelling is the feature's.
 - `core/verbs/Depth.h` — the depth lanes `rotateX`, `rotateY`,
   `rotateZ`, `translateZ`, `scaleZ`, `perspective`,
   `perspectiveOrigin`, `transformOrigin3d`, `preserve3d`, `backface`.
-- `core/Element.h` — `transition`,
-  `staggerChildren`; `cache`, `bakeScale`; the cascade a node names,
-  `styleSheet`, `styleClass`, `role`; the
-  text-leaf verbs `textFill`, `textStroke`,
-  `paragraphs`, `initialLetter`, `firstBaseline`,
-  `distribute`, `reserve`, `maxLines`, `ellipsis`, `live`, `thread`,
-  `balanceChain`, `flowAround`, `annotate`, `spanPaint`, `spanStyle`,
-  `fx`, `variationDrive`, `mark`, `onPath`, `atRest`; `region`;
-  `key`, `hitTestable`; and `children`, whose runs
-  are the `Children` value.
+- `core/verbs/TextStyle.h` — the text properties `paragraphs`,
+  `initialLetter`, `firstBaseline`, `distribute`, `reserve`, `live`,
+  `ellipsis`, `maxLines`, `textFill`, `textStroke`, `flowAround`.
+- `core/Text.h` — the text leaf's own content `fx`, `variationDrive`,
+  `mark`, `annotate`, `thread`, `balanceChain`, `onPath`, `spanPaint`,
+  `spanStyle`, `atRest`.
+- `core/Image.h` — `region`.
+- `core/Element.h` — the cascade a node names, `styleSheet`,
+  `styleClass` and `role`; `key`, `hitTestable`, `cache`, `bakeScale`,
+  `transition`, `staggerChildren`; and `children`, whose runs are the
+  `Children` value.
