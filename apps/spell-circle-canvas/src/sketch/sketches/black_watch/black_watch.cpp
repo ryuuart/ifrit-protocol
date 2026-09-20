@@ -29,7 +29,7 @@ struct BlackWatch {
   Paint argyllMat;
   std::array<Paint, 9> blendMat;
   std::shared_ptr<const sigil::image::ImageAsset> drawdownAsset;
-  measure::Table verdict;
+  measure::CheckTable verdict;
   std::shared_ptr<weave::Paragraph> quote;
   /** THE CARD'S WORDS: every heading, tag, note, label and quoted passage
    *  stands in `data/content.json` beside this sketch and is read in setup,

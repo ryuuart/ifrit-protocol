@@ -15,7 +15,7 @@ struct Fallout2CharSheet {
   std::array<bool, 18> tagged{};
   std::array<int, 18> invested{};
   int pointsEarned = 0, pointsSpent = 0;
-  sigil::measure::Table sheetAudit;
+  sigil::measure::CheckTable sheetAudit;
 
   // ---- interaction state (the only motion this screen has) ---------------
   static constexpr std::array<int, 3> kWalk{0, 7, 4};  // Small Guns, Doctor,

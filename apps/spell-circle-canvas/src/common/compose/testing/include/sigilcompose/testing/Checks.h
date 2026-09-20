@@ -676,8 +676,8 @@ inline void report(feed::TextRing& ring, const measure::Check& c,
 /** A whole table into the feed, row by row, in the order it was made —
  *  the verification block of a study, printed as it runs. The summary
  *  line is not written: a plate is not where a run's exit status is read,
- *  and `Table::failures()` is what a build asks. */
-inline void report(feed::TextRing& ring, const measure::Table& table,
+ *  and `CheckTable::failures()` is what a build asks. */
+inline void report(feed::TextRing& ring, const measure::CheckTable& table,
                    const ReportStyles& styles = {}) {
   for (const measure::Check& c : table.rows) report(ring, c, styles);
 }

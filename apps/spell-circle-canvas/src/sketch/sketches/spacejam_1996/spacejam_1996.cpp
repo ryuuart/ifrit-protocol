@@ -18,7 +18,7 @@ struct SpaceJam1996 {
   /** THE LAYOUT'S VERDICT against the browser's own numbers. Every row is
    *  COMPUTED from the two it reports, so a page that stops resolving the
    *  grid cannot keep claiming it does. */
-  measure::Table verdict;
+  measure::CheckTable verdict;
 
   // Everything the browser would have cached as a decoded GIF: each nav
   // image baked ONCE from its element tree via snapshot(), then replayed

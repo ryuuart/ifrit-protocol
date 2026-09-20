@@ -68,7 +68,7 @@ struct XcomBattlescape {
    *  the two values it reports, so a row that reads PASS cannot disagree
    *  with the measurement beside it, and `failures()` is what puts the
    *  warning on the screen. */
-  measure::Table verdict;
+  measure::CheckTable verdict;
 
   // =========================================================================
   // BAKE

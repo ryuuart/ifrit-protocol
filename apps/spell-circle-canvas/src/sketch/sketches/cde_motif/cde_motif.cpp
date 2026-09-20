@@ -39,7 +39,7 @@ struct CdeMotifSketch {
    *  the table is DRAWN, on the derivation strip, because a study whose
    *  subject is an algorithm should carry its own proof in the picture
    *  rather than in a console nobody captures. */
-  static measure::Table derivation() {
+  static measure::CheckTable derivation() {
     struct Case {
       const char* what;
       uint32_t bg, ts, bs;
@@ -51,7 +51,7 @@ struct CdeMotifSketch {
     auto hexOf = [](cde::Rgb c) {
       return kit::formatted("#%06X", cde::toHex(c));
     };
-    measure::Table t;
+    measure::CheckTable t;
     for (const Case& c : cases) {
       const cde::Derived d = cde::calculate(cde::from8(c.bg));
       t.add(measure::check(std::string(c.what) + " ts",

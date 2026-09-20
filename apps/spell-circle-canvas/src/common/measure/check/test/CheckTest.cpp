@@ -79,7 +79,7 @@ INSTANTIATE_TEST_SUITE_P(
     rowName);
 
 TEST(Check, FailuresCountsAndTableSummarises) {
-  Table t;
+  CheckTable t;
   t.add(check("a", 1, 1)).add(check("b", 1, 2)).add(check("c", true));
   EXPECT_EQ(t.failures(), 1);
   EXPECT_FALSE(t.pass());
@@ -90,10 +90,10 @@ TEST(Check, FailuresCountsAndTableSummarises) {
   EXPECT_EQ(lines[1], "  b     2   FAIL want 1");
   EXPECT_EQ(lines[2], "  c    true   PASS");
   EXPECT_EQ(lines[3], "  3 checks, 1 failed");
-  Table all;
+  CheckTable all;
   all.add(check("x", 2, 2));
   EXPECT_EQ(all.lines().back(), "  1 checks, all passed");
-  EXPECT_TRUE(Table{}.lines().empty());
+  EXPECT_TRUE(CheckTable{}.lines().empty());
 }
 
 TEST(Check, AFindingIsPrintedAsAClaimAndNeverCountedAgainstTheRun) {
@@ -102,7 +102,7 @@ TEST(Check, AFindingIsPrintedAsAClaimAndNeverCountedAgainstTheRun) {
   EXPECT_EQ(legend.standing, Standing::Finding);
   EXPECT_EQ(legend.line(12, 5),
             "  legend holds 1.126   FAIL want 1 \xc2\xb1 0.01");
-  Table t;
+  CheckTable t;
   t.add(check("a", 1, 1)).add(legend);
   EXPECT_EQ(t.failures(), 0);
   EXPECT_EQ(t.findings(), 1);
@@ -125,7 +125,7 @@ TEST(Check, ReadingsAndHeadingsStandBesideTheClaimsUnjudged) {
   EXPECT_EQ(title.line(), "THE RETE IS ONE PIECE OF METAL");
   EXPECT_EQ(title.standing, Standing::Heading);
   // Neither is a check: the summary counts the claims alone.
-  Table t;
+  CheckTable t;
   t.add(title).add(residual).add(check("spurs", 0, 0)).add(reading("bars", 41));
   EXPECT_EQ(t.checks(), 1);
   EXPECT_EQ(t.failures(), 0);

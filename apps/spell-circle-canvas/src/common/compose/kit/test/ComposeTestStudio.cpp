@@ -224,7 +224,7 @@ TEST(ComposeConsole, StacksFeedsPerColumnInOneVoice) {
 
 TEST(ComposeReport, ATableLandsInTheFeedRowByRowInTheInkOfItsStanding) {
   namespace measure = sigil::measure;
-  measure::Table table;
+  measure::CheckTable table;
   table.add(measure::heading("THE RETE"))
       .add(measure::check("spurs", 0, 0))
       .add(measure::check("components", 1, 2))

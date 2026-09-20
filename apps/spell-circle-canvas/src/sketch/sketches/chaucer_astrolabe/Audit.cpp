@@ -1,7 +1,7 @@
 #include "ChaucerAstrolabe.h"
 
 auto ChaucerAstrolabe::verify() -> void {
-  measure::Table A, B, C, D;
+  measure::CheckTable A, B, C, D;
 
   // --- circles stay circles ------------------------------------------
   // Do NOT take "stereographic projection maps circles to circles" on

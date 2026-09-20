@@ -59,7 +59,7 @@ struct ChevreulCircle {
 
   ch::Output<float> demo{0};
   Verdict v;
-  measure::Table verdict;
+  measure::CheckTable verdict;
   std::string derivation1, derivation2;
   std::string counterText;
 

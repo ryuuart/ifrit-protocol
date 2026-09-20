@@ -34,7 +34,7 @@ struct PenrosePaving {
    *  holds the CLAIMS made about it, and every row's verdict is computed
    *  from the two values it reports — so a line that reads PASS cannot
    *  disagree with the arithmetic printed beside it. */
-  measure::Table verdict;
+  measure::CheckTable verdict;
 
   // -------------------------------------------------------------------------
   // One sett: an absolutely-placed box whose OUTLINE is the rhomb, inset by

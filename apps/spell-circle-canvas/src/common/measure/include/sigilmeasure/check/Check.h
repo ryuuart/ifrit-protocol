@@ -199,11 +199,11 @@ inline int findings(std::span<const Check> checks) {
 /** A run of checks in the order they were made, printed as one table:
  *  every row through `Check::line()` at a shared width, then a summary
  *  row, so a run of claims reads as a column and ends with its verdict. */
-struct Table {
+struct CheckTable {
   std::vector<Check> rows;
 
   /** Appends @p c as the next row and answers this table, so rows chain. */
-  Table& add(Check c) {
+  CheckTable& add(Check c) {
     rows.push_back(std::move(c));
     return *this;
   }

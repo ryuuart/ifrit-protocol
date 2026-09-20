@@ -40,7 +40,7 @@ struct EvaMagiDefense {
    *  two values it reports, so a line that reads PASS cannot disagree with
    *  the arithmetic beside it, and `failures()` is what decides whether the
    *  plate carries a warning. */
-  measure::Table verdict;
+  measure::CheckTable verdict;
   SkPath funnel;
 
   // --- the construction rule, asserted ---------------------------------------

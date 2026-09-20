@@ -17,7 +17,7 @@ struct ThunderFulu {
    *  doctrine publishes and the one the median data carries — so a line
    *  marked pass cannot disagree with the number printed in it, and
    *  `failures()` is the run's verdict away from the screen. */
-  sigil::measure::Table verdict;
+  sigil::measure::CheckTable verdict;
 
   /** @p want against @p got, added to the table, and the console tag its
    *  verdict spells. */

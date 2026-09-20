@@ -657,7 +657,7 @@ itself about any point lying ON one; the cell walk leaves out only edges
 the ray's line misses. The checks a plate
 reports — `measure::check` and `measure::failures`, with
 `measure::finding`, `measure::reading` and `measure::heading` for the
-rows that stand beside claims, and `measure::Table` for the run of them
+rows that stand beside claims, and `measure::CheckTable` for the run of them
 — are SigilMeasure's, spelled under its own name from
 `<sigilmeasure/check/Check.h>`; only the geometry readers and
 `test::report` are this library's. `test::widthAlong` is the width
@@ -677,7 +677,7 @@ area and carrying edges all the same, and the shortest chord lands on one
 of those excursions. It skips half a width at each end,
 where the shortest chord through a point runs out through the cap rather
 than across the band. `test::report` writes one check or a
-whole `measure::Table` into a `feed::TextRing`, each row in the ink its
+whole `measure::CheckTable` into a `feed::TextRing`, each row in the ink its
 standing and verdict choose from a `test::ReportStyles` — the pass, fail,
 finding, reading and heading names a plate's tinted set registers — so
 the verification block of a study is one table, printed as it runs, and

@@ -32,7 +32,7 @@ them all:
 | `stats/Fit.h`         | `lineFit(xs, ys)` and the `LineFit` it answers — `slope`, `intercept`, `r2`, `correlation()`, `maxResidual`, `rmsResidual` and the `samples` they were read off, with `at()` and `residual()` |
 | `stats/Counters.h`    | `Counters` — named `int64_t` counters (`add`, `get`, `reset`, `clear`, `size`, `each`) |
 | `stats/FrameSample.h` | `FrameSample` — the plain numbers a frame-budget gate judges a scene by: `frameMs`, `workMs`, `p99Ms`, `headroomFps` |
-| `check/Check.h`       | `Check` (`label`, `expected`, `actual`, `pass`, a `Standing`, with `line()` and `judged()`), the `check()` overloads that build one, `finding()`, `reading()` and `heading()` for the other standings, the free `failures()` and `findings()` over a span, and `Table` — `add`, `lines`, `checks`, `failures`, `findings`, `pass` |
+| `check/Check.h`       | `Check` (`label`, `expected`, `actual`, `pass`, a `Standing`, with `line()` and `judged()`), the `check()` overloads that build one, `finding()`, `reading()` and `heading()` for the other standings, the free `failures()` and `findings()` over a span, and `CheckTable` — `add`, `lines`, `checks`, `failures`, `findings`, `pass` |
 
 ## Using it
 
@@ -60,7 +60,7 @@ hud("work %.2f ms  p99 %.2f  headroom ~%.0f fps",
     timer.work().mean(), timer.work().percentile(0.99), timer.headroomFps());
 
 // A claim and its verdict, printed from the same values it judges.
-Table table;
+CheckTable table;
 table.add(check("pieces", 12, tiling.size()));
 table.add(check("outer radius", 257.972, measured, 0.01));
 for (const std::string& line : table.lines()) std::puts(line.c_str());
@@ -162,7 +162,7 @@ tolerance with no default because how closely two numbers must agree is
 a property of the construction being checked, and long labels push the
 value column right rather than being clipped, since a clipped label
 silently loses the qualifier at the end of a claim. `failures(checks)`
-counts the misses, and `Table::lines()` prints the rows at one width
+counts the misses, and `CheckTable::lines()` prints the rows at one width
 followed by a summary line.
 
 **A verification is not only claims, and each row says what it is.**
@@ -176,7 +176,7 @@ summary line says `, 1 finding`); a `Reading`, a measurement reported
 beside the claims and judged by nobody, printed with no verdict
 (`reading(label, value)` for a number, a count or a string); and a
 `Heading`, a title over the rows under it, printed as its label alone
-(`heading(title)`). `Table::checks()` counts the rows that carry a
+(`heading(title)`). `CheckTable::checks()` counts the rows that carry a
 verdict, and `Check::judged()` says whether one does. The standing is a
 value on the row rather than a word in its text, so the sentence a
 reader sees and the count a build reads cannot disagree about which

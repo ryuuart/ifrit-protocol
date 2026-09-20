@@ -387,9 +387,9 @@ inline std::string thousands(int v) {
 // file derives, so the fraction on the caption band cannot disagree with the
 // arithmetic behind it. If a formula above is wrong, the caption band says so.
 
-inline sigil::measure::Table audit() {
+inline sigil::measure::CheckTable audit() {
   namespace measure = sigil::measure;
-  measure::Table t;
+  measure::CheckTable t;
   auto chk = [&](const char* premade, const char* what, int got, int want) {
     t.add(measure::check(kit::formatted("%s  %s", premade, what), want, got));
   };

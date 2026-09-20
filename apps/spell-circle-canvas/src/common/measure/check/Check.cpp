@@ -2,7 +2,8 @@
 
 namespace sigil::measure {
 
-std::vector<std::string> Table::lines(int labelWidth, int valueWidth) const {
+std::vector<std::string> CheckTable::lines(int labelWidth,
+                                           int valueWidth) const {
   std::vector<std::string> out;
   if (rows.empty()) return out;
   out.reserve(rows.size() + 1);
