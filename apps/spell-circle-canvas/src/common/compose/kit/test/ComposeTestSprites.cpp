@@ -1,6 +1,7 @@
 // Palette-indexed pixel art: the character grid read into marks, what the
 // bake puts on an image at one cell size and at another, the index bake a
-// shader reads, and the sheet that packs many sprites under their names.
+// shader reads, the sheet that packs many sprites under their names, and
+// the round stamp a point sink draws with.
 
 #include <sigilcompose/kit/Sprites.h>
 
@@ -8,6 +9,7 @@
 
 namespace {
 
+using sigil::compose::kit::dotSprite;
 using sigil::compose::kit::pixelMap;
 using sigil::compose::kit::Sprite;
 using sigil::compose::kit::SpriteKey;
@@ -204,4 +206,34 @@ TEST(KitSprites, ASheetAnswersByNameAndGivesNothingForOneItDoesNotHold) {
   EXPECT_EQ(sheet.size(), 1u);
   EXPECT_EQ(sheet.find("folder")->grid.width(), 3);
   EXPECT_FALSE(sheet.image());
+}
+
+// ---------------------------------------------------------------------------
+// The round stamp, which is generated rather than read off a grid.
+
+TEST(KitSprites, DotIsOpaqueWhiteAtTheCentreAndClearOutsideTheDisc) {
+  const sk_sp<SkImage> dot = dotSprite();
+  ASSERT_TRUE(dot);
+  EXPECT_EQ(dot->width(), 32);
+  EXPECT_EQ(dot->height(), 32);
+  SkBitmap bm;
+  ASSERT_TRUE(bm.tryAllocPixels(SkImageInfo::MakeN32Premul(32, 32)));
+  ASSERT_TRUE(dot->readPixels(nullptr, bm.pixmap(), 0, 0));
+  EXPECT_EQ(bm.getColor(16, 16), SK_ColorWHITE);
+  EXPECT_EQ(SkColorGetA(bm.getColor(0, 0)), 0u);
+  // The margin is the point: the last row of the image is clear, so the
+  // antialiased edge is inside the stamp rather than cut off by it.
+  for (int x = 0; x < 32; ++x) EXPECT_EQ(SkColorGetA(bm.getColor(x, 31)), 0u);
+}
+
+TEST(KitSprites, MarginAndSizeAreTheCallersNumbers) {
+  const sk_sp<SkImage> dot = dotSprite(64, 0.0f);
+  ASSERT_TRUE(dot);
+  EXPECT_EQ(dot->width(), 64);
+  SkBitmap bm;
+  ASSERT_TRUE(bm.tryAllocPixels(SkImageInfo::MakeN32Premul(64, 64)));
+  ASSERT_TRUE(dot->readPixels(nullptr, bm.pixmap(), 0, 0));
+  // With no margin the disc reaches the edge, which is exactly the
+  // clipped edge the default avoids.
+  EXPECT_GT(SkColorGetA(bm.getColor(32, 63)), 0u);
 }

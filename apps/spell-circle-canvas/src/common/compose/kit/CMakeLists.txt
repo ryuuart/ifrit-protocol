@@ -46,9 +46,12 @@ sigil_library(SigilComposeKit
 # that asks the machine's italic families whether their ink overhangs, so
 # that case alone carries the label.
 sigil_test(compose_test
-  SOURCES test/ComposeTestKitValues.cpp test/ComposeTestChrome.cpp
+  SOURCES test/ComposeTestBoard.cpp test/ComposeTestChrome.cpp
           test/ComposeTestColumns.cpp test/ComposeTestDocument.cpp
-          test/ComposeTestLayoutsAndShapes.cpp
+          test/ComposeTestFrame.cpp test/ComposeTestGround.cpp
+          test/ComposeTestLayoutsAndShapes.cpp test/ComposeTestLegibility.cpp
+          test/ComposeTestOrnament.cpp test/ComposeTestPixelType.cpp
+          test/ComposeTestSpecimen.cpp test/ComposeTestRows.cpp
           test/ComposeTestTravel.cpp test/ComposeTestRouters.cpp
           test/ComposeTestEras.cpp
           test/ComposeTestPlacers.cpp test/ComposeTestQueries.cpp

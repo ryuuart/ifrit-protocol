@@ -1,5 +1,13 @@
 // The kit's stroke shelf: the shaper and profile seams spelled with kit
 // values, the stroke presets, and the plate the feed is bordered with.
+//
+// The claim these check is that a kit value is a PEER of one you write
+// yourself: every case below goes through the same public seam a
+// user-written value would, and kit/Kit.cpp static_asserts the concepts.
+// The other half of the boundary — that the kit compiles against public
+// headers only — is the kit target's include path, which carries no
+// compose source directory; a kit source that reached for an internal
+// header fails to compile.
 
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkFont.h>
