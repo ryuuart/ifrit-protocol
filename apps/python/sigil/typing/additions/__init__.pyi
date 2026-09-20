@@ -1,1 +1,1 @@
-"""Python authorship over the native Sigil libraries."""
+"""Optional Python authorship over the native Sigil libraries."""
