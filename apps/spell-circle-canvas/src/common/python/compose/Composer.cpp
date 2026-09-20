@@ -128,11 +128,24 @@ namespace mskia = material::skia;
 /** A layout viewport read from @p value: a size, or a width and a
  *  height. */
 SkSize viewport(py::handle value) {
+  constexpr const char* refusal =
+      "A composer's size is a Size, or a width and a height.";
+  // None loads as a null size, which no conversion error reports.
+  if (value.is_none()) throw py::type_error(refusal);
   try {
     return py::cast<SkSize>(value);
   } catch (const py::cast_error&) {
-    throw py::type_error(
-        "A composer's size is a Size, or a width and a height.");
+    throw py::type_error(refusal);
+  }
+}
+
+/** A point in the composer's canvas units read from @p value: a point,
+ *  or an x and a y. */
+SkPoint canvasPosition(py::handle value) {
+  try {
+    return point(value);
+  } catch (const py::cast_error&) {
+    throw py::type_error("A canvas point is a Point, or an x and a y.");
   }
 }
 
@@ -336,7 +349,7 @@ void bindQueries(py::class_<ComposerHandle>& composer) {
       .def(
           "hitTest",
           [](const ComposerHandle& self, py::handle canvasPoint) {
-            const SkPoint at = point(canvasPoint);
+            const SkPoint at = canvasPosition(canvasPoint);
             return self.get().hitTest(at);
           },
           py::arg("canvasPoint"))
@@ -442,7 +455,7 @@ void bindSettings(py::class_<ComposerHandle>& composer) {
           "setPointer",
           [](const ComposerHandle& self, py::handle canvasPoint,
              bool pressed) {
-            const SkPoint at = point(canvasPoint);
+            const SkPoint at = canvasPosition(canvasPoint);
             self.get().setPointer(at, pressed);
           },
           py::arg("canvasPoint"), py::arg("pressed"))
