@@ -14,6 +14,40 @@
  * path, so they are not the library's to offer at all.
  */
 
+/** @namespace sigil::geometry
+ *  Drawing over Skia in two currencies. The `path` tier is 2D: an
+ *  `SkPath` resampled, addressed by arc length, operated on, distorted
+ *  and interpolated. The `mesh` tier is 3D: a renderer-neutral triangle
+ *  mesh, the camera that looks at it, splines with swept geometry, point
+ *  clouds carrying named attribute lanes, model interchange, and a
+ *  runtime that draws the result onto an ordinary `SkCanvas`. Values in,
+ *  values out: there is no windowing, no scene graph and no UI. */
+
+/** @defgroup geometry-path Path operators
+ *  The 2D tier: an outline resampled to polylines and segments, addressed
+ *  by arc length through contours and poses, cut and combined by boolean
+ *  operations, walked by shapers and profiles, and interpolated between
+ *  two compatible outlines. Everything here takes and answers `SkPath`
+ *  and glm vectors (path/Contour.h, path/Polyline.h, path/Operations.h,
+ *  path/Shaper.h, path/Profile.h). */
+/** @defgroup geometry-mesh Meshes and point clouds
+ *  The 3D tier: the triangle mesh and its faces, the camera, splines and
+ *  the frames they carry, point clouds with named attribute lanes and the
+ *  operator chain over them, model import and export, and the painter
+ *  that draws a mesh onto a canvas (mesh/Mesh.h, mesh/camera/Camera.h,
+ *  mesh/curve/Curve.h, mesh/pop/Pop.h, mesh/codec/Model.h,
+ *  mesh/render/Painter.h). */
+/** @defgroup geometry-device The device tier
+ *  What needs a GPU device handed to it: the device this library creates
+ *  for whoever draws with both Diligent and Skia, and the device
+ *  executors that stand beside the CPU executors of the seams they serve
+ *  (device/Device.h, mesh/pop/device/, mesh/render/device/Painter.h). */
+/** @defgroup geometry-kit The kit
+ *  Stock values over the operators: named silhouettes and curve families,
+ *  corner treatments, tick and chord divisions, hatches, section solids
+ *  and the shapers a stroke is walked with (kit/Generators.h,
+ *  kit/Curves.h, kit/Corners.h, kit/Shapers.h). */
+
 #include "sigilgeometry/kit/Corners.h"
 #include "sigilgeometry/kit/Curves.h"
 #include "sigilgeometry/kit/Divisions.h"

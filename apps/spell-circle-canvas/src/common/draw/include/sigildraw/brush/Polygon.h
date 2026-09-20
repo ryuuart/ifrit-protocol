@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-brush
+ *
  * A stored polygon and the interiors it can receive.
  */
 
@@ -21,6 +23,9 @@ struct Wash;
 struct Hatch;
 struct Mass;
 
+/** A straight segment between two points, as the interiors ask about
+ *  one: a hatch line, a mass sweep and a polygon intersection all name
+ *  the same pair. */
 struct Line {
   SkPoint from{0, 0};
   SkPoint to{0, 0};

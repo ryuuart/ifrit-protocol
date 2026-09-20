@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-path
+ *
  * SigilGeometry edge arithmetic — the ways to NARROW an outline before
  * something is drawn on it: down to the sub-contours that face chosen
  * box edges, in (or out) to a concentric copy of the whole silhouette,

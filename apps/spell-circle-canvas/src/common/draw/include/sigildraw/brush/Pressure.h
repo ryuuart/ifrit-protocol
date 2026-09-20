@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-brush
+ *
  * The pressure envelope a tool applies along a stroke.
  */
 
@@ -19,6 +21,11 @@ namespace sigil::draw::brush {
  *  scale, a warp along the stroke and a tilt from one end to the other.
  *  The re-roll is what makes two strokes with one tool differ. */
 struct Pressure {
+  /** A BELL ALONG THE STROKE: pressure rises to `maximum` at `center`
+   *  and falls back toward `minimum`, with `sharpness` saying how
+   *  abruptly. The two jitters move the centre and the width by up to
+   *  their own size on every stroke, so no two strokes peak in the same
+   *  place. Positions and widths are fractions of the stroke. */
   struct Gaussian {
     float center = 0.5f;
     float width = 0.5f;
@@ -29,6 +36,11 @@ struct Pressure {
     float widthJitter = 0.0f;
   };
 
+  /** HOW MUCH THE THREE-POINT ENVELOPE MOVES PER STROKE: the whole
+   *  envelope shifted up or down, scaled, warped along the stroke, and
+   *  tilted from one end to the other. Each is the largest change that
+   *  re-roll may make, as a fraction; all zero repeats one envelope
+   *  exactly. */
   struct Variation {
     float offset = 0.08f;
     float scale = 0.08f;

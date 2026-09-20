@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-skia
+ *
  * POST-PROCESSING over a rendered layer: an image-filter recipe as a
  * comparable value.
  *

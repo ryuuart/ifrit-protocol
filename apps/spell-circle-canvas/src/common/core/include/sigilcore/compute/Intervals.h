@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-compute
+ *
  * Interval arithmetic over a sorted, disjoint NORMAL FORM: normalise,
  * complement, intersect, and the first shared run.
  *

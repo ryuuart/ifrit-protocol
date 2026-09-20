@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-brush
+ *
  * Device input resampled at a spacing, whatever rate the device reports at.
  */
 

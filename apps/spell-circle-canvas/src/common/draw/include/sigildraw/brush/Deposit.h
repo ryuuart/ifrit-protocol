@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-brush
+ *
  * Deposition: a tool laid along dabs or a stroke through the pen.
  */
 

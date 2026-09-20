@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-texture
+ *
  * Atlas — one sheet texture, the named regions cut from it, and the
  * named sequences of regions that play as frames. Built from a grid, from
  * the JSON a sprite tool writes (TexturePacker, Aseprite), or by packing

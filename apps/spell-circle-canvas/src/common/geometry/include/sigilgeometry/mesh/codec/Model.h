@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-mesh
+ *
  * SigilGeometry's imported-model types — what every reader produces and
  * every consumer holds: a Part (one draw unit: a mesh in model space,
  * its material factors and texture references, its custom attributes as
@@ -26,6 +28,20 @@
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/pop/Points.h"
 
+/** @namespace sigil::geometry::mesh::codec
+ *  MODEL INTERCHANGE: files into this library's mesh currency and back
+ *  out again. `decode` holds the readers and the imported-model types
+ *  every reader produces; `encode` holds the writers. Custom attributes
+ *  flow through both, so a lane an authoring tool wrote arrives as a
+ *  named lane on a part and can be poured straight into a point
+ *  cloud. */
+
+/** THE READERS, and the imported-model types they produce: a part (one
+ *  draw unit — a mesh in model space, its material factors and texture
+ *  references, its custom attributes as named lanes), a model (the
+ *  parts, plus the counts, bounds, merge and fit that only make sense
+ *  across all of them), and the resolver a reader consults for a file's
+ *  external references. */
 namespace sigil::geometry::mesh::codec::decode {
 
 /** Maps a relative URI ("scene.bin", "textures/wood.png", "duck.mtl")

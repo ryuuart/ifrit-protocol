@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-schedule
+ *
  * A spread RESOLVED against the counts a frame actually has: the delay
  * ladder, the beat length, and the virtual span one master progress maps
  * onto. This is where a schedule becomes arithmetic.

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-color
+ *
  * THE THRESHOLD A PIXEL IS ROUNDED AGAINST: one dither value, read at a
  * pixel, answering whether a level is crossed there.
  *

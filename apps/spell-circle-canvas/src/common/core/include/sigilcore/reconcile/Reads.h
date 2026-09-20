@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-reconcile
+ *
  * DECLARED READS — what one node of a reconciled tree reads off another,
  * and the order that puts every reader after what it read.
  *

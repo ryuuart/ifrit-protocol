@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-values
+ *
  * The keyframe builders: Transitioned<T>, the value together with how
  * it moves, and the `animate(from(a).to(b))`, `animate(to(v))` and
  * `animate(through({…}))` spellings that build one.

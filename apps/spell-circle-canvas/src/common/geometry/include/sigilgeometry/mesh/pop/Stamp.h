@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-mesh
+ *
  * THE STAMPING ARITHMETIC AS ONE PIECE, and the description a run of it
  * is — TouchDesigner's Copy, Houdini's copy-to-points, the operator that
  * turns a point set into geometry.

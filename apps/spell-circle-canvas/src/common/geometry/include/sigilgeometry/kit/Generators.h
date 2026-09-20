@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-kit
+ *
  * The closed silhouettes: an SVG path, the polygon, star, circle,
  * annulus, squircle, blob, arc, sector, parallelogram and arrow, every
  * one a comparable value with a `path(SkSize)`.
@@ -15,6 +17,16 @@
 #include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/path/Skia.h"
 
+/** THE SHAPE VOCABULARY: closed silhouettes, curve families, corner
+ *  treatments, tick and chord divisions and hatch fills, each a
+ *  comparable value that answers a path for a box rather than a path.
+ *  Because a generator is a value, two of them can be compared, so a
+ *  node whose shape did not change is a node nothing has to redraw —
+ *  which a hand-rolled callable can never prove.
+ *
+ *  Everything here is a unit shape over the box it is asked for, so one
+ *  generator serves at any size, and the operators in
+ *  `sigil::geometry::path` are what a caller reaches for next. */
 namespace sigil::geometry::shapes {
 
 /** A silhouette generator: local-coordinate path over the node's laid-out

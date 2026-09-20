@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-physics
+ *
  * WHAT A POINT SET IS NOT ALLOWED TO DO: one constraint value, projected
  * onto the positions after they move, and the stock values that name the
  * ones a structure is built from.

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-cache
+ *
  * The cache policy an author states on one node: the three answers a
  * proof cannot work out for itself.
  */

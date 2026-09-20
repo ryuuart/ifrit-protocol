@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-comparable
+ *
  * The field pin: how many direct non-static data members a struct has,
  * read off the type, so a hand-written comparator over that struct fails
  * the build the moment the struct grows a field it does not mention.

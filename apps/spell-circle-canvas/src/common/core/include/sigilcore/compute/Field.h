@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-compute
+ *
  * ONE NOISE FIELD, READ AT A POINT.
  *
  * `Noise.h` answers a number for an INDEX: neighbouring indices are

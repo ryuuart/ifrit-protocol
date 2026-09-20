@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-cache
+ *
  * The settled-subtree proof: what a host reports about one node, how a
  * subtree's children fold into it, and what the answer promises.
  */

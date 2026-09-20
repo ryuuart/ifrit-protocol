@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-pen
+ *
  * p5's constants, spelled as p5 spells them: the words a verb takes, the
  * caps and joins, the shape kinds, the angle and colour models, and the
  * angles.

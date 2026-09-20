@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-device
+ *
  * A profile carried along a rail on a device: the ring vertices
  * dispatched, everything the rings are joined into left on the host.
  */

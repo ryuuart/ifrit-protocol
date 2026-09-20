@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-kit
+ *
  * The stock values over two of this library's seams: what bends one
  * continuous mark, and the oscillating width law a strand that trades
  * sides is written as. Both live in `shapers::`, because a kit composes
@@ -30,6 +32,16 @@
 #include <cmath>
 #include <vector>
 
+/** THE STOCK VALUES OVER TWO SEAMS: what bends one continuous mark, and
+ *  the width law a strand that trades sides is written as. Each is a
+ *  comparable struct carrying its seam's required member, so a value
+ *  here is interchangeable with one a consumer wrote.
+ *
+ *  They stand in their own namespace rather than in either seam's,
+ *  because a kit composes over a seam and does not grow it: a seam's
+ *  namespace whose contents changed with which kit header a consumer
+ *  happened to include would be a namespace nobody could read off the
+ *  seam's own directory. */
 namespace sigil::geometry::shapers {
 
 /** A smooth oscillation across the mark — the wave every wavy rule,

@@ -1,10 +1,23 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-clock
+ *
  * The frame clock: wall-clock time — or a delta a caller states outright
  * — turned into pausable, time-scalable, stall-clamped per-frame deltas.
  */
 
+/** ANIMATION TIMING AND ANIMATION VALUES, with no renderer in them. The
+ *  clock turns wall-clock time into well-behaved per-frame deltas and
+ *  the ticker steps a timeline by one; the values describe how a
+ *  property changes over that time — a transition, a keyed track, a
+ *  spring, an oscillator — and a binding shapes one number into another.
+ *  A schedule says how a run of units shares one progress.
+ *
+ *  Everything here answers a question about a moment: give it a time and
+ *  it says where the property is. The nested `physics` namespace is the
+ *  exception and states why. `ease` holds the curves every value is
+ *  shaped by. */
 namespace sigil::motion {
 
 /**

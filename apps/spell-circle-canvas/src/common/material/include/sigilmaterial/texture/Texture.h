@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-texture
+ *
  * Texture — an image and how it is sampled, as a comparable value a
  * material tree can hold in a slot. The image comes from a
  * TextureSource: a decoded still, a frame of an image asset, or a named

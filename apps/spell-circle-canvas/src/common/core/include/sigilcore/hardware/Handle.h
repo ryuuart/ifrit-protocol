@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-hardware
+ *
  * NAMES FOR DEVICE RESOURCES, AND THE STORE THAT ISSUES THEM.
  *
  * A handle is a slot and the generation of that slot when the name was

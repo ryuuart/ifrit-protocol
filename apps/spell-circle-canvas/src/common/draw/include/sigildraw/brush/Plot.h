@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-brush
+ *
  * A path described relative to wherever it is drawn: segment angles,
  * lengths and pressures.
  */

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-reconcile
+ *
  * The memo — a description deferred behind its inputs: the properties it was
  * given, the comparison that says whether two prop sets are the same, the
  * call that produces the description, and the environment the author had

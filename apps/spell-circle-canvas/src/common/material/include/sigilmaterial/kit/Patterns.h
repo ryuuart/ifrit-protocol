@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-kit
+ *
  * Pattern presets: the Islamic geometric panel with its named palettes.
  */
 

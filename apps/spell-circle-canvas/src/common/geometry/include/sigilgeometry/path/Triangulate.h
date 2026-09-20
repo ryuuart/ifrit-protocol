@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * THE DELAUNAY TRIANGULATION OF A PLANAR POINT SET, AND ITS DUAL.
  *
  * One construction answers two questions that look unrelated and are the

@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * Small numeric routines every geometry tool reaches for and none should
  * spell twice.
  */

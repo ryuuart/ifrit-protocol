@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-slang
+ *
  * The Slang backend: Slang source compiled to SPIR-V, the reflected
  * layout that says where each uniform's bytes go, and the buffer one
  * draw's uniforms are written into at those offsets.
@@ -38,6 +40,12 @@
 #include <utility>
 #include <vector>
 
+/** The Slang backend: a recipe's Slang body compiled to SPIR-V, the
+ *  reflected layout saying where each uniform's bytes go in the
+ *  program's single uniform buffer, and the buffer one draw's uniforms
+ *  are written into at those offsets. This is the half of the library a
+ *  device renderer speaks to, as `skia` is the half a canvas speaks
+ *  to. */
 namespace sigil::material::slang {
 
 /** ONE UNIFORM, as the compiler laid it out in the program's single

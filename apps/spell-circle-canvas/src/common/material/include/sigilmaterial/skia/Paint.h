@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-skia
+ *
  * THE SKIA PAINT: this library's material model as a Skia shader. A small
  * tree of paint nodes that compiles to ONE `sk_sp<SkShader>` (layers via
  * SkShaders::Blend, never stacked saveLayer) or a plain solid colour.
@@ -68,6 +70,18 @@
 
 class SkImage;
 
+/** The Skia-facing half of this library: what a material BECOMES when a
+ *  Skia canvas has to draw it. `Paint` is the value — a small tree of
+ *  paint nodes built through static factories (a colour, a gradient, an
+ *  image, a recipe-backed shader, a blend of two) that compiles to one
+ *  `sk_sp<SkShader>` or to a plain solid colour. Beside it sit the
+ *  post-processing `Effect` over a rendered layer, the conversions
+ *  between Skia's colour and this library's, and the one call that fills
+ *  a path with a material.
+ *
+ *  This is where a consumer's own fill value ends up: anything richer
+ *  than a colour is a `Paint`, and `sigil::material`'s recipes reach a
+ *  canvas through `Paint::recipe()`. */
 namespace sigil::material::skia {
 
 /** WHAT ONE DRAW SUPPLIES — the values a paint is resolved against that

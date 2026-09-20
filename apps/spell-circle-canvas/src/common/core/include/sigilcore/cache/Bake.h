@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-cache
+ *
  * The bake seam: the decision — bake now, replay, or paint live — is the
  * kernel's, and the artefact it decides about is the host's.
  */

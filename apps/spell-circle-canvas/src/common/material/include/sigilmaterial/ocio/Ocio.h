@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-ocio
+ *
  * OpenColorIO view transforms as materials. In a build that found no
  * OpenColorIO the feature still links: `available()` is false and every
  * factory answers the empty LUT material a bad config would.
@@ -39,6 +41,13 @@
 #include <memory>
 #include <string_view>
 
+/** OpenColorIO's view transforms as materials: a transform baked to a
+ *  3D LUT or a 1D curve, and the recipes that sample it over a layer.
+ *  Reach for this when a colour has to arrive in the space a pipeline
+ *  agreed on rather than in the one it was authored in. The feature
+ *  links whether or not the build found OpenColorIO: without it
+ *  `available()` is false and every factory answers the empty LUT
+ *  material, so a caller needs no build-time branch. */
 namespace sigil::material::ocio {
 
 /** True when OCIO support was compiled in AND the runtime can create its

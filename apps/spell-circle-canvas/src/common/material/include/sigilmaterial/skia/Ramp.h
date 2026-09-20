@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-skia
+ *
  * A ramp of stops as Skia takes it.
  *
  * `RampStop` is the colour leaf's value — a position and a colour, and

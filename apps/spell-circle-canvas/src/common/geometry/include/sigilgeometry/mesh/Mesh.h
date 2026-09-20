@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-mesh
+ *
  * The 3D tier's currency — one Mesh whichever runtime draws it. The same
  * vertex and index buffers feed the draw in mesh/render and upload to a
  * GPU renderer downstream: positions, normals, uvs, indices, nothing
@@ -27,6 +29,17 @@
 #include <utility>
 #include <vector>
 
+/** THE 3D TIER. Its currency is one renderer-neutral triangle mesh, and
+ *  everything here either makes one, reads one or draws one: the
+ *  generators and the faces they are built from, the camera that looks
+ *  at a mesh, the splines that sweep one, the point clouds and the
+ *  operator chain over them, model import and export, and the painter
+ *  that puts the result on an ordinary canvas.
+ *
+ *  3D data speaks glm; Skia's types appear only where geometry genuinely
+ *  comes from or goes to Skia. Where the 2D tier's currency is an
+ *  `SkPath` addressed by arc length, this one's is vertices and
+ *  indices. */
 namespace sigil::geometry::mesh {
 
 /** Renderer-neutral triangle mesh. Indices are 32-bit; Skia's 16-bit
@@ -34,8 +47,8 @@ namespace sigil::geometry::mesh {
  *  the data. */
 struct Mesh {
   std::vector<glm::vec3> positions;
-  std::vector<glm::vec3> normals;  // unit, same count as positions
-  std::vector<glm::vec2> uvs;      // [0,1]^2, same count as positions
+  std::vector<glm::vec3> normals;  ///< unit, same count as positions
+  std::vector<glm::vec2> uvs;      ///< [0,1]^2, same count as positions
   /** Optional per-vertex tint (instancing writes it); empty = none.
    *  Both renderers multiply it into the shaded color when present. */
   std::vector<glm::vec4> colors;

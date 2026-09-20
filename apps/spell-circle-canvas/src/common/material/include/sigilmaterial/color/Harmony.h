@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-color
+ *
  * COLOURS CHOSEN FROM ONE COLOUR: the hue rotation, and the schemes a
  * painter's wheel names, as one function whose scheme is a prop.
  */

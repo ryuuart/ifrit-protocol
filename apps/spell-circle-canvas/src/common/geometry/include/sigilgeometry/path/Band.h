@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-path
+ *
  * A path displaced by a width law, and the region between the two rails
  * that displacement produces.
  *

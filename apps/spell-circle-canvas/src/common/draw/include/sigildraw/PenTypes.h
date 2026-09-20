@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-pen
+ *
  * WHAT A PEN TAKES AND WHAT IT DRAWS FOR SOMEONE ELSE, apart from the pen
  * itself: the frame a host supplies, what `clip` does with a shape, and
  * the two concepts a caller's own value satisfies to be drawn as a shape

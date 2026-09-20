@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-core
+ *
  * The two keys a compiled program is asked for by: the shading language a
  * renderer speaks (`Target`) and the small ordered `Variant` a renderer
  * uses to tell apart the programs it builds from one recipe.

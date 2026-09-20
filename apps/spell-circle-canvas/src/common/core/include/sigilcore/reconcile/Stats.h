@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-reconcile
+ *
  * What one reconcile pass did, counted: nodes visited, memo hits, nodes
  * whose description changed, nodes mounted and nodes retired.
  */

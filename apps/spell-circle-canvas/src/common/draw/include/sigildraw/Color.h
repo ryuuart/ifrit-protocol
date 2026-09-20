@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-pen
+ *
  * How p5 reads numbers and strings as a colour: the colour model with the
  * range of each channel, and the parse of a CSS colour string.
  */

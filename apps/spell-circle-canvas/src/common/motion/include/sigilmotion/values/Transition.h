@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-values
+ *
  * How a property change moves: the Transition spec (duration, curve,
  * delay), `ramp()`, the transition spelled in float milliseconds, and the
  * comparator an identity prune reads two specs through.

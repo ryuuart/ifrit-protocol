@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-mesh
+ *
  * A mesh read by its FACES rather than by its triangles, and the
  * rotation that turns one of them to face a direction.
  *

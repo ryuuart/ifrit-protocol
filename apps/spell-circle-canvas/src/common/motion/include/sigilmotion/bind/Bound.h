@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-bind
+ *
  * The chain builder: `bind(&output)` returns a Bound whose stage verbs
  * fill a BoundFloat, and `wiggle(&output, …)` is the pure-noise
  * spelling of the same chain. Converts implicitly into any

@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * ONE UNIFORM GRID OVER A SET OF POINTS, built once and asked many
  * times.
  *

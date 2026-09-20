@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-cache
+ *
  * Rebuild on change — the "compare the inputs, rebuild when they differ"
  * cache every animated consumer otherwise hand-rolls.
  *

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-mesh
+ *
  * The shading terms a host tier evaluates, and the panorama it samples
  * them against.
  *

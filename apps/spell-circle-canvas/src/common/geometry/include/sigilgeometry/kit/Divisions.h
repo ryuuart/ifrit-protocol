@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-kit
+ *
  * A figure's divisions as ONE path with N contours.
  *
  * Three generators, one idea: emit N marks into a single `SkPathBuilder`

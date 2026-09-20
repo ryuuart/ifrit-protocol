@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-path
+ *
  * Where a set of paths cross each other, and which one is on top there.
  *
  * A crossing is DISCOVERED, never authored: `discoverCrossings` flattens
@@ -230,6 +232,11 @@ class CrossingRule {
   mutable boost::unordered_flat_map<size_t, Order> m_walk;
 };
 
+/** THE STOCK RULES for deciding which strand is on top at a crossing,
+ *  each a named spelling of a sequence the caller could have written
+ *  out. They exist because a rule with a name says what the drawing
+ *  MEANS — a plain weave, a braid, a knot — where the same rule spelled
+ *  as an order per crossing says only what it does. */
 namespace crossing {
 /** Over, under, over, under — the plain-weave rule, and formally just
  *  `sequence({Over, Under})`. Both spellings exist because they name two

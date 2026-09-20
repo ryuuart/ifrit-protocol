@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-mesh
+ *
  * THE EXECUTOR SEAM a chain is cooked over: what a runtime must be able
  * to do, the comparable value one is carried as, the built-in CPU
  * executor, the cook that dispatches to it, and the helpers every

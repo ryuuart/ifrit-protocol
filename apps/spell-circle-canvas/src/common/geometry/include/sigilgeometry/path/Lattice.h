@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * The scanline lattice: parallel lines cut to the inside of a set of
  * rings, and the multigrid those lines dualise into a tiling of rhombs.
  *

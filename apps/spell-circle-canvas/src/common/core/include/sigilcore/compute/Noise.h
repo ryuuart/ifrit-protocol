@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-compute
+ *
  * Seeded, deterministic noise — the one place a mixer lives.
  *
  * Three integer mixers — a 64-bit avalanche, the PCG word and the
@@ -27,6 +29,13 @@
 
 #include <cstdint>
 
+/** SEEDED, DETERMINISTIC NOISE — the one place a mixer lives. Integer
+ *  mixers, the unit floats squeezed out of them, and the noise field
+ *  read at a point. Every function here is a bit-exact function of its
+ *  inputs on every platform, so anything seeded by them re-rolls
+ *  identically: a scattered brush stamp, a roughened outline, a drifted
+ *  point cloud, a jittered layout, and a shader's CPU twin. Reach for
+ *  `chance` when a run of draws belongs to one held stream instead. */
 namespace sigil::core::noise {
 
 /** The odd increment a splitmix64 counter walks by. A counter stepped by

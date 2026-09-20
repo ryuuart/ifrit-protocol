@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-bind
+ *
  * The evaluator of a shaped binding: the Envelope choice and the
  * BoundFloat record whose `apply()` runs the normalise → envelope →
  * curve → quantize → affine → wrap → wiggle → clamp chain on one

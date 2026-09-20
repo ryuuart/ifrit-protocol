@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * The two conversions between the geometry library's numeric currency
  * (glm vectors) and Skia's point type. Every geometry signature takes
  * and returns glm; Skia types appear only where the object IS a Skia

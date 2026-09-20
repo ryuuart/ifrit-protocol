@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-path
+ *
  * THE WIDTH LAW: how far a mark sits ACROSS its spine, as a comparable
  * value.
  *

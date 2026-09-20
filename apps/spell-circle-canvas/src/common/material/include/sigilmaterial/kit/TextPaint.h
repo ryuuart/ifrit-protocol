@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-kit
+ *
  * Text paint presets: six animated fields a glyph run is painted with —
  * rippling water, a moving mesh gradient, twinkling sparkle, a star-nest
  * raymarch, drifting clouds, a kaleidoscope tunnel — over one ABI of the

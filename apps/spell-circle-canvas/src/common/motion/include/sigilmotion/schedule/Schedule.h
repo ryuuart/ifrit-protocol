@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-schedule
+ *
  * Every public header of the schedule feature in one include: the spread
  * that says how N units share out a progress, the orderings it deals its
  * delays in, and the cascade that resolves it against a frame's counts.

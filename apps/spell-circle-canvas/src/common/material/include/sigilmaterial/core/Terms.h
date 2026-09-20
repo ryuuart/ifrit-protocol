@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-core
+ *
  * The shading terms a surface is composed of, as source a renderer's
  * compiler is handed.
  *

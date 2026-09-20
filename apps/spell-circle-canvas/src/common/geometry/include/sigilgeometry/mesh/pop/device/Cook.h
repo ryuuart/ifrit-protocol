@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-device
+ *
  * The point-operator chain cooked on a device: the same chain, the same
  * lanes and the same answer, dispatched instead of stepped.
  */

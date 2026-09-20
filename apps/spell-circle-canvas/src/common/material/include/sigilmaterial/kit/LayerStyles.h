@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-kit
+ *
  * The colour TABLES behind the gel and chrome looks an image editor
  * builds from ramps and blurs — the aqua body, halo and glow colours and
  * the two chrome palettes, each a list of stops a renderer turns into its

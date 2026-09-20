@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-physics
+ *
  * THE POINT SET A SIMULATION IS: one value holding a lane per property,
  * and the two-number position those lanes are written in.
  *
@@ -17,6 +19,13 @@
 #include <cstdint>
 #include <vector>
 
+/** A POINT SET THAT IS STEPPED RATHER THAN READ. Everywhere else in this
+ *  library a value answers where a property is at a time; here a set of
+ *  points carries its own state and is advanced one frame at a time by
+ *  forces, constraints and a stepper, so where it ends up is the history
+ *  of the steps and not a function of the clock. The set is lanes of
+ *  plain numbers, the grid answers what is near what, and particles are
+ *  a set whose members are born, age and die. */
 namespace sigil::motion::physics {
 
 /** A TWO-FLOAT POINT SOMEONE ELSE'S LIBRARY SPELLS: the members Skia

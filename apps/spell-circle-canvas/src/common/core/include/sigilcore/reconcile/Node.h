@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-reconcile
+ *
  * The tree skeleton — the four fields every retained node carries for the
  * reconciler: its parent, the description it was resolved from, the memo
  * shell that produced that description when there was one, and its

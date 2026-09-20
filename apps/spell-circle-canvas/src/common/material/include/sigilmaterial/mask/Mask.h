@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-mask
+ *
  * Masks — WHERE on a surface something applies, as a material whose
  * output is read as a scalar. A mask is what `over()` reads to decide how
  * much of a stacked material shows at a point, and it is an ordinary

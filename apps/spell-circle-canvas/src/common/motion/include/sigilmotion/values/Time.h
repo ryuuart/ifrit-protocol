@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-values
+ *
  * The arithmetic over a clock reading: seconds posterised at a declared
  * rate, the step INDEX that rate is on, seconds folded into a wrapping
  * [0, 1) loop, the open-ended settle a time constant describes, and the

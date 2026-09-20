@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * THE OUTLINE OF A POINT SET, at a tightness.
  *
  * The convex hull and the alpha shape are one construction with one dial

@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * FILLING A SHAPE WITH POINTS.
  *
  * Grains inside a figure, a circle packing's seeds, stipple, confetti,

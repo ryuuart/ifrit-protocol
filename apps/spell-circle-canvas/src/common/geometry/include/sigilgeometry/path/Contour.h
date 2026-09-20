@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * Contours — a path's sub-paths addressed by arc length. Position and
  * tangent at a distance, a segment between two distances, the corners
  * along the way, and the constructions that walk the contour: a parallel
@@ -20,6 +22,17 @@
 
 class SkPathBuilder;
 
+/** THE 2D TIER. Its currency is an `SkPath`, and everything here either
+ *  measures one, remakes one or bends one: contours addressed by arc
+ *  length, polylines and segments an outline is flattened to, the
+ *  boolean and distortion operators, the shapers and profiles a stroke
+ *  is walked with, node arithmetic that adds and removes nodes, the
+ *  interpolation between two compatible outlines, and the scatters,
+ *  lattices and traces that put points and lines where a shape says.
+ *
+ *  Numbers are glm vectors and Skia points, degrees where a human names
+ *  an angle, pixels everywhere else. The 3D tier is
+ *  `sigil::geometry::mesh`; its currency is vertices and indices. */
 namespace sigil::geometry::path {
 
 /** One sub-path, already measured. Every query is a distance along the

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-physics
+ *
  * THE STEPPER: one value carrying the step it takes, what it damps and
  * how many times it goes round the constraints, and one call that
  * advances a point set through its forces and its constraints.

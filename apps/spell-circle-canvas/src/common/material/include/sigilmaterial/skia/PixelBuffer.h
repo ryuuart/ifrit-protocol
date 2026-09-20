@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-skia
+ *
  * THE CALLER-OWNED RASTER a material can sample: a bitmap one owner
  * writes into and publishes with `commit()`, so content changes without a
  * re-describe. `Paint::buffer()` is the door that turns one into a fill.

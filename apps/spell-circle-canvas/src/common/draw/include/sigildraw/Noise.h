@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-pen
+ *
  * p5's `noise()` as a value: a seeded, layered field over core's lattice
  * mixer.
  */

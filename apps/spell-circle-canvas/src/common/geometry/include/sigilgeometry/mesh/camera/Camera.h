@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-mesh
+ *
  * The camera and the transforms that place things in front of it: a
  * right-handed, y-up view with a vertical field of view, the model
  * matrix helper `place()`, and the billboard transform `faceCamera()`.
@@ -18,6 +20,11 @@
 #include <glm/glm.hpp>
 #include <optional>
 
+/** THE CAMERA AND THE TRANSFORMS THAT PLACE THINGS IN FRONT OF IT: a
+ *  right-handed, y-up view with a vertical field of view, the model
+ *  matrix a body is placed by, and the billboard transform that turns a
+ *  body to face the viewer. Vectors and matrices speak glm, and the
+ *  conversion to Skia's matrix is the one seam where they cross. */
 namespace sigil::geometry::mesh::camera {
 
 /** The glm -> Skia seam: both are column-major, so the conversion is a

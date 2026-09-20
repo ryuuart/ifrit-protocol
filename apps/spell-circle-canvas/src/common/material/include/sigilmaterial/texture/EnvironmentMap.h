@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-texture
+ *
  * The environment map: what a surface sees when it looks past the lights.
  * A panorama sampled by a normal for everything that falls on a body from
  * around it, and by a reflected view vector for what the body mirrors.

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-pen
+ *
  * The pen: p5's verbs over an SkCanvas, with p5's names, argument orders
  * and defaults, held as ONE VALUE — the style, the transform, the seeded
  * streams and what it keeps between frames — so two pens draw side by
@@ -45,6 +47,17 @@ namespace sigil::weave {
 class FontContext;
 }
 
+/** AN IMMEDIATE-MODE CANVAS WITH p5's VERBS. The pen carries p5's names,
+ *  argument orders and defaults over an `SkCanvas`, so a sketch written
+ *  for p5 pastes in and runs with `pen.` in front of each verb. Beside
+ *  it stand the off-screen buffer a pen also draws into, the colour,
+ *  maths and noise helpers a sketch reaches for, and the store a
+ *  retained guest keeps its state in between frames.
+ *
+ *  This is the imperative way to draw here; a declarative scene
+ *  description is the way beside it, and the two open onto each other.
+ *  The natural-media tools over the pen are the nested `brush`
+ *  namespace's. */
 namespace sigil::draw {
 
 class Pen;

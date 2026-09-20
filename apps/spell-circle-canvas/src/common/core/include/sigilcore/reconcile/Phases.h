@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-reconcile
+ *
  * Host-declared phases — a list of passes a host runs once its tree needs
  * settling, each a member function answering whether it moved anything,
  * with a converging group that repeats until a round changes nothing or

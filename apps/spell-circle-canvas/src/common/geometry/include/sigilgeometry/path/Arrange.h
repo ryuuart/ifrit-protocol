@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * Where item i of n goes: spread around a ring, or filling the cells of a
  * grid.
  *
@@ -26,6 +28,13 @@
 #include <cstddef>
 #include <cstdint>
 
+/** WHERE ITEM i OF n GOES: the two arrangements every catalogue of
+ *  placements arrives at on its own — n items stepped around a ring from
+ *  a start angle, and n items filling columns by rows of a module. They
+ *  live here so neither is spelled twice: two spellings of the same
+ *  arrangement agree until they associate their multiplications
+ *  differently, and then two pictures of the one ring disagree by a
+ *  fraction of a pixel that nothing explains. */
 namespace sigil::geometry::arrange {
 
 /** Whether a run comes back round to where it began, which is the whole

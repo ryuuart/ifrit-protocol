@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-device
+ *
  * The one GPU device 2D and 3D share, and the lock that keeps their
  * submissions in one stream.
  */
@@ -21,6 +23,14 @@ namespace sigil::skia {
 class GraphiteContext;
 }  // namespace sigil::skia
 
+/** THE ONE GPU DEVICE 2D AND 3D SHARE. Diligent creates the Vulkan
+ *  device and cannot attach to one that already exists, so the single
+ *  point where a device is made has to sit at or below every consumer of
+ *  one: a point operator's device executor, a mesh painter's device draw
+ *  and a frame runtime's passes all stand on the device created here and
+ *  the hardware device adopted from it, and none of them could create it
+ *  for the others. The lock that keeps both APIs' submissions in one
+ *  stream is here for the same reason. */
 namespace sigil::geometry::device {
 
 /** What a device is asked for when it is created. */

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-kit
+ *
  * The parametric curves — open silhouettes evaluated in the unit
  * frame: the raw and keyed `parametric`, Lissajous, harmonograph, rose,
  * spiral and trochoid.

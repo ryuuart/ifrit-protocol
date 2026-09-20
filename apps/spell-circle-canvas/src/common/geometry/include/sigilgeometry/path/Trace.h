@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * WALKING A VECTOR FIELD, and what comes back is a polyline.
  *
  * A flow field, a streamline, a magnetic drawing, hair over a surface,

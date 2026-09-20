@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-core
+ *
  * Program — a compiled recipe as a type-erased handle — and the one cache
  * that builds and keeps them, keyed by recipe identity, target and
  * variant, through the compilers renderers register per target.

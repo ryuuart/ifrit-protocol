@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-mesh
+ *
  * The POP OPERATOR VOCABULARY: the attribute a filter addresses, the
  * twenty-five operator descriptions themselves, and the Chain that
  * sequences them. Every one is a VALUE — a description, nondestructive:

@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * The sphere laid onto a plane, as a value — and the rotation that turns
  * the sphere before it is laid.
  *

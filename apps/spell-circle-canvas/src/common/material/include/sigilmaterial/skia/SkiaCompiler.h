@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-skia
+ *
  * The SkSL backend: turns a recipe's SkSL body into an SkRuntimeEffect,
  * and the program handle that builds an
  * SkRuntimeShaderBuilder from resolved bytes.

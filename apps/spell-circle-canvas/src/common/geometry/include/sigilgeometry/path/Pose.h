@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * A pose along an outline: where the curve is at an arc length, which
  * way it heads there, and which way is sideways.
  *

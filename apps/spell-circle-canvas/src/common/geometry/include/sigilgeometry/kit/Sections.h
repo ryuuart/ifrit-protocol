@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-kit
+ *
  * The stock cross-sections a sweep carries.
  *
  * A section is a plain `path::Polyline` in Skia's y-down 2D space — x
@@ -14,6 +16,11 @@
 
 #include <sigilgeometry/path/Polyline.h>
 
+/** THE STOCK CROSS-SECTIONS A SWEEP CARRIES. A section is a plain
+ *  flattened outline in Skia's y-down 2D space — x along the frame's
+ *  binormal, y against its normal — so a sweep takes any outline that
+ *  has been flattened, and the ones here are the unit shapes anyone
+ *  would otherwise write out by hand. */
 namespace sigil::geometry::sections {
 
 /** The unit circle, one point per @p sides step around it plus the seam

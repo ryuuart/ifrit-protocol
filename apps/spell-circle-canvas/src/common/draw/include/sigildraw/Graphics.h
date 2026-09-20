@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-pen
+ *
  * A second canvas, off screen, with a pen of its own — what p5 calls a
  * Graphics: somewhere to draw once and blit many times, or to build a
  * picture the frame then reads back.

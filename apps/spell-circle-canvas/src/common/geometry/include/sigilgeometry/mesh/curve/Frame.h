@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-mesh
+ *
  * The moving frame — one orientation on a curve, and the currency every
  * rail is a sequence of. A pose read at a distance and a ring of a sweep
  * are the same type measured two ways, which is what lets a camera

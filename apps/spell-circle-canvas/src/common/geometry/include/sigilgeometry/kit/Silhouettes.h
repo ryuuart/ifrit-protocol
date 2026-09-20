@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-kit
+ *
  * The 2D shelf of the geometry kit — the free-form answer to "everything
  * is a box".
  *

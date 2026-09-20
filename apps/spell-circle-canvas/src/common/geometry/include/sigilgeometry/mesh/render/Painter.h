@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-mesh
+ *
  * Drawing meshes and panels. Two devices:
  *
  *  - drawPanel(): a full perspective transform concat'd onto the
@@ -39,6 +41,13 @@
 #include "sigilgeometry/mesh/render/Runtime.h"
 #include "sigilgeometry/mesh/render/Shading.h"
 
+/** DRAWING A MESH OR A PANEL ONTO AN ORDINARY CANVAS — no GPU device,
+ *  no scene graph. A panel concatenates a full perspective transform
+ *  onto the canvas and then draws in 2D, so the rasterizer stays
+ *  perspective-correct and any image lands on a plane in space with no
+ *  copy. A mesh is transformed, lit per vertex, sorted back to front and
+ *  drawn as triangles. The device executor that does the same work on a
+ *  GPU stands in this namespace too. */
 namespace sigil::geometry::mesh::render {
 
 /** One directional light. `direction` is the direction the light

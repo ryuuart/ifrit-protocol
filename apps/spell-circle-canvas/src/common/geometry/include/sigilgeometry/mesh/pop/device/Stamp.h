@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-device
+ *
  * A stamp copied onto every point of a cloud on a device: the vertices
  * dispatched, the indices left on the host.
  */

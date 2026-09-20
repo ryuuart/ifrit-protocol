@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * NODES PUT WHERE A CURVE TURNS. An outline drawn by hand, or one that
  * came out of a boolean, has its nodes wherever the drawing put them;
  * an outline that is going to be scaled, hinted, interpolated or read as
@@ -41,7 +43,12 @@ constexpr bool has(Where mask, Where one) {
   return (uint8_t(mask) & uint8_t(one)) != 0;
 }
 
+/** What `extremes()` and `extremeNodes()` are asked for: which turns
+ *  earn a node, and how pronounced a turn has to be before it counts.
+ *  Left at its defaults, only the axis extremes are found and a turn
+ *  shallower than a pixel is ignored. */
 struct ExtremeOptions {
+  /** Which turns earn a node; any union of the flags. */
   Where where = Where::Axis;
   /** HOW FAR PAST ITS OWN ENDS a curve must reach before the turn earns
    *  a node, in px. A few units of bulge is a rounding artefact rather

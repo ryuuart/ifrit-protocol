@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-compute
+ *
  * ONE SEEDED STREAM, AND THE SHAPES DRAWN FROM IT.
  *
  * `Noise.h` holds the mixers: stateless words, and two hand-carried
@@ -41,6 +43,13 @@
 #include <utility>
 #include <vector>
 
+/** THE STREAM A CALLER HOLDS, and the distributions drawn out of it.
+ *  `noise` holds the stateless mixers; here a stream is a value — a
+ *  copyable, assignable thing a component keeps in a member and a
+ *  describe takes by reference — and each distribution is a value read
+ *  from it rather than a function per name. Reach for a stream when a
+ *  run of draws belongs to one subject; reach for `noise` when a draw
+ *  must be a pure function of a position or an index. */
 namespace sigil::core::chance {
 
 /** WHERE A STREAM'S NEXT WORD COMES FROM.

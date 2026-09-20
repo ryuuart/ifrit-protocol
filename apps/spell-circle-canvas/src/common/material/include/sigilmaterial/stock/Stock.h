@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-stock
+ *
  * EVERY RECIPE THIS LIBRARY SHIPS, and the one call that warms them.
  *
  * The primitives are enumerated by the features that own them — the
@@ -18,6 +20,12 @@
 
 #include <vector>
 
+/** EVERY RECIPE THE LIBRARY SHIPS, gathered from the features that own
+ *  them, and the one call that compiles them all for a target. It is for
+ *  a caller that must reach every program without knowing what the
+ *  library holds: a renderer warming its pipeline cache before the first
+ *  frame, and the proof that every body compiles on a device and not
+ *  only as SkSL on the CPU. */
 namespace sigil::material::stock {
 
 /** One instance of every recipe the library ships: the field primitives,

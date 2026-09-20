@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-physics
+ *
  * WHAT IS NEAR WHAT: a uniform grid over the positions of a point set,
  * built once and asked once per point.
  *

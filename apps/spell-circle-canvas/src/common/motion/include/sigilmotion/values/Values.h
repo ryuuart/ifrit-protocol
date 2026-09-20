@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-values
+ *
  * Every public header of the values feature in one include: the
  * transition and its curves, the keyframe builders, the animatable slot,
  * the held motion it runs as, the lanes a host retargets those motions

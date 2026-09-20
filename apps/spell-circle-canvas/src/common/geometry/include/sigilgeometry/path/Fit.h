@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * A RUN OF POINTS AS FEW CUBICS. What a tracer, a stylus, a sampled
  * field line or a decoded stroke hands over is a dense run of points; a
  * drawing wants a curve with nodes where the shape turns and nowhere

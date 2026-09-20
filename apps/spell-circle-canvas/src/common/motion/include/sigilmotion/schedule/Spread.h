@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-schedule
+ *
  * The SPEC of a cascade: how a run of N units share out one master
  * progress. Delays, the order they are dealt in, how long one unit's own
  * motion lasts, and whether the whole thing loops.

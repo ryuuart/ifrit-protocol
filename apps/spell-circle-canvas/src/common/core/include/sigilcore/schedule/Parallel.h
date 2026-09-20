@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-schedule
+ *
  * ONE PARALLEL FOR, over the task runtime the process already carries.
  *
  * A range of independent items is divided into contiguous chunks and the
@@ -33,6 +35,12 @@
 #include <iterator>
 #include <ranges>
 
+/** WHERE INDEPENDENT WORK RUNS. One parallel for over the task runtime
+ *  the process already carries, taking a count, a grain and a body — so
+ *  the runtime is named in one file of this repository and in no header
+ *  of it — and beside it a fan-out of its own threads for calls that
+ *  BLOCK on a disk or a server, which must not sit on the workers a
+ *  compute range shares. */
 namespace sigil::core::schedule {
 
 namespace detail {

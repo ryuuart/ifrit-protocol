@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-physics
+ *
  * WHAT IS BORN, AGES AND DIES: a point set with the two attributes that make
  * a point a particle, the attributes a consumer names for itself, and the
  * emitter that fills all of them from a seeded stream.

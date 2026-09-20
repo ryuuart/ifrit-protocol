@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-brush
+ *
  * Instance-owned brush state over the stateless sampler and executor.
  */
 

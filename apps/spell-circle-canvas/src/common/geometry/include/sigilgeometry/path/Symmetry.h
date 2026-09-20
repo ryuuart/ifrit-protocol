@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * REPEATING A FIGURE INTO ITS OWN COPIES.
  *
  * A kaleidoscope, a rosette, a mandala's spokes, a mirrored ornament, a

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-values
+ *
  * An `Animatable<float>` while it is MOVING: the held motion a ticker
  * runs for it, the value it reads as this frame, whether it is moving at
  * all, the retarget that bends a running ramp onto a new endpoint, and

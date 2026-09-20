@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-brush
+ *
  * Stock direction fields: three shaped values, and the seven named fields
  * an engine starts with.
  */

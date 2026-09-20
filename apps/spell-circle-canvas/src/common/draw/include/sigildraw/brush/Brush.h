@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-brush
+ *
  * The brush library, whole: tools, dabs, strokes, fields, interiors, the
  * stored geometry and the engine that holds a selection of them.
  */

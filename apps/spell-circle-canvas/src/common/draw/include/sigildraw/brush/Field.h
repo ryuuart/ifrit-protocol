@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-brush
+ *
  * The direction-field seam: any value answering a heading at a point and
  * a time, and the two ways geometry goes through one — traced from a
  * start, or a polygon displaced along it.

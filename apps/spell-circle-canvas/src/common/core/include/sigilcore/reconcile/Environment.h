@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-reconcile
+ *
  * An inherited value, read where a component is described: environment::Provide
  * binds a value for a describe scope, environment::inherited reads it, and
  * environment::capture is what a memo takes where it is written, so that its
@@ -72,6 +74,13 @@ namespace sigil::core {
 // than a design-token vocabulary: the key a component uses is its own
 // properties type.
 
+/** THE INHERITED-VALUE CHANNEL: a value bound for a scope of the
+ *  description tree and read by anything described inside it, without
+ *  being threaded through every call between. Bindings are keyed by C++
+ *  TYPE, so this is a transport channel and not a design-token
+ *  vocabulary — the key a component uses is its own properties type.
+ *  What is read is recorded, so a node that read a binding re-describes
+ *  when that binding changes and one that did not is left alone. */
 namespace environment {
 
 /** One ambient binding, type-erased. `type` is a per-T number so no RTTI

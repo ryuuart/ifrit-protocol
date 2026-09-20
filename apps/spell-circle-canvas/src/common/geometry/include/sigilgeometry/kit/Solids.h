@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-kit
+ *
  * The 3D shelf of the geometry kit — the stock solids.
  *
  * Two of them LIFT another currency into a mesh: `extrude()` raises a

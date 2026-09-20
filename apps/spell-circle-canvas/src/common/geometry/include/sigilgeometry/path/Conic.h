@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * The conic section about its FOCUS — the one curve family that is not a
  * closed figure inscribed in a box.
  *

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup motion-values
+ *
  * A SIGNAL THAT REPEATS, as a value: which wave, how fast, where in the
  * cycle it starts, how far it swings and what it swings about. It
  * answers a number for a time in seconds and reads the same everywhere —

@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-path
+ *
  * A figure's own coordinate system, as a value: the polar `Frame`, the
  * unit-map `Grid`, and the centred rect both are read through.
  *

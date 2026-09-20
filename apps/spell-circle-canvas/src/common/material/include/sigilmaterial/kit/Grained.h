@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-kit
+ *
  * Grained surfaces — stone, timber, latten and board — as recipes: a
  * ramp of the material's tones, a luminance grain over it and a seeded
  * speckle on top, each generated per pixel from its parameters and a

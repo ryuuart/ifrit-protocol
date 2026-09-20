@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-brush
+ *
  * One procedural drawing tool: plain data saying how each dab lands.
  */
 
@@ -20,6 +22,16 @@ namespace sigil::draw {
 class Pen;
 }
 
+/** NATURAL MEDIA OVER THE PEN. A tool describes how pigment is laid
+ *  down — the tip, the dab, the dynamics that read speed and pressure,
+ *  the grain the paper has and the wash that bleeds — and a stroke along
+ *  a path becomes thousands of dabs rather than one outline. Beside the
+ *  tools sit the interiors (hatch, mass, plot, polygon) that fill a
+ *  shape in the same vocabulary, the fields that push a stroke around,
+ *  and the engine that holds a catalogue and a current selection.
+ *
+ *  Reach for a brush when the mark itself is the subject; reach for the
+ *  pen's `stroke()` when it is an outline. */
 namespace sigil::draw::brush {
 
 /** How the tool deposits pigment along the sampled centreline. */

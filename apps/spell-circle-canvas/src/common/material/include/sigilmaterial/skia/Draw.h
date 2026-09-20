@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-skia
+ *
  * The one-call draw: a path filled with a material on a Skia canvas.
  */
 

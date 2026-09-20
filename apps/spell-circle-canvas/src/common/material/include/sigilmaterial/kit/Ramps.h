@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup material-kit
+ *
  * THE NAMED COLOUR RAMPS: one function per name, each answering the same
  * `Ramp` value.
  *

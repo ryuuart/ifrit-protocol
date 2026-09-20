@@ -1,9 +1,19 @@
 #pragma once
 
 /** @file
+ * @ingroup core-callable
+ *
  * A CALL WITH THE PARAMETERS THE CALLABLE NAMED: the prefix search, the
  * concept over it, and the type-erased holder a verb stores one in.
  */
+
+/** @defgroup core-callable The callable leaf
+ *  A verb that offers a caller more than most callers read takes its
+ *  callable through here, so a lambda naming none, some or all of the
+ *  offered parameters is the same verb's argument and nobody spells a
+ *  parameter only to ignore it. The parameters a callable names are the
+ *  FIRST of what the verb offers, dropped from the end and never from
+ *  the middle. */
 
 #include <cstddef>
 #include <functional>
@@ -94,11 +104,16 @@ decltype(auto) callPrefix(Fn&& fn, Offered&&... offered) {
   return detail::callWith<Answer>(fn, args, named);
 }
 
+/** A callable that names only the parameters it reads, declared for a
+ *  function signature; only the function-type form below is defined. */
+template <class Signature>
+class Callable;
+
 /** A CALLABLE THAT NAMES ONLY THE PARAMETERS IT READS — a copyable,
- *  type-erased call of @p Signature, built from ANY callable whose
- *  parameters are a prefix of the signature's and called with the ones it
- *  named. A verb that offers a caller more than most callers read holds
- *  one of these instead of a `std::function`, so that
+ *  type-erased call of @p Result(Offered...), built from ANY callable
+ *  whose parameters are a prefix of the signature's and called with the
+ *  ones it named. A verb that offers a caller more than most callers
+ *  read holds one of these instead of a `std::function`, so that
  *  `custom([](SkCanvas& c) {…})` and `custom([](SkCanvas& c, const
  *  PaintContext& ctx) {…})` are both that verb's argument and neither
  *  spells a parameter to ignore it.
@@ -108,9 +123,6 @@ decltype(auto) callPrefix(Fn&& fn, Offered&&... offered) {
  *  them never compare equal and whatever prunes on a description holding
  *  one must key on something else (a scheme's own equality, or the key a
  *  caller states beside the callable). */
-template <class Signature>
-class Callable;
-
 template <class Result, class... Offered>
 class Callable<Result(Offered...)> {
  public:

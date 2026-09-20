@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup draw-brush
+ *
  * The pressure-bearing centreline a tool is painted along: reusable
  * geometry, formed from a segment or smoothed through control points, and
  * painted by any tool as many times as wanted.

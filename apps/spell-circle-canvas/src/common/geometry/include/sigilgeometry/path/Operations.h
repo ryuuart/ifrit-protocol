@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-path
+ *
  * SigilGeometry path operations — the Pathfinder panel and the Distort
  * menu, as values. Three families:
  *
@@ -40,6 +42,12 @@
 #include <span>
 #include <vector>
 
+/** THE PATHFINDER PANEL AND THE DISTORT MENU, as values: the booleans
+ *  over two outlines, the self-intersection cleanup and the stroke
+ *  expansion beside them, the corner treatments over a polyline, and the
+ *  warps that bend an outline without changing its node count. Every one
+ *  is a pure function — a path in, a path out — and a failure comes back
+ *  as an empty path rather than an error. */
 namespace sigil::geometry::path::operations {
 
 /** Everything either shape covers. */

@@ -1,5 +1,7 @@
 #pragma once
 /** @file
+ * @ingroup geometry-path
+ *
  * An even-spacing walk assembled from pieces that arrive one at a time.
  *
  * `subdivide` and `resample` both hold the whole curve before they start.

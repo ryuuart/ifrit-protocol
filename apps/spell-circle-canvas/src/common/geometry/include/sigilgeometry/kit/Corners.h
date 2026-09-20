@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry-kit
+ *
  * The corner treatments — the wrappers that round any shape's corners or
  * bend its outline with a shaper, and the shapes a frame is actually cut
  * to: chamfered and notched.

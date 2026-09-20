@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup core-schedule
+ *
  * WORK THAT BLOCKS, OFF THE COMPUTE THREADS.
  *
  * A read from a disk, a fetch from a server, a wait on a device: each
