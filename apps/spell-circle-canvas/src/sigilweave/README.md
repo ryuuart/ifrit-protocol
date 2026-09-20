@@ -397,7 +397,7 @@ layer shapes a rich run's named runs through.
 | `SigilWeaveChoreograph` | per-glyph choreography | — |
 | `SigilWeaveQuery` | range search and markers | ICU, private |
 | `SigilWeave` | interface over every target above | — |
-| `SigilWeavePorts` | `ports::systemFontManager()` — CoreText on Apple; DirectWrite and Fontconfig slot into the same call — `ports::pickTypeface()`, the first installed family of a fallback chain, and `ports::face()`, that resolution kept once per chain and style so every face compared by pointer compares equal | Skia platform ports |
+| `SigilWeavePorts` | `ports::systemFontManager()` — CoreText on Apple; DirectWrite and Fontconfig slot into the same call — `ports::pickTypeface()`, the first installed family of a fallback chain, and `ports::face()`, that resolution kept once per chain and style so every face compared by pointer compares equal. Both take the chain either spelled out where the call is written or as a span of names assembled at run time, and both spellings reach the one holder | Skia platform ports |
 | `SigilWeaveKit` | consumer-side discipline: rebuild/layout guards, glyph bucketing, label shorthand, sample content, the named OpenType feature presets, the three arrangements of a paint layer everyone writes, and the line-edge and hyphenation tables | SigilWeaveUnicode — private |
 | `SigilWeaveQt` | interface target: `QFont` → `SkTypeface`, `QString` ↔ `Paragraph` with no transcoding | Qt6::Gui |
 

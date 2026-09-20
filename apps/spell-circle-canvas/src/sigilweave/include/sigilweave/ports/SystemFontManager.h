@@ -17,6 +17,9 @@
 #include <include/core/SkTypeface.h>
 
 #include <initializer_list>
+#include <span>
+#include <string_view>
+#include <vector>
 
 /** WHERE THE ENGINE MEETS THE OPERATING SYSTEM: the factory that hands
  *  back the platform's installed font set as a Skia font manager. It is
@@ -35,27 +38,48 @@ namespace sigil::weave::ports {
  */
 sk_sp<SkFontMgr> systemFontManager();
 
+/** A chain spelled out at a call site, as the views the resolving calls
+ *  read. A name written as a null pointer becomes an empty view, which
+ *  those calls pass over. */
+namespace detail {
+inline std::vector<std::string_view> familyChain(
+    std::initializer_list<const char*> families) {
+  std::vector<std::string_view> chain;
+  chain.reserve(families.size());
+  for (const char* family : families)
+    chain.emplace_back(family != nullptr ? family : "");
+  return chain;
+}
+}  // namespace detail
+
 /** The first of @p families the system font manager resolves, at @p style.
  *
- *  The list is the point: reconstructing a reference names a face that may
+ *  The chain is the point: reconstructing a reference names a face that may
  *  not be installed on the machine running the code, so callers pass the
- *  face they want followed by the stand-ins they will accept.
+ *  face they want followed by the stand-ins they will accept. A family the
+ *  chain leaves empty is passed over, so a chain assembled at run time may
+ *  carry a blank where it found no name.
  *
  *  The last resort is the default family AT THE REQUESTED STYLE, not at
  *  `SkFontStyle::Normal()` — falling back to Normal would silently drop the
  *  weight the caller asked for.
  *
+ *  This is the form a COMPUTED chain takes — one read out of a document, a
+ *  settings file or a caller's own list, whose length is not known where
+ *  the call is written. The overload below is the same call with the chain
+ *  spelled out.
+ *
  *  `matchFamilyStyle` walks the system font list, so a chain asked for
  *  more than once goes through `face()` below, which keeps the answer. */
+sk_sp<SkTypeface> pickTypeface(std::span<const std::string_view> families,
+                               SkFontStyle style = SkFontStyle::Normal());
+
+/** `pickTypeface` over a chain spelled out where the call is written. */
 inline sk_sp<SkTypeface> pickTypeface(
     std::initializer_list<const char*> families,
     SkFontStyle style = SkFontStyle::Normal()) {
-  sk_sp<SkFontMgr> mgr = systemFontManager();
-  if (!mgr) return nullptr;
-  for (const char* family : families)
-    if (sk_sp<SkTypeface> face = mgr->matchFamilyStyle(family, style))
-      return face;
-  return mgr->matchFamilyStyle(nullptr, style);
+  const std::vector<std::string_view> chain = detail::familyChain(families);
+  return pickTypeface(std::span<const std::string_view>(chain), style);
 }
 
 /** `pickTypeface` spelled with a weight and a slant, for the (common) case
@@ -84,9 +108,21 @@ inline sk_sp<SkTypeface> pickTypeface(
  *
  *  Safe from any thread: a describe runs on whichever thread the host
  *  calls on, and the holder is guarded. The face itself is immutable and
- *  shared, exactly as `systemFontManager()`'s is. */
-sk_sp<SkTypeface> face(std::initializer_list<const char*> families,
+ *  shared, exactly as `systemFontManager()`'s is.
+ *
+ *  This is the form a COMPUTED chain takes; the overload below is the same
+ *  call with the chain spelled out. Both reach the one holder, so a chain
+ *  assembled at run time and the same chain written as literals are one
+ *  entry and one face. */
+sk_sp<SkTypeface> face(std::span<const std::string_view> families,
                        SkFontStyle style = SkFontStyle::Normal());
+
+/** `face` over a chain spelled out where the call is written. */
+inline sk_sp<SkTypeface> face(std::initializer_list<const char*> families,
+                              SkFontStyle style = SkFontStyle::Normal()) {
+  const std::vector<std::string_view> chain = detail::familyChain(families);
+  return face(std::span<const std::string_view>(chain), style);
+}
 
 /** `face` spelled with a weight and a slant, matching the `pickTypeface`
  *  overload above. */

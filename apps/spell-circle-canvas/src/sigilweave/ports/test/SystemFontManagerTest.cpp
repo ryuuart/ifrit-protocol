@@ -11,7 +11,9 @@
 #include <include/core/SkTypeface.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
+#include <span>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -21,6 +23,11 @@ namespace {
 /** A NAME NO FONT CARRIES, so a list opening with it always runs out
  *  onto whatever the machine falls back to. */
 constexpr const char* kAbsent = "No Family Is Called This 4a7c15";
+
+/** NO FAMILIES AT ALL: the ask that is only the default family. Spelled
+ *  as the computed form because an empty braced list fits the spelled-out
+ *  form and the computed one equally well. */
+constexpr std::span<const std::string_view> kNoFamilies;
 
 /** The face's own family, which is what two answers are compared by: a
  *  manager may hand back a fresh SkTypeface for a family it has already
@@ -86,7 +93,7 @@ TEST(SystemFontManager, ReadsAFaceOutOfAFileWithoutMatchingAnyFamily) {
 class InstalledFonts : public ::testing::Test {
  protected:
   void SetUp() override {
-    if (!pickTypeface({}))
+    if (!pickTypeface(kNoFamilies))
       GTEST_SKIP() << "this machine's font manager offers no default family";
   }
 };
@@ -96,7 +103,7 @@ TEST_F(InstalledFonts, AListRunsOutOntoTheDefaultFamilyRatherThanOntoNothing) {
   // accept; a machine that has none of them still draws.
   const sk_sp<SkTypeface> given = pickTypeface({kAbsent, kAbsent});
   ASSERT_NE(given, nullptr);
-  EXPECT_EQ(familyOf(given), familyOf(pickTypeface({})));
+  EXPECT_EQ(familyOf(given), familyOf(pickTypeface(kNoFamilies)));
 }
 
 TEST_F(InstalledFonts, TheWeightAndSlantSpellingIsTheStyleSpelling) {
@@ -111,6 +118,30 @@ TEST_F(InstalledFonts, TheWeightAndSlantSpellingIsTheStyleSpelling) {
       familyOf(pickTypeface({kAbsent}, style)));
   EXPECT_EQ(face({kAbsent}, kWeight, SkFontStyle::kItalic_Slant).get(),
             face({kAbsent}, style).get());
+}
+
+TEST_F(InstalledFonts, AChainAssembledAtRunTimeIsTheChainSpelledOut) {
+  // A chain whose length is a fact about the document rather than about
+  // the call site — read out of a settings file, a scene, a caller's own
+  // list — reaches the same resolution and the same held entry as the
+  // same names written as literals. Without that, a face resolved from a
+  // computed chain would never compare equal to one resolved from a
+  // spelled-out chain, and everything keyed on a face would re-do its
+  // work whenever the two met.
+  const std::vector<std::string_view> chain = {kAbsent, "Menlo", "monospace"};
+  EXPECT_EQ(familyOf(pickTypeface(chain)),
+            familyOf(pickTypeface({kAbsent, "Menlo", "monospace"})));
+  EXPECT_EQ(face(chain).get(), face({kAbsent, "Menlo", "monospace"}).get());
+}
+
+TEST_F(InstalledFonts, AnEmptyNameInAChainIsPassedOverAndNotResolved) {
+  // A chain assembled at run time carries a blank wherever it found no
+  // name. A blank is not a family: the ask falls through it to the next
+  // name rather than stopping there on the default family.
+  const std::vector<std::string_view> withBlanks = {"", kAbsent, "", "Menlo",
+                                                    "monospace"};
+  EXPECT_EQ(familyOf(pickTypeface(withBlanks)),
+            familyOf(pickTypeface({kAbsent, "Menlo", "monospace"})));
 }
 
 /** ONE ASK, made either through the holder or by a fresh walk.
@@ -145,7 +176,9 @@ INSTANTIATE_TEST_SUITE_P(
     Asks, HeldFace,
     ::testing::Values(
         Ask{"NoFamiliesAtAll",
-            [](bool held) { return held ? face({}) : pickTypeface({}); }},
+            [](bool held) {
+              return held ? face(kNoFamilies) : pickTypeface(kNoFamilies);
+            }},
         Ask{"OneFamily",
             [](bool held) {
               return held ? face({kAbsent}) : pickTypeface({kAbsent});
