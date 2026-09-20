@@ -8,6 +8,8 @@
 #include <sigilio/hub/Network.h>
 #include <sigilio/transport/Transport.h>
 
+#include <algorithm>
+
 namespace sigil::sketch {
 
 namespace {
@@ -78,10 +80,12 @@ std::shared_ptr<const sigil::data::Database> Assets::database(
 std::shared_ptr<const sigil::image::ImageAsset> Assets::image(
     std::string_view name) {
   if (auto asset = m_hub.image(uriFor(name))) {
-    m_placeholders.erase(std::string(name));
+    std::erase(m_placeholders, name);
     return asset;
   }
-  m_placeholders.insert_or_assign(std::string(name), true);
+  if (std::find(m_placeholders.begin(), m_placeholders.end(), name) ==
+      m_placeholders.end())
+    m_placeholders.emplace_back(name);
   return m_placeholder;
 }
 
@@ -117,7 +121,7 @@ bool Assets::poll() {
   if (changed) m_videos.clear();
   // Placeholders heal the moment their file becomes loadable.
   for (auto it = m_placeholders.begin(); it != m_placeholders.end();) {
-    if (m_hub.image(uriFor(it->first))) {
+    if (m_hub.image(uriFor(*it))) {
       it = m_placeholders.erase(it);
       changed = true;
     } else {

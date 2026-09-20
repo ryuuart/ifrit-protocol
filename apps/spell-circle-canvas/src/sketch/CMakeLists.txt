@@ -28,7 +28,6 @@ sigil_library_root(SigilSketch
 set(SIGIL_SKETCH_DIR ${CMAKE_CURRENT_LIST_DIR}/sketches)
 set(SIGIL_SKETCH_ASSET_DIR ${SIGIL_ASSET_DIR})
 
-find_package(boost_container CONFIG REQUIRED)
 find_package(EnTT CONFIG REQUIRED)
 
 # THE ARCHIVE LINKS NO DEVICE BACKEND AND NO QT. The runtime a session
@@ -80,7 +79,7 @@ set(SIGIL_SKETCH_PUBLIC
   SigilMaterialKit SigilWeaveKit SigilWeavePorts
   SigilWorldScene SigilWorldKit SigilWorldFrame SigilWorldElement
   SigilWorldLight
-  SigilDraw EnTT::EnTT Boost::container)
+  SigilDraw EnTT::EnTT)
 set(SIGIL_SKETCH_PRIVATE
   # The door a frame arrives by. A canvas can wear another application's
   # picture, so the archive that draws reaches the subscription — the

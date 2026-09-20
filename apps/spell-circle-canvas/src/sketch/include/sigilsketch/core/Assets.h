@@ -12,7 +12,6 @@
 #include <sigilio/IO.h>
 #include <sigilvideo/decode/Decode.h>
 
-#include <boost/container/flat_map.hpp>
 #include <filesystem>
 #include <initializer_list>
 #include <memory>
@@ -109,8 +108,10 @@ class Assets {
   std::filesystem::path m_root;
   std::filesystem::path m_sketches;
   sigil::io::Hub m_hub;
-  boost::container::flat_map<std::string, bool, std::less<>>
-      m_placeholders;  // name → waiting
+  /** The names whose file was not there, still standing in. A sketch
+   *  asks for a handful of pictures, so the list is walked rather than
+   *  looked up. */
+  std::vector<std::string> m_placeholders;
   std::vector<CachedVideo> m_videos;
   std::shared_ptr<const sigil::image::ImageAsset> m_placeholder;
 };
