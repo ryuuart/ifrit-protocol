@@ -37,15 +37,15 @@ bool spells(const std::string& body, std::string_view name) {
 Field frameField(FrameInput input) {
   switch (input) {
     case FrameInput::Time:
-      return {"uTime", Kind::Float, 1, 0};
+      return {"uTime", ParameterType::Float, 1, 0};
     case FrameInput::Resolution:
-      return {"uResolution", Kind::Vec2, 2, 0};
+      return {"uResolution", ParameterType::Vec2, 2, 0};
     case FrameInput::ContentScale:
-      return {"uContentScale", Kind::Float, 1, 0};
+      return {"uContentScale", ParameterType::Float, 1, 0};
     case FrameInput::WorldTransform:
-      return {"uWorld", Kind::Mat3, 9, 0};
+      return {"uWorld", ParameterType::Mat3, 9, 0};
   }
-  return {"", Kind::Float, 1, 0};
+  return {"", ParameterType::Float, 1, 0};
 }
 
 }  // namespace

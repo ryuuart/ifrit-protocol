@@ -72,14 +72,15 @@ namespace {
 float scalar(const material::Material& m, std::string_view name,
              float fallback) {
   const material::Field* field = m.recipe().parameters().find(name);
-  return field && field->kind == material::Kind::Float ? m.get<float>(name)
-                                                       : fallback;
+  return field && field->kind == material::ParameterType::Float
+             ? m.get<float>(name)
+             : fallback;
 }
 
 material::Color tint(const material::Material& m, std::string_view name,
                      material::Color fallback) {
   const material::Field* field = m.recipe().parameters().find(name);
-  return field && field->kind == material::Kind::Color
+  return field && field->kind == material::ParameterType::Color
              ? m.get<material::Color>(name)
              : fallback;
 }

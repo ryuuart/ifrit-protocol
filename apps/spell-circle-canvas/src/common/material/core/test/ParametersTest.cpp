@@ -51,16 +51,16 @@ TEST(Parameters, TheSchemaIsTheParametersStructsOwnLayout) {
   // the C++ types beside them.
   const Schema& s = schema<EveryKind>();
   ASSERT_EQ(s.fields.size(), 5u);
-  EXPECT_EQ(s.fields[0].kind, Kind::Float);
+  EXPECT_EQ(s.fields[0].kind, ParameterType::Float);
   EXPECT_EQ(s.fields[0].offset, offsetof(EveryKind, f));
-  EXPECT_EQ(s.fields[1].kind, Kind::Vec2);
+  EXPECT_EQ(s.fields[1].kind, ParameterType::Vec2);
   EXPECT_EQ(s.fields[1].offset, offsetof(EveryKind, v2));
-  EXPECT_EQ(s.fields[2].kind, Kind::Vec4);
+  EXPECT_EQ(s.fields[2].kind, ParameterType::Vec4);
   EXPECT_EQ(s.fields[2].offset, offsetof(EveryKind, v4));
-  EXPECT_EQ(s.fields[3].kind, Kind::FloatArray);
+  EXPECT_EQ(s.fields[3].kind, ParameterType::FloatArray);
   EXPECT_EQ(s.fields[3].floats, 3u);
   EXPECT_EQ(s.fields[3].offset, offsetof(EveryKind, arr));
-  EXPECT_EQ(s.fields[4].kind, Kind::Color);
+  EXPECT_EQ(s.fields[4].kind, ParameterType::Color);
   EXPECT_EQ(s.fields[4].offset, offsetof(EveryKind, c));
   EXPECT_EQ(s.byteSize, sizeof(EveryKind));
 }

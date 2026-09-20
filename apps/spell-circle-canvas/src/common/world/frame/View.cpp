@@ -70,7 +70,7 @@ SurfaceTerms surfaceTermsOf(const ::sigil::material::Material* material) {
   const material::Schema& parameters = material->recipe().parameters();
   const auto scalar = [&](std::string_view name, float& into) {
     const material::Field* field = parameters.find(name);
-    if (field && field->kind == material::Kind::Float)
+    if (field && field->kind == material::ParameterType::Float)
       into = material->get<float>(name);
   };
   scalar("metallic", terms.metallic);
@@ -79,7 +79,7 @@ SurfaceTerms surfaceTermsOf(const ::sigil::material::Material* material) {
   scalar("ior", terms.ior);
   scalar("thickness", terms.thickness);
   const material::Field* absorb = parameters.find("absorption");
-  if (absorb && absorb->kind == material::Kind::Color) {
+  if (absorb && absorb->kind == material::ParameterType::Color) {
     const glm::vec4 value = material->get<glm::vec4>("absorption");
     terms.absorption = {value.r, value.g, value.b};
   }

@@ -126,7 +126,7 @@ void writeMaterial(material::slang::Uniforms& uniforms,
     if (field.offset + bytes > surface.bytes.size()) continue;
     const auto* values =
         reinterpret_cast<const float*>(surface.bytes.data() + field.offset);
-    if (field.kind == material::Kind::Mat3) {
+    if (field.kind == material::ParameterType::Mat3) {
       float rows[9];
       for (int r = 0; r < 3; ++r)
         for (int c = 0; c < 3; ++c) rows[r * 3 + c] = values[c * 3 + r];

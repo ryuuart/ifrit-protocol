@@ -58,8 +58,8 @@ void Material::write(const void* parameters, size_t size,
   std::memcpy(m_bytes.data(), parameters, size);
 }
 
-void Material::write(std::string_view name, Kind kind, const void* floats,
-                     size_t count) {
+void Material::write(std::string_view name, ParameterType kind,
+                     const void* floats, size_t count) {
   const Field* f = m_recipe->parameters().find(name);
   // THE REPORT'S KEY IS BUILT WHERE IT IS REPORTED. This is the per-field
   // setter, called once per field of every material built, and a string
@@ -107,7 +107,7 @@ Material::Binding* Material::binding(std::string_view name) {
 Material& Material::bind(std::string_view name,
                          motion::Animatable<float> value) {
   const Field* f = m_recipe->parameters().find(name);
-  if (!f || f->kind != Kind::Float) {
+  if (!f || f->kind != ParameterType::Float) {
     reportOnce("bind:" + m_recipe->name() + ":" + std::string(name),
                "recipe \"" + m_recipe->name() + "\" has no float field \"" +
                    std::string(name) + "\" to bind a value to");
@@ -131,7 +131,7 @@ Material& Material::bind(std::string_view name,
                          std::shared_ptr<const UniformBlock> block) {
   const Field* f = m_recipe->parameters().find(name);
   const std::string key = "bind:" + m_recipe->name() + ":" + std::string(name);
-  if (!f || f->kind != Kind::FloatArray) {
+  if (!f || f->kind != ParameterType::FloatArray) {
     reportOnce(key, "recipe \"" + m_recipe->name() +
                         "\" has no array field \"" + std::string(name) +
                         "\" to bind a block to");

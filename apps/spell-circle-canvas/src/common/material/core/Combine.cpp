@@ -133,7 +133,7 @@ std::string composedSlang(Blend blend, const Recipe* operands[3]) {
 std::shared_ptr<const Recipe> composeRecipe(Blend blend,
                                             const Recipe* operands[3]) {
   Schema parameters;
-  parameters.fields.push_back({"amount", Kind::Float, 1, 0});
+  parameters.fields.push_back({"amount", ParameterType::Float, 1, 0});
   parameters.byteSize = sizeof(float);
   for (int i = 0; i < 3; ++i)
     for (const Field& f : operands[i]->parameters().fields) {

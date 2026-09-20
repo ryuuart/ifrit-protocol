@@ -104,7 +104,7 @@ class Material {
    *  field's — the door for an array whose length is known only at run
    *  time. A count that is not the field's is reported once and ignored. */
   Material& set(std::string_view name, std::span<const float> floats) {
-    write(name, Kind::FloatArray, floats.data(), floats.size());
+    write(name, ParameterType::FloatArray, floats.data(), floats.size());
     return *this;
   }
   /** Rewrites every field from @p parameters. */
@@ -224,7 +224,7 @@ class Material {
   Material(std::shared_ptr<const Recipe> recipe, const void* parameters,
            size_t size, const Schema* schema);
   void write(const void* parameters, size_t size, const Schema* schema);
-  void write(std::string_view name, Kind kind, const void* floats,
+  void write(std::string_view name, ParameterType kind, const void* floats,
              size_t count);
   Binding* binding(std::string_view name);
   void place(std::string_view name, Slot slot);

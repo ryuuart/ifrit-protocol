@@ -29,7 +29,7 @@ namespace sigil::material {
 /** The uniform types a parameter field may have. Every one is some count of
  *  floats with float alignment, so a struct of them has no padding and its
  *  bytes ARE the upload. */
-enum class Kind : uint8_t {
+enum class ParameterType : uint8_t {
   Float,       ///< one float
   Vec2,        ///< two floats: an offset, a size, a direction
   Vec4,        ///< four floats that are not a colour: a rect, a quaternion
@@ -41,7 +41,7 @@ enum class Kind : uint8_t {
 /** One field of a parameter struct as the upload sees it. */
 struct Field {
   std::string name;
-  Kind kind;
+  ParameterType kind;
   size_t floats;  ///< how many floats the field spans
   size_t offset;  ///< byte offset from the start of the struct
 
@@ -70,33 +70,33 @@ template <class T>
 struct UniformTraits;
 
 // The specialisations are that mapping written out. Each says only which
-// Kind and how many floats, both of which the enum above already spells,
-// so they stay out of the generated reference and the primary template
+// ParameterType and how many floats, both of which the enum above already
+// spells, so they stay out of the generated reference and the primary template
 // carries the rule.
 /// @cond
 template <>
 struct UniformTraits<float> {
-  static constexpr Kind kind = Kind::Float;
+  static constexpr ParameterType kind = ParameterType::Float;
   static constexpr size_t floats = 1;
 };
 template <>
 struct UniformTraits<glm::vec2> {
-  static constexpr Kind kind = Kind::Vec2;
+  static constexpr ParameterType kind = ParameterType::Vec2;
   static constexpr size_t floats = 2;
 };
 template <>
 struct UniformTraits<glm::vec4> {
-  static constexpr Kind kind = Kind::Vec4;
+  static constexpr ParameterType kind = ParameterType::Vec4;
   static constexpr size_t floats = 4;
 };
 template <size_t N>
 struct UniformTraits<std::array<float, N>> {
-  static constexpr Kind kind = Kind::FloatArray;
+  static constexpr ParameterType kind = ParameterType::FloatArray;
   static constexpr size_t floats = N;
 };
 template <>
 struct UniformTraits<Color> {
-  static constexpr Kind kind = Kind::Color;
+  static constexpr ParameterType kind = ParameterType::Color;
   static constexpr size_t floats = 4;
 };
 /// @endcond
@@ -104,7 +104,7 @@ struct UniformTraits<Color> {
 /** A type `UniformTraits` knows. */
 template <class T>
 concept Uniform = requires {
-  { UniformTraits<T>::kind } -> std::convertible_to<Kind>;
+  { UniformTraits<T>::kind } -> std::convertible_to<ParameterType>;
   { UniformTraits<T>::floats } -> std::convertible_to<size_t>;
 };
 
@@ -181,10 +181,11 @@ const Schema& schema() {
   static const Schema s = [] {
     Schema out;
     size_t offset = 0;
-    forEachField<P>([&](std::string_view name, Kind kind, size_t floats) {
-      out.fields.push_back({std::string(name), kind, floats, offset});
-      offset += floats * sizeof(float);
-    });
+    forEachField<P>(
+        [&](std::string_view name, ParameterType kind, size_t floats) {
+          out.fields.push_back({std::string(name), kind, floats, offset});
+          offset += floats * sizeof(float);
+        });
     out.byteSize = offset;
     return out;
   }();

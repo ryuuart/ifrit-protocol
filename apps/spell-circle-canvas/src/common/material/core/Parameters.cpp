@@ -10,17 +10,17 @@ namespace {
 
 /** The type name a kind is declared with. SkSL and Slang spell these
  *  vector and matrix types identically. */
-const char* typeName(Kind kind) {
+const char* typeName(ParameterType kind) {
   switch (kind) {
-    case Kind::Float:
-    case Kind::FloatArray:
+    case ParameterType::Float:
+    case ParameterType::FloatArray:
       return "float";
-    case Kind::Vec2:
+    case ParameterType::Vec2:
       return "float2";
-    case Kind::Vec4:
-    case Kind::Color:
+    case ParameterType::Vec4:
+    case ParameterType::Color:
       return "float4";
-    case Kind::Mat3:
+    case ParameterType::Mat3:
       return "float3x3";
   }
   return "float";
@@ -33,7 +33,7 @@ std::string declare(const Field& field, Target) {
   out += typeName(field.kind);
   out += ' ';
   out += field.name;
-  if (field.kind == Kind::FloatArray) {
+  if (field.kind == ParameterType::FloatArray) {
     out += '[';
     out += std::to_string(field.floats);
     out += ']';
