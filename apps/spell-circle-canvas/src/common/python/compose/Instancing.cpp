@@ -600,10 +600,11 @@ bool nativeValue(py::handle value) {
  *  The native step asks the ease once per instance from inside its walk
  *  over the pool's own storage, and a Python callable asked there could
  *  change the pool's length under that walk. So a Python ease is never
- *  asked there. One native step with no ease records the progress each
- *  instance is at, Python shapes those numbers with no native walk in
- *  flight, and a second native step replays what it answered. What the
- *  ease raises is the error the caller sees. */
+ *  asked there. One native step, through an ease that answers the
+ *  progress it is handed, records where each instance is; Python shapes
+ *  those numbers with no native walk in flight; and a second native step
+ *  replays what it answered. What the ease raises is the error the caller
+ *  sees. */
 void flyPool(Pool& pool, float seconds, py::handle ease) {
   if (ease.is_none()) {
     pool.fly(seconds);
@@ -622,8 +623,14 @@ void flyPool(Pool& pool, float seconds, py::handle ease) {
   eased.reserve(progress.size());
   {
     const CallbackBoundary boundary;
-    for (const float unit : progress)
-      eased.push_back(py::cast<float>(ease(unit)));
+    for (const float unit : progress) {
+      const py::object answer = ease(unit);
+      try {
+        eased.push_back(py::cast<float>(answer));
+      } catch (const py::cast_error&) {
+        throw py::type_error("An ease answers a number.");
+      }
+    }
   }
   std::size_t next = 0;
   bool outrun = false;
