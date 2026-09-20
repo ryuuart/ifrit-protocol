@@ -31,7 +31,7 @@ template <typename P> Element& fill(P&& surface);   // a SurfacePaint
 ```
 
 ```python
-def fill(self, value: PaintLike) -> Element: ...
+def fill(self, value: SurfacePaintLike) -> Element: ...
 ```
 
 ## Parameters
@@ -44,10 +44,11 @@ def fill(self, value: PaintLike) -> Element: ...
 | `SkColor4f` | A solid colour, without the `Fill::color` ceremony. | `hexColor(0xRRGGBB)`, or the four channels |
 | `SurfacePaint` | A component's surface property: any of the above, or empty. | [`SurfacePaint`](../types/SurfacePaint.md) |
 
-In Python the parameter is `PaintLike`, which additionally accepts a
-`"#rrggbb"` or `"#rrggbbaa"` string, a three- or four-number sequence,
-`material.Color`, `material.skia.Paint`, `compose.SurfacePaint`, a custom
-property reference, and `None` for no fill at all.
+In Python the parameter is `SurfacePaintLike`, which additionally
+accepts a `"#rrggbb"` or `"#rrggbbaa"` string, a three- or four-number
+sequence, `material.Color`, `material.Paint`, `material.Material`,
+`compose.SurfacePaint`, a custom property reference, a bound or
+transitioned fill, and `None` for no fill at all.
 
 ## Description
 

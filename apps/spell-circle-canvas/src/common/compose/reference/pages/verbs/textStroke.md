@@ -27,7 +27,7 @@ Element& textStroke(float width, SurfacePaint paint);
 ```
 
 ```python
-def textStroke(self, width: float, paint: SurfacePaintLike) -> Element: ...
+def textStroke(self, width: float, paint: FillLike) -> Element: ...
 ```
 
 ## Parameters
@@ -39,6 +39,10 @@ def textStroke(self, width: float, paint: SurfacePaintLike) -> Element: ...
 
 The stroke settles to one comparable `Fill` on the node, so a static
 paint collapses onto it and a live one strokes with nothing.
+
+In Python the parameter is `FillLike`, the flat mark: a static paint
+collapses onto it as it does in C++, and a live or geometry-dependent
+one raises rather than stroking with nothing.
 
 ## Description
 

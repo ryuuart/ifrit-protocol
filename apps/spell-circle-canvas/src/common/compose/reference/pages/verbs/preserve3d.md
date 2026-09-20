@@ -17,16 +17,6 @@ flattening into it — and are painted back to front by the depth of each
 child's centre, whatever order they were declared in. A cube is six
 children of one such node.
 
-## Syntax
-
-```cpp
-Element& preserve3d(bool on = true);
-```
-
-```python
-def preserve3d(self, on: bool = True) -> Element: ...
-```
-
 ## Description
 
 **Nested spaces compound.** A child that does not declare one ends the

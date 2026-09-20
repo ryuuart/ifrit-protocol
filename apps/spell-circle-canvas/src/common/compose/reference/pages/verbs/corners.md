@@ -14,16 +14,6 @@ status: stable
 Round the node's corners, per corner, in pixels — CSS
 `border-radius`. Square when unstated.
 
-## Syntax
-
-```cpp
-Element& corners(Corners c);
-```
-
-```python
-def corners(self, c: compose.Corners) -> Element: ...
-```
-
 ## Description
 
 **It is the cheap path.** A rounded box clips with `clipRRect` and

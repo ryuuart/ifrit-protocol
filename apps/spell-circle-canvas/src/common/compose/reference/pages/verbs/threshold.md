@@ -14,16 +14,6 @@ status: stable
 How much paint counts as ink under `Boundary::Coverage` — the tolerance
 the silhouette is cut at, as a fraction of full opacity.
 
-## Syntax
-
-```cpp
-Element& threshold(float coverage);
-```
-
-```python
-def threshold(self, coverage: float) -> Element: ...
-```
-
 ## Description
 
 ```cpp

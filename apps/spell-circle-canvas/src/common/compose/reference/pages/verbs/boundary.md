@@ -14,16 +14,6 @@ status: stable
 What this node's decorations dress: its own shape, the outline of its
 GLYPHS on a text leaf, or the silhouette of what it DREW.
 
-## Syntax
-
-```cpp
-Element& boundary(Boundary source);
-```
-
-```python
-def boundary(self, source: compose.Boundary) -> Element: ...
-```
-
 ## Description
 
 ```cpp

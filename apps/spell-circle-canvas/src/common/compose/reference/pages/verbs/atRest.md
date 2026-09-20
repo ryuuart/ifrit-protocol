@@ -16,16 +16,6 @@ beside it in one tree. It is the one verb that ends a chain rather than
 continuing it: it hands back an element by value, because a rest pose is
 something to place beside the moving copy rather than a state of it.
 
-## Syntax
-
-```cpp
-[[nodiscard]] Element atRest() const;
-```
-
-```python
-def atRest(self) -> Element: ...
-```
-
 ## Description
 
 **The same content, style, measure and layout**, carrying nothing that

@@ -51,18 +51,18 @@ is placed.
 | `alignSelf` | Where THIS child sits on its parent's cross axis, whatever the parent said. |
 | `justify` | Where the children sit along the main axis, and how the slack is shared. |
 | `absolute` | Take this node out of the flow; its insets place it. |
-| `cover` | Fill the box it stands in — out of the flow and stretched to the parent. |
+| [`cover`](pages/verbs/cover.md) | Fill the box it stands in — out of the flow and stretched to the parent. |
 | `inset` | The four distances from the parent's edges, in px or as dimensions. |
 | `left` | Pin the left edge, implying `absolute`; the unpinned sides stay auto. |
 | `top` | Pin the top edge, implying `absolute`. |
 | `right` | Pin the right edge, implying `absolute`. |
 | `bottom` | Pin the bottom edge, implying `absolute`. |
-| `at` | Pin the top-left to a parent-space point and let the content size the node. |
-| `rect` | Place the node on a parent-space rectangle — the point and the box at once. |
+| [`at`](pages/verbs/at.md) | Pin the top-left to a parent-space point and let the content size the node. |
+| [`rect`](pages/verbs/rect.md) | Place the node on a parent-space rectangle — the point and the box at once. |
 | `centerAt` | Centre the node on a parent-space point, measured after layout. |
-| `tether` | Hang the node off a keyed one at a stated pair of points, with fallbacks. |
-| `cells` | Which cells of the `layout` scheme above this child it claims, and how many it covers. |
-| `area` | Which NAMED region of the scheme above it this child claims. |
+| [`tether`](pages/verbs/tether.md) | Hang the node off a keyed one at a stated pair of points, with fallbacks. |
+| [`cells`](pages/verbs/cells.md) | Which cells of the `layout` scheme above this child it claims, and how many it covers. |
+| [`area`](pages/verbs/area.md) | Which NAMED region of the scheme above it this child claims. |
 | `cellAlign` | Where the child sits inside the cell box its span makes. |
 
 ## Size and spacing
@@ -105,8 +105,8 @@ content and children, then foregrounds and the unqualified strokes.
 | `echo` | A misprint echo: the fill shape and the text re-stamped offset and flat beneath the real pass. |
 | [`textFill`](pages/verbs/textFill.md) | Paint the GLYPHS with a material mapped to text-metric space. |
 | [`textStroke`](pages/verbs/textStroke.md) | Stroke the glyphs, under their fill. |
-| `boundary` | WHICH outline the decorations dress: the node's shape, its glyphs, or what it drew. |
-| `threshold` | How much paint counts as ink when the boundary is traced off coverage. |
+| [`boundary`](pages/verbs/boundary.md) | WHICH outline the decorations dress: the node's shape, its glyphs, or what it drew. |
+| [`threshold`](pages/verbs/threshold.md) | How much paint counts as ink when the boundary is traced off coverage. |
 
 ## Shape, corners and clipping
 
@@ -114,10 +114,10 @@ The region the node occupies, and what is cut to it.
 
 | Verb | What it says |
 |---|---|
-| `corners` | The four corner radii of the node's box. |
-| `shape` | The node's outline as a path generator over its laid-out size; it overrides `corners`. |
-| `clip` | Cut the fill, the content and the children to that outline — the decorations keep their reach. |
-| `mask` | Gate what the node paints, by span, edge, shape or alpha; overlapping masks intersect. |
+| [`corners`](pages/verbs/corners.md) | The four corner radii of the node's box. |
+| [`shape`](pages/verbs/shape.md) | The node's outline as a path generator over its laid-out size; it overrides `corners`. |
+| [`clip`](pages/verbs/clip.md) | Cut the fill, the content and the children to that outline — the decorations keep their reach. |
+| [`mask`](pages/verbs/mask.md) | Gate what the node paints, by span, edge, shape or alpha; overlapping masks intersect. |
 | `centered` | A band straddles its spine — the default formation. |
 | `outward` | A band takes the outer side of its spine. |
 | `inward` | A band takes the inner side. |
@@ -142,10 +142,10 @@ animating one never relayouts.
 |---|---|
 | `translateX` | Move the plane across, in px. |
 | `translateY` | Move it down, in px. |
-| `travel` | Ride a curve instead of two lanes — a motion path, with auto-orientation. |
+| [`travel`](pages/verbs/travel.md) | Ride a curve instead of two lanes — a motion path, with auto-orientation. |
 | `rotate` | Turn the plane about the transform origin, in degrees. |
 | `scale` | Scale both axes about the transform origin. |
-| `scaleX` | Scale across, multiplied INTO `scale` — the bar, the wipe, the meter. |
+| [`scaleX`](pages/verbs/scaleX.md) | Scale across, multiplied INTO `scale` — the bar, the wipe, the meter. |
 | `scaleY` | Scale down the other axis, the same way. |
 | `skewX` | Shear the verticals, in degrees; a negative one is the italic lean. |
 | `skewY` | Shear the horizontals. |
@@ -167,7 +167,7 @@ its parent's. Paint-only, like the transforms.
 | `perspective` | The view this node's CHILDREN are seen through, in px in front of the plane. |
 | `perspectiveOrigin` | Where the viewer stands over the plane, as fractions of the box. |
 | `transformOrigin3d` | The pivot with a depth: two fractions and a distance in front of the plane. |
-| `preserve3d` | The children keep their own depth and are painted back to front by it. |
+| [`preserve3d`](pages/verbs/preserve3d.md) | The children keep their own depth and are painted back to front by it. |
 | `backface` | Whether the back of the plane is drawn once a lane has turned it away. |
 
 ## Entrances and transitions
@@ -183,7 +183,7 @@ its parent's. Paint-only, like the transforms.
 | Verb | What it says |
 |---|---|
 | `cache` | How the node's paint is held: a picture, a texture, a group, or nothing. |
-| `bakeScale` | The texture bake's resolution multiplier — it cheapens the bake and taxes every blit. |
+| [`bakeScale`](pages/verbs/bakeScale.md) | The texture bake's resolution multiplier — it cheapens the bake and taxes every blit. |
 
 ## The cascade
 
@@ -192,8 +192,8 @@ the code that built a child ran.
 
 | Verb | What it says |
 |---|---|
-| `font` | The type everything under this node is set in, as a PARTIAL over what it inherits. |
-| `block` | The paragraph settings everything under it is set in, as a partial in the same way. |
+| [`font`](pages/verbs/font.md) | The type everything under this node is set in, as a PARTIAL over what it inherits. |
+| [`block`](pages/verbs/block.md) | The paragraph settings everything under it is set in, as a partial in the same way. |
 | `styleSheet` | The sheet this subtree resolves its classes and roles through. |
 | `styleClass` | The classes the sheets in force register, folded in left to right under the node's own type. |
 | `role` | A semantic role with default typography, overridden by the sheet, the classes and the node. |
@@ -210,32 +210,32 @@ once and do nothing.
 
 | Verb | What it says |
 |---|---|
-| `paragraphs` | How each BLOCK of the passage is set, one entry per block, by value or by name. |
-| `initialLetter` | The passage opens on a versal sized to span the lines it is given. |
+| [`paragraphs`](pages/verbs/paragraphs.md) | How each BLOCK of the passage is set, one entry per block, by value or by name. |
+| [`initialLetter`](pages/verbs/initialLetter.md) | The passage opens on a versal sized to span the lines it is given. |
 | `firstBaseline` | Where the first baseline sits below the top of the leaf's box. |
 | `distribute` | What becomes of the room left over down the box — nothing, split, above, or between the lines. |
 | `reserve` | Room beside every line, over and above the leading, taken in the strut before breaking. |
 | `maxLines` | Use at most this many lines; the rest reports as overflow. |
 | `ellipsis` | The marker appended to the last line when the text overflows its geometry. |
-| `live` | An input of this passage is moving, so the layout is one of a run rather than an answer. |
-| `thread` | The frame this one fills into — the next link of a chain over one story. |
-| `balanceChain` | This frame opens a balanced run: every frame of it resolves to one shallowest depth. |
-| `flowAround` | Flow this paragraph around the keyed node, by its silhouette or its box. |
-| `annotate` | A reading set beside the type — furigana, emphasis dots, a gloss — reserved before breaking. |
-| `spanPaint` | Repaint the range a selector finds; never re-shapes. |
-| `spanStyle` | Restyle that range with a whole style or a partial; re-shapes only the words it covers. |
+| [`live`](pages/verbs/live.md) | An input of this passage is moving, so the layout is one of a run rather than an answer. |
+| [`thread`](pages/verbs/thread.md) | The frame this one fills into — the next link of a chain over one story. |
+| [`balanceChain`](pages/verbs/balanceChain.md) | This frame opens a balanced run: every frame of it resolves to one shallowest depth. |
+| [`flowAround`](pages/verbs/flowAround.md) | Flow this paragraph around the keyed node, by its silhouette or its box. |
+| [`annotate`](pages/verbs/annotate.md) | A reading set beside the type — furigana, emphasis dots, a gloss — reserved before breaking. |
+| [`spanPaint`](pages/verbs/spanPaint.md) | Repaint the range a selector finds; never re-shapes. |
+| [`spanStyle`](pages/verbs/spanStyle.md) | Restyle that range with a whole style or a partial; re-shapes only the words it covers. |
 | `fx` | Append a text-fx track: which glyphs, what deviation, how the beats spread, what drives it. |
-| `variationDrive` | Drive a variable-font axis from a bound output at draw time, with no reshape. |
-| `mark` | A sibling anchored to a unit of the text, placed on the rect that unit rests at. |
+| [`variationDrive`](pages/verbs/variationDrive.md) | Drive a variable-font axis from a bound output at draw time, with no reshape. |
+| [`mark`](pages/verbs/mark.md) | A sibling anchored to a unit of the text, placed on the rect that unit rests at. |
 | `onPath` | Lay the run out along a path instead of a line. |
-| `atRest` | This leaf as it stands at rest, RETURNED BY VALUE as a second element that can stand beside it — the one verb that does not chain. |
+| [`atRest`](pages/verbs/atRest.md) | This leaf as it stands at rest, RETURNED BY VALUE as a second element that can stand beside it — the one verb that does not chain. |
 
 ## Content
 
 | Verb | What it says |
 |---|---|
 | `region` | Image leaves: draw this sub-rect of the asset instead of the whole picture. |
-| `sampling` | How image leaves under this node sample their source. Inherits. |
+| [`sampling`](pages/verbs/sampling.md) | How image leaves under this node sample their source. Inherits. |
 
 ## Identity, layering and hit testing
 
@@ -249,7 +249,7 @@ once and do nothing.
 
 | Verb | What it says |
 |---|---|
-| `children` | What is in the node, in order, after every verb that says what is done to it. |
+| [`children`](pages/verbs/children.md) | What is in the node, in order, after every verb that says what is done to it. |
 
 ## What Python spells differently
 

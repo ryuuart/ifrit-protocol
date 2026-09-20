@@ -55,7 +55,11 @@ needs it:
 3. **The drawn example**, referenced as `<!-- example: <stem> -->`,
    where `<stem>` names a pair under `examples/`.
 4. **Syntax**, C++ then Python, in two fenced blocks that the assembler
-   renders as one tabbed widget.
+   renders as one tabbed widget. On a page that writes none the
+   assembler writes it, from the headers and the compiled Python
+   declarations. A page that writes its own keeps it and stops following
+   the code, so one is written only where the generated spelling loses
+   something: a template head, a reference to an array.
 5. **Parameters**, one row per value, each linking to the row in
    [VALUES.md](VALUES.md) that says where one comes from. A Python
    paragraph under the table expands the accepted union where it is

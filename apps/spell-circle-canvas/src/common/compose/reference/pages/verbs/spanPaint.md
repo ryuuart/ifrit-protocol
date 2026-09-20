@@ -14,18 +14,6 @@ status: stable
 Repaint the range this selector finds — a colour, a shader, an
 underline, an added glow pass.
 
-## Syntax
-
-```cpp
-Element& spanPaint(sigil::weave::Selector where,
-                   sigil::weave::PaintStyle paint);
-```
-
-```python
-def spanPaint(self, where: weave.Selector,
-              paint: weave.PaintStyle) -> Element: ...
-```
-
 ## Description
 
 **PAINT ONLY, so it NEVER re-shapes and never relayouts.** The glyphs

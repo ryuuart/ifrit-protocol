@@ -14,21 +14,11 @@ status: stable
 This frame opens a BALANCED RUN of its chain — itself and every frame
 after it up to the next frame that opens one, or the chain's end.
 
-## Syntax
-
-```cpp
-Element& balanceChain(uint32_t throughLine = ~0u);
-```
-
-```python
-def balanceChain(self, throughLine: int = 4294967295) -> Element: ...
-```
+## Description
 
 ```cpp
 frame(article).key("a").thread("b").balanceChain();
 ```
-
-## Description
 
 **The run is filled to the SHALLOWEST DEPTH that still holds what it was
 asked to hold**, found by halving the depth the frames declare. Every

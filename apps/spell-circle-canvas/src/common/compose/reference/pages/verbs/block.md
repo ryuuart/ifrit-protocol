@@ -14,16 +14,6 @@ status: stable
 The block everything under this node is set in, as a PARTIAL — the
 paragraph half of what [`font`](font.md) does for the type.
 
-## Syntax
-
-```cpp
-Element& block(sigil::weave::Block partial);
-```
-
-```python
-def block(self, partial: weave.Block) -> Element: ...
-```
-
 ## Description
 
 **This is the ONE spelling of every block field.** The leading, the

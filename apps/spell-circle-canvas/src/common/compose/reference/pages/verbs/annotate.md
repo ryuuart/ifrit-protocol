@@ -14,15 +14,7 @@ status: stable
 A reading set beside the type — furigana over a compound, emphasis dots
 down a column, a gloss under a phrase.
 
-## Syntax
-
-```cpp
-Element& annotate(Annotation reading);
-```
-
-```python
-def annotate(self, reading: Annotation) -> Element: ...
-```
+## Description
 
 ```cpp
 text(passage, body)
@@ -32,8 +24,6 @@ text(passage, body)
                .readings = {u8"かんじ"},
                .style = furigana});
 ```
-
-## Description
 
 **A reading is PART OF THE TEXT** rather than a thing standing next to
 it. Where it reserves, the band it occupies goes into the base's strut

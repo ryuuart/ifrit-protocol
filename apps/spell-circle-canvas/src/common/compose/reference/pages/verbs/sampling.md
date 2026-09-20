@@ -14,16 +14,6 @@ status: stable
 How image leaves under this node sample their source — CSS's
 `image-rendering`, and inherited exactly as that is.
 
-## Syntax
-
-```cpp
-Element& sampling(SkSamplingOptions options);
-```
-
-```python
-def sampling(self, options: skia.SamplingOptions) -> Element: ...
-```
-
 ## Description
 
 **Linear when nothing states it**, which is right for photographs and

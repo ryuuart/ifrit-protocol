@@ -14,16 +14,6 @@ status: stable
 Pin an absolute node's top-left to a parent-space POINT and leave the
 node to size itself from its content.
 
-## Syntax
-
-```cpp
-Element& at(SkPoint topLeft);
-```
-
-```python
-def at(self, top_left: skia.Point) -> Element: ...
-```
-
 ## Description
 
 **Exactly `left(p.fX).top(p.fY)`** — the half of the placement longhand

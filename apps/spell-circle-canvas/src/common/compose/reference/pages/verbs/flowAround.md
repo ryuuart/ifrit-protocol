@@ -14,16 +14,6 @@ status: stable
 Flow this paragraph around the keyed node, with `margin` px of
 standoff.
 
-## Syntax
-
-```cpp
-Element& flowAround(std::string_view key, float margin = 0.0f);
-```
-
-```python
-def flowAround(self, key: str, margin: float = 0.0) -> Element: ...
-```
-
 ## Description
 
 **A target that declares a SILHOUETTE is subtracted by that outline** —

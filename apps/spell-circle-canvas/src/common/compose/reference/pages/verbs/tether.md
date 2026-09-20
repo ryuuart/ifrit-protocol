@@ -15,11 +15,7 @@ of places to try when the first will not fit. It takes the node out of
 the flow, and where it lands is an answer of the layout rather than
 something the description states.
 
-## Syntax
-
-```cpp
-Element& tether(Tether t);
-```
+## Description
 
 ```cpp
 tooltip().tether({.key = "port",
@@ -30,8 +26,6 @@ tooltip().tether({.key = "port",
                                  .at = {0.5f, 0.0f},
                                  .offset = {0, 6}}}})
 ```
-
-## Description
 
 **Resolved after layout**, against the geometry the anchor resolved to,
 and re-resolved whenever the anchor moves. `Tether` is where the value's

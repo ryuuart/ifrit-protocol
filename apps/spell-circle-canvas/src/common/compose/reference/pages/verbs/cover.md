@@ -16,16 +16,6 @@ out of the flow and stretched to its parent's box, so a drawing, an
 overlay, a scrim, a rail and a hit surface each say what they are
 rather than how they are pinned.
 
-## Syntax
-
-```cpp
-Element& cover();
-```
-
-```python
-def cover(self) -> Element: ...
-```
-
 ## Description
 
 **It is `absolute()` and `inset(0)` in one sentence**, which is what it

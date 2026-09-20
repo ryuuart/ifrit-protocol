@@ -26,11 +26,13 @@ Element& shape(K key, F fn);   // shape(keyedShape(key, fn))
 
 ```python
 def shape(self, value: ShapeLike) -> Element: ...
+def shape(self, key: object, function: KeyedShapeFunction) -> Element: ...
 ```
 
 In Python a shape is a `compose.Shape`, a `skia.Path` already cooked, or
 a function of the box's width and height that answers a path. The keyed
-spelling is C++ only.
+spelling takes the key beside that function, or beside one of no
+arguments when the path is the same whatever the box is.
 
 ## Description
 

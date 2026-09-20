@@ -14,13 +14,6 @@ Gate what this node paints, and where. A mask is a paint-phase reveal:
 animating one never relayouts, and hit-testing keeps the UNMASKED
 shape.
 
-## Syntax
-
-```cpp
-Element& mask(Gate with);              // parts::all()
-Element& mask(Parts what, Gate with);
-```
-
 ## Description
 
 **Reach for the one-argument form first.**

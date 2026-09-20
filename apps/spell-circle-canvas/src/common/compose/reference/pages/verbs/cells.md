@@ -15,17 +15,6 @@ Which cells this child claims of the `layout()` scheme above it, and how
 many it covers. Read by grid-shaped schemes — `layouts::Table`,
 `layouts::Grid` — and by nothing else.
 
-## Syntax
-
-```cpp
-Element& cells(int column, int row, int columns = 1, int rows = 1);
-Element& cells(CellSpan span);
-```
-
-```python
-def cells(self, column: int, row: int, columns: int = 1, rows: int = 1) -> Element: ...
-```
-
 ## Description
 
 **Said HERE, on the child**, rather than in a list the scheme carries

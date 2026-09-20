@@ -15,16 +15,6 @@ Which NAMED REGION of the `layout()` scheme above it this child claims —
 the same statement [`cells`](cells.md) makes, with the numbers left to
 the scheme's own picture of itself.
 
-## Syntax
-
-```cpp
-Element& area(std::string_view name);
-```
-
-```python
-def area(self, name: str) -> Element: ...
-```
-
 ## Description
 
 ```cpp

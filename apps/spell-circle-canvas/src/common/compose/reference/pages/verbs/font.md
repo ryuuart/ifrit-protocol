@@ -15,16 +15,6 @@ The font everything under this node is set in, as a PARTIAL. It is the
 inherited property CSS spells across `font-family`, `font-size`,
 `font-weight` and the rest, said once as a value.
 
-## Syntax
-
-```cpp
-Element& font(sigil::weave::Type partial);
-```
-
-```python
-def font(self, partial: weave.Type) -> Element: ...
-```
-
 ## Description
 
 **The fields the partial names override; the rest inherit.**

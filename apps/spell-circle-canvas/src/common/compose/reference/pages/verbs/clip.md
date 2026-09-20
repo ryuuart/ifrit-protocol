@@ -13,16 +13,6 @@ status: stable
 
 Clip the fill, the content and the children to the node's own shape.
 
-## Syntax
-
-```cpp
-Element& clip(bool on = true);
-```
-
-```python
-def clip(self, on: bool = True) -> Element: ...
-```
-
 ## Description
 
 **Decorations are NOT clipped.** They dress the outline, so outer

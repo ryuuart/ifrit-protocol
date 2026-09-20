@@ -14,16 +14,6 @@ status: stable
 Place an absolute node on a parent-space RECT — the peer of `centerAt`,
 for when the box is already known.
 
-## Syntax
-
-```cpp
-Element& rect(const SkRect& r);
-```
-
-```python
-def rect(self, r: skia.Rect) -> Element: ...
-```
-
 ## Description
 
 **Exactly `left(r.fLeft).top(r.fTop).width(r.width()).height(r.height())`.**

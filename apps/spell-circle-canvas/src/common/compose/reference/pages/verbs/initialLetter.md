@@ -15,22 +15,12 @@ This passage's opening set large — a versal sized so its cap height
 spans the lines it is given, seated on the baseline it sinks to, with
 the lines under it wrapping the notch it cuts.
 
-## Syntax
-
-```cpp
-Element& initialLetter(sigil::weave::InitialLetter initial);
-```
-
-```python
-def initialLetter(self, initial: weave.InitialLetter) -> Element: ...
-```
+## Description
 
 ```cpp
 text(body, bodyStyle).initialLetter({.lines = 3});
 text(body, bodyStyle).initialLetter({.lines = 3, .sink = 1});
 ```
-
-## Description
 
 **No key, no second element and no split string.** The letter is part of
 the passage, and the two numbers it is made of — the size that makes a

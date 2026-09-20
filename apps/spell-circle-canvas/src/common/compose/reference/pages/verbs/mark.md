@@ -13,11 +13,7 @@ status: stable
 A sibling anchored to a unit of the text: a caret, a callout, a tick, a
 rule standing at a word's edge.
 
-## Syntax
-
-```cpp
-Element& mark(sigil::weave::Selector where, Element what);
-```
+## Description
 
 ```cpp
 text(line, style)
@@ -25,8 +21,6 @@ text(line, style)
                                           .width(pct(100)).height(2)
                                           .fill(Fill::color(ink)));
 ```
-
-## Description
 
 **`what` becomes a child of this text node whose PARENT BOX is the rect
 the selector resolves to**, so it is written in exactly the placement

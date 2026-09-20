@@ -16,16 +16,6 @@ that grows, content that changes from one frame to the next — so this
 layout is one of a run of them rather than an answer somebody asked for
 once.
 
-## Syntax
-
-```cpp
-Element& live(bool on = true, int candidates = 0);
-```
-
-```python
-def live(self, on: bool = True, candidates: int = 0) -> Element: ...
-```
-
 ## Description
 
 **It buys two things.** The break decisions of a block set in a uniform

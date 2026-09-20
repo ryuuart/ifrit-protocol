@@ -14,24 +14,12 @@ status: stable
 How each BLOCK of this passage is set — one entry per block, in block
 order, a block being the text between two hard breaks.
 
-## Syntax
-
-```cpp
-Element& paragraphs(std::vector<sigil::weave::ParagraphStyle> blocks);
-Element& paragraphs(std::span<const std::string_view> names);
-```
-
-```python
-def paragraphs(self, blocks: Sequence[weave.ParagraphStyle]) -> Element: ...
-def paragraphs(self, names: Sequence[str]) -> Element: ...
-```
+## Description
 
 ```cpp
 text(weave::rich(body).add(u8"A heading\nand its body text\nand more"))
     .paragraphs({headingStyle, bodyStyle});
 ```
-
-## Description
 
 **A block past the end of the list is set by this leaf's own fields
 alone** — its alignment, justification, hyphenation and tab stops — so

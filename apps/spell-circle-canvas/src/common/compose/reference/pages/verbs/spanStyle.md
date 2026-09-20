@@ -15,20 +15,6 @@ Restyle the range this selector finds — a different face, size, weight
 or tracking as well as paint — with a complete `weave::TextStyle`, or
 with a partial laid over the style the range is already set in.
 
-## Syntax
-
-```cpp
-Element& spanStyle(sigil::weave::Selector where,
-                   sigil::weave::TextStyle style);
-Element& spanStyle(sigil::weave::Selector where, sigil::weave::Type partial);
-```
-
-```python
-def spanStyle(self, where: weave.Selector,
-              style: weave.TextStyle) -> Element: ...
-def spanStyle(self, where: weave.Selector, type: weave.Type) -> Element: ...
-```
-
 ## Description
 
 **It re-shapes, and only the words the range covers.** The shaping cache

@@ -96,8 +96,10 @@ The generator itself is `src/test/docs/api_doc_probes.py` over the
 whole tree — runs the fixtures in `docprobes/selftest.py`: a real name
 must probe, an unreal one must fail the run, an operator spelling must
 be exempted and reported, a header listing's bare names must be checked
-against the header they are listed under, and a Skia static-factory
-member must take the class-scope probe path. It is the only check that
+against the header they are listed under, a Skia static-factory member
+must take the class-scope probe path, a class whose base clause wraps
+must still open, and a member a class inherits must be checked as that
+class's own. It is the only check that
 notices the EXTRACTOR narrowing, since a generator that silently probes
 less still emits a translation unit that compiles green.
 
@@ -106,10 +108,11 @@ same reason, under `scripts/sigil/reference/test/` as one ctest entry,
 `reference_generator`: a small tree carrying every shape its three
 readers have to handle — a node type with verbs, one of them inherited
 from a mixin over the node, a factory, a kit component, two values with
-one converting to the other, an enumeration, a role union, a name two namespaces share, a convenience
-Python has and C++ has not, a binding chain whose lambda bodies must
-not cut the chain, and a public Python name that renames the native
-one — and one whole run over that tree into a temporary root, so the
+one converting to the other, an enumeration, a role union, a name two
+namespaces share, a convenience Python has and C++ has not, a binding
+kept one directory under the source root, a binding chain whose lambda
+bodies must not cut the chain, and a public Python name that renames the
+native one — and one whole run over that tree into a temporary root, so the
 pages, the search index and the coverage ledger are read back as well.
 A reader that quietly stops matching writes a thinner site that still
 looks like a site, so only the fixtures see it. Pure Python: no build

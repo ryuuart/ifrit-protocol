@@ -14,23 +14,13 @@ status: stable
 The frame this one fills into — the next link of a chain over one
 `weave::Story`.
 
-## Syntax
-
-```cpp
-Element& thread(std::string_view key);
-```
-
-```python
-def thread(self, key: str) -> Element: ...
-```
+## Description
 
 ```cpp
 root.children({frame(article).key("a").thread("b").width(Dimension(280))})
     .children({frame(article).key("b").thread("c").width(Dimension(280))})
     .children({frame(article).key("c").width(Dimension(280))});
 ```
-
-## Description
 
 **Each frame fills from where the one before it stopped**, so the cut
 moves as any frame's measure moves.

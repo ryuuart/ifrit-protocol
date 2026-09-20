@@ -152,7 +152,7 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/elements/image.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/elements/stack.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/elements/text.md
-${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/annotate.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/annotate.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/area.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/at.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/atRest.md
@@ -164,6 +164,7 @@ ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/annotate.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/block.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/boundary.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/cells.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/children.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/clip.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/corners.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/cover.md
@@ -193,6 +194,7 @@ ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/annotate.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/textStroke.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/thread.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/threshold.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/travel.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/variationDrive.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/testing/include/sigilcompose
            ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include

@@ -14,16 +14,6 @@ status: stable
 Scale along X alone about the transform origin, multiplied INTO
 `scale()`. Its vertical twin is `scaleY`.
 
-## Syntax
-
-```cpp
-Element& scaleX(motion::Animatable<float> factor);
-```
-
-```python
-def scaleX(self, value: ScalarLike) -> Element: ...
-```
-
 ## Description
 
 **Paint-only, like every transform lane.** Animating one never

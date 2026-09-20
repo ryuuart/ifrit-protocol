@@ -15,16 +15,6 @@ Texture-bake resolution multiplier, `Cache::Texture` only: the bake
 rasterizes at `factor` times the device scale and the blit scales it
 back up with linear sampling. The value is clamped to 0.1–1.
 
-## Syntax
-
-```cpp
-Element& bakeScale(float factor);
-```
-
-```python
-def bakeScale(self, scale: float) -> Element: ...
-```
-
 ## Description
 
 **ALMOST ALWAYS THE WRONG LEVER.** It cheapens the BAKE, which happens
