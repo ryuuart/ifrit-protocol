@@ -246,7 +246,20 @@ def main(argv=None):
     if (options.source is None) == (options.example is None):
         parser.error("render requires a source file or --example NAME")
 
+    from ._requirements import missing_requirements
     from .sketch import render_file
+
+    def _render(source, output):
+        # A sketch names the modules it needs, and the browser marks an
+        # entry unavailable by them; a render says the same thing rather
+        # than letting the sketch's own import line raise.
+        missing = missing_requirements(source)
+        if missing:
+            raise ValueError(
+                f"{Path(source).name} declares modules this interpreter does "
+                "not have: " + ", ".join(missing)
+            )
+        render_file(source, output, at=options.at)
 
     try:
         output = options.output.resolve()
@@ -258,9 +271,9 @@ def main(argv=None):
                     f"unknown example {options.example!r}; run 'sigil examples' to list sketches"
                 )
             with as_file(examples[options.example]) as source:
-                render_file(source, output, at=options.at)
+                _render(source, output)
         else:
-            render_file(options.source.resolve(), output, at=options.at)
+            _render(options.source.resolve(), output)
     except (OSError, RuntimeError, ValueError) as error:
         parser.exit(1, f"sigil: {error}\n")
     print(output)

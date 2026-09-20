@@ -10,7 +10,7 @@ import sys
 import sysconfig
 import tempfile
 import unittest
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
@@ -307,6 +307,48 @@ class OpenCommand(unittest.TestCase):
             with self.subTest(arguments=arguments):
                 self.assert_error(["open", str(self.source), *arguments], message)
         self.query.assert_not_called()
+
+
+class RenderCommand(unittest.TestCase):
+    """A render reads what the sketch declares before it starts a host."""
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix="sigil-render-")
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name).resolve()
+
+    def write(self, declaration):
+        source = self.root / "scene.py"
+        source.write_text(
+            '"""A study that needs a module."""\n'
+            f"{declaration}\n"
+            "from sigil.compose import box\n"
+            "from sigil.sketch import sketch\n"
+            "\n\n"
+            "@sketch(size=(20, 20), capture_at=0)\n"
+            "class Study:\n"
+            "    def setup(self, ctx):\n"
+            '        ctx.render(box().width(20).height(20).fill("#000000"))\n'
+        )
+        return source
+
+    def test_a_declared_module_that_is_absent_is_named_and_fails(self):
+        source = self.write('REQUIRES = ("_sigil_absent_module_for_render",)')
+        output = self.root / "frame.png"
+        stream = io.StringIO()
+        with redirect_stderr(stream), self.assertRaises(SystemExit) as stopped:
+            cli.main(["render", str(source), "-o", str(output)])
+        self.assertNotEqual(stopped.exception.code, 0)
+        self.assertIn("_sigil_absent_module_for_render", stream.getvalue())
+        self.assertNotIn("Traceback", stream.getvalue())
+        self.assertFalse(output.exists())
+
+    def test_a_declared_module_this_interpreter_has_still_renders(self):
+        source = self.write('REQUIRES = ("math",)')
+        output = self.root / "frame.png"
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(cli.main(["render", str(source), "-o", str(output)]), 0)
+        self.assertTrue(output.is_file())
 
 
 if __name__ == "__main__":
