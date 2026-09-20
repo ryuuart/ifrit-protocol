@@ -509,6 +509,10 @@ class Generator:
         for names in self.spelled_in.values():
             self.spelled_anywhere |= names
         self.namespaces |= NS_EXTERNAL
+        # A supplied alias names a namespace this scanner may never see —
+        # the whole reason a document spells names through one — so its name
+        # leads a qualified name exactly as a scanned namespace does.
+        self.namespaces |= {alias.partition("=")[0] for alias in self.aliases}
         self.headers = []  # as an #include spells them
         self.header_files = []  # the same headers, on disk
         for incdir in incdirs:
@@ -911,7 +915,7 @@ void spin();
 """
 
 
-def fixture_generator(md_text):
+def fixture_generator(md_text, aliases=None):
     """A Generator run over one in-memory markdown fixture and the fixture
     header, in a temp dir so nothing on disk is touched."""
     with tempfile.TemporaryDirectory() as tmp:
@@ -922,7 +926,7 @@ def fixture_generator(md_text):
         md = os.path.join(tmp, "fixture.md")
         with open(md, "w", encoding="utf-8") as f:
             f.write(md_text)
-        gen = Generator([md], [incdir])
+        gen = Generator([md], [incdir], aliases=aliases)
         gen.collect()
         return gen
 
@@ -985,6 +989,30 @@ def self_test():
     check(
         any(s == "wobble" for s, _, _ in gen.unresolved),
         "a listed name no header spells -> reported unresolved, generator fails",
+    )
+
+    # An alias supplied on the command line names a namespace this scanner
+    # may never have scanned, so it has to lead a qualified name the way a
+    # scanned namespace does — and the translation unit has to declare it
+    # before the probe that spells it.
+    gen = fixture_generator("Call `parts::spin` to spin it.\n", aliases=["parts=fix"])
+    check(
+        any(s == "parts::spin" for _, s, _, _ in gen.usings) and not gen.unresolved,
+        "supplied alias -> qualified name resolves through it",
+    )
+    buf = io.StringIO()
+    gen.emit(buf)
+    emitted = buf.getvalue()
+    check(
+        "namespace parts = fix;" in emitted
+        and emitted.index("namespace parts = fix;")
+        < emitted.index("using parts::spin;"),
+        "the alias is declared before the probe that spells it",
+    )
+    gen = fixture_generator("Call `parts::spin` to spin it.\n")
+    check(
+        any(s == "parts::spin" for s, _, _ in gen.unresolved),
+        "the same name without the alias -> reported unresolved",
     )
 
     # An EXTERNAL_CLASSES member takes the class-scope probe path: a derived
@@ -1091,6 +1119,10 @@ def main():
         if not reason:
             ap.error("--exclude takes name=reason; %s states no reason" % name)
         EXCLUDED_SPELLED[name] = reason
+    for entry in args.alias or []:
+        name, separator, target = entry.partition("=")
+        if not (separator and name and target):
+            ap.error("--alias takes name=target; %s names no target" % entry)
     if not (args.md and args.include and args.out):
         ap.error("--md, --include and --out are required unless --self-test")
 
