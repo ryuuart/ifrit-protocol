@@ -5,6 +5,7 @@
  * and hot-swapped into the running session.
  */
 
+#include <include/core/SkBitmap.h>
 #include <include/core/SkRefCnt.h>
 #include <sigilmeasure/stats/Samples.h>
 #include <sigilmeasure/time/Stopwatch.h>
@@ -250,10 +251,25 @@ class Host {
   double prepareCapture(std::optional<double> at = std::nullopt,
                         double fps = 60.0);
 
-  /** Renders the CURRENT state (clock untouched) into a PNG at @p scale
-   *  times the sketch's canvas. The capture path for both the windowed
-   *  save command and headless asset generation. Fractional pixel extents
-   *  round up; each dimension must be positive and at most 16384 pixels. */
+  /** THE STILL AS PIXELS IN HOST MEMORY: the CURRENT state (clock
+   *  untouched) at @p scale times the sketch's canvas, repainted onto
+   *  the capture backend's surface and read back.
+   *
+   *  The bitmap owns its pixels and names no device, so what a caller
+   *  does with it afterwards — encode it, write it, hand it to another
+   *  thread — needs neither this host nor the device the still was
+   *  drawn on. That is the split the thumbnail store lives in: only the
+   *  repaint and the readback have to happen where the frames are
+   *  drawn. Null when nothing is loaded, when the extent is out of
+   *  range, or when the readback failed, with the reason in errorLog().
+   *  Fractional pixel extents round up; each dimension must be positive
+   *  and at most 16384 pixels. */
+  [[nodiscard]] SkBitmap still(float scale = 1.0f);
+
+  /** `still()` encoded as a PNG and written to @p out. The capture path
+   *  for both the windowed save command and headless asset generation;
+   *  synchronous, because every caller of it reads the file back the
+   *  moment it returns. */
   bool capture(const std::filesystem::path& out, float scale = 1.0f);
 
   /** A host on the device must route capture through its own backend:

@@ -736,20 +736,20 @@ void Host::markPresented() {
   m_presentSince->reset();
 }
 
-bool Host::capture(const std::filesystem::path& out, float scale) {
-  if (!m_session || m_runtimeFailed) return false;
+SkBitmap Host::still(float scale) {
+  if (!m_session || m_runtimeFailed) return {};
   const CanvasSpecification& specification = m_session->canvas();
   const auto extent = captureExtent(specification.size, scale);
   if (!extent) {
     m_errorLog = "Capture dimensions or scale are invalid";
-    return false;
+    return {};
   }
   const SkImageInfo info =
       SkImageInfo::MakeN32Premul(extent->width(), extent->height());
   sk_sp<SkSurface> surface = m_captureBackend.makeSurface
                                  ? m_captureBackend.makeSurface(info)
                                  : SkSurfaces::Raster(info);
-  if (!surface) return false;
+  if (!surface) return {};
   SkCanvas* through =
       m_captureBackend.canvasOf ? m_captureBackend.canvasOf(*surface) : nullptr;
   SkCanvas& canvas = through ? *through : *surface->getCanvas();
@@ -759,15 +759,24 @@ bool Host::capture(const std::filesystem::path& out, float scale) {
     m_session->repaint(canvas);
   } catch (const std::exception& error) {
     sessionFailed(error);
-    return false;
+    return {};
   }
   SkBitmap bitmap;
-  if (!bitmap.tryAllocPixels(surface->imageInfo())) return false;
+  if (!bitmap.tryAllocPixels(surface->imageInfo())) return {};
   if (m_captureBackend.readback) {
-    if (!m_captureBackend.readback(*surface, bitmap.pixmap())) return false;
+    if (!m_captureBackend.readback(*surface, bitmap.pixmap())) return {};
   } else {
-    if (!surface->readPixels(bitmap.pixmap(), 0, 0)) return false;
+    if (!surface->readPixels(bitmap.pixmap(), 0, 0)) return {};
   }
+  // Nothing after the readback names the device, and a caller may hand
+  // these pixels to another thread: immutable is what makes that safe.
+  bitmap.setImmutable();
+  return bitmap;
+}
+
+bool Host::capture(const std::filesystem::path& out, float scale) {
+  const SkBitmap bitmap = still(scale);
+  if (bitmap.isNull()) return false;
   // The format the capture path is named for; the directories above the
   // file are the sink's business, not this one's.
   const sk_sp<SkData> png =

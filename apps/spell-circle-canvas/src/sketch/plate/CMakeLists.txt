@@ -5,7 +5,7 @@
 # how fast the machine ran.
 sigil_test(sketch_test
   SOURCES test/CompareTest.cpp test/SweepTest.cpp test/ThumbnailQueueTest.cpp
-          test/ThumbnailsTest.cpp
+          test/ThumbnailWriterTest.cpp test/ThumbnailsTest.cpp
   LIBRARIES SigilSketch SigilWeavePorts)
 
 sigil_bench(sketch_bench

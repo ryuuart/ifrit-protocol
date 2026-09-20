@@ -554,10 +554,11 @@ int main(int argc, char* argv[]) {
       args.windowBench.seconds > 0.0 || fileGiven || !args.workspace.empty() ||
       chosen >= 0;
   // A FRAME-RATE SWEEP MEASURES THE FRAMES AND NOTHING BESIDE THEM. The
-  // browser photographs each sketch it opens for its own store, on the
-  // render thread and inside a frame; here that still would be taken in
-  // the middle of a stretch whose whole subject is how long a frame
-  // takes. So the store is out of reach for the run, and the sessions
+  // browser photographs each sketch it opens for its own store, and the
+  // repaint and readback of that still are on the render thread and
+  // inside a frame; here they would fall in the middle of a stretch
+  // whose whole subject is how long a frame takes. So the store is out
+  // of reach for the run, and the sessions
   // the window would otherwise keep warm behind the one on screen go as
   // the next one opens rather than in the middle of measuring it.
   if (args.windowBench.seconds > 0.0) {
