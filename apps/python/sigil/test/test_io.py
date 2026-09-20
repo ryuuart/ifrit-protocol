@@ -8,7 +8,7 @@ import time
 import unittest
 from pathlib import Path
 
-from sigil.native import io
+from sigil import io
 
 
 def receive(feed):

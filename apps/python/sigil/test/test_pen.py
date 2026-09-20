@@ -28,7 +28,7 @@ class PenContracts(unittest.TestCase):
         source.write_text(
             "import builtins\n"
             "from sigil import draw\n"
-            "from sigil.native import compose\n"
+            "from sigil import compose\n"
             "from sigil.sketch import sketch\n"
             "results = builtins._sigil_pen_results\n"
             "@sketch(size=(32, 32), capture_at=0)\n"

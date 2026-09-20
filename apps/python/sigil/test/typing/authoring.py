@@ -4,14 +4,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import assert_type
 
+from sigil import compose as raw
 from sigil.compose import Element, box, column, graphics, layout, memo, row, text
 from sigil.compose import document as doc
 from sigil.compose import kit as marks
 from sigil.compose.layouts import Grid, fr
 from sigil.draw import Pen
-from sigil.material import skia
+from sigil.material import Paint
 from sigil.motion import Output, bind, entrance
-from sigil.native import compose as raw
 from sigil.sketch import SketchContext, kit, render_file, sketch
 from sigil.weave import Type, em, rich, rule, textStyle
 
@@ -38,8 +38,8 @@ class Reading:
     level: float
 
 
-def wash(accent: str) -> skia.Paint:
-    return skia.Paint.linearUnit(
+def wash(accent: str) -> Paint:
+    return Paint.linearUnit(
         start=(0, 0), end=(1, 1), stops=((0, accent), (1, "#172b36"))
     )
 
@@ -108,7 +108,7 @@ assert_type(TypedSketch(), TypedSketch)
 assert_type(TypedSketch().model, Reading)
 assert_type(component(Reading("A", 1)), Element)
 assert_type(memo(Reading("B", 0.2), component), Element)
-assert_type(wash("#abcdef"), skia.Paint)
+assert_type(wash("#abcdef"), Paint)
 assert_type(
     (
         layout(Grid(columns=[fr(), fr()])).children(

@@ -4,7 +4,7 @@ from array import array
 from dataclasses import dataclass
 from typing import assert_type
 
-from sigil.native import (
+from sigil import (
     compose,
     data,
     draw,
@@ -45,11 +45,11 @@ assert_type(
 )
 assert_type(motion.through([(0.0, 1.0), (0.4, 2.0)]), motion.Waypoints)
 
-ink = material.skia.Paint.linear((0, 0), (40, 0), [(0, "#fff"), (1, "#123")])
-shader = material.skia.Paint.sksl(
+ink = material.Paint.linear((0, 0), (40, 0), [(0, "#fff"), (1, "#123")])
+shader = material.Paint.sksl(
     "uniform float gain; half4 main(float2 p) { return half4(gain); }", {"gain": 0.5}
 )
-assert_type(shader.uniform("gain", 0.7), material.skia.Paint)
+assert_type(shader.uniform("gain", 0.7), material.Paint)
 tree.fill(ink).opacity(motion.bind(motion.Output(1.0)))
 outline = compose.stroke(2, ink)
 outline.strokeFill = ink
@@ -58,7 +58,7 @@ outline.dashPhaseBinding = motion.Output(0)
 
 style = weave.Type(size=weave.Length(16), features=[weave.FontFeature("liga", 1)])
 label = compose.text("Native", weave.textStyle(style))
-panel = compose.kit.panel(compose.kit.Panel(title="Station"), label)
+panel = compose.kit.panel(label, compose.kit.Panel(title="Station"))
 assert_type(panel, compose.Element)
 assert_type(skia.Path.Rect((0, 0, 20, 20)).getBounds(), skia.Rect)
 
@@ -111,7 +111,7 @@ def paint(pen: draw.Pen) -> None:
     )
 
 
-def setup(ctx: sketch.Context) -> None:
+def setup(ctx: sketch.SketchContext) -> None:
     ctx.canvas(320, 240)
     ctx.render(compose.graphics("ink", paint))
     ctx.ticker.add(lambda dt, elapsed: elapsed < 2)

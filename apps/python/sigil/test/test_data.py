@@ -9,8 +9,8 @@ import textwrap
 import unittest
 from pathlib import Path
 
+from _sigil import data as native
 from sigil import data, io
-from sigil.native import data as native
 from sigil.sketch import render_file
 
 

@@ -6,10 +6,10 @@ import unittest
 from pathlib import Path
 from types import ModuleType
 
+from _sigil import compose as raw
 from sigil import image
 from sigil.compose import Element, box, column, graphics, row, text
 from sigil.motion import entrance
-from sigil.native import compose as raw
 from sigil.sketch import render_file, sketch
 
 
@@ -110,7 +110,7 @@ class Authoring(unittest.TestCase):
             source = Path(folder) / "inheritance.py"
             output = Path(folder) / "inheritance.png"
             source.write_text("""from sigil.compose import text
-from sigil.native import compose
+from sigil import compose
 from sigil.sketch import sketch
 from sigil.weave import Type
 
@@ -251,7 +251,7 @@ class Containers:
             source = Path(folder) / "keywords.py"
             output = Path(folder) / "keywords.png"
             source.write_text("""from sigil.compose import box, column, pen
-from sigil.material import skia
+from sigil.material import Paint
 from sigil.sketch import sketch
 
 
@@ -272,7 +272,7 @@ class Keywords:
     def setup(self, ctx):
         colors = ("#ff0000", "#00ff00", "#0000ff")
         composed = column().children(tuple(
-            box().size(width=12, height=4).fill(skia.Paint.solid(color=color))
+            box().size(width=12, height=4).fill(Paint.solid(color=color))
             for color in colors
         ))
         ctx.render(element=column().children(composed, pen(key="drawing", program=draw).size(12, 12)))

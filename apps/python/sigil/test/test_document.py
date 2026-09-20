@@ -4,10 +4,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from _sigil import compose as raw
 from sigil import image
 from sigil.compose import Element, box
 from sigil.compose import document as doc
-from sigil.native import compose as raw
 from sigil.sketch import render_file
 from sigil.weave import Type, em, rich, rule
 

@@ -3,12 +3,12 @@
 TAGS: Geometry/Layout, Typography/Interface
 """
 
+from sigil import compose as raw
 from sigil.compose import box, column, layout, memo, row, text
 from sigil.compose import document as doc
 from sigil.compose import kit as marks
 from sigil.compose.layouts import AlongPath, BaselineGrid, Diagonal, Jittered, Radial
 from sigil.motion import entrance
-from sigil.native import compose as raw
 from sigil.sketch import SketchContext, kit, sketch
 from sigil.skia import PathBuilder
 

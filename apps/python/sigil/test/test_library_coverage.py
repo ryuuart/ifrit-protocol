@@ -2,6 +2,7 @@
 
 import concurrent.futures
 import gc
+import inspect
 import json
 import tempfile
 import unittest
@@ -183,6 +184,47 @@ class LibraryCoverage(unittest.TestCase):
         )
         self.assertEqual(annotation.readings, ["かん", "じ"])
         self.assertIsNotNone(text("漢字").annotate(annotation))
+
+    def test_bound_values_name_the_module_an_author_imports_them_from(self):
+        from sigil import compose, draw, geometry, motion, skia, world
+        from sigil.compose import kit as compose_kit
+        from sigil.sketch import kit as sketch_kit
+
+        for module in (
+            compose,
+            compose_kit,
+            data,
+            draw,
+            geometry,
+            image,
+            io,
+            material,
+            motion,
+            sketch_kit,
+            skia,
+            weave,
+            world,
+        ):
+            for name in module.__all__:
+                value = getattr(module, name)
+                # A submodule and a type alias have no module of their own:
+                # one is named where it is published, the other reports the
+                # typing machinery that built it.
+                if not isinstance(value, type) and not inspect.isroutine(value):
+                    continue
+                owner = value.__module__
+                self.assertTrue(
+                    owner == module.__name__ or owner.startswith("sigil."),
+                    f"{module.__name__}.{name} reports {owner}",
+                )
+        # The Skia backend of the material catalogue stands in the
+        # catalogue, and a colour is one class wherever it is read.
+        self.assertEqual(material.Paint.__module__, "sigil.material")
+        self.assertEqual(material.Color.__module__, "sigil.material")
+        self.assertFalse(hasattr(material, "skia"))
+        self.assertEqual(compose.Element.__module__, "sigil.compose")
+        self.assertEqual(compose_kit.Well.__module__, "sigil.compose.kit")
+        self.assertEqual(sketch_kit.Theme.__module__, "sigil.sketch.kit")
 
     def test_weave_layout_renders_headlessly_through_checked_pen(self):
         with tempfile.TemporaryDirectory() as directory:

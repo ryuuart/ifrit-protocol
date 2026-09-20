@@ -6,11 +6,11 @@ import threading
 import unittest
 from pathlib import Path
 
+from _sigil import sketch as raw
 from sigil import weave
 from sigil.compose import Element, box, text
 from sigil.compose import kit as neutral
 from sigil.compose.layouts import Grid, fr, px
-from sigil.native import sketch as raw
 from sigil.sketch import kit, render_file
 
 

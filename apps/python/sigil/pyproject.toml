@@ -2,6 +2,10 @@
 requires = [
   "scikit-build-core>=1.0",
   "pybind11>=3.0",
+  # The declarations an editor reads are written while the extension is
+  # built, from the extension itself, and are in no source tree to fall
+  # back on. The generator is written for this release of the tool.
+  "pybind11-stubgen==2.5.5",
   "delocate>=0.13; sys_platform == 'darwin'",
 ]
 build-backend = "backend"
@@ -29,6 +33,19 @@ studies = ["numpy>=2.0"]
 
 [dependency-groups]
 typing = ["basedpyright==1.40.1", "pybind11-stubgen==2.5.5"]
+
+[tool.uv]
+# An editable install reads .py from this project but installs the generated
+# declarations, and maps only the modules present when it was built. Rebuild
+# when a module file is added or removed, or when the pass that writes the
+# declarations changes; a binding change rebuilds through the native sources.
+cache-keys = [
+  { file = "pyproject.toml" },
+  { dir = "sigil" },
+  { dir = "sigil/compose" },
+  { dir = "sigil/sketch" },
+  { dir = "typing" },
+]
 
 [tool.scikit-build]
 minimum-version = "build-system.requires"

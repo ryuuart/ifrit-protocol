@@ -5,10 +5,10 @@ sigil_library(SigilPython
   SOURCES Python.cpp Bindings.cpp ComposeBindings.cpp MotionBindings.cpp
           KitBindings.cpp DocumentBindings.cpp DataBindings.cpp IOBindings.cpp PenBindings.cpp
           ValueBindings.cpp GeometryBindings.cpp BrushBindings.cpp WeaveBindings.cpp
-          WorldBindings.cpp MaterialBindings.cpp WeaveLayoutBindings.cpp
+          WorldBindings.cpp MaterialBindings.cpp WeaveLayoutBindings.cpp PublicNames.cpp
   HEADERS Python.h Bindings.h ComposeBindings.h MotionBindings.h KitBindings.h
           DataBindings.h IOBindings.h PenBindings.h ValueBindings.h BrushBindings.h
-          WeaveBindings.h GeometryBindings.h WorldBindings.h
+          WeaveBindings.h GeometryBindings.h WorldBindings.h PublicNames.h
   PUBLIC pybind11::headers unofficial::skia::skia
          SigilComposeCore SigilComposeKit SigilMotionValues
   PRIVATE SigilCoreCompute SigilCoreReconcile SigilComposeBrush SigilComposeDraw

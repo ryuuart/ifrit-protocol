@@ -15,8 +15,10 @@ extend-exclude = [
     "apps/python/spellcircle/SpellCircle/Point.py",
     "apps/python/spellcircle/SpellCircle/Scene.py",
     "apps/python/spellcircle/SpellCircle/Vec2.py",
-    # Native declarations are generated from bindings and typed refinements.
-    "apps/python/sigil/stubs/**",
+    # Fragments the declaration generator splices into a module it writes.
+    # Each one is completed by the re-exports spliced above it, so on its
+    # own it names things nothing in the file defines.
+    "apps/python/sigil/typing/additions/**",
     # Build trees carry generated and vendored Python.
     "apps/spell-circle-canvas/build*",
     "touchdesigner/venv*",

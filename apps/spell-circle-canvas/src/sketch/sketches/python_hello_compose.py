@@ -10,7 +10,7 @@ TAGS: Runtime/Starter, Geometry/Layout, Materials/Gradients, Motion/Animation
 
 from sigil.compose import Element, row
 from sigil.compose import document as doc
-from sigil.material import skia
+from sigil.material import Paint
 from sigil.motion import entrance
 from sigil.sketch import SketchContext, kit, sketch
 
@@ -22,8 +22,8 @@ CARDS = [
 ]
 
 
-def wash(accent: str) -> skia.Paint:
-    return skia.Paint.linearUnit((0, 0), (1, 1), [(0, accent), (1, "#172b36")])
+def wash(accent: str) -> Paint:
+    return Paint.linearUnit((0, 0), (1, 1), [(0, accent), (1, "#172b36")])
 
 
 def card(title: str, detail: str, accent: str, delay: float = 0) -> Element:

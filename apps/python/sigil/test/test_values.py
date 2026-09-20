@@ -8,10 +8,9 @@ from pathlib import Path
 from sigil import compose, image, material, motion, skia, weave
 from sigil.geometry import mesh
 from sigil.material import field
-from sigil.material import skia as material_skia
 from sigil.sketch import render_file
 
-Paint = material_skia.Paint
+Paint = material.Paint
 
 
 class Values(unittest.TestCase):
@@ -69,9 +68,8 @@ class Values(unittest.TestCase):
             source = Path(folder) / "scene.py"
             output = Path(folder) / "scene.png"
             source.write_text("""from sigil.sketch import sketch
-from sigil.material import skia
+from sigil.material import Paint
 from sigil.geometry import mesh
-Paint = skia.Paint
 @sketch(size=(96, 96), capture_at=0.02, background="#000000")
 class Scene:
     def setup(self, ctx):
@@ -157,10 +155,8 @@ class Colors(unittest.TestCase):
             Paint.sksl(source).uniform("tint", material.Color("#ff0000")),
         )
         self.assertEqual(
-            material_skia.Effect.shader(source).uniform("tint", "#ff0000"),
-            material_skia.Effect.shader(source).uniform(
-                "tint", material.Color("#ff0000")
-            ),
+            material.Effect.shader(source).uniform("tint", "#ff0000"),
+            material.Effect.shader(source).uniform("tint", material.Color("#ff0000")),
         )
         # …and so is a live scalar, which is what makes either animate.
         moving = skia.RuntimeEffect.MakeForShader(
@@ -169,7 +165,7 @@ class Colors(unittest.TestCase):
         output = motion.Output(0.0)
         self.assertTrue(Paint.sksl(moving).uniform("amount", output).isAnimated())
         self.assertTrue(
-            material_skia.Effect.shader(moving).uniform("amount", output).isAnimated()
+            material.Effect.shader(moving).uniform("amount", output).isAnimated()
         )
 
 

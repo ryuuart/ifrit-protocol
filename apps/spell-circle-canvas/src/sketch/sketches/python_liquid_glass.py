@@ -5,10 +5,8 @@
 from math import cos, hypot, sin
 
 from sigil.draw import ADD, BLEND, CANVAS, ROUND, Pen
-from sigil.material import skia
+from sigil.material import Paint
 from sigil.sketch import SketchContext, sketch
-
-Paint = skia.Paint
 
 LINE_FIELD = r"""
       uniform float2 uResolution;

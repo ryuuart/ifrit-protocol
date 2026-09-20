@@ -8,6 +8,7 @@ import unittest
 import weakref
 from pathlib import Path
 
+from _sigil import motion as native
 from sigil import image
 from sigil.compose import box
 from sigil.motion import (
@@ -23,7 +24,6 @@ from sigil.motion import (
     through,
     to,
 )
-from sigil.native import motion as native
 from sigil.sketch import render_file
 
 

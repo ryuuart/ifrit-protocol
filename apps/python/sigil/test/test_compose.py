@@ -5,10 +5,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from sigil import compose as raw
 from sigil import image, skia, weave
 from sigil.compose import Align, Dimension, Fill, box, pct, stroke
 from sigil.motion import Output
-from sigil.native import compose as raw
 from sigil.sketch import render_file
 
 
@@ -108,7 +108,7 @@ class Edges:
         def render(mode):
             return self.render(
                 f"""from sigil.compose import box
-from sigil.native import compose as raw
+from sigil import compose as raw
 from sigil.sketch import sketch
 
 
@@ -171,7 +171,7 @@ class Scene:
         def render(empty):
             return self.render(
                 f"""from sigil.compose import Fill, box
-from sigil.material import skia as materials
+from sigil.material import Paint
 from sigil.sketch import sketch
 
 
@@ -183,7 +183,7 @@ class Scene:
                 at=0,
             )
 
-        for empty in ("None", "Fill.none()", "materials.Paint()"):
+        for empty in ("None", "Fill.none()", "Paint()"):
             with self.subTest(empty=empty):
                 self.assertEqual(render(empty)[:4], b"\x00\x00\xff\xff")
         # …and a fill that is not empty still reaches the node.
@@ -409,7 +409,7 @@ class Scene:
     def test_native_styles_and_explicit_total_style_render_identically(self):
         pixels = self.render(
             """from sigil.compose import box, text
-from sigil.native import compose
+from sigil import compose
 from sigil.sketch import sketch
 from sigil.weave import Type, StyleSheet, rule, textStyle
 

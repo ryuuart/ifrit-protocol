@@ -1,4 +1,9 @@
-"""Check native exports and reject untyped holes in the shipped native stubs."""
+"""Check the surface an author reads against the extension behind it.
+
+Every public module must declare what it exports and export what the
+extension registered under it. Untyped holes in the declarations — an Any,
+a bare collection, an unnamed argument — are rejected wherever they appear.
+"""
 
 from __future__ import annotations
 
@@ -8,9 +13,13 @@ import importlib
 import inspect
 import keyword
 import re
+import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+
+import surface
 
 
 def members(body: list[ast.stmt]) -> dict[str, ast.stmt]:
@@ -30,10 +39,29 @@ def members(body: list[ast.stmt]) -> dict[str, ast.stmt]:
     return result
 
 
+def public_object(name: str) -> object:
+    """Import a public module, or reach the one the extension carries."""
+    parts = name.split(".")
+    for size in range(len(parts), 0, -1):
+        try:
+            module = importlib.import_module(".".join(parts[:size]))
+        except ImportError:
+            continue
+        found: object = module
+        for attribute in parts[size:]:
+            found = getattr(found, attribute)
+        return found
+    raise ImportError(name)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--stubs", type=Path, default=HERE.parent / "stubs" / "_sigil")
-    parser.add_argument("--public", type=Path, default=HERE.parent / "sigil")
+    parser.add_argument(
+        "--declarations",
+        type=Path,
+        required=True,
+        help="the generated declaration package this extension was built with",
+    )
     options = parser.parse_args()
     failures: list[str] = []
     count = 0
@@ -55,7 +83,7 @@ def main() -> int:
             count += 1
             if name not in declared:
                 if inspect.isclass(native) and any(
-                    name in base.__dict__ and base.__module__.startswith("_sigil")
+                    name in base.__dict__ and base.__module__.startswith("sigil")
                     for base in native.__mro__[1:]
                 ):
                     continue
@@ -101,15 +129,15 @@ def main() -> int:
                 if isinstance(child, ast.expr):
                     annotation(child, location)
 
-    for stub in sorted(options.stubs.rglob("*.pyi")):
-        relative = stub.relative_to(options.stubs).with_suffix("")
+    for path in sorted(options.declarations.rglob("*.pyi")):
+        relative = path.relative_to(options.declarations).with_suffix("")
         parts = list(relative.parts)
         if parts[-1] == "__init__":
             parts.pop()
-        name = ".".join(["_sigil", *parts])
-        tree = ast.parse(stub.read_text())
-        if name != "_sigil._types":
-            inspect_members(importlib.import_module(name), tree, name)
+        name = ".".join([surface.PUBLIC_ROOT, *parts])
+        tree = ast.parse(path.read_text())
+        if name not in {"sigil", "sigil._types"}:
+            inspect_members(public_object(name), tree, name)
         for node in ast.walk(tree):
             if isinstance(node, ast.AnnAssign):
                 annotation(node.annotation, f"{name}:{node.lineno}")
@@ -129,30 +157,40 @@ def main() -> int:
                     failures.append(f"{name}:{node.lineno}: untyped return")
                 else:
                     annotation(node.returns, f"{name}:{node.lineno}")
-    for name in ("weave", "data", "io", "material"):
-        native = importlib.import_module("_sigil." + name)
-        public = importlib.import_module("sigil." + name)
-        body = ast.parse((options.public / f"{name}.pyi").read_text()).body
-        declared = members(body)
-        if any(
-            isinstance(node, ast.ImportFrom)
-            and node.module == "_sigil." + name
-            and any(alias.name == "*" for alias in node.names)
-            for node in body
-        ):
-            declared.update({exported: body[0] for exported in dir(native)})
+
+    # No public module may carry a name the table did not put there, and the
+    # raw module an author never imports must have nowhere to be imported from.
+    for raw in surface.PUBLIC_MODULES:
+        if raw in surface.DECLARATION_ONLY:
+            continue
+        public = surface.public_module(raw)
+        native = importlib.import_module(raw)
+        holder = public_object(public)
         for exported in dir(native):
             if exported.startswith("_"):
                 continue
-            if exported not in declared or not hasattr(public, exported):
+            child = raw + "." + exported
+            if (
+                child in surface.PUBLIC_MODULES
+                and surface.public_module(child) != public + "." + exported
+            ):
+                if getattr(holder, exported, None) is getattr(native, exported):
+                    failures.append(
+                        f"{public}.{exported}: {child} surfaces as "
+                        f"{surface.public_module(child)}, so nothing carries it here"
+                    )
+                continue
+            spelling = surface.public_name(public, exported)
+            if not hasattr(holder, spelling):
                 failures.append(
-                    f"sigil.{name}.{exported}: native export missing from public package or stub"
+                    f"{public}.{spelling}: {child} reaches no public module"
                 )
     if failures:
         print("\n".join(failures))
         return 1
     print(
-        f"Native surface passed: {count} exported members; named arguments, no Any or bare collection signatures."
+        f"Public surface passed: {count} exported members; named arguments, "
+        "no Any or bare collection signatures, nothing raw left over."
     )
     return 0
 

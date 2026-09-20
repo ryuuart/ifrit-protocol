@@ -19,13 +19,13 @@ from typing import assert_type
 from sigil import compose, material, motion
 
 # ---------------------------------------------------------------------------
-# ColorLike — a flat colour value, at material.skia.Paint.solid.
+# ColorLike — a flat colour value, at material.Paint.solid.
 
-assert_type(material.skia.Paint.solid(material.Color("#6e99bb")), material.skia.Paint)
-assert_type(material.skia.Paint.solid("#6e99bb"), material.skia.Paint)
-assert_type(material.skia.Paint.solid((0.43, 0.6, 0.73)), material.skia.Paint)
-assert_type(material.skia.Paint.solid((0.43, 0.6, 0.73, 1.0)), material.skia.Paint)
-assert_type(material.skia.Paint.solid([0.43, 0.6, 0.73, 1.0]), material.skia.Paint)
+assert_type(material.Paint.solid(material.Color("#6e99bb")), material.Paint)
+assert_type(material.Paint.solid("#6e99bb"), material.Paint)
+assert_type(material.Paint.solid((0.43, 0.6, 0.73)), material.Paint)
+assert_type(material.Paint.solid((0.43, 0.6, 0.73, 1.0)), material.Paint)
+assert_type(material.Paint.solid([0.43, 0.6, 0.73, 1.0]), material.Paint)
 
 # Every spelling reads the same four floats, and a colour reads back as
 # the colour class, so a colour taken off one value passes into the next.
@@ -38,13 +38,13 @@ written = [
 ]
 assert_type(written[0], material.Color)
 assert all(abs(read.r - 0.43) < 0.01 and abs(read.a - 1.0) < 0.01 for read in written)
-assert_type(material.skia.Paint.solid(written[0]), material.skia.Paint)
+assert_type(material.Paint.solid(written[0]), material.Paint)
 
 # ---------------------------------------------------------------------------
 # FillLike — a flat mark that may reference the tree, at compose.Fill.
 
 accent = compose.var("accent")
-solid = material.skia.Paint.solid("#b34a2f")
+solid = material.Paint.solid("#b34a2f")
 assert_type(compose.Fill(material.Color("#6e99bb")), compose.Fill)
 assert_type(compose.Fill("#6e99bb"), compose.Fill)
 assert_type(compose.Fill((0.43, 0.6, 0.73)), compose.Fill)
@@ -69,7 +69,7 @@ assert_type(compose.box().textStroke(1, None), compose.Element)
 # SurfacePaintLike — anything that can colour a surface, at Element.fill
 # and at the other surface verbs, which take the same set.
 
-ramp = material.skia.Paint.linear((0, 0), (40, 0), [(0, "#fff"), (1, "#123")])
+ramp = material.Paint.linear((0, 0), (40, 0), [(0, "#fff"), (1, "#123")])
 recipe = material.kit.unlit(material.kit.SurfaceParameters(baseColor="#e75a31"))
 bound = motion.FillOutput(compose.Fill.color("#6e99bb"))
 moving = motion.entrance(compose.Fill.none(), "#6e99bb")
@@ -101,10 +101,10 @@ assert_type(compose.kit.ladder(count=2, pitch=8, fill=ramp), compose.Element)
 assert compose.SurfacePaint(None).none()
 assert not compose.SurfacePaint(recipe).none()
 # A material is one kind of paint, so a paint slot takes one too.
-program = material.skia.Paint.sksl(
+program = material.Paint.sksl(
     "uniform shader source; half4 main(float2 p) { return source.eval(p); }"
 )
-assert_type(program.slot("source", recipe), material.skia.Paint)
+assert_type(program.slot("source", recipe), material.Paint)
 
 # ---------------------------------------------------------------------------
 # ElementInkLike — deliberately narrower: no animatable, because a bound

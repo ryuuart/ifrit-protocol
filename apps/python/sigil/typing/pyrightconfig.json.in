@@ -1,0 +1,10 @@
+{
+  "include": ["@SIGIL_PYTHON_DECLARATIONS@"],
+  "exclude": [
+    "@SIGIL_PYTHON_DECLARATIONS@/**/*.py",
+    "@SIGIL_PYTHON_DECLARATIONS@/**/__pycache__"
+  ],
+  "extraPaths": ["@SIGIL_PYTHON_ROOT@"],
+  "typeCheckingMode": "strict",
+  "pythonVersion": "3.12"
+}

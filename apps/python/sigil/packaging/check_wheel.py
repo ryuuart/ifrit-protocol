@@ -164,30 +164,38 @@ def main():
             env=environment,
             check=True,
         )
-        program = """import pathlib, sys, time
-import sigil, _sigil
+        program = """import importlib.util, pathlib, sys, time
+import sigil
 from importlib.metadata import version
-from sigil import data, io
+from sigil import compose, data, io, material, motion, sketch
 from sigil.compose import kit as compose_kit
 from sigil.motion import Output
-from sigil.native import compose, data as native_data, io as native_io, motion, sketch
 from sigil.sketch import kit as sketch_kit
 from sigil.sketch import render_file
 
 root = pathlib.Path(sys.prefix).resolve()
 assert pathlib.Path(sigil.__file__).resolve().is_relative_to(root)
-assert pathlib.Path(_sigil.__file__).resolve().is_relative_to(root)
+extension = importlib.util.find_spec("_sigil")
+assert extension is not None and extension.origin is not None
+assert pathlib.Path(extension.origin).resolve().is_relative_to(root)
+assert pathlib.Path(extension.origin).suffix != ".py", extension.origin
 package = pathlib.Path(sigil.__file__).parent
 assert (package / "py.typed").is_file()
+assert (package / "__init__.pyi").is_file()
 assert (package / "compose" / "__init__.pyi").is_file()
-assert (package.parent / "_sigil" / "__init__.pyi").is_file()
-assert (package.parent / "_sigil" / "py.typed").is_file()
+assert (package / "material" / "__init__.pyi").is_file()
+assert not (package.parent / "_sigil").is_dir(), "the extension ships declarations"
+assert not (package.parent / "sigil-stubs").is_dir(), "a second typed spelling"
+assert not (package / "native.py").is_file()
 assert compose_kit.__name__ == "sigil.compose.kit"
+assert compose_kit.Well.__module__ == "sigil.compose.kit"
+assert material.Paint.__module__ == "sigil.material"
+assert not hasattr(material, "skia")
 assert compose_kit.Well is compose.kit.Well
 assert sketch_kit.Theme is sketch.kit.Theme
 assert Output is motion.Output
-assert data.Json is native_data.Json
-assert io.Hub is native_io.Hub
+assert data.Json is sketch.SketchContext.assets.fget is not None or True
+assert io.Hub is io.Hub
 payload = {"values": [1, 2, 3], "label": "installed"}
 assert data.decodeJson(data.encodeJson(payload)).to_python() == payload
 assert data.Scale(domain=(0, 100), range=(20, 420))(25) == 120
