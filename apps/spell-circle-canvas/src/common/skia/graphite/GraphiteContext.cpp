@@ -3,6 +3,14 @@
 // factories themselves are per API — GraphiteContextMetal.mm and
 // GraphiteContextVulkan.cpp — and each stands Graphite up on that API's
 // handles alone.
+//
+// `src/core/SkKnownRuntimeEffects.h` is Skia's own private header. It
+// ships in this install beside the static archive and declares the size
+// of the block of stable names a client's runtime effects are numbered
+// out of. THAT NUMBER IS ONLY THE BACKEND'S TO STATE: a copy here would
+// go on answering the old size after an upgrade moved it, with no build
+// error and no failing case, and a declaration cut at the wrong place
+// leaves stored pipeline keys describing programs nobody built.
 
 #include <gpu/graphite/Context.h>
 #include <gpu/graphite/ContextOptions.h>
@@ -16,6 +24,7 @@
 #include <include/core/SkSpan.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilskia/graphite/GraphiteContext.h>
+#include <src/core/SkKnownRuntimeEffects.h>
 
 #include <algorithm>
 #include <atomic>
@@ -149,7 +158,9 @@ size_t GraphiteContext::runtimeEffectLimit() {
   // Skia numbers a client's declared effects out of one reserved block
   // and gives the rest of them unstable names, so a list longer than
   // the block cannot be declared whole however it is offered.
-  return 100;
+  constexpr int reservedNames =
+      SkKnownRuntimeEffects::kUserDefinedKnownRuntimeEffectsReservedCnt;
+  return (size_t)reservedNames;
 }
 
 size_t GraphiteContext::registerRuntimeEffects(
