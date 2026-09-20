@@ -3,7 +3,8 @@
 // blend stack folded into one shader, a static material collapsing to a fill,
 // a child slot sampling an index texture through a palette, a declared bleed
 // growing the recording cull, a blend layer's amount, and a buffer that
-// changes between commits without re-describing.
+// changes between commits without re-describing — and where a unit
+// ramp's falloff reaches, over however many stops it carries.
 
 #include "support/CoreTestSupport.h"
 
@@ -693,4 +694,87 @@ TEST(ComposeMaterial, AnEmptySurfacePaintLeavesAFillAndAnEmptyFillClearsIt) {
           Fill::none())}));
   cleared.frame();
   EXPECT_EQ(cleared.pixel(20, 20), SK_ColorBLACK);
+}
+
+// -------------------------------------------------------------------------
+// The unit ramps as a fill takes them: where the falloff reaches, and
+// how many stops one carries.
+
+TEST(ComposeMaterials, GlowUnitReachesTheInscribedCircleNotTheCorners) {
+  // radialUnit's radius is a fraction of the box's HALF-DIAGONAL, so a soft
+  // round light authored at radius 1 has not finished falling off where the
+  // INSCRIBED circle is — and on a node also carrying
+  // geometry::shapes::circle() the remaining alpha becomes a visible hard rim.
+  // glowUnit is radialUnit scaled to the inscribed circle instead, so radius 1
+  // reaches zero exactly at the edge that gets clipped.
+  const std::vector<material::skia::Stop> ramp = {{0.0f, {1, 1, 1, 1}},
+                                                  {1.0f, {0, 0, 0, 1}}};
+  auto edgeValue = [&](material::skia::Paint m) {
+    Host host(200, 200);
+    host.composer.render(
+        box().children({box().absolute().inset(0).fill(std::move(m))}));
+    host.frame();
+    // Just inside the box edge, on the horizontal centre line — where the
+    // inscribed circle touches.
+    return SkColorGetR(host.pixel(197, 100));
+  };
+
+  // radialUnit(…, 1.0) is still bright at the inscribed circle, because
+  // its ramp does not reach black until the corners.
+  EXPECT_GT(
+      edgeValue(material::skia::Paint::radialUnit({0.5f, 0.5f}, 1.0f, ramp)),
+      40);
+  // glowUnit(…, 1.0) has landed by then. That is the whole difference.
+  EXPECT_LT(
+      edgeValue(material::skia::Paint::glowUnit({0.5f, 0.5f}, 1.0f, ramp)), 8);
+  // And the old spelling of the same thing still works, which is what
+  // makes this a convenience rather than a behaviour change.
+  EXPECT_LT(
+      edgeValue(material::skia::Paint::radialUnit({0.5f, 0.5f}, 0.7071f, ramp)),
+      8);
+}
+
+TEST(ComposeMaterials, UnitRampsTakeAnyNumberOfStops) {
+  // A fixed stop count with the tail clamped runs out from both directions
+  // — a many-run repeating sett, a long chromatic sweep — and the only way
+  // out is a hand-written pattern program. The count is baked into the
+  // shader source instead, with one effect cached per count, which is the
+  // same rule the noise generators follow for octaves.
+  auto sweep = [](int n) {
+    std::vector<material::skia::Stop> stops;
+    for (int i = 0; i < n; ++i) {
+      const float t = (float)i / (float)(n - 1);
+      // A sawtooth the six-stop version could not have represented:
+      // alternating black and white at every step.
+      const float v = (i % 2) ? 1.0f : 0.0f;
+      stops.push_back({t, {v, v, v, 1}});
+    }
+    Host host(256, 32);
+    host.composer.render(box().children({box().absolute().inset(0).fill(
+        material::skia::Paint::linearUnit({0, 0}, {1, 0}, stops))}));
+    host.frame();
+    // Count the light/dark transitions across the middle scanline.
+    int flips = 0;
+    bool light = SkColorGetR(host.pixel(0, 16)) > 128;
+    for (int x = 1; x < 256; ++x) {
+      const bool now = SkColorGetR(host.pixel(x, 16)) > 128;
+      flips += now != light;
+      light = now;
+    }
+    return flips;
+  };
+
+  // Six stops = five alternations. Twenty-four and seventy-two scale with
+  // the count, which is exactly what the fixed version could not do.
+  EXPECT_NEAR(sweep(6), 5, 1);
+  EXPECT_NEAR(sweep(24), 23, 2);
+  EXPECT_NEAR(sweep(72), 71, 4);
+
+  // Degenerate counts still behave.
+  Host one(64, 64);
+  one.composer.render(box().children(
+      {box().absolute().inset(0).fill(material::skia::Paint::linearUnit(
+          {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}}))}));
+  one.frame();
+  EXPECT_GT(SkColorGetR(one.pixel(32, 32)), 200);
 }

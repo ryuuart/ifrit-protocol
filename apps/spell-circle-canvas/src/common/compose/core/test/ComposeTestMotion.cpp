@@ -2,7 +2,9 @@
 // stands, an unmount cancelling what it drove, a binding driving paint with
 // no re-describe and waking again after it settled, an ease adapter bound to
 // a shape parameter, a plain snap landing after a transition, and travel as a
-// fraction of arc length across every contour.
+// fraction of arc length across every contour — and, beside them, what
+// a binding shapes on its way to a property and what an aggregate's
+// empty curve means.
 
 #include "support/CoreTestSupport.h"
 
@@ -310,4 +312,108 @@ TEST(ComposeTravel, PerAxisScaleParticipatesInReconcilerEquality) {
   host.frame();
   EXPECT_EQ(host.pixel(20, 130), SK_ColorGREEN)
       << "a CHANGED scaleY pruned into the old description";
+}
+
+// -------------------------------------------------------------------------
+// What a binding shapes on its way to a property, and the curve an
+// aggregate leaves empty.
+
+TEST(ComposeBindings, AShapedBindingDrivesThePropertyInPixels) {
+  // One Output, two units. A phase in [0,1] is what a reveal or an opacity
+  // wants; a translation wants PIXELS. Without a shaping map on the binding,
+  // driving both from one motion means carrying a second Output updated
+  // alongside the first — two things to keep in step for no reason.
+  Host host(200, 200);
+  choreograph::Output<float> phase{0.0f};
+  host.composer.render(
+      box().children({box()
+                          .width(20)
+                          .height(20)
+                          .absolute()
+                          .left(0)
+                          .top(90)
+                          .fill(red())
+                          .translateX(motion::bind(&phase).target(0, 160))}));
+  auto redAt = [&](int x) { return SkColorGetR(host.pixel(x, 100)) > 180; };
+
+  host.frame();
+  EXPECT_TRUE(redAt(10));  // phase 0 → x = 0
+  EXPECT_FALSE(redAt(170));
+
+  phase = 1.0f;
+  host.frame();
+  EXPECT_FALSE(redAt(10));
+  EXPECT_TRUE(redAt(170));  // phase 1 → x = 160, unscaled would be x = 1
+
+  phase = 0.5f;
+  host.frame();
+  EXPECT_TRUE(redAt(85));  // and it is linear in between
+}
+
+TEST(ComposeBindings, AChangedShapeRepatchesRatherThanPruning) {
+  // The map is read LIVE through the pointer, so a pruned node would keep
+  // shaping through the OLD one forever. Same Output, different range.
+  Host host(200, 200);
+  choreograph::Output<float> phase{1.0f};
+  auto tree = [&](float far) {
+    return box().children(
+        {box()
+             .key("dot")
+             .width(20)
+             .height(20)
+             .absolute()
+             .left(0)
+             .top(90)
+             .fill(red())
+             .translateX(motion::bind(&phase).target(0, far))});
+  };
+  host.composer.render(tree(40.0f));
+  host.frame();
+  EXPECT_TRUE(SkColorGetR(host.pixel(50, 100)) > 180);
+
+  host.composer.render(tree(150.0f));
+  host.frame();
+  EXPECT_FALSE(SkColorGetR(host.pixel(50, 100)) > 180);
+  EXPECT_TRUE(SkColorGetR(host.pixel(160, 100)) > 180);
+}
+
+TEST(ComposeBindings, AFillCanBeBoundLive) {
+  // A Fill can be bound, which is easy to miss and expensive to work
+  // around — the alternative is rebuilding the widget on renderSlot().
+  // The Output holds a Fill, and you write it from the
+  // same steppable that computes the number driving everything else.
+  Host host(200, 200);
+  choreograph::Output<Fill> bar{Fill::color({1, 0, 0, 1})};
+  host.composer.render(box().children(
+      {box().absolute().left(20).top(80).width(160).height(40).fill(&bar)}));
+  host.frame();
+  EXPECT_GT(SkColorGetR(host.pixel(100, 100)), 180);
+  EXPECT_LT(SkColorGetG(host.pixel(100, 100)), 80);
+
+  bar = Fill::color({0, 1, 0, 1});  // no re-render, no re-describe
+  host.frame();
+  EXPECT_LT(SkColorGetR(host.pixel(100, 100)), 80);
+  EXPECT_GT(SkColorGetG(host.pixel(100, 100)), 180);
+}
+
+TEST(ComposeMotion, AnEmptyEasingMeansTheDefaultRatherThanACrash) {
+  // motion::Transition is an aggregate, so `{360ms, {}, 220ms}` — the obvious
+  // way to write "default curve, but I need to name the delay" — initialises
+  // `ease` to an EMPTY std::function. It compiles, so the only options are
+  // throwing bad_function_call on the first frame or treating empty as "the
+  // default curve". It is the latter.
+  Host host(200, 200);
+  host.composer.render(
+      box().children({box()
+                          .width(40)
+                          .height(40)
+                          .absolute()
+                          .left(0)
+                          .top(80)
+                          .fill(red())
+                          .translateX(animate(motion::from(0.0f).to(120.0f),
+                                              {200ms, {}, 0ms}))}));
+  host.frame();     // would throw here
+  host.frame(0.4);  // land the entrance
+  EXPECT_TRUE(SkColorGetR(host.pixel(130, 100)) > 180);
 }

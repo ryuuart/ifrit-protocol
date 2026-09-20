@@ -1,63 +1,12 @@
+// What a shaped run exposes and how its glyphs are dressed: type set
+// along a path — every contour, the word breaks between them, the
+// per-run flip decision and the radial and level orientations a dial and
+// a calendar ring need — the glyph paints textFill and textStroke put on
+// the letters rather than the box, and the metrics a placement solves
+// from: the cap slack, the pen positions across a run, the cap height
+// off the face, and what fitting or condensing a run to a width moves.
+
 #include "support/TextTestSupport.h"
-
-TEST(ComposeBindings, AShapedBindingDrivesThePropertyInPixels) {
-  // One Output, two units. A phase in [0,1] is what a reveal or an opacity
-  // wants; a translation wants PIXELS. Without a shaping map on the binding,
-  // driving both from one motion means carrying a second Output updated
-  // alongside the first — two things to keep in step for no reason.
-  Host host(200, 200);
-  choreograph::Output<float> phase{0.0f};
-  host.composer.render(
-      box().children({box()
-                          .width(20)
-                          .height(20)
-                          .absolute()
-                          .left(0)
-                          .top(90)
-                          .fill(red())
-                          .translateX(motion::bind(&phase).target(0, 160))}));
-  auto redAt = [&](int x) { return SkColorGetR(host.pixel(x, 100)) > 180; };
-
-  host.frame();
-  EXPECT_TRUE(redAt(10));  // phase 0 → x = 0
-  EXPECT_FALSE(redAt(170));
-
-  phase = 1.0f;
-  host.frame();
-  EXPECT_FALSE(redAt(10));
-  EXPECT_TRUE(redAt(170));  // phase 1 → x = 160, unscaled would be x = 1
-
-  phase = 0.5f;
-  host.frame();
-  EXPECT_TRUE(redAt(85));  // and it is linear in between
-}
-
-TEST(ComposeBindings, AChangedShapeRepatchesRatherThanPruning) {
-  // The map is read LIVE through the pointer, so a pruned node would keep
-  // shaping through the OLD one forever. Same Output, different range.
-  Host host(200, 200);
-  choreograph::Output<float> phase{1.0f};
-  auto tree = [&](float far) {
-    return box().children(
-        {box()
-             .key("dot")
-             .width(20)
-             .height(20)
-             .absolute()
-             .left(0)
-             .top(90)
-             .fill(red())
-             .translateX(motion::bind(&phase).target(0, far))});
-  };
-  host.composer.render(tree(40.0f));
-  host.frame();
-  EXPECT_TRUE(SkColorGetR(host.pixel(50, 100)) > 180);
-
-  host.composer.render(tree(150.0f));
-  host.frame();
-  EXPECT_FALSE(SkColorGetR(host.pixel(50, 100)) > 180);
-  EXPECT_TRUE(SkColorGetR(host.pixel(160, 100)) > 180);
-}
 
 TEST(ComposeText, OnPathReDescribeDoesNotKeepTheOldBaseline) {
   // A text run's BASELINE has to reach textEqual(). Leave it out and
@@ -94,28 +43,6 @@ TEST(ComposeText, OnPathReDescribeDoesNotKeepTheOldBaseline) {
   host.frame();
   EXPECT_GT(lit(140, 240), 200);  // it moved…
   EXPECT_LT(lit(0, 110), 40);     // …and did not stay put
-}
-
-TEST(ComposeMotion, AnEmptyEasingMeansTheDefaultRatherThanACrash) {
-  // motion::Transition is an aggregate, so `{360ms, {}, 220ms}` — the obvious
-  // way to write "default curve, but I need to name the delay" — initialises
-  // `ease` to an EMPTY std::function. It compiles, so the only options are
-  // throwing bad_function_call on the first frame or treating empty as "the
-  // default curve". It is the latter.
-  Host host(200, 200);
-  host.composer.render(
-      box().children({box()
-                          .width(40)
-                          .height(40)
-                          .absolute()
-                          .left(0)
-                          .top(80)
-                          .fill(red())
-                          .translateX(animate(motion::from(0.0f).to(120.0f),
-                                              {200ms, {}, 0ms}))}));
-  host.frame();     // would throw here
-  host.frame(0.4);  // land the entrance
-  EXPECT_TRUE(SkColorGetR(host.pixel(130, 100)) > 180);
 }
 
 TEST(ComposeText, OnPathFillsEveryContourNotJustTheFirst) {
@@ -187,69 +114,6 @@ TEST(ComposeText, OnPathBreaksAtWordsBetweenContours) {
   EXPECT_EQ(lit(host, 70, 130), 0) << "a word bent across the gap";
 }
 
-TEST(ComposeDebug, CoverageCatchesWhatAreaAndContainmentMiss) {
-  // A subdivision that OVERLAPS in one place and GAPS in another passes
-  // both cheap checks. Area conservation passes because the two errors
-  // cancel exactly; containment passes because every piece really is
-  // inside the parent. Only point sampling sees it.
-  const SkRect region = SkRect::MakeWH(100, 100);
-
-  // An honest split of the square into two halves.
-  auto rect = [](float l, float t, float r, float b) {
-    SkPathBuilder p;
-    p.addRect(SkRect::MakeLTRB(l, t, r, b));
-    return p.detach();
-  };
-  const std::vector<SkPath> exact = {rect(0, 0, 50, 100),
-                                     rect(50, 0, 100, 100)};
-  const auto good = test::coverage(exact, region, 64);
-  EXPECT_TRUE(good.exact());
-  EXPECT_EQ(good.uncovered, 0);
-  EXPECT_EQ(good.doubled, 0);
-
-  // The same two halves, one shifted 10 px right: a 10-wide gap on the
-  // left, a 10-wide overlap in the middle. Equal areas, so the total is
-  // unchanged and both pieces are still inside the square.
-  const std::vector<SkPath> broken = {rect(10, 0, 60, 100),
-                                      rect(50, 0, 100, 100)};
-  float area = 0;
-  for (const SkPath& p : broken)
-    area += p.getBounds().width() * p.getBounds().height();
-  EXPECT_FLOAT_EQ(area, 100 * 100);  // area conservation: PASSES
-  for (const SkPath& p : broken)
-    EXPECT_TRUE(region.contains(p.getBounds()));  // containment: PASSES
-
-  const auto bad = test::coverage(broken, region, 64);
-  EXPECT_FALSE(bad.exact());  // …and coverage does not
-  EXPECT_NEAR(bad.uncoveredFraction(), 0.10f, 0.02f);
-  EXPECT_NEAR(bad.doubledFraction(), 0.10f, 0.02f);
-  ASSERT_FALSE(bad.uncoveredAt.empty());
-  EXPECT_LT(bad.uncoveredAt.front().x(), 10.0f);  // the witness is the gap
-}
-
-TEST(ComposeDebug, EndpointDegreesFindTheDanglingArc) {
-  // The chaining test for a decorated tiling: on the Oxford Penrose
-  // paving every interior arc endpoint must have degree 2, or the
-  // stainless bands do not link up into rings.
-  auto seg = [](float x0, float y0, float x1, float y1) {
-    SkPathBuilder p;
-    p.moveTo(x0, y0).lineTo(x1, y1);
-    return p.detach();
-  };
-  // Three segments chained head-to-tail: two interior joints (degree 2),
-  // two loose ends (degree 1).
-  const std::vector<SkPath> chain = {seg(0, 0, 10, 0), seg(10, 0, 20, 0),
-                                     seg(20, 0, 30, 0)};
-  const auto degrees = test::endpointDegrees(chain);
-  EXPECT_EQ(degrees.points.size(), 4u);
-  EXPECT_EQ(degrees.outside(2, 2).size(), 2u);  // the two loose ends
-
-  // Move one segment off its joint: now four loose ends, not two.
-  const std::vector<SkPath> broken = {seg(0, 0, 10, 0), seg(11, 0, 20, 0),
-                                      seg(20, 0, 30, 0)};
-  EXPECT_EQ(test::endpointDegrees(broken).outside(2, 2).size(), 4u);
-}
-
 TEST(ComposeText, AutoFlipIsOnePerRunDecisionSampledAcrossTheRun) {
   // autoFlip is a PER-RUN decision, which is easy to mistake for a no-op. A
   // run that stays on the bottom flips; one that stays on the top does not;
@@ -302,91 +166,6 @@ TEST(ComposeText, AutoFlipIsOnePerRunDecisionSampledAcrossTheRun) {
   topFlipped.composer.render(ring(0.0f, true));
   topFlipped.frame();
   EXPECT_EQ(differs(snap(topPlain), snap(topFlipped)), 0);
-}
-
-TEST(ComposeBindings, AFillCanBeBoundLive) {
-  // A Fill can be bound, which is easy to miss and expensive to work
-  // around — the alternative is rebuilding the widget on renderSlot().
-  // The Output holds a Fill, and you write it from the
-  // same steppable that computes the number driving everything else.
-  Host host(200, 200);
-  choreograph::Output<Fill> bar{Fill::color({1, 0, 0, 1})};
-  host.composer.render(box().children(
-      {box().absolute().left(20).top(80).width(160).height(40).fill(&bar)}));
-  host.frame();
-  EXPECT_GT(SkColorGetR(host.pixel(100, 100)), 180);
-  EXPECT_LT(SkColorGetG(host.pixel(100, 100)), 80);
-
-  bar = Fill::color({0, 1, 0, 1});  // no re-render, no re-describe
-  host.frame();
-  EXPECT_LT(SkColorGetR(host.pixel(100, 100)), 80);
-  EXPECT_GT(SkColorGetG(host.pixel(100, 100)), 180);
-}
-
-TEST(ComposeContent, SamplingReachesTheImageLeaf) {
-  // Every blessed image path hardcoded kLinear, so pixel art, tilemaps
-  // and simulation buffers drawn through image() were silently blurred.
-  // Material::image() has always taken sampling; the element factory did
-  // not, so the fix was discoverable only by diffing two signatures.
-  auto atlas = twoCellAtlas();  // 32x16: left half red, right half green
-  auto magnified = [&](SkSamplingOptions options) {
-    Host host(200, 200);
-    host.composer.render(box().children({image(atlas)
-                                             .sampling(options)
-                                             .absolute()
-                                             .left(0)
-                                             .top(0)
-                                             .width(200)
-                                             .height(100)}));
-    host.frame();
-    // Count columns straddling the red/green seam that are NEITHER pure
-    // red nor pure green — the blend band linear filtering invents.
-    int blended = 0;
-    for (int x = 80; x < 120; ++x) {
-      const SkColor c = host.pixel(x, 50);
-      const bool pureRed = SkColorGetR(c) > 200 && SkColorGetG(c) < 40;
-      const bool pureGreen = SkColorGetG(c) > 200 && SkColorGetR(c) < 40;
-      blended += !pureRed && !pureGreen;
-    }
-    return blended;
-  };
-
-  EXPECT_GT(magnified(SkSamplingOptions(SkFilterMode::kLinear)), 3);
-  EXPECT_LE(magnified(SkSamplingOptions(SkFilterMode::kNearest)), 1);
-}
-
-TEST(ComposeMaterials, GlowUnitReachesTheInscribedCircleNotTheCorners) {
-  // radialUnit's radius is a fraction of the box's HALF-DIAGONAL, so a soft
-  // round light authored at radius 1 has not finished falling off where the
-  // INSCRIBED circle is — and on a node also carrying
-  // geometry::shapes::circle() the remaining alpha becomes a visible hard rim.
-  // glowUnit is radialUnit scaled to the inscribed circle instead, so radius 1
-  // reaches zero exactly at the edge that gets clipped.
-  const std::vector<material::skia::Stop> ramp = {{0.0f, {1, 1, 1, 1}},
-                                                  {1.0f, {0, 0, 0, 1}}};
-  auto edgeValue = [&](material::skia::Paint m) {
-    Host host(200, 200);
-    host.composer.render(
-        box().children({box().absolute().inset(0).fill(std::move(m))}));
-    host.frame();
-    // Just inside the box edge, on the horizontal centre line — where the
-    // inscribed circle touches.
-    return SkColorGetR(host.pixel(197, 100));
-  };
-
-  // radialUnit(…, 1.0) is still bright at the inscribed circle, because
-  // its ramp does not reach black until the corners.
-  EXPECT_GT(
-      edgeValue(material::skia::Paint::radialUnit({0.5f, 0.5f}, 1.0f, ramp)),
-      40);
-  // glowUnit(…, 1.0) has landed by then. That is the whole difference.
-  EXPECT_LT(
-      edgeValue(material::skia::Paint::glowUnit({0.5f, 0.5f}, 1.0f, ramp)), 8);
-  // And the old spelling of the same thing still works, which is what
-  // makes this a convenience rather than a behaviour change.
-  EXPECT_LT(
-      edgeValue(material::skia::Paint::radialUnit({0.5f, 0.5f}, 0.7071f, ramp)),
-      8);
 }
 
 TEST(ComposeText, OnPathCanOrientGlyphsRadiallyForADial) {
@@ -676,132 +455,6 @@ TEST(ComposeText, AGlyphPaintTheSlotCannotStoreLeavesTheOneItHas) {
   EXPECT_GT(rampedPixels(Fill::var("accent")), 100);
   // …and the glyphs go back to the style's own white when it is cleared.
   EXPECT_EQ(rampedPixels(Fill::none()), 0);
-}
-
-TEST(ComposeDebug, CoverageOverAnArbitraryRegionAndComponentCounting) {
-  // An annulus, a sector, a plate — anything whose outline is not a box
-  // cannot be tested against its bounds without counting the parts
-  // outside it as gaps. A ring of segments compared against a true circle
-  // reports chord error as gaps, dozens of them, none of them real.
-  auto rect = [](float l, float t, float r, float b) {
-    SkPathBuilder p;
-    p.addRect(SkRect::MakeLTRB(l, t, r, b));
-    return p.detach();
-  };
-  // A DISC covered by two half-squares that also spill outside it. The
-  // rect overload would call the spill "doubled" nowhere and the corners
-  // "uncovered"; the region overload only asks about the disc.
-  SkPathBuilder discBuilder;
-  discBuilder.addCircle(50, 50, 40);
-  const SkPath disc = discBuilder.detach();
-  const std::vector<SkPath> halves = {rect(0, 0, 50, 100),
-                                      rect(50, 0, 100, 100)};
-
-  const auto onRect = test::coverage(halves, SkRect::MakeWH(100, 100), 64);
-  EXPECT_TRUE(onRect.exact());  // the square really is covered exactly
-  const auto onDisc = test::coverage(halves, disc, 64);
-  EXPECT_TRUE(onDisc.exact());
-  EXPECT_LT(onDisc.samples, onRect.samples);  // it tested fewer points…
-  EXPECT_GT(onDisc.samples, 1000);            // …but a real number of them
-
-  // components(): "is this one piece of metal?" — the question a rete, a
-  // knot and a decorated tiling all actually ask, which the degree list
-  // alone cannot answer.
-  auto seg = [](float x0, float y0, float x1, float y1) {
-    SkPathBuilder p;
-    p.moveTo(x0, y0).lineTo(x1, y1);
-    return p.detach();
-  };
-  const std::vector<SkPath> chain = {seg(0, 0, 10, 0), seg(10, 0, 20, 0),
-                                     seg(20, 0, 30, 0)};
-  EXPECT_EQ(test::endpointDegrees(chain).components(), 1u);
-
-  const std::vector<SkPath> split = {seg(0, 0, 10, 0), seg(10, 0, 20, 0),
-                                     seg(40, 0, 50, 0)};
-  EXPECT_EQ(test::endpointDegrees(split).components(), 2u);
-}
-
-TEST(ComposeDebug, ClosedContoursHaveNoEndpointsAndSaySo) {
-  // A closed contour has NO endpoints, so reporting one per contour is not
-  // merely wrong, it is meaningless — and silently so, since a plausible
-  // count comes back either way. The endpoint count is reported instead.
-  auto sector = [](float a0, float a1) {
-    SkPathBuilder p;
-    p.moveTo(0, 0)
-        .lineTo(std::cos(a0) * 50, std::sin(a0) * 50)
-        .lineTo(std::cos(a1) * 50, std::sin(a1) * 50)
-        .close();
-    return p.detach();
-  };
-  std::vector<SkPath> ring;
-  ring.reserve(12);
-  for (int i = 0; i < 12; ++i)
-    ring.push_back(sector((float)i * SK_FloatPI / 6.0f,
-                          (float)(i + 1) * SK_FloatPI / 6.0f));
-
-  const auto d = test::endpointDegrees(ring);
-  EXPECT_EQ(d.closedContours, 12u);
-  EXPECT_TRUE(d.points.empty());  // …and no phantom degree-1 vertices
-  EXPECT_TRUE(d.outside(2, 2).empty());
-
-  // Open contours still work exactly as before, and mixing the two keeps
-  // the open ones' endpoints while counting the closed ones.
-  auto seg = [](float x0, float y0, float x1, float y1) {
-    SkPathBuilder p;
-    p.moveTo(x0, y0).lineTo(x1, y1);
-    return p.detach();
-  };
-  std::vector<SkPath> mixed = {seg(0, 0, 10, 0), seg(10, 0, 20, 0),
-                               sector(0.0f, 0.5f)};
-  const auto m = test::endpointDegrees(mixed);
-  EXPECT_EQ(m.closedContours, 1u);
-  EXPECT_EQ(m.points.size(), 3u);         // the chain's three endpoints
-  EXPECT_EQ(m.outside(2, 2).size(), 2u);  // its two loose ends
-}
-
-TEST(ComposeMaterials, UnitRampsTakeAnyNumberOfStops) {
-  // A fixed stop count with the tail clamped runs out from both directions
-  // — a many-run repeating sett, a long chromatic sweep — and the only way
-  // out is a hand-written pattern program. The count is baked into the
-  // shader source instead, with one effect cached per count, which is the
-  // same rule the noise generators follow for octaves.
-  auto sweep = [](int n) {
-    std::vector<material::skia::Stop> stops;
-    for (int i = 0; i < n; ++i) {
-      const float t = (float)i / (float)(n - 1);
-      // A sawtooth the six-stop version could not have represented:
-      // alternating black and white at every step.
-      const float v = (i % 2) ? 1.0f : 0.0f;
-      stops.push_back({t, {v, v, v, 1}});
-    }
-    Host host(256, 32);
-    host.composer.render(box().children({box().absolute().inset(0).fill(
-        material::skia::Paint::linearUnit({0, 0}, {1, 0}, stops))}));
-    host.frame();
-    // Count the light/dark transitions across the middle scanline.
-    int flips = 0;
-    bool light = SkColorGetR(host.pixel(0, 16)) > 128;
-    for (int x = 1; x < 256; ++x) {
-      const bool now = SkColorGetR(host.pixel(x, 16)) > 128;
-      flips += now != light;
-      light = now;
-    }
-    return flips;
-  };
-
-  // Six stops = five alternations. Twenty-four and seventy-two scale with
-  // the count, which is exactly what the fixed version could not do.
-  EXPECT_NEAR(sweep(6), 5, 1);
-  EXPECT_NEAR(sweep(24), 23, 2);
-  EXPECT_NEAR(sweep(72), 71, 4);
-
-  // Degenerate counts still behave.
-  Host one(64, 64);
-  one.composer.render(box().children(
-      {box().absolute().inset(0).fill(material::skia::Paint::linearUnit(
-          {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}}))}));
-  one.frame();
-  EXPECT_GT(SkColorGetR(one.pixel(32, 32)), 200);
 }
 
 TEST(ComposeText, MeasureRunShapesOnceAndMatchesTheLaidOutElement) {

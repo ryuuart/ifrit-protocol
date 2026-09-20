@@ -8,6 +8,10 @@
 // one path. Every shared edge is a line standing INSIDE the ink, so a
 // check that trusts an outline or stops at the first edge it meets is
 // wrong here and only here.
+//
+// Then the shapes a bounding box cannot answer for at all: a
+// subdivision whose overlap and gap cancel, an outline that is not a
+// box, and the arcs a contour leaves dangling.
 
 #include "support/CoreTestSupport.h"
 
@@ -243,4 +247,153 @@ TEST(ComposeChecks, WidthAlongFindsOneNarrowedStepInSevenHundred) {
   EXPECT_NEAR(audit.rmsError, 3.6026628f, 1e-3f);
   EXPECT_NEAR(worst.measured, 12.6382799f, 1e-3f);
   EXPECT_NEAR(worst.along, 418.0f, 1e-3f);
+}
+
+// -------------------------------------------------------------------------
+// The same two checks over what a bounding box cannot answer: a
+// subdivision whose overlap and gap cancel, an outline that is not a
+// box, and the arcs a contour leaves dangling.
+
+TEST(ComposeDebug, CoverageCatchesWhatAreaAndContainmentMiss) {
+  // A subdivision that OVERLAPS in one place and GAPS in another passes
+  // both cheap checks. Area conservation passes because the two errors
+  // cancel exactly; containment passes because every piece really is
+  // inside the parent. Only point sampling sees it.
+  const SkRect region = SkRect::MakeWH(100, 100);
+
+  // An honest split of the square into two halves.
+  auto rect = [](float l, float t, float r, float b) {
+    SkPathBuilder p;
+    p.addRect(SkRect::MakeLTRB(l, t, r, b));
+    return p.detach();
+  };
+  const std::vector<SkPath> exact = {rect(0, 0, 50, 100),
+                                     rect(50, 0, 100, 100)};
+  const auto good = test::coverage(exact, region, 64);
+  EXPECT_TRUE(good.exact());
+  EXPECT_EQ(good.uncovered, 0);
+  EXPECT_EQ(good.doubled, 0);
+
+  // The same two halves, one shifted 10 px right: a 10-wide gap on the
+  // left, a 10-wide overlap in the middle. Equal areas, so the total is
+  // unchanged and both pieces are still inside the square.
+  const std::vector<SkPath> broken = {rect(10, 0, 60, 100),
+                                      rect(50, 0, 100, 100)};
+  float area = 0;
+  for (const SkPath& p : broken)
+    area += p.getBounds().width() * p.getBounds().height();
+  EXPECT_FLOAT_EQ(area, 100 * 100);  // area conservation: PASSES
+  for (const SkPath& p : broken)
+    EXPECT_TRUE(region.contains(p.getBounds()));  // containment: PASSES
+
+  const auto bad = test::coverage(broken, region, 64);
+  EXPECT_FALSE(bad.exact());  // …and coverage does not
+  EXPECT_NEAR(bad.uncoveredFraction(), 0.10f, 0.02f);
+  EXPECT_NEAR(bad.doubledFraction(), 0.10f, 0.02f);
+  ASSERT_FALSE(bad.uncoveredAt.empty());
+  EXPECT_LT(bad.uncoveredAt.front().x(), 10.0f);  // the witness is the gap
+}
+
+TEST(ComposeDebug, EndpointDegreesFindTheDanglingArc) {
+  // The chaining test for a decorated tiling: on the Oxford Penrose
+  // paving every interior arc endpoint must have degree 2, or the
+  // stainless bands do not link up into rings.
+  auto seg = [](float x0, float y0, float x1, float y1) {
+    SkPathBuilder p;
+    p.moveTo(x0, y0).lineTo(x1, y1);
+    return p.detach();
+  };
+  // Three segments chained head-to-tail: two interior joints (degree 2),
+  // two loose ends (degree 1).
+  const std::vector<SkPath> chain = {seg(0, 0, 10, 0), seg(10, 0, 20, 0),
+                                     seg(20, 0, 30, 0)};
+  const auto degrees = test::endpointDegrees(chain);
+  EXPECT_EQ(degrees.points.size(), 4u);
+  EXPECT_EQ(degrees.outside(2, 2).size(), 2u);  // the two loose ends
+
+  // Move one segment off its joint: now four loose ends, not two.
+  const std::vector<SkPath> broken = {seg(0, 0, 10, 0), seg(11, 0, 20, 0),
+                                      seg(20, 0, 30, 0)};
+  EXPECT_EQ(test::endpointDegrees(broken).outside(2, 2).size(), 4u);
+}
+
+TEST(ComposeDebug, CoverageOverAnArbitraryRegionAndComponentCounting) {
+  // An annulus, a sector, a plate — anything whose outline is not a box
+  // cannot be tested against its bounds without counting the parts
+  // outside it as gaps. A ring of segments compared against a true circle
+  // reports chord error as gaps, dozens of them, none of them real.
+  auto rect = [](float l, float t, float r, float b) {
+    SkPathBuilder p;
+    p.addRect(SkRect::MakeLTRB(l, t, r, b));
+    return p.detach();
+  };
+  // A DISC covered by two half-squares that also spill outside it. The
+  // rect overload would call the spill "doubled" nowhere and the corners
+  // "uncovered"; the region overload only asks about the disc.
+  SkPathBuilder discBuilder;
+  discBuilder.addCircle(50, 50, 40);
+  const SkPath disc = discBuilder.detach();
+  const std::vector<SkPath> halves = {rect(0, 0, 50, 100),
+                                      rect(50, 0, 100, 100)};
+
+  const auto onRect = test::coverage(halves, SkRect::MakeWH(100, 100), 64);
+  EXPECT_TRUE(onRect.exact());  // the square really is covered exactly
+  const auto onDisc = test::coverage(halves, disc, 64);
+  EXPECT_TRUE(onDisc.exact());
+  EXPECT_LT(onDisc.samples, onRect.samples);  // it tested fewer points…
+  EXPECT_GT(onDisc.samples, 1000);            // …but a real number of them
+
+  // components(): "is this one piece of metal?" — the question a rete, a
+  // knot and a decorated tiling all actually ask, which the degree list
+  // alone cannot answer.
+  auto seg = [](float x0, float y0, float x1, float y1) {
+    SkPathBuilder p;
+    p.moveTo(x0, y0).lineTo(x1, y1);
+    return p.detach();
+  };
+  const std::vector<SkPath> chain = {seg(0, 0, 10, 0), seg(10, 0, 20, 0),
+                                     seg(20, 0, 30, 0)};
+  EXPECT_EQ(test::endpointDegrees(chain).components(), 1u);
+
+  const std::vector<SkPath> split = {seg(0, 0, 10, 0), seg(10, 0, 20, 0),
+                                     seg(40, 0, 50, 0)};
+  EXPECT_EQ(test::endpointDegrees(split).components(), 2u);
+}
+
+TEST(ComposeDebug, ClosedContoursHaveNoEndpointsAndSaySo) {
+  // A closed contour has NO endpoints, so reporting one per contour is not
+  // merely wrong, it is meaningless — and silently so, since a plausible
+  // count comes back either way. The endpoint count is reported instead.
+  auto sector = [](float a0, float a1) {
+    SkPathBuilder p;
+    p.moveTo(0, 0)
+        .lineTo(std::cos(a0) * 50, std::sin(a0) * 50)
+        .lineTo(std::cos(a1) * 50, std::sin(a1) * 50)
+        .close();
+    return p.detach();
+  };
+  std::vector<SkPath> ring;
+  ring.reserve(12);
+  for (int i = 0; i < 12; ++i)
+    ring.push_back(sector((float)i * SK_FloatPI / 6.0f,
+                          (float)(i + 1) * SK_FloatPI / 6.0f));
+
+  const auto d = test::endpointDegrees(ring);
+  EXPECT_EQ(d.closedContours, 12u);
+  EXPECT_TRUE(d.points.empty());  // …and no phantom degree-1 vertices
+  EXPECT_TRUE(d.outside(2, 2).empty());
+
+  // Open contours still work exactly as before, and mixing the two keeps
+  // the open ones' endpoints while counting the closed ones.
+  auto seg = [](float x0, float y0, float x1, float y1) {
+    SkPathBuilder p;
+    p.moveTo(x0, y0).lineTo(x1, y1);
+    return p.detach();
+  };
+  std::vector<SkPath> mixed = {seg(0, 0, 10, 0), seg(10, 0, 20, 0),
+                               sector(0.0f, 0.5f)};
+  const auto m = test::endpointDegrees(mixed);
+  EXPECT_EQ(m.closedContours, 1u);
+  EXPECT_EQ(m.points.size(), 3u);         // the chain's three endpoints
+  EXPECT_EQ(m.outside(2, 2).size(), 2u);  // its two loose ends
 }

@@ -1,7 +1,8 @@
 // What a leaf carries and what a composer is handed: a slot swapped under
 // undisturbed siblings, the declared input colour space, and the content
 // kinds a leaf draws from — a held path, a keyed shape, a replayed picture,
-// a figure with its own box, and a keyed custom whose key must stay honest.
+// a figure with its own box, a keyed custom whose key must stay honest,
+// and the sampling an image leaf is magnified with.
 
 #include <cstring>  // memcmp — for the no-conversion control
 #include <utility>
@@ -329,4 +330,39 @@ TEST(ComposeContent, AKeyedCustomPrunesAndTheKeyIsHonest) {
   raw.frame();
   raw.composer.render(tree(nullptr, 1.0f));
   EXPECT_GE(raw.composer.stats().patchedNodes, 1u);
+}
+
+// -------------------------------------------------------------------------
+// How an image leaf is sampled when it is magnified.
+
+TEST(ComposeContent, SamplingReachesTheImageLeaf) {
+  // Every blessed image path hardcoded kLinear, so pixel art, tilemaps
+  // and simulation buffers drawn through image() were silently blurred.
+  // Material::image() has always taken sampling; the element factory did
+  // not, so the fix was discoverable only by diffing two signatures.
+  auto atlas = twoCellAtlas();  // 32x16: left half red, right half green
+  auto magnified = [&](SkSamplingOptions options) {
+    Host host(200, 200);
+    host.composer.render(box().children({image(atlas)
+                                             .sampling(options)
+                                             .absolute()
+                                             .left(0)
+                                             .top(0)
+                                             .width(200)
+                                             .height(100)}));
+    host.frame();
+    // Count columns straddling the red/green seam that are NEITHER pure
+    // red nor pure green — the blend band linear filtering invents.
+    int blended = 0;
+    for (int x = 80; x < 120; ++x) {
+      const SkColor c = host.pixel(x, 50);
+      const bool pureRed = SkColorGetR(c) > 200 && SkColorGetG(c) < 40;
+      const bool pureGreen = SkColorGetG(c) > 200 && SkColorGetR(c) < 40;
+      blended += !pureRed && !pureGreen;
+    }
+    return blended;
+  };
+
+  EXPECT_GT(magnified(SkSamplingOptions(SkFilterMode::kLinear)), 3);
+  EXPECT_LE(magnified(SkSamplingOptions(SkFilterMode::kNearest)), 1);
 }
