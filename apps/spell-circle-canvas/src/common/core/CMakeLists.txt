@@ -65,8 +65,9 @@ add_subdirectory(cache)
 add_subdirectory(hardware)
 
 # Every API name the prose spells, compiled against the headers that own
-# it — README.md and all six chapters, because a chapter is the same canon
-# as the page that links it.
+# it — README.md, all seven chapters and every entity page under
+# reference/pages/, because a chapter is the same canon as the page that
+# links it, and a page carries the prose a brief in the header cannot.
 #
 # Two include roots outside this library are scanned rather than linked:
 # SigilMeasure, for the counters the reconcile stats publish into, and the
@@ -85,9 +86,17 @@ sigil_doc_probes(core
           ${CMAKE_CURRENT_SOURCE_DIR}/HARDWARE.md
           ${CMAKE_CURRENT_SOURCE_DIR}/RECONCILE.md
           ${CMAKE_CURRENT_SOURCE_DIR}/SCHEDULE.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Curve.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Field.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Provide.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/ReconcileHost.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/concurrentIo.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/mix64.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/orderByReads.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/parallelFor.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../measure/include
            ${SIGIL_TEST_SUPPORT_DIR}
-  FLOORS 50,3,3,0,0
+  FLOORS 72,8,3,20,0
   LIBRARIES SigilCoreCache SigilCoreCallable SigilCoreComparable
             SigilCoreCompute SigilCoreHardware SigilCoreReconcile
             SigilCoreSchedule)

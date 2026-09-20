@@ -7,47 +7,13 @@
  *
  * A map is two decisions and nothing else: WHERE the sphere is looked at
  * from, and WHAT LAW carries an angle out from there into a distance on
- * the paper. Written as free functions, those decisions turn into a
- * scatter of `tan(half the co-latitude)` and `log tan(45 + lat/2)`
- * expressions with the centre, the scale and the handedness spelled again
- * at every call site — and two spellings of one map disagree about where
- * a star lands. Written as a `Projection`, they are five fields set once,
- * and every reading below respects them.
+ * the paper. As a `Projection` they are five fields set once, and every
+ * reading respects them.
  *
- *     Projection plate{.scheme = Scheme::Stereographic,
- *                      .centre = {.latDeg = 90}, .scale = 235};
- *     const glm::vec2 star = plate.at({.lonDeg = 63.4f, .latDeg = 31.8f});
- *     const Spherical back = plate.from(star);   // and the way home
- *
- * **The plane is y UP**: `+y` is the direction of increasing latitude at
- * the map's centre, which is what "north is up" means, and the unit is the
- * caller's own — pixels, millimetres of paper, radii of a tropic.
- * `Grid{.yScale = -1}` is how the answer reaches a y-down canvas, and
- * `Grid` is also where an ANISOTROPIC map belongs: a projection here is
- * isotropic, because a per-axis scale would turn a stereographic's circles
- * into ellipses and none of the laws below would hold. A chart measured at
- * one number of degrees per centimetre across and another down is an
- * isotropic projection under an anisotropic unit map.
- *
- * ## Why one value and not one function per map
- *
- * The five schemes differ in one line of arithmetic each and agree about
- * everything else — the centring, the handedness, the turn, the way back.
- * A caller comparing two projections of the same sky (which is what asking
- * "was this chart drawn on a cylinder or from a pole?" IS) needs them to
- * be the same kind of thing, held in a variable and swapped. `scheme` is
- * therefore a field, not a name.
- *
- * ## What the projection does not know
- *
- * A projection is a coordinate map, and the astronomy, cartography or
- * cartouche that stands on it is the caller's. `Rotation` covers the part
- * that IS geometry — an epoch's worth of precession, a globe turned to
- * bring a place to the middle, a chart re-poled onto the ecliptic — as a
- * rotation of the sphere; which angles to turn by is what the caller
- * knows. A measured artefact's own departures from its law (a centre that
- * is not quite the pole, an azimuth that runs a few per cent fast) belong
- * beside the artefact for the same reason.
+ * The plane is y UP — `+y` is the direction of increasing latitude at
+ * the map's centre — and the unit is the caller's own. The map is
+ * isotropic: a per-axis scale belongs to a `Grid` over it, since it
+ * would turn a stereographic's circles into ellipses.
  */
 
 #include <glm/mat3x3.hpp>
@@ -81,14 +47,11 @@ struct Spherical {
  *  would lose it. */
 float angleBetween(Spherical a, Spherical b);
 
-/** The direction @p arcDeg of great circle away from @p from, setting out
- *  along @p bearingDeg measured from NORTH toward EAST.
- *
- *  The step a spherical construction is made of: the horizon point at an
- *  azimuth, the pole of the great circle a chart's own line is, a star
- *  offset from the one beside it. At a pole north is not a direction, and
- *  the bearing is then measured from `from`'s own meridian — which is what
- *  the arithmetic does anyway, continuously with everywhere else. */
+/** The direction @p arcDeg of great circle away from @p from, setting
+ *  out along @p bearingDeg measured from NORTH toward EAST — the step a
+ *  spherical construction is made of.
+ *  @trap At a pole north is not a direction, and the bearing is then
+ *  measured from @p from's own meridian. */
 Spherical offsetFrom(Spherical from, float bearingDeg, float arcDeg);
 
 // ---------------------------------------------------------------------------
@@ -212,12 +175,10 @@ struct Projection {
    *  meridian crosses its standard parallel. */
   Spherical centre{};
 
-  /** PLANE UNITS PER RADIAN OF ARC AT THE CENTRE — the one derivative all
-   *  five schemes share there, so changing the scheme leaves the middle of
-   *  the map the size it was and moves only what is far from it.
-   *
-   *  Further out each law has its own say, and the two worth knowing by
-   *  heart are: an orthographic's limb stands at `scale`, and a polar
+  /** PLANE UNITS PER RADIAN OF ARC AT THE CENTRE — the one derivative
+   *  all five schemes share there, so changing the scheme leaves the
+   *  middle of the map the size it was and moves only what is far from
+   *  it. An orthographic's limb stands at `scale`, and a polar
    *  stereographic's equator at twice it. */
   float scale = 1;
 
@@ -262,19 +223,13 @@ struct Projection {
    *  distance up the map. */
   float arcAtRadius(float radius) const;
 
-  /** The image of the circle standing @p arcDeg of arc away from @p pole —
-   *  an almucantar about a zenith, a parallel about a pole, a great circle
-   *  (at 90) about the pole that defines it.
-   *
-   *  Only a conformal azimuthal map answers: under a stereographic every
-   *  circle on the sphere is a circle on the plane, which is what lets a
-   *  whole family of them be struck with a compass instead of plotted. Two
-   *  cases have no circle and come back absent — a scheme that does not
-   *  map circles to circles, and a circle passing through the very point
-   *  the projection is taken FROM, whose image is a straight line. The
-   *  second is not a degeneracy to guard against but a feature of the
-   *  drawing: the meridian through the centre of an astrolabe's plate IS
-   *  straight. */
+  /** The image of the circle standing @p arcDeg of arc away from
+   *  @p pole — an almucantar about a zenith, a parallel about a pole, a
+   *  great circle (at 90) about the pole that defines it. Only a
+   *  conformal azimuthal map answers, which is what lets a whole family
+   *  of them be struck with a compass instead of plotted.
+   *  @trap Absent for a scheme that does not map circles to circles, and
+   *  for a circle whose image is a straight line. */
   std::optional<PlaneCircle> circleOf(Spherical pole, float arcDeg) const;
 
   /** The same map about another centre — the sibling strip, the next

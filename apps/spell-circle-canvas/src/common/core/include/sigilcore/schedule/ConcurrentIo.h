@@ -5,28 +5,17 @@
  *
  * WORK THAT BLOCKS, OFF THE COMPUTE THREADS.
  *
- * A read from a disk, a fetch from a server, a wait on a device: each
- * spends nearly all of its time waiting for something that is not a core.
- * Run on the task runtime that <sigilcore/schedule/Parallel.h> divides
- * ranges over, one such call holds a worker of that one shared pool for
- * the whole of its wait — and a handful of them stall every parallel
- * range in the process, however far from the fetch that range was
- * written. So blocking calls get their own threads here, and the two
- * kinds of concurrency never contend for one pool.
+ * A read from a disk, a fetch from a server, a wait on a device spends
+ * nearly all of its time waiting for something that is not a core, and
+ * on the task runtime <sigilcore/schedule/Parallel.h> divides ranges
+ * over it would hold a worker of that one shared pool for the whole of
+ * its wait. So blocking calls get their own threads here.
  *
- * THE THREADS LAST EXACTLY AS LONG AS THE CALL. A fan-out starts its
- * helpers when it is asked and joins every one of them before it returns:
- * nothing is parked between calls, nothing has to be shut down at exit,
- * and a process that never fetches anything never has a thread for it.
- * What that costs is starting a thread per helper per call, which is the
- * bargain worth making for work whose whole point is that it waits — and
- * the reason this is not the seam for short compute chunks.
- *
- * THE WIDTH IS NOT THE CORE COUNT. These threads wait rather than
- * compute, so having more of them than there are cores is the point: what
- * a fetch is waiting for makes progress while the thread is off the
- * processor. `concurrentIoWidth()` is that number, derived from the
- * hardware concurrency the machine reports.
+ * THE THREADS LAST EXACTLY AS LONG AS THE CALL: a fan-out starts its
+ * helpers when it is asked and joins every one before it returns, so
+ * nothing is parked between calls and nothing is shut down at exit.
+ * `concurrentIoWidth()` is how many run at once, and it is NOT the core
+ * count — these threads wait rather than compute.
  */
 
 #include <concepts>
@@ -51,19 +40,14 @@ void overIoItems(size_t count, void* body, ItemBody run);
 
 }  // namespace detail
 
-/** Run @p body once per index of [0, @p count), at most
- *  `concurrentIoWidth()` of them at a time, and return when every one has
- *  finished.
- *
- *  `body(index)` is called on a thread that is not the task runtime's,
- *  which is what makes it the right home for a call that blocks. Indices
- *  are handed out in no particular order and each is passed exactly once;
- *  the calling thread takes a share of them rather than only waiting. A
- *  body writes only what its own index names.
- *
- *  A body that throws does not abandon the rest of the batch: every index
- *  is still handed out, every thread is still joined, and the first
- *  exception raised is rethrown to this caller once they are. */
+/** RUNS @p body ONCE PER INDEX of [0, @p count), at most
+ *  `concurrentIoWidth()` of them at a time, and returns when every one
+ *  has finished. `body(index)` is called on a thread that is NOT the
+ *  task runtime's, which is what makes it the right home for a call
+ *  that blocks; indices are handed out in no particular order, each
+ *  exactly once, and the calling thread takes a share of them.
+ *  @trap A body that throws does not abandon the batch: every index is
+ *  still handed out and the first exception is rethrown here. */
 template <class Body>
   requires std::invocable<Body&, size_t>
 void concurrentIo(size_t count, Body&& body) {

@@ -6,16 +6,9 @@
  * DOES NOT IMPLEMENT. In this Skia, `graphite::Device` overrides
  * `drawImageLattice` and `drawAtlas` with empty bodies, so every such
  * draw on a Graphite canvas silently vanishes — as invisible nine-slice
- * frames and instance stamps.
- *
- * These decompose on EVERY backend, and never call the native ops — a
- * picture recorded on a raster canvas must be able to replay on Graphite,
- * where a recorded native lattice/atlas op silently vanishes:
- *  - lattice → per-cell drawImageRect (NinePatch alternating bands),
- *  - atlas   → one drawVertices quad list sampling the promoted sheet.
- * `canvas.recorder()` gates only TEXTURE PROMOTION: raster source images
- * promote through the recorder's image provider, which owns their reuse.
- * A provider miss falls back to an uncached upload.
+ * frames and instance stamps. The forms here decompose on EVERY backend
+ * and never call the native op, because a picture recorded on a raster
+ * canvas must be able to replay on Graphite.
  */
 
 #include <include/core/SkBlendMode.h>
@@ -46,21 +39,13 @@
  *  anywhere a picture may be replayed on a device canvas. */
 namespace sigil::skia::draw {
 
-/** @p img ready for Graphite: the cached or freshly promoted texture
- *  (unchanged on raster canvases / already-texture images). The recorder's
- *  image provider owns reuse. When it cannot supply a texture, an uncached
- *  upload is attempted; a failed upload returns @p img.
- *
- *  @p required is what the draw needs of the texture — a mip chain, above
- *  all. A promotion that dropped the request would sample a minified sheet
- *  from its top level alone, which is where a raster canvas and a Graphite
- *  one stop agreeing.
- *
- *  A REQUIREMENT IS NEVER WORTH THE DRAW. A format that cannot carry a
- *  generated chain promotes without one rather than not at all: a draw
- *  left holding a raster image on a Graphite canvas is dropped for want
- *  of a texture, so insisting would trade a sheet filtered from its top
- *  level for no sheet at all. */
+/** @p img ready for Graphite: the cached or freshly promoted texture,
+ *  unchanged on a raster canvas and on an image already on a texture,
+ *  with the recorder's image provider owning reuse. @p required is what
+ *  the draw needs of the texture — a mip chain, above all.
+ *  @trap A REQUIREMENT IS NEVER WORTH THE DRAW: a format that cannot
+ *  carry a generated chain promotes without one, and a failed upload
+ *  answers @p img rather than nothing. */
 inline sk_sp<SkImage> ready(SkCanvas& canvas, sk_sp<SkImage> img,
                             SkImage::RequiredProperties required = {}) {
   skgpu::graphite::Recorder* recorder = canvas.recorder();
@@ -79,22 +64,12 @@ inline sk_sp<SkImage> ready(SkCanvas& canvas, sk_sp<SkImage> img,
 
 namespace detail {
 
-/** NinePatch band edges: divisions split [0, sourceLength) into alternating
- *  fixed/stretchable intervals starting FIXED. Stretch bands share the
- *  leftover destination space; when the destination is smaller than the
- *  fixed sum, fixed bands scale down proportionally (Skia's rule).
- *
- *  AN AXIS WITH NO DIVS IS ONE STRETCHABLE BAND, so it fills the
- *  destination the way an image drawn to a rect does. The alternative
- *  reading — one fixed band — would make the same lattice stretch or not
- *  stretch depending on what the OTHER axis carries, since a lattice with
- *  neither axis divided is a plain image draw.
- *
- *  @p density is SOURCE PIXELS PER DESTINATION UNIT for the fixed bands: a
- *  frame drawn at twice the size it is used at declares 2 and its corners
- *  land at half their pixel count, sharp on a 2x device instead of twice
- *  the intended width. It scales the fixed bands only — the stretchable
- *  ones absorb whatever is left either way. */
+/** NinePatch band edges: @p divisions split [0, @p sourceLength) into
+ *  alternating fixed and stretchable intervals starting FIXED, the
+ *  stretchable ones sharing what is left of @p destinationLength. An
+ *  axis with no divisions is ONE STRETCHABLE BAND. @p density is source
+ *  pixels per destination unit for the FIXED bands alone, so a frame
+ *  drawn at twice the size it is used at declares 2 and stays sharp. */
 inline void latticeEdges(const std::vector<int>& divisions, float sourceLength,
                          float destinationLength,
                          std::vector<float>& sourceEdges,
@@ -137,9 +112,10 @@ inline void latticeEdges(const std::vector<int>& divisions, float sourceLength,
 
 }  // namespace detail
 
-/** drawImageLattice on every backend (see the file comment). Empty divisions
- *  stretch the whole image (plain drawImageRect). @p density is the source's
- *  pixels per destination unit — see latticeEdges. */
+/** drawImageLattice on every backend, as per-cell drawImageRect over the
+ *  alternating bands. Empty divisions stretch the whole image, which is
+ *  a plain drawImageRect. @p density is the source's pixels per
+ *  destination unit, and scales the fixed bands alone. */
 inline void drawLattice(SkCanvas& canvas, sk_sp<SkImage> img,
                         const std::vector<int>& xDivs,
                         const std::vector<int>& yDivs, const SkRect& dst,
@@ -175,23 +151,12 @@ inline void drawLattice(SkCanvas& canvas, sk_sp<SkImage> img,
     }
 }
 
-/** THE SPRITES ONE ATLAS DRAW LAYS DOWN, as one value.
- *
- *  Four lanes that must agree on their length, held together so the
- *  agreement is the value's own business rather than four arguments and a
- *  count the caller has to keep in step. `transforms` and `sourceRectangles`
- * are the draw — where each sprite lands and which cell of the sheet it takes;
- * the other two are optional lanes, and an EMPTY one means the whole batch is
- *  untinted or uniformly scaled, which is the common case and costs
- *  nothing to say.
- *
- *  `sizes` is a per-sprite (x, y) scale MULTIPLIER on top of the transform's
- *  uniform scale — the lane SkRSXform cannot carry, because it holds
- *  (scos, ssin) and one scale by construction. A streaked particle is a
- *  quad half its velocity long by `size` wide, and its aspect swings
- *  across its life, which is what the lane is for: without it every such
- *  study hand-builds the vertex buffer the atlas draw already builds
- *  internally. */
+/** THE SPRITES ONE ATLAS DRAW LAYS DOWN, as one value: four lanes held
+ *  to one length rather than four arguments and a count the caller keeps
+ *  in step. `transforms` and `sourceRectangles` are the draw; `colors`
+ *  and `sizes` are optional, and an EMPTY one is untinted or uniformly
+ *  scaled. `sizes` is the per-sprite (x, y) MULTIPLIER on the transform's
+ *  uniform scale, the lane SkRSXform cannot carry. */
 struct SpriteBatch {
   /** Where each sprite lands: rotation, uniform scale and translation. */
   std::span<const SkRSXform> transforms;
@@ -229,15 +194,12 @@ struct SpriteBatch {
   }
 };
 
-/** drawAtlas on every backend (see the file comment). @p blend is how each
- *  sprite hits the DESTINATION — kPlus is the whole colour model of an
- *  additive particle system, and routing it through the element's
- *  saveLayer instead would composite the flattened field once rather than
- *  accumulating overlaps.
- *
- *  A batch whose lanes disagree draws NOTHING: a short lane is a caller
- *  bug, and reading past it is the failure the batch exists to make
- *  impossible. */
+/** drawAtlas on every backend, as one drawVertices quad list sampling
+ *  the promoted sheet. @p blend is how each sprite hits the DESTINATION
+ *  — kPlus is the whole colour model of an additive particle system,
+ *  which the element's saveLayer would flatten instead.
+ *  @silent @p batch's lanes disagree: a short lane is a caller bug, and
+ *  the whole batch is refused rather than read past. */
 inline void drawSpriteAtlas(SkCanvas& canvas, sk_sp<SkImage> sheet,
                             const SpriteBatch& batch,
                             const SkSamplingOptions& sampling,

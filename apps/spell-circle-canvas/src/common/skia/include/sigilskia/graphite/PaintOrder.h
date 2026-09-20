@@ -5,27 +5,10 @@
  * A canvas that keeps a scene's painting order on a device whose
  * destination reads cost the depth attachment.
  *
- * Graphite paints out of order on purpose: a draw that does not read the
- * destination carries a depth value, the backend may execute it whenever
- * it likes, and the depth test rejects whatever the original order put
- * beneath it. A draw that DOES read the destination — any blend mode past
- * Skia's coefficient modes, or a blender of its own — cannot be reordered
- * that freely, so Graphite makes it depend on the draws it overlaps and
- * relies on the depth test to reject it where a later draw has already
- * landed.
- *
- * workaround: on the Vulkan backend such a read is an input attachment and
- * Graphite guards it with a barrier inside the render pass; MoltenVK
- * serves that barrier by restarting the pass, and the depth attachment
- * does not survive the restart. Every draw the pass had already executed
- * then loses its depth, and the reading draw paints over content that was
- * described after it — a solid box over a dense window comes back with
- * holes in it, each hole exactly the shape of something drawn earlier.
- *
- * The fence is to close the recording after a reading draw, so that draw
- * is the last of its render pass and the ones described after it begin a
- * pass of their own. Draw a scene through this canvas and the picture is
- * the CPU's; the cost is one render pass per reading draw.
+ * workaround: MoltenVK serves the barrier Graphite guards a destination
+ * read with by restarting the render pass, and the depth attachment does
+ * not survive the restart, so every draw the pass had already executed
+ * loses its depth and the reading draw paints over what came after it.
  */
 
 #include <include/utils/SkPaintFilterCanvas.h>
@@ -45,14 +28,13 @@ namespace sigil::skia {
 
 class GraphiteContext;
 
-/**
- * Forwards every draw to the canvas it wraps, and closes @p context's
- * recording after any draw that makes the backend read the destination.
- * Cheap where nothing reads: a scene without an advanced blend mode
- * closes nothing and costs one virtual call a draw.
- *
- * The canvas it wraps must be @p context's own, and both must outlive it.
- */
+/** FORWARDS EVERY DRAW TO THE CANVAS IT WRAPS, and closes the context's
+ *  recording after any draw that makes the backend read the destination,
+ *  so that draw is the last of its render pass. Cheap where nothing
+ *  reads: a scene without an advanced blend mode closes nothing and
+ *  costs one virtual call a draw.
+ *  @trap The canvas it wraps must be the context's own, and both must
+ *  outlive it. */
 class PaintOrderCanvas : public SkPaintFilterCanvas {
  public:
   /** Wraps @p target, which must be @p context's own canvas; both must

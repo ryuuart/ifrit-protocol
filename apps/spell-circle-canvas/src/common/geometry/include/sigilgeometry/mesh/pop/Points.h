@@ -5,25 +5,15 @@
  *
  * SigilGeometry points — a Houdini-flavored miniature: a Cloud is
  * positions plus NAMED ATTRIBUTE LANES (scalars, vectors, colors),
- * generators put points places (a spline, a ring, a grid, a mesh
- * surface, a box), modifiers perturb them, and two consumers turn them
- * into pictures:
- *
- *  - instance()/quads(): stamp a Mesh (or a quad) onto every point —
- *    scale/tint/orientation read from lanes — producing ONE merged
- *    Mesh for render::drawMesh or for a 3D set. "Instance planes
- *    across points" is quads() + a normal lane (or leave normals off
- *    and let billboarding face the camera at draw time).
- *  - drawBillboards(): the UI-particle path — camera-facing sprites
- *    (an SkImage, or a soft procedural dot) with perspective size,
- *    depth sort, per-point size/tint lanes, additive or normal blend.
+ * generators put points places, modifiers perturb them, and two
+ * consumers turn them into pictures — instance()/quads(), which stamp a
+ * Mesh onto every point and merge the result, and drawBillboards(), the
+ * UI-particle path of camera-facing sprites.
  *
  * Everything is a value: clouds copy, lanes are plain vectors, and a
- * generator + modifier stack re-runs whenever a parameter moves — the
- * non-destructive posture of the rest of the library.
- *
- * Conventional lane names (nothing enforces them): "t" (0..1 along a
- * generator), "normal" (orientation), "size", "tint".
+ * generator + modifier stack re-runs whenever a parameter moves.
+ * Conventional lane names, with nothing enforcing them: "t", "normal",
+ * "size", "tint".
  */
 
 #include <include/core/SkCanvas.h>
@@ -159,18 +149,13 @@ struct InstanceOptions {
   bool operator==(const InstanceOptions&) const = default;
 };
 
-/** HOW A STAMP RIDES A CLOUD'S CONVENTIONAL LANES, as one table.
- *
- *  The orient lane is "dir" where a chain produced one and "normal"
- *  where a generator or an importer did, so a cloud from either source
- *  stands its stamps up without the author naming a lane; "size" scales
- *  and "tint" colours. A lane the cloud does not carry is left empty
- *  rather than named, so nothing is looked for that is not there.
- *
- *  Every stamping path takes its options from here. Two tables would
- *  mean one cloud standing its stamps up through one caller and lying
- *  them flat through another, which is what a single convention is for.
- */
+/** HOW A STAMP RIDES A CLOUD'S CONVENTIONAL LANES, as one table: the
+ *  orient lane is "dir" where a chain produced one and "normal" where a
+ *  generator or an importer did, "size" scales and "tint" colours. A
+ *  lane @p cloud does not carry is left EMPTY rather than named, so
+ *  nothing is looked for that is not there. Every stamping path takes
+ *  its options from here, so one cloud stamps the same way whichever
+ *  caller stamps it. */
 InstanceOptions stampOptions(const Cloud& cloud);
 
 /** @p cloud stamped with @p stamp under @p options, as a dispatch.
@@ -194,17 +179,14 @@ Mesh instance(const Cloud& cloud, const Mesh& stamp,
 Mesh quads(const Cloud& cloud, float width, float height,
            const InstanceOptions& options = {});
 
-/** The point class -> PRIMITIVE class bridge (Houdini's Attribute
- *  Promote), the instancing companion: an instanced @p mesh lays each
- *  point's stamp down as a consecutive run of triangles, so triangle
- *  index / (triangles per stamp) IS the owning point. Fills
- *  Mesh::primitives[@p primitiveLane] from the cloud lane @p cloudLane —
- *  scalars broadcast to all four components, vectors take w = 0,
- *  colors copy — and the RESERVED source name "Id" writes the owning
- *  point's index in .x instead of reading a lane.
- *
- *  No-operation unless the mesh's triangle count divides evenly by the
- *  cloud's point count (i.e. it really is @p cloud instanced). */
+/** THE POINT CLASS TO PRIMITIVE CLASS BRIDGE, the instancing companion:
+ *  an instanced @p mesh lays each point's stamp down as a consecutive
+ *  run of triangles, so triangle index / (triangles per stamp) IS the
+ *  owning point. Scalars broadcast to all four components, vectors take
+ *  w = 0, colors copy, and the RESERVED @p cloudLane "Id" writes the
+ *  owning point's index in .x instead of reading a lane.
+ *  @silent the mesh's triangle count does not divide evenly by the
+ *  cloud's point count, so it is not @p cloud instanced. */
 void promoteToPrimitives(Mesh& mesh, const Cloud& cloud,
                          std::string_view cloudLane,
                          const std::string& primitiveLane);
@@ -220,28 +202,15 @@ struct BillboardStyle {
   std::string sizeLane;  ///< scalar multiplier per point
   std::string tintLane;  ///< color per point
   /** THE ATLAS WINDOW LANE: a colour lane holding {uOffset, vOffset,
-   *  uScale, vScale} per point, in the unit square — which is exactly
-   *  what a `pop::AtlasCell` operation writes into "Tex". Each splat then draws
-   *  THAT CELL of the sprite instead of the whole image, so one sheet of
-   *  sprites splats as a field of different ones and a cloud carries
-   *  which is which.
-   *
-   *  Named rather than assumed, because a cloud may carry "Tex" for the
-   *  stamping path while these splats are meant to be one sprite; say
-   *  `"Tex"` to read what the atlas operation wrote. A point whose window is
-   *  degenerate, or which the lane does not reach, takes the whole
-   *  image.
-   *
-   *  THE SHEET WANTS A GUTTER. One batch samples the whole sheet through
-   *  one shader, so a cell is taken half a texel inside its window,
-   *  which keeps the linear filter off the cell next door at the size
-   *  the sheet is authored for: a sheet whose sprites run to their cell
-   *  edges loses that half texel. Splats minified far below their cell
-   *  read from a mip level of the WHOLE sheet, whose texels already
-   *  average over the cell boundaries, so no gutter holds the
-   *  neighbours out down there; a sheet meant to be seen that small
-   *  wants cells that stay legible when they blur together. A cell
-   *  narrower than the inset is not drawn at all. */
+   *  uScale, vScale} per point, in the unit square, which is what a
+   *  `pop::AtlasCell` operation writes into "Tex" — so one sheet splats
+   *  as a field of different sprites. Named rather than assumed, since
+   *  a cloud may carry "Tex" for the stamping path. A point whose
+   *  window is degenerate, or which the lane does not reach, takes the
+   *  whole image.
+   *  @trap THE SHEET WANTS A GUTTER: a cell is taken half a texel
+   *  inside its window, and a cell narrower than that inset is not
+   *  drawn at all. */
   std::string textureLane;
   glm::vec4 tint = {1, 1, 1, 1};
   bool additive = true;  ///< kPlus glow vs kSrcOver

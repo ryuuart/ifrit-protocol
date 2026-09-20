@@ -25,15 +25,13 @@ namespace sigil::skia {
 class GraphiteContext;
 class PaintOrderCanvas;
 
-/**
- * A Vulkan image to draw into, as opaque values so this header pulls in
- * no Vulkan header: `image` is the VkImage (a 64-bit non-dispatchable
- * handle), `layout` and `format` are the VkImageLayout and VkFormat
- * enumerators the image currently has, and the size is in pixels. The
- * image must have been created for colour attachment, input attachment,
- * sampling and transfer in both directions — the set a GpuDevice
- * creates with — and its memory stays the caller's.
- */
+/** A VULKAN IMAGE TO DRAW INTO, as opaque values so this header pulls in
+ *  no Vulkan header: `image` is the VkImage, a 64-bit non-dispatchable
+ *  handle, `layout` and `format` are the VkImageLayout and VkFormat
+ *  enumerators it currently has, and the size is in pixels. Its memory
+ *  stays the caller's.
+ *  @trap It must have been created for colour attachment, input
+ *  attachment, sampling and transfer both ways. */
 struct VulkanImage {
   uint64_t image = 0;
   uint32_t layout = 0;
@@ -42,19 +40,12 @@ struct VulkanImage {
   int height = 0;
 };
 
-/**
- * Wraps an existing native texture (an offscreen canvas texture, a
- * CAMetalLayer drawable, a swapchain image) in an SkSurface without
- * copying it, so SkCanvas draw calls land directly in that texture.
- * Construct fresh per use — it is a thin, cheap wrapper around a texture
- * someone else owns — and drive it with the context it was made on.
- *
- * The wrap is per graphics API, one constructor each, both Qt-free —
- * those are the escape hatch for a host that holds the API's own object.
- * A host whose textures are named by a GpuDevice hands the handle
- * instead and never spells an API. A QRhiTexture is wrapped through
- * <sigilskia/qt/QtInterop.h>.
- */
+/** AN EXISTING NATIVE TEXTURE AS AN SkSurface, with no copy, so SkCanvas
+ *  draws land directly in it: an offscreen canvas texture, a CAMetalLayer
+ *  drawable, a swapchain image. Thin and cheap — construct one fresh per
+ *  use, and drive it with the context it was made on. One wrapping
+ *  constructor per graphics API, both Qt-free; a host whose textures a
+ *  GpuDevice names hands the handle instead and never spells an API. */
 class OffscreenSurface {
  public:
 #ifdef __APPLE__
@@ -72,11 +63,11 @@ class OffscreenSurface {
   /** The texture @p texture names on @p device, whichever API that
    *  device is: the wrap a host holding a GpuDevice reaches for, in
    *  place of the native handle its API spells. `canvas()` is null when
-   *  the handle is stale or the wrap failed. A Vulkan image is wrapped
-   *  in the layout the device last knew it to be in — undefined for one
-   *  the device made and nothing has drawn into, which is to say its
-   *  contents before the first draw are not preserved. Defined by the
-   *  hardware feature's device value. */
+   *  the handle is stale or the wrap failed. Defined by the hardware
+   *  feature's device value.
+   *  @trap A Vulkan image is wrapped in the layout the device last knew,
+   *  undefined for one nothing has drawn into, so its contents before
+   *  the first draw are not preserved. */
   OffscreenSurface(GraphiteContext& context, core::hardware::GpuDevice& device,
                    core::hardware::TextureHandle texture);
 
@@ -105,13 +96,11 @@ class OffscreenSurface {
   void submit();
 
   /** Submits as `submit()` does, then queues a signal of @p fence on
-   *  @p device behind it and returns the value the fence will reach
-   *  (kFenceInitialValue for a stale handle, and for a surface that has
-   *  been moved from, which submits nothing to signal). Graphite shares the
-   *  device's one queue, so the value is reached only once this frame's
-   *  drawing has landed. The wait for it belongs on another queue or on
-   *  the CPU: a wait queued on this same queue ahead of the signal sits
-   *  behind it and never passes. Defined by the device feature. */
+   *  @p device behind it and returns the value the fence will reach —
+   *  kFenceInitialValue for a stale handle, and for a moved-from surface,
+   *  which submits nothing to signal. Defined by the device feature.
+   *  @trap The wait belongs on another queue or on the CPU: Graphite
+   *  shares this one, so a wait queued ahead of the signal never passes. */
   core::hardware::FenceValue submit(core::hardware::GpuDevice& device,
                                     core::hardware::FenceHandle fence);
 

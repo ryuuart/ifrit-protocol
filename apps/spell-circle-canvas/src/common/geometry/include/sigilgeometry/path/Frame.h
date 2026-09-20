@@ -6,36 +6,10 @@
  * A figure's own coordinate system, as a value: the polar `PolarFrame`,
  * the unit-map `Grid`, and the centred rect both are read through.
  *
- * ## PolarFrame
- *
  * A `PolarFrame` converts `(angle, radius)` — numbers measured off a
- * reference drawing — into a point, an SkRect, or an arc-length
- * fraction, in the angle convention that drawing uses.
- *
- * **The convention is the reason this is a value and not a function.**
- * Engraved and statistical plates commonly measure clockwise from twelve
- * o'clock; Skia measures from due east. Written as a bare `polar()`
- * helper, that difference is a sign flip and a -90 that every call site
- * repeats and every reader has to reverse-engineer. Written as a `PolarFrame`,
- * it is one field set once, and every conversion below respects it.
- *
- * It decides nothing — the caller supplies the angle and the radius — so
- * it is the peer of `centred`, not of a placement policy like
- * `arrange::`, and the two compose.
- *
- * ### The conversions are the point
- *
- * The arithmetic this exists to hold is of this shape:
- *
- *     float frac(float thDeg) { return fmod((thDeg - 90) / 360 + 4, 1); }
- *     // theta -> the arc-length fraction of shapes::circle(), whose
- *     //   contour starts at due EAST and runs clockwise.
- *
- * That is a library convention — where `shapes::circle()`'s contour begins
- * — leaking into a caller's arithmetic, at every site that places a label
- * on a ring. `PolarFrame::fraction()` and `PolarFrame::skiaDeg()` are that
- * arithmetic written once, with the convention carried in the value rather
- * than in a comment beside each copy.
+ * reference drawing — into a point, an SkRect or an arc-length fraction,
+ * in that drawing's angle convention. A `Grid` carries an artefact's own
+ * units onto the canvas: a scale, an origin, a y axis and a snap.
  */
 
 #include <include/core/SkMatrix.h>
@@ -51,17 +25,11 @@
 
 namespace sigil::geometry::path {
 
-/** The rect of size @p w × @p h centred on @p c — the `x - w * 0.5f`
- *  arithmetic as a VALUE you can then inset, union, or hand to
- *  `Element::rect()`.
- *
- *  Not a replacement for `centerAt()`: that centres a node on its MEASURED
- *  size after layout, which is the right tool when the node sizes itself.
- *  Use this when you know the box and want the rect for something else too
- *  — the panel geometry a caption, a rule and a shadow all read from.
- *
- *  There is deliberately no `xywh()` or `ltrb()` wrapper here:
- *  `SkRect::MakeXYWH` and `SkRect::MakeLTRB` already name those. */
+/** THE RECT OF SIZE @p w × @p h CENTRED ON @p c — the `x - w * 0.5f`
+ *  arithmetic as a VALUE you can then inset, union, or hand to whatever
+ *  draws the figure. Reach for it when you know the box and want the
+ *  rect for something else too; a node that sizes ITSELF is centred
+ *  after layout by `centerAt()` instead. */
 inline SkRect centred(SkPoint c, float w, float h) {
   return SkRect::MakeXYWH(c.fX - w * 0.5f, c.fY - h * 0.5f, w, h);
 }
@@ -80,18 +48,13 @@ enum class Zero {
  *  down, so `CW` is the direction that *looks* clockwise. */
 enum class Sense { CW, CCW };
 
-/** A figure's own polar coordinate system: a centre, a radius that `r = 1`
- *  lands on, and the convention flags.
- *
- *  An aggregate, meant for designated initialisation — a positional
- *  constructor could not gain a field later without breaking every call
- *  site, and the convention flags are exactly the fields a caller wants to
- *  name.
- *
- *      const PolarFrame fig{.centre = {kRR, kRR}, .radius = kR};  // North/CW
- *      g.children({disc(fig.at(126.0f, 0.72f), 6.0f).fill(ink)});
- *
- *  Trivially copyable; holds no Element and no node state. */
+/** A FIGURE'S OWN POLAR COORDINATE SYSTEM: a centre, a radius that
+ *  `r = 1` lands on, and the convention flags — where zero points and
+ *  which way the angles run, which is what makes this a value rather
+ *  than a `polar()` helper every call site adds a sign flip and a -90
+ *  to. An aggregate, meant for designated initialisation, since a
+ *  positional constructor could not gain a field later without breaking
+ *  every call site. Trivially copyable; it holds no node state. */
 struct PolarFrame {
   SkPoint centre{0, 0};
   /** The px radius that `normalizedRadius = 1` maps to. Authoring the rest of a
@@ -114,13 +77,11 @@ struct PolarFrame {
    *  and the shape generators take, and back from a fraction of a turn.
    *  @{ */
 
-  /** This frame's @p deg as a SCREEN angle: degrees from +x, increasing in
-   *  the direction that looks clockwise. That is exactly what Skia's
-   *  `addArc`, `shapes::arc()` and `shapes::sector()` take, so
-   *
-   *      shapes::sector(fig.skiaDeg(hourStart), fig.skiaSweep(30.0f))
-   *
-   *  reads in the plate's units and draws in Skia's. */
+  /** This frame's @p deg as a SCREEN angle: degrees from +x, increasing
+   *  in the direction that looks clockwise, which is exactly what Skia's
+   *  `addArc`, `shapes::arc()` and `shapes::sector()` take — so a sector
+   *  spelled through this reads in the plate's units and draws in
+   *  Skia's. */
   constexpr float skiaDeg(float deg) const {
     const float base = zero == Zero::North ? -90.0f : 0.0f;
     return base + originDeg + (sense == Sense::CW ? deg : -deg);
@@ -137,27 +98,13 @@ struct PolarFrame {
    *  carries the frame's zero and sense as well. */
   float screenRadians(float deg) const { return radians(skiaDeg(deg)); }
 
-  /** @p deg as the arc-length fraction of a circular baseline — the value
-   *  `TextPath::at` wants.
-   *
-   *  `shapes::circle()` is `SkPathBuilder::addOval(rect)` with direction
-   *  kCW and `startIndex` 1, so its contour starts at the oval's
-   *  **due-east** extreme and advances the way screen-clockwise runs. The
-   *  fraction is therefore the screen angle over 360, wrapped into [0, 1).
-   *
-   *  **@p baseline is the direction of the PATH, not of this frame, and
-   *  the two are independent.** `shapes::circle(kCCW)` also starts due
-   *  east — `startIndex` is 1 either way — and then runs the other way
-   *  round, so at f = 0.25 it sits at 12 o'clock where the kCW contour
-   *  sits at 6. A frame whose `sense` is CCW on a baseline that is still
-   *  kCW is an ordinary thing to want (numbers running anticlockwise
-   *  around a clockwise ring), so this argument must not default to the
-   *  frame's own sense: conflating them puts every label half a turn out.
-   *
-   *  **Only exact on a circle.** A circle's arc length is proportional to
-   *  its angle; an ellipse's is not, so on a non-square box the result
-   *  drifts from the true arc-length fraction. Keep ring inscriptions on a
-   *  square box (`disc`, `PolarFrame::box()`). */
+  /** @p deg AS THE ARC-LENGTH FRACTION of a circular baseline, in
+   *  [0, 1) — the value a text path is addressed by. @p baseline is the
+   *  direction of the PATH, not of this frame, and the two are
+   *  independent: numbers running anticlockwise around a clockwise ring
+   *  is an ordinary thing to want.
+   *  @trap Only exact on a CIRCLE — an ellipse's arc length is not
+   *  proportional to its angle, so an oblong box drifts. */
   float fraction(float deg,
                  SkPathDirection baseline = SkPathDirection::kCW) const {
     const float screen =
@@ -247,38 +194,23 @@ struct PolarFrame {
 // ---------------------------------------------------------------------------
 // Grid — the unit map.
 
-/** Author in the artefact's own units; multiply once.
- *
- *  A value rather than a `float g(float)` for two reasons. It needs three
- *  things — scale, origin and snap — because an artefact's box is rarely
- *  at the canvas origin and a pixel-art plate wants its positions on a
- *  pitch. And more than one grid has to be alive at once: a plate at a 4 px
- *  geometry pitch carrying a readout on a 2.5 px text pitch is ordinary,
- *  and a free function cannot do that without a second name.
- *
- *      const Grid geo{.scale = 4.0f}, type{.scale = 2.5f};
- *      box().rect(geo.rect(12, 8, 40, 16))
- *           .children({text(u8"HIT", ts)
- *                          .at({type.positionX(13), type.positionY(9)})});
- *
- *  A LENGTH takes no origin and a POSITION does, which is why the four
- *  readings are named apart: a width is not a position, and adding the
- *  origin to one is the bug the split prevents. */
+/** AUTHOR IN THE ARTEFACT'S OWN UNITS; MULTIPLY ONCE. A value rather
+ *  than a `float g(float)` because it needs three things — scale, origin
+ *  and snap — and because more than one grid has to be alive at once: a
+ *  plate at a 4 px geometry pitch carrying a readout on a 2.5 px text
+ *  pitch is ordinary.
+ *  @trap A LENGTH takes no origin and a POSITION does, which is why the
+ *  four readings are named apart: adding the origin to a width is the
+ *  bug the split prevents. */
 struct Grid {
   /** Canvas px per artefact unit. */
   float scale = 1.0f;
   /** THE Y AXIS, AS A MULTIPLE OF `scale` — its direction and its
-   *  relative size in one number.
-   *
-   *  −1 is the MATH FRAME: y counts UP from the origin, which is what a
-   *  plotted function, a projected sky and a surveyed elevation are drawn
-   *  in, and it is the difference between reading an artefact's own
-   *  numbers off the page and negating every one of them at the call
-   *  site. Anything else is an anisotropic map: 0.5 draws a unit half as
-   *  tall as it is wide, which a chart whose two axes are different
-   *  quantities wants.
-   *
-   *  1, the default, is the canvas's own frame — y down, square units. */
+   *  relative size in one number. 1, the default, is the canvas's own
+   *  frame: y down, square units. −1 is the MATH FRAME, y counting UP
+   *  from the origin, which a plotted function, a projected sky and a
+   *  surveyed elevation are drawn in. Anything else is an anisotropic
+   *  map, for a chart whose two axes are different quantities. */
   float yScale = 1.0f;
   /** Where artefact (0, 0) lands on the canvas. */
   SkPoint origin{0, 0};
