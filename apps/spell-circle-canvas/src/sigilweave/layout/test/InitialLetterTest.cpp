@@ -454,8 +454,7 @@ TEST(InitialLetter, TheSameParagraphLaidOutTwiceOpensTheSameFirstLine) {
   const std::vector<float> againStarts = lineStarts(again);
   ASSERT_EQ(firstStarts.size(), againStarts.size());
   for (size_t line = 0; line < firstStarts.size(); ++line)
-    EXPECT_NEAR(firstStarts[line], againStarts[line], 0.01f)
-        << "line " << line;
+    EXPECT_NEAR(firstStarts[line], againStarts[line], 0.01f) << "line " << line;
   ASSERT_EQ(first.runs.size(), again.runs.size());
   for (size_t index = 0; index < first.runs.size(); ++index) {
     if (first.runs[index].lineIndex != 0) continue;
@@ -484,8 +483,7 @@ TEST(InitialLetter, TheRemainderOfTheOpeningLineSetsAsAnOrdinaryParagraphDoes) {
   ParagraphStyle style;
   style.initial = {.lines = 3, .margin = 8.0f};
   options.blocks = {style};
-  const ParagraphLayout layout =
-      layoutParagraph(fonts, dropped, flow, options);
+  const ParagraphLayout layout = layoutParagraph(fonts, dropped, flow, options);
   const PositionedRun* remainder = remainderRun(layout, 0);
   const PositionedRun* second = runOfWord(layout, 1);
   ASSERT_TRUE(layout.initial.placed);
@@ -501,9 +499,10 @@ TEST(InitialLetter, TheRemainderOfTheOpeningLineSetsAsAnOrdinaryParagraphDoes) {
 TEST(InitialLetter, TheCapTakesTheStyleItsOwnWordIsSetIn) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph;
-  paragraph.appendText(u8"The block above runs on for several words so "
-                       u8"that it wraps and ends.\n",
-                       sigil::weave::test::basicStyle(14.0f));
+  paragraph.appendText(
+      u8"The block above runs on for several words so "
+      u8"that it wraps and ends.\n",
+      sigil::weave::test::basicStyle(14.0f));
   paragraph.appendText(opening(), sigil::weave::test::basicStyle(18.0f));
   BlockFlow flow(SkRect::MakeWH(300, 400));
   ParagraphLayoutOptions options;
