@@ -108,7 +108,7 @@ Derived& BoxVerbs<Derived>::maxHeight(Dimension d) {
 }
 
 template <class Derived>
-Derived& BoxVerbs<Derived>::aspect(float r) {
+Derived& BoxVerbs<Derived>::aspectRatio(float r) {
   declarations()->layout.aspect = r;
   return self();
 }

@@ -80,7 +80,7 @@ sound model; nothing below them changes kernel semantics.
   description value is, and `NodeAccess`, the one door the verb mixins
   reach it through.
 - `core/verbs/Box.h` — `BoxVerbs`: `gap`, `padding`, `margin`, `width`,
-  `height`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`, `aspect`,
+  `height`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`, `aspectRatio`,
   `boxSizing`, `display`.
 - `core/verbs/Flex.h` — `FlexVerbs`: `flexDirection`, `row`, `column`,
   `flexWrap`, `flexGrow`, `flexShrink`, `flexBasis`, `alignItems`, `alignSelf`,

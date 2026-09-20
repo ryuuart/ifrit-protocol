@@ -122,7 +122,7 @@ Element image(sk_sp<SkImage> picture, material::skia::Fit fit) {
   // computes nothing.
   if (fit == material::skia::Fit::Stretch || w <= 0.0f || h <= 0.0f)
     return leaf.width(pct(100)).height(pct(100));
-  leaf.aspect(w / h);
+  leaf.aspectRatio(w / h);
   if (fit == material::skia::Fit::Contain)
     leaf.width(pct(100)).maxWidth(pct(100)).maxHeight(pct(100));
   else

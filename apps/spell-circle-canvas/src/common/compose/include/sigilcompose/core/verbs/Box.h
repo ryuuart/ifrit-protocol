@@ -58,10 +58,10 @@ class BoxVerbs {
   Derived& minHeight(Dimension d);
   /** A CEILING over the node's height. None when unstated. */
   Derived& maxHeight(Dimension d);
-  /** WIDTH OVER HEIGHT, held while the other axis is free — a `16f/9`
-   *  box given only a width is sized down from it. Unstated, the two
-   *  axes are independent. */
-  Derived& aspect(float ratio);
+  /** WIDTH OVER HEIGHT, held while the other axis is free — CSS
+   *  `aspect-ratio`. A `16f/9` box given only a width is sized down
+   *  from it. Unstated, the two axes are independent. */
+  Derived& aspectRatio(float ratio);
   /** WHAT `width()` AND `height()` MEASURE — CSS `box-sizing`.
    *  `BoxSizing::BorderBox` when unstated: the stated size holds the
    *  padding. Under `BoxSizing::ContentBox` it is the content's, and the

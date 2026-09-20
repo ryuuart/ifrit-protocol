@@ -80,7 +80,7 @@ parent, and a font-relative length measures against the type in force.
 | `maxWidth` | The ceiling over it. |
 | `minHeight` | The floor under the resolved height. |
 | `maxHeight` | The ceiling over it. |
-| `aspect` | Width over height, for a node whose other axis is free. |
+| `aspectRatio` | Width over height, for a node whose other axis is free. |
 | `boxSizing` | What `width` and `height` measure: `BoxSizing::BorderBox`, the padding included, unless `ContentBox` is said. |
 | [`display`](pages/verbs/display.md) | Whether the node has a box: `Display::Flex`; `None`, which removes it and its subtree from layout, picture and hit test; `Contents`, which hands its children to its parent's line. |
 | `flexBasis` | The flex basis outright, when it is neither the width nor the height. |
@@ -271,7 +271,7 @@ spelling is the feature's.
   `justifyContent`.
 - `core/verbs/Box.h` — the box verbs `gap`, `padding`, `margin`,
   `width`, `height`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`,
-  `aspect`, `boxSizing`, `display`.
+  `aspectRatio`, `boxSizing`, `display`.
 - `core/verbs/Placement.h` — the placement verbs `absolute`, `cover`,
   `inset`, `left`, `top`, `right`, `bottom`, `centerAt`,
   `cells`, `area`, `cellAlign`, `rect`, `at`.

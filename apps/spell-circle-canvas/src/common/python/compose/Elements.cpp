@@ -553,7 +553,7 @@ void bindCompose(py::module_& module) {
            py::arg("wrap") = compose::FlexWrap::Wrap, fluent)
       .def("boxSizing", &Element::boxSizing, py::arg("sizing"), fluent)
       .def("display", &Element::display, py::arg("display"), fluent)
-      .def("aspect", &Element::aspect, py::arg("ratio"), fluent)
+      .def("aspectRatio", &Element::aspectRatio, py::arg("ratio"), fluent)
       .def(
           "flexBasis",
           [](Element& self, py::object value) -> Element& {
