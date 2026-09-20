@@ -136,6 +136,16 @@ learns which runtime it is holding. Another runtime is therefore a
 value someone constructs and hands to `SIGIL_SKETCH`, and none of the
 hosts change when one arrives.
 
+**A body the macro cannot see comes in by the door beside the kind.**
+`sketch::openCanvas` and `sketch::openSet` take an owned `CanvasBody` or
+`SetBody` and hand back the session the registered kind would have
+opened — which is what a host whose sketches are written in another
+language calls, since it holds a body and has no C++ type to register.
+To be LISTED as well as opened, such a host names a supplier:
+`sketch::SetBodySource` is what a `SetKind` holds where a registered set
+holds the address of a factory function, and two kinds are the same kind
+when they hold the same supplier.
+
 This library sits **above** the drawing libraries and links them all.
 The arrow only points this way: nothing in compose, world or draw knows
 this library exists, and a drawn tree, a lit set and a pen's canvas meet
@@ -211,6 +221,12 @@ like a CSV is — the buffer itself, or the schema's own JSON form under
 `data/`, which SigilData's FlatBuffer decoder converts through the schema —
 and a saved scene file re-declares the sketch. A saved schema wants a
 build, since the header is the build's.
+
+A PYTHON ENTRY TAKES THE BINARY SCHEMA AND NO HEADER. There is no
+translation unit to include one: `<stem>/<stem>.fbs` beside
+`<stem>/<stem>.py` compiles to `<stem>.bfbs`, written beside the entry
+because that is where `local("<stem>.bfbs")` names it, and the sketch
+opens it with `data::Schema::fromBinarySchema`.
 
 ### Helpers have an owner
 
@@ -299,7 +315,9 @@ static bool available(std::string* why) {
 `requireCached` asks SigilIO for each URL's cached byte count without
 contacting the network. A nonempty resource is available offline while it
 remains cached; a missing or empty resource stands down with the first URL
-as the reason.
+as the reason. It takes a `std::span<const std::string_view>` as well as
+the list written above, for a host asking on behalf of a sketch whose
+URLs are a value rather than a literal.
 
 ### The shared web engine is a host option
 
@@ -737,7 +755,9 @@ announces, it answers with the newest frame two ways.
 `sigil::sketch::Guest::frame` is the frame as an image on the recorder
 the canvas is being drawn on, one wrap per frame that arrived and null
 while nothing is publishing; `guest_picture` is the page that wears one,
-and nothing is copied on the way in.
+and nothing is copied on the way in. It takes the `SkCanvas` as well as
+the recorder, so a caller inside a paint program asks with what it is
+already holding and names Graphite nowhere.
 `sigil::sketch::Guest::texture` is the same frame as a
 `material::Texture`, which is what a surface's base-colour slot takes, so
 a body in a set wears the publication the way it wears any other picture;
