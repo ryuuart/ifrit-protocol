@@ -180,6 +180,16 @@ names in the struct and cannot drift. A struct with NO fields is legal and
 is a recipe with no ABI of its own — a body over slots and frame
 inputs alone.
 
+**A layout can also be assembled while the library runs.**
+`packedSchema(fields)` lays a field list out by the rule `schema<P>()`
+applies to a struct — each float count read off the kind, each offset the
+running sum — and `Recipe::of(name, schema)` defines over the result. That
+is the door for an ABI no C++ type stands behind: a definition composed out
+of other definitions' fields, or one authored from outside C++ altogether.
+A repeated name and an array of no floats are each reported once and left
+out, so what comes back is a layout `find()` answers unambiguously and
+`declare()` can emit.
+
 **Writing to a field no body reads is reported at the write.** A dial
 that does nothing looks, from the call site, exactly like a dial set to
 the wrong value: the bytes go up and the picture does not change. So
@@ -254,7 +264,10 @@ the default variant is the plain build.
 **Bindings are live, and equality is by identity.** `bind(name, Output*)`
 makes a float field read the output's current value at every resolve;
 `bind(name, shared_ptr<UniformBlock>)` does the same for an array field
-and a caller-owned table. A bound material `isAnimated()`. Two materials
+and a caller-owned table. A bound material `isAnimated()`;
+`isBound(name)` is the other question — whether a field carries a binding
+at all, an output or a number or a block, rather than only the bytes
+`set()` last wrote. Two materials
 bound to the same output or block compare equal; bound to different ones,
 unequal; the values behind them never enter the comparison. A `UniformBlock`
 carries a revision (`commit()` advances it) so a caller can tell an edited
@@ -735,7 +748,10 @@ parameters, seed)` folds the seed into one of `buckets()` and answers the
 instance for that (recipe, parameters, bucket) triple, minting it once. The
 parameters' BYTES are their identity, which `schema<P>()` proves is sound by
 refusing a struct that is not packed floats, so two pieces of one species
-in one bucket are one material and a second tone is a second species. The
+in one bucket are one material and a second tone is a second species; a
+caller whose parameters belong to no C++ type hands those bytes
+themselves, `bank.get(recipe, bytes, seed, make)`, and lands on the same
+row a struct of them would. The
 seeded form writes the bucket into a `seed` field and ignores whatever
 seed the caller left there, so no caller can make the bank unbounded; the
 form taking a maker banks whatever that maker builds per bucket — a
@@ -1037,7 +1053,7 @@ promises. What is only true of SigilMaterial:
 
 | suites | what they prove | label |
 |---|---|---|
-| `core/test/` | the value model, with no renderer in reach: parameters reflection — including that the schema IS the parameter struct's own layout, read off `offsetof` rather than off the numbers this compiler happened to choose — recipe identity against definition equality, the program cache's keys, a compile held open until every concurrent request has arrived so the fold is asked without a clock, the field it names once when a compiled body never reads it, material equality, bindings, slots and tiers, what `over()` stacks, and `UniformBlock` revisioning | — |
+| `core/test/` | the value model, with no renderer in reach: parameters reflection — including that the schema IS the parameter struct's own layout, read off `offsetof` rather than off the numbers this compiler happened to choose, and that a field list packed at run time lays out the same way — recipe identity against definition equality, the program cache's keys, a compile held open until every concurrent request has arrived so the fold is asked without a clock, the field it names once when a compiled body never reads it, material equality, bindings and which field carries one, slots and tiers, what `over()` stacks, the bank keyed on the parameters' bytes whichever door they arrive through, and `UniformBlock` revisioning | — |
 | `color/test/` | the four suites that hold to closed forms rather than to colours this code once answered: `Color` (the transfer function and the OKLab round trip against their own inverses, the three mixes separated by where their midpoint lands, a palette read exactly where a ramp is read between), `Ramp` (the decisions one at a time — the ends are the stops and outside them is flat, the domain is the caller's numbers, reverse and easing move the position and not the stops, each space walks its own path while both ends round-trip, two stops at one position are an edge with nothing across it, a table read at band centres comes back a ramp), `Harmony` (the polar round trip, a rotation giving up chroma alone, each scheme its own set of angles with the base first) and `Dither` (the ordered matrix holding every threshold once and averaging a half, the noise averaging the same with no period to find, a dithered ramp coming back at the value it was asked for). `Extract` holds the two methods apart by what each is for and pins the determinism and the stride | — |
 | `sdf/`, `pattern/`, `field/test/` | the primitives beneath the leaf: the SDF surfaces, the tile mechanism and the stock generators over it, and the fields | — |
 | `ocio/test/` | the bake: an exponent baked to a response row, that row lowered to a table an eight-bit surface admits, and the program held to what it paints across a whole ramp, while a float surface and a channel-mixing transform keep the program. A config that cannot be read failing soft is asked unconditionally, since that needs no OpenColorIO | `ocio` on `Ocio` |
