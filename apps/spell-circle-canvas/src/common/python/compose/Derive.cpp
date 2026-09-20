@@ -513,8 +513,10 @@ void bindAnchor(py::module_& composition) {
           "The free form: a point in the rail's own coordinates.")
       .def_property(
           "where", [](const Anchor& self) { return self.where; },
-          [](Anchor& self, std::variant<Anchor::OnNode, Anchor::FreePoint>
-                               where) { self.where = std::move(where); },
+          [](Anchor& self,
+             std::variant<Anchor::OnNode, Anchor::FreePoint> where) {
+            self.where = std::move(where);
+          },
           "Which of the two this anchor is, copied on read: assign an "
           "OnNode or a FreePoint to change it, since editing what was read "
           "edits the copy.")
@@ -586,8 +588,7 @@ void bindSpines(py::module_& composition) {
                                             "Unknown Around field: ");
   around.doc() =
       "A band's spine borrowed from the keyed element's resolved shape.";
-  around.def_readwrite("key", &compose::Around::key)
-      .def(py::self == py::self);
+  around.def_readwrite("key", &compose::Around::key).def(py::self == py::self);
   composition.def(
       "around", [](const std::string& key) { return compose::around(key); },
       py::arg("key"), "A spine borrowed from the element keyed `key`.");
