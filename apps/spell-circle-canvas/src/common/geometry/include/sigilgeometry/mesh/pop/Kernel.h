@@ -63,6 +63,9 @@ struct OperationArguments {
   glm::vec4 m1{0, 0, 0, 0};
   glm::vec4 m2{0, 0, 0, 0};
   glm::vec4 m3{0, 0, 0, 0};
+
+  /** Value equality, word for word — the bytes a device would bind. */
+  bool operator==(const OperationArguments&) const = default;
 };
 
 /** The flag bits `OperationArguments::code.w` carries. */
@@ -88,6 +91,10 @@ struct OperationDispatch {
   std::string mask;
   /** A lookup's stops; empty for every other operator. */
   std::vector<glm::vec4> table;
+
+  /** Value equality: the arguments, the lane each role takes and the
+   *  table. Two equal dispatches run to the same answer. */
+  bool operator==(const OperationDispatch&) const = default;
 };
 
 /** Does @p operation have a kernel? Every runtime asks this and no runtime

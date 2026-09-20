@@ -61,6 +61,27 @@ const std::vector<glm::vec4>* Cloud::colorIf(std::string_view name) const {
   return it == colors.end() ? nullptr : &it->second;
 }
 
+namespace {
+
+/** The names a lane map holds, in its own order. */
+template <typename Lanes>
+std::vector<std::string> laneNames(const Lanes& lanes) {
+  std::vector<std::string> names;
+  names.reserve(lanes.size());
+  for (const auto& lane : lanes) names.push_back(lane.first);
+  return names;
+}
+
+}  // namespace
+
+std::vector<std::string> Cloud::scalarNames() const {
+  return laneNames(scalars);
+}
+std::vector<std::string> Cloud::vectorNames() const {
+  return laneNames(vectors);
+}
+std::vector<std::string> Cloud::colorNames() const { return laneNames(colors); }
+
 void Cloud::append(const Cloud& other) {
   const size_t oldSize = positions.size();
   const size_t newSize = oldSize + other.positions.size();

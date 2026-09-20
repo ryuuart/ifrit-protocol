@@ -18,12 +18,14 @@
 
 #include <cmath>
 #include <glm/gtc/matrix_transform.hpp>
+#include <string>
 #include <vector>
 
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/camera/Camera.h"
 #include "sigilgeometry/mesh/pop/Points.h"
 #include "sigilgeometry/mesh/pop/Pop.h"
+#include "sigilgeometry/mesh/pop/Stamp.h"
 
 using namespace sigil::geometry;
 using namespace sigil::geometry::mesh;
@@ -580,4 +582,60 @@ TEST(Points, AnInstancedFacingLaneAgreesWithTheCameraFacingTransform) {
     EXPECT_NEAR(glm::length(viaMatrix - stamped.positions[i]), 0.0f, 1e-4f)
         << "vertex " << i;
   }
+}
+
+// A cloud answers WHICH lanes of each width it carries, in the maps' own
+// order, so a reader that did not write them can walk them: every name
+// reaches its lane, and a lane no name mentions is not there.
+TEST(Points, ACloudNamesTheLanesItCarries) {
+  Cloud cloud;
+  cloud.positions = {{0, 0, 0}, {50, 0, 0}};
+  EXPECT_TRUE(cloud.scalarNames().empty());
+  EXPECT_TRUE(cloud.vectorNames().empty());
+  EXPECT_TRUE(cloud.colorNames().empty());
+
+  cloud.scalar("size", 1);
+  cloud.vector("normal");
+  cloud.color("tint");
+  cloud.color("Tex");
+  EXPECT_EQ(cloud.scalarNames(), (std::vector<std::string>{"size"}));
+  EXPECT_EQ(cloud.vectorNames(), (std::vector<std::string>{"normal"}));
+  EXPECT_EQ(cloud.colorNames(), (std::vector<std::string>{"Tex", "tint"}));
+  for (const std::string& name : cloud.colorNames())
+    EXPECT_NE(cloud.colorIf(name), nullptr);
+  EXPECT_EQ(cloud.scalarIf("weight"), nullptr);
+}
+
+// The two option sets a cloud is consumed through are VALUES, and so is
+// the description a stamping becomes: the same cloud and stamp describe
+// to the same dispatch twice, which is what lets a consumer prove two
+// frames asked for one stamping.
+TEST(Points, TheStampingOptionsAndItsDescriptionAreValues) {
+  points::InstanceOptions options;
+  EXPECT_EQ(options, points::InstanceOptions{});
+  options.orientLane = "normal";
+  EXPECT_NE(options, points::InstanceOptions{});
+
+  // A cloud carrying none of the conventional lanes names none of them,
+  // so the table it answers is the default set.
+  Cloud cloud;
+  cloud.positions = {{0, 0, 0}, {50, 0, 0}};
+  EXPECT_EQ(points::stampOptions(cloud), points::InstanceOptions{});
+  cloud.vector("normal");
+  EXPECT_EQ(points::stampOptions(cloud), options);
+
+  points::BillboardStyle style;
+  EXPECT_EQ(style, points::BillboardStyle{});
+  style.textureLane = "Tex";
+  EXPECT_NE(style, points::BillboardStyle{});
+
+  const Mesh stamp = mesh::quad(10, 10);
+  kernel::StampDispatch once, twice;
+  ASSERT_TRUE(points::describe(cloud, stamp, options, &once));
+  ASSERT_TRUE(points::describe(cloud, stamp, options, &twice));
+  EXPECT_EQ(once, twice);
+  EXPECT_EQ(once.args, twice.args);
+  twice.args.code.y += 1;
+  EXPECT_NE(once.args, twice.args);
+  EXPECT_NE(once, twice);
 }

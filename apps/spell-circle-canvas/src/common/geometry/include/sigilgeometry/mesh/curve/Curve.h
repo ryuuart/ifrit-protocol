@@ -65,6 +65,11 @@ struct Spline3 {
   /** @p count positions, uniform in ARC LENGTH — even beads on the
    *  wire regardless of knot spacing. */
   std::vector<glm::vec3> sampleArcLength(int count) const;
+
+  /** Value equality: the control points, the rule that reads them and
+   *  the closure. Everything a spline answers is a function of those,
+   *  so two equal splines evaluate alike. */
+  bool operator==(const Spline3&) const = default;
 };
 
 /** @p count parallel-transport frames, arc-length spaced. The first

@@ -121,3 +121,26 @@ TEST(Render, APrimitiveColourLaneTintsEachTriangleFlat) {
   bare.primitiveColorLane.clear();
   EXPECT_EQ(render(style).getColor(120, 95), render(bare).getColor(120, 95));
 }
+
+// A style is a VALUE, dial for dial, and so is each of the lights in it:
+// two default styles are one style, which is what lets a consumer prove
+// a frame asked for the shading the frame before it asked for.
+TEST(Painter, AStyleAndItsLightsAreValues) {
+  render::MeshStyle style;
+  EXPECT_EQ(style, render::MeshStyle{});
+
+  style.lights = {render::Light{}, render::Light{}};
+  EXPECT_NE(style, render::MeshStyle{});
+
+  render::MeshStyle same = style;
+  EXPECT_EQ(style, same);
+  same.lights[1].intensity = 0.5f;
+  EXPECT_NE(style, same);
+  EXPECT_NE(render::Light{}, same.lights[1]);
+
+  // The runtime takes part: two styles that would draw on different
+  // executors are not the same style however their dials read.
+  render::MeshStyle rough = style;
+  rough.roughness = style.roughness + 0.25f;
+  EXPECT_NE(style, rough);
+}

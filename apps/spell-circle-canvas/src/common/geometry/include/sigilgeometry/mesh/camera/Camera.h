@@ -89,6 +89,11 @@ struct Camera {
    *  the canvas, not how far away it is. */
   [[nodiscard]] std::optional<SkPoint> project(glm::vec3 point,
                                                SkSize viewport) const;
+
+  /** Value equality: where the camera stands, what it looks at, and the
+   *  lens it looks through. Every matrix here is a function of those, so
+   *  two equal cameras answer the same matrices. */
+  bool operator==(const Camera&) const = default;
 };
 
 /** A VIEWPOINT AS A POINTER STATES IT: yaw and pitch in degrees about
@@ -103,6 +108,9 @@ struct Orbit {
   float yawDeg = 0;
   float pitchDeg = 0;
   float distance = 0;
+
+  /** Value equality: the two angles and the distance. */
+  bool operator==(const Orbit&) const = default;
 };
 
 /** THE ORBIT @p camera ALREADY STANDS AT: yaw and pitch in degrees about

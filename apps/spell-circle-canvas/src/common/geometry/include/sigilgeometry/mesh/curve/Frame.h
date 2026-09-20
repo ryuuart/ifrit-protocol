@@ -20,6 +20,9 @@ struct Frame3 {
   glm::vec3 normal{0, 1, 0};     ///< "up", parallel-transported
   glm::vec3 binormal{-1, 0, 0};  ///< tangent x normal
   float t = 0;                   ///< curve parameter
+
+  /** Value equality: the position, the three axes and the parameter. */
+  bool operator==(const Frame3&) const = default;
 };
 
 }  // namespace sigil::geometry::mesh::curve

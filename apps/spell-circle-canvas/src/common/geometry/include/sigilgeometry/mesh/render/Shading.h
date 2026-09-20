@@ -86,6 +86,12 @@ struct Environment {
   glm::vec3 projectionCenter{0, 0, 0};
 
   bool valid() const { return !levels.empty() || irradiance != nullptr; }
+
+  /** Value equality: the same chains, the same orientation and the same
+   *  dials. The panoramas compare by identity, as `sk_sp` does, so a sky
+   *  rebuilt from the same pixels is a different environment and a sky
+   *  carried unchanged from frame to frame is the same one. */
+  bool operator==(const Environment&) const = default;
 };
 
 /** THE DIRECTION A BACKDROP PIXEL READS, for an eye at @p eye (world

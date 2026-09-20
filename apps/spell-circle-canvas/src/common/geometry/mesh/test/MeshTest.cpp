@@ -9,7 +9,9 @@
 
 #include <cmath>
 #include <glm/gtc/matrix_transform.hpp>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "sigilgeometry/mesh/Mesh.h"
 #include "support/GeometrySupport.h"
@@ -238,4 +240,21 @@ TEST(Mesh, AppendConjuresNoLaneNeitherSideAuthored) {
   EXPECT_TRUE(merged.normals.empty());
   EXPECT_TRUE(merged.uvs.empty());
   EXPECT_TRUE(merged.colors.empty());
+}
+
+// The primitive lanes answer WHICH of them there are, in the map's own
+// order, so a reader that did not write them can walk them: every name
+// the enumeration hands back reaches a lane, and a lane no name mentions
+// is not there.
+TEST(Mesh, ThePrimitiveLanesNameThemselves) {
+  Mesh panel = mesh::quad(10, 10);
+  EXPECT_TRUE(panel.primitiveNames().empty());
+
+  panel.primitive("Id");
+  panel.primitive("Color");
+  const std::vector<std::string> names = panel.primitiveNames();
+  EXPECT_EQ(names, (std::vector<std::string>{"Color", "Id"}));
+  for (const std::string& name : names)
+    EXPECT_NE(panel.primitiveIf(name), nullptr);
+  EXPECT_EQ(panel.primitiveIf("Material"), nullptr);
 }

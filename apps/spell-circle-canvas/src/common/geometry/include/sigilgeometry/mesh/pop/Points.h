@@ -70,6 +70,14 @@ struct Cloud {
   const std::vector<glm::vec3>* vectorIf(std::string_view name) const;
   const std::vector<glm::vec4>* colorIf(std::string_view name) const;
 
+  /** WHICH LANES OF EACH WIDTH THE CLOUD CARRIES, in the maps' own
+   *  order — the reading that asks what is there rather than for one
+   *  lane by name, so a caller can walk the lanes without holding the
+   *  maps' own type. */
+  [[nodiscard]] std::vector<std::string> scalarNames() const;
+  [[nodiscard]] std::vector<std::string> vectorNames() const;
+  [[nodiscard]] std::vector<std::string> colorNames() const;
+
   /** Append another cloud. Shared lanes concatenate; a lane missing
    *  on one side pads by NAME convention: scalar "size" pads 1
    *  (others 0), color "Tex" pads the identity window {0,0,1,1} and
@@ -144,6 +152,11 @@ struct InstanceOptions {
    *  and the indices and the lanes the result carries are the same
    *  either way. */
   StampRuntime runtime = StampRuntime::cpu();
+
+  /** Value equality: the lane names, the uniform scale, the up axis and
+   *  the runtime. Two default option sets are equal, which is what lets
+   *  a consumer prove two frames asked for the same stamping. */
+  bool operator==(const InstanceOptions&) const = default;
 };
 
 /** HOW A STAMP RIDES A CLOUD'S CONVENTIONAL LANES, as one table.
@@ -235,6 +248,10 @@ struct BillboardStyle {
   bool depthSort = true;
   /** Shrink with distance (perspective); off = constant pixel size. */
   bool perspective = true;
+
+  /** Value equality, dial for dial. The sprite compares by identity, as
+   *  `sk_sp` does. */
+  bool operator==(const BillboardStyle&) const = default;
 };
 
 /** The UI-particle draw: project, sort, splat camera-facing sprites. */

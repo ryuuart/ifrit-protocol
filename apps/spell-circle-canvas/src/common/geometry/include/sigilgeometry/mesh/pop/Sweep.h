@@ -91,6 +91,9 @@ struct SweepArgs {
    *  vertex normal is the profile's own offset and 0 when it is the
    *  rail's; w: how many spans u is divided across. */
   glm::uvec4 code{0, 0, 0, 0};
+
+  /** Value equality, word for word — the bytes a device would bind. */
+  bool operator==(const SweepArgs&) const = default;
 };
 
 /** ONE SWEEP, READY TO RUN: the rings as the kernel reads them, and the
@@ -115,6 +118,10 @@ struct SweepDispatch {
   [[nodiscard]] size_t vertices() const {
     return (size_t)args.code.x * (size_t)args.code.y;
   }
+
+  /** Value equality: the arguments, the rings and the profile. Two equal
+   *  dispatches write the same vertices on any executor. */
+  bool operator==(const SweepDispatch&) const = default;
 };
 
 /** THE HOST RUN: the kernel's own generated C++ over @p dispatch. Both
@@ -197,6 +204,19 @@ struct SweepOptions {
    *  runtimes, and the topology, the caps and the geometric normals are
    *  the same either way. */
   SweepRuntime runtime = SweepRuntime::cpu();
+
+  /** Value equality, dial for dial. THE TAPER IS THE ONE FIELD THAT
+   *  CANNOT BE COMPARED: a callable answers nothing about what it
+   *  computes, so two option sets agree about it only when NEITHER
+   *  carries one, and any two tapered sweeps are unequal however alike
+   *  their laws. Conservative in the direction that matters — a
+   *  consumer proving two frames asked for the same sweep re-forms the
+   *  mesh rather than keeping one a moving taper has left behind. */
+  bool operator==(const SweepOptions& other) const {
+    return segments == other.segments && scale == other.scale && !taper &&
+           !other.taper && up == other.up && normals == other.normals &&
+           caps == other.caps && runtime == other.runtime;
+  }
 };
 
 /** @p rail carrying @p profile under @p options, as a dispatch. False —

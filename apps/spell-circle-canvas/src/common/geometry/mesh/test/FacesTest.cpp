@@ -124,3 +124,20 @@ TEST(Faces, AnEdgeIsWhereTwoFacesMeetAndAFansOwnSeamIsNot) {
     if (e.opposite != kNoFace) ++shared;
   EXPECT_EQ(shared, 1u);
 }
+
+// An edge is a VALUE, which is what lets the whole reading be compared:
+// edges() is a function of the mesh, so two readings of one mesh are the
+// same list of the same edges in the same order.
+TEST(Faces, AnEdgeIsAValueAndTheReadingRepeatsExactly) {
+  const Mesh lid = lidQuad();
+  const std::vector<Edge> once = edges(lid);
+  EXPECT_EQ(once, edges(lid));
+  ASSERT_GE(once.size(), 2u);
+  EXPECT_NE(once[0], once[1]);
+
+  // The face across is part of what an edge IS: a border edge and an
+  // interior one between the same two corners are different edges.
+  Edge bordered = once[0];
+  bordered.opposite = kNoFace;
+  EXPECT_EQ(bordered == once[0], once[0].opposite == kNoFace);
+}

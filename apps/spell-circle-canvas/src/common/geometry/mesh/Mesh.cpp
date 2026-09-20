@@ -70,6 +70,13 @@ const std::vector<glm::vec4>* Mesh::primitiveIf(std::string_view name) const {
   return it == primitives.end() ? nullptr : &it->second;
 }
 
+std::vector<std::string> Mesh::primitiveNames() const {
+  std::vector<std::string> names;
+  names.reserve(primitives.size());
+  for (const auto& lane : primitives) names.push_back(lane.first);
+  return names;
+}
+
 void Mesh::append(const Mesh& other) {
   const uint32_t base = (uint32_t)positions.size();
   // The vertex count the merged mesh will have. Every per-vertex lane

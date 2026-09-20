@@ -57,6 +57,9 @@ struct Light {
   glm::vec3 direction = {-0.5f, -0.8f, -0.4f};  ///< world-space, toward scene
   SkColor4f color = SkColors::kWhite;
   float intensity = 1;
+
+  /** Value equality: the direction, the colour and the strength. */
+  bool operator==(const Light&) const = default;
 };
 
 /** Everything the mesh shader needs beyond the geometry itself: which
@@ -122,6 +125,12 @@ struct MeshStyle {
   /** Who performs the draw. The default is the built-in CPU executor;
    *  assigning another one is the whole of switching runtimes. */
   Runtime runtime = Runtime::cpu();
+
+  /** Value equality, dial for dial. Images compare by identity, as
+   *  `sk_sp` does, and the runtime by the executor it carries — so two
+   *  default styles are equal and a consumer that caches a drawing can
+   *  prove two frames asked for the same shading. */
+  bool operator==(const MeshStyle&) const = default;
 };
 
 /** Draw a mesh. @p model is the mesh's world transform; the camera

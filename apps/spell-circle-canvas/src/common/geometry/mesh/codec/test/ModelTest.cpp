@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cstddef>
 #include <glm/gtc/matrix_transform.hpp>
 #include <string>
 #include <vector>
@@ -138,4 +139,35 @@ TEST(Model, AMaterialSlotRidesThePrimitiveClass) {
   const std::vector<glm::vec4>* slots = merged.primitiveIf("Material");
   ASSERT_TRUE(slots);
   EXPECT_EQ(slots->size(), merged.triangleCount());
+}
+
+// A part and a model are VALUES: the mesh, the material, every lane and
+// every texture reference. It is what lets one import be compared with
+// another rather than walked field by field.
+TEST(Model, APartAndTheModelAroundItAreValues) {
+  Part lid;
+  lid.name = "lid";
+  lid.mesh = mesh::quad(2, 2);
+  lid.baseColor = {0.8f, 0.2f, 0.2f, 1};
+  lid.textures["normal"] = {"wood_n.png", {std::byte{1}, std::byte{2}}};
+  lid.scalarLanes["thickness"] = std::vector<float>(lid.mesh.vertexCount(), 3);
+
+  Model model;
+  model.parts = {lid};
+  Model same = model;
+  EXPECT_EQ(model, same);
+
+  // A texture reference is part of what a part is, uri and bytes alike.
+  same.parts[0].textures["normal"].uri = "wood_normal.png";
+  EXPECT_NE(model, same);
+  EXPECT_NE(lid, same.parts[0]);
+
+  same = model;
+  same.parts[0].textures["normal"].bytes.push_back(std::byte{3});
+  EXPECT_NE(model, same);
+
+  // …and so is a lane the reader carried through.
+  same = model;
+  same.parts[0].scalarLanes["thickness"][0] = 4;
+  EXPECT_NE(model, same);
 }

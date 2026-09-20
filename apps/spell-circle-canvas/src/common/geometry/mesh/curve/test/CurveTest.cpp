@@ -184,3 +184,24 @@ TEST(Curves, ProjectMatchesCameraProjection) {
   EXPECT_NEAR(bounds.centerY(), 150, 1e-2);
   EXPECT_NEAR(bounds.centerX(), 200, 1e-2);
 }
+
+// A spline is a VALUE — the controls, the rule that reads them and the
+// closure — and so is every frame of the rail it is read into, which is
+// what lets a whole rail be compared rather than walked point by point.
+TEST(Curve, ASplineAndTheFramesItIsReadIntoAreValues) {
+  curve::Spline3 spline;
+  spline.points = {{0, 0, 0}, {100, 0, 0}, {100, 100, 0}, {0, 100, 0}};
+
+  curve::Spline3 same = spline;
+  EXPECT_EQ(spline, same);
+  same.closed = true;
+  EXPECT_NE(spline, same);
+  same.closed = false;
+  same.type = curve::Spline3::Type::Linear;
+  EXPECT_NE(spline, same);
+
+  const std::vector<curve::Frame3> rail = curve::frames(spline, 8);
+  EXPECT_EQ(rail, curve::frames(spline, 8));
+  ASSERT_GE(rail.size(), 2u);
+  EXPECT_NE(rail.front(), rail.back());
+}

@@ -142,4 +142,37 @@ TEST(MeshSweep, EveryNormalRuleIsFormedFromTheSameRings) {
   }
 }
 
+// The options are a VALUE, and the description a sweep becomes is one
+// too — except for the taper, which is a callable and says nothing about
+// what it computes, so two option sets agree about it only when NEITHER
+// carries one.
+TEST(MeshSweep, TheOptionsCompareAndATaperIsEqualToNothing) {
+  SweepOptions options;
+  EXPECT_EQ(options, SweepOptions{});
+  options.segments = 32;
+  EXPECT_NE(options, SweepOptions{});
+  SweepOptions same = options;
+  EXPECT_EQ(options, same);
+  same.caps = true;
+  EXPECT_NE(options, same);
+
+  SweepOptions tapered;
+  tapered.taper = [](float t) { return 1.0f + t; };
+  const SweepOptions copy = tapered;
+  EXPECT_NE(tapered, copy) << "a taper is equal to nothing, its own copy "
+                              "included";
+  EXPECT_NE(tapered, SweepOptions{});
+
+  const std::vector<Frame3> r = rail(5);
+  const path::Polyline profile = sections::circle(8);
+  mesh::kernel::SweepDispatch once, twice;
+  ASSERT_TRUE(pop::describe(r, profile, options, &once));
+  ASSERT_TRUE(pop::describe(r, profile, options, &twice));
+  EXPECT_EQ(once, twice);
+  EXPECT_EQ(once.args, twice.args);
+  twice.args.code.x += 1;
+  EXPECT_NE(once.args, twice.args);
+  EXPECT_NE(once, twice);
+}
+
 }  // namespace

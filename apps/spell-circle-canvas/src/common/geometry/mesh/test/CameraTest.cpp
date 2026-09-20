@@ -228,3 +228,32 @@ TEST(Camera, ProjectFollowsTheVertexAndDeclinesWhatIsBehindTheEye) {
   EXPECT_FALSE(cam.project({0, 0, 100.5f}, viewport).has_value());
   EXPECT_FALSE(cam.project({0, 0, 400}, viewport).has_value());
 }
+
+// A camera is a VALUE: everything it answers is a function of where it
+// stands, what it looks at and the lens it looks through, so two cameras
+// built the same way are one camera and any dial moved breaks that.
+TEST(Camera, ACameraIsAValueAndAnOrbitMovesOnlyTheEye) {
+  camera::Camera cam;
+  cam.eye = {40, 25, 300};
+  cam.target = {0, 10, 0};
+  cam.fovYDeg = 55;
+
+  camera::Camera same = cam;
+  EXPECT_EQ(cam, same);
+  same.zFar = cam.zFar + 1;
+  EXPECT_NE(cam, same);
+
+  // Moving a camera onto an orbit takes hold of the one it was given: the
+  // aim, the up axis and the lens come through untouched, so putting the
+  // eye back is the whole of undoing the move.
+  camera::Camera moved = camera::cameraAt(cam, {30, -10, 400});
+  EXPECT_NE(moved, cam);
+  moved.eye = cam.eye;
+  EXPECT_EQ(moved, cam);
+
+  const camera::Orbit orbit{30, -10, 400};
+  camera::Orbit turned = orbit;
+  EXPECT_EQ(orbit, turned);
+  turned.yawDeg += 1;
+  EXPECT_NE(orbit, turned);
+}

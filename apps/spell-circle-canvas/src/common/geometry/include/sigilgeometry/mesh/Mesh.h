@@ -79,6 +79,10 @@ struct Mesh {
                                     glm::vec4 fill = {1, 1, 1, 1});
   /** Read-only primitive-lane lookup; null when absent. */
   const std::vector<glm::vec4>* primitiveIf(std::string_view name) const;
+  /** WHICH LANES THE MESH CARRIES, in the map's own order — the reading
+   *  that asks what is there rather than for one lane by name, so a
+   *  caller can walk the lanes without holding the map's own type. */
+  [[nodiscard]] std::vector<std::string> primitiveNames() const;
 
   /** Append another mesh (indices re-based). Primitive lanes
    *  concatenate; a lane missing on one side pads by NAME convention

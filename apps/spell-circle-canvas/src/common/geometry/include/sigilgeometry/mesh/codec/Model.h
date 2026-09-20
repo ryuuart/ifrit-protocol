@@ -75,6 +75,9 @@ struct Part {
   struct TextureReference {
     std::string uri;
     std::vector<std::byte> bytes;
+
+    /** Value equality: the same URI carrying the same bytes. */
+    bool operator==(const TextureReference&) const = default;
   };
   boost::container::map<std::string, TextureReference> textures;
   float metallic = 1;   ///< glTF's factor default; multiplies the map
@@ -130,6 +133,9 @@ struct Part {
    *  and EVERY custom lane — the door from imported attributes into
    *  points::instance/panels/drawBillboards and pop seeding. */
   Cloud asCloud() const;
+
+  /** Value equality: the mesh, the material and every lane. */
+  bool operator==(const Part&) const = default;
 };
 
 /** A whole imported file: its parts, and the operations that only make
@@ -161,6 +167,9 @@ struct Model {
    *  (0 when none does). `merged()` keeps the "Material" lane, so a
    *  merged mesh placed with that many slots wears them per face. */
   int materialSlotCount() const;
+
+  /** Value equality: the same parts in the same order. */
+  bool operator==(const Model&) const = default;
 };
 
 }  // namespace sigil::geometry::mesh::codec::decode

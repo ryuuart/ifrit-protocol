@@ -71,6 +71,9 @@ struct Edge {
   uint32_t from = 0, to = 0;  ///< from < to
   size_t face = 0;
   size_t opposite = 0;
+
+  /** Value equality: the same two corners between the same two faces. */
+  bool operator==(const Edge&) const = default;
 };
 
 /** The value `Edge::opposite` carries where nothing is across. */

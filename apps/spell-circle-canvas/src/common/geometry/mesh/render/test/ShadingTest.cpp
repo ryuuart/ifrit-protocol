@@ -286,4 +286,32 @@ TEST(Shading, APanoramaReadAfterAnotherWasReleasedReadsItsOwnTexels) {
   }
 }
 
+// The panorama is a VALUE: the same chains, the same orientation and the
+// same dials. The images compare by identity, as an sk_sp does, so a sky
+// carried unchanged from frame to frame is the same environment and one
+// rebuilt from the same pixels is a different one.
+TEST(Shading, AnEnvironmentIsAValueAndItsPanoramasCompareByIdentity) {
+  using namespace sigil::geometry::mesh::render;
+  Environment empty;
+  EXPECT_EQ(empty, Environment{});
+  EXPECT_FALSE(empty.valid());
+
+  Environment sky;
+  sky.levels = {horizonPanorama()};
+  sky.irradiance = sky.levels.front();
+  ASSERT_TRUE(sky.valid());
+  EXPECT_NE(sky, empty);
+
+  Environment carried = sky;
+  EXPECT_EQ(sky, carried);
+  carried.exposure = sky.exposure + 1;
+  EXPECT_NE(sky, carried);
+
+  // The same pixels made again are a different image, so they are a
+  // different sky.
+  Environment rebuilt = sky;
+  rebuilt.levels = {horizonPanorama()};
+  EXPECT_NE(sky, rebuilt);
+}
+
 }  // namespace

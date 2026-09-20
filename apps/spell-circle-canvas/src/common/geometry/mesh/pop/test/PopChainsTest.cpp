@@ -15,6 +15,7 @@
 
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/codec/Decode.h"
+#include "sigilgeometry/mesh/pop/Kernel.h"
 #include "sigilgeometry/mesh/pop/Points.h"
 #include "sigilgeometry/mesh/pop/Pop.h"
 #include "support/GeometrySupport.h"
@@ -179,4 +180,36 @@ TEST(Pop, ADegenerateGeneratorCooksToAnEmptyCloud) {
   over.mesh = flat;
   over.count = 128;
   empty({over, pop::Jitter{}});
+}
+
+// A kernel description is a VALUE: the argument block a device would
+// bind, the lane each binding role takes, and the table a lookup reads.
+// The same operator over the same point count describes to the same
+// dispatch twice, which is what lets a runtime prove it has already
+// bound this one.
+TEST(Pop, AKernelDescriptionIsAValue) {
+  pop::Jitter jitter;
+  jitter.amplitude = 4;
+  jitter.seed = 11;
+  const pop::Operation operation = jitter;
+  ASSERT_TRUE(kernel::has(operation));
+
+  kernel::OperationDispatch once, twice;
+  ASSERT_TRUE(kernel::describe(operation, 64, &once));
+  ASSERT_TRUE(kernel::describe(operation, 64, &twice));
+  EXPECT_EQ(once, twice);
+  EXPECT_EQ(once.arguments, twice.arguments);
+
+  // The point count is part of the arguments, so the same operator over
+  // a different cloud is a different dispatch.
+  kernel::OperationDispatch wider;
+  ASSERT_TRUE(kernel::describe(operation, 128, &wider));
+  EXPECT_NE(once, wider);
+  EXPECT_NE(once.arguments, wider.arguments);
+
+  // …and so is the operator's own seed.
+  jitter.seed = 12;
+  kernel::OperationDispatch reseeded;
+  ASSERT_TRUE(kernel::describe(pop::Operation{jitter}, 64, &reseeded));
+  EXPECT_NE(once, reseeded);
 }

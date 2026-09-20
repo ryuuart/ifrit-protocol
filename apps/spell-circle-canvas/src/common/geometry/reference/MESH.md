@@ -13,7 +13,10 @@ the currency every feature under it speaks.
 - **`mesh/Mesh.h`** — the mesh currency. The `Mesh` struct (positions,
   normals, uvs, colors, indices, and the `primitives` lane map),
   `append()`/`transform()`/`computeNormals()`/`bounds()`, and
-  `mesh::bakePrimitiveColor()`. Two surfaces are here rather than on the kit's
+  `mesh::bakePrimitiveColor()`. `primitiveNames()` answers WHICH lanes the
+  mesh carries, in the map's own order, so a reader that did not write
+  them walks them without holding the map's own type. Two surfaces are
+  here rather than on the kit's
   shelf because everything else is built through them: `grid()`, the
   parametric-sheet seam a caller hands its own formula to — answering the
   position, which is differenced for the normals, or the position AND its
@@ -162,7 +165,9 @@ executor dividing at a grain the caller names — the cloud is the same
 either way, bit for bit. The device executors remain separate
 implementations of the same dispatch seams.
 
-- **`mesh/pop/Points.h`** — `Cloud` and its lane accessors (`Cloud.cpp`);
+- **`mesh/pop/Points.h`** — `Cloud` and its lane accessors, including
+  `scalarNames()`, `vectorNames()` and `colorNames()`, which answer which
+  lanes of each width the cloud carries (`Cloud.cpp`);
   the generators `onSpline()`, `grid()`, `ring()`, `scatterBox()` and
   `onMesh()` (`Generators.cpp`); the modifiers `jitter()` and
   `displaceNoise()`, `stampOptions()` and `promoteToPrimitives()`

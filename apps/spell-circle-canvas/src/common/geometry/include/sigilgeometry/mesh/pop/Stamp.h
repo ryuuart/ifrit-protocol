@@ -47,6 +47,9 @@ struct StampArgs {
   glm::uvec4 code{0, 0, 0, 0};
   /** xyz the vector the orientation basis is seeded from. */
   glm::vec4 up{0, 1, 0, 0};
+
+  /** Value equality, word for word — the bytes a device would bind. */
+  bool operator==(const StampArgs&) const = default;
 };
 
 /** The flag bits `StampArgs::code.z` carries. */
@@ -90,6 +93,10 @@ struct StampDispatch {
    *  `describe` refuses a stamping whose total would not fit rather than
    *  forming a smaller one. */
   [[nodiscard]] size_t vertices() const { return (size_t)args.code.w; }
+
+  /** Value equality: the arguments and every lane. Two equal dispatches
+   *  write the same vertices on any executor. */
+  bool operator==(const StampDispatch&) const = default;
 };
 
 /** THE HOST RUN: the kernel's own generated C++ over @p dispatch. All
