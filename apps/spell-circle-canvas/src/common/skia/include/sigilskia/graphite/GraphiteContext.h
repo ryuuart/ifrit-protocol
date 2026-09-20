@@ -38,27 +38,15 @@ struct ContextOptions;
  *  code did not create. Nothing here owns a device. */
 namespace sigil::skia {
 
-/**
- * Owns the Skia Graphite Context + Recorder used to draw into offscreen
- * textures from SkCanvas. Built on an existing native device/queue so
- * Graphite's GPU work rides the same command queue as the host's own
- * rendering: submissions and the host's later passes execute in
- * submission order on that one queue, which is what lets a submit stay
- * asynchronous.
- *
- * Metal and Vulkan are parallel bring-up paths with one factory each,
- * both Qt-free. A Qt host reaches them through the adapters in
- * <sigilskia/qt/QtInterop.h>, which unwrap a QRhi's native handles and
- * forward here.
- *
- * Threads: a Recorder belongs to one thread; the Context tolerates use
- * from several threads but never at once. `recorder()` is the thread
- * that made the context; another thread takes its own from
- * `makeRecorder()` and records on it alone; and every call on
- * `context()` — inserting, submitting, reading back, retiring finished
- * work — from any thread holds `lockContext()` once more than one thread
- * can reach the context.
- */
+/** THE GRAPHITE CONTEXT AND RECORDER A HOST'S OWN DEVICE AND QUEUE CARRY,
+ *  for drawing into offscreen textures from SkCanvas. Graphite's work
+ *  rides that one queue in submission order, which is what lets a submit
+ *  stay asynchronous. Metal and Vulkan are parallel bring-up paths with
+ *  one factory each, both Qt-free.
+ *  @trap A Recorder belongs to one thread and the Context to one thread
+ *  at a time: every call on `context()` — inserting, submitting, reading
+ *  back, retiring finished work — holds `lockContext()` once a second
+ *  thread can reach it. */
 class GraphiteContext {
  public:
   /** Graphite on the device and queue behind @p device, whichever API it
@@ -105,65 +93,33 @@ class GraphiteContext {
     return std::unique_lock<std::mutex>(m_contextMutex);
   }
 
-  /** REQUIRED for every recorder: pass these to makeRecorder().
-   *
-   *  Two settings here are preconditions, and violating either fails
-   *  silently rather than loudly.
-   *
-   *  1. The caching ImageProvider. Graphite performs NO implicit
-   *     uploads: a draw that samples a raster (non-Graphite) SkImage
-   *     asks the recorder's provider for a texture version and DROPS
-   *     the draw when there is none. A recorder built without these
-   *     options renders nothing from any raster image and reports no
-   *     error.
-   *  2. Ordered recordings. Every recording this recorder snaps must be
-   *     inserted, in order. A snap that returns null, or one whose
-   *     recording is discarded, skips an ID and permanently kills the
-   *     recorder — every later insert fails and nothing ever renders
-   *     again. Never snap in order to throw the result away. */
+  /** THE OPTIONS EVERY RECORDER MUST BE MADE WITH — pass them to
+   *  `makeRecorder()`: the caching image provider, and ordered replay.
+   *  @silent a recorder built without them draws any raster image,
+   *  because Graphite uploads nothing implicitly and DROPS the draw.
+   *  @trap Every recording such a recorder snaps must be inserted, in
+   *  order: a skipped ID kills the recorder for the rest of the run. */
   static skgpu::graphite::RecorderOptions makeRecorderOptions();
-  /** One funnel for ContextOptions too (both backends). Reads
-   *  SIGILSKIA_GLYPH_ATLAS_BYTES to cap the Graphite glyph-atlas
-   *  texture budget; unset leaves Skia's own default in place.
-   *
-   *  Every context is given one process-wide thread pool to build its
-   *  device pipelines on. Without it Graphite compiles each one
-   *  serially on the thread that recorded the draw, which for a scene
-   *  wearing a chain of runtime shaders is a dozen compiles inside its
-   *  first frame. The pool is never released: Skia requires it to
-   *  outlive every context built over it, and the last context goes
-   *  during static teardown. */
+  /** ONE FUNNEL FOR ContextOptions TOO, both backends: the glyph-atlas
+   *  texture budget SIGILSKIA_GLYPH_ATLAS_BYTES caps, unset leaving
+   *  Skia's own, and the one process-wide pool every context builds its
+   *  device pipelines on. The pool is never released, because Skia
+   *  requires it to outlive every context built over it. */
   static skgpu::graphite::ContextOptions makeContextOptions();
 
-  /** WHERE A SHADER THAT WOULD NOT COMPILE IS REPORTED. Graphite builds
-   *  the fragment program for a draw at record time and compiles it on
-   *  the device; a program that fails there is dropped, the draw paints
-   *  nothing, and the frame after it tries again. With no handler
-   *  installed Skia prints the generated shader and the compiler's
-   *  errors to stderr and the process carries on, so a body that
-   *  compiles as its own SkSL program and not once Graphite has inlined
-   *  it into a pipeline is a scrolling log rather than something a
-   *  caller can act on. A handler set here is given to every context
-   *  this factory builds afterwards, which is what makes such a failure
-   *  observable — so set it BEFORE the context is created. Process-wide;
-   *  the caller keeps ownership and must outlive the contexts. Null
-   *  restores Skia's own reporting.
-   *
-   *  The compile that fails runs on the pool every context builds its
-   *  pipelines on, so the handler is called FROM THAT POOL and from
-   *  several of its threads at once when a scene's stages fail
-   *  together: a handler that collects must guard what it collects
-   *  into, and one that counts must count atomically. */
+  /** WHERE A SHADER THAT WOULD NOT COMPILE IS REPORTED. Process-wide,
+   *  and given to every context this factory builds AFTERWARDS, so set
+   *  it before the context is created; the caller keeps ownership and
+   *  must outlive the contexts, and null restores Skia's own reporting
+   *  to stderr.
+   *  @trap The handler is called from the pipeline pool, several of its
+   *  threads at once, so what it collects into must be guarded. */
   static void reportShaderErrorsTo(skgpu::ShaderErrorHandler* handler);
 
-  /** WHAT GRAPHITE DID WITH A PIPELINE, as it did it.
-   *
-   *  A backend builds one device program per distinct draw and the
-   *  thread that recorded the draw waits for it, so a scene wearing a
-   *  chain of runtime shaders pays one program per stage the first time
-   *  it is drawn. Which pipelines a scene needs, and which of them were
-   *  already standing, is the whole of what a warm-up can act on, and
-   *  nothing else reports it. */
+  /** WHAT GRAPHITE DID WITH A PIPELINE, as it did it. One device
+   *  program is built per distinct draw while the thread that recorded
+   *  the draw waits for it; which pipelines a scene needs, and which
+   *  were already standing, is what a warm-up acts on. */
   class PipelineReporter {
    public:
     virtual ~PipelineReporter() = default;
@@ -178,37 +134,21 @@ class GraphiteContext {
                        bool fromPrecompile) = 0;
   };
 
-  /** Given to every context this factory builds afterwards, so set it
-   *  BEFORE the context is created. Process-wide; the caller keeps
-   *  ownership and must outlive the contexts. Null reports nothing.
-   *
-   *  THE REPORTER MUST BE THREAD-SAFE. A pipeline is built on the pool
-   *  every context compiles on, and `added` is called from the thread
-   *  that built it — several at once for a scene whose stages are
-   *  built beside each other. `found` arrives on whichever thread
-   *  asked for the pipeline, which is the thread that recorded the
-   *  draw, and may run at the same time as an `added` for another one. */
+  /** Given to every context this factory builds AFTERWARDS, so set it
+   *  before the context is created. Process-wide; the caller keeps
+   *  ownership and must outlive the contexts, and null reports nothing.
+   *  @trap THE REPORTER MUST BE THREAD-SAFE: `added` arrives from the
+   *  pool that built the pipeline, several at once, and `found` from
+   *  whichever thread recorded the draw. */
   static void reportPipelinesTo(PipelineReporter* reporter);
 
-  /** THE RUNTIME EFFECTS A SERIALISED PIPELINE KEY MAY NAME.
-   *
-   *  A pipeline's key describes the whole inlined paint tree, and a
-   *  runtime effect in that tree has no name a later run would
-   *  recognise unless it was declared here: without the declaration the
-   *  key for such a pipeline is absent, and precompiling a recorded set
-   *  skips exactly the stages a chain of effects is made of. The effects
-   *  are copied and given to every context built afterwards, so declare
-   *  them BEFORE the first one. Process-wide, and the list REPLACES
-   *  whatever stood before it: a caller that keeps recorded keys on
-   *  disk must throw them away whenever this list changes, because the
-   *  same effect at a different place in it is a different name.
-   *
-   *  The backend reserves a fixed block of names for a client's
-   *  effects, so a longer list is CUT at the block's length and the
-   *  effects past the cut keep the unstable names they had. The answer
-   *  is how many were taken, and it is what a caller keying stored keys
-   *  on the list must key them on: the list it offered and the list
-   *  that was declared are not the same one. */
+  /** THE RUNTIME EFFECTS A SERIALISED PIPELINE KEY MAY NAME — undeclared,
+   *  the key for a pipeline holding one is absent altogether. Copied
+   *  into every context built AFTERWARDS, so declare them before the
+   *  first; the list REPLACES the one before it and is CUT at
+   *  `runtimeEffectLimit()`, so the answer, how many were taken, is what
+   *  a caller keys stored keys on.
+   *  @trap An effect's place in the list is part of its name. */
   static size_t registerRuntimeEffects(
       std::span<const sk_sp<SkRuntimeEffect>> effects);
 
@@ -226,13 +166,11 @@ class GraphiteContext {
   [[nodiscard]] std::unique_ptr<skgpu::graphite::PrecompileContext>
   makePrecompileContext() const;
 
-  /** REBUILDS THE PIPELINES @p keys NAMES, on the calling thread.
-   *
-   *  A key this backend or this version of Skia cannot read is skipped;
-   *  the answer is how many pipelines were built. It goes through a
-   *  helper of its own, so a caller with several kinds of warming to do
-   *  takes one `makePrecompileContext()` and spends it on all of
-   *  them. */
+  /** REBUILDS THE PIPELINES @p keys NAMES, on the calling thread, and
+   *  answers how many were built; a key this backend or this version of
+   *  Skia cannot read is skipped. It goes through a helper of its own,
+   *  so a caller with several kinds of warming to do takes one
+   *  `makePrecompileContext()` and spends it on all of them. */
   [[nodiscard]] size_t precompile(std::span<const sk_sp<SkData>> keys) const;
 
  private:
