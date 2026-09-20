@@ -10,7 +10,8 @@
 # no Qt.
 sigil_library_root(SigilGeometry
   BRIEF "2D and 3D drawing over Skia: path operators, meshes, splines, point clouds"
-  DOCS reference/PATH.md reference/MESH.md reference/POP.md
+  DOCS docs/Groups.dox
+       reference/PATH.md reference/MESH.md reference/POP.md
        reference/KIT.md reference/DEVICE.md reference/TRAPS.md)
 
 add_subdirectory(path)
@@ -29,13 +30,17 @@ sigil_library(SigilGeometry
             SigilGeometryMeshCodec SigilGeometryKit SigilGeometryDevice
             SigilGeometryDeviceResidency)
 
-# The umbrella's own case: it links the whole interface and includes
-# Geometry.h, so a public header that stops compiling beside its
-# siblings — a name two features spell the same way — is a build failure
-# here rather than in whichever consumer took both.
-sigil_test(geometry_test
-  SOURCES test/UmbrellaTest.cpp
-  DEFINITIONS SIGIL_GEOMETRY_INCLUDE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/include"
+# Every public header compiled first and alone, then a second time, so a
+# header that leans on an earlier include's transitive reach breaks here
+# rather than in the next consumer's include order. The device headers
+# are in it: each names a device it is handed rather than one it creates,
+# so the declaration compiles wherever the rest does, and the residency
+# feature's headers are on a private include path and not under the
+# root at all.
+file(GLOB_RECURSE GEOMETRY_SELF_TEST_HEADERS
+     CONFIGURE_DEPENDS include/sigilgeometry/*.h)
+sigil_header_self_test(geometry_header_self_test
+  HEADERS ${GEOMETRY_SELF_TEST_HEADERS}
   LIBRARIES SigilGeometry)
 
 # Every API name the prose spells, compiled against the headers that own

@@ -3,9 +3,8 @@
 The chapter on the 3D tier, header by header: `mesh` the currency,
 `mesh/camera` the viewpoint, `mesh/render` the draw and its runtime,
 `mesh/curve` the splines, `mesh/pop` the point clouds and the chain
-language over them, `mesh/codec` model interchange, and the umbrella
-header over every one of them. `README.md` beside the library is the
-front page; `PATH.md` is the 2D tier underneath this one, `POP.md` the
+language over them, and `mesh/codec` model interchange. `README.md`
+beside the library is the front page; `PATH.md` is the 2D tier underneath this one, `POP.md` the
 operator catalogue and `KIT.md` the shelf.
 
 **`mesh`** — `SigilGeometryMesh`, needs `path`. The 3D tier's root, and
@@ -337,13 +336,3 @@ through a vertex list, and the reader gives every corner its own mesh
 vertex so a per-corner uv or normal survives a seam, so a cube written
 with 8 shared positions returns with 36 — same positions, same winding,
 same attribute values, a different vertex count.
-
-**`Geometry.h`** at the root of the include tree includes every public
-header of every feature — `path/`, `path/blend/`, `kit/`, `mesh/`,
-`mesh/camera/`, `mesh/codec/`, `mesh/curve/`, `mesh/pop/` and
-`mesh/render/` — for a consumer that takes the whole library rather than
-a tier of it. The device headers are left out on purpose: `device/
-Device.h`, `mesh/pop/device/` and `mesh/render/device/Painter.h` each
-name a GPU device that has to be brought up and handed in, so a consumer
-takes one deliberately; the residency feature's headers stand on a
-private include path and are not the library's to offer.
