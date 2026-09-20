@@ -3,6 +3,7 @@
  * and terminal caps of a Line, the rails and the hatches.
  */
 
+#include <include/core/SkCanvas.h>
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathUtils.h>
