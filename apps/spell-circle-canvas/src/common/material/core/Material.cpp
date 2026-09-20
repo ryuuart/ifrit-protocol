@@ -154,7 +154,7 @@ Material& Material::bind(std::string_view name,
     return *this;
   }
   if (block)
-    m_bindings.push_back({std::string(name), nullptr, std::move(block)});
+    m_bindings.push_back({std::string(name), 0.0f, std::move(block)});
   return *this;
 }
 
