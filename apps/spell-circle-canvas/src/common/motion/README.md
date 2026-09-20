@@ -111,24 +111,17 @@ a point looks like is the drawing's business.
 
 ## Build and test
 
-From `apps/spell-circle-canvas`:
-
-```sh
-python3 scripts/sigil.py setup --config Release
-cmake --build build --config Release --target motion_test
-ctest --test-dir build -C Release --output-on-failure
-```
+[docs/overview/testing.md](../../../docs/overview/testing.md) is the
+contract every library here is built, tested and measured under: one
+`motion_test` over every feature's `test/` and one `motion_bench` over
+every feature's `bench/`, ctest one entry per CASE, what a case may pin,
+and what a label promises. What is only true of SigilMotion:
 
 Targets: `SigilMotionBind`, `SigilMotionValues`, `SigilMotionClock`,
-`SigilMotionPhysics` and `SigilMotionSchedule` — the libraries, one per
-feature directory (`bind/`, `values/`, `clock/`, `physics/`,
-`schedule/`), each holding its sources, its
-`test/` and its `bench/` — plus `SigilMotion`, the umbrella.
-
-One test binary, `motion_test`, built from every feature's `test/`
-directory; ctest discovers one entry per CASE out of it, so a suite or a
-case is selected by name with no target behind it — `-R '^Physics\.'`
-for the stepper's cases, `-R '^Cascade\.'` for the schedule's:
+`SigilMotionPhysics` and `SigilMotionSchedule` — one per feature
+directory (`bind/`, `values/`, `clock/`, `physics/`, `schedule/`), each
+holding its sources, its `test/` and its `bench/` — plus `SigilMotion`,
+the umbrella.
 
 | directory | suites | what they prove | what the feature must not be able to link |
 |---|---|---|---|
@@ -138,28 +131,20 @@ for the stepper's cases, `-R '^Cascade\.'` for the schedule's:
 | `physics/test/` | `Physics`, `Particles` | the lanes a point set is and what `remove` does to their numbering, each force against the arithmetic it stands in for, a distance band read as a stick, a spring and a rope, the velocity a constraint pass gives back, the same run reproduced from the same `dt`, and the degenerate settings a caller can hand in; then a rate that produces the count it promises, a mouth that puts its births where its shape says, lifetimes that expire and compact the set, a named attribute that rides through a death, and the same seed twice as the same cloud | **the clock** — a step is a number of seconds the caller states, and a link edge to a timeline would be the first step to something in here reading time for itself |
 | `schedule/test/` | `Spread`, `Order`, `Cascade`, `CascadeOrdering` | the orderings, the ladder, cue tables, the nested and looping cascade, and the field walk over a spread's equality | **the clock** — a cascade is a pure function of a master float and two counts, and a link edge to the clock would be the first step to something in here reading time for itself |
 
-No binary needs a GPU, a font, an asset or a network, so none of them
-carries a ctest label and none of them skips. No test in any of them reads
-a wall clock either: every frame length, every phase and every progress is
-a number the case hands in, so a slow machine changes nothing about what
-they assert.
-
-A case asserts one thing a public header promises and is named that
-promise as a sentence, so a failure line reads as the claim that broke. It
-pins only what editing this library could falsify — the numbers a stage
-computes, the order the stages take, the discriminant of a slot, the
-fields a comparator reads — never elapsed time, which is the bench
-ledger's. A claim made N times with one thing varying is one `TEST_P`
-whose parameter is that thing and whose rows are named: the chain's stages
-against the arithmetic they stand in for, the pairs of stages written
-either way round, the envelopes that stay inside [0,1] and the ones that
-repeat every period, the four forms an `Animatable<float>` holds, and the
+No binary needs a GPU, a font, an asset or a network, so none carries a
+label and none skips. **No test in any of them reads a wall clock
+either**: every frame length, every phase and every progress is a number
+the case hands in, so a slow machine changes nothing about what they
+assert. The parameterised rows are the chain's stages against the
+arithmetic they stand in for, the pairs of stages written either way
+round, the envelopes that stay inside [0,1] and the ones that repeat
+every period, the four forms an `Animatable<float>` holds, and the
 orderings a cascade deals its ranks in.
 
-One file per subject, named for what it asserts. In `bind/test/`,
-`BindTest` (the chain builder), `BoundFloatTest` (the evaluation, the
-envelopes and the wrap), `WiggleNoiseTest` (the noise stage and the field
-under it) and `CurveComparatorTest` (the two comparators); then
+One file per subject: in `bind/test/`, `BindTest` (the chain builder),
+`BoundFloatTest` (the evaluation, the envelopes and the wrap),
+`WiggleNoiseTest` (the noise stage and the field under it) and
+`CurveComparatorTest` (the two comparators); then
 `clock/test/ClockTest.cpp`; then `physics/test/PhysicsTest.cpp` (the
 stepper) and `ParticlesTest.cpp` (what is born, ages and dies);
 `schedule/test/ScheduleTest.cpp`; and, in `values/test/`, `ValuesTest`
@@ -168,32 +153,28 @@ stepper) and `ParticlesTest.cpp` (what is born, ages and dies);
 read from a time alone) and `SpringTest` (the one value that carries its
 own velocity).
 
-Fixtures more than one test binary needs live in `test/support/` at the
-library root, and every motion test includes `"support/<Name>.h"`. Two
-headers sit there. `StandsAlone.h` fails the build if a drawing library's
-headers become reachable from a motion test — the positive control under
-every "SigilMotion alone" claim, without which those tests would pass for
-the wrong reason on a machine where a compositing header happened to be on
-the include path; every motion test opens with it. `Ramps.h` is the
-transitioned value a test that drives a motion starts from: a linear ramp
-to a target over a stated number of milliseconds, linear so the
-assertions can read the value halfway through and name the number without
-evaluating a curve. Otherwise each test links only the library it
-exercises, plus the clock where a value is driven by the ticker, and
-GoogleTest.
+Two headers sit in `test/support/` at the library root, and every motion
+test includes `"support/<Name>.h"`. **`StandsAlone.h` fails the build if
+a drawing library's headers become reachable from a motion test** — the
+positive control under every "SigilMotion alone" claim, without which
+those tests would pass for the wrong reason on a machine where a
+compositing header happened to be on the include path; every motion test
+opens with it. `Ramps.h` is the transitioned value a test that drives a
+motion starts from: a linear ramp to a target over a stated number of
+milliseconds, linear so the assertions can read the value halfway
+through and name the number without evaluating a curve. Otherwise each
+test links only the library it exercises, plus the clock where a value
+is driven by the ticker, and GoogleTest.
 
-One Google Benchmark binary, `motion_bench`, is built by the `benches`
-target and run from a Release build through `scripts/sigil.py bench`,
-which is where any number about this library belongs. Its arms:
-`bind/bench/` (`BoundFloat::apply`
-per call under each envelope and the full chain, and the wiggle field by
-octave), `values/bench/` (the consumer's read of an `Animatable`
-lane per slot for each kind it can hold, copying and constructing such
-a lane, and the two time-only signals read one call at a time),
-`clock/bench/` (the frame clock's own step, the timeline
-stepped with N motions on it, and the derivation pass at N derived
-cells), `physics/bench/` (a field of free particles, the same field
-flocking — which is where comparing every pair shows — a chain of
-sticks under its constraint passes, and ten thousand particles born,
-stepped, aged and reaped, each measured on its own) and `schedule/bench/` (resolving a
-cascade for a frame's counts, and the per-unit local-time read).
+`motion_bench`'s arms: `bind/bench/` (`BoundFloat::apply` per call under
+each envelope and the full chain, and the wiggle field by octave),
+`values/bench/` (the consumer's read of an `Animatable` lane per slot
+for each kind it can hold, copying and constructing such a lane, and the
+two time-only signals read one call at a time), `clock/bench/` (the
+frame clock's own step, the timeline stepped with N motions on it, and
+the derivation pass at N derived cells), `physics/bench/` (a field of
+free particles, the same field flocking — which is where comparing every
+pair shows — a chain of sticks under its constraint passes, and ten
+thousand particles born, stepped, aged and reaped, each measured on its
+own) and `schedule/bench/` (resolving a cascade for a frame's counts,
+and the per-unit local-time read).
