@@ -263,7 +263,10 @@ struct Sort {
  *  flips inside and outside before combining. Reads any lane's xyz —
  *  P by default, but "select by direction" is one field away. */
 struct Select {
+  /** The region a point is tested against. */
   enum class Shape : int32_t { Sphere = 0, Box = 1 };
+  /** How this region folds into whatever the selection lane already
+   *  holds, so several regions build one selection. */
   enum class Combine : int32_t {
     Replace = 0,
     Union = 1,
@@ -322,6 +325,7 @@ struct Peak {
  *  turn on library trigonometry, so like Noise this operator has no
  *  portable kernel and a device executor declines it. */
 struct Deform {
+  /** Which deformation to run. */
   enum class Kind : int32_t { Twist = 0, Taper = 1, Bend = 2 };
   Kind kind = Kind::Twist;
   float amount = 90;

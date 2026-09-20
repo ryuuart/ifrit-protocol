@@ -64,6 +64,7 @@ struct Light {
  *  optional texture, the lights the Lit mode answers to, and the
  *  runtime the draw executes on. */
 struct MeshStyle {
+  /** Which of the three shading modes the draw runs. */
   enum class Mode : uint8_t {
     Lit,      ///< per-vertex Lambert + Blinn specular + rim
     Normals,  ///< device-space normal G-buffer, +y down — the convention

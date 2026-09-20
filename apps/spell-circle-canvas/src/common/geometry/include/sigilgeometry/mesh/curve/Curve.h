@@ -47,6 +47,7 @@ namespace sigil::geometry::mesh::curve {
  *  cover unequal arc length wherever the control points bunch up;
  *  `sampleArcLength()` is what trades that for even spacing. */
 struct Spline3 {
+  /** Which rule reads the control points. */
   enum class Type : uint8_t { Linear, CatmullRom, Bezier };
 
   std::vector<glm::vec3> points;
