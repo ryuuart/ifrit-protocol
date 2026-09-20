@@ -18,6 +18,25 @@
  * release it was given.
  */
 
+/** @defgroup skia-graphite Graphite bring-up
+ *  Skia's Graphite backend on a device someone else owns: the context,
+ *  the surfaces and images over borrowed textures, the pixel reads an
+ *  upload takes, and the canvas that keeps a scene's painting order.
+ *  @{ */
+/** @} */
+
+/** @defgroup skia-draw Drawing helpers
+ *  Backend-portable forms of the canvas draws Graphite does not
+ *  implement, decomposed so a recorded picture replays anywhere.
+ *  @{ */
+/** @} */
+
+/** @defgroup skia-qt The Qt bridge
+ *  Graphite stood up on the device a QRhi already renders with, and
+ *  Qt's textures wrapped as Skia surfaces.
+ *  @{ */
+/** @} */
+
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
 #include <sigilskia/graphite/Pixels.h>

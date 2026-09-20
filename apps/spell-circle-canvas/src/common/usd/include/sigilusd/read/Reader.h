@@ -17,6 +17,13 @@
 #include <string>
 #include <vector>
 
+/** USD FILES READ INTO MESHES AND WRITTEN BACK OUT. A stage's
+ *  UsdGeomMeshes read as a model — transforms baked, faces
+ *  triangulated, primvars carried across as lanes — and a model written
+ *  as a stage in whichever of the USD formats the path names. Reach for
+ *  it to bring geometry in from another tool, or to hand a drawing's
+ *  own geometry to one. It needs OpenUSD, so the whole catalogue is
+ *  absent from a build without it. */
 namespace sigil::usd {
 
 /** The bound UsdPreviewSurface material names, in slot order, that

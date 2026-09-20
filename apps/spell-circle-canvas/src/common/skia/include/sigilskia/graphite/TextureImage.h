@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup skia-graphite
  * A texture someone else owns, read as an SkImage a draw can SAMPLE —
  * the other direction from `OffscreenSurface`, which is the same texture
  * as a surface a draw can WRITE.

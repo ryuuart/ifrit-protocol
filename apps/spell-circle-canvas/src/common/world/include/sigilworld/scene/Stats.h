@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup world-scene
  * What one frame of a Scene did, counted — the reconcile pass's own
  * tallies beside the retained side's.
  */
@@ -32,6 +33,7 @@ struct SceneStats {
   int64_t aliased = 0;    ///< resources handed a surface another one uses
   int64_t surfaces = 0;   ///< surfaces the frame's image resources needed
 
+  /** Every count back to zero, for the next frame. */
   void reset() {
     reconcile.reset();
     nodes = extracted = cooked = baked = replayed = drawn = rounds = 0;

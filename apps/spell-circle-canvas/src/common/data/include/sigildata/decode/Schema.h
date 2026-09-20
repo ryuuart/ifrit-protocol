@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup data-decode
  * A SCHEMA AS ONE VALUE, and the generated root that carries one.
  *
  * A FlatBuffer says nothing about itself: the names of its fields are in

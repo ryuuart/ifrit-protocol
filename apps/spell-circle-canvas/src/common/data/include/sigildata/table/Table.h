@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup data-table
  * A TABLE OF NAMED, TYPED COLUMNS. Rows of data the way a data file
  * holds them: a number column read as a contiguous span a scale walks
  * straight down, a text column of labels, a boolean column of flags, a
@@ -27,6 +28,15 @@
 #include <variant>
 #include <vector>
 
+/** DATA A DRAWING IS DRAWN FROM. A table of named, typed columns and the
+ *  reshapings over it; the one scale value that maps a domain onto a
+ *  range; the decoders that turn bytes into either — delimited text,
+ *  JSON, a FlatBuffers schema, and the live codecs a desk or an
+ *  instrument speaks; a SQL database behind one seam; and a connection,
+ *  which is a live door read as values rather than as bytes. Reach for
+ *  it when a drawing's numbers come from somewhere other than the
+ *  drawing. Nothing here fetches anything: bytes arrive from whoever
+ *  owns the resources. */
 namespace sigil::data {
 
 /** A MOMENT, as seconds since the start of 1970 UTC.
@@ -50,7 +60,9 @@ struct Flag {
   bool set = false;
 
   constexpr Flag() = default;
+  /** A flag standing where @p value does. */
   constexpr Flag(bool value) : set(value) {}
+  /** The flag as a condition. */
   constexpr operator bool() const { return set; }
 
   auto operator<=>(const Flag&) const = default;
@@ -85,17 +97,24 @@ class Column {
 
   Column() = default;
 
+  /** A column called @p name holding @p cells, whose type decides what
+   *  the column is made of. */
   template <Cell T>
   Column(std::string name, std::vector<T> cells)
       : m_name(std::move(name)), m_cells(std::move(cells)) {}
 
   bool operator==(const Column&) const = default;
 
+  /** The name the column is addressed by. */
   const std::string& name() const { return m_name; }
+  /** Renames the column, leaving its cells alone. */
   void rename(std::string name) { m_name = std::move(name); }
 
+  /** Which of the four types the cells are. */
   ColumnType type() const { return static_cast<ColumnType>(m_cells.index()); }
+  /** How many cells the column holds. */
   size_t size() const;
+  /** Whether the column holds no cells. */
   bool empty() const { return size() == 0; }
 
   /** THE CELLS, as a span of T — empty when this column holds something
@@ -166,12 +185,15 @@ class Table {
    *  than that reads as missing past its end rather than as a row that
    *  is not there, so a file with a short last line is still a table. */
   size_t size() const;
+  /** Whether the table has no rows. */
   bool empty() const { return size() == 0; }
 
+  /** Every column, in the order they were added. */
   std::span<const Column> columns() const { return m_columns; }
 
   /** The column called @p name, or null when there is none. */
   const Column* column(std::string_view name) const;
+  /** Whether a column called @p name is here. */
   bool has(std::string_view name) const { return column(name) != nullptr; }
 
   /** THE CELLS OF @p name AS A SPAN OF T — empty when there is no such
@@ -199,6 +221,8 @@ class Table {
   void add(std::string name, std::vector<T> cells) {
     add(Column(std::move(name), std::move(cells)));
   }
+  /** The same from any other input range of cells, walked into a
+   *  vector. */
   template <std::ranges::input_range R>
     requires Cell<std::remove_cvref_t<std::ranges::range_value_t<R>>>
   void add(std::string name, R&& cells) {
@@ -232,6 +256,7 @@ class Table {
   /** THE NAMED COLUMNS ONLY, in the order named. A name with no column
    *  behind it is left out rather than answered as an empty one. */
   Table select(std::span<const std::string_view> names) const;
+  /** The same from names written out at the call site. */
   Table select(std::initializer_list<std::string_view> names) const;
 
   /** THE ROWS AT THOSE INDICES, in that order — the one reshaping every

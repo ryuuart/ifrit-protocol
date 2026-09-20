@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup query
+ * @ingroup data-query
  *
  * `Database` — a SQL engine a drawing asks its data of, behind one seam:
  * SQLite for a file that will be read for decades, DuckDB for the
@@ -51,7 +51,9 @@ enum class Access { ReadWrite, ReadOnly };
  *  is move-only: one connection, owned. */
 class Database {
  public:
+  /** Takes over the moved-from store's connection, leaving it closed. */
   Database(Database&&) noexcept;
+  /** Takes over the moved-from store's connection, closing this one. */
   Database& operator=(Database&&) noexcept;
   ~Database();
 
@@ -76,6 +78,7 @@ class Database {
   [[nodiscard]] static std::optional<Database> memory(
       Engine engine, std::string* why = nullptr);
 
+  /** Which engine opened this store. */
   [[nodiscard]] Engine engine() const;
   /** The file this store was opened from, or empty for a memory store. */
   [[nodiscard]] const std::filesystem::path& file() const;
@@ -124,6 +127,8 @@ class Database {
  *  a hub hands one cached resource to every reader, so no reader may
  *  change the file the others are reading. */
 struct DatabaseDecoder {
+  /** Opens @p bytes as a store, @p hint naming the resource so the
+   *  extension can choose the engine. */
   std::optional<Database> decode(const io::Bytes& bytes,
                                  std::string_view hint) const;
 };

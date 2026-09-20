@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup data-decode
  * THIS LIBRARY'S DECODERS, and the one call that puts them on a hub.
  *
  * A hub answers a URI with bytes and hands those bytes to whatever
@@ -40,6 +41,7 @@ struct TableDecoder {
    *  alike; setting one pins every resource this decoder reads. */
   CsvOptions csv;
 
+  /** Reads @p bytes as a table, @p hint naming the resource. */
   std::optional<Table> decode(const io::Bytes& bytes,
                               std::string_view hint) const;
 };
@@ -54,6 +56,7 @@ struct TableDecoder {
  *  speaks OSC and a file that holds JSON both answer `load<Json>`
  *  without a second type or a second decoder standing between them. */
 struct JsonDecoder {
+  /** Reads @p bytes as a document, @p hint naming the resource. */
   std::optional<Json> decode(const io::Bytes& bytes,
                              std::string_view hint) const;
 };

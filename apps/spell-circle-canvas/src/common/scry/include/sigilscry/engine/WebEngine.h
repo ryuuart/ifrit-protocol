@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup scry-engine
  * The WebEngine: Ultralight booted once per process, the thread that
  * drives it, and the factory for the views and image slots it renders.
  * WebEngineConfig fixes the engine's resources, threading, GPU device
@@ -23,6 +24,12 @@ namespace sigil::skia {
 class GraphiteContext;
 }  // namespace sigil::skia
 
+/** A HEADLESS WEB ENGINE WHOSE OUTPUT IS A SKIA IMAGE. HTML, CSS and
+ *  JavaScript laid out and painted with no window anywhere, each view's
+ *  pixels arriving as an image a canvas can draw. Reach for it to put
+ *  real web content — a document, a chart library, a page someone else
+ *  authored — into a drawing. It presents nothing and owns no window;
+ *  where the image goes is the caller's business. */
 namespace sigil::scry {
 
 class WebImage;

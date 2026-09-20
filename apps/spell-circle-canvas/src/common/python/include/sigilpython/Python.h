@@ -1,5 +1,10 @@
 #pragma once
 
+/** @file
+ * The one call that assembles the extension module: every native
+ * library the bindings cover, registered into a module a caller owns.
+ */
+
 #include <pybind11/pybind11.h>
 
 namespace sigil::python {

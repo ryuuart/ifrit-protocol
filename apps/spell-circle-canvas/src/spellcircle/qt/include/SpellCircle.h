@@ -1,4 +1,10 @@
 #pragma once
+
+/** @file
+ * The QML item a receiver's canvas is: the scene model and the graphics
+ * settings it watches, and the repaint it schedules when either moves.
+ */
+
 #include <QtCanvasPainter/QCanvasPainterItem>
 
 #include "GraphicsConfig.h"
@@ -32,13 +38,17 @@ class SpellCircle : public QCanvasPainterItem {
   void setConfig(QObject* config);
 
  signals:
+  /** Another scene model was bound to this item. */
   void modelChanged();
+  /** Another graphics configuration was bound to this item. */
   void configChanged();
 
  private:
   Q_OBJECT
   QML_ELEMENT
+  /** The scene model this item draws from. */
   Q_PROPERTY(QObject* model READ model WRITE setModel NOTIFY modelChanged)
+  /** The graphics settings this item draws with. */
   Q_PROPERTY(QObject* config READ config WRITE setConfig NOTIFY configChanged)
 
   SpellCircleModel* m_model = nullptr;

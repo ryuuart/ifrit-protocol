@@ -1,4 +1,10 @@
 #pragma once
+
+/** @file
+ * The installed fonts, offered to QML as a singleton: the families, the
+ * styles each family has, and the search a family picker is built on.
+ */
+
 #include <QFont>
 #include <QObject>
 #include <QStringList>

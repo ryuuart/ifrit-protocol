@@ -1,5 +1,11 @@
 #pragma once
 
+/** @file
+ * The numbers a receiver starts from before any setting is applied: the
+ * port it listens on, and the bounds a render target's size is held
+ * inside.
+ */
+
 #include <cstdint>
 
 namespace spellcircle {

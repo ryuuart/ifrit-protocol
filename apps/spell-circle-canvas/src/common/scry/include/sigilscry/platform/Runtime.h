@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup scry-platform
  * Whether the web engine this library was built against can boot on this
  * machine: the ICU tables and CA certificates it lays pages out with are
  * distributed with the application rather than with the dylibs, so a

@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup data-scale
  * ONE MAPPING VALUE. A scale carries a domain, a range and the transform
  * between them, and answers three questions about that one mapping:
  * where a domain value lands (`apply`), which domain value a range
@@ -166,6 +167,7 @@ struct Scale {
    *  infinity, so an axis built before its data arrived draws a line
    *  through the middle instead of nothing. */
   [[nodiscard]] double apply(double value) const;
+  /** Where @p value lands, so a scale reads as the function it is. */
   double operator()(double value) const { return apply(value); }
 
   /** WHICH DOMAIN VALUE @p position CAME FROM — a cursor readout, a

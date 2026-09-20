@@ -95,6 +95,8 @@ io::Bytes dmxMessage(int universe, std::string_view channels);
 /** THE WAY OUT: one peer, and the message that goes to it. */
 class Sender {
  public:
+  /** A sender over @p wires, which must outlive it. There is no peer
+   *  until `openPeer()` opens one. */
   explicit Sender(Wires& wires);
 
   /** Opens @p uri as the peer every send reaches from now on, through
@@ -121,7 +123,9 @@ class Sender {
    *  stay. */
   void stopRepeating();
 
+  /** Whether a message is set to go out again and again. */
   bool repeating() const { return m_repeating; }
+  /** How many seconds stand between repeats; 0 when none is set. */
   double period() const { return m_period; }
 
   /** Sends the repeated message when one is due at @p seconds on the

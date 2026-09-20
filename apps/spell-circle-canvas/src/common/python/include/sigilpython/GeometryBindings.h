@@ -1,5 +1,10 @@
 #pragma once
 
+/** @file
+ * Binding geometry, with the casters that let a Python sequence
+ * stand for a vector and a matrix.
+ */
+
 #include <pybind11/pybind11.h>
 
 #include <glm/glm.hpp>
@@ -27,5 +32,6 @@ struct type_caster<glm::vec<N, float, Q>> {
 }  // namespace pybind11::detail
 
 namespace sigil::python {
+/** Registers geometry on @p module. */
 void bindGeometry(pybind11::module_& module);
 }  // namespace sigil::python

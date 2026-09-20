@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup image-decode
  * The decode surface of SigilImage: DecodeOptions, and the three entry
  * points that route bytes between the backends by sniffing content —
  * decodeImage(), probeImage() and decodeChannels(). Skia's codecs cover
@@ -18,6 +19,13 @@
  * Resource ACCESS (URIs, mounts, caching, hot reload) is SigilIO's
  * concern; this header only ever sees bytes.
  */
+
+/** @defgroup image-decode Decoding
+ *  Encoded bytes read into an asset, into metadata, or into named float
+ *  planes, routed between the backends by what the bytes themselves say
+ *  they are.
+ *  @{ */
+/** @} */
 
 #include <cstddef>
 #include <filesystem>
@@ -43,7 +51,7 @@ struct DecodeOptions {
    *  size (falling back to 512 for percent-sized SVGs that have none).
    *  Ignored by raster formats. */
   int width = 0;
-  int height = 0;
+  int height = 0;  ///< The other axis of the same target raster size.
 
   bool operator==(const DecodeOptions&) const = default;
 };

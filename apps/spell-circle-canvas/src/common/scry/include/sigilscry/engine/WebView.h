@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup scry-engine
  * The WebView: one offscreen page, its input, its script, and the
  * frames it publishes — each repaint an immutable snapshot with a
  * version, a raster image on CPU engines or a texture on GPU ones.
@@ -73,6 +74,7 @@ class WebView {
     SkIRect dirtyBounds = SkIRect::MakeEmpty();
     uint64_t version = 0;
 
+    /** Whether the view has painted anything yet. */
     explicit operator bool() const { return image != nullptr || bool(texture); }
   };
 
@@ -82,7 +84,9 @@ class WebView {
 
   ~WebView();
 
+  /** The layout viewport's width in pixels. */
   int width() const;
+  /** The layout viewport's height in pixels. */
   int height() const;
 
   /** Resizes the page layout viewport (in pixels). */

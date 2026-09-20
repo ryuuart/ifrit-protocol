@@ -1,4 +1,11 @@
 #pragma once
+
+/** @file
+ * @ingroup skia-graphite
+ * Skia's Graphite backend brought up on a device someone else owns, and
+ * the recorders drawing threads take out of it.
+ */
+
 #include <include/core/SkRefCnt.h>
 #include <sigilcore/hardware/GpuDevice.h>
 
@@ -22,6 +29,12 @@ struct RecorderOptions;
 struct ContextOptions;
 }  // namespace skgpu::graphite
 
+/** SKIA ON A DEVICE SOMEBODY ELSE OWNS. Graphite brought up against a
+ *  graphics device and queue a host already has, surfaces and images
+ *  over textures that host lends, the pixel reads an upload takes, and
+ *  the canvas draws Graphite leaves unimplemented put back. Reach for
+ *  it when Skia has to draw into a window, a texture or a queue this
+ *  code did not create. Nothing here owns a device. */
 namespace sigil::skia {
 
 /**

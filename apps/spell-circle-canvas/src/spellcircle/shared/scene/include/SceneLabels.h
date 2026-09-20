@@ -1,13 +1,16 @@
 #pragma once
 
-// Label geometry for SpellCircle's ring diagrams: the measured circular paths a
-// circle's name is drawn along, and the optical correction that keeps that text
-// evenly spaced around them.
-//
-// This is the product-specific half of the split. Shaping, line breaking, and
-// straight single-line layout belong to the general text library (SigilWeave),
-// which knows how to run a pen along an arbitrary contour; only the business of
-// deciding WHICH contour a spell-circle label follows lives here.
+/** @file
+ * Label geometry for SpellCircle's ring diagrams: the measured circular
+ * paths a circle's name is drawn along, and the optical correction that
+ * keeps that text evenly spaced around them.
+ *
+ * This is the product-specific half of the split. Shaping, line
+ * breaking, and straight single-line layout belong to the general text
+ * library (SigilWeave), which knows how to run a pen along an arbitrary
+ * contour; only the business of deciding WHICH contour a spell-circle
+ * label follows lives here.
+ */
 
 #include <include/core/SkFontMetrics.h>
 #include <sigilgeometry/path/Contour.h>
@@ -34,6 +37,8 @@ float centeredBaselineOffset(const SkFontMetrics& metrics);
  *  size anywhere on the canvas share one entry. */
 class RingLabelGeometryCache {
  public:
+  /** A cache holding at most @p maximumEntries measured rings; reaching
+   *  that many empties it rather than choosing one to drop. */
   explicit RingLabelGeometryCache(size_t maximumEntries = 256)
       : m_maximumEntries(maximumEntries) {}
 

@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup world-element
  * A node's animation lanes: the fixed rows every description carries a
  * slot for, and the list a host retargets and samples them through.
  *

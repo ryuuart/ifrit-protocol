@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup io-hub
  * The resource hub: game-engine-style mounted URIs over pluggable
  * decode backends.
  *
@@ -106,7 +107,9 @@ class ResourceLease {
   ResourceLease() = default;
   ~ResourceLease();
 
+  /** Takes over @p other's claim, leaving it holding nothing. */
   ResourceLease(ResourceLease&& other) noexcept;
+  /** Takes over @p other's claim, releasing this one's. */
   ResourceLease& operator=(ResourceLease&& other) noexcept;
   ResourceLease(const ResourceLease&) = delete;
   ResourceLease& operator=(const ResourceLease&) = delete;
@@ -154,7 +157,10 @@ class DispatchLease {
   using Callback = std::function<void(double seconds)>;
 
   DispatchLease() = default;
+  /** Takes over the moved-from lease's registration. */
   DispatchLease(DispatchLease&&) noexcept = default;
+  /** Takes over the moved-from lease's registration, dropping this
+   *  one's. */
   DispatchLease& operator=(DispatchLease&&) noexcept = default;
   DispatchLease(const DispatchLease&) = delete;
   DispatchLease& operator=(const DispatchLease&) = delete;
@@ -262,6 +268,7 @@ class Hub {
    *  A network URI cannot be written and answers false — a hub writes
    *  where it mounts. */
   bool write(std::string_view uri, const void* bytes, size_t size);
+  /** The same, from a bytes value already in hand. */
   bool write(std::string_view uri, const Bytes& bytes) {
     return write(uri, bytes.bytes.data(), bytes.bytes.size());
   }
@@ -351,6 +358,7 @@ class Hub {
 
   /** A lease retaining the union of the current selector snapshots. */
   ResourceLease retain(std::span<const std::string_view> selectors);
+  /** The same from selectors written out at the call site. */
   ResourceLease retain(std::initializer_list<std::string_view> selectors);
 
   /** Discards every cached entry not protected by a resource lease. Values

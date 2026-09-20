@@ -1,4 +1,12 @@
 #pragma once
+
+/** @file
+ * @ingroup skia-qt
+ * Graphite stood up on the device a QRhi renders with, and Qt's own
+ * textures wrapped as surfaces Skia draws into, so the two share one
+ * queue rather than each holding a device of its own.
+ */
+
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
 

@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup measure-time
  * Per-frame timing over three sample rings — the frame end to end, the frame's
  * own work, and the interval between presented frames — fed by four
  * marks laid in the render loop.
@@ -33,13 +34,19 @@ namespace sigil::measure {
  *  laying marks; the rings are the same either way. */
 class FrameTimer {
  public:
+  /** The clock every mark is taken from. */
   using Clock = std::chrono::steady_clock;
 
+  /** Three rings each holding @p capacity samples, the oldest falling
+   *  off as a newer one lands. */
   explicit FrameTimer(size_t capacity = 120)
       : m_frame(capacity), m_work(capacity), m_present(capacity) {}
 
+  /** Opens a frame: the mark both cost lanes are measured from. */
   void begin() { m_begin = Clock::now(); }
+  /** Closes the work lane for this frame. */
   void composed() { m_work.add(sinceBeginMs()); }
+  /** Closes the end-to-end lane for this frame. */
   void finished() { m_frame.add(sinceBeginMs()); }
   /** The first mark after construction or reset() seeds the cadence and
    *  adds no sample; there is no previous frame to measure from. */
@@ -52,12 +59,19 @@ class FrameTimer {
     m_lastPresent = now;
   }
 
+  /** Adds an end-to-end sample a caller timed itself, in milliseconds. */
   void addFrame(double ms) { m_frame.add(ms); }
+  /** Adds a work sample a caller timed itself, in milliseconds. */
   void addWork(double ms) { m_work.add(ms); }
+  /** Adds a presentation interval a caller timed itself, in
+   *  milliseconds. */
   void addPresent(double ms) { m_present.add(ms); }
 
+  /** The end-to-end ring: begin to finished. */
   const Samples& frame() const { return m_frame; }
+  /** The work ring: begin to composed. */
   const Samples& work() const { return m_work; }
+  /** The presentation ring: the interval between presented frames. */
   const Samples& present() const { return m_present; }
 
   /** NOT a frame rate: the rate the frame's work alone would allow, with

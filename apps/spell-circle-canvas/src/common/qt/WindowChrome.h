@@ -1,4 +1,11 @@
 #pragma once
+
+/** @file
+ * The platform's own window material, offered to QML as a singleton:
+ * what a transparent window has to be given before the system will
+ * draw its glass behind it.
+ */
+
 #include <QtQml/qqmlregistration.h>
 
 #include <QObject>

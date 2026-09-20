@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup world-element
  * Where a node's content stands, as lanes that can move: nine placement
  * lanes about an origin of three more, one turn about an arbitrary axis,
  * and the matrix escape that replaces all of them.

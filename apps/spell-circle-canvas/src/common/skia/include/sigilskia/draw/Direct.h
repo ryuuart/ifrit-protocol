@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup skia-draw
  * workaround: backend-portable forms of the two SkCanvas draws Graphite
  * DOES NOT IMPLEMENT. In this Skia, `graphite::Device` overrides
  * `drawImageLattice` and `drawAtlas` with empty bodies, so every such
@@ -38,6 +39,11 @@
 #include <utility>
 #include <vector>
 
+/** THE CANVAS DRAWS GRAPHITE DOES NOT IMPLEMENT, put back in a form
+ *  every backend performs: a nine-slice lattice as its cells, and an
+ *  atlas of instance stamps as one vertex batch. Reach for these
+ *  instead of `SkCanvas::drawImageLattice` and `SkCanvas::drawAtlas`
+ *  anywhere a picture may be replayed on a device canvas. */
 namespace sigil::skia::draw {
 
 /** @p img ready for Graphite: the cached or freshly promoted texture
@@ -196,7 +202,10 @@ struct SpriteBatch {
   /** Per-sprite non-uniform scale. Empty is uniform. */
   std::span<const SkSize> sizes;
 
+  /** How many sprites the batch draws, which is how many transforms it
+   *  carries. */
   size_t size() const { return transforms.size(); }
+  /** Whether the batch draws nothing. */
   bool empty() const { return transforms.empty(); }
 
   /** Do the lanes agree? A required lane shorter than `transforms`, or a

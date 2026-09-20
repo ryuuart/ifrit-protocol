@@ -1,5 +1,11 @@
 #pragma once
 
+/** @file
+ * Publishing a texture out of the Qt renderer: the publisher for the
+ * backend a QRhi is running, and the one call that offers a frame it
+ * has just drawn.
+ */
+
 #include <sigilio/publish/Publisher.h>
 
 #include <QtCore/QSize>

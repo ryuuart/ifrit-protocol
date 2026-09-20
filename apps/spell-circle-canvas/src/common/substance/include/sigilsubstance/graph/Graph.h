@@ -19,6 +19,13 @@
 #include <string_view>
 #include <vector>
 
+/** SUBSTANCE ARCHIVES COOKED INTO IMAGES. A `.sbsar` loaded as a
+ *  package, the graphs inside it described by their parameters and
+ *  outputs, set, cooked, and read back as Skia images keyed by usage —
+ *  the shape SigilMaterial's texture-set door takes. Reach for it to
+ *  bring an authored material from Substance Designer into a drawing.
+ *  It needs the vendor's engine, so the whole catalogue is absent from
+ *  a build that has none. */
 namespace sigil::substance {
 
 class Package;
@@ -31,10 +38,13 @@ class Graph {
   Graph(const Graph&) = delete;
   Graph& operator=(const Graph&) = delete;
 
+  /** The name the author gave this graph. */
   const std::string& label() const;
   const std::string& url() const;  ///< the package-internal graph url
 
+  /** Every input the graph declares, in the order it declares them. */
   std::vector<Parameter> parameters() const;
+  /** Every output the graph declares, in the order it declares them. */
   std::vector<Output> outputs() const;
 
   /** Set a numeric parameter by identifier. The value count must match
@@ -42,7 +52,9 @@ class Graph {
    *  false when no such parameter exists or the counts disagree. Ints
    *  are truncated from the floats. */
   bool set(std::string_view identifier, std::initializer_list<float> value);
+  /** The same from a vector already in hand. */
   bool set(std::string_view identifier, const std::vector<float>& value);
+  /** The same for a one-component parameter. */
   bool set(std::string_view identifier, float value) {
     return set(identifier, {value});
   }

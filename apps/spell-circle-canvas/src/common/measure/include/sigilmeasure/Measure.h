@@ -7,6 +7,26 @@
  * fit, and checks.
  */
 
+/** @defgroup measure-time Timing
+ *  The clocks a run is measured by: a stopwatch over one span, a lap
+ *  timer over the phases of one, and the frame timer a render loop lays
+ *  its marks in.
+ *  @{ */
+/** @} */
+
+/** @defgroup measure-stats Statistics
+ *  What a run of numbers amounts to: a rolling ring and its quantiles,
+ *  running moments that keep no values, a histogram, named counters,
+ *  the straight-line map that puts runs of different units on a common
+ *  footing, and the least-squares line through a run.
+ *  @{ */
+/** @} */
+
+/** @defgroup measure-check Check reporting
+ *  A claim or a finding about a run, and the table they print as.
+ *  @{ */
+/** @} */
+
 #include <sigilmeasure/check/Check.h>
 #include <sigilmeasure/stats/Counters.h>
 #include <sigilmeasure/stats/Fit.h>

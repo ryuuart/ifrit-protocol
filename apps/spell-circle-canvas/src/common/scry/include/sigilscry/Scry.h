@@ -7,6 +7,18 @@
  * Namespace sigil::scry, target SigilScry.
  */
 
+/** @defgroup scry-engine The engine
+ *  The headless browser itself: the engine, the views loaded into it,
+ *  and the image each view's pixels arrive as.
+ *  @{ */
+/** @} */
+
+/** @defgroup scry-platform The platform seam
+ *  What the engine asks of its host — files, logging, surfaces — and
+ *  the levels a log line carries.
+ *  @{ */
+/** @} */
+
 #include <sigilscry/engine/WebEngine.h>
 #include <sigilscry/engine/WebImage.h>
 #include <sigilscry/engine/WebView.h>

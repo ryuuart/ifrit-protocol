@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup video-decode
  * The SigilVideo decode surface. Encoded bytes remain owned by a Video,
  * compressed packets are decoded on demand, and a small presentation-frame
  * cache follows the playhead. Device frames remain native until a caller asks
@@ -29,8 +30,14 @@ class Recorder;
 
 namespace sigil::video {
 
+/** What `decodeVideo()` is opened with. Left alone it takes the platform
+ *  decoder when one opens, keeps a short run of decoded frames around the
+ *  playhead, and composes on the system device. */
 struct DecodeOptions {
   HardwarePreference hardware = HardwarePreference::Preferred;
+  /** How many decoded frames stay resident around the playhead. One holds
+   *  only the frame last asked for, so every step backwards decodes
+   *  forward from a seek again. */
   size_t cachedFrames = 4;
 
   /** Native Metal device used by the destination Graphite recorder. Null
@@ -40,6 +47,9 @@ struct DecodeOptions {
   bool operator==(const DecodeOptions&) const = default;
 };
 
+/** What the container and its best video stream say about themselves,
+ *  known as soon as the stream is opened and before any frame is decoded.
+ *  A field the container leaves unstated stays at its zero. */
 struct VideoProbe {
   int width = 0;
   int height = 0;
@@ -52,15 +62,22 @@ struct VideoProbe {
   bool hasAlpha = false;
 };
 
+/** One decoded frame and where it sits in the stream. A frame arrives as a
+ *  drawable image, as a platform surface, or as both: a hardware frame that
+ *  was never asked for raster pixels carries only `native`. */
 struct VideoFrame {
   sk_sp<SkImage> image;
   NativeFrame native;
+  /** Where the frame begins on the stream's own clock. */
   double presentationSeconds = 0.0;
+  /** How long the frame stands before the next one begins. */
   double durationSeconds = 0.0;
+  /** The frame's position in decode order from the start of the stream. */
   int64_t index = 0;
   bool hardwareDecoded = false;
   bool hasAlpha = false;
 
+  /** Whether anything was decoded: either an image or a native surface. */
   explicit operator bool() const { return image != nullptr || native; }
 };
 
@@ -71,6 +88,7 @@ class Video {
   Video(const Video&) = delete;
   Video& operator=(const Video&) = delete;
 
+  /** What the container said about the stream when it was opened. */
   const VideoProbe& probe() const;
 
   /** Whether the decoder holds a platform hardware configuration. True from

@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup measure-stats
  * Named integer counters — how many of each thing a run did.
  */
 
@@ -17,6 +18,8 @@ namespace sigil::measure {
  *  Reading a name that was never counted is 0, not an error. */
 class Counters {
  public:
+  /** Adds @p n to the counter called @p name, starting it at @p n when
+   *  nothing has counted under that name yet. */
   void add(std::string_view name, int64_t n = 1) {
     auto it = m_counts.find(name);
     if (it == m_counts.end())
@@ -24,6 +27,7 @@ class Counters {
     else
       it->second += n;
   }
+  /** What stands under @p name; 0 when nothing counted there. */
   int64_t get(std::string_view name) const {
     const auto it = m_counts.find(name);
     return it == m_counts.end() ? 0 : it->second;
@@ -35,6 +39,7 @@ class Counters {
   }
   /** Drops every counter, names included. */
   void clear() { m_counts.clear(); }
+  /** How many names are counted. */
   size_t size() const { return m_counts.size(); }
 
   /** Visits `(name, count)` in name order. */

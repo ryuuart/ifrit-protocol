@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup world-diligent
  * A texture the graphics API's own object stands behind, entering the
  * material vocabulary through the device's handle table.
  */

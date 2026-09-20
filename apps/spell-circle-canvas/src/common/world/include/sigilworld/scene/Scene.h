@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup world-scene
  * The retained side of a 3D scene: the tree an Element description is
  * reconciled onto, the store that cooks a geometry slot once per
  * distinct value, the phases that settle it, and the draw that reads
@@ -58,7 +59,10 @@ class Scene {
   /** @p ticker drives the lanes' transitions; the Scene neither owns it
    *  nor steps it. */
   explicit Scene(motion::Ticker& ticker);
+  /** Takes over the moved-from scene's retained tree. */
   Scene(Scene&&) noexcept;
+  /** Takes over the moved-from scene's retained tree, dropping this
+   *  one's. */
   Scene& operator=(Scene&&) noexcept;
   ~Scene();
 

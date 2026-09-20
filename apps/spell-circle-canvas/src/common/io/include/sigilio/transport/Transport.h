@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup io-transport
  * The transports a hub opens FEEDS through: a URI scheme, and the socket
  * behind it. Registering one teaches a hub that scheme; a feed the hub
  * is then asked for on it binds or connects a socket of its own, and
@@ -164,6 +165,8 @@ void registerSharedMemory(Hub& hub);
  *  and the count are the whole of what the two ends share. */
 class SharedMemoryWriter {
  public:
+  /** Makes or takes back the shared memory object called @p name, sized
+   *  to hold a message of @p capacity bytes. */
   SharedMemoryWriter(std::string_view name, size_t capacity);
   ~SharedMemoryWriter();
 
@@ -289,7 +292,7 @@ void registerSerial(Hub& hub);
  *  A SERVER'S PEER IS A CALL AND NOT A CALLER. Every call that arrives
  *  is a stream of its own, one caller may hold several at once, and
  *  each message written on one is an arrival naming that call —
- *  grpc://ADDRESS#NUMBER, the number counting the calls that feed has
+ *  `grpc://ADDRESS#NUMBER`, the number counting the calls that feed has
  *  taken. Feed::sendTo() writes on the call it names, send() writes on
  *  every call standing and is false where none is, and a caller that
  *  ends its half of the stream ends that peer. The address() such a
@@ -356,7 +359,7 @@ void registerGrpc(Hub& hub);
  *  own URI asked for nothing.
  *
  *  A PORT'S PEER IS A CONNECTION. Every connection that reaches a
- *  listening feed is a peer named quic://ADDRESS#NUMBER, the number
+ *  listening feed is a peer named `quic://ADDRESS#NUMBER`, the number
  *  counting the connections that feed has taken; Feed::sendTo() writes
  *  on the connection it names, send() writes on every connection
  *  standing and is false where none is, and a connection that ends ends
@@ -415,7 +418,7 @@ void registerQuic(Hub& hub);
  *
  *  ONE PEER PER CONNECTION, on a channel named "feed". Every message
  *  arriving on one is an arrival naming that peer —
- *  webrtc://ROOM#NUMBER, the number counting the peers this feed has
+ *  `webrtc://ROOM#NUMBER`, the number counting the peers this feed has
  *  taken — send() writes on every channel standing open, and
  *  Feed::sendTo() writes on the one it names. A channel that closes
  *  ends its peer, and closing the feed ends every connection and lets

@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup data-decode
  * A FLATBUFFER AS A VALUE, and the decoder that puts one on a hub.
  *
  * A FlatBuffer is read in place: its root is a pointer into its bytes,
@@ -47,12 +48,15 @@ namespace sigil::data {
 template <class Root>
 class FlatBuffer {
  public:
+  /** Takes ownership of @p bytes, which are read as they stand: verify
+   *  them first with `flatBufferFromBytes`. */
   explicit FlatBuffer(std::vector<uint8_t> bytes) : m_bytes(std::move(bytes)) {}
 
   /** The root, read in place; every accessor on it reads the bytes. */
   [[nodiscard]] const Root* root() const {
     return flatbuffers::GetRoot<Root>(m_bytes.data());
   }
+  /** The root, so a field reads straight off the value. */
   const Root* operator->() const { return root(); }
 
   /** The buffer as it stands: what a sink writes, or a feed sends. */
@@ -108,6 +112,8 @@ inline bool flatBufferLooksLikeJson(std::string_view text,
  *  JSON form converted through the schema the Root carries. */
 template <class Root>
 struct FlatBufferDecoder {
+  /** Reads @p bytes as a buffer or as the schema's JSON form, @p hint
+   *  naming the resource. */
   std::optional<FlatBuffer<Root>> decode(const io::Bytes& bytes,
                                          std::string_view hint) const {
     if constexpr (CarriesSchema<Root>) {

@@ -1,4 +1,11 @@
 #pragma once
+
+/** @file
+ * The render-thread half of the receiver canvas: the scene resolved and
+ * drawn onto an offscreen texture, and that texture offered to whoever
+ * is subscribed to it.
+ */
+
 #include <sigilio/publish/Publisher.h>
 
 #include <QColor>

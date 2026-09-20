@@ -1,13 +1,16 @@
 #pragma once
 
-// Draws a resolved scene — circles, edges, boxes, labels — with Skia and the
-// SigilWeave text library. No Qt, and no surface, window, or GPU context of its
-// own: the caller hands over an SkCanvas wrapping whatever it owns, plus style
-// values already converted to native canvas pixels.
-//
-// Both front ends (the Qt app and the native macOS app) draw through this one
-// implementation, which is why nothing toolkit-specific may enter it: a change
-// here must make sense on either side.
+/** @file
+ * Draws a resolved scene — circles, edges, boxes, labels — with Skia
+ * and the SigilWeave text library. No Qt, and no surface, window, or
+ * GPU context of its own: the caller hands over an SkCanvas wrapping
+ * whatever it owns, plus style values already converted to native
+ * canvas pixels.
+ *
+ * Both front ends (the Qt app and the native macOS app) draw through
+ * this one implementation, which is why nothing toolkit-specific may
+ * enter it: a change here must make sense on either side.
+ */
 
 #include <include/core/SkColor.h>
 #include <include/core/SkRefCnt.h>

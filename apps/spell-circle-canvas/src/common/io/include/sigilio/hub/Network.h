@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup io-hub
  * The hub's network contract: NetworkPolicy, when an http(s):// ask may
  * touch the network against its on-disk cache, and the resource operations
  * that inspect and populate that cache without contacting a server.

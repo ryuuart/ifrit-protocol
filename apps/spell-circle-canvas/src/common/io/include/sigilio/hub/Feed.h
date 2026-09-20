@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup io-hub
  * A FEED: a resource that keeps arriving.
  *
  * One door, keyed by URI, with a transport on one side and readers on
@@ -93,6 +94,7 @@ struct FeedPolicy {
  *  recording, messages out to readers on any thread. */
 class Feed {
  public:
+  /** How much the door holds and what happens when it fills. */
   using Policy = FeedPolicy;
 
   /** Maps an arrival from this feed onto the steady clock. Live arrivals
@@ -102,6 +104,8 @@ class Feed {
   std::chrono::steady_clock::time_point receivedAt(
       const Arrival& arrival) const;
 
+  /** A door named @p uri under @p policy. Nothing is opened here: a
+   *  transport or a recording is handed over afterwards. */
   Feed(std::string uri, Policy policy = {});
   /** Closes the opened end. */
   ~Feed();
@@ -154,6 +158,8 @@ class Feed {
   /** Arrivals that fell off the front because the feed was full. */
   uint64_t dropped() const;
 
+  /** Whether the door has been shut, after which nothing more
+   *  arrives. */
   bool closed() const;
 
   /** Whether a door stands on this feed: an end its transport opened,
@@ -165,6 +171,7 @@ class Feed {
   /** What went wrong; empty when nothing did. */
   std::string error() const;
 
+  /** The URI this feed was opened on, as it was written. */
   const std::string& uri() const { return m_uri; }
 
   /** The local end as the transport bound it, or empty. */

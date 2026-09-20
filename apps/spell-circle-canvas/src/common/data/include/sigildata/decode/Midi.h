@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup data-decode
  * A MIDI MESSAGE AS THE ONE DYNAMIC VALUE, and back out again.
  *
  * MIDI is what the instruments in a room say to one another: a pad was

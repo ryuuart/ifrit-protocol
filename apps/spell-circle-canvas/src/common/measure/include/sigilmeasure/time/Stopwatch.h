@@ -1,6 +1,7 @@
 #pragma once
 
 /** @file
+ * @ingroup measure-time
  * A steady-clock stopwatch reading elapsed time, and a scope guard that
  * writes its elapsed milliseconds into a double when it goes out of
  * scope.
@@ -8,6 +9,13 @@
 
 #include <chrono>
 
+/** HOW LONG SOMETHING TOOK, WHAT A RUN OF NUMBERS AMOUNTS TO, AND
+ *  WHETHER A CLAIM ABOUT IT HELD. Stopwatches, a lap timer and the
+ *  frame timer a render loop lays marks in; a rolling ring, running
+ *  moments, a histogram, named counters, a derived rescaling and a
+ *  line fit; and the check whose printed verdict is computed from the
+ *  values it reports. Reach for it wherever code measures itself — no
+ *  other Sigil library stands under this one, so anything may. */
 namespace sigil::measure {
 
 /** Milliseconds on the steady clock since construction or the last
@@ -16,10 +24,12 @@ namespace sigil::measure {
  *  between consecutive phases of one span, see `Laps`. */
 class Stopwatch {
  public:
+  /** The clock every reading is taken from. */
   using Clock = std::chrono::steady_clock;
 
   Stopwatch() : m_start(Clock::now()) {}
 
+  /** The span since construction or the last reset, in milliseconds. */
   double elapsedMs() const {
     return std::chrono::duration<double, std::milli>(Clock::now() - m_start)
         .count();
@@ -30,6 +40,7 @@ class Stopwatch {
     return std::chrono::duration<double, std::micro>(Clock::now() - m_start)
         .count();
   }
+  /** Starts the span again from now. */
   void reset() { m_start = Clock::now(); }
 
  private:
@@ -52,6 +63,8 @@ inline double toMicroseconds(Stopwatch::Clock::duration span) {
  *  reports its last run. */
 class ScopedMs {
  public:
+  /** Starts timing; @p out receives the elapsed milliseconds at scope
+   *  exit and must outlive this guard. */
   explicit ScopedMs(double& out) : m_out(out) {}
   ScopedMs(const ScopedMs&) = delete;
   ScopedMs& operator=(const ScopedMs&) = delete;

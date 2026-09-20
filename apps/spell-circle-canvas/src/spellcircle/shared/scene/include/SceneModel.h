@@ -1,10 +1,12 @@
 #pragma once
 
-// Qt-free SpellCircle scene document shared by the Qt receiver app and the
-// native macOS app: entt components mirroring the SpellCircle.fbs schema,
-// plus FlatBuffers payload verification and decoding into a registry.
-// Feed/logging presentation stays in each application; this layer only
-// translates packet data into entities/components.
+/** @file
+ * Qt-free SpellCircle scene document shared by the Qt receiver app and
+ * the native macOS app: entt components mirroring the SpellCircle.fbs
+ * schema, plus FlatBuffers payload verification and decoding into a
+ * registry. Feed/logging presentation stays in each application; this
+ * layer only translates packet data into entities/components.
+ */
 
 #include <cstddef>
 #include <cstdint>
@@ -67,6 +69,7 @@ struct SceneStats {
   int edges = 0;
   int boxes = 0;
 
+  /** Whether the decode found anything to draw. */
   bool hasGeometry() const { return circles > 0 || edges > 0 || boxes > 0; }
 };
 
@@ -94,6 +97,7 @@ class SceneDocument {
   /** Author-space canvas dimensions from the most recently parsed Scene
    *  (Scene.width/height); 0 means coordinates are already native. */
   float sceneWidth() const { return m_sceneWidth; }
+  /** The other axis of the same author-space canvas. */
   float sceneHeight() const { return m_sceneHeight; }
 
   /** Verifies @p payload and replaces the current registry when valid.
