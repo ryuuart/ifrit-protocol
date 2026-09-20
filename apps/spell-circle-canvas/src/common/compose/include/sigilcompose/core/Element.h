@@ -187,11 +187,7 @@ class Element : public BoxVerbs<Element>,
    *  list of places to try when the first will not fit. It takes the
    *  node out of the flow, and where it lands is an answer of the
    *  layout: resolved against the geometry the anchor resolved to, and
-   *  re-resolved whenever that moves.
-   *
-   *  It is the node's own and not a property, because it REGISTERS what
-   *  this node reads off another; something that only stated the value
-   *  would leave those reads unregistered and the box a pass behind. */
+   *  re-resolved whenever that moves. A later call replaces the tether. */
   Element& tether(Tether t);
 
   /** @name Identity, caching, transitions
@@ -247,18 +243,9 @@ class Element : public BoxVerbs<Element>,
    *  What is under the node — written last, after every verb that says
    *  what is done to the node itself.
    *  @{ */
-  /** THE CHILDREN, AS ONE BLOCK: what is in the node, in order, after
-   *  every verb that says what is done to it —
-   *
-   *      column().gap(9).children({
-   *          heading(),
-   *          each(rows, row),
-   *          footer(),
-   *      });
-   *
-   *  A run of the block is an element or the list `each()` made from a
-   *  range, so a block mixes the two. Braces on a description mean this
-   *  and nothing else. */
+  /** THE CHILDREN, AS ONE BLOCK: what is in the node, in order. A run
+   *  of the block is an element or the list `each()` made from a range,
+   *  so a block mixes the two. A later call appends. */
   Element& children(std::initializer_list<Children> runs);
   /** THE CHILDREN FROM A RANGE, appended in the range's own order — for
    *  a container whose whole content is a collection, where the braced

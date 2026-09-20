@@ -71,7 +71,7 @@ class DecorationVerbs {
    *  text carrying `fx()` tracks, nor to image or custom content. */
   Derived& echo(SkVector offset, SkColor4f color);
 
- protected:
+ private:
   /** Register whatever a decoration says it borrows so the derive pass
    *  resolves it. EVERY slot that accepts a Decoration must route
    *  through here: a borrow honoured on some slots and not others

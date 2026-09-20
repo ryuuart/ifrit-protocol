@@ -136,7 +136,7 @@ Derived& TextContentVerbs<Derived>::mark(sigil::weave::Selector where,
   if (what.node()->key.empty())
     what.key("mark#" + std::to_string(text.marks.size()));
   text.marks.push_back({std::move(where), what.node()->key});
-  node->children.push_back(std::move(what));
+  detail::NodeAccess::append(self(), std::move(what));
   return self();
 }
 

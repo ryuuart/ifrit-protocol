@@ -5,9 +5,15 @@
  *
  * What every value that DECLARES a node holds: the copy-on-write handle
  * onto that node, and the one door the verb mixins reach it through.
+ *
+ * A verb mixin is one class template per family of properties, inherited
+ * by every value that may state that family. Its verbs return the
+ * DERIVED value by reference, so a chain keeps the type it started on
+ * however many families it crosses.
  */
 
 #include <memory>
+#include <utility>
 
 namespace sigil::compose {
 
@@ -43,17 +49,15 @@ struct NodeAccess {
   static const std::shared_ptr<ElementNode>& node(const T& value) {
     return value.m_node.value;
   }
+  /** One more child under the value's node, by the value's own rule for
+   *  taking one, so a verb that adds a child adds it where `children()`
+   *  does. */
+  template <class T, class Child>
+  static void append(T& value, Child&& child) {
+    value.append(std::forward<Child>(child));
+  }
 };
 
 }  // namespace detail
-
-/** THE VERB MIXINS: one class template per family of properties, each
- *  inherited by every value that may state that family. A verb returns
- *  the DERIVED value by reference, so a chain keeps the type it started
- *  on however many families it crosses, and a family is added to a value
- *  by naming its mixin rather than by copying its verbs.
- *
- *  A mixin is empty: every verb writes the node the derived value holds,
- *  reached through `detail::NodeAccess`. */
 
 }  // namespace sigil::compose
