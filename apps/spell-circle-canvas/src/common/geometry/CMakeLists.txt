@@ -65,18 +65,22 @@ sigil_doc_probes(geometry
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/KIT.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/DEVICE.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/TRAPS.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Annulus.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Arcs.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/BillboardStyle.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Chords.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Circle.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Cloud.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/CrossingRule.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Grid.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/PolarFrame.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Profile.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Projection.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Rotation.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Roughen.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Strip.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Ticks.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Wave.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/crossingPatch.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/deviceRuntime.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/geo.md
@@ -96,5 +100,5 @@ sigil_doc_probes(geometry
           "device::TextureResidency=declared in the device residency feature's private headers, which no consumer include path carries"
           "device::Resources=declared in the device residency feature's private headers, which no consumer include path carries"
           "device::PipelineCache=declared in the device residency feature's private headers, which no consumer include path carries"
-  FLOORS 160,32,38,58,3
+  FLOORS 168,36,40,72,3
   LIBRARIES SigilGeometry SigilCoreHardware SigilSkiaGraphite)

@@ -19,19 +19,11 @@
 
 /** THE SHAPE VOCABULARY: closed silhouettes, curve families, corner
  *  treatments, tick and chord divisions and hatch fills, each a
- *  comparable value that answers a path for a box rather than a path.
- *  Because a generator is a value, two of them can be compared, so a
- *  node whose shape did not change is a node nothing has to redraw —
- *  which a hand-rolled callable can never prove.
- *
- *  Everything here is a unit shape over the box it is asked for, so one
- *  generator serves at any size, and the operators in
- *  `sigil::geometry::path` are what a caller reaches for next.
- *
- *  A shape is ONE value and a lowercase factory spelling that value's
- *  fields as arguments. The value carries the documentation, parameter by
- *  parameter, and the factory carries none: a second copy of it can only
- *  repeat the first or disagree with it. */
+ *  comparable value that answers a path FOR A BOX rather than a path,
+ *  so one generator serves at any size and a node whose shape did not
+ *  change is a node nothing has to redraw. A shape is ONE value and a
+ *  lowercase factory spelling that value's fields as arguments; the
+ *  value carries the documentation and the factory carries none. */
 namespace sigil::geometry::shapes {
 
 /** A silhouette generator: local-coordinate path over the node's laid-out
@@ -106,41 +98,14 @@ inline Star star(int points, float innerRatio = 0.5f, float waist = 0.0f) {
   return Star{points, innerRatio, waist};
 }
 
-/** The circle (ellipse, on a non-square box) inscribed in the box, with a
- *  chosen WINDING and start point. It is the OUTLINE a path-following
- *  consumer takes — a baseline, a mask gate, a decoration; a consumer
- *  that also has an element form for a disc keeps that separately.
- *
- *  Direction is not a detail on a text baseline — it decides which way the
- *  glyphs face. `onPath` orients to the tangent, so a clockwise ring puts
- *  glyph-up radially OUTWARD and a counter-clockwise one puts it INWARD.
- *  Both are uniform engraver's conventions, and they are opposite in sign,
- *  so a ring inscription that reads upside down wants this argument rather
- *  than a hand-written `OutlineFunction`.
- *
- *  @p startIndex picks which of the oval's four extreme points the contour
- *  begins at, which is what `TextPath::at` measures from. It defaults to 1
- *  to match Skia's own `addOval(rect, dir)`, so `circle(kCW)` yields
- *  byte-for-byte the path `circle()` gives and the oriented overload is a
- *  strict superset. Changing that default would silently move every label
- *  placed by arc-length fraction.
- *
- *  @p inset pulls the circle concentrically inside the box by that many
- *  px — the spelling for a ring that must stand CLEAR of the box edge: a
- *  text baseline whose glyphs straddle the circle and need room on both
- *  sides, a band drawn inside a frame. Zero is the inscribed circle;
- *  negative pushes it outside the box, which every consumer that clips
- *  at the box will truncate.
- *
- *  @p uniform makes the figure a CIRCLE on a box that is not square — the
- *  largest one that fits, centred — where the default is the box's own
- *  oval. A box a pixel or two out of square gives an oval out of round by
- *  a pixel or two, which reads as a mistake wherever the mark is small and
- *  meant to be round: an eye, a pupil, a bullet, a dot on a dial. On a
- *  square box the two are the same figure, so a caller that never leaves
- *  square boxes never has to think about it.
- *
- *  Exact conics either way — this is `addOval`, not a sampled polyline. */
+/** THE CIRCLE INSCRIBED IN THE BOX — an ellipse on a box that is not
+ *  square, unless `uniform` asks for the largest true circle that fits
+ *  — with a chosen WINDING and start point, as exact conics. `inset`
+ *  pulls it concentrically inside the box in px, for a ring that must
+ *  stand clear of the edge.
+ *  @trap The winding decides which way glyphs on this baseline face,
+ *  and `startIndex` is where an arc-length fraction is measured from:
+ *  both move every label placed by fraction. */
 struct Circle {
   SkPathDirection direction = SkPathDirection::kCW;
   unsigned startIndex = 1;
@@ -158,21 +123,14 @@ inline Circle circle(SkPathDirection direction, unsigned startIndex = 1,
   return Circle{direction, startIndex, inset};
 }
 
-/** A ring: the inscribed circle with a concentric hole at @p innerRatio
- *  of the radius. Even-odd, so it fills as an annulus.
- *
- *  @p thickness is the same ring said the other way about — its own width
- *  in PIXELS, which is what a ring keeps when the box it stands in does
- *  not: a reticle, a dial's rim, a glyph that must read the same weight at
- *  two sizes. Nonzero, it decides the hole and @p innerRatio is not read. A
- *  thickness that eats the whole radius leaves a disc, which is what a
- *  ring that thick is.
- *
- *  @p dot puts a concentric disc of that pixel radius at the centre. Two
- *  marks are not always two things: a ring around a point says something
- *  an arrow cannot — that what it names is not in the picture plane at
- *  all — and as ONE outline the pair fills, strokes and animates
- *  together. */
+/** A RING: the inscribed circle with a concentric hole at @p innerRatio
+ *  of the radius, even-odd so it fills as an annulus. @p thickness is
+ *  the same ring said the other way about, its own width in PIXELS,
+ *  which is what a ring keeps when its box does not. @p dot puts a
+ *  concentric disc of that pixel radius at the centre, as ONE outline
+ *  with the ring so the pair fills and animates together.
+ *  @silent @p innerRatio is read when @p thickness is nonzero: the
+ *  thickness decides the hole instead. */
 struct Annulus {
   float innerRatio = 0.6f;
   float thickness = 0.0f;
@@ -320,17 +278,13 @@ inline Arrow arrow(float shaftFrac = 0.34f, float headFrac = 0.42f,
   return Arrow{shaftFrac, headFrac, headSpan};
 }
 
-/** A chevron: a wide flat V pointing down the box, drawn as an outline of
- *  its own thickness, with an optional pair of outrigger bars level with
- *  its shoulders — the level indicator, the rank mark, the "you are here"
- *  on a gauge.
- *
- *  It is a V and not an arrowhead: @p spread takes the shoulders out to a
- *  fraction of the box's width, @p drop takes the point down a fraction of
- *  its height, and the shoulders stand a third of the drop ABOVE centre,
- *  which is what keeps the two arms shallow. @p thickness is the mark's own
- *  width as a fraction of the height. @p bars is how far the outriggers run
- *  in from each edge; zero leaves the V on its own. */
+/** A CHEVRON: a wide flat V pointing down the box, drawn as an outline
+ *  of its own thickness, with an optional pair of outrigger bars level
+ *  with its shoulders. A V and not an arrowhead: @p spread takes the
+ *  shoulders out as a fraction of the width, @p drop takes the point
+ *  down as a fraction of the height, @p thickness is the mark's own
+ *  width as a fraction of the height, and @p bars is how far the
+ *  outriggers run in from each edge, zero leaving the V alone. */
 struct Chevron {
   float spread = 0.20f;
   float drop = 0.34f;

@@ -24,29 +24,14 @@
 
 namespace sigil::geometry::path {
 
-/** A profile value: `float across(float along) const`, `float max()
- *  const`, and EQUALITY. Both extra members are required, and both are
- *  load-bearing.
- *
- *  `max()` is what every cull and bleed calculation is sized from. A
- *  varying width whose reach cannot be asked for can only be clipped, and
- *  clipping in a cached picture is silent.
- *
- *  Equality is required because a profile is read LIVE, every frame.
- *  Anything an author hands the library must participate in reconciler
- *  equality, or a node that prunes goes on reading the value it was
- *  described with and never sees the new one. An incomparable callable is
- *  therefore not a profile; write a struct with `operator==`.
- *
- *  A PROFILE THAT RETURNS A NON-FINITE WIDTH DELETES THE WHOLE BAND. One
- *  NaN vertex makes the built path non-finite and Skia draws none of it,
- *  with no error. The seam does not guard this — clamp inside your own
- *  law. Trigonometric laws are the usual source: `sqrt(sin(pi*along))` is
- *  NaN at `along == 1` because the float pi rounds up.
- *
- *  `along` is a fraction of the spine's arc length; `across` is px on its
- *  normal, positive to the LEFT of travel, which with y pointing down is
- *  OUTSIDE a clockwise path. */
+/** A PROFILE VALUE: `float across(float along) const`, `float max()
+ *  const`, and EQUALITY, all three load-bearing. `along` is a fraction
+ *  of the spine's arc length; `across` is px on its normal, positive to
+ *  the LEFT of travel. `max()` is what every cull and bleed is sized
+ *  from, and equality is what lets a pruning node see a new law.
+ *  @trap A NON-FINITE WIDTH DELETES THE WHOLE BAND: one NaN vertex
+ *  makes the path non-finite and Skia draws none of it, with no error.
+ *  Clamp inside the law — the seam does not guard it. */
 template <typename P>
 concept ProfileScheme =
     std::equality_comparable<P> && requires(const P& p, float along) {
@@ -54,25 +39,14 @@ concept ProfileScheme =
       { p.max() } -> std::convertible_to<float>;
     };
 
-/** THE PX KEY — optional, one line.
- *
- *  A scheme that declares `static constexpr bool alongIsPx = true` is
- *  keyed in PX OF ARC LENGTH from the spine's start rather than in a
- *  fraction of it. Consumers that have measured their spine
- *  (`profileOffset`, the band's rails) hand it `along * lengthPx` through
- *  `Profile::acrossAt`. Nothing else about the seam changes, and a scheme
- *  that says nothing stays fraction-keyed.
- *
- *  WHY IT EXISTS. A decoration under a reveal (`spans::upTo`, a span
- *  gate) is handed the REVEALED contour, so a fraction is a fraction of
- *  what has been drawn SO FAR: a law keyed to it SLIDES along the mark as
- *  the reveal grows. That looks identical in a still frame and wrong in
- *  motion. Absolute distance from the start does not move, which is what
- *  a calligraphic pressure law or a flow-width law actually means.
- *
- *  The conversion cannot live in the author's value, because it needs the
- *  length of the contour ACTUALLY being painted and only the paint-time
- *  consumer knows that. So the seam converts, once, for every consumer. */
+/** THE PX KEY — optional, one line. A scheme that declares
+ *  `static constexpr bool alongIsPx = true` is keyed in PX OF ARC
+ *  LENGTH from the spine's start rather than in a fraction of it, and
+ *  the seam converts for every consumer that has measured its spine.
+ *  A scheme that says nothing stays fraction-keyed.
+ *  @trap Under a reveal a fraction is a fraction of what has been drawn
+ *  SO FAR, so a fraction-keyed law SLIDES as the reveal grows — right
+ *  in a still frame and wrong in motion. */
 template <typename P>
 concept PxKeyedProfileScheme = ProfileScheme<P> && requires {
   { P::alongIsPx } -> std::convertible_to<bool>;
@@ -154,18 +128,13 @@ struct Offset {
   float max() const { return std::abs(px); }
   bool operator==(const Offset&) const = default;
 };
-/** across runs LINEARLY from `startPx` to `endPx` along the spine — the
+/** ACROSS RUNS LINEARLY from `startPx` to `endPx` along the spine — the
  *  brush that lifts, the ribbon that closes, the leader that narrows to
- *  its point.
- *
- *  The two ends are signed, and the sign is the side (positive is LEFT of
- *  travel), so a taper from +8 to −8 crosses the spine at the middle
- *  rather than narrowing: that is a strand trading sides, not a taper. A
- *  taper to 0 is the point.
- *
- *  Keyed in the FRACTION of arc length, so it stretches to whatever spine
- *  it is handed. A taper that must keep its px shape under a reveal wants
- *  its own px-keyed law — see PxKeyedProfileScheme. */
+ *  its point, where a taper to 0 IS the point. Keyed in the FRACTION of
+ *  arc length, so it stretches to whatever spine it is handed.
+ *  @trap Both ends are signed and the sign is the SIDE, so a taper from
+ *  +8 to −8 crosses the spine at the middle rather than narrowing:
+ *  that is a strand trading sides, not a taper. */
 struct Taper {
   float startPx = 0.0f;
   float endPx = 0.0f;
@@ -177,24 +146,13 @@ struct Taper {
   bool operator==(const Taper&) const = default;
 };
 
-/** A STEPPED width: a run of spans, each holding one width for its share
- *  of the spine — the flow that thins at every junction it passes, the
- *  rule that changes weight at a stated station, the bar whose thickness
- *  is a measurement rather than a curve.
- *
- *  `widthsPx` is read against `upTo`, the span boundaries in the profile's
- *  own key, ASCENDING. Width `i` holds from boundary `i−1` (or the start)
- *  to boundary `i`, and the LAST width holds from the last boundary to
- *  the end — so `widthsPx` carries one more entry than `upTo`. Fewer and
- *  the tail reads the last width there is; more and the extra widths are
- *  never read. Empty is a width of zero everywhere.
- *
- *  A STEP IS A STEP. The width does not interpolate across a boundary,
- *  because the thing this describes is a measurement that changes at a
- *  place, not a curve sampled at one — a law that eased between its
- *  stations would draw a shape nobody measured. `Taper` is the
- *  interpolating one, and two of them beside each other is the ramp
- *  between two stated widths. */
+/** A STEPPED WIDTH: a run of spans, each holding one width for its
+ *  share of the spine. `widthsPx` is read against `upTo`, the span
+ *  boundaries in the profile's own key, ASCENDING, and carries one more
+ *  entry than `upTo` because the last width holds to the end. Empty is
+ *  a width of zero everywhere. A STEP IS A STEP — the width does not
+ *  interpolate across a boundary, since this describes a measurement
+ *  that changes at a place; `Taper` is the interpolating one. */
 struct Spans {
   std::vector<float> upTo;
   std::vector<float> widthsPx;
