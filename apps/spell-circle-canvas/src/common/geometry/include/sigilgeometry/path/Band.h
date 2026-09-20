@@ -26,7 +26,7 @@ namespace sigil::geometry::path {
 
 /** Which side of the spine a band occupies. Explicit because the
  *  offset-path lineage has no defensible default beyond "both". */
-enum class Formation : uint8_t { Centered, Outward, Inward };
+enum class Formation : uint8_t { Center, Inner, Outer };
 
 /** Displace a path in its own (along, across) frame — the primitive
  *  behind a relative strand, and exactly the band's frame. Whatever the
@@ -52,7 +52,7 @@ SkPath profileOffset(const SkPath& spine, const Profile& profile);
  *  milled groove, or a ribbon, is this band filled. Sharing one geometry
  *  keeps the corner repair from being reimplemented per consumer. */
 SkPath bandRegion(const SkPath& spine, const Profile& width,
-                  Formation formation = Formation::Centered);
+                  Formation formation = Formation::Center);
 
 /** ONE STATION OF A SWEPT BAND: where the spine is, which way it heads
  *  there, and how far along its contour that is. A width law reads

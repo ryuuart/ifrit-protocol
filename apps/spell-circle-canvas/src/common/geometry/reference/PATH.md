@@ -428,7 +428,7 @@ in no header.
   the kit's.
 - **`path/Band.h`** — `profileOffset()` walks one rail of a width law;
   `bandRegion()` walks both and closes them per contour, on
-  `Formation::Centered`, `Outward` or `Inward`. Every rail takes the
+  `Formation::Center`, `Inner` or `Outer`. Every rail takes the
   real-vertex repair — arc outside a turn, miter inside — rather than the
   spur a sample-and-displace walk leaves inside every rectangle, whether
   the width is constant or varies; a constant one delegates to `parallel`,

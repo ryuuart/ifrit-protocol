@@ -266,8 +266,8 @@ TEST(Band, AVaryingRailJoinsAtTheRealVerticesInsteadOfLoopingAtACorner) {
       << "inside every rectangle";
 
   // …and the bands built from them still occupy the side they name.
-  const SkPath inwardBand = bandRegion(hexagon, Swell{}, Formation::Inward);
-  const SkPath centeredBand = bandRegion(hexagon, Swell{}, Formation::Centered);
+  const SkPath inwardBand = bandRegion(hexagon, Swell{}, Formation::Inner);
+  const SkPath centeredBand = bandRegion(hexagon, Swell{}, Formation::Center);
   ASSERT_FALSE(inwardBand.isEmpty());
   ASSERT_FALSE(centeredBand.isEmpty());
   EXPECT_NEAR(inwardBand.getBounds().right(), 300.0f, 1.0f);
@@ -358,9 +358,9 @@ TEST(Band, TheRegionIsBoundedByTheWidthAndEmptyWithoutOne) {
   // Centred: half the width each side of the spine.
   EXPECT_NEAR(centred.getBounds().top(), 40.0f, 1.0f);
   EXPECT_NEAR(centred.getBounds().bottom(), 60.0f, 1.0f);
-  // Outward puts the whole width on one side.
+  // Outer puts the whole width on one side.
   const SkPath outward =
-      bandRegion(spine, profile::offset(20.0f), Formation::Outward);
+      bandRegion(spine, profile::offset(20.0f), Formation::Outer);
   ASSERT_FALSE(outward.isEmpty());
   EXPECT_NEAR(outward.getBounds().height(), 20.0f, 1.0f);
   // A profile that is zero everywhere sweeps nothing.

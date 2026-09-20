@@ -12,7 +12,7 @@
  *
  * `Formation` is the only thing left to say once the law is fixed:
  * whether the band straddles the spine, stands outside it, or stands
- * inside it. There is no defensible default beyond Centered, so the
+ * inside it. There is no defensible default beyond Center, so the
  * three are named.
  *
  * The rails go through `parallel`, which repairs real vertices — an arc
@@ -192,18 +192,18 @@ struct FormationBands {
                  {.label = "TURN THE PROFILE INTO A REGION",
                   .note = "Blue: source spine · amber: filled band"}),
              sketch::kit::comparison(
-                 {.cases = {bandCell("BOTH SIDES", "Formation::Centered",
+                 {.cases = {bandCell("BOTH SIDES", "Formation::Center",
                                      "The region straddles the spine and "
                                      "pinches where the width crosses zero.",
-                                     wave, path::Formation::Centered),
-                            bandCell("OUTSIDE ONLY", "Formation::Outward",
+                                     wave, path::Formation::Center),
+                            bandCell("OUTSIDE ONLY", "Formation::Outer",
                                      "The blue spine is the inner rail. The "
                                      "entire region sits outside.",
-                                     wave, path::Formation::Outward),
-                            bandCell("INSIDE ONLY", "Formation::Inward",
+                                     wave, path::Formation::Outer),
+                            bandCell("INSIDE ONLY", "Formation::Inner",
                                      "The blue spine is the outer rail. The "
                                      "entire region sits inside.",
-                                     wave, path::Formation::Inward)},
+                                     wave, path::Formation::Inner)},
                   .measure = 1020,
                   .gap = 18})})));
   }

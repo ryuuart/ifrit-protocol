@@ -53,7 +53,7 @@ float totalLength(const SkPath& path) {
  *  conversion happens here, once, on the way in. */
 struct BandRail {
   Profile base;
-  Formation formation = Formation::Centered;
+  Formation formation = Formation::Center;
   bool outer = true;
   float sliceStart = 0.0f, sliceSpan = 1.0f;
   float spineLen = 0.0f;
@@ -62,11 +62,11 @@ struct BandRail {
   float across(float along) const {
     const float w = base.acrossAt(sliceStart + along * sliceSpan, spineLen);
     switch (formation) {
-      case Formation::Centered:
+      case Formation::Center:
         return outer ? w * 0.5f : -w * 0.5f;
-      case Formation::Outward:
+      case Formation::Outer:
         return outer ? w : 0.0f;
-      case Formation::Inward:
+      case Formation::Inner:
         return outer ? 0.0f : -w;
     }
     return 0.0f;

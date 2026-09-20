@@ -21,18 +21,18 @@ Element& Element::shape(Shape path) {
 
 Element& Element::centered() {
   m_node->deriveData.ensure().bandFormation =
-      geometry::path::Formation::Centered;
+      geometry::path::Formation::Center;
   return *this;
 }
 
 Element& Element::outward() {
   m_node->deriveData.ensure().bandFormation =
-      geometry::path::Formation::Outward;
+      geometry::path::Formation::Outer;
   return *this;
 }
 
 Element& Element::inward() {
-  m_node->deriveData.ensure().bandFormation = geometry::path::Formation::Inward;
+  m_node->deriveData.ensure().bandFormation = geometry::path::Formation::Inner;
   return *this;
 }
 

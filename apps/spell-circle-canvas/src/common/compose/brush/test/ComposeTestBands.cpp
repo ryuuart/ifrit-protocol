@@ -43,9 +43,9 @@ TEST(ComposeBand, FormationsTakeTheDeclaredSide) {
     Host host(200, 200);
     Element b =
         band(rectSpine(), across(10)).rect(SkRect::MakeXYWH(20, 20, 100, 100));
-    if (f == geometry::path::Formation::Outward)
+    if (f == geometry::path::Formation::Outer)
       b.outward();
-    else if (f == geometry::path::Formation::Inward)
+    else if (f == geometry::path::Formation::Inner)
       b.inward();
     else
       b.centered();
@@ -53,13 +53,13 @@ TEST(ComposeBand, FormationsTakeTheDeclaredSide) {
     host.frame();
     return std::pair<SkColor, SkColor>{host.pixel(70, 16), host.pixel(70, 24)};
   };
-  const auto centred = draw(geometry::path::Formation::Centered);
+  const auto centred = draw(geometry::path::Formation::Center);
   EXPECT_EQ(centred.first, SK_ColorRED) << "centered straddles the spine";
   EXPECT_EQ(centred.second, SK_ColorRED);
-  const auto out = draw(geometry::path::Formation::Outward);
+  const auto out = draw(geometry::path::Formation::Outer);
   EXPECT_EQ(out.first, SK_ColorRED);
   EXPECT_EQ(out.second, SK_ColorBLACK);
-  const auto in = draw(geometry::path::Formation::Inward);
+  const auto in = draw(geometry::path::Formation::Inner);
   EXPECT_EQ(in.first, SK_ColorBLACK);
   EXPECT_EQ(in.second, SK_ColorRED);
 }
