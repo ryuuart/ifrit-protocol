@@ -111,13 +111,7 @@ class ALambdaBodyDoesNotCutTheChain(unittest.TestCase):
 
 class ACatalogueSortsEveryDeclarationIntoAKind(Tree):
     def test(self) -> None:
-        from sigil.reference import doxygen_xml
-
-        doxygen_xml.NODE_FLOOR, floor = 2, doxygen_xml.NODE_FLOOR
-        try:
-            catalogue = self.catalogue()
-        finally:
-            doxygen_xml.NODE_FLOOR = floor
+        catalogue = self.catalogue(node=True)
         kinds = {entity.qualified: entity.kind for entity in catalogue.entities}
         self.assertEqual(kinds["sigil::paint::Brush::tint"], model.VERB)
         self.assertEqual(kinds["sigil::paint::brush"], model.ELEMENT)
@@ -127,13 +121,7 @@ class ACatalogueSortsEveryDeclarationIntoAKind(Tree):
         self.assertEqual(kinds["sigil::paint::Cap"], model.ENUM)
 
     def test_states_and_spellings(self) -> None:
-        from sigil.reference import doxygen_xml
-
-        doxygen_xml.NODE_FLOOR, floor = 2, doxygen_xml.NODE_FLOOR
-        try:
-            catalogue = self.catalogue()
-        finally:
-            doxygen_xml.NODE_FLOOR = floor
+        catalogue = self.catalogue(node=True)
         held = {entity.qualified: entity for entity in catalogue.entities}
         self.assertEqual(held["sigil::paint::Brush::width"].binding_state, model.DIRECT)
         self.assertEqual(held["sigil::paint::Brush::tint"].binding_state, model.WRAPPED)
@@ -159,6 +147,65 @@ class ANameResolvesOnItsTail(Tree):
         self.assertEqual(catalogue.resolve("Ink"), "sigil::paint::Ink")
         self.assertEqual(catalogue.resolve("paint::Ink"), "sigil::paint::Ink")
         self.assertEqual(catalogue.resolve("Nothing"), "")
+
+    def test_a_tail_two_types_answer_to_resolves_to_neither(self) -> None:
+        catalogue = self.catalogue()
+        self.assertEqual(catalogue.resolve("Wash"), "")
+
+    def test_a_refid_settles_what_the_tail_cannot(self) -> None:
+        catalogue = self.catalogue()
+        self.assertEqual(
+            catalogue.resolve("Wash", refs=("structsigil_1_1paint_1_1stock_1_1_wash",)),
+            "sigil::paint::stock::Wash",
+        )
+
+
+class APageIsWrittenUnderANameThatIsItsOwn(Tree):
+    def test(self) -> None:
+        catalogue = self.catalogue()
+        slugs = {entity.qualified: entity.slug() for entity in catalogue.entities}
+        # Two namespaces spell `hexInk`, and two pages cannot be one
+        # file: the one that has to say more says it.
+        self.assertEqual(slugs["sigil::paint::hexInk"], "hexInk")
+        self.assertEqual(slugs["sigil::paint::mixers::hexInk"], "mixers.hexInk")
+        paths = [entity.path() for entity in catalogue.entities]
+        self.assertEqual(len(paths), len(set(paths)))
+
+
+class ABoundEnumeratorIsNotAContradiction(Tree):
+    def test(self) -> None:
+        catalogue = self.catalogue(node=True)
+        # Doxygen writes an enumerator inside its enum rather than as a
+        # declaration of its own, and the binding names it under the
+        # enum, so the two have to be joined by hand.
+        self.assertIn("sigil::paint::Cap::Butt", catalogue.declared)
+        self.assertEqual(
+            [binding.name for binding in catalogue.unmatched],
+            [],
+        )
+
+
+class AConvenienceOnlyPythonHasIsStillAnEntity(Tree):
+    def test(self) -> None:
+        catalogue = self.catalogue(node=True)
+        held = {entity.qualified: entity for entity in catalogue.entities}
+        thicken = held["sigil.paint.Brush.thicken"]
+        self.assertEqual(thicken.binding_state, model.PYTHON_ONLY)
+        self.assertEqual(thicken.kind, model.VERB)
+        self.assertEqual(thicken.library, "SigilPaint")
+        self.assertEqual(thicken.python, "sigil.paint.Brush.thicken")
+        self.assertEqual(thicken.header, "")
+        self.assertTrue(thicken.python_signatures)
+
+
+class WhatPybindWritesOnEveryClassIsNotAGap(Tree):
+    def test(self) -> None:
+        catalogue = self.catalogue(node=True)
+        unbound = [spelling for spelling, _ in catalogue.unbound_python()]
+        # The stubs declare a protocol method and the two properties
+        # every bound enumeration carries; only `thin` is a name with
+        # nothing behind it.
+        self.assertEqual(unbound, ["sigil.paint.Brush.thin"])
 
 
 if __name__ == "__main__":

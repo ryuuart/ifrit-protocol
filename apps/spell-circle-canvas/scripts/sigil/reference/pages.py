@@ -103,19 +103,30 @@ class Composer:
             return f"[`{shown}`](value:{qualified})"
         return f"`{shown}`"
 
-    def type_cell(self, text: str, within: str) -> str:
-        """A type as a signature writes it, linked where we have a page."""
-        from sigil.reference.catalogue import mentions
+    def type_cell(self, text: str, within: str, refs: tuple = ()) -> str:
+        """A type as a signature writes it, linked where we have a page.
 
-        out = text
-        for spelling, _ in mentions(text):
-            target = self.catalogue.resolve(spelling, within=within)
-            if target in self.values:
-                out = out.replace(spelling, f"@@{target}@@", 1)
-        for target in set(re.findall(r"@@([\w:]+)@@", out)):
-            shown = target.rsplit("::", 1)[-1]
-            out = out.replace(f"@@{target}@@", f"[{shown}](value:{target})")
-        return f"`{out}`" if "@@" not in out and "](" not in out else out
+        The link is written over the span the scan already found. A
+        `std::pair< SurfaceFill, Fill >` mentions one name inside the
+        other, and searching the text for the shorter one would rewrite
+        the middle of the longer.
+        """
+        from sigil.reference.catalogue import mentioned
+
+        pieces = []
+        at = 0
+        linked = False
+        for start, end, spelling, _ in mentioned(text):
+            target = self.catalogue.resolve(spelling, within=within, refs=refs)
+            if target not in self.values:
+                continue
+            pieces.append(text[at:start])
+            pieces.append(f"[{target.rsplit('::', 1)[-1]}](value:{target})")
+            at = end
+            linked = True
+        pieces.append(text[at:])
+        out = "".join(pieces)
+        return out if linked else f"`{out}`"
 
     def summary_of(self, qualified: str) -> str:
         entity = self.catalogue.entity(qualified)
@@ -152,7 +163,11 @@ class Composer:
                 rows.append(
                     [
                         f"`{parameter.name}`",
-                        self.type_cell(parameter.type_text, entity.qualified),
+                        self.type_cell(
+                            parameter.type_text,
+                            entity.qualified,
+                            parameter.type_refs,
+                        ),
                         f"`{parameter.default}`" if parameter.default else "—",
                     ]
                 )
@@ -168,10 +183,11 @@ class Composer:
                 if text in seen or _is_template_parameter(text):
                     continue
                 seen.add(text)
-                target = self._principal(text, entity.qualified)
+                refs = parameter.type_refs
+                target = self._principal(text, entity.qualified, refs)
                 rows.append(
                     [
-                        self.type_cell(text, entity.qualified),
+                        self.type_cell(text, entity.qualified, refs),
                         self.summary_of(target) or "—",
                         self.value_link(target) if target else "—",
                     ]
@@ -180,12 +196,12 @@ class Composer:
         note = self.python_note(entity)
         return "\n\n".join(part for part in (body, note) if part)
 
-    def _principal(self, text: str, within: str) -> str:
+    def _principal(self, text: str, within: str, refs: tuple = ()) -> str:
         from sigil.reference.catalogue import mentions
 
         innermost = ""
         for spelling, wrapper in mentions(text):
-            target = self.catalogue.resolve(spelling, within=within)
+            target = self.catalogue.resolve(spelling, within=within, refs=refs)
             if target and (wrapper or not innermost) or target and not innermost:
                 innermost = target
         return innermost

@@ -88,8 +88,10 @@ class Parameter:
     name: str
     type_text: str
     # Doxygen's own identifiers for the compounds this type mentions.
-    # A refid is what makes the type graph exact: two libraries may both
-    # declare a `Fill`, and only the refid tells them apart.
+    # A refid settles a name no tail can: `Reading` inside a namespace
+    # that also holds a `Channel::Reading` is one of the two, and the
+    # link Doxygen wrote says which. It is written only for a type the
+    # same library declares, so the tail answers the rest.
     type_refs: tuple = ()
     default: str = ""
 
@@ -154,10 +156,15 @@ class Entity:
     doxygen: str = ""
     explicit_only: bool = False
     page: object = None
+    # What the page is filed under when the simple name is not this
+    # entity's alone. A library that declares `connector` in two
+    # namespaces has two pages to write and one name to write them
+    # under, so the one that shares it is qualified until it is unique.
+    page_name: str = ""
 
     def slug(self) -> str:
         """The file name the page is written under."""
-        return self.name.replace("::", ".")
+        return (self.page_name or self.name).replace("::", ".")
 
     def path(self) -> str:
         """Where the page stands in the site, without an extension.

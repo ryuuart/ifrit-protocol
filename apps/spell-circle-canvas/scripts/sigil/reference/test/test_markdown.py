@@ -110,5 +110,31 @@ class APageKeepsWhatTheWriterWrote(unittest.TestCase):
         self.assertFalse(pages._is_template_parameter("Fill"))
 
 
+class ATypeCellLinksEachNameWhereItStands(unittest.TestCase):
+    """One mention holding another is the case a text search gets wrong."""
+
+    class Catalogue:
+        def resolve(self, spelling, within="", refs=()):
+            return f"sigil::paint::{spelling}"
+
+    def cell(self, text: str) -> str:
+        values = {
+            "sigil::paint::Ink": "values/sigil.paint.Ink.html",
+            "sigil::paint::WaterInk": "values/sigil.paint.WaterInk.html",
+        }
+        composer = pages.Composer(self.Catalogue(), None, values)
+        return composer.type_cell(text, "sigil::paint::mix")
+
+    def test_a_name_that_contains_another_links_both(self) -> None:
+        self.assertEqual(
+            self.cell("std::pair< WaterInk, Ink >"),
+            "std::pair< [WaterInk](value:sigil::paint::WaterInk), "
+            "[Ink](value:sigil::paint::Ink) >",
+        )
+
+    def test_a_type_with_no_page_stays_the_code_the_signature_wrote(self) -> None:
+        self.assertEqual(self.cell("Nothing"), "`Nothing`")
+
+
 if __name__ == "__main__":
     unittest.main()

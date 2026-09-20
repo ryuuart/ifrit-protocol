@@ -21,6 +21,11 @@ from sigil.reference import model
 # library has its own reference, and Skia's C types are a dependency's.
 FOREIGN = ("std", "Sk", "sk_sp", "gr", "skgpu", "hb", "icu", "glm", "Diligent")
 
+# What a dependency's own type names start with, for the one question
+# the tuple above cannot answer: a binding hands Python `SkBlendMode`
+# whole, and the leading segment is the type rather than a namespace.
+DEPENDENCY_HEADS = ("Sk", "Gr", "sk_sp", "skgpu", "hb_", "choreograph", "Diligent")
+
 KEYWORDS = {
     "const",
     "volatile",
@@ -58,13 +63,23 @@ KEYWORDS = {
 KIT_DIRECTORY = "kit"
 
 
-def mentions(text: str) -> list:
-    """The type names a signature spells, each with what wraps it.
+def is_dunder(name: str) -> bool:
+    """Whether a Python name is one of the language's own protocols."""
+    return name.startswith("__") and name.endswith("__")
 
-    A parameter written `motion::Animatable< Fill >` mentions a `Fill`
-    through an `Animatable`, and a type page that said only "accepted
-    by fill" would lose the half of the answer that tells a reader what
-    to build.
+
+def is_dependency(spelling: str) -> bool:
+    """Whether a C++ name a binding gives Python belongs to a dependency."""
+    return spelling.split("::", 1)[0].startswith(DEPENDENCY_HEADS)
+
+
+def mentioned(text: str) -> list:
+    """The same names, each with the span it occupies in the text.
+
+    A caller rewriting one name in place has to know where it stands: a
+    type text mentioning both a `SurfaceFill` and a `Fill` holds one
+    name inside the other, and searching for the shorter one again
+    would land in the middle of the longer.
     """
     found = []
     stack = []
@@ -82,8 +97,19 @@ def mentions(text: str) -> list:
         simple = token.rsplit("::", 1)[-1]
         if simple in KEYWORDS or token.split("::", 1)[0] in FOREIGN:
             continue
-        found.append((token, stack[-1] if stack else ""))
+        found.append((match.start(), match.end(), token, stack[-1] if stack else ""))
     return found
+
+
+def mentions(text: str) -> list:
+    """The type names a signature spells, each with what wraps it.
+
+    A parameter written `motion::Animatable< Fill >` mentions a `Fill`
+    through an `Animatable`, and a type page that said only "accepted
+    by fill" would lose the half of the answer that tells a reader what
+    to build.
+    """
+    return [(token, wrapper) for _, _, token, wrapper in mentioned(text)]
 
 
 class Catalogue:
@@ -96,6 +122,7 @@ class Catalogue:
         self.entities = []
         self.by_qualified = {}
         self.by_suffix = {}
+        self.by_refid = {}
         self.declared = {}
         self.declared_suffix = {}
         self.unmatched = []
@@ -108,9 +135,11 @@ class Catalogue:
         self.namespaces = {
             name: inventory.namespace for name, inventory in inventories.items()
         }
+        self.nodes = {name: inventory.node for name, inventory in inventories.items()}
         self._collect()
         self._index()
         self._join(bound)
+        self._disambiguate()
 
     def display(self, qualified: str, library: str) -> str:
         """A name as a row in that library's own table spells it.
@@ -267,6 +296,8 @@ class Catalogue:
         self.by_qualified = {}
         for entity in self.entities:
             self.by_qualified.setdefault(entity.qualified, entity)
+            if entity.kind == model.TYPE and entity.compound_refid:
+                self.by_refid.setdefault(entity.compound_refid, entity.qualified)
         for qualified in self.by_qualified:
             self._suffixes(self.by_suffix, qualified)
         # Everything C++ declares, page or not. A field and a member of
@@ -277,6 +308,15 @@ class Catalogue:
                 if declaration.qualified not in self.declared:
                     self.declared[declaration.qualified] = declaration
                     self._suffixes(self.declared_suffix, declaration.qualified)
+                # An enumerator is written as a child of its enum rather
+                # than as a declaration of its own, while a binding
+                # names it under the enum. Without it here, every bound
+                # enumerator would read as a name C++ never declared.
+                for name, _ in declaration.enumerators:
+                    spelling = f"{declaration.qualified}::{name}"
+                    if spelling not in self.declared:
+                        self.declared[spelling] = declaration
+                        self._suffixes(self.declared_suffix, spelling)
 
     @staticmethod
     def _suffixes(index: dict, qualified: str) -> None:
@@ -284,18 +324,35 @@ class Catalogue:
         for start in range(len(parts)):
             index.setdefault("::".join(parts[start:]), []).append(qualified)
 
-    def resolve(self, spelling: str, within: str = "", roots: tuple = ()) -> str:
+    def resolve(
+        self,
+        spelling: str,
+        within: str = "",
+        roots: tuple = (),
+        refs: tuple = (),
+    ) -> str:
         """A name as a signature writes it, as the tree's own name.
 
-        A signature inside a library writes a neighbour's type without
-        its namespace and another library's with as much of one as it
-        needs, so a name is matched on its tail. Where a tail fits more
-        than one type the enclosing namespace decides, and where a
-        binding is asking, the include roots its source opens with do —
-        a file that includes only `sigilcompose/` means that Element.
-        A tail that still fits several resolves to nothing rather than
-        to a guess.
+        Doxygen links a type it knows, and that link is exact, so a
+        refid the signature carries settles the name before anything is
+        guessed. It carries one only inside the library that declares
+        the type: the XML pass reads no tag files, so a type from
+        another library is plain text.
+
+        Then a signature inside a library writes a neighbour's type
+        without its namespace and another library's with as much of one
+        as it needs, so a name is matched on its tail. Where a tail fits
+        more than one type the enclosing namespace decides — the scope's
+        own member first, then anything under it — and where a binding
+        is asking, the include roots its source opens with do: a file
+        that includes only `sigilcompose/` means that Element. A tail
+        that still fits several resolves to nothing rather than a guess.
         """
+        tail = spelling.rsplit("::", 1)[-1]
+        for refid in refs:
+            qualified = self.by_refid.get(refid)
+            if qualified and qualified.rsplit("::", 1)[-1] == tail:
+                return qualified
         if spelling in self.by_qualified:
             return spelling
         candidates = self.by_suffix.get(spelling)
@@ -305,6 +362,8 @@ class Catalogue:
             return candidates[0]
         scope = within.rsplit("::", 1)[0] if within else ""
         while scope:
+            if f"{scope}::{spelling}" in candidates:
+                return f"{scope}::{spelling}"
             for candidate in candidates:
                 if candidate.startswith(f"{scope}::"):
                     return candidate
@@ -356,6 +415,11 @@ class Catalogue:
                 target = self.resolve_declared(f"{namespace}::{binding.name}")
             if target:
                 self.bindings.setdefault(target, []).append(binding)
+            elif is_dependency(binding.target) or is_dependency(binding.owner):
+                # A dependency's own type, handed to Python as it
+                # stands. It has a reference of its own, and it is not
+                # a name this tree declared and then lost.
+                continue
             else:
                 self.unmatched.append(binding)
 
@@ -369,7 +433,7 @@ class Catalogue:
                     if any(one.style == model.DIRECT for one in held)
                     else model.WRAPPED
                 )
-                entity.python = self._spelling(entity, held)
+                entity.python = self._spelling(held[0])
             declaration = (
                 self.surface.declaration(self._native(entity.python))
                 if entity.python
@@ -377,6 +441,119 @@ class Catalogue:
             )
             if declaration is not None:
                 entity.python_signatures = declaration.signatures
+        self._python_only()
+
+    def _python_only(self) -> None:
+        """A bound name no header declares, where the stubs declare one.
+
+        A convenience written in the binding layer — a verb that sets
+        two C++ properties in one call, a function that takes a Python
+        object — is a name an author can type and a name the C++ side
+        has nothing to match. It is an entity of the library whose
+        vocabulary it extends, and it wears the badge that says so.
+
+        What is left over is a binding naming something neither side
+        declares, which is the contradiction the coverage report is
+        for.
+        """
+        standing, self.unmatched = self.unmatched, []
+        for binding in standing:
+            entity = self._convenience(binding)
+            if entity is None:
+                self.unmatched.append(binding)
+                continue
+            # An overload is bound once per overload and is one name.
+            if entity.qualified not in self.by_qualified:
+                self.by_qualified[entity.qualified] = entity
+                self.entities.append(entity)
+
+    def _convenience(self, binding):
+        """One unmatched binding as a Python-only entity, or nothing."""
+        if is_dunder(binding.name) or binding.flavour not in ("def", "_static"):
+            return None
+        owner = ""
+        if binding.owner:
+            holder = self.by_qualified.get(
+                self.resolve(binding.owner, roots=binding.roots)
+            )
+            # A member of a type that is not the node has no page of its
+            # own on the C++ side either, so there is none to write.
+            if holder is None or not holder.python:
+                return None
+            if holder.qualified != self.nodes.get(holder.library):
+                return None
+            spelling, library, owner = (
+                f"{holder.python}.{binding.name}",
+                holder.library,
+                holder.qualified,
+            )
+        elif binding.module:
+            spelling = self.surface.public_of(f"_sigil.{binding.module}.{binding.name}")
+            library = self._library_of("sigil::" + binding.module.replace(".", "::"))
+        else:
+            return None
+        if not spelling or not library:
+            return None
+        declaration = self.surface.declaration(self._native(spelling))
+        if declaration is None:
+            return None
+        return model.Entity(
+            library=library,
+            kind=self._convenience_kind(library, owner, declaration),
+            name=binding.name,
+            qualified=spelling,
+            owner=owner,
+            python=spelling,
+            python_signatures=declaration.signatures,
+            binding_state=model.PYTHON_ONLY,
+        )
+
+    def _convenience_kind(self, library: str, owner: str, declaration) -> str:
+        """The same shapes the C++ side is sorted by, read off the stub."""
+        if owner:
+            return model.VERB
+        node = self.nodes.get(library, "")
+        returns = declaration.signatures[0].returns if declaration.signatures else ""
+        if node and returns.rsplit(".", 1)[-1] == node.rsplit("::", 1)[-1]:
+            return model.ELEMENT
+        return model.FUNCTION
+
+    def _library_of(self, namespace: str) -> str:
+        """The library whose own namespace holds this one.
+
+        The longest one that fits: `sigil::geometry::mesh` is under
+        SigilGeometry, and a library whose namespace nests inside
+        another's would otherwise lose its own names to it.
+        """
+        found = ""
+        longest = ""
+        for library, prefix in self.namespaces.items():
+            fits = prefix and (
+                namespace == prefix or namespace.startswith(f"{prefix}::")
+            )
+            if fits and len(prefix) > len(longest):
+                found, longest = library, prefix
+        return found
+
+    def _disambiguate(self) -> None:
+        """A page name two entities share is qualified until it is one's.
+
+        A value's page is keyed on its qualified name and cannot
+        collide. Every other kind is filed under its simple name, and a
+        library that declares `connector` in two namespaces would
+        otherwise write one of the two pages over the other.
+        """
+        held = {}
+        for entity in self.entities:
+            if entity.kind in (model.TYPE, model.ENUM):
+                continue
+            key = (entity.library, entity.kind, entity.name)
+            held.setdefault(key, []).append(entity)
+        for group in held.values():
+            if len(group) < 2:
+                continue
+            for entity in group:
+                entity.page_name = self.display(entity.qualified, entity.library)
 
     def _native(self, public: str) -> str:
         for target, spelling in self.surface.spellings.items():
@@ -384,8 +561,8 @@ class Catalogue:
                 return target
         return public
 
-    def _spelling(self, entity: model.Entity, held: list) -> str:
-        """What an author types for this entity.
+    def _spelling(self, binding) -> str:
+        """What an author types for the entity this binding names.
 
         The binding says which module or class the name lands on and
         the stubs say what that module is really called in the public
@@ -393,7 +570,6 @@ class Catalogue:
         not carry is one the extension does not actually export, and
         that contradiction belongs in the report rather than on a page.
         """
-        binding = held[0]
         if binding.owner:
             owner = self.resolve(binding.owner, roots=binding.roots)
             holder = self.by_qualified.get(owner)
@@ -417,10 +593,33 @@ class Catalogue:
         return found[0] if len(found) == 1 else ""
 
     def unbound_python(self) -> list:
-        """Every public Python name that no C++ entity answers for."""
+        """Every public Python name that no entity answers for.
+
+        What pybind11 writes onto every class it binds is not a gap in
+        the catalogue: a protocol method belongs to Python itself, and
+        the `name` and `value` properties come with every bound
+        enumeration whether or not anybody asked. Listing them would
+        bury the names a reader actually has no page for.
+        """
         claimed = {entity.python for entity in self.entities if entity.python}
         found = []
         for spelling, declaration in self.surface.declared():
-            if spelling not in claimed and declaration.kind in ("function", "method"):
-                found.append((spelling, declaration))
+            if spelling in claimed or declaration.kind not in ("function", "method"):
+                continue
+            if is_dunder(declaration.name) or self._enumeration_property(declaration):
+                continue
+            found.append((spelling, declaration))
         return found
+
+    def _enumeration_property(self, declaration) -> bool:
+        if declaration.name not in ("name", "value") or not declaration.owner:
+            return False
+        holder = self.surface.native.get(declaration.module) or self.surface.public.get(
+            declaration.module
+        )
+        # An enumeration pybind11 bound carries the members table it
+        # writes, and nothing a person declares carries that name.
+        return (
+            holder is not None
+            and f"{declaration.owner}.__members__" in holder.declarations
+        )

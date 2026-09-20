@@ -663,7 +663,7 @@ def generate(manifest_path: Path, arguments) -> int:
 
     code = 0
     if arguments.reference:
-        code = reference.build(manifest, reference_options(arguments))
+        code = reference.generate(manifest, reference_options(arguments))
     if libraries:
         return code
     write_index(manifest)
@@ -744,7 +744,9 @@ def main(argv: list) -> int:
         "--no-xml",
         dest="xml",
         action="store_false",
-        help="with --manifest, skip the inventory pass and write only the sites",
+        help="with --manifest, skip the inventory pass; the reference layer "
+        "reads that inventory, so it is written only if an earlier run left "
+        "one behind",
     )
     parser.add_argument(
         "--no-reference",

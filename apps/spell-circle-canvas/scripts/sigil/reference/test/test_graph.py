@@ -24,13 +24,7 @@ class ASignatureIsReadForEveryTypeItMentions(unittest.TestCase):
 class AValueKnowsWhatMakesItAndWhatTakesIt(Tree):
     def setUp(self) -> None:
         super().setUp()
-        from sigil.reference import doxygen_xml
-
-        doxygen_xml.NODE_FLOOR, floor = 2, doxygen_xml.NODE_FLOOR
-        try:
-            self.held = self.catalogue()
-        finally:
-            doxygen_xml.NODE_FLOOR = floor
+        self.held = self.catalogue(node=True)
         self.graph = Graph(self.held)
 
     def labels(self, sites) -> list:
@@ -54,10 +48,26 @@ class AValueKnowsWhatMakesItAndWhatTakesIt(Tree):
         taken = self.labels(self.graph.pass_it_to("sigil::paint::Ink"))
         self.assertIn("Brush::tint", taken)
 
-    def test_a_single_argument_constructor_is_a_conversion(self) -> None:
+    def test_a_constructor_over_a_primitive_is_not_reported_as_one(self) -> None:
+        # `Ink(unsigned int)` converts from nothing a reader could go
+        # and make, so naming it a conversion would send them nowhere.
         made = self.graph.make_one("sigil::paint::Ink")
         conversion = next(site for site in made if site.label == "Ink(unsigned int)")
         self.assertEqual(conversion.note, "")
+
+    def test_a_constructor_over_a_named_type_is_a_conversion(self) -> None:
+        made = self.graph.make_one("sigil::paint::Wash")
+        conversion = next(site for site in made if site.label == "Wash(Ink)")
+        self.assertEqual(conversion.note, "implicit conversion from `Ink`")
+
+    def test_what_converts_is_taken_wherever_the_target_is(self) -> None:
+        # An `Ink` IS a `Wash` at every call that asks for one, and the
+        # Ink page is the only place that answer can be read.
+        taken = self.graph.pass_it_to("sigil::paint::Ink")
+        derived = next(site for site in taken if site.label == "Wash")
+        self.assertEqual(derived.kind, "type")
+        self.assertEqual(derived.target, "sigil::paint::Wash")
+        self.assertIn("anywhere a `Wash` is taken", derived.note)
 
     def test_a_field_is_a_way_in_and_a_way_out(self) -> None:
         # `Ink::alpha` is a float, so the float side of the graph sees

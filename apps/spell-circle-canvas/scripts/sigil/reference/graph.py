@@ -52,8 +52,8 @@ class Graph:
         ):
             held.append(site)
 
-    def _resolve(self, spelling: str, within: str) -> str:
-        return self.catalogue.resolve(spelling, within=within)
+    def _resolve(self, spelling: str, within: str, refs: tuple = ()) -> str:
+        return self.catalogue.resolve(spelling, within=within, refs=refs)
 
     def _python_of(self, qualified: str) -> str:
         entity = self.catalogue.entity(qualified)
@@ -64,16 +64,23 @@ class Graph:
     def _walk_declarations(self) -> None:
         for label, library, kind, declaration in self.catalogue.sites.values():
             within = declaration.qualified
-            accepts = [parameter.type_text for parameter in declaration.parameters]
+            returns, return_refs = declaration.returns, declaration.return_refs
+            accepts = [
+                (parameter.type_text, parameter.type_refs)
+                for parameter in declaration.parameters
+            ]
             if kind in ("field", "constant"):
                 # A public field is both ways through: setting it is how
                 # a value goes in, reading it is how one comes out.
-                accepts.append(declaration.returns)
-            for text in accepts:
-                self._sites(self.taken, text, within, label, library, kind, declaration)
+                accepts.append((returns, return_refs))
+            for text, refs in accepts:
+                self._sites(
+                    self.taken, text, refs, within, label, library, kind, declaration
+                )
             self._sites(
                 self.given,
-                declaration.returns,
+                returns,
+                return_refs,
                 within,
                 label,
                 library,
@@ -81,9 +88,11 @@ class Graph:
                 declaration,
             )
 
-    def _sites(self, index, text, within, label, library, kind, declaration) -> None:
+    def _sites(
+        self, index, text, refs, within, label, library, kind, declaration
+    ) -> None:
         for spelling, wrapper in catalogue_module.mentions(text):
-            target = self._resolve(spelling, within)
+            target = self._resolve(spelling, within, refs)
             if not target or target == declaration.owner:
                 continue
             self._add(
@@ -148,7 +157,7 @@ class Graph:
         named = [
             spelling
             for spelling, _ in catalogue_module.mentions(source)
-            if self._resolve(spelling, declaration.qualified)
+            if self._resolve(spelling, declaration.qualified, required[0].type_refs)
         ]
         outside = source.replace("const ", "").strip(" &").split("<", 1)[0]
         if not named and not outside.startswith(("std::", "Sk", "sk_sp")):
@@ -161,7 +170,7 @@ class Graph:
             parameter for parameter in declaration.parameters if not parameter.default
         )
         for spelling, _ in catalogue_module.mentions(source.type_text):
-            target = self._resolve(spelling, qualified)
+            target = self._resolve(spelling, qualified, source.type_refs)
             if not target or target == qualified:
                 continue
             self._add(

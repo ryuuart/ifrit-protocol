@@ -106,42 +106,38 @@ class Shell:
 
 
 class Index:
-    """The rows one index page shows, and the JSON search reads."""
+    """The rows one index page shows, and the JSON search reads.
+
+    One row per page, never two. A value is an entity with a page like
+    any other, so a second row for the same URL would put the same page
+    in a result list twice and split every `kind:` query in half.
+    """
 
     def __init__(self):
         self.rows = []
+        self.by_url = {}
 
     def add(self, entity: model.Entity, url: str, accepts: list, returns: str) -> None:
-        self.rows.append(
-            {
-                "name": entity.name,
-                "kind": entity.kind,
-                "library": entity.library,
-                "group": entity.group,
-                "python": entity.python,
-                "summary": entity.summary(),
-                "url": url,
-                "accepts": accepts,
-                "returns": returns,
-                "state": entity.binding_state,
-            }
-        )
+        row = {
+            "name": entity.name,
+            "kind": entity.kind,
+            "library": entity.library,
+            "group": entity.group,
+            "python": entity.python,
+            "summary": entity.summary(),
+            "url": url,
+            "accepts": accepts,
+            "returns": returns,
+            "state": entity.binding_state,
+        }
+        self.rows.append(row)
+        self.by_url[url] = row
 
-    def value(self, qualified: str, made: int, taken: int, library: str) -> None:
-        self.rows.append(
-            {
-                "name": qualified.rsplit("::", 1)[-1],
-                "kind": "value",
-                "library": library,
-                "group": "",
-                "python": "",
-                "summary": f"{made} ways to make one, taken in {taken} places",
-                "url": value_page(qualified),
-                "accepts": [],
-                "returns": qualified,
-                "state": "",
-            }
-        )
+    def counts(self, url: str, made: int, taken: int, given: int) -> None:
+        """The three numbers a value's row carries beside its summary."""
+        row = self.by_url.get(url)
+        if row is not None:
+            row.update({"made": made, "taken": taken, "given": given})
 
     def write(self, root: Path) -> None:
         body = json.dumps(self.rows, separators=(",", ":"), sort_keys=True)

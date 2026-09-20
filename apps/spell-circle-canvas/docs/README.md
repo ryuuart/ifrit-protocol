@@ -130,9 +130,9 @@ The overview-and-reference layer is written after those three, out of
 that inventory plus the Python declaration stubs and the binding
 sources. It is the only consumer of the XML. `--no-reference` leaves it
 out; `--reference-only` writes it alone, reading an inventory an
-earlier run left behind, which takes about a second over the whole tree
-and is the loop to use while prose is moving. `REFERENCE.md` is the
-canon for all of it.
+earlier run left behind, which runs no Doxygen and is the loop to use
+while prose is moving. With no inventory anywhere it says so and is
+skipped. `REFERENCE.md` is the canon for all of it.
 
 A tag file and an inventory are rewritten when a header, a README, or
 the Doxyfile that reads them is newer, so a second `docs` build

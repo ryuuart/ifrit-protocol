@@ -7,9 +7,9 @@
    "values": 3
   },
   "SigilCompose": {
-   "entities": 650,
+   "entities": 656,
    "pages": 23,
-   "bound": 180,
+   "bound": 186,
    "values": 238
   },
   "SigilCore": {
@@ -25,9 +25,9 @@
    "values": 25
   },
   "SigilDraw": {
-   "entities": 93,
+   "entities": 94,
    "pages": 0,
-   "bound": 56,
+   "bound": 57,
    "values": 50
   },
   "SigilGeometry": {
@@ -43,15 +43,15 @@
    "values": 24
   },
   "SigilImage": {
-   "entities": 21,
+   "entities": 25,
    "pages": 0,
-   "bound": 2,
+   "bound": 6,
    "values": 11
   },
   "SigilMaterial": {
-   "entities": 304,
+   "entities": 305,
    "pages": 6,
-   "bound": 65,
+   "bound": 66,
    "values": 108
   },
   "SigilMeasure": {
@@ -61,9 +61,9 @@
    "values": 14
   },
   "SigilMotion": {
-   "entities": 105,
+   "entities": 118,
    "pages": 0,
-   "bound": 34,
+   "bound": 47,
    "values": 47
   },
   "SigilPython": {
@@ -91,9 +91,9 @@
    "values": 112
   },
   "SigilSkia": {
-   "entities": 15,
+   "entities": 16,
    "pages": 0,
-   "bound": 0,
+   "bound": 1,
    "values": 7
   },
   "SigilSubstance": {
@@ -115,15 +115,15 @@
    "values": 13
   },
   "SigilWeave": {
-   "entities": 226,
+   "entities": 228,
    "pages": 0,
-   "bound": 82,
+   "bound": 84,
    "values": 119
   },
   "SigilWorld": {
-   "entities": 138,
+   "entities": 139,
    "pages": 0,
-   "bound": 39,
+   "bound": 40,
    "values": 58
   },
   "SpellCircle": {

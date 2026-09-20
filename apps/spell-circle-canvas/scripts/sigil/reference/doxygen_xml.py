@@ -18,8 +18,8 @@ from sigil.reference import model
 
 # A class becomes its library's node when this many of its own members
 # hand it back for chaining. Below that a fluent pair of setters is just
-# a pair of setters, and calling them verbs would put two entries in a
-# catalogue that reads as a hundred and eighteen elsewhere.
+# a pair of setters, and a library that has no element tree at all would
+# otherwise get a Verbs catalogue holding both of them.
 NODE_FLOOR = 10
 
 COMPOUND_TYPES = ("class", "struct", "union", "interface")

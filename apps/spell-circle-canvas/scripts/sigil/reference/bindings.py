@@ -9,9 +9,10 @@ that has no C++ counterpart at all. Those three shapes, plus a C++
 member nothing binds, are the four states a page's badge names.
 
 A scan is honest here because the only thing it decides is that badge,
-and it sits between two inventories that check it: a name the scan
-calls unbound while the stubs declare it is a contradiction the
-coverage report prints by name.
+and it sits between two inventories that check it: a name it finds
+that no header declares is either a convenience only Python has, which
+the stubs then confirm, or a contradiction the coverage report prints
+by name.
 """
 
 import dataclasses
@@ -33,7 +34,7 @@ HOLDER = re.compile(
     r"py::(?P<holder>class_|enum_)\s*<(?P<arguments>.+?)>\s*(?P<variable>\w+)?\s*\(",
     re.DOTALL,
 )
-ALIAS = re.compile(r"^namespace\s+(\w+)\s*=\s*([\w:]+)\s*;", re.MULTILINE)
+ALIAS = re.compile(r"^\s*namespace\s+(\w+)\s*=\s*([\w:]+)\s*;", re.MULTILINE)
 USING = re.compile(r"^\s*using\s+([\w:]+::\w+)\s*;", re.MULTILINE)
 INCLUDE = re.compile(r"^#include\s+<(sigil\w+|ifrit\w+|spellcircle)/", re.MULTILINE)
 
@@ -62,7 +63,10 @@ ATTACHED = re.compile(
 ENTRY = re.compile(
     r"\bvoid\s+bind\w*\s*\(\s*(?:py|pybind11)::module_\s*&\s*(?P<parameter>\w+)\s*\)"
 )
-VALUE = re.compile(r"\.value\s*\(\s*\"(?P<name>[^\"]+)\"")
+# An enumerator, and the C++ expression it is given. The two differ
+# whenever the C++ spelling is not a legal Python name, so the name
+# alone cannot be appended to the enumeration to recover it.
+VALUE = re.compile(r"\.value\s*\(\s*\"(?P<name>[^\"]+)\"\s*(?:,\s*(?P<target>[\w:]+))?")
 # `py::class_<Fill>(composition, "Fill")` — the module it lands in and
 # the name Python knows the type by, which is the only place a type's
 # Python spelling is written down.
@@ -325,13 +329,16 @@ class Scan:
             )
         if owner in self.enums:
             for match in VALUE.finditer(statement):
+                spelled = match.group("target")
                 self.bindings.append(
                     Binding(
                         name=match.group("name"),
                         owner=owner,
                         module=module,
                         style=model.DIRECT,
-                        target=f"{owner}::{match.group('name')}",
+                        target=qualify(spelled, self.aliases, self.usings)
+                        if spelled
+                        else f"{owner}::{match.group('name')}",
                         flavour="value",
                         source=str(self.path),
                         roots=self.roots,

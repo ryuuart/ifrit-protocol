@@ -27,7 +27,7 @@ SigilDraw and SigilSketch.
 ```sh
 cmake --build build --target docs                  # sites, then this layer
 python3 scripts/sigil.py docs --manifest build/docs-manifest.txt \
-        --reference-only                           # this layer alone, in a second
+        --reference-only                           # this layer alone
 open build/docs/reference/index.html
 ```
 
@@ -43,7 +43,12 @@ entirely and reads the XML inventory an earlier run left in
 | `--example-images` | render every page's example in both languages |
 | `--report` | print every entity with no page, and keep the ledger |
 | `--strict` | with `--report`, fail when coverage has DROPPED |
-| `--library <Name>` | narrow to one library |
+
+`--library` narrows the Doxygen sites and nothing here: a value's
+answer crosses libraries, so this layer reads every one of them
+whatever that flag names. With no inventory to read — `--no-xml` on a
+tree that has never had the third pass run — the layer says so and is
+skipped rather than failing the verb.
 
 `--example-images` is off by default because a C++ example compiles
 before it draws. `--strict` belongs in the one refinement pass before a
@@ -147,25 +152,47 @@ it catalogued with nothing registered by hand.
 **The node type is found, not declared.** A library's node is the class
 most of whose members hand it back for chaining. Below ten such members
 a library has no node, and then only types, enumerations and functions
-apply — which is the honest answer for SigilData, SigilIO and
-SigilMeasure.
+apply.
 
-## Three deliberate departures from the design this was built to
+The rule names whatever chains, which in a library with no element tree
+is its one fluent builder: that builder's factory is then catalogued as
+the library's single element and its setters as the library's verbs.
+The catalogue says what the library is shaped like, not what its author
+called things.
 
-**A value has one page, not two.** The design gives a type a page under
-its library and another under `values/`; both would carry the same
-three tables. The page is `values/<qualified>.html`, tree-wide, and the
-declaring library's `types/` and `enums/` indexes link to it.
+**A name only Python has is an entity too.** A binding that composes
+two C++ calls into one, or takes a Python object where no header does,
+has nothing on the C++ side to match. Where the stubs export it, it is
+catalogued under the library whose vocabulary it extends — a verb when
+it lands on that library's node, an element when it hands one back, a
+function otherwise — and its page wears the `Python only` badge. A
+dependency's own type, handed to Python as it stands, is not
+catalogued at all: it has a reference of its own.
 
-**Cross-library types are matched by name, not by Doxygen's refid.**
-The XML pass reads no tag files, so a type from another library is
-plain text in a signature and has no refid at all. Names are matched on
-their tails, the enclosing namespace decides a tie, and a tail that
-still fits several resolves to nothing rather than to a guess.
+A name that two namespaces of one library spell is two pages, and the
+one that has to say more says it: `functions/grid` and
+`functions/mesh.points.grid`. Two entities are never written to one
+file — the run stops and names both rather than putting one page over
+the other.
 
-**A page's generated sections are generated, not transcribed.** The
-design's worked page shows the Syntax and Values tables written out by
-hand; they are XML, and writing them by hand would be copying it.
+## Three constraints the layer is built around
+
+**A value has one page, not two.** A type's three tables are the same
+wherever they are read from, so the page is `values/<qualified>.html`,
+tree-wide, and the declaring library's `types/` and `enums/` indexes
+link to it rather than carrying a second copy.
+
+**Cross-library types are matched on their tails.** A signature carries
+Doxygen's own identifier for a type its own library declares, and that
+identifier is exact. The XML pass reads no tag files, so a type from
+another library is plain text with no identifier at all: those are
+matched on their tails, the enclosing namespace decides a tie, and a
+tail that still fits several resolves to nothing rather than a guess.
+
+**A page's generated sections are generated, not transcribed.** Syntax,
+Parameters, Values, Members and the three type tables are read off the
+XML on every build; a copy written by hand into a page can only go
+stale, and the report prints one when it finds it.
 
 ## Keeping it true
 
@@ -183,10 +210,15 @@ was declared at and the Python name it is bound under. The findings:
 | `no summary` | a page and a header that both say nothing |
 | `no example` | a page with no `example:` stem |
 | `orphan page` | a Markdown file naming no entity |
-| `contradiction` | a binding whose C++ name nothing declares |
+| `contradiction` | a binding naming something neither side declares |
 | `unresolved link` | a `sigil.…` path a page spells that the stubs do not carry |
 | `stale front matter` | a page spelling a key the generator writes |
 | `unbound python` | a declaration in the stubs that reaches no page |
+
+What pybind11 writes onto every class it binds is not a gap: Python's
+own protocol methods and the `name` and `value` properties that come
+with every bound enumeration are left out, because listing them would
+bury the names a reader really has no page for.
 
 `docs/reference_coverage.json` is the ledger, one row per library, so a
 narrowed run raises its own library's count without discarding what it
@@ -202,7 +234,7 @@ it is compiled. Python names are checked here, against the stub tree.
 
 ```
 scripts/sigil/reference/
-  __init__.py       build(manifest, options)
+  __init__.py       generate(manifest, options)
   model.py          Entity, Signature, Parameter, Site, Page — the shared records
   doxygen_xml.py    reader one: the C++ surface, out of the XML inventory
   python_stubs.py   reader two: the Python surface and the role unions

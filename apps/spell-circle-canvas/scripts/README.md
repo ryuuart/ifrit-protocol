@@ -104,11 +104,17 @@ The reference generator keeps fixtures of the same shape and for the
 same reason, under `scripts/sigil/reference/test/` as one ctest entry,
 `reference_generator`: a small tree carrying every shape its three
 readers have to handle — a node type with verbs, a factory, a kit
-component, a value with a constructor, an enumeration, a role union, a
-binding chain whose lambda bodies must not cut the chain, and a public
-Python name that renames the native one. A reader that quietly stops
-matching writes a thinner site that still looks like a site, so only
-the fixtures see it. Pure Python: no build tree, no Doxygen.
+component, two values with one converting to the other, an
+enumeration, a role union, a name two namespaces share, a convenience
+Python has and C++ has not, a binding chain whose lambda bodies must
+not cut the chain, and a public Python name that renames the native
+one — and one whole run over that tree into a temporary root, so the
+pages, the search index and the coverage ledger are read back as well.
+A reader that quietly stops matching writes a thinner site that still
+looks like a site, so only the fixtures see it. Pure Python: no build
+tree, no Doxygen, and registered whether or not Doxygen is installed,
+since the checkout without it is the one where nothing else would
+notice.
 
 ## Configuring — `setup`
 
@@ -673,9 +679,9 @@ declaration stubs under `apps/python/sigil`, and the `.def` calls in
 the binding sources, and joins the three so that one page carries both
 spellings and a badge when they diverge. Nothing in it runs Doxygen:
 `--reference-only` writes the layer alone from an inventory an earlier
-run left behind, in about a second over the whole tree, which is the
-loop while prose is moving; `--no-reference` leaves it out;
-`--example-images` renders each page's example in both languages;
+run left behind, which is the loop while prose is moving, and with no
+inventory to read it says so and is skipped; `--no-reference` leaves it
+out; `--example-images` renders each page's example in both languages;
 `--report` prints every entity with no page by name and keeps
 `docs/reference_coverage.json`, and `--strict` fails when that ledger
 shows coverage has DROPPED — which belongs in the one refinement pass

@@ -154,6 +154,7 @@ class Build:
     # ----------------------------------------------------------- writing
 
     def write(self) -> int:
+        self._one_page_each()
         site_module.stage(self.templates, self.root)
         self._write_entities()
         self._write_kind_indexes()
@@ -164,6 +165,23 @@ class Build:
         self.index.write(self.root)
         print(f"Reference written to {self.root / 'reference' / 'index.html'}")
         return 0
+
+    def _one_page_each(self) -> None:
+        """Stops before writing if two entities claim the same page.
+
+        Two pages written to one path is the worst failure this layer
+        has: the second silently replaces the first, both are still
+        indexed, and a reader searching the name lands on the wrong
+        subject with nothing anywhere saying so.
+        """
+        filed = {}
+        for entity in self.catalogue.entities:
+            held = filed.setdefault(entity.path(), entity)
+            if held is not entity:
+                sys.exit(
+                    f"{entity.path()}.html is claimed by two entities: "
+                    f"{held.qualified} and {entity.qualified}"
+                )
 
     def _write_entities(self) -> None:
         for entity in self.catalogue.entities:
@@ -194,7 +212,9 @@ class Build:
         for signature in entity.signatures:
             for parameter in signature.parameters:
                 for spelling, _ in catalogue_module.mentions(parameter.type_text):
-                    target = self.catalogue.resolve(spelling, within=entity.qualified)
+                    target = self.catalogue.resolve(
+                        spelling, within=entity.qualified, refs=parameter.type_refs
+                    )
                     if target:
                         found.add(target.rsplit("::", 1)[-1])
         return found
@@ -219,11 +239,9 @@ class Build:
             parts.append(f"<code>{html.escape(entity.python)}</code>")
         if entity.doxygen:
             parts.append(f'<a href="{links.to(entity.doxygen)}">The literal API</a>')
-        if entity.qualified in self.values:
-            parts.append(
-                f'<a href="{links.to(self.values[entity.qualified])}">'
-                "What makes one and what takes one</a>"
-            )
+        # No link to what makes this value: a value's page IS that page,
+        # and every other page reaches the values it touches through the
+        # types in its own tables.
         return '<footer class="origin">' + " · ".join(parts) + "</footer>"
 
     def _write_kind_indexes(self) -> None:
@@ -368,7 +386,7 @@ class Build:
                 f"<td>{made}</td><td>{taken}</td><td>{given}</td>"
                 f"<td>{html.escape(entity.python)}</td></tr>"
             )
-            self.index.value(qualified, made, taken, entity.library)
+            self.index.counts(path, made, taken, given)
         self.shell.write(
             "values/index.html",
             "Values",
@@ -579,10 +597,13 @@ def python_surface(package: Path):
     return python_stubs.read(package)
 
 
-def build(manifest, options: Options) -> int:
+def generate(manifest, options: Options) -> int:
     run = Build(manifest, options)
     if not run.read():
-        return 1
+        # No inventory means the XML pass has not run. The layer is
+        # skipped with the note it printed, not failed: a run that
+        # asked for the Doxygen sites alone still did what it was for.
+        return 0
     code = run.write()
     if options.report or options.strict:
         code = report_module.write(run) or code

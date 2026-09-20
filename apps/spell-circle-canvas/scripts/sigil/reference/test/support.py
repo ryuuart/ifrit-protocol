@@ -1,11 +1,14 @@
 """A small tree of every shape the readers have to handle.
 
-One library, one node type with one verb, one factory, one value with
-an implicit conversion, one enumeration, and a Python surface that
-re-exports part of it under a renamed spelling. Small enough to read,
-and it exercises every branch the real tree exercises.
+One library, one node type with its verbs, one factory, one kit
+component, two values — one of them made by converting the other — one
+enumeration, a name two namespaces share, a convenience Python has and
+C++ has not, and a public surface that re-exports part of it under a
+renamed spelling. Small enough to read, and it exercises every branch
+the real tree exercises.
 """
 
+import contextlib
 import sys
 import tempfile
 import textwrap
@@ -78,6 +81,65 @@ VALUE = """<?xml version='1.0' encoding='UTF-8' standalone='no'?>
       </memberdef>
     </sectiondef>
     <location file="sigilpaint/Ink.h" line="7"/>
+  </compounddef>
+</doxygen>
+"""
+
+WASH = """<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen version="1.18.0">
+  <compounddef id="structsigil_1_1paint_1_1_wash" kind="struct" prot="public">
+    <compoundname>sigil::paint::Wash</compoundname>
+    <briefdescription><para>Ink let down with water. </para></briefdescription>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structsigil_1_1paint_1_1_wash_1aee" prot="public"
+                 static="no" const="no" explicit="no">
+        <type/>
+        <definition>sigil::paint::Wash::Wash</definition>
+        <argsstring>(Ink source)</argsstring>
+        <name>Wash</name>
+        <qualifiedname>sigil::paint::Wash::Wash</qualifiedname>
+        <param><type><ref refid="structsigil_1_1paint_1_1_ink" kindref="compound">Ink</ref></type>
+               <declname>source</declname></param>
+        <briefdescription/><detaileddescription/>
+        <location file="sigilpaint/Wash.h" line="10"/>
+      </memberdef>
+    </sectiondef>
+    <location file="sigilpaint/Wash.h" line="8"/>
+  </compounddef>
+</doxygen>
+"""
+
+STOCK = """<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen version="1.18.0">
+  <compounddef id="structsigil_1_1paint_1_1stock_1_1_wash" kind="struct" prot="public">
+    <compoundname>sigil::paint::stock::Wash</compoundname>
+    <briefdescription><para>A wash mixed to a recipe. </para></briefdescription>
+    <location file="sigilpaint/stock/Wash.h" line="6"/>
+  </compounddef>
+</doxygen>
+"""
+
+MIXERS = """<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen version="1.18.0">
+  <compounddef id="namespacesigil_1_1paint_1_1mixers" kind="namespace" prot="public">
+    <compoundname>sigil::paint::mixers</compoundname>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="namespacesigil_1_1paint_1_1mixers_1a11" prot="public"
+                 static="no" const="no" explicit="no">
+        <type><ref refid="structsigil_1_1paint_1_1_ink" kindref="compound">Ink</ref></type>
+        <definition>Ink sigil::paint::mixers::hexInk</definition>
+        <argsstring>(unsigned int packed, float alpha)</argsstring>
+        <name>hexInk</name>
+        <qualifiedname>sigil::paint::mixers::hexInk</qualifiedname>
+        <param><type>unsigned int</type><declname>packed</declname></param>
+        <param><type>float</type><declname>alpha</declname></param>
+        <briefdescription><para>An ink from a packed colour and an opacity. </para></briefdescription>
+        <detaileddescription/>
+        <location file="sigilpaint/Mixers.h" line="12"
+                  declfile="sigilpaint/Mixers.h" declline="12"/>
+      </memberdef>
+    </sectiondef>
+    <location file="sigilpaint/Mixers.h" line="4"/>
   </compounddef>
 </doxygen>
 """
@@ -160,7 +222,7 @@ INDEX = """<?xml version='1.0' encoding='UTF-8' standalone='no'?>
 STUB = """
 from __future__ import annotations
 import typing
-__all__: list[str] = ['Brush', 'Ink', 'Cap', 'brush', 'hexInk']
+__all__: list[str] = ['Brush', 'Ink', 'Wash', 'Cap', 'brush', 'hexInk']
 
 class Brush:
 
@@ -170,11 +232,33 @@ class Brush:
     def width(self, value: typing.SupportsFloat) -> Brush:
         ...
 
+    def thicken(self, amount: typing.SupportsFloat) -> Brush:
+        ...
+
+    def thin(self, amount: typing.SupportsFloat) -> Brush:
+        ...
+
 class Ink:
     pass
 
-class Cap:
+class Wash:
     pass
+
+class Cap:
+    Butt: typing.ClassVar[Cap]
+    Round: typing.ClassVar[Cap]
+    __members__: typing.ClassVar[dict[str, Cap]]
+
+    def __eq__(self, other: object) -> bool:
+        ...
+
+    @property
+    def name(self) -> str:
+        ...
+
+    @property
+    def value(self) -> int:
+        ...
 
 def brush() -> Brush:
     ...
@@ -186,6 +270,7 @@ def hexInk(packed: typing.SupportsInt) -> Ink:
 PUBLIC = """
 from _sigil.paint import (
     Brush,
+    Cap,
     Ink,
     brush,
 )
@@ -220,12 +305,85 @@ void bindPaint(py::module_& root) {
   brush.def("tint", [](Brush& self, py::object value) -> Brush& {
         return self.tint(ink(value));
       })
-      .def("width", &Brush::width, py::arg("value"));
+      .def("width", &Brush::width, py::arg("value"))
+      .def("thicken", [](Brush& self, float amount) -> Brush& {
+        return self.width(amount * 2.0f);
+      });
   module.def("brush", &paint::brush);
   module.def("hexInk", [](unsigned packed) { return paint::hexInk(packed); });
 }
 }  // namespace sigil::python
 """
+
+# One hand-written page, one page naming nothing, and the example the
+# first of them asks for.
+PAGE = """---
+kind: verb
+library: SigilPaint
+name: tint
+group: Colour
+example: tint_verb
+python: sigil.paint.Brush.tint
+---
+
+# tint
+
+The colour every mark after it is laid down in.
+
+## Description
+
+A tint is resolved where the mark lands, not where it is set.
+
+## Examples
+
+```python
+paint.brush().tint(sigil.paint.nothing)
+```
+
+<!-- example: tint_verb -->
+"""
+
+ORPHAN = """---
+kind: verb
+library: SigilPaint
+name: nothingAtAll
+---
+
+Nothing declares this.
+"""
+
+EXAMPLE = """from sigil import paint
+
+paint.brush().tint("#1f2933")
+"""
+
+
+class Library:
+    """One row of the manifest, as the docs verb reads it."""
+
+    def __init__(self, name: str, brief: str, strip: list):
+        self.name = name
+        self.brief = brief
+        self.strip = strip
+
+
+class Manifest:
+    """What the docs verb hands the reference layer, over the small tree."""
+
+    def __init__(self, root: Path, source: Path):
+        self.root = root / "docs"
+        self.work = root / "work"
+        self.templates = root / "templates"
+        self.libraries = [
+            Library(
+                "SigilPaint",
+                "Marks, and what they are made of.",
+                [str(source / "include"), str(source), str(root)],
+            )
+        ]
+
+    def find(self, name: str) -> Library:
+        return next(one for one in self.libraries if one.name == name)
 
 
 class Tree(unittest.TestCase):
@@ -241,10 +399,23 @@ class Tree(unittest.TestCase):
             ("index.xml", INDEX),
             ("classsigil_1_1paint_1_1_brush.xml", COMPOUND),
             ("structsigil_1_1paint_1_1_ink.xml", VALUE),
+            ("structsigil_1_1paint_1_1_wash.xml", WASH),
+            ("structsigil_1_1paint_1_1stock_1_1_wash.xml", STOCK),
             ("namespacesigil_1_1paint.xml", NAMESPACE),
             ("namespacesigil_1_1paint_1_1kit.xml", KIT),
+            ("namespacesigil_1_1paint_1_1mixers.xml", MIXERS),
         ):
             (xml / name).write_text(body)
+
+        self.source = self.root / "src" / "paint"
+        prose = self.source / "reference" / "pages" / "verbs"
+        prose.mkdir(parents=True)
+        (prose / "tint.md").write_text(PAGE)
+        (prose / "nothingAtAll.md").write_text(ORPHAN)
+        examples = self.source / "reference" / "examples"
+        examples.mkdir(parents=True)
+        (examples / "tint_verb.py").write_text(EXAMPLE)
+        (self.root / "templates").mkdir()
 
         package = self.root / "package"
         (package / "stubs" / "_sigil" / "paint").mkdir(parents=True)
@@ -265,11 +436,43 @@ class Tree(unittest.TestCase):
         (sources / "PaintBindings.cpp").write_text(textwrap.dedent(BINDING))
         self.sources = [sources]
 
-    def catalogue(self):
+    def catalogue(self, node: bool = False):
         from sigil.reference import bindings, catalogue, doxygen_xml, python_stubs
 
-        inventories = doxygen_xml.read(self.root / "work", ["SigilPaint"])
+        with lowered_floor(node):
+            inventories = doxygen_xml.read(self.root / "work", ["SigilPaint"])
         surface, roles = python_stubs.read(self.package)
         return catalogue.Catalogue(
             inventories, surface, roles, bindings.read(self.sources)
         )
+
+    def built(self, **asked):
+        """One whole run over the small tree, read but not yet written."""
+        from sigil.reference.build import Build, Options
+
+        manifest = Manifest(self.root, self.source)
+        options = Options(package=self.package, binding_sources=self.sources, **asked)
+        run = Build(manifest, options)
+        with lowered_floor(True):
+            self.assertTrue(run.read())
+        return run
+
+
+@contextlib.contextmanager
+def lowered_floor(lower: bool):
+    """The fixture's Brush chains twice, and a node chains ten times.
+
+    Two members is the shape the readers have to handle; ten of them is
+    only more of the same text, so the floor comes down instead.
+    """
+    from sigil.reference import doxygen_xml
+
+    if not lower:
+        yield
+        return
+    standing = doxygen_xml.NODE_FLOOR
+    doxygen_xml.NODE_FLOOR = 2
+    try:
+        yield
+    finally:
+        doxygen_xml.NODE_FLOOR = standing
