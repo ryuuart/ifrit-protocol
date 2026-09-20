@@ -166,6 +166,15 @@ The pen wrapper checks both its drawing thread and callback lifetime. Every
 native drawing callback receives this same wrapper. Retaining it in Python
 does not extend access to the borrowed pen.
 
+A native call whose callback is handed a canvas rather than a pen gets one
+built for it, so the author draws with the same verbs and the same checks
+everywhere. A panel is that case: its body is lent a pen of its own, opened
+on the canvas the perspective transform left standing, whose `width` and
+`height` are the panel's size in world units and whose origin is the panel's
+centre. What the body raises is carried back out of the native draw and
+raised after it returns, because the call stands inside a canvas save that an
+exception through it would leave open.
+
 ## Conversion and resource seams
 
 * `Bindings.h` — `color`
